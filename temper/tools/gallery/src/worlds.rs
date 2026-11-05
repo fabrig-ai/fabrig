@@ -376,6 +376,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: FORGE,
@@ -417,6 +418,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 2,
@@ -508,6 +510,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,

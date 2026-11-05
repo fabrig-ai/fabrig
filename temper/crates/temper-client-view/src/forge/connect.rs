@@ -751,6 +751,10 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
         );
         return;
     }
+    let repository = match row.starts_with {
+        forge::forges::StartsWith::Repository => true,
+        forge::forges::StartsWith::Copies { .. } | forge::forges::StartsWith::Nothing => false,
+    };
     let failed = connect::failed_step(row);
     let failed_index = match failed {
         Some(connect::FailedStep::Fetch) => Some(0),
@@ -818,18 +822,15 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
     {
         text(b, w, Role::Status, Word::FlowUnderWay);
     }
-    flow::progress(
-        b,
-        w,
-        &w.say(Word::ForgeProgress, &[]),
-        &[
-            (&fetch, stage_mark(current, failed_index, 0)),
-            (&prepare, stage_mark(current, failed_index, 1)),
-            (&run, stage_mark(current, failed_index, 2)),
-            (&connecting, stage_mark(current, failed_index, 3)),
-            (&making, stage_mark(current, failed_index, 4)),
-        ],
-    );
+    let steps = [
+        (fetch.as_ref(), stage_mark(current, failed_index, 0)),
+        (prepare.as_ref(), stage_mark(current, failed_index, 1)),
+        (run.as_ref(), stage_mark(current, failed_index, 2)),
+        (connecting.as_ref(), stage_mark(current, failed_index, 3)),
+        (making.as_ref(), stage_mark(current, failed_index, 4)),
+    ];
+    let steps = if repository { steps.as_slice() } else { steps.get(..4).expect("four forge steps") };
+    flow::progress(b, w, &w.say(Word::ForgeProgress, &[]), steps);
     if connect::failed(row) {
         failure(b, w, row);
     }
@@ -845,7 +846,10 @@ fn stage_mark(current: Option<usize>, failed: Option<usize>, index: usize) -> Ma
 }
 fn setup_target<'a>(root: &'a Domain, row: &Row) -> Option<(&'a [u8], &'a [u8])> {
     match root.forge().set_up() {
-        Some(last) if last.forge == Some(row.number) => Some((&last.org, &last.repository)),
+        Some(last) if last.forge == Some(row.number) => match &last.first {
+            forge::forges::SetUpFirst::Empty(first) => Some((first.org(), first.repository())),
+            forge::forges::SetUpFirst::Copies(_) | forge::forges::SetUpFirst::Nothing => None,
+        },
         Some(_) | None => None,
     }
 }
@@ -937,6 +941,13 @@ pub(crate) fn ready_card(
             &w.say(Word::ForgeMadeRepository, &[Hole::Name(forge::words::full_name(&first.org, &first.repository))]),
         );
         progress_in(b, Some(root), w, row);
+    } else {
+        match row.starts_with {
+            forge::forges::StartsWith::Repository => {}
+            forge::forges::StartsWith::Copies { .. } | forge::forges::StartsWith::Nothing => {
+                progress_in(b, Some(root), w, row);
+            }
+        }
     }
     app_line(b, w, row);
     adopt(b, root, w, bindings);

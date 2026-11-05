@@ -40,6 +40,19 @@ fn event(driver: &mut Driver, event: forge::Event) {
     driver.settle();
 }
 fn setup(driver: &mut Driver, serial: u8, org: &[u8], repository: &[u8]) -> Option<engine::ApplicationAnswer> {
+    setup_intent(
+        driver,
+        serial,
+        forge::Making::Kept(1),
+        forge::SetUpFirst::Empty { org: org.into(), repository: repository.into(), playground: false },
+    )
+}
+fn setup_intent(
+    driver: &mut Driver,
+    serial: u8,
+    making: forge::Making,
+    first: forge::SetUpFirst,
+) -> Option<engine::ApplicationAnswer> {
     let reply = ReplyTo::new(Token::new(u64::from(serial)));
     driver.send(engine::Event::Party(engine::PartyInput::Application {
         scope: jig_domain_people::ApplicationScope::Deployment,
@@ -48,12 +61,7 @@ fn setup(driver: &mut Driver, serial: u8, org: &[u8], repository: &[u8]) -> Opti
         key: [serial; 16],
         digest: [serial; 32],
         carried: None,
-        request: engine::Application::Forge(forge::Ask::SetUp {
-            playground: false,
-            forge: forge::Making::Kept(1),
-            org: org.into(),
-            repository: repository.into(),
-        }),
+        request: engine::Application::Forge(forge::Ask::SetUp { forge: making, first }),
     }));
     driver.settle();
     driver.delivered.iter().rev().find_map(|value| {
@@ -125,7 +133,7 @@ fn exact_grammar_limits_and_repository_punctuation_are_admitted() {
     for (org, name) in [(vec![b'o'; 40], vec![b'r'; 100]), (b"work".to_vec(), b".hello_World-9.".to_vec())] {
         let mut driver = driver(true);
         assert_eq!(setup(&mut driver, 54, &org, &name), None, "an admitted setup waits for the box's answer");
-        assert!(driver.immediate.iter().any(|request| matches!(request, engine::Request::SetUp { forge: 1, org: actual_org, repository: actual_name, .. } if actual_org.as_ref() == org && actual_name.as_ref() == name)), "admitted names must reach the box whole");
+        assert!(driver.immediate.iter().any(|request| matches!(request, engine::Request::SetUp { forge: 1, first: forge::SetUpFirst::Empty { org: actual_org, repository: actual_name, .. }, .. } if actual_org.as_ref() == org && actual_name.as_ref() == name)), "admitted names must reach the box whole");
     }
 }
 
@@ -321,5 +329,57 @@ fn engine_name_limit_is_checked_even_when_forge_grammar_allows_the_names() {
             Some(engine::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(forge::SetUpRefusal::Invalid)))
         };
         assert_eq!(answer, expected, "org {org:?}, repository {name:?}, name_bytes = 4");
+    }
+}
+
+fn owned_config() -> engine::Config {
+    let mut config = walking::config(701);
+    config.under_box = true;
+    config.forges = Box::new([]);
+    let place = forge::Place {
+        api: forge::Address { host: b"forge.example".as_slice().into(), port: 3000, tls: None },
+        git: b"http://forge.example:3000".as_slice().into(),
+        web: None,
+    };
+    config.machine =
+        Some(forge::Machine { owned: Some(place.clone()), fake: None, github: place, github_git_program: None });
+    config
+}
+#[test]
+fn deferred_owned_rows_keep_their_choice_across_engine_restart() {
+    let address: Box<[u8]> = Box::from(b"https://source.example/owner/repo".as_slice());
+    for (first, starts_with) in [
+        (forge::SetUpFirst::Nothing, forge::StartsWith::Nothing),
+        (
+            forge::SetUpFirst::Copies { addresses: Box::new([address.clone()]) },
+            forge::StartsWith::Copies { addresses: Box::new([address]) },
+        ),
+    ] {
+        let limits = fixtures::forge_limits();
+        let mut driver = Driver::configured(Store::new(), std::array::from_fn(|_| owned_config()), &limits);
+        driver.hello(Token::new(7));
+        driver.settle();
+        driver.sign_in();
+        driver.settle();
+        let _answer = setup_intent(&mut driver, 71, forge::Making::New(forge::ForgeAsk::Owned), first);
+        event(
+            &mut driver,
+            forge::Event::Connection {
+                forge: 1,
+                state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
+            },
+        );
+        let rows = forges(&mut driver);
+        assert_eq!(rows.rows[0].starts_with, starts_with);
+        assert_eq!(rows.rows[0].first, None);
+        let store = driver.store.fork();
+        let mut restarted = Driver::configured(store, std::array::from_fn(|_| owned_config()), &limits);
+        restarted.hello(Token::new(7));
+        restarted.settle();
+        restarted.sign_in();
+        restarted.settle();
+        let rows = forges(&mut restarted);
+        assert_eq!(rows.rows[0].starts_with, starts_with);
+        assert_eq!(rows.rows[0].first, None);
     }
 }

@@ -177,10 +177,10 @@ pub fn set_up(
     let request = w::SetUp::new(
         limits,
         w::SetUpParts {
-            playground,
+            first: w::SetUpFirst::Empty(
+                w::FirstEmpty::new(limits, w::FirstEmptyParts { org, repository, playground }).ok()?,
+            ),
             forge: w::Making::Kept(w::Kept::new(limits, w::KeptParts { forge }).ok()?),
-            org,
-            repository,
         },
     )
     .ok()?;
@@ -275,6 +275,13 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
             first: match row.first {
                 Some(first) => Some(first_from(first)),
                 None => None,
+            },
+            starts_with: match row.starts_with {
+                w::StartsWith::Repository => super::forges::StartsWith::Repository,
+                w::StartsWith::Copies(copies) => {
+                    super::forges::StartsWith::Copies { addresses: copies.into_parts().addresses.into_boxed() }
+                }
+                w::StartsWith::Nothing => super::forges::StartsWith::Nothing,
             },
             installations: installations_from(row.installations)?,
             ended: match row.ended {
