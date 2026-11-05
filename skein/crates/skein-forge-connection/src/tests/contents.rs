@@ -252,6 +252,20 @@ fn file_reads_accept_partial_content_and_preserve_raw_bytes() {
     );
 }
 #[test]
+fn a_malformed_raw_miss_body_still_reads_a_directory() {
+    let mut h = fixtures::known();
+    h.call(1, fixtures::REPO, Op::Read(Read::File { head: HEAD, path: Box::from(&b"src"[..]), max_bytes: 0 }));
+    h.answer(fixtures::FORGE, b"HTTP/1.1 404 Not Found\r\nContent-Length: 1\r\n\r\n{");
+    assert!(h.answered(1).is_none(), "a raw miss must read contents before answering");
+    h.answer(fixtures::FORGE, &fixtures::ok(b"[]"));
+    h.run(Duration::from_millis(10));
+    let answer = h.answered(1).expect("directory");
+    assert_eq!(
+        (answer.cost, answer.result.clone()),
+        (2, Ok(Answer::Directory { head: HEAD, path: Box::from(&b"src"[..]), entries: Box::new([]), truncated: false }))
+    );
+}
+#[test]
 fn contents_sizes_agree_with_the_clients_measure() {
     for (name, answer, expected) in measured_contents() {
         assert_eq!(
