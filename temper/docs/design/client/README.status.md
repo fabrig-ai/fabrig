@@ -2,6 +2,12 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *Home on any project*: the stock owner pool may
+  reserve the whole project period, leaving no funding for the status
+  agent (`temper-service`'s `stock.rs`, `project_policy`;
+  `jig-domain-core`'s `connector_repair_authority`). Returning then keeps
+  the computed sentence. The fake-box proof reduces the owner's pool
+  allowance to leave period funding, as the root's status world does.
 - **Not yet:** 10: a browser walk from a draft's sheet through planning, a live
   report and delegate tasks, Pause, Resume, a message and Stop. The fake box's
   model (`temper-fake/src/backends.rs`, `model_document`) writes a report only
@@ -118,7 +124,7 @@
   has the document; seen by reading, no test holds it and no reason is recorded.
   3.5, *Goals*: `goals::row` is `pub(crate)` (`temper-client-view`'s
   `pages/goals.rs`), where this section has it public, because its `Bindings`
-  is the view's own and Home, its next reader, is in the same crate.
+  is the view's own and Home reads it in the same crate.
   3.5, *Needs you*: a filter's `kind` and `goal` narrow the open cards alone:
   `temper-client-view`'s `pages/needs.rs`, `main`, asks `Session::answered` by
   project, and an `Answered` keeps neither, so under such a filter the answered

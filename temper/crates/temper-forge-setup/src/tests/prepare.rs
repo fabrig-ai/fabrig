@@ -85,8 +85,7 @@ fn later(admin_token: bool) -> Drive {
     drive
 }
 fn refreshed(drive: &mut Drive) {
-    assert_eq!(drive.send(Event::Done), run(Command::Register));
-    let Request::Write { file: File::RunnerConfiguration, .. } = drive.send(fixtures::ran_ok()) else {
+    let Request::Write { file: File::RunnerConfiguration, .. } = drive.send(Event::Done) else {
         panic!("runner configuration")
     };
     let Request::Write { file: File::State, .. } = drive.send(Event::Done) else { panic!("record") };
@@ -191,14 +190,10 @@ fn a_first_preparation_with_a_runner_asks_for_the_runners_lock() {
 fn a_later_capacity_change_rewrites_the_runner_without_replacing_its_registration() {
     let mut owned = fixtures::owned();
     owned.runner.as_mut().unwrap().capacity = 2;
-    let mut drive = Drive::new(owned.clone());
+    let mut drive = Drive::new(owned);
     assert_eq!(drive.versions(fixtures::later(), true), Request::Layout);
     let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings") };
-    assert_eq!(
-        drive.send(Event::Done),
-        Request::Run { command: Command::Register, spec: spec::command(Command::Register, &owned, &fixtures::place()) }
-    );
-    let Request::Write { file: File::RunnerConfiguration, contents } = drive.send(fixtures::ran(b"kept-uuid\n")) else {
+    let Request::Write { file: File::RunnerConfiguration, contents } = drive.send(Event::Done) else {
         panic!("updated runner configuration")
     };
     let text = contents.expose();
@@ -213,6 +208,47 @@ fn a_later_capacity_change_rewrites_the_runner_without_replacing_its_registratio
 fn a_later_preparation_at_the_same_versions_refreshes_the_configuration() {
     let mut drive = later(true);
     assert_eq!(drive.send(Event::Done), Request::End(Ok(())));
+}
+#[test]
+fn a_later_preparation_without_a_configuration_registers() {
+    later_registers(None);
+}
+#[test]
+fn a_later_preparation_whose_configuration_names_no_uuid_registers() {
+    later_registers(Some(fixtures::secret(b"runner:\n  capacity: 1\n")));
+}
+fn later_registers(configuration: Option<Secret>) {
+    let mut found = fixtures::later();
+    found.runner_configuration = configuration;
+    let mut drive = Drive::new(fixtures::owned());
+    assert_eq!(drive.reach(found), Request::Layout);
+    let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings") };
+    assert_eq!(drive.send(Event::Done), run(Command::Register));
+    assert_eq!(
+        drive.send(fixtures::ran(b"replacement-uuid\n")),
+        Request::Write {
+            file: File::RunnerConfiguration,
+            contents: fixtures::runner_configuration(b"replacement-uuid"),
+        }
+    );
+}
+#[test]
+fn the_runner_registration_is_read_back_from_its_configuration() {
+    for uuid in [b"kept-uuid".as_slice(), b"uuid-with-\"quotes\"-and-\\-escapes"] {
+        let configuration = fixtures::runner_configuration(uuid);
+        assert_eq!(crate::runner::registered(configuration.expose()), Some(fixtures::secret(uuid)));
+    }
+}
+#[test]
+fn a_runner_configuration_without_a_nonempty_uuid_has_no_registration() {
+    for configuration in [
+        b"runner:\n  capacity: 1\n".as_slice(),
+        b"server:\n  connections:\n    forgejo:\n      uuid: \"\"\n",
+        b"server:\n  connections:\n    forgejo:\n      uuid: unquoted\n",
+        b"server:\n  connections:\n    forgejo:\n      uuid: 17\n",
+    ] {
+        assert_eq!(crate::runner::registered(configuration), None, "{configuration:?}");
+    }
 }
 #[test]
 fn a_missing_admin_token_is_made_again_under_a_fresh_name() {
