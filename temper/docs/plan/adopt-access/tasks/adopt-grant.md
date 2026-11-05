@@ -195,3 +195,15 @@ heavy cargo clippy -p skein-fake-forge-forgejo --all-targets -- -D warnings
 ```
 
 If a reader still fails after this for another reason, report it with its log; don't seed around it.
+
+## Rebase (2026-11-05, step merge, foreman adopt-access/adopt-grant/foreman-2)
+
+resolve both merge conflicts by preserving main’s UI changes and adoption’s vocabulary counts and status gap.
+The merge conflicts with origin/main at dd9d1feb4c (`Merge ui-home-status/integration`); the branch-side edits are in cbb278da45.
+In `temper/crates/temper-client-view/src/words.rs`, preserve main’s vocabulary, IDs, tables and comments.
+Combine main’s counts with adoption’s additions: two phrases and six segments, giving `PHRASES = 1676` and `SEGMENTS = 2912` at this main tip.
+Verify the combined vocabulary with `heavy cargo nextest run -p temper-client-view --lib -E 'test(=tests::accounts::english_phrase_declarations_match_the_vocabulary)'`.
+In `temper/docs/design/client/README.status.md`, retain all main-side entries and add the branch’s 4.7 gap: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
+That gap remains required by the spec and `temper/docs/design/client/README.md`, 4.7; this task closes the ctl wording only.
+Keep the cleanly merged service routing, fixtures, setup status and system-world changes.
+Run the spec’s required checks on the combined result before pushing the rebased branch under its new name.
