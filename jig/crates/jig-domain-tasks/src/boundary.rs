@@ -748,6 +748,31 @@ pub enum Hold {
 }
 
 impl Hold {
+    /// Identity of the independently placed hold, when this is a placed reason.
+    #[must_use]
+    pub const fn placed(self) -> Option<u64> {
+        match self {
+            Self::Placed { hold } => Some(hold),
+            Self::Exceeded(_)
+            | Self::Failures(_)
+            | Self::Stalled
+            | Self::Dependency(_)
+            | Self::Stopped
+            | Self::Drift
+            | Self::Effects
+            | Self::EffectFailed
+            | Self::Uncertain { .. }
+            | Self::Budget
+            | Self::Deadline
+            | Self::HoldsWaited
+            | Self::ResourceUnavailable
+            | Self::ResourceAccess
+            | Self::PoolLost { .. }
+            | Self::Procedure
+            | Self::Circle => None,
+        }
+    }
+
     pub(crate) const fn valid(self) -> bool {
         match self {
             Hold::Dependency(task) => task != 0,

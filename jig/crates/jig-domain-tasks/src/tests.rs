@@ -385,6 +385,7 @@ mod classifiers {
             (Hold::Procedure, None),
             (Hold::Circle, None),
         ] {
+            assert_eq!(why.placed(), placed, "{why:?}: placed identity");
             let phase = Phase::Held { was: crate::Was::Waiting, why, source: None };
             assert_eq!(crate::placed::placed_reason(&phase), placed, "{why:?}: identity");
             assert_eq!(crate::placed::is_placed(why), placed.is_some(), "{why:?}: placed");
