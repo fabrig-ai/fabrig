@@ -19,6 +19,7 @@ pub mod openai;
 mod replay;
 mod translate;
 mod types;
+mod wire;
 
 pub use derive::{Declared, ESCAPE, Limits, Rule, TOKEN_BYTES, Violation};
 pub use document::DocumentLimits;
