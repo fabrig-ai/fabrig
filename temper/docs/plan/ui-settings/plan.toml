@@ -1,0 +1,32 @@
+draft = "ui-settings"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-settings/inputs/request.md", "temper/docs/design/draft/configuring.md", "temper/docs/design/draft/template-places.md", "temper/docs/design/client/browser.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# See plan.md: the engine stands aside; the client is one chain, since temper.css, the gallery and the
+# terminal's goldens conflict.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "project-templates"
+title = "jig: the templates a project offers, public"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.2"
+
+[[part]]
+id = "ways-kind"
+title = "Kinds 6 and 7, and a project's read of its own kinds"
+mode = "direct"
+needs = ["project-templates"]
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[slice]]
+id = 1
+story = "A project's owner changes its ways and its questions, its members read them, and a change takes its project's questions"
+parts = ["project-templates", "ways-kind"]
+walk = false
