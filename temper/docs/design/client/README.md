@@ -349,7 +349,7 @@ keeps (`../protocol/configuration.md`, section 2).
 
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
-| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | start the configuring chat; adopt the first repository again, or open the adoption form; skip "To begin" |
+| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open `Configure`; adopt the first repository again, or open the adoption form; skip "To begin" |
 | `Settings { project }` | none | a project's settings: "Settings for PROJECT", the links to `Forges`, `Accounts` and `Adopt { project }`, and "Sign out" (*Settings,* below) | `me` | sign out |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
 | `Inbox` (the root) | `inbox.html` | what needs the person, across projects, filtered by project, kind and goal (its root): proposals, questions, held tasks, person tasks; then updates (results, replies); "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | accept ("Accept"), reject with a reason, answer, release, leave held, take, hand back |
@@ -1162,7 +1162,6 @@ keeps (`../protocol/configuration.md`, section 2).
   - *To begin* (`../draft/to-begin.md`, 2 to 4), while it shows (below).
   - *Needs you* and *Chats,* as on any Home, and left out, empty, while
     To begin shows, since its steps stand for them.
-  - *The landing's line,* left out while To begin shows.
 
   **To begin,** on a project's Home while a step is left and the person
   has not skipped it on that project, a project the welcome made or any
@@ -1289,7 +1288,8 @@ keeps (`../protocol/configuration.md`, section 2).
   colour.
 
   What Home does not draw: the composer and the full chats' list, which
-  stay `Chats`'s, and the composer's line with "Change model". With the
+  stay `Chats`'s, the composer's line with "Change model", and the
+  landing's line (section 11). With the
   `forges` watch refused or ended, step 2 is "Adopt a repository" with
   no ORG/NAME. In the terminal the headline, To begin with its three
   steps, and the sections of Home on any project keep their headings,
@@ -4821,6 +4821,26 @@ own tests:
   goals are on. Whether they are is the default configuration, still the
   user's, and no fact says so; the private `Board` is not built either.
   Default: Chats.
+- **What a chat did, on its line** (the same request): its chat's line
+  says "landed · 1 h" where the chat's delegates landed. The chats' list
+  gives a chat's state, not what its delegates landed, so saying it takes
+  one read per row. Default: the chat's state as `Chats` words it,
+  "closed · 1 h".
+- **Settings' own page** (*Settings,* 3.5; the requests
+  `home-drops-connected` and `configure-chat-in-settings`): the lines of
+  the forge, the model's account and the project leave Home, and go to
+  Settings once it is designed (the user, 2026-11-04); no request draws
+  it yet. Default: 3.5's list of links, so Accounts is a link there,
+  "Open Forgejo ↗" one step further on the Forges page, "Rename" in the
+  switcher, and the model's line in no place yet.
+- **The configuring chat docked beside How work runs** (*The configuring
+  chat's page,* 3.5; 5.13; the request `configure-chat-in-settings`
+  leaves it for later). It waits on How work runs and on Settings' design.
+  Default: a page of its own.
+- **What a configuring chat's runs use, on its top bar** (the same
+  request): the request says the configuring role's first model. A
+  template's `llm` may be its charter's default, which no client is given.
+  Default: the first model `me` serves for the project.
 - **How a project lands, on To begin's second step**
   (`../draft/to-begin.md`, 3): its line names temper's landing turn for
   a project landing by turn, and no client is given a project's `by`
