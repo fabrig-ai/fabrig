@@ -21,6 +21,7 @@ pub mod home;
 pub mod inbox;
 pub mod needs;
 pub mod report;
+pub mod start_goal;
 pub mod switcher;
 pub mod task;
 pub mod welcome;
@@ -44,6 +45,7 @@ pub struct Pages {
     chats: Option<chats::Chats>,
     goals: Option<goals::Goals>,
     has_goals: goals::HasGoals,
+    start: Option<start_goal::StartGoal>,
     chat: Option<chat::Chat>,
     task: Option<task::Task>,
     accounts: accounts::Accounts,
@@ -68,6 +70,21 @@ pub struct Pages {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    OpenStart {
+        draft: Option<Box<[u8]>>,
+        chat: Option<u64>,
+    },
+    StartDraft {
+        words: Box<[u8]>,
+    },
+    StartName {
+        words: Box<[u8]>,
+    },
+    StartWay {
+        template: u32,
+    },
+    StartCancel,
+    StartGoal,
     /// Ready's Create, or its name field's Enter.
     MakeDefault,
     /// Home adopts the first repository again.
@@ -208,6 +225,7 @@ impl Pages {
             chats: None,
             goals: None,
             has_goals: goals::HasGoals::new(),
+            start: None,
             chat: None,
             task: None,
             accounts: accounts::Accounts::default(),
@@ -230,6 +248,10 @@ impl Pages {
             seeing: None,
             confirm: None,
         }
+    }
+    #[must_use]
+    pub const fn start(&self) -> Option<&start_goal::StartGoal> {
+        self.start.as_ref()
     }
     #[must_use]
     pub const fn switcher(&self) -> &switcher::Switcher {
@@ -403,6 +425,26 @@ pub fn me_handle() -> Handle {
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch routes page events and refreshes shared facts")]
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Act { act: Act::OpenStart { draft, chat } } => start_goal::open(pages, client, draft, chat),
+        Event::Act { act: Act::StartDraft { .. } } => {}
+        Event::Act { act: Act::StartName { words } } => {
+            if let Some(start) = &mut pages.start {
+                start.name(words);
+            }
+        }
+        Event::Act { act: Act::StartWay { template } } => {
+            let me = pages.me(client);
+            if let Some(start) = &mut pages.start {
+                start.way(me, template);
+            }
+        }
+        Event::Act { act: Act::StartCancel } => pages.start = None,
+        Event::Act { act: Act::StartGoal } => {
+            let me = pages.me(client);
+            if let Some(start) = &mut pages.start {
+                start.send(env, me, &mut pages.serial, out);
+            }
+        }
         Event::Started => started(pages, out),
         Event::Went { address } => {
             went(pages, env, address, out);
@@ -449,6 +491,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Left => {
+            pages.start = None;
             pages.switcher.close();
             if let Some(inbox) = pages.inbox.take() {
                 pages.next = pages.next.max(inbox.leave(out));
@@ -677,6 +720,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if start_goal::told(pages, env, client, &told, out) {
+        return true;
+    }
     if pages.has_goals.told(&told) {
         return true;
     }
@@ -717,6 +763,7 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
 }
 
 fn started(pages: &mut Pages, out: &mut Queue<Request>) {
+    pages.start = None;
     pages.accounts.leave(out);
     if let Some(mut page) = pages.connect_model.take() {
         page.leave();
@@ -798,6 +845,9 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
+    if pages.address != address {
+        pages.start = None;
+    }
     pages.needs.went(&pages.address, &address);
     pages.switcher.went(&address);
     if let (Address::Chats { .. }, Address::Chats { filter, .. }, Some(page)) =
@@ -1112,6 +1162,7 @@ fn task_told(
     handled
 }
 
+#[expect(clippy::too_many_lines, reason = "confirmation dispatch lists every page act, including start goal")]
 fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act, out: &mut Queue<Request>) {
     if let Act::Confirm = act
         && let Some(page) = &mut pages.task
@@ -1169,7 +1220,13 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         act @ (Act::Decide { .. } | Act::CardWords { .. } | Act::Again { .. } | Act::Confirm) => {
             crate::acts::step(pages, env, act, out);
         }
-        Act::Pause
+        Act::OpenStart { .. }
+        | Act::StartDraft { .. }
+        | Act::StartName { .. }
+        | Act::StartWay { .. }
+        | Act::StartCancel
+        | Act::StartGoal
+        | Act::Pause
         | Act::Resume
         | Act::Amend
         | Act::AmendWords { .. }
@@ -1311,6 +1368,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             }));
         }
         if pages.party != Some(me.party.number) {
+            pages.start = None;
             pages.seen = 0;
             pages.seeing = None;
             pages.choice = choice::Draft::default();
@@ -1363,6 +1421,7 @@ fn awaits_first_read(thread: &jig_client::thread::Thread) -> bool {
 fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<Request>) {
     match link {
         Link::SignedOut | Link::OutOfDate => {
+            pages.start = None;
             pages.has_goals.leave(out);
             if pages.watching {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle: me_handle() }));

@@ -417,6 +417,12 @@ impl Task {
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
+            | Act::OpenStart { .. }
+            | Act::StartDraft { .. }
+            | Act::StartName { .. }
+            | Act::StartWay { .. }
+            | Act::StartCancel
+            | Act::StartGoal
             | Act::Switcher(_)
             | Act::Needs(_)
             | Act::Choice(_)
@@ -451,6 +457,7 @@ impl Task {
         }
     }
     /// The task page's amendment acts (client/README.md, 5.11).
+    #[expect(clippy::too_many_lines, reason = "amendment dispatch lists every page act, including start goal")]
     pub(crate) fn amend(
         &mut self,
         env: &Env<Limits>,
@@ -524,6 +531,12 @@ impl Task {
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
+            | Act::OpenStart { .. }
+            | Act::StartDraft { .. }
+            | Act::StartName { .. }
+            | Act::StartWay { .. }
+            | Act::StartCancel
+            | Act::StartGoal
             | Act::Switcher(_)
             | Act::Needs(_)
             | Act::Choice(_)
