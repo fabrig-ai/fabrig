@@ -1690,6 +1690,23 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 
+/* The frame's banners take their rows before the session fills the viewport. */
+#app:has(> .temper-session) { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+#app:has(> .temper-session):not(:has(> .temper-rail)) { display: flex; flex-direction: column; }
+#app:has(> .temper-session) > :not(.temper-session):not(.temper-rail) { flex: none; }
+#app > .temper-session { flex: 1; min-height: 0; height: auto; align-self: stretch; }
+#app:has(> .temper-rail) > .temper-session { height: 100%; }
+#app > .temper-session .temper-starter > .temper-status-quiet { margin: 0; padding: 0; border: 0; background: none; font-size: 12px; font-weight: 400; color: var(--gf-faint); }
+#app > .temper-session .temper-starter > .temper-context { width: auto; margin: 0; padding: 0; border: 0; background: none; text-align: center; font-size: 12px; color: var(--gf-faint); }
+#app > .temper-session .temper-starter > .temper-context > p { margin: 0; }
+#app > .temper-session .temper-starter .temper-repository { font-weight: 400; }
+#app > .temper-session .temper-starters button { justify-content: flex-start; white-space: normal; }
+#app > .temper-session .temper-starters button:disabled { color: var(--gf-faint); cursor: default; }
+@media (max-width: 760px) {
+  #app:has(> .temper-rail):has(> .temper-session) { grid-template-rows: auto auto minmax(0, 1fr); }
+  #app:has(> .temper-rail) > .temper-session { grid-row: 3; }
+}
+
 /* ==== ui: needs ==== */
 
 

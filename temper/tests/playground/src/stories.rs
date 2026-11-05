@@ -3,7 +3,7 @@
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use skein_ui::Role;
-use temper_client_domain::{Address, ChatsFilter};
+use temper_client_domain::Address;
 
 // The scripted CSV reply follows the change's CI, review and landing.
 const WAIT: Duration = Duration::from_secs(60);
@@ -17,13 +17,13 @@ pub fn a() -> Vec<Step<Address>> {
         Step::Go { address: Address::Welcome { step: temper_client_domain::Step::Welcome } },
         see(Find::named(Role::Button, b"Try the playground")),
         press(Role::Button, b"Try the playground"),
-        chats(),
+        new_chat(),
         see(Find::named(Role::Button, b"Add CSV export to widget")),
         see(Find::text(b"playground/widget")),
     ];
     for (index, script) in scripts["asked"].as_array().expect("three suggested requests").iter().enumerate() {
         if index > 0 {
-            steps.push(chats());
+            steps.push(new_chat());
             steps.push(see(Find::named(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes())));
         }
         steps.push(press(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes()));
@@ -41,8 +41,8 @@ pub fn a() -> Vec<Step<Address>> {
     steps
 }
 
-fn chats() -> Step<Address> {
-    Step::Go { address: Address::Chats { filter: ChatsFilter::All } }
+fn new_chat() -> Step<Address> {
+    Step::Go { address: Address::NewChat }
 }
 
 fn see(find: Find) -> Step<Address> {

@@ -44,7 +44,7 @@ pub fn delegation_page(landed: bool) -> skein_ui::Tree {
     first_run_page(client::Address::Chat { task: 1 }, landed)
 }
 pub fn first_run() -> skein_ui::Tree {
-    first_run_page(client::Address::Chats { filter: client::ChatsFilter::All }, true)
+    first_run_page(client::Address::NewChat, true)
 }
 #[expect(clippy::too_many_lines, reason = "one fixture answers the chat's documents and the session's demo and forges")]
 fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
