@@ -1243,16 +1243,23 @@ prefix; jig's test application mounts it at `/jig`.
   head until it has handled the call's end, even once the server has
   let the call's connection go: until then the call takes room, and
   nothing tells the server it has let the call go. The application asks
-  for its room before it hands the engine end a call, and answers a call
-  under the prefix that finds none itself, as it answers a call no
-  route claims: `503`, with no body, closing the connection, with
+  for its room before it hands the engine end a call. It may hold an
+  ordinary call's head under its existing connection bound and stall
+  deadline until room is free, without asking for its body; the peer's
+  end forgets that head. This lets one page's concurrent calls wait for
+  each other. A server choosing to refuse instead answers the call
+  itself: `503`, with no body, closing the connection, with
   nothing of the engine end's set aside. That is skein's server's busy
   status (skein's `http.md`, section 5: "at its entrance it refuses by
   not asking, or by answering a busy status"). The client takes it as a
-  lost exchange or a dropped stream, and sends it again after its
-  backoffs. The application's server bounds its own connections, never
-  by the engine end's room, and a call handed with no room is the
-  application's bug, asserted.
+  lost exchange or a dropped stream. Keyed requests and watches are
+  sent again after their backoffs. A read ends unreachable and is not
+  resent (`../client/domain/client.md`, 7). A lost sign-out keeps the
+  party signed in and tells the link it did not reach the engine; another
+  `SignOut` sends it again (`../client/domain/client.md`, 12). The
+  application's
+  server bounds its own connections, never by the engine end's room,
+  and a call handed with no room is the application's bug, asserted.
 - **A peer's end is the call's end.** skein's server lets a response go
   on after its peer has ended, once the request is all read ("the
   response still goes, room may still come": skein's `http.md`, 5.5),
