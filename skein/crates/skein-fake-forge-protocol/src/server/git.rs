@@ -120,7 +120,7 @@ pub(super) fn decoded(
                 return;
             }
             match result {
-                Ok(body) => respond(server, response::Reply { status: 200, headers: Box::new([]), body }),
+                Ok(body) => respond(server, &env.limits, response::Reply { status: 200, headers: Box::new([]), body }),
                 Err(error) => error_reply(server, env, error),
             }
             return;
@@ -219,7 +219,7 @@ pub(super) fn down(
     };
     match result {
         Ok(answer) => match git::server::encode(&answer, &env.limits.git()) {
-            Ok(body) => respond(server, response::Reply { status: 200, headers: Box::new([]), body }),
+            Ok(body) => respond(server, &env.limits, response::Reply { status: 200, headers: Box::new([]), body }),
             Err(_) => fail(server, &env.limits, 413),
         },
         Err(error) => error_reply(server, env, error),
@@ -238,7 +238,7 @@ pub(super) fn error_reply(server: &mut Server, env: &Env<Limits>, error: api::Er
             .expect("one header");
     }
     match git::server::error(error, &env.limits.git()) {
-        Ok(body) => respond(server, response::Reply { status: failure.status, headers: headers.into_boxed(), body }),
+        Ok(body) => respond(server, &env.limits, response::Reply { status: failure.status, headers: headers.into_boxed(), body }),
         Err(_) => fail(server, &env.limits, 413),
     }
 }
