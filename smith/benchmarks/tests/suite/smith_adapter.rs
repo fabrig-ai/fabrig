@@ -265,7 +265,11 @@ fn mount_refusals(context: &smith_bench::agent::Context<'_>, task: &mut smith_be
         task.smith.insert("workspace.directories".into(), value["directories"].clone());
         let context = smith_bench::agent::Context { task, home: &outside, ..*context };
         let refusal = product_arguments(&context).expect_err("refusal before login");
-        assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration, "{row}");
+        assert_eq!(
+            refusal.kind,
+            smith_bench::FaultKind::Setup(smith_bench::isolate::SetupStep::Configuration),
+            "{row}"
+        );
         assert!(!context.private.root.join("smith/tokens").exists());
     }
 }
@@ -403,7 +407,7 @@ fn product_rendered(context: &smith_bench::agent::Context<'_>) -> serde_json::Va
         .expect("product layer")
 }
 
-fn product_arguments(context: &smith_bench::agent::Context<'_>) -> Result<Vec<String>, smith_bench::isolate::Setup> {
+fn product_arguments(context: &smith_bench::agent::Context<'_>) -> Result<Vec<String>, smith_bench::Fault> {
     let path = context.pin_file.parent().expect("pin directory").join(&context.pin.pin.configuration);
     let base: toml::Value = toml::from_str(&std::fs::read_to_string(path).expect("user layer")).expect("TOML");
     let rendered = smith_bench::agent::smith::product_settings(

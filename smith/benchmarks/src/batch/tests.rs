@@ -195,7 +195,8 @@ fn block_requests() -> (crate::Suite, Vec<Request>) {
             let mut identity = result.identity.clone();
             identity.arm = arm.into();
             identity.attempt = format!("{arm}-{repetition}");
-            requests.push(crate::fixture::request::request(root.join("tests/recorded/tasks/valid/task.toml"), identity));
+            requests
+                .push(crate::fixture::request::request(root.join("tests/recorded/tasks/valid/task.toml"), identity));
         }
     }
     (suite, requests)
@@ -219,21 +220,21 @@ fn seeded_blocks_replay_with_one_request_per_arm() {
 fn duplicate_attempt_ids_refuse_before_dispatch() {
     let (suite, mut requests) = block_requests();
     requests.push(requests[0].clone());
-    assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("duplicate").contains("unique"));
+    assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("duplicate").detail.contains("unique"));
 }
 
 #[test]
 fn mixed_runs_refuse_before_dispatch() {
     let (suite, mut requests) = block_requests();
     requests[0].identity.run = "another-run".into();
-    assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("mixed runs").contains("one run"));
+    assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("mixed runs").detail.contains("one run"));
 }
 
 #[test]
 fn incomplete_repetition_blocks_refuse_before_dispatch() {
     let (suite, mut requests) = block_requests();
     requests.pop();
-    assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("missing repetition").contains("repetition"));
+    assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("missing repetition").detail.contains("repetition"));
 }
 
 fn token_result() -> AttemptResult {

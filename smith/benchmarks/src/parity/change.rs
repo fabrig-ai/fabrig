@@ -6,7 +6,7 @@ pub use inputs::{Input, Inputs, attach, command, verify};
 use serde::{Deserialize, Serialize};
 
 use super::{ArmKey, Criterion, TASKS, criteria, passed};
-use crate::{Measure, RunSummary};
+use crate::{Fault, Measure, RunSummary, input};
 
 /// A change run's report against its parent.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -57,9 +57,9 @@ pub struct Beside {
 }
 
 /// Recompute a change report with its reference selected by source commit.
-pub fn from_summary(summary: &RunSummary, parent_commit: &str) -> Result<ChangeSection, String> {
+pub fn from_summary(summary: &RunSummary, parent_commit: &str) -> Result<ChangeSection, Fault> {
     if summary.suite != "parity-change" || summary.tier != "working" || summary.design != crate::Design::Interleaved {
-        return Err("change needs its working, interleaved suite".into());
+        return Err(input("change needs its working, interleaved suite"));
     }
     let commits: std::collections::BTreeSet<_> =
         summary.groups.iter().map(|group| group.agent_version.as_str()).collect();
@@ -70,12 +70,12 @@ pub fn from_summary(summary: &RunSummary, parent_commit: &str) -> Result<ChangeS
             .iter()
             .any(|commit| commit.len() != 40 || !commit.bytes().all(|byte| skein_lib::bytes::hex_value(byte).is_some()))
     {
-        return Err("change needs two smith source commits including its parent".into());
+        return Err(input("change needs two smith source commits including its parent"));
     }
     let change_commit = *commits.iter().find(|commit| **commit != parent_commit).expect("two commits");
     let rows = super::identified_rows(summary)?;
     if rows.len() > 40 || rows.iter().any(|row| !TASKS.contains(&row.task.as_str())) {
-        return Err("change needs its four tasks and at most forty attempts".into());
+        return Err(input("change needs its four tasks and at most forty attempts"));
     }
     let subject = ArmKey { agent: "smith".into(), commit: change_commit.into() };
     let reference = ArmKey { agent: "smith".into(), commit: parent_commit.into() };
@@ -208,7 +208,7 @@ pub fn project(
     parent_commit: &str,
     baseline: &RunSummary,
     landed: &[RunSummary],
-) -> Result<ChangeSection, String> {
+) -> Result<ChangeSection, Fault> {
     project_report(summary, from_summary(summary, parent_commit)?, baseline, landed)
 }
 
@@ -217,12 +217,12 @@ fn project_report(
     mut report: ChangeSection,
     baseline: &RunSummary,
     landed: &[RunSummary],
-) -> Result<ChangeSection, String> {
+) -> Result<ChangeSection, Fault> {
     let baseline = baseline
         .parity
         .as_ref()
         .filter(|_| baseline.suite == "parity")
-        .ok_or("baseline run must be a parity summary with a parity section")?;
+        .ok_or_else(|| input("baseline run must be a parity summary with a parity section"))?;
     let landed: Vec<_> = landed
         .iter()
         .map(|summary| {
@@ -230,19 +230,22 @@ fn project_report(
                 .change
                 .as_ref()
                 .filter(|_| summary.suite == "parity-change")
-                .ok_or("landed input must be a parity-change summary with a change section")
+                .ok_or_else(|| input("landed input must be a parity-change summary with a change section"))
         })
         .collect::<Result<_, _>>()?;
     for ratio in &report.ratios {
-        let baseline =
-            baseline.criteria.iter().find(|value| value.name == ratio.name).ok_or("baseline criterion missing")?;
+        let baseline = baseline
+            .criteria
+            .iter()
+            .find(|value| value.name == ratio.name)
+            .ok_or_else(|| input("baseline criterion missing"))?;
         let mut statistic = baseline.statistic * ratio.value.statistic;
         for previous in &landed {
             statistic *= previous
                 .ratios
                 .iter()
                 .find(|value| value.name == ratio.name)
-                .ok_or("landed criterion missing")?
+                .ok_or_else(|| input("landed criterion missing"))?
                 .value
                 .statistic;
         }

@@ -191,7 +191,7 @@ fn unknown_types_are_skipped_and_version_or_partial_records_fault() {
     observer.feed(b"{\"v\":4,\"type\":\"future.record\",\"t_ms\":1,\"field\":true}\n").expect("unknown type");
     assert_eq!(observer.sessions()[0].records.len(), 1);
     let error = observer.feed(b"{\"v\":5,\"type\":\"future.record\",\"t_ms\":1}\n").expect_err("version");
-    assert!(error.what.contains("version 5"));
+    assert!(error.detail.contains("version 5"));
     assert!(observer.feed(&bytes(&balanced())).is_err(), "a fault cannot be silently cleared");
     let mut partial = Observer::new(&LIMITS).expect("bounds");
     partial.feed(b"{\"v\":4").expect("partial bytes held");
