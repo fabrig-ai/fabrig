@@ -9,7 +9,7 @@
 - **Size:** L
 - **Status:** open
 - **Paid when:** no hearth step crate defines a `MaxOut` or a `MAX_OUT` constant, `iterate` asks no queue for room but the kernel's edge, the queues between a service's own layers are uncapped, and the orders the room checks kept are named predicates with world tests.
-- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 85`
+- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 77`
 
 ## What
 
@@ -31,8 +31,7 @@ hearth still holds the old form:
   that figure;
 - 26 `.room()` calls remain in non-test step code.
 
-Eight of the 85 are `io::MAX_OUT_*`, the kernel's edge, which skein keeps
-and the other trees exempt (D011).
+The count leaves out the eight `io::MAX_OUT_*` uses, the kernel's edge.
 
 ## Why it matters
 
