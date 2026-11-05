@@ -775,3 +775,61 @@ fn refs_namespace_does_not_reduce_the_branch_name_bound() {
         assert_eq!(run.answer(200, &body.finish()), Step::Done(expected));
     }
 }
+
+#[test]
+fn reads_begin_touches_repository_recency() {
+    use crate::forgejo::plans::{reads, tables::Tables};
+    for read in [Read::Locate { owner: Box::from(&b"fixture"[..]), name: Box::from(&b"specimen"[..]) }, Read::Settings] {
+        let mut tables = Tables::new(2, 1);
+        tables.keep_repository(REPO, fixtures::specimen());
+        tables.keep_repository(ASKED_REPOSITORY, fixtures::specimen());
+        reads::Plan::new(REPO, read).begin(BOUNDS, WORD, &mut tables).unwrap();
+        tables.keep_repository(ANSWERED_REPOSITORY, fixtures::specimen());
+        assert_eq!(tables.repository(REPO), Some(&fixtures::specimen()));
+        assert_eq!(tables.repository(ASKED_REPOSITORY), None);
+    }
+}
+
+#[test]
+fn read_rows_check_the_bound_before_keeping_and_keep_before_validation() {
+    use crate::forgejo::document::{Row, User};
+    for (page_size, kept) in [(0, None), (1, Some(&b"writer"[..]))] {
+        let mut run = Run::with(
+            crate::forgejo::plans::plan::Bounds { page_size, answer_bytes: 0, ..BOUNDS },
+            Op::Read(Read::Collaborators { page: 1 }),
+        );
+        run.begin();
+        let row = Row::User(User { id: 7, login: Box::from(&b"writer"[..]), is_admin: false, full_name: Box::new([]) });
+        assert_eq!(run.hear(Heard::Row(row)), Some(Step::Done(Err(Error::TooLarge))));
+        assert_eq!(run.tables().user(REPO.forge, 7), kept);
+    }
+}
+
+#[test]
+fn items_need_a_date_only_after_resolution() {
+    let mut run = Run::new(Op::Read(Read::Items { since: skein_lib::Time::ZERO, page: 1, kind: None }));
+    run.begin();
+    assert!(matches!(run.answer_with(200, fixtures::REPOSITORY, fixtures::fields()), Step::Send(_)));
+    assert_eq!(run.hear(Heard::Head { status: 200, fields: fixtures::fields() }), Some(Step::Done(Err(Error::InvalidAnswer))));
+}
+
+#[test]
+fn protection_branch_is_not_a_leaf() {
+    let mut run = Run::known(Op::Read(Read::Protection { branch: Box::from(&b"main"[..]) }));
+    run.begin();
+    assert_eq!(run.answer(404, MISSING), Step::Done(Err(Error::Missing)));
+    assert_eq!(run.tables().repository(REPO), None);
+}
+
+#[test]
+fn collaborators_finish_without_measuring_the_rows_again() {
+    let mut run = Run::with(
+        crate::forgejo::plans::plan::Bounds { rows: 0, ..BOUNDS },
+        Op::Read(Read::Collaborators { page: 1 }),
+    );
+    run.begin();
+    run.answer(200, br#"[{"id":2,"login":"writer"}]"#);
+    assert_eq!(run.answer(200, br#"{"user":{"id":2,"login":"writer"},"permission":"admin"}"#), Step::Done(Ok(Answer::Collaborators {
+        collaborators: Box::new([api::Collaborator { user: 2, permission: api::Permission::Admin }]), more: false,
+    })));
+}
