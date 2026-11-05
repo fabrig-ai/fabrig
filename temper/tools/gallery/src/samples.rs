@@ -20,6 +20,7 @@ pub enum World {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Then {
     Shown,
+    Mode(temper_client_domain::pages::chat::document::Mode),
     Working,
     DelegatedGoal,
     HeldChange,
@@ -72,7 +73,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 152;
+pub const N: usize = 154;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -282,6 +283,18 @@ pub fn samples() -> [Sample; N] {
             world: FirstRun { step: 7 },
             address: Address::Configure { project: 1 },
             then: Shown,
+        },
+        Sample {
+            name: "configure-chat-document",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+        },
+        Sample {
+            name: "configure-chat-document-split",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Split),
         },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
@@ -607,6 +620,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::Renewed => "#other-states-renewed",
             Then::SignInRefused => "#other-states-refused",
             Then::Shown
+            | Then::Mode(_)
             | Then::Working
             | Then::DelegatedGoal
             | Then::HeldChange
@@ -699,6 +713,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
     Some(format!("{page}.html?world={world}{task}{forge}{way}&bare"))
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one dispatch applies each gallery state’s follow-up act")]
 pub fn domain(sample: &Sample) -> Domain {
     if sample.name == "chats-no-repository" {
         let mut root = home_domain("home-no-repository");
@@ -736,6 +751,7 @@ pub fn domain(sample: &Sample) -> Domain {
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
     match sample.then {
+        Then::Mode(mode) => step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut out),
         Then::Shown | Then::Working | Then::Held | Then::DelegatedGoal | Then::HeldChange | Then::HeldTask => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
@@ -802,8 +818,15 @@ pub fn domain(sample: &Sample) -> Domain {
     root
 }
 fn configure_domain(sample: &Sample) -> Domain {
-    if matches!(sample.name, "configure-chat" | "configure-chats-tag") {
-        return crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then).0;
+    if matches!(
+        sample.name,
+        "configure-chat" | "configure-chats-tag" | "configure-chat-document" | "configure-chat-document-split"
+    ) {
+        let mut root = crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then).0;
+        if let Then::Mode(mode) = sample.then {
+            step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut Queue::uncapped());
+        }
+        return root;
     }
     let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     if sample.name == "configure" {

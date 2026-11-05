@@ -954,7 +954,13 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         c::Read::Tasks { query, .. } if query.tracked == Some(true) => {
             Some(c::ReadValue::Tasks(Box::new(goal_page(w, goals))))
         }
-        c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(goal_notes(w, scope)))),
+        c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(
+            if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 }) {
+                configuring_note(scope)
+            } else {
+                goal_notes(w, scope)
+            },
+        ))),
         c::Read::Inbox { group, project, .. } => {
             Some(c::ReadValue::Inbox(Box::new(goal_inbox(w, *group, *project, goals))))
         }
@@ -982,7 +988,11 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         }))),
         c::Read::Task { task: number } => Some(c::ReadValue::Task(Box::new(shown_task(w, *number, then)))),
         c::Read::Activity { task: number, before } => {
-            Some(c::ReadValue::Activity(Box::new(activity_window(w, *number, before.as_ref()))))
+            Some(c::ReadValue::Activity(Box::new(if matches!(then, Then::Mode(_)) && *number == 10 {
+                configuring_activity()
+            } else {
+                activity_window(w, *number, before.as_ref())
+            })))
         }
         c::Read::Proposal { .. } => {
             let mut value = proposal();
@@ -1350,6 +1360,48 @@ fn goal_page(w: World, name: Option<&str>) -> c::TaskPage {
         },
     }
 }
+fn configuring_activity() -> c::ActivityPage {
+    let mut blocks = List::with_capacity(3);
+    blocks.push(c::Block::Text(text("Drafts first, then goals that land as one. I’ve written how Hello would run that, beside us; it grows as we talk."))).expect("reply");
+    blocks
+        .push(c::Block::Call(c::Call {
+            number: 1,
+            tool: text("note"),
+            input: text(""),
+            outcome: Some(text("Note 1 revision 2 written · +1 −1 · line 23")),
+            failed: false,
+            objects: List::with_capacity(0),
+            parts: List::with_capacity(0),
+        }))
+        .expect("write");
+    blocks.push(c::Block::Text(text("One question before I propose it: should a goal wait for you before it lands, or land once its checks pass?"))).expect("question");
+    let mut line = turn_line(&blocks, 1, None, false);
+    line.source.task = 10;
+    if let Some(decoded) = &mut line.decoded {
+        decoded.task = 10;
+    }
+    let mut rows = List::with_capacity(1);
+    rows.push(line).expect("configuring turn");
+    c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+
+fn configuring_note(scope: &c::NoteScope) -> c::NotePage {
+    let mut rows = List::with_capacity(1);
+    rows.push(c::Note {
+        number: 1,
+        revision: c::Revision { value: 1 },
+        scope: scope.clone(),
+        description: doc("How Hello works"),
+        body: c::DocumentText::complete(c::Text::new(Box::from("# How Hello works\n\nDraft, 2026-11-05, with the user.\n\n## How work starts\n\nYou write a design draft in a chat, an agent beside you. When it reads complete, you start a goal from it; nothing is planned before.\n\n## How it lands\n\n- Agents plan the goal’s tasks and change the code on the goal’s own branch.\n- Each change is checked: CI, and a review by an agent.\n- The goal lands on main as one, through temper’s merge queue.\n\n## Held by temper, or by agents\n\n| Rule | Held by |\n| --- | --- |\n| A review by an agent before a change lands | temper |\n| Up to date with main before it lands | temper |\n| A design draft before any goal | your agents |\n\n## Still open\n\nWhether a goal waits for you before it lands, or lands once its checks pass.\n".as_bytes()), limits().client.domain.long_text).expect("document body")),
+        writer: c::NoteAuthor::Task { task: 10, attempt: 1 },
+        tasks: List::with_capacity(0),
+        changed: Some(now(Solo)),
+        acts: List::with_capacity(0),
+        cut: false,
+    }).expect("configuring document");
+    c::NotePage { rows, before: None, after: None, cut: false }
+}
+
 fn goal_notes(w: World, scope: &c::NoteScope) -> c::NotePage {
     let mut rows = List::with_capacity(1);
     for f in goal_facts(w) {
@@ -2555,6 +2607,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
                 end: c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: 18 } },
             }),
             Then::Shown
+            | Then::Mode(_)
             | Then::Working
             | Then::DelegatedGoal
             | Then::HeldChange
@@ -2890,6 +2943,16 @@ fn activity_window(w: World, task: u64, before: Option<&c::Cursor>) -> c::Activi
 }
 fn shown_task(w: World, task: u64, then: Then) -> c::Task {
     let mut t = document(w, task);
+    if matches!(then, Then::Mode(_)) && task == 10 {
+        t.chip.title = doc("Configure temper");
+        t.activity = 1;
+        t.spec = c::SpecificationDocument::complete(c::Specification {
+            asks: false,
+            words: text("I write a design draft first; agents plan its tasks and land them together once checked."),
+            parameters: List::with_capacity(0),
+            inputs: List::with_capacity(0),
+        });
+    }
     if then == Then::Working {
         let (phase, _) = owner(&mut t.chip);
         *phase = c::ChipPhase::Active(c::RunStage::Due);

@@ -941,6 +941,26 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure-chat-document",
+        heading: "T10 · Configure temper",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Absent { role: Role::Region, name: "How Hello works" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-document-split",
+        heading: "T10 · Configure temper",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Region, name: "How Hello works" },
+        ],
+    },
+    Holds {
         name: "configure-chat",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[

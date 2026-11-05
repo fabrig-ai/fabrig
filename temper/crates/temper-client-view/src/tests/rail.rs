@@ -474,7 +474,8 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 let rail = styled(view.tree(), look::RAIL);
                 assert_eq!(rail[0].role, Role::Navigation);
                 assert_eq!(rail[0].name.as_deref(), Some(b"Shop".as_slice()));
-                let parts = children(rail);
+                let parts: Vec<_> =
+                    children(rail).into_iter().filter(|n| !n.styles.as_slice().contains(&look::RAIL_UNFOLD)).collect();
                 assert_eq!(
                     parts.iter().map(|n| n.role).collect::<Vec<_>>(),
                     [Role::Link, Role::Disclosure, Role::Slot, Role::Link, Role::Slot]

@@ -4,6 +4,7 @@ mod choice;
 mod configure;
 mod confirm;
 mod delegation;
+mod document;
 mod model_forge;
 mod new_chat;
 pub use temper_fixtures::client_documents as documents;

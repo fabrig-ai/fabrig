@@ -97,7 +97,20 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 100] = [
+    let named: [(skein_ui::Style, &[u8]); 113] = [
+        (MODE_CHAT, b"temper-mode-chat"),
+        (MODE_SPLIT, b"temper-mode-split"),
+        (MODE_DRAFT, b"temper-mode-draft"),
+        (DOC, b"temper-doc"),
+        (DOC_INNER, b"temper-doc-inner"),
+        (DOC_PATH, b"temper-doc-path"),
+        (DOC_SEC, b"temper-doc-sec"),
+        (DOC_CHANGED, b"temper-doc-changed"),
+        (DOC_NOTE, b"temper-doc-note"),
+        (DOC_MUTED, b"temper-doc-muted"),
+        (SEG, b"temper-seg"),
+        (SEG_SPLIT, b"temper-seg-split"),
+        (RAIL_UNFOLD, b"temper-rail-unfold"),
         (PROPOSAL_FACTS, b"temper-proposal-facts"),
         (SESSION_RIGHT, b"temper-session-right"),
         (META_LINE, b"temper-meta-line"),
@@ -242,7 +255,7 @@ fn each_pages_main_carries_the_main_token() {
     let view = fixtures::page_view(&fixtures::adoption_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
     let view = fixtures::page_view(&fixtures::chat::chat_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, SESSION])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MODE_CHAT, SESSION])]);
 }
 #[test]
 fn the_composers_carry_the_composer_token() {

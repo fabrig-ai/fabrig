@@ -123,6 +123,11 @@ impl Limits {
         // one item, link, status and added mark (client/README.md, 5.8),
         // seven nodes with text per dependency.
         let agent = markdown.checked_add(33)?.checked_add(receiving.rows.checked_mul(7)?)?;
+        // A full document's Markdown, a keyed slot per heading (at most one
+        // per three bytes), intro wrapper, path, group and attribution.
+        let document = skein_ui::markdown::max_nodes(receiving.long_text)?
+            .checked_add(receiving.long_text.checked_div(3)?)?
+            .checked_add(24)?;
         let nodes = cards
             .checked_add(turns)?
             .checked_add(delegated)?
@@ -163,11 +168,16 @@ impl Limits {
             )?
             // The toast adds its status, text leaf and optional Undo button.
             .checked_add(3)?;
+        let text_bytes = nodes
+            .checked_mul(text)?
+            .checked_add(skein_ui::markdown::max_text_bytes(receiving.long_text)?)?
+            .checked_add(text.checked_mul(24)?)?;
+        let nodes = nodes.checked_add(document)?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text,
-            text_bytes: nodes.checked_mul(text)?,
+            text_per_node: text.max(receiving.long_text.checked_mul(2)?),
+            text_bytes,
             drawing_bytes: 0,
             scene_marks: 0,
             scene_bytes: 0,
