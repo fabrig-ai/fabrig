@@ -1957,6 +1957,9 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: away ==== */
+.temper-settings-checks > div { display: flex; align-items: baseline; gap: 10px; }
+.temper-settings-checks > div > input { flex: none; width: 13px; height: 13px; margin: revert; }
+.temper-settings-checks > div > label { min-width: 0; }
 #app > .temper-home .temper-decided { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
 #app > .temper-home .temper-decision { display: flex; align-items: center; gap: 16px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); }
 #app > .temper-home .temper-decision > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }

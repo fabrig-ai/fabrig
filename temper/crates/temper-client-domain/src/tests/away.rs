@@ -444,15 +444,17 @@ fn the_toast_follows_the_answer() {
     }
 }
 #[test]
-fn limits_focuses_once() {
+fn limits_raises_the_focus_count() {
     let mut root = ready(&[]);
-    assert!(!root.pages.away_focus());
+    assert_eq!(root.pages.away_focus(), 0);
     let mut out = act(&mut root, A::Limits { project: 17 }, Wall::EPOCH);
     assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Settings { project: 17 }, replace: false }));
     assert!(out.is_empty());
     event(&mut root, Event::Went { place: crate::Place::Address(crate::Address::Settings { project: 17 }) });
-    assert!(root.pages.away_focus());
-    assert!(!root.pages.away_focus());
+    assert_eq!(root.pages.away_focus(), 1);
+    assert_eq!(root.pages.away_focus(), 1);
+    act(&mut root, A::Limits { project: 17 }, Wall::EPOCH);
+    assert_eq!(root.pages.away_focus(), 2);
 }
 #[test]
 fn shown_by_goal_by_on_or_by_ways() {

@@ -30,6 +30,18 @@ pub enum Word {
     SettingsProposalAccepted,
     SettingsProposalReplaced,
 
+    AwaySettingsTitle,
+    AwayKinds,
+    AwayKindsLine,
+    AwayImplementation,
+    AwayRetry,
+    AwayWording,
+    AwayDependency,
+    AwayLocked,
+    AwaySettingsUntil,
+    AwayUntilLine,
+    AwayEight,
+    AwayByHand,
     SettingsShows,
     SettingsDrafts,
     SettingsDraftsLine,
@@ -1210,7 +1222,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1701;
+const PHRASES: u32 = 1713;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1228,8 +1240,8 @@ const PHRASES: u32 = 1701;
 // Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // Overturn adds four literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 2961;
-const ALL: [Word; 1102] = [
+const SEGMENTS: u32 = 2973;
+const ALL: [Word; 1114] = [
     Word::SettingsProposalTitle,
     Word::SettingsProposalDrafts,
     Word::SettingsProposalGoals,
@@ -1248,6 +1260,18 @@ const ALL: [Word; 1102] = [
     Word::SettingsProposalOwners,
     Word::SettingsProposalAccepted,
     Word::SettingsProposalReplaced,
+    Word::AwaySettingsTitle,
+    Word::AwayKinds,
+    Word::AwayKindsLine,
+    Word::AwayImplementation,
+    Word::AwayRetry,
+    Word::AwayWording,
+    Word::AwayDependency,
+    Word::AwayLocked,
+    Word::AwaySettingsUntil,
+    Word::AwayUntilLine,
+    Word::AwayEight,
+    Word::AwayByHand,
     Word::SettingsShows,
     Word::SettingsDrafts,
     Word::SettingsDraftsLine,
@@ -2355,6 +2379,18 @@ impl Word {
             Self::SettingsProposalOwners => 3431,
             Self::SettingsProposalAccepted => 3432,
             Self::SettingsProposalReplaced => 3433,
+            Self::AwaySettingsTitle => 3658,
+            Self::AwayKinds => 3659,
+            Self::AwayKindsLine => 3660,
+            Self::AwayImplementation => 3661,
+            Self::AwayRetry => 3662,
+            Self::AwayWording => 3663,
+            Self::AwayDependency => 3664,
+            Self::AwayLocked => 3665,
+            Self::AwaySettingsUntil => 3666,
+            Self::AwayUntilLine => 3667,
+            Self::AwayEight => 3668,
+            Self::AwayByHand => 3669,
             Self::SettingsShows => 3434,
             Self::SettingsDrafts => 3435,
             Self::SettingsDraftsLine => 3436,
@@ -3735,7 +3771,8 @@ impl Words {
             // Builders, flow paths and Home phrases add 204 literal bytes (3.5).
             // Home status and its last-look spans add 311 literal bytes (3.5).
             // Overturn adds 132 literal bytes (client/README.md, 3.5).
-            text_bytes: 41203 + 204 + 901 + 311 + 132,
+            // Away’s Settings section has twelve literal phrases (3.5).
+            text_bytes: 41203 + 204 + 901 + 311 + 132 + 383,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4602,6 +4639,18 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DelegateMove => (&[b"Delegate ", b" will be moved to you"], &[Number]),
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
+        Word::AwaySettingsTitle => (&[b"While you\xe2\x80\x99re away, agents may decide"], &[]),
+        Word::AwayKinds => (&[b"Kinds of decision"], &[]),
+        Word::AwayKindsLine => (&[b"Each shows afterwards as decided for you, with Overturn."], &[]),
+        Word::AwayImplementation => (&[b"Implementation choices within a task"], &[]),
+        Word::AwayRetry => (&[b"Retries and splitting a failing task"], &[]),
+        Word::AwayWording => (&[b"A design document\xe2\x80\x99s wording"], &[]),
+        Word::AwayDependency => (&[b"Adding a dependency"], &[]),
+        Word::AwayLocked => (&[b"Budgets, sign-ins, machines, what is hard to reverse: always wait"], &[]),
+        Word::AwaySettingsUntil => (&[b"Away until"], &[]),
+        Word::AwayUntilLine => (&[b"When it isn\xe2\x80\x99t turned off by hand."], &[]),
+        Word::AwayEight => (&[b"08:00, the end of quiet hours"], &[]),
+        Word::AwayByHand => (&[b"I turn it off"], &[]),
         Word::SettingsShows => (&[b"What the project shows"], &[]),
         Word::SettingsDrafts => (&[b"Chats can write drafts"], &[]),
         Word::SettingsDraftsLine => (&[b"A chat keeps a document beside it, in docs/design/draft/, that a goal can start from."], &[]),
