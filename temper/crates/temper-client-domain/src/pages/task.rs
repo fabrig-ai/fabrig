@@ -404,7 +404,8 @@ impl Task {
                 }
             }
             Act::Older => {}
-            Act::Amend
+            Act::FocusComposer
+            | Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked
             | Act::AmendPriority { .. }
@@ -565,6 +566,7 @@ impl Task {
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }
+            | Act::FocusComposer
             | Act::MessageWords { .. }
             | Act::Send
             | Act::Pause

@@ -10,14 +10,13 @@ demo:
   [6] Home
   [7] Needs you
   [8] Chats (current)
-  [9] Changes
-  [10] + New chat
-  [11] Settings
+  [9] + New chat
+  [10] Settings
   * Pat
 Where:
-  [12] Chats
-  [13] demo
-  [14] Chats
+  [11] Chats
+  [12] demo
+  [13] Chats
 T1 · Using the default model
 * waiting on 1 delegate
 0 spent · of 1
@@ -39,10 +38,10 @@ Conversation:
         - Pull request opened
         - CI passed
         - Landed
-      [15] Task 2 ↗
+      [14] Task 2 ↗
     1 tool call: wait
       wait
   Message:
-    [16] Message: (empty) (enter sends)
+    [15] Message: (empty) (enter sends)
     [-] Send (disabled)
     Enter sends · Shift+Enter for a new line

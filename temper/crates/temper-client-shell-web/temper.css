@@ -1749,6 +1749,23 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* ==== ui: settings ==== */
 
+/* Settings proposal cards, from greenfield/mock.css's .proposal rules. */
+.temper-settings-proposal { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; border-radius: 12px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
+.temper-settings-proposal.temper-settings-proposal-superseded { opacity: .5; }
+.temper-settings-proposal-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+.temper-settings-proposal-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.temper-settings-proposal-items li { display: flex; flex-direction: column; gap: 2px; }
+.temper-settings-proposal-items .temper-settings-proposal-reason { color: var(--gf-ink); }
+.temper-settings-proposal-items small { font: 12px var(--gf-mono); color: var(--gf-faint); }
+.temper-settings-proposal-acts { display: flex; flex-wrap: wrap; gap: 10px; }
+.temper-settings-proposal .temper-settings-btn { min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 13.5px var(--gf-sans); }
+.temper-settings-proposal .temper-settings-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+.temper-settings-proposal .temper-settings-small { border-color: transparent; background: none; color: var(--gf-muted); }
+.temper-settings-proposal .temper-settings-small:hover { background: var(--gf-hover); color: var(--gf-ink); }
+.temper-settings-proposal .temper-settings-primary:hover { background: #000; }
+.temper-settings-proposal-state { margin: 0; font-size: 13.5px; color: var(--gf-faint); }
+.temper-settings-proposal-state.temper-settings-proposal-ok { color: var(--gf-good); }
+
 /* Flow paths use Configure's crumbs (client/README.md, 3.5, The flows' paths). */
 .temper-main .temper-settings-path { min-width: 0; font: 400 14px/1.6 var(--gf-sans); }
 .temper-settings-path .temper-crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; color: var(--gf-muted); }
@@ -1793,9 +1810,27 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-settings-body { display: flex; flex-direction: column; gap: 44px; }
 .temper-settings-setting { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 280px); align-items: center; gap: 6px 28px; padding: 14px 0; border-bottom: 1px solid var(--gf-line); }
 .temper-settings-setting > div > .temper-settings-detail { display: block; margin-top: 2px; font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-setting select, .temper-settings-setting .temper-settings-text { width: 100%; min-width: 0; min-height: 38px; padding: 6px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font-size: 14px; }
+.temper-settings-setting select:disabled { color: var(--gf-faint); background: transparent; }
+.temper-settings-checks { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.temper-settings-checks label { display: flex; align-items: baseline; gap: 10px; }
+.temper-settings-checks input { accent-color: var(--gf-ink); }
+.temper-settings-checks :disabled + label { color: var(--gf-faint); }
+.temper-settings .temper-settings-switch { appearance: none; position: relative; flex: none; width: 34px; height: 20px; margin: 0; padding: 0; border: 0; border-radius: 10px; background: var(--gf-line-2); cursor: pointer; transition: background .15s; }
+.temper-settings-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.temper-settings .temper-settings-switch:checked { background: var(--gf-ink); }
+.temper-settings-switch:checked::after { left: 16px; }
+.temper-settings-switch:disabled { cursor: default; }
+.temper-settings-switch + label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.temper-settings-toggle-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-size: 14px; color: var(--gf-muted); }
+.temper-settings-toggle-row input[type=radio] { width: auto; height: auto; margin: revert; accent-color: auto; }
+.temper-settings .temper-settings-facts { margin: 0; font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-refusal { grid-column: 1 / -1; }
+.temper-settings :is(input, select):focus-visible { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
 .temper-settings-end { display: flex; justify-content: flex-end; }
 .temper-settings-section { display: flex; flex-direction: column; gap: 14px; }
 .temper-settings-body > .temper-settings-section { gap: 0; }
+.temper-settings-body > .temper-settings-section > .temper-settings-section-title { margin-bottom: 6px; }
 .temper-settings-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .temper-settings .temper-settings-section-title { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
 .temper-settings-section-head a { font-size: 13px; }

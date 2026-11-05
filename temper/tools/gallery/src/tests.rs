@@ -1426,6 +1426,42 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure-chat-proposal",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Button, name: "Accept" },
+            Part::Named { role: Role::Button, name: "Change something" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-accepted",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Paragraph, name: "✓ Accepted · new work follows it" },
+            Part::Absent { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-replaced",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Paragraph, name: "Replaced by the proposal below" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
         name: "configure-chats-tag",
         heading: "Talk to an agent",
         parts: &[Part::Text { text: "Configuring" }, Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED }],
@@ -1524,12 +1560,72 @@ const HOLDS: [Holds; samples::N] = [
         name: "settings",
         heading: "How work runs in tally.",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
+            Part::Named { role: Role::Check, name: "Away switch" },
             Part::Named { role: Role::Link, name: "Builders" },
             Part::Named { role: Role::Text, name: "Configure temper" },
             Part::Named { role: Role::Link, name: "Forges" },
             Part::Named { role: Role::Link, name: "Accounts" },
             Part::Named { role: Role::Link, name: "Start" },
             Part::Named { role: Role::Navigation, name: "Settings" },
+        ],
+    },
+    Holds {
+        name: "settings-drafts-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Chats can write drafts" }],
+    },
+    Holds {
+        name: "settings-goals-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Goals" }],
+    },
+    Holds {
+        name: "settings-changes-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Changes" }],
+    },
+    Holds {
+        name: "settings-away-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Away switch" }],
+    },
+    Holds {
+        name: "settings-all-hidden",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Ways of working" },
+        ],
+    },
+    Holds {
+        name: "settings-goals",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
+            Part::Named { role: Role::Choice, name: "The default" },
+        ],
+    },
+    Holds {
+        name: "settings-chat-open",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Named { role: Role::Link, name: "Go on" },
+            Part::Absent { role: Role::Link, name: "Start" },
+        ],
+    },
+    Holds {
+        name: "settings-refused",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Named { role: Role::Status, name: "This act is not offered" },
         ],
     },
     Holds {
@@ -2534,6 +2630,37 @@ fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
         } else {
             find(view.tree(), role, label, name);
         }
+    }
+}
+
+#[test]
+fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
+    for (name, off) in [
+        ("settings-drafts-off", "Chats can write drafts"),
+        ("settings-goals-off", "Goals"),
+        ("settings-changes-off", "Changes"),
+        ("settings-away-off", "Away switch"),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("switch-off sample");
+        let view = view(&sample);
+        let tree = view.tree();
+        for label in ["Chats can write drafts", "Goals", "Changes", "Away switch"] {
+            let id = find(tree, Role::Check, label, name);
+            let check = tree.nodes().iter().find(|node| node.id == id).expect("switch node");
+            assert_eq!(check.states.as_slice().contains(&skein_ui::State::Pressed), label != off, "{name}: {label}");
+        }
+        for label in ["Goals", "Changes"] {
+            let present = tree
+                .nodes()
+                .iter()
+                .any(|node| node.role == Role::Link && node.name.as_deref() == Some(label.as_bytes()));
+            assert_eq!(present, label != off, "{name}: {label} navigation");
+        }
+        let ways = tree
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"Ways of working"));
+        assert_eq!(ways, off != "Goals", "{name}: ways");
     }
 }
 
