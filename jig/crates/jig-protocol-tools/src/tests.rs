@@ -810,20 +810,25 @@ fn note_input(members: &str) -> Box<[u8]> {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "test cases assemble bounded note JSON from optional members")]
 fn a_line_range_decodes_to_note_lines() {
-    let input = note_input(r#", "name":20,"recalled":7,"first":3,"remove":2,"references":[9]"#);
-    let decoded = crate::decode(b"note", &input, &fixtures::LIMITS);
-    let Decoded::Action(core::NamedAction::NoteLines { entry, recalled, range }) = decoded else {
-        panic!("range decoded: {decoded:?}")
-    };
-    assert_eq!(recalled, 7);
-    assert_eq!(range, jig_domain_notes::LineRange { first: 3, remove: 2 });
-    assert_eq!(entry.name, 20);
-    assert_eq!(entry.scope, jig_domain_notes::Scope::Project { project: 7 });
-    assert_eq!(&*entry.description, b"draft");
-    assert_eq!(&*entry.body, b"next");
-    assert_eq!(entry.references.as_slice(), &[9]);
+    for join in [false, true] {
+        let input =
+            note_input(&format!(r#", "name":20,"recalled":7,"first":3,"remove":2,"references":[9],"join":{join}"#));
+        let decoded = crate::decode(b"note", &input, &fixtures::LIMITS);
+        let Decoded::Action(core::NamedAction::NoteLines { entry, recalled, range }) = decoded else {
+            panic!("range decoded: {decoded:?}")
+        };
+        assert_eq!(recalled, 7);
+        assert_eq!(range, jig_domain_notes::LineRange { first: 3, remove: 2, join });
+        assert_eq!(entry.name, 20);
+        assert_eq!(entry.scope, jig_domain_notes::Scope::Project { project: 7 });
+        assert_eq!(&*entry.description, b"draft");
+        assert_eq!(&*entry.body, b"next");
+        assert_eq!(entry.references.as_slice(), &[9]);
+    }
 }
+
 #[test]
 fn a_line_range_needs_its_revision() {
     let decoded = crate::decode(b"note", &note_input(r#", "name":20,"first":3,"remove":0"#), &fixtures::LIMITS);
@@ -838,6 +843,7 @@ fn first_and_remove_come_together() {
     for (members, field) in [
         (r#", "name":20,"recalled":1,"first":3"#, b"remove".as_slice()),
         (r#", "name":20,"recalled":1,"remove":0"#, b"first".as_slice()),
+        (r#", "name":20,"recalled":1,"join":true"#, b"first".as_slice()),
     ] {
         let decoded = crate::decode(b"note", &note_input(members), &fixtures::LIMITS);
         let Decoded::Problem(problem) = decoded else { panic!("missing range member: {decoded:?}") };

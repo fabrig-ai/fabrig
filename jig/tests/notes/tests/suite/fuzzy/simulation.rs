@@ -19,7 +19,7 @@ fn run(seed: u64) -> (Vec<String>, std::collections::BTreeMap<jig_domain_notes::
             owner: Token::new(name.checked_add(500).expect("token fits")),
             entry: task_entry(name, scope.clone(), b"warm service", b"then check", 9),
             recalled: 1,
-            range: LineRange { first: if rng.chance(500) { 2 } else { 3 }, remove: 0 },
+            range: LineRange { first: if rng.chance(500) { 2 } else { 3 }, remove: 0, join: false },
         });
         let _index = world.call(Event::Index {
             owner: Token::new(name.checked_add(1000).expect("token fits")),

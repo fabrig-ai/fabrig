@@ -18,7 +18,7 @@ fn append(world: &mut World, recalled: u32, first: u32, text: &[u8]) -> Answer {
         owner: Token::new(2),
         entry: task_entry(20, Scope::Project { project: 7 }, b"draft", text, 9),
         recalled,
-        range: LineRange { first, remove: 0 },
+        range: LineRange { first, remove: 0, join: false },
     })
 }
 

@@ -6,11 +6,42 @@ use skein_lib::List;
 
 use crate::{Problem, json::Value};
 
-pub(crate) fn new(value: &Value) -> Result<(notes::New, Option<u32>), Problem> {
+pub(crate) fn new(value: &Value) -> Result<(notes::New, Option<u32>, Option<notes::LineRange>), Problem> {
+    let first = value.field(b"first")?;
+    let remove = value.field(b"remove")?;
+    if first.is_some() != remove.is_some() {
+        return Err(Problem::Range(if first.is_some() { b"remove" } else { b"first" }));
+    }
+    let join = match value.field(b"join")? {
+        Some(join) => {
+            if first.is_none() {
+                return Err(Problem::Range(b"first"));
+            }
+            join.boolean(b"join")?
+        }
+        None => false,
+    };
+    let range = match first {
+        Some(first) => {
+            let first = first.small(b"first")?;
+            if first == 0 {
+                return Err(Problem::Range(b"first"));
+            }
+            Some(notes::LineRange {
+                first,
+                remove: remove.expect("range members come together").small(b"remove")?,
+                join,
+            })
+        }
+        None => None,
+    };
     let recalled = match value.field(b"recalled")? {
         Some(revision) => Some(revision.small(b"recalled")?),
         None => None,
     };
+    if range.is_some() && recalled.is_none() {
+        return Err(Problem::Range(b"recalled"));
+    }
     let name = match value.field(b"name")? {
         Some(name) => name.number(b"name")?,
         None => 0,
@@ -32,6 +63,7 @@ pub(crate) fn new(value: &Value) -> Result<(notes::New, Option<u32>), Problem> {
             author: notes::Author::Task { task: 0, attempt: 0 },
         },
         recalled,
+        range,
     ))
 }
 
