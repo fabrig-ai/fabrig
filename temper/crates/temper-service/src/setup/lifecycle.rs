@@ -884,7 +884,11 @@ pub(super) fn advance(engine: &mut crate::engine::Engine) {
                     },
                 )
                 .expect("admitted adoption");
-            super::run_plan(engine, run, host::Plan::Adopt { forge: *forge, repository });
+            super::run_plan(
+                engine,
+                run,
+                host::Plan::Adopt { forge: *forge, repository: host::Repository::Id(repository) },
+            );
             continue;
         }
         let mut deleted = List::with_capacity(engine.forge_records.bounds.installations);

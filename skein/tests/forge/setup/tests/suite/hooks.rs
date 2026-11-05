@@ -251,7 +251,10 @@ fn the_host_adopt_waits_for_the_secret_write_then_makes_the_hook_before_done() {
     let mut world = HostWorld::with_settings(7, &[], fixtures::repository_config(&[b"alice/specimen"]), settings);
     fixtures::seed_bot_tokens(world.store_mut());
     world.pause_writes();
-    let plan = Plan::Adopt { forge: 1, repository: NonZeroU64::new(1).expect("repository") };
+    let plan = Plan::Adopt {
+        forge: 1,
+        repository: skein_forge_setup::host::Repository::Id(NonZeroU64::new(1).expect("repository")),
+    };
     world.run_plan(1, plan.clone());
     world.settle();
     assert!(world.heard().is_empty());
@@ -292,4 +295,34 @@ fn the_host_adopt_waits_for_the_secret_write_then_makes_the_hook_before_done() {
         world.heard().last(),
         Some(&Heard::Done { run: Token::new(2), outcome: Outcome::Nothing, at: Duration::ZERO })
     );
+}
+
+#[test]
+fn the_host_adopts_by_path_with_one_hook_at_the_listener_after_two_runs() {
+    use skein_forge_setup::host::{Kind, Plan, Repository};
+    use skein_forge_setup::reconcile::Outcome;
+    use skein_forge_setup_world::{Heard, HostWorld};
+    use skein_lib::{Duration, Token};
+    let mut settings = fixtures::host_settings();
+    match &mut settings.forges.get_mut(0).expect("one forge").kind {
+        Kind::Forgejo(given) => given.listener = Some(listener()),
+        Kind::GitHub(_) => panic!("Forgejo fixture"),
+    }
+    let mut world = HostWorld::with_settings(7, &[], fixtures::repository_config(&[b"alice/specimen"]), settings);
+    fixtures::seed_bot_tokens(world.store_mut());
+    let plan = Plan::Adopt {
+        forge: 1,
+        repository: Repository::Path { owner: b"alice".as_slice().into(), name: b"specimen".as_slice().into() },
+    };
+    for run in [1, 2] {
+        world.run_plan(run, plan.clone());
+        world.finish();
+        let hooks: Vec<_> = world.store().repository_hooks(1).collect();
+        assert_eq!(hooks.len(), 1);
+        assert_eq!(hooks[0].url, url(1));
+        assert_eq!(
+            world.heard().last(),
+            Some(&Heard::Done { run: Token::new(run), outcome: Outcome::Nothing, at: Duration::ZERO })
+        );
+    }
 }
