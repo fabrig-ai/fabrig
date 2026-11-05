@@ -134,14 +134,17 @@ impl Client {
                         env,
                         accounts::Request::Redirected {
                             account: 0,
-                            uri: wrong.edit(&uri, self.limits.client.url_bytes),
+                            uri: skein_lib::Secret::new(wrong.edit(&uri, self.limits.client.url_bytes)),
                         },
                     );
                 }
             }
             Story::StateRefusals => {
                 for _ in 0..accounts::STATE_REFUSALS {
-                    self.ask(env, accounts::Request::Redirected { account: 0, uri: wrong_state(&uri) });
+                    self.ask(
+                        env,
+                        accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(wrong_state(&uri)) },
+                    );
                 }
             }
             Story::Return(_)
@@ -170,9 +173,9 @@ impl Client {
             | Story::Timeout
             | Story::Restart => {}
         }
-        self.ask(env, accounts::Request::Redirected { account: 0, uri: uri.clone() });
+        self.ask(env, accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri.clone()) });
         if self.story == Story::PasteTwice {
-            self.ask(env, accounts::Request::Redirected { account: 0, uri });
+            self.ask(env, accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri) });
         }
     }
 }

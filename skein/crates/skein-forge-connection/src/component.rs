@@ -608,7 +608,7 @@ impl Component {
         }
         for (_, id) in &self.common.connections {
             let c = self.common.connection_slab.get(*id).expect("indexed connection");
-            next = earliest(next, c.deadline);
+            next = earliest(next, c.deadline());
             next = earliest(next, c.link.next_deadline());
         }
         if self.common.lifecycle == Lifecycle::Live {
@@ -700,7 +700,7 @@ impl Common {
             && let Some(id) = self.connections.get(&token)
             && let Some(c) = self.connection_slab.get_mut(*id)
         {
-            c.hold(env.now.saturating_add(env.limits.deadline));
+            c.rest(Some(env.now.saturating_add(env.limits.deadline)));
         }
         if let Some(reason) = stopped(base.start)
             && base.start != previous
@@ -748,7 +748,7 @@ impl Common {
                 break;
             }
             let state = base.start;
-            if let Some(deadline) = c.deadline
+            if let Some(deadline) = c.deadline()
                 && deadline <= env.now
             {
                 if c.phase() == Phase::Idle && ready(state) {

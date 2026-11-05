@@ -117,15 +117,11 @@ impl Domain {
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the connector receives its admitted party envelope unchanged")]
 pub(crate) fn decide(
     domain: &mut Domain,
     env: &Env<Limits>,
     request: Token,
-    token: Token,
-    owner: Token,
-    _person: u64,
-    _project: u32,
+    (token, owner): (Token, Token),
     role: u32,
     retention: Duration,
     out: &mut Queue<Request>,

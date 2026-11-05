@@ -89,14 +89,12 @@ pub(crate) fn ask_document(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "a connector completes its opaque construction envelope")]
 pub(crate) fn document(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Output>,
     number: u16,
-    watcher: Token,
-    subject: Token,
+    (watcher, subject): (Token, Token),
     document: Result<ClientDocument, views::End>,
     work: &mut Queue<Work>,
 ) {
@@ -178,19 +176,23 @@ fn forward(
     core_out(domain, env, decision, requests, work);
 }
 
-#[expect(clippy::too_many_arguments, reason = "the root owns the admitted reply only during this synchronous handoff")]
+pub(crate) struct Reading {
+    pub(crate) reply: ReplyTo,
+    pub(crate) scope: jig_domain_people::ApplicationScope,
+    pub(crate) read: Token,
+    pub(crate) party: u64,
+}
+
 #[expect(clippy::too_many_lines, reason = "both connector-owned read vocabularies are routed exhaustively")]
 pub(crate) fn read(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Output>,
     number: u16,
-    reply: ReplyTo,
-    scope: jig_domain_people::ApplicationScope,
-    read: Token,
-    party: u64,
+    reading: Reading,
     work: &mut Queue<Work>,
 ) {
+    let Reading { reply, scope, read, party } = reading;
     if scope == jig_domain_people::ApplicationScope::Own {
         forget(domain, number, read, work);
         held(decision, Output::ApplicationRead { reply, answer: Err(ClientMissing::Unknown) });

@@ -376,7 +376,9 @@ that contain them are treated as secrets by the owner. Authorization URLs
 contain state, challenge and nonce, and when signing in again an ID token,
 and are handed only to the person's visit flow;
 the URL is not a durable record. Error descriptions and JWT claims are
-untrusted metadata. Only an authenticated TLS token endpoint, or an
+untrusted metadata. A record's `subject`, `metadata`, `granted_scopes` and
+`issued_client_id`, and a redirect's `error`, are none of these, and print
+as they came. Only an authenticated TLS token endpoint, or an
 `http` one on loopback (section 1), can supply a usable bearer token.
 
 ## 5. Bounds and verification
@@ -1001,3 +1003,13 @@ accounts component nor its listener requires a sum of heap prices.
 - **A wanted account's interval.** Default: its refresh lead, as for a held
   grant, so an issuer whose access tokens last an hour sees a refresh an
   hour; whether a longer interval keeps a refresh token alive as well.
+- **An exchange's lifecycle** (3): `skein-oauth-accounts`'s `Exchange` keeps
+  `pending_grant`, `aborted` and `file_active` beside its stage, and neither
+  crate's machine has one handler per cell (programming-model.md, section
+  5.4). Default: as they stand, until a debt item names them.
+- **A due record's wake** (6.3): `Component::has_work` answers true for a record
+  due a refresh with no `earliest_refresh_at`, while `fire` starts nothing if
+  its exchange is bound or it holds no refresh token, so an owner that drives
+  on `has_work` could turn with no progress. This is from reading the code; no
+  test has run it. Whether `has_work` asks what `fire` asks, which moves when
+  an owner wakes. Default: as it stands.

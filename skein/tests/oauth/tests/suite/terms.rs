@@ -54,7 +54,7 @@ fn again(
         },
     );
     let Some(oauth::Request::Visit { url }) = request else { panic!("visit") };
-    url
+    url.into_exposed()
 }
 #[test]
 fn an_incomplete_redirect_ends_the_sign_in_with_no_exchange() {

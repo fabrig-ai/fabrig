@@ -94,8 +94,7 @@ pub(crate) fn resume(store: &mut Store, env: &Env<Limits>, below: &mut Below) {
         pending.before,
         pending.after,
         pending.counts.as_slice(),
-        store.stores.store.last(),
-        Some(store.stores.secrets.last()),
+        (store.stores.store.last(), Some(store.stores.secrets.last())),
         env.wall,
     );
     let root = store.directory.root.expect("pending open holds the deployment lock");

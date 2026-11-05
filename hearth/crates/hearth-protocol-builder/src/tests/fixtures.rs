@@ -222,7 +222,9 @@ impl Layer {
         }
     }
     pub fn listing_error(&mut self, error: crate::git_machine::listing::Error) {
-        let Some(crate::Mode::Listing { above, .. }) = &mut self.protocol.mode else { panic!("listing phase") };
+        let crate::Current::Git { mode: crate::Mode::Listing { above, .. }, .. } = &mut self.protocol.current else {
+            panic!("listing phase")
+        };
         above.push(crate::git_machine::listing::Event::Failed(error));
     }
     pub fn run(&mut self, stdout: &[u8], exit: Exit) -> builder::vocabulary::Event {

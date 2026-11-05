@@ -26,6 +26,6 @@ pub use boundary::{
     PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready, Repair, Route, Stands, StartedFrom, State,
     Status, Stepped, Verification, Way,
 };
-pub use domain::{authority_words, released, review_failed, step};
+pub use domain::{authority_words, held_on_ci, released, review_failed, step};
 pub use queue::first;
 pub use relay::{Asked, RelayAct, RelayHeard, Relayed, Settled, relay};

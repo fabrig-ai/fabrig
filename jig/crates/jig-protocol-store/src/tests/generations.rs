@@ -139,8 +139,7 @@ fn a_manifest_encodes_levels_counts_map_commits_and_write_time_without_growth() 
         before,
         after,
         counts.as_slice(),
-        17,
-        Some(11),
+        (17, Some(11)),
         skein_lib::Wall::from_nanos(73),
     );
     assert_eq!(bytes.len(), FULL);

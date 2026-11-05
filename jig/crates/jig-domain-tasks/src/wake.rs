@@ -123,13 +123,11 @@ fn batch_state(domain: &Domain, number: u64, word: &Word) -> (u32, Wall, bool) {
 }
 
 /// Admit root's numbered notice only while the kept task can go on (domain/tasks.md, 5.7).
-#[expect(clippy::too_many_arguments, reason = "root-numbered notice fields accompany the step environment")]
 pub(crate) fn met(
     domain: &mut Domain,
     env: &Env<Limits>,
     number: u64,
-    dependency: u64,
-    removed: bool,
+    (dependency, removed): (u64, bool),
     by: Party,
     message: u64,
     out: &mut Queue<Request>,

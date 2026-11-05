@@ -322,8 +322,7 @@ fn the_manifest_at_both_bounds_reaches_its_whole_file_price() {
         levels,
         levels,
         &counts.into_boxed(),
-        u64::MAX,
-        Some(u64::MAX),
+        (u64::MAX, Some(u64::MAX)),
         skein_lib::Wall::EPOCH,
     );
     assert_eq!(sizes::MANIFEST_BYTES, 5464);

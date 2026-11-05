@@ -33,7 +33,12 @@ impl Domain {
             RestoreProjection::Waiting { task, entries } => super::inbox::replace_waiting(self, limits, task, &entries),
             RestoreProjection::Result { party, entry } => self.project_result(limits, party, entry),
             RestoreProjection::ChatState { party, project, task, last_reply, live, seen, replies } => {
-                super::inbox::project_chat(self, limits, party, project, task, last_reply, live, seen, replies);
+                super::inbox::project_chat(
+                    self,
+                    limits,
+                    super::inbox::State { party, project, task, last_reply, live, seen },
+                    replies,
+                );
             }
             RestoreProjection::EndedConversation { task } => {
                 for (key, _) in &self.conversations_seen {

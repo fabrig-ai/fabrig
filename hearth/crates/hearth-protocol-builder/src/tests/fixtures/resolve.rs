@@ -82,7 +82,7 @@ impl Layer {
                 if let Some(event) = self.told() {
                     events.push(event).expect("fixture events");
                 }
-                if self.protocol.resolving.is_none() {
+                if self.protocol.current.is_idle() {
                     return events.into_boxed();
                 }
                 panic!("resolve stalled");
@@ -272,7 +272,7 @@ impl Layer {
                 continue;
             }
             let Some(request) = self.asked() else {
-                if self.protocol.resolving.is_none() && self.above.is_empty() {
+                if self.protocol.current.is_idle() && self.above.is_empty() {
                     return run;
                 }
                 continue;

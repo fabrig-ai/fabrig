@@ -485,13 +485,19 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Start { reply_to, run, attempt, workstream, kinds, version, placement, assignment, grants } => {
             if attempt::start(
-                domain, env, reply_to, run, attempt, workstream, kinds, version, placement, assignment, out,
+                domain,
+                env,
+                attempt::Claiming { to: reply_to, workstream, kinds, version },
+                attempt::Names { run, attempt },
+                placement,
+                assignment,
+                out,
             ) {
                 crate::grants::keep(domain, env, run, attempt, &[], &grants, out);
             }
         }
         Event::StartJob { reply_to, run, attempt, workstream, job, adopt } => {
-            attempt::start_job(domain, env, reply_to, run, attempt, workstream, job, adopt, out);
+            attempt::start_job(domain, env, reply_to, attempt::Names { run, attempt }, workstream, (job, adopt), out);
         }
         Event::Inbound { run, attempt, message } => call::inbound(domain, run, attempt, message, out),
         Event::Relay { channel, run, attempt, call } => {

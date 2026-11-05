@@ -176,8 +176,9 @@ pub enum Event {
     Reset,
 }
 
+#[derive(Debug)]
 pub enum Request {
-    Visit { url: Box<[u8]> },
+    Visit { url: Secret },
     Http(HttpRequest),
     Tokens { record: SavedToken, missing: Box<[u8]> },
     Revoked { confirmed: bool },
@@ -855,20 +856,6 @@ impl core::fmt::Debug for HttpResponse {
             .field("now", &self.now)
             .field("wall", &self.wall)
             .finish()
-    }
-}
-
-impl core::fmt::Debug for Request {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Request::Visit { url } => f.debug_struct("Visit").field("url_len", &url.len()).finish(),
-            Request::Http(request) => f.debug_tuple("Http").field(request).finish(),
-            Request::Tokens { record, missing } => {
-                f.debug_struct("Tokens").field("record", record).field("missing", missing).finish()
-            }
-            Request::Revoked { confirmed } => f.debug_struct("Revoked").field("confirmed", confirmed).finish(),
-            Request::Failed { failure } => f.debug_struct("Failed").field("failure", failure).finish(),
-        }
     }
 }
 

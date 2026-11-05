@@ -99,29 +99,21 @@ pub(crate) fn make_project_request(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the deployment act names the maker without a sign-in")]
 pub(crate) fn make_project_act(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     out: &mut Queue<Request>,
-    request: Token,
-    maker: u64,
+    party: Party,
     name: Box<str>,
     policy: u32,
 ) {
+    let Party { request, person: maker, .. } = party;
     if core.people.role(maker, people::DEPLOYMENT) != Some(people::Role::Owner) {
         return decided(work, request, people::Outcome::Refused(people::Refusal::Unknown));
     }
     let mut routed = Routed::new(work);
-    make_project_request(
-        core,
-        env,
-        &mut routed,
-        Party { request, person: maker, project: 0, role: None },
-        name,
-        policy,
-    );
+    make_project_request(core, env, &mut routed, party, name, policy);
     let mut follow = routed.finish(work);
     for _ in 0..follow.len() {
         let next = follow.pop().expect("project route output count");

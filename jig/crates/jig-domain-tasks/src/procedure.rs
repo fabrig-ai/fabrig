@@ -15,14 +15,12 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, ReplyTo};
 
-#[expect(clippy::too_many_arguments, reason = "one fenced procedure decision")]
 pub(crate) fn stepped(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     number: u64,
-    step: u64,
-    read: Option<u64>,
+    (step, read): (u64, Option<u64>),
     decision: ProcedureDecision,
     out: &mut Queue<Request>,
 ) {

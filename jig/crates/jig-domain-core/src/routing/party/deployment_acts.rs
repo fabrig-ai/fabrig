@@ -1,4 +1,5 @@
 //! Deployment acts retain the same child decisions as party requests (people.md, 5.3).
+use super::dispatch::Party;
 use crate::{Ask, Carried, Core, Event, Held, Limits, PersonTaskRoute, Request, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -6,17 +7,16 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
-#[expect(clippy::too_many_arguments, reason = "the connector's keyed envelope crosses admission unchanged")]
 pub(crate) fn start(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     reply_to: ReplyTo,
-    connector: u16,
-    key: [u8; 16],
+    key: people::ActKey,
     act: Box<people::Act>,
     carried: Option<Carried>,
 ) -> Queue<Request> {
+    let people::ActKey { connector, key } = key;
     let digest = match &*act {
         people::Act::AddKey { digest, .. } => Some(*digest),
         people::Act::MakeProject { .. }
@@ -60,7 +60,15 @@ pub(crate) fn route(
             }
         }
         people::Act::MakeProject { maker, name, policy } => {
-            super::projects::make_project_act(core, env, work, out, request, maker, name, policy);
+            super::projects::make_project_act(
+                core,
+                env,
+                work,
+                out,
+                Party { request, person: maker, project: 0, role: None },
+                name,
+                policy,
+            );
         }
         people::Act::Close { project, task, grace, reason } => {
             if !core.open_project(project) {

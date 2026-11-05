@@ -83,7 +83,7 @@ impl Component {
     pub fn settled(&self) -> bool {
         self.command.is_none()
     }
-    #[expect(clippy::too_many_arguments, reason = "one typed host command and its explicit I/O binding")]
+    #[expect(clippy::too_many_arguments, reason = "public seam kept whole for callers outside this crate")]
     pub fn start(
         &mut self,
         owner: Token,

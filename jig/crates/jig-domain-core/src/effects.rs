@@ -16,7 +16,8 @@ pub(crate) mod resources;
 
 use crate::{
     Ask, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, Record, Request, ToolKind,
-    Write, fresh, routing::Work,
+    Write, fresh,
+    routing::{Work, effect::procedure::ProcedureCall, run::Proposing},
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -193,7 +194,7 @@ pub(crate) fn start(
             start_flight(core, env, owner, number, origin);
         }
         EffectOrigin::Propose { to, key, reason, as_holder } => {
-            return propose_start(core, env, owner, number, to, key, reason, as_holder);
+            return propose_start(core, env, owner, number, Proposing { to, key, reason, as_holder });
         }
         EffectOrigin::Accept { to, key, proposal, by } => {
             let pending = core.tasks.proposal(proposal.proposer, proposal.number);
@@ -284,17 +285,14 @@ pub(crate) fn start(
     out
 }
 
-#[expect(clippy::too_many_arguments, reason = "one named proposal carries its connector payload and reason")]
 fn propose_start(
     core: &mut Core,
     env: &Env<Limits>,
     owner: Token,
     number: u16,
-    to: ReplyTo,
-    key: CallKey,
-    reason: Box<[u8]>,
-    as_holder: bool,
+    proposing: Proposing,
 ) -> Queue<Request> {
+    let Proposing { to, key, reason, as_holder } = proposing;
     let mut out = Queue::uncapped();
     if let Some(part) = core.call_parts.get(&key) {
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
@@ -608,7 +606,14 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     let description = flight.description.expect("effect described before checking");
     let origin = match flight.origin {
         EffectOrigin::Propose { to, key, reason, as_holder } => {
-            complete_proposal(core, env, work, out, owner, flight.connector, to, key, *description, reason, as_holder);
+            complete_proposal(
+                core,
+                env,
+                work,
+                out,
+                Described { owner, number: flight.connector, description: *description },
+                Proposing { to, key, reason, as_holder },
+            );
             return;
         }
         EffectOrigin::Projection { goal, entry } => Making::Projection { goal, entry },
@@ -659,7 +664,15 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     if checked == authority::Answer::Propose {
         match &origin {
             Making::Procedure { task, step, entry: None } => {
-                procedure_propose(core, env, work, out, owner, flight.connector, *task, *step, &description);
+                procedure_propose(
+                    core,
+                    env,
+                    work,
+                    out,
+                    owner,
+                    ProcedureCall { task: *task, step: *step, connector: flight.connector },
+                    &description,
+                );
                 return;
             }
             Making::Projection { .. }
@@ -993,26 +1006,28 @@ fn complete_accept(
     purpose
 }
 
-#[expect(clippy::too_many_arguments, reason = "one explicit proposal retains its checked carrier and connector owner")]
+struct Described {
+    owner: Token,
+    number: u16,
+    description: connector::EffectDescription,
+}
+
 fn complete_proposal(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     out: &mut Queue<Request>,
-    owner: Token,
-    number: u16,
-    to: ReplyTo,
-    key: CallKey,
-    description: connector::EffectDescription,
-    reason: Box<[u8]>,
-    as_holder: bool,
+    described: Described,
+    proposing: Proposing,
 ) {
+    let Described { owner, number, description } = described;
+    let key = proposing.key;
     if number != description.connector || number != description.effect.connector {
         drop_effect(out, number, owner, authority::Answer::Refuse);
         answer(
             core,
             out,
-            to,
+            proposing.to,
             key,
             CallPart::EffectDenied { answer: authority::Answer::Refuse, findings: Box::new([]) },
         );
@@ -1020,17 +1035,15 @@ fn complete_proposal(
     }
     let Some(needed) = authority::needs(&authority::Action::Effect(description.effect.clone())) else {
         drop_effect(out, number, owner, authority::Answer::Refuse);
-        answer(core, out, to, key, CallPart::Unavailable);
+        answer(core, out, proposing.to, key, CallPart::Unavailable);
         return;
     };
-    let token = to.into_token();
     let mut admitted = None;
     let requests = crate::routing::named_propose(
         core,
         env,
         work,
-        ReplyTo::new(token),
-        key,
+        proposing,
         tasks::ProposalAction::Effect {
             connector: number,
             authority: crate::translate::task_authority(&needed),
@@ -1039,8 +1052,6 @@ fn complete_proposal(
             position: key.position,
             purpose: description.purpose,
         },
-        reason,
-        as_holder,
         &mut admitted,
     );
     let mut rows = requests;
@@ -1228,18 +1239,16 @@ fn accept_refused(
 
 /// The core owns the Propose answer and chooses its nearest covering holder.
 /// No Call identity is substituted for the procedure's genuine step/purpose.
-#[expect(clippy::too_many_arguments, reason = "one original procedure effect admission")]
 pub(crate) fn procedure_propose(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     owner: Token,
-    connector: u16,
-    task: u64,
-    step: u64,
+    call: ProcedureCall,
     description: &connector::EffectDescription,
 ) {
+    let ProcedureCall { task, step, connector } = call;
     let Some(context) = core.tasks.delegation(task) else {
         drop_with(out, connector, owner, authority::Answer::Refuse, connector::EffectRefusal::Proposal);
         return;

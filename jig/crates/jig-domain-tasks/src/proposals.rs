@@ -337,20 +337,24 @@ pub(crate) fn propose_person(
     out.push(Request::PersonProposed { reply_to: to, proposal: number });
 }
 
+pub(crate) struct ProposalDeciding {
+    pub(crate) proposer: u64,
+    pub(crate) number: u64,
+    pub(crate) by: Party,
+    pub(crate) message: Option<u64>,
+    pub(crate) decision: ProposalDecision,
+}
+
 /// Finish one exact policy decision after root has made the accepted batch.
-#[expect(clippy::too_many_arguments, reason = "one exact person proposal decision and its output")]
 pub(crate) fn decide_person(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    proposer: u64,
-    number: u64,
-    by: Party,
-    message: Option<u64>,
-    decision: ProposalDecision,
+    deciding: ProposalDeciding,
     revision: Option<u32>,
     out: &mut Queue<Request>,
 ) {
+    let ProposalDeciding { proposer, number, by, message, decision } = deciding;
     if !domain.ready() {
         return refused(to, None, Refusal::NotReady, out);
     }
@@ -569,12 +573,10 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
 }
 
 /// Apply root's fresh next-holder choice only if the exact old proposal still waits.
-#[expect(clippy::too_many_arguments, reason = "one reroute carries its old holder, revision and replacement")]
 pub(crate) fn stalled(
     domain: &mut Domain,
     env: &Env<Limits>,
-    proposer: u64,
-    number: u64,
+    (proposer, number): (u64, u64),
     from: ProposalHolder,
     revision: u64,
     holder: ProposalHolder,
@@ -818,18 +820,14 @@ fn install(domain: &mut Domain, env: &Env<Limits>, proposal: Proposal, result: b
 
 /// Advance the checked holder or finish the decision. Root executes an accepted
 /// action before calling this entry in the same synchronous decision.
-#[expect(clippy::too_many_arguments, reason = "one exact proposal decision carries its caller and message")]
 pub(crate) fn decide(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    proposer: u64,
-    number: u64,
-    message: Option<u64>,
-    by: Party,
-    decision: ProposalDecision,
+    deciding: ProposalDeciding,
     out: &mut Queue<Request>,
 ) {
+    let ProposalDeciding { proposer, number, by, message, decision } = deciding;
     let Some(mut proposal) = context(domain, proposer, number) else {
         return out.push(Request::ProposalDecided { reply_to: to, proposer, number, outcome: ProposalOutcome::Stale });
     };

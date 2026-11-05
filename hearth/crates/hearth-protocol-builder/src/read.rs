@@ -1,6 +1,8 @@
 //! One cat-file response at a time, then the bounded JSON machine (hearth/docs/design/domain/render.md, 2.2).
 use crate::{
-    Asked, Limits, builder, config,
+    Asked, Current as Work, Limits, Mode, builder,
+    cache::Cache,
+    config,
     git::Child,
     git_machine::{batch, oid::Oid},
     render::{
@@ -86,33 +88,86 @@ impl Decode {
         None
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Debug)]
+#[expect(clippy::large_enum_variant, reason = "the settled terminal stays inline without another allocation")]
 enum Arrival {
     Streaming,
     Waiting,
-    Settled,
+    Settled(Option<builder::vocabulary::Event>),
+}
+#[derive(Debug)]
+enum Current {
+    Body(Writer),
+    Decoding(Decode),
+    Decoded(Decoded),
+    Caching { cache: Cache, arrival: Arrival },
+    Spent,
+}
+impl Current {
+    fn whole(self, kind: render::vocabulary::As, env: &Env<Limits>) -> Self {
+        match self {
+            Self::Caching { mut cache, arrival } => {
+                cache.finish();
+                Self::Caching { cache, arrival }
+            }
+            Self::Body(body) => {
+                let bytes = body.finish();
+                match kind {
+                    render::vocabulary::As::Link => Self::Decoded(Decoded::Link(bytes)),
+                    render::vocabulary::As::Template => Self::Decoded(compile_template(&bytes, &env.limits)),
+                    render::vocabulary::As::Document | render::vocabulary::As::Declaration => {
+                        Self::Decoding(Decode::new(bytes, kind, env))
+                    }
+                    render::vocabulary::As::Cached => unreachable!("cached bytes stream"),
+                }
+            }
+            Self::Decoding(_) | Self::Decoded(_) | Self::Spent => unreachable!("whole blob"),
+        }
+    }
+    fn cache(&self) -> Option<&Cache> {
+        match self {
+            Self::Caching { cache, .. } => Some(cache),
+            Self::Body(_) | Self::Decoding(_) | Self::Decoded(_) | Self::Spent => None,
+        }
+    }
+    fn cache_mut(&mut self) -> Option<&mut Cache> {
+        match self {
+            Self::Caching { cache, .. } => Some(cache),
+            Self::Body(_) | Self::Decoding(_) | Self::Decoded(_) | Self::Spent => None,
+        }
+    }
+    fn ready(&self) -> bool {
+        match self {
+            Self::Decoded(_) => true,
+            Self::Caching { cache, arrival } => match arrival {
+                Arrival::Settled(_) => cache.done(),
+                Arrival::Streaming | Arrival::Waiting => false,
+            },
+            Self::Body(_) | Self::Decoding(_) | Self::Spent => false,
+        }
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Feed {
+    Due { sent: usize },
+    Asked { sent: usize },
+    Room { sent: usize },
+    Finished,
 }
 #[derive(Debug)]
 pub(crate) struct Read {
     root: skein_io::kernel::Fd,
     rng: skein_lib::Rng,
-    cache: Option<crate::cache::Cache>,
+    current: Current,
     request: Token,
     blobs: Box<[Blob]>,
     index: usize,
-    sent: usize,
-    room: Option<bool>,
-    finished_input: bool,
+    feed: Feed,
     batch: batch::Batch,
     above: Queue<batch::Event>,
     below: Queue<Down>,
-    body: Option<Writer>,
-    decode: Option<Decode>,
-    decoded: Option<Decoded>,
     failed: bool,
     began: Time,
-    arrival: Arrival,
-    terminal: Option<builder::vocabulary::Event>,
     ended: render::errors::Ended,
 }
 impl Read {
@@ -121,23 +176,16 @@ impl Read {
         let mut read = Self {
             root,
             rng: skein_lib::Rng::new(seed),
-            cache: None,
+            current: Current::Spent,
             request,
             blobs,
             index: 0,
-            sent: 0,
-            room: None,
-            finished_input: false,
+            feed: Feed::Due { sent: 0 },
             batch: batch::Batch::START,
             above: Queue::uncapped(),
             below: Queue::uncapped(),
-            body: None,
-            decode: None,
-            decoded: None,
             failed: false,
             began: env.now,
-            arrival: Arrival::Streaming,
-            terminal: None,
             ended: render::errors::Ended::Stream,
         };
         read.start(env);
@@ -145,17 +193,18 @@ impl Read {
     }
     fn start(&mut self, env: &Env<Limits>) {
         self.began = env.now;
-        self.arrival = Arrival::Streaming;
         let blob = self.blobs.get(self.index).expect("current blob");
-        match blob.kind {
+        self.current = match blob.kind {
             render::vocabulary::As::Document
             | render::vocabulary::As::Declaration
             | render::vocabulary::As::Template
             | render::vocabulary::As::Link => {
-                self.body = Some(Writer::new(usize::try_from(blob.size).expect("render checked document bound")));
+                Current::Body(Writer::new(usize::try_from(blob.size).expect("render checked document bound")))
             }
-            render::vocabulary::As::Cached => self.cache = Some(crate::cache::Cache::new(self.root, &mut self.rng)),
-        }
+            render::vocabulary::As::Cached => {
+                Current::Caching { cache: Cache::new(self.root, &mut self.rng), arrival: Arrival::Streaming }
+            }
+        };
         let request =
             batch::Request::Read { oid: Oid::parse(&blob.oid.0).expect("listed oid"), size: blob.size, max: blob.size };
         self.down(env, request);
@@ -169,64 +218,73 @@ impl Read {
         batch::up(&mut self.batch, &env, event, &mut self.above, &mut self.below);
     }
     pub fn input_room(&mut self) {
-        assert_eq!(self.room, Some(false), "one room demand");
-        self.room = Some(true);
+        self.feed = match self.feed {
+            Feed::Asked { sent } => Feed::Room { sent },
+            Feed::Due { .. } | Feed::Room { .. } | Feed::Finished => unreachable!("one room demand"),
+        };
     }
     pub fn input(&mut self, child: &Child, below: &mut Queue<Asked>) -> bool {
-        let Some(input) = child.input else {
+        let Some(input) = child.input.token() else {
             return false;
         };
-        let down = if let Some(blob) = self.blobs.get(self.sent) {
-            match self.room {
-                None => {
-                    self.room = Some(false);
+        let down = match self.feed {
+            Feed::Due { sent } => match self.blobs.get(sent) {
+                Some(blob) => {
+                    self.feed = Feed::Asked { sent };
                     Down::Demand {
                         read: stream::Read::Nothing,
                         room: u32::try_from(blob.oid.0.len()).expect("bounded oid").checked_add(1).expect("line fits"),
                     }
                 }
-                Some(false) => return false,
-                Some(true) => {
-                    self.room = None;
-                    self.sent = self.sent.checked_add(1).expect("bounded blobs");
-                    Down::Send(batch::request_line(Oid::parse(&blob.oid.0).expect("listed oid")))
+                None => {
+                    self.feed = Feed::Finished;
+                    Down::Finish
                 }
+            },
+            Feed::Room { sent } => {
+                let blob = self.blobs.get(sent).expect("room for current blob");
+                self.feed = Feed::Due { sent: sent.checked_add(1).expect("bounded blobs") };
+                Down::Send(batch::request_line(Oid::parse(&blob.oid.0).expect("listed oid")))
             }
-        } else if !self.finished_input {
-            self.finished_input = true;
-            Down::Finish
-        } else {
-            return false;
+            Feed::Asked { .. } | Feed::Finished => return false,
         };
         below.push(Asked::Io(io::Request::Stream { stream: input, down }));
         true
     }
     pub fn work_pending(&self) -> bool {
-        if let Some(cache) = &self.cache {
-            if cache.work_pending() || (cache.done() && (self.arrival != Arrival::Waiting)) {
-                return true;
+        match &self.current {
+            Current::Caching { cache, arrival } => {
+                let waiting = match arrival {
+                    Arrival::Waiting => true,
+                    Arrival::Streaming | Arrival::Settled(_) => false,
+                };
+                if cache.work_pending() || (cache.done() && !waiting) {
+                    return true;
+                }
+                if cache.busy() {
+                    return false;
+                }
             }
-            if cache.busy() {
-                return false;
-            }
+            Current::Decoding(_) | Current::Decoded(_) => return true,
+            Current::Body(_) | Current::Spent => {}
         }
-        self.decode.is_some()
-            || !self.above.is_empty()
+        !self.above.is_empty()
             || !self.below.is_empty()
-            || self.decoded.is_some()
-            || (!self.finished_input && self.room != Some(false))
+            || match self.feed {
+                Feed::Due { .. } | Feed::Room { .. } => true,
+                Feed::Asked { .. } | Feed::Finished => false,
+            }
     }
     pub fn take_request(&mut self) -> Option<Down> {
-        if match &self.cache {
-            Some(cache) => cache.busy(),
-            None => false,
-        } {
+        if let Some(cache) = self.current.cache()
+            && cache.busy()
+        {
             return None;
         }
         self.below.pop()
     }
     pub fn close_cache(&mut self, below: &mut Queue<Asked>) -> bool {
-        let Some(cache) = &mut self.cache else {
+        let Some(cache) = self.current.cache_mut() else {
             return true;
         };
         if cache.abort() {
@@ -238,7 +296,7 @@ impl Read {
         false
     }
     pub fn cache_work_pending(&self) -> Option<bool> {
-        let cache = self.cache.as_ref()?;
+        let cache = self.current.cache()?;
         if cache.done() || cache.failed() {
             return None;
         }
@@ -249,7 +307,7 @@ impl Read {
     }
     pub fn failed(&self) -> bool {
         self.failed
-            || (match &self.cache {
+            || (match self.current.cache() {
                 Some(cache) => cache.failed(),
                 None => false,
             })
@@ -258,49 +316,55 @@ impl Read {
         self.request
     }
     pub fn ready(&self) -> bool {
-        (self.decoded.is_some()
-            || (match &self.cache {
-                Some(cache) => cache.done() && self.arrival == Arrival::Settled,
-                None => false,
-            }))
-            && self.index.checked_add(1) == Some(self.blobs.len())
+        self.current.ready() && self.index.checked_add(1) == Some(self.blobs.len())
     }
     pub fn take_answer(&mut self) -> render::vocabulary::Event {
         let blob = self.blobs.get(self.index).expect("current blob");
-        if match &self.cache {
-            Some(cache) => cache.done() && self.arrival == Arrival::Settled,
-            None => false,
-        } {
-            return render::vocabulary::Event::Cached {
+        assert!(self.current.ready(), "decoded or cached blob");
+        match core::mem::replace(&mut self.current, Current::Spent) {
+            Current::Caching { cache, .. } => render::vocabulary::Event::Cached {
                 request: self.request,
                 oid: blob.oid.clone(),
                 size: blob.size,
-                sha256: self.cache.take().expect("cached blob").digest(),
-            };
-        }
-        render::vocabulary::Event::Read {
-            request: self.request,
-            oid: blob.oid.clone(),
-            read: self.decoded.take().expect("decoded blob"),
+                sha256: cache.digest(),
+            },
+            Current::Decoded(read) => {
+                render::vocabulary::Event::Read { request: self.request, oid: blob.oid.clone(), read }
+            }
+            Current::Body(_) | Current::Decoding(_) | Current::Spent => {
+                unreachable!("decoded or cached blob")
+            }
         }
     }
     pub fn temporary(&self) -> Box<[u8]> {
-        self.cache.as_ref().expect("arrival temporary").name()
+        self.current.cache().expect("arrival temporary").name()
     }
     pub fn settle(&mut self, event: builder::vocabulary::Event) -> Option<builder::vocabulary::Event> {
-        self.arrival = Arrival::Settled;
+        let arrival = match &mut self.current {
+            Current::Caching { arrival, .. } => arrival,
+            Current::Body(_) | Current::Decoding(_) | Current::Decoded(_) | Current::Spent => {
+                unreachable!("settling a cached arrival")
+            }
+        };
+        *arrival = Arrival::Settled(None);
         if self.index.checked_add(1) == Some(self.blobs.len()) {
-            self.terminal = Some(event);
+            *arrival = Arrival::Settled(Some(event));
             None
         } else {
             Some(event)
         }
     }
     pub fn take_terminal(&mut self) -> Option<builder::vocabulary::Event> {
-        self.terminal.take()
+        match &mut self.current {
+            Current::Caching { arrival, .. } => match arrival {
+                Arrival::Settled(terminal) => terminal.take(),
+                Arrival::Streaming | Arrival::Waiting => None,
+            },
+            Current::Body(_) | Current::Decoding(_) | Current::Decoded(_) | Current::Spent => None,
+        }
     }
     pub fn file_up(&mut self, event: skein_io::file::Event) {
-        self.cache.as_mut().expect("cache event").up(event);
+        self.current.cache_mut().expect("cache event").up(event);
     }
     pub fn resume(
         &mut self,
@@ -308,74 +372,75 @@ impl Read {
         above: &mut Queue<builder::vocabulary::Event>,
         below: &mut Queue<Asked>,
     ) {
-        if let Some(cache) = &mut self.cache {
-            if let Some(request) = cache.take_request() {
-                below.push(Asked::File(request));
-                return;
+        match &mut self.current {
+            Current::Caching { cache, arrival } => {
+                if let Some(request) = cache.take_request() {
+                    below.push(Asked::File(request));
+                    return;
+                }
+                if cache.written() {
+                    self.down(env, batch::Request::Next);
+                    return;
+                }
+                if cache.done() {
+                    match arrival {
+                        Arrival::Streaming => {
+                            let blob = self.blobs.get(self.index).expect("arriving blob");
+                            above.push(builder::vocabulary::Event::Arrived {
+                                request: self.request,
+                                oid: blob.oid.clone(),
+                                size: blob.size,
+                                last: self.index.checked_add(1) == Some(self.blobs.len()),
+                                arrival: Token::new(10),
+                                sha256: cache.digest(),
+                                took: env.now.saturating_since(self.began),
+                            });
+                            *arrival = Arrival::Waiting;
+                        }
+                        Arrival::Settled(_) => {
+                            if self.index.checked_add(1) != Some(self.blobs.len()) {
+                                self.index = self.index.checked_add(1).expect("bounded blobs");
+                                self.start(env);
+                            }
+                        }
+                        Arrival::Waiting => {}
+                    }
+                    return;
+                }
+                if !cache.readable() {
+                    return;
+                }
             }
-            if cache.written() {
-                self.down(env, batch::Request::Next);
-                return;
-            }
-            if cache.done() {
-                if self.arrival == Arrival::Streaming {
-                    let blob = self.blobs.get(self.index).expect("arriving blob");
-                    above.push(builder::vocabulary::Event::Arrived {
-                        request: self.request,
-                        oid: blob.oid.clone(),
-                        size: blob.size,
-                        last: self.index.checked_add(1) == Some(self.blobs.len()),
-                        arrival: Token::new(10),
-                        sha256: cache.digest(),
-                        took: env.now.saturating_since(self.began),
-                    });
-                    self.arrival = Arrival::Waiting;
-                } else if self.arrival == Arrival::Settled && !self.ready() {
-                    self.cache = None;
-                    self.index = self.index.checked_add(1).expect("bounded blobs");
-                    self.start(env);
+            Current::Decoding(decode) => {
+                if let Some(result) = decode.resume(env) {
+                    self.current = match result {
+                        Ok(decoded) => Current::Decoded(decoded),
+                        Err(()) => {
+                            self.failed = true;
+                            Current::Spent
+                        }
+                    };
                 }
                 return;
             }
-            if !cache.readable() {
-                return;
-            }
+            Current::Body(_) | Current::Decoded(_) | Current::Spent => {}
         }
-        if let Some(decode) = &mut self.decode {
-            if let Some(result) = decode.resume(env) {
-                self.decode = None;
-                match result {
-                    Ok(decoded) => self.decoded = Some(decoded),
-                    Err(()) => self.failed = true,
-                }
-            }
-        } else if let Some(event) = self.above.pop() {
+        if let Some(event) = self.above.pop() {
             match event {
-                batch::Event::Piece(bytes) => {
-                    if let Some(cache) = &mut self.cache {
-                        cache.piece(bytes);
-                    } else {
-                        self.body.as_mut().expect("current blob buffer").put(&bytes).expect("batch bounded piece");
+                batch::Event::Piece(bytes) => match &mut self.current {
+                    Current::Caching { cache, .. } => cache.piece(bytes),
+                    Current::Body(body) => {
+                        body.put(&bytes).expect("batch bounded piece");
                         self.down(env, batch::Request::Next);
                     }
-                }
-                batch::Event::Whole { .. } => {
-                    if let Some(cache) = &mut self.cache {
-                        cache.finish();
-                    } else {
-                        let bytes = self.body.take().expect("whole blob").finish();
-                        let kind = self.blobs.get(self.index).expect("blob").kind;
-                        match kind {
-                            render::vocabulary::As::Link => self.decoded = Some(Decoded::Link(bytes)),
-                            render::vocabulary::As::Template => {
-                                self.decoded = Some(compile_template(&bytes, &env.limits));
-                            }
-                            render::vocabulary::As::Document | render::vocabulary::As::Declaration => {
-                                self.decode = Some(Decode::new(bytes, kind, env));
-                            }
-                            render::vocabulary::As::Cached => unreachable!("cached bytes stream"),
-                        }
+                    Current::Decoding(_) | Current::Decoded(_) | Current::Spent => {
+                        unreachable!("current blob buffer")
                     }
+                },
+                batch::Event::Whole { .. } => {
+                    let current = core::mem::replace(&mut self.current, Current::Spent);
+                    let kind = self.blobs.get(self.index).expect("blob").kind;
+                    self.current = current.whole(kind, env);
                 }
                 batch::Event::Missing { oid } => {
                     self.failed = true;
@@ -396,13 +461,7 @@ impl Read {
                 }
                 batch::Event::Closed => unreachable!("batch is not closed"),
             }
-        } else if (self.decoded.is_some()
-            || (match &self.cache {
-                Some(cache) => cache.done() && self.arrival == Arrival::Settled,
-                None => false,
-            }))
-            && !self.ready()
-        {
+        } else if self.current.ready() && !self.ready() {
             above.push(builder::vocabulary::Event::Render(self.take_answer()));
             self.index = self.index.checked_add(1).expect("bounded blobs");
             self.start(env);
@@ -410,8 +469,14 @@ impl Read {
     }
 }
 
-pub(super) fn current(mode: &mut Option<crate::Mode>) -> Option<&mut Read> {
-    if let Some(crate::Mode::Read(read)) = mode { Some(read) } else { None }
+pub(super) fn current(current: &mut Work) -> Option<&mut Read> {
+    match current {
+        Work::Git { mode, .. } => match mode {
+            Mode::Read(read) => Some(read),
+            Mode::Rev { .. } | Mode::Listing { .. } | Mode::Hunks { .. } => None,
+        },
+        Work::Call(_) | Work::Step(_) | Work::Idle | Work::Keeping(_) | Work::Resolving(_) => None,
+    }
 }
 
 fn compile_template(bytes: &[u8], limits: &Limits) -> Decoded {

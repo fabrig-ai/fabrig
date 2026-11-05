@@ -303,7 +303,7 @@ impl Component {
             }
             Request::SignOut { account } => self.sign_out(env, account, up, io),
             Request::SignIn { account, subject } => self.sign_in(env, account, subject, up, io),
-            Request::Redirected { account, uri } => self.redirected(env, account, &uri, up),
+            Request::Redirected { account, uri } => self.redirected(env, account, uri.expose(), up),
             Request::Return { account, location } => self.return_to(account, location),
             Request::Cancel { account } => match self.entries.get(account) {
                 Some(AccountEntry { binding: Some(id), .. }) => {

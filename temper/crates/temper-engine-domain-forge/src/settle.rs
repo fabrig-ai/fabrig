@@ -150,6 +150,9 @@ pub(crate) fn cap(
         | change::Decision::CancelProducer
         | change::Decision::Delegate(_)
         | change::Decision::CancelGates { .. }
+        | change::Decision::CancelRepair { .. }
+        | change::Decision::EndHold
+        | change::Decision::RepairEnded { .. }
         | change::Decision::Effect(_)
         | change::Decision::Ready
         | change::Decision::QueueRepair

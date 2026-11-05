@@ -250,8 +250,15 @@ pub(super) fn seeds(owners: &[InitialOwner], seeding: bool) -> &[InitialOwner] {
     if seeding { owners } else { &[] }
 }
 
+pub(super) struct SigningIn {
+    pub(super) candidate: u64,
+    pub(super) number: u64,
+    pub(super) identity: Identity,
+    pub(super) kind: Kind,
+    pub(super) held: Option<u64>,
+}
+
 #[expect(
-    clippy::too_many_arguments,
     clippy::too_many_lines,
     reason = "one sign-in decision checks replay and held ownership before capacity and writes"
 )]
@@ -259,13 +266,10 @@ pub(super) fn signin(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    candidate: u64,
-    number: u64,
-    identity: Identity,
-    kind: Kind,
-    held: Option<u64>,
+    signing: SigningIn,
     out: &mut Queue<Request>,
 ) {
+    let SigningIn { candidate, number, identity, kind, held } = signing;
     if !domain.ready() {
         return again(to, Again::NotReady, out);
     }

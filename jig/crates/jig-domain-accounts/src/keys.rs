@@ -19,24 +19,13 @@ pub(crate) struct Keeping {
     pub(crate) replacing: bool,
 }
 
-#[expect(clippy::too_many_arguments, reason = "one admitted account change and its carried number")]
-pub(crate) fn add(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    request: Token,
-    holder: Holder,
-    provider: u32,
-    join: Option<u32>,
-    carried: u64,
-    out: &mut Queue<Request>,
-) {
-    if let Err(refusal) = addable(domain, &env.limits, holder, provider, join) {
-        answer(request, refusal, out);
+pub(crate) fn add(domain: &mut Domain, env: &Env<Limits>, keeping: Keeping, carried: u64, out: &mut Queue<Request>) {
+    if let Err(refusal) = addable(domain, &env.limits, keeping.holder, keeping.provider, keeping.join) {
+        answer(keeping.request, refusal, out);
         return;
     }
     let source = domain.take();
     domain.counted(out);
-    let keeping = Keeping { request, holder, provider, join, replacing: false };
     assert!(domain.keeping.insert(source, keeping) == Ok(None), "admitted keep with a new number");
     out.push(Request::Signing(Signing::Keep { source, carried, replaces: false }));
 }
