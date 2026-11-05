@@ -1,7 +1,7 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
-    Box, Limits, List, Reader, Wall, c, chip_fields, offered_piece, piece_problem, result_fields,
-    specification_document_fields, task_contract_document_fields, task_link_fields, too_large, w,
+    Box, Limits, List, Reader, Wall, c, chip_fields, offered_piece, result_fields, specification_document_fields,
+    task_contract_document_fields, task_link_fields, too_large, w,
 };
 
 pub(crate) fn shown_result_fields(value: &w::ShownResult, limits: &Limits) -> Result<c::ShownResult, w::Problem> {
@@ -21,21 +21,7 @@ pub(crate) fn shown_result_piece(
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
     for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(too_large());
-        }
+        let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::ShownResult::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = shown_result_fields(&row, limits)?;
         if rows.push(row).is_err() {

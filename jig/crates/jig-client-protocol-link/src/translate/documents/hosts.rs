@@ -1,5 +1,5 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
-use super::{Limits, List, Reader, Wall, c, piece_problem, task_link_fields, too_large, w};
+use super::{Limits, List, Reader, Wall, c, task_link_fields, too_large, w};
 
 pub(crate) fn store_fill_fields(value: &w::StoreFill) -> c::StoreFill {
     c::StoreFill { bytes: value.bytes(), mark: value.mark() }
@@ -72,21 +72,7 @@ pub(crate) fn host_run_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resul
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
     for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(too_large());
-        }
+        let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::HostRun::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = host_run_fields(&row, limits)?;
         if rows.push(row).is_err() {
@@ -147,9 +133,7 @@ pub(crate) fn host_piece(
     let mut rows = List::with_capacity(bound);
     let mut reader = Reader::new(bytes);
     for _ in 0..count {
-        let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else {
-            return Err(piece_problem(skein_codec::Reason::Malformed));
-        };
+        let item = skein_codec::piece::counted(&mut reader);
         let row = w::Host::decode(limits.wire(), &mut Reader::new(&item))?;
         rows.push(host_fields(&row, limits, room)?).expect("counted host pieces");
     }

@@ -211,16 +211,7 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
     let mut rows = Map::with_capacity(bound);
     let mut sum = 0_u64;
     for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(problem) => return Err(piece_problem(problem)),
-        };
-        let Some(item) = item else { break };
-        sum = sum.checked_add(u64::try_from(item.len()).expect("piece fits u64")).ok_or(too_large())?;
-        sum = sum.checked_add(4).ok_or(too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(too_large());
-        }
+        let Some(item) = super::next_piece(&mut reader, &mut sum, limits)? else { break };
         let row = w::Fact::decode(limits.receiving(), &mut Reader::new(&item))?;
         if rows.insert(rows.len(), row).is_err() {
             return Err(too_large());
