@@ -3,12 +3,30 @@ use jig_test_connector::{self as connector, ClientDocument, ClientScope, ClientS
 use jig_test_connector_world::{World, kind, path};
 use skein_lib::{Duration, Token, Wall};
 
+const KEYED_KIND: u16 = 1;
+const PROCEDURE: u16 = 1;
+
+fn doc(seed: u8) -> connector::Path {
+    path(seed, 1)
+}
+
+fn effect(seed: u8, purpose: u64, state: u64) -> connector::Effect {
+    connector::Effect {
+        kind: kind(seed, KEYED_KIND),
+        resources: Box::new([doc(seed)]),
+        purpose,
+        condition: None,
+        target: state,
+        state,
+    }
+}
+
 fn world(seed: u8) -> World {
     let mut world = World::new(seed);
-    world.event(Event::Adopt { project: 1, resource: path(seed, 1), role: connector::ResourceRole::Owned });
-    world.system.other_hand(&path(seed, 1), 0);
+    world.event(Event::Adopt { project: 1, resource: doc(seed), role: connector::ResourceRole::Owned });
+    world.system.other_hand(&doc(seed), 0);
     let fact = world.system.answer(
-        connector::SystemRequest::ReadFact { resource: path(seed, 1), observed: Wall::from_nanos(1) },
+        connector::SystemRequest::ReadFact { resource: doc(seed), observed: Wall::from_nanos(1) },
         jig_test_system::Fault::None,
     );
     world.event(Event::System(fact));
@@ -86,7 +104,7 @@ fn a_watched_connector_subject_is_delivered_whole_after_each_change() {
 fn a_panel_read_waits_for_the_commit_it_reflects() {
     let mut world = world(82);
     let panel = prepare(&mut world, 1, ClientSubject::Panel { project: 1, task: 4 });
-    let requests = world.event(Event::Names { task: 4, project: 1, resources: Box::new([path(82, 1)]) });
+    let requests = world.event(Event::Names { task: 4, project: 1, resources: Box::new([doc(world.seed)]) });
     assert!(marked(&requests, panel));
     assert!(world.records.contains_key(&connector::RecordKey::Task(4)), "the world journals names before answering");
     let commits = world.commits;
@@ -107,7 +125,7 @@ fn a_panel_read_waits_for_the_commit_it_reflects() {
     };
     assert_eq!(*read, panel);
     assert_eq!(*task, 4);
-    assert_eq!(resources.get(0).expect("story fixture supplies this value").path, path(82, 1));
+    assert_eq!(resources.get(0).expect("story fixture supplies this value").path, doc(world.seed));
     assert_eq!(
         resources
             .get(0)
@@ -133,17 +151,17 @@ fn a_connector_subject_ends_when_its_object_does() {
     let mut world = world(83);
     let token = prepare(&mut world, 1, ClientSubject::Object { project: 1, object: 1 });
     assert!(document(&mut world, token).is_ok());
-    world.system.remove(&path(83, 1));
+    world.system.remove(&doc(world.seed));
     let gone = world.system.answer(
-        connector::SystemRequest::ReadFact { resource: path(83, 1), observed: Wall::from_nanos(2) },
+        connector::SystemRequest::ReadFact { resource: doc(world.seed), observed: Wall::from_nanos(2) },
         jig_test_system::Fault::None,
     );
     assert!(marked(&world.event(Event::System(gone)), token));
     assert_eq!(document(&mut world, token), Err(connector::DocumentMissing::Unknown));
     world.event(Event::DocumentForget { subject: token });
-    world.system.other_hand(&path(83, 1), 9);
+    world.system.other_hand(&doc(world.seed), 9);
     let restored = world.system.answer(
-        connector::SystemRequest::ReadFact { resource: path(83, 1), observed: Wall::from_nanos(3) },
+        connector::SystemRequest::ReadFact { resource: doc(world.seed), observed: Wall::from_nanos(3) },
         jig_test_system::Fault::None,
     );
     assert!(!marked(&world.event(Event::System(restored)), token), "an ended watch leaves no subject binding");
@@ -166,12 +184,12 @@ fn every_part_is_owned_scoped_and_read_without_mutating_its_records() {
     for (index, subject) in watched.into_iter().enumerate() {
         prepare(&mut world, 40 + index as u64, subject);
     }
-    world.event(Event::Names { task: 4, project: 1, resources: Box::new([path(84, 1)]) });
+    world.event(Event::Names { task: 4, project: 1, resources: Box::new([doc(world.seed)]) });
     let procedure = connector::ProcedureState {
         project: 1,
         task: 4,
-        number: kind(84, 1),
-        resource: path(84, 1),
+        number: kind(world.seed, PROCEDURE),
+        resource: doc(world.seed),
         index: 3,
         steps: 3,
         awaiting: false,
@@ -181,14 +199,7 @@ fn every_part_is_owned_scoped_and_read_without_mutating_its_records() {
     };
     world.event(Event::Restore { record: connector::Record::Procedure(procedure.clone()) });
     world.event(Event::Restore { record: connector::Record::Result { task: 4, code: 9 } });
-    let effect = connector::Effect {
-        kind: kind(84, 1),
-        resources: Box::new([path(84, 1)]),
-        purpose: 7,
-        condition: None,
-        target: 5,
-        state: 5,
-    };
+    let effect = effect(world.seed, 7, 5);
     world.event(Event::Describe { token: Token::new(80), effect: effect.clone() });
     let kept = world.event(Event::KeepProposal { token: Token::new(80), number: 7, task: 4, project: 1 });
     assert!(marked(&kept, Token::new(42)), "saving a proposal marks its description");
@@ -236,7 +247,7 @@ fn every_part_is_owned_scoped_and_read_without_mutating_its_records() {
     };
     assert_eq!((*proposal, *task), (7, 4));
     assert_eq!(payload, &effect);
-    assert_eq!(description.kind, kind(84, 1));
+    assert_eq!(description.kind, kind(world.seed, KEYED_KIND));
     assert_eq!(description.price, Some(3));
     let ClientDocument::Hold { task, resources: held, effects: pending } = &documents[3] else { panic!("hold") };
     assert_eq!(*task, 4);
@@ -276,16 +287,9 @@ fn every_part_is_owned_scoped_and_read_without_mutating_its_records() {
 #[test]
 fn an_outbox_part_uses_the_retained_entry_and_marks_its_removal() {
     let mut world = world(85);
-    world.event(Event::Names { task: 4, project: 1, resources: Box::new([path(85, 1)]) });
+    world.event(Event::Names { task: 4, project: 1, resources: Box::new([doc(world.seed)]) });
     let subject = prepare(&mut world, 1, ClientSubject::Outbox { project: 1, entry: 3 });
-    let effect = connector::Effect {
-        kind: kind(85, 1),
-        resources: Box::new([path(85, 1)]),
-        purpose: 7,
-        condition: None,
-        target: 5,
-        state: 5,
-    };
+    let effect = effect(world.seed, 7, 5);
     world.event(Event::Describe { token: Token::new(80), effect: effect.clone() });
     let key = world.key(4, 7);
     let kept = world.event(Event::Keep { token: Token::new(80), entry: 3, task: 4, key });
@@ -326,8 +330,8 @@ fn a_resource_less_procedure_panel_keeps_its_actual_project_across_restart() {
         added: Box::new([]),
         project: 7,
         task: 9,
-        number: kind(88, 1),
-        resource: path(88, 1),
+        number: kind(world.seed, PROCEDURE),
+        resource: doc(world.seed),
         signal: connector::ProcedureSignal::Activate,
     });
     assert!(marked(&made, panel));
@@ -338,8 +342,8 @@ fn a_resource_less_procedure_panel_keeps_its_actual_project_across_restart() {
     let procedure = procedure.clone();
     assert_eq!(procedure.project, 7);
     assert_eq!(procedure.task, 9);
-    assert_eq!(procedure.number, kind(88, 1));
-    assert_eq!(procedure.resource, path(88, 1));
+    assert_eq!(procedure.number, kind(world.seed, PROCEDURE));
+    assert_eq!(procedure.resource, doc(world.seed));
     assert_eq!(procedure.steps, 1);
     for restart in [false, true] {
         if restart {
@@ -380,8 +384,8 @@ fn a_resource_less_procedure_panel_refuses_an_inferred_or_changed_project() {
         added: Box::new([]),
         project: 7,
         task: 9,
-        number: kind(89, 1),
-        resource: path(89, 1),
+        number: kind(world.seed, PROCEDURE),
+        resource: doc(world.seed),
         signal: connector::ProcedureSignal::Activate,
     });
     let records = world.records.clone();
@@ -409,8 +413,8 @@ fn a_resource_less_procedure_panel_refuses_an_inferred_or_changed_project() {
         added: Box::new([]),
         project: 8,
         task: 9,
-        number: kind(89, 1),
-        resource: path(89, 1),
+        number: kind(world.seed, PROCEDURE),
+        resource: doc(world.seed),
         signal: connector::ProcedureSignal::Activate,
     });
     assert!(matches!(
@@ -436,14 +440,7 @@ fn a_resource_less_procedure_panel_refuses_an_inferred_or_changed_project() {
 #[test]
 fn a_resource_less_proposals_description_keeps_its_authentic_project_across_restart_and_drop() {
     let mut world = World::new(86);
-    let effect = connector::Effect {
-        kind: kind(86, 1),
-        resources: Box::new([path(86, 1)]),
-        purpose: 19,
-        condition: None,
-        target: 13,
-        state: 13,
-    };
+    let effect = effect(world.seed, 19, 13);
     world.event(Event::Describe { token: Token::new(80), effect: effect.clone() });
     world.event(Event::KeepProposal { token: Token::new(80), number: 7, task: 4, project: 1 });
     assert_eq!(
