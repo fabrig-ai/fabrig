@@ -1,8 +1,9 @@
 //! Pages use the owner's open directory as their cursor (io.md, 5).
 use super::{
-    Complete, Done, Entry, Error, Event, Fd, FileIo, Op, Pending, Queue, Submit, Token, Vec, Work, issue, vec,
+    Complete, Done, Entry, Error, Event, Fd, FileIo, Limits, Op, Pending, Queue, Submit, Token, Vec, Work, issue, vec,
 };
 use alloc::boxed::Box;
+use skein_lib::Env;
 
 impl FileIo {
     fn list_at_most(&mut self, pending: Pending, fd: Fd, most: u32, subs: &mut Queue<Submit>) -> Work {
@@ -22,6 +23,7 @@ impl FileIo {
 
 pub(super) fn page(
     io: &mut FileIo,
+    env: &Env<Limits>,
     owner: Token,
     directory: Token,
     max: u32,
@@ -31,7 +33,7 @@ pub(super) fn page(
     let Some(fd) = io.file(directory) else {
         return super::terminal_failure(events, owner, Error::NotFound);
     };
-    if max == 0 || max > io.max_entries {
+    if max == 0 || max > env.limits.entries {
         return super::terminal_failure(events, owner, Error::InvalidArgument);
     }
     io.list_at_most(
