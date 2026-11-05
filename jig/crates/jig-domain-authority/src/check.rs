@@ -28,12 +28,7 @@ fn checked(answer: Answer, numbers: Option<crate::Numbers>) -> Checked {
 }
 
 fn ceilings(domain: &Domain, policy: &Policy, authority: &Authority, answer: &mut Answer, why: &mut Queue<Finding>) {
-    for source in [Source::Project, Source::Deployment] {
-        let ceiling = match source {
-            Source::Project => &policy.ceiling,
-            Source::Deployment => &domain.rules().ceiling,
-            Source::Task | Source::Role => unreachable!("only ceiling sources are iterated"),
-        };
+    for (source, ceiling) in [(Source::Project, &policy.ceiling), (Source::Deployment, &domain.rules().ceiling)] {
         let lacks = differences(
             authority,
             ceiling,
@@ -260,13 +255,9 @@ fn grants(
     answer: &mut Answer,
     why: &mut Queue<Finding>,
 ) {
-    for source in [Source::Task, Source::Project, Source::Deployment] {
-        let holder = match source {
-            Source::Task => authority,
-            Source::Project => &policy.ceiling,
-            Source::Deployment => &domain.rules().ceiling,
-            Source::Role => unreachable!("only task and ceiling sources are iterated"),
-        };
+    for (source, holder) in
+        [(Source::Task, authority), (Source::Project, &policy.ceiling), (Source::Deployment, &domain.rules().ceiling)]
+    {
         if !has_grant(holder, effect, domain) {
             let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
             find(answer, why, strict, Finding::Grant { source });
@@ -655,13 +646,11 @@ pub fn check_call(domain: &Domain, ask: &CallAsk, why: &mut Queue<Finding>) -> A
         return refuse(why, Finding::UnknownProject);
     };
     let mut answer = Answer::Allow;
-    for source in [Source::Task, Source::Project, Source::Deployment] {
-        let holder = match source {
-            Source::Task => &ask.authority,
-            Source::Project => &policy.ceiling,
-            Source::Deployment => &domain.rules().ceiling,
-            Source::Role => unreachable!("only task and ceiling sources are iterated"),
-        };
+    for (source, holder) in [
+        (Source::Task, &ask.authority),
+        (Source::Project, &policy.ceiling),
+        (Source::Deployment, &domain.rules().ceiling),
+    ] {
         if ask.family.0 & !holder.tools.0 != 0 {
             let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
             find(&mut answer, why, strict, Finding::Tool);
@@ -676,13 +665,11 @@ pub fn check_call(domain: &Domain, ask: &CallAsk, why: &mut Queue<Finding>) -> A
             }
         }
         Call::Note(scope) => {
-            for source in [Source::Task, Source::Project, Source::Deployment] {
-                let holder = match source {
-                    Source::Task => &ask.authority,
-                    Source::Project => &policy.ceiling,
-                    Source::Deployment => &domain.rules().ceiling,
-                    Source::Role => unreachable!("only task and ceiling sources are iterated"),
-                };
+            for (source, holder) in [
+                (Source::Task, &ask.authority),
+                (Source::Project, &policy.ceiling),
+                (Source::Deployment, &domain.rules().ceiling),
+            ] {
                 if !scope_covered(scope, holder) {
                     let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
                     find(&mut answer, why, strict, Finding::Scope { source });
