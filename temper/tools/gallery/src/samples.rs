@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 138;
+pub const N: usize = 148;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -328,6 +328,16 @@ pub fn samples() -> [Sample; N] {
             address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
             then: Shown,
         },
+        Sample { name: "goal-running", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-needs-funds", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-needs-question", world: Reference, address: task(118), then: Shown },
+        Sample { name: "goal-planning", world: Reference, address: task(122), then: Shown },
+        Sample { name: "goal-paused", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-landed", world: Reference, address: task(123), then: Shown },
+        Sample { name: "goal-landed-open", world: Reference, address: task(123), then: Shown },
+        Sample { name: "goal-stopped", world: Reference, address: task(118), then: Shown },
+        Sample { name: "goal-failed", world: Reference, address: task(122), then: Shown },
+        Sample { name: "goal-no-report", world: Reference, address: task(108), then: Shown },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
@@ -533,6 +543,18 @@ fn special_mockup(name: &str) -> Option<String> {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one exhaustive table maps each page and world to its mockup")]
 pub fn mockup(sample: &Sample) -> Option<String> {
+    if sample.name.starts_with("goal-") {
+        let goal = match sample.name {
+            "goal-needs-question" | "goal-stopped" => "welcome-stall",
+            "goal-planning" | "goal-failed" => "forge-cards",
+            "goal-landed" | "goal-landed-open" => "pane-chat-line",
+            _ => "first-run-projects",
+        };
+        return Some(format!("../greenfield/goal.html?g={goal}"));
+    }
+    if matches!(sample.name, "task-solo-T3" | "task-reference-T12") {
+        return Some("../greenfield/goal.html".to_owned());
+    }
     if sample.name.starts_with("goals-") {
         return Some(if sample.world == Reference {
             "goals.html?project=fabrig".to_owned()
@@ -663,7 +685,7 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name.starts_with("home-") {
         return home_domain(sample.name);
     }
-    if sample.name.starts_with("goals-") {
+    if sample.name.starts_with("goals-") || sample.name.starts_with("goal-") {
         return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
     }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);

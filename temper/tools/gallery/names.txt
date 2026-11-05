@@ -53,6 +53,16 @@ needs-proposal
 needs-held
 needs-funds
 needs-plain-words
+goal-running
+goal-needs-funds
+goal-needs-question
+goal-planning
+goal-paused
+goal-landed
+goal-landed-open
+goal-stopped
+goal-failed
+goal-no-report
 settings
 task-solo-T3
 accounts-solo
