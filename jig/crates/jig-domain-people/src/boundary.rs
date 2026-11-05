@@ -338,6 +338,21 @@ pub enum AskFamily {
     Seen,
 }
 
+impl AskFamily {
+    /// The project named by this request, excluding deployment and party-only scopes.
+    pub(crate) const fn named_project(self) -> Option<u32> {
+        match self {
+            Self::Project(project) | Self::Application(crate::ApplicationScope::Project(project)) => Some(project),
+            Self::Application(crate::ApplicationScope::Own | crate::ApplicationScope::Deployment)
+            | Self::Restore
+            | Self::Deployment
+            | Self::Account
+            | Self::Lift
+            | Self::Seen => None,
+        }
+    }
+}
+
 impl Ask {
     /// Keep the request's project distinct from deployment and party-only admission.
     #[must_use]
