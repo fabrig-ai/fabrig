@@ -138,6 +138,11 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
             page.set_href(node, &href, &mut ops);
         }
     }
+    if let Some(name) = sample.open_menu()
+        && let Some(node) = view.tree().nodes().iter().find(|n| n.role == Role::Menu && n.name.as_deref() == Some(name))
+    {
+        let _act = page.act(skein_ui_web::page::Event::Click { node: node.id, modifier: false }, &mut ops);
+    }
     let title = escape(&skein_ui_web::title::text(&heading(view.tree()), b"temper"));
     let mut html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
     if let Some(name) = sample.open_disclosure() {

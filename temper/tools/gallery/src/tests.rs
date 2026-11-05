@@ -61,7 +61,7 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_domain::pages::needs::Act::Open { object },
             ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
-                assert!(sample.name.starts_with("home-"));
+                assert!(matches!(sample.address, temper_client_domain::Address::Home { .. }));
                 assert!(
                     samples::domain(&sample)
                         .pages()
@@ -102,6 +102,20 @@ enum Part {
     Plan { live: u32, title: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "rail-new-menu",
+        heading: "tally",
+        parts: &[
+            Part::Named { role: Role::Menu, name: "More ways to start work" },
+            Part::Described { role: Role::MenuItem, name: "Chat", description: "Ask a question or ask for a change." },
+            Part::Described {
+                role: Role::MenuItem,
+                name: "Goal",
+                description: "Agents plan a larger change and land it.",
+            },
+            Part::Named { role: Role::MenuItem, name: "All ways to start work" },
+        ],
+    },
     Holds { name: "start-goal", heading: "Talk to an agent", parts: &[Part::NoRole { role: Role::Dialog }] },
     Holds {
         name: "start-goal-draft",
@@ -2873,6 +2887,17 @@ fn the_byline_sample_opens_only_the_model_disclosure() {
     let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
     assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)));
     assert_eq!(html.matches(" open").count(), 1);
+}
+
+#[test]
+fn the_rail_menu_sample_opens_the_menu() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "rail-new-menu").unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains("aria-expanded=\"true\""));
+    let menu = html.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
+    assert!(!menu.contains("hidden"), "{menu}");
+    assert!(html.contains("Ask a question or ask for a change."));
+    assert!(html.contains("Agents plan a larger change and land it."));
 }
 
 #[test]

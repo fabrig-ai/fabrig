@@ -457,6 +457,12 @@ pub enum Word {
     WelcomeModelSubscription,
     BrandChats,
     BrandHome,
+    RailNewMenu,
+    RailNewChat,
+    RailNewChatDescription,
+    RailNewGoal,
+    RailNewGoalDescription,
+    RailNewAll,
     RailHome,
     NeedsYouCount,
     NeedsYouCountCut,
@@ -1219,7 +1225,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1710;
+// The rail menu adds six literal phrases (client/README.md, 5.3).
+const PHRASES: u32 = 1716;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1236,8 +1243,9 @@ const PHRASES: u32 = 1710;
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
-const SEGMENTS: u32 = 2980;
-const ALL: [Word; 1111] = [
+// The rail menu adds six literal segments (client/README.md, 5.3).
+const SEGMENTS: u32 = 2986;
+const ALL: [Word; 1117] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,
     Word::ChatRowWrites,
@@ -1675,6 +1683,12 @@ const ALL: [Word; 1111] = [
     Word::WelcomeModelSubscription,
     Word::BrandChats,
     Word::BrandHome,
+    Word::RailNewMenu,
+    Word::RailNewChat,
+    Word::RailNewChatDescription,
+    Word::RailNewGoal,
+    Word::RailNewGoalDescription,
+    Word::RailNewAll,
     Word::RailHome,
     Word::NeedsYouCount,
     Word::NeedsYouCountCut,
@@ -2762,6 +2776,12 @@ impl Word {
             Self::WelcomeForgejoRun => 2134,
             Self::BrandChats => 2110,
             Self::BrandHome => 3080,
+            Self::RailNewMenu => 3632,
+            Self::RailNewChat => 3633,
+            Self::RailNewChatDescription => 3634,
+            Self::RailNewGoal => 3635,
+            Self::RailNewGoalDescription => 3636,
+            Self::RailNewAll => 3637,
             Self::RailHome => 3081,
             Self::NeedsYouCount => 3083,
             Self::NeedsYouCountCut => 3332,
@@ -4219,6 +4239,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         ),
         Word::BrandChats => (&[b"temper chats"], &[]),
         Word::BrandHome => (&[b"temper home"], &[]),
+        Word::RailNewMenu => (&[b"More ways to start work"], &[]),
+        Word::RailNewChat => (&[b"Chat"], &[]),
+        Word::RailNewChatDescription => (&[b"Ask a question or ask for a change."], &[]),
+        Word::RailNewGoal => (&[b"Goal"], &[]),
+        Word::RailNewGoalDescription => (&[b"Agents plan a larger change and land it."], &[]),
+        Word::RailNewAll => (&[b"All ways to start work"], &[]),
         Word::RailHome => (&[b"Home"], &[]),
         Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
         Word::NeedsYouCountCut => (&[b"Needs you ", b"+"], &[Number]),
