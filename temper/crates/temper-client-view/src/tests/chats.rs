@@ -1072,7 +1072,10 @@ fn a_project_with_no_chat_offers_the_first_chat() {
     let button = fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").expect("first chat");
     let composer = fixtures::find(view.tree(), Role::TextArea, b"Start a chat").expect("composer");
     assert!(index_of(view.tree().nodes(), button) < index_of(view.tree().nodes(), composer));
-    assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), Some(Action::Pages(Act::FirstChat)));
+    assert_eq!(
+        crate::act(&mut view, button, skein_ui::Act::Press),
+        Some(Action::Pages(Act::Go { address: Address::Configure { project: fixtures::PROJECT } }))
+    );
 }
 
 #[test]
@@ -1118,27 +1121,30 @@ fn the_first_chat_offer_is_only_shown_under_all() {
 }
 
 #[test]
-fn a_pending_chat_start_disables_the_first_chat_offer_and_the_composer() {
+fn a_pending_chat_start_keeps_the_offer_and_disables_the_composer() {
     use temper_client_domain::{Action, Event, pages::Act};
-    for act in [Act::FirstChat, Act::StartChat] {
-        let mut root = fixtures::playground_root(
-            temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
-            fixtures::SECOND_PROJECT,
-            true,
-        );
-        fixtures::root_event(
-            &mut root,
-            Event::Act { action: Action::Pages(Act::ChatWords { words: Box::from(*b"draft") }) },
-        );
-        fixtures::root_event(&mut root, Event::Act { action: Action::Pages(act) });
-        assert!(root.pages().chats().expect("chats").start.is_some());
-        let view = fixtures::page_view(&root);
-        for name in [b"Tell temper how you work".as_slice(), b"Start chat"] {
-            let button = fixtures::find(view.tree(), Role::Button, name).expect("start button");
-            let node = &view.tree().nodes()[index_of(view.tree().nodes(), button)];
-            assert!(node.states.as_slice().contains(&skein_ui::State::Disabled));
-        }
-    }
+    let mut root = fixtures::playground_root(
+        temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+        fixtures::SECOND_PROJECT,
+        true,
+    );
+    fixtures::root_event(
+        &mut root,
+        Event::Act { action: Action::Pages(Act::ChatWords { words: Box::from(*b"draft") }) },
+    );
+    fixtures::root_event(&mut root, Event::Act { action: Action::Pages(Act::StartChat) });
+    assert!(root.pages().chats().expect("chats").start.is_some());
+    let mut view = fixtures::page_view(&root);
+    let offer = fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").expect("offer");
+    assert_eq!(
+        crate::act(&mut view, offer, skein_ui::Act::Press),
+        Some(Action::Pages(Act::Go {
+            address: temper_client_domain::Address::Configure { project: fixtures::PROJECT }
+        }))
+    );
+    let button = fixtures::find(view.tree(), Role::Button, b"Start chat").expect("start button");
+    let node = &view.tree().nodes()[index_of(view.tree().nodes(), button)];
+    assert!(node.states.as_slice().contains(&skein_ui::State::Disabled));
 }
 
 fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {

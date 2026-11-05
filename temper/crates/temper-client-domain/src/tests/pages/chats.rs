@@ -1,9 +1,6 @@
 use super::fixtures;
 use crate::ChatsFilter;
-use crate::pages::{
-    Request,
-    chats::{Chats, FIRST_CHAT_WORDS},
-};
+use crate::pages::{Request, chats::Chats};
 use jig_client::{Event, Readable, Readout, Told, Watchable, contract::*};
 use skein_lib::{List, Queue};
 const FIRST: u64 = 1;
@@ -232,46 +229,6 @@ fn a_start_from_configure_keeps_its_templates_models() {
         }
     }
 }
-#[test]
-fn the_first_chat_starts_the_stock_chat_while_no_configuring_template_is_offered() {
-    first_chat_uses_template(fixtures::chats::me(), jig_client::shapes::CHAT);
-}
-
-#[test]
-fn the_first_chat_starts_the_configuring_template_once_offered() {
-    first_chat_uses_template(configuring_me(), CONFIGURING);
-}
-
-fn first_chat_uses_template(me: Me, template: u32) {
-    use crate::{Address, pages::Act};
-    let mut page = Page::new(me.clone(), Address::Chats { filter: ChatsFilter::All, start: false });
-    page.words(b"unfinished draft");
-    for _ in 0..PRESSES {
-        page.act(Act::FirstChat);
-    }
-    let expected =
-        jig_client::shapes::chat_from(&me, fixtures::PROJECT, template, fixtures::acts::text(FIRST_CHAT_WORDS))
-            .expect("offered template");
-    let chats = page.pages.chats().expect("chats");
-    assert_eq!(&*chats.words, b"unfinished draft");
-    let key = chats.start.expect("pending start");
-    assert_eq!(key.asker, crate::owner::Owner::Pages.asker());
-    assert_eq!(fixtures::acts::sent(&mut page.out).as_ref(), [expected]);
-    let mut tasks = List::with_capacity(CREATED_TASKS);
-    tasks.push(fixtures::acts::TASK).unwrap();
-    page.event(crate::pages::Event::Told {
-        told: Told::Answered {
-            key,
-            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
-                what: Made::Tasks { tasks },
-            }))),
-        },
-    });
-    assert_eq!(page.out.pop(), Some(Request::Show { address: Address::Chat { task: fixtures::acts::TASK } }));
-    assert!(page.out.is_empty());
-    assert!(page.pages.chats().expect("chats").start.is_none());
-}
-
 #[test]
 fn starting_a_chat_sends_the_chat_template_filled_once() {
     let limits = fixtures::limits();

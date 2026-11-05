@@ -58,7 +58,7 @@ fn model(w: World) -> c::LlmChoice {
         subagents: List::with_capacity(0),
     }
 }
-fn frame(w: World, connecting: bool) -> c::Me {
+fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
     let mut me = base_frame(person(w), project(w));
     let member = me.projects.get_mut(0).expect("one project");
     let template = member.templates.get_mut(0).expect("chat template");
@@ -119,6 +119,9 @@ fn frame(w: World, connecting: bool) -> c::Me {
     me.needs_total = if w == Solo { 2 } else { 0 };
     me.updates = c::Count { value: if w == Solo { 2 } else { u32::from(w == Reference) }, limited: false };
     me.deployment_role = Some(c::HeldRole::Owner);
+    if configuring {
+        configure_frame(&mut me);
+    }
     me
 }
 fn template_preview(member: &mut c::MeProject) {
@@ -161,7 +164,47 @@ fn providers(w: World) -> List<c::ProviderOffer> {
 fn needs(w: World) -> c::Needs {
     c::Needs { proposals: u32::from(w == Solo), questions: u32::from(w == Solo), escalations: 0, person_tasks: 0 }
 }
+/// Configure's four gallery states list the configuring template and its creating bounds.
+fn configure_frame(me: &mut c::Me) {
+    let member = me.projects.get_mut(0).expect("configure project");
+    let stock = member.templates.get(0).expect("stock chat").clone();
+    let mut configuring = stock.clone();
+    configuring.number = 3;
+    configuring.name = doc("Configuring");
+    configuring.executor = c::TemplateExecutor::Charter(3);
+    member.templates = List::with_capacity(2);
+    member.templates.push(stock).expect("stock");
+    member.templates.push(configuring).expect("configuring");
+    let mut charters = List::with_capacity(2);
+    charters.push(1).expect("stock charter");
+    charters.push(3).expect("configuring charter");
+    member.creating = Some(c::Creating {
+        within: c::CreateBounds {
+            authority: Box::new(c::AuthorityDocument::complete(c::Authority {
+                models: None,
+                tools: 0,
+                grants: List::with_capacity(0),
+                delegation: c::Delegation { kinds: List::with_capacity(0), tasks: 1, depth: 2 },
+                spend: 100,
+                deadline: None,
+                notes: 0,
+                note_resources: List::with_capacity(0),
+            })),
+            pool_left: 100,
+            charters,
+            procedures: List::with_capacity(0),
+            latest: None,
+            budget: 100,
+            maximum_budget: 100,
+            maximum_deadline: None,
+        },
+        beyond: c::Beyond::Refused(c::Refusal::NotOffered),
+    });
+}
+
+#[expect(clippy::too_many_lines, reason = "one ordered dispatch answers the gallery page’s document reads")]
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
+    let configuring = matches!(address, Address::Configure { .. });
     let connecting = matches!(
         address,
         Address::ConnectModel { .. } | Address::Welcome { step: temper_client_domain::Step::Model { .. } }
@@ -178,7 +221,7 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
             match down {
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
-                        c::Subject::Me => Some(c::Delivery::Me(Box::new(frame(w, connecting)))),
+                        c::Subject::Me => Some(c::Delivery::Me(Box::new(frame(w, connecting, configuring)))),
                         c::Subject::Accounts => {
                             accounts_watch = Some(watch);
                             Some(c::Delivery::Accounts(Box::new(accounts(w, then))))

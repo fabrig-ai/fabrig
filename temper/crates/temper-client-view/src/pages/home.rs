@@ -42,7 +42,7 @@ pub(crate) fn main(
     b.style(look::HOME);
     intro(b, root, w, bindings, name, &facts, times);
     if facts.to_begin() {
-        to_begin(b, root, w, bindings, project, name, &facts);
+        to_begin(b, w, bindings, project, name, &facts);
     }
     needs(b, root, w, bindings, project, &facts, times);
     chats(b, root, w, bindings, facts.to_begin(), times);
@@ -441,15 +441,7 @@ fn begin_head(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
     b.close();
     b.close();
 }
-fn to_begin(
-    b: &mut Builder,
-    root: &Domain,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-    name: &[u8],
-    facts: &Facts,
-) {
+fn to_begin(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, name: &[u8], facts: &Facts) {
     let heading = w.say(Word::HomeBegin, &[]);
     b.open(Role::Region);
     b.style(look::HOME_BEGIN);
@@ -488,11 +480,14 @@ fn to_begin(
     );
     if !facts.configured {
         acts(b);
-        let pending = match root.pages().chats() {
-            Some(chats) => chats.start.is_some(),
-            None => false,
-        };
-        button(b, bindings, &w.say(Word::HomeStart, &[]), Act::FirstChat, look::HOME_PRIMARY, pending);
+        button(
+            b,
+            bindings,
+            &w.say(Word::HomeStart, &[]),
+            Act::Go { address: Address::Configure { project } },
+            look::HOME_PRIMARY,
+            false,
+        );
         b.close();
     }
     b.close();

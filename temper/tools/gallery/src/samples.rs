@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 105;
+pub const N: usize = 109;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -177,6 +177,30 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "home-github", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
+        Sample {
+            name: "configure",
+            world: FirstRun { step: 7 },
+            address: Address::Configure { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "configure-typing",
+            world: FirstRun { step: 7 },
+            address: Address::Configure { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "configure-sending",
+            world: FirstRun { step: 7 },
+            address: Address::Configure { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "configure-refused",
+            world: FirstRun { step: 7 },
+            address: Address::Configure { project: 1 },
+            then: Shown,
+        },
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
@@ -483,6 +507,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("configure") {
+        return configure_domain(sample);
+    }
     if sample.name.starts_with("home-") {
         return home_domain(sample.name);
     }
@@ -554,6 +581,47 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     root
 }
+fn configure_domain(sample: &Sample) -> Domain {
+    let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
+    if sample.name == "configure" {
+        return root;
+    }
+    let mut out = Queue::uncapped();
+    step(
+        &mut root,
+        Event::Act {
+            action: Action::Pages(Act::ChatWords { words: b"I work alone on small changes.".as_slice().into() }),
+        },
+        &mut out,
+    );
+    if sample.name == "configure-typing" {
+        return root;
+    }
+    step(&mut root, Event::Act { action: Action::Pages(Act::StartChat) }, &mut out);
+    if sample.name == "configure-refused" {
+        step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+        let attempt = sent_attempt(&mut out);
+        step(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        why: None,
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                            refusal: c::Refusal::NotOffered,
+                            at: None,
+                        })),
+                    },
+                },
+            },
+            &mut out,
+        );
+    }
+    root
+}
+
 fn sent_attempt(out: &mut Queue<Request>) -> Token {
     for _ in 0..out.len() {
         if let Some(request) = out.pop()
