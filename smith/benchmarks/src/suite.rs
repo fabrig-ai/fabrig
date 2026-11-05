@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Fault, Agent, Kind, ModelTiers, Provider, Refusal, Task, check_task, read_configuration, bound};
+use crate::{Agent, Fault, Kind, ModelTiers, Provider, Refusal, Task, bound, check_task, read_configuration};
 
 /// The attempt ordering requested by the suite author.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]

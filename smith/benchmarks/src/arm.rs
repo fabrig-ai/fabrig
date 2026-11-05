@@ -3,7 +3,7 @@
 //! `resolve_commit` refuses dirty sources or unknown commits before any write
 //! (benchmarks.md, sections 3.2, 5.4 and 10). No login or agent is involved.
 
-use crate::{Fault, bound, format, input, io, mismatch, refuse_if, Input, Mismatch};
+use crate::{Fault, Input, Mismatch, bound, format, input, io, mismatch, refuse_if};
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
@@ -143,8 +143,7 @@ fn private_directory(guard: &Guard, path: &Path) -> Result<PathBuf, Fault> {
 
 pub(crate) fn write_new(guard: &Guard, path: &Path, bytes: &[u8], mode: u32) -> Result<(), Fault> {
     let path = guard.write_path(path)?;
-    let mut file =
-        OpenOptions::new().write(true).create_new(true).mode(mode).open(path)?;
+    let mut file = OpenOptions::new().write(true).create_new(true).mode(mode).open(path)?;
     Ok(file.write_all(bytes).and_then(|()| file.sync_all())?)
 }
 
@@ -220,7 +219,8 @@ fn cargo_binaries(clone: &Path, target: &Path) -> Result<Vec<PathBuf>, Fault> {
 fn record_arm(commit: &str, toolchain: String, executables: &[PathBuf]) -> Result<BuiltArm, Fault> {
     let mut binaries = Vec::new();
     for executable in executables {
-        let name = executable.file_name().and_then(|name| name.to_str()).ok_or_else(|| format("binary has no UTF-8 name"))?;
+        let name =
+            executable.file_name().and_then(|name| name.to_str()).ok_or_else(|| format("binary has no UTF-8 name"))?;
         if name.is_empty() || !name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')) {
             return Err(input("unsafe arm executable name"));
         }
@@ -236,9 +236,7 @@ fn record_arm(commit: &str, toolchain: String, executables: &[PathBuf]) -> Resul
 }
 
 fn verify_arm(directory: &Path, arm: &BuiltArm) -> Result<(), Fault> {
-    let recorded: BuiltArm =
-        serde_json::from_slice(&fs::read(directory.join("arm.json"))?)
-            ?;
+    let recorded: BuiltArm = serde_json::from_slice(&fs::read(directory.join("arm.json"))?)?;
     refuse_if(&recorded != arm, Mismatch, "existing arm metadata disagrees with this build; refusing overwrite")?;
     for binary in &arm.binaries {
         if binary_digest(&directory.join(&binary.name))? != binary.sha256 {
@@ -259,8 +257,7 @@ pub fn read_build(program: &Path) -> Result<Build, Fault> {
     if !metadata.is_file() || metadata.is_symlink() || metadata.len() > 65_536 {
         return Err(bound("arm manifest must be a bounded ordinary file"));
     }
-    let arm: BuiltArm = serde_json::from_slice(&fs::read(&manifest)?)
-        ?;
+    let arm: BuiltArm = serde_json::from_slice(&fs::read(&manifest)?)?;
     if arm.version != 1
         || directory.file_name().and_then(|name| name.to_str()) != Some(&arm_name(&arm.commit, &arm.sha256)?)
     {
@@ -303,7 +300,13 @@ pub(crate) fn archive(guard: &Guard, arms: &Path, executables: &[PathBuf], arm: 
     result
 }
 
-fn archive_into(guard: &Guard, temporary: &Path, directory: PathBuf, executables: &[PathBuf], arm: &BuiltArm) -> Result<PathBuf, Fault> {
+fn archive_into(
+    guard: &Guard,
+    temporary: &Path,
+    directory: PathBuf,
+    executables: &[PathBuf],
+    arm: &BuiltArm,
+) -> Result<PathBuf, Fault> {
     for (executable, binary) in executables.iter().zip(&arm.binaries) {
         let destination = guard.write_path(&temporary.join(&binary.name))?;
         fs::copy(executable, &destination)?;

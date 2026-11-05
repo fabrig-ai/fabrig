@@ -25,9 +25,11 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Fault, Agent, AttemptResult, Comparison, Convention, Design, End, Identity, Interval, Measure, ModelIdentity, Provider,
-    RESULT_VERSION, Refusal, ResourceScope, ScopeKind, SmithFace, SpendBasis, TokenRecord, audit_sample,
-    coefficient_of_variation, median, minimum_detectable_effect, pass_interval, read_result, bound, input, mismatch};
+use crate::{
+    Agent, AttemptResult, Comparison, Convention, Design, End, Fault, Identity, Interval, Measure, ModelIdentity,
+    Provider, RESULT_VERSION, Refusal, ResourceScope, ScopeKind, SmithFace, SpendBasis, TokenRecord, audit_sample,
+    bound, coefficient_of_variation, input, median, minimum_detectable_effect, mismatch, pass_interval, read_result,
+};
 
 /// Observations of one metric across every end, supplied by the summary builder.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -753,8 +755,7 @@ pub fn read_baseline(file: &Path) -> Result<Baseline, Refusal> {
 pub fn write_summary<T: Serialize>(file: &Path, document: &T) -> Result<(), Fault> {
     use std::io::Write;
     let text = serde_json::to_string_pretty(document)?;
-    let mut output =
-        std::fs::OpenOptions::new().write(true).create_new(true).open(file)?;
+    let mut output = std::fs::OpenOptions::new().write(true).create_new(true).open(file)?;
     output.write_all(format!("{text}\n").as_bytes()).map_err(Fault::from)
 }
 
@@ -811,9 +812,7 @@ pub fn committed_costs(
     for agent in &suite.agents {
         let file = agents.join(agent.agent.directory()).join(format!("{}.pin.toml", agent.config));
         let pin = crate::read_configuration(&file)?;
-        let choice = models
-            .lookup(&agents.join("models.toml"), &suite.tier, agent.provider)
-            ?;
+        let choice = models.lookup(&agents.join("models.toml"), &suite.tier, agent.provider)?;
         pins.push((pin, choice, agent));
     }
     let mut latest: BTreeMap<(String, String), (String, crate::Estimate)> = BTreeMap::new();

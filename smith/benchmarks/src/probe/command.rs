@@ -8,14 +8,14 @@ use super::{
 };
 use crate::arm::ArmRef;
 use crate::guard::Guard;
-use crate::{Fault, Judgment, Suite, format, input, refuse_if, Input};
+use crate::{Fault, Input, Judgment, Suite, format, input, refuse_if};
 use std::{fs, path::Path};
 
 /// Execute a parsed command with frozen arms, printing each settled attempt and summary.
 pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
     let (name, flags) = arguments.split_first().ok_or_else(|| input("a task or suite name is required"))?;
     let (change_inputs, flags) = if command == "suite" {
-        crate::parity::change::Inputs::parse(flags).map_err(|detail| input(detail))?
+        crate::parity::change::Inputs::parse(flags).map_err(input)?
     } else {
         (crate::parity::change::Inputs::default(), flags.to_vec())
     };
@@ -56,8 +56,7 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
         crate::credential::logins::smith(&directory, "chatgpt")?;
     }
     if command == "suite" {
-        let suite = crate::read_suite(&repository.join("benchmarks/suites").join(format!("{name}.toml")))
-            ?;
+        let suite = crate::read_suite(&repository.join("benchmarks/suites").join(format!("{name}.toml")))?;
         check_parent(&suite, options.contains_key("--parent") || options.contains_key("--parent-arm"))?;
         refuse_if(!suite.change && !change_inputs.is_empty(), Input, "named run inputs require a change suite")?;
         if suite.change && !options.contains_key("--commit") && !options.contains_key("--arm") {
@@ -76,11 +75,11 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
     };
     let seed = options.get("--seed").map_or_else(
         || Ok(skein_shell::Clock::new().now().wall.as_nanos()),
-        |seed| seed.parse::<u64>().map_err(Fault::from),
+        |seed| seed.parse::<u64>().map_err(|error| input(error.to_string())),
     )?;
     println!("seed={seed}");
     let attempts = options.get("--attempts").map_or(Ok(if command == "calibrate" { 12 } else { 1 }), |value| {
-        value.parse::<u32>().map_err(Fault::from)
+        value.parse::<u32>().map_err(|error| input(error.to_string()))
     })?;
     refuse_if(attempts == 0 || attempts > 12, Input, "attempts must be between one and twelve")?;
     let order = Order { probe: name.clone(), agent, attempts, source };
@@ -243,8 +242,9 @@ fn comparison(
     options: &std::collections::BTreeMap<&str, &str>,
     seed: u64,
 ) -> Result<Judgment, Fault> {
-    let required =
-        options.get("--passes").map_or(Ok(10), |passes| passes.parse::<u32>().map_err(Fault::from))?;
+    let required = options
+        .get("--passes")
+        .map_or(Ok(10), |passes| passes.parse::<u32>().map_err(|error| input(error.to_string())))?;
     if command == "calibrate" && (required != 10 || required > order.attempts) {
         return Err(input("calibration requires ten passes within twelve attempts"));
     }

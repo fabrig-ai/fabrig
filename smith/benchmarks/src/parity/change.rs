@@ -234,8 +234,11 @@ fn project_report(
         })
         .collect::<Result<_, _>>()?;
     for ratio in &report.ratios {
-        let baseline =
-            baseline.criteria.iter().find(|value| value.name == ratio.name).ok_or_else(|| input("baseline criterion missing"))?;
+        let baseline = baseline
+            .criteria
+            .iter()
+            .find(|value| value.name == ratio.name)
+            .ok_or_else(|| input("baseline criterion missing"))?;
         let mut statistic = baseline.statistic * ratio.value.statistic;
         for previous in &landed {
             statistic *= previous

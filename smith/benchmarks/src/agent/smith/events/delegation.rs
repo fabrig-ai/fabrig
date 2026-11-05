@@ -4,7 +4,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use smith_events::{ConversationKind, ConversationOpened, Event};
 
-use crate::{Fault, Child, ChildStop, Clamp, Delegation, Measure, Requested, Share, ShareBound, SharePart, bound, stream, refuse_if, Stream};
+use crate::{
+    Child, ChildStop, Clamp, Delegation, Fault, Measure, Requested, Share, ShareBound, SharePart, Stream, bound,
+    refuse_if, stream,
+};
 
 use super::{Observer, Session};
 
@@ -161,14 +164,17 @@ pub(crate) fn delegation(observer: &Observer) -> Delegation {
     {
         return Delegation::unavailable("incomplete or lost event stream prevents exact delegation");
     }
-    let children = children(observer).map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value });
-    let turns = turns(observer).map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value });
+    let children =
+        children(observer).map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value });
+    let turns =
+        turns(observer).map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value });
     let blocked = observer.sessions.iter().try_fold(0_u64, |total, session| {
         total.checked_add(spans(session)?).ok_or_else(|| bound("parent blocked time overflow"))
     });
     Delegation {
         turns,
         children,
-        parent_blocked_ms: blocked.map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value }),
+        parent_blocked_ms: blocked
+            .map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value }),
     }
 }

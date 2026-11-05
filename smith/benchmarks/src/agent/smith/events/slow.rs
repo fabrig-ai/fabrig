@@ -5,7 +5,7 @@
 //! 3.5/5.3; protocol/limits.md 2.1. No clock or provider is invoked here.
 
 use super::Observer;
-use crate::{Fault, CheckVerdict, Measure, stream};
+use crate::{CheckVerdict, Fault, Measure, stream};
 use smith_events::{Block, Event, NoticeKind, Outcome};
 
 fn verdict(passed: Measure<bool>, evidence: Vec<String>) -> CheckVerdict {

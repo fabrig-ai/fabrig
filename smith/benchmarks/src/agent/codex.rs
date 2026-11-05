@@ -20,8 +20,10 @@ pub use prepare::{Observing, PreparedCodex, prepare};
 
 pub use rollouts::{ChildThread, Link, ResponseUsage, RolloutFile, Rollouts, collect_rollouts, parse_rollout};
 
-use crate::{Fault, Classification, Convention, Counts, End, Exit, FailureReason, Forced, Measure, ScopeKind, TokenCounts, TokenRecord,
-    Usage, stream};
+use crate::{
+    Classification, Convention, Counts, End, Exit, FailureReason, Fault, Forced, Measure, ScopeKind, TokenCounts,
+    TokenRecord, Usage, stream,
+};
 
 /// A persisted record refused by the observer, naming the record and field path.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -11,7 +11,10 @@ use crate::Refusal;
 use crate::arm::ArmRef;
 use crate::process::ProcessResult;
 use crate::run::{Archive, Work};
-use crate::{Fault, FaultKind, AttemptResult, CacheObservation, CheckVerdict, End, Exit, Forced, Identity, Measure, Task, input, io};
+use crate::{
+    AttemptResult, CacheObservation, CheckVerdict, End, Exit, Fault, FaultKind, Forced, Identity, Measure, Task, input,
+    io,
+};
 
 pub mod codex;
 
@@ -167,7 +170,10 @@ impl Agent {
         match self {
             Self::Codex => codex::prepare(context).map(PreparedAgent::Codex),
             Self::Smith => smith::prepare(context).map(PreparedAgent::Smith),
-            Self::ClaudeCode => Err(crate::Fault { kind: FaultKind::Setup(crate::isolate::SetupStep::Configuration), detail: "Claude Code belongs to the next comparison pass".into() }),
+            Self::ClaudeCode => Err(crate::Fault {
+                kind: FaultKind::Setup(crate::isolate::SetupStep::Configuration),
+                detail: "Claude Code belongs to the next comparison pass".into(),
+            }),
         }
     }
 }
@@ -337,7 +343,8 @@ impl Observing {
             Self::Smith(observing) => match observing.prepared.face {
                 smith::events::Shape::Exec => Ok(None),
                 smith::events::Shape::Chat => {
-                    let path = observing.prepared.trace.as_ref().ok_or_else(|| input("Smith Chat requires a trace path"))?;
+                    let path =
+                        observing.prepared.trace.as_ref().ok_or_else(|| input("Smith Chat requires a trace path"))?;
                     std::fs::File::open(path).map(Some).map_err(|error| io(format!("trace open: {error}")))
                 }
             },

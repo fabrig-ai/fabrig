@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Fault, AttemptResult, Judgment, Measure, bound, input, refuse_if, Input};
+use crate::{AttemptResult, Fault, Input, Judgment, Measure, bound, input, refuse_if};
 
 /// One measured repetition supplied by the adapter, never a triplet verdict.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]

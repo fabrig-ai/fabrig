@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use crate::process::ProcessResult;
-use crate::{Fault, CheckVerdict, Measure, Passive};
+use crate::{CheckVerdict, Fault, Measure, Passive};
 
 #[cfg(test)]
 use crate::Forced;

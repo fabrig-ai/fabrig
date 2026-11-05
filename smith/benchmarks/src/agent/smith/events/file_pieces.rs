@@ -15,7 +15,7 @@ use std::path::Path;
 
 use smith_events::{Block, Event, Verdict};
 
-use crate::{Fault, CheckVerdict, Measure};
+use crate::{CheckVerdict, Fault, Measure};
 
 use super::{Observer, Session};
 

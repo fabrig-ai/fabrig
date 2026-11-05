@@ -8,7 +8,7 @@ use std::path::Path;
 use serde_json::Value;
 
 use crate::agent::Context;
-use crate::isolate::{SetupStep};
+use crate::isolate::SetupStep;
 
 /// Render the pin's trace and shared account declarations with its credentials directory.
 pub fn product(context: &Context<'_>, base: &Value, login: &Path) -> Result<Value, Fault> {
@@ -83,8 +83,8 @@ pub fn arguments(context: &Context<'_>) -> Result<Vec<String>, Fault> {
         .or_else(|| context.task.smith.get("model"))
         .and_then(toml::Value::as_str)
         .map_or_else(|| format!("{}/{model}", endpoint(context.pin.pin.provider)), str::to_owned);
-    let working =
-        crate::isolate::working_directory(context.guard, context.private, context.task).map_err(Fault::at(SetupStep::Configuration))?;
+    let working = crate::isolate::working_directory(context.guard, context.private, context.task)
+        .map_err(Fault::at(SetupStep::Configuration))?;
     let mut arguments = vec![
         "-C".into(),
         working.to_str().ok_or_else(|| configuration("Smith workspace is not UTF-8"))?.into(),

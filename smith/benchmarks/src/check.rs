@@ -39,7 +39,8 @@ pub struct ManifestCounts {
 
 /// Validate a benchmark tree's tasks, suites, model tiers and configuration pins.
 pub fn check_benchmark_tree(root: &Path, design: &Path) -> Result<ManifestCounts, Refusal> {
-    let guard = crate::guard::Guard::from_environment().map_err(|reason| Refusal::new(root, "bundle", reason.detail))?;
+    let guard =
+        crate::guard::Guard::from_environment().map_err(|reason| Refusal::new(root, "bundle", reason.detail))?;
     let bundles =
         crate::arm::state_root(&guard).map_err(|reason| Refusal::new(root, "bundle", reason.detail))?.join("bundles");
     check_benchmark_tree_with_bundles(root, design, &bundles)
@@ -212,7 +213,8 @@ pub fn check_task(file: &Path, design: &Path) -> Result<Task, Refusal> {
     }
     calibration(file, "calibration", &task)?;
     for (index, variant) in task.variant.iter().enumerate() {
-        let selected = task.with_variant(&variant.name).map_err(|reason| Refusal::new(file, "variant", reason.detail))?;
+        let selected =
+            task.with_variant(&variant.name).map_err(|reason| Refusal::new(file, "variant", reason.detail))?;
         calibration(file, &format!("variant[{index}].calibration"), &selected)?;
     }
     for (index, guard) in task.guards.iter().enumerate() {

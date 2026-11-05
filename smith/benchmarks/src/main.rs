@@ -37,7 +37,9 @@ fn main() -> ExitCode {
         [command, results, suite, tier, design, seed, options @ ..] if command == "summarise" => {
             report_output(summarize_command(Path::new(results), suite, tier, design, seed, options))
         }
-        [command, summary, name] if command == "baseline" => report_output(baseline_command(Path::new(summary), name, None)),
+        [command, summary, name] if command == "baseline" => {
+            report_output(baseline_command(Path::new(summary), name, None))
+        }
         [command, summary, name, flag, agent, configuration, model, effort]
             if command == "baseline" && flag == "--group" =>
         {
@@ -144,19 +146,27 @@ fn report_output(result: Result<PathBuf, Fault>) -> ExitCode {
     }
 }
 
-fn summarize_command(results: &Path, suite: &str, tier: &str, design: &str, seed: &str, options: &[String]) -> Result<PathBuf, Fault> {
+fn summarize_command(
+    results: &Path,
+    suite: &str,
+    tier: &str,
+    design: &str,
+    seed: &str,
+    options: &[String],
+) -> Result<PathBuf, Fault> {
     let design = match design {
         "single" => smith_bench::Design::Single,
         "interleaved" => smith_bench::Design::Interleaved,
         _ => return Err(Fault::new(FaultKind::Input, "design must be single or interleaved")),
     };
-    let seed = seed.parse::<u64>()?;
+    let seed = seed.parse::<u64>().map_err(|error| Fault::new(FaultKind::Input, error.to_string()))?;
     let results = smith_bench::read_results(results)?;
     let (reference, flags) = options
         .split_first()
         .filter(|(first, _)| !first.starts_with("--"))
         .map_or((None, options), |(first, rest)| (Some(Path::new(first)), rest));
-    let (inputs, rest) = smith_bench::parity::change::Inputs::parse(flags).map_err(|detail| Fault::new(FaultKind::Input, detail))?;
+    let (inputs, rest) =
+        smith_bench::parity::change::Inputs::parse(flags).map_err(|detail| Fault::new(FaultKind::Input, detail))?;
     if !rest.is_empty() || (suite != "parity-change" && !inputs.is_empty()) {
         return Err(Fault::new(FaultKind::Input, "named run inputs require a parity-change summary"));
     }
@@ -182,8 +192,7 @@ fn baseline_command(summary: &Path, name: &str, group: Option<(&str, &str, &str,
     let reference = match group {
         None => smith_bench::baseline(&summary)?,
         Some((agent, configuration, model, effort)) => {
-            let agent = serde_json::from_value(serde_json::Value::String(agent.into()))
-                ?;
+            let agent = serde_json::from_value(serde_json::Value::String(agent.into()))?;
             smith_bench::baseline_group(&summary, agent, configuration, model, effort)?
         }
     };

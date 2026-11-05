@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::{Fault, CatalogueTask, Judgment, batch::Batch, run::Request};
+use crate::{CatalogueTask, Fault, Judgment, batch::Batch, run::Request};
 
 /// Select smoke tasks whose effective calibration digests still match.
 pub fn smoke_tasks(entries: &[CatalogueTask], names: &[String]) -> Result<Vec<String>, Fault> {

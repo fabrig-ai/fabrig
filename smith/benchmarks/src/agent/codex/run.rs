@@ -2,14 +2,14 @@
 //! Source selection checks the planned identity (benchmarks.md, sections 6 and 10).
 
 use crate::run::{Archive, Work};
-use crate::{Fault, AttemptResult, CacheObservation, CheckVerdict, Identity, Measure, format, input, mismatch, refuse_if, Input};
+use crate::{
+    AttemptResult, CacheObservation, CheckVerdict, Fault, Identity, Input, Measure, format, input, mismatch, refuse_if,
+};
 
-pub(in crate::agent) fn source_arm(
-    work: Work<'_>,
-    identity: &Identity,
-) -> Result<(crate::arm::ArmRef, String), Fault> {
-    let pin = crate::read_configuration(work.prepared.configuration.as_ref().ok_or_else(|| input("Codex requires its pin"))?)
-        ?;
+pub(in crate::agent) fn source_arm(work: Work<'_>, identity: &Identity) -> Result<(crate::arm::ArmRef, String), Fault> {
+    let pin = crate::read_configuration(
+        work.prepared.configuration.as_ref().ok_or_else(|| input("Codex requires its pin"))?,
+    )?;
     if pin.pin.sha256.as_deref() != Some(identity.binary_sha256.as_str()) {
         return Err(mismatch("Codex executable digest differs from its pin"));
     }
@@ -17,7 +17,10 @@ pub(in crate::agent) fn source_arm(
         work.clock,
         work.machine,
         work.private,
-        &[work.prepared.program.to_str().ok_or_else(|| format("program path must be UTF-8"))?.into(), "--version".into()],
+        &[
+            work.prepared.program.to_str().ok_or_else(|| format("program path must be UTF-8"))?.into(),
+            "--version".into(),
+        ],
         work.prepared.setup_deadline_seconds,
         work.prepared,
     )?;
@@ -33,11 +36,7 @@ impl super::PreparedCodex {
     pub(crate) fn archive(&self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), Fault> {
         result.identity.user_configuration_sha256 =
             Measure::unavailable("attempt-owned Codex home; user configuration is not read");
-        archive.put(
-            result,
-            "overrides.json",
-            &serde_json::to_vec_pretty(&self.overrides)?,
-        )?;
+        archive.put(result, "overrides.json", &serde_json::to_vec_pretty(&self.overrides)?)?;
         Ok(())
     }
 }
@@ -63,11 +62,7 @@ impl super::Observing {
             result.delegation = crate::Delegation::unavailable("Codex does not report child shares or parent blocking");
             if let Some(borrowed) = prepared.borrowed.take() {
                 let proof = borrowed.finish(archive.guard)?;
-                archive.put(
-                    result,
-                    "credential-proof.json",
-                    &serde_json::to_vec_pretty(&proof)?,
-                )?;
+                archive.put(result, "credential-proof.json", &serde_json::to_vec_pretty(&proof)?)?;
             }
         }
         Ok(())

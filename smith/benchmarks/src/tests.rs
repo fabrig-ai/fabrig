@@ -516,7 +516,8 @@ fn usage_counts_once_per_response_even_when_repeated_in_another_scope() {
         ledger
             .record("root", "response-a", codex_usage(101))
             .expect_err("conflicting duplicate")
-            .detail.contains("conflicting")
+            .detail
+            .contains("conflicting")
     );
     let records = ledger.records().expect("scoped tokens");
     assert_eq!(records.len(), 3);

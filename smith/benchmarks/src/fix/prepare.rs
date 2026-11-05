@@ -1,9 +1,9 @@
 //! Both phases must be admitted before dispatch; frozen inputs cannot silently differ.
 //! No private workspace or credential is created by these checks (benchmarks.md3.2/4.2).
 
-use crate::{Fault, Identity, input, mismatch};
 use crate::arm::Build;
 use crate::run::Request;
+use crate::{Fault, Identity, input, mismatch};
 
 pub(super) fn same_input(left: &Identity, right: &Identity) -> bool {
     left.task == right.task
@@ -23,7 +23,9 @@ pub(super) fn same_input(left: &Identity, right: &Identity) -> bool {
 pub(super) fn inputs(requests: &[Request]) -> Result<(), Fault> {
     let first = requests.first().ok_or_else(|| input("probe has no prepared requests"))?;
     if requests.iter().any(|request| !same_input(&first.identity, &request.identity)) {
-        return Err(mismatch("before/after must use the same frozen task, seed, prompt, configuration, model and host"));
+        return Err(mismatch(
+            "before/after must use the same frozen task, seed, prompt, configuration, model and host",
+        ));
     }
     Ok(())
 }
@@ -39,7 +41,9 @@ pub(super) fn build(request: &Request) -> Result<Build, Fault> {
 pub(super) fn one_arm(requests: &[Request], repetitions: usize) -> Result<Build, Fault> {
     inputs(requests)?;
     if requests.len() != repetitions {
-        return Err(input(format!("calibration requires {repetitions} physical requests for this logical repetition count")));
+        return Err(input(format!(
+            "calibration requires {repetitions} physical requests for this logical repetition count"
+        )));
     }
     let first = build(&requests[0])?;
     for request in &requests[1..] {

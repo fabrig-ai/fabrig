@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use smith_events::{ConversationKind, Event, Evidence, Outcome, ResponseCompleted, ResponseStarted};
 
-use crate::{Fault, Convention, Counts, Measure, ScopeKind, TokenLedger, TokenRecord, Usage, stream};
+use crate::{Convention, Counts, Fault, Measure, ScopeKind, TokenLedger, TokenRecord, Usage, stream};
 
 use super::Session;
 
@@ -171,10 +171,7 @@ fn retried_failure(
         })
 }
 
-pub(super) fn tokens(
-    sessions: &[Session],
-    priced: &mut Vec<crate::ResponseTokens>,
-) -> Result<Vec<TokenRecord>, Fault> {
+pub(super) fn tokens(sessions: &[Session], priced: &mut Vec<crate::ResponseTokens>) -> Result<Vec<TokenRecord>, Fault> {
     let mut result = Vec::new();
     let mut total: Option<crate::TokenCounts> = None;
     for (index, session) in sessions.iter().enumerate() {

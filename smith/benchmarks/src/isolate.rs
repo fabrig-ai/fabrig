@@ -4,7 +4,7 @@
 //! task variables (benchmarks.md, sections 6.1 and 10). Setup and measurement
 //! belong to the runner; this module reads no clock or agent configuration.
 
-use crate::{Fault, FaultKind, input, io, refuse_if, Input};
+use crate::{Fault, FaultKind, Input, input, io, refuse_if};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
@@ -97,7 +97,8 @@ pub struct Machine {
 impl Machine {
     /// Read only the allow-listed directory choices, never an inherited login.
     pub fn from_environment() -> Result<Self, Fault> {
-        let path = std::env::var_os("PATH").filter(|value| !value.is_empty()).ok_or_else(|| input("PATH is required"))?;
+        let path =
+            std::env::var_os("PATH").filter(|value| !value.is_empty()).ok_or_else(|| input("PATH is required"))?;
         let rustup_home = std::env::var_os("RUSTUP_HOME")
             .map(PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".rustup")));
@@ -161,8 +162,7 @@ pub fn remove_owned_tree(guard: &Guard, root: &Path) -> Result<(), Fault> {
             return Err(input("owned scratch root must be an ordinary directory"));
         }
         guard.write_path(directory)?;
-        fs::set_permissions(directory, fs::Permissions::from_mode(metadata.permissions().mode() | 0o700))
-            ?;
+        fs::set_permissions(directory, fs::Permissions::from_mode(metadata.permissions().mode() | 0o700))?;
         for entry in fs::read_dir(directory)? {
             let entry = entry?;
             if entry.file_type()?.is_dir() {
@@ -199,10 +199,7 @@ fn directory(guard: &Guard, path: &Path) -> Result<(), Fault> {
 }
 
 fn copy_seed(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault> {
-    let mut entries = fs::read_dir(source)
-        ?
-        .collect::<Result<Vec<_>, _>>()
-        ?;
+    let mut entries = fs::read_dir(source)?.collect::<Result<Vec<_>, _>>()?;
     entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
         if entry.file_name() == ".git" {
@@ -228,7 +225,10 @@ fn copy_seed(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fau
 /// The caller supplies an existing private scratch parent outside repositories.
 pub fn prepare(guard: &Guard, seed: &Path, sha256: &str, root: &Path) -> Result<Private, Fault> {
     if crate::seed_digest(seed).map_err(Fault::at(SetupStep::Seed))? != sha256 {
-        return Err(Fault::new(FaultKind::Setup(SetupStep::Seed), "seed digest differs; setup refused before materialisation"));
+        return Err(Fault::new(
+            FaultKind::Setup(SetupStep::Seed),
+            "seed digest differs; setup refused before materialisation",
+        ));
     }
     let paths = empty(guard, root).map_err(Fault::at(SetupStep::Scratch))?;
     copy_seed(guard, seed, &paths.workspace).map_err(Fault::at(SetupStep::Seed))?;

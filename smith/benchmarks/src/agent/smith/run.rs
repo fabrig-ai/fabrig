@@ -3,7 +3,7 @@
 
 use crate::agent::Ended;
 use crate::run::{Archive, Work};
-use crate::{Fault, AttemptResult, Identity, Measure, credential, input, mismatch};
+use crate::{AttemptResult, Fault, Identity, Measure, credential, input, mismatch};
 
 pub(in crate::agent) fn home(source: &std::path::Path) -> Result<std::path::PathBuf, Fault> {
     Ok(source.parent().ok_or_else(|| credential("source login needs its harness parent"))?.join("smith"))
@@ -13,10 +13,7 @@ pub(in crate::agent) fn takes_arguments(arguments: &[String]) -> bool {
     arguments.len().is_multiple_of(2) && arguments.chunks_exact(2).all(|pair| pair[0] == "-c")
 }
 
-pub(in crate::agent) fn source_arm(
-    work: Work<'_>,
-    identity: &Identity,
-) -> Result<(crate::arm::ArmRef, String), Fault> {
+pub(in crate::agent) fn source_arm(work: Work<'_>, identity: &Identity) -> Result<(crate::arm::ArmRef, String), Fault> {
     let build = crate::arm::read_build(&work.prepared.program)?;
     if build.arm.commit != identity.agent_version || !matches!(identity.smith_face, Some(crate::SmithFace::Events)) {
         return Err(mismatch("Smith built arm differs from the planned full source version"));
@@ -35,16 +32,8 @@ impl super::Prepared {
             }
         }
         result.identity.user_configuration_sha256 = Measure::unavailable("Smith uses frozen harness settings only");
-        archive.put(
-            result,
-            "settings.json",
-            &serde_json::to_vec_pretty(&self.rendered)?,
-        )?;
-        archive.put(
-            result,
-            "face.json",
-            &serde_json::to_vec_pretty(&self.registry)?,
-        )?;
+        archive.put(result, "settings.json", &serde_json::to_vec_pretty(&self.rendered)?)?;
+        archive.put(result, "face.json", &serde_json::to_vec_pretty(&self.registry)?)?;
         Ok(())
     }
 
@@ -70,8 +59,7 @@ impl super::Observing {
         self.events().timing(&mut result.timing);
         result.tokens = self.tokens()?;
         result.spend = self.spend(&result.tokens)?;
-        result.spend.priced =
-            crate::result::priced_spend(result, &self.events().response_tokens()?);
+        result.spend.priced = crate::result::priced_spend(result, &self.events().response_tokens()?);
         result.resources.own_peak_rss_bytes = self.observer.own_peak_rss_bytes();
         result.counts = self.counts();
         result.delegation = self.delegation();

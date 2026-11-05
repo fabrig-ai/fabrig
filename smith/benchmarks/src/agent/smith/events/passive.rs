@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use smith_events::{Delivery, Event, Status};
 
-use crate::{Fault, CheckVerdict, Exit, Forced, Health, Measure, bound, stream};
+use crate::{CheckVerdict, Exit, Fault, Forced, Health, Measure, bound, stream};
 
 use super::{Observer, Session};
 
@@ -62,7 +62,9 @@ fn spend_sums(session: &Session) -> Result<(bool, bool), Fault> {
                     Some(_) => {}
                     None => {
                         let sum = sums.entry(value.run).or_default();
-                        *sum = sum.checked_add(u128::from(value.spent)).ok_or_else(|| bound("response spent sum overflow"))?;
+                        *sum = sum
+                            .checked_add(u128::from(value.spent))
+                            .ok_or_else(|| bound("response spent sum overflow"))?;
                     }
                 }
             }

@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 use skein_lib::Rng;
 
-use crate::{Fault, Measure, bound, input, refuse_if, Bound, Input};
+use crate::{Bound, Fault, Input, Measure, bound, input, refuse_if};
 
 /// A repository comparison's range claim (benchmarks.md, sections 3.1 and 9).
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

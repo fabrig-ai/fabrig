@@ -1,9 +1,9 @@
 //! Program accounts keep host answers separate from the spawned agent's facts.
 //! Both captures are bounded by the attempt log ceiling (benchmarks.md 6.2/8).
 
-use crate::{Fault, AttemptResult, bound, input, io};
 use crate::agent::Traces;
 use crate::run::Archive;
+use crate::{AttemptResult, Fault, bound, input, io};
 
 impl super::Observing {
     pub(crate) fn archive_traces(
@@ -13,8 +13,13 @@ impl super::Observing {
         maximum: usize,
     ) -> Result<(), Fault> {
         if self.prepared.program_source() {
-            let mut path =
-                self.prepared.trace.as_ref().ok_or_else(|| input("program account requires a trace path"))?.as_os_str().to_os_string();
+            let mut path = self
+                .prepared
+                .trace
+                .as_ref()
+                .ok_or_else(|| input("program account requires a trace path"))?
+                .as_os_str()
+                .to_os_string();
             path.push(".agent");
             let captured = capture(std::path::Path::new(&path), maximum);
             if let Ok(bytes) = &captured {

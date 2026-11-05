@@ -4,7 +4,7 @@
 use crate::{Fault, FaultKind, credential};
 use std::path::Path;
 
-use crate::isolate::{SetupStep};
+use crate::isolate::SetupStep;
 
 /// Shared account declarations for the attempt layer and documented setup.
 pub const ACCOUNTS: &str = include_str!("../../agents/smith/accounts.toml");
@@ -20,15 +20,23 @@ pub fn smith(directory: &Path, account: &str) -> Result<(), Fault> {
         "chatgpt" => vec![("config/smith/config.toml", false), ("host-id", false), ("tokens/chatgpt", false)],
         "claude" => vec![("config/smith/config.toml", false), ("programs/claude", true)],
         "anthropic-key" => return key(std::env::var_os("ANTHROPIC_API_KEY").is_some_and(|value| !value.is_empty())),
-        _ => return Err(Fault { kind: FaultKind::Setup(SetupStep::Credentials), detail: "unknown harness account".into() }),
+        _ => {
+            return Err(Fault {
+                kind: FaultKind::Setup(SetupStep::Credentials),
+                detail: "unknown harness account".into(),
+            });
+        }
     };
     if required.iter().all(|(path, directory_kind)| present(&directory.join(path), *directory_kind)) {
         return Ok(());
     }
-    Err(Fault { kind: FaultKind::Setup(SetupStep::Credentials), detail: format!(
+    Err(Fault {
+        kind: FaultKind::Setup(SetupStep::Credentials),
+        detail: format!(
             "no smith login for the harness: run `XDG_CONFIG_HOME={} smith login {account}`",
             directory.join("config").display()
-        ) })
+        ),
+    })
 }
 
 fn key(present: bool) -> Result<(), Fault> {
@@ -44,7 +52,10 @@ pub fn codex(directory: &Path) -> Result<(), Fault> {
     if present(&directory.join("auth.json"), false) {
         return Ok(());
     }
-    Err(Fault { kind: FaultKind::Setup(SetupStep::Credentials), detail: format!("no Codex login for the harness: run `CODEX_HOME={} codex login`", directory.display()) })
+    Err(Fault {
+        kind: FaultKind::Setup(SetupStep::Credentials),
+        detail: format!("no Codex login for the harness: run `CODEX_HOME={} codex login`", directory.display()),
+    })
 }
 
 /// Hold one program login until its process tree settles, including across suites.
@@ -54,7 +65,10 @@ pub fn serial(guard: &crate::guard::Guard, directory: &Path) -> Result<std::fs::
 
 fn serial_lock(guard: &crate::guard::Guard, directory: &Path) -> Result<std::fs::File, Fault> {
     use std::os::unix::fs::OpenOptionsExt;
-    let state = directory.parent().and_then(Path::parent).ok_or_else(|| credential("program login needs its harness state parent"))?;
+    let state = directory
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| credential("program login needs its harness state parent"))?;
     let parent = state.join("locks");
     crate::run::private_parent(guard, &parent)?;
     let path = guard.write_path(&parent.join("claude.lock"))?;
@@ -83,7 +97,10 @@ pub fn claude(environment: &[(std::ffi::OsString, std::ffi::OsString)], working:
     }) {
         return Ok(());
     }
-    Err(Fault { kind: FaultKind::Setup(SetupStep::Credentials), detail: "Claude Code is missing: install `claude` on the attempt's PATH".into() })
+    Err(Fault {
+        kind: FaultKind::Setup(SetupStep::Credentials),
+        detail: "Claude Code is missing: install `claude` on the attempt's PATH".into(),
+    })
 }
 
 #[cfg(test)]

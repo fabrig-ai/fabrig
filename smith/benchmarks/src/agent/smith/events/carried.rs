@@ -4,7 +4,7 @@
 
 use smith_events::{Block, ConversationKind, ConversationOpened, Event, Outcome, Record};
 
-use crate::{Fault, CheckVerdict, Measure, stream};
+use crate::{CheckVerdict, Fault, Measure, stream};
 
 use super::Observer;
 

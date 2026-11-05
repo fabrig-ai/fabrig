@@ -4,7 +4,7 @@
 
 use smith_events::{AnswerClass, AnswerFailure, Event, FailureClass, Mode, Status};
 
-use crate::{Fault, BudgetLimit, Classification, End, Exit, FailureReason, Forced, stream};
+use crate::{BudgetLimit, Classification, End, Exit, FailureReason, Fault, Forced, stream};
 
 use super::Observer;
 

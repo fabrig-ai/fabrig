@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use serde::Deserialize;
 
-use crate::{Fault, Convention, ScopeKind, TokenLedger, TokenRecord, Usage, mismatch};
+use crate::{Convention, Fault, ScopeKind, TokenLedger, TokenRecord, Usage, mismatch};
 
 use super::ParseError;
 

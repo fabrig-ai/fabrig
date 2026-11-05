@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use super::{ChangeSection, Stop};
-use crate::{Fault, RunSummary, input, mismatch, refuse_if, Mismatch};
+use crate::{Fault, Mismatch, RunSummary, input, mismatch, refuse_if};
 
 /// A named run file supplied to a change report; missing files have no digest.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

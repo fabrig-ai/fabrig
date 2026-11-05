@@ -186,7 +186,10 @@ fn the_pinned_adapter_refuses_version_drift_and_isolates_the_user_home() {
         wall: skein_lib::Wall::from_nanos(100_000_000_000),
         lifetime: skein_lib::Duration::from_secs(20),
     };
-    assert_eq!(Agent::Codex.prepare(&context).expect_err("version drift").kind, smith_bench::FaultKind::Setup(SetupStep::Configuration));
+    assert_eq!(
+        Agent::Codex.prepare(&context).expect_err("version drift").kind,
+        smith_bench::FaultKind::Setup(SetupStep::Configuration)
+    );
     context.installed_version = "codex-cli 0.160.0";
     let prepared = Agent::Codex.prepare(&context).expect("pinned version");
     let PreparedAgent::Codex(codex) = &prepared else {

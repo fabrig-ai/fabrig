@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::agent::{Context, Invocation};
-use crate::isolate::{SetupStep};
+use crate::isolate::SetupStep;
 
 use super::{FaceSince, faces, settings};
 
@@ -135,8 +135,8 @@ fn exec(
     let account = settings::account(context)?;
     crate::credential::logins::smith(context.home, &account)?;
     if account == "claude" {
-        let working =
-            crate::isolate::working_directory(context.guard, context.private, context.task).map_err(Fault::at(SetupStep::Configuration))?;
+        let working = crate::isolate::working_directory(context.guard, context.private, context.task)
+            .map_err(Fault::at(SetupStep::Configuration))?;
         crate::credential::logins::claude(context.environment, &working)?;
     }
     let serial =
@@ -201,11 +201,7 @@ fn render(
     let mut layer = rendered.clone();
     layer.as_object_mut().expect("product layer").remove("invocation");
     let document: toml::Value = serde_json::from_value(layer).map_err(Fault::at(SetupStep::Configuration))?;
-    write(
-        context,
-        &settings,
-        toml::to_string(&document).map_err(Fault::at(SetupStep::Configuration))?.as_bytes(),
-    )?;
+    write(context, &settings, toml::to_string(&document).map_err(Fault::at(SetupStep::Configuration))?.as_bytes())?;
     Ok(Prepared {
         face: registry.shape,
         registry,

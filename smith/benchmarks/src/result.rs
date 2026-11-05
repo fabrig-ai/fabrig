@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Fault, Agent, Provider, Refusal, TokenRecord, format, input, refuse_if, Input};
+use crate::{Agent, Fault, Input, Provider, Refusal, TokenRecord, format, input, refuse_if};
 
 /// The one result format understood by this harness.
 pub const RESULT_VERSION: u32 = 4;
@@ -545,8 +545,7 @@ pub struct AttemptResult {
 
 /// Read a result with strict fields and the one supported format version.
 pub fn read_result(file: &Path) -> Result<AttemptResult, Fault> {
-    let text = std::fs::read_to_string(file)
-        .map_err(|error| Fault::from(error).document(file, "document"))?;
+    let text = std::fs::read_to_string(file).map_err(|error| Fault::from(error).document(file, "document"))?;
     parse_result(file, &text).map_err(|error| format(error.to_string()))
 }
 

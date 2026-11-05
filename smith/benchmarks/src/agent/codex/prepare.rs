@@ -7,8 +7,8 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use crate::agent::{Context, Invocation, Seen};
-use crate::isolate::{SetupStep};
-use crate::{Fault, FaultKind, Agent, ModelChoice, Provider, input, mismatch, stream, refuse_if, Input, Mismatch};
+use crate::isolate::SetupStep;
+use crate::{Agent, Fault, FaultKind, Input, Mismatch, ModelChoice, Provider, input, mismatch, refuse_if, stream};
 
 use super::{Item, Observation, Observer};
 
@@ -45,7 +45,10 @@ pub fn prepare(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
         context.home,
         &prepared.home,
         context.wall,
-        context.lifetime.checked_add(prepared.teardown).ok_or_else(|| Fault { kind: FaultKind::Setup(SetupStep::Configuration), detail: "credential teardown lifetime overflow".into() })?,
+        context.lifetime.checked_add(prepared.teardown).ok_or_else(|| Fault {
+            kind: FaultKind::Setup(SetupStep::Configuration),
+            detail: "credential teardown lifetime overflow".into(),
+        })?,
     )?;
     prepared.credential.clone_from(&borrowed.credential);
     prepared.expires = borrowed.expires;
@@ -87,8 +90,7 @@ fn configure(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
         .join(&context.pin.pin.configuration);
     let bytes = std::fs::read(&overrides_path)?;
     let text = std::str::from_utf8(&bytes)?;
-    let document: std::collections::BTreeMap<String, toml::Value> =
-        toml::from_str(text)?;
+    let document: std::collections::BTreeMap<String, toml::Value> = toml::from_str(text)?;
     let milliseconds = document
         .get("harness")
         .and_then(|value| value.get("teardown_ms"))
@@ -100,11 +102,8 @@ fn configure(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
         .filter(|value| *value > 0)
         .ok_or_else(|| input("Codex teardown must fit a positive duration"))?;
     let teardown = skein_lib::Duration::from_nanos(nanos);
-    let mut overrides: Vec<_> = document
-        .into_iter()
-        .filter(|(key, _)| key != "harness")
-        .map(|(key, value)| (key, value.to_string()))
-        .collect();
+    let mut overrides: Vec<_> =
+        document.into_iter().filter(|(key, _)| key != "harness").map(|(key, value)| (key, value.to_string())).collect();
     let workspace = crate::isolate::working_directory(context.guard, context.private, context.task)?;
     // Codex splits dotted override paths literally; quote the dynamic path
     // within a top-level TOML table value, including dots in the workspace.
@@ -231,16 +230,13 @@ impl Observing {
 
     /// Read only this completed attempt's native root and child records.
     pub fn collect(&mut self) -> Result<&super::Rollouts, Fault> {
-        let prepared = self
-            .prepared
-            .as_ref()
-            .ok_or_else(|| stream("offline Codex replay has no preparation to collect"))?;
+        let prepared =
+            self.prepared.as_ref().ok_or_else(|| stream("offline Codex replay has no preparation to collect"))?;
         if let Some(what) = &self.collection_error {
             return Err(stream(what.clone()));
         }
         if self.collected.is_none() {
-            let thread =
-                self.observer.thread().ok_or_else(|| stream("Codex stream has no named root"))?;
+            let thread = self.observer.thread().ok_or_else(|| stream("Codex stream has no named root"))?;
             let mut children = Vec::new();
             for item in self.observer.completed_items() {
                 if let Item::CollabToolCall { tool, receiver_thread_ids, .. } = item

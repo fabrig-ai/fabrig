@@ -555,7 +555,10 @@ pub fn execute_script(
     let started = clock.now();
     let start = started.now;
     let deadline = start.checked_add(bounds.hard).ok_or_else(|| bound("hard deadline overflow"))?;
-    deadline.checked_add(bounds.teardown).and_then(|at| at.checked_add(bounds.grace)).ok_or_else(|| bound("teardown overflow"))?;
+    deadline
+        .checked_add(bounds.teardown)
+        .and_then(|at| at.checked_add(bounds.grace))
+        .ok_or_else(|| bound("teardown overflow"))?;
     let patience = bounds
         .hard
         .checked_add(bounds.teardown)

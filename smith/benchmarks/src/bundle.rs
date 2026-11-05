@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::isolate::{SetupStep};
+use crate::isolate::SetupStep;
 use crate::{Fault, Kind, Refusal, Task, input};
 
 /// A repository seed's bundle contents and digest, supplied by the task author.

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::{Fault, ArmSummary, AttemptResult, Convention, Measure, SummaryComparison, bootstrap_ratio, input};
+use crate::{ArmSummary, AttemptResult, Convention, Fault, Measure, SummaryComparison, bootstrap_ratio, input};
 
 pub(crate) fn comparisons(
     groups: &[ArmSummary],

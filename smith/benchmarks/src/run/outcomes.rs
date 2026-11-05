@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::grade::{Ended, Snapshot};
 use crate::process::ProcessResult;
-use crate::{Fault, AttemptResult, Measure, Outcome, OutcomeCheck, Task};
+use crate::{AttemptResult, Fault, Measure, Outcome, OutcomeCheck, Task};
 
 pub(super) const fn neutral(check: &OutcomeCheck) -> bool {
     match check {

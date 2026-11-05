@@ -2,8 +2,8 @@
 //! Receiving bounds follow the selected product writer;
 //! no running domain state is known (benchmarks.md, sections 6 and 8).
 
-use crate::agent::{Seen};
-use crate::{Fault, Counts, Spend, TokenRecord};
+use crate::agent::Seen;
+use crate::{Counts, Fault, Spend, TokenRecord};
 
 use super::Prepared;
 
@@ -82,8 +82,7 @@ impl Observing {
     /// Retain a settled agent capture or its missing evidence without borrowing host facts.
     pub fn agent_trace(&mut self, bytes: Result<&[u8], Fault>) {
         if let Some(agent) = self.agent.as_mut() {
-            let parsed =
-                bytes.and_then(|bytes| agent.feed(bytes).and_then(|_| agent.finish()));
+            let parsed = bytes.and_then(|bytes| agent.feed(bytes).and_then(|_| agent.finish()));
             self.agent_error = parsed.err().map(|error| error.detail);
         }
     }

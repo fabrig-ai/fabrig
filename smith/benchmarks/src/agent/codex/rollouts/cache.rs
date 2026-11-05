@@ -2,7 +2,7 @@
 //! The fixed-model probe stays within its declared window; child scopes join
 //! only by the native parent link, never by cumulative total subtraction.
 
-use crate::{Fault, CacheObservation, Measure, Usage, bound, stream, refuse_if, Stream};
+use crate::{CacheObservation, Fault, Measure, Stream, Usage, bound, refuse_if, stream};
 
 use super::{Link, ResponseUsage, Rollouts};
 
@@ -15,8 +15,10 @@ fn add(responses: &[ResponseUsage], value: &mut CacheObservation) -> Result<(), 
         if let Some(prompt) = previous
             && prompt >= 1152
         {
-            value.cache_read = value.cache_read.checked_add(cached_input).ok_or_else(|| bound("cache read sum overflow"))?;
-            value.predecessor_prompt = value.predecessor_prompt.checked_add(prompt).ok_or_else(|| bound("prompt sum overflow"))?;
+            value.cache_read =
+                value.cache_read.checked_add(cached_input).ok_or_else(|| bound("cache read sum overflow"))?;
+            value.predecessor_prompt =
+                value.predecessor_prompt.checked_add(prompt).ok_or_else(|| bound("prompt sum overflow"))?;
             value.eligible = value.eligible.checked_add(1).ok_or_else(|| bound("eligible count overflow"))?;
             if u128::from(cached_input) * 2 < u128::from(prompt) {
                 value.full_misses = value.full_misses.checked_add(1).ok_or_else(|| bound("miss count overflow"))?;

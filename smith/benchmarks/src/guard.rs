@@ -34,8 +34,9 @@ impl Guard {
 
     /// Read directory choices only, retaining custom XDG and tool home locations.
     pub fn from_environment() -> Result<Self, Fault> {
-        let home =
-            std::env::var_os("HOME").filter(|value| !value.is_empty()).ok_or_else(|| input("HOME is required by the write guard"))?;
+        let home = std::env::var_os("HOME")
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| input("HOME is required by the write guard"))?;
         let home = PathBuf::from(home);
         let config = environment_path("XDG_CONFIG_HOME").unwrap_or_else(|| home.join(".config"));
         let state = environment_path("XDG_STATE_HOME").unwrap_or_else(|| home.join(".local/state"));
@@ -74,7 +75,9 @@ fn resolve(path: &Path) -> Result<PathBuf, Fault> {
         match std::fs::symlink_metadata(existing) {
             Ok(_) => break,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                suffix.push(existing.file_name().ok_or_else(|| input("destination has no existing ancestor"))?.to_owned());
+                suffix.push(
+                    existing.file_name().ok_or_else(|| input("destination has no existing ancestor"))?.to_owned(),
+                );
                 existing = existing.parent().ok_or_else(|| input("destination has no existing ancestor"))?;
             }
             Err(error) => return Err(io(format!("cannot inspect write destination: {}", error.kind()))),

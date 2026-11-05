@@ -3,13 +3,13 @@
 //! `face` reads only Git's ancestry, not an agent's private state
 //! (benchmarks.md, section 6.2; reliability-plan 00, Interface sketches).
 
-use crate::{Fault, format, input, refuse_if, Bound};
+use crate::{Bound, Fault, format, input, refuse_if};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 use crate::arm::BuiltArm;
-use crate::isolate::{SetupStep};
+use crate::isolate::SetupStep;
 
 /// Receiving bounds pinned with the face that writes the stream.
 /// The arm supplies semantic caps and the writer-derived aggregate line ceiling.
@@ -102,8 +102,7 @@ fn select_face(arm: &BuiltArm, faces: &[FaceSince], repository: &Path) -> Result
             .env_remove("GIT_OBJECT_DIRECTORY")
             .env_remove("GIT_ALTERNATE_OBJECT_DIRECTORIES")
             .stdin(std::process::Stdio::null())
-            .output()
-            ?;
+            .output()?;
         let status = result.status.code();
         ancestry.push(status);
         if status != Some(1) {

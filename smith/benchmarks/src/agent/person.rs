@@ -2,7 +2,7 @@
 //! One ordered cue fires once; its bounded line is written before input closes
 //! (benchmarks.md, section 6; reliability-plan 00, Interface sketches).
 
-use crate::{Fault, bound, refuse_if, Input};
+use crate::{Fault, Input, bound, refuse_if};
 use std::collections::VecDeque;
 
 use serde::Deserialize;

@@ -104,7 +104,10 @@ fn parity_refuses_a_summary_of_another_smith_commit() {
     let summary = common::parity_summary(Rows::equal());
     assert_eq!(
         parity::verify(&summary, &"1".repeat(40)),
-        Err(smith_bench::Fault::new(smith_bench::FaultKind::Mismatch, "summary smith arm was built from another commit"))
+        Err(smith_bench::Fault::new(
+            smith_bench::FaultKind::Mismatch,
+            "summary smith arm was built from another commit"
+        ))
     );
 }
 
@@ -164,7 +167,10 @@ fn parity_refuses_a_section_that_disagrees_with_attempts() {
     summary.parity.as_mut().expect("section").criteria[0].holds = false;
     assert_eq!(
         parity::verify(&summary, &"0".repeat(40)),
-        Err(smith_bench::Fault::new(smith_bench::FaultKind::Mismatch, "committed parity section disagrees with attempt rows"))
+        Err(smith_bench::Fault::new(
+            smith_bench::FaultKind::Mismatch,
+            "committed parity section disagrees with attempt rows"
+        ))
     );
 }
 
@@ -488,7 +494,10 @@ fn a_landed_input_that_is_not_a_change_summary_is_refused() {
             &common::change_baseline(),
             &[common::change_baseline()]
         ),
-        Err(smith_bench::Fault::new(smith_bench::FaultKind::Input, "landed input must be a parity-change summary with a change section"))
+        Err(smith_bench::Fault::new(
+            smith_bench::FaultKind::Input,
+            "landed input must be a parity-change summary with a change section"
+        ))
     );
 }
 
@@ -520,7 +529,13 @@ fn the_change_command_refuses_a_section_that_disagrees() {
     smith_bench::write_summary(&file, &summary).expect("changed section");
     let code = parity::change::command(&file);
     assert_eq!(code, 3);
-    assert_eq!(parity::change::verify(&summary), Err(smith_bench::Fault::new(smith_bench::FaultKind::Mismatch, "committed change section disagrees with rows or inputs")));
+    assert_eq!(
+        parity::change::verify(&summary),
+        Err(smith_bench::Fault::new(
+            smith_bench::FaultKind::Mismatch,
+            "committed change section disagrees with rows or inputs"
+        ))
+    );
 }
 
 #[test]

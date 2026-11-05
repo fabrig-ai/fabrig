@@ -7,7 +7,7 @@ use std::path::{Component, Path, PathBuf};
 
 use smith_events::{Event, Verdict};
 
-use crate::{Fault, CheckVerdict, Measure};
+use crate::{CheckVerdict, Fault, Measure};
 
 use super::Observer;
 

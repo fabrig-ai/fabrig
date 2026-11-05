@@ -8,11 +8,11 @@ use std::path::Path;
 use skein_lib::Duration;
 use skein_shell::Clock;
 
-use crate::{Fault, CatalogueTask, input, io};
 use crate::grade::{Entry, GradeEnd, Snapshot};
 use crate::guard::Guard;
 use crate::isolate::{Machine, Private};
 use crate::process::Bounds;
+use crate::{CatalogueTask, Fault, input, io};
 
 /// A task's grader terminals, supplied to the validation command.
 #[derive(Debug)]
@@ -47,11 +47,7 @@ pub fn validate(tasks: &Path, names: &[String]) -> Result<Vec<Validation>, Fault
     let machine = Machine::from_environment()?;
     let state = crate::arm::state_root(&guard)?;
     let scratch = state.join("scratch");
-    fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(guard.write_path(&scratch)?)
-        ?;
+    fs::DirBuilder::new().recursive(true).mode(0o700).create(guard.write_path(&scratch)?)?;
     let root = crate::isolate::create_directory(&guard, &scratch.join(format!("validate-{}", std::process::id())))?;
     let result = validate_catalogue(&catalogue, names, &guard, &machine, &root);
     crate::isolate::remove_owned_tree(&guard, &root)?;
@@ -192,7 +188,8 @@ fn candidate(
 }
 
 fn reference_checks(task: &crate::Task, settled: &Path, before: &Snapshot) -> Result<(), crate::Refusal> {
-    let after = crate::grade::snapshot(settled).map_err(|reason| crate::Refusal::new(settled, "reference", reason.detail))?;
+    let after =
+        crate::grade::snapshot(settled).map_err(|reason| crate::Refusal::new(settled, "reference", reason.detail))?;
     for path in &task.protected {
         if crate::grade::changed(before, &after, path) {
             return Err(crate::Refusal::new(settled, "protected", format!("reference changes {}", path.display())));

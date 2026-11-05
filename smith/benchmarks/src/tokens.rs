@@ -357,8 +357,10 @@ impl TokenLedger {
                 usage,
             });
         }
-        let root =
-            records.iter().find(|record| record.role == ScopeKind::Root).ok_or_else(|| input("token total needs a root scope"))?;
+        let root = records
+            .iter()
+            .find(|record| record.role == ScopeKind::Root)
+            .ok_or_else(|| input("token total needs a root scope"))?;
         let convention = root.convention;
         if records.iter().any(|record| record.convention != convention) {
             return Err(input("a token total cannot mix conventions"));

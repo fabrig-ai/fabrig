@@ -47,8 +47,8 @@ impl Fault {
         move |error| {
             let fault = error.into();
             match fault.kind {
-            FaultKind::Setup(_) => fault,
-            _ => Self { kind: FaultKind::Setup(step), ..fault },
+                FaultKind::Setup(_) => fault,
+                _ => Self { kind: FaultKind::Setup(step), ..fault },
             }
         }
     }
@@ -127,7 +127,10 @@ mod tests {
         let arms = root.join("arms");
         std::fs::create_dir(&arms).expect("arms");
         let arm = crate::arm::BuiltArm {
-            version: 1, commit: "a".repeat(40), sha256: "0".repeat(64), toolchain: "test".into(),
+            version: 1,
+            commit: "a".repeat(40),
+            sha256: "0".repeat(64),
+            toolchain: "test".into(),
             binaries: vec![crate::arm::ArmBinary { name: "smith".into(), sha256: "0".repeat(64) }],
         };
         let fault = crate::arm::archive(&guard(root), &arms, &[source], &arm).expect_err("copied bytes differ");
@@ -161,7 +164,8 @@ mod tests {
         identity.attempt = "one".into();
         let prepared = crate::fixture::request::request(task, identity);
         let machine = crate::isolate::Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
-        let recorded = crate::run::attempt(&guard(root), &machine, &root.join("state"), &prepared).expect("record refusal");
+        let recorded =
+            crate::run::attempt(&guard(root), &machine, &root.join("state"), &prepared).expect("record refusal");
         assert_eq!(recorded.incomplete, crate::run::Incomplete::Setup(SetupStep::Seed));
         let crate::End::Refused { setup } = recorded.result.outcome.end else { panic!("setup refusal") };
         assert!(setup.contains("seed digest differs"), "{setup}");

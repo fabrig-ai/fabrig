@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use smith_events::{Event, Outcome, Usage};
 
-use crate::{Fault, CacheObservation, CheckVerdict, Measure, bound, stream, refuse_if, Stream};
+use crate::{CacheObservation, CheckVerdict, Fault, Measure, Stream, bound, refuse_if, stream};
 
 use super::Observer;
 
@@ -52,16 +52,20 @@ fn measured(observer: &Observer) -> Result<(u128, u128, u64, u64), Fault> {
                 // A failed attempt without reported prompt usage cannot supply a
                 // known predecessor; do not bridge across it to an older request.
                 if let Some(predecessor) = previous.insert(*scope, prompt(&value.usage)) {
-                    let predecessor = predecessor.ok_or_else(|| stream("provider did not report the predecessor's prompt counts"))?;
+                    let predecessor =
+                        predecessor.ok_or_else(|| stream("provider did not report the predecessor's prompt counts"))?;
                     if predecessor < 1152 {
                         continue;
                     }
                     if value.outcome != Outcome::Completed {
                         return Err(stream("cacheable request did not complete with usage"));
                     }
-                    let read = u128::from(value.usage.cache_read_tokens.ok_or_else(|| stream("provider did not report cache reads"))?);
+                    let read = u128::from(
+                        value.usage.cache_read_tokens.ok_or_else(|| stream("provider did not report cache reads"))?,
+                    );
                     reads = reads.checked_add(read).ok_or_else(|| bound("cache read sum overflow"))?;
-                    predecessors = predecessors.checked_add(predecessor).ok_or_else(|| bound("cache predecessor sum overflow"))?;
+                    predecessors =
+                        predecessors.checked_add(predecessor).ok_or_else(|| bound("cache predecessor sum overflow"))?;
                     eligible = eligible.checked_add(1).ok_or_else(|| bound("cache request count overflow"))?;
                     if read.checked_mul(2).ok_or_else(|| bound("cache miss comparison overflow"))? < predecessor {
                         misses = misses.checked_add(1).ok_or_else(|| bound("cache miss count overflow"))?;
@@ -81,7 +85,8 @@ pub(super) fn observation(
 ) -> Measure<CacheObservation> {
     let counts = measured(observer).and_then(|(reads, prompts, eligible, full_misses)| {
         let cache_read = u64::try_from(reads).map_err(|_| bound("cache reads exceed serialized count bound"))?;
-        let predecessor_prompt = u64::try_from(prompts).map_err(|_| bound("cache prompts exceed serialized count bound"))?;
+        let predecessor_prompt =
+            u64::try_from(prompts).map_err(|_| bound("cache prompts exceed serialized count bound"))?;
         Ok(CacheObservation {
             cache_read,
             predecessor_prompt,

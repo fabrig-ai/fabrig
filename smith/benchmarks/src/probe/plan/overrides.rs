@@ -301,7 +301,10 @@ fn a_change_suite_without_a_parent_is_refused() {
 fn a_parent_given_to_another_suite_is_refused() {
     for option in ["--parent", "--parent-arm"] {
         let arguments = ["parity", option, "unused"].map(str::to_owned);
-        assert_eq!(command("suite", &arguments).expect_err("unexpected parent").detail, "only change suites accept a parent");
+        assert_eq!(
+            command("suite", &arguments).expect_err("unexpected parent").detail,
+            "only change suites accept a parent"
+        );
     }
 }
 

@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::arm::{ArmRef, Build};
 use crate::batch::Batch;
-use crate::{Fault, AttemptResult, End, Judgment, judge_suite, mismatch, refuse_if, Input};
+use crate::{AttemptResult, End, Fault, Input, Judgment, judge_suite, mismatch, refuse_if};
 
 mod prepare;
 

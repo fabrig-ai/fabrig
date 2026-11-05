@@ -5,7 +5,7 @@
 use super::{Order, Planned, ProbeAgent, Source, gating};
 use crate::arm::ArmRef;
 use crate::guard::Guard;
-use crate::{Fault, Agent, Identity, Measure, ModelIdentity, Suite, input, refuse_if, Input};
+use crate::{Agent, Fault, Identity, Input, Measure, ModelIdentity, Suite, input, refuse_if};
 use sha2::{Digest, Sha256};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -13,38 +13,27 @@ use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
 fn write(guard: &Guard, path: &Path, bytes: &[u8]) -> Result<(), Fault> {
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(guard.write_path(path)?)
-        ?;
+    let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600).open(guard.write_path(path)?)?;
     Ok(file.write_all(bytes)?)
 }
 
 fn utc() -> Result<(String, String), Fault> {
     let wall = skein_shell::Clock::new().now().wall;
-    let time = time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(wall.as_nanos()))
-        ?;
-    let started = time
-        .replace_nanosecond(0)
-        ?
-        .format(&time::format_description::well_known::Rfc3339)
-        ?;
+    let time = time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(wall.as_nanos()))?;
+    let started = time.replace_nanosecond(0)?.format(&time::format_description::well_known::Rfc3339)?;
     Ok((started.replace(['-', ':'], ""), started))
 }
 
 fn cpus() -> Result<Vec<u32>, Fault> {
     let status = fs::read_to_string("/proc/self/status")?;
-    let affinity =
-        status.lines().find_map(|line| line.strip_prefix("Cpus_allowed_list:")).ok_or_else(|| input("missing CPU affinity"))?;
+    let affinity = status
+        .lines()
+        .find_map(|line| line.strip_prefix("Cpus_allowed_list:"))
+        .ok_or_else(|| input("missing CPU affinity"))?;
     let mut cpus = Vec::new();
     for range in affinity.trim().split(',') {
         let (first, last) = range.split_once('-').unwrap_or((range, range));
-        cpus.extend(
-            first.parse::<u32>()?
-                ..=last.parse::<u32>()?,
-        );
+        cpus.extend(first.parse::<u32>()?..=last.parse::<u32>()?);
     }
     Ok(cpus)
 }
@@ -131,7 +120,11 @@ fn request(
                 requested_model: task
                     .requested_model(agent.agent, model.model.as_deref().ok_or_else(|| input("unresolved tier"))?)?
                     .into(),
-                requested_effort: task.effort.clone().or_else(|| model.effort.clone()).ok_or_else(|| input("unresolved effort"))?,
+                requested_effort: task
+                    .effort
+                    .clone()
+                    .or_else(|| model.effort.clone())
+                    .ok_or_else(|| input("unresolved effort"))?,
                 resolved_model: Measure::unavailable("not run"),
                 resolved_window: Measure::unavailable("not run"),
                 resolved_effort: Measure::unavailable("not run"),
@@ -243,15 +236,14 @@ fn narrowed(file: &Path, order: &Order) -> Result<toml::Value, Fault> {
     if order.agent == ProbeAgent::SmithClaudeCode {
         let program = toml::from_str::<toml::Value>(
             "[[agents]]\nagent='smith'\nprovider='anthropic'\nconfig='smith-claude-code'",
-        )
-        ?;
+        )?;
         fields.insert("agents".into(), program["agents"].clone());
     } else if order.agent == ProbeAgent::Codex {
-        let codex = toml::from_str::<toml::Value>("[[agents]]\nagent='codex'\nprovider='codex'\nconfig='standard'")
-            ?;
+        let codex = toml::from_str::<toml::Value>("[[agents]]\nagent='codex'\nprovider='codex'\nconfig='standard'")?;
         fields.insert("agents".into(), codex["agents"].clone());
     } else {
-        let agents = fields.get_mut("agents").and_then(toml::Value::as_array_mut).ok_or_else(|| input("suite agents"))?;
+        let agents =
+            fields.get_mut("agents").and_then(toml::Value::as_array_mut).ok_or_else(|| input("suite agents"))?;
         agents.retain(|agent| {
             agent["agent"].as_str() == Some("smith")
                 && agent["tasks"].as_array().is_none_or(|tasks| {
@@ -292,11 +284,7 @@ pub(super) fn prepare(
     let run = format!("{}-{}-{stamp}", name.replace('/', "-"), &source[..8]);
     let guard = Guard::from_environment()?;
     let parent = crate::arm::state_root(&guard)?.join("requests");
-    fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(guard.write_path(&parent)?)
-        ?;
+    fs::DirBuilder::new().recursive(true).mode(0o700).create(guard.write_path(&parent)?)?;
     let directory = parent.join(&run);
     refuse_if(directory.exists(), Input, "run already exists; wait until the next UTC second")?;
     crate::isolate::create_directory(&guard, &directory)?;
@@ -318,8 +306,7 @@ pub(super) fn prepare(
         crate::catalogue(&root.join("tasks"), &root.join("../docs/design"))?
     };
     let models = crate::read_model_tiers(&root.join("agents/models.toml"))?;
-    let names = crate::validate_suite(&suite_file, &suite, &entries, &root.join("agents"), &models)
-        ?;
+    let names = crate::validate_suite(&suite_file, &suite, &entries, &root.join("agents"), &models)?;
     let names = crate::include(&suite_file, &suite, &names, asked)?;
     let names = if name == "smoke" { gating::smoke_tasks(&entries, &names)? } else { names };
     let face = arm_face(repository, arm)?;
@@ -359,8 +346,7 @@ fn arm_face(repository: &Path, arm: &ArmRef) -> Result<Option<crate::SmithFace>,
     match arm {
         ArmRef::Installed { .. } => Ok(None),
         ArmRef::Built(build) => {
-            let faces = crate::agent::smith::read_faces(&repository.join("benchmarks/agents/smith/faces.toml"))
-                ?;
+            let faces = crate::agent::smith::read_faces(&repository.join("benchmarks/agents/smith/faces.toml"))?;
             crate::agent::smith::face(&build.arm, &faces, repository)?;
             Ok(Some(crate::SmithFace::Events))
         }
@@ -370,8 +356,7 @@ fn arm_face(repository: &Path, arm: &ArmRef) -> Result<Option<crate::SmithFace>,
 pub(super) fn codex(repository: &Path, configuration: &str) -> Result<ArmRef, Fault> {
     let pin = crate::read_configuration(
         &repository.join("benchmarks/agents/codex").join(format!("{configuration}.pin.toml")),
-    )
-    ?;
+    )?;
     let guard = Guard::from_environment()?;
     let program = crate::arm::state_root(&guard)?
         .join(pin.pin.package.ok_or_else(|| input("Codex requires a private package"))?)
@@ -387,7 +372,9 @@ pub(super) fn archived(repository: &Path, source: &Source) -> Result<ArmRef, Fau
     let commit = crate::arm::resolve_commit(repository, reference)?;
     let guard = Guard::from_environment()?;
     let arms = crate::arm::state_root(&guard)?.join("arms");
-    for entry in fs::read_dir(arms).map_err(|_| input(format!("no archived arm for {commit}; run build {reference} first")))? {
+    for entry in
+        fs::read_dir(arms).map_err(|_| input(format!("no archived arm for {commit}; run build {reference} first")))?
+    {
         let entry = entry?;
         if entry.file_name().to_string_lossy().starts_with(&format!("{commit}-")) {
             return crate::arm::read_build(&entry.path().join("smith")).map(ArmRef::Built);
@@ -413,8 +400,7 @@ pub(super) fn check_parent(suite: &Suite, has_parent: bool) -> Result<(), Fault>
             "change suite requires --parent or --parent-arm"
         } else {
             "only change suites accept a parent"
-        }
-        ));
+        }));
     }
     Ok(())
 }

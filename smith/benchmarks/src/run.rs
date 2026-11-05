@@ -14,11 +14,14 @@ use skein_shell::Clock;
 use skein_world::end_to_end::{Command, Method, PeakScope};
 
 use crate::guard::Guard;
-use crate::isolate::{Machine, Private, SetupStep};
 use crate::isolate::SetupStep::{Configuration, Scratch, Seed, Space, Warm};
+use crate::isolate::{Machine, Private, SetupStep};
 use crate::process::{Bounds, Capture, ProcessResult, execute};
-use crate::{Fault, FaultKind, Artifact, AttemptResult, End, Exit, Forced, Health, Identity, Measure, Outcome, ResourceScope, Resources, Spend,
-    SpendBasis, Task, Timing, bound, credential, format, input, io, mismatch, refuse_if, Bound, Input, Io};
+use crate::{
+    Artifact, AttemptResult, Bound, End, Exit, Fault, FaultKind, Forced, Health, Identity, Input, Io, Measure, Outcome,
+    ResourceScope, Resources, Spend, SpendBasis, Task, Timing, bound, credential, format, input, io, mismatch,
+    refuse_if,
+};
 
 mod outcomes;
 
@@ -237,8 +240,12 @@ pub(crate) fn succeeded(result: &ProcessResult) -> bool {
 
 fn free_space(clock: &Clock, machine: &Machine, private: &Private, prepared: &Request) -> Result<(), Fault> {
     refuse_if(prepared.disk_estimate_bytes == 0, Input, "a positive disk estimate is required")?;
-    let command =
-        vec!["df".into(), "-Pk".into(), "--".into(), private.root.to_str().ok_or_else(|| format("scratch path must be UTF-8"))?.into()];
+    let command = vec![
+        "df".into(),
+        "-Pk".into(),
+        "--".into(),
+        private.root.to_str().ok_or_else(|| format("scratch path must be UTF-8"))?.into(),
+    ];
     let result = raw(clock, machine, private, &command, prepared.setup_deadline_seconds, prepared)?;
     refuse_if(!succeeded(&result), Input, "free-space observation failed")?;
     let output = std::str::from_utf8(&result.stdout)?;
@@ -247,8 +254,7 @@ fn free_space(clock: &Clock, machine: &Machine, private: &Private, prepared: &Re
         .last()
         .and_then(|line| line.split_whitespace().nth(3))
         .ok_or_else(|| input("df did not report available space"))?
-        .parse::<u64>()
-        ?
+        .parse::<u64>()?
         .checked_mul(1024)
         .ok_or_else(|| bound("free space overflow"))?;
     if bytes < prepared.disk_estimate_bytes {
@@ -297,13 +303,7 @@ fn resources(process: &ProcessResult) -> Result<Resources, Fault> {
     })
 }
 
-fn archive(
-    guard: &Guard,
-    directory: &Path,
-    result: &mut AttemptResult,
-    name: &str,
-    bytes: &[u8],
-) -> Result<(), Fault> {
+fn archive(guard: &Guard, directory: &Path, result: &mut AttemptResult, name: &str, bytes: &[u8]) -> Result<(), Fault> {
     result.artifacts.push(crate::grade::archive(guard, directory, name, bytes)?);
     Ok(())
 }
@@ -395,8 +395,7 @@ fn copy_cache(
 }
 
 fn task_for(prepared: &Request) -> Result<Task, Fault> {
-    let mut task = crate::check_task(&prepared.task, &Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/design"))
-        ?;
+    let mut task = crate::check_task(&prepared.task, &Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/design"))?;
     let kind = match task.kind {
         crate::Kind::Probe => "probes",
         crate::Kind::Fixture => "fixtures",
@@ -404,7 +403,11 @@ fn task_for(prepared: &Request) -> Result<Task, Fault> {
     };
     let base = format!("{kind}/{}", task.id);
     if prepared.identity.task != base {
-        let name = prepared.identity.task.strip_prefix(&format!("{base}/")).ok_or_else(|| mismatch("prepared task identity differs"))?;
+        let name = prepared
+            .identity
+            .task
+            .strip_prefix(&format!("{base}/"))
+            .ok_or_else(|| mismatch("prepared task identity differs"))?;
         task = task.with_variant(name)?;
     }
     Ok(task)
@@ -489,12 +492,26 @@ fn validate_prepared(task: &Task, prepared: &Request) -> Result<(), Fault> {
 }
 
 fn seed_revision(clock: &Clock, machine: &Machine, private: &Private, prepared: &Request) -> Result<String, Fault> {
-    let commit = raw(clock, machine, private, &["git".into(), "rev-parse".into(), "HEAD".into()], prepared.setup_deadline_seconds, prepared)?;
+    let commit = raw(
+        clock,
+        machine,
+        private,
+        &["git".into(), "rev-parse".into(), "HEAD".into()],
+        prepared.setup_deadline_seconds,
+        prepared,
+    )?;
     refuse_if(!succeeded(&commit), Io, "cannot retain frozen seed commit")?;
     Ok(String::from_utf8(commit.stdout)?.trim().to_owned())
 }
 
-fn warm(clock: &Clock, guard: &Guard, machine: &Machine, private: &Private, task: &Task, prepared: &Request) -> Result<(), Fault> {
+fn warm(
+    clock: &Clock,
+    guard: &Guard,
+    machine: &Machine,
+    private: &Private,
+    task: &Task,
+    prepared: &Request,
+) -> Result<(), Fault> {
     let mut warming = private.clone();
     warming.cargo_home.clone_from(&private.warm_cargo);
     warming.target.clone_from(&private.warm_target);
@@ -511,7 +528,7 @@ fn warm(clock: &Clock, guard: &Guard, machine: &Machine, private: &Private, task
             return Err(io(format!("setup command failed: {:?}, {:?}", result.exit, result.error)));
         }
     }
-    copy_cache(clock, guard, machine, &private, prepared)?;
+    copy_cache(clock, guard, machine, private, prepared)?;
     if !task.grade.is_empty() {
         let mut grading = crate::isolate::empty(guard, &private.root.join("grading"))?;
         crate::isolate::login_profile(guard, machine, &grading)?;
@@ -533,10 +550,8 @@ fn observe(
 ) -> Result<crate::grade::Ended, Fault> {
     process.observing.as_ref().ok_or_else(|| input("an attempt has its observer"))?;
     result.identity.started_utc =
-        time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(process.start_wall.as_nanos()))
-            ?
-            .format(&time::format_description::well_known::Rfc3339)
-            ?;
+        time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(process.start_wall.as_nanos()))?
+            .format(&time::format_description::well_known::Rfc3339)?;
     let archives = Archive { guard, directory };
     let traces = crate::agent::Traces { trace: &process.trace, stdout: &process.stdout, maximum };
     let observing = process.observing.as_mut().expect("attempt observer checked above");
@@ -653,8 +668,11 @@ fn invocation(work: Work<'_>, result: &mut AttemptResult) -> Result<Invocation, 
         return Err(mismatch("adapter configuration differs from the planned identity"));
     }
     let (arm, version) = result.identity.agent.source_arm(work, &result.identity)?;
-    let source =
-        work.prepared.logins.as_deref().ok_or_else(|| credential("the adapter requires its read-only source login directory"))?;
+    let source = work
+        .prepared
+        .logins
+        .as_deref()
+        .ok_or_else(|| credential("the adapter requires its read-only source login directory"))?;
     let home = result.identity.agent.home(source)?;
     let model = crate::ModelChoice {
         model: Some(result.identity.model.requested_model.clone()),
@@ -675,8 +693,7 @@ fn invocation(work: Work<'_>, result: &mut AttemptResult) -> Result<Invocation, 
         lifetime: credential_lifetime(work)?,
         environment: &environment,
     };
-    let (prepared, receipt) =
-        result.identity.agent.prepare_checked(&context, &work.prepared.arguments)?;
+    let (prepared, receipt) = result.identity.agent.prepare_checked(&context, &work.prepared.arguments)?;
     prepared.check_identity(&result.identity)?;
     prepared.archive(Archive { guard: work.guard, directory: work.directory }, result)?;
     if let Some(receipt) = &receipt
@@ -814,18 +831,29 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
     let work = if existed {
         Err(Fault::new(FaultKind::Setup(Scratch), "attempt scratch root already exists; setup refused"))
     } else {
-        attempt_work(Archive { guard, directory: &directory }, machine, (&clock, &root), prepared, &mut result, &mut inference, &mut neutral)
+        attempt_work(
+            Archive { guard, directory: &directory },
+            machine,
+            (&clock, &root),
+            prepared,
+            &mut result,
+            &mut inference,
+            &mut neutral,
+        )
     };
     let incomplete = match work {
         Ok(()) => Incomplete::No,
         Err(error) => {
-            let incomplete = if inference { Incomplete::No } else {
+            let incomplete = if inference {
+                Incomplete::No
+            } else {
                 match error.kind {
                     FaultKind::Setup(step) => Incomplete::Setup(step),
                     _ => unreachable!("preparation calls label their faults"),
                 }
             };
-            result.outcome.end = if inference { End::HarnessError { what: error.detail } } else { End::Refused { setup: error.detail } };
+            result.outcome.end =
+                if inference { End::HarnessError { what: error.detail } } else { End::Refused { setup: error.detail } };
             incomplete
         }
     };
@@ -842,22 +870,33 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
     Ok(Recorded { result, directory, incomplete })
 }
 
-fn archive_task(archive: Archive<'_>, result: &mut AttemptResult, prepared: &Request, task: &Task) -> Result<(), Fault> {
+fn archive_task(
+    archive: Archive<'_>,
+    result: &mut AttemptResult,
+    prepared: &Request,
+    task: &Task,
+) -> Result<(), Fault> {
     archive.put(result, "prepared.json", &serde_json::to_vec_pretty(prepared)?)?;
     archive.put(result, "task.toml", &fs::read(&prepared.task)?)?;
     archive.put(result, "prompt.txt", task.prompt.as_bytes())
 }
 
 fn attempt_work(
-    archive: Archive<'_>, machine: &Machine, scratch: (&Clock, &Path), prepared: &Request,
-    result: &mut AttemptResult, inference: &mut bool, neutral: &mut outcomes::Neutral,
+    archive: Archive<'_>,
+    machine: &Machine,
+    scratch: (&Clock, &Path),
+    prepared: &Request,
+    result: &mut AttemptResult,
+    inference: &mut bool,
+    neutral: &mut outcomes::Neutral,
 ) -> Result<(), Fault> {
     let Archive { guard, directory } = archive;
     let (clock, root) = scratch;
     let task = task_for(prepared).map_err(Fault::at(Seed))?;
     neutral.task(&task, prepared.identity.agent);
     archive_task(archive, result, prepared, &task).map_err(Fault::at(Seed))?;
-    let task_directory = prepared.task.parent().ok_or_else(|| Fault::new(FaultKind::Setup(Seed), "task needs a directory"))?;
+    let task_directory =
+        prepared.task.parent().ok_or_else(|| Fault::new(FaultKind::Setup(Seed), "task needs a directory"))?;
     let (private, revision, seed) = prepare(clock, guard, machine, &task, task_directory, root, prepared)?;
     let work = Work { clock, guard, machine, private: &private, task: &task, prepared, directory };
     let (command, capture, teardown, receipt) = invocation(work, result).map_err(Fault::at(Configuration))?;
@@ -869,12 +908,18 @@ fn attempt_work(
         receipt.observing = Some(observing);
         receipt
     } else {
-        crate::process::execute_script(clock, command, script, capture,
-            prepared.bounds(Duration::from_secs(task.deadline_seconds), teardown))
-            .map_err(Fault::at(Configuration))?
+        crate::process::execute_script(
+            clock,
+            command,
+            script,
+            capture,
+            prepared.bounds(Duration::from_secs(task.deadline_seconds), teardown),
+        )
+        .map_err(Fault::at(Configuration))?
     };
     *inference = true;
-    let observed = observe(guard, directory, &private.workspace, result, &mut process, &task, prepared.max_stdout_bytes);
+    let observed =
+        observe(guard, directory, &private.workspace, result, &mut process, &task, prepared.max_stdout_bytes);
     let ended = neutral.observed(observed, &process, &result.outcome)?;
     afterwards(work, &seed, revision, result, ended)
 }
@@ -931,8 +976,8 @@ pub(crate) fn recover(
 pub fn read_prepared(path: &Path) -> Result<Request, Fault> {
     let text = fs::read_to_string(path)?;
     let mut decoder = serde_json::Deserializer::from_str(&text);
-    let request =
-        serde_path_to_error::deserialize(&mut decoder).map_err(|error| format(format!("{}: {error}", path.display())))?;
+    let request = serde_path_to_error::deserialize(&mut decoder)
+        .map_err(|error| format(format!("{}: {error}", path.display())))?;
     decoder.end()?;
     Ok(request)
 }

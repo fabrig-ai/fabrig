@@ -14,7 +14,9 @@ use crate::guard::Guard;
 use crate::isolate::Machine;
 use crate::process::{Bounds, Capture, execute};
 use crate::run::{Request, read_prepared};
-use crate::{Fault, AttemptResult, Design, End, Measure, ScopeKind, Suite, bound, format, input, mismatch, refuse_if, Input};
+use crate::{
+    AttemptResult, Design, End, Fault, Input, Measure, ScopeKind, Suite, bound, format, input, mismatch, refuse_if,
+};
 
 mod credentials;
 
@@ -31,10 +33,7 @@ pub struct Batch {
 }
 
 fn requests(directory: &Path) -> Result<Vec<Request>, Fault> {
-    let mut paths = fs::read_dir(directory)
-        ?
-        .collect::<Result<Vec<_>, _>>()
-        ?;
+    let mut paths = fs::read_dir(directory)?.collect::<Result<Vec<_>, _>>()?;
     paths.sort_by_key(fs::DirEntry::file_name);
     paths.into_iter().map(|entry| read_prepared(&entry.path())).collect()
 }
@@ -202,11 +201,9 @@ fn check_override(suite: &Suite, request: &Request) -> Result<(), Fault> {
 
 fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Result<(), Fault> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let catalogue =
-        crate::catalogue(&root.join("tasks"), &root.join("../docs/design"))?;
+    let catalogue = crate::catalogue(&root.join("tasks"), &root.join("../docs/design"))?;
     let models = crate::read_model_tiers(&root.join("agents/models.toml"))?;
-    let selected = crate::validate_suite(suite_file, suite, &catalogue, &root.join("agents"), &models)
-        ?;
+    let selected = crate::validate_suite(suite_file, suite, &catalogue, &root.join("agents"), &models)?;
     let asked: Vec<String> = requests
         .iter()
         .map(|request| &request.identity.task)
@@ -231,17 +228,13 @@ fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Res
                 request.identity.task == entry.name || request.identity.task.starts_with(&format!("{}/", entry.name))
             })
             .ok_or_else(|| input("prepared task is not in the catalogue"))?;
-        if request.task.canonicalize()?
-            != entry.manifest.canonicalize()?
-        {
+        if request.task.canonicalize()? != entry.manifest.canonicalize()? {
             return Err(input("prepared request names a different task manifest"));
         }
         if !selected_configuration_matches(&allowed, &pins, request)? {
             return Err(mismatch("prepared agent configuration differs from the suite's pins"));
         }
-        let model = models
-            .lookup(&root.join("agents/models.toml"), &suite.tier, request.identity.provider)
-            ?;
+        let model = models.lookup(&root.join("agents/models.toml"), &suite.tier, request.identity.provider)?;
         let task = if request.identity.task == entry.name {
             entry.task.clone()
         } else {
@@ -252,8 +245,10 @@ fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Res
                 .ok_or_else(|| mismatch("task variant identity differs"))?;
             entry.task.with_variant(variant)?
         };
-        let expected_model =
-            task.requested_model(request.identity.agent, model.model.as_deref().ok_or_else(|| input("suite tier has no model"))?)?;
+        let expected_model = task.requested_model(
+            request.identity.agent,
+            model.model.as_deref().ok_or_else(|| input("suite tier has no model"))?,
+        )?;
         if expected_model != request.identity.model.requested_model
             || task.effort.as_ref().or(model.effort.as_ref()) != Some(&request.identity.model.requested_effort)
         {
@@ -360,8 +355,7 @@ fn dispatch_result(
         Err(error) => return Err(format(format!("attempt's existing result is invalid: {error}"))),
     };
     if !existed && scratch.exists() {
-        let deletion =
-            guard.write_path(&scratch).and_then(|path| fs::remove_dir_all(path).map_err(Fault::from));
+        let deletion = guard.write_path(&scratch).and_then(|path| fs::remove_dir_all(path).map_err(Fault::from));
         if let Err(error) = deletion {
             result.outcome.end = End::HarnessError { what: format!("dispatcher workspace deletion failed: {error}") };
             let path = guard.write_path(&result_file)?;

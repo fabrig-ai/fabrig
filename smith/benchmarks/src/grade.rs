@@ -15,7 +15,7 @@ use skein_world::end_to_end::Command;
 use crate::guard::Guard;
 use crate::isolate::{Machine, Private};
 use crate::process::{Bounds, Capture, execute};
-use crate::{Fault, CheckVerdict, Exit, Forced, Grade, Measure, OutcomeCheck, input, refuse_if, Input};
+use crate::{CheckVerdict, Exit, Fault, Forced, Grade, Input, Measure, OutcomeCheck, input, refuse_if};
 
 /// Safe materialised file observations, supplied to outcome and scope checks.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -49,10 +49,7 @@ pub fn snapshot_all(root: &Path) -> Result<Snapshot, Fault> {
 
 fn walk(root: &Path, directory: &Path, entries: &mut Snapshot, skip_git: bool) -> Result<(), Fault> {
     use std::os::unix::fs::PermissionsExt;
-    let mut children = fs::read_dir(directory)
-        ?
-        .collect::<Result<Vec<_>, _>>()
-        ?;
+    let mut children = fs::read_dir(directory)?.collect::<Result<Vec<_>, _>>()?;
     children.sort_by_key(fs::DirEntry::file_name);
     for child in children {
         if skip_git && child.file_name() == ".git" {
@@ -256,12 +253,7 @@ pub fn archive(guard: &Guard, directory: &Path, name: &str, bytes: &[u8]) -> Res
         return Err(input("archive name must be a relative ordinary path"));
     }
     let path = guard.write_path(&directory.join(name))?;
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(path)
-        ?;
+    let mut file = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?;
     file.write_all(bytes).and_then(|()| file.sync_all())?;
     Ok(crate::Artifact { path: name.into(), sha256: format!("{:x}", Sha256::digest(bytes)) })
 }

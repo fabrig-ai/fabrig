@@ -265,7 +265,11 @@ fn mount_refusals(context: &smith_bench::agent::Context<'_>, task: &mut smith_be
         task.smith.insert("workspace.directories".into(), value["directories"].clone());
         let context = smith_bench::agent::Context { task, home: &outside, ..*context };
         let refusal = product_arguments(&context).expect_err("refusal before login");
-        assert_eq!(refusal.kind, smith_bench::FaultKind::Setup(smith_bench::isolate::SetupStep::Configuration), "{row}");
+        assert_eq!(
+            refusal.kind,
+            smith_bench::FaultKind::Setup(smith_bench::isolate::SetupStep::Configuration),
+            "{row}"
+        );
         assert!(!context.private.root.join("smith/tokens").exists());
     }
 }

@@ -2,7 +2,7 @@
 //! Only generation numbers survive the product's bounded private-record reader
 //! and codec; no token value reaches a diagnostic or result (benchmarks.md, 11.1).
 
-use crate::{Fault, bound, credential, refuse_if, Mismatch};
+use crate::{Fault, Mismatch, bound, credential, refuse_if};
 use std::path::{Path, PathBuf};
 
 use smith_local_shell::credentials::record_generation;
@@ -51,7 +51,7 @@ pub(super) fn run(
     remaining: u64,
 ) -> Result<Vec<AttemptResult>, Fault> {
     let path = record_path(request)?;
-    let before = record_generation(&path).map_err(|detail| credential(detail));
+    let before = record_generation(&path).map_err(credential);
     let mut peer = request.clone();
     peer.identity.attempt.push_str("-peer");
     let (left, left_existed) = dispatch_command(guard, machine, state, executable, request)?;
@@ -88,7 +88,7 @@ pub(super) fn run(
         dispatch_result(guard, state, request, &process, left_existed)?,
         dispatch_result(guard, state, &peer, &process, right_existed)?,
     ];
-    let after = record_generation(&path).map_err(|detail| credential(detail));
+    let after = record_generation(&path).map_err(credential);
     let passed = proof(&[results[0].outcome.end.clone(), results[1].outcome.end.clone()], &before, &after, &path);
     for result in &mut results {
         let check = result
@@ -103,7 +103,8 @@ pub(super) fn run(
         }
         let directory = state.join("runs").join(&result.identity.run).join(&result.identity.attempt);
         let file = guard.write_path(&directory.join("result.json"))?;
-        std::fs::write(file, crate::render_result(result)?).map_err(|_| credential("cannot persist credentials pair verdict"))?;
+        std::fs::write(file, crate::render_result(result)?)
+            .map_err(|_| credential("cannot persist credentials pair verdict"))?;
     }
     Ok(results.into())
 }

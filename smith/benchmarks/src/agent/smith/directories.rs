@@ -3,7 +3,7 @@
 //! explicit. No user path or runtime filesystem fact is known here
 //! (benchmarks.md, section 10; domain/tools.md, section 2).
 
-use crate::{Fault, format, input, io, refuse_if, Input};
+use crate::{Fault, Input, format, input, io, refuse_if};
 use std::collections::BTreeSet;
 use std::path::{Component, PathBuf};
 

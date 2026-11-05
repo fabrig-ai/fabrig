@@ -4,7 +4,7 @@
 //! `Borrowed::finish` settles the credential and checks the source digest.
 //! Contracts: benchmarks.md, section 10; reliability-plan Credentials (95a9807).
 
-use crate::{Fault, FaultKind, bound, credential as login, refuse_if, Bound, Credential};
+use crate::{Bound, Credential, Fault, FaultKind, bound, credential as login, refuse_if};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 use skein_lib::{Duration, Wall};
 
 use crate::guard::{Guard, check_credential_record};
-use crate::isolate::{SetupStep};
+use crate::isolate::SetupStep;
 
 pub mod logins;
 
@@ -101,10 +101,10 @@ fn expiry(access: &str) -> Result<Wall, Fault> {
         .decode(payload)
         .map_err(|_| login("access token claims are not base64url"))?;
     let claims: Claims = serde_json::from_slice(&bytes).map_err(|_| login("access token has no valid expiry claim"))?;
-    let nanos = claims.exp.checked_mul(1_000_000_000).ok_or_else(|| bound("access token expiry is outside the wall clock"))?;
+    let nanos =
+        claims.exp.checked_mul(1_000_000_000).ok_or_else(|| bound("access token expiry is outside the wall clock"))?;
     Ok(Wall::from_nanos(nanos))
 }
-
 
 fn write_record(guard: &Guard, home: &Path, name: &str, encoded: &[u8]) -> Result<PathBuf, Fault> {
     let home = crate::isolate::create_directory(guard, home)?;
@@ -116,10 +116,13 @@ fn write_record(guard: &Guard, home: &Path, name: &str, encoded: &[u8]) -> Resul
         .open(&credential)
         .map_err(|_| login("cannot create private credential record"))?;
     if let Err(error) = file.write_all(encoded).and_then(|()| file.sync_all()) {
-        std::fs::remove_file(guard.write_path(&credential)?).map_err(|_| login("cannot remove incomplete credential"))?;
+        std::fs::remove_file(guard.write_path(&credential)?)
+            .map_err(|_| login("cannot remove incomplete credential"))?;
         return Err(login(format!("cannot write private credential record: {}", error.kind())));
     }
-    if file.metadata().map_err(|_| login("cannot inspect private credential record"))?.permissions().mode() & 0o777 != 0o600 {
+    if file.metadata().map_err(|_| login("cannot inspect private credential record"))?.permissions().mode() & 0o777
+        != 0o600
+    {
         std::fs::remove_file(guard.write_path(&credential)?)
             .map_err(|_| login("cannot remove incorrectly private credential"))?;
         return Err(login("credential record requires mode 0600"));
@@ -132,19 +135,26 @@ fn write_record(guard: &Guard, home: &Path, name: &str, encoded: &[u8]) -> Resul
 pub fn codex(guard: &Guard, source_home: &Path, home: &Path, now: Wall, lifetime: Duration) -> Result<Borrowed, Fault> {
     logins::codex(source_home)?;
     let converted = convert(guard, source_home, home, now, lifetime);
-    converted.map_err(|reason| Fault { kind: FaultKind::Setup(SetupStep::Credentials), detail: format!("{reason}; run `CODEX_HOME={} codex` once before retrying", source_home.display()) })
+    converted.map_err(|reason| Fault {
+        kind: FaultKind::Setup(SetupStep::Credentials),
+        detail: format!("{reason}; run `CODEX_HOME={} codex` once before retrying", source_home.display()),
+    })
 }
 
 fn convert(guard: &Guard, source_home: &Path, home: &Path, now: Wall, lifetime: Duration) -> Result<Borrowed, Fault> {
     let source = source_home.join("auth.json");
     let bytes = read_source(&source)?;
     let digest = format!("{:x}", Sha256::digest(&bytes));
-    let source_auth: Source = serde_json::from_slice(&bytes).map_err(|_| login("Codex auth.json has an invalid shape"))?;
+    let source_auth: Source =
+        serde_json::from_slice(&bytes).map_err(|_| login("Codex auth.json has an invalid shape"))?;
     if source_auth.auth_mode.is_empty() || source_auth.tokens.access_token.is_empty() {
         return Err(login("Codex login has no authentication mode or access token"));
     }
     let expires = expiry(&source_auth.tokens.access_token)?;
-    let end = now.as_nanos().checked_add(lifetime.as_nanos()).ok_or_else(|| bound("attempt lifetime exceeds the wall clock"))?;
+    let end = now
+        .as_nanos()
+        .checked_add(lifetime.as_nanos())
+        .ok_or_else(|| bound("attempt lifetime exceeds the wall clock"))?;
     refuse_if(expires.as_nanos() <= end, Credential, "Codex access token expires before the attempt ends")?;
     let last_refresh = time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(now.as_nanos()))
         .map_err(|_| login("credential write time is outside the timestamp range"))?
@@ -176,7 +186,6 @@ fn check_private(credential: &Path) -> Result<(), Fault> {
         return Err(login("private Codex refresh field is no longer empty"));
     }
     Ok(())
-    
 }
 
 impl Borrowed {
@@ -188,7 +197,9 @@ impl Borrowed {
         checked?;
         let after = format!("{:x}", Sha256::digest(read_source(&self.source)?));
         if after != self.digest {
-            return Err(login("user Codex auth.json changed during the isolated attempt; stop before further inference"));
+            return Err(login(
+                "user Codex auth.json changed during the isolated attempt; stop before further inference",
+            ));
         }
         Ok(Proof {
             source_sha256_before: self.digest.clone(),

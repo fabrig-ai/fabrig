@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Fault, AttemptRow, Measure, RunSummary, input, mismatch, refuse_if, Bound, Input, Mismatch};
+use crate::{AttemptRow, Bound, Fault, Input, Measure, Mismatch, RunSummary, input, mismatch, refuse_if};
 
 fn passed(row: &AttemptRow) -> bool {
     row.passed && row.end == "completed"
@@ -192,8 +192,10 @@ fn reported(rows: &[AttemptRow]) -> BTreeMap<String, BTreeMap<String, Measure<f6
                 metrics
                     .into_iter()
                     .map(|(name, samples)| {
-                        let median = crate::median(&samples)
-                            .map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value });
+                        let median = crate::median(&samples).map_or_else(
+                            |fault| Measure::unavailable(fault.detail),
+                            |value| Measure::Observed { value },
+                        );
                         (name, median)
                     })
                     .collect(),

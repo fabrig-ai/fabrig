@@ -412,7 +412,8 @@ impl Task {
 
     /// Apply one named authored change, retaining additive checks unless replacement is explicit.
     pub fn with_variant(&self, name: &str) -> Result<Self, Fault> {
-        let variant = self.variant.iter().find(|variant| variant.name == name).ok_or_else(|| input("unknown task variant"))?;
+        let variant =
+            self.variant.iter().find(|variant| variant.name == name).ok_or_else(|| input("unknown task variant"))?;
         let mut task = self.clone();
         task.calibration.clone_from(&variant.calibration);
         if let Some(prompt) = &variant.prompt {

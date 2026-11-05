@@ -6,8 +6,8 @@
 use serde::{Deserialize, Serialize};
 use smith_events::{Event, Reader, Record, SessionEnded, SessionStarted};
 
-use crate::agent::{Seen};
-use crate::{Fault, Classification, Counts, Exit, Forced, TokenRecord, bound, stream, refuse_if, Stream};
+use crate::agent::Seen;
+use crate::{Classification, Counts, Exit, Fault, Forced, Stream, TokenRecord, bound, refuse_if, stream};
 
 mod delegation;
 mod time;
@@ -391,8 +391,7 @@ pub(super) fn reported_spend(observer: &Observer, currency: u64) -> Result<crate
             missing.push(reason);
         }
     }
-    let value = total.to_string().parse::<f64>()?
-        / currency.to_string().parse::<f64>()?;
+    let value = total.to_string().parse::<f64>()? / currency.to_string().parse::<f64>()?;
     let usd = if !saw_spend {
         crate::Measure::unavailable("no authoritative run spend was reported")
     } else if missing.is_empty() {
