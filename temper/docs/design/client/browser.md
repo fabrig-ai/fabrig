@@ -1224,10 +1224,17 @@ from the engine's own answers, is where the look is tuned.
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
 | `configure-refused` | the start refused; jig's words below the composer, the words kept |
 | `configure-chat` | the solo world’s T10 as a configuring chat, conversation and proposal in the Settings layout |
+| `configure-chat-proposal` | `configure-chat` with a pending proposal of settings: its title, lines, items and "Accept" |
+| `configure-chat-accepted` | that proposal accepted: "✓ Accepted · new work follows it" |
+| `configure-chat-replaced` | that proposal dimmed, "Replaced by the proposal below", the later one under it |
 | `settings` | hand-made settings deliveries: How work runs with every part of kind 7 shown |
 | `settings-all-hidden` | hand-made settings deliveries: kind 7's stock, the mock's `settings.html?project=hello` |
 | `settings-goals` | hand-made settings deliveries: Goals shown, its ways of working with one the default |
 | `settings-chat-open` | hand-made settings deliveries: a configuring chat open, "Go on" |
+| `settings-drafts-off` | `settings` with "Chats can write drafts" off |
+| `settings-goals-off` | `settings` with Goals hidden: no ways of working, and the rail without "Goals" |
+| `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
+| `settings-away-off` | `settings` with the Away switch hidden |
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
