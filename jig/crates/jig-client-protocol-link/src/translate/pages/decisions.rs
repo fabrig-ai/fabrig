@@ -1,6 +1,6 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
-    Limits, List, Reader, Wall, authority_fields, c, message_proposal_kind_fields, opaque, piece_problem,
+    Limits, List, Reader, Wall, authority_fields, c, message_proposal_kind_fields, opaque, 
     specification_fields, task_contract_document_fields, text, too_large, w,
 };
 
