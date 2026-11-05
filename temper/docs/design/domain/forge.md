@@ -1848,7 +1848,13 @@ What the connector makes of a change for the client's panel
   verdict at its exact head with its record (`ChangeRow`'s `ci`, written
   by the save its finish already makes), restored with the row, since no
   step will read it again and its panel stays as long as its record
-  (`../client/forge.md`, 9.2).
+  (`../client/forge.md`, 9.2). The panel carries separately whether the
+  repository has CI and its effective landing rules ask for it (8.7).
+  Where CI is not required, the client says “CI not required”, even if
+  the retained observation is pending or failed. The observed verdict
+  remains evidence at its exact head; a no-CI landing never makes it a
+  passing verdict. The requirement is read from the held rules when the
+  panel is made, including after restoration.
 - **Its place in its queue** is computed as the document is made,
   in section 9's order among the changes queued or first in its
   landing branch at the core's time: its place from 1, and the tasks

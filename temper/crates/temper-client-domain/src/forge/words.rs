@@ -595,6 +595,8 @@ pub enum ChangeWord {
     Ci,
     NotYet,
     NotRead,
+    /// CI is not required by the effective landing rules.
+    NotRequired,
     Running,
     Passed,
     Failed,
@@ -631,7 +633,7 @@ pub enum ChangeWord {
     HeldUncleared,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 105] = [
+pub const CHANGES: [ChangeRow; 106] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -737,6 +739,7 @@ pub const CHANGES: [ChangeRow; 105] = [
     (ChangeWord::HeldRed, &[b"red"], &[]),
     (ChangeWord::HeldCleared, &[b"cleared"], &[]),
     (ChangeWord::HeldUncleared, &[b"landed, uncleared"], &[]),
+    (ChangeWord::NotRequired, &[b"Not required"], &[]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -854,6 +857,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::Ci
         | ChangeWord::NotYet
         | ChangeWord::NotRead
+        | ChangeWord::NotRequired
         | ChangeWord::Running
         | ChangeWord::Passed
         | ChangeWord::Failed

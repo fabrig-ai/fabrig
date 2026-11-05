@@ -562,6 +562,7 @@ fn panel() -> forge::Panel {
         step: forge::PanelStep::Queued { place: 3, ahead: Box::new([49, 47]) },
         hold: Some(change::Hold::Updates),
         runs: Some(81),
+        ci_required: true,
         ci: change::Status::Pending,
         approvals: Box::new([]),
         unmapped_reviews: Box::new([]),
@@ -639,6 +640,7 @@ fn a_panel_encodes_and_decodes_back_whole() {
             step: queued(3, &[49, 47]),
             hold: Some(w::Hold::Updates),
             runs: Some(81),
+            ci_required: true,
             ci: w::Ci::Pending,
             gates,
             approvals: List::with_capacity(0),
@@ -741,9 +743,15 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
         (change::Status::Passed, w::Ci::Passed),
         (change::Status::Failed, w::Ci::Failed),
     ] {
-        let mut value = panel();
-        value.ci = input;
-        assert_eq!(*decoded_panel(value, &fixtures::forge_table(&[])).ci(), expected);
+        let value = panel();
+        for required in [false, true] {
+            let mut value = value.clone();
+            value.ci = input;
+            value.ci_required = required;
+            let decoded = decoded_panel(value, &fixtures::forge_table(&[]));
+            assert_eq!(*decoded.ci(), expected);
+            assert_eq!(decoded.ci_required(), required);
+        }
     }
 }
 #[test]

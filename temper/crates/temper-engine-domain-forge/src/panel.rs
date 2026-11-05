@@ -123,6 +123,8 @@ pub struct Panel {
     pub hold: Option<change::Hold>,
     pub runs: Option<u64>,
     pub ci: change::Status,
+    /// Whether this repository and its effective landing rules ask for CI.
+    pub ci_required: bool,
     pub gates: Box<[PanelGate]>,
     pub approvals: Box<[PanelApproval]>,
     pub unmapped_reviews: Box<[UnmappedReview]>,
@@ -222,7 +224,6 @@ impl Domain {
     }
     /// Purely read a retained change in the project that holds its repository.
     #[must_use]
-    #[expect(clippy::too_many_lines, reason = "the panel reads every retained step and its facts together")]
     pub fn panel(&self, task: u64, scope: ApplicationScope, now: Wall, limits: &Limits) -> Option<Panel> {
         let ApplicationScope::Project(project) = scope else { return None };
         let row = self.changes.get(&task)?;
@@ -230,6 +231,39 @@ impl Domain {
         if repository.project != project {
             return None;
         }
+        let (step, hold) = self.panel_step(row, now, limits);
+        let head = row.change.last_head;
+        let panel = Panel {
+            way: row.change.way,
+            in_landing: row.change.landing,
+            task,
+            forge: row.repository.forge,
+            owner: repository.owner.clone(),
+            name: repository.name.clone(),
+            branch: row.branch.clone(),
+            landing: row.base.clone(),
+            head,
+            pull: row.pull,
+            step,
+            hold,
+            runs: match row.delegate {
+                Some((task, _)) => Some(task),
+                None => None,
+            },
+            ci: self.observed_ci(row),
+            ci_required: repository.ci && self.requires(repository, &row.base).ci,
+            gates: panel_gates(row, head),
+            approvals: self.panel_approvals(row),
+            unmapped_reviews: self.panel_unmapped(row),
+            repairs: PanelUsed { used: row.change.repairs, limit: limits.change_policy.repairs },
+            resolutions: PanelUsed { used: row.change.resolutions, limit: limits.change_policy.resolutions },
+            updates: PanelUsed { used: row.change.updates, limit: limits.change_policy.updates },
+            questions: panel_questions(row, limits),
+        };
+        assert!(panel.within(), "admitted change fits the panel");
+        Some(panel)
+    }
+    fn panel_step(&self, row: &ChangeRow, now: Wall, limits: &Limits) -> (PanelStep, Option<change::Hold>) {
         let mut state = &row.change.state;
         let mut hold = None;
         while let change::State::Held { was, why } = state {
@@ -259,79 +293,55 @@ impl Domain {
                 Some(verification) => PanelStep::Verifying { merge: *merge, tiers: self.panel_tiers(verification) },
                 None => PanelStep::Landed { merge: *merge },
             },
-            change::State::Red { merge, .. } => PanelStep::Red {
-                merge: *merge,
-                tiers: match self.verifications.get(&(row.repository, *merge)) {
-                    Some(v) => self.panel_tiers(v),
-                    None => Box::new([]),
-                },
-            },
+            change::State::Red { merge, .. } => {
+                PanelStep::Red { merge: *merge, tiers: self.verification_lines(row, *merge) }
+            }
             change::State::Cleared { merge } | change::State::Uncleared { merge } => PanelStep::Cleared {
                 merge: *merge,
-                tiers: match self.verifications.get(&(row.repository, *merge)) {
-                    Some(v) => self.panel_tiers(v),
-                    None => Box::new([]),
-                },
+                tiers: self.verification_lines(row, *merge),
                 uncleared: *state == change::State::Uncleared { merge: *merge },
             },
             change::State::Held { .. } => unreachable!("held steps unwrapped"),
         };
-        let head = row.change.last_head;
-        let read = if row.terminal() { row.ci.as_ref() } else { self.panel_ci.get(&task) };
-        let ci = match read {
-            Some(read) if Some(read.head) == head => read.status,
-            Some(_) | None => change::Status::Unknown,
-        };
-        let mut open = List::with_capacity(8);
-        for question in &row.questions.open {
-            if open.room() == 0 {
-                break;
-            }
-            open.push(PanelQuestion {
-                asker: question.asker,
-                number: question.number,
-                line: question.line.clone(),
-                stands: match &question.stands {
-                    change::Stands::Taken => PanelStands::Taken,
-                    change::Stands::Foreman { task } => PanelStands::Foreman(*task),
-                    change::Stands::Asked => PanelStands::Asked,
-                    change::Stands::Held { .. } => PanelStands::Held,
-                },
-            })
-            .expect("first eight questions fit");
+        (step, hold)
+    }
+    fn verification_lines(&self, row: &ChangeRow, merge: [u8; 32]) -> Box<[Box<[u8]>]> {
+        match self.verifications.get(&(row.repository, merge)) {
+            Some(verification) => self.panel_tiers(verification),
+            None => Box::new([]),
         }
-        let panel = Panel {
-            way: row.change.way,
-            in_landing: row.change.landing,
-            task,
-            forge: row.repository.forge,
-            owner: repository.owner.clone(),
-            name: repository.name.clone(),
-            branch: row.branch.clone(),
-            landing: row.base.clone(),
-            head,
-            pull: row.pull,
-            step,
-            hold,
-            runs: match row.delegate {
-                Some((task, _)) => Some(task),
-                None => None,
+    }
+    fn observed_ci(&self, row: &ChangeRow) -> change::Status {
+        let read = if row.terminal() { row.ci.as_ref() } else { self.panel_ci.get(&row.task) };
+        match read {
+            Some(read) if Some(read.head) == row.change.last_head => read.status,
+            Some(_) | None => change::Status::Unknown,
+        }
+    }
+}
+fn panel_questions(row: &ChangeRow, limits: &Limits) -> PanelQuestions {
+    let mut open = List::with_capacity(8);
+    for question in &row.questions.open {
+        if open.room() == 0 {
+            break;
+        }
+        open.push(PanelQuestion {
+            asker: question.asker,
+            number: question.number,
+            line: question.line.clone(),
+            stands: match &question.stands {
+                change::Stands::Taken => PanelStands::Taken,
+                change::Stands::Foreman { task } => PanelStands::Foreman(*task),
+                change::Stands::Asked => PanelStands::Asked,
+                change::Stands::Held { .. } => PanelStands::Held,
             },
-            ci,
-            gates: panel_gates(row, head),
-            approvals: self.panel_approvals(row),
-            unmapped_reviews: self.panel_unmapped(row),
-            repairs: PanelUsed { used: row.change.repairs, limit: limits.change_policy.repairs },
-            resolutions: PanelUsed { used: row.change.resolutions, limit: limits.change_policy.resolutions },
-            updates: PanelUsed { used: row.change.updates, limit: limits.change_policy.updates },
-            questions: PanelQuestions {
-                route: row.questions.route,
-                taken: PanelUsed { used: row.questions.taken, limit: limits.change_policy.questions },
-                open: open.into_boxed(),
-            },
-        };
-        assert!(panel.within(), "admitted change fits the panel");
-        Some(panel)
+        })
+        .expect("first eight questions fit");
+    }
+    PanelQuestions {
+        route: row.questions.route,
+        taken: PanelUsed { used: row.questions.taken, limit: limits.change_policy.questions },
+        open: open.into_boxed(),
     }
 }
 fn panel_gates(row: &ChangeRow, head: Option<[u8; 32]>) -> Box<[PanelGate]> {

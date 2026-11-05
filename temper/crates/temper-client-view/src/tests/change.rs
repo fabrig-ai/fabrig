@@ -611,3 +611,13 @@ fn after_landing_page_draws_each_tier_line_and_the_merge() {
         assert_eq!(styled(&tree, look::STEP_DONE).len(), 6);
     }
 }
+
+#[test]
+fn no_ci_rule_draws_not_required_for_a_retained_pending_verdict() {
+    let mut parts = parts(w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()));
+    parts.ci = w::Ci::Pending;
+    parts.ci_required = false;
+    let tree = draw(parts);
+    let rows = styled(&tree, look::GATE);
+    assert_eq!(f::node_text(&tree, rows[0]).as_ref(), joined(&[b"CI at its head", b"Not required"]).as_ref());
+}

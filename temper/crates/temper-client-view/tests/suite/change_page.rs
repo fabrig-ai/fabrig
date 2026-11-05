@@ -230,6 +230,7 @@ mod tests {
             step,
             hold: None,
             runs: None,
+            ci_required: true,
             ci: w::Ci::Unknown,
             approvals: List::with_capacity(0),
             unmapped_reviews: List::with_capacity(0),
