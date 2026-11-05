@@ -635,9 +635,42 @@ fn a_persons_new_request_restarts_the_chat_script() {
 /// open-chat opening (temper/docs/design/domain/agent.md, 8.3).
 #[test]
 fn a_chat_document_request_calls_note_from_smiths_opening() {
-    let answers = answers("Please write this up. Write this up as a draft beside us.", run::Mode::Open, 1);
-    assert_eq!(answers[0].finish, Finish::ToolCalls, "draft request: {:?}", answers[0].parts);
-    let note = call(&answers[0], b"note");
+    let first = answers("Please write this up. Write this up as a draft beside us.", run::Mode::Open, 2);
+    let note = call(&first[0], b"note");
     assert_eq!(note["scope"], json!({"kind": "goal", "project": 1, "goal": 1}));
     assert_eq!(note["description"], "Away mode");
+    assert_eq!(note["body"].as_str().unwrap().lines().count(), 29);
+    assert_eq!(first[1].finish, Finish::Stop);
+    assert_eq!(
+        first[1].parts.as_ref(),
+        &[Part::Text {
+            text: b"I wrote an Away mode draft with its purpose, return flow and open questions.".as_slice().into()
+        }]
+    );
+
+    let second = answers("Add what happens to a running goal.", run::Mode::Open, 2);
+    let revised = call(&second[0], b"note");
+    assert_eq!(revised["scope"], note["scope"]);
+    assert_eq!(revised["description"], note["description"]);
+    assert_eq!(revised["name"], 1);
+    assert_eq!(revised["recalled"], 1);
+    let body = revised["body"].as_str().unwrap();
+    let (before, after) = body.split_once("## A running goal\n").unwrap();
+    let (_, after) = after.split_once("## When the person returns").unwrap();
+    assert_eq!(format!("{before}## When the person returns{after}"), note["body"].as_str().unwrap());
+    assert_eq!(body.lines().count(), 36);
+    assert_eq!(second[1].finish, Finish::Stop);
+    assert_eq!(
+        second[1].parts.as_ref(),
+        &[Part::Text { text: b"I added how a running goal continues and waits for your decisions.".as_slice().into() }]
+    );
+    let template = template();
+    let scripts = &template["application"]["demo"]["llm"];
+    let asked = scripts["asked"].as_array().unwrap();
+    let cued = scripts["cued"].as_array().unwrap();
+    assert!(asked.len() + cued.len() <= 8);
+    for cue in ["Write this up as a draft beside us.", "Add what happens to a running goal."] {
+        assert!(!asked.iter().any(|script| script["cue"] == cue), "document cue is never suggested");
+        assert!(cued.iter().any(|script| script["cue"] == cue));
+    }
 }

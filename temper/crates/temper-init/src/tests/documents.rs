@@ -269,7 +269,7 @@ fn demo(port: u16) -> Value {
     })
 }
 
-// Literal project 1, chat 1 and note 1 await the chat-document walk.
+// The chat-document walk establishes literal project 1, chat 1 and note 1.
 fn chat_document(revised: bool) -> Value {
     let body = concat!(
         "# Away mode\n",
