@@ -3,6 +3,8 @@
 2026-11-05. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 4.2: the connector asks for no access before an adoption's reads:
+    `temper-engine-domain-forge/src/adoption.rs`, `start`.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for

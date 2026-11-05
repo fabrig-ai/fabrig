@@ -2,7 +2,8 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.4, 5.5: the composer's
+- **Not yet:** 4.7: the read-only line on an adopted repository, and `temper ctl`'s line on a no access: `temper-client-tools/src/forge.rs`, `answer_text`; the form draws neither read-only line (`temper-client-view/src/forge/page.rs`).
+  3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering: no
