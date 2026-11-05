@@ -2,12 +2,13 @@ use crate::reference::Decoded;
 use hearth_protocol_mmdebstrap::{
     limits::Limits,
     output::{self, Reader, Seen},
+    packages::{self, Found, Stanzas},
     tail::Cause,
 };
 use skein_heap::Meter;
 use skein_lib::{
     Env, Queue, Time, Wall,
-    stream::{Fault, Up},
+    stream::{Down, Fault, Up},
 };
 use skein_world::stream::Wire;
 /// End normally, at a byte prefix, or with a pipe fault at a byte prefix.
@@ -25,6 +26,122 @@ pub struct Run {
 #[must_use]
 pub fn end(rng: &mut skein_lib::Rng, bytes: &[u8]) -> End {
     crate::generate::end(rng, bytes)
+}
+
+/// What one entry point left in a machine's queues, before the driver took them.
+/// Orders follow hearth/docs/design/domain/render.md, 8.5.
+#[derive(Debug)]
+pub struct Step<T> {
+    pub above: Vec<T>,
+    pub below: Vec<Down>,
+}
+
+fn snapshot<T>(above: &mut Queue<T>, below: &mut Queue<Down>) -> Step<T> {
+    let mut step = Step { above: Vec::new(), below: Vec::new() };
+    while let Some(item) = above.pop() {
+        step.above.push(item);
+    }
+    while let Some(item) = below.pop() {
+        step.below.push(item);
+    }
+    step
+}
+
+fn take_step<T>(wire: &mut Wire, step: &Step<T>) {
+    for down in &step.below {
+        wire.take(match down {
+            Down::Demand { read, room } => Down::Demand { read: *read, room: *room },
+            Down::Send(bytes) => Down::Send(bytes.clone()),
+            Down::Finish => Down::Finish,
+        });
+    }
+}
+
+/// A pipe's reader at seeded cuts. The first step is `open`'s; the last three are strays past the
+/// terminal event: `Up::End`, `Up::Failed(Fault::Reset)` and `Up::Bytes` of an `Inst` line.
+#[must_use]
+pub fn output_steps(bytes: &[u8], seed: u64, limits: &Limits, end: End) -> Vec<Step<Seen>> {
+    let (bytes, broken) = match end {
+        End::Whole => (bytes, false),
+        End::Cut(at) => (&bytes[..at.min(bytes.len())], false),
+        End::Break(at) => (&bytes[..at.min(bytes.len())], true),
+    };
+    let mut wire = Wire::new(seed);
+    wire.write(bytes);
+    wire.eof = true;
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    let mut reader = Reader::new(limits);
+    output::open(&mut reader, &env, &mut below);
+    let mut steps = vec![snapshot(&mut above, &mut below)];
+    take_step(&mut wire, &steps[0]);
+    for _ in 0..bytes.len() * 10 + 100 {
+        // Steps retain the observations; the wire's formatted trace need not accumulate.
+        wire.trace.clear();
+        if let Some(mut event) = wire.answer() {
+            if broken && matches!(event, Up::End) {
+                event = Up::Failed(Fault::Reset);
+            }
+            output::up(&mut reader, &env, event, &mut above, &mut below);
+            let step = snapshot(&mut above, &mut below);
+            let ended = step.above.iter().any(|seen| matches!(seen, Seen::Ended | Seen::Failed(_)));
+            take_step(&mut wire, &step);
+            steps.push(step);
+            if ended {
+                for stray in
+                    [Up::End, Up::Failed(Fault::Reset), Up::Bytes(Box::from(&b"Inst stray (1 Debian [amd64])\n"[..]))]
+                {
+                    output::up(&mut reader, &env, stray, &mut above, &mut below);
+                    steps.push(snapshot(&mut above, &mut below));
+                }
+                return steps;
+            }
+        }
+    }
+    panic!("reader did not drain seed {seed}");
+}
+
+/// The same for a list's reader; its stray bytes are a `Package: ` line.
+#[must_use]
+pub fn index_steps(bytes: &[u8], seed: u64, limits: &Limits, end: End) -> Vec<Step<Found>> {
+    let (bytes, broken) = match end {
+        End::Whole => (bytes, false),
+        End::Cut(at) => (&bytes[..at.min(bytes.len())], false),
+        End::Break(at) => (&bytes[..at.min(bytes.len())], true),
+    };
+    let mut wire = Wire::new(seed);
+    wire.write(bytes);
+    wire.eof = true;
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    let mut reader = Stanzas::new(limits);
+    packages::open(&mut reader, &env, &mut below);
+    let mut steps = vec![snapshot(&mut above, &mut below)];
+    take_step(&mut wire, &steps[0]);
+    for _ in 0..bytes.len() * 10 + 100 {
+        // Steps retain the observations; the wire's formatted trace need not accumulate.
+        wire.trace.clear();
+        if let Some(mut event) = wire.answer() {
+            if broken && matches!(event, Up::End) {
+                event = Up::Failed(Fault::Reset);
+            }
+            packages::up(&mut reader, &env, event, &mut above, &mut below);
+            let step = snapshot(&mut above, &mut below);
+            let ended = step.above.iter().any(|found| matches!(found, Found::Ended | Found::Failed(_)));
+            take_step(&mut wire, &step);
+            steps.push(step);
+            if ended {
+                for stray in [Up::End, Up::Failed(Fault::Reset), Up::Bytes(Box::from(&b"Package: stray\n"[..]))] {
+                    packages::up(&mut reader, &env, stray, &mut above, &mut below);
+                    steps.push(snapshot(&mut above, &mut below));
+                }
+                return steps;
+            }
+        }
+    }
+    panic!("list reader did not drain seed {seed}");
 }
 #[must_use]
 pub fn read_output(bytes: &[u8], seed: u64, limits: &Limits, end: End) -> Run {
