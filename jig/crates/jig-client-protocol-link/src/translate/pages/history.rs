@@ -1,7 +1,7 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
     Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_ending_fields, cursor_fields,
-    message_proposal_kind_fields, piece_problem, proposed_task_piece, specification_document_fields, too_large, w,
+    message_proposal_kind_fields, proposed_task_piece, specification_document_fields, too_large, w,
 };
 
 pub(crate) fn history_change_fields(value: &w::HistoryChange) -> c::HistoryChange {
@@ -280,21 +280,7 @@ pub(crate) fn history_row_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
     for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(too_large());
-        }
+        let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::HistoryRow::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = history_row_fields(&row, limits)?;
         if rows.push(row).is_err() {
