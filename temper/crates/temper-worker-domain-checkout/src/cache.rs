@@ -6,7 +6,9 @@
 //! workspace, if the cache has one that no hold holds; otherwise it takes a
 //! new one while there is room, and then evicts the least recently used idle
 //! workspace, made again, empty, unless workspace reuse is enabled and it can
-//! keep its clone. A workspace is never removed from the cache once made:
+//! keep its clone. With reuse enabled and no saved start, a new workspace
+//! first looks at each repository on disk, which may survive a restart.
+//! A workspace is never removed from the cache once made:
 //! eviction gives it to another workstream,
 //! so the cache holds at most `Limits::workspaces`, and a prepare that finds
 //! them all held is refused.
@@ -153,7 +155,7 @@ impl Cache {
             let id = self.workspaces.insert(workspace).expect("checked for room above");
             let made = self.keys.insert(key, id).expect("a key for each workspace");
             assert!(made.is_none(), "a workstream has one workspace");
-            return Ok((id, Cached::New));
+            return Ok((id, if self.reuse && !starts_saved(repositories) { Cached::Looking } else { Cached::New }));
         }
         let Some((since, evicted)) = self.idle.first() else {
             return Err(Refusal::Full);

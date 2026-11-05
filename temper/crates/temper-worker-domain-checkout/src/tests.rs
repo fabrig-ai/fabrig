@@ -110,6 +110,7 @@ impl Harness {
         let (hold, mut op) = self.prepare(client, spec);
         for _ in 0..16_u32 {
             let done = match &op {
+                Op::Look { .. } => Done::Looked { holds: false },
                 Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit: *commit },
                 Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
                 Op::Merge { .. } => Done::Merged,
@@ -275,6 +276,7 @@ fn workspace_of(op: &Op) -> Token {
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
         | Op::CheckOut { at, .. }
+        | Op::Look { at, .. }
         | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
         | Op::Commit { at, .. }
@@ -1421,7 +1423,12 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
         | Op::Fetch { account, .. }
         | Op::Create { account, .. }
         | Op::Push { account, .. } => assert_eq!(account, expected),
-        Op::IsAncestor { .. } | Op::Make { .. } | Op::CheckOut { .. } | Op::Merge { .. } | Op::Commit { .. } => {
+        Op::Look { .. }
+        | Op::IsAncestor { .. }
+        | Op::Make { .. }
+        | Op::CheckOut { .. }
+        | Op::Merge { .. }
+        | Op::Commit { .. } => {
             panic!("an operation that authenticates")
         }
     }
@@ -1647,4 +1654,91 @@ fn merged_heads_empty_or_too_many_are_invalid() {
     else {
         panic!("ready without a merge")
     };
+}
+
+#[test]
+fn a_first_hold_looks_in_spec_order_then_fetches_and_caches_the_clones() {
+    let mut h = Harness::reusing(LIMITS);
+    let (hold, op) = h.prepare(1, two(b"work"));
+    assert_eq!(op, Op::Look { at: place(Token::new(0), b"a"), remote: remote(b"a") });
+    assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(1), cached: Cached::Looking }));
+    assert_eq!(
+        h.next(hold, Done::Looked { holds: true }),
+        Op::Look { at: place(Token::new(0), b"b"), remote: remote(b"b") }
+    );
+    assert_eq!(h.next(hold, Done::Looked { holds: true }).kind(), Kind::Fetch);
+    assert_eq!(h.domain.workstream(0), Some(&b"work"[..]));
+    assert_eq!(h.next(hold, Done::Fetched { commit: commit(1) }).kind(), Kind::CheckOut);
+    assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Fetch);
+    assert_eq!(h.next(hold, Done::Fetched { commit: commit(2) }).kind(), Kind::CheckOut);
+    h.one(Event::Done { owner: hold, done: Done::Succeeded });
+    h.one(Event::Release { hold });
+    let (_, op) = h.prepare(2, two(b"work"));
+    assert_eq!(op.kind(), Kind::Fetch);
+}
+
+#[test]
+fn a_look_that_does_not_hold_makes_then_clones() {
+    for holds_first in [false, true] {
+        let mut h = Harness::reusing(LIMITS);
+        let (hold, _) = h.prepare(1, two(b"work"));
+        if holds_first {
+            h.next(hold, Done::Looked { holds: true });
+        }
+        assert_eq!(h.next(hold, Done::Looked { holds: false }), Op::Make { workspace: Token::new(0) });
+        assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Clone);
+    }
+}
+
+#[test]
+fn a_first_saved_start_makes_without_looking() {
+    for reuse in [true, false] {
+        let mut h = if reuse { Harness::reusing(LIMITS) } else { Harness::new(LIMITS) };
+        let repo = Repository { start: Start::Saved { branch: bytes(b"saved") }, ..repository(b"b", false) };
+        let (_, op) = h.prepare(1, spec(b"work", Box::new([repository(b"a", true), repo])));
+        assert_eq!(op, Op::Make { workspace: Token::new(0) });
+        assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(1), cached: Cached::New }));
+    }
+}
+
+#[test]
+fn a_failed_look_spoils_the_workspace_and_fails_transient() {
+    for fault in [Fault::Broken, Fault::TimedOut, Fault::Cancelled] {
+        let mut h = Harness::reusing(LIMITS);
+        let (hold, _) = h.prepare(1, one(b"work"));
+        assert_eq!(
+            h.one(Event::Done { owner: hold, done: failed(fault) }),
+            Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient } }
+        );
+        h.one(Event::Release { hold });
+        h.facts();
+        let (_, op) = h.prepare(2, one(b"work"));
+        assert_eq!(op.kind(), Kind::Make);
+        assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(2), cached: Cached::Rebuilt }));
+    }
+}
+
+#[test]
+fn aborting_or_releasing_a_look_waits_for_its_terminal() {
+    for release in [false, true] {
+        let mut h = Harness::reusing(LIMITS);
+        let (hold, _) = h.prepare(1, one(b"work"));
+        let event = if release { Event::Release { hold } } else { Event::Abort { hold } };
+        assert_eq!(h.one(event), Request::Cancel { owner: hold });
+        let requests = h.step(Event::Done { owner: hold, done: Done::Looked { holds: true } });
+        assert_eq!(requests.get(0), Some(&Request::Prepared { client: Token::new(1), prepared: Prepared::Aborted }));
+        assert_eq!(requests.len(), if release { 2 } else { 1 });
+        if release {
+            assert_eq!(requests.get(1), Some(&Request::Released { client: Token::new(1) }));
+        }
+    }
+}
+
+#[test]
+fn a_look_uses_the_local_deadline() {
+    let mut h = Harness::reusing(LIMITS);
+    let requests = h.step(Event::Prepare { client: Token::new(1), spec: one(b"work") });
+    let Some(Request::Io { op, deadline, .. }) = requests.get(1) else { panic!("look requested") };
+    assert_eq!(op.kind(), Kind::Look);
+    assert_eq!(*deadline, h.env.now.saturating_add(LIMITS.local_timeout));
 }

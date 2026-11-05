@@ -61,6 +61,8 @@ pub enum Op {
     /// Make the workspace's directory empty: rename the old tree aside
     /// into trash, make it afresh, and sweep the old tree later.
     Make { workspace: Token },
+    /// Whether the directory holds a clone of remote. Local and read-only; ends Looked.
+    Look { at: Place, remote: Box<[u8]> },
     /// Clone the repository at `remote` on the forge into its directory, which
     /// does not exist yet, without checking a tree out. Fails `Missing` if the
     /// forge has no such repository.
@@ -120,6 +122,8 @@ pub enum Want {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Done {
+    /// The directory holds the requested remote.
+    Looked { holds: bool },
     /// The standalone local ancestry query.
     IsAncestor { contains: bool },
     /// Merge has no unresolved paths; the next explicit merge commit still
@@ -177,6 +181,7 @@ pub enum Missing {
 /// An operation's kind, for the facts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
+    Look,
     Make,
     Clone,
     Fetch,
@@ -193,6 +198,7 @@ impl Op {
     pub const fn kind(&self) -> Kind {
         match self {
             Op::Make { .. } => Kind::Make,
+            Op::Look { .. } => Kind::Look,
             Op::Clone { .. } => Kind::Clone,
             Op::Fetch { .. } => Kind::Fetch,
             Op::Create { .. } => Kind::Create,
@@ -209,9 +215,12 @@ impl Op {
     pub const fn is_remote(&self) -> bool {
         match self {
             Op::Clone { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
-            Op::IsAncestor { .. } | Op::Make { .. } | Op::CheckOut { .. } | Op::Merge { .. } | Op::Commit { .. } => {
-                false
-            }
+            Op::Look { .. }
+            | Op::IsAncestor { .. }
+            | Op::Make { .. }
+            | Op::CheckOut { .. }
+            | Op::Merge { .. }
+            | Op::Commit { .. } => false,
         }
     }
 }

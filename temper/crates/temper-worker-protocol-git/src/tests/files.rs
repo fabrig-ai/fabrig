@@ -4,6 +4,10 @@ use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use temper_worker_domain_checkout::git;
 
+// Kept layout reaches its workspaces open after five completions; fresh layout makes it after four.
+const KEPT_BEFORE_OPEN: u8 = 5;
+const FRESH_BEFORE_WORKSPACES: u8 = 4;
+
 fn directory(dir: Fd, name: &[u8]) -> Op {
     Op::MakeDirectory { dir, name: Box::from(name), mode: 0o700 }
 }
@@ -225,4 +229,57 @@ fn a_layout_failure_closes_descriptors_and_makes_the_start_unusable() {
     assert_eq!(component.file_operation(), Op::Close { fd: fixtures::TRASH });
     component.complete_ok();
     assert!(component.component.is_empty());
+}
+
+#[test]
+fn a_kept_start_replaces_home_and_opens_existing_or_new_workspaces_without_following_links() {
+    for existing in [true, false] {
+        let mut component = fixtures::Started::version_checked_keeping();
+        for (operation, error) in [
+            (directory(Fd::new(3), b"trash"), None),
+            (open(b"trash", OpenHow::DirectoryNoFollow), None),
+            (rename(Fd::new(3), b"home", b"1000"), None),
+            (directory(Fd::new(3), b"workspaces"), if existing { Some(Error::Exists) } else { None }),
+            (directory(Fd::new(3), b"home"), None),
+            (open(b"workspaces", OpenHow::DirectoryNoFollow), None),
+        ] {
+            assert_eq!(component.file_operation(), operation);
+            if let Some(error) = error {
+                component.complete_err(error);
+            } else {
+                component.complete_ok();
+            }
+        }
+        assert_eq!(component.below.out.events.pop(), Some(Event::Started));
+    }
+}
+
+#[test]
+fn a_kept_start_refuses_workspaces_reached_through_a_link() {
+    let mut component = fixtures::Started::version_checked_keeping();
+    for _ in 0..KEPT_BEFORE_OPEN {
+        component.file_operation();
+        component.complete_ok();
+    }
+    assert_eq!(component.file_operation(), open(b"workspaces", OpenHow::DirectoryNoFollow));
+    component.complete_err(Error::TooManyLinks);
+    assert_eq!(
+        component.below.out.events.pop(),
+        Some(Event::Unusable { why: Unusable::Layout { error: Error::TooManyLinks } })
+    );
+}
+
+#[test]
+fn an_unset_start_refuses_existing_workspaces_after_the_rename() {
+    let mut component = fixtures::Started::version_checked();
+    for _ in 0..FRESH_BEFORE_WORKSPACES {
+        component.file_operation();
+        component.complete_ok();
+    }
+    assert_eq!(component.file_operation(), directory(Fd::new(3), b"workspaces"));
+    component.complete_err(Error::Exists);
+    assert_eq!(
+        component.below.out.events.pop(),
+        Some(Event::Unusable { why: Unusable::Layout { error: Error::Exists } })
+    );
 }

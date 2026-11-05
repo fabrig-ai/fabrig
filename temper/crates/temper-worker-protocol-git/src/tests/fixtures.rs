@@ -186,6 +186,12 @@ impl Started {
         started.version();
         started
     }
+    pub fn version_checked_keeping() -> Started {
+        let mut started = Self::unstarted();
+        started.component.keep_workspaces();
+        started.version();
+        started
+    }
     fn version(&mut self) {
         let started = self;
         started.component.start(started.now, &mut started.below.out);
