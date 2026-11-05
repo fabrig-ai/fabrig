@@ -44,7 +44,14 @@ fn root(seed: u64) -> (Root, View) {
 
 fn client(world: &mut Clients, party: u64, project: u32) -> ClientId {
     world.front().next_client_limits(limits());
-    world.client_with(party, Address::Home { project }, limits(), root)
+    let who = world.client_with(party, Address::Home { project }, limits(), root);
+    // These Homes use no accounts; leave room for both devices' session Away watches.
+    world.event(
+        who,
+        Event::Client { event: jig_client::Event::Unwatch { handle: temper_client_domain::pages::accounts::handle() } }
+            .into(),
+    );
+    who
 }
 
 fn world() -> Clients {
@@ -125,7 +132,7 @@ fn skip_on_home_hides_to_begin_on_every_device() {
     hidden(&world, first);
     hidden(&world, second);
     // End the first two sessions before a third Home: settings is session-long,
-    // and the engine admits 16 watches across devices.
+    // and the engine admits 17 watches across devices.
     for who in [first, second] {
         world.event(who, Event::Act { action: Action::Pages(Act::SignOut) }.into());
     }
