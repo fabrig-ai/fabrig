@@ -5,8 +5,10 @@ use skein_json::{
     writer::{Encoder, Limits},
 };
 
+pub(crate) const CONFIG_BYTES: u32 = 1 << 20;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) enum Json {
+pub(crate) enum Json {
     Object(Vec<(Box<[u8]>, Json)>),
     Array(Vec<Json>),
     String(Box<[u8]>),
@@ -15,10 +17,10 @@ pub(super) enum Json {
     Null,
 }
 impl Json {
-    pub(super) fn decode(bytes: &[u8]) -> Result<Self, String> {
+    pub(crate) fn decode(bytes: &[u8]) -> Result<Self, String> {
         let d = jig_protocol_config::document(
             bytes,
-            &jig_protocol_config::DocumentLimits { bytes: crate::CONFIG_BYTES, tokens: 65_536, depth: 32 },
+            &jig_protocol_config::DocumentLimits { bytes: CONFIG_BYTES, tokens: 65_536, depth: 32 },
         )
         .map_err(|why| format!("public document: {:?}: {:?}", why.path, why.what))?;
         Ok(Self::read(&d, 0)?.0)
@@ -61,7 +63,7 @@ impl Json {
             Kind::ObjectEnd | Kind::ArrayEnd | Kind::Key | Kind::Long => Err("public document: invalid value".into()),
         }
     }
-    pub(super) fn at(&self, pointer: &str) -> Result<&Self, String> {
+    pub(crate) fn at(&self, pointer: &str) -> Result<&Self, String> {
         let mut node = self;
         for part in pointer.split('/').filter(|part| !part.is_empty()) {
             node = match node {
@@ -89,11 +91,11 @@ impl Json {
         }
         Ok(node)
     }
-    pub(super) fn set(&mut self, pointer: &str, value: Self) -> Result<(), String> {
+    pub(crate) fn set(&mut self, pointer: &str, value: Self) -> Result<(), String> {
         *self.at_mut(pointer)? = value;
         Ok(())
     }
-    pub(super) fn string(&self, pointer: &str) -> Result<&[u8], String> {
+    pub(crate) fn string(&self, pointer: &str) -> Result<&[u8], String> {
         match self.at(pointer)? {
             Self::String(bytes) => Ok(bytes),
             Self::Object(_) | Self::Array(_) | Self::Number(_) | Self::Bool(_) | Self::Null => {
@@ -101,8 +103,8 @@ impl Json {
             }
         }
     }
-    pub(super) fn encode(&self) -> Result<Box<[u8]>, String> {
-        let limits = Limits { depth: 32, length: crate::CONFIG_BYTES };
+    pub(crate) fn encode(&self) -> Result<Box<[u8]>, String> {
+        let limits = Limits { depth: 32, length: CONFIG_BYTES };
         let mut encoder = Encoder::measure(&limits);
         self.write(&mut encoder);
         let length = encoder.measured().map_err(|_| "public document: past byte bound")?;
@@ -134,7 +136,7 @@ impl Json {
         }
     }
     /// Equality without depending on object order. The first mismatch names its public path.
-    pub(super) fn same(&self, expected: &Self, pointer: &str) -> Result<(), String> {
+    pub(crate) fn same(&self, expected: &Self, pointer: &str) -> Result<(), String> {
         match (self, expected) {
             (Self::Object(entries), Self::Object(wanted)) => {
                 for (name, value) in entries {

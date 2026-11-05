@@ -9,7 +9,7 @@ pub(super) fn prepare(
     let mut part = service::startup::worker_part(bytes, &directories.jig())
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let agent = crate::agent::preflight_worker(&part.named)?;
-    let configuration = smith_agent_shell::config::read(crate::path(&part.named.agent))?;
+    let configuration = crate::agent::configuration(crate::path(&part.named.agent))?;
     let user = skein_shell::effective_user();
     let files = crate::read_files(core::mem::replace(&mut part.files, Box::new([])), user)?;
     let root_path = crate::path(&part.named.root);

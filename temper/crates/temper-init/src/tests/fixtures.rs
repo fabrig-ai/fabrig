@@ -87,6 +87,7 @@ pub fn agent_settings(mut document: Value) -> smith_agent_world::Settings {
     // but consult no programs directory, trust file or name service.
     document["programs"] = json!({});
     for endpoint in document["endpoints"].as_array_mut().expect("endpoints") {
+        endpoint.as_object_mut().expect("endpoint").remove("program");
         endpoint["address"] = json!("127.0.0.1:9");
         endpoint["transport"] = json!("plaintext");
         endpoint.as_object_mut().expect("endpoint").remove("server_name");
