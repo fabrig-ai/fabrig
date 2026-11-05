@@ -248,12 +248,12 @@ fn quiet_chat_snapshot_after_the_fresh_empty_answer_does_not_read_again() {
 
 #[test]
 fn quiet_tracked_task_snapshot_before_the_fresh_empty_answer_does_not_duplicate_the_read() {
-    quiet_snapshot(domain::Address::Task { task: fixtures::TASK, filter: domain::PlanFilter::All }, true);
+    quiet_snapshot(domain::Address::Task { task: fixtures::TASK }, true);
 }
 
 #[test]
 fn quiet_tracked_task_snapshot_after_the_fresh_empty_answer_does_not_read_again() {
-    quiet_snapshot(domain::Address::Task { task: fixtures::TASK, filter: domain::PlanFilter::All }, false);
+    quiet_snapshot(domain::Address::Task { task: fixtures::TASK }, false);
 }
 
 fn quiet_snapshot(address: domain::Address, snapshot_first: bool) {

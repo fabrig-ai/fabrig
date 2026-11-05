@@ -1,4 +1,5 @@
 use super::fixtures::{self as f, panel as p};
+use crate::ChatsFilter;
 use crate::{
     Address, Domain, Event, Place, Request,
     forge::{
@@ -6,7 +7,6 @@ use crate::{
         panel::{State, Subject},
     },
 };
-use crate::{ChatsFilter, PlanFilter};
 use jig_client::{Down, Handle, Told, Up, Watchable, Why, contract as c};
 use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -29,7 +29,7 @@ fn went(root: &mut Domain, place: Place) -> Queue<Request> {
     event(root, Event::Went { place })
 }
 fn task_page(root: &mut Domain, task: u64) -> Token {
-    let mut out = went(root, Place::Address(Address::Task { task, filter: PlanFilter::All }));
+    let mut out = went(root, Place::Address(Address::Task { task }));
     let mut found = None;
     while let Some(request) = out.pop() {
         if let Request::Unlinked {
@@ -163,7 +163,7 @@ fn leaving_closes_the_panel_and_reopening_uses_a_fresh_handle() {
 fn another_tasks_page_closes_the_old_panel_and_watches_its_own_subject() {
     let (mut root, watch, first) = opened();
     // task_page acknowledges the task and tree openings; the old panel closes on navigation.
-    let mut out = went(&mut root, Place::Address(Address::Task { task: NEXT, filter: PlanFilter::All }));
+    let mut out = went(&mut root, Place::Address(Address::Task { task: NEXT }));
     let mut task = None;
     let mut closed = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
@@ -243,13 +243,7 @@ fn invalid_records_end_unknown_and_unwatch_once() {
         assert_eq!(root.forge().panel().unwrap().handle, None);
         assert!(deliver(&mut root, watch, &panel).is_empty(), "late delivery");
         assert_eq!(root.forge().panel().unwrap().state, State::Unknown);
-        assert!(
-            family_open(
-                &mut went(&mut root, Place::Address(Address::Task { task: TASK, filter: PlanFilter::All })),
-                TASK
-            )
-            .is_none()
-        );
+        assert!(family_open(&mut went(&mut root, Place::Address(Address::Task { task: TASK })), TASK).is_none());
         assert!(
             up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::Closed }).is_empty(),
             "local unwatch acknowledgement"
@@ -285,13 +279,7 @@ fn jig_endings_keep_unknown_and_other_reasons_apart_from_loading() {
         assert_eq!(root.forge().panel().unwrap().state, expected);
         assert_ne!(forge::shown(root.forge()), shown);
         assert!(root.forge().panel().unwrap().handle.is_none());
-        assert!(
-            family_open(
-                &mut went(&mut root, Place::Address(Address::Task { task: TASK, filter: PlanFilter::All })),
-                TASK
-            )
-            .is_none()
-        );
+        assert!(family_open(&mut went(&mut root, Place::Address(Address::Task { task: TASK })), TASK).is_none());
         if end != c::WatchEnd::SubjectEnded {
             task.activity += 1;
             assert!(family_open(&mut task_document(&mut root, task_watch, &task), TASK).is_none(), "{end:?}");
@@ -464,8 +452,7 @@ fn a_panel_ending_before_the_last_task_document_reopens_exactly_once() {
 }
 #[test]
 fn leaving_before_a_late_panel_ending_asks_nothing() {
-    for address in [Address::Chats { filter: ChatsFilter::All }, Address::Task { task: NEXT, filter: PlanFilter::All }]
-    {
+    for address in [Address::Chats { filter: ChatsFilter::All }, Address::Task { task: NEXT }] {
         let (mut root, task_watch, panel_watch, mut task) = change_opened();
         finish_change(&mut task);
         task_document(&mut root, task_watch, &task);
@@ -490,13 +477,7 @@ fn a_task_page_recovers_its_ended_panel_when_the_change_is_made_and_landed() {
             assert_eq!(root.forge().panel().unwrap().handle, None);
             // Neither a repeated end nor revisiting this address is a new task document.
             assert!(up(&mut root, Up::WatchEnded { watch: panel_watch, end }).is_empty());
-            assert!(
-                family_open(
-                    &mut went(&mut root, Place::Address(Address::Task { task: TASK, filter: PlanFilter::All })),
-                    TASK
-                )
-                .is_none()
-            );
+            assert!(family_open(&mut went(&mut root, Place::Address(Address::Task { task: TASK })), TASK).is_none());
             task.activity = task.activity.checked_add(1).expect("two task updates");
             if landed {
                 f::chat::phase(&mut task, c::ChipPhase::Ended);

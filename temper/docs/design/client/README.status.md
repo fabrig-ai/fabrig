@@ -2,6 +2,19 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 10: a browser walk from a draft's sheet through planning, a live
+  report and delegate tasks, Pause, Resume, a message and Stop. The fake box's
+  model (`temper-fake/src/backends.rs`, `model_document`) writes a report only
+  for the first chat's goal, task 2, then finishes it without delegates. The
+  browser can open that ended goal and its report, but cannot exercise those
+  live states with this script.
+- **Departs:** 3.5, 5.14: Goals' "Start one from a draft" goes to Chats with
+  the Drafts filter, rather than opening a sheet with a Draft field;
+  `temper-client-domain`'s `pages/start_goal.rs` ignores `OpenStart` without
+  a supplied draft. The sheet with a supplied draft remains. This is the
+  route accepted by `ui-goal-page`'s `goal-browser` answer of 2026-11-05;
+  `ui-chat-draft` owns its draft-to-goal continuation. On the fake box's
+  stock project, Chats offers no Drafts filter or draft-start control.
 - **Not yet:** 3.5, *Away*, whole, and its requests and subjects in 4.6 and section 8: `ui-away`'s tasks build them. 5.12: the zone, which every form reads as universal time. 3.5, *Home on any project*: the stock owner pool may
   reserve the whole project period, leaving no funding for the status
   agent (`temper-service`'s `stock.rs`, `project_policy`;
