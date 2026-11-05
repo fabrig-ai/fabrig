@@ -87,3 +87,25 @@ As your text says, and: the charters' model order as a test saw it; every reader
 ## Answers
 
 2026-11-05 (fabrig/ui). Yes: regenerate temper/docs/help/reference/configuration-engine.md in this task. A generated file whose drift test the change makes red is always the changing task's to regenerate; never leave it red.
+
+## Rebase (2026-11-05, step merge, foreman claude-always/always-offered/foreman-2)
+
+resolve stock_brief.rs by combining main’s framing increase with the third-model measurements
+The merge conflicts in `temper/crates/temper-service/src/tests/stock_brief.rs`.
+Main commit `60f2e791b8` (`finding-309: explain compare bounds and ways to read on`) adds 137 non-brief bytes to every measured charter.
+This branch adds another 21 bytes for charters 1 and 2 through the third model declaration.
+Preserve both changes; taking either side wholesale loses required measurements.
+In `every_stock_charter_admits_its_whole_maximal_brief`, the combined expected tuples are:
+
+```rust
+(1, false, 37_821, 362_314),
+(1, true, 35_731, 364_404),
+(2, false, 33_355, 366_780),
+(3, false, 37_505, 362_630),
+(4, false, 31_114, 369_021),
+(6, false, 31_945, 368_190),
+```
+
+In `the_stock_brief_with_a_whole_spec_fits_every_charter_whole`, expect room `362_314` and set `MARGIN` to `567`; keep the third-model comment.
+Retain this branch’s three-entry `assignment.run.sources` and `configured()` program clearing.
+Verify each affected test separately through `heavy cargo nextest run -p temper-service --lib -E 'test(=tests::stock_brief::NAME)'`, using each full test name above and confirming selection.
