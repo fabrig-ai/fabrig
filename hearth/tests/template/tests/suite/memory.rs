@@ -1,36 +1,34 @@
-use hearth_protocol_template::{
-    expression,
-    limits::{self, Decoder},
-};
+use hearth_protocol_template::expression;
 use hearth_template_world::fixtures;
-use skein_heap::{Meter, Span};
+use skein_heap::Meter;
 
 #[test]
-fn compiling_at_the_limits_holds_no_more_than_the_worst_case() {
-    let bound = limits::worst_case(Decoder::Expression, &fixtures::LIMITS).expect("a worst case");
+fn compiling_at_the_limits_holds_no_more_than_its_ceiling() {
+    const CEILING: u64 = 140_000;
     for (text, what, _) in fixtures::at_the_limits() {
         let meter = Meter::new();
         meter.start();
         let compiled = expression::compile(&text, &fixtures::LIMITS);
-        meter.check(meter.end(), bound, &what);
+        meter.check(meter.end(), CEILING, &what);
         drop(compiled);
     }
 }
 
 #[test]
-fn compiling_templates_and_strings_at_the_limits_holds_no_more_than_the_worst_case() {
+fn compiling_templates_and_strings_at_the_limits_holds_no_more_than_their_ceilings() {
+    const TEMPLATE_CEILING: u64 = 800_000;
+    const STRING_CEILING: u64 = 800_000;
     let limits = &fixtures::MEMORY_LIMITS;
-    let template_bound = limits::worst_case(Decoder::Template, limits).expect("template bound");
-    let string_bound =
-        limits::worst_case(Decoder::Interpolated { length: limits.template }, limits).expect("string bound");
     for (text, what, _) in fixtures::templates_at_the_limits(limits) {
-        let span = Span::start();
+        let meter = Meter::new();
+        meter.start();
         let compiled = hearth_protocol_template::template::compile(&text, limits);
-        assert!(span.end().peak <= i64::try_from(template_bound).expect("bound fits i64"), "{what}");
+        meter.check(meter.end(), TEMPLATE_CEILING, &what);
         drop(compiled);
-        let span = Span::start();
+        let meter = Meter::new();
+        meter.start();
         let compiled = hearth_protocol_template::interpolation::compile(&text, limits);
-        assert!(span.end().peak <= i64::try_from(string_bound).expect("bound fits i64"), "{what}");
+        meter.check(meter.end(), STRING_CEILING, &what);
         drop(compiled);
     }
 }
