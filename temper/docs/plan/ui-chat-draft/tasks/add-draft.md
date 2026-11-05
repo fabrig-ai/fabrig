@@ -80,3 +80,18 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/add-draft/foreman-1)
+
+rebase + Draft onto the integration’s Settings changes, preserving both features and regenerating prints.
+The merge failed on eight conflicting paths; no test failure is reported.
+Rebase onto the updated integration containing `32e0a3bc1f` (merged by `d59768cc67`), which reconciles main’s Settings work.
+
+- `temper/crates/temper-client-domain/src/tests/pages/chat.rs`: retain both the appended Settings acceptance-time test and `draft_ready`, `add_draft_sends_and_goes_to_split`, and `a_refused_add_keeps_the_pane_and_its_words`.
+- `temper/crates/temper-client-view/src/look.rs`: retain integration’s token assignments and Settings element mappings. Append `DOC_EMPTY` and `ADD_DRAFT` after `DOC_FLASH` (391 on the inspected integration); branch tokens 380/381 now collide with `DOC`/`DOC_INNER`. Keep `NAMES` and `tests/look.rs` aligned.
+- `temper/crates/temper-client-view/src/words.rs`: preserve integration’s Settings vocabulary and reassigned draft IDs. Assign the six new draft phrases unused IDs; branch IDs 3443–3448 collide with Settings phrases. Merge enum, `ALL`, ID and English tables, and combine derived capacities, including the additional 142 literal bytes. Recount phrase and segment declarations.
+- `temper/tools/gallery/src/samples.rs`: retain Settings samples and dispatch alongside `chat-draft-empty`, `chat-new-draft`, and `Then::DraftEmpty`. The inspected integration has 211 samples; these two additions make 213. Preserve both additions in `names.txt` and tests.
+- Audit automatically merged `Address::NewChat` readers for integration-added values needing `{ draft: false }` or patterns needing `{ .. }`.
+- Regenerate terminal goldens with `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-client-shell-terminal --lib`, including conflicting `chat_delegation_landed.txt`, `chat_delegation_running.txt`, and `first_run.txt`. Preserve Settings-driven navigation visibility together with the new draft button; let rendering determine numbering.
+- Regenerate journeys with `heavy cargo run -p temper-client-journeys`, including conflicting `temper/docs/design/client/journeys/welcome-playground/02.html`; preserve navigation visibility and the draft action.
+- Run the spec’s focused domain/view checks, client-package checks, and downstream signature checks through heavy. Confirm selected test counts and review generated diffs before pushing the rebased branch.
