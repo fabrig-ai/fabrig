@@ -218,6 +218,20 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
     result
 }
 
+/// A goal's state word and token (client/README.md, 3.5, 5.8).
+pub(crate) fn state_word(state: State) -> (Word, skein_ui::Style) {
+    match state {
+        State::Needs { funds: true } => (Word::GoalNeedsFunds, look::GOALS_STATE_NEEDS),
+        State::Needs { funds: false } => (Word::GoalNeedsYou, look::GOALS_STATE_NEEDS),
+        State::Paused => (Word::GoalPaused, look::GOALS_STATE_PAUSED),
+        State::Planning => (Word::GoalPlanning, look::GOALS_STATE_PLANNING),
+        State::Running => (Word::Running, look::GOALS_STATE_RUNNING),
+        State::Landed => (Word::GoalLandedAlone, look::GOALS_STATE_LANDED),
+        State::Stopped => (Word::GoalStopped, look::GOALS_STATE_STOPPED),
+        State::Failed => (Word::GoalFailed, look::GOALS_STATE_STOPPED),
+    }
+}
+
 /// One goal links its title, state and report to its task (client/README.md, 3.5).
 pub(crate) fn row(
     b: &mut Builder,
@@ -231,16 +245,7 @@ pub(crate) fn row(
     if words.shell == Shell::Terminal {
         b.open(Role::Slot);
     }
-    let (word, token) = match state {
-        State::Needs { funds: true } => (Word::GoalNeedsFunds, look::GOALS_STATE_NEEDS),
-        State::Needs { funds: false } => (Word::GoalNeedsYou, look::GOALS_STATE_NEEDS),
-        State::Paused => (Word::GoalPaused, look::GOALS_STATE_PAUSED),
-        State::Planning => (Word::GoalPlanning, look::GOALS_STATE_PLANNING),
-        State::Running => (Word::Running, look::GOALS_STATE_RUNNING),
-        State::Landed => (Word::GoalLandedAlone, look::GOALS_STATE_LANDED),
-        State::Stopped => (Word::GoalStopped, look::GOALS_STATE_STOPPED),
-        State::Failed => (Word::GoalFailed, look::GOALS_STATE_STOPPED),
-    };
+    let (word, token) = state_word(state);
     let status = if state == State::Landed {
         match line.ended_at {
             Some(at) => words.say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, at))]),
