@@ -27,3 +27,30 @@ id = 1
 story = "the review's small independent findings land"
 parts = ["wall-due", "core-small"]
 walk = false
+
+[[part]]
+id = "side-out"
+title = "a call's dialect isn't asked again: Side comes out of Waiting in drive_calls"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 7.1"
+
+[[part]]
+id = "own-exchange"
+title = "an own exchange goes where own clears, and its test stands on production"
+mode = "direct"
+needs = ["side-out"]
+design = "skein/docs/design/forge-connection.md, 7.1"
+
+[[part]]
+id = "test-layout"
+title = "the forge connection's tests lose their dialect mismatch and layout tricks"
+mode = "direct"
+needs = ["own-exchange"]
+design = "skein/docs/design/forge-connection.md, 7.1"
+
+[[slice]]
+id = 2
+story = "skein-forge-connection asks no dialect twice and holds no credential past its connection"
+parts = ["side-out", "own-exchange", "test-layout"]
+walk = false
