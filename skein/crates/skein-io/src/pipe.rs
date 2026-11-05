@@ -5,7 +5,7 @@
 use alloc::boxed::Box;
 use core::mem;
 use skein_lib::stream::{Down, Fault, OutputDown, OutputOutcome, Read, Up};
-use skein_lib::{Duration, Env, Id, Intake, Queue, bytes};
+use skein_lib::{Duration, Env, Id, Intake, Queue, bytes, usize_of};
 
 use crate::kernel::{self, Done, Fd, Op, Submit, Way};
 use crate::layer::{Entity, Flight, Landed, Purpose, Tables, Timer};
@@ -278,10 +278,9 @@ fn asked(
     match read {
         Read::Nothing => {}
         Read::Fill(n) => assert!(n <= env.limits.intake, "fill within intake"),
-        Read::Scan { until, max } => assert!(
-            max <= env.limits.intake && usize::try_from(max).expect("u32 index") >= until.as_bytes().len(),
-            "scan within intake"
-        ),
+        Read::Scan { until, max } => {
+            assert!(max <= env.limits.intake && usize_of(max) >= until.as_bytes().len(), "scan within intake");
+        }
         Read::Line { max } => assert!(max > 0 && max <= env.limits.intake, "line within intake"),
         Read::Arrived { max } => assert!(max > 0, "a read of what has arrived has a positive maximum"),
     }
@@ -369,9 +368,7 @@ fn read_landed(state: State, pipe: &mut Pipe, landed: Landed, up: &mut Queue<Eve
             read.source = match count(landed.result) {
                 Ok(0) => Source::Eof,
                 Ok(n) => {
-                    read.intake
-                        .append(buf.get(..usize::try_from(n).expect("count fits usize")).expect("count fits buffer"))
-                        .expect("read within room");
+                    read.intake.append(buf.get(..usize_of(n)).expect("count fits buffer")).expect("read within room");
                     Source::Idle
                 }
                 Err(error) => {
@@ -484,10 +481,7 @@ fn follow(
                             subs,
                             id,
                             Purpose::PipeRead,
-                            Op::PipeRead {
-                                fd: read.fd,
-                                buf: bytes::zeroed(usize::try_from(room).expect("room fits usize")),
-                            },
+                            Op::PipeRead { fd: read.fd, buf: bytes::zeroed(usize_of(room)) },
                         ))
                     } else {
                         Source::Idle

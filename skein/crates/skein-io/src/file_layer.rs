@@ -21,7 +21,7 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::mem;
-use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall, usize_of};
 
 mod directory;
 mod opens;
@@ -538,7 +538,7 @@ fn down_inner(
                 events.push(Event::failed(owner, Error::InvalidArgument));
                 return Work::Idle;
             }
-            let buffer = vec![0_u8; usize::try_from(max).expect("u32 fits usize")].into_boxed_slice();
+            let buffer = vec![0_u8; usize_of(max)].into_boxed_slice();
             let Ok(op) = Op::read(fd, buffer, offset) else {
                 events.push(Event::failed(owner, Error::InvalidArgument));
                 return Work::Idle;
@@ -625,7 +625,7 @@ fn read_whole(
     let used = u32::try_from(bytes.0.len()).expect("whole load stays within its u32 bound");
     let left = max.checked_sub(used).expect("whole load stays within its bound");
     let asked = env.limits.read.min(left.saturating_add(1));
-    let buffer = vec![0_u8; usize::try_from(asked).expect("u32 fits usize")].into_boxed_slice();
+    let buffer = vec![0_u8; usize_of(asked)].into_boxed_slice();
     let offset = u64::from(used);
     let op = Op::read(fd, buffer, offset).expect("a positive bounded whole-file read");
     issue(io, Pending::LoadReading { owner, fd, max, bytes }, op, subs)
@@ -989,7 +989,7 @@ fn retain_scan_entry(
     entries.insert(at, Entry { name: Box::from(name), kind });
     *bytes = bytes.checked_add(cost).expect("bounded scan bytes fit u64");
     for _ in 0..entries.len() {
-        if entries.len() <= usize::try_from(max).expect("u32 fits usize") && *bytes <= max_bytes {
+        if entries.len() <= usize_of(max) && *bytes <= max_bytes {
             break;
         }
         let removed = entries.pop().expect("overfull scan has a last entry");
@@ -1142,15 +1142,15 @@ fn up_inner(
             } else if stat.size > u64::from(max) {
                 return issue(io, Pending::LoadTooLargeClosing { owner, size: stat.size }, Op::Close { fd }, subs);
             }
-            let capacity = usize::try_from(max).expect("u32 fits usize").checked_add(1).expect("one more byte fits");
+            let capacity = usize_of(max).checked_add(1).expect("one more byte fits");
             return read_whole(io, env, owner, fd, max, Contents(Vec::with_capacity(capacity)), subs);
         }
         Pending::LoadReading { owner, fd, max, mut bytes } => {
             let count = store::done_count(done);
             let buf = store::read_buffer(complete.kind);
-            let n = usize::try_from(count).expect("u32 fits usize");
+            let n = usize_of(count);
             bytes.0.extend_from_slice(buf.get(..n).expect("read count is within buffer"));
-            if bytes.0.len() > usize::try_from(max).expect("u32 fits usize") {
+            if bytes.0.len() > usize_of(max) {
                 let size = skein_lib::len_u64(bytes.0.len());
                 return issue(io, Pending::LoadTooLargeClosing { owner, size }, Op::Close { fd }, subs);
             } else if count == 0 {
@@ -1190,7 +1190,7 @@ fn up_inner(
         Pending::ScanListing { owner, fd, max, max_bytes, mut entries, mut bytes, mut cutoff, mut total } => {
             let count = store::done_count(done);
             let (records, names) = list_parts(complete.kind);
-            let count = usize::try_from(count).expect("u32 fits usize");
+            let count = usize_of(count);
             if count == 0 {
                 let kept = skein_lib::len_u64(entries.len());
                 let more = total.checked_sub(kept).expect("retained entries were counted");
@@ -1220,7 +1220,7 @@ fn up_inner(
             let next = from.checked_add(count).expect("write count fits");
             if count == 0 {
                 events.push(Event::failed(owner, Error::Other(5)));
-            } else if usize::try_from(next).expect("u32 fits usize") == bytes.len() {
+            } else if usize_of(next) == bytes.len() {
                 events.push(Event::Written { owner });
             } else {
                 let at = at.checked_add(u64::from(count)).expect("write offset fits");
@@ -1234,7 +1234,7 @@ fn up_inner(
         Pending::Read { owner, fd, offset, max, mut bytes } => {
             let count = store::done_count(done);
             let buf = store::read_buffer(complete.kind);
-            let n = usize::try_from(count).expect("u32 fits usize");
+            let n = usize_of(count);
             bytes.0.extend_from_slice(buf.get(..n).expect("read count is within buffer"));
             let done = count == 0 || u32::try_from(bytes.0.len()).expect("read no more than max") == max;
             if done {
@@ -1242,7 +1242,7 @@ fn up_inner(
             } else {
                 let at = offset.checked_add(skein_lib::len_u64(bytes.0.len())).expect("offset fits");
                 let left = max.checked_sub(u32::try_from(bytes.0.len()).expect("length fits u32")).expect("within max");
-                let buffer = vec![0_u8; usize::try_from(left).expect("u32 fits usize")].into_boxed_slice();
+                let buffer = vec![0_u8; usize_of(left)].into_boxed_slice();
                 let Ok(op) = Op::read(fd, buffer, at) else {
                     events.push(Event::failed(owner, Error::InvalidArgument));
                     return Work::Idle;
@@ -1273,7 +1273,7 @@ fn up_inner(
         Pending::List { owner, fd, mut entries } => {
             let count = store::done_count(done);
             let (records, names) = list_parts(complete.kind);
-            let count = usize::try_from(count).expect("u32 fits usize");
+            let count = usize_of(count);
             if count == 0 {
                 return issue(io, Pending::ListClosing { owner, entries }, Op::Close { fd }, subs);
             }
@@ -1281,7 +1281,7 @@ fn up_inner(
                 let name = record.name(&names).expect("a listed entry names bytes");
                 entries.push(Entry { name: Box::from(name), kind: record.kind });
             }
-            if entries.len() > usize::try_from(env.limits.entries).expect("u32 fits usize") {
+            if entries.len() > usize_of(env.limits.entries) {
                 return issue(io, Pending::Cleanup { owner, error: Error::NoBufferSpace }, Op::Close { fd }, subs);
             }
             return list(io, Pending::List { owner, fd, entries }, fd, subs);
