@@ -48,3 +48,9 @@ Acceptance:
 ## Report
 
 The common note's items; what H2 and H5's traces found; each pin and what you broke; any state 8.4 doesn't have that the behaviour forced, and whether `follow` holds `Next`.
+
+## Answers
+
+2026-11-05. Question: accept the tested refactor at +100 net production lines against the cut's estimate of about +30, or require further reduction?
+
+Accepted at +100 net production lines. fabrig/debt, the plan's owner, decided it (2026-11-05): a flags-to-states change with its pins, and the run says it has compacted; a spot review reads it after landing. Compact no further and change no behaviour for size: the pushed work on `debt-21/hooked-states` stands, and the size line of the acceptance holds at +100. Report Done if the rest of the acceptance holds after the trunk's merge.
