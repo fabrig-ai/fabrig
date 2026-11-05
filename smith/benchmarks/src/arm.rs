@@ -3,6 +3,7 @@
 //! `resolve_commit` refuses dirty sources or unknown commits before any write
 //! (benchmarks.md, sections 3.2, 5.4 and 10). No login or agent is involved.
 
+use crate::{Fault, Input, Mismatch, bound, format, input, io, mismatch, refuse_if};
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
@@ -56,9 +57,9 @@ pub enum ArmRef {
 }
 
 /// Name an arm from its full commit and the product executable's SHA-256.
-pub fn arm_name(commit: &str, sha256: &str) -> Result<String, String> {
+pub fn arm_name(commit: &str, sha256: &str) -> Result<String, Fault> {
     if !crate::formats::lowercase_hex(commit, 40) || !crate::formats::lowercase_hex(sha256, 64) {
-        return Err("arm identity needs a full lowercase commit and SHA-256".into());
+        return Err(input("arm identity needs a full lowercase commit and SHA-256"));
     }
     Ok(format!("{commit}-{sha256}"))
 }
@@ -76,45 +77,43 @@ fn git(repository: &Path) -> Command {
     command
 }
 
-fn output(command: &mut Command, operation: &str) -> Result<String, String> {
-    let result = command.output().map_err(|error| format!("{operation}: {error}"))?;
+fn output(command: &mut Command, operation: &str) -> Result<String, Fault> {
+    let result = command.output().map_err(|error| io(format!("{operation}: {error}")))?;
     if !result.status.success() {
-        return Err(format!("{operation} failed with {}", result.status));
+        return Err(io(format!("{operation} failed with {}", result.status)));
     }
-    String::from_utf8(result.stdout).map_err(|_| format!("{operation} returned non-UTF-8 output"))
+    String::from_utf8(result.stdout).map_err(|_| format(format!("{operation} returned non-UTF-8 output")))
 }
 
 /// Resolve a local commit only when the source's index and working tree are clean.
 /// Git arguments are passed directly; a commit string never becomes shell code.
-pub fn resolve_commit(repository: &Path, reference: &str) -> Result<String, String> {
+pub fn resolve_commit(repository: &Path, reference: &str) -> Result<String, Fault> {
     let dirty =
         output(git(repository).args(["status", "--porcelain=v1", "--untracked-files=normal"]), "inspect source")?;
     if !dirty.is_empty() {
-        return Err("source repository is dirty; commit or isolate changes before building an arm".into());
+        return Err(input("source repository is dirty; commit or isolate changes before building an arm"));
     }
     commit(repository, reference)
 }
 
 /// Read one committed source identity without inspecting the working tree.
-pub(crate) fn commit(repository: &Path, reference: &str) -> Result<String, String> {
+pub(crate) fn commit(repository: &Path, reference: &str) -> Result<String, Fault> {
     let commit = output(
         git(repository).args(["rev-parse", "--verify", "--end-of-options", &format!("{reference}^{{commit}}")]),
         "resolve commit",
     )?;
     let commit = commit.trim();
-    if !crate::formats::lowercase_hex(commit, 40) {
-        return Err("unknown or unsupported commit".into());
-    }
+    refuse_if(!crate::formats::lowercase_hex(commit, 40), Input, "unknown or unsupported commit")?;
     Ok(commit.into())
 }
 
 /// Resolve the state root without writing; persistent build data stays outside git.
-pub fn state_root(guard: &Guard) -> Result<PathBuf, String> {
+pub fn state_root(guard: &Guard) -> Result<PathBuf, Fault> {
     let state = std::env::var_os("XDG_STATE_HOME").filter(|value| !value.is_empty()).map_or_else(
         || {
             std::env::var_os("HOME")
                 .map(|home| PathBuf::from(home).join(".local/state"))
-                .ok_or("HOME or XDG_STATE_HOME is required")
+                .ok_or_else(|| input("HOME or XDG_STATE_HOME is required"))
         },
         |state| Ok(PathBuf::from(state)),
     )?;
@@ -123,41 +122,40 @@ pub fn state_root(guard: &Guard) -> Result<PathBuf, String> {
     Ok(root)
 }
 
-fn outside_repositories(path: &Path) -> Result<(), String> {
+fn outside_repositories(path: &Path) -> Result<(), Fault> {
     for ancestor in path.ancestors() {
         if ancestor.join(".git").exists() || (ancestor.join("HEAD").is_file() && ancestor.join("objects").is_dir()) {
-            return Err("benchmark runtime data must be outside every repository".into());
+            return Err(input("benchmark runtime data must be outside every repository"));
         }
     }
     Ok(())
 }
 
-fn private_directory(guard: &Guard, path: &Path) -> Result<PathBuf, String> {
+fn private_directory(guard: &Guard, path: &Path) -> Result<PathBuf, Fault> {
     let path = guard.write_path(path)?;
-    fs::DirBuilder::new().recursive(true).mode(0o700).create(&path).map_err(|error| error.to_string())?;
-    let metadata = fs::metadata(&path).map_err(|error| error.to_string())?;
+    fs::DirBuilder::new().recursive(true).mode(0o700).create(&path)?;
+    let metadata = fs::metadata(&path)?;
     if !metadata.is_dir() || metadata.permissions().mode() & 0o077 != 0 {
-        return Err("build directories must be private (0700)".into());
+        return Err(input("build directories must be private (0700)"));
     }
     Ok(path)
 }
 
-fn write_new(guard: &Guard, path: &Path, bytes: &[u8], mode: u32) -> Result<(), String> {
+pub(crate) fn write_new(guard: &Guard, path: &Path, bytes: &[u8], mode: u32) -> Result<(), Fault> {
     let path = guard.write_path(path)?;
-    let mut file =
-        OpenOptions::new().write(true).create_new(true).mode(mode).open(path).map_err(|error| error.to_string())?;
-    file.write_all(bytes).and_then(|()| file.sync_all()).map_err(|error| error.to_string())
+    let mut file = OpenOptions::new().write(true).create_new(true).mode(mode).open(path)?;
+    Ok(file.write_all(bytes).and_then(|()| file.sync_all())?)
 }
 
-fn prepare_clone(guard: &Guard, root: &Path, source: &Path, commit: &str) -> Result<PathBuf, String> {
+fn prepare_clone(guard: &Guard, root: &Path, source: &Path, commit: &str) -> Result<PathBuf, Fault> {
     let clone = guard.write_path(&root.join("clone"))?;
     let marker = guard.write_path(&root.join(".clone-owned"))?;
     if clone.exists() {
-        if fs::read(&marker).map_err(|_| "existing clone has no harness ownership marker")? != CLONE_MARKER {
-            return Err("existing clone is not owned by smith-bench".into());
+        if fs::read(&marker).map_err(|_| input("existing clone has no harness ownership marker"))? != CLONE_MARKER {
+            return Err(input("existing clone is not owned by smith-bench"));
         }
     } else {
-        fs::DirBuilder::new().mode(0o700).create(&clone).map_err(|error| error.to_string())?;
+        fs::DirBuilder::new().mode(0o700).create(&clone)?;
         write_new(guard, &marker, CLONE_MARKER, 0o600)?;
     }
     private_directory(guard, &clone)?;
@@ -165,28 +163,22 @@ fn prepare_clone(guard: &Guard, root: &Path, source: &Path, commit: &str) -> Res
     output(git(&clone).arg("fetch").args(["--quiet", "--no-tags"]).arg(source).arg(commit), "fetch local commit")?;
     output(git(&clone).args(["checkout", "--quiet", "--detach", commit]), "checkout frozen commit")?;
     let head = output(git(&clone).args(["rev-parse", "HEAD"]), "verify frozen checkout")?;
-    if head.trim() != commit {
-        return Err("private clone did not check out requested commit".into());
-    }
+    refuse_if(head.trim() != commit, Input, "private clone did not check out requested commit")?;
     let status =
         output(git(&clone).args(["status", "--porcelain=v1", "--untracked-files=normal"]), "verify clean clone")?;
-    if !status.is_empty() {
-        return Err("private clone is dirty; refusing a contaminated build".into());
-    }
+    refuse_if(!status.is_empty(), Input, "private clone is dirty; refusing a contaminated build")?;
     Ok(clone)
 }
 
 /// SHA-256 a regular binary in bounded chunks; symlinks are refused.
-pub fn binary_digest(path: &Path) -> Result<String, String> {
-    let metadata = fs::symlink_metadata(path).map_err(|error| error.to_string())?;
-    if !metadata.is_file() || metadata.is_symlink() {
-        return Err("arm executable must be a regular file".into());
-    }
-    let mut file = fs::File::open(path).map_err(|error| error.to_string())?;
+pub fn binary_digest(path: &Path) -> Result<String, Fault> {
+    let metadata = fs::symlink_metadata(path)?;
+    refuse_if(!metadata.is_file() || metadata.is_symlink(), Input, "arm executable must be a regular file")?;
+    let mut file = fs::File::open(path)?;
     let mut digest = Sha256::new();
     let mut bytes = [0; 8192];
     loop {
-        let read = file.read(&mut bytes).map_err(|error| error.to_string())?;
+        let read = file.read(&mut bytes)?;
         if read == 0 {
             break;
         }
@@ -195,7 +187,7 @@ pub fn binary_digest(path: &Path) -> Result<String, String> {
     Ok(format!("{:x}", digest.finalize()))
 }
 
-fn cargo_binaries(clone: &Path, target: &Path) -> Result<Vec<PathBuf>, String> {
+fn cargo_binaries(clone: &Path, target: &Path) -> Result<Vec<PathBuf>, Fault> {
     let mut command = Command::new("cargo");
     command
         .args(["build", "--locked", "--package", "smith", "--bins", "--message-format=json-render-diagnostics"])
@@ -208,79 +200,71 @@ fn cargo_binaries(clone: &Path, target: &Path) -> Result<Vec<PathBuf>, String> {
     let mut binaries = Vec::new();
     for line in records.lines() {
         let record: serde_json::Value =
-            serde_json::from_str(line).map_err(|_| "cargo returned malformed build metadata")?;
+            serde_json::from_str(line).map_err(|_| format("cargo returned malformed build metadata"))?;
         if record["reason"] == "compiler-artifact"
             && record["profile"]["test"] == false
             && let Some(executable) = record["executable"].as_str()
         {
-            let executable = PathBuf::from(executable).canonicalize().map_err(|error| error.to_string())?;
-            if !executable.starts_with(target) {
-                return Err("cargo executable escaped the private target directory".into());
-            }
+            let executable = PathBuf::from(executable).canonicalize()?;
+            refuse_if(!executable.starts_with(target), Input, "cargo executable escaped the private target directory")?;
             binaries.push(executable);
         }
     }
     binaries.sort();
     binaries.dedup();
-    if binaries.is_empty() {
-        return Err("cargo emitted no arm executable".into());
-    }
+    refuse_if(binaries.is_empty(), Input, "cargo emitted no arm executable")?;
     Ok(binaries)
 }
 
-fn record_arm(commit: &str, toolchain: String, executables: &[PathBuf]) -> Result<BuiltArm, String> {
+fn record_arm(commit: &str, toolchain: String, executables: &[PathBuf]) -> Result<BuiltArm, Fault> {
     let mut binaries = Vec::new();
     for executable in executables {
-        let name = executable.file_name().and_then(|name| name.to_str()).ok_or("binary has no UTF-8 name")?;
+        let name =
+            executable.file_name().and_then(|name| name.to_str()).ok_or_else(|| format("binary has no UTF-8 name"))?;
         if name.is_empty() || !name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')) {
-            return Err("unsafe arm executable name".into());
+            return Err(input("unsafe arm executable name"));
         }
         binaries.push(ArmBinary { name: name.into(), sha256: binary_digest(executable)? });
     }
     let sha256 = binaries
         .iter()
         .find(|binary| binary.name == "smith")
-        .ok_or("arm has no smith product executable")?
+        .ok_or_else(|| input("arm has no smith product executable"))?
         .sha256
         .clone();
     Ok(BuiltArm { version: 1, commit: commit.into(), sha256, toolchain, binaries })
 }
 
-fn verify_arm(directory: &Path, arm: &BuiltArm) -> Result<(), String> {
-    let recorded: BuiltArm =
-        serde_json::from_slice(&fs::read(directory.join("arm.json")).map_err(|error| error.to_string())?)
-            .map_err(|error| error.to_string())?;
-    if &recorded != arm {
-        return Err("existing arm metadata disagrees with this build; refusing overwrite".into());
-    }
+fn verify_arm(directory: &Path, arm: &BuiltArm) -> Result<(), Fault> {
+    let recorded: BuiltArm = serde_json::from_slice(&fs::read(directory.join("arm.json"))?)?;
+    refuse_if(&recorded != arm, Mismatch, "existing arm metadata disagrees with this build; refusing overwrite")?;
     for binary in &arm.binaries {
         if binary_digest(&directory.join(&binary.name))? != binary.sha256 {
-            return Err("existing arm binary digest mismatch".into());
+            return Err(mismatch("existing arm binary digest mismatch"));
         }
     }
     Ok(())
 }
 
 /// Read and verify the immutable arm beside its selected product executable.
-pub fn read_build(program: &Path) -> Result<Build, String> {
+pub fn read_build(program: &Path) -> Result<Build, Fault> {
     if program.file_name().and_then(|name| name.to_str()) != Some("smith") {
-        return Err("a built smith arm must select its smith executable".into());
+        return Err(input("a built smith arm must select its smith executable"));
     }
-    let directory = program.parent().ok_or("arm executable needs its immutable directory")?;
+    let directory = program.parent().ok_or_else(|| input("arm executable needs its immutable directory"))?;
     let manifest = directory.join("arm.json");
-    let metadata = fs::symlink_metadata(&manifest).map_err(|error| error.to_string())?;
+    let metadata = fs::symlink_metadata(&manifest)?;
     if !metadata.is_file() || metadata.is_symlink() || metadata.len() > 65_536 {
-        return Err("arm manifest must be a bounded ordinary file".into());
+        return Err(bound("arm manifest must be a bounded ordinary file"));
     }
-    let arm: BuiltArm = serde_json::from_slice(&fs::read(&manifest).map_err(|error| error.to_string())?)
-        .map_err(|error| error.to_string())?;
+    let arm: BuiltArm = serde_json::from_slice(&fs::read(&manifest)?)?;
     if arm.version != 1
         || directory.file_name().and_then(|name| name.to_str()) != Some(&arm_name(&arm.commit, &arm.sha256)?)
     {
-        return Err("arm manifest version or immutable directory identity differs".into());
+        return Err(mismatch("arm manifest version or immutable directory identity differs"));
     }
     if arm.binaries.is_empty() || arm.binaries.len() > 16 {
-        return Err("arm manifest has an invalid binary inventory".into());
+        return Err(input("arm manifest has an invalid binary inventory"));
     }
     let mut names = std::collections::BTreeSet::new();
     for binary in &arm.binaries {
@@ -289,60 +273,64 @@ pub fn read_build(program: &Path) -> Result<Build, String> {
             || !crate::formats::lowercase_hex(&binary.sha256, 64)
             || !names.insert(&binary.name)
         {
-            return Err("arm manifest has an unsafe or repeated binary identity".into());
+            return Err(input("arm manifest has an unsafe or repeated binary identity"));
         }
-        let metadata = fs::symlink_metadata(directory.join(&binary.name)).map_err(|error| error.to_string())?;
-        if !metadata.is_file() || metadata.is_symlink() {
-            return Err("arm binary must be an ordinary file".into());
-        }
+        let metadata = fs::symlink_metadata(directory.join(&binary.name))?;
+        refuse_if(!metadata.is_file() || metadata.is_symlink(), Input, "arm binary must be an ordinary file")?;
     }
     if !arm.binaries.iter().any(|binary| binary.name == "smith" && binary.sha256 == arm.sha256) {
-        return Err("arm manifest omits its product binary identity".into());
+        return Err(input("arm manifest omits its product binary identity"));
     }
     verify_arm(directory, &arm)?;
     Ok(Build { directory: directory.into(), arm })
 }
 
-fn archive(guard: &Guard, arms: &Path, executables: &[PathBuf], arm: &BuiltArm) -> Result<PathBuf, String> {
+pub(crate) fn archive(guard: &Guard, arms: &Path, executables: &[PathBuf], arm: &BuiltArm) -> Result<PathBuf, Fault> {
     let directory = guard.write_path(&arms.join(arm_name(&arm.commit, &arm.sha256)?))?;
     if directory.exists() {
         verify_arm(&directory, arm)?;
         return Ok(directory);
     }
     let temporary = guard.write_path(&arms.join(format!(".build-{}", std::process::id())))?;
-    fs::DirBuilder::new().mode(0o700).create(&temporary).map_err(|error| error.to_string())?;
-    let result = (|| {
-        for (executable, binary) in executables.iter().zip(&arm.binaries) {
-            let destination = guard.write_path(&temporary.join(&binary.name))?;
-            fs::copy(executable, &destination).map_err(|error| error.to_string())?;
-            fs::set_permissions(&destination, fs::Permissions::from_mode(0o700)).map_err(|error| error.to_string())?;
-            if binary_digest(&destination)? != binary.sha256 {
-                return Err("copied arm digest mismatch".into());
-            }
-        }
-        let bytes = serde_json::to_vec_pretty(arm).map_err(|error| error.to_string())?;
-        write_new(guard, &temporary.join("arm.json"), &bytes, 0o600)?;
-        fs::rename(&temporary, &directory).map_err(|error| error.to_string())?;
-        Ok(directory)
-    })();
+    fs::DirBuilder::new().mode(0o700).create(&temporary)?;
+    let result = archive_into(guard, &temporary, directory, executables, arm);
     if result.is_err() {
-        fs::remove_dir_all(temporary).map_err(|error| format!("failed arm cleanup: {error}"))?;
+        fs::remove_dir_all(temporary).map_err(|error| io(format!("failed arm cleanup: {error}")))?;
     }
     result
 }
 
-fn build_lock(guard: &Guard, root: &Path) -> Result<fs::File, String> {
+fn archive_into(
+    guard: &Guard,
+    temporary: &Path,
+    directory: PathBuf,
+    executables: &[PathBuf],
+    arm: &BuiltArm,
+) -> Result<PathBuf, Fault> {
+    for (executable, binary) in executables.iter().zip(&arm.binaries) {
+        let destination = guard.write_path(&temporary.join(&binary.name))?;
+        fs::copy(executable, &destination)?;
+        fs::set_permissions(&destination, fs::Permissions::from_mode(0o700))?;
+        refuse_if(binary_digest(&destination)? != binary.sha256, Mismatch, "copied arm digest mismatch")?;
+    }
+    let bytes = serde_json::to_vec_pretty(arm)?;
+    write_new(guard, &temporary.join("arm.json"), &bytes, 0o600)?;
+    fs::rename(temporary, &directory)?;
+    Ok(directory)
+}
+
+fn build_lock(guard: &Guard, root: &Path) -> Result<fs::File, Fault> {
     let mut options = OpenOptions::new();
     options.append(true).create(true).mode(0o600);
-    let file = options.open(guard.write_path(&root.join("build.lock"))?).map_err(|error| error.to_string())?;
-    file.lock().map_err(|error| error.to_string())?;
+    let file = options.open(guard.write_path(&root.join("build.lock"))?)?;
+    file.lock()?;
     Ok(file)
 }
 
 /// Build and archive a clean local commit, called only inside a build step.
 /// The source is read-only; every persistent destination passes the shared guard.
-pub fn build(repository: &Path, reference: &str) -> Result<Build, String> {
-    let repository = repository.canonicalize().map_err(|error| error.to_string())?;
+pub fn build(repository: &Path, reference: &str) -> Result<Build, Fault> {
+    let repository = repository.canonicalize()?;
     let commit = resolve_commit(&repository, reference)?;
     let guard = Guard::from_environment()?;
     let root = private_directory(&guard, &state_root(&guard)?)?;
@@ -414,7 +402,7 @@ mod tests {
         assert!(resolve_commit(&root, "unknown-commit").is_err());
         assert!(resolve_commit(&root, "--help").is_err());
         fs::write(root.join("dirty"), "synthetic untracked change").expect("dirty source");
-        assert!(resolve_commit(&root, "HEAD").expect_err("dirty source").contains("dirty"));
+        assert!(resolve_commit(&root, "HEAD").expect_err("dirty source").detail.contains("dirty"));
         assert!(outside_repositories(&root.join("private/arms")).is_err());
     }
 }

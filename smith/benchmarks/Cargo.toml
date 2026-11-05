@@ -18,6 +18,9 @@ name = "test-peer"
 path = "src/bin/test_peer.rs"
 test = false
 
+[features]
+fixture = []
+
 [dependencies]
 skein-fail-stop.workspace = true
 serde = { version = "1", features = ["derive"] }
@@ -39,6 +42,7 @@ skein-shell.workspace = true
 skein-oauth.workspace = true
 
 [dev-dependencies]
+smith-bench = { path = ".", features = ["fixture"] }
 skein-scratch.workspace = true
 smith-agent-service.workspace = true
 

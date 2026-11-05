@@ -77,6 +77,7 @@ pub(crate) fn query_fixture() -> (Core, Limits) {
 pub(crate) fn fresh_tasks(core: &Core, limits: &Limits) -> tasks::Domain {
     tasks::Domain::new(
         &limits.tasks,
+        tasks::Kept { revisions: limits.settings.revisions, versions: limits.settings.versions },
         17,
         core.current.newest(),
         charters::models(&core.current, &core.settings, limits),

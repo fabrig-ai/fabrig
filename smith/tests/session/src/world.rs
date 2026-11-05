@@ -15,7 +15,6 @@ use crate::tickets::{SERVED, Ticketed, Tickets};
 use crate::translate;
 
 mod llm;
-#[path = "window_referee.rs"]
 mod window_referee;
 
 pub use window_referee::{assert_prompt_bound, assert_prompt_boundary, assert_prompt_extends};

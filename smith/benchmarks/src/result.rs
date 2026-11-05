@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, Provider, Refusal, TokenRecord};
+use crate::{Agent, Fault, Input, Provider, Refusal, TokenRecord, format, input, refuse_if};
 
 /// The one result format understood by this harness.
 pub const RESULT_VERSION: u32 = 4;
@@ -544,9 +544,9 @@ pub struct AttemptResult {
 }
 
 /// Read a result with strict fields and the one supported format version.
-pub fn read_result(file: &Path) -> Result<AttemptResult, Refusal> {
-    let text = std::fs::read_to_string(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
-    parse_result(file, &text)
+pub fn read_result(file: &Path) -> Result<AttemptResult, Fault> {
+    let text = std::fs::read_to_string(file).map_err(|error| Fault::from(error).document(file, "document"))?;
+    parse_result(file, &text).map_err(|error| format(error.to_string()))
 }
 
 /// Parse one result without accepting a prefix or another version.
@@ -566,18 +566,16 @@ pub fn parse_result(file: &Path, text: &str) -> Result<AttemptResult, Refusal> {
 }
 
 /// Render the supported result, refusing non-finite measurements rather than nulls.
-pub fn render_result(result: &AttemptResult) -> Result<String, String> {
-    if result.version != RESULT_VERSION {
-        return Err("unsupported result version".into());
-    }
+pub fn render_result(result: &AttemptResult) -> Result<String, Fault> {
+    refuse_if(result.version != RESULT_VERSION, Input, "unsupported result version")?;
     if !finite(&result.spend.priced)
         || !finite(&result.spend.usd)
         || result.health.headroom.values().any(|entry| !finite(&entry.fraction_used))
     {
-        return Err("non-finite measurement".into());
+        return Err(input("non-finite measurement"));
     }
-    let text = serde_json::to_string_pretty(result).map_err(|error| error.to_string())?;
-    parse_result(Path::new("result.json"), &text).map_err(|error| error.to_string())?;
+    let text = serde_json::to_string_pretty(result)?;
+    parse_result(Path::new("result.json"), &text)?;
     Ok(format!("{text}\n"))
 }
 

@@ -65,8 +65,10 @@ pub fn domain_limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                handles: 11,
-                watches: 10,
+                // Page handles, the project-needs watch and the goals fact.
+                handles: 12,
+                // Closing chat watches overlap the task watches and both session watches.
+                watches: 11,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

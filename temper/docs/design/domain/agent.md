@@ -906,8 +906,48 @@ of `../draft/v0.1.0.md`, 2.1.
   the chat (jig's `domain/tasks.md`, 8.1; jig's `domain/people.md`,
   section 6). The chat cannot ask its own person: it says in its reply
   that a question waits for them.
+- **A question's line form.** jig's question carries words alone, so a
+  question's options and its recommendation are in its words; the stock
+  chat's instructions (charter 1, the goal's paragraph) have a goal
+  write them in one form, which temper's client draws as a question,
+  its context, what the agent saw and its choices (`../client/README.md`,
+  3.5, *Needs you*). No protocol, store or tool knows the form:
+
+  ```
+  Fix the dropped watch in jig’s store, or keep it alive in temper serve?
+
+  MakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local.
+
+  Saw: The box test reproduces it every time.
+  Choice: In jig’s store (recommended)
+  Choice: In temper serve
+  ```
+
+  - The first line is the **question**, and never a trailing line.
+  - The **trailing lines** are found walking up from the last line,
+    blank lines passed over: each line beginning `Saw: ` or `Choice: `
+    is one, and the first other line ends them. Such a line above that
+    point is context, words like any other.
+  - The lines between the question and the trailing lines are the
+    **context**, without its first and last blank lines.
+  - A trailing `Saw: ` line is **what the agent saw**, several joined by
+    a line break, in their order.
+  - A trailing `Choice: ` line is a **choice**, in its order, its words
+    what follows the prefix, trimmed; one with no words, or past what an
+    answer's words take in the client (`CUE_BYTES`, 256), is no choice.
+    One ending ` (recommended)` is recommended, that ending no part of
+    its words; past the first so marked, the ending is removed and
+    recommends nothing.
+  - **The fallback:** words with no choice, or words the read cut
+    (`question.words.cut`), have no trailing lines: the first paragraph
+    is the question, the rest the context, with nothing the agent saw
+    and no choices, and they are answered by a reply alone. Any question
+    a person or an older goal wrote draws this way, and one a change
+    passes up with a foreman's reasons beneath it (forge.md, 8.11), whose
+    last lines are those reasons.
 - **The person answers in the inbox,** `temper ctl task answer TASK
-  QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page, and
+  QUESTION TEXT` (`../client/tools.md`, 5.3), Home's card or the inbox's
+  page, and
   nobody else does: the answer reaches the goal itself, as its
   requester's, never through the chat's model, which may not answer a
   question that waits in its person's inbox (jig's `domain/people.md`,
@@ -1060,6 +1100,11 @@ host:
   person's priorities, its notes), or ask its person a question of its
   own and answer the goal once it has the answer, in place of 8.2's
   route through the person's inbox. Default: 8.2's route.
+- **Who else writes a question's line form** (8.2): the stock goal alone
+  is taught it, by one sentence of charter 1, as the request of 2026-11-05
+  for *Needs you* asks. A change's producers, its repairs and resolutions, and
+  the reference's charters are not, so their questions read as words,
+  answered by a reply. Default: as it is; a line in each charter that asks.
 - **A change's foremen's LLM choice** (forge.md, 8.11): `llm` (4.3.1)
   names the producer's and the reviews' roles, and a change's foremen
   run at their charter's default, where the reference's draft gives

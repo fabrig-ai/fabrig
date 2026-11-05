@@ -2,11 +2,11 @@
 //! Other empty streams remain errors; no record is synthesized (benchmarks.md 11.1).
 
 use crate::agent::smith::events;
-use crate::{End, EventCheck, Exit, Forced, OutcomeCheck, Task};
+use crate::{End, EventCheck, Exit, Fault, Forced, OutcomeCheck, Task};
 
 impl super::Observing {
-    pub(crate) fn finish(&mut self) -> Result<(), String> {
-        self.observer.finish().map_err(|error| error.what)
+    pub(crate) fn finish(&mut self) -> Result<(), Fault> {
+        self.observer.finish()
     }
 
     pub(crate) fn refused(&self, task: &Task, exit: Exit, forced: Forced, stderr: &[u8]) -> Option<End> {

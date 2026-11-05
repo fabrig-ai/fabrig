@@ -22,6 +22,7 @@ pub(crate) fn ready_to_start(root: &Domain) -> bool {
         && root.forge().playground_failure().is_none()
 }
 
+#[expect(clippy::too_many_arguments, reason = "the page takes the view’s text and row bounds")]
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -29,6 +30,7 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     _forge: &mut crate::forge::bindings::Bindings,
     text_limit: u32,
+    rows: u32,
     times: &mut Times,
 ) {
     let project = root.pages().project();
@@ -36,7 +38,7 @@ pub(crate) fn main(
         && root.pages().me(root.client()).is_some()
         && super::project_name(root.pages().me(root.client()), project).is_none()
     {
-        super::home::main(b, root, w, bindings, project, times);
+        super::home::main(b, root, w, bindings, project, times, rows);
         return;
     }
     b.open(Role::Main);

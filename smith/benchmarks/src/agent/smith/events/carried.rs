@@ -4,7 +4,7 @@
 
 use smith_events::{Block, ConversationKind, ConversationOpened, Event, Outcome, Record};
 
-use crate::{CheckVerdict, Measure};
+use crate::{CheckVerdict, Fault, Measure, stream};
 
 use super::Observer;
 
@@ -38,8 +38,8 @@ pub(super) fn check(observer: &Observer) -> CheckVerdict {
     CheckVerdict { check: "compaction-carried".into(), passed: Measure::Observed { value: true }, evidence: vec![] }
 }
 
-fn carried(records: &[Record], position: usize, opening: &ConversationOpened) -> Result<Option<String>, String> {
-    let parent = opening.parent.ok_or("compaction parent was not retained")?;
+fn carried(records: &[Record], position: usize, opening: &ConversationOpened) -> Result<Option<String>, Fault> {
+    let parent = opening.parent.ok_or_else(|| stream("compaction parent was not retained"))?;
     let previous = records[..position]
         .iter()
         .rev()
@@ -54,8 +54,8 @@ fn carried(records: &[Record], position: usize, opening: &ConversationOpened) ->
                 None
             }
         })
-        .ok_or("parent's completed response was not retained")?;
-    let completion = previous.completion.as_ref().ok_or("parent completion was not captured")?;
+        .ok_or_else(|| stream("parent's completed response was not retained"))?;
+    let completion = previous.completion.as_ref().ok_or_else(|| stream("parent completion was not captured"))?;
     let following = &records[position + 1..];
     let request = following
         .iter()
@@ -69,8 +69,8 @@ fn carried(records: &[Record], position: usize, opening: &ConversationOpened) ->
                 None
             }
         })
-        .ok_or("compaction request was not retained")?;
-    let prompt = request.prompt.as_ref().ok_or("compaction prompt was not captured")?;
+        .ok_or_else(|| stream("compaction request was not retained"))?;
+    let prompt = request.prompt.as_ref().ok_or_else(|| stream("compaction prompt was not captured"))?;
     for block in &completion.blocks {
         if let Block::Call { call, .. } = block
             && !prompt
@@ -100,7 +100,7 @@ fn carried(records: &[Record], position: usize, opening: &ConversationOpened) ->
     }) else {
         return Ok(None);
     };
-    let prompt = next.prompt.as_ref().ok_or("next window prompt was not captured")?;
+    let prompt = next.prompt.as_ref().ok_or_else(|| stream("next window prompt was not captured"))?;
     let summary = following[..closed]
         .iter()
         .rev()
@@ -115,8 +115,8 @@ fn carried(records: &[Record], position: usize, opening: &ConversationOpened) ->
                 None
             }
         })
-        .ok_or("compaction completion was not retained")?;
-    let summary = summary.completion.as_ref().ok_or("compaction completion was not captured")?;
+        .ok_or_else(|| stream("compaction completion was not retained"))?;
+    let summary = summary.completion.as_ref().ok_or_else(|| stream("compaction completion was not captured"))?;
     let text = summary
         .blocks
         .iter()

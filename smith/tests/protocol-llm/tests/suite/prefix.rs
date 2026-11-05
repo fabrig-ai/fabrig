@@ -475,5 +475,4 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
     }
 }
 
-#[path = "prefix/open.rs"]
 mod open;
