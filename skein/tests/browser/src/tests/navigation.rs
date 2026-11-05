@@ -106,7 +106,7 @@ fn an_address_past_the_text_limit_is_refused() {
     world.open();
     world.ask(Request::Address { page: PAGE, op: READ });
     match world.above.pop() {
-        Some(Event::Refused { op, why }) => assert_eq!((op, why), (READ, Refusal::Limit)),
+        Some(Event::Refused { op, why, .. }) => assert_eq!((op, why), (READ, Refusal::Limit)),
         other => panic!("expected Refused, got {other:?}"),
     }
 }
@@ -256,7 +256,7 @@ fn a_scope_of_an_earlier_document_is_gone() {
     world.ask(Request::Find { page: PAGE, op: READ, query: scoped_query() });
     world.tick(Time::from_nanos(50_000_000));
     match world.above.pop() {
-        Some(Event::Refused { op, why }) => assert_eq!(
+        Some(Event::Refused { op, why, .. }) => assert_eq!(
             (op, why, methods(&world)),
             (READ, Refusal::Gone, vec![Box::from(b"DOM.resolveNode".as_slice())])
         ),
@@ -289,7 +289,7 @@ fn a_discarded_scope_context_resolves_the_scope_again() {
     world.fault(b"DOM.resolveNode", crate::world::Fault::ScopeGone);
     world.tick(Time::from_nanos(50_000_000));
     match world.above.pop() {
-        Some(Event::Refused { op, why }) => assert_eq!((op, why), (READ, Refusal::Gone)),
+        Some(Event::Refused { op, why, .. }) => assert_eq!((op, why), (READ, Refusal::Gone)),
         other => panic!("expected the retried scope to be Gone, got {other:?}"),
     }
 }

@@ -23,7 +23,7 @@ fn a_failed_keep_reports_its_own_step() {
         };
         face.event(&match reply {
             Ok(read) => Event::Attribute { op, read },
-            Err(why) => Event::Refused { op, why },
+            Err(why) => Event::Refused { op, why, detail: Box::default() },
         });
         assert_eq!(
             step_failure(&mut script, &mut face, Time::ZERO),

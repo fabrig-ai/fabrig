@@ -449,7 +449,7 @@ impl<'a> BrowserFace<'a> {
                     }
                 }
             }
-            Event::Refused { op, why } => {
+            Event::Refused { op, why, .. } => {
                 if self.keep.as_ref().map(|keep| keep.op) == Some(*op) {
                     self.keep_failed(&format!("browser refused read: {why:?}"));
                 }

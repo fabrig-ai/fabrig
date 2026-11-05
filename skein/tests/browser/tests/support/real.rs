@@ -949,7 +949,7 @@ impl Rig {
             Event::Trouble { trouble, text, .. } => {
                 panic!("unexpected page trouble {trouble:?}: {}", String::from_utf8_lossy(&text))
             }
-            Event::Refused { op, why } => {
+            Event::Refused { op, why, .. } => {
                 if matches!(self.scenario, Scenario::Covered)
                     && self.stage == Stage::Pressing
                     && op == PRESS

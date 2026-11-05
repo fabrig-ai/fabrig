@@ -671,7 +671,7 @@ impl Runtime {
                     });
                 }
             }
-            Event::Trouble { page, trouble, text } => {
+            Event::Trouble { page, trouble, text, .. } => {
                 let person = usize::try_from(page.raw().saturating_sub(100)).unwrap_or(0);
                 if !setup.expected.iter().chain(self.expected.get(person).into_iter().flatten()).any(|expected| {
                     !expected.is_empty() && text.windows(expected.len()).any(|part| part == expected.as_ref())
@@ -702,7 +702,7 @@ impl Runtime {
                 }
                 self.capturing = 3;
             }
-            Event::Refused { op, why } if *op == SNAPSHOT || *op == IMAGE => {
+            Event::Refused { op, why, .. } if *op == SNAPSHOT || *op == IMAGE => {
                 write!(self.snapshot, "\ncapture refused: {why:?}").expect("string write");
                 self.capturing = 3;
             }

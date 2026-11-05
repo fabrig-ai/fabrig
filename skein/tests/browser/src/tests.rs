@@ -14,7 +14,7 @@ fn a_point_outside_the_box_is_hidden() {
     for point in [Point { x: 100, y: 0 }, Point { x: 0, y: 30 }, Point { x: u32::MAX, y: u32::MAX }] {
         world.ask(Request::Press { page: Token::new(3), op: Token::new(4), node: 7, at: Some(point) });
         match world.above.pop() {
-            Some(Event::Refused { op, why }) => {
+            Some(Event::Refused { op, why, .. }) => {
                 assert_eq!(op, Token::new(4));
                 assert_eq!(why, Refusal::Hidden);
             }
@@ -189,7 +189,7 @@ fn crash_fails_operation_and_closes_entities() {
     assert!(
         events
             .iter()
-            .any(|event| matches!(event, Event::Refused { op, why: Refusal::Crashed } if *op == Token::new(7)))
+            .any(|event| matches!(event, Event::Refused { op, why: Refusal::Crashed, .. } if *op == Token::new(7)))
     );
     assert!(events.iter().any(|event| matches!(event, Event::Closed { owner } if *owner == Token::new(1))));
 }
@@ -229,7 +229,7 @@ fn trouble_is_reported_without_judgment() {
     let messages: [&[u8]; 3] = [
         b"{\"method\":\"Runtime.exceptionThrown\",\"sessionId\":\"s1\",\"params\":{\"exceptionDetails\":{\"text\":\"boom\"}}}\0",
         b"{\"method\":\"Runtime.consoleAPICalled\",\"sessionId\":\"s1\",\"params\":{\"type\":\"error\",\"args\":[{\"value\":\"bad\"}]}}\0",
-        b"{\"method\":\"Log.entryAdded\",\"sessionId\":\"s1\",\"params\":{\"entry\":{\"level\":\"error\",\"text\":\"blocked\"}}}\0",
+        b"{\"method\":\"Log.entryAdded\",\"sessionId\":\"s1\",\"params\":{\"entry\":{\"level\":\"error\",\"text\":\"blocked\",\"url\":\"https://example.test/asset\"}}}\0",
     ];
     for message in messages {
         up(
@@ -241,13 +241,13 @@ fn trouble_is_reported_without_judgment() {
         );
     }
     assert!(
-        matches!(world.above.pop(), Some(Event::Trouble { trouble: Trouble::Exception, text, .. }) if text.as_ref() == b"boom")
+        matches!(world.above.pop(), Some(Event::Trouble { trouble: Trouble::Exception, text, url, .. }) if text.as_ref() == b"boom" && url.is_empty())
     );
     assert!(
-        matches!(world.above.pop(), Some(Event::Trouble { trouble: Trouble::Console, text, .. }) if text.as_ref() == b"bad")
+        matches!(world.above.pop(), Some(Event::Trouble { trouble: Trouble::Console, text, url, .. }) if text.as_ref() == b"bad" && url.is_empty())
     );
     assert!(
-        matches!(world.above.pop(), Some(Event::Trouble { trouble: Trouble::Log, text, .. }) if text.as_ref() == b"blocked")
+        matches!(world.above.pop(), Some(Event::Trouble { trouble: Trouble::Log, text, url, .. }) if text.as_ref() == b"blocked" && url.as_ref() == b"https://example.test/asset")
     );
     world.ask(Request::Screenshot { page: Token::new(3), op: Token::new(9) });
     assert!(
@@ -270,7 +270,7 @@ fn press_refuses_disabled_hidden_and_covered_without_mouse() {
         world.covered = covered;
         world.ask(Request::Press { page: Token::new(3), op: Token::new(10), node: 7, at: None });
         assert!(
-            matches!(world.above.pop(), Some(Event::Refused { op, why: observed }) if op == Token::new(10) && observed == why)
+            matches!(world.above.pop(), Some(Event::Refused { op, why: observed, .. }) if op == Token::new(10) && observed == why)
         );
         assert!(!world.sent.iter().any(|command| {
             command.windows(b"Input.dispatchMouseEvent".len()).any(|window| window == b"Input.dispatchMouseEvent")
@@ -304,7 +304,9 @@ fn unanswered_command_reaches_answer_deadline() {
         .expect("snapshot command was sent");
     world.env.now = Time::from_nanos(world.env.limits.answer.as_nanos());
     fire(&mut world.browser, &world.env, world.env.now, &mut world.above, &mut world.below);
-    assert!(matches!(world.above.pop(), Some(Event::Refused { op, why: Refusal::Timeout }) if op == Token::new(11)));
+    assert!(
+        matches!(world.above.pop(), Some(Event::Refused { op, why: Refusal::Timeout, .. }) if op == Token::new(11))
+    );
     let late = format!("{{\"id\":{id},\"result\":{{}}}}\0");
     up(
         &mut world.browser,
@@ -323,7 +325,7 @@ fn node_disappearing_during_press_is_refused_before_mouse() {
     world.open();
     world.fault(b"DOM.getContentQuads", Fault::Error);
     world.ask(Request::Press { page: Token::new(3), op: Token::new(12), node: 7, at: None });
-    assert!(matches!(world.above.pop(), Some(Event::Refused { op, why: Refusal::Gone }) if op == Token::new(12)));
+    assert!(matches!(world.above.pop(), Some(Event::Refused { op, why: Refusal::Gone, .. }) if op == Token::new(12)));
     assert!(!world.sent.iter().any(|command| {
         command.windows(b"Input.dispatchMouseEvent".len()).any(|part| part == b"Input.dispatchMouseEvent")
     }));
@@ -342,7 +344,7 @@ fn page_crash_mid_operation_reports_trouble_and_one_refusal() {
     while let Some(event) = world.above.pop() {
         match event {
             Event::Trouble { trouble: Trouble::Crash, .. } => trouble += 1,
-            Event::Refused { op, why: Refusal::Crashed } if op == Token::new(13) => refused += 1,
+            Event::Refused { op, why: Refusal::Crashed, .. } if op == Token::new(13) => refused += 1,
             Event::Closed { .. } => {}
             other => panic!("unexpected event after page crash: {other:?}"),
         }
@@ -420,7 +422,7 @@ fn a_dialog_outside_a_go_is_dismissed_as_trouble() {
         world.open();
         native_dialog(&mut world, kind, message);
         match world.above.pop() {
-            Some(Event::Trouble { page, trouble, text }) => {
+            Some(Event::Trouble { page, trouble, text, .. }) => {
                 assert_eq!(page, Token::new(3));
                 assert_eq!(trouble, Trouble::Dialog);
                 assert_eq!(text.as_ref(), expected, "{kind}");
@@ -620,4 +622,73 @@ fn a_closing_person_cancels_a_delayed_download_without_late_events() {
             .any(|part| part == b"Browser.cancelDownload"))
     );
     world.assert_commands_settled();
+}
+
+#[test]
+fn a_log_entrys_url_is_cut_to_the_text_limit() {
+    for (limit, expected) in [(0, b"".as_slice()), (5, b"https"), (26, b"https://example.test/asset")] {
+        let mut world = World::with_limits(skein_browser::Limits { text: limit, ..skein_browser::Limits::default() });
+        world.start();
+        world.open();
+        world.notify(r#"{"method":"Log.entryAdded","sessionId":"s1","params":{"entry":{"level":"error","text":"bad","url":"https://example.test/asset"}}}"#.into());
+        let Some(Event::Trouble { url, .. }) = world.above.pop() else { panic!("log trouble") };
+        assert_eq!(url.as_ref(), expected, "limit {limit}");
+        world.notify(
+            r#"{"method":"Log.entryAdded","sessionId":"s1","params":{"entry":{"level":"error","text":"bad"}}}"#.into(),
+        );
+        let Some(Event::Trouble { url, .. }) = world.above.pop() else { panic!("log trouble") };
+        assert!(url.is_empty());
+    }
+}
+
+fn answer_last_command(world: &mut World, field: &str, value: &str) {
+    let command = world.sent.last().expect("pending command");
+    let document =
+        Document::parse(command.strip_suffix(&[0]).expect("NUL"), world.env.limits.command).expect("command");
+    let id = document.root().get(b"id").expect("id").u64().expect("id number");
+    world.notify(format!(r#"{{"id":{id},"{field}":{value}}}"#));
+}
+
+#[test]
+fn a_protocol_refusal_names_its_method_and_error() {
+    let detail = b"DOM.getContentQuads: Could not compute content quads.";
+    for limit in [0, 8, u32::try_from(detail.len()).expect("detail fits")] {
+        let mut world = World::with_limits(skein_browser::Limits { text: limit, ..skein_browser::Limits::default() });
+        world.start();
+        world.open();
+        world.fault(b"DOM.getContentQuads", Fault::Drop);
+        world.ask(Request::Press { page: Token::new(3), op: Token::new(4), node: 7, at: None });
+        assert!(world.above.is_empty());
+        answer_last_command(&mut world, "error", r#"{"code":-32000,"message":"Could not compute content quads."}"#);
+        let Some(Event::Refused { op, why, detail: reported }) = world.above.pop() else { panic!("refused press") };
+        assert_eq!(op, Token::new(4));
+        assert_eq!(why, Refusal::Protocol);
+        assert_eq!(reported.as_ref(), &detail[..usize::try_from(limit).expect("limit fits")]);
+    }
+}
+
+#[test]
+fn a_malformed_reply_is_a_protocol_refusal_that_says_so() {
+    let mut world = World::new();
+    world.start();
+    world.open();
+    world.fault(b"Page.getNavigationHistory", Fault::Drop);
+    world.ask(Request::Address { page: Token::new(3), op: Token::new(4) });
+    answer_last_command(&mut world, "result", r#"{"currentIndex":0}"#);
+    let Some(Event::Refused { op, why, detail }) = world.above.pop() else { panic!("refused address") };
+    assert_eq!(op, Token::new(4));
+    assert_eq!(why, Refusal::Protocol);
+    assert_eq!(detail.as_ref(), b"Page.getNavigationHistory: malformed reply");
+}
+
+#[test]
+fn other_refusals_carry_no_detail() {
+    let mut world = World::new();
+    world.start();
+    world.open();
+    world.fault(b"DOM.scrollIntoViewIfNeeded", Fault::Error);
+    world.ask(Request::Press { page: Token::new(3), op: Token::new(4), node: 7, at: None });
+    let Some(Event::Refused { why, detail, .. }) = world.above.pop() else { panic!("refused press") };
+    assert_eq!(why, Refusal::Gone);
+    assert!(detail.is_empty());
 }
