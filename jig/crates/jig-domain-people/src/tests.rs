@@ -2513,18 +2513,7 @@ fn deployment_act_status_preserves_retry_and_actionable_refusals() {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum OutcomeClass {
-    Again(Again),
-    SignedOut,
-    Compound,
-    Refused,
-    CompoundRefused,
-    ServiceMade(u64),
-    RolesSet(u32),
-    ProjectMade(u32),
-    Settled,
-}
+pub(crate) use crate::OutcomeFamily as OutcomeClass;
 
 pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeClass, ActStatus, Option<Refusal>)> {
     use OutcomeClass as F;

@@ -101,7 +101,7 @@ pub use amendment::{
 pub use boundary::{
     ADDRESS, AccountChange, AccountHolder, AccountHostFailure, AccountHostWhy, Act, ActGrant, ActKey, ActKind,
     ActStatus, Adoption, Ask, Counts, DeletionStep, Entry, EntryKind, EscalationChoice, EscalationDecision, Event,
-    Holding, Identity, IdentityKey, InitialOwner, KeptDeletion, Key, Kind, Needs, NoteChange, NoteScope, Outcome,
+    Holding, Identity, IdentityKey, InitialOwner, KeptDeletion, Key, Kind, Needs, NoteChange, NoteScope, Outcome, OutcomeFamily,
     PersonResult, ProjectRole, ProposalChoice, ProposalDecision, Proposer, Reply, Request, RequestKey, ResourceName,
     ResourceRole, Role, Seed, Signer, Stored, USES, Use, Whom,
 };

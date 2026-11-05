@@ -144,51 +144,9 @@ pub(crate) fn project(ask: &Ask) -> Option<u32> {
 }
 
 pub(crate) fn permanent(outcome: &Outcome) -> Option<CapacityCause> {
-    match outcome {
-        Outcome::Refused(refusal) | Outcome::CompoundRefused { why: refusal, .. } => room(refusal),
-        Outcome::Compound { .. }
-        | Outcome::Applied { .. }
-        | Outcome::Again(_)
-        | Outcome::SignedOut
-        | Outcome::NoteEdited { .. }
-        | Outcome::ServiceMade { .. }
-        | Outcome::Adopted { .. }
-        | Outcome::Created { .. }
-        | Outcome::Restored { .. }
-        | Outcome::Proposed { .. }
-        | Outcome::Withdrawn { .. }
-        | Outcome::Stopped { .. }
-        | Outcome::Cancelled { .. }
-        | Outcome::Lifted { .. }
-        | Outcome::Released { .. }
-        | Outcome::PersonTaken { .. }
-        | Outcome::PersonHandedBack { .. }
-        | Outcome::PersonAnswered { .. }
-        | Outcome::Moved { .. }
-        | Outcome::ProposalDecided { .. }
-        | Outcome::Said { .. }
-        | Outcome::QuestionAnswered { .. }
-        | Outcome::Amended { .. }
-        | Outcome::RolesSet { .. }
-        | Outcome::PolicyChanged { .. }
-        | Outcome::Renamed { .. }
-        | Outcome::ProjectMade { .. }
-        | Outcome::ProjectRemoved { .. }
-        | Outcome::VisibilitySet { .. }
-        | Outcome::SettingsChanged { .. }
-        | Outcome::MovedToNewest { .. }
-        | Outcome::PoolSet { .. }
-        | Outcome::EscalationDecided { .. }
-        | Outcome::AccountSignInStarted { .. }
-        | Outcome::AccountProgramDeclared { .. }
-        | Outcome::AccountKeyKept { .. }
-        | Outcome::AccountMovingOut { .. }
-        | Outcome::AccountFinishing { .. }
-        | Outcome::AccountMovedIn { .. }
-        | Outcome::AccountChanged
-        | Outcome::AccountRemoved { .. }
-        | Outcome::AccountSignedOut { .. }
-        | Outcome::MarkedSeen { .. } => None,
+    match outcome.refusal() {
+        Some(refusal) => room(refusal),
+        None => None,
     }
 }
 

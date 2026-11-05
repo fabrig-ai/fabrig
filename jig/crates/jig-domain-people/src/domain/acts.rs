@@ -212,51 +212,12 @@ pub(super) fn load(domain: &mut Domain, key: ActKey, act: Act, outcome: Outcome,
 }
 
 fn permanent(outcome: &Outcome) -> bool {
-    match outcome {
-        Outcome::Again(_) | Outcome::SignedOut => false,
-        Outcome::Restored { .. }
-        | Outcome::Compound { .. }
-        | Outcome::CompoundRefused { .. }
-        | Outcome::MarkedSeen { .. }
-        | Outcome::Applied { .. }
-        | Outcome::NoteEdited { .. }
-        | Outcome::ServiceMade { .. }
-        | Outcome::Adopted { .. }
-        | Outcome::RolesSet { .. }
-        | Outcome::PolicyChanged { .. }
-        | Outcome::Renamed { .. }
-        | Outcome::ProjectMade { .. }
-        | Outcome::ProjectRemoved { .. }
-        | Outcome::VisibilitySet { .. }
-        | Outcome::SettingsChanged { .. }
-        | Outcome::MovedToNewest { .. }
-        | Outcome::PoolSet { .. }
-        | Outcome::Said { .. }
-        | Outcome::QuestionAnswered { .. }
-        | Outcome::Amended { .. }
-        | Outcome::Moved { .. }
-        | Outcome::Stopped { .. }
-        | Outcome::Cancelled { .. }
-        | Outcome::Lifted { .. }
-        | Outcome::Released { .. }
-        | Outcome::Created { .. }
-        | Outcome::Proposed { .. }
-        | Outcome::Withdrawn { .. }
-        | Outcome::PersonTaken { .. }
-        | Outcome::PersonHandedBack { .. }
-        | Outcome::PersonAnswered { .. }
-        | Outcome::EscalationDecided { .. }
-        | Outcome::ProposalDecided { .. }
-        | Outcome::AccountSignInStarted { .. }
-        | Outcome::AccountProgramDeclared { .. }
-        | Outcome::AccountKeyKept { .. }
-        | Outcome::AccountMovingOut { .. }
-        | Outcome::AccountFinishing { .. }
-        | Outcome::AccountMovedIn { .. }
-        | Outcome::AccountChanged
-        | Outcome::AccountRemoved { .. }
-        | Outcome::AccountSignedOut { .. }
-        | Outcome::Refused(_) => true,
+    match outcome.family() {
+        crate::OutcomeFamily::Again(_) | crate::OutcomeFamily::SignedOut => false,
+        crate::OutcomeFamily::Compound | crate::OutcomeFamily::Refused
+        | crate::OutcomeFamily::CompoundRefused | crate::OutcomeFamily::ServiceMade(_)
+        | crate::OutcomeFamily::RolesSet(_) | crate::OutcomeFamily::ProjectMade(_)
+        | crate::OutcomeFamily::Settled => true,
     }
 }
 
@@ -273,6 +234,8 @@ mod classifications {
     #[test]
     fn outcome_classes_keep_status_retention_reply_and_capacity() {
         for (outcome, family, status, refusal) in outcome_classes() {
+            assert_eq!(outcome.family(), family, "{outcome:?}");
+            assert_eq!(outcome.refusal(), refusal.as_ref(), "{outcome:?}");
             assert_eq!(outcome.act_status(), status, "{outcome:?}");
             let (kept, reply) = match family {
                 OutcomeClass::Again(why) => (false, Reply::Again(why)),

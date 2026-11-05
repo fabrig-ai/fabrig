@@ -92,52 +92,13 @@ pub(super) fn signed_out(to: ReplyTo, out: &mut Queue<Request>) {
 }
 
 pub(super) fn outcome_reply(outcome: Outcome) -> Reply {
-    match outcome {
-        Outcome::Again(why) => Reply::Again(why),
-        Outcome::SignedOut => Reply::SignedOut,
-        Outcome::Restored { .. }
-        | Outcome::Compound { .. }
-        | Outcome::CompoundRefused { .. }
-        | Outcome::MarkedSeen { .. }
-        | Outcome::Applied { .. }
-        | Outcome::NoteEdited { .. }
-        | Outcome::ServiceMade { .. }
-        | Outcome::Adopted { .. }
-        | Outcome::Created { .. }
-        | Outcome::Proposed { .. }
-        | Outcome::Withdrawn { .. }
-        | Outcome::Stopped { .. }
-        | Outcome::Cancelled { .. }
-        | Outcome::Lifted { .. }
-        | Outcome::Released { .. }
-        | Outcome::PersonTaken { .. }
-        | Outcome::PersonHandedBack { .. }
-        | Outcome::PersonAnswered { .. }
-        | Outcome::Moved { .. }
-        | Outcome::ProposalDecided { .. }
-        | Outcome::Said { .. }
-        | Outcome::QuestionAnswered { .. }
-        | Outcome::Amended { .. }
-        | Outcome::RolesSet { .. }
-        | Outcome::PolicyChanged { .. }
-        | Outcome::Renamed { .. }
-        | Outcome::ProjectMade { .. }
-        | Outcome::ProjectRemoved { .. }
-        | Outcome::VisibilitySet { .. }
-        | Outcome::SettingsChanged { .. }
-        | Outcome::MovedToNewest { .. }
-        | Outcome::PoolSet { .. }
-        | Outcome::EscalationDecided { .. }
-        | Outcome::AccountSignInStarted { .. }
-        | Outcome::AccountProgramDeclared { .. }
-        | Outcome::AccountKeyKept { .. }
-        | Outcome::AccountMovingOut { .. }
-        | Outcome::AccountFinishing { .. }
-        | Outcome::AccountMovedIn { .. }
-        | Outcome::AccountChanged
-        | Outcome::AccountRemoved { .. }
-        | Outcome::AccountSignedOut { .. }
-        | Outcome::Refused(_) => Reply::Outcome(outcome),
+    match outcome.family() {
+        crate::OutcomeFamily::Again(why) => Reply::Again(why),
+        crate::OutcomeFamily::SignedOut => Reply::SignedOut,
+        crate::OutcomeFamily::Compound | crate::OutcomeFamily::Refused
+        | crate::OutcomeFamily::CompoundRefused | crate::OutcomeFamily::ServiceMade(_)
+        | crate::OutcomeFamily::RolesSet(_) | crate::OutcomeFamily::ProjectMade(_)
+        | crate::OutcomeFamily::Settled => Reply::Outcome(outcome),
     }
 }
 
@@ -447,53 +408,13 @@ pub(super) fn answer_decided(
         assert!(removed == Some(id), "flight has one key index");
     }
 
-    match outcome {
-        // A refused admission is retryable with the same key, including
-        // pressure reported by tasks or another child through the root.
-        Outcome::Again(_) | Outcome::SignedOut => {}
-        Outcome::Restored { .. }
-        | Outcome::Compound { .. }
-        | Outcome::CompoundRefused { .. }
-        | Outcome::MarkedSeen { .. }
-        | Outcome::Applied { .. }
-        | Outcome::NoteEdited { .. }
-        | Outcome::ServiceMade { .. }
-        | Outcome::Adopted { .. }
-        | Outcome::RolesSet { .. }
-        | Outcome::PolicyChanged { .. }
-        | Outcome::Renamed { .. }
-        | Outcome::ProjectMade { .. }
-        | Outcome::ProjectRemoved { .. }
-        | Outcome::VisibilitySet { .. }
-        | Outcome::SettingsChanged { .. }
-        | Outcome::MovedToNewest { .. }
-        | Outcome::PoolSet { .. }
-        | Outcome::Said { .. }
-        | Outcome::QuestionAnswered { .. }
-        | Outcome::Amended { .. }
-        | Outcome::Moved { .. }
-        | Outcome::Stopped { .. }
-        | Outcome::Cancelled { .. }
-        | Outcome::Lifted { .. }
-        | Outcome::Released { .. }
-        | Outcome::Created { .. }
-        | Outcome::Proposed { .. }
-        | Outcome::Withdrawn { .. }
-        | Outcome::PersonTaken { .. }
-        | Outcome::PersonHandedBack { .. }
-        | Outcome::PersonAnswered { .. }
-        | Outcome::EscalationDecided { .. }
-        | Outcome::ProposalDecided { .. }
-        | Outcome::AccountSignInStarted { .. }
-        | Outcome::AccountProgramDeclared { .. }
-        | Outcome::AccountKeyKept { .. }
-        | Outcome::AccountMovingOut { .. }
-        | Outcome::AccountFinishing { .. }
-        | Outcome::AccountMovedIn { .. }
-        | Outcome::AccountChanged
-        | Outcome::AccountRemoved { .. }
-        | Outcome::AccountSignedOut { .. }
-        | Outcome::Refused(_) => save_answer(domain, env, key, ask, models, outcome.clone(), out),
+    match outcome.family() {
+        // A retry closes the flight without retaining its key.
+        crate::OutcomeFamily::Again(_) | crate::OutcomeFamily::SignedOut => {}
+        crate::OutcomeFamily::Compound | crate::OutcomeFamily::Refused
+        | crate::OutcomeFamily::CompoundRefused | crate::OutcomeFamily::ServiceMade(_)
+        | crate::OutcomeFamily::RolesSet(_) | crate::OutcomeFamily::ProjectMade(_)
+        | crate::OutcomeFamily::Settled => save_answer(domain, env, key, ask, models, outcome.clone(), out),
     }
     for to in replies.into_boxed() {
         out.push(Request::Reply { to, reply: outcome_reply(outcome.clone()) });

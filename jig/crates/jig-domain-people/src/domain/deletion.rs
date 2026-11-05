@@ -93,52 +93,12 @@ pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
 }
 
 pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {
-    match outcome {
-        Outcome::ProjectMade { project } => Some(*project),
-        Outcome::Restored { .. }
-        | Outcome::Again(_)
-        | Outcome::SignedOut
-        | Outcome::Compound { .. }
-        | Outcome::CompoundRefused { .. }
-        | Outcome::MarkedSeen { .. }
-        | Outcome::Applied { .. }
-        | Outcome::NoteEdited { .. }
-        | Outcome::ServiceMade { .. }
-        | Outcome::Adopted { .. }
-        | Outcome::RolesSet { .. }
-        | Outcome::PolicyChanged { .. }
-        | Outcome::Renamed { .. }
-        | Outcome::ProjectRemoved { .. }
-        | Outcome::VisibilitySet { .. }
-        | Outcome::SettingsChanged { .. }
-        | Outcome::MovedToNewest { .. }
-        | Outcome::PoolSet { .. }
-        | Outcome::Said { .. }
-        | Outcome::QuestionAnswered { .. }
-        | Outcome::Amended { .. }
-        | Outcome::Moved { .. }
-        | Outcome::Stopped { .. }
-        | Outcome::Cancelled { .. }
-        | Outcome::Lifted { .. }
-        | Outcome::Released { .. }
-        | Outcome::Created { .. }
-        | Outcome::Proposed { .. }
-        | Outcome::Withdrawn { .. }
-        | Outcome::PersonTaken { .. }
-        | Outcome::PersonHandedBack { .. }
-        | Outcome::PersonAnswered { .. }
-        | Outcome::EscalationDecided { .. }
-        | Outcome::ProposalDecided { .. }
-        | Outcome::AccountSignInStarted { .. }
-        | Outcome::AccountProgramDeclared { .. }
-        | Outcome::AccountKeyKept { .. }
-        | Outcome::AccountMovingOut { .. }
-        | Outcome::AccountFinishing { .. }
-        | Outcome::AccountMovedIn { .. }
-        | Outcome::AccountChanged
-        | Outcome::AccountRemoved { .. }
-        | Outcome::AccountSignedOut { .. }
-        | Outcome::Refused(_) => None,
+    match outcome.family() {
+        crate::OutcomeFamily::ProjectMade(project) => Some(project),
+        crate::OutcomeFamily::Again(_) | crate::OutcomeFamily::SignedOut
+        | crate::OutcomeFamily::Compound | crate::OutcomeFamily::Refused
+        | crate::OutcomeFamily::CompoundRefused | crate::OutcomeFamily::ServiceMade(_)
+        | crate::OutcomeFamily::RolesSet(_) | crate::OutcomeFamily::Settled => None,
     }
 }
 
