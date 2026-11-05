@@ -1,5 +1,5 @@
 use crate::anthropic::{DecodeError, Failure, Json, Limits, ProviderError, RateLimit, Stop, Usage, classify};
-use crate::openai::{clip_detail, json};
+use crate::wire::{clipped as clip_detail, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
 use skein_lib::{List, Queue, Wall, bytes};
@@ -283,9 +283,9 @@ impl StreamDecoder {
         let part = finish(active, limits)?;
         if thinking {
             let Part::Opaque { bytes } = part else { unreachable!("native reasoning") };
-            crate::openai::response::reasoning::charge(&mut self.reasoning_bytes, bytes.len(), limits)?;
+            crate::wire::reasoning::charge(&mut self.reasoning_bytes, bytes.len(), limits)?;
             self.reasoning = Some(match self.reasoning.take() {
-                Some(previous) => crate::openai::response::reasoning::append(&previous, &bytes, limits)?,
+                Some(previous) => crate::wire::reasoning::append(&previous, &bytes, limits)?,
                 None => bytes,
             });
             self.next = self.next.checked_add(1).ok_or(DecodeError::Malformed)?;
@@ -509,7 +509,7 @@ impl StreamDecoder {
         self.reasoning = None;
         self.over = true;
         let detail = match failure {
-            Failure::Limit { which, bound } => crate::openai::limit_detail(which, bound),
+            Failure::Limit { which, bound } => crate::wire::limit_detail(which, bound),
             Failure::Cancelled
             | Failure::TimedOut { .. }
             | Failure::Protocol
@@ -564,7 +564,7 @@ fn finish(active: Active, limits: &Limits) -> Result<Part, DecodeError> {
                 skein_json::writer::Limits { depth: limits.depth, length: limits.reasoning.min(limits.retained) };
             let mut measure = skein_json::writer::Encoder::measure(&bounded);
             write_thinking(&mut measure, &head, text.as_slice(), signature.as_slice());
-            let len = crate::openai::measured(measure, bounded, crate::Cap::Reasoning)?;
+            let len = crate::wire::measured(measure, bounded, crate::Cap::Reasoning)?;
             let mut out = skein_json::writer::Encoder::write(len, &bounded);
             write_thinking(&mut out, &head, text.as_slice(), signature.as_slice());
             Ok(Part::Opaque { bytes: out.finish() })
@@ -676,7 +676,7 @@ pub fn decode_event(value: &Json, limits: &Limits) -> Result<Event, DecodeError>
             let delta = match text_ref(delta, b"type")? {
                 b"text_delta" => Delta::Text { text: text(delta, b"text")? },
                 b"input_json_delta" => Delta::Arguments {
-                    text: match crate::openai::response::long_text(field(delta, b"partial_json")?) {
+                    text: match json::long_text(field(delta, b"partial_json")?) {
                         Some(_) => bytes::copy_of(b""),
                         None => text(delta, b"partial_json")?,
                     },
@@ -724,7 +724,7 @@ pub(super) fn validate_opaque(tokens: (&Document, json::Span)) -> Result<(), Dec
     }
 }
 pub fn decode_error(value: &Json, limits: &Limits) -> Result<ProviderError, DecodeError> {
-    crate::openai::decode_error(value, limits)
+    crate::wire::decode_error(value, limits)
 }
 fn read_usage(tokens: Option<(&Document, json::Span)>) -> UsagePatch {
     let Some(tokens) = tokens else {

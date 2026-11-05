@@ -370,3 +370,13 @@ fn receive_long(
     }
     Ok(length)
 }
+
+/// Bounds whole-value admission and decoded output.
+/// A conservative per-exchange heap bound, including common JSON processing
+/// and provider request/response ownership.
+#[must_use]
+pub fn anthropic_decoded_bound(limits: &openai::Limits) -> Option<u64> {
+    openai::decoded_bound(limits)?
+        .checked_add(anthropic::decoder_bound(limits)?)?
+        .checked_add(skein_lib::List::<anthropic::Mark>::price(4)?.checked_mul(2)?)
+}
