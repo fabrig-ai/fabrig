@@ -34,6 +34,7 @@ mod system;
 
 mod forge;
 mod forge_runtime;
+mod forge_sign_in;
 
 mod bundle;
 mod server;

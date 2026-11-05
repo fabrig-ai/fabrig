@@ -36,6 +36,7 @@ pub(crate) fn request(engine: &mut Engine, forge: u16) {
     engine.forge.held.remove(&forge);
     engine.forge.resolving.remove(&forge);
     engine.forge_records.rows.remove(forge);
+    crate::clients::forge_sign_in::refresh(engine);
     engine.forge.erasing.insert(forge, Some(Item::AdminToken)).expect("bounded removed forges");
     erase(engine, forge);
 }

@@ -417,11 +417,9 @@ fn prepare_with_limits(
         None => bundle::own(named.bundle_limits)?,
     };
     if let Some(bundle) = &mut bundle {
-        bundle.fill_sign_in(named.sign_in.is_some()).and_then(|()| {
-            bundle.fill_forge_sign_in(named.sign_in.as_ref(), &[], &checked.setup, named.bundle_limits.bundle_bytes)
-        }).ok_or_else(|| {
+        bundle.fill_sign_in(named.sign_in.is_some()).ok_or_else(|| {
             format!(
-                "application.clients.bundle: {}: page needs </head> and room within clients.bundle_bytes for sign-in metadata",
+                "application.clients.bundle: {}: the page has no </head> for its sign-in metadata",
                 named.bundle.as_deref().map_or("embedded".into(), |name| String::from_utf8_lossy(name))
             )
         })?;
