@@ -668,6 +668,10 @@ construction, never by a person deleting a copy.
 - **An occurrence whose account no longer serves:** whether a recurring
   template's occurrence is refused, rather than made to wait for its
   account. Default: made, its run waiting (4.3).
+- **`Domain::select`'s arguments** (4.3): a public seam kept whole, past
+  clippy's count, since other crates read it and three of its arguments are
+  borrowed slices, which no owned struct may hold (programming-model.md, 10.3).
+  Default: as it stands, until its signature changes for another reason.
 - **Program logins on a shared host,** once a run's process tree is
   contained from the programs directory: whether the rule of 3.4 then
   goes, or stays for a program's own tools. Default: the rule holds.

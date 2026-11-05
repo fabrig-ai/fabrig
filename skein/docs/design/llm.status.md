@@ -24,7 +24,10 @@
   in one function that matches the state inside, for which no reason is
   recorded, and keeps the SSE reader, which 3's table has under Streaming,
   on `Client` with the other machines, because `close_sse` closes them
-  from any state. 4.8:
+  from any state. Beside `State` it also keeps the request's body in `Upload`,
+  which the table has under Prepared and Head, because an early response
+  leaves the upload live in Streaming and ErrorBody, and `outcome`, because
+  ErrorBody stays after its terminal has gone. 4.8:
   the request fields have no text on verbosity, but
   `skein-llm/src/translate.rs`'s `write_request` sends
   `"text":{"verbosity":"low"}` on every Responses request, using
