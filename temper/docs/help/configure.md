@@ -12,7 +12,6 @@ Or describe how you work to the configuring chat: temper help chat.
   Owners apply settings; other parties propose them (step 3).
 - jq on `PATH` for JSON.
 - This walk changes charter 1's chat instructions (temper help charter).
-  Other kinds follow the same steps; fields: temper help settings.
 - `NEWEST`: the last `settings show` revision; every accepted edit advances it.
 - `FILE`: your settings file.
 
@@ -76,14 +75,6 @@ Expect: no output; `FILE` holds charter 1's whole value with new instructions
 in `items` (at most 1024, one per setting). If empty, read stderr and retry.
 To remove or reset, replace `set` with `"edit": "removed"` or `"edit": "reset"`.
 
-Other settings:
-
-```
-temper ctl DIR settings show landing-rule 1 --json
-temper ctl DIR settings show landing-rule 1 --project PROJECT --json
-temper ctl DIR settings show forge-charter 1 --json
-```
-
 Keep other fields. This selects charter 2, retaining stock landing requirements:
 
 ```json
@@ -106,11 +97,20 @@ Set project-policy `period_spend` 8200000 beside rules `period_spend` 8300000;
 
 For a project's landing rule, add `"project": PROJECT` to its `setting`.
 
+### Human approvals
+
+Add the human collaborator on the forge. Stock maps admin to maintainer (1),
+write to member (2), read to observer (3); use the mapped human role in the rule.
+For an existing project's project-policy permissions, edit its saved whole policy
+(step 2); apply with step 3. Re-adopt with `repository adopt`, preserving its
+options, then verify the required role with `project show`. Submit a fresh proposal
+against the newest revision. Policy 1 affects future projects; re-adoption keeps
+existing roles. temper's writer never counts. Details: temper help landing-rule.
+
 ### Authority for the reference charters
 
 Installing charters alone grants no task authority. Widen the rules ceiling,
 policy 1's ceiling and the creator-role authority before starting a reference goal.
-Notes retain results and Left lists across fresh runs.
 
 Required: delegate 1, message 2, control 4 (`amend`, `cancel`, `release`),
 decide 8 (`decide`, `decide_escalation`), propose 16, subscribe 32
@@ -197,17 +197,12 @@ temper ctl DIR inbox
 temper ctl DIR proposal decide PROPOSAL accept --running stays --key KEY
 ```
 
-Expect: `revision` and the new revision's number, which is `NEWEST`
-from now on; or `proposed: PROPOSAL, to the deployment's owners` for this
-charter. A project's items name `project PROJECT's owners`; a file touching
-several scopes names their owners and says `one person must own every
-affected scope`. Then expect
-`proposal PROPOSAL · settings · against revision NEWEST, newest
-NEWEST` and a line per item, `charter 1 · set · now {...} (default) ·
-would be {...}`, each value whole; the owner's decision prints `done:
-decide`, and prints it again when asked again under its key. A project's
-policy line is `project-policy PROJECT · set · now {...} · would be
-{...}`, each policy whole.
+Expect: `revision` and its new number, now `NEWEST`; or
+`proposed: PROPOSAL, to the deployment's owners`. Project items name
+`project PROJECT's owners`; several scopes require one owner of all.
+`proposal show` prints the revision and each whole current and proposed value,
+including `project-policy PROJECT · set · now {...} · would be {...}`.
+Acceptance prints `done: decide`, repeated for the same key.
 
 If not:
 

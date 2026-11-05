@@ -165,6 +165,22 @@ fn seeded_role(domain: &Domain, project: u32, permission: skein_forge::api::Perm
     None
 }
 
+/// Whether a forge identity is human, excluding the project's retained forge writers.
+/// Provider 0's subject is the forge user number (domain/forge.md, 4 and 8.7).
+pub(super) fn human_forge_identity(domain: &Domain, project: u32, identity: &people::IdentityKey) -> bool {
+    if identity.provider != 0 {
+        return false;
+    }
+    let Ok(subject) = <[u8; 8]>::try_from(identity.subject.as_ref()) else { return false };
+    let account = u64::from_be_bytes(subject);
+    for repository in domain.forge.readable_repositories(project) {
+        if domain.forge.is_writer(repository.provider.forge, account) {
+            return false;
+        }
+    }
+    true
+}
+
 fn append(out: &mut List<u8>, bytes: &[u8]) {
     for byte in bytes {
         if out.room() > 0 {
@@ -1915,6 +1931,9 @@ fn landing_reviewers(
     let mut unmapped = List::with_capacity(env.limits.forge.client.inbox);
     let mut reviews = List::with_capacity(env.limits.forge.client.inbox);
     for review in &evidence.reviews {
+        if domain.forge.is_writer(row.repository.forge, review.author) {
+            continue;
+        }
         let mut superseded = false;
         for other in &evidence.reviews {
             if other.author == review.author

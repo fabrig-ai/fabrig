@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-04. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-05. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:** 2.1, 3: the `Changes` page, its queues and a queued
   change's place (no `Changes` address in `temper-client-domain`). 2.3:

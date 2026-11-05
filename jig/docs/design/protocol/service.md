@@ -443,14 +443,6 @@ Each within jig's suites' budgets.
   `skein_ui_bundle::types`, a build tool step code can't link. Default:
   they stay in `jig-protocol-engine-clients-http` until skein has a
   server to offer.
-- **What the services share.** temper's debt measure bounds the lines
-  both services' adapters have in common below 200. Every move section
-  11 allows leaves about 310, and below 200 takes a clients' part
-  holding the pass, which 11.6 rules out. Default: each application
-  keeps its pass, and the bound stands unmet. The user's to choose, with
-  no answer yet: the overlap is kept as composition section 11 assigns;
-  or the bound is restated near what section 11 allows; or 11.6 is
-  revised and a clients' part built.
 
 ## 10. One process
 
@@ -536,6 +528,10 @@ its routing, `iterate` and `main`, its connectors and its own settings.
 - **A difference is the owner's.** Where two applications act differently
   on one fact, the part reports the fact and each owner acts; it takes no
   setting that names an application. A difference of amount is a value.
+- **What two services have in common is each one's composition.** An
+  application's pass, adapters, tokens and sizes are what this section
+  leaves it, so the lines two services share there are no copy for a part
+  to take.
 - **A part that holds credentials shows none in `Debug`:** it implements
   no `Debug`, or a hand-written one that counts them.
 

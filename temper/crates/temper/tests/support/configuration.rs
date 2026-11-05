@@ -48,7 +48,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     // Fourteen literal "forge" segments need seventy bytes, beyond the kit fixture's 64.
     value["engine"]["limits"]["overrides"]["tasks.authority_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["notes.scopes"] = 32.into();
-    value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 4096.into();
+    value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
     // The creation offer carries five stock charters and three procedures.
@@ -80,6 +80,7 @@ pub fn use_stock(value: &mut serde_json::Value) {
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
+    value["engine"]["limits"]["overrides"]["authority.roles"] = 4.into();
 }
 
 /// All directories are explicit and belong to this fixture's scratch.

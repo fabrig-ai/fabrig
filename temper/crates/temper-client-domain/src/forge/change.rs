@@ -329,10 +329,13 @@ impl<'a> Change<'a> {
         let address = self.panel.pull().as_ref()?.address();
         if address.is_empty() { None } else { Some(address) }
     }
-    /// A landed change's CI is not read again: unknown there is a restart's
-    /// forgetting (domain/forge.md, 8.8), not CI still to come.
+    /// Distinguish CI the rules do not ask for from its observed verdict
+    /// and from terminal evidence absent after restart (domain/forge.md, 8.8).
     #[must_use]
     pub fn ci(self) -> W {
+        if !self.panel.ci_required() {
+            return W::NotRequired;
+        }
         match self.panel.ci() {
             w::Ci::Unknown => match self.panel.step() {
                 w::Step::Landed(_) | w::Step::Verifying(_) | w::Step::Red(_) | w::Step::Cleared(_) | w::Step::Ended => {

@@ -255,11 +255,14 @@ temper-engine-domain-forge              the connector's top: resources and holds
   `branch` before the branch's own parts) is refused as too large.
 - **People the forge knows.** Adoption reads the repository's
   collaborators, each with its permission (read, write or admin), and
-  gives them to the core as parties known by their forge user's id. The
+  gives the human collaborators to the core as parties known by their forge
+  user's id. temper's own writer is excluded. The
   project's configuration maps each permission to a role, given to those
   with no role in the project yet (jig's `domain/people.md`, section 4):
   temper's usual mapping is admin to maintainer, write to member, read to
-  observer. After that, roles are the core's: a permission that changes
+  observer (roles 1, 2 and 3 respectively, owner 0 reserved for the project
+  owner). Re-adoption seeds people still without a role; it does not replace
+  existing project roles. After that, roles are the core's: a permission that changes
   on the forge changes no role.
 - **Access is given per repository, at adoption.** On a managed or
   owned Forgejo, the adoption asks for it first: temper's user made a
@@ -1746,7 +1749,8 @@ merge, kind 4, on a pattern of landing branches (jig's
   reviews, keeps each author's latest, and counts the distinct people
   among them whom the core knows by their forge user's id with the role
   in the project (section 4); a review that only comments counts for
-  nothing.
+  nothing. temper's retained forge writer never counts as a human, even if
+  an existing identity holds the required project role, including after restart.
   It is the one thing temper reads of what people write on its pull
   requests (section 13). A project has approvals only if its rules ask
   for them: temper's own default has none (`../README.md`, section 2).
@@ -1844,7 +1848,13 @@ What the connector makes of a change for the client's panel
   verdict at its exact head with its record (`ChangeRow`'s `ci`, written
   by the save its finish already makes), restored with the row, since no
   step will read it again and its panel stays as long as its record
-  (`../client/forge.md`, 9.2).
+  (`../client/forge.md`, 9.2). The panel carries separately whether the
+  repository has CI and its effective landing rules ask for it (8.7).
+  Where CI is not required, the client says “CI not required”, even if
+  the retained observation is pending or failed. The observed verdict
+  remains evidence at its exact head; a no-CI landing never makes it a
+  passing verdict. The requirement is read from the held rules when the
+  panel is made, including after restoration.
 - **Its place in its queue** is computed as the document is made,
   in section 9's order among the changes queued or first in its
   landing branch at the core's time: its place from 1, and the tasks
@@ -1890,7 +1900,11 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   joins the people's identities and roles with the forge's rule; a
   deployment login or display name supplies no forge identity. A refusal
   names the project, role, required and eligible counts, and asks for
-  known forge people with that role or removal of the approval. No rule
+  human collaborators added on the forge, the existing project's project-policy
+  permission mapping configured where needed, re-adoption and verification of
+  the required role, followed by a fresh proposal against the newest revision.
+  It refers to `temper help configure`, or offers removal of the approval.
+  temper's retained forge writer is ineligible even with an existing role. No rule
   or accompanying settings become effective on refusal. Later membership
   changes can leave a held rule waiting; the merge still counts only
   people known by forge user id (8.7).

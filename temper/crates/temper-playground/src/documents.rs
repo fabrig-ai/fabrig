@@ -57,7 +57,7 @@ pub const ENGINE_OVERRIDES: [(&str, u32); 22] = [
     ("tasks.authority_grants", 4),
     ("tasks.authority_segments", 4),
     ("tasks.authority_bytes", 128),
-    ("core.policy_bytes", 4096),
+    ("core.policy_bytes", 8192),
     ("authority.segments", 8),
     ("core.call_answer_bytes", 2048),
 ];
@@ -195,7 +195,7 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         }
     }
     for (name, count) in [
-        ("core.policy_bytes", 4096),
+        ("core.policy_bytes", 8192),
         ("authority.grants", 16),
         ("authority.executors", 8),
         ("authority.segments", 8),

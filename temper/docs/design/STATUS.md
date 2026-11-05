@@ -62,7 +62,8 @@ the box's group file holds a forge's kind alone
 where a worker's translation aborts on a stored source name smith
 refuses (`protocol/README.md`), and lags in a removal without the
 box (`domain/forge.md`), a project's Delete (`client/README.md`),
-a restored secret of the wrong kind (`protocol/credentials.md`) and
+a failure of the secrets' store on an accounts' request, which stops
+no engine (`protocol/credentials.md`), and
 a forge's Start over with no welcome, which ends at the inbox
 (`client/forge.md`);
 public reading still lacks a deployment's proxy configuration and
