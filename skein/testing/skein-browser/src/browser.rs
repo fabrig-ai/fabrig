@@ -1381,34 +1381,7 @@ impl Browser {
 
     fn command_error(&mut self, env: &Env<Limits>, method: &[u8], kind: PendingKind, error: Value<'_>) {
         let message = field_text(error, b"message").unwrap_or(Box::from(b"malformed reply".as_slice()));
-        if let PendingKind::Step(op, Step::Query) = kind
-            && message.as_ref() == b"Node with given id does not belong to the document"
-        {
-            self.finish_refused(op, Refusal::Gone);
-            return;
-        }
-        if let PendingKind::Step(op, Step::Query) = kind
-            && (contains(&message, b"context") || contains(&message, b"object"))
-        {
-            if let Some(op) = self.op_mut(op) {
-                op.due = Some(env.now.saturating_add(env.limits.poll));
-            }
-            return;
-        }
-        if let PendingKind::Step(op, Step::AttributeSelector | Step::AttributeValue) = kind
-            && node_missing(&message)
-        {
-            // A render replaced the element between the selector and its
-            // read: the read starts again from the document until its
-            // deadline.
-            let again = env.now.saturating_add(env.limits.poll);
-            if let Some(Operation { kind: OpKind::Attribute { until, .. }, due, .. }) = self.op_mut(op)
-                && again < *until
-            {
-                *due = Some(again);
-            } else {
-                self.finish_refused(op, Refusal::Gone);
-            }
+        if self.retry_read(env, kind, &message) {
             return;
         }
         let why = if contains(&message, b"No node found at given location") {
@@ -1432,7 +1405,10 @@ impl Browser {
             | PendingKind::Navigate(page)
             | PendingKind::ClosePage(page) => self.close_page_local(page),
             PendingKind::Step(op, step) => {
-                let reason = if step == Step::AttributeSelector {
+                let reason = if step == Step::AttributeSelector
+                    || (why == Refusal::Gone
+                        && (step == Step::MouseMove || step == Step::MouseDown || step == Step::MouseUp))
+                {
                     Refusal::Protocol
                 } else if step == Step::Hit && why == Refusal::Gone {
                     Refusal::Covered
@@ -1446,6 +1422,40 @@ impl Browser {
                 }
             }
         }
+    }
+
+    fn retry_read(&mut self, env: &Env<Limits>, kind: PendingKind, message: &[u8]) -> bool {
+        if let PendingKind::Step(op, Step::Query) = kind
+            && message == b"Node with given id does not belong to the document"
+        {
+            self.finish_refused(op, Refusal::Gone);
+            return true;
+        }
+        if let PendingKind::Step(op, Step::Query) = kind
+            && (contains(message, b"context") || contains(message, b"object"))
+        {
+            if let Some(op) = self.op_mut(op) {
+                op.due = Some(env.now.saturating_add(env.limits.poll));
+            }
+            return true;
+        }
+        if let PendingKind::Step(op, Step::AttributeSelector | Step::AttributeValue) = kind
+            && node_missing(message)
+        {
+            // A render replaced the element between the selector and its
+            // read: the read starts again from the document until its
+            // deadline.
+            let again = env.now.saturating_add(env.limits.poll);
+            if let Some(Operation { kind: OpKind::Attribute { until, .. }, due, .. }) = self.op_mut(op)
+                && again < *until
+            {
+                *due = Some(again);
+            } else {
+                self.finish_refused(op, Refusal::Gone);
+            }
+            return true;
+        }
+        false
     }
 
     fn reply(&mut self, env: &Env<Limits>, method: &[u8], kind: PendingKind, result: Value<'_>) {
@@ -2298,6 +2308,9 @@ mod download;
 
 #[cfg(test)]
 mod credit_tests;
+
+#[cfg(test)]
+mod press_tests;
 
 fn waits_for_document(kind: &OpKind) -> bool {
     match kind {
