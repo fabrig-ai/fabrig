@@ -8,7 +8,7 @@
 use alloc::boxed::Box;
 
 use skein_lib::bytes::copy_of;
-use skein_lib::{List, Token, Writer};
+use skein_lib::{List, Token};
 
 use crate::call::{Call, Outcome};
 use crate::limits::Limits;
@@ -17,8 +17,8 @@ use crate::path::{self, Name, Namespace, Path, Place, Resolved};
 /// What a kit is given when it opens.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Authority {
-    /// Where relative paths start: an absolute path, as names.
-    pub cwd: Box<[Name]>,
+    /// Where relative paths start: a directory's mount, or the namespace root.
+    pub cwd: Option<Name>,
     /// The directories of the workspace. Paths outside them all are refused.
     pub repos: Box<[Directory]>,
     /// Explicit authority supplied by the opener, never inferred from role or text.
@@ -31,7 +31,7 @@ impl Authority {
     pub fn namespace_bytes(&self) -> Option<u64> {
         match self.repos.len() {
             0 | 1 => Some(0),
-            _ => match self.cwd.first() {
+            _ => match &self.cwd {
                 Some(name) => Some(skein_lib::len_u64(name.as_bytes().len())),
                 None => Some(0),
             },
@@ -44,11 +44,10 @@ impl Authority {
         match self.repos.len() {
             0 => Namespace::NoWorkspace,
             1 => Namespace::One,
-            _ => match self.cwd.first() {
+            _ => match &self.cwd {
                 Some(working) => Namespace::Several { working: working.clone() },
-                // Authorities may mount the filesystem root without a
-                // working name. Keep their relative presentation; run-owned
-                // authorities always name the first directory.
+                // An authority without a working name keeps relative
+                // presentation; run-owned authorities name the first directory.
                 None => Namespace::One,
             },
         }
@@ -60,9 +59,8 @@ impl Authority {
 pub struct Directory {
     /// Absolute host path components; whole-component prefixes alias this root.
     pub host: Box<[Name]>,
-    /// Where it is: the absolute path of its root, as names. A repository
-    /// mounted inside another holds what is beneath its own mount.
-    pub mount: Box<[Name]>,
+    /// Its name at the namespace root.
+    pub mount: Name,
     /// io's name for its root directory, beneath which io resolves every
     /// place in it.
     pub root: Token,
@@ -82,11 +80,10 @@ pub struct Grants {
     pub shell: bool,
 }
 
-/// An authority as a kit keeps it, with its mounts joined for choosing among
-/// them.
+/// An authority as a kit keeps it, with host aliases joined for lookup.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Working {
-    pub(crate) cwd: Box<[Name]>,
+    pub(crate) cwd: Option<Name>,
     pub(crate) mounts: Box<[MountedDirectory]>,
     pub(crate) grants: Grants,
 }
@@ -94,8 +91,7 @@ pub(crate) struct Working {
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct MountedDirectory {
     pub(crate) host: Box<[u8]>,
-    /// The repository's mount, its names joined by `/`.
-    pub(crate) at: Box<[u8]>,
+    pub(crate) at: Name,
     pub(crate) root: Token,
     pub(crate) writable: bool,
 }
@@ -125,25 +121,19 @@ pub(crate) fn admit(authority: Authority, limits: &Limits) -> Option<Working> {
     if repos > limits.repos {
         return None;
     }
-    // Each component needs at least one byte plus its separating slash.
-    // Refuse before allocating references to an overlong input.
-    let names = limits.path_bytes.checked_add(1)? / 2;
-    if u32::try_from(authority.cwd.len()).ok()? > names {
-        return None;
-    }
-    let cwd = path::refs(&authority.cwd)?;
-    if path::joined(cwd.as_slice())? > usize::try_from(limits.path_bytes).ok()? {
+    let max = usize::try_from(limits.path_bytes).ok()?;
+    if let Some(cwd) = &authority.cwd
+        && cwd.as_bytes().len() > max
+    {
         return None;
     }
     let mut mounts: List<MountedDirectory> = List::with_capacity(repos);
     for repo in &authority.repos {
-        if u32::try_from(repo.mount.len()).ok()? > names {
+        if repo.mount.as_bytes().len() > max {
             return None;
         }
-        let names = path::refs(&repo.mount)?;
-        let at = path::join(names.as_slice(), limits.path_bytes)?;
         for other in mounts.as_slice() {
-            if other.at == at || other.root == repo.root {
+            if other.at == repo.mount || other.root == repo.root {
                 return None;
             }
         }
@@ -152,7 +142,7 @@ pub(crate) fn admit(authority: Authority, limits: &Limits) -> Option<Working> {
             return None;
         }
         let host = path::join(path::refs(&repo.host)?.as_slice(), limits.host_path_bytes)?;
-        let mount = MountedDirectory { at, host, root: repo.root, writable: repo.writable };
+        let mount = MountedDirectory { at: repo.mount.clone(), host, root: repo.root, writable: repo.writable };
         mounts.push(mount).expect("room for every repository");
     }
     Some(Working { cwd: authority.cwd, mounts: mounts.into_boxed(), grants: authority.grants })
@@ -171,7 +161,7 @@ pub(crate) const fn granted(grants: Grants, call: &Call) -> bool {
 /// past `max` bytes, `Outside` beyond every repository. The normalized
 /// absolute root names the directories themselves, without a filesystem place.
 pub(crate) fn locate(working: &Working, path: &Path, max: u32) -> Result<Target, Outcome> {
-    let Some(at) = path::normalise(&working.cwd, path, max) else {
+    let Some(at) = path::normalise(working.cwd.as_slice(), path, max) else {
         return Err(Outcome::TooLong);
     };
     if path.absolute && at.is_empty() {
@@ -192,11 +182,10 @@ pub(crate) fn locate(working: &Working, path: &Path, max: u32) -> Result<Target,
             let path = copy_of(at.get(start..).expect("alias tail"));
             // Failure paths are reconstructed in the namespace, so that alias
             // spelling never widens the normalized result bound.
-            let namespace_bytes =
-                match mount.at.len().checked_add(usize::from(!mount.at.is_empty() && !path.is_empty())) {
-                    Some(bytes) => bytes.checked_add(path.len()),
-                    None => None,
-                };
+            let namespace_bytes = match mount.at.as_bytes().len().checked_add(usize::from(!path.is_empty())) {
+                Some(bytes) => bytes.checked_add(path.len()),
+                None => None,
+            };
             let Some(namespace_bytes) = namespace_bytes else {
                 return Err(Outcome::TooLong);
             };
@@ -210,49 +199,20 @@ pub(crate) fn locate(working: &Working, path: &Path, max: u32) -> Result<Target,
         return Err(Outcome::Outside { path: Resolved::Outside { path: at } });
     };
     let mount = working.mounts.get(index).expect("chosen among the mounts");
-    let start = beneath(&mount.at, &at).expect("the chosen mount holds the path");
+    let start = beneath(mount.at.as_bytes(), &at).expect("the chosen mount holds the path");
     let path = copy_of(at.get(start..).expect("the path beneath a mount is within it"));
     Ok(Target::Place(Located { place: Place { root: mount.root, path }, writable: mount.writable }))
 }
 
-/// The normalized namespace path of a place retained by a flight. Nested
-/// mounts keep their remaining components after the directory's first name.
+/// The normalized namespace path of a place retained by a flight.
 pub(crate) fn resolved(working: &Working, place: &Place) -> Resolved {
     for mount in &working.mounts {
         if mount.root == place.root {
-            let separator = usize::from(!mount.at.is_empty() && !place.path.is_empty());
-            let size = mount
-                .at
-                .len()
-                .checked_add(separator)
-                .expect("bounded mount and separator")
-                .checked_add(place.path.len())
-                .expect("admitted normalized place");
-            let mut writer = Writer::new(size);
-            writer.put(&mount.at).expect("measured mount");
-            if separator != 0 {
-                writer.put(b"/").expect("measured separator");
-            }
-            writer.put(&place.path).expect("measured place");
-            let absolute = writer.finish();
-            if mount.at.is_empty() {
-                return Resolved::Working { path: absolute };
-            }
-            let mut end = absolute.len();
-            for (index, byte) in absolute.iter().enumerate() {
-                if *byte == b'/' {
-                    end = index;
-                    break;
-                }
-            }
-            let first = absolute.get(..end).expect("first namespace component");
-            let start = end.checked_add(usize::from(end < absolute.len())).expect("bounded component");
-            let path = copy_of(absolute.get(start..).expect("remaining components"));
-            match working.cwd.first() {
-                Some(working) if working.as_bytes() == first => return Resolved::Working { path },
+            let path = place.path.clone();
+            match &working.cwd {
+                Some(working) if *working == mount.at => return Resolved::Working { path },
                 Some(_) | None => {
-                    let directory = Name::new(copy_of(first)).expect("mount starts with a name");
-                    return Resolved::Other { directory, path };
+                    return Resolved::Other { directory: mount.at.clone(), path };
                 }
             }
         }
@@ -260,34 +220,20 @@ pub(crate) fn resolved(working: &Working, place: &Place) -> Resolved {
     unreachable!("flights retain places in their admitted working")
 }
 
-/// The repository that holds `at`, an absolute path's names joined: the one
-/// with the longest mount that is `at` or a directory above it, and the first
-/// of those mounted there; `None` if `at` is outside them all.
+/// The repository whose name holds `at`, an absolute path's names joined;
+/// `None` if `at` is outside them all. Admitted mounts are unique.
 pub(crate) fn choose(mounts: &[MountedDirectory], at: &[u8]) -> Option<usize> {
-    let mut chosen: Option<(usize, usize)> = None;
     for (index, mount) in mounts.iter().enumerate() {
-        if beneath(&mount.at, at).is_none() {
-            continue;
-        }
-        let longer = match chosen {
-            Some((_, len)) => mount.at.len() > len,
-            None => true,
-        };
-        if longer {
-            chosen = Some((index, mount.at.len()));
+        if beneath(mount.at.as_bytes(), at).is_some() {
+            return Some(index);
         }
     }
-    let (index, _) = chosen?;
-    Some(index)
+    None
 }
 
 /// Where the path beneath `mount` starts in `at`, or `None` if `mount` does not
 /// hold `at`.
 pub(crate) fn beneath(mount: &[u8], at: &[u8]) -> Option<usize> {
-    // The root holds everything.
-    if mount.is_empty() {
-        return Some(0);
-    }
     let rest = at.strip_prefix(mount)?;
     match rest.first() {
         None => Some(mount.len()),

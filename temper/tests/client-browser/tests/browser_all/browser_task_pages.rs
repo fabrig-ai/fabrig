@@ -4,13 +4,12 @@
 //! The client world's task scenarios and the terminal's agent-page golden
 //! hold the page contents; Chromium holds the first full load at `/tasks/3`.
 use skein_fake_person::{Find, Step as PersonStep, Target};
-use skein_fake_person_browser::{Harness, Outcome, Script, Step};
+use skein_fake_person_browser::Step;
 use skein_ui::Role;
 use temper_client_browser_world::{ABSENT, FIRST_CHAT, Tier, WITHIN};
 
-#[test]
-fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
-    let tier = Tier::demo("procedure-plan-agent-addresses");
+/// Follow the CSV change through its plan, agent and fresh addresses in the chat story.
+pub(super) fn plan_and_agent_steps(tier: &Tier) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let press = |find| Step::Person(PersonStep::Press { find });
     let heading = |level, name: &[u8]| Find::exactly_named(Role::Heading { level }, name);
@@ -22,16 +21,6 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
             .within(Box::new([Target::ExactRole { role: Role::TreeItem, name: b"Task 3".as_slice().into() }]))
     };
     let mut steps = vec![
-        see(Find::exactly_named(Role::Button, b"Try the playground")),
-        press(Find::exactly_named(Role::Button, b"Try the playground")),
-        // The box starts the demo's group only when asked: wait for its start to be answered.
-        see(Find::exactly_named(Role::Status, b"Ready")),
-        Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
-        see(tier.states().live),
-        temper_client_browser_world::connected(),
-        see(heading(1, b"Chats")),
-        see(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
-        press(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
         // The card settles at its call once the turn's words show (client/README.md, 5.7).
         // A person reads the reply, then follows its card.
         see(Find::text("I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge.".as_bytes())
@@ -65,9 +54,8 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
         see(Find::exactly_named(Role::Region, b"Task brief")),
         Step::Address(b"/tasks/3".as_slice().into()),
     ];
-    steps.extend(reload_chats(&tier));
-    let mut story = Script::new(steps.into_boxed_slice());
-    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut story]), Outcome::Done);
+    steps.extend(reload_chats(tier));
+    steps
 }
 
 fn reload_chats(tier: &Tier) -> Vec<Step> {
@@ -79,13 +67,13 @@ fn reload_chats(tier: &Tier) -> Vec<Step> {
         // 6: the playground's project made, the link stays up across a reload: the page's own
         // client bounds receive the box's Me (temper/docs/design/client/README.md, 2).
         Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
-        see(heading(1, b"Chats")),
+        see(heading(1, b"Talk to an agent about playground/widget.")),
         see(tier.states().live),
         temper_client_browser_world::connected(),
         Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),
         see(chat()),
         Step::Person(PersonStep::Reload),
-        see(heading(1, b"Chats")),
+        see(heading(1, b"Talk to an agent about playground/widget.")),
         see(tier.states().live),
         temper_client_browser_world::connected(),
         Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),

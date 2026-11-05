@@ -2,7 +2,7 @@
 use crate::{Config, Limits, Tally};
 use alloc::boxed::Box;
 use skein_fake_forge_domain as domain;
-use skein_lib::{Id, List, ReplyTo, Rng, Slab, Token};
+use skein_lib::{Id, List, ReplyTo, Rng, Slab, Token, usize_of};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Error {
     Limits,
@@ -46,7 +46,7 @@ impl Service {
             return Err(Error::Limits);
         }
         for (index, (token, user)) in config.tokens.iter().enumerate() {
-            if token.is_empty() || token.len() > usize::try_from(limits.http.head).expect("u32 fits") || *user == 0 {
+            if token.is_empty() || token.len() > usize_of(limits.http.head) || *user == 0 {
                 return Err(Error::Limits);
             }
             for (prior, _) in config.tokens.iter().take(index) {
@@ -56,16 +56,16 @@ impl Service {
             }
         }
         for (_, login) in &config.users {
-            if login.len() > usize::try_from(limits.documents.string_bytes).expect("u32 fits") {
+            if login.len() > usize_of(limits.documents.string_bytes) {
                 return Err(Error::Limits);
             }
         }
         for (index, repo) in config.repositories.iter().enumerate() {
-            if repo.id == 0 || repo.full.len() > usize::try_from(limits.documents.target_bytes).expect("u32 fits") {
+            if repo.id == 0 || repo.full.len() > usize_of(limits.documents.target_bytes) {
                 return Err(Error::Limits);
             }
             if let Some(branch) = &repo.protected
-                && branch.len() > usize::try_from(limits.documents.string_bytes).expect("u32 fits")
+                && branch.len() > usize_of(limits.documents.string_bytes)
             {
                 return Err(Error::Limits);
             }
@@ -202,7 +202,7 @@ impl Service {
     }
 }
 fn check_base(base: &[u8], limits: &Limits) -> Result<(), Error> {
-    if base.len() > usize::try_from(limits.documents.target_bytes).expect("u32 fits") {
+    if base.len() > usize_of(limits.documents.target_bytes) {
         return Err(Error::Limits);
     }
     let authority = match base.strip_prefix(b"http://") {

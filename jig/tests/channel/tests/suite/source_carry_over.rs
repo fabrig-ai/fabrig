@@ -59,7 +59,7 @@ fn opening() -> record::Opening {
             effort: None,
             system: b"instructions".as_slice().into(),
             authority: tools::Authority {
-                cwd: Box::new([]),
+                cwd: None,
                 repos: Box::new([]),
                 grants: tools::Grants { inspect: false, modify: false, shell: false },
             },

@@ -7,6 +7,8 @@ pub(in crate::tests) mod kind_order;
 pub(in crate::tests) mod proposals;
 pub(in crate::tests) mod tracking;
 
+mod classifiers;
+
 use crate::{
     acts as offers,
     acts::{Act, Admission, Beyond, Bounds},

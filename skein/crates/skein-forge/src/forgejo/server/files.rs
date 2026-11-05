@@ -11,7 +11,7 @@ use crate::forgejo::{
 };
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
-use skein_lib::Writer;
+use skein_lib::{Writer, len_u64};
 pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Route, Unrouted> {
     let Ok(target) = path::read(bytes, limits) else {
         return Err(Unrouted::Malformed);
@@ -113,7 +113,7 @@ pub(super) fn write(json: &mut Encoder, answer: &Answer) {
         Answer::Commits { commits } => {
             json.object_start();
             json.key(b"total_commits");
-            json.unsigned(u64::try_from(commits.len()).expect("bounded comparison"));
+            json.unsigned(len_u64(commits.len()));
             json.key(b"commits");
             json.array_start();
             for commit in commits {

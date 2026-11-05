@@ -31,6 +31,6 @@ pub mod profile;
 mod tests;
 
 pub use credentials::{Accounts, CredentialRequest, Settled, Source, accounts_valid};
-pub use host_io::{Launch, ProcessLimits, native_io_valid, to_host_exit};
+pub use host_io::{Launch, ProcessLimits, to_host_exit};
 pub use live::{LIVE_BYTES, LIVE_SLOTS, LivePiece, RemoteTurn};
 pub use service::{AgentConfig, Config, Error, Limits, Service, StartValues, iterate, valid};

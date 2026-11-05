@@ -7,7 +7,7 @@
 
 use alloc::boxed::Box;
 
-use skein_lib::List;
+use skein_lib::{List, usize_of};
 
 use crate::Token;
 
@@ -111,10 +111,10 @@ impl Document {
 
     /// Admits owned records without copying; each ordinary record must point into `text`.
     pub fn from_parts(text: Box<[u8]>, tokens: Box<[Compact]>, limits: &Limits) -> Result<Document, Error> {
-        if tokens.len() > usize::try_from(limits.tokens).expect("u32 fits usize") {
+        if tokens.len() > usize_of(limits.tokens) {
             return Err(Error::TooManyTokens);
         }
-        if text.len() > usize::try_from(limits.text).expect("u32 fits usize") {
+        if text.len() > usize_of(limits.text) {
             return Err(Error::TooMuchText);
         }
         for record in &tokens {
@@ -126,7 +126,7 @@ impl Document {
                 }
                 Kind::Key | Kind::String | Kind::Number => {
                     let end = record.end().ok_or(Error::Range)?;
-                    if usize::try_from(end).expect("u32 fits usize") > text.len() {
+                    if usize_of(end) > text.len() {
                         return Err(Error::Range);
                     }
                 }
@@ -410,8 +410,8 @@ impl Builder {
     }
 
     pub(crate) fn text(&self, record: &Compact) -> &[u8] {
-        let start = usize::try_from(record.start).expect("u32 fits usize");
-        let end = usize::try_from(record.end().expect("the builder checked each text append")).expect("u32 fits usize");
+        let start = usize_of(record.start);
+        let end = usize_of(record.end().expect("the builder checked each text append"));
         self.text.as_slice().get(start..end).expect("the builder's own text offsets")
     }
 

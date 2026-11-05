@@ -6,7 +6,7 @@
 
 use alloc::boxed::Box;
 
-use skein_lib::{Civil, Decimal, Wall, Writer};
+use skein_lib::{Civil, Decimal, Wall, Writer, usize_of};
 
 use super::{Body, Limits, Rejection, Response};
 use crate::header::{is_field_byte, is_tchar};
@@ -152,7 +152,7 @@ pub(super) fn write(
         Some(len) if len <= limits.response => len,
         Some(_) | None => return Err(Refusal::TooLong),
     };
-    let mut head = Writer::new(usize::try_from(len).expect("a u32 fits a usize"));
+    let mut head = Writer::new(usize_of(len));
     put(&mut head, VERSION);
     put(&mut head, status.as_bytes());
     put(&mut head, b" ");
@@ -387,7 +387,7 @@ pub(crate) fn chunk_room(n: u32) -> Option<u32> {
 pub(super) fn chunk(bytes: &[u8]) -> Box<[u8]> {
     let len = u32::try_from(bytes.len()).expect("a piece within Limits::send");
     let room = chunk_room(len).expect("a chunk within Limits::send's room");
-    let mut chunk = Writer::new(usize::try_from(room).expect("a u32 fits a usize"));
+    let mut chunk = Writer::new(usize_of(room));
     let digits = hex_digits(len);
     // The digits, most significant first: a nibble at a time, bounded by
     // the eight a u32 has.

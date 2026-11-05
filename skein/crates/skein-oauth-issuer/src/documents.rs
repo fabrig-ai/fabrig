@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::{
     Duration, Secret, Wall, Writer,
     base64::{self, Alphabet},
-    bytes,
+    bytes, usize_of,
 };
 
 const JSON: JsonLimits = JsonLimits { depth: 4, length: u32::MAX };
@@ -257,7 +257,7 @@ fn write_thumbprint(out: &mut Encoder, modulus: &[u8], exponent: &[u8]) {
 pub(crate) fn encoded(input: &[u8]) -> Result<Box<[u8]>, Error> {
     let len =
         base64::encoded_len(Alphabet::Url, u32::try_from(input.len()).or(Err(Error::Limits))?).ok_or(Error::Limits)?;
-    let mut out = Writer::new(usize::try_from(len).expect("u32 fits usize"));
+    let mut out = Writer::new(usize_of(len));
     base64::encode(Alphabet::Url, input, &mut out).or(Err(Error::Limits))?;
     Ok(out.finish())
 }

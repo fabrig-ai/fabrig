@@ -1002,9 +1002,7 @@ fn skip_respects_its_page_and_request_bounds() {
     );
     assert!(out.is_empty());
     assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped);
-    for address in
-        [Address::Settings { project: f::PROJECT }, Address::Chats { filter: crate::ChatsFilter::All, start: false }]
-    {
+    for address in [Address::Settings { project: f::PROJECT }, Address::Chats { filter: crate::ChatsFilter::All }] {
         event(&mut f.root, Event::Went { place: Place::Address(address) });
         let serial = f.root.pages().serial;
         assert!(event(&mut f.root, Event::Act { action: Action::Pages(Act::SkipToBegin) }).is_empty());

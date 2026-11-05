@@ -33,7 +33,7 @@ are named as theirs.
   what it builds and which of `reference-code-production.md`, section
   14's settings it configures.
 - **Each milestone's state** is in section 3's table, kept current. When
-  M10 passes, the drafts' statuses hold none of these entries, and this
+  rung C passes, the drafts' statuses hold none of these entries, and this
   file goes with the drafts (`DESIGN.md`, section 3).
 
 ## 2. How a milestone runs
@@ -75,7 +75,7 @@ are named as theirs.
 | M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | done: M7a landed 2026-11-02 21:34Z, M7b 2026-11-03 07:18Z |
 | M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | done: landed 2026-11-02 22:33Z (`2841e59d0a`) |
 | M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | done: landed 2026-11-03 08:28Z (`677e405ca1`) |
-| M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | done 2026-11-03 (`4c739315c4`) |
+| M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | done: landed 2026-11-03 (`4c739315c4`); its walk, rung C, comes last |
 
 N9 and N17 are the drafts' Later; N11 is accepted and asks no work.
 Each entry's Design names the documents and sections its designers
@@ -318,8 +318,9 @@ section 14 it adds.
 - **Walk:** rung C (`v0.1.0.md`, 2.1 and section 7): `reference-case.md`,
   acts 1 to 5, act by act, then whole; both plans; opened once rung B2
   passes.
-- **Done** when C passes and the three drafts' statuses are empty; the
-  drafts' own close-out follows (`DESIGN.md`, section 4).
+- **Done** when it has landed on main, as every milestone. Rung C, its
+  walk, follows; when C passes and the three drafts' statuses are empty,
+  the drafts' own close-out follows (`DESIGN.md`, section 4).
 
 ## 4. Order, and what runs side by side
 
@@ -377,7 +378,7 @@ section 14 it adds.
   pages are rung W's.
 - **After the case:** fabrig's own drafts carried out by temper, on
   fabrig's forge, GitHub, a rung behind (`v0.1.0.md`, 2.2 and section 6).
-  It gets a story of its own once M10 passes.
+  It gets a story of its own once rung C passes.
 
 ## 7. Open questions
 

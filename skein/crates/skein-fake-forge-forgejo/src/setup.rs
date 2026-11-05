@@ -7,7 +7,7 @@ use skein_forge::forgejo::{
     request::Request,
     server::{self, Answer},
 };
-use skein_lib::{List, Secret, Writer, bytes};
+use skein_lib::{List, Secret, Writer, bytes, usize_of};
 mod accounts;
 mod collaborators;
 mod creation;
@@ -80,8 +80,8 @@ impl Store {
             next_hook: 1,
             next_account: 1,
             next_token: 1,
-            string_bytes: usize::try_from(limits.documents.string_bytes).expect("u32 fits"),
-            secret_bytes: usize::try_from(limits.http.head).expect("u32 fits"),
+            string_bytes: usize_of(limits.documents.string_bytes),
+            secret_bytes: usize_of(limits.http.head),
         }
     }
     #[must_use]
@@ -447,7 +447,7 @@ impl Store {
 fn remove<T>(rows: &mut List<T>, at: u32) {
     let old = core::mem::replace(rows, List::with_capacity(rows.capacity()));
     for (index, row) in old.into_boxed().into_iter().enumerate() {
-        if index != usize::try_from(at).expect("u32 fits") {
+        if index != usize_of(at) {
             rows.push(row).ok().expect("same table capacity");
         }
     }

@@ -53,10 +53,10 @@ fn name() -> Name {
 /// one-byte name.
 fn authority() -> Authority {
     Authority {
-        cwd: Box::new([name()]),
+        cwd: Some(name()),
         repos: Box::new([Directory {
             host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: Box::new([name()]),
+            mount: name(),
             root: Token::new(1),
             writable: false,
         }]),

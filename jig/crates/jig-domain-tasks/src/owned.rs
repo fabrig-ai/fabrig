@@ -229,12 +229,12 @@ fn contract_bytes(contract: &Contract) -> Option<u64> {
 }
 
 fn kind_bytes(kind: &crate::MessageKind) -> Option<u64> {
-    match kind {
-        crate::MessageKind::Result(crate::ResultKind::Verdict { fields, .. }) => {
+    match kind.result() {
+        Some(crate::ResultKind::Verdict { fields, .. }) => {
             bytes(crate::verdict::fields_bytes(fields)?)?.checked_add(bytes(size_of_val(&**fields))?)
         }
-        crate::MessageKind::Result(crate::ResultKind::Approved { state, .. }) => bytes(state.len()),
-        crate::MessageKind::Result(
+        Some(crate::ResultKind::Approved { state, .. }) => bytes(state.len()),
+        Some(
             crate::ResultKind::Report
             | crate::ResultKind::Job
             | crate::ResultKind::NoChange
@@ -242,35 +242,15 @@ fn kind_bytes(kind: &crate::MessageKind) -> Option<u64> {
             | crate::ResultKind::Failed
             | crate::ResultKind::Cancelled,
         )
-        | crate::MessageKind::Escalation { .. }
-        | crate::MessageKind::Proposal { .. }
-        | crate::MessageKind::PersonStalled { .. }
-        | crate::MessageKind::SettingsDecision { .. }
-        | crate::MessageKind::ProposalDecision { .. }
-        | crate::MessageKind::Words
-        | crate::MessageKind::EffectNotMade { .. }
-        | crate::MessageKind::FinishRequested { .. }
-        | crate::MessageKind::Amendment { .. }
-        | crate::MessageKind::Met { .. }
-        | crate::MessageKind::QuestionAnswered { .. }
-        | crate::MessageKind::QuestionOwed
-        | crate::MessageKind::NothingAwaited
-        | crate::MessageKind::QuestionEnded { .. }
-        | crate::MessageKind::Question
-        | crate::MessageKind::Answer { .. }
-        | crate::MessageKind::Notice { .. }
-        | crate::MessageKind::Timer { .. }
-        | crate::MessageKind::News { .. } => Some(0),
+        | None => Some(0),
     }
 }
 
 fn word_bytes(word: &crate::Word) -> Option<u64> {
     let payload = bytes(word.payload_bytes()?)?;
-    match &word.kind {
-        crate::MessageKind::Result(crate::ResultKind::Verdict { fields, .. }) => {
-            payload.checked_add(bytes(size_of_val(&**fields))?)
-        }
-        crate::MessageKind::Result(
+    match word.kind.result() {
+        Some(crate::ResultKind::Verdict { fields, .. }) => payload.checked_add(bytes(size_of_val(&**fields))?),
+        Some(
             crate::ResultKind::Approved { .. }
             | crate::ResultKind::Report
             | crate::ResultKind::Job
@@ -279,25 +259,7 @@ fn word_bytes(word: &crate::Word) -> Option<u64> {
             | crate::ResultKind::Failed
             | crate::ResultKind::Cancelled,
         )
-        | crate::MessageKind::Escalation { .. }
-        | crate::MessageKind::Proposal { .. }
-        | crate::MessageKind::PersonStalled { .. }
-        | crate::MessageKind::SettingsDecision { .. }
-        | crate::MessageKind::ProposalDecision { .. }
-        | crate::MessageKind::Words
-        | crate::MessageKind::EffectNotMade { .. }
-        | crate::MessageKind::FinishRequested { .. }
-        | crate::MessageKind::Amendment { .. }
-        | crate::MessageKind::Met { .. }
-        | crate::MessageKind::QuestionAnswered { .. }
-        | crate::MessageKind::QuestionOwed
-        | crate::MessageKind::NothingAwaited
-        | crate::MessageKind::QuestionEnded { .. }
-        | crate::MessageKind::Question
-        | crate::MessageKind::Answer { .. }
-        | crate::MessageKind::Notice { .. }
-        | crate::MessageKind::Timer { .. }
-        | crate::MessageKind::News { .. } => Some(payload),
+        | None => Some(payload),
     }
 }
 

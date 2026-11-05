@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{Branches, Limits, Observation, Operation, api as a, promises::Recorded};
 use skein_json::{Token, tokenizer as json};
-use skein_lib::{List, Time, base64, bytes::copy_of};
+use skein_lib::{List, Time, base64, bytes::copy_of, usize_of};
 
 /// A refused member, and its observation variant when the tag is known.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -870,7 +870,7 @@ fn error(tokens: &List<Token>, at: u32, variant: &[u8]) -> Result<a::Error, Refu
 
 fn name(tokens: &List<Token>, at: u32, member: &[u8], variant: &[u8], max: u32) -> Result<Box<[u8]>, Refusal> {
     let bytes = text(tokens, at, member, variant)?;
-    if bytes.len() > usize::try_from(max).expect("u32 fits usize") {
+    if bytes.len() > usize_of(max) {
         return Err(refuse(variant, member, Reason::Limit));
     }
     Ok(copy_of(bytes))

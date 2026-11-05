@@ -181,10 +181,7 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
     let view = f::page_view(&root);
     let row = f::find(view.tree(), Role::Disclosure, b"Playground forge").unwrap();
     assert!(!view.tree().nodes().iter().find(|n| n.id == row).unwrap().states.as_slice().contains(&State::Expanded));
-    f::root_event(
-        &mut root,
-        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
-    );
+    f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All }) });
     assert!(d::forge::listed::playground(&root).is_some());
     let root = f::playground_forges_root(Address::Forges, cf::rows(cf::connected(), w::Offer::Offered));
     assert!(d::forge::listed::playground(&root).is_none());

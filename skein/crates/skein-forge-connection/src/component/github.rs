@@ -19,7 +19,7 @@ use skein_forge::{
         request::Scope,
     },
 };
-use skein_lib::{Duration, Env, Lifecycle, Queue};
+use skein_lib::{Duration, Env, Lifecycle, Queue, usize_of};
 
 /// What a GitHub forge's own connection is working on (skein/docs/design/forge-connection.md, 3.4 and 8.3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -369,7 +369,7 @@ impl Common {
         match answer {
             Ok(minted) => {
                 if !crate::limits::header_value(minted.token.expose())
-                    || minted.token.len() > usize::try_from(env.limits.token_bytes).expect("token bound")
+                    || minted.token.len() > usize_of(env.limits.token_bytes)
                     || minted.expires <= env.wall
                 {
                     Self::github_wait(base, gh, env);

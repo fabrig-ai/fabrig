@@ -1,6 +1,7 @@
 //! Fixed payload accounting for forge values (forge.md, section 3.7).
 use crate::api::{self, Answer, File, Op, Pull, Read, Summary, Write};
 use alloc::boxed::Box;
+use skein_lib::len_u64;
 
 /// Fixed bytes for one summary list element.
 pub const SUMMARY_BYTES: usize = 128;
@@ -49,8 +50,9 @@ const _: () = {
     assert!(STRING_BYTES >= size_of::<Box<[u8]>>(), "string width covers native storage");
     assert!(ID_BYTES >= size_of::<u64>(), "id width covers native storage");
 };
+#[expect(clippy::unnecessary_wraps, reason = "keep the accounting signature when widening a native length")]
 fn bytes(value: &[u8]) -> Option<u64> {
-    u64::try_from(value.len()).ok()
+    Some(len_u64(value.len()))
 }
 fn optional(value: Option<&[u8]>) -> Option<u64> {
     match value {

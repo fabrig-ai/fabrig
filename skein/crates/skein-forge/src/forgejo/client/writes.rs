@@ -8,11 +8,11 @@ use crate::forgejo::{
 };
 use alloc::boxed::Box;
 use skein_json::writer::{self, Encoder};
-use skein_lib::Writer;
+use skein_lib::{Writer, usize_of};
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
     let mut measure = Target { length: 0, writer: None };
     let (method, has_body) = target(request, &mut measure);
-    if measure.length > usize::try_from(limits.target_bytes).expect("u32 fits") {
+    if measure.length > usize_of(limits.target_bytes) {
         return Err(Refusal::TooLong);
     }
     let mut out = Target { length: 0, writer: Some(Writer::new(measure.length)) };

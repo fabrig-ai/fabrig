@@ -5,7 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use skein_io::kernel::{Complete, Done, Error, Family, Fd, Op, OpenHow, Submit};
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, Token, usize_of};
 
 use crate::system::Poller;
 use crate::{Config, OpenError, Wait, calls, system};
@@ -77,7 +77,7 @@ impl Readiness {
         }
         system::process::block_sigpipe().map_err(OpenError::Setup)?;
         let poller = Poller::open(config.operations).map_err(OpenError::Setup)?;
-        let capacity = usize::try_from(config.operations).expect("u32 fits usize");
+        let capacity = usize_of(config.operations);
         let slots = (0..config.operations).map(|_| Slot { generation: 0, record: None, result: None }).collect();
         Ok(Self {
             slots,
@@ -105,7 +105,7 @@ impl Readiness {
     }
 
     fn slot(&mut self, index: u32) -> &mut Slot {
-        self.slots.get_mut(usize::try_from(index).expect("u32 fits usize")).expect("an allocated slot")
+        self.slots.get_mut(usize_of(index)).expect("an allocated slot")
     }
 
     fn finish(&mut self, index: u32, result: Result<Done, Error>) {
@@ -287,7 +287,7 @@ impl Readiness {
     ) -> bool {
         let record = self.slot(index).record.as_ref().expect("an in-flight record");
         let nonblocking = side(&record.kind).is_some_and(|(fd, _)| self.nonblocking.contains(&fd));
-        let slot = self.slots.get_mut(usize::try_from(index).expect("u32 fits usize")).expect("an allocated slot");
+        let slot = self.slots.get_mut(usize_of(index)).expect("an allocated slot");
         let kind = &mut slot.record.as_mut().expect("an in-flight record").kind;
         let mut again = 0;
         let result = loop {
@@ -503,7 +503,7 @@ fn perform_call(kind: &mut Op, resumed: bool, nonblocking: bool, listing: &mut s
         }
         Op::Recv { fd, buf } => system::recv(*fd, buf).map(Done::Count),
         Op::Send { fd, bytes, from } => {
-            let from = usize::try_from(*from).expect("u32 fits usize");
+            let from = usize_of(*from);
             system::send(*fd, bytes.get(from..).expect("a valid Send has bytes left")).map(Done::Count)
         }
         Op::Shutdown { fd } => system::shutdown(*fd).map(|()| Done::Nothing),
@@ -548,7 +548,7 @@ fn perform_call(kind: &mut Op, resumed: bool, nonblocking: bool, listing: &mut s
 }
 
 fn remaining(bytes: &[u8], from: u32) -> &[u8] {
-    bytes.get(usize::try_from(from).expect("u32 fits usize")..).expect("a valid write has bytes left")
+    bytes.get(usize_of(from)..).expect("a valid write has bytes left")
 }
 
 #[cfg(test)]

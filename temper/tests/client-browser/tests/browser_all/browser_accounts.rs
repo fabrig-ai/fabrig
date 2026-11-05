@@ -12,7 +12,7 @@ fn the_accounts_page_returns_after_a_key_send() {
         Step::Person(PersonStep::Type { find: Find::exactly_named(Role::TextField, name), words: Box::from(value) })
     };
     let accounts = || Find::exactly_named(Role::Heading { level: 1 }, b"Connect a model");
-    let chats = || Find::exactly_named(Role::Heading { level: 1 }, b"Chats");
+    let chats = || Find::named(Role::Heading { level: 1 }, b"Talk to an agent");
     let mut script = Script::new(Box::new([
         see(Find::exactly_named(Role::Link, b"Set up temper")),
         Step::Person(PersonStep::Go { address: Box::from(b"/accounts/connect".as_slice()) }),

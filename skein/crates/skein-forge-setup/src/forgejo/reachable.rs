@@ -12,7 +12,7 @@ use skein_forge::forgejo::{
     document::{Document, Row},
     request::{Page, Request},
 };
-use skein_lib::{Decimal, List, Queue, Secret, bytes};
+use skein_lib::{Decimal, List, Queue, Secret, bytes, usize_of};
 
 /// One repository of a picker's page (forge-setup.md, 4.8, step 4).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -179,7 +179,7 @@ impl Reachable {
                 return Err(unexpected(other));
             }
         };
-        let limit = usize::try_from(self.limit).expect("u32 fits");
+        let limit = usize_of(self.limit);
         if rows.len() > limit {
             return Err(Why::Unexpected);
         }

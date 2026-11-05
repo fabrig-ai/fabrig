@@ -93,7 +93,7 @@ pub struct Accounts {
 #[must_use]
 pub fn accounts_valid(limits: &oauth::Limits) -> bool {
     limits.accounts.checked_mul(4).is_some()
-        && crate::native_io_valid(&limits.io)
+        && io::valid(&limits.io)
         // Skein's client owns the document/record codec and parser checks.
         && skein_oauth::Client::new(limits.client).is_ok()
         && limits.http.head >= 2

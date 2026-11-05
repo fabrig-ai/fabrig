@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_http::{Header, Method, client as http};
 use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Duration, Env, List, Queue, Time, bytes};
+use skein_lib::{Duration, Env, List, Queue, Time, bytes, len_u64};
 use skein_link::{self as link, Link, Moved, Start, Upload};
 use skein_oauth as oauth;
 use skein_tls::client as tls;
@@ -211,7 +211,7 @@ impl Web {
             target: bytes::copy_of(target),
             headers: headers.into_boxed(),
             body: if method == Method::Post {
-                http::Body::Length(u64::try_from(request.body.len()).ok()?)
+                http::Body::Length(len_u64(request.body.len()))
             } else {
                 http::Body::None
             },
