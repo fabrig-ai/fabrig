@@ -385,7 +385,13 @@ fn demo_answers_the_latest_request() {
 fn template() -> Value {
     let template: Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
     let mut value = fixture();
-    value["engine"]["llm"]["models"][1] = template["engine"]["llm"]["models"][1].clone();
+    value["engine"]["llm"]["models"][1] = template["engine"]["llm"]["models"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|model| model["name"] == "demo")
+        .unwrap()
+        .clone();
     value["application"]["demo"] = template["application"]["demo"].clone();
     value["application"]["demo"]["llm"]["listen"]["socket"] = json!("127.0.0.1:8370");
     value
