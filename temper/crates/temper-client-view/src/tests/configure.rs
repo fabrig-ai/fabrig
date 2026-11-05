@@ -11,14 +11,28 @@ use jig_client::contract as c;
 use skein_ui::{Act, Node, Role, State, Style, Tree};
 use temper_client_domain::{self as d, Address, pages};
 
-const TITLE: &[u8] = b"Tell temper how you work";
-const ENTRY: &[u8] = b"How do you work?";
-const STARTERS: [&[u8]; 3] = [
+const TITLE: &[u8] = b"Configure temper";
+const ENTRY: &[u8] = b"Describe how you work, or what to change";
+const STARTERS: [&[u8]; 4] = [
     b"I work alone on small changes: one chat per change, landed once CI passes.",
     b"I write a design draft first; agents plan its tasks and land them together once checked.",
+    b"Use Claude for reviews and my ChatGPT plan for everything else.",
     b"Not sure yet. What can temper do?",
 ];
-const AGENT: &str = "temper’s configuring agent. Describe how you work, in your own words or by pointing at a document. It proposes how temper will run that; nothing changes until you accept.";
+const QUESTION: &str = "How should temper run Shop?";
+const LEDE: &str = "Tell it how you work, in your own words or by pointing at a document.";
+const NOTE: &str = "It proposes the settings; nothing changes until you accept.";
+const SETS: [(&str, &str); 3] = [
+    ("How work runs", "how chats and goals start, are checked and land"),
+    ("Models", "which plan or model each role runs on"),
+    ("Approvals", "what waits for you, and what lands on its own"),
+];
+const CARDS: [(&str, &str); 3] = [
+    ("Small changes, alone", "One chat per change, landed once CI passes."),
+    ("A design draft first", "Agents plan its tasks; they land together."),
+    ("Models by role", "Claude for reviews, my ChatGPT plan for the rest."),
+];
+const UNSURE: &str = "Not sure yet? Ask what temper can do.";
 const DRAFT: &[u8] = b"My way of working";
 const UNKNOWN: u32 = 99;
 
@@ -57,10 +71,28 @@ fn disabled(node: &Node) -> bool {
     node.states.as_slice().contains(&State::Disabled)
 }
 
+fn starters(tree: &Tree) -> Vec<&Node> {
+    styled(tree, look::STARTER_WAYS).iter().filter(|n| n.role == Role::Button).collect()
+}
+fn subtree<'a>(tree: &'a Tree, node: &Node) -> &'a [Node] {
+    let at = tree.nodes().iter().position(|n| n.id == node.id).unwrap();
+    let end = at.checked_add(usize::try_from(node.size).unwrap()).unwrap();
+    &tree.nodes()[at..end]
+}
+fn leaves(tree: &Tree, node: &Node) -> Vec<Vec<u8>> {
+    children(subtree(tree, node))
+        .iter()
+        .map(|n| {
+            assert_eq!(n.role, Role::Text);
+            n.text.iter().flat_map(|run| run.text.iter().copied()).collect()
+        })
+        .collect()
+}
+
 #[test]
 fn requested_main_keeps_order_classes_and_phone_parts() {
     let root = root();
-    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+    for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
         let tree = view.tree();
         assert_eq!(styled(tree, look::SESSION)[0].styles.as_slice(), [look::MAIN, look::SESSION]);
         for (style, expected) in [
@@ -77,7 +109,29 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
             (look::TRAIL, vec![(Role::Link, vec![]), (Role::Link, vec![])]),
             (look::CONVO, vec![(Role::Slot, vec![look::THREAD]), (Role::Form, vec![look::SESSION_FOOT])]),
             (look::THREAD, vec![(Role::Slot, vec![look::STARTER])]),
-            (look::STARTER, vec![(Role::Paragraph, vec![]), (Role::List, vec![look::STARTERS])]),
+            (
+                look::STARTER,
+                vec![
+                    (Role::Heading { level: 2 }, vec![]),
+                    (Role::Paragraph, vec![look::STARTER_LEDE]),
+                    (Role::List, vec![look::STARTER_SETS]),
+                    (Role::Paragraph, vec![look::STARTER_NOTE]),
+                    (Role::Region, vec![look::STARTER_WAYS]),
+                ],
+            ),
+            (look::STARTER_SETS, vec![(Role::Item, vec![]); 3]),
+            (
+                look::STARTER_WAYS,
+                if browser {
+                    vec![
+                        (Role::Heading { level: 3 }, vec![]),
+                        (Role::List, vec![look::STARTERS]),
+                        (Role::Button, vec![look::STARTER_UNSURE]),
+                    ]
+                } else {
+                    vec![(Role::List, vec![look::STARTERS]), (Role::Button, vec![look::STARTER_UNSURE])]
+                },
+            ),
             (look::STARTERS, vec![(Role::Item, vec![]), (Role::Item, vec![]), (Role::Item, vec![])]),
             (
                 look::SESSION_FOOT,
@@ -100,29 +154,37 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
             (look::BYLINE, b"temper-byline"),
             (look::STARTER, b"temper-starter"),
             (look::STARTERS, b"temper-starters"),
+            (look::STARTER_LEDE, b"temper-starter-lede"),
+            (look::STARTER_SETS, b"temper-starter-sets"),
+            (look::STARTER_NOTE, b"temper-starter-note"),
+            (look::STARTER_WAYS, b"temper-starter-ways"),
+            (look::STARTER_UNSURE, b"temper-starter-unsure"),
             (look::THREAD, b"temper-thread"),
         ] {
             assert_eq!(look::NAMES.style(style), Some(name));
         }
         assert_eq!(styled(tree, look::CRUMBS)[0].name.as_deref(), Some(b"Where".as_slice()));
         assert_eq!(styled(tree, look::CONVO)[0].name.as_deref(), Some(b"Conversation".as_slice()));
-        assert_eq!(styled(tree, look::STARTERS)[0].name.as_deref(), Some(b"Ways to begin".as_slice()));
+        assert_eq!(styled(tree, look::STARTERS)[0].name, None);
+        assert_eq!(styled(tree, look::STARTER_WAYS)[0].name.as_deref(), Some(b"Ways to begin".as_slice()));
+        assert_eq!(styled(tree, look::STARTER_SETS)[0].name.as_deref(), Some(b"What it sets".as_slice()));
+        for (style, words) in [(look::STARTER_LEDE, LEDE), (look::STARTER_NOTE, NOTE)] {
+            let paragraph = &styled(tree, style)[0];
+            assert_eq!(paragraph.name, None);
+            assert_eq!(leaves(tree, paragraph), [words.as_bytes()]);
+        }
         assert_eq!(styled(tree, look::SESSION_FOOT)[0].name.as_deref(), Some(TITLE));
         assert_eq!(named(tree, Role::Heading { level: 1 }, TITLE).name.as_deref(), Some(TITLE));
-        assert_eq!(styled(tree, look::STARTER)[1].name.as_deref(), Some(AGENT.as_bytes()));
+        assert_eq!(styled(tree, look::STARTER)[1].name.as_deref(), Some(QUESTION.as_bytes()));
         assert_eq!(
             styled(tree, look::SESSION_HINT)[0].name.as_deref(),
             Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line".as_slice())
         );
-        let starters: Vec<_> = styled(tree, look::STARTERS)
-            .iter()
-            .filter(|node| node.role == Role::Button)
-            .map(|node| node.name.as_deref())
-            .collect();
-        assert_eq!(starters, STARTERS.map(Some));
-        for words in STARTERS {
-            assert!(!disabled(named(tree, Role::Button, words)));
+        assert_eq!(starters(tree).len(), 4);
+        for node in starters(tree) {
+            assert!(!disabled(node));
         }
+        assert_eq!(named(tree, Role::Button, UNSURE.as_bytes()).styles.as_slice(), [look::STARTER_UNSURE]);
         assert!(f::find(tree, Role::Disclosure, b"Change model").is_none());
     }
 }
@@ -132,8 +194,8 @@ fn starters_composer_and_path_emit_the_requested_acts() {
     let mut root = root();
     input(&mut root, pages::Act::ChatWords { words: DRAFT.into() });
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        for words in STARTERS {
-            let node = named(view.tree(), Role::Button, words).id;
+        let buttons: Vec<_> = starters(view.tree()).iter().map(|n| n.id).collect();
+        for (node, words) in buttons.into_iter().zip(STARTERS) {
             assert_eq!(
                 crate::act(&mut view, node, Act::Press),
                 Some(d::Action::Pages(pages::Act::Starter { words: words.into() }))
@@ -186,12 +248,21 @@ fn pending_starts_disable_starters_and_send_keep_the_words() {
         input(&mut root, start);
         assert!(root.pages().chats().unwrap().start.is_some());
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-            for words in STARTERS.into_iter().chain([b"Send".as_slice()]) {
-                let node = named(view.tree(), Role::Button, words);
-                assert!(disabled(node), "{words:?}");
-                let id = node.id;
+            let buttons: Vec<_> = starters(view.tree())
+                .iter()
+                .map(|n| {
+                    assert!(disabled(n), "{n:?}");
+                    n.id
+                })
+                .collect();
+            assert_eq!(buttons.len(), 4);
+            for id in buttons {
                 assert_eq!(crate::act(&mut view, id, Act::Press), None);
             }
+            let send = named(view.tree(), Role::Button, b"Send");
+            assert!(disabled(send));
+            let id = send.id;
+            assert_eq!(crate::act(&mut view, id, Act::Press), None);
             let entry = named(view.tree(), Role::TextArea, ENTRY);
             assert_eq!(entry.value.as_ref().unwrap().text.as_ref(), expected);
             assert!(!entry.states.as_slice().contains(&State::SubmitsOnEnter));
@@ -255,28 +326,65 @@ fn refused_start_keeps_words_and_puts_refusal_under_composer() {
 }
 
 #[test]
-fn terminal_prints_the_path_agent_starters_and_composer() {
+fn browser_pairs_are_two_leaves_and_terminal_pairs_are_one_line() {
+    let root = root();
+    for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+        let tree = view.tree();
+        let items = children(styled(tree, look::STARTER_SETS));
+        let buttons = starters(tree);
+        for (node, (term, line)) in items.into_iter().zip(SETS).chain(buttons.into_iter().zip(CARDS)) {
+            assert_eq!(node.name, None);
+            let expected = if browser {
+                vec![term.as_bytes().to_vec(), line.as_bytes().to_vec()]
+            } else {
+                vec![format!("{term}: {line}").into_bytes()]
+            };
+            assert_eq!(leaves(tree, node), expected);
+        }
+    }
+}
+
+#[test]
+fn question_uses_the_project_name() {
+    for name in [b"Hello".as_slice(), b"Another project"] {
+        let (root, _, _, _, _) = f::root_at_full(Address::Configure { project: f::PROJECT }, &f::domain_limits(), name);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let question = format!("How should temper run {}?", String::from_utf8_lossy(name));
+            named(view.tree(), Role::Heading { level: 2 }, question.as_bytes());
+        }
+    }
+}
+
+#[test]
+fn terminal_prints_the_path_opening_starters_and_composer_in_order() {
     let root = root();
     let view = f::page_view(&root);
     let out = print(&view);
     let text = String::from_utf8_lossy(out.text.as_slice());
-    for words in
-        ["Where:", "Tell temper how you work", "Conversation:", AGENT, "Ways to begin:", "How do you work?", "Send"]
-    {
-        assert!(text.contains(words), "missing {words}: {text}");
-    }
-    for words in STARTERS {
-        let node = named(view.tree(), Role::Button, words);
-        let number = out.numbers.as_slice().iter().position(|id| *id == node.id).unwrap().checked_add(1).unwrap();
-        assert!(text.contains(&format!("[{number}] {}", String::from_utf8_lossy(words))), "{text}");
-    }
+    let numbered = |node: &Node, words: &str| {
+        let number = out.numbers.as_slice().iter().position(|id| *id == node.id).unwrap() + 1;
+        format!("[{number}] {words}")
+    };
+    // skein-ui-text prints the level-1 heading as the page title.
+    let mut expected = vec!["== Configure temper ==".to_owned(), "Where:".to_owned()];
     for node in children(styled(view.tree(), look::TRAIL)) {
-        let number = out.numbers.as_slice().iter().position(|id| *id == node.id).unwrap().checked_add(1).unwrap();
-        assert!(
-            text.contains(&format!("[{number}] {}", String::from_utf8_lossy(node.name.as_deref().unwrap()))),
-            "{text}"
-        );
+        expected.push(numbered(node, &String::from_utf8_lossy(node.name.as_deref().unwrap())));
     }
+    expected.extend(["Conversation:", QUESTION, LEDE, "What it sets:"].map(str::to_owned));
+    expected.extend(SETS.map(|(term, line)| format!("{term}: {line}")));
+    expected.extend([NOTE, "Ways to begin:"].map(str::to_owned));
+    for (node, (title, line)) in starters(view.tree()).into_iter().zip(CARDS) {
+        expected.push(numbered(node, &format!("{title}: {line}")));
+    }
+    expected.push(numbered(named(view.tree(), Role::Button, UNSURE.as_bytes()), UNSURE));
+    expected.extend([String::from_utf8_lossy(ENTRY).into_owned(), "Send".to_owned()]);
+    let mut remaining = text.as_ref();
+    for words in expected {
+        let at = remaining.find(&words).unwrap_or_else(|| panic!("missing or out of order {words}: {text}"));
+        remaining = &remaining[at + words.len()..];
+    }
+    assert_eq!(text.matches("Ways to begin:").count(), 1, "{text}");
+    assert!(!text.contains("temper’s configuring agent"));
 }
 
 #[test]
@@ -310,7 +418,7 @@ fn unlisted_project_says_what_home_says_in_both_shells() {
             Some(d::Action::Pages(pages::Act::Go { address: Address::Chats { filter: d::ChatsFilter::All } }))
         );
         assert!(f::find(view.tree(), Role::TextArea, ENTRY).is_none());
-        assert!(f::find(view.tree(), Role::Button, STARTERS[0]).is_none());
+        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::STARTER)));
     }
 }
 

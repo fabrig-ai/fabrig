@@ -549,7 +549,7 @@ fn grants(grants: &[agent::Grant]) -> Box<[smith::Grant]> {
 #[cfg(test)]
 mod notices;
 
-// The process and worker see the same writable mount when the process exits.
+// Agent edits cross the writable mount; git metadata belongs to the worker.
 fn unmount(source: &Disk, destination: &mut Checkout, mounts: &[(Vec<u8>, Vec<u8>)]) {
     let files = source.files();
     for (local, remote) in mounts {
@@ -558,6 +558,9 @@ fn unmount(source: &Disk, destination: &mut Checkout, mounts: &[(Vec<u8>, Vec<u8
             .keys()
             .filter_map(|path| {
                 let relative = path.strip_prefix(remote.as_slice())?;
+                if relative.starts_with(b".git/") {
+                    return None;
+                }
                 (!files.contains_key([local.as_slice(), relative].concat().as_slice())).then(|| path.to_vec())
             })
             .collect::<Vec<_>>();
@@ -565,7 +568,9 @@ fn unmount(source: &Disk, destination: &mut Checkout, mounts: &[(Vec<u8>, Vec<u8
             destination.remove(&path);
         }
         for (path, content) in &files {
-            if let Some(relative) = path.strip_prefix(local.as_slice()) {
+            if let Some(relative) = path.strip_prefix(local.as_slice())
+                && !relative.starts_with(b".git/")
+            {
                 destination.write(&[remote.as_slice(), relative].concat(), content);
             }
         }

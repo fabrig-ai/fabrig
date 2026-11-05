@@ -11,10 +11,6 @@
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no
   reason is recorded.
-  6: `crates/skein-fail-stop`, `crates/skein-fake-forge-forgejo`
-  (a memory suite) and `crates/skein-forge` have a `tests/` directory,
-  where 6 puts what drives a crate from outside under `tests/`; no reason
-  is recorded.
   6: step tests belong in `src/tests.rs` and `src/tests/`, but
   `skein-shell/src/listener_calls.rs` loads sibling `listener_tests.rs`
   through `#[path]`, as other crates load `*_tests.rs`, and

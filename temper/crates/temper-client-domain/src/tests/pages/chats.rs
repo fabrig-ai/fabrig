@@ -563,7 +563,11 @@ pub(super) fn chat_line() -> TaskLine {
 }
 
 fn opened_chats() -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
-    use crate::{Address, Place};
+    open_chat_rows(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::All })
+}
+
+fn open_chat_rows(frame: Me, address: crate::Address) -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
+    use crate::Place;
     let limits = fixtures::limits();
     let env = fixtures::env(&limits);
     let mut root = crate::unlinked(&limits, fixtures::SEED);
@@ -574,20 +578,12 @@ fn opened_chats() -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
         &env,
         crate::Event::Client {
             event: Event::Up {
-                up: jig_client::Up::Watched {
-                    watch: me,
-                    event: WatchEvent::Delivered(Delivery::Me(Box::new(fixtures::chats::me()))),
-                },
+                up: jig_client::Up::Watched { watch: me, event: WatchEvent::Delivered(Delivery::Me(Box::new(frame))) },
             },
         },
         &mut out,
     );
-    crate::step(
-        &mut root,
-        &env,
-        crate::Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All }) },
-        &mut out,
-    );
+    crate::step(&mut root, &env, crate::Event::Went { place: Place::Address(address) }, &mut out);
     let mut watch = None;
     let mut read = None;
     while let Some(request) = out.pop() {
@@ -730,4 +726,88 @@ fn a_suggestion_replaces_new_chat_with_its_conversation() {
         },
     });
     assert_eq!(page.out.pop(), Some(Request::Replace { address: crate::Address::Chat { task: fixtures::acts::TASK } }));
+}
+
+#[test]
+fn settings_selects_the_newest_open_configuring_chat() {
+    const OTHER_PROJECT: u32 = 91;
+    const NEWER: u64 = 42;
+    let mut open = chat_line();
+    open.chip.executor = ChipExecutor::Agent { charter: CONFIGURING };
+    let mut newer = open.clone();
+    newer.chip.task = NEWER;
+    // Activity ordering is independent of the task number's creation ordering.
+    newer.last_activity = skein_lib::Wall::EPOCH;
+    open.last_activity = skein_lib::Wall::from_nanos(1);
+    let mut ordinary = open.clone();
+    ordinary.chip.executor = ChipExecutor::Agent { charter: 1 };
+    let mut other = newer.clone();
+    other.project = OTHER_PROJECT;
+    let mut closed = newer.clone();
+    closed.ended_at = Some(skein_lib::Wall::EPOCH);
+    let mut facts_ended = newer.clone();
+    facts_ended.chip.details.phase = ChipPhase::Ended;
+    let mut ended_rows = [closed, facts_ended, newer.clone(), newer.clone(), newer.clone(), newer.clone()];
+    for (row, phase) in ended_rows.iter_mut().skip(2).zip([Phase::Done, Phase::Ended, Phase::Failed, Phase::Cancelled])
+    {
+        row.chip.phase = phase;
+    }
+    // Six closed/ended rows plus the ordinary, other-project and two open rows.
+    let mut mixed = List::with_capacity(10);
+    for row in ended_rows.iter().chain([ordinary.clone(), other.clone(), newer.clone(), open.clone()].iter()) {
+        mixed.push(row.clone()).expect("ten candidates");
+    }
+    for (me, lines, expected) in [
+        (configuring_me(), [].as_slice(), None),
+        (configuring_me(), core::slice::from_ref(&ordinary), None),
+        (configuring_me(), core::slice::from_ref(&other), None),
+        (configuring_me(), ended_rows.as_slice(), None),
+        (configuring_me(), core::slice::from_ref(&open), Some(open.chip.task)),
+        (configuring_me(), [newer.clone(), open.clone()].as_slice(), Some(NEWER)),
+        (configuring_me(), [open.clone(), newer.clone()].as_slice(), Some(NEWER)),
+        (configuring_me(), mixed.as_slice(), Some(NEWER)),
+        (fixtures::chats::me(), core::slice::from_ref(&newer), None),
+    ] {
+        for from_watch in [true, false] {
+            let (mut root, watch, read) =
+                open_chat_rows(me.clone(), crate::Address::Settings { project: fixtures::PROJECT });
+            let select = |root: &crate::Domain, project| {
+                root.pages().chats().expect("Settings holds chats").open_configuring(
+                    root.client(),
+                    root.pages().me(root.client()),
+                    project,
+                )
+            };
+            assert_eq!(select(&root, fixtures::PROJECT), None, "undelivered");
+            let mut rows = List::with_capacity(u32::try_from(lines.len()).unwrap());
+            for row in lines {
+                rows.push(row.clone()).unwrap();
+            }
+            let up = if from_watch {
+                jig_client::Up::Watched {
+                    watch,
+                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                }
+            } else {
+                jig_client::Up::ReadDone {
+                    read,
+                    result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        live: rows,
+                        live_after: None,
+                        ended: EndedGroup::None,
+                    })))),
+                }
+            };
+            crate::step(
+                &mut root,
+                &fixtures::env(&fixtures::limits()),
+                crate::Event::Client { event: Event::Up { up } },
+                &mut Queue::uncapped(),
+            );
+            assert_eq!(select(&root, fixtures::PROJECT), expected, "watch: {from_watch}, rows: {lines:?}");
+            assert_eq!(select(&root, OTHER_PROJECT), None, "query belongs to this project");
+            assert_eq!(root.pages().chats().unwrap().open_configuring(root.client(), None, fixtures::PROJECT), None);
+            assert_eq!(Chats::new(FIRST).open_configuring(root.client(), Some(&me), fixtures::PROJECT), None);
+        }
+    }
 }

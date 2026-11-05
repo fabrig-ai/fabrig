@@ -136,10 +136,18 @@ pair = "default"
 package = "skein-forge-client"
 filter = "kind(lib)"
 
-# forgejo/tests.rs; tests/common/mod.rs includes admitted.rs for the document suite and its fuzzy
-# mutations.
+# forgejo/tests.rs; skein/tests/forge/dialect/tests/common/mod.rs includes admitted.rs for the
+# document suite and its fuzzy mutations.
 [[fixture]]
 paths = ["skein/crates/skein-forge/src/forgejo/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "skein-forge-dialect-tests"
+filter = "all()"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "skein-forge-dialect-tests"
+filter = "all()"
 [[fixture.reader]]
 pair = "default"
 package = "skein-forge"

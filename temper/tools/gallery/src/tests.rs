@@ -591,34 +591,46 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "configure",
-        heading: "Tell temper how you work",
+        heading: "Configure temper",
         parts: &[
-            Part::Named { role: Role::List, name: "Ways to begin" },
-            Part::Value { role: Role::TextArea, name: "How do you work?", value: "" },
+            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "Describe how you work, or what to change", value: "" },
         ],
     },
     Holds {
         name: "configure-typing",
-        heading: "Tell temper how you work",
+        heading: "Configure temper",
         parts: &[
-            Part::Named { role: Role::List, name: "Ways to begin" },
-            Part::Value { role: Role::TextArea, name: "How do you work?", value: "I work alone on small changes." },
+            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Value {
+                role: Role::TextArea,
+                name: "Describe how you work, or what to change",
+                value: "I work alone on small changes.",
+            },
         ],
     },
     Holds {
         name: "configure-sending",
-        heading: "Tell temper how you work",
+        heading: "Configure temper",
         parts: &[
-            Part::Named { role: Role::List, name: "Ways to begin" },
-            Part::Value { role: Role::TextArea, name: "How do you work?", value: "I work alone on small changes." },
+            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Value {
+                role: Role::TextArea,
+                name: "Describe how you work, or what to change",
+                value: "I work alone on small changes.",
+            },
         ],
     },
     Holds {
         name: "configure-refused",
-        heading: "Tell temper how you work",
+        heading: "Configure temper",
         parts: &[
-            Part::Named { role: Role::List, name: "Ways to begin" },
-            Part::Value { role: Role::TextArea, name: "How do you work?", value: "I work alone on small changes." },
+            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Value {
+                role: Role::TextArea,
+                name: "Describe how you work, or what to change",
+                value: "I work alone on small changes.",
+            },
         ],
     },
     Holds {
@@ -691,6 +703,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "settings",
         heading: "Settings for tally",
         parts: &[
+            Part::Named { role: Role::Link, name: "Configure temper" },
             Part::Named { role: Role::Link, name: "Forges" },
             Part::Named { role: Role::Link, name: "Accounts" },
             Part::Named { role: Role::Link, name: "Adopt a repository" },

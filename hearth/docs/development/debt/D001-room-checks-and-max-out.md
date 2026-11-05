@@ -4,7 +4,7 @@
 - **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
 - **Seen:** 2026-11-04 at `66968a30ef`, in the request of plan hearth-workspace (its port table, and its rule that adopting the newer model in full is out of scope)
 - **Seen:** 2026-11-04 at `66968a30ef`, in `hearth/scripts/old-forms.txt` (`max_out`)
-- **Checked:** 2026-11-05 at `c5f7fb2992`
+- **Checked:** 2026-11-05 at `e013b19d72`
 - **Value:** high (hearth paces as the other trees do; `iterate` shrinks; new code stops copying the old form)
 - **Size:** L
 - **Status:** open
@@ -74,7 +74,10 @@ The queues beside git's machines and mmdebstrap's, these last in
 `hearth-protocol-builder/src/resolve.rs` and `indices.rs`, are uncapped.
 The machines' states keep the orders in
 `hearth/docs/design/domain/render.md`, 8.5, and their tests stand in
-`hearth/tests/git` and `hearth/tests/mmdebstrap`.
+`hearth/tests/git` and `hearth/tests/mmdebstrap`. The queues beside the
+config and records machines, `Decode`'s in `read.rs` and `Client`'s in
+`client.rs`, stay capped with no row yet: each gets one, and its order's
+test, in its machine's round.
 
 ### The service
 

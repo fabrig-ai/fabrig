@@ -76,8 +76,8 @@ pub(crate) struct Items {
 
 /// Stages an engine assignment's workspace items at the root, and gives the
 /// hub its assignment, naming them: no workspace when it has no repository,
-/// and a save only where there is a workspace to save, which did not start
-/// from a merge in progress (`domain/worker.md`, 4.2, step 7). Items come with
+/// and a save only where there is a writable destination. The checkout commits
+/// merges before saving them (`domain/worker.md`, 4.2, step 7). Items come with
 /// a workstream, which the caller checked. Refused as busy, keeping nothing,
 /// when every record is taken: one for each of the hub's slots, a run hosted
 /// or its answer kept, and one for an assignment the hub has yet to take or
@@ -95,24 +95,13 @@ pub(crate) fn stage(
         return Some(assignment);
     }
     let workstream = run.workspace.expect("the root checked the items come with a workstream").workstream;
-    let mut merging = false;
-    for repository in &items.repositories {
-        match repository.start {
-            wire::Start::Merge { .. } => merging = true,
-            wire::Start::Base { .. }
-            | wire::Start::Branch { .. }
-            | wire::Start::Commit { .. }
-            | wire::Start::Saved { .. }
-            | wire::Start::Merged { .. } => {}
-        }
-    }
     let mut saving = false;
     for repository in &mut items.repositories {
         let writable = match repository.access {
             wire::Access::Writable { .. } => true,
             wire::Access::ReadOnly => false,
         };
-        if !run.save || merging || !writable {
+        if !run.save || !writable {
             repository.save = None;
         }
         saving |= repository.save.is_some();

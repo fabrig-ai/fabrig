@@ -50,7 +50,7 @@ impl Github {
         self.peers.keys().copied()
     }
     fn env(world: &Joint) -> Env<Limits> {
-        Env { now: world.env.now, wall: world.env.wall, limits: fixture::limits() }
+        world.env.with(fixture::limits())
     }
     pub fn tick(&mut self, world: &mut Joint) {
         let env = Self::env(world);

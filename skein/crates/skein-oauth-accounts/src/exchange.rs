@@ -309,7 +309,7 @@ impl Web {
     }
 
     pub(crate) fn progress(&mut self, env: &Env<Limits>, io: &mut Queue<IoRequest>) {
-        let http_env = Env { now: env.now, wall: env.wall, limits: env.limits.http };
+        let http_env = env.with(env.limits.http);
         if self.phase == Phase::Closed {
             return;
         }
