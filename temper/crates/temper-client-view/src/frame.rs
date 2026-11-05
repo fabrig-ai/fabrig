@@ -185,9 +185,7 @@ pub(crate) fn switcher(
                     builder.bind(bindings.insert(Act::Project { project: row.project }));
                     builder.close();
                     if selected && place == Place::Banner {
-                        if root.pages().switcher().renaming() == Some(row.project)
-                            && !root.pages().switcher().renaming_here()
-                        {
+                        if root.pages().switcher().renaming() == Some(row.project) {
                             rename_form(builder, root, words, &name, bindings);
                         } else if row.role == jig_client::contract::HeldRole::Owner {
                             builder.open(Role::Button);
@@ -208,7 +206,7 @@ pub(crate) fn switcher(
                     continue;
                 }
                 let name = crate::pages::project_name(Some(me), row.project).expect("open project has a name");
-                if root.pages().switcher().renaming() == Some(row.project) && !root.pages().switcher().renaming_here() {
+                if root.pages().switcher().renaming() == Some(row.project) {
                     rename_form(builder, root, words, &name, bindings);
                 } else if row.role == jig_client::contract::HeldRole::Owner {
                     builder.open(Role::Button);
@@ -281,13 +279,7 @@ fn project_row(b: &mut Builder, root: &Domain, w: &crate::words::Words, project:
     }
 }
 // The switcher's forms (temper/docs/design/client/README.md, 5.3).
-pub(crate) fn rename_form(
-    b: &mut Builder,
-    root: &Domain,
-    words: &crate::words::Words,
-    project: &[u8],
-    bindings: &mut Bindings,
-) {
+fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, project: &[u8], bindings: &mut Bindings) {
     use crate::words::Word;
     let switcher = root.pages().switcher();
     let pending = switcher.pending().is_some();
@@ -577,7 +569,8 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
     let (home, inbox, chats) = match root.pages().address() {
         Address::Home { .. } => (true, false, false),
         Address::Inbox { .. } => (false, true, false),
-        Address::Chats { .. } | Address::Chat { .. } => (false, false, true),
+        Address::Chats { .. } => (false, false, true),
+        Address::Chat { .. } => (false, false, !crate::pages::chat::configuring(root)),
         Address::Task { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
@@ -585,6 +578,7 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
         | Address::ConnectForge { .. }
         | Address::Adopt { .. }
         | Address::Settings { .. }
+        | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
     action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
@@ -628,7 +622,21 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     let name = w.say(crate::words::Word::RailSettings, &[]);
     crate::link(b, &name, bindings.insert(Act::Go { address: Address::Settings { project } }));
     b.text(Run::Plain, &name);
-    if let Address::Settings { .. } = root.pages().address() {
+    let current = match root.pages().address() {
+        Address::Settings { .. } | Address::Configure { .. } => true,
+        Address::Chat { .. } => crate::pages::chat::configuring(root),
+        Address::Home { .. }
+        | Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::Task { .. }
+        | Address::Accounts
+        | Address::ConnectModel { .. }
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Adopt { .. }
+        | Address::Welcome { .. } => false,
+    };
+    if current {
         b.state(skein_ui::State::Current);
     }
     forge_mark(b, root, w, true);
@@ -645,6 +653,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Adopt { .. } => (false, true),
         Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Configure { .. }
         | Address::ConnectForge { .. }
         | Address::Forges
         | Address::Welcome { .. }
@@ -700,6 +709,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Settings { .. }
+            | Address::Configure { .. }
             | Address::Adopt { .. }
             | Address::ConnectModel { .. }
             | Address::Accounts => false,
@@ -767,6 +777,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Inbox { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     };
     if current {
@@ -798,6 +809,7 @@ pub(crate) fn accounts_link(
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     } {
         builder.state(skein_ui::State::Current);

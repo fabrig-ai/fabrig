@@ -97,3 +97,14 @@ Acceptance:
 ## Report
 
 The common note's items, what you broke by hand and what failed, and the three memory peaks if your run prints them.
+
+## Rebase (2026-11-05, step merge, foreman debt-17/lru/foreman-1)
+
+resolve both status conflicts by preserving the Lru and Civil gap removals
+Rebase onto the landing target containing `237536c1f560455602186c73f390c7596ae3f096` (“Share civil calendar arithmetic through Wall and Civil”), merged by `4c29afec00`.
+Both tasks edited the same `Not yet` lines; combine their independent deletions.
+In `skein/docs/design/lib.status.md`, leave `- **Not yet:** 3: `Slab::get2_mut`.`; neither `5: Lru` nor `8: Civil` should remain.
+In `skein/docs/design/forge.status.md`, remove the `4.2` tables gap while retaining the target’s removal of the `4.4` calendar gap; the line should begin with `3.2:`.
+Preserve all other gaps and both files’ `Departs` entries, including forge’s separate `4.2` call-plan departure.
+Keep both Civil and Lru module declarations, exports and header documentation in the automatically merged `skein/crates/skein-lib/src/lib.rs`.
+The refusal reports only these two content conflicts; no test failure is shown.

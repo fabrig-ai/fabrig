@@ -2708,6 +2708,13 @@ name = "skein-fail-stop"
 version = "0.0.0"
 
 [[package]]
+name = "skein-fail-stop-tests"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+]
+
+[[package]]
 name = "skein-fake-channel"
 version = "0.0.0"
 dependencies = [
@@ -2740,7 +2747,6 @@ dependencies = [
  "skein-fake-forge-domain",
  "skein-fake-forge-http",
  "skein-forge",
- "skein-heap",
  "skein-http",
  "skein-json",
  "skein-lib",
@@ -2775,7 +2781,9 @@ name = "skein-fake-forge-tests"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
+ "skein-fake-forge-http",
  "skein-forge",
  "skein-http",
  "skein-json",
@@ -2902,7 +2910,6 @@ version = "0.0.0"
 dependencies = [
  "skein-json",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -2947,6 +2954,16 @@ dependencies = [
  "skein-link",
  "skein-tls",
  "skein-world",
+]
+
+[[package]]
+name = "skein-forge-dialect-tests"
+version = "0.0.0"
+dependencies = [
+ "skein-forge",
+ "skein-json",
+ "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]

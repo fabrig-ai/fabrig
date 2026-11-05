@@ -4,7 +4,7 @@
 //! the intake that meets its demands, a held buffer serving a stream,
 //! a reader and a writer for sized bytes, a reusable bounded byte buffer,
 //! and the decimal and hex digits to write and read with them, monotonic and
-//! wall time and the earlier of two deadlines, randomness, the tokens that
+//! wall time, its civil date and the earlier of two deadlines, randomness, the tokens that
 //! cross layer boundaries, a component's lifecycle, the environment a step
 //! reads, and keyless state digests.
 //!
@@ -79,6 +79,6 @@ pub use set::Set;
 pub use slab::{Iter as SlabIter, Slab};
 pub use stack::Stack;
 pub use tail::Tail;
-pub use time::{Duration, Time, Wall, earliest};
+pub use time::{Civil, Duration, Time, Wall, earliest};
 pub use token::{ReplyTo, Token};
 pub use writer::{Overflow, Writer};

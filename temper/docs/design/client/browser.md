@@ -231,6 +231,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Inbox { filter }` | `/`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
   | `Settings { project }` | `/projects/<project>/settings` |
+  | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Chats { filter, start }` | `/chats`, and its filter's and start's query |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
@@ -553,8 +554,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   left pane under the banner, of the viewport's height and scrolling
   alone, ruled from the rest; in it the new chat's bar and context as
   lines, the heading "Chats" in small capitals over its filters as
-  plain words and a flat list, and the playground's banner over a
-  hairline, in the chats' size. The rest is the prompt, a bare box,
+  plain words and a flat list, each chat a compact line, its title and
+  when, then its status and number, the whole line its link and its
+  spend left out, and the playground's banner over a hairline, in the
+  chats' size. The rest is the prompt, a bare box,
   its hint under its left edge and the composer's line under its
   right, the chooser's list dropping below it; under 1100 px the hint
   gives way to that line. At phone width the pane follows the prompt,
@@ -1117,12 +1120,29 @@ from the engine's own answers, is where the look is tuned.
 |---|---|
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
 | `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
+| `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
+| `home-accounts-both` | hand-made Home deliveries: ChatGPT plan and Claude subscription; link offers another account |
+| `home-accounts-key` | hand-made Home deliveries: an API key; link offers another account |
 | `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
-| `home-ready` | hand-made Home deliveries: all three steps done |
+| `home-at-work` | hand-made Home deliveries: one question and three chats, the everyday request's words where the client holds its facts |
+| `home-needs-several` | hand-made Home deliveries: three needs, the first as a card and the others as rows |
+| `home-nothing-needs` | hand-made Home deliveries: all steps done, no needs and one chat |
+| `home-ready` | hand-made Home deliveries: all three steps done; plain Home |
 | `home-adopting` | hand-made Home deliveries: first adoption in flight; no repository acts |
 | `home-refused` | hand-made Home deliveries: first adoption refused; its words and retry acts |
 | `home-no-repository` | hand-made Home deliveries: no repository or first offer |
+| `home-after-skip` | hand-made Home deliveries: To begin skipped with steps left; plain Home with empty Needs you and Chats |
+| `home-skip-refused` | hand-made Home deliveries: Skip refused; the alert under the note and Skip offered again |
+| `home-needs-under-begin` | hand-made Home deliveries: To begin showing above one question and one chat |
+| `home-begin-settings-left` | hand-made Home deliveries: the first and second steps left; their acts stay in Settings |
+| `home-begin-one-chats` | hand-made Home deliveries: the third step alone left; its act stays in Chats |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
+| `configure` | the configuring page before its first words, template 3 listed |
+| `configure-typing` | words entered; Send enabled |
+| `configure-sending` | the configuring start out; starters and Send disabled, words kept |
+| `configure-refused` | the start refused; jig's words below the composer, the words kept |
+| `configure-chat` | the solo world’s T10 as a configuring chat, conversation and proposal in the Settings layout |
+| `configure-chats-tag` | the solo world’s chats with T10 tagged Configuring beside ordinary chats |
 | `chats-solo` | the solo world's chats |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's inbox: a proposal, a question |

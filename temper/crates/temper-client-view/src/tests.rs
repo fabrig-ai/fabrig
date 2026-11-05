@@ -1,5 +1,6 @@
 mod chats;
 mod choice;
+mod configure;
 mod confirm;
 mod delegation;
 mod model_forge;
