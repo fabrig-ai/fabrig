@@ -1,6 +1,5 @@
 //! The two pipe readers and apt's install triples (hearth/docs/design/domain/render.md, 5.3).
 use crate::{
-    MaxOut,
     limits::Limits,
     tail::{self, Tail},
     vector::Name,
@@ -55,7 +54,6 @@ impl Reader {
         self.waiting
     }
 }
-pub const UP_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
 #[must_use]
 pub fn largest_demand(limits: &Limits) -> u32 {
     limits.line.max(1)

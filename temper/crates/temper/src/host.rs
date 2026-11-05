@@ -294,6 +294,7 @@ fn note_line(note: temper_service::Note) -> String {
             diagnostic.failure,
             &diagnostic.detail,
         ),
+        temper_service::Note::RunRefused(diagnostic) => run_refusal_line(diagnostic),
         temper_service::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
             format!(
                 "temper serve: read refused task={task} attempt={attempt} tool={} layer={layer} reason={reason} error={error:?} findings={findings:?}\n",
@@ -344,9 +345,29 @@ fn note_line(note: temper_service::Note) -> String {
     }
 }
 // temper/docs/design/domain/worker.md, 4.3: one bounded, escaped operator line.
+fn run_refusal_line(diagnostic: temper_service::RunRefusalDiagnostic) -> String {
+    let temper_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;
+    let (class, detail) = match &reason {
+        jig_domain_host::Refusal::Busy => (String::from("Busy"), b"".as_slice()),
+        jig_domain_host::Refusal::Invalid(jig_domain_host::Invalid::Start { cause, why }) => {
+            (format!("Invalid(Start({cause:?}))"), why.as_ref())
+        }
+        jig_domain_host::Refusal::Invalid(
+            jig_domain_host::Invalid::Charter
+            | jig_domain_host::Invalid::Transcript
+            | jig_domain_host::Invalid::Grants
+            | jig_domain_host::Invalid::Messages,
+        ) => (format!("{reason:?}"), b"".as_slice()),
+    };
+    run_detail_line(format!("temper serve: task {task} run {run} attempt {attempt} refused {class}: "), detail)
+}
+
 fn run_failure_line(task: u64, run: u64, attempt: u64, failure: jig_domain_host::Failure, detail: &[u8]) -> String {
+    run_detail_line(format!("temper serve: task {task} run {run} attempt {attempt} failed {failure:?}: "), detail)
+}
+
+fn run_detail_line(mut line: String, detail: &[u8]) -> String {
     use std::fmt::Write as _;
-    let mut line = format!("temper serve: task {task} run {run} attempt {attempt} failed {failure:?}: ");
     let from = detail.len().saturating_sub(4096);
     for byte in detail.get(from..).expect("bounded diagnostic tail") {
         for escaped in core::ascii::escape_default(*byte) {
@@ -953,4 +974,38 @@ fn failed_run_stderr_keeps_a_bounded_tail() {
     let line = note_line(failed_run_note(&detail));
     let prefix = "temper serve: task 3 run 7 attempt 2 failed Run(Model): ";
     assert_eq!(line, format!("{prefix}{}\n", "x".repeat(4096)));
+}
+
+#[cfg(test)]
+fn refused_run_note(reason: jig_domain_host::Refusal) -> temper_service::Note {
+    temper_service::Note::RunRefused(temper_service::RunRefusalDiagnostic { task: 3, run: 7, attempt: 2, reason })
+}
+
+#[test]
+fn refused_run_stderr_names_reason_and_bounds_start_words() {
+    use jig_domain_host::{Invalid, Refusal, StartCause};
+    let prefix = "temper serve: task 3 run 7 attempt 2 refused ";
+    for (reason, class) in [
+        (Refusal::Busy, "Busy"),
+        (Refusal::Invalid(Invalid::Charter), "Invalid(Charter)"),
+        (Refusal::Invalid(Invalid::Transcript), "Invalid(Transcript)"),
+        (Refusal::Invalid(Invalid::Grants), "Invalid(Grants)"),
+        (Refusal::Invalid(Invalid::Messages), "Invalid(Messages)"),
+    ] {
+        assert_eq!(note_line(refused_run_note(reason)), format!("{prefix}{class}: \n"));
+    }
+    for (cause, class) in [(StartCause::Other, "Other"), (StartCause::Grants, "Grants")] {
+        let reason =
+            Refusal::Invalid(Invalid::Start { cause, why: b"charter\n\r\t\0\x1b\x7f\xff\\\"".as_slice().into() });
+        assert_eq!(
+            note_line(refused_run_note(reason)),
+            format!("{prefix}Invalid(Start({class})): charter\\n\\r\\t\\x00\\x1b\\x7f\\xff\\\\\\\"\n")
+        );
+    }
+    let mut why = vec![b'x'; 4097];
+    why[0] = b'y';
+    assert_eq!(
+        note_line(refused_run_note(Refusal::Invalid(Invalid::Start { cause: StartCause::Other, why: why.into() }))),
+        format!("{prefix}Invalid(Start(Other)): {}\n", "x".repeat(4096))
+    );
 }
