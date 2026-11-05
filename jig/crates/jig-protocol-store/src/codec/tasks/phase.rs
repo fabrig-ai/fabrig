@@ -368,6 +368,10 @@ pub fn read_was(source: wire::Was, limits: &wire::Limits) -> Result<domain::Was,
 /// Translate `HoldSource` to its store value.
 pub fn hold_source(source: &domain::HoldSource, limits: &wire::Limits) -> Result<wire::HoldSource, wire::Problem> {
     Ok(match source {
+        domain::HoldSource::Preparation { words } => wire::HoldSource::Preparation(wire::HoldPreparation::new(
+            limits,
+            wire::HoldPreparationParts { words: words.clone() },
+        )?),
         domain::HoldSource::Account { connector, entry, words } => wire::HoldSource::Account(wire::HoldAccount::new(
             limits,
             wire::HoldAccountParts { connector: *connector, entry: *entry, words: words.clone() },
@@ -389,6 +393,10 @@ pub fn hold_source(source: &domain::HoldSource, limits: &wire::Limits) -> Result
 /// Read `HoldSource` from its store value.
 pub fn read_hold_source(source: wire::HoldSource, limits: &wire::Limits) -> Result<domain::HoldSource, wire::Problem> {
     Ok(match source {
+        wire::HoldSource::Preparation(value) => {
+            let wire::HoldPreparationParts { words } = value.into_parts();
+            domain::HoldSource::Preparation { words }
+        }
         wire::HoldSource::Account(value) => {
             let wire::HoldAccountParts { connector, entry, words } = value.into_parts();
             domain::HoldSource::Account { connector, entry, words }
@@ -483,25 +491,33 @@ pub fn read_revisions(source: wire::Revisions) -> Result<domain::Revisions, wire
 /// Translate `RetryNotice` to its store value.
 pub fn retry_notice(source: &domain::RetryNotice, limits: &wire::Limits) -> Result<wire::RetryNotice, wire::Problem> {
     Ok(match source {
-        domain::RetryNotice::Failed { class, count, allowance } => wire::RetryNotice::Failed(wire::FailedRetry::new(
-            limits,
-            wire::FailedRetryParts { class: value::class(*class), count: *count, allowance: *allowance },
-        )?),
-        domain::RetryNotice::Refused { count } => {
-            wire::RetryNotice::Refused(wire::RefusedRetry::new(limits, wire::RefusedRetryParts { count: *count })?)
+        domain::RetryNotice::Failed { class, count, allowance, reason } => {
+            wire::RetryNotice::Failed(wire::FailedRetry::new(
+                limits,
+                wire::FailedRetryParts {
+                    class: value::class(*class),
+                    count: *count,
+                    allowance: *allowance,
+                    reason: reason.clone(),
+                },
+            )?)
         }
+        domain::RetryNotice::Refused { count, reason } => wire::RetryNotice::Refused(wire::RefusedRetry::new(
+            limits,
+            wire::RefusedRetryParts { count: *count, reason: reason.clone() },
+        )?),
     })
 }
 /// Read `RetryNotice` from its store value.
 pub fn read_retry_notice(source: wire::RetryNotice) -> Result<domain::RetryNotice, wire::Problem> {
     Ok(match source {
         wire::RetryNotice::Failed(value) => {
-            let wire::FailedRetryParts { class, count, allowance } = value.into_parts();
-            domain::RetryNotice::Failed { class: value::read_class(class), count, allowance }
+            let wire::FailedRetryParts { class, count, allowance, reason } = value.into_parts();
+            domain::RetryNotice::Failed { class: value::read_class(class), count, allowance, reason }
         }
         wire::RetryNotice::Refused(value) => {
-            let wire::RefusedRetryParts { count } = value.into_parts();
-            domain::RetryNotice::Refused { count }
+            let wire::RefusedRetryParts { count, reason } = value.into_parts();
+            domain::RetryNotice::Refused { count, reason }
         }
     })
 }

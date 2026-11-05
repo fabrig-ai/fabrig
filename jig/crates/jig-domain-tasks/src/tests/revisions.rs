@@ -931,13 +931,13 @@ fn retry_observations_distinguish_attempt_failures_from_preparation_refusals_and
         saved: None,
         cause: crate::Cause::Unpriced,
     });
-    let failed = Some(crate::RetryNotice::Failed { class: crate::Class::Lost, count: 1, allowance: 2 });
+    let failed = Some(crate::RetryNotice::Failed { class: crate::Class::Lost, count: 1, allowance: 2, reason: None });
     assert_eq!(h.domain.task(1).unwrap().retry_notice, failed);
     assert_eq!(h.domain.task(1).unwrap().phase_since, Wall::from_nanos(20));
     h.env.wall = Wall::from_nanos(23);
     h.send(Event::Prepare { reply_to: to(), task: 2 });
     h.send(Event::PreparationFailed { task: 2 });
-    let refused = Some(crate::RetryNotice::Refused { count: 1 });
+    let refused = Some(crate::RetryNotice::Refused { count: 1, reason: None });
     assert_eq!(h.domain.task(2).unwrap().retry_notice, refused);
     h.restart();
     assert_eq!(h.domain.task(1).unwrap().retry_notice, failed);

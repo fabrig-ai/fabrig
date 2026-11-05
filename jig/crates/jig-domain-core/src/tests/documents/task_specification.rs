@@ -322,3 +322,24 @@ fn kept_report_text_checks_visibility_offsets_and_utf8_boundaries() {
     limits.documents.text_bytes = 128;
     assert_eq!(task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, 127).unwrap(), last);
 }
+
+#[test]
+fn preparation_failure_hold_words_reach_the_task_and_chip() {
+    let (core, limits) = make_tree();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    let words: Box<[u8]> = Box::from(b"brief: required section cannot fit".as_slice());
+    row.revisions.hold = 1;
+    row.phase = tasks::Phase::Held {
+        was: tasks::Was::Active(tasks::Active::Due),
+        why: tasks::Hold::Failures(tasks::Class::Permanent),
+        source: Some(Box::new(tasks::HoldSource::Preparation { words: words.clone() })),
+    };
+    let task = task_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap();
+    for hold in [task.hold.unwrap(), task.chip.details.hold.unwrap()] {
+        let text = hold.words.unwrap();
+        assert_eq!(text.bytes, words);
+        assert!(!text.cut);
+        assert_eq!(hold.source, None);
+        assert_eq!(hold.account, None);
+    }
+}

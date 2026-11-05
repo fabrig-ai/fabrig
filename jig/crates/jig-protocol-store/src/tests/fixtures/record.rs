@@ -42,7 +42,12 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         changed: Wall::from_nanos(13),
         phase_since: Wall::from_nanos(17),
         run_since: Some(Wall::from_nanos(19)),
-        retry_notice: Some(task::RetryNotice::Failed { class: task::Class::Agent, count: 1, allowance: 3 }),
+        retry_notice: Some(task::RetryNotice::Failed {
+            class: task::Class::Agent,
+            count: 1,
+            allowance: 3,
+            reason: Some(b"brief: required section cannot fit".as_slice().into()),
+        }),
         ended_at: Some(Wall::from_nanos(23)),
         revision: 3,
         milestone: 13,
