@@ -7,7 +7,7 @@ use std::path::{Component, Path, PathBuf};
 
 use smith_events::{Event, Verdict};
 
-use crate::{CheckVerdict, Measure};
+use crate::{CheckVerdict, Fault, Measure};
 
 use super::Observer;
 
@@ -107,13 +107,13 @@ fn evaluate(
     if writes.len() != 1 || skein_lib::len_u64(writes[0].len()) < minimum {
         return measured(false);
     }
-    match crate::grade::file(workspace, path).and_then(|file| std::fs::read(file).map_err(|error| error.to_string())) {
+    match crate::grade::file(workspace, path).and_then(|file| std::fs::read(file).map_err(Fault::from)) {
         Ok(bytes) => {
             evidence.push(format!("saved_bytes={}; saved_equals_call_content={}", bytes.len(), bytes == writes[0]));
             measured(bytes == writes[0])
         }
         Err(error) => {
-            evidence.push(error);
+            evidence.push(error.detail);
             measured(false)
         }
     }

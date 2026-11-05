@@ -2,6 +2,8 @@
 
 #![forbid(unsafe_code)]
 
+use smith_bench::{Fault, FaultKind};
+
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -33,13 +35,15 @@ fn main() -> ExitCode {
         }
         [command, names @ ..] if command == "validate" => validate_command(names),
         [command, results, suite, tier, design, seed, options @ ..] if command == "summarise" => {
-            summarize_command(Path::new(results), suite, tier, design, seed, options)
+            report_output(summarize_command(Path::new(results), suite, tier, design, seed, options))
         }
-        [command, summary, name] if command == "baseline" => baseline_command(Path::new(summary), name, None),
+        [command, summary, name] if command == "baseline" => {
+            report_output(baseline_command(Path::new(summary), name, None))
+        }
         [command, summary, name, flag, agent, configuration, model, effort]
             if command == "baseline" && flag == "--group" =>
         {
-            baseline_command(Path::new(summary), name, Some((agent, configuration, model, effort)))
+            report_output(baseline_command(Path::new(summary), name, Some((agent, configuration, model, effort))))
         }
         [command, flag, suite, tasks_flag, directory, sections @ ..]
             if command == "guards" && flag == "--suite" && tasks_flag == "--tasks" && !sections.is_empty() =>
@@ -80,7 +84,7 @@ fn build_command(commit: &str, repository: Option<&Path>) -> ExitCode {
 
 fn parity_command(file: &Path, commit: &str) -> ExitCode {
     let result = smith_bench::read_summary(file)
-        .map_err(|error| error.to_string())
+        .map_err(Fault::from)
         .and_then(|summary| smith_bench::parity::verify(&summary, commit).map(|parity| (summary, parity)));
     match result {
         Ok((summary, parity)) => {
@@ -120,16 +124,16 @@ fn parity_command(file: &Path, commit: &str) -> ExitCode {
     }
 }
 
-fn committed_output(directory: &str, name: &str) -> Result<PathBuf, String> {
+fn committed_output(directory: &str, name: &str) -> Result<PathBuf, Fault> {
     if name.is_empty() || !name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')) {
-        return Err("committed output name must use letters, digits, '-' or '_'".into());
+        return Err(Fault::new(FaultKind::Input, "committed output name must use letters, digits, '-' or '_'"));
     }
     let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(directory);
-    std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    std::fs::create_dir_all(&directory)?;
     Ok(directory.join(format!("{name}.json")))
 }
 
-fn report_output(result: Result<PathBuf, String>) -> ExitCode {
+fn report_output(result: Result<PathBuf, Fault>) -> ExitCode {
     match result {
         Ok(path) => {
             println!("{}", path.display());
@@ -149,56 +153,52 @@ fn summarize_command(
     design: &str,
     seed: &str,
     options: &[String],
-) -> ExitCode {
-    report_output((|| {
-        let design = match design {
-            "single" => smith_bench::Design::Single,
-            "interleaved" => smith_bench::Design::Interleaved,
-            _ => return Err("design must be single or interleaved".into()),
-        };
-        let seed = seed.parse::<u64>().map_err(|error| error.to_string())?;
-        let results = smith_bench::read_results(results).map_err(|error| error.to_string())?;
-        let (reference, flags) = options
-            .split_first()
-            .filter(|(first, _)| !first.starts_with("--"))
-            .map_or((None, options), |(first, rest)| (Some(Path::new(first)), rest));
-        let (inputs, rest) = smith_bench::parity::change::Inputs::parse(flags)?;
-        if !rest.is_empty() || (suite != "parity-change" && !inputs.is_empty()) {
-            return Err("named run inputs require a parity-change summary".into());
-        }
-        let reference = reference.map(smith_bench::read_baseline).transpose().map_err(|error| error.to_string())?;
-        let reference_arm = if design == smith_bench::Design::Interleaved {
-            let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("suites").join(format!("{suite}.toml"));
-            smith_bench::read_suite(&file).map_err(|error| error.to_string())?.reference_arm().map(str::to_owned)
-        } else {
-            None
-        };
-        let mut summary =
-            smith_bench::summarise(&results, suite, tier, design, seed, reference.as_ref(), reference_arm.as_deref())?;
-        if suite == "parity-change" {
-            smith_bench::parity::change::attach(&mut summary, &inputs)?;
-        }
-        let output = committed_output("summaries", &summary.run)?;
-        smith_bench::write_summary(&output, &summary)?;
-        Ok(output)
-    })())
+) -> Result<PathBuf, Fault> {
+    let design = match design {
+        "single" => smith_bench::Design::Single,
+        "interleaved" => smith_bench::Design::Interleaved,
+        _ => return Err(Fault::new(FaultKind::Input, "design must be single or interleaved")),
+    };
+    let seed = seed.parse::<u64>().map_err(|error| Fault::new(FaultKind::Input, error.to_string()))?;
+    let results = smith_bench::read_results(results)?;
+    let (reference, flags) = options
+        .split_first()
+        .filter(|(first, _)| !first.starts_with("--"))
+        .map_or((None, options), |(first, rest)| (Some(Path::new(first)), rest));
+    let (inputs, rest) =
+        smith_bench::parity::change::Inputs::parse(flags).map_err(|detail| Fault::new(FaultKind::Input, detail))?;
+    if !rest.is_empty() || (suite != "parity-change" && !inputs.is_empty()) {
+        return Err(Fault::new(FaultKind::Input, "named run inputs require a parity-change summary"));
+    }
+    let reference = reference.map(smith_bench::read_baseline).transpose()?;
+    let reference_arm = if design == smith_bench::Design::Interleaved {
+        let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("suites").join(format!("{suite}.toml"));
+        smith_bench::read_suite(&file)?.reference_arm().map(str::to_owned)
+    } else {
+        None
+    };
+    let mut summary =
+        smith_bench::summarise(&results, suite, tier, design, seed, reference.as_ref(), reference_arm.as_deref())?;
+    if suite == "parity-change" {
+        smith_bench::parity::change::attach(&mut summary, &inputs)?;
+    }
+    let output = committed_output("summaries", &summary.run)?;
+    smith_bench::write_summary(&output, &summary)?;
+    Ok(output)
 }
 
-fn baseline_command(summary: &Path, name: &str, group: Option<(&str, &str, &str, &str)>) -> ExitCode {
-    report_output((|| {
-        let summary = smith_bench::read_summary(summary).map_err(|error| error.to_string())?;
-        let reference = match group {
-            None => smith_bench::baseline(&summary)?,
-            Some((agent, configuration, model, effort)) => {
-                let agent = serde_json::from_value(serde_json::Value::String(agent.into()))
-                    .map_err(|error| error.to_string())?;
-                smith_bench::baseline_group(&summary, agent, configuration, model, effort)?
-            }
-        };
-        let output = committed_output("baselines", name)?;
-        smith_bench::write_summary(&output, &reference)?;
-        Ok(output)
-    })())
+fn baseline_command(summary: &Path, name: &str, group: Option<(&str, &str, &str, &str)>) -> Result<PathBuf, Fault> {
+    let summary = smith_bench::read_summary(summary)?;
+    let reference = match group {
+        None => smith_bench::baseline(&summary)?,
+        Some((agent, configuration, model, effort)) => {
+            let agent = serde_json::from_value(serde_json::Value::String(agent.into()))?;
+            smith_bench::baseline_group(&summary, agent, configuration, model, effort)?
+        }
+    };
+    let output = committed_output("baselines", name)?;
+    smith_bench::write_summary(&output, &reference)?;
+    Ok(output)
 }
 
 fn check_all() -> ExitCode {
@@ -263,7 +263,7 @@ fn guarded_tasks(
         }
     }
     let costs = smith_bench::committed_costs(&suite, &tasks, &summaries, &agents, &models)
-        .map_err(|error| smith_bench::Refusal::new(file, "summaries", error))?;
+        .map_err(|error| smith_bench::Refusal::new(file, "summaries", error.detail))?;
     Ok(smith_bench::choose_guards_with_costs(&suite, &tasks, sections, &costs))
 }
 

@@ -35,7 +35,7 @@ fn go(machine: &mut Paste, event: Event) -> Need {
     need
 }
 fn document(doc: Document) -> Event {
-    Event::Reply(Reply::GithubDocument(doc))
+    Event::Reply(Reply::GitHubDocument(doc))
 }
 fn hook(url: &[u8]) -> Event {
     document(Document::HookConfig(Hook { url: url.into() }))

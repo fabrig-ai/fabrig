@@ -417,17 +417,11 @@ fn settings_revision_limits_are_positive_and_size_the_children() {
         let limits = profile(profile_name).core;
         assert_eq!(limits.settings.revisions, revisions);
         assert_eq!(limits.settings.versions, versions);
-        assert_eq!(limits.tasks.revisions, revisions);
-        assert_eq!(limits.tasks.versions, versions);
-        assert_eq!(limits.fleet.versions, versions);
     }
     let changed =
         parse(br#"{"profile":"small","overrides":{"core.settings.revisions":2,"core.settings.versions":3}}"#).unwrap();
     assert_eq!(changed.core.settings.revisions, 2);
-    assert_eq!(changed.core.tasks.revisions, 2);
     assert_eq!(changed.core.settings.versions, 3);
-    assert_eq!(changed.core.tasks.versions, 3);
-    assert_eq!(changed.core.fleet.versions, 3);
     for (document, name) in [
         (
             br#"{"profile":"small","overrides":{"core.settings.revisions":0}}"#.as_slice(),

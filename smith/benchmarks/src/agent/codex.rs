@@ -21,8 +21,8 @@ pub use prepare::{Observing, PreparedCodex, prepare};
 pub use rollouts::{ChildThread, Link, ResponseUsage, RolloutFile, Rollouts, collect_rollouts, parse_rollout};
 
 use crate::{
-    Classification, Convention, Counts, End, Exit, FailureReason, Forced, Measure, ScopeKind, TokenCounts, TokenRecord,
-    Usage,
+    Classification, Convention, Counts, End, Exit, FailureReason, Fault, Forced, Measure, ScopeKind, TokenCounts,
+    TokenRecord, Usage, stream,
 };
 
 /// A persisted record refused by the observer, naming the record and field path.
@@ -270,7 +270,7 @@ fn decode<T: serde::de::DeserializeOwned>(
 }
 
 impl TurnUsage {
-    fn normalise(&self) -> Result<TokenCounts, String> {
+    fn normalise(&self) -> Result<TokenCounts, Fault> {
         Usage::Codex {
             input: self.input_tokens,
             cached_input: self.cached_input_tokens,
@@ -377,7 +377,7 @@ impl Observer {
                 if self.last != LastTurn::Active {
                     return Err(bad("turn.completed", "completion needs an active turn"));
                 }
-                usage.normalise().map_err(|reason| bad("usage", &reason))?;
+                usage.normalise().map_err(|reason| bad("usage", &reason.detail))?;
                 self.usages.insert(self.turn, usage.clone());
                 self.last = LastTurn::Completed;
             }
@@ -420,8 +420,8 @@ impl Observer {
 
     /// Root aggregate evidence and a total naming the absent non-root scopes.
     /// An identical repeated terminal does not add its aggregate again.
-    pub fn token_records(&self) -> Result<Vec<TokenRecord>, String> {
-        let scope = self.thread.as_ref().ok_or("Codex stream has no root thread")?;
+    pub fn token_records(&self) -> Result<Vec<TokenRecord>, Fault> {
+        let scope = self.thread.as_ref().ok_or_else(|| stream("Codex stream has no root thread"))?;
         let mut usages = self.usages.values();
         let mut root = usages
             .next()
@@ -449,7 +449,7 @@ impl Observer {
     }
 
     /// Apply the stream's counts and root usage before native collection.
-    pub(super) fn stream_measures(&self, result: &mut crate::AttemptResult) -> Result<(), String> {
+    pub(super) fn stream_measures(&self, result: &mut crate::AttemptResult) -> Result<(), Fault> {
         result.counts = self.counts();
         result.tokens = match self.thread() {
             Some(_) => self.token_records()?,

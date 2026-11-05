@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::{ArmSummary, AttemptResult, Convention, Measure, SummaryComparison, bootstrap_ratio};
+use crate::{ArmSummary, AttemptResult, Convention, Fault, Measure, SummaryComparison, bootstrap_ratio, input};
 
 pub(crate) fn comparisons(
     groups: &[ArmSummary],
@@ -10,7 +10,7 @@ pub(crate) fn comparisons(
     design: crate::Design,
     seed: u64,
     reference_arm: Option<&str>,
-) -> Result<Vec<SummaryComparison>, String> {
+) -> Result<Vec<SummaryComparison>, Fault> {
     let mut comparisons = Vec::new();
     let tasks: std::collections::BTreeSet<_> = groups.iter().map(|group| group.task.as_str()).collect();
     for task in tasks {
@@ -26,7 +26,7 @@ pub(crate) fn comparisons(
             .iter()
             .find(|group| group.agent == crate::Agent::Codex)
             .or_else(|| arms.iter().find(|group| Some(group.arm.as_str()) == reference_arm))
-            .ok_or_else(|| format!("{task}: comparison without Codex needs its named reference arm"))?;
+            .ok_or_else(|| input(format!("{task}: comparison without Codex needs its named reference arm")))?;
         for right in &arms {
             if right.arm == left.arm {
                 continue;
@@ -35,7 +35,7 @@ pub(crate) fn comparisons(
                 || left.seed_sha256 != right.seed_sha256
                 || left.prompt_sha256 != right.prompt_sha256
             {
-                return Err("comparison mixes task versions or frozen inputs".into());
+                return Err(input("comparison mixes task versions or frozen inputs"));
             }
             for metric in left.metrics.keys() {
                 let Some((candidate_metric, conventions)) = counterpart(metric, left, right) else { continue };
@@ -60,7 +60,7 @@ pub(crate) fn comparisons(
                     Measure::unavailable("repository tasks claim range separation, not significance")
                 } else if reference_missing.is_empty() && candidate_missing.is_empty() {
                     bootstrap_ratio(&reference_values, &candidate_values, seed, 10_000)
-                        .map_or_else(Measure::unavailable, |value| Measure::Observed { value })
+                        .map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value })
                 } else {
                     Measure::unavailable("comparison needs observed values for every attempt, regardless of end")
                 };

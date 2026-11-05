@@ -33,10 +33,4 @@
   `skein/testing/skein-codegen/tests/suite/patch_run.rs` and
   `patch_generated.rs` make theirs by hand and remove them after their
   assertions, so a failing test leaves one behind, and a reused pid then
-  fails on it; no reason is recorded. 6: `tests/io`'s socket, output and
-  either worlds run their own loops (`skein/tests/io/src/world.rs`,
-  `output.rs`, `joined.rs`), where the request of 2026-11-05 asks them on
-  `skein_world` and io's stage, keeping the per-call `MAX_OUT` check and
-  the ledger, because the stage would change their schedules and has no
-  place for either, which section 9 leaves open (the code's side is
-  `skein/docs/development/debt/D032-world-harness-copies.md`).
+  fails on it; no reason is recorded.
