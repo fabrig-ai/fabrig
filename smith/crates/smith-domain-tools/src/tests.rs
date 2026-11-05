@@ -189,11 +189,7 @@ fn names(text: &[u8]) -> Box<[Name]> {
 fn authority(grants: Grants) -> Authority {
     Authority {
         cwd: names(b"/temper"),
-        repos: Box::new([
-            repo(b"/temper", 1, true),
-            repo(b"/lib", 2, false),
-            repo(b"/docs", 3, false),
-        ]),
+        repos: Box::new([repo(b"/temper", 1, true), repo(b"/lib", 2, false), repo(b"/docs", 3, false)]),
         grants,
     }
 }
@@ -348,10 +344,7 @@ fn a_path_is_in_the_repository_named_by_its_first_component() {
         (b"src/library/x.rs", Ok(located(1, b"src/library/x.rs", true))),
         (b"../docs/guide.md", Ok(located(3, b"guide.md", false))),
         (b"..", Err(Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"") } })),
-        (
-            b"../temperance/x",
-            Err(Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"temperance/x") } }),
-        ),
+        (b"../temperance/x", Err(Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"temperance/x") } })),
         (b"/etc/passwd", Err(Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"etc/passwd") } })),
         (
             b"../../../../etc/passwd",
@@ -404,6 +397,7 @@ fn authorities_beyond_the_limits_are_refused_as_invalid() {
     invalid(Limits { path_bytes: 5, ..LIMITS }, long_mount);
     let mut deep = authority(ALL);
     deep.cwd = names(b"/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    deep.repos[0].mount = deep.cwd.clone();
     invalid(LIMITS, deep);
 }
 
@@ -441,12 +435,22 @@ fn calls_are_refused_at_the_entrance() {
         (
             modify,
             write(b"../docs/guide.md", 1),
-            Outcome::ReadOnly { path: path::Resolved::Other { directory: Name::new(bytes(b"docs")).expect("directory name"), path: bytes(b"guide.md") } },
+            Outcome::ReadOnly {
+                path: path::Resolved::Other {
+                    directory: Name::new(bytes(b"docs")).expect("directory name"),
+                    path: bytes(b"guide.md"),
+                },
+            },
         ),
         (
             modify,
             edit(b"/lib/x.rs"),
-            Outcome::ReadOnly { path: path::Resolved::Other { directory: Name::new(bytes(b"lib")).expect("directory name"), path: bytes(b"x.rs") } },
+            Outcome::ReadOnly {
+                path: path::Resolved::Other {
+                    directory: Name::new(bytes(b"lib")).expect("directory name"),
+                    path: bytes(b"x.rs"),
+                },
+            },
         ),
         (
             modify,
@@ -460,7 +464,12 @@ fn calls_are_refused_at_the_entrance() {
         (
             modify,
             write(b"/lib/.git/config", 1),
-            Outcome::ReadOnly { path: path::Resolved::Other { directory: Name::new(bytes(b"lib")).expect("directory name"), path: bytes(b".git/config") } },
+            Outcome::ReadOnly {
+                path: path::Resolved::Other {
+                    directory: Name::new(bytes(b"lib")).expect("directory name"),
+                    path: bytes(b".git/config"),
+                },
+            },
         ),
         (inspect, read(b"a/very/long/path/that/does/not/fit/in/the/sixty/four/bytes/allowed"), Outcome::TooLong),
     ];
@@ -1069,7 +1078,12 @@ fn edit_shape_bounds_are_refused_before_io_but_semantics_follow_the_loaded_bytes
     assert_eq!(h.call(kit, big), Outcome::TooLarge { what: crate::SizePart::EditNew, size: 1025, bound: 1024 });
     assert_eq!(
         h.call(kit, change(b"../lib/x.rs", b"a", b"b")),
-        Outcome::ReadOnly { path: path::Resolved::Other { directory: Name::new(bytes(b"lib")).expect("directory name"), path: bytes(b"x.rs") } }
+        Outcome::ReadOnly {
+            path: path::Resolved::Other {
+                directory: Name::new(bytes(b"lib")).expect("directory name"),
+                path: bytes(b"x.rs")
+            }
+        }
     );
     assert_eq!(h.domain.flights(), 0);
 }
@@ -1682,7 +1696,14 @@ fn host_aliases_choose_whole_names_and_keep_the_namespace_root_pure() {
     let kit = h.open(11, root);
     assert_eq!(
         h.call(kit, Call::List { path: path(b"/"), depth: crate::Depth::Whole, glob: None }),
-        Outcome::Listed { entries: Box::new([entry(b"docs", Kind::Directory), entry(b"lib", Kind::Directory), entry(b"temper", Kind::Directory)]), more: 0 }
+        Outcome::Listed {
+            entries: Box::new([
+                entry(b"docs", Kind::Directory),
+                entry(b"lib", Kind::Directory),
+                entry(b"temper", Kind::Directory)
+            ]),
+            more: 0
+        }
     );
 }
 
