@@ -437,14 +437,3 @@ fn store_error(builder: &mut Builder, answer: &store::vocabulary::Answer, out: &
         task: None,
     })));
 }
-
-/// The root owns render, store, build and its report, and two bounded forwarding queues.
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    render::limits::worst_case(&limits.render)?
-        .checked_add(store::limits::worst_case(&limits.store)?)?
-        // The build domain's plan, and the report's beside it.
-        .checked_add(build::limits::worst_case(&limits.build)?.checked_mul(2)?)?
-        .checked_add(Queue::<store::vocabulary::Output>::price(2)?)?
-        .checked_add(Queue::<Output>::price(2)?)
-}
