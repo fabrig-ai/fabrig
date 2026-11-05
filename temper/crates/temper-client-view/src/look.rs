@@ -367,8 +367,6 @@ pub const PLAN: Style = Style { owner: owner(), token: 54 };
 pub const PLAN_ROW: Style = Style { owner: owner(), token: 55 };
 /// The list around a held row card.
 pub const PLAN_HOLD: Style = Style { owner: owner(), token: 56 };
-/// The task activity list.
-pub const EVENTS: Style = Style { owner: owner(), token: 57 };
 /// A done task phase or a settled account outcome.
 pub const STATUS_DONE: Style = Style { owner: owner(), token: 58 };
 /// The next-run model choice block.
@@ -391,10 +389,6 @@ pub const STEP_DONE: Style = Style { owner: owner(), token: 66 };
 pub const CONTEXT: Style = Style { owner: owner(), token: 67 };
 /// The existing guidance when the application is unavailable.
 pub const UNAVAILABLE: Style = Style { owner: owner(), token: 68 };
-/// The result a goal gives.
-pub const TASK_CONTRACT: Style = Style { owner: owner(), token: 69 };
-/// A goal's budget and authority.
-pub const TASK_BUDGET: Style = Style { owner: owner(), token: 70 };
 /// A plan row's spend.
 pub const PLAN_SPEND: Style = Style { owner: owner(), token: 71 };
 /// A plan row's dependency line.
@@ -411,12 +405,10 @@ pub const AGENT_RUN: Style = Style { owner: owner(), token: 76 };
 pub const AGENT_RESULT: Style = Style { owner: owner(), token: 77 };
 /// The playground context line's repository.
 pub const REPOSITORY: Style = Style { owner: owner(), token: 78 };
-/// A goal's offered acts (client/README.md, 5.11).
+/// A change's offered acts (client/README.md, 5.10).
 pub const TASK_ACTS: Style = Style { owner: owner(), token: 79 };
 /// The agent task composer's steering note (client/README.md, 5.11).
 pub const AGENT_STEER: Style = Style { owner: owner(), token: 80 };
-/// The goal toolbar's Cancel button (client/README.md, 5.11).
-pub const TASK_DANGER: Style = Style { owner: owner(), token: 81 };
 /// The task page's amendment editor (client/README.md, 5.11).
 pub const TASK_AMEND: Style = Style { owner: owner(), token: 82 };
 /// A chat's end line (client/README.md, 3.5).
@@ -689,7 +681,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-plan",
         b"temper-plan-row",
         b"temper-plan-hold",
-        b"temper-events",
+        b"temper-retired-events",
         b"temper-status-done",
         b"temper-choice",
         b"temper-accounts-page",
@@ -701,8 +693,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-step-done",
         b"temper-context",
         b"temper-unavailable",
-        b"temper-task-contract",
-        b"temper-task-budget",
+        b"temper-retired-task-contract",
+        b"temper-retired-task-budget",
         b"temper-plan-spend",
         b"temper-dependencies",
         b"temper-status-waiting",
@@ -713,7 +705,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-repository",
         b"temper-task-acts",
         b"temper-agent-steer",
-        b"temper-task-danger",
+        b"temper-retired-task-danger",
         b"temper-task-amend",
         b"temper-ended",
         b"temper-day",
