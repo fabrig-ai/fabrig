@@ -805,6 +805,15 @@ facts into operator notes as note room returns; a full diagnostic sink
 changes no tool decision. The root's bounded fact queue counts overflow,
 and no diagnostic variant enters the store or client wire.
 
+Final forge-read rendering checks the settled tool-name and body bytes against
+`core.call_answer_bytes`, then those bytes plus any retained typed answer
+against `root.journal.transcript_bytes`. An exceeded bound returns an error
+within both settled-answer limits, naming the bound, measured size and a
+narrower read route (`agent.md`, 8). The root retains the original tool
+identity for its `host-render` refusal fact even as it removes the flight.
+A rendering size refusal is terminal; forge-client admission busy retains
+its bounded retry path.
+
 
 ### 7.4 What a run left
 

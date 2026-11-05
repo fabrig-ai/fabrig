@@ -60,7 +60,7 @@ fn a_document_fixed_in_the_later_revision_fails_its_target_from() {
 fn a_failure_beats_every_difference_and_exits_2() {
     let repository = Repository::make("failed-diff", fixtures::MOTD);
     let from = repository.head();
-    let to = repository.next(&[fixtures::MOTD_KIND, fixtures::BAD_ION_LAB], &[]);
+    let to = repository.next(&[fixtures::MOTD_KIND, fixtures::BAD_WEST_LAB], &[]);
     assert_eq!(
         fixtures::diff(&repository, &fixtures::Asked::new(&from, &to)).exit,
         Exit::Code(2),
@@ -71,13 +71,13 @@ fn a_failure_beats_every_difference_and_exits_2() {
 fn a_target_failing_in_the_later_revision_names_side_to() {
     let repository = Repository::make("failed-side", fixtures::MOTD);
     let from = repository.head();
-    let to = repository.next(&[fixtures::MOTD_KIND, fixtures::BAD_ION_LAB], &[]);
+    let to = repository.next(&[fixtures::MOTD_KIND, fixtures::BAD_WEST_LAB], &[]);
     let asked = fixtures::Asked { form: Form::JsonLines, ..fixtures::Asked::new(&from, &to) };
     let rendered = fixtures::diff(&repository, &asked);
     let stdout = std::str::from_utf8(&rendered.stdout).expect("JSON");
     assert_eq!(
         stdout.lines().find(|line| line.starts_with("{\"record\":\"change\"")),
-        Some("{\"record\":\"change\",\"target\":\"ion-lab\",\"kind\":\"failed\",\"failed\":{\"side\":\"to\"}}"),
+        Some("{\"record\":\"change\",\"target\":\"west-lab\",\"kind\":\"failed\",\"failed\":{\"side\":\"to\"}}"),
         "the later document failed"
     );
 }

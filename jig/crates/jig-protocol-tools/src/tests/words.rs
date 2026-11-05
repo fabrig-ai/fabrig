@@ -63,3 +63,18 @@ fn an_owing_notice_tells_the_run_to_ask_its_requester() {
         b"You owe your requester a question: ask your plan with message, as a question, and wait."
     );
 }
+
+#[test]
+fn a_verdict_message_names_its_code_even_without_reason_words() {
+    for (words, expected) in [
+        (b"bold".as_slice(), b"Result from task 3:\nverdict 2:\nbold".as_slice()),
+        (b"".as_slice(), b"Result from task 3:\nverdict 2".as_slice()),
+    ] {
+        let mut word = fixtures::word(MessageKind::Result(jig_domain_tasks::ResultKind::Verdict {
+            code: 2,
+            fields: Box::new([]),
+        }));
+        word.words = words.into();
+        assert_eq!(crate::words(&word).as_ref(), expected);
+    }
+}
