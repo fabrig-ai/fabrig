@@ -3688,6 +3688,7 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
         "home-morning" => Wall::from_nanos(1_792_483_440_000_000_000),
+        "rail-away-on" => Wall::from_nanos(1_792_479_840_000_000_000),
         name if name.starts_with("goal-") => goal_wall(world, 0),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
         "changes-landed-only" => offset(Reference, 2),
@@ -4292,5 +4293,63 @@ pub(super) fn home_add_sheet(root: &mut Domain, copies: bool) {
             }),
         },
         &mut Queue::uncapped(),
+    );
+}
+
+/// Away's watch supplies the row, while the request's answer supplies its toast (client/browser.md, 7.2).
+pub(super) fn away_record(on: bool) -> Box<[u8]> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let wall = sample_now(FirstRun { step: 7 }, "rail-away-on");
+    let until = temper_client_domain::forge::away::next_eight(wall, 0);
+    let row = w::AwayRow::new(
+        &w::CEILINGS,
+        w::AwayRowParts {
+            project: PROJECT,
+            since: wall.as_nanos(),
+            until: Some(until.as_nanos()),
+            kinds: 7,
+            landed: 0,
+            off: if on { None } else { Some(wall.as_nanos()) },
+        },
+    )
+    .expect("Away row");
+    wire::aways(
+        &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) }).expect("Away rows"),
+    )
+}
+pub(super) fn rail_away_on(root: &mut Domain, watch: Token) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut out = Queue::uncapped();
+    temper_client_domain::step(
+        root,
+        &skein_lib::Env {
+            now: skein_lib::Time::ZERO,
+            wall: sample_now(FirstRun { step: 7 }, "rail-away-on"),
+            limits: limits(),
+        },
+        Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Away(
+                temper_client_domain::pages::away::Act::Toggle { project: PROJECT },
+            )),
+        },
+        &mut out,
+    );
+    let attempt = sample_attempt(root, &mut out);
+    sample_forge_answer(root, attempt, w::Outcome::Away, &mut out);
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: away_record(true),
+                    },
+                },
+            },
+        },
+        &mut out,
     );
 }
