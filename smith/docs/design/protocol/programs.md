@@ -318,6 +318,12 @@ open is section 9.
   one never fails a person's run. A subtype the agent knows whose
   meaning it can no longer read (`init` without what 5.3 needs) still
   fails it.
+- **An unknown top-level `type`** in a well-formed record is also a
+  notice, skipped without changing conversation state. It does not end
+  a turn, discard an outstanding call or result, or advance a completion.
+  Records still pass the stream's decoding and receiving limits; a missing
+  or non-string `type`, or an invalid record of a known type, still fails
+  as 5.6 says.
 - **Each assistant message is a completion,** told as a turn of main's
   conversation (transcript.md, section 2): its text and calls in
   position, its usage as the program reported it, and the run's spend.
@@ -388,9 +394,9 @@ open is section 9.
   error's tail.
 - **A decoded record that is refused** names its record category and
   the failed operation in bounded operator detail. Malformed fields,
-  unsupported records, incomplete message boundaries, receiving limits,
-  retained-reply exhaustion and completion backlog remain distinct. A
-  limit names the measured value and the configured bound in its own
+  unsupported content within known records, incomplete message boundaries,
+  receiving limits, retained-reply exhaustion and completion backlog remain
+  distinct. A limit names the measured value and the configured bound in its own
   unit; neither record payloads nor private names are included. The
   completion backlog is an invalid completion; the other stream
   rejections fail as the program's. The owning service keeps this detail

@@ -1,6 +1,6 @@
-draft = "hearth-memory-2"
+draft = "hearth-memory-3"
 repo = "fabrig"
-sources = ["hearth/docs/plan/hearth-memory-2/inputs/request.md"]
+sources = ["hearth/docs/plan/hearth-memory-3/inputs/request.md"]
 
 # plan.md says what was decided and why.
 
@@ -10,20 +10,20 @@ high = 2.0
 
 [[part]]
 id = "orders"
-title = "What each room check keeps is listed, and every order it keeps has a world test that passes today"
+title = "Every order the capped queues beside the mmdebstrap machines keep has a world test that passes today"
 mode = "direct"
 needs = []
 design = "hearth/docs/design/domain/render.md, 8.5"
 
 [[slice]]
 id = 1
-story = "every order the room checks keep is stated and held by a test, before any check goes"
+story = "what each capped queue beside the machine keeps is listed and held by a test, before any cap goes"
 parts = ["orders"]
 walk = false
 
 [[part]]
 id = "machine"
-title = "hearth-protocol-git has no MaxOut, no room checks and uncapped queues beside its machines"
+title = "hearth-protocol-mmdebstrap has no MaxOut, and the queues beside its machines are uncapped"
 mode = "direct"
 needs = ["orders"]
 design = "hearth/docs/design/domain/render.md, 8.5"
@@ -37,6 +37,6 @@ design = "hearth/docs/design/domain/render.md, 8.5"
 
 [[slice]]
 id = 2
-story = "the git machine runs uncapped with only its edges refusing, and what hearth does is unchanged"
+story = "the mmdebstrap machine runs uncapped with only its edges refusing, and what hearth does is unchanged"
 parts = ["machine", "close"]
 walk = false

@@ -288,13 +288,17 @@ jig's types (jig's `domain/hosts.md`, 6.3), with temper's detail:
   **cancelled,** as jig's say, each with bounded detail for operators
   that no LLM is shown.
 
-When the hub accepts a run's failed answer, serve writes one operator line
+When the hub accepts a run's failed or refused answer, serve writes one operator line
 on stderr, which the box keeps in `<data>/box/logs/serve.log`
 (`../protocol/setup.md`, 7.2). The line names the task, run, attempt and
-failure class and includes the last at most 4,096 bytes of the worker's
-bounded detail. Newlines, control bytes and non-ASCII bytes are escaped,
+failure class or typed refusal reason. A refusal distinguishes a busy host,
+an oversized charter, transcript, grants or messages, and an invalid start;
+the invalid start names its cause and carries its decoding words. The line
+includes the last at most 4,096 bytes of the worker's bounded failure detail
+or start words. Newlines, control bytes and non-ASCII bytes are escaped,
 so the record is one line. Acceptance emits it once; resending a kept
-answer emits no second line. In-process and socket workers share this
+answer emits no second line. A full operator-note sink retains the diagnostic
+until the sink drains. In-process and socket workers share this
 path. The evidence is volatile operator output, outside turns, facts,
 `TaskResult` and the review's reason sentence; no wire or stored field
 carries an extra copy.

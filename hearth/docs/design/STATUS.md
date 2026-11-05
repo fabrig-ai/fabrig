@@ -10,7 +10,9 @@ Real layer operations, the helper process, build-step runners and sandboxes,
 pins and collection remain unbuilt; the client reports steps as unavailable.
 Tool versions and rebuild times are missing, and the resolution reply,
 reconciled-base retention and mmdebstrap hooks have unsettled
-departures in those documents. The store reports unreadable or invalid layer
+departures in those documents. Resumed work's order has no test, and the
+store step's order no named predicate
+(`hearth/docs/design/domain/render.md`). The store reports unreadable or invalid layer
 records as strays and refuses a second staging request. The activator, steward
 and their link, remaining crates and support are absent; printed errors,
 task data and lint reasons keep citations without the repository-root prefix
@@ -27,8 +29,8 @@ as do operating, development machines, artifacts and reproducible builds
 git, resolution and render conformance, and tool fakes, but lack the complete
 M2 fake machine, joined system world, real builds and boot test; conformance
 has no automatic runner. Tier profiles, memory tests and shared suite
-timeouts depart from the design, the focused suite measures about 15 CPU s
-over its 30, and measured costs await the user
+timeouts depart from the design, the focused suite stands over its 30 CPU s,
+by about 15 on one record and 0.2 on another, and measured costs await the user
 (`hearth/docs/design/domain/testing.md`). The design departs
 from the draft in its three processes, subordinate ids, offline sandboxes,
 development loop, live changes and milestone split; pool placement still
