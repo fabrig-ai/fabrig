@@ -26,6 +26,7 @@ mod playground;
 mod project_fund;
 mod recovery;
 mod settings_tools;
+mod status;
 mod stories;
 mod task;
 mod task_tree;
