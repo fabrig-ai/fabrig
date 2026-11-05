@@ -13,6 +13,14 @@ pub mod away;
 pub mod builders;
 pub mod changes;
 pub mod chat;
+/// Whether the project's settings offer writing drafts (client/README.md, 5.13).
+#[must_use]
+pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
+    match root.forge().ways(project) {
+        Some(ways) => ways.drafts,
+        None => false,
+    }
+}
 pub mod chats;
 pub mod choice;
 pub mod connect_model;
@@ -156,6 +164,13 @@ pub enum Act {
     MessageWords {
         words: Box<[u8]>,
     },
+    Mode {
+        mode: chat::document::Mode,
+    },
+    ShowSection {
+        line: u32,
+    },
+    AddDraft,
     Send,
     /// Open the task page's amendment editor (client/README.md, 5.11).
     Amend,
@@ -180,6 +195,8 @@ pub enum Act {
     Stop,
     /// Close the page's task: a chat's close, or a task page's cancel (client/README.md, 5.11).
     Close,
+    /// Close this configuring chat and return to a fresh Configure (client/README.md, 3.5).
+    StartOver,
     DelegateFate {
         task: u64,
         fate: jig_client::shapes::Fate,
@@ -592,6 +609,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::ClosedChats } => closed_chats(pages, out),
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
+        Event::Act { act: act @ (Act::Mode { .. } | Act::ShowSection { .. } | Act::AddDraft) } => {
+            if let Some(chat) = &mut pages.chat {
+                chat.act(env, client, act, &mut pages.serial, out);
+            }
+        }
         Event::Act { act: act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older) } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
@@ -639,6 +661,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act {
             act:
                 act @ (Act::Close
+                | Act::StartOver
                 | Act::Stop
                 | Act::DelegateFate { .. }
                 | Act::Decide { .. }
@@ -739,7 +762,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Configure { .. } => out.push(Request::Show { address: Address::Configure { project } }),
                 Address::Inbox { .. }
                 | Address::Chats { .. }
-                | Address::NewChat
+                | Address::NewChat { .. }
                 | Address::Accounts
                 | Address::Forges
                 | Address::ConnectForge { .. }
@@ -751,7 +774,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::SignOut } => out.push(Request::Client(jig_client::Event::SignOut)),
-        Event::Act { act: Act::Go { address } } => out.push(Request::Show { address }),
+        Event::Act { act: Act::Go { address } } => {
+            if address == (Address::NewChat { draft: true })
+                && let Address::NewChat { .. } = pages.address
+            {
+                out.push(Request::Replace { address });
+            } else {
+                out.push(Request::Show { address });
+            }
+        }
         Event::Told { told: Told::Changed { handle } } if handle == me_handle() => me_changed(pages, client, out),
         Event::Link { link } => {
             if let Some(task) = &mut pages.task {
@@ -792,7 +823,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::Changes { .. }
             | Address::Inbox { .. }
             | Address::Chats { .. }
-            | Address::NewChat
+            | Address::NewChat { .. }
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Accounts
@@ -825,6 +856,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     let project = conversation_project(pages);
     if let Some(chats) = &mut pages.chats {
         chats.configure(me, project, &env.limits, out);
+        if let Address::Chats { .. } = pages.address
+            && let Some(project) = project
+        {
+            chats.open_documents(project, env.limits.client.domain.rows, out);
+        }
     }
     if let Address::Goals { project, .. } | Address::Home { project } = pages.address
         && let Some(goals) = &mut pages.goals
@@ -910,6 +946,9 @@ pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Qu
     if needs::fire(pages, env, out) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
     }
+    if let Some(chats) = &mut pages.chats {
+        chats.fire(env.now, out);
+    }
     if let Some(chat) = &mut pages.chat {
         chat.fire(env.now, out);
     }
@@ -927,7 +966,11 @@ pub fn next_deadline(pages: &Pages) -> Option<Time> {
         Some(chat) => chat.next_deadline(),
         None => None,
     };
-    activity::earliest(activity::earliest(task, chat), pages.needs.next_deadline())
+    let chats = match &pages.chats {
+        Some(chats) => chats.next_deadline(),
+        None => None,
+    };
+    activity::earliest(activity::earliest(task, chat), activity::earliest(chats, pages.needs.next_deadline()))
 }
 #[must_use]
 pub const fn shown(pages: &Pages) -> u64 {
@@ -960,16 +1003,29 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
+    let mut opening = chat::document::Mode::Chat;
+    if let Some(chats) = &pages.chats
+        && let Some((task, mode)) = chats.opening
+        && address == (Address::Chat { task })
+    {
+        opening = mode;
+    }
     if pages.address != address {
         pages.start = None;
     }
     pages.needs.went(&pages.address, &address);
     pages.switcher.went(&address);
-    if let (Address::Chats { .. } | Address::NewChat, Address::Chats { .. } | Address::NewChat, Some(page)) =
-        (&pages.address, &address, &mut pages.chats)
+    if let (
+        Address::Chats { .. } | Address::NewChat { .. },
+        Address::Chats { .. } | Address::NewChat { .. },
+        Some(page),
+    ) = (&pages.address, &address, &mut pages.chats)
     {
         if let Address::Chats { filter } = address {
             page.filter = filter;
+        }
+        if let Address::NewChat { .. } = address {
+            page.close_documents(out);
         }
         pages.address = address;
         return;
@@ -1010,7 +1066,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             Address::Builders { .. } => true,
             Address::Inbox { .. }
             | Address::Chats { .. }
-            | Address::NewChat
+            | Address::NewChat { .. }
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -1070,7 +1126,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.task = Some(task::Task::new(task, pages.next, &env.limits, out));
         }
         if let Address::Chat { task } = address {
-            pages.chat = Some(chat::Chat::new(task, pages.next, &env.limits, out));
+            pages.chat = Some(chat::Chat::new(task, opening, pages.next, &env.limits, out));
         }
         if let Address::Changes { project } = address {
             pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
@@ -1087,7 +1143,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
                 out,
             ));
         }
-        if let Address::Settings { .. } | Address::Configure { .. } | Address::NewChat = address {
+        if let Address::Settings { .. } | Address::Configure { .. } | Address::NewChat { .. } = address {
             pages.chats = Some(chats::Chats::new(pages.next));
         }
         if let Address::Chats { filter, .. } = address {
@@ -1111,7 +1167,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             }
             Address::Inbox { .. }
             | Address::Chats { .. }
-            | Address::NewChat
+            | Address::NewChat { .. }
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -1255,6 +1311,15 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         if !chat.told(env.now, client, told, out) {
             return false;
         }
+        if chat.restarting && chat.outcome_kind == Some(chat::Sending::Close) {
+            if let Some(outcome) = &chat.outcome
+                && seen_answered(outcome)
+                && let Some(task) = chat.task(client)
+            {
+                out.push(Request::Show { address: Address::Configure { project: task.project } });
+            }
+            chat.restarting = false;
+        }
         // Pages owns the shared key sequence, including automatic conversation reads.
         if moved {
             chat.see(&mut pages.serial, out);
@@ -1267,7 +1332,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Some(chats) = &mut pages.chats {
-        if !chats.told(told.clone(), &pages.address, out) {
+        if !chats.notes_told(env.now, client, &told, out) && !chats.told(told.clone(), &pages.address, out) {
             return match &mut pages.inbox {
                 Some(inbox) => inbox.told(client, told, out),
                 None => false,
@@ -1349,10 +1414,21 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
             pages.chat.as_mut().expect("open chat").act(env, client, Act::Stop, &mut pages.serial, out);
         }
         Act::Stop => task_confirmation(pages, client, jig_client::contract::ActKind::Stop),
-        Act::Close => {
+        Act::Close | Act::StartOver => {
+            let restarting = act == Act::StartOver;
             if let Some(chat) = &mut pages.chat {
+                if restarting {
+                    let Some(task) = chat.task(client) else { return };
+                    let Some(document) = client.document(me_handle()) else { return };
+                    let Some(me) = document.latest else { return };
+                    let Latest::Jig(Delivery::Me(me)) = me else { return };
+                    if chat.draft.is_none() || !chats::configuring(me, task.project, &task.chip.executor) {
+                        return;
+                    }
+                }
                 chat.prepare_close(client);
                 if chat.closing.is_some() {
+                    chat.restarting = restarting;
                     pages.confirm = Some(crate::acts::Confirm {
                         object: jig_client::contract::ObjectKey::Task(chat.task),
                         revision: None,
@@ -1360,7 +1436,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
                         again: None,
                     });
                 }
-            } else {
+            } else if !restarting {
                 task_confirmation(pages, client, jig_client::contract::ActKind::Cancel);
             }
         }
@@ -1379,6 +1455,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
             pages.confirm = None;
             if let Some(chat) = &mut pages.chat {
                 chat.closing = None;
+                chat.restarting = false;
             }
         }
         act @ (Act::Decide { .. } | Act::CardWords { .. } | Act::Again { .. } | Act::Confirm) => {
@@ -1426,8 +1503,11 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Playground
         | Act::RetryPlayground
         | Act::Suggest { .. }
+        | Act::Mode { .. }
+        | Act::ShowSection { .. }
         | Act::FocusComposer
         | Act::MessageWords { .. }
+        | Act::AddDraft
         | Act::Send
         | Act::Older
         | Act::GoalsFilter { .. }
@@ -1466,7 +1546,7 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Configure { project } => Some(*project),
         Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
@@ -1643,7 +1723,8 @@ fn start_chat(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Q
         if let Address::Configure { project } = pages.address {
             chats.configure_chat(env, me, Some(project), chats.words.clone(), &mut pages.serial, out);
         } else {
-            chats.start(env, me, pages.project, &pages.choice, &mut pages.serial, out);
+            let draft = pages.address == (Address::NewChat { draft: true });
+            chats.start(env, me, pages.project, &pages.choice, draft, &mut pages.serial, out);
         }
     }
 }
@@ -1662,7 +1743,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         }
         Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }

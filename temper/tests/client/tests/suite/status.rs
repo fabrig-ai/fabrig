@@ -5,7 +5,7 @@ use jig_client_world::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 use temper_client_domain::{
     Action, Address, Event, Request,
-    forge::dismissed::{self, Dismissal},
+    forge::dismissed::{self, PersonFact},
     forge::status,
     owner::Owner,
     pages::{
@@ -147,7 +147,7 @@ impl Story {
                 event: jig_client::Event::Send {
                     key: Key { asker: Owner::Forge.asker(), number: 2201 },
                     name: None,
-                    request: dismissed::ask(Dismissal::ToBegin { project: PROJECT }, &self.env.limits.forge)
+                    request: dismissed::ask(PersonFact::ToBegin { project: PROJECT }, &self.env.limits.forge)
                         .expect("skip request"),
                 },
             }

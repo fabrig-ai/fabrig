@@ -2,6 +2,225 @@
 //! (domain/engine.md, 15; client/domain/testing.md, 5).
 use super::*;
 
+// Standard's note body fits in one DocumentText, and its goal words fit one specification
+// (jig/docs/design/client/domain/client.md, 14; protocol/configuration.md, 6).
+const DOCUMENT_BODY_BYTES: usize = 60_000;
+const LONG_TEXT: u32 = 131_072;
+// The short field beside whole document text (client/domain/client.md, 14).
+const FIELD_TEXT: u32 = 512;
+const DOCUMENT_OWNER: crate::harness::ClientId = crate::harness::ClientId(0);
+const DOCUMENT_PROJECT: u32 = 1;
+const DOCUMENT_PERSON: u64 = 1;
+const DOCUMENT_CHARTER: u32 = 1;
+const DOCUMENT_WORKER: u64 = 1;
+
+struct LongTextStory {
+    session: Session,
+}
+impl LongTextStory {
+    fn new(field_text: u32) -> Self {
+        let (mut configuration, mut limits) = jig_core_world::peers::fixture(8530, 0);
+        limits.core = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core;
+        jig_core_world::peers::journal(&mut limits);
+        configuration.core.defaults.rules.ceiling.notes = jig_domain_authority::Scopes::PROJECT;
+        let policy = &mut configuration.core.seed_projects[0].policy.policy;
+        policy.ceiling.notes = jig_domain_authority::Scopes::PROJECT;
+        policy.roles[0].authority.notes = jig_domain_authority::Scopes::PROJECT;
+        let now = Time::ZERO;
+        let peers = jig_core_world::peers::Peers::new(
+            vec![jig_fake_workers::Worker::new(DOCUMENT_WORKER, 1, vec![Box::new([Script::Wait])])],
+            Vec::new(),
+        );
+        let driver = crate::joint::engine::Driver::new(configuration, limits, peers, now, clock(now));
+        let mut receiving = receiving_limits();
+        receiving.client.domain.text = field_text;
+        receiving.client.domain.long_text = LONG_TEXT;
+        receiving.client.domain.document_bytes = 1_048_576;
+        receiving.client.domain.requests.requests = 16;
+        receiving.client.domain.requests.bytes = 16_777_216;
+        receiving.client.domain.ask_bytes = 1_048_576;
+        receiving.client.domain.turn_text = field_text.max(2048);
+        receiving.client.domain.turn_bytes = 1_048_576;
+        receiving.client.domain.accounts = jig_client::AccountCounts { accounts: 16, sources: 8, sign_ins: 4 };
+        let codec = jig_protocol_transcript::Limits {
+            smith: smith_transcript::v6::CEILINGS,
+            bytes: 1_048_576,
+            turn: client::TurnLimits { messages: 2, blocks: 2, text: 2048 },
+        };
+        let mut session = Session::new(driver, receiving, codec);
+        session.bind(
+            DOCUMENT_OWNER,
+            DOCUMENT_PERSON,
+            people::Identity {
+                key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                login: b"login".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+            now,
+            clock(now),
+        );
+        session.poll(now, clock(now)).expect("signed-in client");
+        Self { session }
+    }
+
+    fn down(&mut self, down: jig_client::Down) -> Vec<jig_client::Up> {
+        let now = Time::ZERO;
+        self.session
+            .send(
+                DOCUMENT_OWNER,
+                now,
+                clock(now),
+                jig_client_test_domain::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } },
+            )
+            .expect("public client request crosses the wire");
+        self.session
+            .poll(now, clock(now))
+            .expect("engine replies cross the wire")
+            .into_iter()
+            .map(|(_, event)| match event {
+                jig_client_test_domain::Event::Client { event: jig_client::Event::Up { up } } => up,
+                other => panic!("client protocol callback: {other:?}"),
+            })
+            .collect()
+    }
+
+    fn read(&mut self, what: client::Read) -> client::ReadValue {
+        let replies = self.down(jig_client::Down::Read { read: Token::new(1), what: jig_client::Readable::Jig(what) });
+        replies
+            .iter()
+            .find_map(|up| match up {
+                jig_client::Up::ReadDone {
+                    result: jig_client::Readout::Jig(client::ReadResult::Value(value)), ..
+                } => Some(value.clone()),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("whole client document admitted: {replies:?}"))
+    }
+
+    fn ask(&mut self, number: u8, request: client::Ask) -> client::Answer {
+        self.down(jig_client::Down::Send {
+            attempt: Token::new(u64::from(number)),
+            key: [number; 16],
+            request: jig_client::Ask::Jig(Box::new(request)),
+            value: None,
+        })
+        .into_iter()
+        .find_map(|up| match up {
+            jig_client::Up::Answer { answer: Some(jig_client::Answered::Jig(answer)), .. } => Some(answer),
+            _ => None,
+        })
+        .expect("client receives the engine's keyed answer")
+    }
+
+    fn chat(&mut self) -> u64 {
+        let client::ReadValue::Me(me) = self.read(client::Read::Me) else { panic!("me") };
+        let words = client::Text::new(b"write a document".as_slice().into(), LONG_TEXT).unwrap();
+        let ask = jig_client::shapes::chat(&me, DOCUMENT_PROJECT, words).unwrap();
+        match self.ask(1, ask) {
+            client::Answer::Done(client::Outcome::Document(client::DocumentOutcome::Created { first, .. })) => first,
+            other => panic!("chat created: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn a_large_document_and_a_large_goal_cross_the_wire() {
+    let mut story = LongTextStory::new(FIELD_TEXT);
+    let chat = story.chat();
+    let assignment = story.session.driver.world.peers.as_ref().unwrap().workers[0].seen[0].clone();
+    let body = vec![b'x'; DOCUMENT_BODY_BYTES].into_boxed_slice();
+    story.session.driver.send(
+        Time::ZERO,
+        clock(Time::ZERO),
+        jig_test_domain::Event::Core(jig_domain_core::Event::NamedAction {
+            to: skein_lib::ReplyTo::new(Token::new(9_900)),
+            key: jig_domain_core::CallKey { task: chat, attempt: assignment.attempt, completion: 1, position: 0 },
+            action: jig_domain_core::NamedAction::Note {
+                entry: jig_domain_notes::New {
+                    name: 0,
+                    scope: jig_domain_notes::Scope::Project { project: DOCUMENT_PROJECT },
+                    description: b"Draft".as_slice().into(),
+                    body: body.clone(),
+                    references: skein_lib::List::with_capacity(0),
+                    author: jig_domain_notes::Author::Task { task: chat, attempt: assignment.attempt },
+                },
+                recalled: None,
+            },
+        }),
+    );
+    let client::ReadValue::Notes(notes) = story.read(client::Read::Notes {
+        scope: client::NoteScope::Project(DOCUMENT_PROJECT),
+        description: None,
+        after: None,
+    }) else {
+        panic!("notes")
+    };
+    let note = notes.rows.get(0).expect("the run's document");
+    assert!(!note.body.cut);
+    assert_eq!(note.body.bytes(), body.as_ref());
+    let client::ReadValue::Me(me) = story.read(client::Read::Me) else { panic!("me") };
+    let draft = jig_client::shapes::GoalDraft {
+        words: client::Text::new(note.body.bytes().into(), LONG_TEXT).unwrap(),
+        executor: client::Executor::Agent { charter: DOCUMENT_CHARTER },
+        budget: 1,
+        deadline: None,
+        priority: Some(1),
+        llm: None,
+    };
+    let jig_client::shapes::Judged::Create(ask) =
+        jig_client::shapes::set_goal(&me, DOCUMENT_PROJECT, draft, client::Text::new(Box::new([]), LONG_TEXT).unwrap())
+    else {
+        panic!("offered goal")
+    };
+    let client::Answer::Done(client::Outcome::Document(client::DocumentOutcome::Created { first, .. })) =
+        story.ask(2, ask)
+    else {
+        panic!("large goal created")
+    };
+    let stored = story
+        .session
+        .driver
+        .world
+        .store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            jig_test_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(task)))
+                if task.number == first =>
+            {
+                Some(task)
+            }
+            _ => None,
+        })
+        .expect("durable goal");
+    assert_eq!(stored.spec.words.as_ref(), body.as_ref());
+}
+
+#[test]
+fn a_message_still_stops_at_people_words() {
+    let words = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.people.words;
+    let mut story = LongTextStory::new(words + 1);
+    let chat = story.chat();
+    let message = vec![b'm'; usize::try_from(words + 1).unwrap()].into_boxed_slice();
+    let answer = story.ask(
+        2,
+        client::Ask::Message {
+            project: DOCUMENT_PROJECT,
+            task: chat,
+            words: client::Text::new(message, LONG_TEXT).unwrap(),
+        },
+    );
+    assert_eq!(
+        answer,
+        client::Answer::Refused {
+            refusal: client::Refusal::Limit {
+                which: client::Limit::Admission { which: client::AdmissionLimit::Words }
+            },
+            at: None
+        }
+    );
+}
+
 pub(super) fn action(
     world: &mut World<Test, Joint>,
     assignment: &jig_fake_workers::Assignment,
@@ -67,7 +286,7 @@ fn a_note_written_corrected_by_a_person_and_recalled() {
         },
     );
     let name = match world.front().session.driver.world.answers.last().expect("committed note answer").2 {
-        jig_domain_core::CallPart::NoteWritten { name, revision: 1 } => name,
+        jig_domain_core::CallPart::NoteWritten { name, revision: 1, .. } => name,
         ref other => panic!("note write must be admitted: {other:?}"),
     };
     let within = Duration::from_secs(1);

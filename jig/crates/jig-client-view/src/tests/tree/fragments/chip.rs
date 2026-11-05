@@ -73,7 +73,12 @@ fn hold() -> ChipHold {
 fn client_limits() -> crate::tests::fixtures::Profile {
     crate::tests::fixtures::Profile {
         view: crate::Config { objects: 4, ..(crate::tests::tree::cards::CLIENT).view },
-        client: jig_client::DomainLimits { rows: 4, text: 256, ..(crate::tests::tree::cards::CLIENT).client },
+        client: jig_client::DomainLimits {
+            rows: 4,
+            text: 256,
+            long_text: 256,
+            ..(crate::tests::tree::cards::CLIENT).client
+        },
     }
 }
 fn phrase_limits() -> PhraseLimits {

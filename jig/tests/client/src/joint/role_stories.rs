@@ -7,6 +7,7 @@ fn receiving_limits() -> jig_client_test_domain::Limits {
     limits.client.domain.turn_text = 128;
     limits.client.domain.turn_bytes = 128;
     limits.client.domain.text = 128;
+    limits.client.domain.long_text = 128;
     limits.client.domain.rows = 2;
     limits.client.domain.projects = 2;
     limits.jig.roles = 4;

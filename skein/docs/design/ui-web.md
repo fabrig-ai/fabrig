@@ -458,7 +458,8 @@ the host tests (section 14).
 - **Attributes:**
   - *a name* is `aria-label` where the element's own text does not give
     it; a button, a tab, a menu item and an option show their name as
-    their text; a named text field has a visible `<label>` just before
+    their text; a menu item with a description shows each in a `<span>` of its
+    own, the name first, its accessible name the name alone; a named text field has a visible `<label>` just before
     its input, linked by `for` to `id="skein-ui-label-<node id>"`, as a
     choice or check is linked to its label. The label supplies the name
     once, with no `aria-label` on the input; an unnamed field has no label;

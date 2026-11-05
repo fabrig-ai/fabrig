@@ -90,6 +90,7 @@ impl Session {
     #[cfg(test)]
     pub(super) fn transcript_text_limit(&mut self, bytes: u32) {
         self.limits.client.domain.text = bytes;
+        self.limits.client.domain.long_text = bytes;
         self.limits.client.domain.turn_text = bytes;
         self.limits.client.domain.turn_bytes = bytes;
         self.component.receiving(self.limits.client.domain);
@@ -850,6 +851,7 @@ mod tests {
         limits.client.domain.projects = 64;
         limits.jig.roles = 64;
         limits.client.domain.text = 4096;
+        limits.client.domain.long_text = 4096;
         limits.client.domain.document_bytes = 1_048_576;
         let codec = jig_protocol_transcript::Limits {
             smith: smith_transcript::v6::CEILINGS,

@@ -619,7 +619,9 @@ and again with the whole engine, beside settings history and journal-write
 admission. It probes the people codec and the combined store codec; it
 never lowers a configured limit or a derived bound to make it fit.
 With the shipped profiles' other limits, the largest policy budget is
-43,695 bytes and the largest amendment budget is 8,192 bytes.
+43,695 bytes and the largest amendment budget holds a whole `tasks.spec_bytes`:
+a task a person creates is bounded by `tasks.spec_bytes`, a person's other words
+by `people.words`.
 
 An application composing its own effective `jig_domain_core::Limits` calls
 `jig_protocol_config::check_effective_limits(&limits) -> Result<(), Problem>`
@@ -738,11 +740,6 @@ the same capacities even when every run slot is occupied.
 - **Profiles' numbers** beyond fabrig's development, which sizes
   standard's work (section 6): small's, and each profile's machine
   concurrency, from the first deployments' measurements.
-- **A person's words past people-v14's ceiling.** `standard`'s
-  `people.words` is 8,192, the most that format takes, so a spec a
-  person writes stops there, below `tasks.spec_bytes`; raising it
-  changes those ceilings in place, before the first release
-  (`store.md`, section 5). Default: as it stands.
 - **A configuration's format version,** once a deployment's configuration
   must survive a release that changes it.
 

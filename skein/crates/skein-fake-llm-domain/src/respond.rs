@@ -325,17 +325,21 @@ impl Played {
             return Some((script, said(&query.messages)));
         }
         let end = self.cued.checked_add(self.asked).expect("retained asked range");
-        let asked = self.scripts.get(self.cued..end).expect("retained asked range");
+        let requested_scripts = self.scripts.get(..end).expect("retained request range");
         if let Some(request) = latest_request(&query.messages) {
             for part in &request.parts {
                 match part {
                     Part::Text { text } => {
-                        if let Some(script) = cued(asked, text) {
-                            let turn = match input_turn(&rules.asked, script, &query.messages) {
+                        if let Some(script) = cued(requested_scripts, text) {
+                            let selected = match script.checked_sub(self.cued) {
+                                Some(index) => input_turn(&rules.asked, index, &query.messages),
+                                None => input_turn(&rules.cued, script, &query.messages),
+                            };
+                            let turn = match selected {
                                 Some(turn) => turn,
                                 None => requested(&query.messages).1,
                             };
-                            return Some((self.cued.checked_add(script).expect("retained asked index"), turn));
+                            return Some((script, turn));
                         }
                     }
                     Part::Opaque { .. } | Part::ToolCall { .. } | Part::ToolOutput { .. } => {}

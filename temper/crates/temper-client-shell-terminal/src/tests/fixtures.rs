@@ -197,6 +197,7 @@ pub fn page(address: &temper_client_domain::Address, signed_out: bool) -> skein_
     use temper_client_domain::Event;
     let mut limits = crate::limits::native().client;
     limits.client.domain.text = 32;
+    limits.client.domain.long_text = 32;
     limits.client.domain.turn_text = 32;
     limits.client.domain.rows = 8;
     limits.client.domain.document_bytes = 16_384;

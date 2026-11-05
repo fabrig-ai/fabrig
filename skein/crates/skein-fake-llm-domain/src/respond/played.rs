@@ -38,7 +38,7 @@ struct Choice {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one selection table keeps its fifteen input and answer rows together")]
+#[expect(clippy::too_many_lines, reason = "one selection table keeps its input and answer rows together")]
 fn system_request_and_fallback_choose_in_order() {
     let latest = || Box::<[Message]>::from([request(Box::new([text(b"ask")]))]);
     let no_fallback = Scripts { otherwise: Box::new([]), ..scripts() };
@@ -51,6 +51,22 @@ fn system_request_and_fallback_choose_in_order() {
             scripts: scripts(),
             chosen: Some((0, 0)),
             answer: b"cued",
+        },
+        Choice {
+            label: "unsuggested cue answers latest request",
+            system: b"",
+            messages: Box::new([request(Box::new([text(b"system ask")]))]),
+            scripts: scripts(),
+            chosen: Some((0, 0)),
+            answer: b"cued",
+        },
+        Choice {
+            label: "earliest request cue across groups",
+            system: b"",
+            messages: Box::new([request(Box::new([text(b"ask system")]))]),
+            scripts: scripts(),
+            chosen: Some((1, 0)),
+            answer: b"asked",
         },
         Choice {
             label: "earlier request position",
@@ -219,6 +235,13 @@ fn request_turns_restart_while_system_turns_keep_counting() {
         (
             "asked",
             Scripts { cued: Box::new([]), asked: Box::new([script(b"ask", turns())]), otherwise: Box::new([]) },
+            b"".as_slice(),
+            [0, 1, 2, 0],
+            request_answers.clone(),
+        ),
+        (
+            "cued request",
+            Scripts { cued: Box::new([script(b"ask", turns())]), asked: Box::new([]), otherwise: Box::new([]) },
             b"".as_slice(),
             [0, 1, 2, 0],
             request_answers.clone(),

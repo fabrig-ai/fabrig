@@ -51,7 +51,9 @@ pub fn element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary, wo
                 Child::Element(summary) => summary.append(words),
                 Child::Text(_) => unreachable!("summary is an element"),
             }
-        } else if [Role::Item, Role::Cell, Role::ColumnHeader, Role::RowHeader].contains(&made.attribute.role) {
+        } else if [Role::Item, Role::Cell, Role::ColumnHeader, Role::RowHeader, Role::MenuItem]
+            .contains(&made.attribute.role)
+        {
             core.append(words);
         } else if e.tag.is_empty() {
             e.append(words);
@@ -319,6 +321,7 @@ fn base(role: Role, id: u32) -> Element {
         | Role::MenuItem
         | Role::Disclosure
         | Role::Figure
+        | Role::Group
         | Role::Slot
         | Role::Drawing => {}
     }
@@ -408,6 +411,7 @@ pub const fn accessible(role: Role) -> &'static [&'static [u8]] {
         Role::Form => &[b"form"],
         Role::Search => &[b"search"],
         Role::Region => &[b"region"],
+        Role::Group => &[b"group"],
         Role::Heading { .. } => &[b"heading"],
         Role::Paragraph => &[b"paragraph"],
         Role::Text => &[b"StaticText"],
@@ -453,7 +457,17 @@ fn name(e: &mut Element, made: &Made) {
     let a = &made.attribute;
     if let Some(name) = &a.name {
         match a.role {
-            Role::Button | Role::Tab | Role::MenuItem | Role::Option => e.text(name),
+            Role::Button | Role::Tab | Role::Option => e.text(name),
+            Role::MenuItem => {
+                if a.description.is_some() {
+                    e.set("aria-label", &words(name));
+                    let mut span = Element::new("span");
+                    span.text(name);
+                    e.append(span);
+                } else {
+                    e.text(name);
+                }
+            }
             Role::Disclosure => {
                 let mut summary = Element::new("summary");
                 summary.text(name);
@@ -502,6 +516,7 @@ fn name(e: &mut Element, made: &Made) {
             | Role::Separator
             | Role::Menu
             | Role::Figure
+            | Role::Group
             | Role::Slot
             | Role::Drawing => e.set("aria-label", &words(name)),
         }
@@ -587,6 +602,7 @@ fn value(e: &mut Element, made: &Made) {
             | Role::Disclosure
             | Role::Image
             | Role::Figure
+            | Role::Group
             | Role::Slot
             | Role::Drawing => e.set("value", &words(&value.text)),
         }
@@ -596,6 +612,7 @@ fn value(e: &mut Element, made: &Made) {
 fn tag(role: Role) -> (&'static str, Option<&'static str>) {
     match role {
         Role::Page | Role::Slot => ("div", None),
+        Role::Group => ("div", Some("group")),
         Role::Banner => ("header", None),
         Role::Navigation => ("nav", None),
         Role::Main => ("main", None),

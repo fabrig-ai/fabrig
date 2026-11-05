@@ -62,7 +62,7 @@ pub fn render(part: &CallPart) -> Rendered {
         CallPart::Sent { message } => text(&[b"Sent message ", Decimal::of(*message).as_bytes()], false),
         CallPart::Subscribed { subscription } => text(&[b"Subscribed ", Decimal::of(*subscription).as_bytes()], false),
         CallPart::Delegated(numbers) => delegated(numbers),
-        CallPart::NoteWritten { name, revision } => text(
+        CallPart::NoteWritten { name, revision, .. } => text(
             &[
                 b"Wrote note ",
                 Decimal::of(*name).as_bytes(),

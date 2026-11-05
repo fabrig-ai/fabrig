@@ -1121,8 +1121,28 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-rail > .temper-rail-nav > a { display: flex; justify-content: space-between; padding: 7px 10px; border-radius: 6px; color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-nav > a:hover { background: #f0f0ee; }
 #app > .temper-rail > .temper-rail-nav > a[aria-current] { background: var(--gf-hover); font-weight: 500; }
-#app > .temper-rail > .temper-rail-new { padding: 9px 10px; border: 1px dashed #c9c9c3; border-radius: 8px; color: var(--gf-ink); }
+#app > .temper-rail > .temper-rail-new { position: relative; display: flex; padding: 0; border: 1px dashed #c9c9c3; border-radius: 8px; color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-new:hover { border-color: var(--gf-ink); }
+/* new-menu: "+ New chat" keeps its one press, and a button beside it opens a short menu of the ways to start work: Chat, Goal, and "All ways to start work". */
+#app > .temper-rail > .temper-rail-new > a { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 7px 0 0 7px; }
+#app > .temper-rail > .temper-rail-new > :is(a, [aria-haspopup]):hover { background: #f0f0ee; }
+#app > .temper-rail > .temper-rail-new > [aria-haspopup] { flex: none; width: 36px; padding: 0; border: 0; border-left: 1px dashed #c9c9c3; border-radius: 0 7px 7px 0; background: none; font-size: 0; color: var(--gf-muted); }
+#app > .temper-rail > .temper-rail-new > [aria-haspopup]::before { content: '⌄'; font-size: 15px; line-height: 1; }
+#app > .temper-rail > .temper-rail-new > [aria-expanded=true] { background: var(--gf-hover); color: var(--gf-ink); }
+#app > .temper-rail:has(> .temper-rail-new > [aria-expanded=true]) { overflow: visible; }
+#app > .temper-rail > .temper-rail-new > [role=menu] { position: absolute; top: calc(100% + 6px); left: -1px; z-index: 30; width: 288px; display: flex; flex-direction: column; padding: 6px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-surface); box-shadow: 0 12px 32px rgba(24, 24, 27, .12); }
+#app > .temper-rail > .temper-rail-new > [role=menu][hidden] { display: none; }
+#app > .temper-rail [role=menuitem] { position: relative; display: flex; flex-direction: column; padding: 8px 10px; border-radius: 6px; color: var(--gf-ink); cursor: pointer; }
+#app > .temper-rail [role=menuitem]:is(:hover, :focus) { background: var(--gf-hover); outline: 0; }
+#app > .temper-rail [role=menuitem] > span:first-child { font-weight: 500; }
+#app > .temper-rail [role=menuitem] > span + span { font-size: 12.5px; line-height: 1.5; color: var(--gf-muted); }
+#app > .temper-rail [role=menuitem].temper-rail-new-all { margin-top: 7px; font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-rail [role=menuitem].temper-rail-new-all > span:first-child { font-weight: 400; }
+#app > .temper-rail [role=menuitem].temper-rail-new-all::before { content: ''; position: absolute; top: -4px; left: 4px; right: 4px; border-top: 1px solid var(--gf-line); }
+@media (max-width: 760px) {
+  #app > .temper-rail > .temper-rail-new { display: none; }
+}
+
 #app > .temper-rail > .temper-rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-rail > .temper-rail-foot > :is(a, [role=status], [data-region=temper-link]) { padding: 6px 10px; border-radius: 6px; }
 #app > .temper-rail > .temper-rail-foot > a:hover { background: #f0f0ee; color: var(--gf-ink); }
@@ -1252,6 +1272,20 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+#app > .temper-session .temper-session-right > .temper-chat-goal { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
+#app > .temper-session .temper-session-right > .temper-chat-goal:hover { border-color: #b4b4ae; }
+#app > .temper-session .temper-session-right > .temper-chat-goal.temper-goal-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-session .temper-session-right > .temper-chat-goal.temper-goal-primary:hover { background: #000; }
+#app > .temper-session .temper-session-right > button.temper-add-draft { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
+#app > .temper-session .temper-session-right > button.temper-add-draft:hover { border-color: #b4b4ae; background: var(--gf-surface); color: var(--gf-ink); }
+#app > .temper-session .temper-doc-empty { color: var(--gf-muted); }
+
+#app > .temper-session .temper-doc-sec { border-radius: 8px; transition: background .8s; }
+#app > .temper-session .temper-doc-sec:focus { outline: none; }
+#app > .temper-session .temper-doc-flash { border-radius: 8px; animation: flash 1.8s ease-out; }
+@keyframes flash { 0% { background: #fde7cf; } 100% { background: var(--gf-signal-pale); } }
+#app > .temper-session .temper-turn-tool > button:hover { color: var(--gf-ink); text-decoration-color: var(--gf-ink); }
+
 
 /* The keyboard hint has no paragraph margin below the mock's composer. */
 #app > .temper-session .temper-session-foot > .temper-session-hint { margin-bottom: 0; }
@@ -1260,7 +1294,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* Calls and delegations share the conversation's pen line. */
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -8px 0 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-size: 13px; color: var(--gf-muted); }
-#app > .temper-session :is(.temper-task-card, .temper-turn-tool > summary)::before { content: ''; flex: none; display: inline-block; width: 14px; height: 14px; background: var(--gf-faint); mask: url(files/pen.svg) center / contain no-repeat; }
+#app > .temper-session :is(.temper-task-card, .temper-turn-tool > summary, div.temper-turn-tool)::before { content: ''; flex: none; display: inline-block; width: 14px; height: 14px; background: url(files/pen.svg) center / contain no-repeat; }
 #app > .temper-session details.temper-turn-tool { display: block; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 0; margin: 0; border: 0; background: none; list-style: none; font: inherit; color: var(--gf-muted); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > summary::-webkit-details-marker { display: none; }
@@ -1270,13 +1304,14 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-task-card > :is(.temper-meta, .temper-steps) { display: none; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > :is(p, .temper-title, .temper-details) { margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-title { font-weight: 400; color: var(--gf-ink-2); }
-#app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-tool-file { font-family: var(--gf-mono); font-size: 12.5px; color: var(--gf-ink-2); }
+#app > .temper-session .temper-turn-tool > .temper-tool-file { font-weight: 500; color: var(--gf-ink-2); }
+#app > .temper-session .temper-task-card > .temper-tool-file { font-family: var(--gf-mono); font-size: 12.5px; color: var(--gf-ink-2); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > [role=status] { padding: 0; margin: 0; border: 0; border-radius: 0; background: none; font: inherit; color: var(--gf-faint); text-transform: lowercase; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-status-held { color: var(--gf-signal); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > [role=status]::before { content: none; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-details { color: var(--gf-faint); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-details > * { margin: 0; font: inherit; }
-#app > .temper-session :is(.temper-turn-tool, .temper-task-card) > a { padding: 0; border: 0; background: none; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; }
+#app > .temper-session :is(.temper-turn-tool, .temper-task-card) > :is(a, button) { padding: 0; border: 0; background: none; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; }
 /* Conversation cards use the mock's proposal, independently of the inbox. */
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 20px 22px; border: 0; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) > * { margin: 0; }
@@ -1324,9 +1359,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-chats-page .temper-chats-row { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 18px 0; border-bottom: 1px solid var(--gf-line); }
 #app > .temper-chats-page .temper-chats-top { display: flex; justify-content: space-between; gap: 12px; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
 #app > .temper-chats-page .temper-chats-top a { color: inherit; text-decoration: none; }
-#app > .temper-chats-page .temper-chats-top a::after { content: ''; position: absolute; inset: 0; }
-#app > .temper-chats-page .temper-chats-top a:focus-visible { outline: none; }
-#app > .temper-chats-page .temper-chats-top a:focus-visible::after { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
+#app > .temper-chats-page .temper-chats-top > :first-child > :first-child::after { content: ''; position: absolute; inset: 0; }
+#app > .temper-chats-page .temper-chats-top > :first-child > a:not(:first-child) { position: relative; z-index: 1; }
+#app > .temper-chats-page .temper-chats-top > :first-child > :first-child:focus-visible { outline: none; }
+#app > .temper-chats-page .temper-chats-top > :first-child > :first-child:focus-visible::after { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
 #app > .temper-chats-page .temper-chats-top [role=status] { display: inline; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; font: inherit; color: inherit; text-transform: lowercase; }
 #app > .temper-chats-page .temper-chats-top .temper-state-needs { color: var(--gf-signal); }
 #app > .temper-chats-page .temper-chats-top .temper-time { font: inherit; color: inherit; }
@@ -1410,8 +1446,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-session-right > p:not(.temper-byline) { display: none; }
 #app > .temper-session .temper-session-right > [role=status] { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 12px; font-weight: 400; color: var(--gf-faint); text-transform: lowercase; }
 #app > .temper-session .temper-session-right > .temper-state-needs { color: var(--gf-signal); }
-#app > .temper-session .temper-session-right > button { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }
-#app > .temper-session .temper-session-right > button:hover { background: var(--gf-hover); color: var(--gf-ink); }
+#app > .temper-session .temper-session-right > button:not(.temper-start-over) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }
+#app > .temper-session .temper-session-right > button:not(.temper-start-over):hover { background: var(--gf-hover); color: var(--gf-ink); }
 #app > .temper-session :is(.temper-thread, .temper-thread-inner) > .temper-meta-line.temper-context { padding: 0; border: 0; background: none; }
 #app > .temper-session :is(.temper-thread, .temper-thread-inner) > .temper-meta-line.temper-context > p { margin: 0; }
 #app > .temper-session .temper-meta-line .temper-repository { font-weight: 400; }
@@ -1485,6 +1521,69 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @media (max-width: 760px) {
   #app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin-top: 4vh; }
 }
+
+#app > .temper-session .temper-start-over { padding: 4px 10px; border: 1px solid var(--gf-line); border-radius: 8px; background: none; color: var(--gf-muted); font: 400 13px/1.5 var(--gf-sans); white-space: nowrap; }
+#app > .temper-session .temper-start-over:hover { border-color: var(--gf-line-2); color: var(--gf-ink); }
+#app > .temper-session .temper-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--gf-hover); }
+#app > .temper-session .temper-seg > button { padding: 4px 11px; border: 0; border-radius: 7px; background: none; color: var(--gf-muted); font: 400 13px/1.5 var(--gf-sans); }
+#app > .temper-session .temper-seg > button:hover { color: var(--gf-ink); }
+#app > .temper-session .temper-seg > button[aria-pressed=true] { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+#app > .temper-session:is(.temper-mode-split, .temper-mode-draft) { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+#app > .temper-session.temper-mode-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+#app > .temper-session.temper-mode-draft { grid-template-rows: auto minmax(0, 1fr) auto; }
+#app > .temper-session:is(.temper-mode-split, .temper-mode-draft) > .temper-session-top { grid-column: 1 / -1; }
+#app > .temper-session.temper-mode-split > .temper-convo { min-height: 0; }
+#app > .temper-session.temper-mode-chat > .temper-doc { display: none; }
+#app > .temper-session.temper-mode-draft > .temper-convo { grid-row: 3; background: var(--gf-surface); }
+#app > .temper-session.temper-mode-draft .temper-thread { display: none; }
+#app > .temper-session > .temper-doc { min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 44px 56px 80px; border-left: 1px solid var(--gf-line); background: var(--gf-surface); }
+#app > .temper-session.temper-mode-draft > .temper-doc { grid-row: 2; padding-bottom: 24px; border-left: 0; }
+#app > .temper-session .temper-doc-inner { max-width: 640px; margin: 0 auto; font-size: 15.5px; line-height: 1.7; color: var(--gf-ink); }
+#app > .temper-session .temper-doc-inner p { margin: 0 0 8px; }
+#app > .temper-session .temper-doc-path { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; margin-bottom: 18px !important; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-session .temper-doc-inner h2 { margin: 0 0 4px; font: 500 28px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
+#app > .temper-session .temper-doc-inner h3 { margin: 26px 0 8px; font: 600 17px/1.5 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > .temper-session :is(.temper-doc-sub, .temper-doc-muted) { color: var(--gf-muted); }
+#app > .temper-session .temper-doc-muted { font-size: 14px; }
+#app > .temper-session .temper-doc-inner ul { margin: 0; padding-left: 20px; }
+#app > .temper-session .temper-doc-inner li + li { margin-top: 4px; }
+#app > .temper-session .temper-doc-inner table { width: 100%; margin: 4px 0 10px; border-collapse: collapse; font-size: 14.5px; line-height: 1.5; }
+#app > .temper-session .temper-doc-inner :is(th, td) { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--gf-line); text-align: left; vertical-align: top; }
+#app > .temper-session .temper-doc-inner th { font-size: 12.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--gf-muted); }
+#app > .temper-session .temper-doc-changed { margin-inline: -14px; padding: 1px 14px 8px; border-radius: 8px; background: var(--gf-signal-pale); }
+#app > .temper-session .temper-doc-note { font-size: 12px; color: #9a3412; }
+#app > .temper-rail > .temper-rail-unfold { display: none; }
+#app:has(> .temper-rail):has(> .temper-mode-split) { grid-template-columns: 56px minmax(0, 1fr); }
+#app:has(> .temper-mode-split) > .temper-rail { align-items: center; gap: 14px; padding: 18px 0; }
+#app:has(> .temper-mode-split) > .temper-rail > :not(.temper-brand, .temper-rail-unfold) { display: none; }
+#app:has(> .temper-mode-split) > .temper-rail > .temper-brand { font-size: 0; }
+#app:has(> .temper-mode-split) > .temper-rail > .temper-brand::before { font-size: 17px; line-height: 1.6; }
+#app:has(> .temper-mode-split) > .temper-rail > .temper-rail-unfold { display: block; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent url(files/menu.svg) center / 18px no-repeat; color: transparent; font-size: 0; }
+#app:has(> .temper-mode-split) > .temper-rail > .temper-rail-unfold:hover { background-color: var(--gf-hover); }
+@media (max-width: 760px) {
+  #app > .temper-session .temper-seg > .temper-seg-split { display: none; }
+  #app > .temper-session .temper-seg { margin-left: auto; }
+  #app > .temper-session.temper-mode-split .temper-seg > button:last-child { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+  #app > .temper-session > .temper-doc { padding: 24px 16px 60px; border-left: 0; scrollbar-gutter: auto; }
+  #app:has(> .temper-rail):has(> .temper-mode-split) { grid-template-columns: minmax(0, 1fr); }
+  #app > .temper-session.temper-mode-split { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
+  #app > .temper-session.temper-mode-split > .temper-doc { grid-row: 2; }
+  #app > .temper-session.temper-mode-split > .temper-convo { grid-row: 3; background: var(--gf-surface); }
+  #app > .temper-session.temper-mode-split .temper-thread { display: none; }
+}
+
+#app > .temper-rail > .temper-rail-unfold > summary { height: 100%; padding: 0; list-style: none; cursor: pointer; }
+#app > .temper-rail > .temper-rail-unfold > summary::marker { content: ''; }
+#app > .temper-session .temper-seg > button { display: flex; align-items: center; gap: 6px; }
+#app > .temper-session .temper-seg > button::before { content: ''; width: 15px; height: 15px; background: url(files/chat.svg) center / 15px no-repeat; }
+#app > .temper-session .temper-seg > .temper-seg-split::before { background-image: url(files/split.svg); }
+#app > .temper-session .temper-seg > button:last-child::before { background-image: url(files/doc.svg); }
+#app > .temper-session .temper-doc-path > span:last-child { text-transform: lowercase; }
+#app > .temper-session .temper-doc-inner tr:has(> th):not(:has(> th:not(:empty))) { display: none; }
+#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) { position: fixed; inset: 0 auto 0 0; z-index: 20; width: 240px; align-items: stretch; padding: 18px 16px; background: var(--gf-paper); box-shadow: 8px 0 24px rgba(0, 0, 0, .08); }
+#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > :not(.temper-brand, .temper-rail-unfold) { display: flex; }
+#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > .temper-brand { font-size: 17px; }
+
 
 /* ==== ui: needs ==== */
 

@@ -93,6 +93,7 @@ pub fn takes(role: Role, submits_on_enter: bool, act: &Act) -> bool {
         | Role::Disclosure
         | Role::Image
         | Role::Figure
+        | Role::Group
         | Role::Slot => false,
     }
 }

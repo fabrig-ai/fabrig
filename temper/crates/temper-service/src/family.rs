@@ -281,7 +281,13 @@ pub fn to_root(
                 }
                 w::Request::Dismiss(value) => {
                     let what = match value.into_parts().what {
-                        w::Dismissal::ToBegin(value) => forge::Dismissal::ToBegin { project: value.project() },
+                        w::PersonFact::ToBegin(value) => forge::PersonFact::ToBegin { project: value.project() },
+                        w::PersonFact::GoalFrom(value) => forge::PersonFact::GoalFrom {
+                            project: value.project(),
+                            chat: value.chat(),
+                            goal: value.goal(),
+                            at: value.at(),
+                        },
                     };
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
@@ -1367,9 +1373,12 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             let mut dismissed = List::with_capacity(u32::try_from(rows.len()).ok()?);
             for row in rows {
                 let value = match row {
-                    forge::Dismissal::ToBegin { project } => {
-                        w::Dismissal::ToBegin(w::ToBegin::new(limits, w::ToBeginParts { project }).ok()?)
+                    forge::PersonFact::ToBegin { project } => {
+                        w::PersonFact::ToBegin(w::ToBegin::new(limits, w::ToBeginParts { project }).ok()?)
                     }
+                    forge::PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
+                        w::GoalFrom::new(limits, w::GoalFromParts { project, chat, goal, at }).ok()?,
+                    ),
                 };
                 dismissed.push(value).ok()?;
             }

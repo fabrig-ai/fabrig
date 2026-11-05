@@ -1,4 +1,4 @@
-//! Dismissal admission and durability (temper/docs/design/domain/forge.md, 5.5).
+//! `PersonFact` admission and durability (temper/docs/design/domain/forge.md, 5.5).
 use crate::{
     Application, ApplicationAnswer, Delivery, Domain, Event, Limits, PartyInput, PartyRequest, Request, StoreInput,
     StoreRequest,
@@ -64,7 +64,7 @@ fn dismiss(project: u32) -> Event {
         key: [1; 16],
         digest: [1; 32],
         carried: None,
-        request: Application::Dismiss { what: forge::Dismissal::ToBegin { project } },
+        request: Application::Dismiss { what: forge::PersonFact::ToBegin { project } },
     })
 }
 fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
@@ -120,7 +120,7 @@ fn a_project_being_deleted_refuses_a_dismissal() {
 fn a_dismissal_is_answered_only_once_its_row_is_durable() {
     let (mut domain, env) = signed_in(Some(people::Role::Observer), false);
     crate::try_step(&mut domain, &env, dismiss(1)).unwrap();
-    let row = forge::Stored::Dismissed { party: PARTY, what: forge::Dismissal::ToBegin { project: 1 } };
+    let row = forge::Stored::Dismissed { party: PARTY, what: forge::PersonFact::ToBegin { project: 1 } };
     let mut out = Queue::uncapped();
     let mut commit = None;
     for _ in 0_u32..8 {
@@ -142,7 +142,7 @@ fn a_dismissal_is_answered_only_once_its_row_is_durable() {
             outcome: Some(ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)),
         })),]
     );
-    assert_eq!(domain.forge.dismissals(PARTY).as_ref(), [forge::Dismissal::ToBegin { project: 1 }]);
+    assert_eq!(domain.forge.dismissals(PARTY).as_ref(), [forge::PersonFact::ToBegin { project: 1 }]);
     crate::try_step(&mut domain, &env, dismiss(1)).unwrap();
     assert_eq!(
         settle(&mut domain, &env).as_ref(),

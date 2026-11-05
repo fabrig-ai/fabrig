@@ -12,6 +12,7 @@ fn the_frame_carries_its_tokens() {
 #[test]
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
+    assert_eq!(NAMES.style(CHAT_GOAL), Some(b"temper-chat-goal".as_slice()));
 }
 const FLOW_NAMES: [(skein_ui::Style, &[u8]); 25] = [
     (FLOW_BUSY, b"temper-flow-busy"),
@@ -127,10 +128,11 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (SHEET_FOOT, b"temper-sheet-foot"),
     (SHEET_ERROR, b"temper-sheet-error"),
 ];
-const RAIL_NAMES: [(skein_ui::Style, &[u8]); 8] = [
+const RAIL_NAMES: [(skein_ui::Style, &[u8]); 9] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
     (RAIL_NEW, b"temper-rail-new"),
+    (RAIL_NEW_ALL, b"temper-rail-new-all"),
     (RAIL_FOOT, b"temper-rail-foot"),
     (TABBAR, b"temper-tabbar"),
     (AWAY, b"temper-away"),
@@ -140,7 +142,24 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 8] = [
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 97] = [
+    let named: [(skein_ui::Style, &[u8]); 114] = [
+        (MODE_CHAT, b"temper-mode-chat"),
+        (MODE_SPLIT, b"temper-mode-split"),
+        (MODE_DRAFT, b"temper-mode-draft"),
+        (DOC, b"temper-doc"),
+        (DOC_INNER, b"temper-doc-inner"),
+        (DOC_PATH, b"temper-doc-path"),
+        (DOC_SEC, b"temper-doc-sec"),
+        (DOC_CHANGED, b"temper-doc-changed"),
+        (DOC_NOTE, b"temper-doc-note"),
+        (DOC_FLASH, b"temper-doc-flash"),
+        (DOC_EMPTY, b"temper-doc-empty"),
+        (ADD_DRAFT, b"temper-add-draft"),
+        (DOC_MUTED, b"temper-doc-muted"),
+        (SEG, b"temper-seg"),
+        (SEG_SPLIT, b"temper-seg-split"),
+        (RAIL_UNFOLD, b"temper-rail-unfold"),
+        (START_OVER, b"temper-start-over"),
         (PROPOSAL_FACTS, b"temper-proposal-facts"),
         (SESSION_RIGHT, b"temper-session-right"),
         (META_LINE, b"temper-meta-line"),
@@ -282,7 +301,7 @@ fn each_pages_main_carries_the_main_token() {
     let view = fixtures::page_view(&fixtures::adoption_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, SETTINGS])]);
     let view = fixtures::page_view(&fixtures::chat::chat_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, SESSION])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MODE_CHAT, SESSION])]);
 }
 #[test]
 fn the_composers_carry_the_composer_token() {
@@ -473,7 +492,11 @@ fn the_task_tokens_stay_on_their_roles() {
 fn the_choice_token_stays_on_the_composer_slot() {
     let mut roots = skein_lib::List::with_capacity(3);
     roots
-        .push(fixtures::playground_root(temper_client_domain::Address::NewChat, fixtures::PROJECT, true))
+        .push(fixtures::playground_root(
+            temper_client_domain::Address::NewChat { draft: false },
+            fixtures::PROJECT,
+            true,
+        ))
         .expect("new chat");
     roots.push(fixtures::chat::messaging_root()).expect("chat");
     roots.push(fixtures::task::root(jig_client::contract::ChipExecutor::Agent { charter: 1 }, None)).expect("task");

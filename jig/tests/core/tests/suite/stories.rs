@@ -13,6 +13,8 @@ use skein_lib::{List, Queue, ReplyTo, Token};
 
 #[path = "../stories/address.rs"]
 mod address;
+#[path = "../stories/note_room.rs"]
+mod note_room;
 
 fn ask(world: &mut World, request: u8, ask: people::Ask) {
     ask_as(world, world.sign_in.expect("signed-in person"), request, ask);
@@ -341,14 +343,17 @@ fn a_goal_cancelled_with_live_runs_and_an_effect_in_flight_closes_deepest_first(
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
 }
 
-#[test]
-fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() {
-    let (mut configuration, limits) = fixture(121, false);
+fn note_setup(seed: u64) -> Setup {
+    note_setup_scopes(seed, authority::Scopes::PROJECT)
+}
+
+fn note_setup_scopes(seed: u64, scopes: authority::Scopes) -> Setup {
+    let (mut configuration, limits) = fixture(seed, false);
     let mut rules = configuration.core.defaults.rules.clone();
-    rules.ceiling.notes = authority::Scopes::PROJECT;
+    rules.ceiling.notes = scopes;
     let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
-    policy.ceiling.notes = authority::Scopes::PROJECT;
-    policy.roles[0].authority.notes = authority::Scopes::PROJECT;
+    policy.ceiling.notes = scopes;
+    policy.roles[0].authority.notes = scopes;
     let mut checked = authority::Domain::new(rules, limits.core.authority).expect("bounded note policy");
     let mut out = Queue::uncapped();
     authority::step(&mut checked, authority::Event::Policy { project: 1, policy }, &mut out);
@@ -359,7 +364,23 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
     .rules()
     .clone();
 
-    let mut world = World::new(Setup { seed: 121, configuration: Some(configuration), limits, ..Setup::default() });
+    Setup { seed, configuration: Some(configuration), limits, ..Setup::default() }
+}
+
+fn note_world(seed: u64, scopes: authority::Scopes) -> World {
+    let mut setup = note_setup_scopes(seed, scopes);
+    let configuration = setup.configuration.as_ref().expect("note configuration");
+    let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, setup.limits.core.tasks.tree_tasks);
+    let mut initial = jig_test_profile::fixtures::create_chat(&creating, 1, 0, b"write a draft".as_slice().into());
+    let people::Ask::Create { batch, .. } = &mut initial else { panic!("chat creation") };
+    batch.first_mut().expect("one chat").flags.ended_by = people::EndedBy::Requester;
+    setup.initial = Some(initial);
+    World::new(setup)
+}
+
+#[test]
+fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() {
+    let mut world = note_world(121, authority::Scopes::PROJECT);
     let key = world.call_key(1);
     action(
         &mut world,
@@ -376,7 +397,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
             recalled: None,
         },
     );
-    let core::CallPart::NoteWritten { name, revision: 1 } = world.answers.last().expect("written answer").2 else {
+    let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2 else {
         panic!("note write was not admitted");
     };
     ask(
@@ -404,6 +425,85 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
     assert!(
         matches!(world.store.rows.get(&root::Key::Core(core::Key::Notes(notes::Key::Entry { name }))), Some(root::Record::Core(core::Record::Notes(notes::Record::Entry(entry)))) if entry.revision==2 && entry.author==notes::Author::Party { party: 1 })
     );
+}
+
+#[test]
+fn a_chat_writes_its_own_scope_and_a_party_reads_it() {
+    use core::reads::{Answer, PageRow, Read, Why};
+    use jig_core_world::reads::{ask as read, latest};
+    const PROJECT: u32 = 1;
+    const OWNER: u64 = 1;
+    let mut world = note_world(125, authority::Scopes(authority::Scopes::GOAL.0 | authority::Scopes::PROJECT.0));
+    let key = world.call_key(1);
+    let scope = notes::Scope::Goal { project: PROJECT, goal: key.task };
+    for (completion, scope, description) in [
+        (1, notes::Scope::Project { project: PROJECT }, b"project note".as_slice()),
+        (2, scope.clone(), b"chat draft".as_slice()),
+    ] {
+        world.turn(completion, 0, None, b"write a note");
+        action(
+            &mut world,
+            completion,
+            core::NamedAction::Note {
+                entry: notes::New {
+                    name: 0,
+                    scope,
+                    description: description.into(),
+                    body: b"# Draft".as_slice().into(),
+                    references: List::with_capacity(0),
+                    author: notes::Author::Task { task: key.task, attempt: key.attempt },
+                },
+                recalled: None,
+            },
+        );
+    }
+    let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2 else {
+        panic!("chat note admitted")
+    };
+    world.turn(3, 0, None, b"recall the draft");
+    action(&mut world, 3, core::NamedAction::Recall { by: notes::Recall::Name { name }, page: 0 });
+    let core::CallPart::NoteRecalled { entries, more: false } = &world.answers.last().expect("chat recall").2 else {
+        panic!("chat recalls its own note")
+    };
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].body.as_ref(), b"# Draft");
+    let owner = world.sign_in;
+    let reader = jig_core_world::fixtures::second_party(&mut world, b"draft-reader", people::Role::Member);
+    world.sign_in = Some(reader);
+    let query = Read::ScopedNotes { scope: scope.clone(), description: None, from: None };
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    read(&mut world, 1, query.clone());
+    let Answer::Page(page) = latest(&world) else { panic!("notes page") };
+    let [PageRow::Note(note)] = page.rows.as_slice() else { panic!("one chat note") };
+    assert_eq!(note.number, name);
+    assert_eq!(note.body.bytes.as_ref(), b"# Draft");
+    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
+        project: PROJECT,
+        holdings: Box::new([people::Holding { person: OWNER, role: people::Role::Owner }]),
+    })));
+    read(&mut world, 2, query);
+    assert_eq!(latest(&world), &Answer::None(Why::Unknown));
+    world.sign_in = owner;
+    world.end(
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"draft written".as_slice().into() },
+            cancel_delegates: false,
+        },
+        0,
+    );
+    world.say(43);
+    let assignment = world.assigned.as_ref().expect("chat next run");
+    assert_eq!(assignment.task, key.task);
+    assert_ne!(assignment.attempt, key.attempt);
+    let index = assignment
+        .brief
+        .iter()
+        .find_map(|section| match section {
+            jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::NotesIndex, text } => Some(text),
+            _ => None,
+        })
+        .expect("notes index");
+    assert_eq!(index.as_ref(), format!("{name} r1: chat draft\n[more: 1]\n").as_bytes());
 }
 
 #[test]

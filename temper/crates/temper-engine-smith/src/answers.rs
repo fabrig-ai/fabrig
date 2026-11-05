@@ -61,6 +61,19 @@ impl Text {
         Ok(())
     }
 
+    // Fixed UTF-8 punctuation in the note acknowledgement is already trusted text.
+    fn literal(&mut self, text: &[u8]) -> Result<(), Problem> {
+        self.len = self.len.checked_add(text.len()).ok_or(Problem::TooLarge)?;
+        if self.len > HostAnswer::CAPACITY {
+            return Err(Problem::TooLarge);
+        }
+        let part = bytes::copy_of(text);
+        if self.parts.push(part).is_err() {
+            return Err(Problem::TooLarge);
+        }
+        Ok(())
+    }
+
     fn number(&mut self, value: u64) -> Result<(), Problem> {
         self.add(Decimal::of(value).as_bytes())
     }
@@ -653,12 +666,13 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             }
             false
         }
-        CallAnswer::NoteWritten { name, revision } => {
-            text.add(b"Note ")?;
-            text.number(*name)?;
-            text.add(b" revision ")?;
-            text.number(u64::from(*revision))?;
-            text.add(b" written")?;
+        CallAnswer::NoteWritten { name, revision, lines, added, removed, first } => {
+            note_written(
+                &mut text,
+                *name,
+                *revision,
+                jig_domain_notes::LineChange { lines: *lines, added: *added, removed: *removed, first: *first },
+            )?;
             false
         }
         CallAnswer::NoteRecalled { entries, more } => {
@@ -697,6 +711,32 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
         }
     };
     text.finish(error)
+}
+
+/// The client's note line reads this acknowledgement (temper/docs/design/domain/agent.md, 8.3).
+fn note_written(
+    text: &mut Text,
+    name: u64,
+    revision: u32,
+    change: jig_domain_notes::LineChange,
+) -> Result<(), Problem> {
+    text.add(b"Note ")?;
+    text.number(name)?;
+    text.add(b" revision ")?;
+    text.number(u64::from(revision))?;
+    text.literal(" written · ".as_bytes())?;
+    if revision == 1 {
+        text.number(u64::from(change.lines))?;
+        text.add(b" lines")?;
+    } else {
+        text.add(b"+")?;
+        text.number(u64::from(change.added))?;
+        text.literal(" −".as_bytes())?;
+        text.number(u64::from(change.removed))?;
+        text.literal(" · line ".as_bytes())?;
+        text.number(u64::from(change.first))?;
+    }
+    Ok(())
 }
 
 fn forge_outcome(text: &mut Text, outcome: &skein_forge_client::Outcome) -> Result<(), Problem> {
@@ -1708,4 +1748,33 @@ fn refused_problem(
         text.add(b". Use read_task on the target task to find its open question number and authorized answerer; send message with target, form=answer and question set to that number.")?;
     }
     Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn note_answers_give_the_first_writes_line_count() {
+        for (lines, expected) in
+            [(0, "Note 12 revision 1 written · 0 lines"), (64, "Note 12 revision 1 written · 64 lines")]
+        {
+            let rendered =
+                answer(&CallAnswer::NoteWritten { name: 12, revision: 1, lines, added: lines, removed: 0, first: 1 });
+            assert_eq!(rendered.text(), expected.as_bytes());
+            assert!(!rendered.error());
+        }
+    }
+
+    #[test]
+    fn note_answers_give_later_writes_changes_and_first_line() {
+        for (added, removed, first, expected) in [
+            (18, 6, 31, "Note 12 revision 3 written · +18 −6 · line 31"),
+            (0, 0, 1, "Note 12 revision 3 written · +0 −0 · line 1"),
+        ] {
+            let rendered = answer(&CallAnswer::NoteWritten { name: 12, revision: 3, lines: 64, added, removed, first });
+            assert_eq!(rendered.text(), expected.as_bytes());
+            assert!(!rendered.error());
+        }
+    }
 }

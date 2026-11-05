@@ -94,7 +94,7 @@ impl Switcher {
             | Address::Goals { .. }
             | Address::Configure { .. }
             | Address::Chats { .. }
-            | Address::NewChat
+            | Address::NewChat { .. }
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Adopt { .. } => {}

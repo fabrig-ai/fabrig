@@ -11,6 +11,14 @@ fn supplied_profiles_have_valid_domain_limits() {
         assert_eq!(crate::domain::capacity(&limits.core), None, "{selected:?} capacity");
         assert_eq!(crate::domain::check_message(&limits.core), Ok(()), "{selected:?} messages");
         assert_eq!(crate::check_effective_limits(&limits.core), Ok(()), "{selected:?} codecs");
+        jig_protocol_store::sizes::check_commits(
+            &limits.core,
+            &jig_protocol_store::sizes::Application { version: 1, key: 0, value: 0 },
+            &limits.store.commits,
+            &limits.store.store,
+            limits.store.orphan_erases,
+        )
+        .expect("profile store bounds");
         let writes = jig_domain_core::settings::writes_bound(&limits.core).expect("profile settings writes");
         assert!(writes <= limits.journal.writes, "{selected:?} journal");
         let mut problems = crate::Problems::empty();
@@ -86,7 +94,7 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     const MAX_FRAME: u64 = 33_554_496;
     // The map pages include job specs, task/run revisions and placed references;
     // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 2_168_979), (Profile::Standard, 262_144, 59_570_691)] {
+    for (kind, request, page) in [(Profile::Small, 65_536, 2_168_979), (Profile::Standard, 262_144, 100_867_375)] {
         let configured = profile(kind);
         let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
         assert_eq!(u64::from(configured.core.resume_bytes), request);
@@ -138,7 +146,7 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(limits.core.documents.segments, profile::name_segments(&tasks, &limits.core.authority));
     assert_eq!(limits.hub.inbox, 82);
     let store = limits.store.store;
-    assert_eq!(store.value, 59_568_612);
+    assert_eq!(store.value, 100_865_296);
     let frame = jig_protocol_store::sizes::frame(&limits.core, 33_554_432).expect("smith's largest turn frame");
     assert_eq!(store.page.bytes, store.key.checked_add(store.value).unwrap().max(frame));
     assert_eq!(Some(store.chunk), skein_kv::chunk_bytes(store.key, store.value));
@@ -170,6 +178,20 @@ fn profiles_retain_a_day_of_deciding_answers_with_fivefold_room() {
         // Twenty conversations each: create, three messages, decide. Fivefold headroom.
         assert_eq!(people.requests, people.people * 20 * 5 * 5);
         assert_eq!(people.request_retention, skein_lib::Duration::from_secs(86_400));
+    }
+}
+
+// jig/docs/design/domain/engine.md, 10: bodies and the calls and loads carrying them.
+#[test]
+fn profiles_hold_a_documents_body_and_carriers() {
+    for (kind, body, escaped, load) in
+        [(Profile::Small, 32_768, 69_632, 65_536), (Profile::Standard, 65_536, 135_168, 131_072)]
+    {
+        let limits = profile(kind);
+        assert_eq!(limits.core.notes.body_bytes, body, "{kind:?} body");
+        assert_eq!(limits.core.call_answer_bytes, escaped, "{kind:?} call");
+        assert_eq!(limits.hub.event_bytes, u64::from(escaped), "{kind:?} event");
+        assert_eq!(limits.core.load_bytes, load, "{kind:?} load");
     }
 }
 

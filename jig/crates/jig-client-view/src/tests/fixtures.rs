@@ -39,6 +39,7 @@ pub(crate) const CLIENT: jig_client::DomainLimits = jig_client::DomainLimits {
     segments: 4,
     authority: 8,
     text: 128,
+    long_text: 128,
     turn_text: 128,
     projects: 2,
     fields: 8,

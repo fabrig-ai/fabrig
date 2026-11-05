@@ -4,6 +4,8 @@ mod accounts;
 mod builders;
 mod changes;
 mod chat;
+mod chat_document;
+mod chat_sheet;
 mod chats;
 mod choice;
 mod connect_model;
@@ -156,9 +158,11 @@ fn leaving_a_page_unwatches_its_handles_and_drops_their_tells() {
 fn arriving_at_chats_sets_its_address_filter() {
     let limits = fixtures::limits();
     let root = crate::unlinked(&limits, fixtures::SEED);
-    for address in
-        [Address::NewChat, Address::Chats { filter: ChatsFilter::Live }, Address::Chats { filter: ChatsFilter::Closed }]
-    {
+    for address in [
+        Address::NewChat { draft: false },
+        Address::Chats { filter: ChatsFilter::Live },
+        Address::Chats { filter: ChatsFilter::Closed },
+    ] {
         let mut pages = Pages::new();
         pages::step(
             &mut pages,

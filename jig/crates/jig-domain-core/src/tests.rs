@@ -137,6 +137,7 @@ pub(crate) fn limits() -> Limits {
         act_grants: 2,
         identity_bytes: 32,
         words: 64,
+        spec_bytes: 64,
         amendment_bytes: 512,
         sign_in_lifetime: Duration::from_secs(60),
         request_retention: Duration::from_secs(120),
@@ -1703,9 +1704,11 @@ fn documents_retained_results_and_ended_delegates_preserve_cancellation_facts() 
 }
 
 #[test]
-fn documents_notes_carry_the_child_revision_and_cut_display_text_only() {
+fn documents_notes_carry_the_child_revision_and_cut_at_note_text_bounds() {
     let (core, mut limits) = make_tree();
-    limits.documents.text_bytes = 5;
+    limits.documents.text_bytes = 1;
+    limits.notes.description_bytes = 5;
+    limits.notes.body_bytes = 5;
     let mut references = List::with_capacity(1);
     references.push(2).unwrap();
     let entry = notes::Entry {

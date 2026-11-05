@@ -39,7 +39,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Return { .. } => people::ApplicationScope::Own,
-        Application::Dismiss { what: forge::Dismissal::ToBegin { project } }
+        Application::Dismiss {
+            what: forge::PersonFact::ToBegin { project } | forge::PersonFact::GoalFrom { project, .. },
+        }
         | Application::Looked { project }
         | Application::SetAway { project, .. }
         | Application::Overturn { project, .. } => people::ApplicationScope::Project(*project),

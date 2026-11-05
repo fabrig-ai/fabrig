@@ -929,19 +929,19 @@ then writes; then keeping up; then the slow pass. temper's values:
 `forge.client.reserve` of each window kept for keeping up and the slow
 pass.
 
-### 5.5 A person's dismissals
+### 5.5 A person's facts
 
-What a person has dismissed, kept by the engine so that it holds on
-every device and across restarts: `ToBegin { project }`, the one kind
-for now, "Skip" on that project's "To begin"
-(`../draft/to-begin.md`, section 5). It owes nothing to the forge: the
-connector keeps it because `Stored` holds every family of temper's, as
-it does `Binding` (`../protocol/store.md`, section 2).
+What is true of a person, kept by the engine so that it holds on every
+device and across restarts, each a `PersonFact`: `ToBegin { project }`, "Skip"
+on that project's "To begin" (`../draft/to-begin.md`, section 5); and `GoalFrom
+{ project, chat, goal, at }`, that the person started goal `goal` from chat `chat`'s
+document, at the client's clock's `at` (`../client/README.md`, 3.5). It owes nothing to the forge: the
+connector keeps it because `Stored` holds every family of temper's, as it does
+`Binding` (`../protocol/store.md`, section 2).
 
-- **Its rows** are held in memory, each its party and what it dismissed,
-  restored whole at the restart step, at most `bindings` times
-  `judge_projects`; a row past that is refused at restart, as each
-  family's is.
+- **Its rows** are held in memory, each its party and its fact, restored whole
+  at the restart step, at most 8 times `bindings` times `judge_projects`; a row
+  past that is refused at restart, as each family's is.
 - **`Dismiss { what }`** (`../client/README.md`, 4.6) is admitted by the
   core, the root naming `what`'s project as its scope: a party with a
   role there, in a project not being deleted: a service with a role
@@ -949,7 +949,8 @@ it does `Binding` (`../protocol/store.md`, section 2).
   ask names the party, and the root hands the connector the request
   with it. In the decision:
   - a row held already: answered dismissed, nothing written;
-  - the bound reached: answered too large, nothing written;
+  - the bound reached, all rows' or the party's own (`DISMISSED`, the document's):
+    answered too large, nothing written;
   - otherwise the row saved, the subject `dismissed` marked, answered
     dismissed, the answer held behind the commit.
 
@@ -960,7 +961,7 @@ it does `Binding` (`../protocol/store.md`, section 2).
   are, of the party's own scope. The core's ask for a document names the
   watcher's party, and the connector answers that party's rows in key
   order: each watcher's own. A mark makes every watcher's document
-  again, so a dismissal costs each signed-in client one small document;
+  again, so a fact costs each signed-in client one small document;
   a subject per party would make the root read the sign-in on every
   watch.
 - **Erased with its project:** the release of a project being deleted

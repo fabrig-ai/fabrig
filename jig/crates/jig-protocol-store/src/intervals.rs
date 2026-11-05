@@ -228,16 +228,7 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
                 ])
             }
         }
-        Scope::Notes { project } => {
-            let project_scope = numbered_prefix(&[keys::JIG, 3, 1, 1], u64::from(*project));
-            let goals = numbered_prefix(&[keys::JIG, 3, 1, 2], u64::from(*project));
-            let resources = numbered_prefix(&[keys::JIG, 3, 1, 3], u64::from(*project));
-            if *project == 0 {
-                Box::new([Range::prefix(&[keys::JIG, 3, 1, 0]), project_scope, goals, resources])
-            } else {
-                Box::new([project_scope, goals, resources])
-            }
-        }
+        Scope::Notes { project } => Box::new([numbered_prefix(&[keys::JIG, 3, 1, 2], u64::from(*project))]),
         Scope::ScopedNotes { scope, .. } => notes(&notes::Range::Lines { scope: scope.clone(), after: None }),
         Scope::Inbox { group, .. } => match group {
             core::reads::Group::Updates | core::reads::Group::Results | core::reads::Group::Replies => {

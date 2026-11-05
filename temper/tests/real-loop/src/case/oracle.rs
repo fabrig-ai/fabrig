@@ -1157,7 +1157,7 @@ fn pace_note(misses: &mut Vec<Miss>, observed: &Observed) {
         }
         let words = String::from_utf8_lossy(&told.words);
         for suffix in words.split("Note ").skip(1) {
-            let Some((digits, _)) = suffix.split_once(" revision 1 written") else { continue };
+            let Some((digits, _)) = suffix.split_once(" revision 1 written · 1 lines") else { continue };
             if let Ok(note) = digits.parse::<u64>()
                 && note > 0
             {
@@ -1169,7 +1169,13 @@ fn pace_note(misses: &mut Vec<Miss>, observed: &Observed) {
             break;
         }
     }
-    step_check(misses, "4.4", written.is_some(), PACE_KEPT, "the director must be told Note N revision 1 written");
+    step_check(
+        misses,
+        "4.4",
+        written.is_some(),
+        PACE_KEPT,
+        "the director must be told Note N revision 1 written · 1 lines",
+    );
     step_check(
         misses,
         "4.4",
@@ -1304,7 +1310,7 @@ mod pace_tests {
                 told(
                     Agent::Director,
                     &format!(
-                        "Person answered task {A}'s question {PACE_QUESTION_MESSAGE} in their inbox; task {A} has the answer and does the work:\n{PACE_ANSWER}\nNote 1 revision 1 written"
+                        "Person answered task {A}'s question {PACE_QUESTION_MESSAGE} in their inbox; task {A} has the answer and does the work:\n{PACE_ANSWER}\nNote 1 revision 1 written · 1 lines"
                     ),
                     DEFAULT_MODEL,
                     0,
@@ -3337,7 +3343,7 @@ fn plan_note_recalled(observed: &Observed, agent: Agent, note: u64, description:
         args["scope"] == serde_json::json!({"kind":"project","project":PROJECT})
             && args["description"] == description
             && args["body"] == body
-            && contains(output, &format!("Note {note} revision 1 written"))
+            && contains(output, &format!("Note {note} revision 1 written · 1 lines"))
             && recalls.iter().any(|(recalled, args, output)| {
                 written < recalled
                     && args["kind"] == "name"
@@ -3460,7 +3466,7 @@ mod plan_tests {
             "note",
             &json!({"scope":{"kind":"project","project":PROJECT},
             "description":PLAN_NOTE,"body":PLAN_WORDS}),
-            "Note 1 revision 1 written",
+            "Note 1 revision 1 written · 1 lines",
         )
         .to_vec();
         let noted = told(Agent::Planner, &opening);
@@ -3927,7 +3933,7 @@ fn misread_note(observed: &Observed, misses: &mut Vec<Miss>) {
             let output = String::from_utf8_lossy(output);
             let name = output
                 .strip_prefix("Note ")
-                .and_then(|suffix| suffix.strip_suffix(" revision 1 written"))
+                .and_then(|suffix| suffix.strip_suffix(" revision 1 written · 1 lines"))
                 .and_then(|digits| digits.parse::<u64>().ok())
                 .filter(|name| *name != 0);
             args["scope"] == serde_json::json!({"kind":"project","project":PROJECT})
@@ -4057,7 +4063,7 @@ mod misread_tests {
             "note",
             &json!({"scope":{"kind":"project","project":PROJECT},
             "description":MISREAD_NOTE,"body":MISREAD_RULE}),
-            "Note 3 revision 1 written",
+            "Note 3 revision 1 written · 1 lines",
         ));
         let written = told(Agent::Misread, &next);
         next.extend(tool(
@@ -5017,7 +5023,7 @@ mod direction_tests {
             "note",
             &json!({"scope":{"kind":"project","project":PROJECT},
             "description":DEFERRED_NOTE,"body":DEFERRED_WORDS}),
-            &format!("Note {DEFERRED_NOTE_NUMBER} revision 1 written"),
+            &format!("Note {DEFERRED_NOTE_NUMBER} revision 1 written · 1 lines"),
         ));
         let noted = told(Agent::StoryOwner, &a);
         a.extend(tool(

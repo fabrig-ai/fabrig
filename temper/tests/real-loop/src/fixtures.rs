@@ -433,7 +433,7 @@ pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
 pub fn own_policy(value: &mut serde_json::Value) {
     value["world_settings"]["own_policy"] = true.into();
 }
-/// Build defaults after endpoint rebinding, from the deployment's actual models and seeds.
+/// Build defaults after endpoint rebinding, from the deployment's models and seeds.
 #[must_use]
 pub fn given(directory: &Path) -> temper_service::stock::Given {
     let deployment: serde_json::Value =

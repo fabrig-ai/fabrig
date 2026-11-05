@@ -93,9 +93,11 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
                     | families.message.0
                     | families.control.0
                     | families.note.0
+                    | families.recall.0
                     | families.read.0
                     | families.settings
-            )
+            ),
+            "a stock chat's authority holds notes and recall"
         );
         assert_eq!(authority.delegation.tasks, 384);
         assert_eq!(authority.delegation.depth, 32);
@@ -113,7 +115,7 @@ fn the_stock_holds_a_goals_note_scope_and_an_observer_none() {
         .chain(policy.roles.iter().filter(|role| role.authority.budget.spend != 0).map(|role| &role.authority))
     {
         assert_eq!(authority.notes, Scopes::GOAL);
-        assert_eq!(authority.tools, Tools(1671));
+        assert_eq!(authority.tools, Tools(1927));
         assert!(authority.note_resources.is_empty());
     }
     let observer = &policy.roles.iter().find(|role| role.number == 3).expect("observer").authority;
@@ -129,8 +131,11 @@ fn configure_reference_authority_allows_coordinator_tools() {
     let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let policy = stock.policies.get(&1).unwrap().policy.clone();
     let before = reference_domain(stock.rules.clone(), policy.clone(), engine.limits.core.authority);
-    for family in [8, 32, 256] {
+    for family in [8, 32] {
         assert_eq!(reference_call(&before, &policy.roles[0].authority, family, Call::Tool), Answer::Refuse);
+    }
+    for family in [128, 256] {
+        assert_eq!(reference_call(&before, &policy.roles[0].authority, family, Call::Tool), Answer::Allow);
     }
     let required = reference_requirements();
     assert_eq!(required.tools, 440);
@@ -158,8 +163,8 @@ fn configure_reference_authority_allows_coordinator_tools() {
         without_scope.notes = Scopes(0);
         assert_eq!(reference_call(&after, &without_scope, 128, Call::Note(scope)), Answer::Propose);
     }
-    // A live task retains its old authority even after its project's policy widens.
-    assert_eq!(reference_call(&after, &policy.roles[0].authority, 256, Call::Tool), Answer::Propose);
+    // Stock chats already hold recall before the project's policy widens.
+    assert_eq!(reference_call(&after, &policy.roles[0].authority, 256, Call::Tool), Answer::Allow);
 }
 
 fn assert_reference_authority(old: &jig_domain_authority::Authority, new: &jig_domain_authority::Authority) {
@@ -277,18 +282,18 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
         [1, 2, 3, 4, 6, 9]
     );
-    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 1536, 512, 512, 0]) {
+    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 1920, 512, 512, 0]) {
         assert_eq!(charter.policy.tools, jig_domain_tasks::Tools(tools));
     }
     let mut expected = defaults.charters[0].clone();
     expected.number = 3;
     expected.policy.instructions = include_bytes!("../stock/configuring.txt").as_slice().into();
     expected.policy.agents = false;
-    expected.policy.tools = jig_domain_tasks::Tools(1536);
+    expected.policy.tools = jig_domain_tasks::Tools(1920);
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 3581);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 4253);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -483,13 +488,11 @@ fn the_chats_words_send_plain_changes_to_change() {
     assert!(words.contains("Only if your brief says the work is to be agreed"));
     assert!(words.contains("Otherwise do the work without asking."));
     assert!(words.contains(
-        "If your brief says you are a goal, this paragraph alone is yours; the next is the chat's, not yours."
+        "If your brief says you are a goal, use this goal paragraph; the chat and document paragraphs are for chats alone."
     ));
-    assert!(
-        words.contains(
-            "If neither line is in your brief, you are the person's chat, and this paragraph alone is yours."
-        )
-    );
+    assert!(words.contains(
+        "If neither line is in your brief, you are the person's chat, and the following document rule is also yours."
+    ));
 }
 
 #[test]
@@ -551,7 +554,7 @@ fn asks_always_is_told_never_to_call_it() {
 #[test]
 fn the_chats_words_tell_the_person_when_its_change_or_goal_holds() {
     let words = include_str!("../stock/chat.txt");
-    let chat = words.split("\n\n").last().expect("chat paragraph");
+    let chat = words.split("\n\n").find(|paragraph| paragraph.starts_with("If neither line")).expect("chat paragraph");
     assert!(chat.contains("When a change or goal you started holds, tell the person at once in words what it waits on and that it waits in their inbox for them to decide: release it to go on, or cancel it; then wait."));
 }
 
@@ -1216,6 +1219,44 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
                 setting: jig_domain_core::settings::Setting::Template(1),
             })
         );
+    }
+}
+
+#[test]
+fn chat_txt_tells_a_chat_to_keep_one_document() {
+    let words = include_str!("../stock/chat.txt");
+    assert!(words.contains("the chat and document paragraphs are for chats alone"));
+    assert!(words.contains("the following document rule is also yours"));
+    let (chat, document) = words.split_once("\n\nWhen the person asks for a draft").expect("document follows chat");
+    assert!(chat.contains("If neither line is in your brief"));
+    assert!(document.starts_with(" or says \"write this up\", keep one document with note:"));
+    assert_document_rule(document);
+}
+
+#[test]
+fn configuring_txt_tells_it_how_project_works() {
+    let words = include_str!("../stock/configuring.txt");
+    assert!(words.contains("Once you understand the person's way of working"));
+    assert!(words.contains("one document titled \"How PROJECT works\", current as the conversation changes it"));
+    assert!(words.contains("Use note:"));
+    assert!(words.contains("Change nothing yourself."));
+    assert_document_rule(words);
+}
+
+fn assert_document_rule(words: &str) {
+    for phrase in [
+        "scope goal, project P and goal T from your brief's [This task: T, in project P]",
+        "description its title",
+        "whole Markdown body each time: # TITLE",
+        "muted line _Draft, DATE, with the user._",
+        "one ## section per topic",
+        "open questions under ## Open questions",
+        "Revise the same note, naming the note and the revision you read from your brief or recall",
+        "Say in one sentence what changed; do not repeat the document in your reply",
+        "Mermaid is not drawn, so do not draw diagrams",
+        "If a write is too large, shorten it",
+    ] {
+        assert!(words.contains(phrase), "missing document instruction: {phrase}");
     }
 }
 

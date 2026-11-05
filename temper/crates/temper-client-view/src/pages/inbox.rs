@@ -130,7 +130,13 @@ fn filters(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindin
     b.open(Role::Slot);
     b.style(look::FILTERS);
     // The new chat's link leads the filters' row, as the mockup's button does.
-    control(b, bindings, Role::Link, &words.say(Word::NewChatLink, &[]), Act::Go { address: Address::NewChat });
+    control(
+        b,
+        bindings,
+        Role::Link,
+        &words.say(Word::NewChatLink, &[]),
+        Act::Go { address: Address::NewChat { draft: false } },
+    );
     project_filter(b, root, filter, words, bindings);
     b.open(Role::Disclosure);
     b.style(look::KIND_MENU);

@@ -83,6 +83,7 @@ pub fn domain_limits() -> Limits {
                 // The linked world sends whole starters and cues, as both shipped shells do.
                 text: temper_client_protocol_wire::CUE_BYTES,
                 turn_text: temper_client_protocol_wire::CUE_BYTES,
+                long_text: temper_client_protocol_wire::CUE_BYTES,
                 rows: 4,
                 fields: 4,
                 segments: 9,
@@ -1344,6 +1345,7 @@ pub fn configuring_world(seed: u64, member: bool) -> World<Temper, Joint> {
     let mut limits = domain_limits();
     // The proposal's whole reason and charter remain visible in its review.
     limits.client.domain.text = 4096;
+    limits.client.domain.long_text = 4096;
     world_with(seed, Joint::with_configuring(seed, limits, member))
 }
 
@@ -1372,6 +1374,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
     templates.push(template);
     config.core.defaults.templates = templates.into_boxed_slice();
     config.core.defaults.rules.ceiling.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+    config.core.defaults.rules.ceiling.notes = authority::Scopes::GOAL;
     config.core.defaults.rules.ceiling.delegation.kinds =
         Box::new([authority::Executor::Charter(1), authority::Executor::Charter(3)]);
     for project in &mut config.core.seed_projects {
@@ -1379,6 +1382,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
         policy.ceiling = config.core.defaults.rules.ceiling.clone();
         let owner = &mut policy.roles[0];
         owner.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+        owner.authority.notes = authority::Scopes::GOAL;
         owner.authority.delegation.kinds.clone_from(&policy.ceiling.delegation.kinds);
         let mut member = owner.clone();
         member.number = jig_domain_people::Role::Member.number();
