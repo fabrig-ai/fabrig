@@ -7217,13 +7217,13 @@ impl KeyedAnswer {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LinkSignInParts {
     /// The `secret` field.
-    pub secret: Box<[u8]>,
+    pub secret: skein_lib::Secret,
 }
 
 /// `LinkSignIn` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LinkSignIn {
-    secret: Box<[u8]>,
+    secret: skein_lib::Secret,
 }
 
 impl LinkSignIn {
@@ -7237,7 +7237,7 @@ impl LinkSignIn {
 
     /// Reads the `secret` field.
     #[must_use]
-    pub fn secret(&self) -> &[u8] { &self.secret }
+    pub fn secret(&self) -> &skein_lib::Secret { &self.secret }
 
     /// Moves the fields out without copying.
     #[must_use]
@@ -47365,7 +47365,7 @@ impl LinkSignIn {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_secret = &self.secret;
         writer.put(&u32::try_from(field_secret.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_secret.as_ref())?;
+        writer.put(field_secret.expose())?;
         Ok(())
     }
 
@@ -47377,7 +47377,7 @@ impl LinkSignIn {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_secret = { let length = match skein_codec::read_len(reader, limits.link_sign_in_secret.min(CEILINGS.link_sign_in_secret)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LinkSignInSecret, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LinkSignInSecret, reason: skein_codec::Reason::Short })?) };
+        let decoded_secret = skein_lib::Secret::new({ let length = match skein_codec::read_len(reader, limits.link_sign_in_secret.min(CEILINGS.link_sign_in_secret)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LinkSignInSecret, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LinkSignInSecret, reason: skein_codec::Reason::Short })?) });
         Ok(Self { secret: decoded_secret })
     }
 }
@@ -118422,8 +118422,8 @@ mod golden_tests {
         ("enum_keyed_answer_signed_out_full", || { let value = KeyedAnswer::SignedOut; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, KeyedAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_keyed_answer_answers_full_smallest", || { let value = KeyedAnswer::AnswersFull(AnswersFull::new(&CEILINGS, AnswersFullParts { held: 0_u32, room_at: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, KeyedAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_keyed_answer_answers_full_full", || { let value = KeyedAnswer::AnswersFull(AnswersFull::new(&CEILINGS, AnswersFullParts { held: u32::MAX, room_at: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[5, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, KeyedAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_link_sign_in_smallest", || { let value = LinkSignIn::new(&CEILINGS, LinkSignInParts { secret: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LinkSignIn::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_link_sign_in_full", || { let value = LinkSignIn::new(&CEILINGS, LinkSignInParts { secret: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LinkSignIn::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_link_sign_in_smallest", || { let value = LinkSignIn::new(&CEILINGS, LinkSignInParts { secret: skein_lib::Secret::new(Box::from([].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LinkSignIn::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_link_sign_in_full", || { let value = LinkSignIn::new(&CEILINGS, LinkSignInParts { secret: skein_lib::Secret::new(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LinkSignIn::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_signed_in_smallest", || { let value = SignedIn::new(&CEILINGS, SignedInParts { token: None, party: 0_u64, expires: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SignedIn::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_signed_in_full", || { let value = SignedIn::new(&CEILINGS, SignedInParts { token: Some(skein_lib::Secret::new(Box::from([0_u8, 127_u8, 255_u8].as_slice()))), party: u64::MAX, expires: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SignedIn::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_sign_ins_full_smallest", || { let value = SignInsFull::new(&CEILINGS, SignInsFullParts { sign_ins: 0_u32, earliest: 0_u64, link_until: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SignInsFull::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
