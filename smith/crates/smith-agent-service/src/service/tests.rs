@@ -517,7 +517,10 @@ fn a_deferred_io_completion_keeps_the_service_awake_and_unsettled() {
     service.stages.io_submissions = Queue::uncapped();
     up::io_up(&mut service.stages, Some(&mut service.frame));
     assert!(service.stages.io_completions.is_empty());
-    assert_eq!(service.stages.io_events.pop(), Some(io::Event::Usage { owner, usage: io::Measured::Read(kernel::Usage::ZERO) }));
+    assert_eq!(
+        service.stages.io_events.pop(),
+        Some(io::Event::Usage { owner, usage: io::Measured::Read(kernel::Usage::ZERO) })
+    );
     service.frame.io.reclaim();
     assert!(teardown::components_closed(&service.stages, Some(&service.frame)));
 }
