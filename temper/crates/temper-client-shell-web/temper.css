@@ -483,7 +483,7 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-sidebar > .temper-rows > .temper-row > .temper-meta a { margin-left: 0; color: var(--temper-muted); }
 .temper-sidebar > .temper-rows > .temper-row > .temper-meta a::before { content: "· " / ""; margin-right: 0; }
 .temper-sidebar > .temper-rows > .temper-row > .temper-meta a::after { content: ''; position: absolute; inset: 0; border-radius: 4px; }
-.temper-sidebar > .temper-rows > .temper-row > p.temper-details { display: none; }
+.temper-sidebar > .temper-rows > .temper-row > p:not(:first-of-type):not(.temper-time) { display: none; }
 .temper-sidebar > .temper-rows > .temper-row > p.temper-time { order: 2; flex: none; margin: 0; color: var(--temper-faint); font-size: 11px; white-space: nowrap; }
 
 /* The playground's note: right after the chats. */
