@@ -201,11 +201,6 @@ impl Collector {
     pub fn finish(self) -> (Box<[Error]>, u32) {
         (self.kept.into_boxed(), self.left_out)
     }
-    /// Error records and their owned bytes, plus the excluded error's key.
-    #[must_use]
-    pub fn worst_case(limits: &crate::limits::Limits) -> Option<u64> {
-        skein_lib::List::<Error>::price(limits.errors)?.checked_add(limits.error_bytes)?.checked_add(4_096 + 63)
-    }
     #[cfg(test)]
     pub(crate) fn errors(&self) -> Box<[Error]> {
         self.kept.to_boxed()

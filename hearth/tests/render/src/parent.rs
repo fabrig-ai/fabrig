@@ -19,18 +19,11 @@ pub fn run(repository: &Repository, targets: &[&[u8]], seed: u64) -> Run {
 }
 #[must_use]
 pub fn run_with(repository: &Repository, targets: &[&[u8]], seed: u64, limits: limits::Limits) -> Run {
-    drive(Revisions { from: repository, to: None }, targets, seed, limits, skein_world::Memory::Unchecked, 0)
+    drive(Revisions { from: repository, to: None }, targets, seed, limits, skein_world::Memory::Unchecked)
 }
 #[must_use]
-pub fn checked(
-    repository: &Repository,
-    seed: u64,
-    limits: limits::Limits,
-    bound: u64,
-    memory: skein_world::Memory,
-) -> Run {
-    assert_eq!(memory, skein_world::Memory::Checked);
-    drive(Revisions { from: repository, to: None }, &[], seed, limits, memory, bound)
+pub fn checked(repository: &Repository, seed: u64, limits: limits::Limits, ceiling: u64) -> Run {
+    drive(Revisions { from: repository, to: None }, &[], seed, limits, skein_world::Memory::Within(ceiling))
 }
 #[derive(Clone, Copy)]
 struct Revisions<'a> {
@@ -62,11 +55,11 @@ impl<'a> Revisions<'a> {
 }
 #[must_use]
 pub fn diff(from: &Repository, to: &Repository, seed: u64, limits: limits::Limits) -> Run {
-    drive(Revisions { from, to: Some(to) }, &[], seed, limits, skein_world::Memory::Unchecked, 0)
+    drive(Revisions { from, to: Some(to) }, &[], seed, limits, skein_world::Memory::Unchecked)
 }
 #[must_use]
-pub fn checked_diff(from: &Repository, to: &Repository, seed: u64, limits: limits::Limits, bound: u64) -> Run {
-    drive(Revisions { from, to: Some(to) }, &[], seed, limits, skein_world::Memory::Checked, bound)
+pub fn checked_diff(from: &Repository, to: &Repository, seed: u64, limits: limits::Limits, ceiling: u64) -> Run {
+    drive(Revisions { from, to: Some(to) }, &[], seed, limits, skein_world::Memory::Within(ceiling))
 }
 fn drive(
     revisions: Revisions<'_>,
@@ -74,9 +67,12 @@ fn drive(
     seed: u64,
     limits: limits::Limits,
     memory: skein_world::Memory,
-    bound: u64,
 ) -> Run {
-    let meter = (memory == skein_world::Memory::Checked).then(skein_world::domain::heap::Meter::new);
+    let meter = if let skein_world::Memory::Within(ceiling) = memory {
+        Some((skein_world::domain::heap::Meter::new(), ceiling))
+    } else {
+        None
+    };
     let mut render = Render::new(&limits);
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut queue = Queue::with_capacity(1);
@@ -84,18 +80,18 @@ fn drive(
     let mut ledger = Ledger::new("render request");
     let mut rng = Rng::new(seed);
     let mut run = Run { answers: Vec::new(), outcome: Outcome::Done, left_out: 0, requests: Vec::new() };
-    if let Some(meter) = &meter {
+    if let Some((meter, _)) = &meter {
         meter.start();
     }
     let event = revisions.event(targets);
     let mut repository = revisions.from;
     render::step(&mut render, &env, event, &mut queue);
-    if let Some(meter) = &meter {
+    if let Some((meter, ceiling)) = &meter {
         let measured = meter.end();
-        meter.check(measured, bound, &"initial call");
+        meter.check(measured, *ceiling, &"initial call");
     }
     for iteration in 0..10_000 {
-        if let Some(meter) = &meter {
+        if let Some((meter, _)) = &meter {
             meter.start();
         }
         if let Some(output) = queue.pop() {
@@ -159,9 +155,9 @@ fn drive(
             }
             render::step(&mut render, &env, event, &mut queue);
         }
-        if let Some(meter) = &meter {
+        if let Some((meter, ceiling)) = &meter {
             let measured = meter.end();
-            meter.check(measured, bound, &iteration);
+            meter.check(measured, *ceiling, &iteration);
         }
         if render.is_empty() && queue.is_empty() {
             ledger.assert_settled();

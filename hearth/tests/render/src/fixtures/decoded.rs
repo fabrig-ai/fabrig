@@ -55,18 +55,14 @@ pub fn comment_template() -> render::evaluate::template::Template {
     lines.extend(3..=newlines + 2);
     render::evaluate::template::Template { instructions: Box::new([]), lines: lines.into() }
 }
-#[must_use]
-pub fn decoded_bound() -> u64 {
-    render::revision::decoded_worst_case(&SHIPPED).expect("decoded bound")
-}
-pub fn checked_decoding(repository: &Repository, bound: u64, template: &render::evaluate::template::Template) {
+pub fn checked_decoding(repository: &Repository, ceiling: u64, template: &render::evaluate::template::Template) {
     let meter = Meter::new();
     let mut domain = render::Render::new(&SHIPPED);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: SHIPPED };
     let mut output = Queue::with_capacity(DECODE_OUTPUTS);
     decoded_step(
         &meter,
-        bound,
+        ceiling,
         &mut domain,
         &env,
         &mut output,
@@ -81,7 +77,7 @@ pub fn checked_decoding(repository: &Repository, bound: u64, template: &render::
         match output.pop() {
             Some(Output::Request(Request::List { request, .. })) => decoded_step(
                 &meter,
-                bound,
+                ceiling,
                 &mut domain,
                 &env,
                 &mut output,
@@ -99,21 +95,21 @@ pub fn checked_decoding(repository: &Repository, bound: u64, template: &render::
                     } else {
                         parent::blob_event(repository, blob, request, &SHIPPED)
                     };
-                    decoded_step(&meter, bound, &mut domain, &env, &mut output, Some(event));
+                    decoded_step(&meter, ceiling, &mut domain, &env, &mut output, Some(event));
                 }
                 if templates {
                     return;
                 }
             }
             Some(Output::Request(_) | Output::Answer(_)) => panic!("decoded fixture reads only"),
-            None => decoded_step(&meter, bound, &mut domain, &env, &mut output, None),
+            None => decoded_step(&meter, ceiling, &mut domain, &env, &mut output, None),
         }
     }
     panic!("the decoded phase reaches its template batch")
 }
 fn decoded_step(
     meter: &Meter,
-    bound: u64,
+    ceiling: u64,
     domain: &mut render::Render,
     env: &Env<limits::Limits>,
     output: &mut Queue<Output>,
@@ -125,7 +121,7 @@ fn decoded_step(
         None => render::resume(domain, env, output),
     }
     let step = meter.end();
-    meter.check(step, bound, &"decoded arrival");
+    meter.check(step, ceiling, &"decoded arrival");
 }
 
 // Keep ruling 194's four fitting documents and fifth refused document at a
