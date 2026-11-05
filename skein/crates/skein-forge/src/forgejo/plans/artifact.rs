@@ -13,11 +13,12 @@ use crate::{
 };
 use alloc::boxed::Box;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Stage {
-    Listing,
-    Run,
-    Zip,
+#[derive(Debug)]
+enum State {
+    Listing { id: Option<u64> },
+    Run { id: u64 },
+    Zip { head: api::Commit },
+    Ended,
 }
 #[derive(Debug)]
 pub(super) struct Plan {
@@ -25,13 +26,11 @@ pub(super) struct Plan {
     run: u64,
     name: Box<[u8]>,
     max: u32,
-    stage: Stage,
-    id: Option<u64>,
-    head: Option<api::Commit>,
+    state: State,
 }
 impl Plan {
     pub(super) fn new(row: Repository, run: u64, name: Box<[u8]>, max: u32) -> Self {
-        Self { row, run, name, max, stage: Stage::Listing, id: None, head: None }
+        Self { row, run, name, max, state: State::Listing { id: None } }
     }
     fn at(&self) -> Repo {
         Repo { owner: self.row.owner.clone(), name: self.row.name.clone() }
@@ -93,53 +92,70 @@ impl Plan {
             | d::Row::File(_)
             | d::Row::Commit(_) => return Err(api::Error::InvalidAnswer),
         };
-        if self.stage != Stage::Listing
-            || self.id.is_some()
-            || value.id == 0
-            || value.run_id != self.run
-            || value.name != self.name
-        {
-            return Err(api::Error::InvalidAnswer);
-        }
-        if self.max > bounds.answer_bytes || value.size_in_bytes > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
-        }
-        self.id = Some(value.id);
-        Ok(())
-    }
-    fn done(&mut self, body: Body, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        match body {
-            Body::Document(d::Document::Listed { skipped: 0 }) if self.stage == Stage::Listing => {
-                self.id.ok_or(api::Error::Missing)?;
-                self.stage = Stage::Run;
-                Ok(Some(Step::send(Request::Run { at: self.at(), run: self.run })))
-            }
-            Body::Document(d::Document::Run(run)) if self.stage == Stage::Run => {
-                if run.id != self.run {
+        match &mut self.state {
+            State::Listing { id } => {
+                if id.is_some() || value.id == 0 || value.run_id != self.run || value.name != self.name {
                     return Err(api::Error::InvalidAnswer);
                 }
-                self.head = Some(
-                    super::reading::commit(run.commit_sha, self.row.object_format).ok_or(api::Error::InvalidAnswer)?,
-                );
-                self.stage = Stage::Zip;
-                Ok(Some(Step::send(Request::ArtifactZip { at: self.at(), id: self.id.expect("listed artifact") })))
-            }
-            Body::Raw { bytes, more } if self.stage == Stage::Zip => {
-                if more {
+                if self.max > bounds.answer_bytes || value.size_in_bytes > u64::from(bounds.answer_bytes) {
                     return Err(api::Error::TooLarge);
                 }
-                let file = crate::forgejo::zip::read(&bytes, self.max, bounds.answer_bytes)?;
-                Ok(Some(Step::Done(Ok(api::Answer::File {
-                    head: self.head.expect("read run commit"),
-                    path: file.path,
-                    bytes: file.bytes,
-                    truncated: file.truncated,
-                }))))
+                *id = Some(value.id);
+                Ok(())
             }
-            Body::Malformed(
-                crate::forgejo::decode::Malformed::Bound { .. } | crate::forgejo::decode::Malformed::TooLong { .. },
-            ) => Err(api::Error::TooLarge),
-            Body::Empty | Body::Raw { .. } | Body::Document(_) | Body::Malformed(_) => Err(api::Error::InvalidAnswer),
+            State::Run { .. } | State::Zip { .. } => Err(api::Error::InvalidAnswer),
+            State::Ended => unreachable!("an artifact plan hears nothing after its end"),
         }
+    }
+    fn done(&mut self, body: Body, bounds: Bounds) -> Result<Option<Step>, api::Error> {
+        let step;
+        self.state = match core::mem::replace(&mut self.state, State::Ended) {
+            State::Listing { id } => match body {
+                Body::Document(d::Document::Listed { skipped: 0 }) => {
+                    let id = id.ok_or(api::Error::Missing)?;
+                    step = Step::send(Request::Run { at: self.at(), run: self.run });
+                    State::Run { id }
+                }
+                Body::Empty | Body::Raw { .. } | Body::Document(_) | Body::Malformed(_) => return Err(invalid(body)),
+            },
+            State::Run { id } => match body {
+                Body::Document(d::Document::Run(run)) => {
+                    if run.id != self.run {
+                        return Err(api::Error::InvalidAnswer);
+                    }
+                    let head = super::reading::commit(run.commit_sha, self.row.object_format)
+                        .ok_or(api::Error::InvalidAnswer)?;
+                    step = Step::send(Request::ArtifactZip { at: self.at(), id });
+                    State::Zip { head }
+                }
+                Body::Empty | Body::Raw { .. } | Body::Document(_) | Body::Malformed(_) => return Err(invalid(body)),
+            },
+            State::Zip { head } => match body {
+                Body::Raw { bytes, more } => {
+                    if more {
+                        return Err(api::Error::TooLarge);
+                    }
+                    let file = crate::forgejo::zip::read(&bytes, self.max, bounds.answer_bytes)?;
+                    step = Step::Done(Ok(api::Answer::File {
+                        head,
+                        path: file.path,
+                        bytes: file.bytes,
+                        truncated: file.truncated,
+                    }));
+                    State::Ended
+                }
+                Body::Empty | Body::Document(_) | Body::Malformed(_) => return Err(invalid(body)),
+            },
+            State::Ended => unreachable!("an artifact plan hears nothing after its end"),
+        };
+        Ok(Some(step))
+    }
+}
+fn invalid(body: Body) -> api::Error {
+    match body {
+        Body::Malformed(
+            crate::forgejo::decode::Malformed::Bound { .. } | crate::forgejo::decode::Malformed::TooLong { .. },
+        ) => api::Error::TooLarge,
+        Body::Empty | Body::Raw { .. } | Body::Document(_) | Body::Malformed(_) => api::Error::InvalidAnswer,
     }
 }
