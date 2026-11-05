@@ -67,8 +67,8 @@ Where the client does otherwise:
   precede "Adopt" again. The terminal keeps the heading and says the
   numbers and "Done.". Connected is absent on every Home; rename stays
   in the switcher, Forges and Accounts in Settings, and the model line
-  awaits Settings' design. The empty Needs you and Chats sections and
-  the landing's line are left out while To begin shows; a need or chat
+  awaits Settings' design (`../README.md`, 11). The empty Needs you and
+  Chats sections are left out while To begin shows; a need or chat
   appears under it once present. Skip hides the card at once and is
   kept per person and project across devices; refused or lost, the
   card returns with "temper couldn't keep that. Try Skip again."
@@ -90,18 +90,13 @@ Where the client does otherwise:
   `../README.md`, 11, *A question answered on Home*; Goals and "No
   goals yet…" on *Goals on Home* there; "Landing: …", including
   "Landing: nothing has landed yet" after Skip, on *The landing's
-  line on Home* there (the question `home-landing-line` in
-  `temper/docs/plan/look-round-4/plan.toml`). A chat's "landed" waits
-  on a read per row
-  (`../README.status.md`, 3.5). Connected stays below Chats once
-  To begin is gone, until the `home-drops-connected` request lands
-  (`../README.status.md`, 3.5). An adopted repository's To begin line describes checked changes landing through
+  line on Home* there. A chat's "landed" waits on *What a chat did, on
+  its line* there. An adopted repository's To begin line describes checked changes landing through
   the merge queue, without claiming a creation age or first CI result
   (`../README.md`, 11). Landing-by-turn wording waits on that
   section's *How a project lands, on To begin's second step*: the
   client has no project's `by`, so every project keeps the queue's
-  words (the question `to-begin-landing-by` in
-  `temper/docs/plan/look-round-4/plan.toml`). The switcher shows
+  words. The switcher shows
   repository names and counts, the first listed standing in for the home; "3 repositories"
   without that stand-in is unreached (`../README.md`, 5.3). Home's
   GitHub picker and reached count and the model account's email wait
@@ -111,7 +106,6 @@ Where the client does otherwise:
   (a key as "an API key") and the connected forge; the Accounts link
   names what the person does not hold yet (`../README.md`, 3.5).
   The recorded project landing still prints Welcome
-  until `record-landing` walks it again and records Home
   (`../journeys.status.md`, 9).
 
   | Page | Where the client does otherwise, or what is left |
@@ -128,13 +122,13 @@ Where the client does otherwise:
   ahead of Forges, Accounts and Adopt a repository (`../README.md`,
   3.5, *Settings*). Before its rows arrive, or when the configuring chat
   is past the watch's window, the link opens the page before its first
-  words. Settings' forge and model lines await that page's design.
+  words. Settings' forge and model lines await that page's design
+  (`../README.md`, 11).
   How work runs' "Configure temper" entry and a proposal review's "Change
   something" await the client settings and proposal views
   (`../README.status.md`, 3.5 and 5.13). Docking the configuring chat
-  beside How work runs remains the request's later work, for the
-  client settings view's owner; this row carries it until that design
-  is made. No draft act or model chooser is drawn on this page.
+  beside How work runs is `../README.md`, 11. No draft act or model
+  chooser is drawn on this page.
   The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
   `../browser.md`, 2.5, The welcome's look; the user, 2026-11-04): the
