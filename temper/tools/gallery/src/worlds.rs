@@ -298,7 +298,9 @@ fn world_in_layout(w: World, address: Address, then: Then, configuring_chat: boo
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
-                        w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Dismissed => continue,
+                        w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Changes(_) | w::Watch::Dismissed => {
+                            continue;
+                        }
                     };
                     if let Some(panel) = change_panel(w, subject.task()) {
                         for up in [

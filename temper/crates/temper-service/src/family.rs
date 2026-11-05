@@ -383,7 +383,7 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::DISMISSED_SUBJECT),
                     },
-                    w::Watch::Change(_) | w::Watch::Landing(_) => {
+                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Changes(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
                             why: jig_domain_core::WatchRefusal::Unknown,
