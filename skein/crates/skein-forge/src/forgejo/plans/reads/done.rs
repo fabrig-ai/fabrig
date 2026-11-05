@@ -1,397 +1,316 @@
-//! Terminal documents and the next exchange of a JSON read.
-use super::{Bounds, Delegate, Plan, Request, Rows, Stage, Step, Tables, api, bytes, d, keep_document, reading};
+//! Terminal documents and the next exchange of a JSON read (skein/docs/design/forge.md, 5.2).
+use super::{
+    Bounds, Plan, Request, Roster, State, Step, Tables, Whose, api, at, bytes, d, keep_document, reading, size,
+    terminal,
+};
+use alloc::boxed::Box;
+use skein_lib::List;
 impl Plan {
-    pub(super) fn done(
+    pub(super) fn body(
         &mut self,
+        state: State,
+        body: super::Body,
+        bounds: Bounds,
+        word: &[u8],
+        tables: &mut Tables,
+    ) -> Result<(State, Option<Step>), api::Error> {
+        match state {
+            State::Branches { missing: true, .. } => ended(api::Answer::Branches(Box::new([])), bounds),
+            State::Ended => unreachable!("owner stops feeding an ended read plan"),
+            state @ (State::New { .. }
+            | State::Resolving { .. }
+            | State::Locating
+            | State::Settings
+            | State::Delegated(_)
+            | State::Items { .. }
+            | State::Reviews { .. }
+            | State::Remarks { .. }
+            | State::Issue { .. }
+            | State::Comments { .. }
+            | State::Pull { .. }
+            | State::PullFor { .. }
+            | State::Pulls { .. }
+            | State::Status { .. }
+            | State::Branch { .. }
+            | State::ProtectionBranch { .. }
+            | State::Protection
+            | State::Branches { .. }
+            | State::Collaborators { .. }
+            | State::Permission { .. }
+            | State::Searching { .. }) => {
+                let document = match body {
+                    super::Body::Document(document) => document,
+                    super::Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
+                        return Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge });
+                    }
+                    super::Body::Malformed(_) | super::Body::Empty | super::Body::Raw { .. } => {
+                        return Err(api::Error::InvalidAnswer);
+                    }
+                };
+                self.done(state, document, bounds, word, tables)
+            }
+        }
+    }
+    #[expect(clippy::too_many_lines, reason = "each read state consumes its exchange's terminal document")]
+    fn done(
+        &mut self,
+        state: State,
         document: d::Document,
         bounds: Bounds,
         word: &[u8],
         tables: &mut Tables,
-    ) -> Result<Option<Step>, api::Error> {
-        self.check_repository_document(&document)?;
+    ) -> Result<(State, Option<Step>), api::Error> {
+        check_repository(&state, &document, self.repository.repository)?;
         keep_document(&document, self.repository.forge, tables);
-        match document {
-            d::Document::Repository(repository) => self.repository_done(repository, bounds, tables),
-            d::Document::Issue(issue) => {
-                self.item = Some(reading::summary(word, issue));
-                self.size = super::size::summary(self.item.as_ref().expect("summary"), bounds.rows)?;
-                if self.size > u64::from(bounds.answer_bytes) {
+        let document = Some(document);
+        let answer = match state {
+            State::Resolving { read } => {
+                let repository = repository(document)?;
+                let row = reading::repository(repository);
+                tables.keep_repository(self.repository, row.clone());
+                let (state, step) = self.initial(read, row, bounds, tables)?;
+                return Ok((state, Some(step)));
+            }
+            State::Locating => {
+                let repository = self.keep_repository(document, tables)?;
+                api::Answer::Located { repository: u32::try_from(repository.id).expect("repository checked") }
+            }
+            State::Settings => api::Answer::Settings(reading::settings(self.keep_repository(document, tables)?)),
+            State::Issue { row, after } => {
+                let item = match document {
+                    Some(d::Document::Issue(issue)) => reading::summary(word, issue),
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                };
+                let size = size::summary(&item, bounds.rows)?;
+                if size > u64::from(bounds.answer_bytes) {
                     return Err(api::Error::TooLarge);
                 }
                 let room = u64::from(bounds.answer_bytes)
-                    .saturating_sub(self.size)
+                    .saturating_sub(size)
                     .checked_div(u64::try_from(crate::measure::COMMENT_BYTES).expect("comment width"))
                     .expect("nonzero width");
-                self.rows = Rows::Comments(skein_lib::List::with_capacity(
-                    bounds.rows.min(u32::try_from(room).expect("bounded room")),
+                let rows = List::with_capacity(bounds.rows.min(u32::try_from(room).expect("bounded room")));
+                let step = self.send(Request::Comments { at: at(&row), number: item.number });
+                return Ok((State::Comments { item, rows, more: false, size, after }, Some(step)));
+            }
+            State::Pull { row } => return Self::pull_status(row, pull(document)?, bounds),
+            State::PullFor { row, head, base } => {
+                let pull = pull(document)?;
+                if pull.state == d::IssueState::Open {
+                    return Self::pull_status(row, pull, bounds);
+                }
+                let step = self.send(Request::Pulls {
+                    at: at(&row),
+                    page: super::r::Page { page: Some(1), limit: Some(bounds.page_size) },
+                });
+                return Ok((
+                    State::Pulls {
+                        row,
+                        head,
+                        base,
+                        pull: Box::new(pull),
+                        found: false,
+                        page: 1,
+                        limit: bounds.page_size,
+                    },
+                    Some(step),
                 ));
-                self.stage = Stage::Comments;
-                let number = self.item.as_ref().expect("summary").number;
-                Ok(Some(self.send(Request::Comments { at: self.at(), number })))
             }
-            d::Document::Pull(pull) => self.pull_done(pull, bounds),
-            d::Document::Branch(branch) => self.branch_done(branch, bounds),
-            d::Document::Protection(protection) => {
-                self.terminal(api::Answer::Protection(Some(reading::protection(protection))), bounds)
+            State::Pulls { row, head, base, pull, found, page, limit } => {
+                let skipped = listed(document)?;
+                if !found && self.count.saturating_add(skipped) >= limit {
+                    let page = page.checked_add(1).ok_or(api::Error::TooLarge)?;
+                    let step = self.send(Request::Pulls {
+                        at: at(&row),
+                        page: super::r::Page { page: Some(page), limit: Some(bounds.page_size) },
+                    });
+                    return Ok((
+                        State::Pulls { row, head, base, pull, found, page, limit: bounds.page_size },
+                        Some(step),
+                    ));
+                }
+                return Self::pull_status(row, *pull, bounds);
             }
-            d::Document::Permission(permission) => {
-                let permission = reading::permission(permission.permission);
-                let answer = match &mut self.rows {
-                    Rows::Collaborators(rows) => {
-                        rows.get_mut(self.position).ok_or(api::Error::InvalidAnswer)?.permission = permission;
-                        self.position = self.position.saturating_add(1);
-                        return self.next_permission(tables);
-                    }
-                    Rows::None => api::Answer::Permission(permission),
-                    Rows::Items(_) | Rows::Comments(_) | Rows::Reviews(_) | Rows::Remarks(_) | Rows::Branches(_) => {
-                        return Err(api::Error::InvalidAnswer);
-                    }
+            State::Branch { format } => match document {
+                Some(d::Document::Branch(branch)) => {
+                    api::Answer::Commit(reading::commit(branch.commit, format).ok_or(api::Error::InvalidAnswer)?)
+                }
+                Some(_) | None => return Err(api::Error::InvalidAnswer),
+            },
+            State::ProtectionBranch { row } => {
+                let protection = match document {
+                    Some(d::Document::Branch(branch)) => branch.effective_branch_protection_name,
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
                 };
-                self.terminal(answer, bounds)
+                let request = match protection {
+                    Some(name) => Request::Protection { at: at(&row), name },
+                    None => Request::Protections { at: at(&row) },
+                };
+                return Ok((State::Protection, Some(self.send(request))));
             }
-            d::Document::Search { ok } => self.search_done(ok, tables),
-            d::Document::Listed { skipped } => self.listed_done(skipped, bounds, tables),
-            d::Document::CombinedStatus(_)
-            | d::Document::RepoSearch { .. }
-            | d::Document::Token(_)
-            | d::Document::User(_)
-            | d::Document::Org(_)
-            | d::Document::CreatedFile { .. }
-            | d::Document::CreatedRepository(_)
-            | d::Document::Hook(_)
-            | d::Document::Team(_)
-            | d::Document::ApiSettings(_)
-            | d::Document::Comment(_)
-            | d::Document::Status(_)
-            | d::Document::Review(_)
-            | d::Document::Compare(_)
-            | d::Document::Tree { .. }
-            | d::Document::Runs { .. }
-            | d::Document::Job(_)
-            | d::Document::Run(_)
-            | d::Document::Error(_) => Err(api::Error::InvalidAnswer),
-        }
-    }
-    pub(super) fn terminal(&mut self, answer: api::Answer, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        let size = super::size::answer(&answer, bounds.rows)?;
-        if size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
-        }
-        self.size = size;
-        Ok(Some(Step::Done(Ok(answer))))
-    }
-    fn check_repository_document(&self, document: &d::Document) -> Result<(), api::Error> {
-        match document {
-            d::Document::Repository(repository) => self.check_repository(repository),
-            d::Document::Token(_)
-            | d::Document::User(_)
-            | d::Document::Org(_)
-            | d::Document::CreatedFile { .. }
-            | d::Document::CreatedRepository(_)
-            | d::Document::Hook(_)
-            | d::Document::Team(_)
-            | d::Document::ApiSettings(_)
-            | d::Document::RepoSearch { .. }
-            | d::Document::Search { .. }
-            | d::Document::Listed { .. }
-            | d::Document::Issue(_)
-            | d::Document::Comment(_)
-            | d::Document::Pull(_)
-            | d::Document::Status(_)
-            | d::Document::Review(_)
-            | d::Document::CombinedStatus(_)
-            | d::Document::Branch(_)
-            | d::Document::Protection(_)
-            | d::Document::Permission(_)
-            | d::Document::Compare(_)
-            | d::Document::Tree { .. }
-            | d::Document::Runs { .. }
-            | d::Document::Job(_)
-            | d::Document::Run(_)
-            | d::Document::Error(_) => Ok(()),
-        }
-    }
-    fn check_repository(&self, repository: &d::Repository) -> Result<(), api::Error> {
-        let Ok(id) = u32::try_from(repository.id) else {
-            return Err(api::Error::TooLarge);
+            State::Protection => match document {
+                Some(d::Document::Protection(protection)) => {
+                    api::Answer::Protection(Some(reading::protection(protection)))
+                }
+                Some(d::Document::Listed { .. }) => api::Answer::Protection(None),
+                Some(_) | None => return Err(api::Error::InvalidAnswer),
+            },
+            State::Permission { row, whose } => {
+                let permission = match document {
+                    Some(d::Document::Permission(permission)) => reading::permission(permission.permission),
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                };
+                match whose {
+                    Whose::One => api::Answer::Permission(permission),
+                    Whose::Each(mut roster) => {
+                        roster.rows.get_mut(roster.position).ok_or(api::Error::InvalidAnswer)?.permission = permission;
+                        roster.position = roster.position.saturating_add(1);
+                        return Ok(self.next_permission(row, roster, tables));
+                    }
+                }
+            }
+            State::Searching { row, user, whose } => {
+                match document {
+                    Some(d::Document::Search { ok }) => {
+                        if !ok || self.count == 0 {
+                            return Err(api::Error::Missing);
+                        }
+                    }
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                }
+                let login = tables.user(self.repository.forge, user).ok_or(api::Error::Missing)?;
+                let step = self.send(Request::Permission { at: at(&row), login: bytes::copy_of(login) });
+                return Ok((State::Permission { row, whose }, Some(step)));
+            }
+            State::Collaborators { row, rows, limit, .. } => {
+                listed(document)?;
+                return Ok(self.next_permission(row, Roster { rows, position: 0, more: self.count >= limit }, tables));
+            }
+            State::Items { rows, now, limit, .. } => api::Answer::Items {
+                items: rows.into_boxed(),
+                more: self.count.saturating_add(listed(document)?) >= limit,
+                now,
+            },
+            State::Reviews { rows, limit, .. } => api::Answer::Reviews {
+                reviews: rows.into_boxed(),
+                more: self.count.saturating_add(listed(document)?) >= limit,
+            },
+            State::Remarks { rows, more, .. } => {
+                listed(document)?;
+                api::Answer::Remarks { remarks: rows.into_boxed(), more }
+            }
+            State::Comments { item, rows, more, .. } => {
+                listed(document)?;
+                api::Answer::Item { item, comments: rows.into_boxed(), more }
+            }
+            State::Branches { rows, .. } => {
+                listed(document)?;
+                api::Answer::Branches(rows.into_boxed())
+            }
+            State::New { .. } => return Err(api::Error::InvalidAnswer),
+            State::Delegated(_) | State::Status { .. } => {
+                unreachable!("delegates consume their own terminal documents")
+            }
+            State::Ended => unreachable!("owner stops feeding an ended read plan"),
         };
-        let by_id = self.stage == Stage::Resolve || self.read == api::Read::Settings;
-        if id == 0 || (by_id && id != self.repository.repository) {
-            return Err(api::Error::InvalidAnswer);
-        }
-        Ok(())
+        ended(answer, bounds)
     }
-    fn repository_done(
-        &mut self,
-        repository: d::Repository,
+    fn keep_repository(&self, document: Option<d::Document>, tables: &mut Tables) -> Result<d::Repository, api::Error> {
+        let repository = repository(document)?;
+        let id = u32::try_from(repository.id).expect("repository checked");
+        tables.keep_repository(
+            api::Repository { forge: self.repository.forge, repository: id },
+            reading::repository(repository.clone()),
+        );
+        Ok(repository)
+    }
+    fn pull_status(
+        row: super::Repository,
+        pull: d::PullRequest,
         bounds: Bounds,
+    ) -> Result<(State, Option<Step>), api::Error> {
+        let commit = pull.head.sha.ok_or(api::Error::InvalidAnswer)?;
+        if commit.format != row.object_format {
+            return Err(api::Error::InvalidAnswer);
+        }
+        let mut actions = super::super::actions::Plan::statuses(commit.bytes, row.clone(), bounds)?;
+        let step = actions.begin();
+        Ok((State::Status { row, pull: Box::new(pull), actions: Box::new(actions) }, Some(step)))
+    }
+    fn next_permission(
+        &mut self,
+        row: super::Repository,
+        roster: Roster,
         tables: &mut Tables,
-    ) -> Result<Option<Step>, api::Error> {
-        let Ok(id) = u32::try_from(repository.id) else {
-            return Err(api::Error::TooLarge);
-        };
-        if id == 0 {
-            return Err(api::Error::InvalidAnswer);
-        }
-        let key = api::Repository { forge: self.repository.forge, repository: id };
-        tables.keep_repository(key, reading::repository(repository.clone()));
-        self.row = Some(reading::repository(repository.clone()));
-        if self.stage == Stage::Resolve {
-            return Ok(Some(self.initial(bounds, tables)?));
-        }
-        let answer = match &self.read {
-            api::Read::Locate { .. } => api::Answer::Located { repository: id },
-            api::Read::Settings => api::Answer::Settings(reading::settings(repository)),
-            api::Read::Items { .. }
-            | api::Read::Item { .. }
-            | api::Read::Pull { .. }
-            | api::Read::PullFor { .. }
-            | api::Read::Reviews { .. }
-            | api::Read::Statuses { .. }
-            | api::Read::Remarks { .. }
-            | api::Read::Branch { .. }
-            | api::Read::Branches { .. }
-            | api::Read::Protection { .. }
-            | api::Read::Collaborators { .. }
-            | api::Read::Permission { .. }
-            | api::Read::PullFiles { .. }
-            | api::Read::Compare { .. }
-            | api::Read::Checks { .. }
-            | api::Read::Runs { .. }
-            | api::Read::Run { .. }
-            | api::Read::Tree { .. }
-            | api::Read::Artifact { .. }
-            | api::Read::Commits { .. }
-            | api::Read::Job { .. }
-            | api::Read::File { .. } => return Err(api::Error::InvalidAnswer),
-        };
-        self.terminal(answer, bounds)
-    }
-    fn pull_done(&mut self, pull: d::PullRequest, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        let closed = pull.state != d::IssueState::Open;
-        self.pull = Some(pull);
-        let lookup = match &self.read {
-            api::Read::PullFor { .. } => true,
-            api::Read::Locate { .. }
-            | api::Read::Items { .. }
-            | api::Read::Item { .. }
-            | api::Read::Pull { .. }
-            | api::Read::Reviews { .. }
-            | api::Read::Statuses { .. }
-            | api::Read::Remarks { .. }
-            | api::Read::Branch { .. }
-            | api::Read::Branches { .. }
-            | api::Read::Protection { .. }
-            | api::Read::Settings
-            | api::Read::Collaborators { .. }
-            | api::Read::Permission { .. }
-            | api::Read::PullFiles { .. }
-            | api::Read::Compare { .. }
-            | api::Read::Checks { .. }
-            | api::Read::Runs { .. }
-            | api::Read::Run { .. }
-            | api::Read::Tree { .. }
-            | api::Read::Artifact { .. }
-            | api::Read::Commits { .. }
-            | api::Read::Job { .. }
-            | api::Read::File { .. } => false,
-        };
-        if lookup && closed {
-            self.stage = Stage::Pulls;
-            let page = self.paged(1, bounds);
-            return Ok(Some(self.send(Request::Pulls { at: self.at(), page })));
-        }
-        Ok(Some(self.pull_status(bounds)?))
-    }
-    fn branch_done(&mut self, branch: d::Branch, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        match &self.read {
-            api::Read::Protection { .. } => {
-                self.stage = Stage::Protection;
-                let request = match branch.effective_branch_protection_name {
-                    Some(name) => Request::Protection { at: self.at(), name },
-                    None => Request::Protections { at: self.at() },
-                };
-                Ok(Some(self.send(request)))
-            }
-            api::Read::Branch { .. } => self.terminal(
-                api::Answer::Commit(
-                    reading::commit(branch.commit, self.row.as_ref().expect("format").object_format)
-                        .ok_or(api::Error::InvalidAnswer)?,
-                ),
-                bounds,
-            ),
-            api::Read::Locate { .. }
-            | api::Read::Items { .. }
-            | api::Read::Item { .. }
-            | api::Read::Pull { .. }
-            | api::Read::PullFor { .. }
-            | api::Read::Reviews { .. }
-            | api::Read::Statuses { .. }
-            | api::Read::Remarks { .. }
-            | api::Read::Branches { .. }
-            | api::Read::Settings
-            | api::Read::Collaborators { .. }
-            | api::Read::Permission { .. }
-            | api::Read::PullFiles { .. }
-            | api::Read::Compare { .. }
-            | api::Read::Checks { .. }
-            | api::Read::Runs { .. }
-            | api::Read::Run { .. }
-            | api::Read::Tree { .. }
-            | api::Read::Artifact { .. }
-            | api::Read::Commits { .. }
-            | api::Read::Job { .. }
-            | api::Read::File { .. } => Err(api::Error::InvalidAnswer),
-        }
-    }
-    fn search_done(&mut self, ok: bool, tables: &mut Tables) -> Result<Option<Step>, api::Error> {
-        if !ok || self.count == 0 {
-            return Err(api::Error::Missing);
-        }
-        self.stage = Stage::Permissions;
-        let user = match &self.rows {
-            Rows::Collaborators(rows) => rows.get(self.position).ok_or(api::Error::InvalidAnswer)?.user,
-            Rows::None => match self.read {
-                api::Read::Permission { user } => user,
-                api::Read::Locate { .. }
-                | api::Read::Items { .. }
-                | api::Read::Item { .. }
-                | api::Read::Pull { .. }
-                | api::Read::PullFor { .. }
-                | api::Read::Reviews { .. }
-                | api::Read::Statuses { .. }
-                | api::Read::Remarks { .. }
-                | api::Read::Branch { .. }
-                | api::Read::Branches { .. }
-                | api::Read::Protection { .. }
-                | api::Read::Settings
-                | api::Read::Collaborators { .. }
-                | api::Read::PullFiles { .. }
-                | api::Read::Compare { .. }
-                | api::Read::Checks { .. }
-                | api::Read::Runs { .. }
-                | api::Read::Run { .. }
-                | api::Read::Tree { .. }
-                | api::Read::Artifact { .. }
-                | api::Read::Commits { .. }
-                | api::Read::Job { .. }
-                | api::Read::File { .. } => return Err(api::Error::InvalidAnswer),
-            },
-            Rows::Items(_) | Rows::Comments(_) | Rows::Reviews(_) | Rows::Remarks(_) | Rows::Branches(_) => {
-                return Err(api::Error::InvalidAnswer);
-            }
-        };
-        let login = tables.user(self.repository.forge, user).ok_or(api::Error::Missing)?;
-        Ok(Some(self.send(Request::Permission { at: self.at(), login: bytes::copy_of(login) })))
-    }
-    fn listed_done(&mut self, skipped: u32, bounds: Bounds, tables: &mut Tables) -> Result<Option<Step>, api::Error> {
-        if self.stage == Stage::Pulls {
-            if !self.more && self.count.saturating_add(skipped) >= self.limit {
-                let page = self.page.checked_add(1).ok_or(api::Error::TooLarge)?;
-                let page = self.paged(page, bounds);
-                return Ok(Some(self.send(Request::Pulls { at: self.at(), page })));
-            }
-            return Ok(Some(self.pull_status(bounds)?));
-        }
-        if self.stage == Stage::Collaborators {
-            self.more = self.count >= self.limit;
-            self.stage = Stage::Permissions;
-            return self.next_permission(tables);
-        }
-        let answer = self.finish_rows(skipped)?;
-        self.terminal(answer, bounds)
-    }
-    pub(super) fn pull_checks(&mut self, answer: api::Answer, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        let statuses = match answer {
-            api::Answer::Checks(statuses) => statuses,
-            api::Answer::Runs { .. }
-            | api::Answer::Run(_)
-            | api::Answer::Tree { .. }
-            | api::Answer::Commits { .. }
-            | api::Answer::Items { .. }
-            | api::Answer::Item { .. }
-            | api::Answer::Pull(_)
-            | api::Answer::Reviews { .. }
-            | api::Answer::Statuses { .. }
-            | api::Answer::Remarks { .. }
-            | api::Answer::Commit(_)
-            | api::Answer::Branches(_)
-            | api::Answer::Located { .. }
-            | api::Answer::PullFiles { .. }
-            | api::Answer::Compare { .. }
-            | api::Answer::Job { .. }
-            | api::Answer::Directory { .. }
-            | api::Answer::File { .. }
-            | api::Answer::Protection(_)
-            | api::Answer::Settings(_)
-            | api::Answer::Collaborators { .. }
-            | api::Answer::Permission(_)
-            | api::Answer::Created(_)
-            | api::Answer::Commented(_)
-            | api::Answer::Reviewed(_)
-            | api::Answer::Merged(_)
-            | api::Answer::Queued
-            | api::Answer::Branch(_)
-            | api::Answer::Done => return Err(api::Error::InvalidAnswer),
-        };
-        let ci = reading::checks_ci(&statuses);
-        let answer = api::Answer::Pull(reading::pull(
-            self.pull.take().expect("pull before status"),
-            self.row.as_ref().expect("format").object_format,
-            ci,
-        )?);
-        self.delegate = None;
-        self.terminal(answer, bounds)
-    }
-    fn pull_status(&mut self, bounds: Bounds) -> Result<Step, api::Error> {
-        self.stage = Stage::Status;
-        let commit = self.pull.as_ref().ok_or(api::Error::InvalidAnswer)?.head.sha.ok_or(api::Error::InvalidAnswer)?;
-        if commit.format != self.row.as_ref().expect("resolved format").object_format {
-            return Err(api::Error::InvalidAnswer);
-        }
-        let mut plan = crate::forgejo::plans::actions::Plan::statuses(
-            commit.bytes,
-            self.row.as_ref().expect("resolved format").clone(),
-            bounds,
-        )?;
-        let step = plan.begin();
-        self.delegate = Some(Delegate::Actions(plan));
-        Ok(step)
-    }
-
-    fn next_permission(&mut self, tables: &mut Tables) -> Result<Option<Step>, api::Error> {
-        let user = match &self.rows {
-            Rows::Collaborators(rows) => rows.get(self.position),
-            Rows::None
-            | Rows::Items(_)
-            | Rows::Comments(_)
-            | Rows::Reviews(_)
-            | Rows::Remarks(_)
-            | Rows::Branches(_) => return Err(api::Error::InvalidAnswer),
-        };
-        if let Some(user) = user {
+    ) -> (State, Option<Step>) {
+        if let Some(user) = roster.rows.get(roster.position) {
             let user = user.user;
-            return Ok(Some(self.permission(user, tables)));
+            let (state, step) = self.permission(row, user, Whose::Each(roster), tables);
+            return (state, Some(step));
         }
-        Ok(Some(Step::Done(Ok(self.finish_rows(0)?))))
+        (
+            State::Ended,
+            Some(Step::Done(Ok(api::Answer::Collaborators {
+                collaborators: roster.rows.into_boxed(),
+                more: roster.more,
+            }))),
+        )
     }
-    fn finish_rows(&mut self, skipped: u32) -> Result<api::Answer, api::Error> {
-        let more = self.more || self.count.saturating_add(skipped) >= self.limit;
-        Ok(match core::mem::replace(&mut self.rows, Rows::None) {
-            Rows::Items(rows) => api::Answer::Items { items: rows.into_boxed(), more, now: self.now },
-            Rows::Comments(rows) => api::Answer::Item {
-                item: self.item.take().ok_or(api::Error::InvalidAnswer)?,
-                comments: rows.into_boxed(),
-                more: self.more,
-            },
-            Rows::Reviews(rows) => api::Answer::Reviews { reviews: rows.into_boxed(), more },
-            Rows::Remarks(rows) => api::Answer::Remarks { remarks: rows.into_boxed(), more: self.more },
-            Rows::Branches(rows) => api::Answer::Branches(rows.into_boxed()),
-            Rows::Collaborators(rows) => {
-                api::Answer::Collaborators { collaborators: rows.into_boxed(), more: self.more }
-            }
-            Rows::None if self.stage == Stage::Protection => api::Answer::Protection(None),
-            Rows::None => return Err(api::Error::InvalidAnswer),
-        })
+}
+fn ended(answer: api::Answer, bounds: Bounds) -> Result<(State, Option<Step>), api::Error> {
+    Ok((State::Ended, Some(terminal(answer, bounds)?)))
+}
+fn repository(document: Option<d::Document>) -> Result<d::Repository, api::Error> {
+    match document {
+        Some(d::Document::Repository(repository)) => Ok(repository),
+        Some(_) | None => Err(api::Error::InvalidAnswer),
     }
+}
+fn pull(document: Option<d::Document>) -> Result<d::PullRequest, api::Error> {
+    match document {
+        Some(d::Document::Pull(pull)) => Ok(pull),
+        Some(_) | None => Err(api::Error::InvalidAnswer),
+    }
+}
+fn listed(document: Option<d::Document>) -> Result<u32, api::Error> {
+    match document {
+        Some(d::Document::Listed { skipped }) => Ok(skipped),
+        Some(_) | None => Err(api::Error::InvalidAnswer),
+    }
+}
+fn check_repository(state: &State, document: &d::Document, expected: u32) -> Result<(), api::Error> {
+    let id = match Some(document) {
+        Some(d::Document::Repository(repository)) => u32::try_from(repository.id),
+        Some(_) | None => return Ok(()),
+    };
+    let Ok(id) = id else {
+        return Err(api::Error::TooLarge);
+    };
+    let by_id = match state {
+        State::Resolving { .. } | State::Settings => true,
+        State::New { .. }
+        | State::Locating
+        | State::Delegated(_)
+        | State::Items { .. }
+        | State::Reviews { .. }
+        | State::Remarks { .. }
+        | State::Issue { .. }
+        | State::Comments { .. }
+        | State::Pull { .. }
+        | State::PullFor { .. }
+        | State::Pulls { .. }
+        | State::Status { .. }
+        | State::Branch { .. }
+        | State::ProtectionBranch { .. }
+        | State::Protection
+        | State::Branches { .. }
+        | State::Collaborators { .. }
+        | State::Permission { .. }
+        | State::Searching { .. } => false,
+        State::Ended => unreachable!("owner stops feeding an ended read plan"),
+    };
+    if id == 0 || (by_id && id != expected) {
+        return Err(api::Error::InvalidAnswer);
+    }
+    Ok(())
 }
