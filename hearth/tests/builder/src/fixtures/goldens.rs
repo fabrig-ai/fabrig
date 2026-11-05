@@ -1,6 +1,6 @@
 //! Shared process and protocol checks for reviewed goldens.
 use super::{File, Laid, Rendered, Repository, Scenario};
-use hearth_render_world::golden::{self, Kind, Leaf};
+use hearth_test_render::golden::{self, Kind, Leaf};
 #[must_use]
 pub fn files_of(leaves: &[Leaf]) -> Vec<File> {
     leaves

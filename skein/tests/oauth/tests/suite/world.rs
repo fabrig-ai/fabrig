@@ -52,7 +52,7 @@ fn a_start_outside_idle_is_refused_at_once() {
     let saved = record(client_step(&mut client, oauth::Event::Http(answer)));
     assert_eq!(saved.key, 7);
     assert_eq!(saved.generation, 1);
-    assert_eq!(saved.access_token.as_ref(), b"access");
+    assert_eq!(saved.access_token.expose(), b"access");
     assert!(client.is_done());
 
     match begin(&mut client, openid_registration(), 3) {
@@ -81,7 +81,7 @@ fn a_localhost_registration_signs_in_through_its_exact_redirect() {
             client_id: registration.client_id.clone(),
             client_secret: None,
             redirect_uri: boxed(redirect_uri),
-            refresh_token: boxed(b"seed"),
+            refresh_token: skein_lib::Secret::new(boxed(b"seed")),
             terms: None,
         },
         fake_limits(),
@@ -100,8 +100,8 @@ fn a_localhost_registration_signs_in_through_its_exact_redirect() {
             registration,
             key: 7,
             generation: 0,
-            state: boxed(b"0123456789abcdef"),
-            verifier: Some(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")),
+            state: skein_lib::Secret::new(boxed(b"0123456789abcdef")),
+            verifier: Some(skein_lib::Secret::new(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))),
             now: time(1),
         },
     ) else {
@@ -134,7 +134,7 @@ fn public_sign_in_refresh_rotation_and_old_refresh_replay() {
     let answer = response(fake_step(&mut issuer, fake::Event::Post { request, now: time(2), wall: wall(100) }));
     let first = record(client_step(&mut client, oauth::Event::Http(answer)));
     assert_eq!(first.generation, 1);
-    assert_eq!(first.refresh_token.as_deref().expect("refresh token"), b"refresh-1");
+    assert_eq!(first.refresh_token.as_ref().map(skein_lib::Secret::expose).expect("refresh token"), b"refresh-1");
     assert_eq!(issuer.generation(), 1);
 
     issuer.queue(success(b"access-2", Some(b"refresh-2"), 0)).expect("plan");
@@ -150,7 +150,7 @@ fn public_sign_in_refresh_rotation_and_old_refresh_replay() {
     let answer = response(fake_step(&mut issuer, fake::Event::Post { request, now: time(3), wall: wall(101) }));
     let second = record(client_step(&mut client, oauth::Event::Http(answer)));
     assert_eq!(second.generation, 2);
-    assert_eq!(second.refresh_token.as_deref().expect("refresh token"), b"refresh-2");
+    assert_eq!(second.refresh_token.as_ref().map(skein_lib::Secret::expose).expect("refresh token"), b"refresh-2");
     assert_eq!(issuer.generation(), 2);
     assert_eq!(second.remaining(wall(126)), Duration::from_secs(5));
 
@@ -205,7 +205,7 @@ fn issuer_revocation_error_and_malformed_document_are_typed() {
             prior: oauth::RefreshState {
                 key: 1,
                 generation: 0,
-                refresh_token: boxed(b"seed"),
+                refresh_token: skein_lib::Secret::new(boxed(b"seed")),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -233,7 +233,7 @@ fn issuer_revocation_error_and_malformed_document_are_typed() {
             prior: oauth::RefreshState {
                 key: 1,
                 generation: 0,
-                refresh_token: boxed(b"seed"),
+                refresh_token: skein_lib::Secret::new(boxed(b"seed")),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -258,7 +258,7 @@ fn delayed_rotated_answer_lost_before_delivery_makes_old_grant_revoked() {
             prior: oauth::RefreshState {
                 key: 1,
                 generation: 0,
-                refresh_token: boxed(b"seed"),
+                refresh_token: skein_lib::Secret::new(boxed(b"seed")),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -282,7 +282,7 @@ fn delayed_rotated_answer_lost_before_delivery_makes_old_grant_revoked() {
             prior: oauth::RefreshState {
                 key: 1,
                 generation: 0,
-                refresh_token: boxed(b"seed"),
+                refresh_token: skein_lib::Secret::new(boxed(b"seed")),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -308,7 +308,7 @@ fn issuer_rate_limit_then_client_backoff_reaches_success() {
             prior: oauth::RefreshState {
                 key: 1,
                 generation: 0,
-                refresh_token: boxed(b"seed"),
+                refresh_token: skein_lib::Secret::new(boxed(b"seed")),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -323,7 +323,7 @@ fn issuer_rate_limit_then_client_backoff_reaches_success() {
     let retry = http(client_step(&mut client, oauth::Event::Tick { now: time(4) }));
     let answer = response(fake_step(&mut issuer, fake::Event::Post { request: retry, now: time(4), wall: wall(102) }));
     let record = record(client_step(&mut client, oauth::Event::Http(answer)));
-    assert_eq!(record.refresh_token.as_deref().expect("refresh token"), b"next");
+    assert_eq!(record.refresh_token.as_ref().map(skein_lib::Secret::expose).expect("refresh token"), b"next");
 }
 
 #[test]
@@ -372,11 +372,11 @@ fn a_refresh_naming_no_scope_keeps_the_granted_scopes() {
 fn a_refresh_keeps_the_subject_and_id_token() {
     let mut prior = oauth::decode_record(SAVED_RECORD, &documents()).expect("current record");
     prior.subject = Some(boxed(b"subject"));
-    prior.id_token = Some(boxed(b"held.header.signature"));
+    prior.id_token = Some(skein_lib::Secret::new(boxed(b"held.header.signature")));
     let expected = (prior.subject.clone(), prior.id_token.clone());
     let mut plan = success(b"access", Some(b"next"), 0);
     let fake::Body::Token(answer) = &mut plan.body else { panic!("token plan") };
-    answer.id_token = Some(boxed(b"replacement.header.signature"));
+    answer.id_token = Some(skein_lib::Secret::new(boxed(b"replacement.header.signature")));
     let record = refreshed(&prior, plan);
     assert!((record.subject, record.id_token) == expected);
 }
@@ -387,7 +387,7 @@ fn a_current_record_refreshes_and_keeps_its_generation() {
     let saved = oauth::encode_record(&record, &documents()).expect("saved");
     assert_eq!(saved.get(..2), Some(b"\x00\x03".as_slice()));
     let restored = oauth::decode_record(&saved, &documents()).expect("version three");
-    assert!(restored.refresh_token == Some(boxed(b"next")));
+    assert!(restored.refresh_token == Some(skein_lib::Secret::new(boxed(b"next"))));
     assert_eq!(restored.generation, 3);
 }
 

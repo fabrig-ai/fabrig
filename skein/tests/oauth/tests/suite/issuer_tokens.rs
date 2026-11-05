@@ -25,12 +25,12 @@ fn signed_in_and_refreshed() -> Issued {
     let mut issuer = issuer_with(true, Some(issued(&[])));
     issuer.queue(success(b"sign-in-access", Some(b"rotated-refresh"), 0)).expect("sign-in plan");
     issuer.queue(success(b"refreshed-access", None, 0)).expect("refresh plan");
-    let granted = issuer.granted();
+    let granted = issuer.granted().into_iter().map(skein_lib::Secret::into_exposed).collect();
     let mut client = oauth::Client::new(client_limits()).expect("client");
     let request = sign_in_with(&mut client, &mut issuer, revocable_registration());
     let answer = response(fake_step(&mut issuer, fake::Event::Post { request, now: time(2), wall: wall(100) }));
     let saved = record(client_step(&mut client, oauth::Event::Http(answer)));
-    let mut held = vec![saved.access_token.clone()];
+    let mut held = vec![saved.access_token.clone().into_exposed()];
     drop(client_step(&mut client, oauth::Event::Reset));
     let request = http(client_step(
         &mut client,
@@ -42,7 +42,7 @@ fn signed_in_and_refreshed() -> Issued {
     ));
     let answer = response(fake_step(&mut issuer, fake::Event::Post { request, now: time(3), wall: wall(101) }));
     let saved = record(client_step(&mut client, oauth::Event::Http(answer)));
-    held.push(saved.access_token.clone());
+    held.push(saved.access_token.clone().into_exposed());
     Issued { client, issuer, registration: revocable_registration(), saved, granted, held }
 }
 

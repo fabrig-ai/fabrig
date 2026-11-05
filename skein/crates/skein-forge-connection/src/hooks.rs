@@ -4,7 +4,7 @@ use skein_forge::api;
 use skein_io::Addr;
 use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token, earliest};
 pub(crate) mod connection;
-use connection::{Closing, Hooked};
+use connection::Hooked;
 /// The listener; each forge's webhook secret is in its access.
 #[derive(Clone, Debug)]
 pub struct Webhooks {
@@ -71,7 +71,7 @@ impl Hooks {
                     }
                     self.closing = true;
                 } else if let Some(id) = self.connections.get(&owner) {
-                    self.slab.get_mut(*id).expect("indexed hook").closing = Closing::Pending;
+                    self.slab.get_mut(*id).expect("indexed hook").fault();
                 }
             }
             skein_io::Event::Closed { owner } => {
@@ -112,9 +112,8 @@ impl Hooks {
         self.closing = true;
         for (_, id) in &self.connections {
             let c = self.slab.get_mut(*id).expect("indexed hook");
-            if c.closing == Closing::Sent {
-                c.closing = Closing::Aborted;
-                io.push(skein_io::Request::Abort { entity: c.socket });
+            if c.sent() {
+                c.abort(io);
             }
         }
     }
@@ -125,7 +124,7 @@ impl Hooks {
         let mut next = self.wake;
         for (_, id) in &self.connections {
             let c = self.slab.get(*id).expect("indexed hook");
-            if !c.closing.sent() {
+            if !c.sent() {
                 next = earliest(next, Some(c.deadline));
             }
         }
@@ -157,19 +156,17 @@ impl Hooks {
             self.next = self.next.checked_add(1).expect("hook token space");
             assert!(self.next < 1_u64 << 60_u32, "component owner prefix");
             self.slab.reclaim();
-            let mut c = Hooked::new(socket, env);
-            c.deadline = accepted.saturating_add(env.limits.hook_deadline);
+            let c = Hooked::accepted(socket, accepted, env);
             let id = self.slab.insert(c).expect("connection room");
             let _previous = self.connections.insert(owner, id).expect("connection index room");
             io.push(skein_io::Request::Bind { socket, owner });
         }
         for (owner, id) in &self.connections {
             let c = self.slab.get_mut(*id).expect("indexed hook");
-            if !c.closing.sent() && (self.closing || c.deadline <= env.now) {
-                c.closing = Closing::Aborted;
-                io.push(skein_io::Request::Abort { entity: c.socket });
+            if !c.sent() && (self.closing || c.deadline <= env.now) {
+                c.abort(io);
             }
-            if !c.closing.sent() {
+            if !c.sent() {
                 c.pump(*owner, env, forges, word, up, io);
                 if c.pending() {
                     self.wake = Some(env.now);

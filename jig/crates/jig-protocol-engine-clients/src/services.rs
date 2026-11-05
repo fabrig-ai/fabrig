@@ -5,6 +5,19 @@ use super::{
 };
 use crate::sign_in::{Answer, CarriedRequest};
 use skein_lib::{Secret, Wall};
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum GetOwner {
+    SignIn(u64),
+    Service(u64),
+}
+impl GetOwner {
+    pub(crate) fn secret(self) -> SecretOwner {
+        match self {
+            Self::SignIn(number) => SecretOwner::SignIn(number),
+            Self::Service(number) => SecretOwner::Service(number),
+        }
+    }
+}
 impl Component {
     #[expect(
         clippy::too_many_lines,
@@ -46,7 +59,7 @@ impl Component {
                     let mut found = None;
                     for (exchange, waiting) in &self.pending.exchanges {
                         let wanted = match waiting {
-                            Waiting::Get { owner, .. } => Some(*owner),
+                            Waiting::Get { owner, .. } => Some(owner.secret()),
                             Waiting::LinkGet { sign_in, .. } => Some(SecretOwner::SignIn(*sign_in)),
                             Waiting::Made { party, .. } => Some(SecretOwner::Service(*party)),
                             Waiting::Moving { .. }
@@ -73,27 +86,23 @@ impl Component {
                                 if sign_in::accepted(value.as_ref(), &digest, env.wall) { Some(sign_in) } else { None };
                             self.link_sign_in(exchange, held, out);
                         }
-                        Waiting::Get { digest, body, route, .. } => {
+                        Waiting::Get { owner, digest, body, route } => {
                             if sign_in::accepted(value.as_ref(), &digest, env.wall) {
                                 match owner {
-                                    SecretOwner::SignIn(sign_in) => {
+                                    GetOwner::SignIn(sign_in) => {
                                         self.pending
                                             .exchanges
                                             .insert(exchange, Waiting::Checked { sign_in, body, route })
                                             .expect("same get slot");
                                     }
-                                    SecretOwner::Service(party) => self.service_sign_in(env, exchange, party, out),
-                                    SecretOwner::Carried(_) => unreachable!("carried values are only erased"),
-                                    SecretOwner::PublicNames => unreachable!("public names have their own key handler"),
+                                    GetOwner::Service(party) => self.service_sign_in(env, exchange, party, out),
                                 }
                             } else {
                                 match owner {
-                                    SecretOwner::SignIn(_) => self.denied(env, exchange, route),
-                                    SecretOwner::Service(_) => {
+                                    GetOwner::SignIn(_) => self.denied(env, exchange, route),
+                                    GetOwner::Service(_) => {
                                         self.respond(exchange, routes::refused());
                                     }
-                                    SecretOwner::Carried(_) => unreachable!("carried values are only erased"),
-                                    SecretOwner::PublicNames => unreachable!("public names have their own key handler"),
                                 }
                             }
                         }
@@ -141,16 +150,18 @@ impl Component {
         match waiting {
             Some(Waiting::Carry { sign_in, family, version, request }) => {
                 let request = match *request {
-                    CarriedRequest::Application(mut request) => {
-                        match &mut request {
-                            crate::ToApplication::Request { carried: Some(carried), .. } => {
-                                carried.number = number;
-                            }
-                            crate::ToApplication::Request { carried: None, .. }
-                            | crate::ToApplication::Read { .. }
-                            | crate::ToApplication::Watch { .. } => unreachable!("only a carrying request is kept"),
-                        }
-                        Request::Application(request)
+                    CarriedRequest::Application { key, family, version, scope, record, digest, carried_digest } => {
+                        Request::Application(crate::ToApplication::Request {
+                            reply_to: ReplyTo::new(exchange),
+                            sign_in,
+                            key,
+                            family,
+                            version,
+                            scope,
+                            record,
+                            digest,
+                            carried: Some(core::Carried { number, digest: carried_digest }),
+                        })
                     }
                     CarriedRequest::AccountKey { key, ask, digest } => Request::Core(Box::new(core::Event::Key {
                         reply_to: ReplyTo::new(exchange),

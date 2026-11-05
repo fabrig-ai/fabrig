@@ -81,7 +81,13 @@ request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
-managed (`protocol/setup.md`); `temper forge sign-in` prints an owned
+managed (`protocol/setup.md`); a Forgejo connected as its admin polls,
+with no hook, where `draft/github.md` and the `adopt-access` request of
+2026-11-05 have one, which the user has not answered, and on a real
+Forgejo no story shows a plan making a hook (`protocol/setup.md`); a
+managed row set up failed offers Connect to ctl alone
+(`client/forge.md`), and the adoption form draws no read-only line
+(`client/README.md`); `temper forge sign-in` prints an owned
 Forgejo's command without its binary and paths
 (`protocol/setup.md`), a preparation keeps a runner's row when its
 configuration names a `uuid`, reading no row, where the `runner-labels`
@@ -139,6 +145,8 @@ session's alone, beside a lag, any project's change of settings marking
 its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration, and its sheet, "Add repositories", is unbuilt;
+`draft/github.md`'s holds one the user has not answered, a Forgejo
+connected as its admin having its hook;
 `draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a
 repository" where they have "Adopt a repository";
 `draft/dogfood-hacks.md`'s holds one a plan's requester decided, with no
