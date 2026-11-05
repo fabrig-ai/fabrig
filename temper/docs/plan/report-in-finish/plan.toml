@@ -1,0 +1,3 @@
+draft = "report-in-finish"
+repo = "fabrig"
+sources = ["temper/docs/plan/report-in-finish/inputs/request.md", "AGENTS.md", "DESIGN.md"]
