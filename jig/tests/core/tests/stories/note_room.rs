@@ -8,7 +8,7 @@ use skein_lib::List;
 fn a_documents_whole_body_reads_back() {
     // jig/docs/design/domain/engine.md, 10: standard's document body.
     const BODY_BYTES: usize = 65_536;
-    // temper-init keeps generic document text at 128 bytes.
+    // A box's generic document text can be smaller than a note body.
     const BOX_TEXT_BYTES: u32 = 128;
     let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core;
     let body = vec![b'x'; BODY_BYTES];
