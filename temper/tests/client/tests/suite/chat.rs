@@ -1,3 +1,4 @@
+//! A chat from first words through its change landing and closure (client/README.md, 3.5 and 5.7).
 use jig_client_world::harness::Until;
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;
@@ -74,26 +75,265 @@ fn prepared_chat_answer_reaches_the_pages_task_watch() {
         jig_client::contract::Phase::Ended
     );
 }
+type ChatWorld = jig_client_world::harness::World<temper_client_world::app::Temper, temper_client_world::front::Joint>;
+const CHANGE_BRANCH: &[u8] = b"temper/chat-story";
+const CHANGE_TITLE: &[u8] = b"Export the table as CSV";
+const CHANGE_CALL: u64 = 1109;
+const STORY_STEPS: u32 = 200;
+const STORY_WORKER: skein_lib::Token = skein_lib::Token::new(7);
 const PAST_CLOSE_GRACE: skein_lib::Duration = skein_lib::Duration::from_secs(6);
-#[test]
-fn a_closed_chat_shows_in_your_chats() {
-    let mut world = fixtures::world(fixtures::SEED);
-    let task = fixtures::chat(world.front(), b"A chat to close");
-    let person = world.client(fixtures::PARTY, fixtures::chat_page(task));
+
+fn printed(world: &ChatWorld, person: jig_client_world::harness::ClientId) -> String {
+    let limits = fixtures::domain_limits();
+    let words = fixtures::phrasebooks(&limits);
+    let bounds = fixtures::view_bounds(&limits, &words);
+    let mut print = skein_ui_text::Print::new(&bounds.tree).expect("print bounds");
+    skein_ui_text::render(world.tree(person), b"temper", None, &mut print);
+    String::from_utf8(print.text.as_slice().to_vec()).expect("printed UTF-8")
+}
+
+// client/README.md, 5.7; domain/forge.md, 8.2–8.8: the chat delegates an already pushed
+// branch to the landing procedure; CI and the review gate still run in the real engine.
+fn delegate_change(front: &mut temper_client_world::front::Joint, chat: u64) -> u64 {
+    use jig_domain_tasks as tasks;
+    use temper_engine_domain as engine;
+    let driver = &mut front.engine;
+    let parent = driver.task(chat).expect("requesting chat");
+    assert_eq!(parent.authority.delegation.depth, 2, "chat authority: {:?}", parent.authority);
+    let attempt = parent.attempt;
+    let read = parent.inbox.last().map(|message| message.number);
+    let mut authority = parent.authority.clone();
+    authority.tools = tasks::Tools(0);
+    authority.delegation.kinds = Box::new([tasks::AuthorityExecutor::Charter(4)]);
+    authority.delegation.depth = 1;
+    authority.delegation.tasks = 1;
+    authority.budget.spend = 40;
+    driver.call(
+        STORY_WORKER,
+        chat,
+        attempt,
+        CHANGE_CALL,
+        engine::Call {
+            completion: 1,
+            position: 1,
+            tool: engine::Tool::Delegate {
+                batch: Box::new([engine::Delegate {
+                    executor: tasks::Executor::Procedure { connector: 1, code: 2 },
+                    spec: tasks::Spec {
+                        job: None,
+                        asks: false,
+                        words: CHANGE_TITLE.into(),
+                        parameters: Box::new([
+                            tasks::Parameter::Resource {
+                                name: 1,
+                                connector: 1,
+                                resource: temper_engine_domain_forge::tag(1, 7),
+                            },
+                            tasks::Parameter::Bytes { name: 3, value: CHANGE_BRANCH.into() },
+                        ]),
+                        inputs: Box::new([]),
+                    },
+                    contract: tasks::Contract::Change { connector: 1, kind: 1, words: 128 },
+                    authority,
+                    ..temper_engine_domain_world::fixtures::report_delegate(CHANGE_TITLE, Box::new([]))
+                }]),
+            },
+        },
+    );
+    for _ in 0..STORY_STEPS {
+        driver.advance(true);
+        if driver.answered(CHANGE_CALL).is_some() {
+            break;
+        }
+    }
+    let Some(engine::CallAnswer::Delegated(children)) = driver.answered(CHANGE_CALL) else {
+        panic!("chat delegates its change: {:?}", driver.answered(CHANGE_CALL));
+    };
+    let change = children[0].task;
+    record_delegation(driver, chat, attempt, change, read);
+    driver.answer(STORY_WORKER, chat, attempt, 1, tasks::End::Parked, engine::Parts::none());
+    driver.settle();
+    change
+}
+
+fn record_delegation(
+    driver: &mut temper_engine_domain_world::direct::Driver,
+    chat: u64,
+    attempt: u64,
+    change: u64,
+    read: Option<u64>,
+) {
+    use smith_domain_session::llm::{Block, Decoded, Message, Returned, Role, ToolCall};
+    let mut turn = temper_worker_domain_world::protocol::session_turn(1, 1, 0, true);
+    turn.messages = Box::new([
+        Message {
+            role: Role::Assistant,
+            content: Box::new([Block::ToolCall(ToolCall {
+                id: b"change".as_slice().into(),
+                name: b"delegate".as_slice().into(),
+                input: b"{}".as_slice().into(),
+                call: Decoded::Historical,
+                replay: None,
+            })]),
+        },
+        Message {
+            role: Role::User,
+            content: Box::new([Block::ToolResult {
+                id: b"change".as_slice().into(),
+                result: Returned::Text {
+                    text: format!("Delegated tasks: {change}").into_bytes().into(),
+                    error: false,
+                    replay: None,
+                },
+            }]),
+        },
+    ]);
+    let body = smith_protocol_channel::encode_turn(
+        &turn,
+        &smith_transcript::CEILINGS,
+        &temper_worker_domain_world::protocol::endpoints(),
+    )
+    .expect("delegation turn encodes");
+    driver.send(temper_engine_domain_world::protocol::turn(STORY_WORKER, chat, attempt, 1, 1, read, &body));
+}
+
+fn chat_from_new_chat(world: &mut ChatWorld, task: u64) -> jig_client_world::harness::ClientId {
+    use temper_client_domain::Address;
+    let person = world.client(fixtures::PARTY, fixtures::chats_page());
+    world.at_text_shell(person);
+    let see = |find| Step::See { find, within: fixtures::WITHIN };
+    let press = |role, name: &[u8]| Step::Press { find: Find::exactly_named(role, name) };
+    let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
+    world.person(person, vec![see(Find::exactly_named(Role::Link, b"+ New chat"))]);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    assert!(printed(world, person).contains("+ New chat"));
+    world.person(person, vec![press(Role::Link, b"+ New chat"), see(composer())]);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert_eq!(world.root(person).person().pages().address(), &Address::NewChat);
+    assert!(printed(world, person).contains("What do you want done?"));
     world.person(
         person,
         vec![
-            Step::See { find: Find::named(Role::Button, b"Close"), within: fixtures::WITHIN },
-            Step::Press { find: Find::named(Role::Button, b"Close") },
-            Step::See { find: Find::named(Role::Dialog, b"Close"), within: fixtures::WITHIN },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
-            Step::Pause { span: PAST_CLOSE_GRACE },
-            Step::Press { find: Find::exactly_named(Role::Link, b"Chats") },
-            Step::See { find: Find::named(Role::Heading { level: 1 }, b"Talk to an agent"), within: fixtures::WITHIN },
-            Step::See { find: Find::text(b"A chat to close"), within: fixtures::WITHIN },
+            Step::Type { find: composer(), words: b"Add CSV export".as_slice().into() },
+            Step::Send { find: composer() },
+            see(Find::exactly_named(Role::Heading { level: 1 }, "T1 · Add CSV export".as_bytes())),
+            see(Find::exactly_named(Role::TextArea, b"Message")),
         ],
     );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert_eq!(world.root(person).person().pages().address(), &Address::Chat { task });
+    assert!(printed(world, person).contains("Add CSV export"));
+    world.back(person);
+    world.person(person, vec![see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent"))]);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "Back skips NewChat: {outcome:?}");
+    assert_eq!(world.root(person).person().pages().address(), &fixtures::chats_page());
+    world.forward(person);
+    world.person(person, vec![see(Find::exactly_named(Role::TextArea, b"Message"))]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    person
+}
+
+fn approve_change(world: &mut ChatWorld, task: u64) {
+    let gate = (0..STORY_STEPS)
+        .find_map(|_| {
+            let gate = world.front().assignments.iter().find(|run| run.task != task).cloned();
+            if gate.is_none() {
+                let outcome = world.run(Until::Steps(2));
+                assert!(matches!(outcome.verdict, Verdict::Passed | Verdict::Open { .. }), "{outcome:?}");
+            }
+            gate
+        })
+        .expect("review gate assigned");
+    world.front().engine.answer(
+        STORY_WORKER,
+        gate.task,
+        gate.attempt,
+        0,
+        jig_domain_tasks::End::Finished {
+            result: jig_domain_tasks::TaskResult::Verdict {
+                code: 1,
+                fields: Box::new([]),
+                words: b"approved".as_slice().into(),
+            },
+            cancel_delegates: false,
+        },
+        temper_engine_domain::Parts::none(),
+    );
+    world.front().engine.settle();
+}
+
+#[test]
+fn a_new_chat_lands_its_delegated_change_and_closes_in_your_chats() {
+    use temper_client_world::front::Joint;
+    use temper_engine_domain_world::forge_stand::ForgeStand;
+    let mut world = fixtures::world(fixtures::SEED);
+    *world.front() = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
+    world.front().engine.forge = Some(ForgeStand::with_checks(fixtures::REPOSITORIES, &[b"build"]));
+    fixtures::adopt_change_repository(world.front());
+    world.front().engine.forge.as_mut().expect("story's forge").push_branch(7, CHANGE_BRANCH);
+    let task = 1;
+    let person = chat_from_new_chat(&mut world, task);
+    let see = |find| Step::See { find, within: fixtures::WITHIN };
+    let press = |role, name: &[u8]| Step::Press { find: Find::exactly_named(role, name) };
+    let change = delegate_change(world.front(), task);
+    let card = |find: Find| {
+        find.within(Box::new([skein_fake_person::Target::ExactRole {
+            role: Role::Region,
+            name: format!("Task {change}").into_bytes().into(),
+        }]))
+    };
+    world.person(person, vec![see(card(Find::exactly_named(Role::Status, b"Running")))]);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let running = printed(&world, person);
+    assert!(running.contains("Running") && running.contains(std::str::from_utf8(CHANGE_TITLE).expect("title")));
+    approve_change(&mut world, task);
+    world.person(
+        person,
+        vec![
+            see(card(Find::exactly_named(Role::Status, b"Landed"))),
+            see(card(Find::text(b"CI passed. Landed"))),
+            see(card(Find::exactly_named(Role::Link, format!("Task {change}").as_bytes()))),
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let landed = printed(&world, person);
+    assert!(landed.contains("CI passed. Landed"), "result's words: {landed}");
+    assert!(landed.contains(&format!("Task {change} ↗")), "named task link: {landed}");
+    world.person(
+        person,
+        vec![
+            press(Role::Button, b"Close"),
+            see(Find::exactly_named(Role::Dialog, b"Close")),
+            press(Role::Button, b"Confirm"),
+            Step::Pause { span: PAST_CLOSE_GRACE },
+            see(Find::text(b"Closed 00:00")),
+            Step::Gone { find: Find::exactly_named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert!(printed(&world, person).contains("Closed"));
+    world.person(
+        person,
+        vec![
+            press(Role::Link, b"Chats"),
+            see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
+            press(Role::Button, b"Closed"),
+            see(Find::exactly_named(Role::Link, b"T1")),
+            see(Find::exactly_named(Role::Status, b"Closed").within(Box::new([
+                skein_fake_person::Target::ExactRole { role: Role::List, name: b"Your chats".as_slice().into() },
+            ]))),
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let closed = printed(&world, person);
+    assert!(closed.contains("Closed") && closed.contains("Add CSV export"), "closed row: {closed}");
     assert!(world.front().engine.task(task).is_none(), "the closed chat left live work");
 }
 const CLOSE_REQUEST: skein_lib::Token = skein_lib::Token::new(1107);
