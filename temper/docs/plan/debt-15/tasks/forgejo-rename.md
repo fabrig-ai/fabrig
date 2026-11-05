@@ -79,3 +79,19 @@ Acceptance:
 
 The common note's items. Each **Paid when** clause and the evidence for it. How many files and lines the sweep changed. No
 break applies to a rename.
+
+## Rebase (2026-11-05, step merge, foreman debt-15/forgejo-rename/foreman-1)
+
+Rebase the rename over main’s migration support and preserve the copy-retry world changes.
+The merge conflicts are the branch’s: main added files under the directory this task renames.
+Main commit `3118ce5062` added `src/setup/migrate.rs` and `src/tests/migrate.rs` under `skein/crates/skein-fake-forge-protocol/`.
+Move both with `git mv` into the corresponding paths under `skein/crates/skein-fake-forge-forgejo/`; retain their module declarations and main’s migration implementation.
+In the moved `src/tests/migrate.rs`, remove `git` from the `crate::{...}` import and add `use skein_fake_forge_http::git;`.
+In `decoded_clone`, pass `&h.env.limits.git()` to `git::client::decoder` and `git::client::step`; keep the tokenizer’s document limits unchanged.
+Keep Forgejo’s root re-export as `pub use skein_fake_forge_http::{Faults, Hosted};`.
+Main commit `9e30a6e985` changed `skein/tests/forge/setup/src/host.rs` and `skein/tests/forge/setup/src/world.rs`.
+Resolve `host.rs` by retaining main’s domain import, persistent-domain driving, copy bookkeeping and event handling, while renaming the fake import to `skein_fake_forge_forgejo`.
+Resolve `world.rs` by retaining main’s `copying` field, initialization and `file`/`put`/`forget` handling, while applying every crate-name substitution from this branch.
+Preserve main’s behavior and assertions throughout; these conflicts require name and API adaptation only.
+Validate the migration lib tests in `skein-fake-forge-forgejo` and the copy suite in `skein-forge-setup-world` through heavy, then complete the spec’s workspace check and remaining acceptance checks.
+Report the two newly landed files moved from the old directory, as the spec requests.
