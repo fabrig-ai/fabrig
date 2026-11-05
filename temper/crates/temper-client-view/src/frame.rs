@@ -577,6 +577,7 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
         | Address::Forges
         | Address::ConnectForge { .. }
         | Address::Adopt { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
@@ -626,6 +627,7 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         Address::Settings { .. } | Address::Configure { .. } => true,
         Address::Chat { .. } => crate::pages::chat::configuring(root),
         Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Task { .. }
@@ -652,6 +654,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Inbox { .. } => (true, false),
         Address::Adopt { .. } => (false, true),
         Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::ConnectForge { .. }
@@ -708,6 +711,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Inbox { .. }
             | Address::Task { .. }
             | Address::Home { .. }
+            | Address::Changes { .. }
             | Address::Settings { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. }
@@ -776,6 +780,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Task { .. }
         | Address::Inbox { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
@@ -808,6 +813,7 @@ pub(crate) fn accounts_link(
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,

@@ -265,6 +265,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     Address::Home { .. } => Some(b"Home".as_slice()),
                     Address::Inbox { .. } => Some(needs),
                     Address::Chats { .. } | Address::Chat { .. } => Some(b"Chats".as_slice()),
+                    Address::Changes { .. } => Some(b"Changes".as_slice()),
                     Address::Settings { .. } | Address::Configure { .. } => Some(b"Settings".as_slice()),
                     Address::Task { .. }
                     | Address::Accounts

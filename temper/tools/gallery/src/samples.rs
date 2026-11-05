@@ -461,7 +461,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Home { .. } | Address::Settings { .. } | Address::Configure { .. } | Address::Adopt { .. } => {
+        Address::Home { .. } | Address::Changes { .. } | Address::Settings { .. } | Address::Configure { .. } | Address::Adopt { .. } => {
             return None;
         }
     };
@@ -492,6 +492,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => String::new(),
