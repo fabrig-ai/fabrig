@@ -90,6 +90,17 @@ fn terminal() -> Record {
     Record::Terminal(Terminal { outcome: Outcome::Done, diff: None, left_out: 0 })
 }
 #[test]
+fn valid_requires_a_nonzero_chunk() {
+    for (limits, expected) in [
+        (limits::SHIPPED, true),
+        (Limits { chunk: 0, ..limits::SHIPPED }, false),
+        (Limits { chunk: 1, record: 0 }, true),
+        (Limits { chunk: u32::MAX, ..limits::SHIPPED }, true),
+    ] {
+        assert_eq!(printer::valid(&limits), expected, "{limits:?}");
+    }
+}
+#[test]
 fn a_record_goes_down_in_pieces_of_at_most_a_chunk() {
     let mut machine = Machine::new(Form::Text, Limits { chunk: 16, ..limits::SHIPPED });
     let printed = machine.print(Record::Spec(fixtures::x1_prod()));
