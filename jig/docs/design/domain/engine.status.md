@@ -6,7 +6,7 @@
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
   7.1, 9: the brief's lineage, calls and waiting sections. 7.2: what a
-  turn's calls made, written beside the turn. 7.3: `move`, `succeed`,
+  turn's calls made, written beside the turn. 7.3: the tools `move`, `succeed`,
   `hold` and `lift`.
   11.1: `me`'s
   `resolved_default`. 15: core-world stories that opt out of the restart
