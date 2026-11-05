@@ -439,6 +439,8 @@ pub enum Decision {
     CancelRepair { head: Commit },
     /// A CI repair ended at this green head. The top records it and steps on (8.4).
     RepairEnded { head: Commit },
+    /// The change's CI hold ended; the root releases its task as the deployment's (8.4).
+    EndHold,
     /// Tell the top this change is ready for its queue or landing.
     Ready,
     /// Ask the top for the branch's one queue repair.

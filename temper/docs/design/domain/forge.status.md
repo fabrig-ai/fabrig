@@ -52,9 +52,6 @@
     its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
     `brief_answer`), but those stories run a CI repair's pair alone and no test
     holds its words.
-  - 8.4: a hold on a CI repair's reason ending at a green head: a held change
-    reads nothing until a person releases it, and the deployment releases no
-    task.
   - 8.4, 8.5: a goal's landing held past its repairs, then released after
     a change into its goal branch (`../draft/reference-landing.md`,
     section 9's second story), is built, but its story is ignored: after

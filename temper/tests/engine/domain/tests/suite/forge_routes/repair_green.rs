@@ -305,3 +305,420 @@ fn a_repair_held_for_its_brief_ends_on_a_green_head() {
     wait_cancelled(&mut world, change, repair);
     world.close();
 }
+
+fn wait_held(world: &mut World, change: u64) {
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(live_task(world, change).phase, tasks::Phase::Held { .. }) {
+            return;
+        }
+    }
+    panic!("change held: {:?}", row(world, change));
+}
+
+fn cancelled() -> (World, u64, u64) {
+    let (mut world, repair, change, head) = repair();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(950)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [95; 16],
+        ask: people::Ask::Cancel { project: 1, task: repair.task, reason: b"try again".as_slice().into(), grace: None },
+    }));
+    answer(&mut world, &repair, tasks::End::Parked);
+    wait_held(&mut world, change);
+    (world, change, head)
+}
+
+fn release(world: &mut World, change: u64) {
+    let revision = live_task(world, change).revisions.hold;
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(960)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [96; 16],
+        ask: people::Ask::Release { project: 1, task: change, revision, again: None },
+    }));
+}
+
+fn goes_on(world: &mut World, change: u64) {
+    let before = row(world, change).change.clone();
+    let made = live_task(world, change).made;
+    let deadline =
+        world.env.now.saturating_add(world.env.limits.forge.client.poll_max).saturating_add(Duration::from_secs(5));
+    while world.env.now <= deadline {
+        world.tick();
+        if matches!(live_task(world, change).phase, tasks::Phase::Active(_))
+            && !matches!(row(world, change).change.state, State::Held { .. } | State::Repairing { .. })
+        {
+            break;
+        }
+    }
+    let after = &row(world, change).change;
+    assert_eq!((after.repairs, after.resolutions, after.updates), (before.repairs, before.resolutions, before.updates));
+    assert!(matches!(task(world, change).phase, tasks::Phase::Active(_)), "{:?}", task(world, change).phase);
+    assert!(!matches!(row(world, change).change.state, State::Held { .. } | State::Repairing { .. }));
+    assert_eq!(live_task(world, change).made, made);
+    assert!(matches!(live_task(world, change).escalation, tasks::Escalation::Unheld { .. }));
+    assert!(
+        world.store.rows.values().any(|record| matches!(record,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::History(history)))
+            if history.task == change && history.change == tasks::Change::Released
+                && history.by == tasks::Party::Deployment { project: 1 })),
+        "deployment release in history"
+    );
+}
+
+#[test]
+fn a_cancelled_repair_goes_on_when_ci_passes() {
+    let (mut world, change, head) = cancelled();
+    status(&mut world, head, raw::Check::Passed);
+    goes_on(&mut world, change);
+    world.close();
+}
+
+#[test]
+fn a_repair_failed_for_good_goes_on_when_ci_passes() {
+    let (mut world, repair, change, head) = repair();
+    answer(
+        &mut world,
+        &repair,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Failure { reason: b"cannot repair".as_slice().into() },
+            cancel_delegates: false,
+        },
+    );
+    wait_held(&mut world, change);
+    status(&mut world, head, raw::Check::Passed);
+    goes_on(&mut world, change);
+    world.close();
+}
+
+#[test]
+fn a_hold_past_the_repair_bound_goes_on_when_ci_passes() {
+    let (mut world, repair, change, _) = repair();
+    let bound = world.env.limits.forge.change_policy.repairs;
+    let branch = row(&world, change).branch.clone();
+    let mut repair = repair;
+    let mut next = 0;
+    for count in 1..=bound {
+        next = fake::advance(
+            &mut world.fake,
+            &world.fake_env,
+            b"org/repo",
+            &branch,
+            b"file",
+            &[u8::try_from(count).expect("small bound")],
+            1,
+        )
+        .expect("repair pushed");
+        status(&mut world, next, raw::Check::Failed);
+        let assigned = world.assigned.len();
+        answer(
+            &mut world,
+            &repair,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Change {
+                    title: tasks::ChangeTitle::new(b"Repair".as_slice().into()),
+                    connector: 0,
+                    kind: 2,
+                    resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                    words: b"pushed".as_slice().into(),
+                },
+                cancel_delegates: false,
+            },
+        );
+        for _ in 0..STEPS {
+            world.tick();
+            if world.assigned.len() > assigned || matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }) {
+                break;
+            }
+        }
+        repair = world.assigned.last().expect("repair").clone();
+    }
+    wait_held(&mut world, change);
+    assert!(
+        matches!(&row(&world, change).change.state, State::Held { was, why: temper_engine_domain_forge_change::Hold::Repairs }
+        if matches!(was.as_ref(), State::Checking { .. }))
+    );
+    assert_eq!(row(&world, change).change.repairs, bound);
+    settle_reads(&mut world);
+    let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(change)));
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(record)))) = world.store.rows.get(&key)
+    else {
+        panic!("held task")
+    };
+    let mut record = record.clone();
+    // A restored own hold may still carry an earlier release as its due reason.
+    record.due_reason = tasks::Why::Released;
+    let key = Key::Forge(forge_top::Key::Change(change));
+    let Some(Record::Forge { row: stored }) = world.store.rows.get(&key) else { panic!("held change") };
+    let mut stored = stored.clone();
+    let forge_top::Stored::Change(held) = stored.as_mut() else { panic!("change") };
+    held.change.resolutions = 1;
+    held.change.updates = 2;
+    world.store.seed(
+        Box::new([
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(record))),
+            Record::Forge { row: stored },
+        ]),
+        Box::new([]),
+    );
+    world.restart_same();
+    for _ in 0..STEPS {
+        world.tick();
+        if world.root.ready() {
+            break;
+        }
+    }
+    assert_eq!(live_task(&world, change).due_reason, tasks::Why::Released);
+    status(&mut world, next, raw::Check::Passed);
+    goes_on(&mut world, change);
+    world.close();
+}
+
+#[test]
+fn a_hold_short_of_authority_goes_on_when_ci_passes() {
+    let configured = World::configured_limits(
+        true,
+        true,
+        false,
+        0,
+        Gate::default(),
+        None,
+        StoryLimits { stall: Some(Duration::from_secs(30 * 60)), ..StoryLimits::default() },
+    );
+    let (mut world, _, producer, branch) =
+        temper_engine_domain_world::forge_routes::change_world_funded(configured, Change::default(), 10);
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change") };
+    let revision = live_task(&world, change).revisions.spec;
+    let mut authority = live_task(&world, change).authority.clone();
+    authority.delegation.tasks = live_task(&world, change).made;
+    let parent = world.assigned[0].clone();
+    let event = world.protocol.call(
+        Token::new(7),
+        parent.task,
+        parent.attempt,
+        97,
+        engine::Call {
+            completion: 97,
+            position: 1,
+            tool: engine::Tool::Amend {
+                keep_parameters: false,
+                target: change,
+                revision,
+                amendment: temper_engine_domain_world::fixtures::task_amendment(
+                    None,
+                    Some(authority),
+                    b"only the producer",
+                ),
+            },
+        },
+    );
+    world.send(event);
+    for _ in 0..STEPS {
+        world.tick();
+        if live_task(&world, change).revisions.spec > revision {
+            break;
+        }
+    }
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+    let head =
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"first", 1).expect("pushed");
+    status(&mut world, head, raw::Check::Failed);
+    answer(
+        &mut world,
+        &producer,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Change {
+                title: tasks::ChangeTitle::new(b"Change".as_slice().into()),
+                connector: 0,
+                kind: 2,
+                resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                words: b"pushed".as_slice().into(),
+            },
+            cancel_delegates: false,
+        },
+    );
+    wait_held(&mut world, change);
+    assert!(matches!(
+        row(&world, change).change.state,
+        State::Held { why: temper_engine_domain_forge_change::Hold::Authority(_), .. }
+    ));
+    status(&mut world, head, raw::Check::Passed);
+    goes_on(&mut world, change);
+    world.close();
+}
+
+#[test]
+fn a_stopped_change_stays_held_at_a_green_head() {
+    let (mut world, change, head) = cancelled();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(970)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [97; 16],
+        ask: people::Ask::Stop { project: 1, task: change },
+    }));
+    for _ in 0..STEPS {
+        world.tick();
+        if live_task(&world, change).placed.is_some() {
+            break;
+        }
+    }
+    status(&mut world, head, raw::Check::Passed);
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
+    assert!(live_task(&world, change).placed.is_some());
+    assert!(matches!(row(&world, change).change.state, State::Held { .. }));
+    release(&mut world, change);
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    assert_eq!(task(&world, change).made, MADE);
+    assert!(!matches!(row(&world, change).change.state, State::Held { .. } | State::Repairing { .. }));
+    world.close();
+}
+
+#[test]
+fn a_drifted_change_stays_held_at_a_green_head() {
+    let (mut world, change, head) = cancelled();
+    settle_reads(&mut world);
+    let mut drifted = row(&world, change).clone();
+    drifted.change.state = State::Held {
+        was: Box::new(State::Repairing { requested: true, why: Repair::Ci }),
+        why: temper_engine_domain_forge_change::Hold::BranchMoved,
+    };
+    world.store.seed(Box::new([Record::Forge { row: Box::new(forge_top::Stored::Change(drifted)) }]), Box::new([]));
+    world.restart_same();
+    for _ in 0..STEPS {
+        world.tick();
+        if world.root.ready() {
+            break;
+        }
+    }
+    status(&mut world, head, raw::Check::Passed);
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    assert!(matches!(task(&world, change).phase, tasks::Phase::Held { .. }));
+    assert!(matches!(
+        row(&world, change).change.state,
+        State::Held { why: temper_engine_domain_forge_change::Hold::BranchMoved, .. }
+    ));
+    world.close();
+}
+
+#[test]
+fn a_red_or_pending_read_ends_no_hold() {
+    let (mut world, change, head) = cancelled();
+    let before = row(&world, change).change.clone();
+    let writes = world.writes.len();
+    for (check, ci, watcher) in [
+        (raw::Check::Pending, temper_engine_domain_forge_change::Status::Pending, Token::new(980)),
+        (raw::Check::Failed, temper_engine_domain_forge_change::Status::Failed, Token::new(981)),
+    ] {
+        let calls = world.forge_calls;
+        status(&mut world, head, check);
+        let expected = if ci == temper_engine_domain_forge_change::Status::Pending {
+            b"build pending".as_slice()
+        } else {
+            b"build failed".as_slice()
+        };
+        let deadline =
+            world.env.now.saturating_add(world.env.limits.forge.client.poll_max).saturating_add(Duration::from_secs(5));
+        while world.env.now <= deadline && row(&world, change).result.checks.bytes.as_ref() != expected {
+            world.tick();
+        }
+        assert_eq!(row(&world, change).result.checks.bytes.as_ref(), expected);
+        world.send(engine::Event::Party(engine::PartyInput::Watch {
+            watcher,
+            sign_in: world.signed_in.expect("owner"),
+            subject: jig_domain_core::documents::Watched::Application {
+                scope: people::ApplicationScope::Project(1),
+                connector: 0,
+                subject: Token::new(change),
+            },
+            window: jig_domain_core::documents::Window { rows: 0, after: None },
+        }));
+        for _ in 0..STEPS {
+            world.tick();
+            if world.panels.iter().any(|(seen, _)| *seen == watcher) {
+                break;
+            }
+        }
+        let panel = &world.panels.iter().rev().find(|(seen, _)| *seen == watcher).expect("panel").1;
+        assert_eq!(panel.ci, ci);
+        assert_eq!(panel.head, Some(translate::commit(head)));
+        assert_eq!(row(&world, change).change, before);
+        assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
+        assert_eq!(world.writes.len(), writes, "held reads make no effect");
+        eprintln!("held {ci:?} observation: {} forge calls including keep polls", world.forge_calls - calls);
+    }
+    world.close();
+}
+
+fn settle_reads(world: &mut World) {
+    for _ in 0..STEPS {
+        world.tick();
+        if world.store.pending.is_empty() && world.pending.is_empty() {
+            return;
+        }
+    }
+    panic!("reads and commits settled before a cold fixture");
+}
+
+#[test]
+fn a_stop_during_the_green_read_leaves_the_next_release_safe() {
+    let (mut world, change, head) = cancelled();
+    settle_reads(&mut world);
+    status(&mut world, head, raw::Check::Passed);
+    let deadline =
+        world.env.now.saturating_add(world.env.limits.forge.client.poll_max).saturating_add(Duration::from_secs(5));
+    while world.env.now <= deadline {
+        world.tick();
+        if world
+            .pending
+            .values()
+            .any(|op| matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Reviews { .. })))
+        {
+            break;
+        }
+    }
+    assert!(
+        world
+            .pending
+            .values()
+            .any(|op| matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Reviews { .. })))
+    );
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(970)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [97; 16],
+        ask: people::Ask::Stop { project: 1, task: change },
+    }));
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    assert!(live_task(&world, change).placed.is_some());
+    assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
+    assert!(!matches!(row(&world, change).change.state, State::Held { .. }));
+    assert!(
+        !world.store.rows.values().any(|record| matches!(record,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::History(history)))
+            if history.task == change && history.change == tasks::Change::Released
+                && history.by == tasks::Party::Deployment { project: 1 })),
+        "the placed hold refused deployment release"
+    );
+    release(&mut world, change);
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    assert_eq!(task(&world, change).made, MADE);
+    assert_eq!(row(&world, change).change.repairs, 1);
+    assert!(!matches!(row(&world, change).change.state, State::Held { .. } | State::Repairing { .. }));
+    world.close();
+}
