@@ -1123,3 +1123,55 @@ fn two_pipes_truncation_drains_ignores_close_and_refusal_failure_reports_in_orde
     assert!(channel.events.is_empty());
     assert!(channel.below.is_empty());
 }
+
+#[test]
+fn two_pipes_read_failure_during_opening_drains_terms_before_terminal() {
+    let mut initiator = Peer::new_mode(Role::Initiator, StreamMode::Two);
+    let mut responder = Peer::new_mode(Role::Responder, StreamMode::Two);
+    initiator.down(Request::Open { credential: Box::from([]) });
+    for _ in 0_u32..20_u32 {
+        initiator.step(&mut responder);
+        responder.step(&mut initiator);
+    }
+    match responder.events.pop() {
+        Some(Event::Opening { .. }) => {}
+        event => panic!("expected opening: {event:?}"),
+    }
+    responder.down(Request::Accept { version: 2 });
+    responder.machine.up(
+        LowerEvent::Read(stream::Up::Failed(stream::Fault::Reset)),
+        &mut responder.events,
+        &mut responder.below,
+    );
+    assert!(responder.events.is_empty(), "opening output still needs to drain");
+    for kind in [2, 4] {
+        responder.machine.poll(&mut responder.events, &mut responder.below);
+        let right = match responder.below.pop() {
+            Some(Lower::Write(stream::OutputDown::Room { right, .. })) => right,
+            record => panic!("expected opening output room: {record:?}"),
+        };
+        responder.machine.up(
+            LowerEvent::Write(stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted }),
+            &mut responder.events,
+            &mut responder.below,
+        );
+        responder.machine.poll(&mut responder.events, &mut responder.below);
+        match responder.below.pop() {
+            Some(Lower::Write(stream::OutputDown::Send { bytes, .. })) => {
+                assert_eq!(parse_header(bytes.get(..8).expect("header")).expect("opening frame").kind, kind);
+            }
+            record => panic!("expected opening output: {record:?}"),
+        }
+        match responder.events.pop() {
+            Some(Event::Drained) => {}
+            event => panic!("expected opening drain: {event:?}"),
+        }
+    }
+    match responder.events.pop() {
+        Some(Event::Closed { why: super::Closed::Stream }) => {}
+        event => panic!("expected terminal after Terms: {event:?}"),
+    }
+    responder.machine.poll(&mut responder.events, &mut responder.below);
+    assert!(responder.events.is_empty());
+    assert!(responder.below.is_empty());
+}
