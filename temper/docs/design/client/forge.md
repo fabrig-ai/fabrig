@@ -732,7 +732,9 @@ and `connect-forge.html`.
   names the one under way (fetch, prepare or run); none named yet, no
   individual step is marked. Connecting is the fourth, making the
   fifth, done once the first repository is made, unadopted. Before the
-  target is known, the fifth reads "Making the first repository".
+  target is known, the fifth reads "Making the first repository". A set up
+  asked with copies or nothing has four steps, the row's `starts_with`
+  saying so (`../protocol/setup.md`, 6.7).
   GitHub rows never list Forgejo's steps. The first and the Details
   name the versions the row's `owned` pins, "Fetching Forgejo 17.0.1
   and its runner 13.2.1"; the person's login stays off until the row
@@ -1107,7 +1109,7 @@ and its hold (2.5) follow.
 | each forge's connection, its mode, installations and actions (5.4, 5.5) | temper's `Forges` page; the deployment's part | `../protocol/forge.md`, at start, connecting at runtime, a forge stopped, GitHub's installations and the setup's host; `../protocol/credentials.md`, the forges' records |
 | the browser's steps of a connect (9.1) | none of jig's: temper's routes on the clients' listener | `../protocol/forge.md`, the setup's host |
 | a public project's changes and landings, for a visitor (section 11) | jig's public reads, `PublicRead`, of the forge's public kinds | `../domain/forge.md`, sections 8 and 9; `../domain/landing.md`, section 14 |
-| the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
+| the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages, `Chats` and `NewChat`; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
 | what a person has dismissed | the project's request `Dismiss` and the subject `dismissed`, of the party's own scope (`README.md`, 4.6): the forge side's facts, which no page reads (`README.md`, section 11) | `../domain/forge.md`, 5.5 |
 | temper's settings: a landing rule's value, the forge's charter, a project's questions and ways, and a pending proposal's items of temper's kinds | the deployment's reads, and a project's reads of its own kinds (`../protocol/configuration.md`, 13.2, *Read from the forge*), `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |

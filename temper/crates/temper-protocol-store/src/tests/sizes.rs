@@ -202,11 +202,11 @@ fn largest_forge_record_fits_the_application_ceiling() {
             email: bytes(limits.bot_email),
         },
         asked: true,
-        first: Some(forge::FirstIntent {
-            playground: true,
-            org: bytes(limits.first_intent_org),
-            repository: bytes(limits.first_intent_repository),
-            label: bytes(limits.first_intent_label),
+        first: Some(forge::FirstIntent::Copies {
+            addresses: super::records::full_copy_addresses(
+                limits.copy_intent_addresses,
+                limits.copy_intent_addresses_item,
+            ),
         }),
     });
     let encoded = records::encode(&row);
@@ -224,11 +224,11 @@ fn largest_forge_record_fits_the_application_ceiling() {
         limits.bot_login,
         limits.bot_name,
         limits.bot_email,
-        limits.first_intent_org,
-        limits.first_intent_repository,
-        limits.first_intent_label,
     ] {
         payload += u64::from(length);
     }
+    // The copy list owns one Box slot and the address's bytes per entry.
+    payload += u64::from(limits.copy_intent_addresses)
+        * (u64::try_from(size_of::<Box<[u8]>>()).unwrap() + u64::from(limits.copy_intent_addresses_item));
     assert_eq!(forge::stored_bytes(&row), Some(payload));
 }

@@ -552,3 +552,24 @@ fn settings_styles_keep_their_css_names_beside_main_pages() {
         assert_eq!(NAMES.style(style), Some(name));
     }
 }
+
+#[test]
+fn welcome_and_repository_styles_keep_their_css_names() {
+    for (style, name) in [
+        (WELCOME_FORGE_STATUS, b"temper-welcome-forge-status".as_slice()),
+        (WELCOME_SPIN, b"temper-welcome-spin"),
+        (WELCOME_ACTS, b"temper-welcome-acts"),
+        (WELCOME_OK, b"temper-welcome-ok"),
+        (WELCOME_SEP, b"temper-welcome-sep"),
+        (WELCOME_PANEL, b"temper-welcome-panel"),
+        (WELCOME_AWAY, b"temper-welcome-away"),
+        (WELCOME_NUMBERED, b"temper-welcome-numbered"),
+        (WELCOME_FIELD, b"temper-welcome-field"),
+        (WELCOME_CMD, b"temper-welcome-cmd"),
+        (WELCOME_CURRENT, b"temper-welcome-current"),
+        (HOME_COPY, b"temper-home-copy"),
+        (HOME_SMALL, b"temper-home-small"),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+}

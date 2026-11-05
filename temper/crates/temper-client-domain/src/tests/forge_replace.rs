@@ -30,6 +30,7 @@ fn row(kind: w::Kind, mode: w::Mode, connection: w::Connection, ended: bool) -> 
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
             number: FORGE,

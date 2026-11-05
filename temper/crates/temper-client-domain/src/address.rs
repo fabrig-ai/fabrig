@@ -25,9 +25,16 @@ pub enum Address {
 /// The welcome's query names its step (client/browser.md, 2.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
+    /// `/welcome`: decides by the store's state (client/README.md, 3.5).
     Welcome,
-    Forge { forge: Option<Choice> },
-    Model { way: Option<ModelWay> },
+    /// `/welcome?at=welcome`: the same step, asked for by its link.
+    WelcomeAsked,
+    Forge {
+        forge: Option<Choice>,
+    },
+    Model {
+        way: Option<ModelWay>,
+    },
     Ready,
 }
 /// A forge kind to make, a kept record, or the Forgejo instructions.
@@ -108,6 +115,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Welcome { step } => {
             return match step {
                 Step::Welcome => b"/welcome".as_slice().into(),
+                Step::WelcomeAsked => b"/welcome?at=welcome".as_slice().into(),
                 Step::Forge { forge } => print_choice(b"/welcome?at=forge", *forge, b"&forge="),
                 Step::Model { way } => print_way(b"/welcome?at=model", *way, b"&"),
                 Step::Ready => b"/welcome?at=ready".as_slice().into(),
@@ -437,6 +445,7 @@ fn welcome_step(query: &[u8]) -> Step {
                 continue;
             }
             (step, seen) = match value {
+                b"welcome" => (Step::WelcomeAsked, true),
                 b"forge" => (Step::Forge { forge: forge_choice(query) }, true),
                 b"model" => (Step::Model { way: parse_way(query) }, true),
                 b"ready" => (Step::Ready, true),
