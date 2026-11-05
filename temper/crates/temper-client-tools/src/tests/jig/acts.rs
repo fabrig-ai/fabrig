@@ -671,3 +671,124 @@ fn a_plain_change_release_and_an_agents_repeat_still_reach_the_engine() {
         assert!(root.sends.contains_key(&call));
     }
 }
+
+fn answer_contract() -> c::TaskContractDocument {
+    let mut choices = skein_lib::List::with_capacity(1);
+    choices
+        .push(c::VerdictChoice { code: 1, words: 4, followups: 0, fields: skein_lib::List::with_capacity(0) })
+        .expect("one choice");
+    c::TaskContractDocument::Verdict { choices, cut: false }
+}
+fn contract_refusal() -> c::Refusal {
+    c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Contract } }
+}
+fn refused_answer(
+    contract: c::TaskContractDocument,
+    form: &[&str],
+    refusal: c::Refusal,
+    json: bool,
+) -> crate::jig::Printed {
+    let mut root = fixtures::signed_in(fixtures::PARTY);
+    let mut args = skein_lib::List::with_capacity(10);
+    for arg in ["task", "answer", "41", "--rev", "7"] {
+        args.push(arg).expect("answer arguments");
+    }
+    for arg in form {
+        args.push(*arg).expect("answer form");
+    }
+    if json {
+        args.push("--json").expect("JSON flag");
+    }
+    let call = root.submit(args.as_slice());
+    let mut document = fixtures::person_document();
+    document.contract = contract;
+    root.serve(call, c::ReadResult::Value(c::ReadValue::PersonTask(Box::new(document))));
+    root.answered(call, c::Answer::Refused { refusal, at: None });
+    root.answer(call).expect("engine refused")
+}
+#[test]
+fn a_person_answer_past_its_contract_names_the_bound() {
+    for (contract, form, expected) in [
+        (
+            answer_contract(),
+            &["1", "blue!"][..],
+            b"task answer: Limit reached: task 41's reason for choice 1 is at most 4 bytes\n".as_slice(),
+        ),
+        (
+            c::TaskContractDocument::Report { words: 4 },
+            &["words"][..],
+            b"task answer: Limit reached: task 41's words are at most 4 bytes\n".as_slice(),
+        ),
+        (
+            answer_contract(),
+            &["1", "éé!"][..],
+            b"task answer: Limit reached: task 41's reason for choice 1 is at most 4 bytes\n".as_slice(),
+        ),
+    ] {
+        for json in [false, true] {
+            let printed = refused_answer(contract.clone(), form, contract_refusal(), json);
+            assert_eq!(printed.status, 2);
+            if json {
+                assert!(skein_lib::bytes::find(&printed.stderr, br#""bound":4"#).is_some(), "{printed:?}");
+            } else {
+                assert_eq!(printed.stderr.as_ref(), expected);
+            }
+        }
+    }
+}
+#[test]
+fn a_refusal_with_no_bound_the_task_asks_for_stays_bare() {
+    let mut cut_contract = answer_contract();
+    if let c::TaskContractDocument::Verdict { choices, cut } = &mut cut_contract {
+        choices.clear();
+        *cut = true;
+    }
+    for (contract, form, refusal) in [
+        (answer_contract(), &["1", "blue"][..], contract_refusal()),
+        (c::TaskContractDocument::Report { words: 4 }, &["blue"][..], contract_refusal()),
+        (answer_contract(), &["2", "blue!"][..], contract_refusal()),
+        (cut_contract, &["1", "blue!"][..], contract_refusal()),
+        (answer_contract(), &["words"][..], contract_refusal()),
+        (c::TaskContractDocument::Report { words: 4 }, &["1", "blue!"][..], contract_refusal()),
+        (answer_contract(), &["--cannot", "blue!"][..], contract_refusal()),
+        (
+            c::TaskContractDocument::Approval {
+                state: Box::new([]),
+                part: c::Part { connector: 1, kind: c::PartKind::Resource, key: c::PartKey::Number(0) },
+            },
+            &["--approve", "", "blue!"][..],
+            contract_refusal(),
+        ),
+        (answer_contract(), &["1", "blue!"][..], c::Refusal::Limit { which: c::Limit::Inbox { task: 41, limit: 4 } }),
+    ] {
+        for json in [false, true] {
+            let printed = refused_answer(contract.clone(), form, refusal.clone(), json);
+            assert_eq!(printed.status, 2);
+            if json {
+                assert!(skein_lib::bytes::find(&printed.stderr, br#""bound""#).is_none(), "{printed:?}");
+            } else {
+                assert_eq!(printed.stderr.as_ref(), b"task answer: Limit reached\n");
+            }
+        }
+    }
+    for json in [false, true] {
+        let mut records = fixtures::restored_message(fixtures::PARTY);
+        records.get_mut(0).expect("restored answer").request.request = jig_client::Ask::Jig(Box::new(c::Ask::Answer {
+            project: fixtures::PROJECT,
+            on: c::AnswerOn::Person {
+                task: 41,
+                revision: c::Revision { value: 7 },
+                answer: c::PersonAnswer::Words(fixtures::act_text(b"words")),
+            },
+        }));
+        let mut root = fixtures::started_with(records, fixtures::SEED, json);
+        root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
+        root.answered(fixtures::EMPTY, c::Answer::Refused { refusal: contract_refusal(), at: None });
+        let line = root.kept_lines.as_slice().first().expect("restored refusal");
+        if json {
+            assert!(skein_lib::bytes::find(line, br#""bound""#).is_none());
+        } else {
+            assert_eq!(line.as_ref(), b"kept: answer, answer: Limit reached\n");
+        }
+    }
+}

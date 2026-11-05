@@ -1,6 +1,87 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+/// The goal column (client/browser.md, 2.5).
+pub const GOAL: Style = Style { owner: owner(), token: 377 };
+/// The goal heading (client/browser.md, 2.5).
+pub const GOAL_HEAD: Style = Style { owner: owner(), token: 378 };
+/// The goal metadata (client/browser.md, 2.5).
+pub const GOAL_META: Style = Style { owner: owner(), token: 379 };
+/// The goal byline (client/browser.md, 2.5).
+pub const GOAL_BYLINE: Style = Style { owner: owner(), token: 380 };
+/// The goal actions (client/browser.md, 2.5).
+pub const GOAL_ACTS: Style = Style { owner: owner(), token: 381 };
+/// A goal button (client/browser.md, 2.5).
+pub const GOAL_BTN: Style = Style { owner: owner(), token: 382 };
+/// A small goal button (client/browser.md, 2.5).
+pub const GOAL_SMALL: Style = Style { owner: owner(), token: 383 };
+/// A quiet goal button (client/browser.md, 2.5).
+pub const GOAL_QUIET: Style = Style { owner: owner(), token: 384 };
+/// A primary goal button or its recommendation (client/browser.md, 2.5).
+pub const GOAL_PRIMARY: Style = Style { owner: owner(), token: 385 };
+/// The goal needs band (client/browser.md, 2.5).
+pub const GOAL_BAND: Style = Style { owner: owner(), token: 386 };
+/// The goal needs band tag (client/browser.md, 2.5).
+pub const GOAL_BAND_TAG: Style = Style { owner: owner(), token: 387 };
+/// The goal needs choices (client/browser.md, 2.5).
+pub const GOAL_CHOICES: Style = Style { owner: owner(), token: 388 };
+/// The goal report and side columns (client/browser.md, 2.5).
+pub const GOAL_TWO: Style = Style { owner: owner(), token: 389 };
+/// The goal report (client/browser.md, 2.5).
+pub const GOAL_REPORT: Style = Style { owner: owner(), token: 390 };
+/// A goal section title (client/browser.md, 2.5).
+pub const GOAL_TITLE: Style = Style { owner: owner(), token: 391 };
+/// The goal typing indicator (client/browser.md, 2.5).
+pub const GOAL_TYPING: Style = Style { owner: owner(), token: 392 };
+/// The goal side column (client/browser.md, 2.5).
+pub const GOAL_SIDE: Style = Style { owner: owner(), token: 393 };
+/// A goal side section (client/browser.md, 2.5).
+pub const GOAL_SECTION: Style = Style { owner: owner(), token: 394 };
+/// The goal facts (client/browser.md, 2.5).
+pub const GOAL_FACTS: Style = Style { owner: owner(), token: 395 };
+/// The goal task progress bar (client/browser.md, 2.5).
+pub const GOAL_BAR: Style = Style { owner: owner(), token: 396 };
+/// A landed goal task segment (client/browser.md, 2.5).
+pub const GOAL_BAR_LANDED: Style = Style { owner: owner(), token: 397 };
+/// A running goal task segment (client/browser.md, 2.5).
+pub const GOAL_BAR_RUNNING: Style = Style { owner: owner(), token: 398 };
+/// A goal task line (client/browser.md, 2.5).
+pub const GOAL_LINE: Style = Style { owner: owner(), token: 399 };
+/// A running goal task line (client/browser.md, 2.5).
+pub const GOAL_LINE_RUNNING: Style = Style { owner: owner(), token: 400 };
+/// A goal task needing the person (client/browser.md, 2.5).
+pub const GOAL_LINE_NEEDS: Style = Style { owner: owner(), token: 401 };
+/// The landed goal tasks fold (client/browser.md, 2.5).
+pub const GOAL_LANDED_FOLD: Style = Style { owner: owner(), token: 402 };
+/// The goal messages (client/browser.md, 2.5).
+pub const GOAL_SENT: Style = Style { owner: owner(), token: 403 };
+/// A message from the person (client/browser.md, 2.5).
+pub const GOAL_YOU: Style = Style { owner: owner(), token: 404 };
+/// The goal composer box (client/browser.md, 2.5).
+pub const GOAL_COMPOSER_BOX: Style = Style { owner: owner(), token: 405 };
+/// The goal composer (client/browser.md, 2.5).
+pub const GOAL_COMPOSER: Style = Style { owner: owner(), token: 406 };
+/// The goal composer hint (client/browser.md, 2.5).
+pub const GOAL_HINT: Style = Style { owner: owner(), token: 407 };
+/// A goal sheet field (client/browser.md, 2.5).
+pub const GOAL_FIELD: Style = Style { owner: owner(), token: 408 };
+/// A goal sheet text input (client/browser.md, 2.5).
+pub const GOAL_TEXT: Style = Style { owner: owner(), token: 409 };
+/// The start goal sheet (client/browser.md, 2.5).
+pub const SHEET: Style = Style { owner: owner(), token: 410 };
+/// The sheet muted words (client/browser.md, 2.5).
+pub const SHEET_MUTED: Style = Style { owner: owner(), token: 411 };
+/// The sheet ways fieldset (client/browser.md, 2.5).
+pub const SHEET_FIELDSET: Style = Style { owner: owner(), token: 412 };
+/// A sheet way option (client/browser.md, 2.5).
+pub const SHEET_OPTION: Style = Style { owner: owner(), token: 413 };
+/// The sheet ways link (client/browser.md, 2.5).
+pub const SHEET_LINK: Style = Style { owner: owner(), token: 414 };
+/// The sheet actions (client/browser.md, 2.5).
+pub const SHEET_FOOT: Style = Style { owner: owner(), token: 415 };
+/// The sheet error (client/browser.md, 2.5).
+pub const SHEET_ERROR: Style = Style { owner: owner(), token: 416 };
+
 /// The session toast (client/README.md, 3.5).
 pub const TOAST: Style = Style { owner: owner(), token: 300 };
 /// The Goals column (client/README.md, 3.5).
@@ -311,8 +392,6 @@ pub const PLAN: Style = Style { owner: owner(), token: 54 };
 pub const PLAN_ROW: Style = Style { owner: owner(), token: 55 };
 /// The list around a held row card.
 pub const PLAN_HOLD: Style = Style { owner: owner(), token: 56 };
-/// The task activity list.
-pub const EVENTS: Style = Style { owner: owner(), token: 57 };
 /// A done task phase or a settled account outcome.
 pub const STATUS_DONE: Style = Style { owner: owner(), token: 58 };
 /// The next-run model choice block.
@@ -333,10 +412,6 @@ pub const STEP_DONE: Style = Style { owner: owner(), token: 66 };
 pub const CONTEXT: Style = Style { owner: owner(), token: 67 };
 /// The existing guidance when the application is unavailable.
 pub const UNAVAILABLE: Style = Style { owner: owner(), token: 68 };
-/// The result a goal gives.
-pub const TASK_CONTRACT: Style = Style { owner: owner(), token: 69 };
-/// A goal's budget and authority.
-pub const TASK_BUDGET: Style = Style { owner: owner(), token: 70 };
 /// A plan row's spend.
 pub const PLAN_SPEND: Style = Style { owner: owner(), token: 71 };
 /// A plan row's dependency line.
@@ -353,12 +428,10 @@ pub const AGENT_RUN: Style = Style { owner: owner(), token: 76 };
 pub const AGENT_RESULT: Style = Style { owner: owner(), token: 77 };
 /// The playground context line's repository.
 pub const REPOSITORY: Style = Style { owner: owner(), token: 78 };
-/// A goal's offered acts (client/README.md, 5.11).
+/// A change's offered acts (client/README.md, 5.10).
 pub const TASK_ACTS: Style = Style { owner: owner(), token: 79 };
 /// The agent task composer's steering note (client/README.md, 5.11).
 pub const AGENT_STEER: Style = Style { owner: owner(), token: 80 };
-/// The goal toolbar's Cancel button (client/README.md, 5.11).
-pub const TASK_DANGER: Style = Style { owner: owner(), token: 81 };
 /// The task page's amendment editor (client/README.md, 5.11).
 pub const TASK_AMEND: Style = Style { owner: owner(), token: 82 };
 /// A chat's end line (client/README.md, 3.5).
@@ -547,6 +620,9 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
+    (owner(), skein_ui::Role::ChoiceGroup, SHEET_FIELDSET, "fieldset"),
+    (owner(), skein_ui::Role::Heading { level: 3 }, SHEET_FIELDSET, "legend"),
+    (owner(), skein_ui::Role::Text, SHEET_MUTED, "small"),
     (owner(), skein_ui::Role::Text, SETTINGS_DETAIL, "small"),
     (owner(), skein_ui::Role::Region, SETTINGS_PROPOSAL, "article"),
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
@@ -654,7 +730,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-plan",
         b"temper-plan-row",
         b"temper-plan-hold",
-        b"temper-events",
+        b"temper-retired-events",
         b"temper-status-done",
         b"temper-choice",
         b"temper-accounts-page",
@@ -666,8 +742,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-step-done",
         b"temper-context",
         b"temper-unavailable",
-        b"temper-task-contract",
-        b"temper-task-budget",
+        b"temper-retired-task-contract",
+        b"temper-retired-task-budget",
         b"temper-plan-spend",
         b"temper-dependencies",
         b"temper-status-waiting",
@@ -678,7 +754,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-repository",
         b"temper-task-acts",
         b"temper-agent-steer",
-        b"temper-task-danger",
+        b"temper-retired-task-danger",
         b"temper-task-amend",
         b"temper-ended",
         b"temper-day",
@@ -974,6 +1050,46 @@ pub const NAMES: Names<'static> = Names {
         b"temper-settings-row",
         b"temper-settings-path",
         b"temper-settings-empty",
+        b"temper-goal",
+        b"temper-goal-head",
+        b"temper-goal-meta",
+        b"temper-goal-byline",
+        b"temper-goal-acts",
+        b"temper-goal-btn",
+        b"temper-goal-small",
+        b"temper-goal-quiet",
+        b"temper-goal-primary",
+        b"temper-goal-band",
+        b"temper-goal-band-tag",
+        b"temper-goal-choices",
+        b"temper-goal-two",
+        b"temper-goal-report",
+        b"temper-goal-title",
+        b"temper-goal-typing",
+        b"temper-goal-side",
+        b"temper-goal-section",
+        b"temper-goal-facts",
+        b"temper-goal-bar",
+        b"temper-goal-bar-landed",
+        b"temper-goal-bar-running",
+        b"temper-goal-line",
+        b"temper-goal-line-running",
+        b"temper-goal-line-needs",
+        b"temper-goal-landed-fold",
+        b"temper-goal-sent",
+        b"temper-goal-you",
+        b"temper-goal-composer-box",
+        b"temper-goal-composer",
+        b"temper-goal-hint",
+        b"temper-goal-field",
+        b"temper-goal-text",
+        b"temper-sheet",
+        b"temper-sheet-muted",
+        b"temper-sheet-fieldset",
+        b"temper-sheet-option",
+        b"temper-sheet-link",
+        b"temper-sheet-foot",
+        b"temper-sheet-error",
         b"temper-home-facts",
         b"temper-home-byline",
     ],
@@ -1082,9 +1198,9 @@ pub const SETTINGS_PATH: Style = Style { owner: owner(), token: 375 };
 pub const SETTINGS_EMPTY: Style = Style { owner: owner(), token: 376 };
 
 /// Home status (temper/docs/design/client/README.md, 3.5).
-pub const HOME_FACTS: Style = Style { owner: owner(), token: 377 };
+pub const HOME_FACTS: Style = Style { owner: owner(), token: 417 };
 /// Home brief attribution (temper/docs/design/client/README.md, 3.5).
-pub const HOME_BYLINE: Style = Style { owner: owner(), token: 378 };
+pub const HOME_BYLINE: Style = Style { owner: owner(), token: 418 };
 
 #[cfg(test)]
 mod tests {

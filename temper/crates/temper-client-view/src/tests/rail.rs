@@ -358,28 +358,10 @@ fn goals_is_current_on_its_page_a_goal_and_a_goals_task() {
             false,
             vec![b"Goals".as_slice()],
         ),
-        (
-            Address::Task { task: GOAL_TASK, filter: d::PlanFilter::All },
-            Some(GOAL_PRIORITY),
-            None,
-            true,
-            vec![b"Goals".as_slice()],
-        ),
-        (
-            Address::Task { task: GOAL_TASK, filter: d::PlanFilter::All },
-            None,
-            Some(GOAL_TASK),
-            true,
-            vec![b"Goals".as_slice()],
-        ),
-        (Address::Task { task: GOAL_TASK, filter: d::PlanFilter::All }, None, None, true, vec![]),
-        (
-            Address::Task { task: GOAL_TASK, filter: d::PlanFilter::All },
-            Some(GOAL_PRIORITY),
-            Some(GOAL_TASK),
-            false,
-            vec![],
-        ),
+        (Address::Task { task: GOAL_TASK }, Some(GOAL_PRIORITY), None, true, vec![b"Goals".as_slice()]),
+        (Address::Task { task: GOAL_TASK }, None, Some(GOAL_TASK), true, vec![b"Goals".as_slice()]),
+        (Address::Task { task: GOAL_TASK }, None, None, true, vec![]),
+        (Address::Task { task: GOAL_TASK }, Some(GOAL_PRIORITY), Some(GOAL_TASK), false, vec![]),
     ] {
         let (mut root, me, task) = f::root_at(address, &f::domain_limits());
         with_goal_fact(&mut root, me, Some(true));
@@ -455,7 +437,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         Address::Chats { filter: ChatsFilter::All },
         Address::NewChat,
         Address::Chat { task: 9 },
-        Address::Task { task: 9, filter: d::PlanFilter::All },
+        Address::Task { task: 9 },
         Address::Accounts,
         Address::ConnectModel { way: None },
         Address::Forges,
