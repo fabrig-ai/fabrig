@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 124;
+pub const N: usize = 126;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -274,6 +274,8 @@ pub fn samples() -> [Sample; N] {
         owned_sample("forge-setting-up-middle", 6, false),
         owned_sample("forge-setup-failed", 9, false),
         owned_sample("welcome-setup-failed", 9, true),
+        welcome_sample("welcome-ready-none", temper_client_domain::Step::Ready),
+        welcome_sample("welcome-ready-signing", temper_client_domain::Step::Ready),
         owned_sample("welcome-ready-under-way", 6, true),
         owned_sample("welcome-ready-adopted", 8, true),
         Sample { name: "adoption", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
@@ -434,6 +436,7 @@ fn special_mockup(name: &str) -> Option<String> {
         "welcome-forge-choose" => return Some("welcome.html?world=first-run&step=0&at=forge&bare".to_owned()),
         "welcome-forge-details" => return Some("welcome.html?world=first-run&step=0&at=forge&forge=3&bare".to_owned()),
         "welcome-model-choose" => return Some("welcome.html?world=first-run&step=0&at=model&bare".to_owned()),
+        "welcome-ready-none" | "welcome-ready-signing" => return Some("welcome.html?at=ready".to_owned()),
         "welcome-ready-under-way" => return Some("welcome.html?world=first-run-real&step=3&at=ready&bare".to_owned()),
         "welcome-ready-adopted" => return Some("welcome.html?world=first-run-real&step=4&at=ready&bare".to_owned()),
         _ => {}
@@ -564,6 +567,24 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
+    if sample.name == "welcome-ready-none" || sample.name == "welcome-ready-signing" {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Ready accounts").clone();
+        doc.usable = false;
+        doc.accounts.clear();
+        doc.signing.clear();
+        if sample.name == "welcome-ready-signing" {
+            doc.signing = skein_lib::List::with_capacity(1);
+            doc.signing
+                .push(c::AccountSignIn { source: 43, provider: 18, holder: c::AccountHolder::Party(73) })
+                .expect("one sign-in");
+        }
+        crate::driver::deliver(
+            &mut root,
+            accounts_watch.expect("Ready accounts watch"),
+            c::Delivery::Accounts(Box::new(doc)),
+            &mut out,
+        );
+    }
     if sample.name.starts_with("welcome-model-") || sample.name.starts_with("welcome-paste-") {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Model accounts").clone();
         doc.usable =

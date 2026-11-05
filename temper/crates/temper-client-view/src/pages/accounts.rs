@@ -771,8 +771,13 @@ fn first_usable(root: &Domain, w: &Words, with_display: bool) -> Option<Box<[u8]
         if !with_display {
             return Some(label);
         }
+        let detail = match source.kind {
+            c::AccountKind::Program => w.say(crate::words::Word::WelcomeProgramAccount, &[Hole::Name(display.into())]),
+            c::AccountKind::Key => w.say(crate::words::Word::WelcomeKeyAccount, &[]),
+            c::AccountKind::SignIn | c::AccountKind::None => display.into(),
+        };
         let separator = words::say(w, W::Separator, &[]);
-        return Some(words::join(&[&label, if display.is_empty() { b"" } else { &separator }, display]));
+        return Some(words::join(&[&label, if detail.is_empty() { b"" } else { &separator }, &detail]));
     }
     None
 }
@@ -788,7 +793,11 @@ pub(crate) fn own_signing_name(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
         for offer in &me.providers {
             if offer.provider == signing.provider {
                 let (brand, plan) = words::provider_words(offer.name.bytes());
-                return Some(crate::choice::shown(if offer.signed_in_plan { plan } else { brand }, w));
+                return Some(if offer.signed_in_plan {
+                    w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::choice::shown(plan, w))])
+                } else {
+                    crate::choice::shown(brand, w)
+                });
             }
         }
         let label = words::say(w, W::Provider, &[]);
