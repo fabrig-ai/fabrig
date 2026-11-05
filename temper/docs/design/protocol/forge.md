@@ -166,9 +166,9 @@ skein-io socket
   The setup's host gives its plans the same word (setup.md, section 5),
   and their requests carry the same user agent. The component reads
   nothing else of a forge's record: its `git` base is the routing's, for
-  runs' remotes (channel.md, section 4), its `web` is the setup's and
-  the client's (GitHub's browser pages), and its bot is its git
-  identity's, which the component never holds (2.5).
+  runs' remotes (channel.md, section 4), its `web` is the setup's, the
+  client's and the sign-in page's (its browser pages, 2.1), and its bot
+  is its git identity's, which the component never holds (2.5).
 - **What crosses to the root** is the root's boundary: a
   `Request::Forge { call, repository, op }`, which the routing hands to
   the component, ended by exactly one `client::Event::Answered { call,
