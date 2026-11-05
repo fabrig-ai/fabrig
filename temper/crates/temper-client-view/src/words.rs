@@ -12,6 +12,24 @@ use skein_ui::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
     Goals,
+    GoalCount,
+    GoalNeedsFunds,
+    GoalNeedsYou,
+    GoalPaused,
+    GoalPlanning,
+    GoalLanded,
+    GoalLandedAlone,
+    GoalStopped,
+    GoalFailed,
+    GoalPlanningLine,
+    GoalTasksLanded,
+    GoalLandedLine,
+    GoalStoppedLine,
+    GoalFailedLine,
+    GoalTaskByTask,
+    GoalTaskByTaskLine,
+    GoalLandWhole,
+    GoalLandWholeLine,
     ConfigureAgent,
     ConfigureWays,
     ConfigureAlone,
@@ -846,7 +864,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
-const PHRASES: u32 = 1347;
+// Goal rows and ways add eighteen phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1365;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -858,9 +877,28 @@ const PHRASES: u32 = 1347;
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
-const SEGMENTS: u32 = 2326;
-const ALL: [Word; 751] = [
+// Goal rows and ways add twenty-eight literal and hole segments (3.5).
+const SEGMENTS: u32 = 2354;
+const ALL: [Word; 769] = [
     Word::Goals,
+    Word::GoalCount,
+    Word::GoalNeedsFunds,
+    Word::GoalNeedsYou,
+    Word::GoalPaused,
+    Word::GoalPlanning,
+    Word::GoalLanded,
+    Word::GoalLandedAlone,
+    Word::GoalStopped,
+    Word::GoalFailed,
+    Word::GoalPlanningLine,
+    Word::GoalTasksLanded,
+    Word::GoalLandedLine,
+    Word::GoalStoppedLine,
+    Word::GoalFailedLine,
+    Word::GoalTaskByTask,
+    Word::GoalTaskByTaskLine,
+    Word::GoalLandWhole,
+    Word::GoalLandWholeLine,
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1617,6 +1655,25 @@ impl Word {
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
             Self::Goals => 3189,
+            Self::GoalCount => 3190,
+            Self::GoalNeedsFunds => 3191,
+            Self::GoalNeedsYou => 3192,
+            Self::GoalPaused => 3193,
+            Self::GoalPlanning => 3194,
+            Self::GoalLanded => 3195,
+            Self::GoalLandedAlone => 3196,
+            Self::GoalStopped => 3197,
+            Self::GoalFailed => 3198,
+            Self::GoalPlanningLine => 3199,
+            Self::GoalTasksLanded => 3200,
+            Self::GoalLandedLine => 3201,
+            Self::GoalStoppedLine => 3202,
+            Self::GoalFailedLine => 3203,
+            Self::GoalTaskByTask => 3204,
+            Self::GoalTaskByTaskLine => 3205,
+            Self::GoalLandWhole => 3206,
+            Self::GoalLandWholeLine => 3207,
+
             Self::ConfigureAgent => 3181,
             Self::ConfigureWays => 3182,
             Self::ConfigureAlone => 3183,
@@ -2585,7 +2642,8 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 5,
+            // Goal rows and ways add 419 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 5 + 419,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2652,6 +2710,24 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::GoalCount => (&[b"", b" / ", b""], &[Number, Number]),
+        Word::GoalNeedsFunds => (&[b"needs funds"], &[]),
+        Word::GoalNeedsYou => (&[b"needs you"], &[]),
+        Word::GoalPaused => (&[b"paused by you"], &[]),
+        Word::GoalPlanning => (&[b"planning"], &[]),
+        Word::GoalLanded => (&[b"landed ", b""], &[Name]),
+        Word::GoalLandedAlone => (&[b"landed"], &[]),
+        Word::GoalStopped => (&[b"stopped"], &[]),
+        Word::GoalFailed => (&[b"failed"], &[]),
+        Word::GoalPlanningLine => (&[b"Planning from the draft."], &[]),
+        Word::GoalTasksLanded => (&[b"", b" of ", b" tasks landed."], &[Number, Number]),
+        Word::GoalLandedLine => (&[b"Landed."], &[]),
+        Word::GoalStoppedLine => (&[b"Stopped by you."], &[]),
+        Word::GoalFailedLine => (&[b"Failed."], &[]),
+        Word::GoalTaskByTask => (&[b"Task by task"], &[]),
+        Word::GoalTaskByTaskLine => (&[b"The same plan; each task lands on its own once checked."], &[]),
+        Word::GoalLandWhole => (&[b"Plan, tasks, land whole"], &[]),
+        Word::GoalLandWholeLine => (&[b"A plan from the draft, its tasks on a goal branch, landed as one change once all are checked."], &[]),
         Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
         Word::BannerSetUp => (&[b"Set up temper"], &[]),
