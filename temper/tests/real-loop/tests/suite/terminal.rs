@@ -21,9 +21,9 @@ fn a_person_at_the_terminal_reads_a_chats_committed_reply() {
             vec![
                 sign_in(D1),
                 terminal::open(),
-                terminal::type_on(b"Chats", b""),
-                terminal::see(b"Start a chat"),
-                terminal::type_on(b"Start a chat", scripts::WORDS.as_bytes()),
+                terminal::type_on(b"+ New chat", b""),
+                terminal::see(b"What do you want done?"),
+                terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
                 terminal::see_without(scripts::REPLY, PROVISIONAL),
                 terminal::close(),
             ]

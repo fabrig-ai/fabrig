@@ -89,10 +89,14 @@ fn configuring_me() -> Me {
 }
 
 #[test]
-fn the_configure_page_starts_template_three_or_one() {
+fn configure_and_new_chat_start_their_template_and_open_the_chat() {
     use crate::{Address, pages::Act};
-    for (me, charter) in [(configuring_me(), CONFIGURING), (fixtures::chats::me(), 1)] {
-        let mut page = Page::new(me, Address::Configure { project: fixtures::PROJECT });
+    for (me, charter, address) in [
+        (configuring_me(), CONFIGURING, Address::Configure { project: fixtures::PROJECT }),
+        (fixtures::chats::me(), 1, Address::Configure { project: fixtures::PROJECT }),
+        (configuring_me(), 1, Address::NewChat),
+    ] {
+        let mut page = Page::new(me, address);
         page.words(b"My workflow");
         for _ in 0..PRESSES {
             page.act(Act::StartChat);
@@ -115,7 +119,13 @@ fn the_configure_page_starts_template_three_or_one() {
                 }))),
             },
         });
-        assert_eq!(page.out.pop(), Some(Request::Show { address: Address::Chat { task: fixtures::acts::TASK } }));
+        let address = Address::Chat { task: fixtures::acts::TASK };
+        let expected = if *page.pages.address() == Address::NewChat {
+            Request::Replace { address }
+        } else {
+            Request::Show { address }
+        };
+        assert_eq!(page.out.pop(), Some(expected));
         assert!(page.out.is_empty());
         assert!(page.pages.chats().expect("chats").start.is_none());
     }
@@ -143,7 +153,7 @@ fn starters_outside_configure_do_nothing() {
     use crate::{Address, pages::Act};
     for address in [
         Address::Home { project: fixtures::PROJECT },
-        Address::Chats { filter: ChatsFilter::All, start: false },
+        Address::Chats { filter: ChatsFilter::All },
         Address::Settings { project: fixtures::PROJECT },
     ] {
         let mut page = Page::new(configuring_me(), address);
@@ -308,6 +318,7 @@ fn closed_chats_are_read_a_page_at_a_time() {
                 ended: EndedGroup::Rows { rows: List::with_capacity(0), after: Some(cursor.clone()), cut: false },
             })))),
         },
+        &crate::Address::Chats { filter: ChatsFilter::All },
         &mut out,
     );
     chats.older(&mut out);
@@ -390,7 +401,7 @@ fn chats_open_with_all_selected() {
 }
 
 #[test]
-fn chat_filter_moves_keep_the_draft_and_the_closed_page() {
+fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
     use crate::{
         ChatsFilter as Filter,
         pages::{self, Act, Event, Pages},
@@ -403,7 +414,7 @@ fn chat_filter_moves_keep_the_draft_and_the_closed_page() {
         &mut pages,
         &fixtures::env(&limits),
         root.client(),
-        Event::Went { address: crate::Address::Chats { filter: ChatsFilter::All, start: false } },
+        Event::Went { address: crate::Address::NewChat },
         &mut out,
     );
     while out.pop().is_some() {}
@@ -437,8 +448,14 @@ fn chat_filter_moves_keep_the_draft_and_the_closed_page() {
         &mut out,
     );
     assert!(out.is_empty());
-    for filter in [Filter::Live, Filter::Closed, Filter::All] {
-        let address = crate::Address::Chats { filter, start: false };
+    for (address, filter) in [
+        (crate::Address::Chats { filter: Filter::Live }, Filter::Live),
+        (crate::Address::NewChat, Filter::Live),
+        (crate::Address::Chats { filter: Filter::Closed }, Filter::Closed),
+        (crate::Address::NewChat, Filter::Closed),
+        (crate::Address::Chats { filter: Filter::All }, Filter::All),
+        (crate::Address::NewChat, Filter::All),
+    ] {
         pages::step(
             &mut pages,
             &fixtures::env(&limits),
@@ -446,7 +463,7 @@ fn chat_filter_moves_keep_the_draft_and_the_closed_page() {
             Event::Act { act: Act::ChatFilter { filter } },
             &mut out,
         );
-        assert_eq!(out.pop(), Some(Request::Show { address: address.clone() }));
+        assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Chats { filter } }));
         assert!(out.is_empty());
         pages::step(&mut pages, &fixtures::env(&limits), root.client(), Event::Went { address }, &mut out);
         let chats = pages.chats().expect("chats");
@@ -478,9 +495,9 @@ fn chat_filters_outside_chats_are_ignored_and_reopening_resets_them() {
     assert!(pages.chats().is_none());
     assert!(out.is_empty());
     for address in [
-        crate::Address::Chats { filter: ChatsFilter::All, start: false },
+        crate::Address::Chats { filter: ChatsFilter::All },
         crate::Address::Accounts,
-        crate::Address::Chats { filter: ChatsFilter::All, start: false },
+        crate::Address::Chats { filter: ChatsFilter::All },
     ] {
         pages::step(&mut pages, &fixtures::env(&limits), root.client(), Event::Went { address }, &mut out);
         while out.pop().is_some() {}
@@ -495,10 +512,7 @@ fn chat_filters_outside_chats_are_ignored_and_reopening_resets_them() {
             &mut out,
         );
         if pages.chats().is_some() {
-            assert_eq!(
-                out.pop(),
-                Some(Request::Show { address: crate::Address::Chats { filter: Filter::Live, start: false } })
-            );
+            assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Chats { filter: Filter::Live } }));
         }
         assert!(out.is_empty());
     }
@@ -522,7 +536,7 @@ fn live_updates_do_not_replace_an_older_closed_page() {
     });
     chats.older(&mut out);
     out.pop();
-    chats.told(Told::Changed { handle: chats.live }, &mut out);
+    chats.told(Told::Changed { handle: chats.live }, &crate::Address::Chats { filter: ChatsFilter::All }, &mut out);
     assert!(out.is_empty(), "an older page stays put");
 }
 
@@ -551,7 +565,7 @@ pub(super) fn chat_line() -> TaskLine {
 }
 
 fn opened_chats() -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
-    open_chat_rows(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::All, start: false })
+    open_chat_rows(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::All })
 }
 
 fn open_chat_rows(frame: Me, address: crate::Address) -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
@@ -691,12 +705,29 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
     );
     assert_eq!(
         out.pop(),
-        Some(crate::Request::Show {
-            address: crate::Address::Chats { filter: ChatsFilter::Closed, start: false },
-            replace: false,
-        })
+        Some(crate::Request::Show { address: crate::Address::Chats { filter: ChatsFilter::Closed }, replace: false })
     );
     assert!(out.is_empty());
+}
+
+#[test]
+fn a_suggestion_replaces_new_chat_with_its_conversation() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat);
+    page.pages.suggest(&fixtures::env(&fixtures::limits()), page.root.client(), b"My suggestion", &mut page.out);
+    let task = page.task();
+    assert_eq!(task.spec.words.bytes(), b"My suggestion");
+    let key = page.pages.chats().expect("chats").start.expect("pending suggestion");
+    let mut tasks = List::with_capacity(CREATED_TASKS);
+    tasks.push(fixtures::acts::TASK).unwrap();
+    page.event(crate::pages::Event::Told {
+        told: Told::Answered {
+            key,
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                what: Made::Tasks { tasks },
+            }))),
+        },
+    });
+    assert_eq!(page.out.pop(), Some(Request::Replace { address: crate::Address::Chat { task: fixtures::acts::TASK } }));
 }
 
 #[test]

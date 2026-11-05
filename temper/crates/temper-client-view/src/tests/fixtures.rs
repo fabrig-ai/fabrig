@@ -349,6 +349,7 @@ pub(super) fn root_at_with_dismissals_and_needs(
         temper_client_domain::Address::Forges
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Chats { .. }
+        | temper_client_domain::Address::NewChat
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }
@@ -1195,11 +1196,7 @@ pub mod chat {
 }
 
 pub fn chats_root() -> temper_client_domain::Domain {
-    root_at(
-        temper_client_domain::Address::Chats { filter: temper_client_domain::ChatsFilter::All, start: false },
-        &domain_limits(),
-    )
-    .0
+    root_at(temper_client_domain::Address::Chats { filter: temper_client_domain::ChatsFilter::All }, &domain_limits()).0
 }
 /// Act `Input` on the named text area, as a person typing, and return the area's value after the root took it.
 pub fn type_into(root: &mut temper_client_domain::Domain, name: &[u8], words: &[u8]) -> Box<[u8]> {
