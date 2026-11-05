@@ -311,7 +311,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::ConnectForge { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
@@ -602,7 +602,7 @@ pub(super) fn ready_body(
             true,
         );
     } else {
-        go(b, bindings, &say(w, W::StartChat), Address::NewChat, true);
+        go(b, bindings, &say(w, W::StartChat), Address::NewChat { draft: false }, true);
     }
     manage_usage(b, root, w, way);
     if model::model_way(way).kind == WayKind::SignIn {

@@ -94,7 +94,7 @@ fn configure_and_new_chat_start_their_template_and_open_the_chat() {
     for (me, charter, address) in [
         (configuring_me(), CONFIGURING, Address::Configure { project: fixtures::PROJECT }),
         (fixtures::chats::me(), 1, Address::Configure { project: fixtures::PROJECT }),
-        (configuring_me(), 1, Address::NewChat),
+        (configuring_me(), 1, Address::NewChat { draft: false }),
     ] {
         let mut page = Page::new(me, address);
         page.words(b"My workflow");
@@ -120,7 +120,7 @@ fn configure_and_new_chat_start_their_template_and_open_the_chat() {
             },
         });
         let address = Address::Chat { task: fixtures::acts::TASK };
-        let expected = if *page.pages.address() == Address::NewChat {
+        let expected = if let Address::NewChat { .. } = page.pages.address() {
             Request::Replace { address }
         } else {
             Request::Show { address }
@@ -252,6 +252,7 @@ fn starting_a_chat_sends_the_chat_template_filled_once() {
         Some(&me),
         Some(fixtures::PROJECT),
         &crate::pages::choice::Draft::default(),
+        false,
         &mut serial,
         &mut out,
     );
@@ -260,6 +261,7 @@ fn starting_a_chat_sends_the_chat_template_filled_once() {
         Some(&me),
         Some(fixtures::PROJECT),
         &crate::pages::choice::Draft::default(),
+        false,
         &mut serial,
         &mut out,
     );
@@ -342,6 +344,7 @@ fn starting_a_chat_waits_for_the_first_words() {
         Some(&me),
         Some(fixtures::PROJECT),
         &crate::pages::choice::Draft::default(),
+        false,
         &mut serial,
         &mut out,
     );
@@ -382,6 +385,7 @@ fn new_chats_and_cues_keep_the_send_bound_when_receiving_grows() {
                     Some(&me),
                     Some(fixtures::PROJECT),
                     &crate::pages::choice::Draft::default(),
+                    false,
                     &mut serial,
                     &mut out,
                 );
@@ -415,7 +419,7 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
         &mut pages,
         &fixtures::env(&limits),
         root.client(),
-        Event::Went { address: crate::Address::NewChat },
+        Event::Went { address: crate::Address::NewChat { draft: false } },
         &mut out,
     );
     while out.pop().is_some() {}
@@ -451,11 +455,11 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
     assert!(out.is_empty());
     for (address, filter) in [
         (crate::Address::Chats { filter: Filter::Live }, Filter::Live),
-        (crate::Address::NewChat, Filter::Live),
+        (crate::Address::NewChat { draft: false }, Filter::Live),
         (crate::Address::Chats { filter: Filter::Closed }, Filter::Closed),
-        (crate::Address::NewChat, Filter::Closed),
+        (crate::Address::NewChat { draft: false }, Filter::Closed),
         (crate::Address::Chats { filter: Filter::All }, Filter::All),
-        (crate::Address::NewChat, Filter::All),
+        (crate::Address::NewChat { draft: false }, Filter::All),
     ] {
         pages::step(
             &mut pages,
@@ -713,7 +717,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
 
 #[test]
 fn a_suggestion_replaces_new_chat_with_its_conversation() {
-    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat);
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: false });
     page.pages.suggest(&fixtures::env(&fixtures::limits()), page.root.client(), b"My suggestion", &mut page.out);
     let task = page.task();
     assert_eq!(task.spec.words.bytes(), b"My suggestion");
@@ -813,4 +817,99 @@ fn settings_selects_the_newest_open_configuring_chat() {
             assert_eq!(Chats::new(FIRST).open_configuring(root.client(), Some(&me), fixtures::PROJECT), None);
         }
     }
+}
+
+fn start_answer(page: &mut Page) {
+    let key = page.pages.chats().unwrap().start.unwrap();
+    let mut tasks = List::with_capacity(1);
+    tasks.push(fixtures::acts::TASK).unwrap();
+    page.event(crate::pages::Event::Told {
+        told: Told::Answered {
+            key,
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                what: Made::Tasks { tasks },
+            }))),
+        },
+    });
+    while page.out.pop().is_some() {}
+    page.event(crate::pages::Event::Went { address: crate::Address::Chat { task: fixtures::acts::TASK } });
+}
+#[test]
+fn the_first_message_carries_the_words() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
+    page.words(b"A way to work");
+    page.act(crate::pages::Act::StartChat);
+    assert_eq!(page.task().spec.words.bytes(), b"A way to work\n\nWrite this up as a draft beside us.");
+}
+#[test]
+fn the_chat_opens_in_split() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
+    page.words(b"Draft");
+    page.act(crate::pages::Act::StartChat);
+    start_answer(&mut page);
+    let chat = page.pages.chat().unwrap();
+    assert_eq!(chat.mode, crate::pages::chat::document::Mode::Split);
+    assert!(chat.writing);
+}
+#[test]
+fn a_new_chat_with_no_draft_opens_in_chat() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: false });
+    page.words(b"Chat");
+    page.act(crate::pages::Act::StartChat);
+    assert_eq!(page.task().spec.words.bytes(), b"Chat");
+    start_answer(&mut page);
+    assert_eq!(page.pages.chat().unwrap().mode, crate::pages::chat::document::Mode::Chat);
+    assert!(!page.pages.chat().unwrap().writing);
+}
+#[test]
+fn moving_to_a_draft_keeps_the_words() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::Live });
+    page.words(b"Kept words");
+    page.act(crate::pages::Act::StartChat);
+    let key = page.pages.chats().unwrap().start;
+    let handles = (page.pages.chats().unwrap().live, page.pages.chats().unwrap().closed);
+    for address in [
+        crate::Address::NewChat { draft: false },
+        crate::Address::NewChat { draft: true },
+        crate::Address::Chats { filter: ChatsFilter::All },
+    ] {
+        page.event(crate::pages::Event::Went { address });
+        let chats = page.pages.chats().unwrap();
+        assert_eq!(chats.words.as_ref(), b"Kept words");
+        assert_eq!(chats.start, key);
+        assert_eq!((chats.live, chats.closed), handles);
+    }
+}
+#[test]
+fn a_suggested_request_takes_no_draft() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
+    page.pages.suggest(&fixtures::env(&fixtures::limits()), page.root.client(), b"Suggestion", &mut page.out);
+    assert_eq!(page.task().spec.words.bytes(), b"Suggestion");
+    start_answer(&mut page);
+    assert_eq!(page.pages.chat().unwrap().mode, crate::pages::chat::document::Mode::Chat);
+    assert!(!page.pages.chat().unwrap().writing);
+}
+#[test]
+fn a_drafts_first_message_stays_within_the_cue_bound() {
+    let bound = usize::try_from(temper_client_protocol_wire::CUE_BYTES).unwrap();
+    let suffix = crate::pages::chat::document::WRITE_THIS_UP.len() + 2;
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
+    let mut words = skein_lib::bytes::zeroed(bound);
+    words.fill(b'a');
+    page.words(words.get(..bound - suffix + 1).unwrap());
+    page.act(crate::pages::Act::StartChat);
+    assert!(page.pages.chats().unwrap().start.is_none());
+    assert!(fixtures::acts::sent(&mut page.out).is_empty());
+    page.words(words.get(..bound - suffix).unwrap());
+    page.act(crate::pages::Act::StartChat);
+    assert_eq!(page.task().spec.words.bytes().len(), bound);
+}
+
+#[test]
+fn adding_a_draft_replaces_the_new_chat_address() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: false });
+    let address = crate::Address::NewChat { draft: true };
+    page.act(crate::pages::Act::Go { address: address.clone() });
+    assert_eq!(page.out.pop(), Some(Request::Replace { address }));
+    assert!(page.out.is_empty());
 }

@@ -177,6 +177,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::DiscardAmendment
         | Act::SendAmendment
         | Act::AmendAgain
+        | Act::AddDraft
         | Act::Mode { .. }
         | Act::ShowSection { .. }
         | Act::Go { .. } => {

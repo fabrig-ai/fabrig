@@ -989,6 +989,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-rail-unfold",
         b"temper-start-over",
         b"temper-doc-flash",
+        b"temper-doc-empty",
+        b"temper-add-draft",
     ],
     regions: &[b"temper-link"],
 };
@@ -1125,3 +1127,8 @@ pub const START_OVER: Style = Style { owner: owner(), token: 390 };
 
 /// A shown section (temper/docs/design/client/README.md, 3.5).
 pub const DOC_FLASH: Style = Style { owner: owner(), token: 391 };
+
+/// The unwritten document (client/README.md, 3.5).
+pub const DOC_EMPTY: Style = Style { owner: owner(), token: 392 };
+/// The bar's draft action (client/README.md, 3.5).
+pub const ADD_DRAFT: Style = Style { owner: owner(), token: 393 };

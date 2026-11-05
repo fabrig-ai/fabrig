@@ -25,6 +25,7 @@ chat-change-running
 chat-closing
 chat-draft-chat
 chat-draft-draft
+chat-draft-empty
 chat-draft-split
 chat-first-run-2-T1
 chat-first-run-3-T1
@@ -32,6 +33,7 @@ chat-first-run-4-T4
 chat-goal
 chat-held-task
 chat-new
+chat-new-draft
 chat-new-first-run-1
 chat-new-no-repository
 chat-reference-T1
