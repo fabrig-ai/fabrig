@@ -233,6 +233,7 @@ fn full_delegate_tree_dependency_edges_and_cold_restored_claims_fit() {
 }
 
 fn measure_full_delegate_tree_dependency_edges_and_cold_restored_claims_fit() {
+    const RESTORED_TASK: u64 = 10;
     let scenario_meter = Meter::new();
     scenario_meter.start();
     let l = Limits { tasks: 4, tree_tasks: 4, delegates: 3, batch: 3, dependencies: 3, inputs: 0, ..LIMITS };
@@ -274,7 +275,6 @@ fn measure_full_delegate_tree_dependency_edges_and_cold_restored_claims_fit() {
     assert!(!tasks::valid(&Limits { tasks: u32::MAX, ..l }, jig_domain_tasks::Kept { revisions: 4, versions: 8 }));
     let mut w = jig_tasks_world::World::new(3, l);
     w.make(Party::Person(1), vec![task(10, &[])]);
-    const RESTORED_TASK: u64 = 10;
     w.finish_task(RESTORED_TASK);
     assert!(
         matches!(w.records.get(&tasks::Key::Ended(10)),Some(Stored::Ended(record)) if record.phase!=tasks::Phase::Active(Active::Due))

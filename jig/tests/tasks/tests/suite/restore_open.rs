@@ -1,5 +1,5 @@
 use jig_domain_tasks::{self as tasks, Event, Executor, Party, PersonAddress, Stored};
-use jig_tasks_world::{PROJECT, LIMITS, World, task};
+use jig_tasks_world::{LIMITS, PROJECT, World, task};
 use skein_lib::Queue;
 
 const PERSON: u64 = 9;
