@@ -348,11 +348,13 @@ fn a_look_reaches_another_device_of_the_party() {
     story.enter();
     let first = story.looked(fixtures::PARTY).expect("owner's first look");
     story.go(CLIENT, Address::Forges);
-    assert_eq!(story.client(fixtures::PARTY, Address::Forges), SECOND_DEVICE);
+    // Observers need no project page or its standing needs watch.
+    let observing = Address::Welcome { step: temper_client_domain::address::Step::Welcome };
+    assert_eq!(story.client(fixtures::PARTY, observing.clone()), SECOND_DEVICE);
     story.watch(SECOND_DEVICE);
     story.front.bind_dismissal_person(OTHER_CLIENT, OTHER_PARTY, OTHER_SUBJECT);
     story.front.add_dismissal_member(CLIENT, OTHER_PARTY, PROJECT);
-    assert_eq!(story.client(OTHER_PARTY, Address::Forges), OTHER_CLIENT);
+    assert_eq!(story.client(OTHER_PARTY, observing), OTHER_CLIENT);
     story.watch(OTHER_CLIENT);
     story.after(Duration::from_secs(60));
     story.look(OTHER_CLIENT, 2203);
