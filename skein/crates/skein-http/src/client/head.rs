@@ -6,7 +6,7 @@ use skein_lib::{List, Reader, Writer, bytes};
 
 use super::{Error, Framing, Method, Reading, Status, Version};
 use crate::Header;
-use crate::header::{self, content, is_field_byte, is_ows, is_tchar, trim};
+use crate::header::{self, Coding, FieldError, Length, content, is_field_byte, is_ows, trim};
 
 /// What a line of a head comes to.
 pub(super) enum Parsed {
@@ -31,7 +31,11 @@ pub(super) fn line(reading: &mut Reading, bytes: &[u8]) -> Result<Parsed, Error>
         Some(_) if content.is_empty() => return Ok(Parsed::Complete),
         Some(_) => match content.first() {
             Some(&first) if is_ows(first) => fold(content, &mut reading.headers)?,
-            Some(_) | None => field(content, &mut reading.headers)?,
+            Some(_) | None => match header::field(content, &mut reading.headers) {
+                Ok(()) => {}
+                Err(FieldError::Malformed) => return Err(Error::Header),
+                Err(FieldError::Full) => return Err(Error::TooManyHeaders),
+            },
         },
     }
     // The blank line that ends the head is still due.
@@ -94,34 +98,6 @@ fn digit(byte: u8) -> u16 {
     u16::from(byte.saturating_sub(b'0'))
 }
 
-/// `Name: value` (RFC 9112, 5): a token, a colon with no whitespace
-/// before it, and a value, trimmed.
-fn field(line: &[u8], headers: &mut List<Header>) -> Result<(), Error> {
-    let mut colon = None;
-    for (at, &byte) in line.iter().enumerate() {
-        if byte == b':' {
-            colon = Some(at);
-            break;
-        }
-        if !is_tchar(byte) {
-            return Err(Error::Header);
-        }
-    }
-    let (name, value) = match colon {
-        Some(at) if at > 0 => (line.get(..at), line.get(at.saturating_add(1)..)),
-        Some(_) | None => return Err(Error::Header),
-    };
-    let name = name.expect("before the colon");
-    let value = trim(value.expect("after the colon"));
-    check(value)?;
-    if headers.room() == 0 {
-        return Err(Error::TooManyHeaders);
-    }
-    let header = Header { name: bytes::copy_of(name), value: bytes::copy_of(value) };
-    headers.push(header).expect("room was checked");
-    Ok(())
-}
-
 /// A line that begins with whitespace: an obsolete fold of the last
 /// field's value onto a line of its own, which a client replaces with one
 /// space (RFC 9112, 5.2). A fold before any field is `Header`.
@@ -171,108 +147,19 @@ pub(super) fn framing(method: Method, status: Status, headers: &[Header]) -> Res
     if method == Method::Head || status.code == 204 || status.code == 304 {
         return Ok(Framing::Empty);
     }
-    match transfer_encoding(headers) {
-        Coding::Absent => match content_length(headers) {
+    match header::transfer_coding(headers) {
+        Coding::Absent => match header::content_length(headers) {
             Length::Absent => Ok(Framing::UntilEnd),
             Length::Valid(length) => Ok(Framing::Length(length)),
             Length::Invalid => Err(Error::Framing),
         },
-        Coding::Chunked => match content_length(headers) {
+        Coding::Chunked => match header::content_length(headers) {
             Length::Absent => match status.version {
                 Version::Http11 => Ok(Framing::Chunked),
                 Version::Http10 => Err(Error::Framing),
             },
             Length::Valid(_) | Length::Invalid => Err(Error::Framing),
         },
-        Coding::Other => Err(Error::Framing),
-    }
-}
-
-/// Whether the connection persists after the response (RFC 9112, 9.3): in
-/// HTTP/1.1 unless it says `Connection: close`; in HTTP/1.0 only if it says
-/// `Connection: keep-alive`, and not `close`.
-pub(super) fn persistent(version: Version, headers: &[Header]) -> bool {
-    let close = header::lists(headers, b"connection", b"close");
-    match version {
-        Version::Http11 => !close,
-        Version::Http10 => !close && header::lists(headers, b"connection", b"keep-alive"),
-    }
-}
-
-/// What a head's `Transfer-Encoding` says.
-enum Coding {
-    Absent,
-    /// `chunked`, alone.
-    Chunked,
-    /// Anything else: another coding, `chunked` twice, or nothing listed.
-    Other,
-}
-
-fn transfer_encoding(headers: &[Header]) -> Coding {
-    let mut present = false;
-    let mut chunked = 0_u32;
-    let mut other = false;
-    for header in headers {
-        if !header.is(b"transfer-encoding") {
-            continue;
-        }
-        present = true;
-        let mut at = 0;
-        // Bounded by the value: each element moves past its comma.
-        for _ in 0..=header.value.len() {
-            let Some((element, next)) = header::element(&header.value, at) else { break };
-            at = next;
-            if element.is_empty() {
-                continue;
-            }
-            if element.eq_ignore_ascii_case(b"chunked") {
-                chunked = chunked.saturating_add(1);
-            } else {
-                other = true;
-            }
-        }
-    }
-    if !present {
-        return Coding::Absent;
-    }
-    if chunked == 1 && !other { Coding::Chunked } else { Coding::Other }
-}
-
-/// What a head's `Content-Length` says.
-enum Length {
-    Absent,
-    /// One length, however many times it is given (RFC 9110, 8.6).
-    Valid(u64),
-    /// Not a length, past a `u64`, two different ones, or none listed.
-    Invalid,
-}
-
-fn content_length(headers: &[Header]) -> Length {
-    let mut present = false;
-    let mut length = None;
-    for header in headers {
-        if !header.is(b"content-length") {
-            continue;
-        }
-        present = true;
-        let mut at = 0;
-        // Bounded by the value: each element moves past its comma.
-        for _ in 0..=header.value.len() {
-            let Some((element, next)) = header::element(&header.value, at) else { break };
-            at = next;
-            if element.is_empty() {
-                continue;
-            }
-            let Some(this) = bytes::decimal(element) else { return Length::Invalid };
-            match length {
-                Some(earlier) if earlier != this => return Length::Invalid,
-                Some(_) | None => length = Some(this),
-            }
-        }
-    }
-    match length {
-        Some(length) => Length::Valid(length),
-        None if present => Length::Invalid,
-        None => Length::Absent,
+        Coding::Coded | Coding::Faulty => Err(Error::Framing),
     }
 }

@@ -13,8 +13,3 @@ doctest = false
 
 [lints]
 workspace = true
-
-[[bin]]
-name = "fail_stop_fixture"
-path = "src/bin/fail_stop_fixture.rs"
-test = false

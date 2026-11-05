@@ -312,6 +312,20 @@ fn a_caller_field_cannot_name_the_content_coding() {
     assert!(Client::prepare(input, &limits()).is_err());
 }
 
+#[test]
+fn non_ascii_endpoint_or_credential_fields_are_invalid() {
+    let endpoint = Endpoint {
+        headers: Box::new([Header { name: bytes::copy_of(b"X-Extra"), value: bytes::copy_of(b"caf\xc3\xa9") }]),
+        ..Endpoint::openai()
+    };
+    for input in [
+        Call { endpoint, ..call() },
+        Call { credential: Some(Credential::bearer(bytes::copy_of(b"caf\xc3\xa9"))), ..call() },
+    ] {
+        assert_eq!(Client::prepare(input, &limits()).err(), Some(Error::Invalid));
+    }
+}
+
 /// Dispatch a collected SSE message while the caller has no Next outstanding.
 fn dispatch_without_next(world: &mut World, source: &[u8], activity: u64) -> bool {
     let json = openai::Json::from_bytes(source, &world.env.limits.native().document()).unwrap();

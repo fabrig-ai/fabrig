@@ -1,10 +1,10 @@
 //! The building blocks every step crate shares (programming-model.md, 10.2):
 //! typed handles and the slabs that issue them, capped and uncapped queues, lists, maps,
-//! sets and stacks, the per-layer deadline table, the stream vocabulary and
+//! sets and stacks, least-recently-used tables, the per-layer deadline table, the stream vocabulary and
 //! the intake that meets its demands, a held buffer serving a stream,
 //! a reader and a writer for sized bytes, a reusable bounded byte buffer,
 //! and the decimal and hex digits to write and read with them, monotonic and
-//! wall time and the earlier of two deadlines, randomness, the tokens that
+//! wall time, its civil date and the earlier of two deadlines, randomness, the tokens that
 //! cross layer boundaries, a component's lifecycle, the environment a step
 //! reads, and keyless state digests.
 //!
@@ -33,6 +33,7 @@ pub mod length;
 mod lifecycle;
 mod list;
 mod lossy;
+mod lru;
 mod map;
 mod name;
 mod queue;
@@ -65,6 +66,7 @@ pub use length::{len_u64, usize_of};
 pub use lifecycle::Lifecycle;
 pub use list::List;
 pub use lossy::Lossy;
+pub use lru::Lru;
 pub use map::Map;
 pub use name::{Grammar, Name};
 pub use queue::Queue;
@@ -79,6 +81,6 @@ pub use set::Set;
 pub use slab::{Iter as SlabIter, Slab};
 pub use stack::Stack;
 pub use tail::Tail;
-pub use time::{Duration, Time, Wall, earliest};
+pub use time::{Civil, Duration, Time, Wall, earliest};
 pub use token::{ReplyTo, Token};
 pub use writer::{Overflow, Writer};

@@ -1,8 +1,14 @@
+//! Shared head readings (http.md, 2).
+//!
 //! Header fields (RFC 9110, 5): a name and a value, both bytes, the names
 //! compared without regard to case; the lists some values are; and the
 //! lines a head comes in.
 
 use alloc::boxed::Box;
+
+use skein_lib::{List, bytes};
+
+use crate::Version;
 
 /// A header field, as a head carries it: its name, and its value with the
 /// whitespace around it trimmed (RFC 9110, 5.5).
@@ -26,15 +32,40 @@ impl Header {
 
 /// Whether `byte` may be part of a token, as a field's name or a method is
 /// (RFC 9110, 5.6.2).
-pub(crate) fn is_tchar(byte: u8) -> bool {
+#[must_use]
+pub fn is_tchar(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&byte)
 }
 
 /// Whether `byte` may be part of a field's value (RFC 9110, 5.5): a visible
 /// character, a space, a tab, or a byte past ASCII. No other control
 /// character, and so no CR, LF or NUL.
-pub(crate) fn is_field_byte(byte: u8) -> bool {
+#[must_use]
+pub fn is_field_byte(byte: u8) -> bool {
     byte == b'\t' || byte == b' ' || (0x21..=0x7E).contains(&byte) || byte >= 0x80
+}
+
+/// Not empty, and every byte a tchar (RFC 9110, 5.6.2).
+#[must_use]
+pub fn is_token(bytes: &[u8]) -> bool {
+    if bytes.is_empty() {
+        return false;
+    }
+    for &byte in bytes {
+        if !is_tchar(byte) {
+            return false;
+        }
+    }
+    true
+}
+
+/// The bytes a field takes in a head: its name, `: `, its value and a line's end.
+#[must_use]
+pub const fn field_len(name: usize, value: usize) -> Option<usize> {
+    match name.checked_add(value) {
+        Some(len) => len.checked_add(4),
+        None => None,
+    }
 }
 
 /// Whether `byte` is whitespace around a value: a space or a tab (RFC 9110,
@@ -44,7 +75,8 @@ pub(crate) fn is_ows(byte: u8) -> bool {
 }
 
 /// `bytes` without the spaces and tabs around them.
-pub(crate) fn trim(bytes: &[u8]) -> &[u8] {
+#[must_use]
+pub fn trim(bytes: &[u8]) -> &[u8] {
     let mut start = bytes.len();
     for (at, &byte) in bytes.iter().enumerate() {
         if !is_ows(byte) {
@@ -106,5 +138,143 @@ pub(crate) fn content(bytes: &[u8]) -> Option<&[u8]> {
     match line.strip_suffix(b"\r") {
         Some(line) => Some(line),
         None => Some(line),
+    }
+}
+
+/// Why a field cannot be read into the head.
+pub(crate) enum FieldError {
+    Malformed,
+    Full,
+}
+
+/// `Name: value` (RFC 9112, 5): a token, a colon with no whitespace
+/// before it, and a value, trimmed.
+pub(crate) fn field(line: &[u8], headers: &mut List<Header>) -> Result<(), FieldError> {
+    let mut colon = None;
+    for (at, &byte) in line.iter().enumerate() {
+        if byte == b':' {
+            colon = Some(at);
+            break;
+        }
+        if !is_tchar(byte) {
+            return Err(FieldError::Malformed);
+        }
+    }
+    let (name, value) = match colon {
+        Some(at) if at > 0 => (line.get(..at), line.get(at.saturating_add(1)..)),
+        Some(_) | None => return Err(FieldError::Malformed),
+    };
+    let name = name.expect("before the colon");
+    let value = trim(value.expect("after the colon"));
+    for &byte in value {
+        if !is_field_byte(byte) {
+            return Err(FieldError::Malformed);
+        }
+    }
+    if headers.room() == 0 {
+        return Err(FieldError::Full);
+    }
+    let header = Header { name: bytes::copy_of(name), value: bytes::copy_of(value) };
+    headers.push(header).expect("room was checked");
+    Ok(())
+}
+
+/// Whether the connection persists after the exchange (RFC 9112, 9.3): in
+/// HTTP/1.1 unless it says `Connection: close`; in HTTP/1.0 only if it says
+/// `Connection: keep-alive`, and not `close`.
+pub(crate) fn persistent(version: Version, headers: &[Header]) -> bool {
+    let close = lists(headers, b"connection", b"close");
+    match version {
+        Version::Http11 => !close,
+        Version::Http10 => !close && lists(headers, b"connection", b"keep-alive"),
+    }
+}
+
+/// What a head's transfer codings say, in order across its fields.
+pub(crate) enum Coding {
+    Absent,
+    Chunked,
+    /// Other codings followed by `chunked`, given once.
+    Coded,
+    /// No final `chunked`, repeated `chunked`, or nothing listed.
+    Faulty,
+}
+
+/// The head's `Transfer-Encoding`: whether `chunked` is last and once,
+/// and whether other codings precede it.
+pub(crate) fn transfer_coding(headers: &[Header]) -> Coding {
+    let mut present = false;
+    let mut chunked = 0_u32;
+    let mut other = false;
+    let mut last_chunked = false;
+    for header in headers {
+        if !header.is(b"transfer-encoding") {
+            continue;
+        }
+        present = true;
+        let mut at = 0;
+        // Bounded by the value: each element moves past its comma.
+        for _ in 0..=header.value.len() {
+            let Some((element, next)) = element(&header.value, at) else { break };
+            at = next;
+            if element.is_empty() {
+                continue;
+            }
+            last_chunked = element.eq_ignore_ascii_case(b"chunked");
+            if last_chunked {
+                chunked = chunked.saturating_add(1);
+            } else {
+                other = true;
+            }
+        }
+    }
+    if !present {
+        return Coding::Absent;
+    }
+    if !last_chunked || chunked > 1 {
+        return Coding::Faulty;
+    }
+    if other {
+        return Coding::Coded;
+    }
+    Coding::Chunked
+}
+
+/// What a head's `Content-Length` says.
+pub(crate) enum Length {
+    Absent,
+    /// One length, however many times it is given (RFC 9110, 8.6).
+    Valid(u64),
+    /// Not a length, past a `u64`, two different ones, or none listed.
+    Invalid,
+}
+
+pub(crate) fn content_length(headers: &[Header]) -> Length {
+    let mut present = false;
+    let mut length = None;
+    for header in headers {
+        if !header.is(b"content-length") {
+            continue;
+        }
+        present = true;
+        let mut at = 0;
+        // Bounded by the value: each element moves past its comma.
+        for _ in 0..=header.value.len() {
+            let Some((element, next)) = element(&header.value, at) else { break };
+            at = next;
+            if element.is_empty() {
+                continue;
+            }
+            let Some(this) = bytes::decimal(element) else { return Length::Invalid };
+            match length {
+                Some(earlier) if earlier != this => return Length::Invalid,
+                Some(_) | None => length = Some(this),
+            }
+        }
+    }
+    match length {
+        Some(length) => Length::Valid(length),
+        None if present => Length::Invalid,
+        None => Length::Absent,
     }
 }

@@ -14,3 +14,7 @@ mod stream;
 
 mod public;
 mod public_http;
+
+mod fuzzy {
+    mod cursor;
+}

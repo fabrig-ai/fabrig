@@ -12,7 +12,7 @@ use std::path::Path;
 
 use skein_io::kernel::{Exit, Fd, Pipe, Spawn, Way};
 use skein_io::{self as io, Event, Request};
-use skein_lib::{Duration, Env, Token};
+use skein_lib::{Duration, Token};
 use skein_shell::{Backend, Clock, Config, Kernel, Wait};
 use skein_world::Expired;
 
@@ -27,7 +27,7 @@ fn spawn_and_exit(
     let clock = Clock::new();
     let limits = support::limits();
     let now = clock.now();
-    let env = Env { now: now.now, wall: now.wall, limits };
+    let env = now.with(limits);
     let mut deadline = deadlines::Patience::new("the given listener child settling", Duration::from_secs(3));
     let (mut submissions, mut completions, mut events) = deadlines::records(16);
     let spawn = Spawn {
@@ -46,7 +46,7 @@ fn spawn_and_exit(
     loop {
         state.reclaim();
         let now = clock.now();
-        let env = Env { now: now.now, wall: now.wall, limits };
+        let env = now.with(limits);
         // The stage may leave completions for the next iteration: watch each spawn once, as it lands.
         let held = usize::try_from(completions.len()).expect("the completion count fits usize");
         kernel.reap(&mut completions);
@@ -153,7 +153,7 @@ fn cleanup_aborts_a_child_discovered_while_draining() {
                 .expect("parent kernel");
         let clock = Clock::new();
         let now = clock.now();
-        let env = Env { now: now.now, wall: now.wall, limits };
+        let env = now.with(limits);
         let (mut submissions, mut completions, mut events) = deadlines::records(16);
         let spawn = Spawn {
             program: Box::from(skein_scratch::paths::binary("process_fixture").as_os_str().as_bytes()),

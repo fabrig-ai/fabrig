@@ -1,6 +1,6 @@
 [package]
 name = "skein-fake-forge-tests"
-description = "The fake forge domain and GitHub service against the counting allocator"
+description = "The fake forge domain, Forgejo and GitHub services against the counting allocator"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,6 +9,8 @@ publish.workspace = true
 
 [dev-dependencies]
 skein-fake-forge-github.workspace = true
+skein-fake-forge-forgejo.workspace = true
+skein-fake-forge-http.workspace = true
 skein-forge.workspace = true
 skein-http.workspace = true
 skein-json.workspace = true

@@ -248,14 +248,14 @@ impl Connection {
         self.link.up(&self.link_env(env), event);
     }
     fn http_env(&self, env: &Env<Limits>) -> Env<http::Limits> {
-        Env { now: env.now, wall: env.wall, limits: limits::http(&env.limits, self.link.encrypted(), &self.shared.io) }
+        env.with(limits::http(&env.limits, self.link.encrypted(), &self.shared.io))
     }
     fn http_down(&mut self, env: &Env<Limits>, request: http::Request) {
         let h = self.http_env(env);
         http::down(&mut self.http, &h, request, &mut self.http_up, &mut self.http_down);
     }
     pub(crate) fn json_request(&mut self, env: &Env<Limits>, request: tokenizer::Request) {
-        let j = Env { now: env.now, wall: env.wall, limits: self.json_limits };
+        let j = env.with(self.json_limits);
         tokenizer::down(&mut self.json, &j, request, &mut self.json_up, &mut self.json_down);
     }
     /// One child-machine movement, in the holder's bounded pump.
@@ -386,7 +386,7 @@ impl Connection {
             return true;
         };
         self.json_body.read = None;
-        let j = Env { now: env.now, wall: env.wall, limits: self.json_limits };
+        let j = env.with(self.json_limits);
         tokenizer::up(&mut self.json, &j, event, &mut self.json_up, &mut self.json_down);
         true
     }
