@@ -61,6 +61,8 @@ fn reachable_stages_github_pages_beside_a_writer_and_counts_both_against_runs() 
         .insert(
             Token::new(900),
             Run {
+                making: None,
+                words: None,
                 first: None,
                 forge: 1,
                 kind: Kind::Reconcile,

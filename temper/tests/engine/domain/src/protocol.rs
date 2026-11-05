@@ -333,6 +333,7 @@ impl Protocol {
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
             | engine::Request::EraseCarried { .. }
+            | engine::Request::MakingCopied { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
             | engine::Request::Setup { .. }

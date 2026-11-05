@@ -151,8 +151,8 @@ failures.
 
   The first owner's are temper's: the word its own name, the tokens
   `<word>-api` and `<word>-git`, the admin's name `<word>-admin`, and 8
-  orgs, 120 s, 100 ms and 5 s; for `Create` (4.9), 2 files of at most
-  4 KiB each.
+  orgs, 120 s, 100 ms and 5 s; for `Create` (4.9) and `Copy` (4.10), 2
+  files of at most 4 KiB each; for `Copy`, 30 minutes.
 - **Asked of its host, as needs,** when a step reaches them: the admin's
   token, the API and git tokens, the bot's id as last kept, and the
   webhooks' secret. These are the items (6.4). Each is named by what it
@@ -286,6 +286,21 @@ org, and `401` or `403` a caller who cannot create it. The shared request
 transport retains its encoding bounds, malformed-answer and connection
 failures. The creation codec adds no retry or transport policy.
 
+`Migrate { at, from }` copies a public repository into `at` by
+Forgejo's own migration: `POST /api/v1/repos/migrate`, with `from` as
+`clone_addr`, `at`'s owner and name as `repo_owner` and `repo_name`.
+Its JSON body fixes `service` to `git` and `private` to `true`, and
+`mirror`, `issues`, `labels`, `milestones`, `pull_requests`,
+`releases`, `wiki` and `lfs` to `false`, so nothing but git comes. It
+answers once the copy is whole, however long that takes, `201` with
+`Document::CreatedRepository`, as `CreateRepository` does, its
+`default_branch` the source's. A refusal keeps its status, and its JSON
+`message` goes up as words (6.3); section 8 names each.
+
+`DeleteRepository { at }` deletes one: `DELETE
+/api/v1/repos/{owner}/{name}`, each encoded as one path segment. It
+answers `204` with no body, `404` when the repository is not there.
+
 ### 4.4 Converging, bounds and failures
 
 - **From Forgejo, every time.** A second run with nothing changed
@@ -297,11 +312,12 @@ failures. The creation codec adds no retry or transport policy.
   from `GET /api/v1/settings/api` (`max_response_items`; zero is
   `Unexpected`) and lowered to the host's `inner` when larger, a page
   shorter than that cap being the last; the run
-  within `deadline`. The limits are `orgs`, `repositories`, `reachable`,
-  `files`, `file_bytes`, `deadline`, `backoff` and `backoff_max`, each
-  at least 1, with
-  `backoff <= backoff_max < deadline`; the crate names the pair that
-  breaks it.
+  within `deadline`, and a `Copy` within `copy_deadline` (4.10). The
+  limits are `orgs`, `repositories`, `reachable`, `files`, `file_bytes`,
+  `deadline`, `copy_deadline`, `backoff` and `backoff_max`, each at
+  least 1, with
+  `backoff <= backoff_max < deadline <= copy_deadline`; the crate names
+  the pair that breaks it.
 - **It waits for the forge.** The host makes the first request again on
   a `Down` or a 5xx, after `backoff`, doubling, never past `backoff_max`
   nor the time `deadline` leaves (6.2, 6.3), so a host may start
@@ -318,8 +334,9 @@ failures. The creation codec adds no retry or transport policy.
   the App's slug or id, an installation's id, or the plan whose state it
   is. The why is `Missing`, `Refused(status)`, `NotAdmin`, `BotIsAdmin`,
   `Unmarked`, `OtherUser`, `OtherApp`, `KeyForm`, `Unknown`, `Busy`,
-  `Down` or `Unexpected`. It stops the run and leaves each value written
-  whole and valid.
+  `Taken`, `Empty`, `TimedOut`, `Down` or `Unexpected` (`Taken`, `Empty`
+  and `TimedOut` are `Copy`'s, 4.10). It stops the run and leaves each
+  value written whole and valid.
 - **Several services on one forge** each have their own word and bot,
   so their own collaborators and hooks; another's bot is `Unmarked`.
 - **What it cannot set:** Forgejo's settings its API does not change,
@@ -498,6 +515,76 @@ last one left, and a second run writes nothing.
   among its files from that file's push (section 8). The plan sends no
   setting.
 - **A writing run,** one per forge at once (6.3).
+
+### 4.10 A public repository, copied
+
+`Copy { forge, org, repository, from, files }` copies a public
+repository into a managed or owned Forgejo, ready for the service. The
+owner runs it by the admin's token, after reconcile (4.3), as it does
+`Create`. Forgejo fetches the source itself; no byte of it passes
+through the host, and no git credential is made for it. Each step reads
+first and writes only what is missing, so a run cut short, run again
+whole, finishes what the last one left.
+
+1. **The admin's token,** as 4.9's step 1.
+2. **The org,** as 4.9's step 2. A name that is a user's on the forge
+   reads 404 as an org, and `CreateOrg` refuses it: the run stops at
+   `Org`, `Refused(status)`, the subject the name (section 8).
+3. **The repository,** `GET /api/v1/repos/{org}/{name}`:
+   - absent (404), the plan writes `Copying` (6.4), then sends `Migrate
+     { at, from }`. Its `201` gives the id and the default branch. Its
+     `409`, the name made between the read and the write, stops at
+     `Taken`.
+   - present, the plan reads `Copying`. None: the repository is not
+     this copy's, the run stops at `Taken`, the subject `org/name`, and
+     has written nothing but the org.
+   - present and `Copying` kept: the plan reads its default branch
+     (`Branch`). There, it is this copy, finished. A 404, it is what a
+     copy cut short left, or a copy Forgejo is still making (section
+     8): the plan sends `DeleteRepository { at }`, takes a 404 as good,
+     writes `Copying` again and sends `Migrate`.
+
+   After a `Migrate`'s `201`, the plan reads the default branch too. A
+   404 there is a source with no branch: the run stops at `Empty`, and
+   the repository stays for the owner's next run to delete.
+   Either way the plan holds the repository's id and its default
+   branch, the source's. A failure stops at `Repository`, the subject
+   `org/name`.
+4. **The bot's access,** as 4.5's steps 3 and 4.
+5. **Each file,** as 4.9's step 5, on the default branch. A file the
+   source already has is left as it is.
+6. **The outcome,** `Done(Copied { id, branch })`: the repository's id
+   and its default branch, which the owner adopts (4.5).
+
+- **`from`** is an address the owner has checked: `https://`, a host,
+  then an owner and a name, as one string of at most `string_bytes`.
+  `given::check_copy` holds a plan to the org's, the name's and the
+  files' rules of 4.9, and `from` to: starts `https://`, then at least
+  one byte, and no byte outside visible ASCII. The rest of an address's
+  grammar is its owner's, and whether its host answers is Forgejo's.
+- **`Copying`** is the owner's record that this copy's `Migrate` has
+  been sent, kept with its own record of the copy. It is what tells a
+  repository this copy left from one somebody else has, so that the
+  plan never deletes or adopts a repository it did not start. The
+  owner clears it when a run stops at `Taken`.
+- **Its deadline is its own,** `copy_deadline`, where every other plan
+  has `deadline`: a copy's time is the source's size over the network's
+  speed, and its `Migrate` is one exchange unanswered for all of it. No
+  time but the run's bounds that exchange, and it is never sent again.
+  A run past it stops at `Repository`, `TimedOut`, its connection aborted
+  (6.5); every other plan's stops `Down`, as does a `Copy` a `Remove`,
+  an `Abort` or a `Close` ends. The copy Forgejo may still be making is
+  found at the next run (step 3).
+- **Forgejo's refusals** of `Migrate`, each a stop at `Repository`,
+  `Refused(status)`, its message going up first (6.3): a source
+  missing or private, a host refused by Forgejo's migration settings, a
+  source that is not a git repository.
+- **Not for a connected Forgejo or GitHub,** where the owner holds no
+  admin's token; `supports` refuses it, as it does `Create`.
+- **A writing run,** one per forge at once (6.3): a second writing run
+  beside a `Copy` stops `Busy` for as long as the copy lasts, so an
+  owner that copies holds its other writing runs until the copy ends,
+  and copies on one forge run one after another.
 
 ## 5. GitHub's plans
 
@@ -809,12 +896,13 @@ end.
 | `Request::Run { run, plan }` | `Event::Need { run, need }`: a `Read` or a `Write` |
 | `Request::Answer { run, answer }`: `Read(value)` or `Written` | `Event::Done { run, outcome }` |
 | `Request::Add(forge)` | `Event::Stop { run, failure }` |
-| `Request::Remove { forge }` | `Event::Closed` |
-| `Request::Close` | |
+| `Request::Remove { forge }` | `Event::Said { run, words }` |
+| `Request::Close` | `Event::Closed` |
 
 - **A run** is the owner's number for one plan:
   `Reconcile { forge, adopted }`, `Adopt { forge, repository }`,
-  `Create { forge, org, repository, files }` (4.9), `Check { forge }`, `TakeOver { forge, admin_token }`,
+  `Create { forge, org, repository, files }` (4.9),
+  `Copy { forge, org, repository, from, files }` (4.10), `Check { forge }`, `TakeOver { forge, admin_token }`,
   `Manifest { forge, target }`, `Convert { forge, code, state }`,
   `Install { forge }`, `Accept { forge, installation, state? }`,
   `Reconcile { forge }` (GitHub's) or `Paste { forge, app }`, each of
@@ -823,17 +911,27 @@ end.
   `Reachable` beside it: another of
   either stops at once, `Busy`, and so does one past `runs`, which
   counts both. A `Reconcile`'s `adopted` is checked by the owner first, by
-  `given::check_adopted`: a plan that fails it is the owner's bug, which
-  the host asserts.
+  `given::check_adopted`, a `Create`'s by `given::check_create`, and a
+  `Copy`'s by `given::check_copy`: a plan that fails its check is the
+  owner's bug, which the host asserts.
 - **It does the needs** of 4.2 but the items: a `Send` on a connection of
   its own to the forge, opened for it and closed after its answer,
   waiting for the forge as 4.4 says on its own deadlines; a `Draw` from
   that `CryptoRng`; the states of 5.7. A `Read` or a `Write` goes up, and
   the run waits for its answer. One answer per need: an answer for a run
   with no need waiting is ignored.
-- **Each run ends once,** `Done` or `Stop`, within `deadline`. `Close`
+- **Each run ends once,** `Done` or `Stop`, within `deadline`, or a
+  `Copy` within `copy_deadline`. `Close`
   ends every run unheard and the host says `Closed` when io has settled
   every socket.
+- **A forge's words:** a `Migrate` answered with no 2xx has its body's
+  JSON `message` read by the dialect's error decoder (`error_decoder`),
+  cut to `string_bytes` at a UTF-8 boundary, and said at most once,
+  `Event::Said`, before the `Stop` it leads to. A body that holds none
+  says nothing, and the status goes to the plan either way. The owner
+  holds the words for the run's stop. No other request's body is read
+  on a refusal, and a `401`'s is not, since Forgejo's may echo the token
+  (forge.md, section 5).
 - **A forge added or removed while it runs,** so that a service sets
   up the forges it makes and removes without a restart. `Add` hands one
   forge's settings, as construction names them, checked as
@@ -865,6 +963,7 @@ answered, and a connect sent, only on what a restart would find.
 | `AppKey` | the App's key, PKCS#1 `RSAPrivateKey` DER, at most `key_bytes` |
 | `Accepted` | the accepted installations' ids, 8 bytes each, little-endian, ascending and distinct, at most `installations`; empty is none |
 | `Pasted` | a pasted App key's PEM, read once, never written (5.8) |
+| `Copying` | the mark that a `Copy`'s `Migrate` was sent (4.10): the one byte `1`. One per `Copy` the owner runs, kept with its record of that copy, never by the forge alone |
 
 - **The crate decodes each** for the owner, which builds the access
   from them (forge-connection.md, section 3.5): one total function per
@@ -1035,7 +1134,7 @@ pin (forge.md, section 4.3), and named by the fact's name.
   | `CreateOrg` | `write:admin` |
   | `CreateRepository` | `write:organization` |
   | `RepositoryById`, `Repository`, `Branch`, `Raw`, `Permission`, `RepoHooks`, `RepoSearch` | `read:repository` |
-  | `AddCollaborator`, `CreateRepoHook`, `EditRepoHook`, `DeleteRepoHook`, `CreateFile` | `write:repository` |
+  | `AddCollaborator`, `CreateRepoHook`, `EditRepoHook`, `DeleteRepoHook`, `CreateFile`, `Migrate`, `DeleteRepository` | `write:repository` |
   | `ApiSettings` | none; the route also answers anonymously |
 
   The conformance runner's `--admin-scopes` mode records each grant and
@@ -1057,6 +1156,36 @@ pin (forge.md, section 4.3), and named by the fact's name.
   `setup-file-put-is-201-and-read-back-on-its-branch`,
   `setup-file-put-again-is-422`,
   `setup-file-missing-reads-raw-404`.
+- **A copy** (4.10), from a source served by a second throwaway on
+  loopback, with `ALLOW_LOCALNETWORKS` on in the first throwaway alone
+  (fake-forge.md, section 7): `Migrate` answers 201 once whole, private,
+  with the source's default branch and every branch; it brings no
+  issues; a name already there answers 409; a missing source is refused
+  with a message and leaves no repository; a source with no commit
+  answers 201 with no branch; an address on a local network is refused
+  by Forgejo's default settings; `OFFLINE_MODE` leaves migrations on; a
+  migration cut short by stopping Forgejo leaves a repository that reads
+  with no default branch, and it deletes and copies again; a migration
+  whose client went away goes on, and what a `DeleteRepository` does to
+  it while it runs is recorded; `DeleteRepository` answers 204 and
+  a second 404; a name that is a user's reads 404 as an org and
+  `CreateOrg` refuses it; with `.forgejo/workflows` and
+  `.github/workflows` both there, Actions reads the first alone:
+  `setup-migrate-answers-201-whole-and-private`,
+  `setup-migrate-keeps-the-sources-default-branch`,
+  `setup-migrate-brings-nothing-but-git`,
+  `setup-migrate-of-a-name-taken-is-409`,
+  `setup-migrate-of-a-missing-source-says-why-and-leaves-nothing`,
+  `setup-migrate-of-a-source-with-no-commit-is-201-with-no-branch`,
+  `setup-migrate-of-a-local-address-is-refused-by-default`,
+  `setup-migrate-runs-with-offline-mode`,
+  `setup-migrate-cut-short-leaves-a-repository-with-no-branch`,
+  `setup-migrate-cut-short-deletes-and-copies-again`,
+  `setup-migrate-goes-on-when-its-client-goes`,
+  `setup-migrate-deleted-while-it-runs`,
+  `setup-repository-delete-is-204-then-404`,
+  `setup-org-of-a-users-name-reads-404-and-making-it-is-refused`,
+  `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`.
 - **Orgs** (step 5): an org an admin makes for a user is private and
   takes `write:admin` alone; a missing org is a 404:
   `setup-org-made-for-a-user-by-an-admin-is-201-and-private`,
@@ -1123,6 +1252,17 @@ pin (forge.md, section 4.3), and named by the fact's name.
   the `Add`.
 - **A fine-grained token as a connected GitHub.** Default: later; a
   connected GitHub is an App the person made (5.8).
+- **A copy Forgejo is still making, deleted.** A run past
+  `copy_deadline` leaves Forgejo's migration running
+  (`setup-migrate-goes-on-when-its-client-goes`), and the next run
+  deletes what it finds empty. Default: as 4.10 has it, what the
+  conformance records (`setup-migrate-deleted-while-it-runs`) deciding
+  whether the plan must wait instead.
+- **Forgejo's own bound on a migration,** `[git.timeout] MIGRATE`. temper's
+  owned `app.ini` sets none of `[git.timeout]`, so Forgejo's default
+  holds, which may end a large copy before `copy_deadline` does.
+  Default: Forgejo's, and such a copy stops with Forgejo's words; a
+  deployment that needs more sets its Forgejo.
 - **The deployment's public address** as the App's hook, for a
   deployment GitHub can reach. Default: later; every App's hook is at no
   listener (5.5).

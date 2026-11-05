@@ -38,6 +38,24 @@ fn row_and_key(row: &forge::Stored, rng: &mut Rng, bounds: &Bounds) {
     key(&bytes);
     key(&temper_codecs_world::mutated(rng, &bytes));
 }
+fn making_row(rng: &mut Rng) -> forge::Stored {
+    forge::Stored::Making(forge::RepositoryMaking {
+        key: forge::MakingKey {
+            forge: u16::try_from(rng.below(65_536)).expect("u16"),
+            org: temper_codecs_world::drawn(rng, LIMITS.name_bytes).into_boxed_slice(),
+            name: temper_codecs_world::drawn(rng, LIMITS.name_bytes).into_boxed_slice(),
+        },
+        from: forge::MakeFrom::Copy { address: temper_codecs_world::drawn(rng, 512).into_boxed_slice() },
+        into: Some(forge::MakeInto { project: 1, home: true, host: Box::from(b"forge.invalid".as_slice()) }),
+        asked: skein_lib::Wall::from_nanos(rng.next_u64()),
+        copying: rng.below(2) == 0,
+        state: forge::MakingState::Failed(forge::MakingFailed {
+            step: forge::MakeStep::Repository,
+            reason: forge::MakeFailure::Refused { status: 409 },
+            words: temper_codecs_world::drawn(rng, 256).into_boxed_slice(),
+        }),
+    })
+}
 #[test]
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -48,6 +66,8 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         let binding =
             forge::Stored::Binding { address, subject: temper_codecs_world::drawn(&mut rng, 255).into_boxed_slice() };
         row_and_key(&binding, &mut rng, &bounds);
+        let making = making_row(&mut rng);
+        row_and_key(&making, &mut rng, &bounds);
         let dismissed = forge::Stored::Dismissed {
             party: rng.next_u64(),
             what: forge::Dismissal::ToBegin { project: u32::try_from(rng.below(4_294_967_296)).expect("u32") },

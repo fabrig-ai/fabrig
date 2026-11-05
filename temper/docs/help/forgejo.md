@@ -86,6 +86,8 @@ FORGE.` (exit 2): the bot has no access to it; make it a collaborator
 with write on Forgejo, then adopt again with a new key. `The project
 has a home already.` (exit 2): add `--no-home`, with a new key.
 
+To make another, use `repository make --project PROJECT ORG/NAME`; to copy a public source, `repository copy --project PROJECT HOST/OWNER/NAME`, each with `--forge FORGE --no-home --key KEY`.
+
 ## Clean up
 
 - Delete `FILE` once the forge is connected: temper keeps the token.

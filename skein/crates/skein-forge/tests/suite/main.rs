@@ -10,6 +10,7 @@ mod forgejo_create_repository;
 mod forgejo_deliveries;
 mod forgejo_files;
 mod forgejo_items;
+mod forgejo_migrate;
 mod forgejo_repo_search;
 mod forgejo_repo_setup;
 mod forgejo_reviews;

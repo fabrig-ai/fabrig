@@ -239,6 +239,8 @@ const DIRECT_CALLS: &[&[&str]] = &[
     super::goal_template::START,
     f::CREATE_CHAT_CALL,
     f::ADOPTION,
+    &["repository", "make", "--project", "1", "team/widget", "--key", "make-widget"],
+    &["repository", "copy", "--project", "1", "source.invalid/team/widget", "--key", "copy-widget"],
     &["account", "connect", "9", "--key", "connect"],
     &["account", "disconnect", "43", "--key", "disconnect"],
     &["account", "add-key", "9", "file", "--key", "add"],

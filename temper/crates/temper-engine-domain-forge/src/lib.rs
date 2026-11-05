@@ -41,6 +41,10 @@ mod judge;
 mod kinds;
 mod landing;
 mod limits;
+mod making;
+pub use making::{
+    MakeFailure, MakeFrom, MakeInto, MakeRefusal, MakeStep, MakingFailed, MakingKey, MakingState, RepositoryMaking,
+};
 mod panel;
 mod public;
 pub use public::{PublicAsk, PublicMade, PublicTask};
@@ -283,6 +287,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Writer(row) => Key::Writer(row.forge),
         Stored::Setting(row) => Key::Setting(row.key),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
+        Stored::Making(row) => Key::Making(row.key.clone()),
         Stored::Dismissed { party, what } => Key::Dismissed { party: *party, what: *what },
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
@@ -324,6 +329,28 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
     }
     match record {
+        Stored::Making(row) => {
+            let mut held = bytes(&row.key.org).checked_add(bytes(&row.key.name))?;
+            match &row.from {
+                MakeFrom::Empty => {}
+                MakeFrom::Copy { address } => {
+                    held = held.checked_add(bytes(address))?;
+                }
+            }
+            if let Some(into) = &row.into {
+                held = held.checked_add(bytes(&into.host))?;
+            }
+            match &row.state {
+                MakingState::Waiting | MakingState::Making => {}
+                MakingState::Made { branch, .. } | MakingState::Adopting { branch, .. } => {
+                    held = held.checked_add(bytes(branch))?;
+                }
+                MakingState::Failed(failed) => {
+                    held = held.checked_add(bytes(&failed.words))?;
+                }
+            }
+            Some(held)
+        }
         Stored::Forge(row) => {
             let mut held = bytes(&row.place.api.host)
                 .checked_add(bytes(&row.place.git))?
@@ -403,7 +430,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(held)
         }
         Stored::Application { outcome, .. } => match outcome {
-            ApplicationOutcome::CoreRefused(_) | ApplicationOutcome::ForgeRefused(_) => Some(0),
+            ApplicationOutcome::CoreRefused(_)
+            | ApplicationOutcome::ForgeRefused(_)
+            | ApplicationOutcome::MakeKept
+            | ApplicationOutcome::MakeRefused(_) => Some(0),
             ApplicationOutcome::Adopted(row) => {
                 let mut held = bytes(&row.owner).checked_add(bytes(&row.name))?;
                 match &row.protection {

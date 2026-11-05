@@ -2394,7 +2394,22 @@ fn task_reads_declare_read_effect_and_decode_continuations() {
         assert_eq!(found, allowed);
     }
     let decoded = decided(b"read_task", br#"{"task":23,"from":17}"#).expect("task read decodes");
-    assert_eq!(decoded.tool, engine::Tool::ReadTask { task: 23, from: 17 });
+    assert_eq!(
+        decoded.tool,
+        engine::Tool::ReadTask { task: 23, field: jig_domain_core::reads::TaskTextField::Specification, from: 17 }
+    );
+    for (field, expected) in [
+        ("specification", jig_domain_core::reads::TaskTextField::Specification),
+        ("result", jig_domain_core::reads::TaskTextField::Result),
+    ] {
+        let input = format!("{{\"task\":23,\"field\":\"{field}\"}}");
+        let decoded = decided(b"read_task", input.as_bytes()).expect("text selector");
+        assert_eq!(decoded.tool, engine::Tool::ReadTask { task: 23, field: expected, from: 0 });
+    }
+    for field in ["instructions", "unknown"] {
+        let input = format!("{{\"task\":23,\"field\":\"{field}\"}}");
+        let _invalid = decided(b"read_task", input.as_bytes()).expect_err("only spec or result");
+    }
     let _zero = decided(b"read_task", br#"{"task":0}"#).expect_err("positive task number");
     let _negative = decided(b"read_task", br#"{"task":23,"from":-1}"#).expect_err("nonnegative offset");
 }

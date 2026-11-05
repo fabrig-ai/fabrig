@@ -149,6 +149,9 @@ fn fits_asks_each_item_its_own_decoder() {
         (Item::AppKey, b"\x30\x02ab", b"\x30\x01ab"),
         (Item::Accepted, id.as_slice(), &[0; 8]),
         (Item::Pasted, b"a b\r\n", b"a\0b"),
+        (Item::Copying, &[1], &[0]),
+        (Item::Copying, &[1], &[]),
+        (Item::Copying, &[1], &[1, 1]),
     ] {
         assert!(item::fits(kind, valid, &bounds), "{kind:?}");
         assert!(!item::fits(kind, invalid, &bounds), "{kind:?}");

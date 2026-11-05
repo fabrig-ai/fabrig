@@ -3,6 +3,7 @@ use std::process::ExitCode;
 use temper_stage_one::{check, collect, golden, judge};
 
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some((command, args)) = args.split_first() else {
         return usage();

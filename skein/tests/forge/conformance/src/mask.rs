@@ -2,7 +2,22 @@ pub use skein_forge_conformance::mask::Mask;
 use skein_throwaway_forgejo::Exchange;
 #[must_use]
 pub fn request(mask: &mut Mask, exchange: &Exchange) -> Vec<u8> {
-    mask.bytes(&exchange.sent)
+    let bytes = mask.bytes(&exchange.sent);
+    let Some(end) = bytes.windows(4).position(|part| part == b"\r\n\r\n") else { return bytes };
+    let body = &bytes[end + 4..];
+    let mut out = Vec::new();
+    for line in bytes[..end].split(|byte| *byte == b'\n') {
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        if line.split(|byte| *byte == b':').next().is_some_and(|key| key.eq_ignore_ascii_case(b"content-length")) {
+            out.extend_from_slice(format!("Content-Length: {}", body.len()).as_bytes());
+        } else {
+            out.extend_from_slice(line);
+        }
+        out.extend_from_slice(b"\r\n");
+    }
+    out.extend_from_slice(b"\r\n");
+    out.extend_from_slice(body);
+    out
 }
 #[must_use]
 pub fn response(mask: &mut Mask, exchange: &Exchange) -> Vec<u8> {

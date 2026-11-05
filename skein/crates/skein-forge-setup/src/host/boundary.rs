@@ -37,6 +37,8 @@ pub enum Plan {
     Adopt { forge: u16, repository: NonZeroU64 },
     /// Makes a first repository, its access and missing files (4.9).
     Create { forge: u16, org: Box<[u8]>, repository: Box<[u8]>, files: Box<[File]> },
+    /// Copies a public repository, its access and missing files (4.10).
+    Copy { forge: u16, org: Box<[u8]>, repository: Box<[u8]>, from: Box<[u8]>, files: Box<[File]> },
     /// One picker page, from 1 (4.8). Forgejo takes no installation.
     /// Reads only: the host forwards no Write for it.
     Reachable { forge: u16, installation: Option<u64>, page: NonZeroU32 },
@@ -49,6 +51,7 @@ impl Plan {
             | Self::TakeOver { forge, .. }
             | Self::Adopt { forge, .. }
             | Self::Create { forge, .. }
+            | Self::Copy { forge, .. }
             | Self::Reachable { forge, .. }
             | Self::Manifest { forge, .. }
             | Self::Convert { forge, .. }
@@ -65,6 +68,7 @@ impl Plan {
             | Self::TakeOver { .. }
             | Self::Adopt { .. }
             | Self::Create { .. }
+            | Self::Copy { .. }
             | Self::Manifest { .. }
             | Self::Convert { .. }
             | Self::Paste { .. }
@@ -86,6 +90,7 @@ impl Plan {
             Self::TakeOver { .. } => b"take-over",
             Self::Adopt { .. } => b"adopt",
             Self::Create { .. } => b"create",
+            Self::Copy { .. } => b"copy",
             Self::Reachable { .. } => b"reachable",
         }
     }
@@ -98,7 +103,11 @@ impl Plan {
             | Self::Install { .. }
             | Self::Accept { .. } => Dialect::GitHub,
             Self::Reconcile { .. } | Self::Reachable { .. } => Dialect::Both,
-            Self::Check { .. } | Self::TakeOver { .. } | Self::Adopt { .. } | Self::Create { .. } => Dialect::Forgejo,
+            Self::Check { .. }
+            | Self::TakeOver { .. }
+            | Self::Adopt { .. }
+            | Self::Create { .. }
+            | Self::Copy { .. } => Dialect::Forgejo,
         }
     }
 }
@@ -150,5 +159,6 @@ pub enum Event {
     Need { run: Token, need: Need },
     Done { run: Token, outcome: Outcome },
     Stop { run: Token, failure: Failure },
+    Said { run: Token, words: Box<[u8]> },
     Closed,
 }

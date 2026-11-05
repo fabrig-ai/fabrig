@@ -180,6 +180,7 @@ pub(crate) fn repository_document(
         html_url: html.finish(),
     }))
 }
+#[expect(clippy::too_many_lines, reason = "exhaustive request selection includes protocol-only setup variants")]
 fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pull) -> Result<Answer, a::Error> {
     match request {
         Request::Reviews { page, .. } => {
@@ -262,6 +263,8 @@ fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pul
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }
@@ -343,6 +346,8 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }
@@ -521,7 +526,8 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
             }
             Ok(Answer::Tree { entries: tree.into_boxed(), truncated: *truncated })
         }
-        a::Answer::Located { .. }
+        a::Answer::Copied { .. }
+        | a::Answer::Located { .. }
         | a::Answer::Permission(_)
         | a::Answer::Commit(_)
         | a::Answer::Cloned { .. }
@@ -625,6 +631,8 @@ fn collaborators(
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }

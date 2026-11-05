@@ -601,12 +601,8 @@ pub(super) fn welcome_end(b: &mut Builder, root: &Domain, w: &Words, bindings: &
     let Some(last) = &doc.last_end else { return };
     let declined = match last.end {
         c::AccountEnd::Made { declined: true, .. } | c::AccountEnd::Renewed { declined: true, .. } => true,
-        c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { .. } }
-        | c::AccountEnd::Failed { failure: c::AccountFailure::Misconfigured } => false,
-        c::AccountEnd::Made { .. }
-        | c::AccountEnd::Renewed { .. }
-        | c::AccountEnd::Refused { .. }
-        | c::AccountEnd::Failed { .. } => return,
+        c::AccountEnd::Refused { .. } | c::AccountEnd::Failed { .. } => false,
+        c::AccountEnd::Made { declined: false, .. } | c::AccountEnd::Renewed { declined: false, .. } => return,
     };
     let Some(me) = accounts::current_me(root.client()) else { return };
     let ways = accounts::ways(&me.providers, root.forge().playground_provider(), c::AskAccountHolder::Own);

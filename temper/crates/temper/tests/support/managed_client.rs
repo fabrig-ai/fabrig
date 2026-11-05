@@ -1,5 +1,8 @@
 //! The sitting's fake person uses Ready's real domain, view and HTTP transport.
-use super::patience::Patience;
+use super::{
+    patience::Patience,
+    relay_managed::{NAME, OWNER},
+};
 use jig_client_protocol_link::Signing;
 use skein_fake_person::{Doing, Find, Next, Step, TreeFace};
 use skein_lib::{Duration, Time};
@@ -98,11 +101,11 @@ pub fn run() {
         Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within },
         Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within },
-        Step::Type { find: Find::named(Role::TextField, b"Owner"), words: b"freeekanayaka".as_slice().into() },
-        Step::Type { find: Find::named(Role::TextField, b"Name"), words: b"temper-probe-2".as_slice().into() },
+        Step::Type { find: Find::named(Role::TextField, b"Owner"), words: OWNER.as_bytes().into() },
+        Step::Type { find: Find::named(Role::TextField, b"Name"), words: NAME.as_bytes().into() },
         Step::Type { find: Find::named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
         Step::Press { find: Find::named(Role::Button, b"Adopt") },
-        Step::See { find: Find::text(b"Adopted freeekanayaka/temper-probe-2 on forge 1 as owned."), within },
+        Step::See { find: Find::text(format!("Adopted {OWNER}/{NAME} on forge 1 as owned.").as_bytes()), within },
     ]);
     let root = skein_shell::open_root(std::path::Path::new(".")).expect("sitting scratch root");
     let clock = Clock::new();

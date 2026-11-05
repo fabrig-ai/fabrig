@@ -493,6 +493,13 @@ struct CtlJudge<'a, F, T> {
     deadline: Patience,
     cleanup_deadline: Time,
 }
+fn visit_address(call: &super::Ended) -> Option<Vec<u8>> {
+    super::sign_in::authorization_address(call).map(<[u8]>::to_vec).or_else(|| {
+        let answer: serde_json::Value = serde_json::from_slice(&call.stdout).ok()?;
+        Some(answer.pointer("/outcome/done/document/account_sign_in_started/address")?.as_str()?.as_bytes().to_vec())
+    })
+}
+
 enum Visit {
     AwaitingAddress,
     Handed,
@@ -642,12 +649,9 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                     self.visits.set(visits);
                     self.tab_visit = Visit::AwaitingAddress;
                 } else if matches!(self.tab_visit, Visit::AwaitingAddress) {
-                    let address = calls
-                        .ends()
-                        .last()
-                        .and_then(super::sign_in::authorization_address)
-                        .expect("last act printed a browser address");
-                    visitor.hand(address);
+                    let address =
+                        calls.ends().last().and_then(visit_address).expect("last act printed a browser address");
+                    visitor.hand(&address);
                     calls.visit_handed();
                     self.tab_visit = Visit::Handed;
                 }

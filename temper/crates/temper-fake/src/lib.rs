@@ -25,8 +25,12 @@ pub const DOCUMENT_BYTES: u32 = 1 << 20;
 pub const SCRIPT_BYTES: u32 = 1 << 18;
 /// One answer's owned parts and bytes, before the provider encodes it.
 pub const ANSWER_BYTES: u32 = 1 << 16;
-/// Each bounded document list: models, scripts, turns, lines and repositories.
+/// Each bounded document list: models, scripts, turns, lines, repositories and sources.
 pub const ENTRIES: u32 = 16;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests/forge.rs"]
+mod source_tests;
