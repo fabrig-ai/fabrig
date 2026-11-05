@@ -520,8 +520,8 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "goal-failed", world: Reference, address: task(122), then: Shown },
         Sample { name: "goal-no-report", world: Reference, address: task(108), then: Shown },
         Sample { name: "start-goal", world: Reference, address: CHATS, then: Shown },
-        Sample { name: "start-goal-draft", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
-        Sample { name: "start-goal-refused", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "start-goal-draft", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "start-goal-refused", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-drafts-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-goals-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
@@ -1021,14 +1021,19 @@ fn goal_domain(sample: &Sample) -> Domain {
 }
 #[must_use]
 fn start_domain(sample: &Sample) -> Domain {
-    let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), Then::Shown);
+    let then = if sample.name == "start-goal" {
+        Then::Shown
+    } else {
+        Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat)
+    };
+    let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), then);
     if sample.name != "start-goal" {
         let mut out = Queue::uncapped();
         step(
             &mut root,
             Event::Act {
                 action: Action::Pages(Act::OpenStart {
-                    draft: Some(b"docs/design/draft/first-run-projects.md".as_slice().into()),
+                    draft: Some(b"docs/design/draft/away-mode.md".as_slice().into()),
                     chat: Some(1),
                 }),
             },
@@ -1036,6 +1041,28 @@ fn start_domain(sample: &Sample) -> Domain {
         );
         if sample.name == "start-goal-refused" {
             step(&mut root, Event::Act { action: Action::Pages(Act::StartGoal) }, &mut out);
+            step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+            while let Some(request) = out.pop() {
+                if let Some(jig_client::Down::Send { attempt, .. }) = crate::driver::down(request) {
+                    step(
+                        &mut root,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::Answer {
+                                    attempt,
+                                    envelope: skein_lib::RequestEnvelope::Final,
+                                    why: None,
+                                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                                        refusal: c::Refusal::NotOffered,
+                                        at: None,
+                                    })),
+                                },
+                            },
+                        },
+                        &mut Queue::uncapped(),
+                    );
+                }
+            }
         }
     }
     root
@@ -2062,7 +2089,7 @@ fn home_domain(name: &str) -> Domain {
             Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                 let value = match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("Home read").read() {
                     w::Read::Setting(setting) if setting.kind() == 7 => {
-                        crate::worlds::project_ways(&mut root, read, with_goals, false, &mut out);
+                        crate::worlds::project_ways(&mut root, read, false, with_goals, false, &mut out);
                         continue;
                     }
                     w::Read::Deployment => Some(wire::deployment_answer(

@@ -273,6 +273,11 @@ fn world_in_layout(
                     let document = match subject {
                         c::Subject::Me => {
                             let mut me = frame(w, connecting, configuring);
+                            if matches!(then, Then::Mode(_) | Then::DraftEmpty) {
+                                let templates = me.projects.get(0).expect("draft project").templates.clone();
+                                configure_frame(&mut me);
+                                me.projects.get_mut(0).expect("draft project").templates = templates;
+                            }
                             if settings_chat.is_some() {
                                 settings_chat_frame(&mut me);
                             }
@@ -367,8 +372,9 @@ fn world_in_layout(
                             }
                         }
                         v1::Read::Setting(setting) => {
-                            if setting.kind() == 7 && goals.is_some() {
-                                project_ways(&mut root, read, true, false, &mut out);
+                            let drafts = matches!(then, Then::Mode(_) | Then::DraftEmpty);
+                            if setting.kind() == 7 && (goals.is_some() || drafts) {
+                                project_ways(&mut root, read, drafts, goals.is_some(), false, &mut out);
                                 continue;
                             }
                             let bytes = settings.map(|name| settings_bytes(name, setting.kind()));
@@ -3840,7 +3846,7 @@ pub(super) fn changes_world(name: &str) -> Domain {
                     wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
                 {
                     assert_eq!(setting.kind(), 7);
-                    project_ways(&mut root, read, false, name != "changes-landed-only", &mut out);
+                    project_ways(&mut root, read, false, false, name != "changes-landed-only", &mut out);
                 }
             }
             Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
@@ -3876,10 +3882,17 @@ pub(super) fn changes_world(name: &str) -> Domain {
     assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
-pub(super) fn project_ways(root: &mut Domain, read: Token, goals: bool, changes: bool, out: &mut Queue<Request>) {
+pub(super) fn project_ways(
+    root: &mut Domain,
+    read: Token,
+    drafts: bool,
+    goals: bool,
+    changes: bool,
+    out: &mut Queue<Request>,
+) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
     let ways =
-        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [false, goals, changes, false], way: 0 })
+        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [drafts, goals, changes, false], way: 0 })
             .expect("gallery project ways");
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");

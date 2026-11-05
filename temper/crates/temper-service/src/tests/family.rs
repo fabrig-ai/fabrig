@@ -3104,7 +3104,7 @@ fn repeated(byte: u8, count: u32) -> Box<[u8]> {
 fn a_whole_party_document_fits_the_wire() {
     let mut rows = List::with_capacity(wire::DISMISSED);
     for goal in 0..u64::from(wire::DISMISSED) {
-        rows.push(forge::PersonFact::GoalFrom { project: 1, chat: 7, goal }).unwrap();
+        rows.push(forge::PersonFact::GoalFrom { project: 1, chat: 7, goal, at: 0 }).unwrap();
     }
     let bytes =
         family::document(forge::Document::Dismissals(rows.into_boxed()), &fixtures::forge_table(&[]), &w::CEILINGS)

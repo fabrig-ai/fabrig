@@ -170,18 +170,3 @@ pub fn section_holding(body: &[u8], line: u32) -> usize {
     }
     holding
 }
-
-/// True while the project offers a tracked template without the conversation flag.
-#[must_use]
-pub fn drafts_offered(me: &jig_client::contract::Me, project: u32) -> bool {
-    for offered in &me.projects {
-        if offered.project == project {
-            for template in &offered.templates {
-                if template.tracked.is_some() && !template.flags.conversation {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}

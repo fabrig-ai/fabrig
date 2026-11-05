@@ -105,19 +105,19 @@ const HOLDS: [Holds; samples::N] = [
     Holds { name: "start-goal", heading: "Talk to an agent", parts: &[Part::NoRole { role: Role::Dialog }] },
     Holds {
         name: "start-goal-draft",
-        heading: "T1 · Director",
+        heading: "T1 · Away mode, draft",
         parts: &[
-            Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
-            Part::Value { role: Role::TextField, name: "Name", value: "first-run-projects" },
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Value { role: Role::TextField, name: "Name", value: "away-mode" },
             Part::Named { role: Role::ChoiceGroup, name: "How it runs" },
             Part::Named { role: Role::Button, name: "Start goal" },
         ],
     },
     Holds {
         name: "start-goal-refused",
-        heading: "T1 · Director",
+        heading: "T1 · Away mode, draft",
         parts: &[
-            Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
             Part::Text { text: "This act is not offered" },
         ],
     },

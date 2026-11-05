@@ -12,7 +12,14 @@ mod activity;
 pub mod builders;
 pub mod changes;
 pub mod chat;
-pub use chat::document::drafts_offered;
+/// Whether the project's settings offer writing drafts (client/README.md, 5.13).
+#[must_use]
+pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
+    match root.forge().ways(project) {
+        Some(ways) => ways.drafts,
+        None => false,
+    }
+}
 pub mod chats;
 pub mod choice;
 pub mod connect_model;

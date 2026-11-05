@@ -481,8 +481,5 @@ pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread:
 /// Whether chats in this project can write drafts (temper/docs/design/client/README.md, 5.13).
 #[must_use]
 pub fn drafts_offered(root: &Domain, project: u32) -> bool {
-    match root.forge().ways(project) {
-        Some(ways) => ways.drafts,
-        None => false,
-    }
+    temper_client_domain::pages::drafts_offered(root, project)
 }

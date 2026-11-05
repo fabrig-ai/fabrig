@@ -62,9 +62,12 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
                 d::PersonFact::ToBegin { project } => w::PersonFact::ToBegin(
                     w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).expect(FITS),
                 ),
-                d::PersonFact::GoalFrom { project, chat, goal } => w::PersonFact::GoalFrom(
-                    w::GoalFrom::new(&w::CEILINGS, w::GoalFromParts { project: *project, chat: *chat, goal: *goal })
-                        .expect(FITS),
+                d::PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
+                    w::GoalFrom::new(
+                        &w::CEILINGS,
+                        w::GoalFromParts { project: *project, chat: *chat, goal: *goal, at: *at },
+                    )
+                    .expect(FITS),
                 ),
             };
             w::Value::Dismissed(w::Dismissed::new(&w::CEILINGS, w::DismissedParts { party: *party, what }).expect(FITS))
@@ -116,9 +119,12 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             let w::DismissedParts { party, what } = value.into_parts();
             let what = match what {
                 w::PersonFact::ToBegin(value) => d::PersonFact::ToBegin { project: value.into_parts().project },
-                w::PersonFact::GoalFrom(value) => {
-                    d::PersonFact::GoalFrom { project: value.project(), chat: value.chat(), goal: value.goal() }
-                }
+                w::PersonFact::GoalFrom(value) => d::PersonFact::GoalFrom {
+                    project: value.project(),
+                    chat: value.chat(),
+                    goal: value.goal(),
+                    at: value.at(),
+                },
             };
             d::Stored::Dismissed { party, what }
         }
