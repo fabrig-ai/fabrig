@@ -38,3 +38,13 @@ The script from `hand-face`'s report; `cargo fmt`; `(cd skein && python3 -I -B s
 ## Report
 
 The common note's items; the assert comparison; the time. A move: no rule to break by hand.
+
+## Answers
+
+### 2026-11-05: Complete and merge hand-face before rerunning hand-forgejo (recommended), or authorize this task to supply the missing shared harness and suite scaffolding? (debt-24/hand-forgejo-1, foreman debt-24/hand-forgejo/foreman-1)
+
+Complete and merge hand-face before rerunning hand-forgejo.
+The hand-forgejo spec declares `needs = ["hand-face"]` and requires “The script from `hand-face`'s report”.
+Hand-face owns the missing shared harness and suite scaffolding; its acceptance requires “`pub mod hand;` in `lib.rs`” and “`tests/suite/hand.rs`, `hand/forgejo.rs` and `hand/github.rs`”.
+Hand-forgejo's ownership says “`hand.rs` only gains what its files read.”
+The next hand-forgejo run uses the completed prerequisite's harness, scaffolding and reported script, then performs its migration and acceptance checks.
