@@ -14,6 +14,7 @@ mod github_peer;
 mod github_renewal;
 mod github_start;
 mod github_unknown_repository;
+mod hand;
 mod hooks;
 mod machine;
 mod memory;

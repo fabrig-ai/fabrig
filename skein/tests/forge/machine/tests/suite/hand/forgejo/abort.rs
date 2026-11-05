@@ -1,7 +1,7 @@
 //! The owner's abort, a close that does not wait (programming-model.md, 5.2).
-use super::fixtures;
-use crate::{Answered, Event, Request};
 use skein_forge::api::{self, Op, Read};
+use skein_forge_connection::{Answered, Event, Request};
+use skein_forge_machine_world::hand as fixtures;
 use skein_lib::{Duration, List, Queue, Token};
 
 /// The entities io is asked to close and to abort, in order, left queued for the harness.
@@ -158,6 +158,7 @@ fn abort_when_idle_is_closed_at_once_once_io_settles() {
     assert_eq!(h.component.next_deadline(), None);
 }
 
+#[expect(clippy::needless_pass_by_value, reason = "the scripted scenario consumes its queued terminal event")]
 fn matches_closed(event: Option<Event>) -> bool {
     match event {
         Some(Event::Closed) => true,
