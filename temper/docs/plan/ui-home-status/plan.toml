@@ -3,3 +3,29 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-home-status/inputs/request.md", "temper/docs/design/draft/to-begin.md", "temper/crates/temper-client-view/src/pages/home.rs", "temper/crates/temper-client-domain/src/pages/home.rs", "temper/crates/temper-client-domain/src/forge/dismissed.rs", "temper/crates/temper-engine-domain-forge/src/dismissed.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tier_route.rs", "temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/stock/foreman.txt", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# See plan.md: the wire and the forge side by side, then the root and the client, then the view; the charter beside them.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "status-wire"
+title = "the client's wire gains Looked and the subject status"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[part]]
+id = "project-facts"
+title = "the forge keeps ProjectFacts and Looked, answers the look and computes the document"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 5.6"
+
+[[slice]]
+id = 1
+story = "a landing counts, a look moves, and the forge's status document says so"
+parts = ["status-wire", "project-facts"]
+walk = false
