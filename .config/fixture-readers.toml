@@ -89,7 +89,11 @@ filter = "kind(lib)"
 
 # Fixture module and its world/suite callers; package filters retain all shared-helper callers.
 [[fixture]]
-paths = ["jig/tests/client-protocol/src/fixtures/*.rs"]
+paths = ["jig/testing/jig-client-protocol-kit/src/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-client-protocol-kit"
+filter = "kind(lib)"
 [[fixture.reader]]
 pair = "default"
 package = "jig-client-protocol-world"

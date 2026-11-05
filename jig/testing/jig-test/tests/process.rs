@@ -1,7 +1,7 @@
 //! The shipped service and agent, killed and restarted over one durable store.
 #[expect(dead_code, reason = "only the live binary uses trace helpers")]
 mod support;
-use jig_client_protocol_world::native::Script;
+use jig_client_protocol_kit::native::Script;
 
 /// The fake provider checks the credential presented by the real run.
 fn peer() -> (skein_fake_peers::llm::Peer, std::net::SocketAddr, skein_io::kernel::Fd) {

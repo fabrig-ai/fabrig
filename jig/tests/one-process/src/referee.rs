@@ -3,7 +3,7 @@ pub(super) mod agent;
 use crate::world::Proc;
 use jig_channel_world::world::store::Store;
 use jig_client_domain::contract as client;
-use jig_client_protocol_world::native::Received;
+use jig_client_protocol_kit::native::Received;
 use jig_conformance::referee as rules;
 use jig_domain_core as core;
 use jig_test_domain as root;

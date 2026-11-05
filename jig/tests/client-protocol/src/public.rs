@@ -17,11 +17,7 @@ use skein_lib::{
 use skein_shell::{Delegate, Host};
 use skein_world::{Memory, Referee};
 
-#[expect(
-    clippy::duplicate_mod,
-    reason = "the public service story shares the native configuration without changing its figures"
-)]
-#[path = "native/config.rs"]
+#[path = "../../../testing/jig-client-protocol-kit/src/native/config.rs"]
 mod config;
 
 pub const TITLE: &[u8] = b"Visible HTTP goal";

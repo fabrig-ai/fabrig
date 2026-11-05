@@ -1,7 +1,7 @@
 //! Input is visible through the native client while the engine's store is held.
 use crate::processes::Proc;
 use jig_client::{Asker, Handle, contract as c};
-use jig_client_protocol_world::native::Received;
+use jig_client_protocol_kit::native::Received;
 
 const RUN: Handle = Handle { asker: Asker(79), number: 72 };
 const HOLD: &[u8] = b"input-open";

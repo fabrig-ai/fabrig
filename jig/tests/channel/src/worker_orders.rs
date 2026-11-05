@@ -240,12 +240,12 @@ fn run_story(cancel: bool, calls: bool) -> Outcome {
     );
     harness.spawn_root(skein_sim::Handle::new(worker_root.raw()), if calls { calling_worker } else { worker });
     harness.spawn_root(skein_sim::Handle::new(client_root.raw()), |root| {
-        let mut client = jig_client_protocol_world::native::NativeClient::new(
-            jig_client_protocol_world::native::settings(),
+        let mut client = jig_client_protocol_kit::native::NativeClient::new(
+            jig_client_protocol_kit::native::settings(),
             root,
             1000,
             fixtures::SEED,
-            jig_client_protocol_world::native::Script::account_sign_in(),
+            jig_client_protocol_kit::native::Script::account_sign_in(),
         );
         client.hold_for_account_sign_in();
         Proc::Client(Box::new(client))
