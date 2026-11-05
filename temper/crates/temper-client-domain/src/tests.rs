@@ -6,6 +6,7 @@ mod acts;
 mod address;
 mod admin;
 mod amend;
+mod away;
 mod deployment;
 mod dismissed;
 mod playground;

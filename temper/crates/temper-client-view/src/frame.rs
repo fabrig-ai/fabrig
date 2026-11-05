@@ -978,6 +978,7 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
         Toasted::Paused => (w.say(Word::ToastPaused, &[]), None),
         Toasted::Resumed => (w.say(Word::ToastResumed, &[]), None),
+        Toasted::AwayOn { .. } | Toasted::AwayOff | Toasted::AwayRefused => return,
         Toasted::Proposed { .. } | Toasted::Refused { .. } => (Box::default(), None),
     };
     b.open(Role::Status);
@@ -996,7 +997,13 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
                 action(b, Role::Button, &w.say(Word::LookAgain, &[]), Act::Needs(needs::Act::Dismiss), false, bindings);
             }
         }
-        Toasted::Answered { .. } | Toasted::Later | Toasted::Paused | Toasted::Resumed => b.text(Run::Plain, &said),
+        Toasted::AwayOn { .. }
+        | Toasted::AwayOff
+        | Toasted::AwayRefused
+        | Toasted::Answered { .. }
+        | Toasted::Later
+        | Toasted::Paused
+        | Toasted::Resumed => b.text(Run::Plain, &said),
     }
     if let Some(object) = undo
         && session.held(object)

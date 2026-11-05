@@ -35,6 +35,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
             }
             Action::Pages(crate::pages::Act::Playground) => playground(root, env, out),
             Action::Pages(crate::pages::Act::Suggest { cue }) => suggest(root, env, cue, out),
+            Action::Pages(crate::pages::Act::Away(act)) => crate::pages::away::act(root, env, act, out),
             Action::Pages(act) => pages(root, env, crate::pages::Event::Act { act }, out),
             Action::Forge(act) => forge(root, env, forge::Event::Act { act }, out),
         },
@@ -324,6 +325,7 @@ fn forge_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: 
     if consumed {
         forge::ways::configure(&mut root.forge, &mut child);
         forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
+        forge::away::configure(&mut root.forge, env.limits.forge, &mut child);
         forge::dismissed::configure(&mut root.forge, env.limits.forge, &mut child);
     }
     route_forge(root, env, &mut child, out);
@@ -388,7 +390,8 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = forge::dismissed::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+    let consumed = forge::away::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+        || forge::dismissed::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::forges::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child);
