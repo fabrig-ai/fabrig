@@ -91,3 +91,22 @@ Options, each with its default:
 ## Report
 
 As the implementer's text asks, and each difference from the mock, with its reason.
+
+## Rebase (2026-11-05, step merge, foreman ui-needs/home-card/foreman-1)
+
+rebase Home’s card changes while preserving Changes vocabulary and gallery samples
+The merge conflicts are in `temper/crates/temper-client-view/src/words.rs` and `temper/tools/gallery/src/samples.rs`.
+The integration commit `93f5972e5666123d491cea11d7544fcc5b8ffe22` brings main’s Changes work into Needs you and renumbers Needs phrases.
+
+In `words.rs`, retain both branches’ variants, `ALL` entries, English phrases and hole bounds.
+Preserve integration’s Changes and Needs phrase IDs. `NeedsRelease` now uses 3260, colliding with this branch’s `HomeTwo`.
+Assign `HomeTwo` through `HomeNine` IDs 3261–3268 and `HomeAnswerMany` ID 3269.
+Combine capacities: `PHRASES = 1431`, `SEGMENTS = 2484`, and `ALL` length 835; verify against `english_declarations()`.
+Retain both text-capacity additions, `+367` for Changes and `+54` for Home.
+Keep Home’s `HomeNeedsMany` and `HomeAnswerName` phrase shapes and its `HomeAnswerName && !last` hole bound.
+
+In `samples.rs`, retain the four Changes samples and three new Home samples; set `N = 129`.
+Preserve Changes routing, mock mappings and `Watch::Changes(_)` handling alongside Home’s fixture changes.
+Keep the new Home names directly after `home-github` in the combined gallery order.
+
+Run the spec’s view, gallery and client-world checks through heavy, then regenerate the journeys and any stale generated outputs using their tools.
