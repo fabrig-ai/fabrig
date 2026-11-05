@@ -12,6 +12,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain as root;
 pub mod bundle;
 pub mod fetch;
+pub mod forge_sign_in;
 mod github;
 pub mod google;
 #[cfg(test)]
@@ -46,7 +47,9 @@ pub struct Clients {
     pub(crate) github_calls: Queue<(Token, skein_http::server::Call)>,
     pub(crate) query_bytes: u32,
     send: u32,
-    bundle: Option<bundle::Bundle>,
+    pub(super) bundle: Option<bundle::Bundle>,
+    pub(crate) forge_sign_in: forge_sign_in::Entries,
+    pending_forge_metas: Option<Box<[u8]>>,
     component_closed: bool,
     stopping: Option<()>,
 
@@ -243,6 +246,8 @@ impl Clients {
             query_bytes: 2048,
             send: crate::limits::server(&config.limits).http.send,
             bundle: None,
+            forge_sign_in: forge_sign_in::Entries::new(&[], &[], None, 0),
+            pending_forge_metas: None,
             component_closed: false,
             stopping: None,
 
@@ -302,6 +307,7 @@ impl Clients {
                 Some(google) => google.work_pending(),
                 None => false,
             }) || self.pending
+                || self.stopping.is_none() && self.forge_sign_in.waiting()
                 || secrets_ready && !self.secrets.is_empty()
                 || self.endings.ready()
                 || secrets_ready && !self.playground_carries.is_empty()

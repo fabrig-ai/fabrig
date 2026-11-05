@@ -492,8 +492,6 @@ pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
             git: format!("http://{}", owned.forgejo),
         },
     );
-    fs::create_dir_all(directory.join("box/groups")).expect("groups");
-    super::write_private(&directory.join("box/groups/1"), b"owned\n");
     owned.forgejo
 }
 

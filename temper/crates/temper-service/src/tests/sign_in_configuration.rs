@@ -234,7 +234,8 @@ fn an_old_document_names_the_missing_members_and_their_fix() {
 
 #[test]
 fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
-    use temper_forge_setup::setup::{Account, Entry, Fetch, Mode, Owned};
+    use crate::clients::forge_sign_in::{Entries, refresh};
+    use temper_engine_domain_forge::Mode;
     let mut jig = jig();
     provider(&mut jig);
     let (members, problems) = parse(&with_forges(r#"[{"forge":1,"client":"forgejo"}]"#), &jig);
@@ -244,39 +245,36 @@ fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
     sign_in.forges[0].client = b"forge&\"'< >".as_slice().into();
     let mut forges = fixtures::forges();
     forges[0].git = b"https://forge.example/?x=\"&y='<>".as_slice().into();
-    let mut setup = temper_forge_setup::setup::Setup { entries: Box::new([]) };
+    let mut clients = jig.clients.provider.take().unwrap().clients;
+    clients[0].id = sign_in.forges[0].client.clone();
+    clients[0].redirect_uri = b"https://forge.example/?x=\"&y='<>/user/oauth2/temper/callback".as_slice().into();
+    let mut service = fixtures::ready();
+    let engine = service.engine.as_mut().unwrap();
+    engine.workers.forges = fixtures::forge_table(&forges);
     let mut bundle = fixtures::bundle::bundle();
     bundle.page = b"<head></head>".as_slice().into();
     bundle.fill_sign_in(true).unwrap();
     let before = bundle.etag.clone();
-    bundle.fill_forge_sign_in(Some(sign_in), &forges, &setup, 65_536).unwrap();
+    engine.clients.adopt_bundle(bundle);
+    engine.clients.forge_sign_in = Entries::new(&sign_in.forges, &clients, None, 65_536);
+    refresh(engine);
+    let bundle = engine.clients.bundle.as_ref().unwrap();
     assert_eq!(bundle.page.as_ref(), b"<head><meta name=\"temper-sign-in\" content=\"google\"><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; https://forge.example/?x=&quot;&amp;y=&#39;&lt;&gt; other\"></head>");
     assert_ne!(bundle.etag, before);
-    setup.entries = Box::new([Entry {
-        forge: 1,
-        directory: b"forge-1".as_slice().into(),
-        bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.com".as_slice().into() },
-        asked: false,
-        mode: Mode::Owned(Owned {
-            public: None,
-            fetch: Fetch { forgejo: false, runner: false, mirror: None },
-            forgejo: b"forgejo".as_slice().into(),
-            runner: None,
-            listen: "127.0.0.1:9".parse().unwrap(),
-            person: Account { login: b"sam".as_slice().into(), email: b"sam@example.com".as_slice().into() },
-        }),
-    }]);
+    engine.workers.forges.get_mut(1).unwrap().mode = Mode::Owned;
+    let mut bundle = fixtures::bundle::bundle();
     bundle.page = b"<head></head>".as_slice().into();
-    bundle.fill_forge_sign_in(Some(sign_in), &forges, &setup, 65_536).unwrap();
-    assert!(bundle.page.ends_with(b" owned\"></head>"));
+    engine.clients.adopt_bundle(bundle);
+    refresh(engine);
+    assert!(engine.clients.bundle.as_ref().unwrap().page.ends_with(b" owned\"></head>"));
     for (port, origin) in [(443, "https://git.example.com"), (8443, "https://git.example.com:8443")] {
-        let Mode::Owned(owned) = &mut setup.entries[0].mode else { unreachable!() };
-        owned.public = Some(temper_forge_setup::setup::Origin { host: b"git.example.com".as_slice().into(), port });
-        bundle.page = b"<head></head>".as_slice().into();
-        bundle.fill_forge_sign_in(Some(sign_in), &forges, &setup, 65_536).unwrap();
-        assert_eq!(bundle.page.as_ref(), format!("<head><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; {origin} owned\"></head>").as_bytes());
+        let public = temper_forge_setup::setup::Origin { host: b"git.example.com".as_slice().into(), port };
+        clients[0].redirect_uri = format!("{origin}/user/oauth2/temper/callback").into_bytes().into();
+        engine.clients.forge_sign_in = Entries::new(&sign_in.forges, &clients, Some(&public), 65_536);
+        refresh(engine);
+        assert_eq!(engine.clients.bundle.as_ref().unwrap().page.as_ref(), format!("<head><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; {origin} owned\"></head>").as_bytes());
     }
-    let before = bundle.page.clone();
-    assert!(bundle.fill_forge_sign_in(Some(sign_in), &forges, &setup, 1).is_none());
-    assert_eq!(bundle.page, before);
+    engine.clients.forge_sign_in = Entries::new(&sign_in.forges, &clients, None, 1);
+    refresh(engine);
+    assert_eq!(engine.clients.bundle.as_ref().unwrap().page.as_ref(), b"<head></head>");
 }

@@ -109,7 +109,14 @@ adoption-refused
 chats-reference
 chat-reference-T1
 chat-solo-T1
+chat-byline-open
+chat-working
 chat-solo-T6
+chat-held-task
+chat-change-running
+chat-change-landed
+chat-change-held
+chat-goal
 chat-first-run-2-T1
 chat-first-run-3-T1
 chat-first-run-4-T4

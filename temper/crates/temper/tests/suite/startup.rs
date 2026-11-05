@@ -1106,6 +1106,38 @@ fn embedded_files_at_each_bound_are_admitted() {
 }
 
 #[test]
+fn a_bundle_with_a_forge_sign_in_entry_starts_before_any_forge_is_kept() {
+    let scratch = support::Scratch::startup("bundle-forge-sign-in");
+    let directory = scratch.path();
+    bundle_configuration(directory);
+    fixture_bundle(directory);
+    fs::write(directory.join("bundle/index.html"), b"<!doctype html><head></head><body>temper</body>")
+        .expect("page with a head");
+    support::forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:7100", "127.0.0.1:7200");
+    support::forge_sign_in::success(&support::forge_sign_in::command(directory).output().expect("sign-in key"));
+    let prepared = temper::prepare_in(&support::configuration::directories(directory));
+    assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
+    scratch.remove();
+}
+
+#[test]
+fn a_bundle_page_without_a_head_refuses_the_start_for_its_metadata() {
+    let scratch = support::Scratch::startup("bundle-no-head");
+    let directory = scratch.path();
+    bundle_configuration(directory);
+    fixture_bundle(directory);
+    let why = temper::prepare_in(&support::configuration::directories(directory)).err().expect("page refused");
+    assert_eq!(
+        why,
+        format!(
+            "temper serve: application.clients.bundle: {}/bundle: the page has no </head> for its sign-in metadata\n",
+            directory.display()
+        )
+    );
+    scratch.remove();
+}
+
+#[test]
 fn a_directory_that_is_no_bundle_refuses_the_start() {
     let rows: [Spoiled<'_>; 4] = [
         (

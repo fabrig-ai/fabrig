@@ -15,6 +15,21 @@ fn names_are_the_promised_ones() {
 }
 
 #[test]
+fn retired_chat_style_slots_stay_reserved() {
+    let names = &temper_client_view::look::NAMES;
+    for (token, expected) in [
+        (62, b"temper-reserved-62".as_slice()),
+        (295, b"temper-reserved-295"),
+        (296, b"temper-reserved-296"),
+        (297, b"temper-reserved-297"),
+        (298, b"temper-reserved-298"),
+        (299, b"temper-reserved-299"),
+    ] {
+        assert_eq!(names.style(skein_ui::Style { owner: names.owner, token }), Some(expected));
+    }
+}
+
+#[test]
 fn navigation_links_have_addresses_and_install_action_links_keep_their_binding() {
     for sample in samples::samples() {
         let mut view = view(&sample);
@@ -1088,9 +1103,56 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "chat-byline-open",
+        heading: "New chat",
+        parts: &[
+            Part::Described { role: Role::Disclosure, name: "Change model", description: "ChatGPT plan · gpt-6-luna" },
+            Part::Named { role: Role::Button, name: "Reset choice" },
+        ],
+    },
+    Holds { name: "chat-working", heading: "T6", parts: &[Part::Named { role: Role::Slot, name: "Writing" }] },
+    Holds {
         name: "chat-solo-T6",
         heading: "T6 · Why is tally sum slow on big files?",
         parts: &[Part::Named { role: Role::Paragraph, name: "T7 found it" }],
+    },
+    Holds {
+        name: "chat-held-task",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "The CSV import task is held" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "chat-change-running",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Task 2" },
+            Part::Named { role: Role::Paragraph, name: "Change" },
+            Part::Named { role: Role::Status, name: "Running" },
+        ],
+    },
+    Holds {
+        name: "chat-change-landed",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "CI passed. Landed" },
+            Part::Named { role: Role::Status, name: "Landed" },
+        ],
+    },
+    Holds {
+        name: "chat-change-held",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[Part::Named { role: Role::Status, name: "Held" }],
+    },
+    Holds {
+        name: "chat-goal",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Started goal" },
+            Part::Named { role: Role::Link, name: "Task 2" },
+        ],
     },
     Holds {
         name: "chat-first-run-2-T1",
@@ -1298,12 +1360,18 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 12] = [
+const SPENDS: [(&str, Role, &str); 18] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
+    ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
     ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
+    ("chat-working", Role::Paragraph, "1 spent · of 40"),
+    ("chat-change-running", Role::Paragraph, "0 spent · of 20"),
+    ("chat-change-landed", Role::Paragraph, "0 spent · of 20"),
+    ("chat-change-held", Role::Paragraph, "0 spent · of 20"),
+    ("chat-goal", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-2-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-3-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-4-T4", Role::Paragraph, "0 spent · of 20"),
@@ -1832,4 +1900,65 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
         String::from_utf8(text).expect("lede UTF-8"),
         "A goal turns a draft into landed work, its own way: task by task, plan, tasks, land whole, plan, then wait for me, one agent, one branch."
     );
+}
+
+#[test]
+fn the_byline_sample_opens_only_the_model_disclosure() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-byline-open").unwrap();
+    let view = view(&sample);
+    let node = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Change model"))
+        .unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)));
+    assert_eq!(html.matches(" open").count(), 1);
+}
+
+#[test]
+fn the_chat_log_follows_its_end_until_the_person_scrolls_away() {
+    use skein_ui_web::page::{Event as PageEvent, Op};
+    use temper_client_domain::{Action, Event, pages::Act};
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-solo-T6").expect("chat sample");
+    let mut root = samples::domain(&sample);
+    let (mut view, bounds, patches) = built(&sample);
+    let log = find(view.tree(), Role::Log, "Conversation", sample.name);
+    let mut page = Page::new(
+        Look {
+            names: &[temper_client_view::look::NAMES],
+            pictures: &[],
+            components: &[],
+            elements: temper_client_view::look::ELEMENTS,
+            draw,
+        },
+        &bounds.tree,
+        b"temper",
+        Primary::Control,
+    );
+    let mut ops = Vec::new();
+    page.apply(&patches, &mut ops);
+    assert!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), "initial chat follows its end");
+    for (top, follow, words) in
+        [(800, true, b"At the end".as_slice()), (100, false, b"Reading earlier turns"), (800, true, b"Back at the end")]
+    {
+        ops.clear();
+        assert!(page.act(PageEvent::Scrolled { node: log, top, height: 1000, viewport: 200 }, &mut ops).is_none());
+        let mut out = Queue::uncapped();
+        driver::step(
+            &mut root,
+            Event::Act { action: Action::Pages(Act::MessageWords { words: words.into() }) },
+            &mut out,
+        );
+        if words == b"At the end" {
+            driver::step(&mut root, Event::Act { action: Action::Pages(Act::Send) }, &mut out);
+        }
+        let mut patches = Queue::with_capacity(bounds.tree.patches);
+        temper_client_view::build(&mut view, &root, worlds::sample_now(sample.world, sample.name), &mut patches);
+        let patches: Vec<_> = (0..patches.len()).map(|_| patches.pop().expect("queued patch")).collect();
+        assert!(!patches.is_empty(), "the chat changes");
+        page.apply(&patches, &mut ops);
+        assert_eq!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), follow);
+    }
 }

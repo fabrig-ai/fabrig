@@ -221,6 +221,12 @@ pub enum Note {
         number: u16,
         why: NotConnected,
     },
+    /// An entry newly unable to serve a forge sign-in meta (protocol/sign-in.md, 9.7).
+    ForgeSignIn {
+        number: u16,
+        client: Box<[u8]>,
+        why: clients::forge_sign_in::Unserved,
+    },
     /// A refused job-log redirect, with no signed path or query (protocol/forge.md, 3.6).
     ForgeOrigin {
         number: u16,

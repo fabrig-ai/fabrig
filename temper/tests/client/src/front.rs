@@ -769,7 +769,8 @@ impl Joint {
             let mut policy = config.core.seed_projects[0].policy.policy.clone();
             rules.ceiling.delegation.kinds =
                 Box::new([a::Executor::Charter(1), a::Executor::Charter(4), a::Executor::Procedure(2)]);
-            rules.ceiling.delegation.depth = 2;
+            // The requesting chat, its change and the review gate each consume a level.
+            rules.ceiling.delegation.depth = 3;
             rules.ceiling.delegation.tasks = TREE_TASKS;
             // This pushed-branch path needs read, push, open, land and its goal's issue.
             let grants: Box<[a::Grant]> = [1, 2, 3, 4, 8]
@@ -809,7 +810,7 @@ impl Joint {
             limits.tasks.tasks = 3;
             limits.tasks.project_tasks = 3;
             limits.tasks.tree_tasks = TREE_TASKS;
-            limits.tasks.depth = 2;
+            limits.tasks.depth = 3;
             limits.tasks.parameters = 5;
             // A gate's brief names its pull, branch, base and hexadecimal head,
             // alongside the task's byte parameters (domain/forge.md, 8.3).

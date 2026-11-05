@@ -94,7 +94,7 @@ pub fn exports_compared(config: bool) -> crate::diff::TargetChange {
     };
     use hearth_lib::encode::Digest;
     let (mut before, mut after) =
-        if config { super::changed_specs() } else { (super::spec(b"ion-prod", &[]), super::spec(b"ion-prod", &[])) };
+        if config { super::changed_specs() } else { (super::spec(b"west-prod", &[]), super::spec(b"west-prod", &[])) };
     for (spec, value) in [(&mut before, 1), (&mut after, 2)] {
         let exports = export_endpoint(Value::Int(value));
         let mut parts = List::with_capacity(u32::try_from(spec.parts.len()).expect("fixture count").saturating_add(1));

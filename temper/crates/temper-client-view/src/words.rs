@@ -534,6 +534,12 @@ pub enum Word {
     TimeDecember,
 
     ChangeModel,
+    BylineTask,
+    BylineModel,
+    BylineKey,
+    BylinePlan,
+    BylineProgram,
+    BylinePlayground,
     UsingModel,
     UsingDefault,
     UsingKey,
@@ -638,6 +644,7 @@ pub enum Word {
     RejectProposal,
     ChatDelegates,
     ChatSendHint,
+    ChatWorking,
     ConnectForge,
     ChatTitle,
     PlaygroundModelName,
@@ -665,6 +672,13 @@ pub enum Word {
     PlaygroundTryAgain,
 
     SuggestedRequests,
+    DelegationOpen,
+    DelegationLineChange,
+    DelegationLineGoal,
+    DelegationLineReport,
+    DelegationLineVerdict,
+    DelegationLineJob,
+    DelegationLineApproval,
     DelegationChange,
     DelegationReport,
     DelegationVerdict,
@@ -973,9 +987,12 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // New chat adds three phrases (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Chats adds six phrases and removes two filter empty phrases (client/README.md, 3.5).
-// Goal rows, ways and the page add thirty-five phrases (client/README.md, 3.5).
+// Goal rows, ways and page add thirty-five phrases (client/README.md, 3.5).
+// Byline forms add six phrases (client/README.md, 5.5).
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
-const PHRASES: u32 = 1469;
+// The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
+// Delegation lines add seven literal phrases (client/README.md, 5.7).
+const PHRASES: u32 = 1483;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -990,10 +1007,12 @@ const PHRASES: u32 = 1469;
 // New chat adds nine literal and hole segments (client/README.md, 3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Chats adds fourteen segments and removes two (client/README.md, 3.5).
-// Goal rows, ways and the page add sixty-three segments (client/README.md, 3.5).
+// Goal rows, ways and page add sixty-three segments (client/README.md, 3.5).
+// Byline forms add twenty-eight segments (client/README.md, 5.5).
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
-const SEGMENTS: u32 = 2565;
-const ALL: [Word; 873] = [
+// Delegation lines add seven literal segments (client/README.md, 5.7).
+const SEGMENTS: u32 = 2601;
+const ALL: [Word; 887] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1503,6 +1522,12 @@ const ALL: [Word; 873] = [
     Word::TimeNovember,
     Word::TimeDecember,
     Word::ChangeModel,
+    Word::BylineTask,
+    Word::BylineModel,
+    Word::BylineKey,
+    Word::BylinePlan,
+    Word::BylineProgram,
+    Word::BylinePlayground,
     Word::UsingModel,
     Word::UsingDefault,
     Word::UsingKey,
@@ -1605,6 +1630,7 @@ const ALL: [Word; 873] = [
     Word::RejectProposal,
     Word::ChatDelegates,
     Word::ChatSendHint,
+    Word::ChatWorking,
     Word::ConnectForge,
     Word::ChatTitle,
     Word::PlaygroundModelName,
@@ -1631,6 +1657,13 @@ const ALL: [Word; 873] = [
     Word::PlaygroundNotConnected,
     Word::PlaygroundTryAgain,
     Word::SuggestedRequests,
+    Word::DelegationOpen,
+    Word::DelegationLineChange,
+    Word::DelegationLineGoal,
+    Word::DelegationLineReport,
+    Word::DelegationLineVerdict,
+    Word::DelegationLineJob,
+    Word::DelegationLineApproval,
     Word::DelegationChange,
     Word::DelegationReport,
     Word::DelegationVerdict,
@@ -1872,41 +1905,41 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
-            Self::GoalsWaySeparator => 3276,
-            Self::GoalsWayEnd => 3277,
-            Self::GoalsKicker => 3262,
-            Self::GoalsNone => 3263,
-            Self::GoalsOne => 3264,
-            Self::GoalsMany => 3265,
-            Self::GoalsMoreOne => 3266,
-            Self::GoalsMoreMany => 3267,
-            Self::GoalsLede => 3268,
-            Self::GoalsWays => 3269,
-            Self::GoalsAll => 3270,
-            Self::GoalsNeeds => 3271,
-            Self::GoalsLive => 3272,
-            Self::GoalsEnded => 3273,
-            Self::GoalsEmpty => 3274,
-            Self::GoalsMore => 3275,
-            Self::Goals => 3243,
-            Self::GoalCount => 3244,
-            Self::GoalNeedsFunds => 3245,
-            Self::GoalNeedsYou => 3246,
-            Self::GoalPaused => 3247,
-            Self::GoalPlanning => 3248,
-            Self::GoalLanded => 3249,
-            Self::GoalLandedAlone => 3250,
-            Self::GoalStopped => 3251,
-            Self::GoalFailed => 3252,
-            Self::GoalPlanningLine => 3253,
-            Self::GoalTasksLanded => 3254,
-            Self::GoalLandedLine => 3255,
-            Self::GoalStoppedLine => 3256,
-            Self::GoalFailedLine => 3257,
-            Self::GoalTaskByTask => 3258,
-            Self::GoalTaskByTaskLine => 3259,
-            Self::GoalLandWhole => 3260,
-            Self::GoalLandWholeLine => 3261,
+            Self::GoalsWaySeparator => 3285,
+            Self::GoalsWayEnd => 3286,
+            Self::GoalsKicker => 3271,
+            Self::GoalsNone => 3272,
+            Self::GoalsOne => 3273,
+            Self::GoalsMany => 3274,
+            Self::GoalsMoreOne => 3275,
+            Self::GoalsMoreMany => 3276,
+            Self::GoalsLede => 3277,
+            Self::GoalsWays => 3278,
+            Self::GoalsAll => 3279,
+            Self::GoalsNeeds => 3280,
+            Self::GoalsLive => 3281,
+            Self::GoalsEnded => 3282,
+            Self::GoalsEmpty => 3283,
+            Self::GoalsMore => 3284,
+            Self::Goals => 3252,
+            Self::GoalCount => 3253,
+            Self::GoalNeedsFunds => 3254,
+            Self::GoalNeedsYou => 3255,
+            Self::GoalPaused => 3256,
+            Self::GoalPlanning => 3257,
+            Self::GoalLanded => 3258,
+            Self::GoalLandedAlone => 3259,
+            Self::GoalStopped => 3260,
+            Self::GoalFailed => 3261,
+            Self::GoalPlanningLine => 3262,
+            Self::GoalTasksLanded => 3263,
+            Self::GoalLandedLine => 3264,
+            Self::GoalStoppedLine => 3265,
+            Self::GoalFailedLine => 3266,
+            Self::GoalTaskByTask => 3267,
+            Self::GoalTaskByTaskLine => 3268,
+            Self::GoalLandWhole => 3269,
+            Self::GoalLandWholeLine => 3270,
             Self::Changes => 3208,
             Self::ChangesKicker => 3209,
             Self::ChangesNone => 3210,
@@ -1970,33 +2003,33 @@ impl Word {
             Self::ConfigureWhere => 3187,
             Self::Configuring => 3188,
             Self::HomeOpen => 3165,
-            Self::NeedsLaterMeta => 3278,
-            Self::NeedsYourReply => 3279,
-            Self::NeedsPlaceholder => 3280,
-            Self::NeedsSendReply => 3281,
-            Self::NeedsProgress => 3282,
-            Self::NeedsProgressCut => 3283,
-            Self::NeedsSaw => 3284,
-            Self::NeedsRecommended => 3285,
-            Self::NeedsReply => 3286,
-            Self::NeedsLater => 3287,
-            Self::NeedsNext => 3288,
-            Self::NeedsLast => 3289,
-            Self::NeedsAnswered => 3290,
-            Self::NeedsDone => 3291,
-            Self::NeedsFunds => 3292,
-            Self::NeedsFundsUsed => 3294,
-            Self::NeedsRelease => 3295,
-            Self::NeedsKindFunds => 3293,
-            Self::HomeTwo => 3296,
-            Self::HomeThree => 3297,
-            Self::HomeFour => 3298,
-            Self::HomeFive => 3299,
-            Self::HomeSix => 3300,
-            Self::HomeSeven => 3301,
-            Self::HomeEight => 3302,
-            Self::HomeNine => 3303,
-            Self::HomeAnswerMany => 3304,
+            Self::NeedsLaterMeta => 3305,
+            Self::NeedsYourReply => 3306,
+            Self::NeedsPlaceholder => 3307,
+            Self::NeedsSendReply => 3308,
+            Self::NeedsProgress => 3309,
+            Self::NeedsProgressCut => 3310,
+            Self::NeedsSaw => 3311,
+            Self::NeedsRecommended => 3312,
+            Self::NeedsReply => 3313,
+            Self::NeedsLater => 3314,
+            Self::NeedsNext => 3315,
+            Self::NeedsLast => 3316,
+            Self::NeedsAnswered => 3317,
+            Self::NeedsDone => 3318,
+            Self::NeedsFunds => 3319,
+            Self::NeedsFundsUsed => 3320,
+            Self::NeedsRelease => 3321,
+            Self::NeedsKindFunds => 3322,
+            Self::HomeTwo => 3323,
+            Self::HomeThree => 3324,
+            Self::HomeFour => 3325,
+            Self::HomeFive => 3326,
+            Self::HomeSix => 3327,
+            Self::HomeSeven => 3328,
+            Self::HomeEight => 3329,
+            Self::HomeNine => 3330,
+            Self::HomeAnswerMany => 3331,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
             Self::HomeNeedsMany => 3147,
@@ -2080,11 +2113,11 @@ impl Word {
             Self::BrandHome => 3080,
             Self::RailHome => 3081,
             Self::NeedsYouCount => 3083,
-            Self::NeedsYouCountCut => 3086,
-            Self::ToastAnswered => 3087,
-            Self::ToastLater => 3088,
-            Self::ToastUndo => 3089,
-            Self::AnsweredReply => 3090,
+            Self::NeedsYouCountCut => 3332,
+            Self::ToastAnswered => 3333,
+            Self::ToastLater => 3334,
+            Self::ToastUndo => 3335,
+            Self::AnsweredReply => 3336,
             Self::RailSettings => 3084,
             Self::Sections => 3085,
 
@@ -2410,6 +2443,12 @@ impl Word {
             Self::SignInNotReady => 1909,
             Self::OutOfDateMain => 183,
             Self::ChangeModel => 1067,
+            Self::BylineTask => 1505,
+            Self::BylineModel => 1500,
+            Self::BylineKey => 1501,
+            Self::BylinePlan => 1502,
+            Self::BylineProgram => 1503,
+            Self::BylinePlayground => 1504,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
             Self::UsingKey => 1070,
@@ -2488,12 +2527,12 @@ impl Word {
             Self::Stop => 148,
             Self::Older => 149,
             Self::FirstChat => 2183,
-            Self::ChatsKicker => 3305,
-            Self::ChatsHeadlineIn => 3306,
-            Self::ChatsHeadline => 3307,
-            Self::ChatsLede => 3308,
-            Self::ChatsNoRepositoryLine => 3309,
-            Self::ChatsNone => 3310,
+            Self::ChatsKicker => 3337,
+            Self::ChatsHeadlineIn => 3338,
+            Self::ChatsHeadline => 3339,
+            Self::ChatsLede => 3340,
+            Self::ChatsNoRepositoryLine => 3341,
+            Self::ChatsNone => 3342,
             Self::YourChats => 347,
             Self::AllChats => 348,
             Self::NoChats => 349,
@@ -2513,6 +2552,7 @@ impl Word {
             Self::RejectProposal => 1405,
             Self::ChatDelegates => 145,
             Self::ChatSendHint => 186,
+            Self::ChatWorking => 3287,
             Self::ConnectForge => 275,
             Self::ChatTitle => 276,
             Self::PlaygroundModelName => 277,
@@ -2523,9 +2563,9 @@ impl Word {
             Self::SignedProjectOwner => 284,
             Self::SignedName => 285,
             Self::NewChat => 286,
-            Self::NewChatIn => 3311,
-            Self::NewChatNoRepository => 3312,
-            Self::NewChatWords => 3313,
+            Self::NewChatIn => 3343,
+            Self::NewChatNoRepository => 3344,
+            Self::NewChatWords => 3345,
             Self::ProjectPane => 2192,
             Self::WelcomeContinue => 2194,
             Self::WelcomeModelPlan => 2195,
@@ -2544,6 +2584,13 @@ impl Word {
 
             Self::SuggestedRequests => 192,
             // 194 is DeadlineMoment; 200..=267 and 280..=281 are card words.
+            Self::DelegationOpen => 2300,
+            Self::DelegationLineChange => 2301,
+            Self::DelegationLineGoal => 2302,
+            Self::DelegationLineReport => 2303,
+            Self::DelegationLineVerdict => 2304,
+            Self::DelegationLineJob => 2305,
+            Self::DelegationLineApproval => 2306,
             Self::DelegationChange => 195,
             Self::DelegationReport => 196,
             Self::DelegationVerdict => 197,
@@ -2854,18 +2901,37 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     {
         return Ok(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES);
     }
+    if word == Word::BylineTask && kind == HoleKind::Name {
+        return byline_bytes(joined);
+    }
     let model_name = joined.min(crate::choice::MODEL_SHOWN);
     if word == Word::ModelEffort {
         return Ok(model_name);
     }
     if last
-        && [Word::UsingModel, Word::UsingKey, Word::UsingPlan, Word::UsingProgram, Word::ModelNeedsAccount]
-            .contains(&word)
+        && [
+            Word::UsingModel,
+            Word::UsingKey,
+            Word::UsingPlan,
+            Word::UsingProgram,
+            Word::ModelNeedsAccount,
+            Word::BylineModel,
+            Word::BylineKey,
+            Word::BylinePlan,
+            Word::BylineProgram,
+        ]
+        .contains(&word)
     {
         let doubled = model_name.checked_mul(2).ok_or(Invalid::Overflow)?;
         return doubled.checked_add(3).ok_or(Invalid::Overflow);
     }
     Ok(if kind == HoleKind::Name { joined } else { 0 })
+}
+// Provider words, bounded program/model/effort names, and their literals.
+fn byline_bytes(joined: u32) -> Result<u32, Invalid> {
+    let bounded = joined.min(crate::choice::MODEL_SHOWN).checked_mul(3).ok_or(Invalid::Overflow)?;
+    let names = joined.checked_add(bounded).ok_or(Invalid::Overflow)?;
+    names.checked_add(128).ok_or(Invalid::Overflow)
 }
 fn english_language(
     connector: u16,
@@ -2989,10 +3055,10 @@ impl Words {
             // New chat adds 157 and the configuring opening 476 literal bytes (client/README.md, 3.5).
             // Changes adds 367 literal bytes (client/README.md, 3.5).
             // Chats adds 141 net literal bytes (client/README.md, 3.5).
-            // Goal rows, ways and the page add 674 literal bytes (client/README.md, 3.5).
             text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 476 + 157 + 141 + 419 + 250 + 5 + 87 + 225 + 15 + 54 + 53,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
+                .max(byline_bytes(joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
                 .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
@@ -3530,6 +3596,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBack => (&[b"\xe2\x80\xb9 Back"], &[]),
         Word::WelcomePlaygroundInstead => (&[b"Try the playground instead"], &[]),
 
+        Word::DelegationOpen => (&[b"Open"], &[]),
+        Word::DelegationLineChange => (&[b"Change"], &[]),
+        Word::DelegationLineGoal => (&[b"Started goal"], &[]),
+        Word::DelegationLineReport => (&[b"report"], &[]),
+        Word::DelegationLineVerdict => (&[b"verdict"], &[]),
+        Word::DelegationLineJob => (&[b"job"], &[]),
+        Word::DelegationLineApproval => (&[b"approval"], &[]),
         Word::DelegationChange => (&[b"T", b" \xc2\xb7 CHANGE"], &[Number]),
         Word::DelegationReport => (&[b"T", b" \xc2\xb7 REPORT"], &[Number]),
         Word::DelegationVerdict => (&[b"T", b" \xc2\xb7 VERDICT"], &[Number]),
@@ -3567,6 +3640,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BudgetDeadlineDate => (&[b"", b""], &[HoleKind::Date]),
         Word::BudgetDeadlineMoment => (&[b"", b" UTC"], &[HoleKind::Moment]),
         Word::ChangeModel => (&[b"Change model"], &[]),
+        Word::BylineTask => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
+        Word::BylineModel => (&[b"", b""], &[Name]),
+        Word::BylineKey => (&[b"", b" API key \xc2\xb7 ", b""], &[Name, Name]),
+        Word::BylinePlan => (&[b"", b" plan \xc2\xb7 ", b""], &[Name, Name]),
+        Word::BylineProgram => (&[b"your ", b" subscription, through ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
+        Word::BylinePlayground => (&[b"Scripted model \xc2\xb7 ", b""], &[Name]),
         Word::UsingModel => (&[b"Using ", b""], &[Name]),
         Word::UsingDefault => (&[b"Using the default model"], &[]),
         Word::UsingKey => (&[b"Using your ", b" API key \xc2\xb7 ", b""], &[Name, Name]),
@@ -3764,6 +3843,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ProposalInbox => (&[b"Open in inbox \xe2\x86\x97"], &[]),
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
         Word::ChoiceProvider => (&[b"", b""], &[Name]),
+        Word::ChatWorking => (&[b"Writing"], &[]),
         Word::ChatSendHint => (&[b"Enter sends \xc2\xb7 Shift+Enter for a new line"], &[]),
         Word::ConnectForge => (&[b"Connect a forge"], &[]),
         Word::ChatTitle => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
