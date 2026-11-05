@@ -283,10 +283,9 @@ fn a_refused_or_failed_result_seen_is_resent_on_the_next_follow() {
 }
 #[test]
 fn going_to_a_results_task_from_another_page_sends_no_seen() {
-    for address in [
-        crate::Address::Chats { filter: crate::ChatsFilter::All, start: false },
-        crate::Address::Home { project: PROJECT },
-    ] {
+    for address in
+        [crate::Address::Chats { filter: crate::ChatsFilter::All }, crate::Address::Home { project: PROJECT }]
+    {
         let mut pages = result_pages();
         shown(&mut fixtures::acts::act(
             &mut pages,

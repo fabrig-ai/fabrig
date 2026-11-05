@@ -13,7 +13,7 @@ use temper_client_protocol_wire::v1 as w;
 const HERE: u16 = 3;
 fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
     let limits = f::limits();
-    let (frame, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, &limits);
+    let (frame, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All }, &limits);
     let me = frame.pages().me(frame.client()).unwrap().clone();
     let mut root = d::unlinked(&limits, f::SEED);
     let mut out = skein_lib::Queue::uncapped();
@@ -593,7 +593,7 @@ fn the_welcome_tagline_and_lead_are_named_and_emphasize_what_and_how() {
 }
 #[test]
 fn the_welcome_shows_its_heading_alone_until_it_decides() {
-    let (mut root, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, &f::limits());
+    let (mut root, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All }, &f::limits());
     f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) });
     assert!(!root.pages().welcome().unwrap().decided);
     let view = f::page_view(&root);
@@ -1474,7 +1474,7 @@ fn an_unfinished_store_opens_at_its_step() {
 fn a_whole_store_moves_on() {
     let mut root = ready_root(owned_adopted_rows());
     assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Whole));
-    assert_eq!(first_run_destination(&mut root), Address::Chats { filter: ChatsFilter::All, start: false });
+    assert_eq!(first_run_destination(&mut root), Address::Chats { filter: ChatsFilter::All });
 }
 
 #[test]

@@ -69,11 +69,7 @@ fn forge_commands_compose_the_recorded_kind_with_the_machine() {
     use temper_forge_setup::setup::Mode;
     let scratch = skein_scratch::Scratch::new("forge-kind-entry");
     let directories = super::configuration::directories(scratch.path());
-    let bytes = serde_json::to_vec(&serde_json::json!({"application":{"machine":{"owned":{
-        "listen":{"socket":"127.0.0.1:8372"},"remote":"http://127.0.0.1:8372",
-        "person":{"login":"ada","email":"ada@example.invalid"},"forgejo":"fetched","runner":null
-    }, "fake":{"listen":{"socket":"127.0.0.1:8369"},"remote":"http://127.0.0.1:8369","git":"demo/bin/git"}}}}))
-    .expect("machine JSON");
+    let bytes = forge_machine();
     let groups = scratch.path().join("box/groups");
     fs::create_dir_all(&groups).expect("groups");
     for (kind, directory) in [("owned", "forge-17"), ("fake", "playground-17")] {
@@ -96,4 +92,83 @@ fn forge_commands_compose_the_recorded_kind_with_the_machine() {
     }
     fs::write(groups.join("17"), b"unknown\n").expect("invalid group");
     assert!(crate::forge::entry(&directories, &bytes, 17).is_err());
+}
+
+fn forge_machine() -> Vec<u8> {
+    serde_json::to_vec(&serde_json::json!({"application":{"machine":{"owned":{
+        "listen":{"socket":"127.0.0.1:8372"},"remote":"http://127.0.0.1:8372",
+        "person":{"login":"ada","email":"ada@example.invalid"},"forgejo":"fetched","runner":null
+    }, "fake":{"listen":{"socket":"127.0.0.1:8369"},"remote":"http://127.0.0.1:8369","git":"demo/bin/git"}}}}))
+    .expect("machine JSON")
+}
+
+#[test]
+fn a_forge_with_no_group_file_is_the_machines_owned() {
+    use temper_forge_setup::setup::Mode;
+    let scratch = skein_scratch::Scratch::new("forge-no-group-entry");
+    let directories = super::configuration::directories(scratch.path());
+    let entry = crate::forge::entry(&directories, &forge_machine(), 17).expect("machine's owned entry");
+    assert_eq!(entry.forge, 17);
+    assert_eq!(entry.directory.as_ref(), scratch.path().join("forge-17").as_os_str().as_encoded_bytes());
+    let Mode::Owned(owned) = entry.mode else { panic!("the machine's owned part") };
+    assert_eq!(owned.listen.port(), 8372);
+    assert!(owned.fetch.forgejo);
+    assert!(!scratch.path().join("box").exists());
+}
+
+#[test]
+fn no_group_file_and_no_owned_part_is_refused_naming_both() {
+    let scratch = skein_scratch::Scratch::new("forge-no-owned-entry");
+    let directories = super::configuration::directories(scratch.path());
+    let document = super::configuration::check_document(scratch.path());
+    fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("document"))
+        .expect("configuration");
+    for (verb, arguments) in [
+        ("fetch", vec!["fetch".into(), "17".into()]),
+        ("prepare", vec!["prepare".into(), "17".into()]),
+        ("run", vec!["run".into(), "17".into(), "forgejo".into()]),
+    ] {
+        let refused = crate::forge::start(&directories, &arguments, None).expect_err("no owned part");
+        assert_eq!(
+            refused.line(),
+            format!(
+                "temper forge {verb}: forge 17: {}: absent, and application.machine names no owned Forgejo\n",
+                scratch.path().join("box/groups/17").display()
+            )
+        );
+    }
+    assert!(!scratch.path().join("box").exists());
+}
+
+#[test]
+fn remove_refuses_a_forge_with_no_group_file() {
+    let scratch = skein_scratch::Scratch::new("forge-no-group-remove");
+    let mut directories = super::configuration::directories(scratch.path());
+    directories.cache = scratch.path().join("cache").as_os_str().as_encoded_bytes().into();
+    let forge = scratch.path().join("forge-17");
+    fs::create_dir(&forge).expect("forge directory");
+    fs::write(forge.join("kept"), b"kept").expect("forge file");
+    let refused = crate::forge::start(&directories, &["remove".into(), "17".into()], None).expect_err("no kind");
+    assert_eq!(
+        refused.line(),
+        format!("temper forge remove: forge 17: {}: absent\n", scratch.path().join("box/groups/17").display())
+    );
+    assert_eq!(fs::read(forge.join("kept")).expect("forge kept"), b"kept");
+    assert!(!scratch.path().join("box").exists());
+}
+
+#[test]
+fn unreadable_group_files_keep_their_refusals() {
+    let scratch = skein_scratch::Scratch::new("forge-unreadable-group");
+    let directories = super::configuration::directories(scratch.path());
+    let groups = scratch.path().join("box/groups");
+    fs::create_dir_all(groups.join("17")).expect("group is a directory");
+    std::os::unix::fs::symlink(groups.join("absent"), groups.join("18")).expect("dangling group link");
+    let bytes = forge_machine();
+    for (number, reason) in [(17, "not a file"), (18, "absent")] {
+        assert_eq!(
+            crate::forge::entry(&directories, &bytes, number),
+            Err(format!("{}: {reason}", groups.join(number.to_string()).display()))
+        );
+    }
 }

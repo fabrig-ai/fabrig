@@ -297,7 +297,8 @@ pub fn facts(root: &Domain, project: u32) -> Facts {
     };
     Facts { configured, repository, chat_asked, needs, delivered, skip, skip_refused, status }
 }
-fn repository(root: &Domain, project: u32) -> Repository {
+#[must_use]
+pub fn repository(root: &Domain, project: u32) -> Repository {
     use forge::listed::Held;
     match forge::listed::held(root.forges(), root.forge().playground(), project) {
         Held::One { owner, name } | Held::Several { owner, name, .. } => {
@@ -359,7 +360,8 @@ pub(super) fn delivered(client: &Client, handle: Handle) -> bool {
 pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<crate::Request>) {
     let project = match root.pages.address() {
         crate::Address::Home { project } => *project,
-        crate::Address::Inbox { .. }
+        crate::Address::NewChat
+        | crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
         | crate::Address::Accounts
         | crate::Address::Forges

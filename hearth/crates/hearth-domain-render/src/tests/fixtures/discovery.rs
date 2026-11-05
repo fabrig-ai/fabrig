@@ -180,7 +180,7 @@ pub fn container_documents(on: &[u8]) -> crate::revision::Documents {
     for (path, target) in [
         (b"hosts/stoa/stoa-lab.json".as_slice(), on),
         (b"hosts/chat/chat-lab.json", b"stoa-lab"),
-        (b"hosts/rhi/rhi-prod.json", b""),
+        (b"hosts/east/east-prod.json", b""),
         (b"hosts/vm/vm-lab.json", b""),
     ] {
         documents = with_document(

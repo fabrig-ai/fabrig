@@ -42,6 +42,7 @@ pub enum Said<'a> {
 pub struct Facts<'a> {
     pub task: u64,
     pub kind: Kind,
+    pub goal: bool,
     pub state: State,
     pub title: &'a [u8],
     pub said: Option<Said<'a>>,
@@ -112,6 +113,13 @@ pub fn facts(task: &c::Task) -> Facts<'_> {
     Facts {
         task: task.chip.task,
         kind,
+        goal: match &task.chip.executor {
+            c::ChipExecutor::Agent { .. } => task.priority.is_some(),
+            c::ChipExecutor::Procedure { .. }
+            | c::ChipExecutor::Job { .. }
+            | c::ChipExecutor::Party { .. }
+            | c::ChipExecutor::Role { .. } => false,
+        },
         state,
         title: task.chip.title.bytes(),
         said,

@@ -260,8 +260,11 @@ impl Builder {
         if state == State::Completed {
             assert!(self.node().role == Role::Item, "completed belongs to items");
         }
+        if state == State::FoldsAway {
+            assert!(self.node().role == Role::Disclosure, "folds away belongs to disclosures");
+        }
         if !self.node().states.as_slice().contains(&state) {
-            self.node_mut().states.push(state).expect("ten closed states fit");
+            self.node_mut().states.push(state).expect("states fit the node capacity");
         }
     }
 

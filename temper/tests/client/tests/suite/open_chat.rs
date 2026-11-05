@@ -26,9 +26,11 @@ fn start_chat(world: &mut Pages) -> (ClientId, Vec<Step<Address>>) {
     world.front().reply_runs = true;
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     let steps = vec![
-        see(Find::named(Role::TextArea, b"Start a chat")),
-        Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: QUESTION.into() },
-        Step::Send { find: Find::named(Role::TextArea, b"Start a chat") },
+        Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
+        see(Find::named(Role::TextArea, b"What do you want done?")),
+        Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: QUESTION.into() },
+        Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
     ];
     (person, steps)
 }
@@ -54,7 +56,7 @@ fn an_open_chat_stays_live_takes_a_second_message_and_is_closed() {
         see(Find::text(b"Closed 00:00")),
         Step::Gone { find: Find::named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Chats") },
-        see(Find::named(Role::Heading { level: 1 }, b"Chats")),
+        see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
         see(Find::text(QUESTION)),
         see(Find::text(b"Closed").within(Box::new([skein_fake_person::Target::ExactRole {
             role: Role::List,

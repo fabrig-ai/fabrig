@@ -985,7 +985,7 @@ and L2):
 │       ├── index                           the store's generation; each name's value file, digest, size
 │       └── <name>@<generation>             one value per file, 0600
 └── containers/ [M5]
-    └── chat-prod                           on rhi-prod: the container's default slot, its id base,
+    └── chat-prod                           on east-prod: the container's default slot, its id base,
                                             and a live-blessed slot's "next start is its trial" (domain/slots.md, 12.8)
 ```
 

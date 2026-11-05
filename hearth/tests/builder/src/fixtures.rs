@@ -183,7 +183,7 @@ pub const LAYERS: &[File] = &[
     File { path: "hosts/x2/x2.json", body: b"{}", mode: 0o644 },
     File {
         path: "hosts/x2/x2-prod.json",
-        body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos"}}"#,
+        body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-b"}}"#,
         mode: 0o644,
     },
     File { path: "tasks/issue/task.json", body: b"{}", mode: 0o644 },
@@ -234,10 +234,10 @@ pub const MOTD: &[File] = &[
     reserved::FLEET_JSON,
     reserved::PROD_ENV,
     reserved::LAB_ENV,
-    File { path: "hosts/ion/ion.json", body: b"{}", mode: 0o644 },
+    File { path: "hosts/west/west.json", body: b"{}", mode: 0o644 },
     File { path: "hosts/x1/x1.json", body: b"{}", mode: 0o644 },
     File {
-        path: "hosts/ion/ion-prod.json",
+        path: "hosts/west/west-prod.json",
         body: b"{\"placement\":{\"kind\":\"metal\",\"firmware\":\"efi\",\"hardware\":\"7th-gen\"},\"motd\":{}}",
         mode: 0o644,
     },
@@ -246,12 +246,12 @@ pub const MOTD: &[File] = &[
         body: b"{\"placement\":{\"kind\":\"metal\",\"firmware\":\"efi\",\"hardware\":\"7th-gen\"},\"motd\":{}}",
         mode: 0o644,
     },
-    File { path: "hosts/ion/ion-lab.json", body: reserved::METAL_EFI, mode: 0o644 },
+    File { path: "hosts/west/west-lab.json", body: reserved::METAL_EFI, mode: 0o644 },
     File { path: "hosts/x1/x1-lab.json", body: reserved::METAL_EFI, mode: 0o644 },
     File { path: "tasks/motd/task.json", body: b"{}", mode: 0o644 },
     File { path: "tasks/motd/tree/etc/motd", body: b"Welcome.\n", mode: 0o644 },
 ];
-pub const BAD_ION_LAB: File = File { path: "hosts/ion/ion-lab.json", body: b"not JSON", mode: 0o644 };
+pub const BAD_WEST_LAB: File = File { path: "hosts/west/west-lab.json", body: b"not JSON", mode: 0o644 };
 pub const BAD_X1_LAB: File = File { path: "hosts/x1/x1-lab.json", body: b"not JSON", mode: 0o644 };
 pub const FIXED_X1_LAB: File = File { path: "hosts/x1/x1-lab.json", body: reserved::METAL_EFI, mode: 0o644 };
 
@@ -639,17 +639,17 @@ pub const CONTAINERS: &[File] = &[
     reserved::FLEET_JSON,
     reserved::PROD_ENV,
     reserved::LAB_ENV,
-    File { path: "hosts/rhi/rhi.json", body: b"{}", mode: 0o644 },
+    File { path: "hosts/east/east.json", body: b"{}", mode: 0o644 },
     File {
-        path: "hosts/rhi/rhi-prod.json",
-        body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"serverhino"}}"#,
+        path: "hosts/east/east-prod.json",
+        body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-a"}}"#,
         mode: 0o644,
     },
-    File { path: "hosts/rhi/rhi-lab.json", body: reserved::INCUS, mode: 0o644 },
+    File { path: "hosts/east/east-lab.json", body: reserved::INCUS, mode: 0o644 },
     File { path: "hosts/chat/chat.json", body: b"{}", mode: 0o644 },
     File {
         path: "hosts/chat/chat-prod.json",
-        body: br#"{"placement": {"kind": "container", "on": "rhi-lab"}}"#,
+        body: br#"{"placement": {"kind": "container", "on": "east-lab"}}"#,
         mode: 0o644,
     },
 ];
@@ -709,13 +709,13 @@ pub const TYPO_BRANCH: &[File] = &[
 pub const CONTAINED: &[File] = &[
     reserved::PROD_ENV,
     reserved::LAB_ENV,
-    File { path: "hosts/rhi/rhi.json", body: br#"{"inventory":{}}"#, mode: 0o644 },
-    File { path: "hosts/rhi/rhi-prod.json", body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"serverhino"}}"#, mode: 0o644 },
-    File { path: "hosts/rhi/rhi-lab.json", body: reserved::INCUS, mode: 0o644 },
+    File { path: "hosts/east/east.json", body: br#"{"inventory":{}}"#, mode: 0o644 },
+    File { path: "hosts/east/east-prod.json", body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-a"}}"#, mode: 0o644 },
+    File { path: "hosts/east/east-lab.json", body: reserved::INCUS, mode: 0o644 },
     File { path: "hosts/chat/chat.json", body: br#"{"inventory":{}}"#, mode: 0o644 },
-    File { path: "hosts/chat/chat-prod.json", body: br#"{"placement":{"kind":"container","on":"rhi-prod"}}"#, mode: 0o644 },
-    File { path: "hosts/mail/mail-prod.json", body: br#"{"placement":{"kind":"container","on":"rhi-prod"}}"#, mode: 0o644 },
-    File { path: "hosts/mail/mail-lab.json", body: br#"{"placement":{"kind":"container","on":"rhi-lab"}}"#, mode: 0o644 },
+    File { path: "hosts/chat/chat-prod.json", body: br#"{"placement":{"kind":"container","on":"east-prod"}}"#, mode: 0o644 },
+    File { path: "hosts/mail/mail-prod.json", body: br#"{"placement":{"kind":"container","on":"east-prod"}}"#, mode: 0o644 },
+    File { path: "hosts/mail/mail-lab.json", body: br#"{"placement":{"kind":"container","on":"east-lab"}}"#, mode: 0o644 },
     File { path: "tasks/inventory/task.json", body: b"{}", mode: 0o644 },
     File { path: "tasks/inventory/tree/etc/containers.j2", body: b"{% for name, placement in target.containers | items %}{{ name }}={{ placement.kind }}@{{ placement.on }};{% endfor +%}\n", mode: 0o644 },
 ];
@@ -723,7 +723,7 @@ pub const CONTAINED: &[File] = &[
 #[must_use]
 pub fn contained() -> Rendered {
     let repository = Repository::make("contained", &thin_with(CONTAINED));
-    render(&repository, &[b"chat-prod", b"rhi-lab", b"rhi-prod"], Form::Text)
+    render(&repository, &[b"chat-prod", b"east-lab", b"east-prod"], Form::Text)
 }
 
 pub const DEBIAN_LAYERS: &[File] = &[

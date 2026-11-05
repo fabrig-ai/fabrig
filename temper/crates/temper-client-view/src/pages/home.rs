@@ -437,11 +437,7 @@ fn chats(
         let word = if cut || live_cut { Word::HomeAllChatsCut } else { Word::HomeAllChats };
         let label = w.say(word, &[Hole::Number(u64::try_from(count).expect("chat count fits"))]);
         let name = w.say(Word::HomeAllChatsName, &[Hole::Name(label.clone())]);
-        crate::link(
-            b,
-            &name,
-            bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } }),
-        );
+        crate::link(b, &name, bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }));
         b.text(Run::Plain, &label);
         b.close();
     }
@@ -643,7 +639,7 @@ fn to_begin(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, n
     );
     if !facts.chat_asked {
         acts(b);
-        go(b, bindings, &w.say(Word::HomeNewChat, &[]), Address::Chats { filter: ChatsFilter::All, start: true }, None);
+        go(b, bindings, &w.say(Word::HomeNewChat, &[]), Address::NewChat, None);
         b.close();
     }
     b.close();
@@ -754,11 +750,7 @@ fn page(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, proj
         w.text(b, Word::ProjectNotYours, &[Hole::Number(u64::from(project))]);
         b.close();
         let chats = w.say(Word::Chats, &[]);
-        crate::link(
-            b,
-            &chats,
-            bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } }),
-        );
+        crate::link(b, &chats, bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }));
         b.text(Run::Plain, &chats);
         b.close();
     } else if settings {
