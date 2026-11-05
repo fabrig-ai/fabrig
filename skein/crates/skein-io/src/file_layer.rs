@@ -21,11 +21,12 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::mem;
-use skein_lib::{Duration, Map, Queue, Time, Token};
+use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
 
 mod directory;
 mod opens;
 mod private;
+pub mod step;
 mod store;
 
 /// The file-operation lane, below a service's namespace tags (io.md, 5; lib.md, 4).
@@ -249,6 +250,22 @@ struct Opened {
     private_owner: Option<u32>,
 }
 
+/// File admission and transfer bounds (skein/docs/design/io.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Limits {
+    pub files: u32,
+    pub read: u32,
+    pub entries: u32,
+    pub whole: u32,
+    pub timeout: Duration,
+}
+
+/// Whether every file limit has room (programming-model.md, 6.3).
+#[must_use]
+pub fn valid(limits: &Limits) -> bool {
+    limits.files > 0 && limits.read > 0 && limits.entries > 0 && limits.whole > 0 && limits.timeout.as_nanos() > 0
+}
+
 /// A bounded file driver with one terminal per owner request (io.md, section 5).
 #[derive(Debug)]
 pub struct FileIo {
@@ -258,10 +275,7 @@ pub struct FileIo {
     next_op: u64,
     work: Work,
     cancelling: Cancelling,
-    max_read: u32,
-    max_file: u32,
-    max_entries: u32,
-    timeout: Duration,
+    limits: Limits,
     random: Option<u64>,
 }
 
@@ -271,24 +285,23 @@ impl FileIo {
         Self::with_whole_limit(files, max_read, max_entries, max_read, timeout)
     }
 
-    /// Creates a driver with a separate whole-file bound above its read chunk.
+    /// Creates a driver with separate whole-file and read-chunk bounds.
     #[must_use]
     pub fn with_whole_limit(files: u32, max_read: u32, max_entries: u32, max_file: u32, timeout: Duration) -> FileIo {
-        assert!(
-            files > 0 && max_read > 0 && max_entries > 0 && max_file > 0 && timeout.as_nanos() > 0,
-            "file limits need room"
-        );
+        Self::with_limits(&Limits { files, read: max_read, entries: max_entries, whole: max_file, timeout })
+    }
+
+    #[must_use]
+    pub fn with_limits(limits: &Limits) -> FileIo {
+        assert!(valid(limits), "file limits need room");
         FileIo {
-            files: Map::with_capacity(files),
+            files: Map::with_capacity(limits.files),
             effective_user: None,
             next_file: 1,
             next_op: 1,
             work: Work::Idle,
             cancelling: Cancelling::Quiet,
-            max_read,
-            max_file,
-            max_entries,
-            timeout,
+            limits: *limits,
             random: None,
         }
     }
@@ -404,7 +417,8 @@ fn list(io: &mut FileIo, pending: Pending, fd: Fd, subs: &mut Queue<Submit>) -> 
 
 /// One file request, only while `FileIo::takes` is true.
 pub fn down(io: &mut FileIo, now: Time, request: Request, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    down_until(io, now.saturating_add(io.timeout), request, events, subs);
+    let env = Env { now, wall: Wall::EPOCH, limits: io.limits };
+    step::down(io, &env, request, events, subs);
 }
 
 /// Starts one request with the owner's absolute deadline.
@@ -415,13 +429,18 @@ pub fn down_until(
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
 ) {
-    assert!(io.takes(), "a file request completes before the next begins");
-    io.work = down_inner(io, request, events, subs);
-    follow_work(io, Some(deadline));
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io.limits };
+    step::down_until(io, &env, deadline, request, events, subs);
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive request match keeps file admission in one place")]
-fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs: &mut Queue<Submit>) -> Work {
+fn down_inner(
+    io: &mut FileIo,
+    env: &Env<Limits>,
+    request: Request,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
     match request {
         Request::Lock { owner, root } => directory::lock(io, owner, root, events, subs),
         Request::MakeDirectory { owner, root, path, mode } => {
@@ -461,7 +480,7 @@ fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs
                 events.push(Event::failed(owner, Error::NotFound));
                 return Work::Idle;
             };
-            if max > io.max_file || path.contains(&0) || path.len() >= 4096 {
+            if max > env.limits.whole || path.contains(&0) || path.len() >= 4096 {
                 events.push(Event::failed(owner, Error::InvalidArgument));
                 return Work::Idle;
             }
@@ -478,7 +497,7 @@ fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs
                 events.push(Event::failed(owner, Error::NotFound));
                 return Work::Idle;
             };
-            if max > io.max_entries || path.contains(&0) || path.len() >= 4096 {
+            if max > env.limits.entries || path.contains(&0) || path.len() >= 4096 {
                 events.push(Event::failed(owner, Error::InvalidArgument));
                 return Work::Idle;
             }
@@ -486,7 +505,7 @@ fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs
             issue(io, Pending::ScanOpening { owner, max, max_bytes }, Op::Open { root: fd, path, how }, subs)
         }
         Request::Store { owner, root, path, bytes, expected, no_follow } => {
-            store::start(io, owner, root, path, bytes, expected, no_follow, events, subs)
+            store::start(io, env, owner, root, path, bytes, expected, no_follow, events, subs)
         }
         Request::Stat { owner, file } => {
             let Some(fd) = io.file(file) else {
@@ -515,7 +534,7 @@ fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs
                 events.push(Event::failed(owner, Error::NotFound));
                 return Work::Idle;
             };
-            if max == 0 || max > io.max_read {
+            if max == 0 || max > env.limits.read {
                 events.push(Event::failed(owner, Error::InvalidArgument));
                 return Work::Idle;
             }
@@ -560,7 +579,7 @@ fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs
             }
             issue(io, Pending::Remove(owner), Op::Remove { dir: root, name, directory }, subs)
         }
-        Request::ListPage { owner, directory, max } => directory::page(io, owner, directory, max, events, subs),
+        Request::ListPage { owner, directory, max } => directory::page(io, env, owner, directory, max, events, subs),
         Request::List { owner, root } => issue(
             io,
             Pending::ListOpening(owner),
@@ -594,10 +613,18 @@ fn create(
     issue(io, Pending::Create(owner), Op::Open { root, path: name, how }, subs)
 }
 
-fn read_whole(io: &mut FileIo, owner: Token, fd: Fd, max: u32, bytes: Contents, subs: &mut Queue<Submit>) -> Work {
+fn read_whole(
+    io: &mut FileIo,
+    env: &Env<Limits>,
+    owner: Token,
+    fd: Fd,
+    max: u32,
+    bytes: Contents,
+    subs: &mut Queue<Submit>,
+) -> Work {
     let used = u32::try_from(bytes.0.len()).expect("whole load stays within its u32 bound");
     let left = max.checked_sub(used).expect("whole load stays within its bound");
-    let asked = io.max_read.min(left.saturating_add(1));
+    let asked = env.limits.read.min(left.saturating_add(1));
     let buffer = vec![0_u8; usize::try_from(asked).expect("u32 fits usize")].into_boxed_slice();
     let offset = u64::from(used);
     let op = Op::read(fd, buffer, offset).expect("a positive bounded whole-file read");
@@ -607,20 +634,8 @@ fn read_whole(io: &mut FileIo, owner: Token, fd: Fd, max: u32, bytes: Contents, 
 /// Cancels the outstanding kernel operation after its request deadline. The
 /// terminal failure is emitted when the target has settled, exactly once.
 pub fn expire(io: &mut FileIo, now: Time, subs: &mut Queue<Submit>) {
-    if !io.is_due(now) {
-        return;
-    }
-    let work = mem::replace(&mut io.work, Work::Idle);
-    io.work = match work {
-        Work::Active { pending, op, deadline: Some(deadline), stop: Stop::Running } if deadline <= now => {
-            Work::Active { pending, op, deadline: None, stop: Stop::Deadline }
-        }
-        other @ (Work::Idle | Work::Active { .. }) => {
-            io.work = other;
-            return;
-        }
-    };
-    follow_cancel(io, subs);
+    let env = Env { now, wall: Wall::EPOCH, limits: io.limits };
+    step::expire(io, &env, subs);
 }
 
 /// Requests cancellation of the active owner's file operation. The terminal
@@ -692,37 +707,8 @@ fn submit_cancel(io: &mut FileIo, target: Token, subs: &mut Queue<Submit>) -> Ca
 
 /// One kernel completion. It may submit the continuation of a short transfer.
 pub fn up(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    let cancelling = mem::replace(&mut io.cancelling, Cancelling::Quiet);
-    io.cancelling = match cancelling {
-        Cancelling::Asked { op, target } if op == complete.op => {
-            let same_target = match io.work {
-                Work::Idle => false,
-                Work::Active { op, .. } => op == target,
-            };
-            io.cancelling = if crate::layer::unsubmitted(complete.result) && same_target {
-                submit_cancel(io, target, subs)
-            } else {
-                Cancelling::Quiet
-            };
-            return;
-        }
-        other @ (Cancelling::Quiet | Cancelling::Asked { .. }) => other,
-    };
-    let work = mem::replace(&mut io.work, Work::Idle);
-    let (next, deadline) = match work {
-        Work::Idle => unreachable!("a completion has an active file request"),
-        Work::Active { pending, op, deadline, stop } => {
-            assert!(op == complete.op, "completion names the outstanding file operation");
-            let next = match stop {
-                Stop::Deadline => stopped(io, pending, complete, Error::TimedOut, events, subs),
-                Stop::Cancel => cancelled(io, pending, complete, events, subs),
-                Stop::Running => up_inner(io, pending, complete, events, subs),
-            };
-            (next, deadline)
-        }
-    };
-    io.work = next;
-    follow_work(io, deadline);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io.limits };
+    step::up(io, &env, complete, events, subs);
 }
 
 fn follow_work(io: &mut FileIo, deadline: Option<Time>) {
@@ -766,6 +752,7 @@ fn follow_work(io: &mut FileIo, deadline: Option<Time>) {
 
 fn cancelled(
     io: &mut FileIo,
+    env: &Env<Limits>,
     pending: Pending,
     complete: Complete,
     events: &mut Queue<Event>,
@@ -836,9 +823,9 @@ fn cancelled(
         Ok(_) | Err(_) => can_abandon,
     };
     if stop_won {
-        stopped(io, pending, complete, Error::Cancelled, events, subs)
+        stopped(io, env, pending, complete, Error::Cancelled, events, subs)
     } else {
-        up_inner(io, pending, complete, events, subs)
+        up_inner(io, env, pending, complete, events, subs)
     }
 }
 
@@ -894,6 +881,7 @@ fn read_finished(complete: &Complete, max: u32, prior: usize) -> bool {
 
 fn stopped(
     io: &mut FileIo,
+    env: &Env<Limits>,
     pending: Pending,
     complete: Complete,
     reason: Error,
@@ -912,7 +900,7 @@ fn stopped(
             return directory::locked(owner, complete, events);
         }
         direct @ (Pending::Stating(_) | Pending::Rename(_) | Pending::Remove(_)) => {
-            return up_inner(io, direct, complete, events, subs);
+            return up_inner(io, env, direct, complete, events, subs);
         }
         page @ Pending::Page { .. } => {
             return directory::answered(io, page, complete, Some(reason), events, subs);
@@ -1017,6 +1005,7 @@ fn retain_scan_entry(
 #[expect(clippy::too_many_lines, reason = "one exhaustive completion transition handles every file operation")]
 fn up_inner(
     io: &mut FileIo,
+    env: &Env<Limits>,
     pending: Pending,
     complete: Complete,
     events: &mut Queue<Event>,
@@ -1065,7 +1054,7 @@ fn up_inner(
             | Pending::ScanOpening { owner, .. }
             | Pending::ScanClosing { owner, .. } => owner,
             Pending::Private(opening) => return private::up(io, opening, complete, events, subs),
-            Pending::Store(store) => return store::up(io, store, complete, events, subs),
+            Pending::Store(store) => return store::up(io, env, store, complete, events, subs),
             Pending::Lock(owner) => return directory::locked(owner, complete, events),
             page @ Pending::Page { .. } => return directory::answered(io, page, complete, None, events, subs),
         };
@@ -1154,7 +1143,7 @@ fn up_inner(
                 return issue(io, Pending::LoadTooLargeClosing { owner, size: stat.size }, Op::Close { fd }, subs);
             }
             let capacity = usize::try_from(max).expect("u32 fits usize").checked_add(1).expect("one more byte fits");
-            return read_whole(io, owner, fd, max, Contents(Vec::with_capacity(capacity)), subs);
+            return read_whole(io, env, owner, fd, max, Contents(Vec::with_capacity(capacity)), subs);
         }
         Pending::LoadReading { owner, fd, max, mut bytes } => {
             let count = store::done_count(done);
@@ -1167,7 +1156,7 @@ fn up_inner(
             } else if count == 0 {
                 return issue(io, Pending::LoadClosing { owner, bytes }, Op::Close { fd }, subs);
             }
-            return read_whole(io, owner, fd, max, bytes, subs);
+            return read_whole(io, env, owner, fd, max, bytes, subs);
         }
         Pending::LoadClosing { owner, bytes } => {
             store::done_nothing(done);
@@ -1292,7 +1281,7 @@ fn up_inner(
                 let name = record.name(&names).expect("a listed entry names bytes");
                 entries.push(Entry { name: Box::from(name), kind: record.kind });
             }
-            if entries.len() > usize::try_from(io.max_entries).expect("u32 fits usize") {
+            if entries.len() > usize::try_from(env.limits.entries).expect("u32 fits usize") {
                 return issue(io, Pending::Cleanup { owner, error: Error::NoBufferSpace }, Op::Close { fd }, subs);
             }
             return list(io, Pending::List { owner, fd, entries }, fd, subs);
@@ -1304,7 +1293,9 @@ fn up_inner(
         Pending::Private(opening) => {
             return private::up(io, opening, Complete { result: Ok(done), ..complete }, events, subs);
         }
-        Pending::Store(store) => return store::up(io, store, Complete { result: Ok(done), ..complete }, events, subs),
+        Pending::Store(store) => {
+            return store::up(io, env, store, Complete { result: Ok(done), ..complete }, events, subs);
+        }
         Pending::Lock(owner) => return directory::locked(owner, Complete { result: Ok(done), ..complete }, events),
         page @ Pending::Page { .. } => {
             return directory::answered(io, page, Complete { result: Ok(done), ..complete }, None, events, subs);
