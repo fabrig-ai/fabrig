@@ -450,12 +450,22 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Err(answer) => return answer,
     };
     match event {
-        Event::ChangeSettings { reply_to, sign_in, key, digest, change } => {
-            settings::dispatch::start(core, env, work, reply_to, sign_in, key, digest, change)
-        }
-        Event::ProposeSettings { reply_to, sign_in, key, digest, change } => {
-            settings::dispatch::propose_start(core, env, work, reply_to, sign_in, key, digest, *change)
-        }
+        Event::ChangeSettings { reply_to, sign_in, key, digest, change } => settings::dispatch::start(
+            core,
+            env,
+            work,
+            party::dispatch::Signed { reply_to, sign_in, key },
+            digest,
+            change,
+        ),
+        Event::ProposeSettings { reply_to, sign_in, key, digest, change } => settings::dispatch::propose_start(
+            core,
+            env,
+            work,
+            party::dispatch::Signed { reply_to, sign_in, key },
+            digest,
+            *change,
+        ),
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
         Event::ProjectReleased { connector, project } => {
             crate::admission::deletion::released(core, env, connector, project)
@@ -467,14 +477,22 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::Stopping => stopping::start(core),
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
-            party::deployment_acts::start(core, env, work, reply_to, connector, key, act, carried)
+            party::deployment_acts::start(core, env, work, reply_to, people::ActKey { connector, key }, act, carried)
         }
         Event::Key { reply_to, sign_in, key, ask, carried } => {
-            party::key_routes::start(core, env, work, reply_to, sign_in, key, *ask, carried)
+            party::key_routes::start(core, env, work, party::dispatch::Signed { reply_to, sign_in, key }, *ask, carried)
         }
         Event::Application { reply_to, sign_in, key, scope, connector, digest, owner, carried } => {
             let input = application_routes::Input { connector, owner, carried: application_routes::number(carried) };
-            application_routes::start(core, env, work, reply_to, sign_in, key, scope, digest, input)
+            application_routes::start(
+                core,
+                env,
+                work,
+                party::dispatch::Signed { reply_to, sign_in, key },
+                scope,
+                digest,
+                input,
+            )
         }
         Event::ApplicationPart { request, ask } => application_routes::part(core, env, work, request, *ask),
         Event::ApplicationFinished { request, outcome } => {
@@ -487,7 +505,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::EffectStart { owner, connector, origin } => crate::effects::start(core, env, owner, connector, origin),
         Event::EffectConnector(event) => crate::effects::connector(core, env, work, event),
         Event::SubscribeTopic { to, key, connector, topic, resources } => {
-            effect::topics::subscribe(core, env, work, to, key, connector, topic, &resources)
+            effect::topics::subscribe(core, env, work, to, key, (connector, topic), &resources)
         }
         Event::EffectDeadline if !core.ready() => stopping::empty(),
         Event::EffectDeadline => crate::effects::deadline(core, env),

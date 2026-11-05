@@ -1,7 +1,13 @@
 //! Owned party routing values (domain/engine.md, section 4.4).
 use crate::{Request, admission::compound::PartyTask, routing::Work};
 use jig_domain_people as people;
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, ReplyTo, Token};
+
+pub(crate) struct Signed {
+    pub reply_to: ReplyTo,
+    pub sign_in: u64,
+    pub key: [u8; 16],
+}
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Party {
