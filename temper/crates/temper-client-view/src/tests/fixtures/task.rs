@@ -39,6 +39,9 @@ pub fn root(executor: c::ChipExecutor, priority: Option<u32>) -> temper_client_d
 pub fn held_root() -> temper_client_domain::Domain {
     root_with_hold(c::ChipExecutor::Agent { charter: 1 }, Some(1), true)
 }
+pub fn held_agent_root() -> temper_client_domain::Domain {
+    root_with_hold(c::ChipExecutor::Agent { charter: 1 }, None, true)
+}
 fn root_with_hold(executor: c::ChipExecutor, priority: Option<u32>, held: bool) -> temper_client_domain::Domain {
     let mut document = document();
     document.chip.task = TASK;
