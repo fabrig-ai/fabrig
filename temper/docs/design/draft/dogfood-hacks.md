@@ -65,15 +65,7 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **The pipeline:** keeps its state in plain files of its own, which a change of temper doesn't touch.
 - **A real design:** `upgrades.md`.
 
-### 2.7 A limit raised by hand
-
-- **What:** `hub.charter_bytes` raised in a deployment's document when a stock charter exceeds it, so far by hand in a walk. Keep it listed until a walk runs without it.
-- **Why:** a charter's documents outgrew the bound, and a walk would stop before its story.
-- **Cost and risk:** a walk then proves less than the stock does.
-- **The pipeline:** no such bound.
-- **A real design:** the stock's sizes (`../protocol/configuration.md`, 13), so that the override goes.
-
-### 2.8 Things fed from outside
+### 2.7 Things fed from outside
 
 - **What:** accounts fed through `temper ctl` by our own tooling; a status page reading `temper ctl`; no backups or mirrors of the deployment's forge, so nothing lives only there.
 - **Why:** each is outside what temper offers today.
