@@ -17,7 +17,7 @@ skein-json.workspace = true
 skein-fake-forge-forgejo.workspace = true
 skein-fake-forge-github.workspace = true
 skein-fake-forge-domain.workspace = true
-skein-forge-machine-world.workspace = true
+skein-forge-kit.workspace = true
 skein-tls-kit.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

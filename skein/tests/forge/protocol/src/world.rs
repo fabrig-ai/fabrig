@@ -10,7 +10,7 @@ use skein_forge_client::{
     self as client, Attempt, Entry, Event, Key, Outcome, RecoveryClock, Request, Resource, Stored,
 };
 use skein_forge_connection::Component;
-use skein_forge_machine_world::{
+use skein_forge_kit::{
     fixtures as machine,
     joint::{self, Joint, REPO},
 };
