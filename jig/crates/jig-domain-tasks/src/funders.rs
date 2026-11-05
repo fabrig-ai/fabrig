@@ -411,18 +411,13 @@ pub(crate) fn open(
     out.push(Request::Done { reply_to: to });
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one authorized pool admission carries source identity, budget and actual decision environment"
-)]
 pub(crate) fn carve(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     project: u32,
     person: u64,
-    period: u64,
-    budget: u64,
+    (period, budget): (u64, u64),
     out: &mut Queue<Request>,
 ) {
     if !domain.ready() {
