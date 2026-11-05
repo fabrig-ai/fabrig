@@ -1,4 +1,4 @@
-//! The chats pane and playground start (temper/docs/design/client/README.md, 3.5, 5.1 and 5.6).
+//! The chats pane (temper/docs/design/client/README.md, 3.5, 5.1 and 5.6).
 use crate::{
     frame::Bindings,
     words::{TimeForm, Times, Word, Words},
@@ -29,7 +29,7 @@ pub(crate) fn main(
     root: &Domain,
     words: &Words,
     bindings: &mut Bindings,
-    forge: &mut crate::forge::bindings::Bindings,
+    _forge: &mut crate::forge::bindings::Bindings,
     _text_limit: u32,
     times: &mut Times,
 ) {
@@ -45,31 +45,23 @@ pub(crate) fn main(
         b.close();
         return;
     }
-    let playground = playground_start(root);
     b.open(Role::Complementary);
     b.name(&words.say(Word::ProjectPane, &[]));
     b.style(crate::look::SIDEBAR);
-    start(b, root, words);
-    if let Some(playground) = playground {
-        context(b, root, words);
-        failure(b, root, playground, words, bindings);
-    }
     repository_context(b, root, words, bindings);
     list(b, root, words, bindings, times);
-    crate::frame::playground_banner(b, root, words, forge);
     b.close();
-    if root.pages().chats().is_some() && root.pages().me(root.client()).is_some() && root.pages().project().is_some() {
-        if offers_first_chat(root) {
-            b.open(Role::Button);
-            b.name(&words.say(Word::FirstChat, &[]));
-            if let Some(project) = root.pages().project() {
-                b.bind(bindings.insert(Act::Go { address: Address::Configure { project } }));
-            }
-            b.close();
+    if root.pages().chats().is_some()
+        && root.pages().me(root.client()).is_some()
+        && root.pages().project().is_some()
+        && offers_first_chat(root)
+    {
+        b.open(Role::Button);
+        b.name(&words.say(Word::FirstChat, &[]));
+        if let Some(project) = root.pages().project() {
+            b.bind(bindings.insert(Act::Go { address: Address::Configure { project } }));
         }
-        if let Some(playground) = playground {
-            suggestions(b, root, playground, words, bindings);
-        }
+        b.close();
     }
     b.close();
 }
@@ -205,58 +197,6 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
 
 fn before(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
     a.0 > b.0 || (a.0 == b.0 && a.1 < b.1)
-}
-
-fn start(b: &mut Builder, root: &Domain, words: &Words) {
-    b.open(Role::Slot);
-    b.style(crate::look::CHATBAR);
-    b.open(Role::Slot);
-    text(b, Role::Paragraph, &words.say(Word::NewChat, &[]));
-    let status = if playground_start(root).is_some() && root.forge().playground_failure().is_some() {
-        Some(Word::PlaygroundNotStarted)
-    } else if root.forge().playground_starting() {
-        Some(Word::PlaygroundStarting)
-    } else if playground_start(root).is_some() || super::new_chat::ready_to_start(root) {
-        Some(Word::Ready)
-    } else {
-        None
-    };
-    if let Some(status) = status {
-        b.open(Role::Status);
-        b.style(crate::look::STATUS_QUIET);
-        let status = words.say(status, &[]);
-        b.name(&status);
-        b.text(Run::Plain, &status);
-        b.close();
-    }
-    b.close();
-    b.close();
-}
-
-fn context(b: &mut Builder, root: &Domain, words: &Words) {
-    let Some(playground) = root.forge().playground() else { return };
-    if playground.project.is_none()
-        || playground.project != root.pages().project()
-        || playground.state != temper_client_domain::forge::PlaygroundState::Running
-        || root.pages().me(root.client()).is_none()
-    {
-        return;
-    }
-    b.open(Role::Slot);
-    b.style(crate::look::CONTEXT);
-    b.open(Role::Paragraph);
-    b.open(Role::Text);
-    b.style(crate::look::REPOSITORY);
-    b.run(
-        Run::Plain,
-        &words.say(
-            Word::PlaygroundRepository,
-            &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())],
-        ),
-    );
-    b.close();
-    b.close();
-    b.close();
 }
 
 pub(crate) fn ended(chip: &jig_client::contract::Chip) -> bool {
@@ -474,74 +414,4 @@ fn status_words(
         | ChatStatus::Closing => words.say_word(jig_client::words::Word::status(&status), holes.as_slice()),
     };
     (token, name)
-}
-
-/// The playground whose start the Chats page shows (temper/docs/design/client/README.md, 4.8).
-pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::forge::Playground> {
-    let (Address::Chats { .. } | Address::NewChat) = root.pages().address() else { return None };
-    let playground = root.forge().playground()?;
-    let selected = match playground.project {
-        Some(project) => root.pages().project() == Some(project),
-        None => true,
-    };
-    if playground.state != temper_client_domain::forge::PlaygroundState::Resetting && selected {
-        Some(playground)
-    } else {
-        None
-    }
-}
-
-fn failure(
-    b: &mut Builder,
-    root: &Domain,
-    playground: &temper_client_domain::forge::Playground,
-    words: &Words,
-    bindings: &mut Bindings,
-) {
-    if let Some(failure) = root.forge().playground_failure() {
-        use temper_client_domain::forge::playground::StartFailure;
-        let message = match failure {
-            StartFailure::Group(why) => {
-                words.say(Word::PlaygroundGroupFailed, &[Hole::Name(temper_client_domain::forge::words::lossy(why))])
-            }
-            StartFailure::Account => words.say(Word::PlaygroundAccountFailed, &[]),
-            StartFailure::Adoption => words.say(
-                Word::PlaygroundAdoptionFailed,
-                &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())],
-            ),
-            StartFailure::NotConnected => words.say(Word::PlaygroundNotConnected, &[]),
-        };
-        text(b, Role::Alert, &message);
-        b.open(Role::Button);
-        b.name(&words.say(Word::PlaygroundTryAgain, &[]));
-        b.bind(bindings.insert(Act::RetryPlayground));
-        b.close();
-    }
-}
-
-fn suggestions(
-    b: &mut Builder,
-    root: &Domain,
-    playground: &temper_client_domain::forge::Playground,
-    words: &Words,
-    bindings: &mut Bindings,
-) {
-    let Some(chats) = root.pages().chats() else { return };
-    b.open(Role::Slot);
-    b.style(crate::look::INVITATION);
-    b.open(Role::List);
-    b.name(&words.say(Word::SuggestedRequests, &[]));
-    for (cue, value) in playground.cues.iter().enumerate() {
-        b.open(Role::Item);
-        b.open(Role::Button);
-        b.name(value);
-        if chats.start.is_some() || root.forge().playground_starting() || root.forge().playground_failure().is_some() {
-            b.state(State::Disabled);
-        }
-        b.bind(bindings.insert(Act::Suggest { cue: u8::try_from(cue).expect("eight cue indices fit") }));
-        b.close();
-        b.close();
-    }
-    b.close();
-    b.close();
 }

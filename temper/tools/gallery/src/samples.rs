@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 113;
+pub const N: usize = 114;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -212,6 +212,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
         welcome_sample("welcome-first-run-0", temper_client_domain::Step::Welcome),
+        Sample { name: "chat-new-first-run-1", world: FirstRun { step: 1 }, address: Address::NewChat, then: Shown },
         Sample { name: "chats-first-run-1", world: FirstRun { step: 1 }, address: CHATS, then: Shown },
         owned_sample("connect-forge-first-run-6", 6, false),
         Sample { name: "forges-first-run-7", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
@@ -408,6 +409,9 @@ fn special_mockup(name: &str) -> Option<String> {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one match keeps gallery addresses and mock states together")]
 pub fn mockup(sample: &Sample) -> Option<String> {
+    if sample.name == "chat-new-first-run-1" {
+        return None;
+    }
     if let Then::Paste(frame) = sample.then {
         return Some(format!(
             "connect-model.html?world=first-run&step=0&way=chatgpt&paste={}&elsewhere=1&bare",
@@ -514,7 +518,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
-    if sample.name.starts_with("chat-new") {
+    if sample.name == "chat-new" || sample.name == "chat-new-no-repository" {
         let mut root = home_domain(if sample.name == "chat-new" { "home-ready" } else { "home-no-repository" });
         step(
             &mut root,

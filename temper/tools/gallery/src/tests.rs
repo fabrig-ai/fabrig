@@ -315,7 +315,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "chats-first-run-5",
         heading: "Chats",
         parts: &[
-            Part::Named { role: Role::List, name: "Suggested requests" },
+            Part::Absent { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Region, name: "Playground" },
             Part::Absent { role: Role::Link, name: "Manage usage" },
         ],
@@ -722,6 +722,15 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "chats-first-run-1",
         heading: "Chats",
+        parts: &[
+            Part::Absent { role: Role::List, name: "Suggested requests" },
+            Part::Named { role: Role::Paragraph, name: "No chats yet." },
+            Part::Named { role: Role::Region, name: "Playground" },
+        ],
+    },
+    Holds {
+        name: "chat-new-first-run-1",
+        heading: "New chat",
         parts: &[
             Part::Named { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Button, name: "Add CSV export to widget" },

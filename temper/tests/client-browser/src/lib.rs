@@ -99,7 +99,7 @@ pub fn start_playground_chat(words: &[u8]) -> Vec<Step> {
             within: WITHIN,
         }),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Try the playground") }),
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: b"/chats/new".as_slice().into() }),
         // The box starts the playground's group when chosen.
         Step::Person(PersonStep::See { find: Find::exactly_named(Role::Region, b"Playground"), within: WITHIN }),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),

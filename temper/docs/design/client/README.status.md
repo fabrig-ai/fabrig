@@ -2,10 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, The Chats page: `pages/chats.rs` draws the pane, the
-  new chat's bar and the composer. 3.5, `NewChat`, A new chat, and 4.8, 5.6:
-  no such address; `/chats?at=start` and the chats page hold the new chat
-  and the playground's start. 3.5, One layout for every chat, A chat's bar,
+- **Not yet:** 3.5, The Chats page: `pages/chats.rs` draws the pane. 3.5, One layout for every chat, A chat's bar,
   and 5.5: a chat that is not a configuring chat draws `CHAT` and `CHATBAR`,
   with the composer's line and chooser under its composer. 3.5, A chat's
   conversation, its look, and 5.7, In the browser it is one line: the

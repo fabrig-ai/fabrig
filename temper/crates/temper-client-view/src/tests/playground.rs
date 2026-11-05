@@ -11,13 +11,15 @@ fn suggestions_show_only_in_the_playground_project() {
         ("no playground", f::PROJECT, true, false, false),
     ] {
         let root = if playground {
-            f::playground_root(Address::Chats { filter: ChatsFilter::All }, project, model)
+            f::playground_root(Address::NewChat, project, model)
         } else {
-            f::chats_root()
+            let mut root = f::chats_root();
+            f::root_event(&mut root, Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) });
+            root
         };
         let view = f::page_view(&root);
         assert_eq!(f::find(view.tree(), Role::List, b"Suggested requests").is_some(), shown, "{row}");
-        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{row}");
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"New chat").is_some(), "{row}");
         if shown {
             let mut heading = None;
             let mut suggestion = None;
@@ -36,7 +38,7 @@ fn suggestions_show_only_in_the_playground_project() {
 #[test]
 fn suggestion_buttons_wait_for_a_start_and_press_their_own_cue() {
     for (row, pending) in [("ready", false), ("start pending", true)] {
-        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
+        let mut root = f::playground_root(Address::NewChat, f::PROJECT, true);
         if pending {
             for act in [Act::ChatWords { words: b"My draft".as_slice().into() }, Act::StartChat] {
                 f::root_event(&mut root, Event::Act { action: Action::Pages(act) });
@@ -338,16 +340,41 @@ fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_proje
         if let Some(accounts) = accounts {
             assert!(frame.unwrap() < accounts && accounts < main.unwrap());
         }
-        if chats {
-            let pane = main.unwrap() + 1;
-            assert_eq!(nodes[pane].role, Role::Complementary);
-            assert_eq!(
-                playground.unwrap() + usize::try_from(nodes[playground.unwrap()].size).unwrap(),
-                pane + usize::try_from(nodes[pane].size).unwrap(),
-                "banner ends the pane"
+        assert!(playground.unwrap() < main.unwrap());
+    }
+}
+
+#[test]
+fn the_frame_banner_follows_the_page_and_leaving_rules() {
+    for (address, leaving, shown) in [
+        (Address::Chats { filter: ChatsFilter::All }, false, true),
+        (Address::NewChat, false, true),
+        (Address::Chat { task: 1 }, false, false),
+        (Address::Chat { task: 1 }, true, true),
+    ] {
+        let mut root = f::playground_root(address.clone(), f::PROJECT, true);
+        if leaving {
+            f::root_event(
+                &mut root,
+                Event::Act { action: Action::Forge(temper_client_domain::forge::Act::EndPlayground) },
             );
-        } else {
-            assert!(playground.unwrap() < main.unwrap());
+        }
+        let view = f::page_view(&root);
+        let nodes = view.tree().nodes();
+        let mut banner = None;
+        let mut main = None;
+        for (index, node) in nodes.iter().enumerate() {
+            if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") {
+                banner = Some(index);
+            }
+            if node.role == Role::Main {
+                main = Some(index);
+            }
+        }
+        let main = main.expect("main");
+        assert_eq!(banner.is_some(), shown, "{address:?}, leaving={leaving}");
+        if let Some(banner) = banner {
+            assert_eq!(banner + usize::try_from(nodes[banner].size).unwrap(), main, "banner is before main");
         }
     }
 }
