@@ -30,6 +30,15 @@
   available acts and supplied values rather than the mock's local-only
   operations. Their extra rows and controls change the pages' lengths at
   laptop and phone widths; they are not stylesheet differences.
+- **Departs:** 5.1: at 760 px and under, `temper.css` hides the accounts' and the
+  playground's banners on every chat's page and `NewChat`
+  (`#app:has(> .temper-session) > .temper-accounts`), where the section draws
+  them there, because the request `ui-phone` of 2026-11-05 has those pages whole
+  at `100dvh`, which a banner above them would cut. With no usable account "No
+  model yet · Connect a model" still stands above the composer, but for a
+  configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
+  then says why Send stays grey; and no line says there that the playground is
+  running or leaving. Seen by reading; no test holds it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period

@@ -573,9 +573,13 @@ replay says the same clocks (`README.md`, 5.12).
   (skein's `ui-web.md`, 4.3), the playground's, the setup pages', and the
   gallery's and journeys' prints. So what sits at the foot keeps off a
   phone's home bar by `env(safe-area-inset-bottom)`, which is 0 on a display
-  without one and so measures as the mock draws it: the tab bar's padding,
-  a chat's foot, and at 760 px and under the toast, 88 px over it, clear of
-  the tabs.
+  without one and so measures as the mock draws it, at 760 px and under: the
+  tab bar's padding, a chat's foot, and the toast, 88 px over it, clear of the
+  tabs.
+- **What a phone presses,** at 760 px and under: a control scrolled into view
+  stops clear of the tab bar, and the connection flows' primaries, Settings'
+  and a dialog's stand at least 44 px tall. Every other control keeps what the
+  mock draws.
 - **The navigation** of a page that is no project's sits in the banner
   after the projects, as in the mockups. At phone width, 760 px and under as in the mockups, the
   banner keeps temper's name and the view's "Menu" alone (`README.md`,
@@ -1129,6 +1133,21 @@ Not in the tier, each in the lowest world that shows it:
   nothing shown. Default: a group that sections arrive beside takes a
   role of its own, as Accounts' Sign out does, page by page; skein's
   diff stays.
+- **A phone's width in a test** (2.5): the sweep, the walk and the renders of
+  the request `ui-phone` of 2026-11-05 are throwaways by its own words, and the
+  browser tier cannot open a phone's width: `skein-browser` sets every page to
+  1280 by 800. So nothing holds the phone's rules when the sheet next moves.
+  Default: none, until a phone's rule breaks unseen.
+- **The rail's foot on a phone** (2.5; `README.md`, 5.3): the top bar holds the
+  switcher alone, as the mock's does, so a project's page on a phone shows no
+  link's state, no "Behind" and no "Sign out did not reach the engine.", and
+  the way out of the playground is its banner on `Chats` alone. The mock has no
+  link to say so of. Default: so; whether a link not live takes a place in the
+  top bar is a look request's.
+- **A covered page's other edges** (2.5): the mock and the sheet keep off the
+  home bar alone, and at 760 px and under alone. A phone on its side, wider than
+  that, draws the rail and a chat's foot under its notch and its home bar.
+  Default: as the mock draws it, until a look request.
 
 ## 7. The gallery
 
