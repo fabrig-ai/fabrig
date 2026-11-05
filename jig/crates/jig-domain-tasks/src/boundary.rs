@@ -144,6 +144,48 @@ pub enum MessageKind {
     NothingAwaited,
 }
 
+/// The shared inbox classification (domain/tasks.md, sections 8.1–8.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum MessageFamily {
+    Spoken(Spoken),
+    Hint(Hint),
+    Slot(Slot),
+    Result,
+    Virtual,
+}
+
+/// Words admitted from a party or a referenced task.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Spoken {
+    Words,
+    Question,
+    Answer { question: u64 },
+}
+
+/// Merged subscription hints.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Hint {
+    Notice { subscription: u64, target: u64, state: NoticeState },
+    Timer { subscription: u64 },
+    News { subscription: u64, class: NewsClass },
+}
+
+/// Control messages entering through reserved inbox room (domain/tasks.md, 8.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Slot {
+    Amendment,
+    FinishRequested,
+    Met,
+    NothingAwaited,
+    EffectNotMade,
+    SettingsDecision,
+    ProposalDecision,
+    QuestionAnswered,
+    QuestionOwed,
+    QuestionEnded,
+    PersonStalled,
+}
+
 /// Terminal shape carried with a delegate's bounded message words.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ResultKind {
@@ -193,44 +235,41 @@ impl Word {
     /// Whether this message asks an agent to finish (domain/hosts.md, section 9).
     #[must_use]
     pub fn finish_requested(&self) -> bool {
-        match self.kind {
-            MessageKind::FinishRequested { .. } => true,
-            MessageKind::Escalation { .. }
-            | MessageKind::Proposal { .. }
-            | MessageKind::PersonStalled { .. }
-            | MessageKind::SettingsDecision { .. }
-            | MessageKind::ProposalDecision { .. }
-            | MessageKind::Words
-            | MessageKind::EffectNotMade { .. }
-            | MessageKind::Amendment { .. }
-            | MessageKind::Question
-            | MessageKind::Answer { .. }
-            | MessageKind::Notice { .. }
-            | MessageKind::Timer { .. }
-            | MessageKind::News { .. }
-            | MessageKind::Result(_)
-            | MessageKind::Met { .. }
-            | MessageKind::QuestionAnswered { .. }
-            | MessageKind::QuestionOwed
-            | MessageKind::NothingAwaited
-            | MessageKind::QuestionEnded { .. } => false,
+        match self.kind.family() {
+            MessageFamily::Slot(Slot::FinishRequested) => true,
+            MessageFamily::Slot(
+                Slot::Amendment
+                | Slot::Met
+                | Slot::NothingAwaited
+                | Slot::EffectNotMade
+                | Slot::SettingsDecision
+                | Slot::ProposalDecision
+                | Slot::QuestionAnswered
+                | Slot::QuestionOwed
+                | Slot::QuestionEnded
+                | Slot::PersonStalled,
+            )
+            | MessageFamily::Spoken(_)
+            | MessageFamily::Hint(_)
+            | MessageFamily::Result
+            | MessageFamily::Virtual => false,
         }
     }
 
     /// Whole admitted payload, including the opaque state of an approval result.
     #[must_use]
     pub fn payload_bytes(&self) -> Option<usize> {
-        match &self.kind {
-            MessageKind::Result(ResultKind::Approved { state, words_present }) => {
+        match self.kind.result() {
+            Some(ResultKind::Approved { state, words_present }) => {
                 if !words_present && !self.words.is_empty() {
                     return None;
                 }
                 state.len().checked_add(self.words.len())
             }
-            MessageKind::Result(ResultKind::Verdict { fields, .. }) => {
+            Some(ResultKind::Verdict { fields, .. }) => {
                 crate::verdict::fields_bytes(fields)?.checked_add(self.words.len())
             }
-            MessageKind::Result(
+            Some(
                 ResultKind::Job
                 | ResultKind::NoChange
                 | ResultKind::Report
@@ -238,25 +277,7 @@ impl Word {
                 | ResultKind::Failed
                 | ResultKind::Cancelled,
             )
-            | MessageKind::Escalation { .. }
-            | MessageKind::Proposal { .. }
-            | MessageKind::PersonStalled { .. }
-            | MessageKind::SettingsDecision { .. }
-            | MessageKind::ProposalDecision { .. }
-            | MessageKind::Words
-            | MessageKind::EffectNotMade { .. }
-            | MessageKind::FinishRequested { .. }
-            | MessageKind::Amendment { .. }
-            | MessageKind::Met { .. }
-            | MessageKind::QuestionAnswered { .. }
-            | MessageKind::QuestionOwed
-            | MessageKind::NothingAwaited
-            | MessageKind::QuestionEnded { .. }
-            | MessageKind::Question
-            | MessageKind::Answer { .. }
-            | MessageKind::Notice { .. }
-            | MessageKind::Timer { .. }
-            | MessageKind::News { .. } => Some(self.words.len()),
+            | None => Some(self.words.len()),
         }
     }
 }
@@ -737,6 +758,31 @@ pub enum Hold {
 }
 
 impl Hold {
+    /// Identity of the independently placed hold, when this is a placed reason.
+    #[must_use]
+    pub const fn placed(self) -> Option<u64> {
+        match self {
+            Self::Placed { hold } => Some(hold),
+            Self::Exceeded(_)
+            | Self::Failures(_)
+            | Self::Stalled
+            | Self::Dependency(_)
+            | Self::Stopped
+            | Self::Drift
+            | Self::Effects
+            | Self::EffectFailed
+            | Self::Uncertain { .. }
+            | Self::Budget
+            | Self::Deadline
+            | Self::HoldsWaited
+            | Self::ResourceUnavailable
+            | Self::ResourceAccess
+            | Self::PoolLost { .. }
+            | Self::Procedure
+            | Self::Circle => None,
+        }
+    }
+
     pub(crate) const fn valid(self) -> bool {
         match self {
             Hold::Dependency(task) => task != 0,
@@ -2212,6 +2258,63 @@ pub enum ProcedureInput {
     Result(ResultKind),
 }
 impl MessageKind {
+    /// Classify the message for inbox admission, activity and batching.
+    #[must_use]
+    pub fn family(&self) -> MessageFamily {
+        match self {
+            Self::Words => MessageFamily::Spoken(Spoken::Words),
+            Self::Question => MessageFamily::Spoken(Spoken::Question),
+            Self::Answer { question } => MessageFamily::Spoken(Spoken::Answer { question: *question }),
+            Self::Notice { subscription, target, state } => {
+                MessageFamily::Hint(Hint::Notice { subscription: *subscription, target: *target, state: *state })
+            }
+            Self::Timer { subscription } => MessageFamily::Hint(Hint::Timer { subscription: *subscription }),
+            Self::News { subscription, class } => {
+                MessageFamily::Hint(Hint::News { subscription: *subscription, class: *class })
+            }
+            Self::PersonStalled { .. } => MessageFamily::Slot(Slot::PersonStalled),
+            Self::Amendment { .. } => MessageFamily::Slot(Slot::Amendment),
+            Self::FinishRequested { .. } => MessageFamily::Slot(Slot::FinishRequested),
+            Self::Met { .. } => MessageFamily::Slot(Slot::Met),
+            Self::NothingAwaited => MessageFamily::Slot(Slot::NothingAwaited),
+            Self::Result(_) => MessageFamily::Result,
+            Self::EffectNotMade { .. } => MessageFamily::Slot(Slot::EffectNotMade),
+            Self::SettingsDecision { .. } => MessageFamily::Slot(Slot::SettingsDecision),
+            Self::ProposalDecision { .. } => MessageFamily::Slot(Slot::ProposalDecision),
+            Self::QuestionAnswered { .. } => MessageFamily::Slot(Slot::QuestionAnswered),
+            Self::QuestionOwed => MessageFamily::Slot(Slot::QuestionOwed),
+            Self::QuestionEnded { .. } => MessageFamily::Slot(Slot::QuestionEnded),
+            Self::Escalation { .. } | Self::Proposal { .. } => MessageFamily::Virtual,
+        }
+    }
+
+    /// Borrow the delegate's terminal shape, when this is a result message.
+    #[must_use]
+    pub fn result(&self) -> Option<&ResultKind> {
+        match self {
+            Self::Result(result) => Some(result),
+            Self::Escalation { .. }
+            | Self::Proposal { .. }
+            | Self::PersonStalled { .. }
+            | Self::ProposalDecision { .. }
+            | Self::SettingsDecision { .. }
+            | Self::Words
+            | Self::EffectNotMade { .. }
+            | Self::Amendment { .. }
+            | Self::FinishRequested { .. }
+            | Self::Question
+            | Self::Answer { .. }
+            | Self::Notice { .. }
+            | Self::Timer { .. }
+            | Self::News { .. }
+            | Self::Met { .. }
+            | Self::QuestionEnded { .. }
+            | Self::QuestionAnswered { .. }
+            | Self::QuestionOwed
+            | Self::NothingAwaited => None,
+        }
+    }
+
     /// Select connector news and delegate results from a procedure's inbox.
     #[must_use]
     pub fn procedure_input(self) -> Option<ProcedureInput> {

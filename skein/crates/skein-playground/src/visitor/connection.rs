@@ -5,6 +5,7 @@ use skein_io as io;
 use skein_lib::{
     Env, Queue, Token,
     stream::{Down, Read, Up},
+    usize_of,
 };
 use skein_ui_web::fetch::{Fetch, Report};
 
@@ -128,7 +129,7 @@ impl Connection {
         self.close(requests);
     }
     fn keep_headers(&mut self, headers: &[skein_http::Header]) -> bool {
-        let bound = usize::try_from(self.bound).expect("bound fits");
+        let bound = usize_of(self.bound);
         for name in &self.keep {
             let mut value = String::new();
             let mut present = false;
@@ -204,10 +205,7 @@ impl Connection {
                     self.terminal(ticket, fetch, reports, requests, false);
                 }
                 http::Event::Upload(Up::Room) => {
-                    let end = self
-                        .sent
-                        .saturating_add(usize::try_from(env.limits.send).expect("send fits"))
-                        .min(self.body.len());
+                    let end = self.sent.saturating_add(usize_of(env.limits.send)).min(self.body.len());
                     self.calls.push(http::Request::Upload(Down::Send(
                         self.body.get(self.sent..end).expect("upload within body").into(),
                     )));

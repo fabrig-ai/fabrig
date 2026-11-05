@@ -23,11 +23,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   writes no web wire and no web protocol of its own: the client's
   records cross as jig's wire carries them, binary records from a schema
   per owner, never JSON (jig's `protocol/client.md`, section 3).
-- **The pages temper has,** in both shells: the inbox, the chats, a
-  chat, a task's page and the adoption form (`README.md`, 3.5). A page a
-  later plan adds to the view (the goals, the changes, the accounts) is
-  in the browser once it is in the view, with its look and, where it
-  has one, its browser-only story (4.2).
+- **The pages temper has,** in both shells: the client's (`README.md`,
+  3.5). A page added to the view is in the browser once it is in the
+  view, with its look and, where it has one, its browser-only story
+  (4.2).
 - **No framework.** The client and its view are step code under the
   subset in a browser too (skein's `ui.md`, section 1).
 - **The view tree is the fake DOM.** Below the browser, every world
@@ -264,7 +263,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   or edited link opens the inbox less filtered, never refused, and its
   address is replaced with the printed one. It reads numbers, not the
   person's projects: a project the person isn't in shows an empty
-  inbox, which "All projects" undoes. The inbox's filter, the chats
+  inbox, which its unfiltered address undoes. The inbox's filter, the chats
   list's and a goal's plan's (below), the welcome's step,
   `ConnectForge`'s choice, `ConnectModel`'s way (below) and
   `Authorize`'s query, kept as it came and never printed again, alone
@@ -316,7 +315,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **A filter chosen is a move** (below), with its history entry: a
   link's, at the page's top with the focus on its heading, and back
   returns to the filter before. Like any move it folds the open
-  disclosures (2.5), so the Kind menu closes on its choice. A move
+  disclosures (2.5). Needs you has no filter menus; its filters remain
+  address fields (`README.md`, 3.5). A move
   that stays on the chats list, between `Chats` and `NewChat`, or on one
   goal's page, changing its filter alone, keeps the page: its composers' words, the
   closed chats and ended delegates it read, which it reads not again;
@@ -1095,8 +1095,9 @@ from the engine's own answers, is where the look is tuned.
 - **An index,** `OUT/index.html`: each state's name, in the gallery's
   order, linking its page, with its mockup's address beside it where a
   mockup draws it.
-- **Static:** no script runs, so focus, caret, scroll and a run's live
-  text are not shown.
+- **Static:** no script runs. The opening focus is an `autofocus`
+  attribute, and a named sample may hold one disclosure open; caret,
+  scroll-following and live updates are not replayed.
 
 ### 7.2 Its states
 
@@ -1144,6 +1145,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-accounts-both` | hand-made Home deliveries: ChatGPT plan and Claude subscription; link offers another account |
 | `home-accounts-key` | hand-made Home deliveries: an API key; link offers another account |
 | `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
+| `home-with-goals` | `home-at-work`'s deliveries with a goal in the project, so that the rail shows Goals |
 | `home-at-work` | hand-made Home deliveries: one question and three chats, the everyday request's words where the client holds its facts |
 | `home-needs-several` | hand-made Home deliveries: three needs, the first as a card and the others as rows |
 | `home-nothing-needs` | hand-made Home deliveries: all steps done, no needs and one chat |
@@ -1165,6 +1167,9 @@ from the engine's own answers, is where the look is tuned.
 | `goals-filter-empty` | hand-made Goals deliveries: a filter no goal matches, "None." |
 | `goals-more` | hand-made Goals deliveries: "More than N goals, M under way." and "More goals" |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
+| `home-morning-card` | hand-made Home deliveries: three needs in the line form, the first as its card with its choices, the others as lines |
+| `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
+| `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `configure` | the configuring page before its first words, template 3 listed |
 | `configure-typing` | words entered; Send enabled |
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
@@ -1182,7 +1187,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
 | `chat-goal` | a chat with a goal it started: its one line |
-| `chat-byline-open` | a chat with its byline pressed: the chooser's panel |
+| `chat-byline-open` | a new chat with its byline pressed: the chooser's panel |
 | `chat-draft-chat` | a chat with a document, in Chat: its group and tool line |
 | `chat-draft-split` | the same chat in Split: the strip, the pane and a tinted section |
 | `chat-draft-draft` | the same chat in Draft: the composer at the foot on white |
@@ -1196,7 +1201,18 @@ from the engine's own answers, is where the look is tuned.
 | `configure-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
 | `rail-new-menu` | the rail's "+ New chat" with its menu open |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
-| `inbox-solo` | the solo world's inbox: a proposal, a question |
+| `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
+| `needs-one` | *Needs you*: a question in the line form, the first of three |
+| `needs-saw-open` | `needs-one` with "What the agent saw" open |
+| `needs-reply-open` | `needs-one` with "Reply…" pressed: the reply form |
+| `needs-second-answered` | the first answered, its line and toast showing: the second of three |
+| `needs-later` | the first marked later: the next shown, the toast's words |
+| `needs-last` | the last card: "The last one" |
+| `needs-done` | every card answered: "Nothing needs you." and the answered lines |
+| `needs-proposal` | a proposal's card |
+| `needs-held` | a held task's card |
+| `needs-funds` | a held task out of budget: "S of L used." |
+| `needs-plain-words` | a question in no line form: "Reply…" alone |
 | `task-solo-T3` | the solo world's goal T3, its plan and budget |
 | `accounts-solo` | the solo world's accounts |
 | `chats-first-run-1` | the first run's Chats at step 1: an empty list |
@@ -1239,7 +1255,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-first-run-4-T4` | the first run's chat T4 at step 4, waiting at rest for the person’s words |
 | `playground-resetting` | the first run's Chats while the playground resets: "Leaving the playground…", and no playground's start |
 | `chats-first-run-5` | Chats after the first plan connects |
-| `inbox-reference` | the reference world's inbox |
+| `inbox-reference` | the reference world's *Needs you* |
 | `accounts-reference` | the reference world's accounts |
 | `accounts-first-run-1` | the first run's accounts at step 1: the playground's account |
 | `signed-out` | signed out |

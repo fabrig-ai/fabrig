@@ -1206,7 +1206,8 @@ owned, on temper's host, before `temper serve`:
    discovery document's URL at temper's public origin, or its listener's
    with none. The source's callback is the forge's browser origin's
    `/user/oauth2/temper/callback`: its owned setup's `public` when present,
-   else its `git` URL (`sign-in.md`, 9.1 and 9.7), matching Forgejo's
+   else its record's `web` when it has one, else its `git` URL
+   (`sign-in.md`, 9.1 and 9.7), matching Forgejo's
    `ROOT_URL` (6.2). For an owned Forgejo, the command has the binary and
    its `--work-path` and `--config`; and Forgejo's settings of
    `sign-in.md`, 9.4, which an owned Forgejo's `app.ini` already holds
@@ -1307,7 +1308,7 @@ temper box
   at an owned forge's set up (6.5) and at the playground's start (8.4).
   The box builds the group's steps by the kind from that file, and runs
   them in order; `temper forge fetch`, `prepare`, `run` and `remove`
-  read forge N's setup from the same file, and refuse a forge with none.
+  read forge N's setup from the same file, and with none as 7.4 says.
   Once the group's long steps have started and, for an owned Forgejo,
   Forgejo answers, the box writes its record, `<data>/box/started/N`, one empty file, and
   answers `started N`. `box`, `box/groups` and `box/started` are made as
@@ -1695,10 +1696,18 @@ temper box
 
 None has the box's pipe: `temper serve` runs without `--box`, and runs
 no owned forge. An owned forge's group is the box's: `SetUp` of an
-owned forge is refused *not under the box* (6.5), and `temper forge
-fetch`, `prepare`, `run` and `remove` find no group's file for a forge
-the box did not run (7.1). GitHub and a Forgejo elsewhere connect as
-under the box.
+owned forge is refused *not under the box* (6.5). GitHub and a Forgejo
+elsewhere connect as under the box.
+
+`temper forge fetch`, `prepare` and `run` are commands of their own
+too, and a forge the box did not run has no group's file (7.1). A forge
+with none takes the machine's `owned` part, in `<data>/forge-N`, so that
+a host's own units run them with no file written by hand, and a data
+directory started afresh keeps them working. A document with no `owned`
+part refuses, naming the file and the part; a file there is read as
+ever, its kind and its refusals its own. `temper forge remove` reads the
+file alone, and refuses a forge with none: it removes a directory by
+its kind, which it does not guess.
 
 The welcome follows the document under every arrangement, its member
 `application.welcome` (configuration.md, section 3), and never `--box`,
@@ -1712,6 +1721,17 @@ asks.
   unit keeps systemd's default kill of its control group, which ends a
   crashed service's whole tree before its restart (skein's `shell.md`,
   13);
+- **A host's own units,** `temper help server`'s walk: a unit running
+  `temper forge fetch`, `prepare` and `run`, beside one for `temper
+  serve`. No owned forge's record is made there, so nothing takes the
+  handover (6.5), and a start on a new store lists no forge. A person
+  connects that Forgejo as its admin (5.5), the handover file
+  `admin_token` the token, the connect's `--api` and `--git` the
+  machine's `listen` and `remote`, and `--web` its `public`
+  (`sign-in.md`, 9.7). It is a managed forge from then on: `TakeOver`
+  never runs, so the file stays in the forge's directory for the same
+  connect on a store started afresh, where the forge is numbered 1
+  again;
 - **the process tier** (section 13.4), which runs the commands itself,
   writing a group's file as serve does under the box;
 - **a container image** whose entry point is `temper box`, every process

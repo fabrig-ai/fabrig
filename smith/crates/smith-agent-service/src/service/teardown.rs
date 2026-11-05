@@ -315,6 +315,7 @@ fn settled(service: &Stages, frame: Option<&Frame>, streams: u32) -> bool {
         && service.io_submissions.is_empty()
         && service.file_submissions.is_empty()
         && service.completions.is_empty()
+        && service.io_completions.is_empty()
         && match face::io(frame) {
             Some(io) => io.sockets() == streams,
             None => true,

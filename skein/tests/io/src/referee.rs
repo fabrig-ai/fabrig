@@ -244,3 +244,32 @@ impl fmt::Debug for Expect {
 fn common(a: &[u8], b: &[u8]) -> usize {
     a.iter().zip(b).take_while(|(x, y)| x == y).count()
 }
+
+/// The scenario's expectations at each turn and idle point (io.md, 8).
+pub(crate) struct Judge(pub Referee);
+
+impl skein_world::Referee<crate::world::Hosted> for Judge {
+    fn observe(&mut self, now: Time, procs: &[crate::world::Hosted]) {
+        for (at, host) in procs.iter().enumerate() {
+            self.0.observe(now, at, &host.proc.owner);
+        }
+    }
+    fn idle(&mut self, now: Time, procs: &[crate::world::Hosted], settled: bool) {
+        let owners: Vec<&Owner> = procs.iter().map(|host| &host.proc.owner).collect();
+        if settled {
+            self.0.settled(&owners);
+        }
+        self.0.overdue(now, &owners, &|| {
+            procs.iter().map(|host| format!("{:?}", host.proc.log)).collect::<Vec<_>>().join("\n")
+        });
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        self.0.next_deadline()
+    }
+    fn passed(&self) -> bool {
+        self.0.passed()
+    }
+    fn last_word(&self) -> skein_world::LastWord {
+        skein_world::LastWord::After(crate::scenarios::END)
+    }
+}

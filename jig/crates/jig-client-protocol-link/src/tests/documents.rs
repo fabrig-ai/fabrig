@@ -1,5 +1,46 @@
 use super::*;
 use crate::translate::{Undecodable, documents, live};
+// Two empty rows carry two u32 lengths (skein/docs/design/codec.md, 3).
+#[test]
+fn piece_lengths_share_the_document_byte_bound() {
+    const PIECE_BYTES: usize = 8;
+    let bytes = [0_u8; PIECE_BYTES];
+    let size = u64::try_from(PIECE_BYTES).unwrap();
+    for (most, expected) in [
+        (size, Ok(Some(Box::<[u8]>::from([])))),
+        (
+            size.checked_sub(1).unwrap(),
+            Err(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }),
+        ),
+    ] {
+        let limits = fixtures::limits_for_document(most);
+        let mut reader = Reader::new(&bytes);
+        let mut sum = 0_u64;
+        translate::next_piece(&mut reader, &mut sum, &limits).expect("first row fits both bounds");
+        assert_eq!(translate::next_piece(&mut reader, &mut sum, &limits), expected);
+    }
+}
+
+#[test]
+fn an_overlong_chip_list_keeps_split_sum_and_decode_order() {
+    const ROW_BOUND: u32 = 1;
+    const EMPTY_ROW_BYTES: usize = 4; // Its u32 length.
+    let first = fixtures::chip_pieces(ROW_BOUND);
+    let mut bytes = skein_lib::Writer::new(first.len().checked_add(EMPTY_ROW_BYTES).unwrap());
+    bytes.put(&first).unwrap();
+    // The row past the count bound has valid framing and an empty, undecodable record.
+    bytes.put(&0_u32.to_be_bytes()).unwrap();
+    let bytes = bytes.finish();
+    let size = u64::try_from(bytes.len()).unwrap();
+    for (most, problem) in [
+        (size, w::Problem { path: w::Path::ChipRows, reason: skein_codec::Reason::Short }),
+        (size.checked_sub(1).unwrap(), w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }),
+    ] {
+        let limits = fixtures::limits_for_document(most);
+        assert_eq!(documents::chip_piece(&bytes, &limits, ROW_BOUND), Err(problem));
+    }
+}
+
 #[test]
 fn a_me_record_becomes_the_contract_s_me() {
     assert_eq!(documents::frame(fixtures::frame_record(), &fixtures::limits()), Ok(fixtures::frame()));
@@ -396,6 +437,32 @@ fn hold_accounts_decode_whole_past_the_text_preview_bound() {
             let words = decoded.unwrap().hold.unwrap().words.unwrap();
             assert_eq!(words.bytes.bytes(), bytes.as_ref());
             assert!(!words.cut);
+        } else {
+            assert_eq!(decoded, Err(Undecodable::TooLarge));
+        }
+    }
+}
+
+#[test]
+fn long_text_bounds_survive_wire_narrowing_and_document_translation() {
+    let base = fixtures::limits();
+    let client = jig_client_domain::Limits { long_text: 1024, ..*base.client() };
+    let limits = Limits::new(client, base.exchanges()).unwrap();
+    assert_eq!(limits.wire().document_text_bytes, 1024);
+    assert_eq!(limits.wire().specification_words, 1024);
+    assert_eq!(limits.wire().edit_note_body, 1024);
+    let cases: [(Box<[u8]>, bool); 2] = [(Box::new([b'x'; 1024]), true), (Box::new([b'x'; 1025]), false)];
+    for (bytes, accepted) in cases {
+        let record = w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes, cut: false }).unwrap();
+        let mut frame = fixtures::frame_record().into_parts();
+        let mut party = frame.party.into_parts();
+        party.login = record.clone();
+        frame.party = w::MeParty::new(&w::CEILINGS, party).unwrap();
+        let decoded = documents::frame(w::Me::new(&w::CEILINGS, frame).unwrap(), &limits);
+        if accepted {
+            let decoded = decoded.unwrap();
+            assert_eq!(decoded.party.login.bytes.bytes(), record.bytes());
+            assert!(!decoded.party.login.cut);
         } else {
             assert_eq!(decoded, Err(Undecodable::TooLarge));
         }

@@ -1,7 +1,7 @@
 //! One bounded page of review comments.
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document};
 use alloc::boxed::Box;
-use skein_lib::List;
+use skein_lib::{List, len_u64};
 impl Plan {
     pub(super) fn remarks_initial(&mut self) -> Result<Step, api::Error> {
         let Read::Remarks { number, review, page } = self.read else {
@@ -48,9 +48,7 @@ impl Plan {
     pub(super) fn keep_bytes(&mut self, width: u64, fields: &[&[u8]], bounds: Bounds) -> Result<(), api::Error> {
         let mut size = self.size.checked_add(width).ok_or(api::Error::TooLarge)?;
         for field in fields {
-            size = size
-                .checked_add(u64::try_from(field.len()).ok().ok_or(api::Error::TooLarge)?)
-                .ok_or(api::Error::TooLarge)?;
+            size = size.checked_add(len_u64(field.len())).ok_or(api::Error::TooLarge)?;
         }
         if size > u64::from(bounds.answer_bytes) {
             return Err(api::Error::TooLarge);

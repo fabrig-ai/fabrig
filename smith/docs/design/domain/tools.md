@@ -257,6 +257,11 @@ workspace that can write can remove, with no shell needed.
   section 3). Commands and checks see exactly it; searches and listings
   see none. The domain carries no environment: no charter field and no
   call sets a variable.
+- **A variable prints its name alone.** `smith-protocol-machine`'s
+  `Variable`, `Environment` and `Spawn`, and the component that holds the
+  environment, show each variable's name in `Debug`, never its value, as
+  skein's `Spawn` does (skein's `kernel.md`, 6.2): one rule for a spawned
+  environment, whatever it holds.
 - **Search** is `rg`, run as a process of its own: no configuration, the
   pattern and glob passed so that neither reads as an option, and an
   empty environment. It searches dot-named files and directories too;
@@ -451,12 +456,9 @@ prove on a real kernel.
   fixed mounts, which the tools then accept.
 - **A run's own environment:** a typed, bounded charter overlay, merged
   in one place, only once a host needs one.
-- **A variable's value in `Debug`:** `smith-protocol-machine`'s
-  `Variable`, `Environment` and `Spawn`, and the component that holds
-  the environment, print each variable's value, which section 5 keeps
-  free of credentials. Whether they print a variable's name alone, as
-  skein's `Spawn` does (skein's `kernel.md`, 6.2): one rule for a
-  spawned environment, whatever it holds.
+- **One `EnvNames`:** what prints an environment's names (section 5) is a
+  private copy in `smith-protocol-machine`, skein-io and skein-sim; whether
+  skein-io makes its own public, for all three.
 
 ## 10. On a program backend
 

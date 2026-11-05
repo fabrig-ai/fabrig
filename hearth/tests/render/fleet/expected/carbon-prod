@@ -1,6 +1,6 @@
 target       carbon-prod   base carbon   environment prod
-placement    metal efi serverhino
-spec         dc5774ffc042
+placement    metal efi provider-a
+spec         b7282665d51b
 boot         part bc6cab417252
   mutable    false
 packages     part 846e4f727183   resolution 4cccfe9577cf needed

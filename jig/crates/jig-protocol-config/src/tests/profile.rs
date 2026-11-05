@@ -77,14 +77,14 @@ fn child_validity_keeps_semantic_and_count_refusals() {
     assert!(!jig_domain_views::valid(&views));
     let mut fleet = limits.fleet;
     fleet.worker_name_bytes = jig_domain_fleet::WORKER_NAME + 1;
-    assert!(!jig_domain_fleet::valid(&fleet));
+    assert!(!jig_domain_fleet::valid(&fleet, limits.settings.versions));
     fleet = limits.fleet;
     fleet.workers = u32::MAX;
     fleet.engine_slots = 1;
-    assert!(!jig_domain_fleet::valid(&fleet));
+    assert!(!jig_domain_fleet::valid(&fleet, limits.settings.versions));
     fleet = limits.fleet;
     fleet.history = u32::MAX;
-    assert!(!jig_domain_fleet::valid(&fleet));
+    assert!(!jig_domain_fleet::valid(&fleet, limits.settings.versions));
 }
 
 #[test]

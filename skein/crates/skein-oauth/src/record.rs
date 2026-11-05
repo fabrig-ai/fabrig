@@ -5,7 +5,7 @@
 
 use crate::{DecodeError, Limits, TokenResponse, common, documents, jwt, v3};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Reader, Secret, Wall, Writer};
+use skein_lib::{Duration, Reader, Secret, Wall, Writer, usize_of};
 
 pub const RECORD_VERSION: u16 = 3;
 /// Caller-selected nested JWT claim to keep as opaque metadata.
@@ -236,14 +236,14 @@ fn measured(record: &SavedToken, limits: &Limits) -> Result<u32, DecodeError> {
 pub fn encode_record(record: &SavedToken, limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
     let value = generated(record, limits)?;
     let len = record_length(value.measure(), limits)?;
-    let mut out = Writer::new(usize::try_from(len).expect("u32 fits usize"));
+    let mut out = Writer::new(usize_of(len));
     value.encode(&mut out).expect("record measured");
     Ok(out.finish())
 }
 
 #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
 pub fn decode_record(input: &[u8], limits: &Limits) -> Result<SavedToken, DecodeError> {
-    if input.len() > usize::try_from(limits.record_bytes).expect("u32 fits usize") {
+    if input.len() > usize_of(limits.record_bytes) {
         return Err(DecodeError::TooLarge);
     }
     let schema_limits = record_limits(limits).ok_or(DecodeError::TooLarge)?;

@@ -1,7 +1,7 @@
 use crate::openai::{DecodeError, Json, Limits, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer::Encoder};
-use skein_lib::{List, bytes};
+use skein_lib::{List, bytes, usize_of};
 
 pub(crate) const VERBOSITY: &[u8] = b"low";
 
@@ -49,10 +49,10 @@ pub fn measure_request(request: &Request, limits: &Limits) -> Result<u32, Decode
     crate::openai::common::measured(measure, bounded, crate::Cap::Request)
 }
 fn validate(request: &Request, limits: &Limits) -> Result<(), DecodeError> {
-    if request.tools.len() > usize::try_from(limits.tools).expect("bounded tools") {
+    if request.tools.len() > usize_of(limits.tools) {
         return Err(DecodeError::limit(crate::Cap::Tools, limits.tools));
     }
-    if request.input.len() > usize::try_from(limits.history_items).expect("bounded history") {
+    if request.input.len() > usize_of(limits.history_items) {
         return Err(DecodeError::limit(crate::Cap::HistoryItems, limits.history_items));
     }
     for tool in &request.tools {
@@ -285,18 +285,7 @@ pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeEr
     validate(&request, limits)?;
     Ok(request)
 }
-pub(crate) fn optional_text(tokens: (&Document, json::Span), name: &[u8]) -> Result<Option<Box<[u8]>>, DecodeError> {
-    match json::optional_at(tokens, json::field(tokens, name)?)? {
-        Some(value) => {
-            if json::kind(value, 0) == Some(Kind::Null) && json::len(value) == 1 {
-                Ok(None)
-            } else {
-                Ok(Some(json::text(value)?))
-            }
-        }
-        None => Ok(None),
-    }
-}
+pub(crate) use crate::wire::json::optional_text;
 fn read_input(tokens: (&Document, json::Span), limits: &Limits) -> Result<Input, DecodeError> {
     let kind = match json::optional_at(tokens, json::field(tokens, b"type")?)? {
         Some(value) => json::text_ref(value)?,

@@ -983,8 +983,9 @@ terminal client, the captures and the faults.
 - **Forgejo signing in through temper,** a test of its own at the end of
   `crates/temper/tests/process.rs`, on `support/forgejo_sign_in.rs`
   (../protocol/sign-in.md, 9.8): an owned Forgejo prepared by temper's
-  commands, with 9.4's settings in its `app.ini`, beside `temper serve`
-  with jig's provider; the key and the client's secret made by `temper
+  commands with no group's file (../protocol/setup.md, 7.4), with 9.4's
+  settings in its `app.ini`, beside `temper serve` with jig's provider
+  and a bundle; the key and the client's secret made by `temper
   forge sign-in` in the test's scratch directory, and the temper source
   added by the command it prints. A scripted client with a cookie jar
   signs in to temper by the printed link (the member of Google's
@@ -994,7 +995,10 @@ terminal client, the captures and the faults.
   admin, then names the member's account by their login, their address
   and its external id, `sub` (`3:sam@example.com`, Google's provider and
   the address), which only Google's provider gives, so the link
-  provider's identity cannot pass. It aims at 2 s, as a world's story
+  provider's identity cannot pass. The forge is then connected as its
+  admin by the handover file, as `temper help server`'s walk does, and
+  the page answers with its forge's meta (../protocol/sign-in.md, 9.7).
+  It aims at 2 s, as a world's story
   does (6.1), and takes about 3 s whole: about 2.5 s is the owned
   Forgejo's preparation and start, as every owned-Forgejo story pays,
   and about 0.5 s is temper's part; being past its aim, it waits on the
@@ -1405,22 +1409,23 @@ section 8; testing-strategy.md, 2.9).
     (../client/tools.md, 8.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
-- **The held record's guard,** for the landing story, whose two sittings
-  leave the record in the store across a stopped box: the second proves
-  the restart on it. The runner's return and the story's own each need a
-  box up, so a panic between the sittings finds none. `Lent`
-  (`tests/support/held_login.rs`) stands from before the first sitting to
-  the test's end. On every ending, a panic anywhere, a failed assertion
-  or an early return, its `Drop` settles what is owed, by `stat` alone,
-  the record never read:
+- **The held record's guard,** for the landing story, whose box can stop
+  with the record still in the store: a panic through a sitting kills the
+  box before its return, and a return that fails stops it all the same.
+  The runner's return and the story's own each need a box up, so neither
+  answers then. `Lent` (`tests/support/held_login.rs`) stands from before
+  the first sitting to the test's end. On every ending, a panic anywhere,
+  a failed assertion or an early return, its `Drop` settles what is owed,
+  by `stat` alone, the record never read:
   - **The record at its lent path,** a private regular file with bytes
     in it: nothing. The import has not run, or the story's return has;
     that is what disarms the guard, so it exports once. The same path
     holding anything else is reported, never overwritten.
   - **Moved in, a box up:** `give-back`, within its 60 seconds.
   - **Moved in, no box up:** a box started over the store for this alone,
-    a new client signed in by the box's link, then `give-back`; the box
-    stops on any ending.
+    a new client signed in by the box's link, then `give-back`, installed
+    for that client with later imports still excluded; the box stops on
+    any ending.
   - **Still not back:** the notice `LOGIN NOT BACK`, naming the store,
     which stays for recovery. The guard never panics while the test
     unwinds; a test that would otherwise pass, it fails.
@@ -2457,7 +2462,7 @@ obligations missing.
 | the project's checks | box: `.temper/pre-pr` in the repository |
 | g's tier | box: the document's tier `goal`, following goal branches, `span_ms` 1,200,000 |
 | main's tiers | box: the document's tier `slow`, following main |
-| questions | setting: the coordinator's instructions (`judged`: `foreman` for each coding change, `up` for a designer's); box: four per change, the document's `forge.change_policy.questions`, the stock's 4 |
+| questions | setting: the coordinator's instructions (`judged`: `foreman` for each coding change, `up` for a designer's); box: four per change, the document's `forge.change_policy.questions`, the reference's explicit override of 4 |
 | the merge job | box: the document's `merge_job`, `.temper/merge` in the repository |
 | the profile's limits | box: the limits 6.5.2 names |
 
@@ -2501,7 +2506,7 @@ the forge's API as an observer, the limits against the box's document):
   `docs/examples/reference/limits.json`'s and `agent.json`'s
   overrides, and `landing.json`, the project's merge job and its two
   tiers (13.9); a change's question bound,
-  `forge.change_policy.questions`, at the stock's 4;
+  `forge.change_policy.questions`, explicitly overridden to 4 by `limits.json`;
 - **the project,** with its repository adopted, holding `AGENTS.md`,
   `DESIGN.md`, its code rules, `.temper/pre-pr`, `.temper/merge`, the
   tiers' workflows and a merge-commit merge style; and, at the path the
@@ -2711,10 +2716,12 @@ scripts/proof-live.sh               the live tier
   invocation within profile `live-temper`'s 50 minutes, each story
   bounding itself at 40 (2.7). The profile's figure is set from the
   pair's first after-landing wall times, and is the user's.
-- **A signal between the landing story's sittings.** A signal to the test
-  process runs no `Drop`, and the runner's `give-back` finds no box up:
-  the record stays in the store and the notice says so (2.7). Closing it
-  is a return that starts its own box, in the runner's part.
+- **A signal to the landing story with its box gone.** A signal to the
+  test process runs no `Drop`. Between the sittings the record is back at
+  its path and nothing is owed; moved in with no box left up, the runner's
+  `give-back` fails: the record stays in the store and the notice says so
+  (2.7). Closing it is a return that starts its own box, in the runner's
+  part.
 - **A managed sitting by a member who isn't an owner.**
   `scripts/proof-live-github-managed.sh live` takes
   `TEMPER_MANAGED_PERSON`, the login that makes the App under its own

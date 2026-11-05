@@ -2,7 +2,7 @@ use super::{Issued, Store, encoded, refusal};
 use crate::{Config, Limits, response::Reply};
 use alloc::boxed::Box;
 use skein_forge::forgejo::{document::AccessToken, request::Page, server::Answer};
-use skein_lib::{Decimal, List, Secret, Writer, bytes};
+use skein_lib::{Decimal, List, Secret, Writer, bytes, usize_of};
 impl Store {
     /// Adds an issued scenario token, within the document's name and scope bounds.
     pub fn token(&mut self, user: u64, name: &[u8], scopes: &[&[u8]], secret: Secret) {
@@ -15,7 +15,7 @@ impl Store {
     fn issue(&mut self, user: u64, name: &[u8], scopes: Box<[Box<[u8]>]>, secret: Secret) -> u64 {
         assert!(
             name.len() <= self.string_bytes
-                && scopes.len() <= usize::try_from(self.tokens.capacity()).expect("u32 fits")
+                && scopes.len() <= usize_of(self.tokens.capacity())
                 && secret.len() <= self.secret_bytes.max(40),
             "scenario token bounds"
         );

@@ -55,8 +55,6 @@ const SMALL_TASKS: tasks::Limits = tasks::Limits {
     contract_choices: 1,
     charters: 4,
     charter_documents: 2,
-    revisions: 4,
-    versions: 8,
     authority_grants: 4,
     authority_segments: 4,
     authority_bytes: 2_048,

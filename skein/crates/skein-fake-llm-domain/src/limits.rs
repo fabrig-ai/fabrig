@@ -4,6 +4,7 @@
 
 use alloc::boxed::Box;
 use core::mem::size_of;
+use skein_lib::len_u64;
 
 use crate::api::{Answer, Failure, Line, Message, Part, Piece, Query, Report, Rule, Rules, Script, ToolSpec, Turn};
 
@@ -18,8 +19,9 @@ fn array(len: usize, item_bytes: usize) -> Option<u64> {
     u64::try_from(len).ok()?.checked_mul(u64::try_from(item_bytes).ok()?)
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "owned-byte measurements share an optional checked-accounting signature")]
 fn bytes(items: &[u8]) -> Option<u64> {
-    u64::try_from(items.len()).ok()
+    Some(len_u64(items.len()))
 }
 
 fn parts(items: &[Part]) -> Option<u64> {
@@ -139,7 +141,7 @@ pub(crate) fn answer(answer: &Answer) -> Option<u64> {
 ///
 /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
 pub(crate) fn scripted_answer(turn: &Turn) -> Option<u64> {
-    let mut total = u64::try_from(turn.lines.len()).ok()?.checked_mul(u64::try_from(size_of::<Part>()).ok()?)?;
+    let mut total = len_u64(turn.lines.len()).checked_mul(u64::try_from(size_of::<Part>()).ok()?)?;
     for line in &turn.lines {
         let owned = match line {
             Line::Pieces { pieces } => {

@@ -60,7 +60,7 @@ impl Plan {
         if self.stage != Stage::Log {
             return Err(api::Error::InvalidAnswer);
         }
-        let cap = usize::try_from(self.raw_cap).expect("u32 fits usize");
+        let cap = skein_lib::usize_of(self.raw_cap);
         let start = bytes.len().saturating_sub(cap);
         let truncated = more || start != 0;
         let log =

@@ -82,7 +82,7 @@ fn a_reference_that_changes_a_protected_path_fails_validation() {
     .replace("'Fix the crate.\\n'", "\"Fix the crate.\\n\"");
     std::fs::write(root.join("task.toml"), manifest).expect("manifest");
     let error = smith_bench::validate::validate(&root, &[]).expect_err("changed protection refuses");
-    assert!(error.contains("reference changes Cargo.toml"), "{error}");
+    assert!(error.detail.contains("reference changes Cargo.toml"), "{error}");
 }
 
 fn comparison_document(name: &str) -> (skein_scratch::Scratch, PathBuf, String) {
@@ -335,7 +335,7 @@ fn a_repository_seed_comes_from_its_bundle() {
     assert!(
         smith_bench::seed_source(&task, &task_directory, &root.join("bundles/none"))
             .expect_err("absent bundles refuse attempts")
-            .reason
+            .detail
             .contains("absent")
     );
 }

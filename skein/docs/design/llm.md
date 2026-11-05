@@ -143,6 +143,22 @@ provider token-limit stop. A tool call past the input limit is the one
 exception: a per-call outcome (section 2.4). A Responses reasoning item past
 its limit is dropped instead only where the owner opted in (section 4.8).
 
+**The dialects share one vocabulary.** The crate's own `Stop`, `Usage` and
+`Failure` (2.5) are what both dialects' decoders produce: no copy of them, and
+no mapping between copies. What both dialects need below that, the documents'
+limits, the failure classes and rate headers, the JSON value layer and the
+reasoning replay's fields, sits in a private module `wire`, which names neither
+dialect; `openai` and `anthropic` each re-export the names they publish, and
+Anthropic's modules name nothing of `openai`.
+`wire::Output<P>` is one stream of decoded events over a dialect's own `Part`.
+It is this step crate's one generic item, a departure from
+`skein/docs/foundation/programming-model.md`, 10.3, for this reason: every
+variant but `Part` is the same in both dialects, the dialects' `Part`s are not,
+and a data type with no methods hides no call, which is what the rule guards.
+Whatever reads it is written per dialect, on concrete types. The Client's own
+stream in `dialect` isn't a copy: its `Part` is a translated block or an error,
+and its failure carries a report.
+
 ### 2.1 Affinity
 
 ```rust
@@ -437,11 +453,13 @@ HTTP, SSE and JSON demands fitting their lower streams, tagged projections,
 error documents and tokenizer lengths. Internal handoff queues grow with
 admitted work. There is no client heap sum; worlds check measured peaks
 under scenario ceilings. The edge formulas name what they bound:
-`client::encoder_bound` and `openai::common::encoder_bound` bound request
+`client::encoder_bound` and `wire`'s `encoder_bound` bound request
 scratch;
-`openai::common::decoded_bound` and `anthropic::decoded_bound` bound
-retained decoded output, and `anthropic::response::decoder_bound`
-bounds its response decoder. `replay_bound` bounds the raw/envelope
+`openai::decoded_bound` and `anthropic::decoded_bound` bound
+retained decoded output, and `anthropic::decoder_bound`
+bounds its response decoder. Anthropic's is OpenAI's with its own decoder
+and marks added, so it is written where both dialects are known, in
+`dialect`, and `anthropic` re-exports it. `replay_bound` bounds the raw/envelope
 handoff. The neutral document's internal `document_bound` and OpenAI's
 response `decoder_bound` and `decoder_fixed_bound` size their retained
 tables and scratch.
@@ -933,6 +951,11 @@ unless marked:
   token holds `api.responses.write`. How the owner runs them, and whether
   a sign-in of the user's that holds the scope returns the public route's
   stories to the automatic suite, are decided later.
+- **Anthropic's decoded bound.** `anthropic::decoded_bound` is OpenAI's with
+  Anthropic's added (4), so it counts OpenAI's request items, which Anthropic
+  never holds. Dropping them changes what a public function returns. Its one
+  reader outside the crate, `skein-fake-llm-protocol`, asks only whether it
+  is `Some`, so it can shrink when a consumer wants the room.
 
 ## 7. Open questions
 

@@ -155,8 +155,7 @@ impl Plan {
                     object: reading::commit(entry.sha, self.row.object_format).ok_or(api::Error::InvalidAnswer)?,
                 };
                 self.add(
-                    u64::try_from(crate::measure::TREE_ENTRY_BYTES.saturating_add(value.name.len()))
-                        .expect("entry size"),
+                    skein_lib::len_u64(crate::measure::TREE_ENTRY_BYTES.saturating_add(value.name.len())),
                     bounds,
                 )?;
                 self.entries.push(value).or(Err(api::Error::TooLarge))?;
@@ -169,10 +168,7 @@ impl Plan {
                     return Err(api::Error::InvalidAnswer);
                 }
                 let (state, conclusion) = state(job.status);
-                self.add(
-                    u64::try_from(crate::measure::RUN_JOB_BYTES.saturating_add(job.name.len())).expect("job size"),
-                    bounds,
-                )?;
+                self.add(skein_lib::len_u64(crate::measure::RUN_JOB_BYTES.saturating_add(job.name.len())), bounds)?;
                 self.jobs
                     .push(api::RunJob {
                         steps: 0,

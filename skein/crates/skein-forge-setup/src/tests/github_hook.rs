@@ -28,7 +28,7 @@ fn with_repair(slug: &[u8], repair: bool) -> Hook {
     Hook::new(fixtures::given().forge, Kept::new(NonZeroU64::new(APP).expect("nonzero App"), secret(KEY)), slug, repair)
 }
 fn config(url: &[u8]) -> Event {
-    Event::Reply(Reply::GithubDocument(Document::HookConfig(Config { url: url.into() })))
+    Event::Reply(Reply::GitHubDocument(Document::HookConfig(Config { url: url.into() })))
 }
 fn go(machine: &mut Hook, event: Event) -> Progress {
     let mut out = Queue::uncapped();
@@ -190,9 +190,9 @@ fn a_hook_names_wrong_document() {
     for phase in [1, 2] {
         for reply in [
             Reply::Empty,
-            Reply::GithubDocument(Document::Done),
-            Reply::GithubDocument(Document::App(fixtures::app())),
-            Reply::GithubRows(Box::new([])),
+            Reply::GitHubDocument(Document::Done),
+            Reply::GitHubDocument(Document::App(fixtures::app())),
+            Reply::GitHubRows(Box::new([])),
             Reply::Rows(Box::new([])),
             Reply::Document(skein_forge::forgejo::document::Document::RepoSearch { ok: true }),
         ] {

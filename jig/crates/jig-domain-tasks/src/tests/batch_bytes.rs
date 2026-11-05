@@ -86,7 +86,7 @@ fn a_restored_batch_past_its_bytes_is_the_batch_bound() {
     for (limit, accepted) in [(held, true), (held - 1, false)] {
         let mut h = Harness::new();
         h.env.limits.batch_bytes = limit;
-        h.domain = Domain::new(&h.env.limits, 91, 1, super::charters(), Box::new([0]));
+        h.domain = Domain::new(&h.env.limits, crate::tests::KEPT, 91, 1, super::charters(), Box::new([0]));
         let row = PersonProposal {
             number: 100,
             proposer: 9,

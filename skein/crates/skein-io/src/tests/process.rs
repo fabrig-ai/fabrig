@@ -448,3 +448,37 @@ fn a_failed_spawn_releases_only_its_pipes_and_keeps_the_given_listener() {
     rig.complete(closing, Ok(Done::Nothing));
     rig.empty();
 }
+
+#[test]
+fn a_pipe_read_error_fails_once_without_end_or_another_read() {
+    let mut rig = Rig::new(limits());
+    let pipe = rig.io.adopt_read_pipe(Fd::new(40)).expect("read pipe");
+    let read = rig.next().take(Kind::PipeRead);
+    rig.down(Request::Stream { stream: pipe, down: Down::Demand { read: Read::Fill(1), room: 0 } }).nothing();
+    rig.next().nothing();
+    let failed = rig.complete(read, Err(crate::kernel::Error::BrokenPipe));
+    assert_eq!(failed.events, [Event::Stream { owner: pipe, up: Up::Failed(skein_lib::stream::Fault::Reset) }]);
+    assert!(failed.subs.is_empty());
+    rig.next().nothing();
+    let close = rig.down(Request::Close { entity: pipe }).take(Kind::Close);
+    assert_eq!(rig.complete(close, Ok(Done::Nothing)).events, [Event::Closed { owner: pipe }]);
+    rig.empty();
+}
+
+#[test]
+fn abort_read_waits_for_the_read_and_does_not_retry_an_unsubmitted_cancel() {
+    let mut rig = Rig::new(limits());
+    let pipe = rig.io.adopt_read_pipe(Fd::new(40)).expect("read pipe");
+    let read = rig.next().take(Kind::PipeRead);
+    let mut aborted = rig.down(Request::Abort { entity: pipe });
+    assert!(aborted.events.is_empty());
+    let cancel = aborted.take(Kind::Cancel);
+    assert_eq!(cancel.kind, Op::Cancel { target: read.op });
+    rig.complete(cancel, Err(crate::kernel::Error::Other(12))).nothing();
+    rig.next().nothing();
+    let mut landed = rig.complete(read, Ok(Done::Count(0)));
+    assert!(landed.events.is_empty());
+    let close = landed.take(Kind::Close);
+    assert_eq!(rig.complete(close, Ok(Done::Nothing)).events, [Event::Closed { owner: pipe }]);
+    rig.empty();
+}

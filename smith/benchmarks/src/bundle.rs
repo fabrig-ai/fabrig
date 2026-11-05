@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::isolate::{Setup, SetupStep};
-use crate::{Kind, Refusal, Task};
+use crate::isolate::SetupStep;
+use crate::{Fault, Kind, Refusal, Task, input};
 
 /// A repository seed's bundle contents and digest, supplied by the task author.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -67,19 +67,20 @@ pub fn check_bundle(manifest: &BundleManifest, bundles: &Path) -> Result<BundleC
 }
 
 /// The copy source and its digest: an ordinary seed, or a repository's checked bundle.
-pub fn seed_source(task: &Task, task_directory: &Path, bundles: &Path) -> Result<(PathBuf, String), Setup> {
-    let resolve = || {
-        let seed = task_directory.join("seed");
-        if task.kind != Kind::Repository {
-            return Ok((seed, task.seed_sha256.clone()));
-        }
-        let manifest = read_bundle_manifest(&seed.join("bundle.toml")).map_err(|error| error.to_string())?;
-        match check_bundle(&manifest, bundles).map_err(|error| error.to_string())? {
-            BundleCheck::Matches => Ok((bundles.join(manifest.name), manifest.sha256)),
-            BundleCheck::Absent => Err(format!("repository bundle {} is absent", manifest.name)),
-        }
-    };
-    resolve().map_err(|reason| Setup { step: SetupStep::Seed, reason })
+pub fn seed_source(task: &Task, task_directory: &Path, bundles: &Path) -> Result<(PathBuf, String), Fault> {
+    resolve_seed(task, task_directory, bundles).map_err(Fault::at(SetupStep::Seed))
+}
+
+fn resolve_seed(task: &Task, task_directory: &Path, bundles: &Path) -> Result<(PathBuf, String), Fault> {
+    let seed = task_directory.join("seed");
+    if task.kind != Kind::Repository {
+        return Ok((seed, task.seed_sha256.clone()));
+    }
+    let manifest = read_bundle_manifest(&seed.join("bundle.toml"))?;
+    match check_bundle(&manifest, bundles)? {
+        BundleCheck::Matches => Ok((bundles.join(manifest.name), manifest.sha256)),
+        BundleCheck::Absent => Err(input(format!("repository bundle {} is absent", manifest.name))),
+    }
 }
 
 pub(crate) fn check_repository_bundles(tasks: &[crate::CatalogueTask], bundles: &Path) -> Result<(), Refusal> {

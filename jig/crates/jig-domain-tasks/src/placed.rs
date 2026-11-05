@@ -121,27 +121,8 @@ pub(crate) const fn reason(phase: &Phase) -> Option<Hold> {
 }
 pub(crate) const fn placed_reason(phase: &Phase) -> Option<u64> {
     match reason(phase) {
-        Some(Hold::Placed { hold }) => Some(hold),
-        Some(
-            Hold::Exceeded(_)
-            | Hold::Failures(_)
-            | Hold::Stalled
-            | Hold::Dependency(_)
-            | Hold::Stopped
-            | Hold::Drift
-            | Hold::Effects
-            | Hold::EffectFailed
-            | Hold::Uncertain { .. }
-            | Hold::Budget
-            | Hold::Deadline
-            | Hold::HoldsWaited
-            | Hold::ResourceUnavailable
-            | Hold::ResourceAccess
-            | Hold::PoolLost { .. }
-            | Hold::Procedure
-            | Hold::Circle,
-        )
-        | None => None,
+        Some(why) => why.placed(),
+        None => None,
     }
 }
 fn subtree(scope: Scope) -> Option<u64> {
@@ -665,26 +646,7 @@ pub(crate) fn proposal_hold(action: &crate::ProposalAction) -> Option<(u64, u64)
 }
 
 pub(crate) const fn is_placed(why: Hold) -> bool {
-    match why {
-        Hold::Placed { .. } => true,
-        Hold::Exceeded(_)
-        | Hold::Failures(_)
-        | Hold::Stalled
-        | Hold::Dependency(_)
-        | Hold::Stopped
-        | Hold::Drift
-        | Hold::Effects
-        | Hold::EffectFailed
-        | Hold::Uncertain { .. }
-        | Hold::Budget
-        | Hold::Deadline
-        | Hold::HoldsWaited
-        | Hold::ResourceUnavailable
-        | Hold::ResourceAccess
-        | Hold::PoolLost { .. }
-        | Hold::Procedure
-        | Hold::Circle => false,
-    }
+    why.placed().is_some()
 }
 
 fn room(domain: &Domain, staged: &Staged, limits: &Limits, hold: &PlacedHold) -> Option<CapacityCause> {

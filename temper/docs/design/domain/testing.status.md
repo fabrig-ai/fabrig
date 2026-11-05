@@ -37,11 +37,17 @@
   has passed live on its own store, the
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
-  (`crates/temper/tests/live.rs`). 2.8: the one story has not run green
-  on macOS yet: no recorded run has passed the box's check of its held
-  listeners (`skein/docs/design/shell.md`, 6.6), and that the bottles'
-  first lines name the pins stands unproved. No builder runs macOS, and
-  the workflow's runs show them. 4.3: the shell subset;
+  (`crates/temper/tests/live.rs`).
+  2.7: the held record's guard is shown on the fake issuer and on stubs
+  alone (`crates/temper/tests/process.rs`,
+  `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,
+  and `crates/temper/tests/suite/startup.rs`). Its return with no box up
+  holds through red-26's repair (660556eab1,
+  `a_failed_terminal_return_allows_recovery_without_reopening_import`),
+  and that red closed recovered. Nothing offline runs its lines in
+  `crates/temper/tests/live.rs`, and whether a live store's box, with its
+  owned Forgejo, answers the guard within its 240 s is unknown.
+  4.3: the shell subset;
   skein's fake machine runs no `sh` and no `rg`. 6.4: of
   temper's kinds' stories, the forge's world's (`forge.md`'s status,
   18); the domain world's project's rule refused to another project's
@@ -99,3 +105,13 @@
   `configure_engine` clears none, and `github_land.rs`'s, a separate
   function, removes the charters, templates, policies and rules for
   stock policy 1. No reason is recorded.
+  2.7: the held record's guard takes the goal of the live-login-guard
+  draft of 11-04, every exit path exports the record, and departs from
+  its mechanism, by the designer's decision: it stands before the import,
+  where the draft has it right after, because the import is inside the
+  first sitting's referee and one whose reply was lost still owes the
+  record; it starts a box of its own where none is up, where the draft
+  has its `Drop` run with the box still up, because a panic through a
+  sitting kills the box; and a `stat` of the record's path disarms it,
+  where the draft has an explicit export, because a record back at its
+  path owes nothing whichever return brought it.

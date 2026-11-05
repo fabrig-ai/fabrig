@@ -111,6 +111,33 @@ pub enum Word {
     Configuring,
 
     HomeOpen,
+    NeedsLaterMeta,
+    NeedsYourReply,
+    NeedsPlaceholder,
+    NeedsSendReply,
+    NeedsProgress,
+    NeedsProgressCut,
+    NeedsSaw,
+    NeedsRecommended,
+    NeedsReply,
+    NeedsLater,
+    NeedsNext,
+    NeedsLast,
+    NeedsAnswered,
+    NeedsDone,
+    NeedsFunds,
+    NeedsFundsUsed,
+    NeedsRelease,
+    NeedsKindFunds,
+    HomeTwo,
+    HomeThree,
+    HomeFour,
+    HomeFive,
+    HomeSix,
+    HomeSeven,
+    HomeEight,
+    HomeNine,
+    HomeAnswerMany,
     HomeNeedsNone,
     HomeNeedsOne,
     HomeNeedsMany,
@@ -197,6 +224,11 @@ pub enum Word {
     BrandHome,
     RailHome,
     NeedsYouCount,
+    NeedsYouCountCut,
+    ToastAnswered,
+    ToastLater,
+    ToastUndo,
+    AnsweredReply,
     RailSettings,
     Sections,
 
@@ -502,6 +534,12 @@ pub enum Word {
     TimeDecember,
 
     ChangeModel,
+    BylineTask,
+    BylineModel,
+    BylineKey,
+    BylinePlan,
+    BylineProgram,
+    BylinePlayground,
     UsingModel,
     UsingDefault,
     UsingKey,
@@ -606,6 +644,7 @@ pub enum Word {
     RejectProposal,
     ChatDelegates,
     ChatSendHint,
+    ChatWorking,
     ConnectForge,
     ChatTitle,
     PlaygroundModelName,
@@ -633,6 +672,13 @@ pub enum Word {
     PlaygroundTryAgain,
 
     SuggestedRequests,
+    DelegationOpen,
+    DelegationLineChange,
+    DelegationLineGoal,
+    DelegationLineReport,
+    DelegationLineVerdict,
+    DelegationLineJob,
+    DelegationLineApproval,
     DelegationChange,
     DelegationReport,
     DelegationVerdict,
@@ -909,7 +955,7 @@ pub enum Word {
 // The owned row's Runs and first-password lines add two words and three phrases.
 // A failed setup's step adds five phrases.
 // A task document's reading line and eight lasting read ends (client/README.md, 3.5).
-// The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
+// The paste of a sign-in's address adds sixteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds three literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
@@ -941,8 +987,12 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // New chat adds three phrases (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Chats adds six phrases and removes two filter empty phrases (client/README.md, 3.5).
-// Goal rows, ways and the page add thirty-five phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1437;
+// Goal rows, ways and page add thirty-five phrases (client/README.md, 3.5).
+// Byline forms add six phrases (client/README.md, 5.5).
+// Needs count, toast, page and kinds add thirty-two phrases (3.5).
+// The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
+// Delegation lines add seven literal phrases (client/README.md, 5.7).
+const PHRASES: u32 = 1483;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -957,9 +1007,12 @@ const PHRASES: u32 = 1437;
 // New chat adds nine literal and hole segments (client/README.md, 3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Chats adds fourteen segments and removes two (client/README.md, 3.5).
-// Goal rows, ways and the page add sixty-three segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 2501;
-const ALL: [Word; 841] = [
+// Goal rows, ways and page add sixty-three segments (client/README.md, 3.5).
+// Byline forms add twenty-eight segments (client/README.md, 5.5).
+// Needs count, toast, page and kinds add sixty-two segments (3.5).
+// Delegation lines add seven literal segments (client/README.md, 5.7).
+const SEGMENTS: u32 = 2601;
+const ALL: [Word; 887] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1057,6 +1110,33 @@ const ALL: [Word; 841] = [
     Word::ConfigureWhere,
     Word::Configuring,
     Word::HomeOpen,
+    Word::NeedsLaterMeta,
+    Word::NeedsYourReply,
+    Word::NeedsPlaceholder,
+    Word::NeedsSendReply,
+    Word::NeedsProgress,
+    Word::NeedsProgressCut,
+    Word::NeedsSaw,
+    Word::NeedsRecommended,
+    Word::NeedsReply,
+    Word::NeedsLater,
+    Word::NeedsNext,
+    Word::NeedsLast,
+    Word::NeedsAnswered,
+    Word::NeedsDone,
+    Word::NeedsFunds,
+    Word::NeedsFundsUsed,
+    Word::NeedsRelease,
+    Word::NeedsKindFunds,
+    Word::HomeTwo,
+    Word::HomeThree,
+    Word::HomeFour,
+    Word::HomeFive,
+    Word::HomeSix,
+    Word::HomeSeven,
+    Word::HomeEight,
+    Word::HomeNine,
+    Word::HomeAnswerMany,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
     Word::HomeNeedsMany,
@@ -1143,6 +1223,11 @@ const ALL: [Word; 841] = [
     Word::BrandHome,
     Word::RailHome,
     Word::NeedsYouCount,
+    Word::NeedsYouCountCut,
+    Word::ToastAnswered,
+    Word::ToastLater,
+    Word::ToastUndo,
+    Word::AnsweredReply,
     Word::RailSettings,
     Word::Sections,
     Word::ForgeHereVersionDetails,
@@ -1437,6 +1522,12 @@ const ALL: [Word; 841] = [
     Word::TimeNovember,
     Word::TimeDecember,
     Word::ChangeModel,
+    Word::BylineTask,
+    Word::BylineModel,
+    Word::BylineKey,
+    Word::BylinePlan,
+    Word::BylineProgram,
+    Word::BylinePlayground,
     Word::UsingModel,
     Word::UsingDefault,
     Word::UsingKey,
@@ -1539,6 +1630,7 @@ const ALL: [Word; 841] = [
     Word::RejectProposal,
     Word::ChatDelegates,
     Word::ChatSendHint,
+    Word::ChatWorking,
     Word::ConnectForge,
     Word::ChatTitle,
     Word::PlaygroundModelName,
@@ -1565,6 +1657,13 @@ const ALL: [Word; 841] = [
     Word::PlaygroundNotConnected,
     Word::PlaygroundTryAgain,
     Word::SuggestedRequests,
+    Word::DelegationOpen,
+    Word::DelegationLineChange,
+    Word::DelegationLineGoal,
+    Word::DelegationLineReport,
+    Word::DelegationLineVerdict,
+    Word::DelegationLineJob,
+    Word::DelegationLineApproval,
     Word::DelegationChange,
     Word::DelegationReport,
     Word::DelegationVerdict,
@@ -1904,6 +2003,33 @@ impl Word {
             Self::ConfigureWhere => 3187,
             Self::Configuring => 3188,
             Self::HomeOpen => 3165,
+            Self::NeedsLaterMeta => 3305,
+            Self::NeedsYourReply => 3306,
+            Self::NeedsPlaceholder => 3307,
+            Self::NeedsSendReply => 3308,
+            Self::NeedsProgress => 3309,
+            Self::NeedsProgressCut => 3310,
+            Self::NeedsSaw => 3311,
+            Self::NeedsRecommended => 3312,
+            Self::NeedsReply => 3313,
+            Self::NeedsLater => 3314,
+            Self::NeedsNext => 3315,
+            Self::NeedsLast => 3316,
+            Self::NeedsAnswered => 3317,
+            Self::NeedsDone => 3318,
+            Self::NeedsFunds => 3319,
+            Self::NeedsFundsUsed => 3320,
+            Self::NeedsRelease => 3321,
+            Self::NeedsKindFunds => 3322,
+            Self::HomeTwo => 3323,
+            Self::HomeThree => 3324,
+            Self::HomeFour => 3325,
+            Self::HomeFive => 3326,
+            Self::HomeSix => 3327,
+            Self::HomeSeven => 3328,
+            Self::HomeEight => 3329,
+            Self::HomeNine => 3330,
+            Self::HomeAnswerMany => 3331,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
             Self::HomeNeedsMany => 3147,
@@ -1987,6 +2113,11 @@ impl Word {
             Self::BrandHome => 3080,
             Self::RailHome => 3081,
             Self::NeedsYouCount => 3083,
+            Self::NeedsYouCountCut => 3332,
+            Self::ToastAnswered => 3333,
+            Self::ToastLater => 3334,
+            Self::ToastUndo => 3335,
+            Self::AnsweredReply => 3336,
             Self::RailSettings => 3084,
             Self::Sections => 3085,
 
@@ -2312,6 +2443,12 @@ impl Word {
             Self::SignInNotReady => 1909,
             Self::OutOfDateMain => 183,
             Self::ChangeModel => 1067,
+            Self::BylineTask => 1505,
+            Self::BylineModel => 1500,
+            Self::BylineKey => 1501,
+            Self::BylinePlan => 1502,
+            Self::BylineProgram => 1503,
+            Self::BylinePlayground => 1504,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
             Self::UsingKey => 1070,
@@ -2415,6 +2552,7 @@ impl Word {
             Self::RejectProposal => 1405,
             Self::ChatDelegates => 145,
             Self::ChatSendHint => 186,
+            Self::ChatWorking => 3287,
             Self::ConnectForge => 275,
             Self::ChatTitle => 276,
             Self::PlaygroundModelName => 277,
@@ -2446,6 +2584,13 @@ impl Word {
 
             Self::SuggestedRequests => 192,
             // 194 is DeadlineMoment; 200..=267 and 280..=281 are card words.
+            Self::DelegationOpen => 2300,
+            Self::DelegationLineChange => 2301,
+            Self::DelegationLineGoal => 2302,
+            Self::DelegationLineReport => 2303,
+            Self::DelegationLineVerdict => 2304,
+            Self::DelegationLineJob => 2305,
+            Self::DelegationLineApproval => 2306,
             Self::DelegationChange => 195,
             Self::DelegationReport => 196,
             Self::DelegationVerdict => 197,
@@ -2698,6 +2843,13 @@ fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // The toast wraps the outgoing choice or the reply label (3.5).
+    if word == Word::ToastAnswered {
+        return temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow);
+    }
+    if word == Word::AnsweredReply {
+        return Ok(temper_client_protocol_wire::CUE_BYTES);
+    }
     // Changes names the wire's complete repository and branch (client/README.md, 4.6).
     if word == Word::ChangesQueueNamed {
         return Ok(if last {
@@ -2714,7 +2866,7 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     }
 
     // The phone link names the joined title, question and its colon (3.5).
-    if word == Word::HomeAnswerName {
+    if word == Word::HomeAnswerName && !last {
         return home_answer_bytes(joined);
     }
     if word == Word::SwitcherRow && last {
@@ -2749,18 +2901,37 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     {
         return Ok(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES);
     }
+    if word == Word::BylineTask && kind == HoleKind::Name {
+        return byline_bytes(joined);
+    }
     let model_name = joined.min(crate::choice::MODEL_SHOWN);
     if word == Word::ModelEffort {
         return Ok(model_name);
     }
     if last
-        && [Word::UsingModel, Word::UsingKey, Word::UsingPlan, Word::UsingProgram, Word::ModelNeedsAccount]
-            .contains(&word)
+        && [
+            Word::UsingModel,
+            Word::UsingKey,
+            Word::UsingPlan,
+            Word::UsingProgram,
+            Word::ModelNeedsAccount,
+            Word::BylineModel,
+            Word::BylineKey,
+            Word::BylinePlan,
+            Word::BylineProgram,
+        ]
+        .contains(&word)
     {
         let doubled = model_name.checked_mul(2).ok_or(Invalid::Overflow)?;
         return doubled.checked_add(3).ok_or(Invalid::Overflow);
     }
     Ok(if kind == HoleKind::Name { joined } else { 0 })
+}
+// Provider words, bounded program/model/effort names, and their literals.
+fn byline_bytes(joined: u32) -> Result<u32, Invalid> {
+    let bounded = joined.min(crate::choice::MODEL_SHOWN).checked_mul(3).ok_or(Invalid::Overflow)?;
+    let names = joined.checked_add(bounded).ok_or(Invalid::Overflow)?;
+    names.checked_add(128).ok_or(Invalid::Overflow)
 }
 fn english_language(
     connector: u16,
@@ -2884,12 +3055,13 @@ impl Words {
             // New chat adds 157 and the configuring opening 476 literal bytes (client/README.md, 3.5).
             // Changes adds 367 literal bytes (client/README.md, 3.5).
             // Chats adds 141 net literal bytes (client/README.md, 3.5).
-            // Goal rows, ways and the page add 674 literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 476 + 157 + 141 + 419 + 250 + 5,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 476 + 157 + 141 + 419 + 250 + 87 + 225 + 15 + 54 + 53,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
+                .max(byline_bytes(joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
+                .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
                 .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
@@ -3044,9 +3216,36 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicJob => (&[b"a job"], &[]),
         Word::PublicReading => (&[b"Reading\xe2\x80\xa6"], &[]),
         Word::HomeOpen => (&[b"Open"], &[]),
+        Word::NeedsLaterMeta => (&[b" \xc2\xb7 later"], &[]),
+        Word::NeedsYourReply => (&[b"Your reply"], &[]),
+        Word::NeedsPlaceholder => (&[b"Your words go to ", b"\xe2\x80\x99s agent"], &[Name]),
+        Word::NeedsSendReply => (&[b"Send reply"], &[]),
+        Word::NeedsProgress => (&[b"", b" of ", b""], &[Number, Number]),
+        Word::NeedsProgressCut => (&[b"", b" of ", b"+"], &[Number, Number]),
+        Word::NeedsSaw => (&[b"What the agent saw"], &[]),
+        Word::NeedsRecommended => (&[b"recommended"], &[]),
+        Word::NeedsReply => (&[b"Reply\xe2\x80\xa6"], &[]),
+        Word::NeedsLater => (&[b"Later"], &[]),
+        Word::NeedsNext => (&[b"Next: ", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::NeedsLast => (&[b"The last one"], &[]),
+        Word::NeedsAnswered => (&[b"Answered"], &[]),
+        Word::NeedsKindFunds => (&[b"funds"], &[]),
+        Word::NeedsFunds => (&[b"", b" of ", b" used"], &[Number, Number]),
+        Word::NeedsFundsUsed => (&[b"", b" of ", b" used."], &[Number, Number]),
+        Word::NeedsRelease => (&[b"Release"], &[]),
+        Word::NeedsDone => (&[b"Every question is answered. Work carries on; Home tells you what changed."], &[]),
+        Word::HomeTwo => (&[b"Two"], &[]),
+        Word::HomeThree => (&[b"Three"], &[]),
+        Word::HomeFour => (&[b"Four"], &[]),
+        Word::HomeFive => (&[b"Five"], &[]),
+        Word::HomeSix => (&[b"Six"], &[]),
+        Word::HomeSeven => (&[b"Seven"], &[]),
+        Word::HomeEight => (&[b"Eight"], &[]),
+        Word::HomeNine => (&[b"Nine"], &[]),
+        Word::HomeAnswerMany => (&[b"Answer, one at a time"], &[]),
         Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
         Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),
-        Word::HomeNeedsMany => (&[b"", b" things need you."], &[Number]),
+        Word::HomeNeedsMany => (&[b"", b" things need you."], &[Name]),
         Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),
         Word::HomeNeedsCount => (&[b"Needs you \xc2\xb7 ", b""], &[Number]),
         Word::HomeNeedsEmpty => (&[b"Nothing needs you. Work carries on, and this page tells you what changed when you come back."], &[]),
@@ -3060,7 +3259,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeAllChatsName => (&[b"", b" chats"], &[Name]),
         Word::HomeAskLine => (&[b"", b": ", b""], &[Name, Name]),
         Word::HomeAnswer => (&[b"Answer"], &[]),
-        Word::HomeAnswerName => (&[b"", b" Answer"], &[Name]),
+        Word::HomeAnswerName => (&[b"", b" ", b""], &[Name, Name]),
         Word::HomeChatName => (&[b"", b", ", b", ", b""], &[Name, Name, Name]),
         Word::HomeWaiting => (&[b"waiting on you"], &[]),
         Word::HomeClosed => (&[b"closed"], &[]),
@@ -3203,6 +3402,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BrandHome => (&[b"temper home"], &[]),
         Word::RailHome => (&[b"Home"], &[]),
         Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
+        Word::NeedsYouCountCut => (&[b"Needs you ", b"+"], &[Number]),
+        Word::ToastAnswered => (&[b"Answered: ", b""], &[Name]),
+        Word::ToastLater => (&[b"Later: it stays in Needs you, after the others."], &[]),
+        Word::ToastUndo => (&[b"Undo"], &[]),
+        Word::AnsweredReply => (&[b"Replied: \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name]),
         Word::RailSettings => (&[b"Settings"], &[]),
         Word::Sections => (&[b"Sections"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),
@@ -3392,6 +3596,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBack => (&[b"\xe2\x80\xb9 Back"], &[]),
         Word::WelcomePlaygroundInstead => (&[b"Try the playground instead"], &[]),
 
+        Word::DelegationOpen => (&[b"Open"], &[]),
+        Word::DelegationLineChange => (&[b"Change"], &[]),
+        Word::DelegationLineGoal => (&[b"Started goal"], &[]),
+        Word::DelegationLineReport => (&[b"report"], &[]),
+        Word::DelegationLineVerdict => (&[b"verdict"], &[]),
+        Word::DelegationLineJob => (&[b"job"], &[]),
+        Word::DelegationLineApproval => (&[b"approval"], &[]),
         Word::DelegationChange => (&[b"T", b" \xc2\xb7 CHANGE"], &[Number]),
         Word::DelegationReport => (&[b"T", b" \xc2\xb7 REPORT"], &[Number]),
         Word::DelegationVerdict => (&[b"T", b" \xc2\xb7 VERDICT"], &[Number]),
@@ -3429,6 +3640,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BudgetDeadlineDate => (&[b"", b""], &[HoleKind::Date]),
         Word::BudgetDeadlineMoment => (&[b"", b" UTC"], &[HoleKind::Moment]),
         Word::ChangeModel => (&[b"Change model"], &[]),
+        Word::BylineTask => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
+        Word::BylineModel => (&[b"", b""], &[Name]),
+        Word::BylineKey => (&[b"", b" API key \xc2\xb7 ", b""], &[Name, Name]),
+        Word::BylinePlan => (&[b"", b" plan \xc2\xb7 ", b""], &[Name, Name]),
+        Word::BylineProgram => (&[b"your ", b" subscription, through ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
+        Word::BylinePlayground => (&[b"Scripted model \xc2\xb7 ", b""], &[Name]),
         Word::UsingModel => (&[b"Using ", b""], &[Name]),
         Word::UsingDefault => (&[b"Using the default model"], &[]),
         Word::UsingKey => (&[b"Using your ", b" API key \xc2\xb7 ", b""], &[Name, Name]),
@@ -3495,7 +3712,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AgentSpend => (&[b"Agent spend too small."], &[]),
         Word::AgentTime => (&[b"Agent time too short."], &[]),
         Word::AgentWaiting => (&[b"Agent waiting too short."], &[]),
-        Word::AgentChecks => (&[b"Agent checks exceed the change reserve."], &[]),
+        Word::AgentChecks => (&[b"Agent check timeout exceeds reserve_time for charter ", b". See settings help for held revisions."], &[Number]),
         Word::AgentMessage => (&[b"Agent message bound too small."], &[]),
         Word::AgentInbox => (&[b"Agent inbox too small."], &[]),
         Word::AgentUnacknowledged => (&[b"Agent unacknowledged turns too few."], &[]),
@@ -3626,6 +3843,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ProposalInbox => (&[b"Open in inbox \xe2\x86\x97"], &[]),
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
         Word::ChoiceProvider => (&[b"", b""], &[Name]),
+        Word::ChatWorking => (&[b"Writing"], &[]),
         Word::ChatSendHint => (&[b"Enter sends \xc2\xb7 Shift+Enter for a new line"], &[]),
         Word::ConnectForge => (&[b"Connect a forge"], &[]),
         Word::ChatTitle => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),

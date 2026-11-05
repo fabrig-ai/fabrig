@@ -254,7 +254,7 @@ the application's part with the application's codecs.
 
 | Down, to the component | Up, from it |
 |---|---|
-| **commit** n: jig's writes, typed (the core's saves and erases of its records and its children's, and a task's transcript dropped whole); the application's writes, each a key's bytes and a value's bytes, or an erase | **committed** n, with the store's fill (11.2); **failed** n; or **FrameTooLarge** n, with task, full encoded bytes and page limit (section 6) |
+| **commit** n: jig's writes, typed (the core's saves and erases of its records and its children's, a copy of the bytes under one of its keys to another, and a task's transcript dropped whole); the application's writes, each a key's bytes and a value's bytes, or an erase | **committed** n, with the store's fill (11.2); **failed** n; or **FrameTooLarge** n, with task, full encoded bytes and page limit (section 6) |
 | **restore** a restart step's range: jig's (the core's live families, 7.2), or the application's, as byte intervals under its tag | jig's records, typed, then done; the application's rows as bytes, then done |
 | **load** a page of a child's range: jig's, or the application's intervals | the page's rows, typed or as bytes, and a cursor if more remain |
 | **read** a party's read: its scope, position, direction, rows and bytes (`../domain/engine.md`, 5.3) | the page, each row with its joins, and its cursor; or busy, or gone |
@@ -486,6 +486,11 @@ follow from the limits that bound each kind (5.4).
   Live/ended authorities, pending or decided proposals, recurring members
   and amendment history remap effective masks on load. These are effective
   snapshots; the original keyed ask remains people's.
+- **The codec translates; the domains decide.** What a mask or a
+  template's choice becomes when its model moves or leaves the
+  catalogue, including the index that says it left, and the fixed words
+  a bound is sized from, are the owning domain's functions, which the
+  codec calls and whose tests pin them.
 - **Added dependencies keep when and by whom.** The tasks family's
   rows keep each live task's dependency with whether it was
   named when the task was made or added by an amendment, and for an
@@ -741,7 +746,11 @@ admitted within that edge is never refused as too large.
   the commit the deployment's header names, which every writing decision
   saves; a store that disagrees refuses the start.
 - **Writes become operations** in order: a save a put of its encoded key
-  and record, an erase an erase, the application's bytes under its tag.
+  and record, an erase an erase, a copy a put under its second key of the
+  bytes the map holds under its first, the application's bytes under its
+  tag. The store's writes name no domain's operation: which key a copy
+  reads and which it writes are the domain's (the core's for a settings
+  revision that enters history).
   A key written more than once in one commit becomes one operation, its
   last write, which leaves the map as the writes in order would:
   skein-kv applies a commit whole (skein's `kv.md`, section 7), so

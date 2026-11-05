@@ -13,7 +13,7 @@ use crate::{
         request::{Repo, Request},
     },
 };
-use skein_lib::List;
+use skein_lib::{List, len_u64, usize_of};
 
 #[derive(Debug)]
 pub(super) struct Plan {
@@ -110,7 +110,7 @@ impl Plan {
         };
         let format = self.row.object_format;
         let id = reading::commit(value.id, format).ok_or(api::Error::InvalidAnswer)?;
-        if value.parents.len() > usize::try_from(bounds.rows).expect("row bound fits") {
+        if value.parents.len() > usize_of(bounds.rows) {
             return Err(api::Error::TooLarge);
         }
         let mut parents = List::with_capacity(u32::try_from(value.parents.len()).or(Err(api::Error::TooLarge))?);
@@ -120,14 +120,9 @@ impl Plan {
         let value = api::CommitMessage { id, parents: parents.into_boxed(), message: value.message };
         let size = u64::try_from(size_of::<api::CommitMessage>())
             .expect("commit width")
-            .checked_add(
-                u64::try_from(value.parents.len())
-                    .expect("bounded parents")
-                    .checked_mul(32)
-                    .ok_or(api::Error::TooLarge)?,
-            )
+            .checked_add(len_u64(value.parents.len()).checked_mul(32).ok_or(api::Error::TooLarge)?)
             .ok_or(api::Error::TooLarge)?
-            .checked_add(u64::try_from(value.message.len()).expect("bounded message"))
+            .checked_add(len_u64(value.message.len()))
             .ok_or(api::Error::TooLarge)?;
         self.held = self.held.checked_add(size).ok_or(api::Error::TooLarge)?;
         if self.held > u64::from(bounds.answer_bytes) {
@@ -155,12 +150,7 @@ impl Plan {
         let more = self.commits.len() > end;
         let mut page = List::with_capacity(bounds.page_size.min(self.commits.len().saturating_sub(self.skip)));
         let commits = core::mem::replace(&mut self.commits, List::with_capacity(0)).into_boxed();
-        for value in commits
-            .into_iter()
-            .rev()
-            .skip(usize::try_from(self.skip).expect("u32 fits"))
-            .take(usize::try_from(bounds.page_size).expect("u32 fits"))
-        {
+        for value in commits.into_iter().rev().skip(usize_of(self.skip)).take(usize_of(bounds.page_size)) {
             page.push(value).expect("page capacity");
         }
         Ok(Some(Step::Done(Ok(api::Answer::Commits { commits: page.into_boxed(), more }))))

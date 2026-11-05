@@ -38,7 +38,7 @@ use core::mem;
 use alloc::boxed::Box;
 
 use skein_lib::stream::{Down, Fault, Read, Up};
-use skein_lib::{Decimal, Env, Queue, bytes};
+use skein_lib::{Decimal, Env, Queue, bytes, usize_of};
 
 /// The writer's limits (programming-model.md, 7): the same for every step.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -323,17 +323,17 @@ fn next(writing: &Writing, chunk: u32) -> u32 {
 fn room(mut writing: Writing, chunk: u32, above: &mut Queue<Event>, below: &mut Queue<Down>) -> State {
     let piece = next(&writing, chunk);
     let len = writing.frame.len();
-    if writing.sent == 0 && usize::try_from(piece).expect("a u32 fits a usize") == len {
+    if writing.sent == 0 && usize_of(piece) == len {
         // All of it at once: the frame itself goes, uncopied.
         below.push(Down::Send(writing.frame));
         above.push(Event::Sent);
         return State::Idle(Below::Open);
     }
-    let from = usize::try_from(writing.sent).expect("a u32 fits a usize");
-    let to = from.checked_add(usize::try_from(piece).expect("a u32 fits a usize")).expect("within the event");
+    let from = usize_of(writing.sent);
+    let to = from.checked_add(usize_of(piece)).expect("within the event");
     below.push(Down::Send(bytes::copy_of(writing.frame.get(from..to).expect("a piece of the event"))));
     writing.sent = writing.sent.checked_add(piece).expect("within the event");
-    if usize::try_from(writing.sent).expect("a u32 fits a usize") == len {
+    if usize_of(writing.sent) == len {
         above.push(Event::Sent);
         return State::Idle(Below::Open);
     }
@@ -385,7 +385,7 @@ fn event(outgoing: &Outgoing, most: u32) -> Result<Box<[u8]>, Refusal> {
         Some(len) if len <= most => len,
         Some(_) | None => return Err(Refusal::TooLong),
     };
-    let mut frame = skein_lib::Writer::new(usize::try_from(len).expect("a u32 fits a usize"));
+    let mut frame = skein_lib::Writer::new(usize_of(len));
     if !outgoing.name.is_empty() {
         field(&mut frame, EVENT, &outgoing.name);
     }
@@ -426,7 +426,7 @@ fn comment(text: &[u8], most: u32) -> Result<Box<[u8]>, Refusal> {
         Some(len) if len <= most => len,
         Some(_) | None => return Err(Refusal::TooLong),
     };
-    let mut frame = skein_lib::Writer::new(usize::try_from(len).expect("a u32 fits a usize"));
+    let mut frame = skein_lib::Writer::new(usize_of(len));
     put(&mut frame, b":");
     if !text.is_empty() {
         put(&mut frame, b" ");

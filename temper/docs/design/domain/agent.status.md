@@ -2,8 +2,11 @@
 
 2026-11-05. Where temper's code lags or departs from [agent.md](agent.md).
 The remaining gaps concern settings reads, verdict follow-up tasks,
-change-refusal model wording and shell authority for runs that cannot deliver.
+change-refusal model wording, shell authority for runs that cannot deliver
+and the fake's goal script.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
+Section 4.3 has no gap in bounded file and pull-file feedback and recovery.
+Section 8.1 has no gap in settings pagination using the host answer allowance.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks. 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`), since jig's `setting` read names jig's kinds and an application's alone (jig's `client/domain/contract.md`, 5.1), so the configuring agent proposes a project's policy without reading it first.
 - **Not yet:** 8.3: a document built in parts is proved on no script.
@@ -19,3 +22,8 @@ Section 4.3 has no gap in combined charter and workspace ownership fitting.
   `temper-engine-smith/src/tests.rs` pins the shell staying. The stock
   charters grant no shell; the reference's charter 2 does
   (`../protocol/configuration.md`, 13.9). No reason is recorded.
+- **Departs:** 8.3: the scripted fake model's goal script names literal
+  numbers, project 1 and goal 2 (`temper-fake/src/backends.rs`,
+  `model_document`), because its scripts are static, so on `temper box
+  --fake-backends` a fresh box's first chat's goal alone writes a report: a
+  later goal is refused its note and ends with none.

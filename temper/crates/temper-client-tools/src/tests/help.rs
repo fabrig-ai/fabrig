@@ -560,3 +560,22 @@ fn the_goal_reference_is_what_the_table_renders() {
 fn the_revision_reference_is_what_the_table_renders() {
     reference_matches(b"revision", b"ctl-revision");
 }
+
+#[test]
+fn settings_help_explains_check_reserve_recovery_through_held_revisions() {
+    let page = temper_docs::find(b"settings").expect("settings help");
+    for guidance in [
+        "check timeout",
+        "reserve_time",
+        "settings show charter 2 --revision 13",
+        "60000000000",
+        "revision advance 13 --key KEY",
+        "moved and stayed",
+        "live run keeps",
+        "equality is sufficient",
+    ] {
+        assert!(page.text.contains(guidance), "settings help must explain: {guidance}");
+    }
+    let fields = temper_docs::find(b"settings-fields").expect("settings fields help");
+    assert!(fields.text.contains("current or held charter"));
+}

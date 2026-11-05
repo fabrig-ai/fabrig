@@ -1,4 +1,5 @@
 //! Contents plans: list changed paths, then read each side within the answer bound.
+//! See skein/docs/design/forge.md, sections 5.2 and 5.3.
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
@@ -8,7 +9,7 @@ use crate::forgejo::plans::{
 };
 use crate::forgejo::{document as d, id::ObjectId, request as r};
 use alloc::boxed::Box;
-use skein_lib::{List, bytes};
+use skein_lib::{List, bytes, usize_of};
 #[derive(Debug)]
 enum Mode {
     Pull { number: u64, head: api::Commit, page: u32 },
@@ -214,41 +215,8 @@ impl Plan {
                 self.directory.as_mut().ok_or(api::Error::InvalidAnswer)?.keep(name, kind);
                 Ok(())
             }
-            d::Row::File(file) => {
-                if self.stage == Stage::Reverse {
-                    return Ok(());
-                }
-                if self.stage != Stage::Files && self.stage != Stage::Compare {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                self.add_size(
-                    u64::try_from(crate::measure::FILE_BYTES.saturating_add(file.filename.len())).expect("bounded row"),
-                    bounds,
-                )?;
-                let value = api::File { path: file.filename.clone(), before: None, after: None };
-                match self.files.push(value) {
-                    Ok(()) => {}
-                    Err(_) => return Err(api::Error::TooLarge),
-                }
-                match self.changed.push(file) {
-                    Ok(()) => Ok(()),
-                    Err(_) => Err(api::Error::TooLarge),
-                }
-            }
-            d::Row::Commit(commit) => {
-                if self.stage == Stage::Reverse {
-                    return Ok(());
-                }
-                if self.stage != Stage::Compare {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                let commit = reading::commit(commit, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
-                self.add_size(u64::try_from(crate::measure::COMMIT_BYTES).expect("commit width"), bounds)?;
-                match self.commits.push(commit) {
-                    Ok(()) => Ok(()),
-                    Err(_) => Err(api::Error::TooLarge),
-                }
-            }
+            d::Row::File(file) => self.keep_file(file, bounds),
+            d::Row::Commit(commit) => self.keep_commit(commit, bounds),
             d::Row::Artifact(_)
             | d::Row::CommitMessage(_)
             | d::Row::Found(_)
@@ -269,6 +237,45 @@ impl Plan {
             | d::Row::Team(_)
             | d::Row::Step(_)
             | d::Row::Job(_) => Err(api::Error::InvalidAnswer),
+        }
+    }
+    fn keep_file(&mut self, file: d::ChangedFile, bounds: Bounds) -> Result<(), api::Error> {
+        if self.stage == Stage::Reverse {
+            return Ok(());
+        }
+        if self.stage != Stage::Files && self.stage != Stage::Compare {
+            return Err(api::Error::InvalidAnswer);
+        }
+        if self.stage == Stage::Compare {
+            for kept in &self.changed {
+                if kept.filename == file.filename {
+                    return Ok(());
+                }
+            }
+        }
+        self.add_size(skein_lib::len_u64(crate::measure::FILE_BYTES.saturating_add(file.filename.len())), bounds)?;
+        let value = api::File { path: file.filename.clone(), before: None, after: None };
+        match self.files.push(value) {
+            Ok(()) => {}
+            Err(_) => return Err(api::Error::TooLarge),
+        }
+        match self.changed.push(file) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(api::Error::TooLarge),
+        }
+    }
+    fn keep_commit(&mut self, commit: ObjectId, bounds: Bounds) -> Result<(), api::Error> {
+        if self.stage == Stage::Reverse {
+            return Ok(());
+        }
+        if self.stage != Stage::Compare {
+            return Err(api::Error::InvalidAnswer);
+        }
+        let commit = reading::commit(commit, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
+        self.add_size(u64::try_from(crate::measure::COMMIT_BYTES).expect("commit width"), bounds)?;
+        match self.commits.push(commit) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(api::Error::TooLarge),
         }
     }
     fn done(&mut self, document: d::Document, bounds: Bounds) -> Result<Option<Step>, api::Error> {
@@ -402,7 +409,7 @@ impl Plan {
                 Mode::Pull { .. } | Mode::Compare { .. } => return Err(api::Error::InvalidAnswer),
             };
             let room = max.min(self.raw_room(bounds.answer_bytes));
-            let length = value.len().min(usize::try_from(room).expect("bounded raw room"));
+            let length = value.len().min(usize_of(room));
             self.add_size(u64::try_from(length).expect("bounded bytes"), bounds)?;
             let truncated = more || value.len() > length;
             let bytes = if value.len() == length {
@@ -434,11 +441,9 @@ impl Plan {
     fn terminal(&mut self) -> Result<Option<Step>, api::Error> {
         let files = core::mem::replace(&mut self.files, List::with_capacity(0)).into_boxed();
         let answer = match self.mode {
-            Mode::Pull { head, .. } => api::Answer::PullFiles {
-                head,
-                more: self.more.unwrap_or(files.len() == usize::try_from(self.limit).expect("page limit")),
-                files,
-            },
+            Mode::Pull { head, .. } => {
+                api::Answer::PullFiles { head, more: self.more.unwrap_or(files.len() == usize_of(self.limit)), files }
+            }
             Mode::Compare { before, after } => api::Answer::Compare {
                 before,
                 after,

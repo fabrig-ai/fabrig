@@ -1,6 +1,6 @@
 //! Application core parts and request admission (domain/people.md, 5.1).
 use super::{Domain, invalid_ask, project, role, valid_ask};
-use crate::{Ask, Kind, Limits, Outcome, Refusal, Request, Role};
+use crate::{ApplicationScope, Ask, AskFamily, Kind, Limits, Outcome, Refusal, Request, Role};
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, Token};
 
@@ -11,86 +11,22 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
     domain.input();
     let id = Id::from_token(request);
     let flight = domain.party_pending(id).ok_or(Outcome::Refused(Refusal::Unknown))?;
-    let application_project = match &flight.ask {
-        Ask::Application { scope, .. } => match scope {
-            crate::ApplicationScope::Project(project) => *project,
-            crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => 0,
-        },
-        Ask::Restore { .. }
-        | Ask::Compound { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::MakeService { .. }
-        | Ask::Adopt { .. }
-        | Ask::SetRoles { .. }
-        | Ask::ChangePolicy { .. }
-        | Ask::RemoveProject { .. }
-        | Ask::SetVisibility { .. }
-        | Ask::Rename { .. }
-        | Ask::MakeProject { .. }
-        | Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. }
-        | Ask::SetPool { .. }
-        | Ask::Create { .. }
-        | Ask::Propose { .. }
-        | Ask::Withdraw { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::Amend { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Move { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Lift { .. }
-        | Ask::Release { .. }
-        | Ask::EditNote { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => return Err(Outcome::Refused(Refusal::NotOffered)),
+    let application_project = match flight.ask.family() {
+        AskFamily::Application(ApplicationScope::Project(project)) => project,
+        AskFamily::Application(ApplicationScope::Own | ApplicationScope::Deployment) => crate::DEPLOYMENT,
+        AskFamily::Project(_)
+        | AskFamily::Restore
+        | AskFamily::Deployment
+        | AskFamily::Account
+        | AskFamily::Lift
+        | AskFamily::Seen => return Err(Outcome::Refused(Refusal::NotOffered)),
     };
-    match &ask {
-        Ask::Restore { .. } => return Err(Outcome::Refused(Refusal::NotOffered)),
-        // An account request is its holder's own and a sign-out waits on the accounts'
-        // component, so neither is a synchronous part of an application's request.
-        Ask::Application { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => {
+    match ask.family() {
+        // Account requests are their holder's own and may wait on the accounts component.
+        AskFamily::Restore | AskFamily::Application(_) | AskFamily::Account => {
             return Err(Outcome::Refused(Refusal::NotOffered));
         }
-        Ask::Compound { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::MakeService { .. }
-        | Ask::Adopt { .. }
-        | Ask::SetRoles { .. }
-        | Ask::ChangePolicy { .. }
-        | Ask::RemoveProject { .. }
-        | Ask::SetVisibility { .. }
-        | Ask::Rename { .. }
-        | Ask::MakeProject { .. }
-        | Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. }
-        | Ask::SetPool { .. }
-        | Ask::Create { .. }
-        | Ask::Propose { .. }
-        | Ask::Withdraw { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::Amend { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Move { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Lift { .. }
-        | Ask::Release { .. }
-        | Ask::EditNote { .. } => {}
+        AskFamily::Project(_) | AskFamily::Deployment | AskFamily::Lift | AskFamily::Seen => {}
     }
     if project(&ask) != application_project {
         return Err(Outcome::Refused(Refusal::Unknown));
@@ -143,7 +79,7 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
             if role == Some(Role::Owner) { None } else { Some(Refusal::Role { held: role }) }
         }
         Ask::Application { scope, .. } => {
-            if *scope == crate::ApplicationScope::Own || role.is_some() {
+            if *scope == ApplicationScope::Own || role.is_some() {
                 None
             } else {
                 Some(Refusal::Role { held: None })

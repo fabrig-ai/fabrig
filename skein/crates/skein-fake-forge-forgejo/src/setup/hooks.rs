@@ -6,7 +6,7 @@ use skein_forge::forgejo::{
     request::{HookSpec, Page},
     server::Answer,
 };
-use skein_lib::{List, Secret};
+use skein_lib::{List, Secret, usize_of};
 /// A hook's private subscription, including the secret never sent in a reply.
 #[derive(Debug)]
 pub struct Subscription {
@@ -33,7 +33,7 @@ impl Store {
                 && hook.secret.len() <= self.secret_bytes,
             "scenario hook bounds"
         );
-        assert!(hook.events.len() <= usize::try_from(self.hooks.capacity()).expect("u32 fits"), "scenario event count");
+        assert!(hook.events.len() <= usize_of(self.hooks.capacity()), "scenario event count");
         for event in &hook.events {
             assert!(event.len() <= self.string_bytes, "scenario event bound");
         }
@@ -57,8 +57,8 @@ impl Store {
         }
         let (page, cap) = crate::routes::page(config, page);
         let mut rows = List::with_capacity(cap);
-        let start = usize::try_from(page.saturating_sub(1).saturating_mul(cap)).expect("u32 fits");
-        for hook in self.subscriptions(org).skip(start).take(usize::try_from(cap).expect("u32 fits")) {
+        let start = usize_of(page.saturating_sub(1).saturating_mul(cap));
+        for hook in self.subscriptions(org).skip(start).take(usize_of(cap)) {
             rows.push(document(hook)).expect("hook page");
         }
         encoded(200, Answer::Hooks(rows.into_boxed()), limits)

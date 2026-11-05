@@ -41,6 +41,7 @@ pub fn bundle() -> Bundle {
         )
         .expect("root file");
     Bundle {
+        forge_meta_bytes: 0,
         page: Box::from(b"<!doctype html><title>t</title>".as_slice()),
         etag: Box::from(b"\"0011223344556677\"".as_slice()),
         digest: Box::from(b"0123456789abcdef".as_slice()),

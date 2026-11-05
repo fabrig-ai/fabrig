@@ -102,6 +102,7 @@ fn a_running_change_has_no_steps_done() {
         Facts {
             task: f::TASK,
             kind: Kind::Change,
+            goal: false,
             state: State::Running,
             title: task.chip.title.bytes(),
             said: None,
@@ -262,4 +263,17 @@ fn a_cleared_or_uncleared_change_keeps_its_verification_words() {
         assert_eq!(facts.said, Some(Said::Words(words)));
         assert_eq!(facts.steps, Some(4));
     }
+}
+
+#[test]
+fn only_an_agents_tracked_task_is_a_goal() {
+    let mut task = f::change();
+    assert!(!delegation::facts(&task).goal);
+    task.chip.executor = c::ChipExecutor::Procedure { connector: 1, kind: 1 };
+    task.priority = Some(0);
+    assert!(!delegation::facts(&task).goal, "a procedure is not an agent goal");
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+    assert!(delegation::facts(&task).goal);
+    task.priority = None;
+    assert!(!delegation::facts(&task).goal);
 }

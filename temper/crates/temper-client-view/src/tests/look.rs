@@ -97,10 +97,15 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 96] = [
+    let named: [(skein_ui::Style, &[u8]); 100] = [
         (PROPOSAL_FACTS, b"temper-proposal-facts"),
         (SESSION_RIGHT, b"temper-session-right"),
         (META_LINE, b"temper-meta-line"),
+        (THREAD_INNER, b"temper-thread-inner"),
+        (TYPING, b"temper-typing"),
+        (TURN_TOOL, b"temper-turn-tool"),
+        (TOOL_FILE, b"temper-tool-file"),
+        (BY_DELEGATE, b"temper-by-delegate"),
         (NAV_COUNT, b"temper-nav-count"),
         (BANNER, b"temper-banner"),
         (NAVIGATION, b"temper-navigation"),
@@ -165,7 +170,6 @@ fn each_style_or_region_is_named_under_temper() {
         (CHOICE, b"temper-choice"),
         (ACCOUNTS_PAGE, b"temper-accounts-page"),
         (ADOPTION_PAGE, b"temper-adoption-page"),
-        (INVITATION, b"temper-invitation"),
         (REFUSAL, b"temper-refusal"),
         (STEPS, b"temper-steps"),
         (STEP, b"temper-step"),
@@ -489,4 +493,19 @@ fn agent_composer() -> crate::View {
     task.acts = skein_lib::List::with_capacity(1);
     task.acts.push(c::Offered { act: c::ActKind::Message, admission: c::Admission::Allowed, effect: None }).unwrap();
     fixtures::page_view(&fixtures::task::agent_root(task, None, true))
+}
+
+#[test]
+fn configuring_opening_and_needs_have_their_css_names() {
+    for (style, name) in [
+        (STARTER_LEDE, b"temper-starter-lede".as_slice()),
+        (STARTER_SETS, b"temper-starter-sets"),
+        (STARTER_NOTE, b"temper-starter-note"),
+        (STARTER_WAYS, b"temper-starter-ways"),
+        (STARTER_UNSURE, b"temper-starter-unsure"),
+        (TOAST, b"temper-toast"),
+        (NEEDS, b"temper-needs"),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
 }

@@ -173,7 +173,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `change` (4.3.1); with the authorised brief, its task section a whole
   spec (`../protocol/configuration.md`, section 7), and 1,472 bytes for
   64 stock sections' titles and framing (16 title bytes and 7 framing
-  bytes each), it leaves at least 813 bytes at `temper init`'s
+  bytes each), it leaves at least 607 bytes at `temper init`'s
   models; `temper-service`'s step tests hold each stock charter's
   figures. A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
@@ -272,6 +272,26 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lists directories with `read_file` at both endpoints and reads
   selected files at each within `max_bytes`. The refusal stays marked
   an error and fits the host answer's byte bound.
+- **File reads fit the host answer's bound.** The adapter measures rendered
+  file, directory and pull-file answers, including metadata and byte escaping.
+  A file keeps the largest UTF-8 prefix that fits with its metadata and a
+  visible `[file truncated]` marker, counting escaping (up to four output
+  bytes per input byte). An explicit `max_bytes` still bounds the raw forge
+  prefix; host fitting may cut it further. A cut is never the whole file,
+  and there is no offset. If metadata leaves no room for content, bounded
+  error feedback directs a shorter path or a larger `core.call_answer_bytes`;
+  lowering `max_bytes` cannot fit metadata. An oversized directory answer
+  is an error naming its rendered byte size and numeric host bound. An oversized
+  pull-file page retains a changed-path inventory as room permits, marks
+  content omitted separately from absent sides, marks omitted paths, and
+  keeps whether more pages follow. Omitted paths are recovered through
+  directory reads at both commits. It directs selected `read_file` calls
+  at the head for after and the comparison's base commit for before;
+  the base commit must be resolved separately. Advancing pages alone cannot
+  recover the oversized page. A forge size refusal, whose measured size
+  is unknown, names that uncertainty, the forge bounds and the numeric host
+  bound with the same tool-specific recovery. At a host bound too small
+  for the guidance, the refusal itself is cut to fit.
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
@@ -764,6 +784,14 @@ changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
 lost-fact count. Claude built-in Read refusals instead retain the permission
 message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
+A forge read whose rendered answer exceeds `core.call_answer_bytes` or
+`root.journal.transcript_bytes` returns a bounded error naming the exceeded
+limit and measured bytes, including the tool name. Its refusal fact names
+`host-render` and that limit. An oversized comparison points to `read_pull`
+for the head and `read_pull_files` pages; an oversized pull-file page points
+to directory and selected-file `read_file` calls at both endpoints with
+`max_bytes`. Forge-client admission busy still uses the host's bounded
+backoff.
 A reviewer fails when it cannot judge the change.
 
 
@@ -779,7 +807,11 @@ agents must do stays text its runs read.
   paste, or a document in an adopted repository they point to by its
   path, which it reads with `read_file`. It reads the settings first,
   with `settings`: the inventory, then each setting the description
-  touches, whole.
+  touches, whole. Settings pages use `core.call_answer_bytes` less the tool
+  name, reserving escaped framing and continuation markers. A long value
+  fills the available page even after its heading; `next: OFFSET` counts
+  original UTF-8 text bytes for exact reconstruction. This allowance is
+  separate from `read_docs`' fixed bound (`../protocol/documentation.md`, 5).
 - **Its instructions** are held in the binary, in the `stock` module's
   `configuring.txt`, and say, in the person's register:
   - the test for each sentence of a description: would temper's engine
@@ -906,8 +938,48 @@ of `../draft/v0.1.0.md`, 2.1.
   the chat (jig's `domain/tasks.md`, 8.1; jig's `domain/people.md`,
   section 6). The chat cannot ask its own person: it says in its reply
   that a question waits for them.
+- **A question's line form.** jig's question carries words alone, so a
+  question's options and its recommendation are in its words; the stock
+  chat's instructions (charter 1, the goal's paragraph) have a goal
+  write them in one form, which temper's client draws as a question,
+  its context, what the agent saw and its choices (`../client/README.md`,
+  3.5, *Needs you*). No protocol, store or tool knows the form:
+
+  ```
+  Fix the dropped watch in jig’s store, or keep it alive in temper serve?
+
+  MakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local.
+
+  Saw: The box test reproduces it every time.
+  Choice: In jig’s store (recommended)
+  Choice: In temper serve
+  ```
+
+  - The first line is the **question**, and never a trailing line.
+  - The **trailing lines** are found walking up from the last line,
+    blank lines passed over: each line beginning `Saw: ` or `Choice: `
+    is one, and the first other line ends them. Such a line above that
+    point is context, words like any other.
+  - The lines between the question and the trailing lines are the
+    **context**, without its first and last blank lines.
+  - A trailing `Saw: ` line is **what the agent saw**, several joined by
+    a line break, in their order.
+  - A trailing `Choice: ` line is a **choice**, in its order, its words
+    what follows the prefix, trimmed; one with no words, or past what an
+    answer's words take in the client (`CUE_BYTES`, 256), is no choice.
+    One ending ` (recommended)` is recommended, that ending no part of
+    its words; past the first so marked, the ending is removed and
+    recommends nothing.
+  - **The fallback:** words with no choice, or words the read cut
+    (`question.words.cut`), have no trailing lines: the first paragraph
+    is the question, the rest the context, with nothing the agent saw
+    and no choices, and they are answered by a reply alone. Any question
+    a person or an older goal wrote draws this way, and one a change
+    passes up with a foreman's reasons beneath it (forge.md, 8.11), whose
+    last lines are those reasons.
 - **The person answers in the inbox,** `temper ctl task answer TASK
-  QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page, and
+  QUESTION TEXT` (`../client/tools.md`, 5.3), Home's card or the inbox's
+  page, and
   nobody else does: the answer reaches the goal itself, as its
   requester's, never through the chat's model, which may not answer a
   question that waits in its person's inbox (jig's `domain/people.md`,
@@ -1067,6 +1139,11 @@ host:
   person's priorities, its notes), or ask its person a question of its
   own and answer the goal once it has the answer, in place of 8.2's
   route through the person's inbox. Default: 8.2's route.
+- **Who else writes a question's line form** (8.2): the stock goal alone
+  is taught it, by one sentence of charter 1, as the request of 2026-11-05
+  for *Needs you* asks. A change's producers, its repairs and resolutions, and
+  the reference's charters are not, so their questions read as words,
+  answered by a reply. Default: as it is; a line in each charter that asks.
 - **A change's foremen's LLM choice** (forge.md, 8.11): `llm` (4.3.1)
   names the producer's and the reviews' roles, and a change's foremen
   run at their charter's default, where the reference's draft gives

@@ -1,4 +1,5 @@
 //! Restore facts survive the wire and the kept request table (engine.md, 17.10).
+use super::encoders as e;
 use super::*;
 use crate::translate::{answers, asks, settings as t, settings_proposals};
 use jig_client_test_records::settings as values;
@@ -29,11 +30,8 @@ fn a_project_policy_setting_round_trips_in_items_reviews_and_refusals() {
         application: None,
     };
     assert_eq!(
-        settings_proposals::restore_review_item(
-            &settings_proposals::wire_review_item(&review, limits.wire()).unwrap(),
-            &limits
-        )
-        .unwrap(),
+        settings_proposals::restore_review_item(&e::wire_review_item(&review, limits.wire()).unwrap(), &limits)
+            .unwrap(),
         review
     );
     let refusal = w::Refusal::Malformed(
@@ -79,7 +77,7 @@ fn revision_items_round_trip_every_replaced_arm() {
             edit: c::RevisionEdit::Set(policy()),
             replaced,
         };
-        let wire = t::wire_revision_item(&item, limits.wire()).unwrap();
+        let wire = e::wire_revision_item(&item, limits.wire()).unwrap();
         let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
         wire.encode(&mut bytes).unwrap();
         let wire = w::RevisionItem::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
@@ -87,7 +85,7 @@ fn revision_items_round_trip_every_replaced_arm() {
     }
     let revision = values::settings_revision();
     assert_eq!(
-        t::restore_revision_document(&t::wire_revision_document(&revision, limits.wire()).unwrap(), &limits).unwrap(),
+        t::restore_revision_document(&e::wire_revision_document(&revision, limits.wire()).unwrap(), &limits).unwrap(),
         revision
     );
 }
@@ -118,13 +116,13 @@ fn restored_outcomes_and_forgotten_refusals_reach_the_contract() {
     let mut left_out = List::with_capacity(2);
     left_out.push(c::Setting::ProjectPolicy { project: 7 }).unwrap();
     left_out.push(c::Setting::Application { kind: 2, scope: 7, number: 9 }).unwrap();
-    let wire = answers::wire_outcome_restored(41, 3, &left_out, limits.wire()).unwrap();
+    let wire = e::wire_outcome_restored(41, 3, &left_out, limits.wire()).unwrap();
     let wire = w::Outcome::Restored(wire);
     let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
     wire.encode(&mut bytes).unwrap();
     let wire = w::Outcome::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
     assert_eq!(answers::outcome(&wire, &limits).unwrap(), c::Outcome::Restored { proposal: 41, to: 3, left_out });
-    let wire = answers::wire_refusal_forgotten(4, limits.wire()).unwrap();
+    let wire = e::wire_refusal_forgotten(4, limits.wire()).unwrap();
     assert_eq!(answers::restore_refusal_forgotten(&wire), c::Refusal::Forgotten { oldest: 4 });
     assert_eq!(answers::refusal(&w::Refusal::Forgotten(wire), &limits).unwrap(), c::Refusal::Forgotten { oldest: 4 });
 }

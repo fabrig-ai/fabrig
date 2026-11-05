@@ -184,21 +184,7 @@ fn tree_rows(bytes: &[u8], limits: &Limits) -> Result<List<c::TreeRow>, w::Probl
     let mut rows = List::with_capacity(limits.client().rows);
     let mut sum = 0_u64;
     for _ in 0..=limits.client().rows {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(problem) => return Err(super::piece_problem(problem)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("usize fits u64"))
-            .ok_or(super::too_large())?
-            .checked_add(4)
-            .ok_or(super::too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(super::too_large());
-        }
+        let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::TreeRow::decode(limits.receiving(), &mut Reader::new(&item))?;
         let mut proposals = List::with_capacity(row.proposals().len());
         for key in row.proposals() {

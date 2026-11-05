@@ -2,11 +2,11 @@
 //! These helpers own the wire grammar, never application tool schemas or policy.
 
 use super::{BlockStart, Delta, Event, UsagePatch};
-use crate::openai::{self, DecodeError, Json, Limits, json};
+use crate::wire::{self, DecodeError, Json, Limits, json};
 use crate::{Block, Message, Prompt, Provider, Replay, Role, Tool};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer::Encoder};
-use skein_lib::{List, bytes};
+use skein_lib::{List, bytes, usize_of};
 
 /// The byte peer's native request and ordered cache positions (llm.md, section 4.7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -31,7 +31,7 @@ pub enum Mark {
 pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeError> {
     let value = Json::from_view(value.view(), &limits.request_document())?;
     let encoded = value.to_bytes(&limits.request_document())?;
-    if encoded.len() > usize::try_from(limits.request).expect("u32 fits usize") {
+    if encoded.len() > usize_of(limits.request) {
         return Err(DecodeError::limit(crate::Cap::Request, limits.request));
     }
     let tokens = value.view();
@@ -220,7 +220,7 @@ fn content_text(tokens: (&Document, json::Span), limits: &Limits) -> Result<Box<
 fn text_blocks(tokens: (&Document, json::Span), limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
     let offsets = json::array_limit(tokens, limits.history_items, crate::Cap::HistoryItems)?;
     let mut length = 0_usize;
-    let maximum = usize::try_from(limits.request).expect("u32 fits usize");
+    let maximum = usize_of(limits.request);
     for (index, offset) in offsets.iter().enumerate() {
         let block = json::value_at(tokens, *offset)?;
         if json::text_ref(required(block, b"type")?)? != b"text" {
@@ -294,14 +294,14 @@ pub fn encode_event(event: &Event, limits: &Limits) -> Result<Box<[u8]>, DecodeE
         Event::Added { block: BlockStart::Redacted { value }, .. } => {
             let value = Json::from_view(value.view(), &limits.document())?;
             super::response::validate_redacted(value.view())?;
-            if value.to_bytes(&limits.document())?.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+            if value.to_bytes(&limits.document())?.len() > usize_of(limits.reasoning) {
                 return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
             }
         }
         Event::Added { block: BlockStart::Opaque { value }, .. } => {
             let value = Json::from_view(value.view(), &limits.document())?;
             super::response::validate_opaque(value.view())?;
-            if value.to_bytes(&limits.document())?.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+            if value.to_bytes(&limits.document())?.len() > usize_of(limits.reasoning) {
                 return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
             }
         }
@@ -318,7 +318,7 @@ pub fn encode_event(event: &Event, limits: &Limits) -> Result<Box<[u8]>, DecodeE
     let bounded = limits.writer_limits();
     let mut measure = Encoder::measure(&bounded);
     write_event(&mut measure, event, limits);
-    let len = openai::measured(measure, bounded, crate::Cap::Retained)?;
+    let len = wire::measured(measure, bounded, crate::Cap::Retained)?;
     let mut output = Encoder::write(len, &bounded);
     write_event(&mut output, event, limits);
     Ok(output.finish())

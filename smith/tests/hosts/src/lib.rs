@@ -238,23 +238,23 @@ impl HostService {
         self.domain_env.wall = wall;
         self.io_env.now = now;
         self.io_env.wall = wall;
-        for _ in 0..self.completions.capacity() {
-            let Some(complete) = self.completions.pop() else { break };
+        for _ in 0..self.completions.len() {
+            let complete = self.completions.pop().expect("completion present at stage entry");
             if complete.op == Token::new(u64::MAX) {
                 assert!(complete.result.is_ok(), "parent root closes");
                 self.root_closed = true;
             } else {
-                io::up(&mut self.io, &self.io_env, complete, &mut self.io_events, &mut self.submissions);
+                self.completions.push(complete);
             }
         }
-        for _ in 0..self.io_env.limits.sockets {
-            if self.io.is_ready() {
-                io::resume(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submissions);
-            }
-            if self.io.is_due(now) {
-                io::fire(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submissions);
-            }
-        }
+        io::stage::up(
+            &mut self.io,
+            &self.io_env,
+            &mut self.completions,
+            &mut self.io_events,
+            &mut self.submissions,
+            now,
+        );
         for _ in 0..self.io_events.capacity() {
             let Some(event) = self.io_events.pop() else { break };
             self.process.as_mut().expect("spawn request preceded io event").from_io(

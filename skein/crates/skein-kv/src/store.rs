@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use core::mem;
 use skein_io::file;
 use skein_io::kernel::{Error, Fd};
-use skein_lib::{Env, Queue, Token};
+use skein_lib::{Env, Queue, Token, usize_of};
 
 use crate::Limits;
 use crate::boundary::{Event, Failure, Op, Page, Range, Refusal, Request};
@@ -401,8 +401,7 @@ impl Store {
             if at == bytes.len() {
                 break;
             }
-            let Some(head_end) = at.checked_add(usize::try_from(frame::HEADER).expect("frame header fits usize"))
-            else {
+            let Some(head_end) = at.checked_add(usize_of(frame::HEADER)) else {
                 return Ok(false);
             };
             let Some(head) = bytes.get(at..head_end) else {
@@ -418,7 +417,7 @@ impl Store {
             let Some(decoded) = frame::decode(encoded, limits.commit) else {
                 return Ok(false);
             };
-            if decoded.ops.len() > usize::try_from(limits.ops).expect("u32 fits usize") {
+            if decoded.ops.len() > usize_of(limits.ops) {
                 return Ok(false);
             }
             if decoded.number != self.last.checked_add(1).ok_or(Failure::Corrupt)? {
@@ -632,7 +631,7 @@ fn commit_disk(store: &mut Store, dir: Dir, phase: Phase, owner: Token, ops: Box
 #[expect(clippy::manual_map, reason = "the subset uses explicit Option arms for a copy of at most Limits::value bytes")]
 fn get(store: &Store, owner: Token, key: Box<[u8]>, available: bool, step: &mut Step<'_>) {
     let Step { env, above, below: _ } = step;
-    if key.len() > usize::try_from(env.limits.key).expect("key limit fits") {
+    if key.len() > usize_of(env.limits.key) {
         above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
         return;
     }
@@ -657,12 +656,9 @@ fn load(store: &Store, owner: Token, range: Range, max: Page, available: bool, s
         above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
         return;
     }
-    if range.start.len() > usize::try_from(env.limits.key).expect("key limit fits")
+    if range.start.len() > usize_of(env.limits.key)
         || match &range.end {
-            Some(end) => {
-                end.len() > usize::try_from(env.limits.key).expect("key limit fits")
-                    || end.as_ref() < range.start.as_ref()
-            }
+            Some(end) => end.len() > usize_of(env.limits.key) || end.as_ref() < range.start.as_ref(),
             None => false,
         }
     {
@@ -695,22 +691,22 @@ fn close_requested(store: &Store, mut dir: Dir, phase: Phase, owner: Token, step
 }
 
 fn too_large(ops: &[Op], limits: &Limits) -> bool {
-    if ops.len() > usize::try_from(limits.ops).expect("u32 fits usize") {
+    if ops.len() > usize_of(limits.ops) {
         return true;
     }
     for op in ops {
-        if op.key().len() > usize::try_from(limits.key).expect("key limit fits usize") {
+        if op.key().len() > usize_of(limits.key) {
             return true;
         }
         match op {
-            Op::Put { value, .. } if value.len() > usize::try_from(limits.value).expect("value limit fits usize") => {
+            Op::Put { value, .. } if value.len() > usize_of(limits.value) => {
                 return true;
             }
             Op::Put { .. } | Op::Erase { .. } => {}
         }
     }
     match frame::encoded_len(ops) {
-        Some(size) => size > usize::try_from(limits.commit).expect("commit limit fits usize"),
+        Some(size) => size > usize_of(limits.commit),
         None => true,
     }
 }
