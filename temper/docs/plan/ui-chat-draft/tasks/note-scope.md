@@ -114,3 +114,21 @@ Validate the corrected-note, chat-scope and whole-document readback stories, the
 ## Answers
 
 2026-11-05 (fabrig/ui). Ruling (fabrig/ui, coord/ui/report/rulings.md, 1, 2): a person's goal keeps notes of its own scope, since ui-goals' report is a note on main; add chats' scopes and take none from goals; drop a_goal_is_filled_with_no_note_scopes. Reuse ui-goals' brief-numbers line for the run's number; add no second line.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/note-scope/foreman-3)
+
+combine main’s stock-brief fixture extraction with the task identity and regenerate Story A
+Rebase onto integration, preserving main’s changes brought in by `5b411e9609`.
+The conflicting paths are:
+- `temper/crates/temper-service/src/tests/stock_brief.rs`
+- `temper/tests/playground/tests/fixtures/story-a.log`
+
+In `stock_brief.rs`, preserve `a026214808`’s `the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds`, `whole_spec_sections`, `without_brief`, and both receiving-bound assertions.
+Move this task’s `[This task: 1, in project 1]\n` fixture addition into `whole_spec_sections`, between the contract and requester lines. Retain the two-part assertion.
+Keep integration’s measured room `361_474`, margin `567`, brief limit `359_435`, and updated stock-charter figures from `54dcba7a00`; do not restore the older figures or whole-charter equality.
+Preserve the ruling: goals retain note authority, and briefs use the established identity line without adding another.
+
+Regenerate `story-a.log` from the combined code rather than merging its records manually:
+`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`
+Then verify `walk::story_a_kept_log_replays_natively` without the write variable.
+Run the focused `temper-service` stock-brief tests, then the task’s required checks. Report the regenerated fixture.
