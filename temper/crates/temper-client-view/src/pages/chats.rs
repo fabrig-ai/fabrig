@@ -319,6 +319,7 @@ pub(crate) fn outcome_text(b: &mut Builder, words: &Words, outcome: &jig_client:
     }
 }
 
+#[cfg(test)]
 pub(crate) fn status(
     b: &mut Builder,
     chip: &jig_client::contract::Chip,
@@ -352,7 +353,7 @@ pub(crate) fn status_name(line: &TaskLine, me: &jig_client::contract::Me, words:
     status_words(&line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words).1
 }
 
-fn status_words(
+pub(crate) fn status_words(
     chip: &jig_client::contract::Chip,
     (waits_on, delegates, run_wait): (
         &jig_client::contract::WaitsOn,

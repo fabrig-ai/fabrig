@@ -1614,16 +1614,21 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-session > .temper-session-top { padding: 10px 12px; gap: 8px; }
   #app > .temper-session .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
   #app > .temper-session .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
-  #app > .temper-session :is(.temper-trail, .temper-byline, .temper-session-hint) { display: none; }
+  #app > .temper-session :is(.temper-trail, .temper-byline) { display: none; }
 }
 
-/* A delivered configuring chat keeps the session frame around the shared conversation. */
+/* Every chat keeps the session frame around the shared conversation. */
 #app:has(> .temper-rail) > .temper-session { padding-bottom: 0; }
 #app > .temper-session .temper-session-right { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-left: auto; color: var(--gf-muted); font-size: 12px; }
-#app > .temper-session .temper-session-right > p { margin: 0; font-size: inherit; }
-#app > .temper-session .temper-session-right > [role=status] { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: inherit; font-weight: 400; }
-#app > .temper-session .temper-session-right > button { min-height: 32px; padding: 4px 8px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: inherit; }
-#app > .temper-session .temper-session-right > button:hover { border-color: #b4b4ae; }
+#app > .temper-session .temper-session-right > p:not(.temper-byline) { display: none; }
+#app > .temper-session .temper-session-right .temper-byline p { margin: 0; font-size: inherit; }
+#app > .temper-session .temper-session-right > [role=status] { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 12px; font-weight: 400; color: var(--gf-faint); text-transform: lowercase; }
+#app > .temper-session .temper-session-right > .temper-state-needs { color: var(--gf-signal); }
+#app > .temper-session .temper-session-right > button { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }
+#app > .temper-session .temper-session-right > button:hover { background: var(--gf-hover); color: var(--gf-ink); }
+#app > .temper-session .temper-thread > .temper-meta-line.temper-context { padding: 0; border: 0; background: none; }
+#app > .temper-session .temper-thread > .temper-meta-line.temper-context > p { margin: 0; }
+#app > .temper-session .temper-meta-line .temper-repository { font-weight: 400; }
 #app > .temper-session .temper-thread > [role=log] { flex: none; min-height: 0; padding: 0; overflow: visible; }
 #app > .temper-session .temper-thread > :not(.temper-cards) { width: 100%; }
 
