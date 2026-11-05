@@ -1,6 +1,7 @@
 #![expect(clippy::disallowed_macros, reason = "unit tests read committed golden records")]
 //! New settings records translate in both directions, including framed reviews.
 use super::*;
+use super::encoders as e;
 use crate::translate::settings_proposals as t;
 use jig_client_test_records::settings_proposals as values;
 #[test]
@@ -16,70 +17,70 @@ fn every_settings_proposal_record_translates_both_ways() {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_origin_revision_smallest.bin");
         let wire = w::OriginRevision::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_origin_revision(&wire).expect("client record");
-        assert_eq!(t::wire_origin_revision(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_origin_revision(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_review_item_smallest.bin");
         let wire = w::ReviewItem::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_review_item(&wire, &limits).expect("client record");
-        assert_eq!(t::wire_review_item(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_review_item(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_settings_review_smallest.bin");
         let wire = w::SettingsReview::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_settings_review(&wire, &limits).expect("client record");
-        assert_eq!(t::wire_settings_review(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_settings_review(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/record_proposal_action_settings_smallest.bin");
         let wire = w::ProposalActionSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_owner_proposal_action_settings(&wire, &limits).expect("client record");
-        assert_eq!(t::wire_owner_proposal_action_settings(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_owner_proposal_action_settings(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/record_retained_action_settings_smallest.bin");
         let wire = w::RetainedActionSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_owner_retained_action_settings(&wire, &limits).expect("client record");
-        assert_eq!(t::wire_owner_retained_action_settings(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_owner_retained_action_settings(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_origin_default_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_setting_origin(&wire).expect("client record");
-        assert_eq!(t::wire_setting_origin(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_origin_change_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_setting_origin(&wire).expect("client record");
-        assert_eq!(t::wire_setting_origin(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_origin_not_offered_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_setting_origin(&wire).expect("client record");
-        assert_eq!(t::wire_setting_origin(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_review_value_value_smallest.bin");
         let wire = w::ReviewValue::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_review_value(&wire, &limits).expect("client record");
-        assert_eq!(t::wire_review_value(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_review_value(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_review_value_too_large_smallest.bin");
         let wire = w::ReviewValue::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_review_value(&wire, &limits).expect("client record");
-        assert_eq!(t::wire_review_value(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_review_value(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_review_value_none_smallest.bin");
         let wire = w::ReviewValue::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_review_value(&wire, &limits).expect("client record");
-        assert_eq!(t::wire_review_value(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_review_value(&client, limits.wire()), Ok(wire));
     }
 }
 #[test]
@@ -97,21 +98,21 @@ fn populated_reviews_history_and_carried_proposals_keep_every_fact() {
     );
     assert_eq!(
         t::restore_owner_proposal_action_settings(
-            &t::wire_owner_proposal_action_settings(&pending, limits.wire()).expect("pending"),
+            &e::wire_owner_proposal_action_settings(&pending, limits.wire()).expect("pending"),
             &limits
         ),
         Ok(pending)
     );
     assert_eq!(
         t::restore_owner_retained_action_settings(
-            &t::wire_owner_retained_action_settings(&retained, limits.wire()).expect("retained"),
+            &e::wire_owner_retained_action_settings(&retained, limits.wire()).expect("retained"),
             &limits
         ),
         Ok(retained)
     );
     assert_eq!(
         t::restore_owner_proposal_action_settings(
-            &t::wire_owner_proposal_action_settings(&accepted, limits.wire()).expect("accepted action"),
+            &e::wire_owner_proposal_action_settings(&accepted, limits.wire()).expect("accepted action"),
             &limits
         ),
         Ok(accepted)
@@ -189,10 +190,10 @@ fn reviews_keep_their_byte_bound_and_refuse_malformed_pieces() {
         .expect("one item");
     let review = c::SettingsReview { key: None, newest: 6, items, cut: false };
     limits = fixtures::limits_for_document(u64::from(REVIEW_PIECE));
-    let wire = t::wire_settings_review(&review, limits.wire()).expect("exact review bound");
+    let wire = e::wire_settings_review(&review, limits.wire()).expect("exact review bound");
     assert_eq!(t::restore_settings_review(&wire, &limits), Ok(review.clone()));
     limits = fixtures::limits_for_document(u64::from(REVIEW_PIECE - 1));
-    t::wire_settings_review(&review, limits.wire()).expect_err("one past the review byte bound");
+    e::wire_settings_review(&review, limits.wire()).expect_err("one past the review byte bound");
     t::restore_settings_review(&wire, &limits).expect_err("the receiving review byte bound is enforced");
     limits = fixtures::limits();
     for bytes in [b"\0".as_slice(), b"\0\0\0\x07\x03\x02\x02\x02\x02\0\0".as_slice()] {
@@ -251,8 +252,8 @@ fn settings_action_heads_fit_their_own_receiving_bounds() {
     let pending =
         c::ProposalActionSettings { against: 6, items: action_heads(PROPOSAL_ITEMS), review: None, made: None };
     let retained = c::RetainedActionSettings { against: 6, items: action_heads(PROPOSAL_ITEMS), made: Some(7) };
-    let pending_wire = t::wire_owner_proposal_action_settings(&pending, limits.wire()).expect("128 pending heads");
-    let retained_wire = t::wire_owner_retained_action_settings(&retained, limits.wire()).expect("128 retained heads");
+    let pending_wire = e::wire_owner_proposal_action_settings(&pending, limits.wire()).expect("128 pending heads");
+    let retained_wire = e::wire_owner_retained_action_settings(&retained, limits.wire()).expect("128 retained heads");
     assert_eq!(t::restore_owner_proposal_action_settings(&pending_wire, &limits), Ok(pending));
     assert_eq!(t::restore_owner_retained_action_settings(&retained_wire, &limits), Ok(retained.clone()));
 }
@@ -262,8 +263,8 @@ fn settings_actions_refuse_one_head_past_the_ceiling() {
     let pending =
         c::ProposalActionSettings { against: 6, items: action_heads(PROPOSAL_ITEMS + 1), review: None, made: None };
     let retained = c::RetainedActionSettings { against: 6, items: action_heads(PROPOSAL_ITEMS + 1), made: Some(7) };
-    t::wire_owner_proposal_action_settings(&pending, limits.wire()).expect_err("one past the pending head bound");
-    t::wire_owner_retained_action_settings(&retained, limits.wire()).expect_err("one past the retained head bound");
+    e::wire_owner_proposal_action_settings(&pending, limits.wire()).expect_err("one past the pending head bound");
+    e::wire_owner_retained_action_settings(&retained, limits.wire()).expect_err("one past the retained head bound");
 }
 
 #[test]
@@ -306,7 +307,7 @@ fn settings_review_keys_cross_the_wire_and_link_whole() {
     let limits = fixtures::limits();
     for key in [None, Some(1), Some(u64::MAX)] {
         let review = c::SettingsReview { key, newest: 6, items: skein_lib::List::with_capacity(0), cut: false };
-        let wire = t::wire_settings_review(&review, limits.wire()).unwrap();
+        let wire = e::wire_settings_review(&review, limits.wire()).unwrap();
         let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure()));
         wire.encode(&mut bytes).unwrap();
         let wire = w::SettingsReview::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
