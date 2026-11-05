@@ -1054,3 +1054,17 @@ pub struct RunDiagnostic {
     /// Worker-bounded evidence for the operator sink alone.
     pub detail: Box<[u8]>,
 }
+
+/// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
+/// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
+#[derive(PartialEq, Eq, Debug)]
+pub struct RunRefusalDiagnostic {
+    /// The task whose accepted assignment was refused.
+    pub task: u64,
+    /// The worker run token.
+    pub run: u64,
+    /// The fenced activation attempt.
+    pub attempt: u64,
+    /// The worker's typed refusal, including bounded start words for operators.
+    pub reason: jig_domain_host::Refusal,
+}
