@@ -39,7 +39,7 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **Its model choice:** when the task carries an LLM choice, `task show`
   prints `main model: MODEL/EFFORT`, then `sub-agent model: MODEL/EFFORT`
   for each sub-agent choice in order. A model without an effort prints
-  just its name. A task without a choice prints no model lines.
+  just its name.
 
 ## How it changes
 
@@ -54,28 +54,27 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - A start past a host's limits is refused and frees its reservation.
 - **What it waits on** prints after `waiting on:`: `Kept by its
   dependencies`, `Waiting for delegates`, `Waiting for news`, `Nothing
-  awaited`, or a party and what it must answer: `you: question 3 of
-  task 44 · 1 waiting`.
+  awaited`, or a party and what it must answer: `you: question 3 of task 44 · 1 waiting`.
 - **Held:** a held task runs no more until someone decides. Its hold
   has a reason (out of tries, stopped, its deadline passed, an
   insufficient budget, an effect whose outcome is uncertain, among
   others) and a revision of its own; a hold a party placed is theirs to
   release (temper help hold). Releasing it runs it again;
   leaving it held, or passing it up to the next holder of authority,
-  are the other decisions. Only an uncertain effect asks whether to
-  repeat it. `task show` prints `held:` and its reason, then `way
-  out:`, what to mend and the call that releases it: `task release
-  TASK --hold REV`. An effect's hold names the effect, its operation,
+  are the other decisions. `task show` prints `held:` and its reason, then `way out:`, what to mend and the call that releases it: `task release TASK --hold REV`. An effect's hold names the effect, its operation,
   resource and outcome; a procedure's names the step refused and why,
-  in its connector's words. An uncertain effect is repeated only by a
-  release with `--again`, once you have checked whether it happened.
+  in its connector's words. Only an uncertain effect asks whether to
+  repeat it: a release with `--again`, once you have checked whether it happened.
 - **Stopped:** stopping places a hold of yours over the task and every
   task below it, those made later included, and ends their runs;
   releasing the stopped task runs them all again (temper help hold).
 - **Cancelled:** cancelling ends the task and its tree: at once, or
   after a grace the canceller gives, in which its run may finish. A
   task that has ended refuses a cancel, saying how it ended; the same
-  cancel again, under its key, gets its first answer.
+  cancel again, under its key, gets its first answer. A change's early
+  start may end its producer `Cancelled · its early start conflicts with
+  SHA`: a dependency's head did not merge. The change goes on with a new
+  producer (temper help change).
 - **Amended:** an amendment replaces the controls it names (priority
   and tracking, deadline, instructions, spec, dependencies, model) and
   keeps the rest; all but a tracked task's priority name the spec
@@ -85,10 +84,9 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 ## What temper guarantees
 
 - **One result.** A task ends once, with one result of its contract's
-  kind, or failed or cancelled; a delegate's result reaches its
-  parent.
+  kind, or failed or cancelled.
 - **Words between turns:** a message reaches the agent at a turn's
-  boundary and steers its next turn, never the one in progress.
+  boundary and steers its next turn.
 - **Decisions on what was seen:** a release names the hold's
   revision and an amendment the spec's; a moved one is refused, and a
   read shows the new one.
@@ -100,13 +98,10 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 ## Acting on it
 
 - **Reading:** `task list` lists a project's tasks; `task show` reads
-  one; `task tree`, `task
-  activity`, `task turn` and `task run` read its parts; `task show`,
+  one; `task tree`, `task activity`, `task turn` and `task run` read its parts; `task show`,
   `task tree` and `task run` wait with `--until` or `--since`.
 - **Acting:** the acts `task show` lists under `acts:`, among them
-  `task message`, `task answer`, `task amend`, `task stop`, `task
-  cancel`, `task release`, `hold lift`, `task decide` and `proposal
-  decide`; an act marked `(no tool)` has no ctl tool yet.
+  `task message`, `task answer`, `task amend`, `task stop`, `task cancel`, `task release`, `hold lift`, `task decide` and `proposal decide`.
 - **temper's runs** act on their delegates with the host tools
   `delegate`, `change`, `goal`, `amend`, `message`, `cancel`, `release`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
@@ -129,8 +124,7 @@ For the precise refusal reason or failed-run detail, read serve's stderr or
 Restart settings: `temper help configuration`.
 
 - temper does not let ctl take a task, hand it back, move it to
-  another party, reorder it or mark it seen: those acts print `(no
-  tool)`.
+  another party, reorder it or mark it seen: those acts print `(no tool)`.
 - temper does not interrupt a turn in progress for a message, an
   amendment or a priority.
 - A task's deadline is checked when a run starts, not while it runs
