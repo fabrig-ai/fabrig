@@ -8,7 +8,8 @@ use skein_io::kernel::{Complete, Submit};
 use skein_io::{Event, Io, Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, Request};
 use skein_lib::stream::{Down, OutputDown, OutputOutcome, OutputUp, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-use skein_sim::{Config, Entry, Sim};
+use skein_sim::{Config, Entry};
+use skein_world::{Host, Memory, Referee, World};
 
 const LISTENER: Token = Token::new(1);
 const CLIENT: Token = Token::new(2);
@@ -40,19 +41,14 @@ impl Peer {
     }
 }
 
-/// Actual kernel trace and domain-independent IO events, for exact replay.
+/// Kernel trace and IO events for exact replay (io.md, 3.3; lib.md, 7.1).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Outcome {
-    /// Test-only observation of actual simulated kernel operations in execution
-    /// order, recorded by `Sim`; see `io.md` §3.3 and `lib.md` §7.1.
+    /// Simulated kernel operations in execution order.
     pub trace: Vec<Entry>,
-
-    /// Test-only observation of actual events emitted by `Io` in delivery order,
-    /// including independent output terminals; see `io.md` §3.3 and `lib.md` §7.1.
+    /// IO events in delivery order, including independent output terminals.
     pub events: Vec<Event>,
-
-    /// Driver iterations through the settled return, in `1..=20_000`; the test
-    /// driver asserts this bound. See `io.md` §3.3 and `lib.md` §7.1.
+    /// Driver iterations through settlement, asserted in `1..=20_000`.
     pub iterations: u32,
 }
 
@@ -278,8 +274,13 @@ impl Driver {
             Up::Failed(fault) => panic!("positive native conversation failed: {fault:?}"),
         }
     }
+}
 
-    fn iterate(&mut self) {
+// The harness supplies reap, submit and settlement checks (world.md, 3).
+impl Host for Driver {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        self.env.now = now;
+        self.env.wall = wall;
         while self.io.is_ready() && self.room(MAX_OUT_RESUME) {
             let before = self.mark();
             skein_io::resume(&mut self.io, &self.env, &mut self.up, &mut self.subs);
@@ -309,58 +310,56 @@ impl Driver {
         }
         self.io.reclaim();
     }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.completions
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.subs
+    }
+    fn work_pending(&self, _now: Time) -> bool {
+        self.io.is_ready() || !self.requests.is_empty() || !self.completions.is_empty()
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        None
+    }
+    fn is_empty(&self) -> bool {
+        self.client.phase == Phase::Closed
+            && self.server.phase == Phase::Closed
+            && self.listener_closed
+            && self.io.is_empty()
+    }
+    fn operations(&self) -> u32 {
+        skein_io::operations(&self.env.limits).expect("small io limits")
+    }
 }
 
-/// Both concrete payloads complete behind independent output rights, with
-/// exact replay and every actual IO/kernel lifetime settled.
-///
-/// This test driver returns only after both peers and the listener have closed,
-/// each peer has one actual output terminal, IO and driver queues are empty,
-/// and the simulated process has no pending operations or open descriptors.
-/// It asserts the positive conversation's payload and lifetime contracts and
-/// the limit of `20_000` driver iterations; a configuration that cannot complete
-/// those contracts panics rather than returning an unsettled observation.
-/// See `io.md` §3.3 and `lib.md` §7.1.
+struct Settled(bool);
+impl Referee<Driver> for Settled {
+    fn observe(&mut self, _now: Time, procs: &[Driver]) {
+        self.0 = procs.iter().all(Host::is_empty);
+    }
+    fn passed(&self) -> bool {
+        self.0
+    }
+}
+
+/// Both payloads complete behind independent output rights (io.md, 3.3; lib.md, 7.1).
+/// Returns with both peers and the listener closed, one terminal per peer, and empty queues, operations and descriptors.
+/// Payload or lifetime violations, or exceeding `20_000` driver iterations, panic.
 #[must_use]
 pub fn conversation(seed: u64, config: Config) -> Outcome {
-    let mut sim = Sim::new(seed, config);
-    let pid = sim.spawn_process();
-    let mut driver = Driver::new();
+    let mut world = World::new(seed, config, Settled(false), Memory::Unchecked);
+    world.spawn(Driver::new);
     let mut iterations = 0_u32;
-    loop {
+    let mut outcome = world.run_with_inputs(|sim, _, _| {
         iterations = iterations.checked_add(1).expect("bounded native world iterations");
         assert!(iterations <= 20_000, "native conversation settles: {}", sim.render_trace());
-        driver.env.now = sim.now();
-        driver.env.wall = sim.wall();
-        sim.reap(pid, &mut driver.completions);
-        driver.iterate();
-        sim.submit(pid, &mut driver.subs);
-        if driver.client.phase == Phase::Closed
-            && driver.server.phase == Phase::Closed
-            && driver.listener_closed
-            && driver.io.is_empty()
-        {
-            assert_eq!((driver.client.terminals, driver.server.terminals), (1, 1));
-            assert!(driver.requests.is_empty() && driver.completions.is_empty());
-            sim.assert_quiescent(pid);
-            sim.assert_no_open_fds(pid);
-            return Outcome { trace: sim.trace().to_vec(), events: driver.log, iterations };
-        }
-        let busy = driver.io.is_ready()
-            || !driver.requests.is_empty()
-            || !driver.completions.is_empty()
-            || sim.deferred(pid)
-            || sim.ready(pid) > 0;
-        if !busy {
-            let next = match sim.next_due() {
-                Some(kernel) => match driver.io.next_deadline() {
-                    Some(io) => Some(kernel.min(io)),
-                    None => Some(kernel),
-                },
-                None => driver.io.next_deadline(),
-            };
-            let next = next.expect("unsettled native conversation has real pending work");
-            sim.advance_to(next);
-        }
-    }
+    });
+    let driver = outcome.procs.pop().expect("one output driver");
+    assert_eq!((driver.client.terminals, driver.server.terminals), (1, 1));
+    assert!(driver.requests.is_empty() && driver.completions.is_empty());
+    Outcome { trace: std::mem::take(&mut outcome.trace), events: driver.log, iterations: outcome.iterations }
 }
