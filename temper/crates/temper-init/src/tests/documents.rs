@@ -258,13 +258,63 @@ fn demo(port: u16) -> Value {
                     "turns": [scripted_turn(json!([{"call": "finish", "arguments": {
                         "form": "verdict", "label": "1", "text": "Checked widget CSV export.", "fields": {}, "items": parse(b"[]")
                     }}]))]
-                }
+                },
+                {"cue": "Write this up as a draft beside us.", "turns": chat_document(false)},
+                {"cue": "Add what happens to a running goal.", "turns": chat_document(true)}
             ],
             "otherwise": [
                 demo_turn("I am the scripted model, the playground’s: I answer only the suggested requests, from a script. To ask for other work, connect a model from Accounts: a ChatGPT plan, a Claude subscription or an API key.")
             ]
         }
     })
+}
+
+// The chat-document walk establishes literal project 1, chat 1 and note 1.
+fn chat_document(revised: bool) -> Value {
+    let body = concat!(
+        "# Away mode\n",
+        "\n",
+        "Draft, 2026-11-05, with the user.\n",
+        "\n",
+        "## Purpose\n",
+        "\n",
+        "Away mode lets the person step away from ongoing work.\n",
+        "Agents keep working within the authority already granted.\n",
+        "They leave a clear account of progress for the person's return.\n",
+        "\n",
+        "The person chooses when to leave and when to return.\n",
+        "Away mode does not grant extra authority.\n",
+        "\n",
+        "## When the person returns\n",
+        "\n",
+        "Show the work completed while the person was away.\n",
+        "Keep the decisions that need the person in one place.\n",
+        "Make each question name the goal and the choice it needs.\n",
+        "\n",
+        "The person can answer questions before starting more work.\n",
+        "The conversation and its document remain available.\n",
+        "\n",
+        "## Open questions\n",
+        "\n",
+        "- Where should the person switch away mode on?\n",
+        "- Should it apply to one project or every project?\n",
+        "- How should urgent questions be shown on return?\n",
+        "\n",
+        "These choices remain for the person to settle.\n",
+    );
+    let mut arguments = json!({
+        "scope": {"kind": "goal", "project": 1_u32, "goal": 1_u64},
+        "description": "Away mode", "body": body
+    });
+    let sentence = if revised {
+        arguments["name"] = json!(1_u64);
+        arguments["recalled"] = json!(1_u32);
+        arguments["body"] = json!(body.replace("## When the person returns", "## A running goal\n\nA running goal continues within its existing authority and budget.\nWhen it needs the person's decision, it waits with a clear question.\nOther work that can proceed independently keeps moving.\nAway mode never supplies an answer on the person's behalf.\n\n## When the person returns"));
+        "I added how a running goal continues and waits for your decisions."
+    } else {
+        "I wrote an Away mode draft with its purpose, return flow and open questions."
+    };
+    json!([scripted_turn(json!([{"call": "note", "arguments": arguments}])), demo_turn(sentence)])
 }
 
 // The template delegates playground/widget: forge 1, repository 1, tag 4294967297.
