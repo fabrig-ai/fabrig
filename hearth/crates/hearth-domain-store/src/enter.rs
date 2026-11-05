@@ -1,6 +1,6 @@
 //! Cache admission preserves the first record and never evicts (hearth/docs/design/domain/store.md, 6.8, 8.1).
 use crate::{
-    Store,
+    Flight, Standing, Store,
     limits::Limits,
     vocabulary::{Answer, CacheFile, Event, Limit, Output, Request, Step},
 };
@@ -16,11 +16,17 @@ pub(super) struct Entering {
 pub(super) fn step(store: &mut Store, env: &Env<Limits>, event: Event, out: &mut Queue<Output>) {
     match event {
         Event::Arrived { arrival, sha256, size, origin, took } => {
-            assert!(store.entering.is_none(), "one arrival");
+            match store.flight {
+                Flight::Idle => {}
+                Flight::Finding | Flight::Writing(_) | Flight::Entering(_) | Flight::Chain(_) => {
+                    unreachable!("one arrival")
+                }
+            }
             let present = store.scan.index.get(&sha256) == Some(&true);
-            let refused = !store.usable || (!present && store.scan.index.len() >= env.limits.cache_files);
+            let refused =
+                store.standing != Standing::Usable || (!present && store.scan.index.len() >= env.limits.cache_files);
             let kept = !present && !refused;
-            store.entering = Some(Entering { arrival, sha256, kept, refused });
+            store.flight = Flight::Entering(Entering { arrival, sha256, kept, refused });
             let request = if kept {
                 store.scan.index.insert(sha256, true).expect("admitted cache file");
                 Request::Keep { arrival, record: CacheFile { at: env.wall, origin, sha256, size, took } }
@@ -30,19 +36,26 @@ pub(super) fn step(store: &mut Store, env: &Env<Limits>, event: Event, out: &mut
             out.push(Output::Request(request));
         }
         Event::Done | Event::Failed => {
-            let entering = store.entering.take().expect("arrival terminal");
+            let entering = match core::mem::replace(&mut store.flight, Flight::Idle) {
+                Flight::Entering(entering) => entering,
+                Flight::Idle | Flight::Finding | Flight::Writing(_) | Flight::Chain(_) => {
+                    unreachable!("arrival terminal")
+                }
+            };
             let failed = event == Event::Failed;
             if failed {
                 if entering.kept {
                     store.scan.index.remove(&entering.sha256);
                 }
-                store.usable = false;
+                if store.standing == Standing::Usable {
+                    store.standing = Standing::Declining(crate::vocabulary::Decline::Unusable { step: Step::List });
+                }
             }
             if failed {
                 out.push(Output::Answer(Answer::Unusable {
                     step: if entering.kept { Step::Keep } else { Step::Remove },
                 }));
-            } else if entering.refused && store.usable {
+            } else if entering.refused && store.standing == Standing::Usable {
                 out.push(Output::Answer(Answer::Full { limit: Limit::CacheFiles, most: env.limits.cache_files }));
             }
             let answer = if entering.refused || failed {
