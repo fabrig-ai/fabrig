@@ -15,11 +15,12 @@ use skein_oauth as oauth;
 
 impl Component {
     pub(super) fn wait_for_load(&mut self, account: u32, up: &mut Queue<Event>) -> bool {
-        let empty = match self.accounts.get(account).expect("account state") {
+        let entry = self.entries.get_mut(account).expect("account entry");
+        let empty = match &entry.state {
             State::Empty => true,
             State::Record { .. } | State::Loaded { .. } => false,
         };
-        let can_wait = match *self.bindings.get(account).expect("account binding") {
+        let can_wait = match entry.binding {
             Some(id) => match self.exchanges.get(id).expect("bound exchange").stage {
                 Stage::Loading | Stage::Finished => true,
                 Stage::Locking | Stage::Reading | Stage::Running | Stage::Keeping { .. } | Stage::Forgetting { .. } => {
@@ -28,14 +29,10 @@ impl Component {
             },
             None => true,
         };
-        match self.keepers.get_mut(account).expect("account keeper") {
+        match &mut entry.store {
             Store::Private(keeper) if empty && can_wait => {
                 if keeper.waiting_grant {
-                    up.push(Event::Refused {
-                        account: number(&self.names, account),
-                        asked: Asked::Grant,
-                        why: Refusal::Held,
-                    });
+                    up.push(Event::Refused { account: entry.name.number(), asked: Asked::Grant, why: Refusal::Held });
                 } else {
                     keeper.waiting_grant = true;
                     keeper.reload();
@@ -53,15 +50,16 @@ impl Component {
         _io: &mut Queue<Lower>,
         files: &mut Queue<FileLower>,
     ) -> bool {
-        for account in 0..self.keepers.len() {
+        for account in 0..self.entries.len() {
             let removing = !self.live(account);
-            let keeper = match self.keepers.get_mut(account).expect("account keeper") {
+            let entry = self.entries.get_mut(account).expect("account entry");
+            let keeper = match &mut entry.store {
                 Store::Private(keeper) => keeper,
                 Store::Owner => continue,
             };
             if self.lifecycle == Lifecycle::Aborting && keeper.waiting_grant {
                 keeper.waiting_grant = false;
-                failed(number(&self.names, account), Failure::Exchange(oauth::Failure::Cancelled), up);
+                failed(entry.name.number(), Failure::Exchange(oauth::Failure::Cancelled), up);
                 return true;
             }
             match &mut keeper.pending {
@@ -94,7 +92,7 @@ impl Component {
                 }
                 None => {}
             }
-            let binding = *self.bindings.get(account).expect("account binding");
+            let binding = entry.binding;
             if (self.lifecycle != Lifecycle::Live || removing) && binding.is_none() && !keeper.waiting_grant {
                 keeper.next = match keeper.root {
                     Some(_) => Some(Operation::Close),
@@ -149,8 +147,8 @@ impl Component {
         self.initialize(env);
         let owner = event.owner();
         let mut found = None;
-        for account in 0..self.keepers.len() {
-            match self.keepers.get(account).expect("account keeper") {
+        for account in 0..self.entries.len() {
+            match &self.entries.get(account).expect("account entry").store {
                 Store::Private(keeper) => match &keeper.pending {
                     Some(pending) if pending.owner == owner => {
                         found = Some(account);
@@ -176,7 +174,7 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<Lower>,
     ) {
-        let keeper = match self.keepers.get_mut(account).expect("account keeper") {
+        let keeper = match &mut self.entries.get_mut(account).expect("account entry").store {
             Store::Private(keeper) => keeper,
             Store::Owner => unreachable!("matched private terminal"),
         };
@@ -275,7 +273,7 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<Lower>,
     ) {
-        let keeper = match self.keepers.get_mut(account).expect("account keeper") {
+        let keeper = match &mut self.entries.get_mut(account).expect("account entry").store {
             Store::Private(keeper) => keeper,
             Store::Owner => unreachable!("private storing"),
         };
@@ -305,7 +303,7 @@ impl Component {
             | file::Event::Failed { .. }
             | file::Event::Cancelled { .. } => Keeping::NotKept,
         };
-        let id = self.bindings.get(account).expect("account binding").expect("file retains exchange");
+        let id = self.entries.get(account).expect("account entry").binding.expect("file retains exchange");
         self.exchanges.get_mut(id).expect("bound exchange").file_active = false;
         self.kept(env, account, generation, keeping, up, io);
         if self.exchanges.get(id).is_some() {
@@ -323,7 +321,7 @@ impl Component {
         io: &mut Queue<Lower>,
     ) {
         let (mut record, failure) = match record {
-            Some(record) => match self.sources.get(account).expect("account source") {
+            Some(record) => match &self.entries.get(account).expect("account entry").source {
                 crate::accounts::Source::SignIn { registration, .. } if missing_id(registration, &record) => {
                     (None, Some(Failure::Unloaded { at: Place::File, why: Unloaded::Unreadable }))
                 }
@@ -334,18 +332,18 @@ impl Component {
         if self.lock_loaded(env, account, &mut record, failure, up, io) {
             return;
         }
-        let waiting_grant = match self.keepers.get_mut(account).expect("account keeper") {
+        let waiting_grant = match &mut self.entries.get_mut(account).expect("account entry").store {
             Store::Private(keeper) => core::mem::replace(&mut keeper.waiting_grant, false),
             Store::Owner => unreachable!("private loading"),
         };
         let has_record = record.is_some();
         match record {
             Some(record) => {
-                *self.accounts.get_mut(account).expect("account state") = recorded(record, env, Lending::Free)
+                self.entries.get_mut(account).expect("account entry").state = recorded(record, env, Lending::Free)
             }
             None => {}
         }
-        let signer = match *self.bindings.get(account).expect("account binding") {
+        let signer = match self.entries.get(account).expect("account entry").binding {
             Some(id) => match self.exchanges.get(id).expect("bound exchange").stage {
                 Stage::Loading => Some(id),
                 Stage::Locking
@@ -359,7 +357,7 @@ impl Component {
         };
         if self.lifecycle == Lifecycle::Aborting {
             if waiting_grant {
-                failed(number(&self.names, account), Failure::Exchange(oauth::Failure::Cancelled), up);
+                failed(number(&self.entries, account), Failure::Exchange(oauth::Failure::Cancelled), up);
             }
             match signer {
                 Some(id) => {
@@ -383,7 +381,7 @@ impl Component {
             ) => false,
         };
         if waiting_grant && !has_record {
-            failed(number(&self.names, account), failure.unwrap_or(Failure::Expired), up);
+            failed(number(&self.entries, account), failure.unwrap_or(Failure::Expired), up);
         }
         match signer {
             Some(id) if self.exchanges.get(id).expect("loading exchange").signing_out() => {
@@ -392,7 +390,7 @@ impl Component {
                 } else {
                     self.exchanges.get_mut(id).expect("loading exchange").stage = Stage::Finished;
                     up.push(Event::Refused {
-                        account: number(&self.names, account),
+                        account: number(&self.entries, account),
                         asked: Asked::SignOut,
                         why: Refusal::NoRecord,
                     });
