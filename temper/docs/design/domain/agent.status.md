@@ -4,8 +4,6 @@
 The remaining gaps concern settings reads, verdict follow-up tasks,
 change-refusal model wording and shell authority for runs that cannot deliver.
 
-- **Not yet:** 4.3.2, 8.3: a goal's report: no charter asks for it, and a
-  goal's authority holds no notes: plan `ui-goals`.
 - **Not yet:** 4.4: a verdict's follow-up tasks. 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`), since jig's `setting` read names jig's kinds and an application's alone (jig's `client/domain/contract.md`, 5.1), so the configuring agent proposes a project's policy without reading it first.
 - **Not yet:** 4.3.1: a change's refusal omits which model its charter
   refused, because `temper-engine-smith/src/answers.rs` renders
