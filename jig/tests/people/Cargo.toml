@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+jig-people-kit.workspace = true
 sha2.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
