@@ -11,6 +11,8 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    ChatStartGoal,
+    ChatGoalLink,
     PlusDraft,
     DraftEmpty,
     DraftWriting,
@@ -1213,7 +1215,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1702;
+const PHRASES: u32 = 1704;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1229,8 +1231,10 @@ const PHRASES: u32 = 1702;
 // Forge status adds four segments and removes View (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
-const SEGMENTS: u32 = 2964;
-const ALL: [Word; 1105] = [
+const SEGMENTS: u32 = 2968;
+const ALL: [Word; 1107] = [
+    Word::ChatStartGoal,
+    Word::ChatGoalLink,
     Word::PlusDraft,
     Word::DraftEmpty,
     Word::DraftWriting,
@@ -2341,6 +2345,8 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::ChatStartGoal => 3558,
+            Self::ChatGoalLink => 3559,
             Self::StartGoalTitle => 3550,
             Self::StartGoalFrom => 3551,
             Self::StartGoalLead => 3552,
@@ -3790,6 +3796,8 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::ChatStartGoal => (&[b"Start goal\xe2\x80\xa6"], &[]),
+        Word::ChatGoalLink => (&[b"Goal ", b" \xe2\x86\x92"], &[Name]),
         Word::StartGoalTitle => (&[b"Start a goal"], &[]),
         Word::StartGoalFrom => (&[b"Start a goal from ", b""], &[Name]),
         Word::StartGoalLead => (&[b"The goal takes the draft as it is now. Later edits reach it through Amend."], &[]),

@@ -1252,6 +1252,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+#app > .temper-session .temper-session-right > .temper-chat-goal { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
+#app > .temper-session .temper-session-right > .temper-chat-goal:hover { border-color: #b4b4ae; }
+#app > .temper-session .temper-session-right > .temper-chat-goal.temper-goal-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-session .temper-session-right > .temper-chat-goal.temper-goal-primary:hover { background: #000; }
 #app > .temper-session .temper-session-right > button.temper-add-draft { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
 #app > .temper-session .temper-session-right > button.temper-add-draft:hover { border-color: #b4b4ae; background: var(--gf-surface); color: var(--gf-ink); }
 #app > .temper-session .temper-doc-empty { color: var(--gf-muted); }
