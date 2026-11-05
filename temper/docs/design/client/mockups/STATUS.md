@@ -79,7 +79,8 @@ Where the client does otherwise:
   empty sections say "Nothing needs you. Work carries on, and this
   page tells you what changed when you come back." and "No chats
   yet.", with no "All 0". The phone replaces the card with a pale
-  signal block and "Answer"; that link and the wide "Answer in a row"
+  signal block and "Answer", or "Answer, one at a time" for more; that
+  link and the wide "Answer in a row"
   open the project's *Needs you*. The rail and phone tabs colour the
   open project's needs count, as Home's section does. The kicker shows the
   current day and time; "you last looked", what landed in the
@@ -276,8 +277,8 @@ Where the client's recorded picks stand against the drawing:
 
 What is not built here, though the main drawings show it:
 
-- A chats row's or update's reply preview; a question's choice
-  buttons; a chats row's ended delegates; fractional spend.
+- A chats row's or update's reply preview; a chats row's ended
+  delegates; fractional spend.
 - A program's usage windows (6.3); an account's email display; the
   composer's account where the provider offers both key and program
   endpoints.
