@@ -1,7 +1,7 @@
 //! Items in one byte-bounded piece (codec.md, section 3).
 
 use alloc::boxed::Box;
-use skein_lib::{Overflow, Reader, Writer};
+use skein_lib::{Overflow, Reader, Writer, len_u64};
 
 use crate::Reason;
 
@@ -33,7 +33,7 @@ pub fn split(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, Reason> {
 /// `Reason::Bound` past `most` or on overflow.
 pub fn split_within(reader: &mut Reader<'_>, sum: &mut u64, most: u64) -> Result<Option<Box<[u8]>>, Reason> {
     let Some(item) = split(reader)? else { return Ok(None) };
-    let length = u64::try_from(item.len()).expect("an item length fits a u32");
+    let length = len_u64(item.len());
     *sum = sum.checked_add(length).ok_or(Reason::Bound)?.checked_add(4).ok_or(Reason::Bound)?;
     if *sum > most {
         return Err(Reason::Bound);

@@ -7,7 +7,7 @@ use crate::{Limits, Op, Page, Range, Refusal, Row};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::ops::Bound;
-use skein_lib::Map;
+use skein_lib::{Map, usize_of};
 
 /// A conservative charge for tree nodes, key and value boxes and allocator
 /// metadata. Payload lengths are charged separately.
@@ -80,12 +80,12 @@ impl Queued {
         let mut count = i128::from(count);
         for (index, op) in ops.iter().enumerate() {
             let key = op.key();
-            if key.len() > usize::try_from(limits.key).expect("u32 fits usize") {
+            if key.len() > usize_of(limits.key) {
                 return Err(Refusal::TooLarge);
             }
             match op {
                 Op::Put { value, .. } => {
-                    if value.len() > usize::try_from(limits.value).expect("u32 fits usize") {
+                    if value.len() > usize_of(limits.value) {
                         return Err(Refusal::TooLarge);
                     }
                 }
@@ -236,7 +236,7 @@ impl KvMap {
         };
         for (key, value) in self.entries.range::<[u8], _>((Bound::Included(range.start.as_ref()), end)) {
             let size = u32::try_from(key.len().saturating_add(value.len())).unwrap_or(u32::MAX);
-            if rows.len() >= usize::try_from(max.rows).expect("u32 fits usize")
+            if rows.len() >= usize_of(max.rows)
                 || bytes.checked_add(size).is_none_or(|total| total > max.bytes)
             {
                 if rows.is_empty() {

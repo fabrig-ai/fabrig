@@ -1,7 +1,7 @@
 //! Patch tokens and statement grammar (codec.md, 11.1).
 
 use super::{Expected, Header, LANGUAGE, Op, PatchError, PatchWrong, Span, add, error, spelled};
-use skein_lib::List;
+use skein_lib::{List, usize_of};
 
 #[cfg(test)]
 mod tests;
@@ -103,7 +103,7 @@ impl Cursor {
         };
         let mut comment = false;
         for _ in self.offset..length {
-            let byte = *text.get(usize::try_from(self.offset).expect("u32 fits usize")).expect("offset before end");
+            let byte = *text.get(usize_of(self.offset)).expect("offset before end");
             let start = self.offset;
             self.offset = add(self.offset, 1);
             if byte == b'\n' {
@@ -122,7 +122,7 @@ impl Cursor {
                 let kind = if word_byte(byte) {
                     for _ in self.offset..length {
                         let byte = *text
-                            .get(usize::try_from(self.offset).expect("u32 fits usize"))
+                            .get(usize_of(self.offset))
                             .expect("offset before end");
                         if !word_byte(byte) {
                             break;
@@ -134,7 +134,7 @@ impl Cursor {
                     let mut closed = false;
                     for _ in self.offset..length {
                         let byte = *text
-                            .get(usize::try_from(self.offset).expect("u32 fits usize"))
+                            .get(usize_of(self.offset))
                             .expect("offset before end");
                         let at = self.offset;
                         self.offset = add(self.offset, 1);
@@ -418,7 +418,7 @@ pub(crate) fn after(text: &[u8], range: Span, upstream: &[u8]) -> Option<u32> {
 }
 pub(crate) fn marked(text: &[u8], range: Span, mark: &[u8]) -> bool {
     let Some(bytes) = text.get(
-        usize::try_from(range.start).expect("u32 fits usize")..usize::try_from(range.end).expect("u32 fits usize"),
+        usize_of(range.start)..usize_of(range.end),
     ) else {
         return false;
     };

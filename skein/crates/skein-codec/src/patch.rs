@@ -1,7 +1,7 @@
 //! Plan and run bounded family patches (codec.md, section 11).
 
 use crate::schema::{self, DeclIx, FieldIx, Schema, SchemaError, Span, VariantIx};
-use skein_lib::List;
+use skein_lib::{List, usize_of};
 
 mod plan;
 pub use plan::{Change, Comparison, Matching, RenameRefused, changes};
@@ -294,7 +294,7 @@ impl Patcher {
 
     /// Parses and keeps one version of the machine's family.
     pub fn keep(&mut self, text: &[u8]) -> Result<u16, KeepError> {
-        if text.len() > usize::try_from(self.build.tables.capacity.text).expect("u32 fits usize")
+        if text.len() > usize_of(self.build.tables.capacity.text)
             || self.build.tables.schemas.room() == 0
         {
             return Err(KeepError::Room);
@@ -324,7 +324,7 @@ impl Patcher {
 
     /// Reads the whole text and plans this family's block, if present.
     pub fn plan(&mut self, patch: &[u8]) -> Result<Option<PlanIx>, PatchError> {
-        if patch.len() > usize::try_from(self.build.tables.capacity.text).expect("u32 fits usize") {
+        if patch.len() > usize_of(self.build.tables.capacity.text) {
             return Err(error(1, Span { start: 0, end: 0 }, PatchWrong::Long));
         }
         let parsed = text::parse(patch)?;
@@ -430,7 +430,7 @@ fn add(left: u32, right: u32) -> u32 {
     left.checked_add(right).expect("bounded text and schema tables")
 }
 fn spelled(text: &[u8], span: Span) -> &[u8] {
-    let start = usize::try_from(span.start).expect("text offset fits usize");
-    let end = usize::try_from(span.end).expect("text offset fits usize");
+    let start = usize_of(span.start);
+    let end = usize_of(span.end);
     text.get(start..end).expect("span belongs to its text")
 }
