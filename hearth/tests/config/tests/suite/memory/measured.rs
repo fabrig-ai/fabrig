@@ -18,8 +18,8 @@ pub fn metered_declaration(document: &[u8], limits: &Limits, ceiling: u64, what:
 }
 fn measure(document: &[u8], limits: &Limits, ceiling: u64, what: &str, declare: bool) -> u64 {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut offset = 0;
     let meter = Meter::new();
     meter.start();

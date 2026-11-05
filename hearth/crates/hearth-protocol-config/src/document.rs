@@ -55,8 +55,8 @@ fn refuse_list_null(entries: &[Entry]) -> Result<(), Error> {
     /// closed once.
     const WALK_STEPS: u64 = 1 << 33;
 
-    let mut pending = List::with_capacity(1);
-    pending.push(Unread::Map(entries.iter(), false)).expect("root fits");
+    let mut pending = List::uncapped();
+    pending.push(Unread::Map(entries.iter(), false)).expect("an uncapped list");
     let mut first: Option<Position> = None;
     for _ in 0..WALK_STEPS {
         let Some(index) = pending.len().checked_sub(1) else { break };
@@ -91,14 +91,7 @@ fn refuse_list_null(entries: &[Entry]) -> Result<(), Error> {
             Kind::Map(entries) => Unread::Map(entries.iter(), inside),
             Kind::Bool(_) | Kind::Int(_) | Kind::String(_) => continue,
         };
-        if pending.room() == 0 {
-            let capacity = pending.capacity().saturating_mul(2);
-            let old = core::mem::replace(&mut pending, List::with_capacity(capacity));
-            for frame in old.into_boxed() {
-                pending.push(frame).expect("doubled stack capacity");
-            }
-        }
-        pending.push(unread).expect("stack room reserved");
+        pending.push(unread).expect("an uncapped list");
     }
     // Maps are held in name order, so retain the earliest source position.
     match first {
