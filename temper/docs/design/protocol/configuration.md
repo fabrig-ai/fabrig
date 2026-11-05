@@ -2402,14 +2402,15 @@ that changes the stock changes nothing of them.
   - the repository's `.temper/pre-pr` and `.temper/merge`, and its
     tiers' workflows (below).
 
-  Its limits are sizes for one goal of a hundred changes; no budget or
-  time moves: the spends, the periods, a run's time and the agent's
-  timeouts stay the box's (13.4), and a run held at its spend is its
+  Its limits size one goal of a hundred changes and bound each change's
+  questions to four; no budget or time moves: the spends, the periods, a
+  run's time and the agent's timeouts stay the box's (13.4), and a run held at its spend is its
   person's to fund (`../domain/forge.md`, 8.4).
 
   | Limit | The box (`temper init`) | The reference | For |
   |---|---|---|---|
   | `tasks.tree_tasks` | 384 | 1,024 | a goal's tree over its life: about a hundred changes of about eight tasks each, G and its person tasks (N21) |
+  | `forge.change_policy.questions` | 80 | 4 | questions per change (`../draft/reference-code-production.md`, sections 8 and 14) |
 
   Every other limit the case needs the box's `standard` profiles hold
   (13.4): G's live delegates (80) with the operations and the inbox
@@ -2419,8 +2420,9 @@ that changes the stock changes nothing of them.
   the requester's remaining lifetime task capacity), the live changes, holds and tasks
   the forge follows (128), a change's twelve tasks with four foremen
   (80), the executors and charters (16 and 12), and the agent's turns
-  (800); so `limits.json` holds `tasks.tree_tasks` alone, and the
-  reference sets nothing of the agent's configuration.
+  (800); so `limits.json` holds `tasks.tree_tasks` and
+  `forge.change_policy.questions`, and the reference sets nothing of
+  the agent's configuration.
 
   The settings file sizes its charters and template to the box: charters
   2, 5, 6, 7 and 8 take the stock's run, 800 turns and 8 hours (13.4),
