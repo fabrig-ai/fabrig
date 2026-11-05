@@ -408,10 +408,18 @@ fn box_setup(
                 w::SetUp::new(
                     &w::CEILINGS,
                     w::SetUpParts {
-                        playground: false,
                         forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge }).unwrap()),
-                        org: b"work".as_slice().into(),
-                        repository: b"hello".as_slice().into(),
+                        first: w::SetUpFirst::Empty(
+                            w::FirstEmpty::new(
+                                &w::CEILINGS,
+                                w::FirstEmptyParts {
+                                    playground: false,
+                                    org: b"work".as_slice().into(),
+                                    repository: b"hello".as_slice().into(),
+                                },
+                            )
+                            .expect("setup names fit wire ceilings"),
+                        ),
                     },
                 )
                 .unwrap(),

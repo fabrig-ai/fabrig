@@ -954,12 +954,12 @@ pub fn forge_record() -> top::ForgeRecord {
             email: b"bot@example.com".as_slice().into(),
         },
         asked: true,
-        first: Some(top::FirstIntent {
+        first: Some(top::FirstIntent::Empty(top::EmptyIntent {
             playground: true,
             org: b"playground".as_slice().into(),
             repository: b"widget".as_slice().into(),
             label: b"playground".as_slice().into(),
-        }),
+        })),
     }
 }
 

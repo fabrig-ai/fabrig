@@ -6,16 +6,16 @@ use crate::{
     words::{Word, Words},
 };
 use alloc::boxed::Box;
-use skein_ui::{Builder, Role, Run, State, phrases::Hole};
+use skein_ui::{Builder, Role, Run, Shortcut, State, phrases::Hole};
 use temper_client_domain::{
     Address, ChatsFilter, Domain, GoalsFilter,
     forge::{
         self,
-        forges::{Connection, Kind, Mode},
+        forges::{Connection, Kind, Mode, Start},
     },
     pages::{
         Act,
-        home::{Facts, Needs, Repository, Status},
+        home::{AddField, AddRefused, AddSheet, CopyLine, CopyState, Facts, Needs, Repository, Status},
         needs::{self, ANSWERED_ON_HOME},
     },
 };
@@ -54,6 +54,7 @@ pub(crate) fn main(
     }
     foot(b, w, bindings, project, &facts, times);
     crate::confirm::main(b, root, w, bindings, rows);
+    add_sheet(b, root, w, bindings, name);
     b.close();
 }
 
@@ -646,6 +647,7 @@ fn to_begin(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, n
     b.close();
     b.close();
 }
+#[expect(clippy::too_many_lines, reason = "the repository step draws each state in its precedence order")]
 fn repository_step(
     b: &mut Builder,
     w: &Words,
@@ -657,6 +659,43 @@ fn repository_step(
     let adoption = w.say(Word::Adoption, &[]);
     match repository {
         Repository::Unknown => return,
+        Repository::Copying { lines } => {
+            let mut title = Word::HomeCopyAct;
+            for line in lines {
+                if line.state == CopyState::Making {
+                    title = Word::HomeAddTitle;
+                }
+            }
+            step(b, w, 2, false, &w.say(title, &[]), &[]);
+            for line in lines {
+                copy_line(b, w, bindings, name, line);
+            }
+        }
+        Repository::CopiesIn { names } => {
+            let (title, detail) = if names.len() == 1 {
+                (Word::HomeCopyIn, Word::HomeCopyInDetail)
+            } else {
+                (Word::HomeCopiesIn, Word::HomeCopiesInDetail)
+            };
+            step(
+                b,
+                w,
+                2,
+                true,
+                &w.say(title, &[Hole::Name(join_copies(names)), Hole::Name(name.into())]),
+                &w.say(detail, &[]),
+            );
+        }
+        Repository::CopyOffer { addresses, .. } => {
+            let Some(first) = addresses.first() else { return };
+            step(b, w, 2, false, &w.say(Word::HomeCopyOffer, &[Hole::Name(first.clone())]), &[]);
+            for address in addresses.iter().skip(1) {
+                text(b, Role::Paragraph, address, None);
+            }
+            acts(b);
+            button(b, bindings, &w.say(Word::HomeCopyAct, &[]), Act::CopyOffered, look::HOME_PRIMARY, false);
+            b.close();
+        }
         Repository::In { owner, name: repo } => {
             step(
                 b,
@@ -713,6 +752,7 @@ fn repository_step(
             go(b, bindings, &w.say(Word::HomeAdoptLink, &[]), Address::Adopt { project }, Some(look::HOME_PRIMARY));
             b.close();
         }
+        Repository::Add { .. } => add_step(b, w, bindings, project),
         Repository::None => {
             step(b, w, 2, false, &adoption, &w.say(Word::HomeNone, &[]));
             acts(b);
@@ -722,6 +762,194 @@ fn repository_step(
     }
     b.close();
 }
+fn add_step(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32) {
+    step(b, w, 2, false, &w.say(Word::HomeAddTitle, &[]), &w.say(Word::HomeAddDetail, &[]));
+    acts(b);
+    for (start, word) in [(Start::Empty, Word::HomeAddEmpty), (Start::Copies, Word::HomeAddCopy)] {
+        button(b, bindings, &w.say(word, &[]), Act::AddOpen { start }, look::HOME_SMALL, false);
+    }
+    go(b, bindings, &w.say(Word::HomeAddOther, &[]), Address::Adopt { project }, Some(look::HOME_QUIET));
+    b.close();
+}
+fn join_copies(names: &[Box<[u8]>]) -> Box<[u8]> {
+    let mut joined: Box<[u8]> = Box::default();
+    for name in names {
+        let separator = if joined.is_empty() { b"".as_slice() } else { b", ".as_slice() };
+        joined = skein_lib::bytes::concat(&[&joined, separator, name]);
+    }
+    joined
+}
+fn copy_line(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: &[u8], line: &CopyLine) {
+    b.open(Role::Slot);
+    b.style(look::HOME_COPY);
+    let label = match &line.state {
+        CopyState::Running { host } => w.say(
+            Word::HomeCopying,
+            &[Hole::Name(line.org.clone()), Hole::Name(line.name.clone()), Hole::Name(host.clone())],
+        ),
+        CopyState::Making => w.say(Word::HomeMaking, &[Hole::Name(line.org.clone()), Hole::Name(line.name.clone())]),
+        CopyState::Waiting => w.say(Word::HomeCopyWaiting, &[]),
+        CopyState::Adopting => w.say(
+            Word::HomeAdopting,
+            &[Hole::Name(line.org.clone()), Hole::Name(line.name.clone()), Hole::Name(project.into())],
+        ),
+        CopyState::In => {
+            b.style(look::HOME_DONE);
+            let name = skein_lib::bytes::concat(&[&line.org, b"/", &line.name]);
+            let label = w.say(Word::HomeCopyIn, &[Hole::Name(name), Hole::Name(project.into())]);
+            match w.shell {
+                Shell::Browser => label,
+                Shell::Terminal => crate::accounts::words::join(&[&w.say(Word::HomeDone, &[]), &label]),
+            }
+        }
+        CopyState::Failed { words } => words.clone(),
+    };
+    text(b, Role::Paragraph, &label, None);
+    match &line.state {
+        CopyState::Failed { .. } => {
+            acts(b);
+            button(
+                b,
+                bindings,
+                &w.say(Word::HomeCopyAgain, &[]),
+                Act::CopyAgain { org: line.org.clone(), name: line.name.clone() },
+                look::HOME_QUIET,
+                false,
+            );
+            b.close();
+        }
+        CopyState::Running { .. } | CopyState::Making | CopyState::Waiting | CopyState::Adopting | CopyState::In => {}
+    }
+    b.close();
+}
+
+fn add_sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: &[u8]) {
+    let Some(home) = root.pages().home() else { return };
+    let Some(sheet) = &home.add else { return };
+    let title = w.say(Word::HomeAddSheet, &[Hole::Name(project.into())]);
+    b.open(Role::Dialog);
+    b.style(look::WELCOME_SHEET);
+    b.name(&title);
+    b.open(Role::Slot);
+    b.style(look::WELCOME_SHEET_HEAD);
+    text(b, Role::Heading { level: 2 }, &title, None);
+    text(b, Role::Paragraph, &w.say(Word::HomeAddSheetLead, &[]), None);
+    b.close();
+    let legend = w.say(Word::HomeAddLegend, &[]);
+    b.open(Role::ChoiceGroup);
+    b.style(look::WELCOME_START);
+    b.name(&legend);
+    text(b, Role::Heading { level: 3 }, &legend, Some(look::WELCOME_LEGEND));
+    for (start, title, detail) in [
+        (Start::Empty, Word::WelcomeForgejoEmpty, Word::WelcomeForgejoEmptyDetail),
+        (Start::Copies, Word::WelcomeForgejoCopies, Word::WelcomeForgejoCopiesDetail),
+    ] {
+        b.open(Role::Slot);
+        b.style(look::WELCOME_OPTION);
+        b.open(Role::Choice);
+        b.name(&w.say(title, &[]));
+        if sheet.start == start {
+            b.state(State::Selected);
+        }
+        if sheet.out.is_some() {
+            b.state(State::Disabled);
+        }
+        b.bind(bindings.insert(Act::AddChoose { start }));
+        b.close();
+        text(b, Role::Paragraph, &w.say(detail, &[]), None);
+        b.close();
+        if sheet.start == start {
+            add_fields(b, root, w, bindings, sheet);
+        }
+    }
+    b.close();
+    if let Some(refused) = &sheet.refused {
+        add_alert(b, w, refused);
+    }
+    b.open(Role::Slot);
+    b.style(look::WELCOME_SHEET_FOOT);
+    b.open(Role::Button);
+    b.name(&w.say(Word::Cancel, &[]));
+    b.bind(bindings.insert(Act::AddClose));
+    b.shortcut(Shortcut::ESCAPE);
+    if sheet.out.is_some() {
+        b.state(State::Disabled);
+    }
+    b.close();
+    button(b, bindings, &w.say(Word::HomeAddIt, &[]), Act::AddSubmit, look::FLOW_PRIMARY, sheet.out.is_some());
+    b.close();
+    b.close();
+}
+fn add_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, sheet: &AddSheet) {
+    b.open(Role::Slot);
+    b.style(look::WELCOME_OPTION_MORE);
+    match sheet.start {
+        Start::Empty => {
+            for (field, word, value) in [
+                (AddField::Org, Word::SetupOrganization, &sheet.org),
+                (AddField::Name, Word::WelcomeForgejoName, &sheet.name),
+            ] {
+                b.open(Role::Slot);
+                b.open(Role::TextField);
+                b.state(State::SubmitsOnEnter);
+                b.name(&w.say(word, &[]));
+                b.value(value, temper_client_domain::pages::shown(root.pages()));
+                b.bind(bindings.insert(Act::AddWrite { field, words: Box::default() }));
+                if sheet.out.is_some() {
+                    b.state(State::Disabled);
+                }
+                if let Some(AddRefused::Blank | AddRefused::Invalid(_)) = sheet.refused {
+                    b.state(State::Invalid);
+                }
+                b.close();
+                b.close();
+            }
+        }
+        Start::Copies => {
+            let addresses = w.say(Word::WelcomeForgejoAddresses, &[]);
+            text(b, Role::Paragraph, &addresses, None);
+            b.open(Role::TextArea);
+            b.name(&addresses);
+            b.placeholder(&w.say(Word::WelcomeForgejoAddressHint, &[]));
+            b.value(&sheet.addresses, temper_client_domain::pages::shown(root.pages()));
+            b.bind(bindings.insert(Act::AddWrite { field: AddField::Addresses, words: Box::default() }));
+            if sheet.out.is_some() {
+                b.state(State::Disabled);
+            }
+            if let Some(AddRefused::Copies(_)) = sheet.refused {
+                b.state(State::Invalid);
+            }
+            b.close();
+        }
+        Start::Nothing => {}
+    }
+    b.close();
+}
+fn add_alert(b: &mut Builder, w: &Words, refused: &AddRefused) {
+    use temper_client_protocol_wire::v1::MakeRefusal;
+    let why: &[u8] = match refused {
+        AddRefused::Blank => {
+            text(b, Role::Alert, &w.say(Word::WelcomeSheetBlank, &[]), None);
+            return;
+        }
+        AddRefused::Copies(refused) => {
+            crate::forge::connect::copies_alert(b, w, refused);
+            return;
+        }
+        AddRefused::Invalid(_) => b"invalid",
+        AddRefused::Make(why) => match why {
+            MakeRefusal::NoSuchForge => b"no such forge",
+            MakeRefusal::NotOffered => b"not offered",
+            MakeRefusal::NotOwner => b"not owner",
+            MakeRefusal::Invalid => b"invalid",
+            MakeRefusal::HomeHeld => b"The project has a home already.",
+            MakeRefusal::Full => b"full",
+        },
+        AddRefused::Unknown => b"no answer; try again",
+    };
+    text(b, Role::Alert, &w.say(Word::HomeAddRefused, &[Hole::Name(why.into())]), None);
+}
+
 /// A project's settings (temper/docs/design/client/README.md, 3.5).
 pub(crate) fn settings(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
     page(b, root, w, bindings, project, true);

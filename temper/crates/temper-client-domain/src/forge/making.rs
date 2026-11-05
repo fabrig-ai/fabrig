@@ -1,8 +1,96 @@
-//! Repository making facts and the client's checks (temper/docs/design/client/README.md, 4.6;
+//! Repository making facts and the client's checks (temper/docs/design/client/README.md, 3.5 and 4.6;
 //! temper/docs/design/draft/repository-copies.md, 5.2 to 5.4).
 use alloc::boxed::Box;
-use skein_lib::bytes;
+use skein_lib::{List, bytes};
 use temper_client_protocol_wire::{source, v1 as w};
+
+/// Why the welcome's addresses cannot be sent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CopiesRefused {
+    NoAddress,
+    NotAnAddress(Box<[u8]>),
+    TooMany,
+}
+
+/// Each non-empty line as the greenfield mock's `parseCopies` reads it, then `source::parse`.
+/// An address in `source::address`'s form, in the order written.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the welcome trims person-entered lines as Unicode before checking source addresses"
+)]
+pub fn parse_copies(text: &[u8]) -> Result<List<Box<[u8]>>, CopiesRefused> {
+    let Ok(text) = core::str::from_utf8(text) else {
+        return Err(CopiesRefused::NotAnAddress(bytes::copy_of(text)));
+    };
+    let mut addresses = List::with_capacity(temper_client_protocol_wire::FIRST_COPIES);
+    for raw in text.split('\n') {
+        let raw = raw.trim();
+        let line = match raw.strip_prefix("https://") {
+            Some(line) => line,
+            None => raw.strip_prefix("http://").unwrap_or(raw),
+        };
+        let line = line.strip_suffix(".git").unwrap_or(line).trim_end_matches('/');
+        if line.is_empty() {
+            continue;
+        }
+        let line = line.as_bytes();
+        let address = match bytes::count(line, b"/", 3) {
+            1 => bytes::concat(&[b"github.com/", line]),
+            2 => bytes::copy_of(line),
+            _ => return Err(CopiesRefused::NotAnAddress(bytes::copy_of(raw.as_bytes()))),
+        };
+        let Ok(source) = source::parse(&address) else {
+            return Err(CopiesRefused::NotAnAddress(bytes::copy_of(raw.as_bytes())));
+        };
+        let address = source::address(&source);
+        if address.len() > source::ADDRESS_BYTES {
+            return Err(CopiesRefused::NotAnAddress(bytes::copy_of(raw.as_bytes())));
+        }
+        if addresses.push(address).is_err() {
+            return Err(CopiesRefused::TooMany);
+        }
+    }
+    if addresses.is_empty() {
+        return Err(CopiesRefused::NoAddress);
+    }
+    Ok(addresses)
+}
+
+/// The copies of the real forge numbered lowest whose intent names them (client/README.md, 3.5).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Copies {
+    pub forge: u16,
+    pub addresses: Box<[Box<[u8]>]>,
+}
+#[must_use]
+pub fn copies(rows: &super::forges::State, playground: Option<u16>) -> Option<Copies> {
+    use super::forges::{Mode, StartsWith, State};
+    let State::Rows(rows) = rows else { return None };
+    let mut found: Option<Copies> = None;
+    for row in rows {
+        if row.mode == Mode::Fake || Some(row.number) == playground {
+            continue;
+        }
+        let addresses = match &row.starts_with {
+            StartsWith::Copies { addresses } => addresses,
+            StartsWith::Repository | StartsWith::Nothing => continue,
+        };
+        let lower = match &found {
+            Some(found) => row.number < found.forge,
+            None => true,
+        };
+        if lower {
+            found = Some(Copies { forge: row.number, addresses: addresses.clone() });
+        }
+    }
+    found
+}
+/// A copy's org and name, the source's (repository-copies.md, 5.3).
+#[must_use]
+#[expect(clippy::type_complexity, reason = "the shared copy target contract returns the source org and name")]
+pub fn target(address: &[u8]) -> Option<(Box<[u8]>, Box<[u8]>)> {
+    Some(copy_target(&source::parse(address).ok()?))
+}
 
 /// One repository being made, in the forge watch's key order.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -12,6 +100,35 @@ pub struct Making {
     pub from: w::MakeFrom,
     pub into: Option<w::MakeInto>,
     pub state: w::MakingState,
+}
+
+/// A Ready copy keeps both its source address and its source's destination name.
+#[must_use]
+pub fn is_target(making: &Making, address: &[u8]) -> bool {
+    let Some((org, name)) = target(address) else { return false };
+    if making.org != org || making.name != name {
+        return false;
+    }
+    match &making.from {
+        w::MakeFrom::Copy(copy) => copy.address() == address,
+        w::MakeFrom::Empty => false,
+    }
+}
+/// A copy already asked or held anywhere on this forge (client/README.md, 3.5, Home).
+#[must_use]
+pub fn asked(row: &super::forges::Row, address: &[u8]) -> bool {
+    for making in &row.makings {
+        if is_target(making, address) {
+            return true;
+        }
+    }
+    let Some((org, name)) = target(address) else { return false };
+    for repository in &row.repositories {
+        if repository.owner == org && repository.name == name {
+            return true;
+        }
+    }
+    false
 }
 
 /// The part of a making request the client cannot accept.
