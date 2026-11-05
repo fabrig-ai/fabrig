@@ -261,6 +261,53 @@ fn input_rows_are_checked_before_scanning_or_forwarding_them() {
     };
     terminal(&h.answer(&sent, 1, Ok(answer)), 1, Error::TooLarge);
 }
+
+#[test]
+fn compare_files_and_commits_each_fit_eight_rows() {
+    const ROWS: u32 = 8;
+    // Keep every fixture below the byte cap to isolate row admission.
+    const ANSWER_BYTES: u32 = 65_536;
+    for (file_rows, commit_rows, admitted) in [(8, 2, true), (14, 2, false), (0, 8, true), (0, 9, false), (8, 8, true)]
+    {
+        let mut h = Harness::new(Limits { rows: ROWS, answer_bytes: ANSWER_BYTES, ..LIMITS });
+        let before = [1; 32];
+        let after = [2; 32];
+        assert!(
+            h.step(Event::Read { owner: Token::new(1), repository: REPO, read: Read::Compare { before, after } })
+                .is_empty()
+        );
+        let sent = h.one();
+        let mut files = skein_lib::List::with_capacity(file_rows);
+        for _ in 0..file_rows {
+            files
+                .push(api::File {
+                    path: b"file".as_slice().into(),
+                    before: Some(b"a".as_slice().into()),
+                    after: Some(b"b".as_slice().into()),
+                })
+                .expect("file room");
+        }
+        let mut commits = skein_lib::List::with_capacity(commit_rows);
+        for _ in 0..commit_rows {
+            commits.push(after).expect("commit room");
+        }
+        let answer = Answer::Compare {
+            before,
+            after,
+            contains_before: true,
+            files: files.into_boxed(),
+            commits: commits.into_boxed(),
+        };
+        assert!(skein_forge::measure::answer(&answer).unwrap() < u64::from(h.env.limits.answer_bytes));
+        let expected = if admitted { Ok(answer.clone()) } else { Err(Error::TooLarge) };
+        assert_eq!(
+            h.answer(&sent, 1, Ok(answer)).as_ref(),
+            &[Request::Read { owner: Token::new(1), result: expected }],
+            "files={file_rows}, commits={commit_rows}",
+        );
+        assert!(h.send().is_none());
+    }
+}
 #[test]
 fn an_answer_with_the_wrong_shape_is_typed_failure() {
     let mut h = Harness::new(LIMITS);
