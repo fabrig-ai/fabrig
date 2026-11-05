@@ -558,7 +558,6 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                             b"/chats",
                             b"/projects/1/changes",
                         ]
-                        
                     } else if goals {
                         vec![b"/projects/1".as_slice(), b"/?project=1", b"/projects/1/goals", b"/chats"]
                     } else {
@@ -568,7 +567,6 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                             b"/chats",
                             if style == look::TABBAR { b"/projects/1/settings" } else { b"/projects/1/changes" },
                         ]
-                        
                     };
                     for ((id, name, marked), href) in ids.into_iter().zip(hrefs.iter().copied()) {
                         assert_eq!(marked, name.as_deref() == current && current.is_some());
