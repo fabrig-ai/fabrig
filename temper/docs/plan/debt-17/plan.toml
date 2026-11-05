@@ -34,3 +34,16 @@ id = 1
 story = "three small items land: no #[path] in hearth, one codec generation, no hand tag in the terminal"
 parts = ["hearth-path", "codec-once", "terminal-namespace"]
 walk = false
+
+[[part]]
+id = "env-with"
+title = "an Env of the same clocks is env.with(limits) (skein D003)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 9"
+
+[[slice]]
+id = 2
+story = "no skein code rebuilds an Env from another's clocks"
+parts = ["env-with"]
+walk = false

@@ -10,12 +10,13 @@ plan's base and is still open. D003 reads 86, not the item's 97.
 | hearth D008 | `hearth-path` | `hearth-path` | | medium | 15 | the fixtures move into `suite/memory/` |
 | skein D034 | `codec-once` | `codec-once` | | medium | 15 | `build.rs`, `names.rs`, the `#[path]` go |
 | skein D044 | `terminal-namespace` | `terminal-namespace` | | medium | 20 | namespace 4 of `Token::tagged`, the same bit |
+| skein D003 | `env-with` | `env-with` | | medium | 40 | 75 sites onto `Env::with` and `Now::with` |
 
-Still to come in later pushes: skein D003, D005, D006, D008, D019, D026 and jig D027, each surveyed first.
+Still to come in later pushes: skein D005, D006, D008, D019, D026 and jig D027, each surveyed first.
 
 ## Critical path
 
-Nothing here waits on anything yet: 20 minutes.
+Nothing here waits on anything yet: `env-with`, 40 minutes.
 
 ## Decisions
 
@@ -26,6 +27,11 @@ Nothing here waits on anything yet: 20 minutes.
   this plan stays out of temper's client work.
 - **smith D003 stops waiting on skein D044.** `Token::tagged` is the lane the smith item asked for; its text says so, and it
   stays open.
+
+- **D003's measure can't read 0.** It matches 11 sites that stay: two definitions and nine whose clocks aren't one value's.
+  Three in `skein-fake-forge-github/src/server.rs` must not convert, since tests move those clocks apart. The spec's narrower
+  search reads 0 after, and `env-with` also takes the 15 `Now` rewraps the old measure counted, since `Now::with` is the same
+  one line.
 
 ## Overlaps
 
