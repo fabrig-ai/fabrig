@@ -1654,7 +1654,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-session-composer:focus-within { border-color: #a8a8a2; box-shadow: 0 0 0 3px rgba(24, 24, 27, .05); }
 #app > .temper-session .temper-session-composer > textarea { flex: 1; min-width: 0; field-sizing: content; min-height: 26px; max-height: 220px; margin: 6px 0; padding: 0; border: 0; outline: none; resize: none; background: none; color: var(--gf-ink); font: 15px/1.55 var(--gf-sans); }
 #app > .temper-session .temper-session-composer > textarea::placeholder { color: var(--gf-hint); }
-#app > .temper-session .temper-session-composer > button { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--gf-ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='1.8'%3E%3Cpath d='M8 13V3M3.5 7.5 8 3l4.5 4.5'/%3E%3C/svg%3E") center / 16px no-repeat; color: transparent; font-size: 0; overflow: hidden; }
+#app > .temper-session .temper-session-composer > button { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--gf-ink) url(files/send.svg) center / 16px no-repeat; color: transparent; font-size: 0; overflow: hidden; }
 #app > .temper-session .temper-session-composer > button:disabled { background-color: var(--gf-line-2); cursor: default; }
 #app > .temper-session .temper-session-foot > .temper-session-hint { margin-top: 6px; margin-bottom: 0; padding: 0 6px; font-size: 12px; color: var(--gf-faint); }
 @media (max-width: 760px) {

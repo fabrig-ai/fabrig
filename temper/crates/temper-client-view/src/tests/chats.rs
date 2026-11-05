@@ -188,35 +188,6 @@ fn a_chats_row_offers_its_number_as_a_terminal_command() {
     }
 }
 #[test]
-fn the_chat_composer_waits_for_the_person_and_project() {
-    let mut root = temper_client_domain::unlinked(&fixtures::domain_limits(), fixtures::SEED);
-    fixtures::root_event(
-        &mut root,
-        temper_client_domain::Event::Went {
-            place: temper_client_domain::Place::Address(temper_client_domain::Address::Chats {
-                filter: ChatsFilter::All,
-            }),
-        },
-    );
-    let mut view = fixtures::view();
-    assert_eq!(fixtures::find(fixtures::build(&mut view, &root), Role::TextArea, b"Start a chat"), None);
-}
-
-#[test]
-fn enter_in_the_start_composer_starts_a_chat() {
-    let mut view = fixtures::page_view(&fixtures::chats_root());
-    let composer = fixtures::find(view.tree(), Role::TextArea, b"Start a chat").expect("composer");
-    assert_eq!(
-        crate::act(&mut view, composer, skein_ui::Act::Submit),
-        Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::StartChat)),
-    );
-}
-#[test]
-fn a_line_break_in_the_start_composer_is_kept() {
-    let mut root = fixtures::chats_root();
-    assert_eq!(&*fixtures::type_into(&mut root, b"Start a chat", b"Hello\nthere"), b"Hello\nthere");
-}
-#[test]
 fn a_chats_row_carries_the_row_token() {
     let (tree, _) = tree(&line());
     assert_eq!(fixtures::styles(&tree, Role::Item).as_ref(), [Box::from([crate::look::ROW])]);
@@ -280,37 +251,6 @@ fn each_status_is_styled_by_its_meaning() {
         let (tree, _) = tree(&line);
         assert_eq!(fixtures::styles(&tree, Role::Status).as_ref(), [Box::from([token])]);
     }
-}
-#[test]
-fn the_entry_contains_the_composer_hint_and_start_in_order() {
-    let view = fixtures::page_view(&fixtures::chats_root());
-    let nodes = view.tree().nodes();
-    let mut entry = None;
-    for (index, node) in nodes.iter().enumerate() {
-        if node.styles.as_slice().contains(&crate::look::ENTRY) {
-            entry = Some(index);
-        }
-    }
-    let entry = entry.expect("entry");
-    let children = &nodes[entry + 1..entry + usize::try_from(nodes[entry].size).expect("size")];
-    assert_eq!(nodes[entry].role, Role::Slot);
-    assert_eq!(children[0].role, Role::TextArea);
-    assert_eq!(children[0].placeholder.as_deref(), Some(b"Describe a change".as_slice()));
-    assert!(children[0].states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
-    let mut hint = None;
-    let mut start = None;
-    for (index, node) in children.iter().enumerate() {
-        if node.styles.as_slice().contains(&crate::look::HINT) {
-            hint = Some(index);
-        }
-        if node.role == Role::Button && node.name.as_deref() == Some(b"Start chat") {
-            start = Some(index);
-        }
-    }
-    let hint = hint.expect("hint");
-    let start = start.expect("start");
-    assert!(hint < start);
-    assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"enter to start").is_some());
 }
 #[test]
 fn a_row_shows_the_real_activity_or_end_time() {
@@ -722,46 +662,9 @@ fn delegate_counts_are_plural_and_absent_at_zero() {
 }
 
 #[test]
-fn the_composer_has_no_heading_and_precedes_the_choice() {
-    for playground in [false, true] {
-        let root = if playground {
-            fixtures::playground_root(
-                temper_client_domain::Address::Chats { filter: ChatsFilter::All },
-                fixtures::PROJECT,
-                true,
-            )
-        } else {
-            // A template makes the ordinary chats composer available.
-            super::choice::ordinary_chats()
-        };
-        let view = fixtures::page_view(&root);
-        let nodes = view.tree().nodes();
-        let (mut heading, mut slot, mut hint) = (None, None, None);
-        for (at, node) in nodes.iter().enumerate() {
-            if node.role == (Role::Heading { level: 2 }) && node.name.as_deref() == Some(b"Start a chat") {
-                heading = Some(at);
-            }
-            if node.styles.as_slice().contains(&crate::look::CHOICE) {
-                slot = Some(at);
-            }
-            if node.styles.as_slice().contains(&crate::look::HINT) {
-                hint = Some(at);
-            }
-        }
-        assert!(heading.is_none());
-        assert!(hint.unwrap() < slot.unwrap());
-        let hint = hint.unwrap();
-        assert_eq!(
-            fixtures::node_text(view.tree(), hint).as_ref(),
-            "enter to start · shift+enter for newline".as_bytes()
-        );
-    }
-}
-
-#[test]
 fn an_accepted_start_draws_no_applied_status() {
     use temper_client_domain::{self as d, Action, Event, pages::Act};
-    let mut root = fixtures::playground_root(d::Address::Chats { filter: ChatsFilter::All }, fixtures::PROJECT, true);
+    let mut root = fixtures::playground_root(d::Address::NewChat, fixtures::PROJECT, true);
     let limits = fixtures::domain_limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
@@ -892,33 +795,6 @@ fn done_and_failed_chats_say_closed_in_the_list_and_bar() {
 }
 
 #[test]
-fn unavailable_models_leave_an_editable_draft_but_no_submission() {
-    let root = super::choice::no_model_root(false);
-    let mut view = fixtures::page_view(&root);
-    assert!(
-        skein_lib::bytes::find(&fixtures::text(view.tree()), "No model yet · Connect a model".as_bytes()).is_some()
-    );
-    assert!(fixtures::find(view.tree(), Role::Disclosure, b"Change model").is_none());
-    let connect = fixtures::find(view.tree(), Role::Link, b"Connect a model").expect("connect link");
-    assert_eq!(
-        crate::act(&mut view, connect, skein_ui::Act::Press),
-        Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-            address: temper_client_domain::Address::ConnectModel { way: None }
-        }))
-    );
-    for (role, name, event) in [
-        (Role::Button, b"Start chat".as_slice(), skein_ui::Act::Press),
-        (Role::TextArea, b"Start a chat".as_slice(), skein_ui::Act::Submit),
-    ] {
-        let node = fixtures::find(view.tree(), role, name).expect("composer control");
-        assert_eq!(crate::act(&mut view, node, event), None);
-    }
-    let field = fixtures::find(view.tree(), Role::TextArea, b"Start a chat").expect("draft field");
-    assert!(
-        crate::act(&mut view, field, skein_ui::Act::Input { value: Box::from(b"still editable".as_slice()) }).is_some()
-    );
-}
-#[test]
 fn rows_name_their_project_and_only_kept_ended_transcripts() {
     for ended in [false, true] {
         for kept in [false, true] {
@@ -949,7 +825,7 @@ fn a_kept_ended_row_without_a_clock_is_closed_even_with_stale_wait_metadata() {
 }
 
 #[test]
-fn the_repository_context_precedes_the_composer_and_links_into_its_project() {
+fn the_repository_context_links_into_its_project() {
     use temper_client_domain::{self as d, forge::forges};
     use temper_client_protocol_wire::v1 as w;
     for adopted in [false, true] {
@@ -992,8 +868,6 @@ fn the_repository_context_precedes_the_composer_and_links_into_its_project() {
             let end = at - 1 + usize::try_from(nodes[at - 1].size).unwrap();
             let link = fixtures::find(view.tree(), Role::Link, b"Adopt a repository").unwrap();
             assert!(index_of(nodes, link) < end);
-            let composer = fixtures::find(view.tree(), Role::TextArea, b"Start a chat").unwrap();
-            assert!(end <= index_of(nodes, composer));
             assert_eq!(
                 crate::act(&mut view, link, skein_ui::Act::Press),
                 Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Adopt { project: fixtures::PROJECT } }))
@@ -1039,8 +913,6 @@ fn a_project_with_no_chat_offers_the_first_chat() {
     let (root, _, _) = fixtures::root_at(Address::Chats { filter: ChatsFilter::All }, &fixtures::domain_limits());
     let mut view = fixtures::page_view(&root);
     let button = fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").expect("first chat");
-    let composer = fixtures::find(view.tree(), Role::TextArea, b"Start a chat").expect("composer");
-    assert!(index_of(view.tree().nodes(), button) < index_of(view.tree().nodes(), composer));
     assert_eq!(
         crate::act(&mut view, button, skein_ui::Act::Press),
         Some(Action::Pages(Act::Go { address: Address::Configure { project: fixtures::PROJECT } }))
@@ -1090,7 +962,7 @@ fn the_first_chat_offer_is_only_shown_under_all() {
 }
 
 #[test]
-fn a_pending_chat_start_keeps_the_offer_and_disables_the_composer() {
+fn a_pending_chat_start_keeps_the_first_chat_offer() {
     use temper_client_domain::{Action, Event, pages::Act};
     let mut root = fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All },
@@ -1111,9 +983,6 @@ fn a_pending_chat_start_keeps_the_offer_and_disables_the_composer() {
             address: temper_client_domain::Address::Configure { project: fixtures::PROJECT }
         }))
     );
-    let button = fixtures::find(view.tree(), Role::Button, b"Start chat").expect("start button");
-    let node = &view.tree().nodes()[index_of(view.tree().nodes(), button)];
-    assert!(node.states.as_slice().contains(&skein_ui::State::Disabled));
 }
 
 fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
@@ -1305,6 +1174,34 @@ fn configuring_rows_tag_the_chip_executor_in_meta_with_fixed_words_in_both_shell
                 assert_eq!(skein_lib::bytes::find(print.text.as_slice(), b"Configuring").is_some(), tagged);
                 assert!(skein_lib::bytes::find(print.text.as_slice(), b"A renamed role").is_none());
             }
+        }
+    }
+}
+
+#[test]
+fn chats_keeps_its_list_and_playground_suggestions_without_a_composer() {
+    use crate::look;
+    use temper_client_domain::Address;
+    for root in fixtures::pair(
+        fixtures::chats_root(),
+        fixtures::playground_root(Address::Chats { filter: ChatsFilter::All }, fixtures::PROJECT, true),
+    ) {
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let tree = view.tree();
+            assert!(fixtures::find(tree, Role::Heading { level: 1 }, b"Chats").is_some());
+            for node in tree.nodes() {
+                assert_ne!(node.role, Role::TextArea, "Chats has no composer");
+                for style in [look::ENTRY, look::HINT, look::CHOICE] {
+                    assert!(!node.styles.as_slice().contains(&style), "Chats has no composer parts");
+                }
+                for name in [b"Start".as_slice(), b"Start chat"] {
+                    assert!(node.role != Role::Button || node.name.as_deref() != Some(name));
+                }
+            }
+            assert_eq!(
+                fixtures::find(tree, Role::List, b"Suggested requests").is_some(),
+                root.forge().playground().is_some(),
+            );
         }
     }
 }

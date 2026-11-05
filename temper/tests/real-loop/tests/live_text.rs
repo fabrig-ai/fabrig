@@ -20,9 +20,9 @@ fn a_person_reads_a_chats_reply_as_it_is_written_then_its_committed_turn() {
         vec![
             sign_in(D1),
             terminal::open(),
-            terminal::type_on(b"Chats", b""),
-            terminal::see(b"Start a chat"),
-            terminal::type_on(b"Start a chat", scripts::WORDS.as_bytes()),
+            terminal::type_on(b"+ New chat", b""),
+            terminal::see(b"What do you want done?"),
+            terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
             terminal::see(scripts::FIRST),
             release_hold(scripts::LIVE),
             terminal::see_without(REPLY, PROVISIONAL.as_bytes()),

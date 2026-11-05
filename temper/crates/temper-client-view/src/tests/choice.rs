@@ -8,7 +8,6 @@ use super::fixtures;
 use jig_client::contract as c;
 use skein_lib::{List, Token};
 use skein_ui::{Builder, Role};
-use temper_client_domain::ChatsFilter;
 use temper_client_domain::{self as d, Address};
 fn delivered(root: &mut d::Domain, watch: Token, value: c::Delivery) {
     fixtures::root_event(
@@ -39,10 +38,7 @@ fn banner(usable: Option<bool>) -> (d::Domain, Token) {
             })),
         );
     }
-    fixtures::root_event(
-        &mut root,
-        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All }) },
-    );
+    fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat) });
     (root, watch)
 }
 fn text(root: &d::Domain) -> String {
@@ -76,8 +72,8 @@ fn a_behind_accounts_document_removes_the_banner() {
     assert!(!text(&root).contains("Agents need"));
 }
 #[test]
-fn missing_accounts_leave_start_available() {
-    assert!(fixtures::find(fixtures::page_view(&banner(Some(false)).0).tree(), Role::Button, b"Start chat").is_some());
+fn missing_accounts_leave_the_new_chat_composer_available() {
+    assert!(fixtures::find(fixtures::page_view(&banner(Some(false)).0).tree(), Role::Button, b"Send").is_some());
 }
 #[test]
 fn the_accounts_page_has_no_accounts_banner() {
@@ -87,7 +83,7 @@ fn the_accounts_page_has_no_accounts_banner() {
 }
 #[test]
 fn an_absent_choice_uses_the_unsettled_default() {
-    assert!(text(&fixtures::chats_root()).contains("Using the default model"));
+    assert!(text(&banner(None).0).contains("Using the default model"));
 }
 fn task_root() -> d::Domain {
     account_readiness(None)
@@ -155,7 +151,7 @@ fn line_fixture(
     task_page: bool,
 ) -> (d::Domain, Token, Option<Token>, Token) {
     let (mut root, me_watch, watch, _, accounts_watch) = fixtures::root_at_full(
-        if task_page { Address::Chat { task: 9 } } else { Address::Chats { filter: ChatsFilter::All } },
+        if task_page { Address::Chat { task: 9 } } else { Address::NewChat },
         &fixtures::limits(),
         b"Shop",
     );
@@ -163,7 +159,7 @@ fn line_fixture(
     let models = line_models(task_page);
     me.projects.get_mut(0).unwrap().models = models;
     if !task_page {
-        let template = fixtures::playground_root(Address::Chats { filter: ChatsFilter::All }, fixtures::PROJECT, true);
+        let template = fixtures::playground_root(Address::NewChat, fixtures::PROJECT, true);
         me.projects.get_mut(0).unwrap().templates =
             template.pages().me(template.client()).unwrap().projects.get(0).unwrap().templates.clone();
     }
@@ -325,7 +321,7 @@ fn catalogue(name: &[u8], efforts: &[&[u8]]) -> d::Domain {
     catalogue_rows(models)
 }
 fn catalogue_rows(models: List<c::MeModel>) -> d::Domain {
-    let (mut root, me_watch, _) = fixtures::root_at(Address::Chats { filter: ChatsFilter::All }, &fixtures::limits());
+    let (mut root, me_watch, _) = fixtures::root_at(Address::NewChat, &fixtures::limits());
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     let project = me.projects.get_mut(0).unwrap();
     project.templates = List::with_capacity(1);
@@ -455,7 +451,20 @@ fn the_chosen_model_and_effort_are_pressed() {
 fn an_invalid_draft_withholds_start() {
     let mut root = catalogue(b"needs-effort", &[b"high"]);
     edit(&mut root, d::pages::choice::Act::Model { index: 0 });
-    assert!(fixtures::find(catalogue_view(&root).tree(), Role::Button, b"Start chat").is_none());
+    fixtures::root_event(
+        &mut root,
+        d::Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: b"Hello".as_slice().into() }) },
+    );
+    let mut view = catalogue_view(&root);
+    let send = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Send"))
+        .expect("send");
+    assert!(send.states.as_slice().contains(&skein_ui::State::Disabled));
+    let entry = fixtures::find(view.tree(), Role::TextArea, b"What do you want done?").expect("entry");
+    assert_eq!(crate::act(&mut view, entry, skein_ui::Act::Submit), None);
 }
 
 fn readiness(state: c::Readiness) -> c::PayerReadiness {
@@ -505,18 +514,6 @@ fn the_account_line_precedes_entry_inside_the_composer_area() {
     assert!(area < line && line < entry && line < area + usize::try_from(nodes[area].size).unwrap());
 }
 
-#[test]
-fn the_start_choice_is_a_sibling_after_entry() {
-    let view = fixtures::page_view(&catalogue(b"first", &[]));
-    let nodes = view.tree().nodes();
-    let choice = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_LINE)).unwrap() - 1;
-    let entry = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::ENTRY)).unwrap();
-    assert_eq!(nodes[choice].role, Role::Slot);
-    assert_eq!(entry + usize::try_from(nodes[entry].size).unwrap(), choice);
-    let children = &nodes[entry + 1..entry + usize::try_from(nodes[entry].size).unwrap()];
-    let buttons: Vec<_> = children.iter().filter(|n| n.role == Role::Button).map(|n| n.name.as_deref()).collect();
-    assert_eq!(buttons, [Some(b"Start chat".as_slice())]);
-}
 fn edit(root: &mut d::Domain, act: d::pages::choice::Act) {
     fixtures::root_event(root, d::Event::Act { action: d::Action::Pages(d::pages::Act::Choice(act)) });
 }
@@ -854,7 +851,7 @@ fn a_new_chats_default_is_the_first_model_usable_for_its_payer() {
 #[test]
 fn the_three_unsettled_lines_name_only_known_facts() {
     assert_eq!(using_text(&task_root()), "Using chosen");
-    assert_eq!(using_text(&fixtures::chats_root()), "Using the default model");
+    assert_eq!(using_text(&banner(None).0), "Using the default model");
     assert_eq!(using_text(&account_readiness(Some(readiness(c::Readiness::Unavailable)))), "chosen · needs an account");
 }
 #[test]
@@ -878,9 +875,6 @@ fn change_model_contains_the_controls_and_is_never_expanded() {
     }
 }
 
-pub(super) fn ordinary_chats() -> d::Domain {
-    catalogue(b"first", &[])
-}
 #[test]
 fn a_live_chat_without_message_keeps_the_line_and_chooser() {
     let (mut root, me_watch, watch, _, _) =

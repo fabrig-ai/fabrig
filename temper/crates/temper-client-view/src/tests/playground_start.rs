@@ -1,4 +1,4 @@
-#![allow(clippy::disallowed_methods, reason = "view assertions inspect semantic trees and rendered UTF-8")]
+#![expect(clippy::disallowed_methods, reason = "view assertions inspect semantic trees and rendered UTF-8")]
 use super::fixtures as f;
 use jig_client::contract as c;
 use skein_ui::Role;
@@ -6,7 +6,7 @@ use temper_client_domain::Address;
 use temper_client_domain::ChatsFilter;
 
 #[test]
-fn the_start_draws_the_pane_before_the_composer_choice_and_suggestions() {
+fn the_start_draws_the_pane_before_the_suggestions() {
     let root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
@@ -46,8 +46,6 @@ fn the_start_draws_the_pane_before_the_composer_choice_and_suggestions() {
         (Role::Heading { level: 1 }, b"Chats"),
         (Role::Paragraph, b"No chats yet."),
         (Role::Region, b"Playground"),
-        (Role::TextArea, b"Start a chat"),
-        (Role::Paragraph, "Using Scripted model · Default".as_bytes()),
         (Role::List, b"Suggested requests"),
     ] {
         let mut found = None;
@@ -260,14 +258,20 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         let mut view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, b"Not started").is_some());
         assert!(f::find(view.tree(), Role::Alert, expected.as_bytes()).is_some(), "{expected}");
-        let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("editable draft after failure");
-        assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None);
-        assert!(crate::act(&mut view, field, skein_ui::Act::Input { value: Box::from(*b"kept draft") }).is_some());
         let again = f::find(view.tree(), Role::Button, b"Try again").unwrap();
         assert_eq!(
             crate::act(&mut view, again, skein_ui::Act::Press),
             Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::RetryPlayground))
         );
+        f::root_event(
+            &mut root,
+            temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+        );
+        let mut view = f::page_view(&root);
+        let field =
+            f::find(view.tree(), Role::TextArea, b"What do you want done?").expect("editable draft after failure");
+        assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None);
+        assert!(crate::act(&mut view, field, skein_ui::Act::Input { value: Box::from(*b"kept draft") }).is_some());
     }
 }
 #[test]
@@ -295,17 +299,21 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
 }
 
 #[test]
-fn enter_and_start_wait_for_the_playground_start_answer() {
+fn enter_and_send_wait_for_the_playground_start_answer() {
     use temper_client_domain::{Action, pages::Act};
     use temper_client_protocol_wire::v1 as w;
 
     let mut root = start_root();
     let attempt = f::playground_start_attempt(&mut root);
-    assert_eq!(f::type_into(&mut root, b"Start a chat", b"Add CSV export").as_ref(), b"Add CSV export");
+    f::root_event(
+        &mut root,
+        temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+    );
+    assert_eq!(f::type_into(&mut root, b"What do you want done?", b"Add CSV export").as_ref(), b"Add CSV export");
     assert!(root.forge().playground_starting());
     let mut view = f::page_view(&root);
-    let button = f::find(view.tree(), Role::Button, b"Start chat").expect("start button");
-    let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("editable composer");
+    let button = f::find(view.tree(), Role::Button, b"Send").expect("start button");
+    let field = f::find(view.tree(), Role::TextArea, b"What do you want done?").expect("editable composer");
     assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), None);
     assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None, "Enter waits as the button does");
 
@@ -313,8 +321,8 @@ fn enter_and_start_wait_for_the_playground_start_answer() {
     f::deliver_playground(&mut root, read, w::PlaygroundState::Running, f::FORGE, Some(f::PROJECT));
     assert_eq!(root.pages().chats().expect("kept draft").words.as_ref(), b"Add CSV export");
     let mut view = f::page_view(&root);
-    let button = f::find(view.tree(), Role::Button, b"Start chat").expect("ready start button");
-    let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("kept draft");
+    let button = f::find(view.tree(), Role::Button, b"Send").expect("ready start button");
+    let field = f::find(view.tree(), Role::TextArea, b"What do you want done?").expect("kept draft");
     assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), Some(Action::Pages(Act::StartChat)));
     let action = crate::act(&mut view, field, skein_ui::Act::Submit).expect("ready Enter");
     assert_eq!(action, Action::Pages(Act::StartChat));

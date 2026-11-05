@@ -106,6 +106,7 @@ fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
         exited(),
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         press(Find::exactly_named(Role::Button, b"Try the playground")),
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(tier.states().live),

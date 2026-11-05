@@ -17,6 +17,7 @@ pub fn a() -> Vec<Step<Address>> {
         Step::Go { address: Address::Welcome { step: temper_client_domain::Step::Welcome } },
         see(Find::named(Role::Button, b"Try the playground")),
         press(Role::Button, b"Try the playground"),
+        chats(),
         see(Find::named(Role::Button, b"Add CSV export to widget")),
         see(Find::text(b"playground/widget")),
     ];

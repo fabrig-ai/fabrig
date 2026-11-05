@@ -24,6 +24,7 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
     let mut steps = vec![
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         press(Find::exactly_named(Role::Button, b"Try the playground")),
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         // The box starts the demo's group only when asked: wait for its start to be answered.
         see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
