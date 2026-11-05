@@ -262,7 +262,6 @@ struct Answer {
     rate: openai::RateLimit,
 }
 
-
 enum Upload {
     Sending { body: Box<[u8]>, offset: usize },
     Done,
@@ -459,8 +458,7 @@ impl Client {
     fn stopped(&self) -> bool {
         match &self.state {
             Closing | Closed => true,
-            Prepared { .. } | Head { .. } | Streaming { .. }
-            | ErrorBody { .. } | Draining | Idle => false,
+            Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle => false,
         }
     }
 
@@ -635,8 +633,12 @@ impl Client {
             return true;
         }
         match &self.state {
-            Streaming { receiving, .. } => receiving.asked && (receiving.decoder.has_ready()
-                    || self.sse.waiting() == sse::Waiting::Next || self.sse.waiting() == sse::Waiting::Above),
+            Streaming { receiving, .. } => {
+                receiving.asked
+                    && (receiving.decoder.has_ready()
+                        || self.sse.waiting() == sse::Waiting::Next
+                        || self.sse.waiting() == sse::Waiting::Above)
+            }
             Prepared { .. } | Head { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => false,
         }
     }
@@ -665,15 +667,22 @@ impl Client {
     pub fn next_call(&mut self, mut prepared: Client) -> Result<(), Client> {
         match &self.state {
             Idle => {}
-            Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. }
-            | Draining | Closing | Closed => { return Err(prepared); }
+            Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Closing | Closed => {
+                return Err(prepared);
+            }
         }
         match &prepared.state {
             Prepared { .. } => {}
-            Head { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => { return Err(prepared); }
+            Head { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => {
+                return Err(prepared);
+            }
         }
-        if self.has_work() || self.http.waiting() != http::Waiting::Call
-            || self.provider != prepared.provider || self.authority != prepared.authority || self.limits != prepared.limits {
+        if self.has_work()
+            || self.http.waiting() != http::Waiting::Call
+            || self.provider != prepared.provider
+            || self.authority != prepared.authority
+            || self.limits != prepared.limits
+        {
             return Err(prepared);
         }
         mem::swap(&mut self.http, &mut prepared.http);
@@ -695,11 +704,14 @@ pub fn down(
             client.state = match mem::replace(&mut client.state, Closed) {
                 Prepared { call, receiving } => {
                     http_down(client, env, http::Request::Call(call), below);
-                    client.requests.push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: env.limits.http.send }));
+                    client
+                        .requests
+                        .push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: env.limits.http.send }));
                     Head { receiving }
                 }
-                state @ (Head { .. } | Streaming { .. } | ErrorBody { .. }
-                | Draining | Idle | Closing | Closed) => state,
+                state @ (Head { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed) => {
+                    state
+                }
             };
         }
         Request::Next => match &mut client.state {
@@ -755,10 +767,11 @@ pub fn up(client: &mut Client, env: &Env<Limits>, event: Up, above: &mut Queue<E
     resume(client, env, above, below);
     match client.state {
         Idle => {
-            if client.http.waiting() == http::Waiting::Close { closing(client, env, above, below); }
+            if client.http.waiting() == http::Waiting::Close {
+                closing(client, env, above, below);
+            }
         }
-        Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. }
-        | Draining | Closing | Closed => {}
+        Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Closing | Closed => {}
     }
 }
 
@@ -767,7 +780,9 @@ pub fn up(client: &mut Client, env: &Env<Limits>, event: Up, above: &mut Queue<E
 pub fn resume(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Down>) {
     check_env(client, env);
     for _route in 0..ROUTES {
-        if client.stopped() { break; }
+        if client.stopped() {
+            break;
+        }
         if !client.outputs.is_empty() {
             if !client.asked() {
                 break;
@@ -785,7 +800,9 @@ pub fn resume(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>, 
                 Streaming { receiving, .. } => receiving,
                 Prepared { .. } | Head { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => break,
             };
-            if !receiving.asked { break; }
+            if !receiving.asked {
+                break;
+            }
             if receiving.decoder.has_ready() {
                 receiving.decoder.ready(&env.limits.native(), &mut client.outputs);
             } else if client.sse.waiting() == sse::Waiting::Next {
@@ -838,8 +855,7 @@ pub fn closed(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>, 
     check_env(client, env);
     match client.state {
         Closed => return,
-        Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. }
-        | Draining | Idle | Closing => {}
+        Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle | Closing => {}
     }
     if client.outcome == Outcome::Pending {
         fail(client, Failure::Unavailable, bytes::copy_of(b"stream closed before completion"), above);
@@ -896,26 +912,23 @@ fn http_event(
 ) {
     match event {
         http::Event::Response(response) => response_head(client, response, env, above, below),
-        http::Event::Upload(Up::Room) => {
-            match &mut client.upload {
-                Upload::Sending { body, offset } => {
-                    let end = offset.saturating_add(usize_of(env.limits.http.send)).min(client.upload_end);
-                    let piece =
-                        body.get(*offset..end).expect("the upload offset stays within the measured body");
-                    client.requests.push(http::Request::Upload(Down::Send(bytes::copy_of(piece))));
-                    *offset = end;
-                    if end == client.upload_end {
-                        client.upload = Upload::Done;
-                        client.requests.push(http::Request::Upload(Down::Finish));
-                    } else {
-                        client
-                            .requests
-                            .push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: env.limits.http.send }));
-                    }
+        http::Event::Upload(Up::Room) => match &mut client.upload {
+            Upload::Sending { body, offset } => {
+                let end = offset.saturating_add(usize_of(env.limits.http.send)).min(client.upload_end);
+                let piece = body.get(*offset..end).expect("the upload offset stays within the measured body");
+                client.requests.push(http::Request::Upload(Down::Send(bytes::copy_of(piece))));
+                *offset = end;
+                if end == client.upload_end {
+                    client.upload = Upload::Done;
+                    client.requests.push(http::Request::Upload(Down::Finish));
+                } else {
+                    client
+                        .requests
+                        .push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: env.limits.http.send }));
                 }
-                Upload::Done => {}
             }
-        }
+            Upload::Done => {}
+        },
         http::Event::Upload(Up::Failed(_)) => client.upload = Upload::Done,
         http::Event::Upload(Up::Bytes(_) | Up::End) => {
             fail(client, Failure::Protocol, bytes::copy_of(b"invalid upload event"), above);
@@ -926,9 +939,9 @@ fn http_event(
             if client.outcome == Outcome::Pending {
                 match client.state {
                     ErrorBody { .. } => error_end(client, env, above),
-                    Prepared { .. } | Head { .. } | Streaming { .. }
-                    | Draining | Idle | Closing | Closed =>
-                        fail(client, Failure::Protocol, bytes::copy_of(b"provider stream has no terminal"), above),
+                    Prepared { .. } | Head { .. } | Streaming { .. } | Draining | Idle | Closing | Closed => {
+                        fail(client, Failure::Protocol, bytes::copy_of(b"provider stream has no terminal"), above);
+                    }
                 }
             }
             match client.state {
@@ -939,8 +952,7 @@ fn http_event(
                         return;
                     }
                 }
-                Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. }
-                | Idle | Closing | Closed => {}
+                Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. } | Idle | Closing | Closed => {}
             }
             closing(client, env, above, below);
         }
@@ -1045,7 +1057,9 @@ fn response_head(
             Err(()) => false,
         };
         if accepted { None } else { Some(stream_type_detail(media)) }
-    } else { None };
+    } else {
+        None
+    };
     if let Some(detail) = detail {
         let report = Report { request: answer.request, ..Report::none() };
         fail_report(client, Failure::Protocol, report, detail, above);
@@ -1055,12 +1069,14 @@ fn response_head(
     client.state = match mem::replace(&mut client.state, Closed) {
         Head { receiving } if success => Streaming { answer, receiving },
         Head { .. } => ErrorBody { answer, error: List::with_capacity(env.limits.error_bytes) },
-        Prepared { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed =>
-            unreachable!("a response answers the pending head"),
+        Prepared { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => {
+            unreachable!("a response answers the pending head")
+        }
     };
     if !success {
         client.requests.push(http::Request::Body(Down::Demand {
-            read: Read::Arrived { max: env.limits.error_bytes.saturating_add(1) }, room: 0,
+            read: Read::Arrived { max: env.limits.error_bytes.saturating_add(1) },
+            room: 0,
         }));
     }
 }
@@ -1128,8 +1144,7 @@ fn sse_event(
 ) {
     let (answer, receiving) = match &mut client.state {
         Streaming { answer, receiving } => (answer, receiving),
-        Prepared { .. } | Head { .. } | ErrorBody { .. }
-        | Draining | Idle | Closing | Closed => return,
+        Prepared { .. } | Head { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => return,
     };
     match event {
         sse::Event::Opened => {
@@ -1309,8 +1324,7 @@ fn output(
 ) {
     let receiving = match &mut client.state {
         Streaming { receiving, .. } => receiving,
-        Prepared { .. } | Head { .. } | ErrorBody { .. }
-        | Draining | Idle | Closing | Closed => return,
+        Prepared { .. } | Head { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => return,
     };
     match event {
         dialect::Output::Part(part) => match part {
@@ -1453,8 +1467,7 @@ fn timeout_detail(phase: crate::Phase) -> &'static [u8] {
 fn error_end(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>) {
     let (answer, body) = match &mut client.state {
         ErrorBody { answer, error } => (answer, error),
-        Prepared { .. } | Head { .. } | Streaming { .. }
-        | Draining | Idle | Closing | Closed => return,
+        Prepared { .. } | Head { .. } | Streaming { .. } | Draining | Idle | Closing | Closed => return,
     };
     let limits = env.limits.native();
     let document = crate::DocumentLimits {
@@ -1481,7 +1494,6 @@ fn error_end(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>) {
     fail_report(client, failure, report, detail, above);
 }
 
-
 // An oversized body contributes bounded, unparsed detail. Status and head
 // classify it; closing immediately leaves the remaining proxy page unread.
 fn error_cut(body: &[u8], detail_bytes: u32) -> Box<[u8]> {
@@ -1495,8 +1507,7 @@ fn error_cut(body: &[u8], detail_bytes: u32) -> Box<[u8]> {
     let label = marker.get(..marker.len().min(maximum)).expect("bounded marker prefix");
     detail.put(label).expect("marker within measured detail");
     let room = maximum.checked_sub(label.len()).expect("marker fits detail");
-    let prefix =
-        body.get(..body.len().min(room)).expect("bounded unparsed body prefix");
+    let prefix = body.get(..body.len().min(room)).expect("bounded unparsed body prefix");
     detail.put(prefix).expect("prefix within measured detail");
     detail.finish()
 }
