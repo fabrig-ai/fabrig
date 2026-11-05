@@ -3,7 +3,7 @@ id = "connection-states"
 part = "spot-review"
 kind = "feature"
 needs = ["connection-deadline"]
-files = ["skein/crates/skein-forge-connection/src/connection.rs", "skein/crates/skein-forge-connection/src/connection/tests.rs", "skein/crates/skein-forge-connection/src/tests/connection.rs", "skein/crates/skein-forge-connection/src/component/tests.rs", "skein/crates/skein-forge-connection/src/component.rs", "skein/docs/design/forge-connection.status.md"]
+files = ["skein/crates/skein-forge-connection/src/connection.rs", "skein/crates/skein-forge-connection/src/connection/tests.rs", "skein/crates/skein-forge-connection/src/tests/connection.rs", "skein/crates/skein-forge-connection/src/component/tests.rs", "skein/crates/skein-forge-connection/src/tests/fixtures.rs", "skein/crates/skein-forge-connection/src/component.rs", "skein/docs/design/forge-connection.status.md"]
 effort = "high"
 minutes = 45
 +++
@@ -72,3 +72,25 @@ Answer: repair the test; `connect` gets no new handling. `component/tests.rs` is
 - **`test_start_user`:** remove it, and any import that goes unused with it; the one test that called it goes by finding 4.
 - **The same repair elsewhere:** the first run stopped with 559 of 582 lib tests unobserved. Run the lib tests with `--no-fail-fast`. Another test in this crate's `src/` that fails only because a repeated Connected lands on a connection in an exchange (`an HTTP event belongs to an exchange`) gets the same one-line deletion, and the report names it; by reading, none does, since the others connect a newly opened connection. Any other failure, or a test that needs an assertion or a time changed, stops and asks, as above.
 - **Report:** `an_unheld_failure_does_not_wake_a_closing_connection` still has to fail on its rule: break it by hand and say what went red. `Receiving::Json` stays this spec's decision, still to be made.
+
+2026-11-05. Question: may the repeated-Connected repair go beyond a one-line deletion, into fixtures that serve both fresh and reused sockets (`free_rate::begin`, the short-mint loops, puller's `next_poll`)?
+
+Answer: yes, and in one place: `Harness::connected` in `src/tests/fixtures.rs`, now in this task's files, says Connected once per peer. It replaces the one-line deletions of the answer above; my reading there, that no other test repeats the notice, was wrong. `connect` still gets no new handling.
+
+```rust
+pub fn connected(&mut self, forge: u16) {
+    let owner = self.newest(forge);
+    let peer = self.peers.get_mut(&owner).expect("registered connect");
+    // A connect completes once (skein/docs/design/io.md's stream table); a step over a reused socket hears nothing.
+    if !core::mem::replace(&mut peer.connected, true) {
+        self.event(skein_io::Event::Connected { owner });
+    }
+    self.drain();
+}
+```
+
+- **Why here:** `Peer.connected` already says which sockets have connected, and only this function sets it. The 29 failures all pass through it, and a socket's io says `Connected` once, so the guard makes the fixture say what the io says. It's a fixture change under the common note. On an Idle or closing connection a repeated notice changed nothing (`State::idle` keeps `until` and `draining`; `Start::Closing` keeps the state), so tests that pass today lose nothing.
+- **Leave alone:** `free_rate.rs`, `github_renewal.rs` and `puller.rs` get no edit, and their `h.connected` calls stay. So does the deletion already pushed in `an_unheld_failure_does_not_wake_a_closing_connection`.
+- **Then:** the lib tests with `--no-fail-fast`, then the rest of the acceptance suites.
+- **What stops and asks:** this is by reading, not by a run. A test that was reaching Idle by the repeated notice now stays in `Sending` or `Reading`, as a real connection does. If that fails an assertion or needs a time changed, or a world fails with `an HTTP event belongs to an exchange`, stop and ask, naming each test and what it saw. Don't repair those one by one.
+- **Report:** the 29 names passing, and the net lines with this guard counted.

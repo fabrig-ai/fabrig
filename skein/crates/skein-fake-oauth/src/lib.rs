@@ -10,7 +10,7 @@ use skein_json::Token;
 use skein_lib::{Duration, List, Queue, Secret, Time, Wall, Writer, bytes, usize_of};
 use skein_oauth::{
     HttpEvidence, HttpRequest, HttpResponse, Json, Limits as DocumentLimits, OAuthError, TokenResponse, challenge,
-    encode_error, encode_response,
+    encode_error, encode_response, secret_ref,
 };
 
 mod key;
@@ -393,8 +393,6 @@ impl Issuer {
         });
     }
 
-    #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
-    #[expect(clippy::too_many_lines, reason = "the bounded token POST keeps its credential conversions in place")]
     fn post(&mut self, request: HttpRequest, now: Time, wall: Wall, out: &mut Queue<Request>) {
         self.carried.clear();
         if self.pending.is_some() {
@@ -429,7 +427,7 @@ impl Issuer {
             return;
         }
         if field(&fields, b"client_id") != Some(terms::latest(&self.config, self.authorizations))
-            || field(&fields, b"client_secret") != expose_optional(self.config.client_secret.as_ref())
+            || field(&fields, b"client_secret") != secret_ref(self.config.client_secret.as_ref())
         {
             self.refuse(request.id, now, wall, out);
             return;
@@ -449,14 +447,8 @@ impl Issuer {
                     out.push(Request::Refused);
                     return;
                 }
-                let next = if !revocation && (200..300).contains(&plan.status) {
-                    match &value.refresh_token {
-                        Some(token) => Some(token.clone()),
-                        None => None,
-                    }
-                } else {
-                    None
-                };
+                let next =
+                    if !revocation && (200..300).contains(&plan.status) { value.refresh_token.clone() } else { None };
                 let Ok(body) = encode_response(&value, &self.limits.document) else {
                     out.push(Request::Refused);
                     return;
@@ -525,7 +517,7 @@ impl Issuer {
                 &self.limits,
                 field(fields, b"client_id").expect("accepted client"),
                 code.account.as_ref().ok_or(Error::Plan)?,
-                expose_optional(code.nonce.as_ref()),
+                secret_ref(code.nonce.as_ref()),
                 wall,
             )? {
                 Some(token) => Some(Secret::new(token)),
@@ -716,11 +708,4 @@ fn percent_decode(value: &[u8], cap: u32) -> Result<Box<[u8]>, Error> {
 fn copy_optional(value: Option<&[u8]>) -> Option<Secret> {
     let value = value?;
     Some(Secret::new(bytes::copy_of(value)))
-}
-
-fn expose_optional(value: Option<&Secret>) -> Option<&[u8]> {
-    match value {
-        Some(value) => Some(value.expose()),
-        None => None,
-    }
 }

@@ -409,7 +409,7 @@ fn a_refresh_keeps_the_sign_ins_id_token_unchecked() {
         panic!("tokens")
     };
     assert!(record.subject.as_deref() == Some(b"user-42"));
-    assert!(record::secret_ref(record.id_token.as_ref()) == Some(b"prior-id"));
+    assert!(secret_ref(record.id_token.as_ref()) == Some(b"prior-id"));
 }
 
 #[test]
