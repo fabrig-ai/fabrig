@@ -50,7 +50,7 @@ pub(crate) fn main(
         to_begin(b, w, bindings, project, name, &facts);
     }
     if let Some(away) = &facts.away {
-        decided(b, w, bindings, project, away, times);
+        decided(b, w, bindings, project, away, root.pages().overturn_busy(), times);
     }
     needs(b, root, w, bindings, project, &facts, times, rows);
     if !facts.to_begin() && root.has_goals(project) {
@@ -261,7 +261,15 @@ fn number_word(count: u32) -> Option<Word> {
 }
 // The first need has a card, followed by at most five other needs and five chats (3.5).
 const ROWS: usize = 5;
-fn decided(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, away: &AwayForm, times: &mut Times) {
+fn decided(
+    b: &mut Builder,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    away: &AwayForm,
+    busy: bool,
+    times: &mut Times,
+) {
     let heading = w.say(Word::HomeDecidedCount, &[Hole::Number(u64::from(away.showing))]);
     b.open(Role::Region);
     b.name(&heading);
@@ -276,12 +284,20 @@ fn decided(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, aw
     b.open(Role::Slot);
     b.style(look::DECIDED);
     for row in &away.rows {
-        decision(b, w, row, times);
+        decision(b, w, bindings, project, row, busy, times);
     }
     b.close();
     b.close();
 }
-fn decision(b: &mut Builder, w: &Words, row: &DecisionLine, times: &mut Times) {
+fn decision(
+    b: &mut Builder,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    row: &DecisionLine,
+    busy: bool,
+    times: &mut Times,
+) {
     b.open(Role::Slot);
     b.style(look::DECISION);
     if row.overturned {
@@ -328,6 +344,16 @@ fn decision(b: &mut Builder, w: &Words, row: &DecisionLine, times: &mut Times) {
             b.text(Run::Plain, b" ");
         }
         text(b, Role::Text, &late, Some(look::DECISION_LATE));
+    }
+    if row.state == DecisionTask::Live && !row.overturned {
+        button(
+            b,
+            bindings,
+            &w.say(Word::Overturn, &[]),
+            Act::Away(temper_client_domain::pages::away::Act::Overturn { project, number: row.number }),
+            look::HOME_SMALL,
+            busy,
+        );
     }
     if w.shell == Shell::Terminal {
         b.close();

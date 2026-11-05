@@ -13,8 +13,7 @@
   `start-goal-refused` draw the sheet by sending it both, which no page does.
   The rulings of 2026-11-05 on the request `ui-goal-page` send the entry to a
   Drafts filter, which is not built (`README.status.md`, 3.5, *Goals*, 5.14).
-- **Not yet:** 7.2: `home-away-overturned`,
-  `settings-away`. 7.1: a `home-*` state's title is its headline, then
+- **Not yet:** 7.2: `settings-away`. 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.

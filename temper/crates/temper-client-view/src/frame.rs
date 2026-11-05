@@ -1055,6 +1055,9 @@ pub(crate) fn toast(
         }
         Toasted::AwayOff => (w.say(Word::ToastAwayOff, &[]), None),
         Toasted::AwayRefused => (w.say(Word::ToastAwayRefused, &[]), None),
+        Toasted::Overturned => (w.say(Word::ToastOverturned, &[]), None),
+        Toasted::OverturnEnded => (w.say(Word::ToastOverturnEnded, &[]), None),
+        Toasted::OverturnAlready => (w.say(Word::ToastOverturnAlready, &[]), None),
         Toasted::Proposed { .. } | Toasted::Refused { .. } => (Box::default(), None),
     };
     b.open(Role::Status);
@@ -1076,6 +1079,9 @@ pub(crate) fn toast(
         Toasted::AwayOn { .. }
         | Toasted::AwayOff
         | Toasted::AwayRefused
+        | Toasted::Overturned
+        | Toasted::OverturnEnded
+        | Toasted::OverturnAlready
         | Toasted::Answered { .. }
         | Toasted::Later
         | Toasted::Paused

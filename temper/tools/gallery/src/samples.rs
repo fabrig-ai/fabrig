@@ -73,7 +73,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 232;
+pub const N: usize = 233;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -114,6 +114,12 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "home-away", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
+        Sample {
+            name: "home-away-overturned",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
         Sample {
             name: "home-away-one",
             world: FirstRun { step: 7 },
@@ -735,7 +741,7 @@ fn special_mockup(name: &str) -> Option<String> {
         return Some("../greenfield/needs.html".to_owned());
     }
     match name {
-        "home-away" | "home-away-one" => return Some("../greenfield/home.html".to_owned()),
+        "home-away" | "home-away-one" | "home-away-overturned" => return Some("../greenfield/home.html".to_owned()),
         "changes" | "changes-one" | "changes-empty" => return Some("changes.html".to_owned()),
         "changes-landed-only" => return Some("changes.html?project=hello".to_owned()),
         "forges-github-install" => return Some("forges.html?world=first-run-github&step=3&bare".to_owned()),
@@ -1631,13 +1637,14 @@ fn home_domain(name: &str) -> Domain {
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let away_sample = name == "rail-away-on";
-    let home_away = matches!(name, "home-away" | "home-away-one");
+    let home_away = matches!(name, "home-away" | "home-away-one" | "home-away-overturned");
     let away_name = name;
     let status_name = if away_sample { "home-morning" } else { name };
     let name = match name {
         "rail-away-on" => "home-morning",
         "home-away"
         | "home-away-one"
+        | "home-away-overturned"
         | "home-computed"
         | "home-last-looked-none"
         | "home-landing-none"

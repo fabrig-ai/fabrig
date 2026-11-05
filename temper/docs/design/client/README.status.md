@@ -66,10 +66,6 @@
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
-  5.3, 5.13: the Away switch in the rail and phone's top bar, "While you're
-  away, agents may decide" and its "Limits" await Away's `SetAway`, which is
-  not on main: the tab's "Away switch" row stores kind 7's `away`, and no other
-  page reads it.
   5.13: a person with a project's role alone can read kinds 6 and 7,
   but cannot change them on the tab: jig's settings inventory requires
   a deployment role (`jig-domain-core`'s `documents/settings.rs`, `make`),

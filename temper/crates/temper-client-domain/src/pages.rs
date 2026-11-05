@@ -39,6 +39,7 @@ pub(crate) enum PlaygroundChoice {
 pub struct Pages {
     needs: needs::Session,
     away: Option<away::Pending>,
+    overturns: away::Overturns,
     away_focus: bool,
     address: Address,
     project: Option<u32>,
@@ -242,6 +243,7 @@ impl Pages {
         Self {
             needs: needs::Session::default(),
             away: None,
+            overturns: away::Overturns::new(),
             away_focus: false,
             address: Address::Inbox { filter: crate::address::Filter::ALL },
             project: None,
@@ -826,7 +828,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
-    if away::told(pages, env, client, &told) {
+    if away::told(pages, env, client, &told, out) {
         return true;
     }
     if start_goal::told(pages, env, client, &told, out) {
@@ -1602,6 +1604,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.accounts = accounts::Accounts::default();
             pages.needs.configure(false, limits, out);
             pages.needs = needs::Session::default();
+            pages.overturns = away::Overturns::new();
             pages.choice = choice::Draft::default();
             pages.switcher = switcher::Switcher::default();
             pages.party = None;

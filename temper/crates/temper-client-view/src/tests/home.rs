@@ -3195,7 +3195,7 @@ fn a_row_says_title_and_clock() {
         contains(&text, "Fix in the store or serve?");
         contains(&text, "In serve");
         contains(&text, "The store changes a record.");
-        absent(&text, "Overturn");
+        main_find(view.tree(), Role::Button, b"Overturn");
         if !browser {
             contains(
                 &printed(&view),
@@ -3278,6 +3278,146 @@ fn the_oldest_expiry_wakes_home() {
         assert_eq!(
             status_view(&root, browser).next_change(),
             Some(skein_lib::Wall::from_nanos(STATUS_NOW + 30_000_000_000))
+        );
+    }
+}
+
+#[test]
+fn a_live_row_offers_overturn() {
+    let root = default_away(away_fixture(1));
+    for browser in [false, true] {
+        let mut view = status_view(&root, browser);
+        let id = main_find(view.tree(), Role::Button, b"Overturn");
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Away(d::pages::away::Act::Overturn {
+                project: f::PROJECT,
+                number: 1
+            })))
+        );
+    }
+}
+#[test]
+fn an_overturned_row_offers_none() {
+    let mut away = away_fixture(1);
+    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    row.overturned = true;
+    *away.rows.get_mut(0).unwrap() = w::Decision::new(&w::CEILINGS, row).unwrap();
+    let root = default_away(away);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        assert!(f::find(view.tree(), Role::Button, b"Overturn").is_none());
+    }
+}
+#[test]
+fn only_live_rows_offer_overturn() {
+    for state in [
+        d::pages::home::DecisionTask::Unknown,
+        d::pages::home::DecisionTask::Done(skein_lib::Wall::EPOCH),
+        d::pages::home::DecisionTask::Ended(skein_lib::Wall::EPOCH),
+    ] {
+        let mut away = away_fixture(1);
+        away.state = state;
+        let root = default_away(away);
+        for browser in [false, true] {
+            assert!(f::find(status_view(&root, browser).tree(), Role::Button, b"Overturn").is_none());
+        }
+    }
+}
+fn overturn_drive(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
+    let mut limits = home_limits();
+    limits.client.domain.text = 512;
+    let mut out = Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::from_nanos(STATUS_NOW), limits },
+        event,
+        &mut out,
+    );
+    out
+}
+fn overturn_attempt(out: &Queue<d::Request>) -> Token {
+    for request in out {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
+        {
+            return *attempt;
+        }
+    }
+    panic!("overturn attempt")
+}
+pub(super) fn overturn_answer(outcome: w::Outcome, message: Option<c::Answer>) -> d::Domain {
+    let mut root = default_away(away_fixture(2));
+    overturn_drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyServed {
+                    family: wire::FORGE,
+                    versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
+                },
+            },
+        },
+    );
+    let out = overturn_drive(
+        &mut root,
+        d::Event::Act {
+            action: d::Action::Pages(d::pages::Act::Away(d::pages::away::Act::Overturn {
+                project: f::PROJECT,
+                number: 1,
+            })),
+        },
+    );
+    let attempt = overturn_attempt(&out);
+    let out = overturn_drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Family(jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+                    })),
+                },
+            },
+        },
+    );
+    if let Some(answer) = message {
+        let attempt = overturn_attempt(&out);
+        overturn_drive(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        why: None,
+                        answer: Some(jig_client::Answered::Jig(answer)),
+                    },
+                },
+            },
+        );
+    }
+    root
+}
+#[test]
+fn another_overturn_disables_the_button() {
+    let root = overturn_answer(w::Outcome::Overturned, None);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        let at = main_find(view.tree(), Role::Button, b"Overturn");
+        assert!(
+            subtree(view.tree(), at)
+                .first()
+                .expect("decision button")
+                .states
+                .as_slice()
+                .contains(&skein_ui::State::Disabled)
         );
     }
 }
