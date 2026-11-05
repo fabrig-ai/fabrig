@@ -223,7 +223,7 @@ impl Chats {
         out: &mut Queue<Request>,
     ) {
         let Some(project) = self.notes_project else { return };
-        let mut tasks = List::with_capacity(rows.checked_mul(2).expect("two row windows fit"));
+        let mut tasks = List::with_capacity(rows);
         let live = match self.live(client) {
             Some(live) => live.rows.as_slice(),
             None => &[],
@@ -235,13 +235,32 @@ impl Chats {
             },
             None => &[],
         };
-        for lines in [live, closed] {
-            for line in lines {
-                if let Some(goal) = Self::goal_from(forge, project, line.chip.task)
-                    && !tasks.as_slice().contains(&goal)
-                {
-                    tasks.push(goal).expect("one goal per row");
+        // The newest rows across both windows share one chips window.
+        let mut previous = None;
+        for _ in 0..rows {
+            let mut next: Option<(skein_lib::Wall, u64)> = None;
+            for lines in [live, closed] {
+                for line in lines {
+                    let key = (line.ended_at.unwrap_or(line.last_activity), line.chip.task);
+                    if let Some(prior) = previous
+                        && !newer(prior, key)
+                    {
+                        continue;
+                    }
+                    if let Some(chosen) = next
+                        && !newer(key, chosen)
+                    {
+                        continue;
+                    }
+                    next = Some(key);
                 }
+            }
+            let Some(key) = next else { break };
+            previous = Some(key);
+            if let Some(goal) = Self::goal_from(forge, project, key.1)
+                && !tasks.as_slice().contains(&goal)
+            {
+                tasks.push(goal).expect("one goal per selected row");
             }
         }
         if tasks == self.goal_tasks {
@@ -601,6 +620,10 @@ pub fn ended(chip: &c::Chip) -> bool {
         return true;
     }
     false
+}
+
+fn newer(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
+    a.0 > b.0 || (a.0 == b.0 && a.1 < b.1)
 }
 
 pub(crate) fn refresh(root: &mut crate::Domain, out: &mut Queue<Request>) {

@@ -1287,6 +1287,7 @@ impl DraftsPage {
                 Down::Open { watch, subject: Watchable::Jig(Subject::Tasks { .. }) } => {
                     let mut rows = List::with_capacity(2);
                     let mut chat = line();
+                    chat.last_activity = Wall::from_nanos(1);
                     if configuring {
                         chat.chip.executor = ChipExecutor::Agent { charter: 37 };
                     }
@@ -1433,7 +1434,7 @@ fn drafts_keeps_rows_with_a_document() {
     assert_eq!(page.note_reads, 1);
     filter(&mut page.root, ChatsFilter::Drafts);
     for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
-        assert_eq!(numbers(view.tree()).as_ref(), [8, TASK]);
+        assert_eq!(numbers(view.tree()).as_ref(), [TASK, 8]);
         let mut filters = List::with_capacity(4);
         for node in view.tree().nodes() {
             if node.role == Role::Button
@@ -1451,7 +1452,7 @@ fn drafts_isnt_offered_with_no_tracked_template() {
     let mut page = DraftsPage::new(false, false, false);
     filter(&mut page.root, ChatsFilter::Drafts);
     let view = fixtures::page_view(&page.root);
-    assert_eq!(numbers(view.tree()).as_ref(), [7, 8, TASK]);
+    assert_eq!(numbers(view.tree()).as_ref(), [TASK, 7, 8]);
     assert!(fixtures::find(view.tree(), Role::Button, b"Drafts").is_none());
     let all = fixtures::find(view.tree(), Role::Button, b"All").unwrap();
     assert!(
