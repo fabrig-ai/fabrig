@@ -16,7 +16,7 @@ const SENTENCE: &[u8] = b"1 change landed on the local forge.";
 const COMPUTED: &[u8] = b"One change landed since you last looked. Nothing needs you.";
 
 #[test]
-fn home_on_the_fake_box_keeps_a_landing_count_after_a_client_restart() {
+fn home_on_the_fake_box_keeps_a_landing_count_after_box_and_client_restarts() {
     let walk = Walk::new("walk-status");
     let sandbox = walk.sandbox();
     let config = sandbox.join("config/temper.json");
@@ -107,6 +107,7 @@ fn home_on_the_fake_box_keeps_a_landing_count_after_a_client_restart() {
     assert_eq!(landed["met"], true);
     assert_eq!(landed["change"]["step"], "landed");
     assert_eq!(landed["change"]["merge"].as_str().expect("merge commit").len(), 40);
+    walk.run_then(vec![], show_status);
     walk.scratch.remove();
 }
 
