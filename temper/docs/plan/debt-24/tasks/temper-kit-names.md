@@ -29,7 +29,7 @@ Acceptance:
 ## Owns and may change
 
 - **Owns:** in those paths, a manifest's dependency line and a crate path's name, nothing else. No other line changes.
-- **`temper/tests/client/**` and `temper/tests/client-browser/**` are other drafts' as well:** a `use` line is all you touch. If a merge conflict shows another draft has reformatted the line, it's fab's merge and not yours: your line stays.
+- **`temper/tests/client/**` and `temper/tests/client-browser/**` are other drafts' as well:** in their `.rs` files you change the crate's name in a path, whether in a `use` line, a type or an expression, and nothing else; `rustfmt` may rewrap a line it shortens. If a merge conflict shows another draft has reformatted the line, it's fab's merge and not yours: your line stays.
 
 ## Steps
 
@@ -38,3 +38,7 @@ A one-shot untracked `sed` per world over `rg -l`; manifests; `cargo metadata --
 ## Report
 
 The common note's items; the packages and file counts. A rename: no rule to break by hand.
+
+## Answers
+
+2026-11-05. May the rename replace crate paths in types and expressions under `temper/tests/client/**` and `temper/tests/client-browser/**`, where the spec said a `use` line is all you touch? Yes. The search in Acceptance can't read nothing otherwise: 29 lines there name a world's crate outside a `use`, and the kits hold every module they reach (`harness`, `joint`, `fixtures`, `store_peer`). The spec's line now says so. Only the crate's name changes, with the rewrap `rustfmt` makes; every other token, assertion, test name and count stays. These packages' manifest lines change as Owns says.
