@@ -6,6 +6,7 @@ pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, o
     let mut child = Queue::uncapped();
     forge::step(&mut root.forge, &env.with(env.limits.forge), event, &mut child);
     route_forge(root, env, &mut child, out);
+    crate::pages::home::look(root, env, out);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
@@ -96,6 +97,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
     } else if task_document && let Some(subject) = subject {
         refresh_panel(root, env, subject, false, out);
     }
+    crate::pages::home::look(root, env, out);
 }
 
 fn refresh_panel(
@@ -257,6 +259,10 @@ pub(crate) fn route_unlinked(
     forge_served(root, env, out);
 }
 pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
+    tell(root, env, told, out);
+    crate::pages::home::look(root, env, out);
+}
+fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     use jig_client::Told;
     if crate::departure::told(root, env, &told, out) {
         return;

@@ -10,6 +10,7 @@ mod deployment;
 mod dismissed;
 mod playground;
 mod public;
+mod status;
 
 pub(crate) mod fixtures;
 mod forge_words;

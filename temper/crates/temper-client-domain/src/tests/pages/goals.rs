@@ -589,6 +589,13 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
     assert!(pages.goals().unwrap().ended().is_empty());
 }
 
+fn fact_limits() -> crate::Limits {
+    let mut limits = fixtures::limits();
+    // A project switch holds both Home status watches until the old one's close.
+    limits.client.domain.watches = 12;
+    limits
+}
+
 struct FactHarness {
     root: crate::Domain,
     out: Queue<crate::Request>,
@@ -596,7 +603,7 @@ struct FactHarness {
 }
 impl FactHarness {
     fn new(identity: c::Me) -> Self {
-        let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+        let mut root = crate::unlinked(&fact_limits(), fixtures::SEED);
         let me = fixtures::start(&mut root, List::with_capacity(0));
         let mut h = Self { root, out: Queue::uncapped(), me };
         h.go(Address::Home { project: fixtures::PROJECT });
@@ -604,7 +611,7 @@ impl FactHarness {
         h
     }
     fn event(&mut self, event: crate::Event) {
-        crate::step(&mut self.root, &fixtures::env(&fixtures::limits()), event, &mut self.out);
+        crate::step(&mut self.root, &fixtures::env(&fact_limits()), event, &mut self.out);
     }
     fn up(&mut self, up: Up) {
         self.event(crate::Event::Client { event: jig_client::Event::Up { up } });
