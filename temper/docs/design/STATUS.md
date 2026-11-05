@@ -223,6 +223,7 @@ Drafts:
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
