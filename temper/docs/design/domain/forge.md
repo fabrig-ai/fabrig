@@ -1012,8 +1012,8 @@ connector as `Dismissed` is (5.5), and a document computed at its read.
   - `previous` and `seen`, the party's `Looked`; none and `landed` with
     no row, so nothing reads as new;
   - `queued`, the project's changes the subject `changes` counts
-    (`../client/README.md`, 4.6): each ready in temper's queue, or owning
-    its turn, as a change in the forge's own merge queue does (9.1);
+    (`../client/README.md`, 4.6): each in temper's queue, ready or owning
+    its turn, and each in the forge's own merge queue (9.1);
   - `red`, whether the forge's red record holds for the home
     repository's landing branch, as that document's `red` for that
     branch: a live repair of the branch (section 9), or a landing a tier

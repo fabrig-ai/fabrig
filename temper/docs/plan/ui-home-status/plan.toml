@@ -29,3 +29,90 @@ id = 1
 story = "a landing counts, a look moves, and the forge's status document says so"
 parts = ["status-wire", "project-facts"]
 walk = false
+
+[[part]]
+id = "status-charter"
+title = "stock charter 9, the status agent's"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "status-read"
+title = "the root and the service carry the look and the document"
+mode = "direct"
+needs = ["status-wire", "project-facts"]
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[part]]
+id = "home-domain"
+title = "Home watches status and looks, once"
+mode = "direct"
+needs = ["status-wire"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "home-walk"
+title = "the meeting point: a look crosses the real roots, past 30 minutes on a fake clock"
+mode = "direct"
+needs = ["status-read", "home-domain"]
+design = "temper/docs/design/domain/forge.md, 5.6"
+
+[[slice]]
+id = 2
+story = "the client looks on entering Home and is told what changed, across the real roots"
+parts = ["status-read", "home-domain", "home-walk"]
+walk = false
+
+[[part]]
+id = "home-words"
+title = "Home's kicker, headline, foot and Chats' sentence"
+mode = "direct"
+needs = ["home-domain"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "home-goals"
+title = "Goals on Home, in Chats' place"
+mode = "direct"
+needs = ["home-words"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "the computed Home says what landed and how landing stands"
+parts = ["home-words", "home-goals"]
+walk = false
+
+[[part]]
+id = "status-run"
+title = "the status agent's run: made, delegated, heard"
+mode = "direct"
+needs = ["project-facts", "status-charter", "status-read"]
+design = "temper/docs/design/domain/forge.md, 5.7"
+
+[[part]]
+id = "home-brief"
+title = "Home's lede, byline and the brief's sentence"
+mode = "direct"
+needs = ["home-goals"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 4
+story = "the status agent writes, and Home says its words"
+parts = ["status-charter", "status-run", "home-brief"]
+walk = false
+
+[[part]]
+id = "home-proof"
+title = "Home beside the mock at three widths, and a real walk with the fake box"
+mode = "direct"
+needs = ["home-brief", "home-walk", "status-run"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 5
+story = "Home reads as the mock's, and a real walk shows the count, the agent's words and the byline"
+parts = ["home-proof"]
+walk = true
