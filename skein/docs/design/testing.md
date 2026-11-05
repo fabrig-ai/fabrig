@@ -325,6 +325,11 @@ testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch 
 testing/skein-forge-conformance the conformance records the forge tools share, and their secret scans (fake-forge.md, 7)
 testing/skein-fake-channel      a scripted framed peer for a service's protocol worlds (channel.md)
 testing/skein-protocol-kit      what the protocol worlds share: a demand's reads and the draws below them, the sweep's tally, the transcript loader
+testing/skein-json-kit          what a second crate takes of the JSON world: the reference reader, the generator and their outcome types
+testing/skein-http-kit          the HTTP world's reference reader
+testing/skein-tls-kit           the TLS world's certificates, in-memory server, byte driver and step meter, over tests/tls/fixtures
+testing/skein-llm-kit           the LLM world's wire fixtures and its faces of skein's fake LLM
+testing/skein-forge-kit         the forge machine world's machine, peers, pipes and joint world, its GitHub face, and one io harness, Sockets, for the forge worlds (fake-forge.md, 10.6)
 testing/skein-codegen           the codec generator, run by a consumer's tests (codec.md)
 testing/skein-browser           the browser kit, a step machine: headless Chromium over the DevTools protocol on a pipe (browser.md)
 testing/skein-fake-person       the person: targets by role, name and text, steps, the tree face, the random person (ui.md, 17.1)
@@ -377,6 +382,8 @@ tests/clippy.toml               what the crates under tests/ may not use
 examples/echo/*                 the echo: its domain, protocol layer, service and shell, a crate each (examples.md, 2)
 examples/ui/*                   the UI example: its view, its browser shell and its server, a crate each (examples.md, 9)
 ```
+
+**A world's library is its own.** No package, in any tree, depends on a package under a tree's `tests/`: what a second crate needs from a world lives in a kit under `testing/` (testing-strategy.md, 7), and the world's own suite reads it through its library, which re-exports the kit. No `#[path]` reaches outside its package. `tests/boundary/tests/skein_worlds.rs` holds both.
 
 No crate under `crates/` has a `tests/` directory: its step tests are
 in `src/`, and whatever drives it from outside is a crate under `tests/`,

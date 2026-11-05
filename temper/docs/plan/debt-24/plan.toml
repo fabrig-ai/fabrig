@@ -20,3 +20,55 @@ id = 1
 story = "every finding but the second is done or skipped with a reason, has_work agrees with fire, and net lines fall"
 parts = ["spot-review"]
 walk = false
+
+[[part]]
+id = "front-identities"
+title = "the protocol front signs in several parties, so six role stories run on it, and Seed places a story on two projects (jig D029)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 7"
+
+[[slice]]
+id = 2
+story = "the six role stories run over real HTTP on the protocol front, and one story runs on two projects on three fronts"
+parts = ["front-identities"]
+walk = false
+
+[[part]]
+id = "skein-kits"
+title = "no package depends on a skein world and no #[path] crosses a package; what a second crate needs lives in a kit, and the gate holds it (skein D028)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/testing.md, 6"
+
+[[slice]]
+id = 3
+story = "every world's tests pass as they did, and the gate goes red on a new world edge or a crossing #[path]"
+parts = ["skein-kits"]
+walk = false
+
+[[part]]
+id = "connection-worlds"
+title = "forge-connection's crate tests feed its step functions; what plays io over scripted HTTP lives in the machine world, with one io harness (skein D030)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 10"
+
+[[slice]]
+id = 4
+story = "every test that used the crate's Harness passes with the same asserts in the machine world, and each forge world's sockets go through Sockets"
+parts = ["connection-worlds"]
+walk = false
+
+[[part]]
+id = "jig-kits"
+title = "PENDING is empty: no package depends on a jig world, and what several worlds drive lives in a kit (jig D031)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 7"
+
+[[slice]]
+id = 5
+story = "every world's tests pass as they did, and the boundary rule has nothing left pending"
+parts = ["jig-kits"]
+walk = false

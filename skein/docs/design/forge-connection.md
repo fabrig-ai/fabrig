@@ -1004,6 +1004,8 @@ The owner's domain owes:
   the installations in turn, the puller's catch-up, cursor, gap and
   `304`s, and a job log's redirect followed to its configured origin
   alone, another origin said once per connect as a fact.
+- **By hand.** The machine world's `hand` steers the same component one exchange at a time: a connect completes when the test says, an answer is written when it says, in the literal bytes the test holds, whatever fault they carry. What plays the fake goes through `skein_fake_forge_github::inline` (fake-forge.md, 10.6); no second HTTP face stands in for it.
+- **The seam.** A machine-world test that reads the component's installation rows, jobs or connections does so through the crate's `seam` feature, which only that world turns on. No service builds it, and the crate's own tests don't need it.
 - **Over TLS, boundary and every-byte sweeps in fuzzy.** Each fault runs
   its own world and a real handshake drawing the kernel's entropy
   (testing-strategy.md, 4.4); its flight belongs to its hello. Both sweeps
