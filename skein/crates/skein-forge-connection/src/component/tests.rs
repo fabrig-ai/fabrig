@@ -7,7 +7,7 @@ const LAST_API_OWNER: u64 = LISTENER_OWNER - 1;
 fn token_fixture() -> (Component, Env<Limits>, Queue<skein_io::Request>) {
     let limits = fixtures::limits();
     let c = Component::new(fixtures::settings(), &limits, &fixtures::shared()).expect("valid");
-    let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     (c, env, Queue::uncapped())
 }
 #[test]
@@ -42,7 +42,7 @@ fn forgejo_starts_leave_the_github_reserved_slot_free() {
     github.number = u16::try_from(FORGES).expect("forge number");
     forges.push(github).expect("forge room");
     settings.forges = forges;
-    let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut c = Component::new(settings, &limits, &fixtures::shared()).expect("fixture limits");
     let mut up = Queue::uncapped();
     let mut io = Queue::uncapped();
@@ -52,16 +52,139 @@ fn forgejo_starts_leave_the_github_reserved_slot_free() {
     assert_eq!(c.common.connections.len(), 3);
 }
 
-use crate::tests::github_renewal::{ready as github_ready, renewed_contents, renewed_full, renewing};
+use skein_forge::github::document;
+use skein_lib::{Duration, Secret, Wall};
 
-fn refuse(h: &mut fixtures::Harness, revision: u64) {
+struct StepFixture {
+    component: Component,
+    env: Env<Limits>,
+    up: Queue<Event>,
+    io: Queue<skein_io::Request>,
+}
+impl StepFixture {
+    fn new(settings: Settings) -> Self {
+        let limits = fixtures::limits();
+        Self {
+            component: Component::new(settings, &limits, &fixtures::shared()).expect("fixture"),
+            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            up: Queue::uncapped(),
+            io: Queue::uncapped(),
+        }
+    }
+    fn send(&mut self, request: Request) {
+        self.component.down(&self.env, request, &mut self.up, &mut self.io);
+    }
+    fn local(&mut self) {
+        self.component.test_local_step(&self.env, &mut self.up);
+    }
+    fn minted(&mut self, expires: u64, permissions: document::Levels) {
+        self.component.test_minted(
+            Ok(document::Minted {
+                token: Secret::new(Box::from(b"artificial-token".as_slice())),
+                expires: Wall::from_nanos(Duration::from_secs(expires).as_nanos()),
+                permissions,
+            }),
+            &self.env,
+            &mut self.up,
+        );
+        self.local();
+    }
+    fn tokens(&mut self) -> u32 {
+        let mut count = 0_u32;
+        while let Some(event) = self.up.pop() {
+            if let Event::GitToken { .. } = event {
+                count = count.checked_add(1).expect("fixture token count");
+            }
+        }
+        count
+    }
+    fn connected(&mut self) {
+        let owner = self.component.forges.get(0).expect("forge").base.own.expect("own connection");
+        self.component.up(
+            &self.env,
+            skein_io::Event::Connecting { owner, socket: Token::new(100) },
+            &mut self.up,
+            &mut self.io,
+        );
+        self.component.up(&self.env, skein_io::Event::Connected { owner }, &mut self.up, &mut self.io);
+    }
+    fn forgejo_ready() -> Self {
+        let mut h = Self::new(fixtures::settings());
+        h.component.forges.get_mut(0).expect("forge").base.start = Start::Ready { cap: 2 };
+        let owner = h.component.test_open_own(&h.env, &mut h.io);
+        let id = *h.component.common.connections.get(&owner).expect("connection");
+        h.component.common.connection_slab.get_mut(id).expect("connection").link.connecting(Token::new(100), &mut h.io);
+        h.component.common.connection_slab.get_mut(id).expect("connection").finish(
+            &h.env,
+            skein_http::client::Reuse::Keep,
+            false,
+        );
+        h
+    }
+}
+fn github_ready() -> StepFixture {
+    let mut h = StepFixture::new(fixtures::github_settings());
+    let gh = h.component.test_github_mut();
+    gh.accept(&[1]);
+    gh.begin_read(h.env.limits.start_backoff);
+    h.component.test_paged(
+        Box::from([document::Installation {
+            id: 1,
+            account: 22,
+            login: Box::from(b"acme".as_slice()),
+            kind: document::Account::Organization,
+            created: Wall::from_nanos(1_000_000_000),
+            suspended: false,
+        }]),
+        false,
+        &h.env,
+        &mut h.up,
+    );
+    h.local();
+    h.minted(3600, document::Levels::NONE);
+    h.minted(4200, document::Levels::NONE);
+    h.component.test_identified(
+        document::Viewer { id: 9, login: Box::from(b"test-app[bot]".as_slice()) },
+        &h.env,
+        &mut h.up,
+    );
+    h.local();
+    h.env.now = h.env.now.saturating_add(h.env.limits.idle);
+    h.env.wall = Wall::from_nanos(h.env.now.as_nanos());
+    h
+}
+fn renewing() -> StepFixture {
+    let mut h = github_ready();
+    h.env.now = Time::from_nanos(Duration::from_secs(3540).as_nanos());
+    h.env.wall = Wall::from_nanos(h.env.now.as_nanos());
+    h.component.test_github_mut().fire(h.env.now);
+    h.local();
+    h
+}
+fn renewed_full(h: &mut StepFixture) {
+    h.minted(10800, document::Levels::NONE);
+}
+fn renewed_contents(h: &mut StepFixture) {
+    h.minted(10800, document::Levels::NONE);
+}
+fn contents_renewing() -> StepFixture {
+    let mut h = renewing();
+    renewed_full(&mut h);
+    h.env.now = Time::from_nanos(Duration::from_secs(4140).as_nanos());
+    h.env.wall = Wall::from_nanos(h.env.now.as_nanos());
+    h.component.test_github_mut().fire(h.env.now);
+    h.local();
+    h
+}
+
+fn refuse(h: &mut StepFixture, revision: u64) {
     let ForgeEntry { base, dialect } = h.component.forges.get_mut(0).expect("forge");
     match dialect {
         Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
         Dialect::GitHub(gh) => h.component.common.github_token_refused(base, gh, 1, revision, &h.env),
     }
 }
-fn revision(h: &fixtures::Harness) -> u64 {
+fn revision(h: &StepFixture) -> u64 {
     h.component.test_github().rows.get(&1).expect("row").token_revision
 }
 #[test]
@@ -72,16 +195,16 @@ fn call_401_coalesces_one_renewal() {
     refuse(&mut h, revision);
     let row = h.component.test_github().rows.get(&1).expect("row");
     assert!(row.full.pending && row.contents.pending);
-    h.run(skein_lib::Duration::ZERO);
-    h.connected(fixtures::FORGE);
+    h.local();
+
     renewed_full(&mut h);
     let gh = h.component.test_github();
     assert_eq!(gh.mint, Some((1, skein_forge::github::request::Scope::Contents)));
     let row = gh.rows.get(&1).expect("row");
     assert!(!row.full.pending && !row.contents.pending);
     renewed_contents(&mut h);
-    h.run(skein_lib::Duration::ZERO);
-    assert_eq!(h.git_tokens.as_ref().expect("token history").len(), 2);
+    h.local();
+    assert_eq!(h.tokens(), 2);
     match h.component.test_github().work {
         crate::installations::Work::Idle => {}
         crate::installations::Work::Minting { .. }
@@ -137,7 +260,8 @@ fn call_401_cannot_revive_a_replaced_connect() {
 #[test]
 fn call_401_during_backoff_keeps_one_retry() {
     let mut h = renewing();
-    h.answer(fixtures::FORGE, &fixtures::status(503));
+    h.component.test_github_mut().status = Some(503);
+    h.component.test_minted(Err(api::Error::Unavailable), &h.env, &mut h.up);
     let until = h.component.test_github().deadline();
     let revision = revision(&h);
     refuse(&mut h, revision);
@@ -149,7 +273,7 @@ fn call_401_during_backoff_keeps_one_retry() {
 
 #[test]
 fn call_401_coalesces_an_already_running_contents_renewal() {
-    let mut h = crate::tests::github_renewal::contents_renewing();
+    let mut h = contents_renewing();
     let revision = revision(&h);
     refuse(&mut h, revision);
     refuse(&mut h, revision);
@@ -158,8 +282,8 @@ fn call_401_coalesces_an_already_running_contents_renewal() {
     assert!(!row.contents.pending);
     renewed_contents(&mut h);
     renewed_full(&mut h);
-    h.run(skein_lib::Duration::ZERO);
-    assert_eq!(h.git_tokens.as_ref().expect("token history").len(), 2);
+    h.local();
+    assert_eq!(h.tokens(), 2);
     assert!(h.component.test_github().mint.is_none());
 }
 
@@ -167,24 +291,44 @@ fn call_401_coalesces_an_already_running_contents_renewal() {
 fn renewal_local_signing_refusal_stops_invalid_key() {
     let mut h = github_ready();
     h.component.forges.get_mut(0).expect("forge").base.forge.access.as_mut().expect("access").credential =
-        skein_forge::credential::Credential::App { id: 7, key: skein_lib::Secret::new(Box::from([0; 64])) };
+        skein_forge::credential::Credential::App { id: 7, key: Secret::new(Box::from([0; 64])) };
     h.component.test_github_mut().jwt.forget();
     let revision = revision(&h);
     refuse(&mut h, revision);
-    h.run(skein_lib::Duration::ZERO);
-    h.connected(fixtures::FORGE);
-    h.run(skein_lib::Duration::ZERO);
-    assert_eq!(h.stopped(), Some((fixtures::FORGE, crate::Stopped::Invalid { value: crate::Value::Key })));
-    assert_eq!(h.connected_count, 1);
+    h.local();
+
+    h.local();
+    h.component.drive(&h.env, &mut h.up, &mut h.io);
+    h.connected();
+    let mut stopped = None;
+    let mut connected = 0_u32;
+    while let Some(event) = h.up.pop() {
+        if let Event::Stopped { forge, why } = event {
+            stopped = Some((forge, why));
+        }
+        if let Event::Connected { .. } = event {
+            connected = connected.checked_add(1).expect("fixture connection count");
+        }
+    }
+    assert_eq!(stopped, Some((fixtures::FORGE, crate::Stopped::Invalid { value: crate::Value::Key })));
+    assert_eq!(connected, 1);
 }
 
 #[test]
 fn an_unheld_failure_does_not_wake_a_closing_connection() {
-    let mut h = fixtures::Harness::ready();
-    h.call(1, fixtures::REPO, api::Op::Read(api::Read::Branch { branch: Box::from(fixtures::BRANCH) }));
-    h.run(skein_lib::Duration::ZERO);
-    fixtures::branch_answers(&mut h, fixtures::FORGE);
-    assert!(h.answered(1).is_some());
+    let mut h = StepFixture::forgejo_ready();
+    h.component.test_waiting(
+        Token::new(1),
+        Waiting::new(
+            fixtures::REPO,
+            api::Op::Read(api::Read::Branch { branch: Box::from(fixtures::BRANCH) }),
+            h.env.now.saturating_add(h.env.limits.deadline),
+        ),
+    );
+    h.component.drive_calls(&h.env, &mut h.up, &mut h.io);
+    let id = *h.component.common.calls.get(&Token::new(1)).expect("call");
+    h.component.common.finish(Token::new(1), id, Ok(api::Answer::Commit(fixtures::BRANCH_HEAD)), &mut h.up);
+    let Some(Event::Answered(_)) = h.up.pop() else { panic!("terminal answer") };
     let owner = *h.component.common.connections.iter().next_back().expect("idle call connection").0;
     assert!(!h.component.common.holders.contains_key(&owner));
     h.component.up(&h.env, skein_io::Event::Failed { owner, error: skein_io::Error::Reset }, &mut h.up, &mut h.io);
@@ -223,7 +367,7 @@ fn a_call_of_the_other_dialect_is_unavailable() {
         ),
     ] {
         let limits = fixtures::limits();
-        let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let mut c = Component::new(settings, &limits, &fixtures::shared()).expect("fixture limits");
         c.forges.get_mut(0).expect("forge").base.start = Start::Ready { cap: 2 };
         let mut waiting =
@@ -278,8 +422,9 @@ fn an_own_exchange_goes_with_its_connection() {
     }
     for end in [End::Loss, End::Connect, End::Shed] {
         for (name, settings) in [("Forgejo", fixtures::settings()), ("GitHub", fixtures::github_settings())] {
-            let mut h = fixtures::Harness::new(settings);
-            h.connected(fixtures::FORGE);
+            let mut h = StepFixture::new(settings);
+            h.component.begin(&h.env, &mut h.up, &mut h.io);
+            h.connected();
             let entry = h.component.forges.get(0).expect("forge");
             let owner = entry.base.own.expect("own connection");
             assert!(!entry.dialect.test_exchange_fresh(), "{name} {end:?}: held before");
@@ -295,7 +440,7 @@ fn an_own_exchange_goes_with_its_connection() {
         }
     }
     // GitHub's reserved connection cannot be assigned to a call; Forgejo's idle own can.
-    let mut h = fixtures::Harness::ready();
+    let mut h = StepFixture::forgejo_ready();
     let entry = h.component.forges.get_mut(0).expect("forge");
     let owner = entry.base.own.expect("idle own connection");
     match &mut entry.dialect {
@@ -317,10 +462,8 @@ fn an_own_exchange_goes_with_its_connection() {
     assert_eq!(h.component.common.holders.get(&owner), Some(&CALL), "assign: call holds connection");
     assert!(entry.dialect.test_exchange_fresh(), "assign");
 
-    let mut github = fixtures::github_calls();
-    github.call(CALL.raw(), fixtures::REPO, api::Op::Read(api::Read::Settings));
-    github.run(skein_lib::Duration::ZERO);
-    github.connected(fixtures::FORGE);
+    let mut github = github_ready();
+    github.send(Request::Call { call: CALL, repository: fixtures::REPO, op: api::Op::Read(api::Read::Settings) });
     // A queued terminal answer precedes the transport ending. The retired call stays observable until reclaim.
     for (name, mut h) in [("Forgejo", h), ("GitHub", github)] {
         let id = *h.component.common.calls.get(&CALL).expect("active call");

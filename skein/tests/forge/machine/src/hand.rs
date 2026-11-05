@@ -6,8 +6,6 @@ pub const USER_AGENT: &[u8] = b"kit/0.0.0";
 pub const OP_BYTES: u32 = 512;
 // Twice the operation bound, the owner's word, and marker framing (forge.md 6).
 pub const BODY_ROOM: u32 = 2 * OP_BYTES + 3 + 15;
-pub const BODY_ROOM_SHORT: u32 = BODY_ROOM - 1;
-pub const MAX_WORD_BODY_ROOM: u32 = 2 * OP_BYTES + 16 + 15;
 pub const WRITER: u64 = 2;
 #[must_use]
 pub fn limits() -> Limits {
@@ -544,45 +542,6 @@ pub fn known() -> Harness {
     h
 }
 
-pub const HOOK_SECRET: &[u8] = b"fixture-hook-secret";
-#[must_use]
-pub fn hook_settings() -> Settings {
-    let mut settings = settings();
-    settings.forges.get_mut(0).expect("forge").access.as_mut().expect("fixture access").webhook_secret =
-        Some(Secret::new(Box::from(HOOK_SECRET)));
-    settings.webhooks =
-        Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7200).into()) });
-    settings
-}
-pub const HOOK_REPOSITORY: u64 = 2;
-pub const HOOK_NUMBER: u64 = 7;
-pub const HOOK_HEAD: [u8; 32] = [0x77; 32];
-#[must_use]
-pub fn hook_body() -> skein_forge::forgejo::document::Body {
-    skein_forge::forgejo::document::Body::Kept(Box::from(b"<!-- kit:key 0102 -->\nbody".as_slice()))
-}
-#[must_use]
-pub fn hook_id() -> skein_forge::forgejo::id::ObjectId {
-    skein_forge::forgejo::id::ObjectId { format: skein_forge::forgejo::id::ObjectFormat::Sha256, bytes: HOOK_HEAD }
-}
-#[must_use]
-pub fn hook_ref(reference: &[u8]) -> skein_forge::forgejo::delivery::Delivery {
-    skein_forge::forgejo::delivery::Delivery::Ref {
-        repository: HOOK_REPOSITORY,
-        reference: Box::from(reference),
-        created: false,
-        ref_type: skein_forge::forgejo::delivery::RefType::Branch,
-    }
-}
-
-/// Trust shared by the configured TLS names; the HTTP harness captures
-/// requests before their TLS record transport (the TLS world owns encryption).
-#[must_use]
-pub fn trust() -> skein_tls::Config {
-    let root = std::fs::read("../../tls/fixtures/root.der").expect("shared TLS root");
-    skein_tls::Config::from_der(&[root.into_boxed_slice()], &[]).expect("valid root").0
-}
-
 /// The literal value of the sole named header on the HTTP wire.
 #[must_use]
 pub fn header<'a>(sent: &'a [u8], name: &[u8]) -> &'a [u8] {
@@ -599,61 +558,7 @@ pub fn header<'a>(sent: &'a [u8], name: &[u8]) -> &'a [u8] {
     found.expect("header sent")
 }
 
-// The request caps are the fixture's TLS send and io output bounds.
-pub const TLS_REQUEST_ROOM: usize = 16_384;
-pub const PLAIN_REQUEST_ROOM: usize = 32_768;
-// forge-connection.md 7.4 reserves 192 bytes for head framing.
-pub const HEAD_FRAMING: usize = 192;
 pub const TOKEN_BOUND: usize = 64;
-pub const SECRET_BOUND: usize = 128;
-pub const PULL_PAYLOAD: &[u8] = b"{\"repository\":{\"id\":2},\"number\":7}";
-
-/// Lowercase HMAC text for the configured hook secret.
-#[must_use]
-pub fn hook_signature(body: &[u8]) -> [u8; 64] {
-    let mut mac = skein_lib::sha256::Hmac::new(HOOK_SECRET);
-    mac.update(body);
-    let mut signature = [0; 64];
-    for (digits, byte) in signature.chunks_exact_mut(2).zip(mac.finish()) {
-        let [high, low] = digits else { unreachable!("hex pair") };
-        *high = skein_lib::bytes::hex_digit(byte / 16);
-        *low = skein_lib::bytes::hex_digit(byte);
-    }
-    signature
-}
-#[must_use]
-pub fn signed_head(body: &[u8], event: Option<&[u8]>) -> Box<[u8]> {
-    hook_head(body, event, &hook_signature(body))
-}
-#[must_use]
-pub fn hook_head(body: &[u8], event: Option<&[u8]>, signature: &[u8]) -> Box<[u8]> {
-    use skein_forge::forgejo::delivery::{EVENT_HEADER, SIGNATURE_HEADER};
-    let target = skein_forge::forgejo::delivery::hook_target(FORGE);
-    let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
-    let mut pieces = List::with_capacity(16);
-    for piece in
-        [b"POST ".as_slice(), &target, b" HTTP/1.1\r\nHost: localhost\r\nContent-Length: ", length.as_bytes(), b"\r\n"]
-    {
-        pieces.push(piece).expect("bounded head pieces");
-    }
-    if let Some(event) = event {
-        for piece in [EVENT_HEADER, b": ", event, b"\r\n"] {
-            pieces.push(piece).expect("bounded event pieces");
-        }
-    }
-    for piece in [SIGNATURE_HEADER, b": ", signature, b"\r\n\r\n"] {
-        pieces.push(piece).expect("bounded signature pieces");
-    }
-    let mut bytes = 0_usize;
-    for piece in &pieces {
-        bytes = bytes.checked_add(piece.len()).expect("head length");
-    }
-    let mut out = skein_lib::Writer::new(bytes);
-    for piece in pieces.into_boxed() {
-        out.put(piece).expect("measured head");
-    }
-    out.finish()
-}
 
 #[must_use]
 pub fn filled(length: usize, byte: u8) -> Box<[u8]> {
@@ -664,30 +569,6 @@ pub fn filled(length: usize, byte: u8) -> Box<[u8]> {
     out.finish()
 }
 
-#[must_use]
-pub fn head_settings(name: &str, tls: bool, agent_bytes: usize) -> Settings {
-    let mut settings = settings();
-    settings.forges.get_mut(0).expect("forge").transport = if tls {
-        Transport::Tls { server_name: skein_tls::Name::new(name).expect("TLS name"), trust: trust() }
-    } else {
-        Transport::Plaintext { name: Some(Box::from(name.as_bytes())) }
-    };
-    settings.user_agent = filled(agent_bytes, b'a');
-    settings
-}
-
-// forge.md 3.7 fixed widths, with the fixture's string/body/inner bounds.
-pub const ROW_ITEMS: u32 = 2971;
-pub const ROW_REVIEWS: u32 = 1691;
-pub const ROW_STATUSES: u32 = 544;
-pub const ROW_REMARKS: u32 = 1234;
-pub const ROW_BRANCHES: u32 = 144;
-pub const ROW_COLLABORATORS: u32 = 16;
-pub const ROW_PULLFILES: u32 = 2276;
-pub const ROW_COMPARE: u32 = 32;
-pub const ROW_RUNS: u32 = 384;
-pub const ROW_TREE: u32 = 192;
-pub const MAX_ROW: u32 = ROW_ITEMS;
 pub const OTHER_FORGE: u16 = 2;
 pub const OTHER_REPO: api::Repository = api::Repository { forge: OTHER_FORGE, repository: 1 };
 pub const BRANCH: &[u8] = b"main";
@@ -735,8 +616,6 @@ impl Harness {
 
 // The page premise contains two maximal rows, and also tests one row and no room.
 pub const PAGE_ROWS: u32 = 2; // The premise budgets exactly two maximal rows.
-pub const ONE_PAGE_ROW: u32 = 1; // One maximal row is the admission boundary.
-pub const NO_PAGE_ROWS: u32 = 0; // No row fits below the first row byte bound.
 // Eviction shares one connection and one call slot between two sequential requests.
 pub const EVICTION_CONNECTIONS: u32 = 1; // A single connection forces reassignment.
 pub const EVICTION_CALLS: u32 = EVICTION_CONNECTIONS;

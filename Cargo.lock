@@ -3104,7 +3104,6 @@ dependencies = [
 name = "skein-forge-connection"
 version = "0.0.0"
 dependencies = [
- "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-forge",
  "skein-heap",
