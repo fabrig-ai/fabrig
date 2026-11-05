@@ -809,7 +809,7 @@ fn forges_rows_are_folded_and_keep_state_account_and_actions() {
         assert!(!drawing.contains("Your first password is in"));
         assert!(!drawing.contains("Runs"));
         assert!(!drawing.contains("Forgejo 17.0.0"));
-        for expected in ["forge 1 · Forgejo", words, action] {
+        for expected in ["Forge 1 · Forgejo", words, action] {
             assert!(drawing.contains(expected), "missing {expected}: {drawing}");
         }
         follow(
@@ -1016,7 +1016,11 @@ fn strip_exclusions_and_forges_navigation_through_settings_match_pages() {
         follow(&mut world, client, vec![press(Role::Link, b"Settings")]);
         assert!(node(&world, client, Role::Link, b"Settings").states.as_slice().contains(&State::Current));
         assert!(!node(&world, client, Role::Link, b"Forges").states.as_slice().contains(&State::Current));
-        follow(&mut world, client, vec![press(Role::Link, b"Forges"), see(Role::Heading { level: 1 }, b"Forges")]);
+        follow(
+            &mut world,
+            client,
+            vec![press(Role::Link, b"Forges"), see(Role::Heading { level: 1 }, b"Where your code lives.")],
+        );
     }
 }
 
@@ -1165,19 +1169,19 @@ fn a_forge_row_says_how_far_its_fetch_has_gone() {
     for (progress, words) in [
         (
             forge::SetUpFetched { binary: forge::SetUpBinary::Forgejo, done: 42_000_000, total: Some(100_000_000) },
-            "forge 1 · Forgejo · Setting up: fetching Forgejo · 42%",
+            "Forge 1 · Forgejo · Setting up: fetching Forgejo · 42%",
         ),
         (
             forge::SetUpFetched { binary: forge::SetUpBinary::Forgejo, done: 67_000_000, total: Some(100_000_000) },
-            "forge 1 · Forgejo · Setting up: fetching Forgejo · 67%",
+            "Forge 1 · Forgejo · Setting up: fetching Forgejo · 67%",
         ),
         (
             forge::SetUpFetched { binary: forge::SetUpBinary::Runner, done: 8_000_000, total: Some(10_000_000) },
-            "forge 1 · Forgejo · Setting up: fetching its runner · 80%",
+            "Forge 1 · Forgejo · Setting up: fetching its runner · 80%",
         ),
         (
             forge::SetUpFetched { binary: forge::SetUpBinary::Runner, done: 41_999_999, total: None },
-            "forge 1 · Forgejo · Setting up: fetching its runner · 41 MB",
+            "Forge 1 · Forgejo · Setting up: fetching its runner · 41 MB",
         ),
     ] {
         fetched(&mut world, OWNED, progress);
@@ -1188,5 +1192,5 @@ fn a_forge_row_says_how_far_its_fetch_has_gone() {
     connection(&mut world, OWNED, forge::Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) });
     pending(&mut world);
     let row = node(&world, client, Role::Disclosure, b"Forgejo on this machine");
-    assert_eq!(row.description.as_deref(), Some("forge 1 · Forgejo · Setting up: preparing".as_bytes()));
+    assert_eq!(row.description.as_deref(), Some("Forge 1 · Forgejo · Setting up: preparing".as_bytes()));
 }

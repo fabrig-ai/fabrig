@@ -36,6 +36,20 @@ pub(super) fn setting(d: &Decoder, fields: &Fields, kind: &[u8]) -> Result<c::Se
     }
 }
 fn setting_value(d: &Decoder, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
+    if kind == b"project-ways" || kind == b"project-questions" {
+        if optional(fields, b"number").is_some() {
+            return Err(error(b"number", b"project setting has no number"));
+        }
+        let project = number(d, fields, b"project")?;
+        if project == 0 {
+            return Err(error(b"project", b"from 1"));
+        }
+        return Ok(c::Setting::Application {
+            kind: if kind == b"project-ways" { 7 } else { 6 },
+            scope: project,
+            number: 1,
+        });
+    }
     let number = number(d, fields, b"number")?;
     if number == 0 {
         return Err(error(b"number", b"from 1"));
@@ -59,6 +73,32 @@ fn setting_value(d: &Decoder, fields: &Fields, kind: &[u8]) -> Result<c::Setting
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
 pub(super) fn value(d: &Decoder, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
+    if kind == 6 {
+        let word = match d.string(at) {
+            Ok(word) => word,
+            Err(why) => return Err(why.at(b"project-questions")),
+        };
+        let route = match word {
+            b"none" => w::QuestionsRoute::None,
+            b"foreman" => w::QuestionsRoute::Foreman,
+            b"up" => w::QuestionsRoute::Up,
+            _ => return Err(error(b"project-questions", b"none, foreman or up required")),
+        };
+        let record = w::ProjectQuestions::new(&d.kinds, w::ProjectQuestionsParts { route })
+            .or(Err(error(b"project-questions", b"wire value bound")))?;
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
+    if kind == 7 {
+        let record = match ways(d, at) {
+            Ok(record) => record,
+            Err(why) => return Err(why.at(b"project-ways")),
+        };
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
     if kind == 3 {
         let charter = match d.number(at) {
             Ok(value) => u32::try_from(value).or(Err(error(b"forge-charter", b"u32 bound")))?,
@@ -77,6 +117,22 @@ pub(super) fn value(d: &Decoder, at: u32, kind: u32) -> Result<Box<[u8]>, Error>
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
     record.encode(&mut out).expect("measured record");
     Ok(out.finish())
+}
+fn ways(d: &Decoder, at: u32) -> Result<w::ProjectWays, Error> {
+    let fields = d.object(at, &[b"drafts", b"goals", b"changes", b"away", b"way"])?;
+    w::ProjectWays::new(
+        &d.kinds,
+        w::ProjectWaysParts {
+            skein_bools: [
+                boolean(d, &fields, b"drafts")?,
+                boolean(d, &fields, b"goals")?,
+                boolean(d, &fields, b"changes")?,
+                boolean(d, &fields, b"away")?,
+            ],
+            way: number(d, &fields, b"way")?,
+        },
+    )
+    .or(Err(error(b"", b"wire value bound")))
 }
 fn rule(d: &Decoder, at: u32) -> Result<w::LandingRule, Error> {
     let fields = d.object(at, &[b"pattern", b"enforce", b"ci", b"up_to_date", b"gates", b"approvals"])?;
@@ -224,6 +280,35 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
                 return false;
             }
             out.unsigned(u64::from(value.charter()));
+        }
+        6 => {
+            let Ok(value) = w::ProjectQuestions::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.string(match value.route() {
+                w::QuestionsRoute::None => b"none",
+                w::QuestionsRoute::Foreman => b"foreman",
+                w::QuestionsRoute::Up => b"up",
+            });
+        }
+        7 => {
+            let Ok(value) = w::ProjectWays::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"drafts");
+            out.boolean(value.drafts());
+            out.key(b"goals");
+            out.boolean(value.goals());
+            out.key(b"changes");
+            out.boolean(value.changes());
+            out.key(b"away");
+            out.boolean(value.away());
+            out.key(b"way");
+            out.unsigned(u64::from(value.way()));
+            out.object_end();
         }
         _ => return false,
     }

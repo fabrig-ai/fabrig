@@ -9,6 +9,7 @@ use jig_client::{
 use skein_lib::{Env, Queue, Time};
 pub mod accounts;
 mod activity;
+pub mod builders;
 pub mod changes;
 pub mod chat;
 pub mod chats;
@@ -30,6 +31,7 @@ pub(crate) enum PlaygroundChoice {
     Waiting,
 }
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent session and page-open flags")]
 #[expect(clippy::partial_pub_fields, reason = "Home is public page state; navigation bookkeeping stays private")]
 pub struct Pages {
     needs: needs::Session,
@@ -46,6 +48,7 @@ pub struct Pages {
     chat: Option<chat::Chat>,
     task: Option<task::Task>,
     accounts: accounts::Accounts,
+    builders: builders::Builders,
     switcher: switcher::Switcher,
     pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) playground_provider: Option<u32>,
@@ -53,6 +56,7 @@ pub struct Pages {
     pub(crate) playground_model: bool,
     pub(crate) choice: choice::Draft,
     accounts_open: bool,
+    builders_open: bool,
     welcome: Option<welcome::Welcome>,
     default_project: welcome::DefaultProject,
     adopting: Option<welcome::Adopting>,
@@ -228,6 +232,7 @@ impl Pages {
             chat: None,
             task: None,
             accounts: accounts::Accounts::default(),
+            builders: builders::Builders::default(),
             switcher: switcher::Switcher::default(),
             connect_model: None,
             playground_provider: None,
@@ -235,6 +240,7 @@ impl Pages {
             playground_model: false,
             choice: choice::Draft::default(),
             accounts_open: false,
+            builders_open: false,
             welcome: None,
             default_project: welcome::DefaultProject::new(),
             adopting: None,
@@ -256,6 +262,10 @@ impl Pages {
     #[must_use]
     pub fn choice(&self) -> &choice::Draft {
         &self.choice
+    }
+    #[must_use]
+    pub fn builders(&self) -> Option<&builders::Builders> {
+        if self.builders_open { Some(&self.builders) } else { None }
     }
     #[must_use]
     pub fn accounts(&self) -> Option<&accounts::Accounts> {
@@ -472,11 +482,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
             leave_conversations(pages, out);
             pages.accounts.leave(out);
+            pages.builders.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
             pages.welcome = None;
             pages.accounts_open = false;
+            pages.builders_open = false;
         }
         Event::Act { act: Act::Switcher(act) } => {
             let me = pages.me(client);
@@ -639,6 +651,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
                 Address::Changes { .. } => out.push(Request::Show { address: Address::Changes { project } }),
                 Address::Settings { .. } => out.push(Request::Show { address: Address::Settings { project } }),
+                Address::Builders { .. } => out.push(Request::Show { address: Address::Builders { project } }),
+                Address::Repositories { .. } => out.push(Request::Show { address: Address::Repositories { project } }),
                 Address::Configure { .. } => out.push(Request::Show { address: Address::Configure { project } }),
                 Address::Inbox { .. }
                 | Address::Chats { .. }
@@ -680,6 +694,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.accounts.configure(owner, &mut pages.next, out);
+    let role = pages.builders_open
+        && match accounts::current_me(client) {
+            Some(me) => me.deployment_role.is_some(),
+            None => false,
+        };
+    pages.builders.configure(role, &mut pages.next, out);
     let showing = pages.watching
         && pages.project.is_some()
         && match pages.address {
@@ -696,6 +716,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::Forges
             | Address::ConnectForge { .. }
             | Address::ConnectModel { .. }
+            | Address::Builders { .. }
+            | Address::Repositories { .. }
             | Address::Settings { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. } => true,
@@ -772,10 +794,12 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
 
 fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     pages.accounts.leave(out);
+    pages.builders.leave(out);
     if let Some(mut page) = pages.connect_model.take() {
         page.leave();
     }
     pages.accounts_open = false;
+    pages.builders_open = false;
     pages.welcome = None;
     pages.address = Address::Inbox { filter: crate::address::Filter::ALL };
     pages.project = None;
@@ -880,6 +904,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         return;
     }
     if (!pages.accounts_open
+        && !pages.builders_open
         && pages.changes.is_none()
         && pages.home.is_none()
         && pages.inbox.is_none()
@@ -894,7 +919,28 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             page.changing_way(&pages.address, &address);
         }
         pages.accounts.leave(out);
+        pages.builders.leave(out);
         pages.accounts_open = address == Address::Accounts;
+        pages.builders_open = match &address {
+            Address::Builders { .. } => true,
+            Address::Inbox { .. }
+            | Address::Chats { .. }
+            | Address::NewChat
+            | Address::Accounts
+            | Address::Forges
+            | Address::ConnectForge { .. }
+            | Address::ConnectModel { .. }
+            | Address::Welcome { .. }
+            | Address::Chat { .. }
+            | Address::Task { .. }
+            | Address::Goals { .. }
+            | Address::Home { .. }
+            | Address::Changes { .. }
+            | Address::Settings { .. }
+            | Address::Repositories { .. }
+            | Address::Configure { .. }
+            | Address::Adopt { .. } => false,
+        };
         if connect_model::open(&address) {
             if pages.connect_model.is_none() {
                 pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
@@ -994,6 +1040,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Builders { .. }
+            | Address::Repositories { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. } => None,
         };
@@ -1100,7 +1148,8 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         && (*handle == needs::handle()
             || *handle == accounts::handle()
             || *handle == me_handle()
-            || Some(*handle) == pages.accounts.deployment)
+            || Some(*handle) == pages.accounts.deployment
+            || pages.builders.watches(*handle))
     {
         return true;
     }
@@ -1270,6 +1319,8 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Goals { project, .. }
         | Address::Changes { project }
         | Address::Settings { project }
+        | Address::Builders { project }
+        | Address::Repositories { project }
         | Address::Configure { project } => Some(*project),
         Address::Inbox { .. }
         | Address::Chats { .. }
@@ -1340,6 +1391,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         };
         if (pages.party.is_some() && pages.party != Some(me.party.number)) || parked {
             pages.accounts.leave(out);
+            pages.builders.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
@@ -1410,6 +1462,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
                 out.push(Request::Client(jig_client::Event::Unwatch { handle: accounts::handle() }));
             }
             pages.accounts.leave(out);
+            pages.builders.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
@@ -1476,6 +1529,8 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => return,
     }

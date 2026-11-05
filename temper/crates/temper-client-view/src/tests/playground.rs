@@ -254,16 +254,13 @@ fn the_playground_account_is_in_its_own_folded_section() {
     let root = f::playground_root(Address::Accounts, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
-    let mut count = None;
-    for (index, node) in nodes.iter().enumerate() {
-        if node.role == (Role::Heading { level: 2 })
-            && node.name.as_deref() == Some(b"Your accounts")
-            && let Some(node) = nodes.get(index + usize::try_from(node.size).unwrap())
-        {
-            count = node.name.as_deref();
+    let mut counted = false;
+    for node in nodes {
+        if node.role == (Role::Heading { level: 2 }) && node.name.as_deref() == Some("Your accounts · 0".as_bytes()) {
+            counted = true;
         }
     }
-    assert_eq!(count, Some(b"0".as_slice()));
+    assert!(counted);
     assert!(f::find(view.tree(), Role::Paragraph, b"No model of yours yet.").is_some());
     assert!(
         f::find(view.tree(), Role::Disclosure, "Scripted model · the playground’s · held by the deployment".as_bytes())

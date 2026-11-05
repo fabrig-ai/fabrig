@@ -4772,6 +4772,7 @@ dependencies = [
  "temper-client-view",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-engine-domain-world",
  "temper-engine-smith",
  "temper-service",
@@ -5048,6 +5049,7 @@ dependencies = [
  "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-settings-form",
 ]
 
