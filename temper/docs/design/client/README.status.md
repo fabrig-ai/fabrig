@@ -2,10 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *Needs you*, *By its kind*: proposal, held, funds and
-  person-task card bodies and decisions; these draw their question, mono line
-  and pair alone.
-  3.4, 5.5: the composer's
+- **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, no address in

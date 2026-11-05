@@ -5055,11 +5055,6 @@ own tests:
 - **"Changes" on the rail by a project's settings** (the greenfield mock's
   "What the project shows"): a project hides the page, and its entry with it.
   Default: the entry shows for every project (5.3).
-- **A question answered on Home** (the same request): choices, a
-  recommended one, a context line, "Later", an answer in place and its
-  "Undo" wait on the question card's upstream change (below) and on a
-  retraction jig has not. Default: "Reply" opens the inbox, which
-  answers in words.
 - **Goals on Home** (the same request): Goals in place of Chats where
   goals are on. Whether they are is the default configuration, still the
   user's, and no fact says so; the private `Board` is not built either.

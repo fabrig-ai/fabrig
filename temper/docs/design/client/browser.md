@@ -318,7 +318,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **A filter chosen is a move** (below), with its history entry: a
   link's, at the page's top with the focus on its heading, and back
   returns to the filter before. Like any move it folds the open
-  disclosures (2.5), so the Kind menu closes on its choice. A move
+  disclosures (2.5). Needs you has no filter menus; its filters remain
+  address fields (`README.md`, 3.5). A move
   that stays on the chats list, or on one goal's page, changing its
   filter or its start alone, keeps the page: its composers' words, the
   closed chats and ended delegates it read, which it reads not again;
