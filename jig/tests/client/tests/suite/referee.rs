@@ -675,3 +675,77 @@ fn a_draft_proposed_to_another_recipient_fails_offers_kept() {
         })
     );
 }
+
+fn budget_refusal(
+    budget: jig_client::contract::NewBudget,
+    refusal: jig_client::contract::Refusal,
+) -> skein_world::domain::Verdict {
+    use jig_client::contract::{Ask, ReadValue};
+    let mut referee = skein_world::domain::Referee::new(referee::Rules::new(DRAFT_SPAN, DRAFT_SPAN, DRAFT_SPAN));
+    let mut out = Vec::new();
+    let me = jig_client_world::stories::frame(7);
+    let mut ask = jig_client::shapes::chat(&me, 1, jig_client_world::stories::text(b"chat")).expect("chat offered");
+    let Ask::Create { tasks, .. } = &mut ask else { panic!("chat creates a task") };
+    tasks.get_mut(0).expect("one chat").budget = budget;
+    referee.observe(
+        Time::ZERO,
+        Observation::Delivered {
+            client: DRAFT_CLIENT,
+            receipt: Receipt::Document { value: Box::new(ReadValue::Me(Box::new(me))) },
+        },
+        &mut out,
+    );
+    referee.observe(Time::ZERO, Observation::Shown { client: DRAFT_CLIENT, seen: vec![] }, &mut out);
+    referee.observe(
+        Time::ZERO,
+        Observation::Decision {
+            client: DRAFT_CLIENT,
+            key: DRAFT_KEY,
+            ask: Box::new(ask),
+            scene: Some(jig_client_test_kit::check::scene(&Tree::new(0), NodeId(0))),
+        },
+        &mut out,
+    );
+    let answer = jig_client::Up::Answer {
+        attempt: DRAFT_ATTEMPT,
+        envelope: skein_lib::RequestEnvelope::Final,
+        answer: Some(jig_client::Answered::Jig(jig_client::contract::Answer::Refused { refusal, at: None })),
+        why: None,
+    };
+    for receipt in jig_client_world::observe::up_received(&answer) {
+        referee.observe(Time::ZERO, Observation::Delivered { client: DRAFT_CLIENT, receipt }, &mut out);
+    }
+    referee.verdict()
+}
+
+#[test]
+fn an_as_allowed_draft_can_be_refused_when_its_live_pool_is_empty() {
+    use jig_client::contract::{Lacking, NewBudget, Refusal};
+    assert_eq!(
+        budget_refusal(
+            NewBudget::AsAllowed { cap: None },
+            Refusal::Authority { lacking: Lacking::Budget { needed: 1, left: 0 }, proposable: None },
+        ),
+        skein_world::domain::Verdict::Passed,
+    );
+}
+
+#[test]
+fn only_an_empty_as_allowed_allotment_excuses_a_refused_draft() {
+    use jig_client::contract::{Lacking, NewBudget, Refusal};
+    for (budget, lacking, proposable) in [
+        (NewBudget::Named, Lacking::Budget { needed: 1, left: 0 }, None),
+        (NewBudget::AsAllowed { cap: None }, Lacking::Funding, None),
+        (NewBudget::AsAllowed { cap: None }, Lacking::Budget { needed: 2, left: 0 }, None),
+        (NewBudget::AsAllowed { cap: None }, Lacking::Budget { needed: 1, left: 0 }, Some(true)),
+    ] {
+        assert_eq!(
+            budget_refusal(budget, Refusal::Authority { lacking, proposable }),
+            skein_world::domain::Verdict::Failed(skein_world::domain::Failure {
+                at: Time::ZERO,
+                why: "offers kept: draft answer differs from its offer".to_owned(),
+                pending: vec![],
+            }),
+        );
+    }
+}
