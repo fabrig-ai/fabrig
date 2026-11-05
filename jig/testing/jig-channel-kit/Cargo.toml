@@ -8,8 +8,54 @@ rust-version.workspace = true
 publish.workspace = true
 
 [lib]
-test = false
 doctest = false
+
+[dependencies]
+serde_json.workspace = true
+smith-transcript.workspace = true
+jig-domain-fleet.workspace = true
+smith-fake-claude.workspace = true
+smith-protocol-program.workspace = true
+jig-client.workspace = true
+jig-client-protocol-kit.workspace = true
+jig-client-test-records.workspace = true
+jig-test-service.workspace = true
+jig-test-domain.workspace = true
+jig-domain-core.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-people.workspace = true
+jig-domain-host.workspace = true
+jig-domain-notes.workspace = true
+jig-domain-tasks.workspace = true
+jig-test-store.workspace = true
+jig-protocol-store.workspace = true
+jig-test-connector.workspace = true
+skein-kv.workspace = true
+jig-fake-parties.workspace = true
+jig-protocol-worker-wire.workspace = true
+jig-protocol-config.workspace = true
+jig-protocol-accounts.workspace = true
+skein-channel.workspace = true
+skein-fake-channel.workspace = true
+skein-lib.workspace = true
+skein-io.workspace = true
+skein-world.workspace = true
+skein-sim.workspace = true
+skein-fake-machine.workspace = true
+skein-fake-peers.workspace = true
+skein-llm-kit.workspace = true
+skein-fake-llm-protocol.workspace = true
+skein-fake-llm-domain.workspace = true
+skein-llm.workspace = true
+skein-shell.workspace = true
+smith-agent-process-world.workspace = true
+smith-agent-shell.workspace = true
+smith-agent-service.workspace = true
+smith-protocol-channel.workspace = true
+smith-protocol-llm.workspace = true
+smith-host-domain.workspace = true
+smith-host-protocol.workspace = true
+smith-domain.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

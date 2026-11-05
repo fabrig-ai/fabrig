@@ -10,10 +10,7 @@ use std::{
 const WORLD_KITS: [&str; 2] = ["skein-world", "smith-agent-process-world"];
 
 // Each remaining world edge has a reason; removing an edge also removes its entry.
-const PENDING: &[(&str, &str, &str)] = &[
-    ("jig-one-process-world", "jig-channel-world", "The process fixture composes the channel world."),
-    ("jig-test", "jig-channel-world", "The process fixture composes the channel world."),
-];
+const PENDING: &[(&str, &str, &str)] = &[];
 
 pub(super) fn pending_world_dependency(package: &str, dependency: &str) -> bool {
     PENDING.iter().any(|(from, to, _)| *from == package && *to == dependency)

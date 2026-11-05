@@ -198,12 +198,12 @@ fn issuer(story: Story) -> oauth::Peer {
     peer
 }
 fn provider(story: Story) -> llm::Peer {
-    let mut script = jig_channel_world::fixtures::one_chat(WORDS);
+    let mut script = jig_channel_kit::fixtures::one_chat(WORDS);
     script.result = br#"{"form":"report","text":"World answer","fields":{}}"#.as_slice().into();
-    jig_channel_world::fixtures::provider(
+    jig_channel_kit::fixtures::provider(
         Box::new([skein_fake_llm_domain::api::Script {
             cue: Box::default(),
-            turns: jig_channel_world::fixtures::provider_turns(&script),
+            turns: jig_channel_kit::fixtures::provider_turns(&script),
         }]),
         skein_llm::Credential::bearer(
             if story == Story::Refused { b"refused-plan".as_slice() } else { fixtures::TOKEN_SECOND }.into(),

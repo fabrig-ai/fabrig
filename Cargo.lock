@@ -779,10 +779,6 @@ dependencies = [
 [[package]]
 name = "jig-channel-kit"
 version = "0.0.0"
-
-[[package]]
-name = "jig-channel-world"
-version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-protocol-kit",
@@ -828,6 +824,27 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-program",
+ "smith-transcript",
+]
+
+[[package]]
+name = "jig-channel-world"
+version = "0.0.0"
+dependencies = [
+ "jig-channel-kit",
+ "jig-domain-accounts",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-host",
+ "jig-domain-tasks",
+ "jig-protocol-worker-wire",
+ "serde_json",
+ "skein-lib",
+ "skein-sim",
+ "skein-world",
+ "smith-agent-process-world",
+ "smith-domain",
+ "smith-fake-claude",
  "smith-transcript",
 ]
 
@@ -1557,7 +1574,7 @@ dependencies = [
 name = "jig-one-process-world"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
  "jig-client-domain",
  "jig-client-protocol-kit",
@@ -2070,7 +2087,7 @@ dependencies = [
 name = "jig-test"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
  "jig-client-protocol-kit",
  "jig-client-protocol-link",

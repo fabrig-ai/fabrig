@@ -734,6 +734,7 @@ fn client_crates_carry_the_client_prefix() {
         "jig-test-service",
         "jig-one-process-world",
         "jig-channel-world",
+        "jig-channel-kit",
         "jig-ops-world",
     ];
     let failures = crate::client_names::breaches(&kit_root(), "jig", &allowed);
