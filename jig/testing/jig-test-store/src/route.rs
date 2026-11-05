@@ -173,7 +173,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         core::Now::StartPreparation { task, from: (attempt, turn), .. } => Some((task, attempt, turn)),
         core::Now::RelayBusy { .. }
         | core::Now::CallBusy { .. }
-        | core::Now::Relayed { .. }
+        | core::Now::Link(_)
         | core::Now::EffectAnswer { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::SettledCallRefused { .. }
@@ -189,12 +189,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         | core::Now::NotesRecalled { .. }
         | core::Now::NotesRefused { .. }
         | core::Now::NoteBusy { .. }
-        | core::Now::DropPayload { .. }
         | core::Now::DropAssignment { .. }
-        | core::Now::TurnPayload { .. }
-        | core::Now::AnswerPayload { .. }
-        | core::Now::AcceptedTurn { .. }
-        | core::Now::RefusedPayload { .. }
         | core::Now::Activate { .. }
         | core::Now::CompleteBrief { .. }
         | core::Now::BriefCorePlanned { .. }

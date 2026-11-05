@@ -2,7 +2,7 @@
 //! (`domain/engine.md`, section 4.4).
 
 use crate::{
-    Ask, Core, CoreRecord, Event, Held, Key, Limits, Now, Record, Request, Write,
+    Ask, Core, CoreRecord, Event, Held, Key, Limits, LinkNow, Now, Record, Request, Write,
     routing::{Work, task::tag_task_outputs},
 };
 use alloc::boxed::Box;
@@ -133,7 +133,7 @@ pub(crate) fn tag_fleet(
             fleet::Request::TurnBusy { channel, run, attempt, turn } => {
                 Request::Held(Box::new(Held::TurnBusy { channel, run, attempt, turn }))
             }
-            fleet::Request::Drop { payload } => Request::Now(Box::new(Now::DropPayload { payload })),
+            fleet::Request::Drop { payload } => Request::Now(Box::new(Now::Link(LinkNow::DropPayload { payload }))),
             fleet::Request::Listed { run, attempt } => {
                 let claimed = match core.proofs.get(&run.raw()) {
                     Some(proof) => proof.attempt == attempt.raw() && proof.terminal.is_none(),
@@ -306,7 +306,7 @@ pub(crate) fn tag_fleet(
                     None => true,
                 };
                 if !deliver {
-                    out.push(Request::Now(Box::new(Now::DropPayload { payload: message.words })));
+                    out.push(Request::Now(Box::new(Now::Link(LinkNow::DropPayload { payload: message.words }))));
                     continue;
                 }
                 if !core.stopping
@@ -343,7 +343,7 @@ pub(crate) fn tag_fleet(
                 if writes {
                     Request::Held(Box::new(Held::Relayed { channel, run, attempt, call, answer }))
                 } else {
-                    Request::Now(Box::new(Now::Relayed { channel, run, attempt, call, answer }))
+                    Request::Now(Box::new(Now::Link(LinkNow::Relayed { channel, run, attempt, call, answer })))
                 }
             }
             fleet::Request::RelayBusy { channel, run, attempt, call } => {
@@ -385,14 +385,14 @@ pub(crate) fn tag_fleet(
                 for _ in 0..follow.len() {
                     pending.push(follow.pop().expect("busy turn outputs"));
                 }
-                Request::Now(Box::new(Now::DropPayload { payload: body }))
+                Request::Now(Box::new(Now::Link(LinkNow::DropPayload { payload: body })))
             }
             fleet::Request::Turned { run, attempt, turn, body } => {
                 assert!(core.current_proof(run.raw(), attempt.raw()), "current turn has reserved proof");
-                Request::Now(Box::new(Now::TurnPayload { run, attempt, turn, body }))
+                Request::Now(Box::new(Now::Link(LinkNow::TurnPayload { run, attempt, turn, body })))
             }
             fleet::Request::Answered { payload, .. } if core.stopping => {
-                Request::Now(Box::new(Now::DropPayload { payload }))
+                Request::Now(Box::new(Now::Link(LinkNow::DropPayload { payload })))
             }
             fleet::Request::Answered { run, attempt, payload, to, answer } => {
                 let _answered = to.into_token();
@@ -406,7 +406,7 @@ pub(crate) fn tag_fleet(
                         append_account(core, env, run_failed(env.now, turned), &mut out);
                     }
                 }
-                Request::Now(Box::new(Now::AnswerPayload { run, attempt, payload }))
+                Request::Now(Box::new(Now::Link(LinkNow::AnswerPayload { run, attempt, payload })))
             }
         };
         out.push(request);

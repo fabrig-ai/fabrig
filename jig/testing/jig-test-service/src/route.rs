@@ -256,17 +256,19 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         | core::Now::NoteBusy { key, .. }
         | core::Now::SettledCallRefused { key, .. } => engine.tools.forget(key),
         core::Now::CallBusy { .. }
-        | core::Now::Relayed { .. }
+        | core::Now::Link(core::LinkNow::Relayed { .. })
         | core::Now::Undelivered { .. }
         | core::Now::NotesIndexed { .. }
         | core::Now::NotesRecalled { .. }
         | core::Now::NotesRefused { .. } => stop::unavailable(engine, b"accounts"),
-        core::Now::DropPayload { .. }
+        core::Now::Link(
+            core::LinkNow::DropPayload { .. }
+            | core::LinkNow::TurnPayload { .. }
+            | core::LinkNow::AnswerPayload { .. }
+            | core::LinkNow::AcceptedTurn { .. }
+            | core::LinkNow::RefusedPayload { .. },
+        )
         | core::Now::DropAssignment { .. }
-        | core::Now::TurnPayload { .. }
-        | core::Now::AnswerPayload { .. }
-        | core::Now::AcceptedTurn { .. }
-        | core::Now::RefusedPayload { .. }
         | core::Now::Activate { .. }
         | core::Now::CompleteBrief { .. }
         | core::Now::BriefCorePlanned { .. }
