@@ -8,7 +8,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decimal, Env, Queue, ReplyTo, Token, Wall};
+use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
 
 pub(super) use jig_domain_hub_link::Ending;
 
@@ -71,7 +71,7 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
                 run: Token::new(task),
                 attempt: Token::new(attempt),
                 name: Token::new(word.number),
-                sender: sender(word.from),
+                sender: word.from.sender(),
                 finish_requested: word.finish_requested(),
                 words: jig_protocol_tools::words(&word),
             },
@@ -85,18 +85,16 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
                 answer: host::Relayed::Busy,
             },
         ),
-        Delivery::CallAnswer { channel, task, attempt, name, call, writes } if domain.hub_link.connected(channel) => {
-            match call.answer {
-                core::SettledAnswer::Host { error, body } => (
+        Delivery::CallAnswer { channel, task, attempt, name, mut call, writes }
+            if domain.hub_link.connected(channel) =>
+        {
+            match jig_domain_hub_link::settled_answer(call.answer) {
+                Ok(answer) => (
                     channel,
-                    host::LinkDown::Relayed {
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                        call: name,
-                        answer: host::Relayed::Answer { error, text: body },
-                    },
+                    host::LinkDown::Relayed { run: Token::new(task), attempt: Token::new(attempt), call: name, answer },
                 ),
-                core::SettledAnswer::Delivery { .. } => {
+                Err(answer) => {
+                    call.answer = answer;
                     return Delivery::CallAnswer { channel, task, attempt, name, call, writes };
                 }
             }
@@ -127,25 +125,8 @@ fn delivery(domain: &mut Domain, value: jig_domain_hub_link::Request, writes: bo
         Output::Core(core::Event::Fleet(event)) => Delivery::Fleet(event),
         Output::Assigned { channel, assignment } => Delivery::Assigned { channel, assignment },
         Output::AssignedJob { channel, job } => {
-            let items = job.workspace;
-            let workspace = if items.is_some() {
-                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
-            } else {
-                None
-            };
-            Delivery::AssignedJob {
-                channel,
-                items,
-                job: host::JobAssignment {
-                    run: Token::new(job.task),
-                    attempt: Token::new(job.attempt),
-                    kind: job.kind,
-                    spec: job.spec,
-                    deadline: job.deadline,
-                    workspace,
-                    grants: job.grants,
-                },
-            }
+            let items = job.workspace.clone();
+            Delivery::AssignedJob { channel, items, job: jig_domain_hub_link::job_assignment(job) }
         }
         Output::Down { channel, value } => Delivery::Link { channel, down: value },
         Output::Message { channel, run, attempt, word } => {
@@ -213,14 +194,6 @@ pub(super) fn read(domain: &mut Domain, env: &Env<Limits>, payload: Token, end: 
         crate::decide(domain, env, Work::Core(event));
     }
 }
-/// Preserve the task-owned message kind when translating its opaque words.
-fn sender(value: tasks::Party) -> Box<[u8]> {
-    match value {
-        tasks::Party::Task(number) | tasks::Party::Person(number) => Box::from(Decimal::of(number).as_bytes()),
-        tasks::Party::Deployment { .. } => Box::from(&b"deployment"[..]),
-    }
-}
-
 #[expect(clippy::large_enum_variant, reason = "the bounded route queue owns complete core events")]
 pub(super) enum Work {
     Link {

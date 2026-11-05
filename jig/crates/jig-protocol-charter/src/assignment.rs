@@ -56,15 +56,6 @@ pub fn assignment(run: core::RunCharter, brief: Box<[Section]>, tools: Box<[Tool
     })
 }
 
-/// The numeric party label carried by a host message (hosts.md, 9).
-#[must_use]
-pub fn sender(value: tasks::Party) -> Box<[u8]> {
-    match value {
-        tasks::Party::Task(number) | tasks::Party::Person(number) => Box::from(Decimal::of(number).as_bytes()),
-        tasks::Party::Deployment { .. } => Box::from(&b"deployment"[..]),
-    }
-}
-
 fn model(value: core::Model) -> Model {
     Model {
         prices: Prices {

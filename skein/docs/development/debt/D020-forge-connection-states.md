@@ -29,4 +29,4 @@ field leaves a state the design does not have.
 ## What pays it back
 
 Data-carrying phases and one `follow` that sets demand and deadline.
-Do it with D013, and with D016 if the shared transport comes first.
+Do it with D016 if the shared transport comes first.
