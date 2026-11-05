@@ -83,3 +83,7 @@ Acceptance:
 ## Report
 
 As your text says, and: the charters' model order as a test saw it; every reader you edited that the list above missed; how long the new story ran; anything the fake box does differently.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Yes: regenerate temper/docs/help/reference/configuration-engine.md in this task. A generated file whose drift test the change makes red is always the changing task's to regenerate; never leave it red.
