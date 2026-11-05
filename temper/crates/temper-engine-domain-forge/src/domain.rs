@@ -149,6 +149,8 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
+    pub(crate) aways: Map<(u64, u32), crate::Away>,
+    pub(crate) decisions: Map<(u32, u32), crate::Decided>,
     pub(crate) looked: Map<(u64, u32), crate::Looked>,
     pub(crate) dismissed: Map<(u64, crate::Dismissal), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
@@ -626,6 +628,8 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
+            aways: Map::with_capacity(l.dismissed()),
+            decisions: Map::with_capacity(l.decided()),
             looked: Map::with_capacity(l.dismissed()),
             dismissed: Map::with_capacity(l.dismissed()),
             connections: Map::with_capacity(l.forges),
@@ -1361,6 +1365,15 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::MakingActed { key, outcome } => crate::making::acted(d, key, outcome, out),
         Event::MakingAgain { key } => {
             d.making_acts.remove(&key);
+        }
+        Event::SetAway { request, token, party, project, on, until, kinds } => {
+            crate::away::set_away(d, env, request, token, party, project, on, until, kinds, out);
+        }
+        Event::Overturn { request, token, party, project, number } => {
+            crate::away::overturn(d, request, token, party, project, number, out);
+        }
+        Event::Decided { to, key, party, project, task, call } => {
+            crate::away::decided(d, env, to, key, party, project, task, call, out);
         }
         Event::Looked { request, token, party, project } => {
             crate::status::looked(d, env, request, token, party, project, out);
@@ -5788,6 +5801,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::ProjectFacts(row) => {
             d.project_facts.insert(row.project, row).expect("restored project facts room checked");
         }
+        Stored::Away(row) => {
+            d.aways.insert((row.party, row.project), row).expect("restored away room checked");
+        }
+        Stored::Decided(row) => {
+            d.decisions.insert((row.project, row.number), row).expect("restored decision room checked");
+        }
         Stored::Looked(row) => {
             d.looked.insert((row.party, row.project), row).expect("restored looked room checked");
         }
@@ -6476,6 +6495,8 @@ impl Domain {
             | RecordKind::Setting
             | RecordKind::Making
             | RecordKind::ProjectFacts
+            | RecordKind::Away
+            | RecordKind::Decided
             | RecordKind::Looked
             | RecordKind::Dismissed => {
                 unreachable!("row has no links")

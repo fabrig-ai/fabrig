@@ -3,6 +3,7 @@ use crate::*;
 use temper_engine_domain_forge_issues as issues;
 mod admission;
 mod adoption;
+mod away;
 mod binding;
 mod brief_document;
 mod change;
@@ -409,6 +410,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierDecision { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
+        | Request::Decided { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -493,6 +495,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierDecision { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
+        | Request::Decided { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -574,6 +577,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierDecision { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
+        | Request::Decided { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
