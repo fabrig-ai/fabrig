@@ -512,6 +512,14 @@ Typed, so the engine can act on them without reading prose:
 
 Each carries bounded detail for operators; none of it is shown to an LLM.
 
+**Unusable resume history** retains its own typed reason. A transcript
+that cannot be decoded, a start Smith refuses for its transcript, and a
+run reporting a transcript failure all end as a transient task failure.
+The fleet accepts these refusals as failed attempts, without dropping the
+claim. The next preparation starts fresh with the transcript tail and
+keeps unread inbox messages (`engine.md`, 9); it does not retry the same
+history as an invalid start or a model failure.
+
 **A configured bound** is `RunFailure::Exceeded(Exceeded)`, where
 `Exceeded { bound: Bound, value: u64 }` names the bound and its configured
 value in that bound's unit, never a measured size. The payload is `Copy`

@@ -82,6 +82,9 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
                 host::Ending::Parked { .. } => fleet::Answer::Parked,
                 host::Ending::Failed { failure, .. } => fleet::Answer::Failed { turned: turned(failure) },
                 host::Ending::Refused(host::Refusal::Busy) => fleet::Answer::Busy,
+                host::Ending::Refused(host::Refusal::Invalid(
+                    host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
+                )) => fleet::Answer::Failed { turned: None },
                 host::Ending::Refused(host::Refusal::Invalid(_)) => fleet::Answer::Invalid,
             };
             let payload = domain.retain(Payload::Answer {
@@ -130,6 +133,7 @@ const fn turned(failure: host::Failure) -> Option<fleet::Turned> {
         host::Failure::Run(host::RunFailure::Refused { account }) => Some(fleet::Turned::Refused { account }),
         host::Failure::Run(
             host::RunFailure::Exceeded(_)
+            | host::RunFailure::Transcript
             | host::RunFailure::Model
             | host::RunFailure::Budget
             | host::RunFailure::Policy
@@ -155,6 +159,9 @@ fn refusals(values: Box<[host::Refused]>) -> Box<[u64]> {
 pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
     match ending {
         host::Ending::Refused(host::Refusal::Busy) => tasks::End::Refused,
+        host::Ending::Refused(host::Refusal::Invalid(
+            host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
+        )) => tasks::End::Failed(tasks::Class::Transient),
         host::Ending::Refused(host::Refusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Invalid),
         host::Ending::Parked { .. } => tasks::End::Parked,
         host::Ending::Failed { failure, .. } => match failure {
@@ -172,7 +179,8 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
                 },
                 value: value.value,
             }),
-            host::Failure::Unprepared(host::Preparation::Transient) => tasks::End::Failed(tasks::Class::Transient),
+            host::Failure::Unprepared(host::Preparation::Transient)
+            | host::Failure::Run(host::RunFailure::Transcript) => tasks::End::Failed(tasks::Class::Transient),
             host::Failure::Unprepared(host::Preparation::Permanent { .. }) => {
                 tasks::End::Failed(tasks::Class::Permanent)
             }
