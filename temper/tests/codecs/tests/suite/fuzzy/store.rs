@@ -186,15 +186,16 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
         web: optional_field(rng),
     };
     let bot = forge::Bot { login: drawn_field(rng), name: drawn_field(rng), email: drawn_field(rng) };
-    let first = if rng.below(2) == 0 {
-        None
-    } else {
-        Some(forge::FirstIntent {
+    let first = match rng.below(4) {
+        0 => None,
+        1 => Some(forge::FirstIntent::Nothing),
+        2 => Some(forge::FirstIntent::Copies { addresses: Box::new([drawn_field(rng), drawn_field(rng)]) }),
+        _ => Some(forge::FirstIntent::Empty(forge::EmptyIntent {
             playground: rng.below(2) == 0,
             org: drawn_field(rng),
             repository: drawn_field(rng),
             label: drawn_field(rng),
-        })
+        })),
     };
     let row = forge::Stored::Forge(forge::ForgeRecord {
         git_program: if rng.below(2) == 0 { None } else { Some(drawn_field(rng)) },

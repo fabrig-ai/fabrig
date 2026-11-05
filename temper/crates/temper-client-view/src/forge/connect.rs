@@ -226,7 +226,21 @@ pub(crate) fn welcome(
         return;
     }
     if let Some(row) = personal(root) {
-        if row.admin {
+        if connect::status_shown(row, connect::playground(root.forge())) {
+            forge_status(b, root, w, row);
+            b.open(Role::Slot);
+            b.style(look::WELCOME_ACTS);
+            flow::control(
+                b,
+                Control::PrimaryLink {
+                    name: &w.say(Word::WelcomeContinue, &[]),
+                    to: bindings.insert(Act::Go {
+                        address: Address::Welcome { step: temper_client_domain::pages::welcome::go_on(root) },
+                    }),
+                },
+            );
+            b.close();
+        } else if row.admin {
             match connect::step(
                 Some(Choice::Forge(row.number)),
                 root.forges(),
@@ -234,16 +248,7 @@ pub(crate) fn welcome(
                 owned(root),
             ) {
                 Shown::Details(_) => admin_details(b, root, w, forge, row),
-                Shown::Ready(_) => {
-                    status(b, root, w, row);
-                    link(
-                        b,
-                        w,
-                        bindings,
-                        Word::ForgeView,
-                        Address::ConnectForge { forge: Some(Choice::Forge(row.number)) },
-                    );
-                }
+                Shown::Ready(_) => status(b, root, w, row),
                 Shown::Unfinished(_) | Shown::SettingUp(_) => setting_up(b, root, w, forge, row),
                 Shown::Choose => {}
             }
@@ -255,7 +260,6 @@ pub(crate) fn welcome(
             if connect::failed(row) {
                 progress_in(b, Some(root), w, row);
             }
-            link(b, w, bindings, Word::ForgeView, Address::ConnectForge { forge: Some(Choice::Forge(row.number)) });
         }
     } else {
         body(b, root, w, bindings, forge, choice, Place::Welcome);
@@ -359,8 +363,7 @@ fn welcome_choices(
 }
 /// The welcome's sheet over the Forge step: what Forgejo on this machine
 /// starts with, the chosen one's own fields under it, then Cancel and Run.
-/// Only an empty repository is made yet; the others say so on Run
-/// (`temper/docs/design/client/README.md`, 3.5).
+/// Run sends its choice; copies wait for Ready (`temper/docs/design/client/README.md`, 3.5).
 fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings) {
     let draft = root.forge().setup_form();
     b.open(Role::Dialog);
@@ -407,7 +410,7 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
                     (SetupField::Organization, Word::SetupOrganization),
                     (SetupField::Repository, Word::WelcomeForgejoName),
                 ] {
-                    setup_field(b, root, w, forge, field, word, 0, None);
+                    setup_field(b, root, w, forge, field, word, 0, None, Place::Welcome);
                 }
                 b.close();
             }
@@ -428,9 +431,7 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
         }
     }
     b.close();
-    if draft.not_yet {
-        text(b, w, Role::Alert, Word::WelcomeForgejoNotYet);
-    }
+    sheet_alerts(b, w, draft);
     // A new forge's refusal has no record to name.
     setup_refusal(b, root, w, None);
     b.open(Role::Slot);
@@ -452,6 +453,31 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
     );
     b.close();
     b.close();
+}
+fn sheet_alerts(b: &mut Builder, w: &Words, draft: &forge::forges::Draft) {
+    if draft.blank {
+        text(b, w, Role::Alert, Word::WelcomeSheetBlank);
+    }
+    if let Some(refused) = &draft.copies_refused {
+        copies_alert(b, w, refused);
+    }
+}
+pub(crate) fn copies_alert(b: &mut Builder, w: &Words, refused: &forge::making::CopiesRefused) {
+    use forge::making::CopiesRefused;
+    let words = match refused {
+        CopiesRefused::NoAddress => w.say(Word::WelcomeCopiesNone, &[]),
+        CopiesRefused::TooMany => w.say(Word::WelcomeCopiesTooMany, &[]),
+        CopiesRefused::NotAnAddress(line) => {
+            let line = forge::words::lossy(line);
+            let bound = usize::try_from(w.name_bytes).expect("word bound fits usize");
+            let mut chunks = line.utf8_chunks();
+            let line = chunks.next().expect("refused line has words").valid();
+            let end = line.floor_char_boundary(line.len().min(bound));
+            let line = line.get(..end).expect("bounded character prefix");
+            w.say(Word::WelcomeCopiesNotAnAddress, &[Hole::Name(copy_of(line.as_bytes()))])
+        }
+    };
+    crate::cards::text(b, Role::Alert, &words);
 }
 pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
     flow::card(b, &w.say(Word::ForgeNotFinished, &[]));
@@ -751,6 +777,10 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
         );
         return;
     }
+    let repository = match row.starts_with {
+        forge::forges::StartsWith::Repository => true,
+        forge::forges::StartsWith::Copies { .. } | forge::forges::StartsWith::Nothing => false,
+    };
     let failed = connect::failed_step(row);
     let failed_index = match failed {
         Some(connect::FailedStep::Fetch) => Some(0),
@@ -818,18 +848,15 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
     {
         text(b, w, Role::Status, Word::FlowUnderWay);
     }
-    flow::progress(
-        b,
-        w,
-        &w.say(Word::ForgeProgress, &[]),
-        &[
-            (&fetch, stage_mark(current, failed_index, 0)),
-            (&prepare, stage_mark(current, failed_index, 1)),
-            (&run, stage_mark(current, failed_index, 2)),
-            (&connecting, stage_mark(current, failed_index, 3)),
-            (&making, stage_mark(current, failed_index, 4)),
-        ],
-    );
+    let steps = [
+        (fetch.as_ref(), stage_mark(current, failed_index, 0)),
+        (prepare.as_ref(), stage_mark(current, failed_index, 1)),
+        (run.as_ref(), stage_mark(current, failed_index, 2)),
+        (connecting.as_ref(), stage_mark(current, failed_index, 3)),
+        (making.as_ref(), stage_mark(current, failed_index, 4)),
+    ];
+    let steps = if repository { steps.as_slice() } else { steps.get(..4).expect("four forge steps") };
+    flow::progress(b, w, &w.say(Word::ForgeProgress, &[]), steps);
     if connect::failed(row) {
         failure(b, w, row);
     }
@@ -845,7 +872,10 @@ fn stage_mark(current: Option<usize>, failed: Option<usize>, index: usize) -> Ma
 }
 fn setup_target<'a>(root: &'a Domain, row: &Row) -> Option<(&'a [u8], &'a [u8])> {
     match root.forge().set_up() {
-        Some(last) if last.forge == Some(row.number) => Some((&last.org, &last.repository)),
+        Some(last) if last.forge == Some(row.number) => match &last.first {
+            forge::forges::SetUpFirst::Empty(first) => Some((first.org(), first.repository())),
+            forge::forges::SetUpFirst::Copies(_) | forge::forges::SetUpFirst::Nothing => None,
+        },
         Some(_) | None => None,
     }
 }
@@ -937,6 +967,13 @@ pub(crate) fn ready_card(
             &w.say(Word::ForgeMadeRepository, &[Hole::Name(forge::words::full_name(&first.org, &first.repository))]),
         );
         progress_in(b, Some(root), w, row);
+    } else {
+        match row.starts_with {
+            forge::forges::StartsWith::Repository => {}
+            forge::forges::StartsWith::Copies { .. } | forge::forges::StartsWith::Nothing => {
+                progress_in(b, Some(root), w, row);
+            }
+        }
     }
     app_line(b, w, row);
     adopt(b, root, w, bindings);
@@ -972,6 +1009,77 @@ pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a 
         return Some((&first.org, &first.repository));
     }
     setup_target(root, row)
+}
+/// The Forge step's line in the column (client/README.md, 3.5, The Forge step with a forge).
+fn forge_status(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
+    let done = !connect::underway(row);
+    let forge = name(w, row, root);
+    let detail = if done { forge_done(w, row) } else { forge::words::forge_connection(row) };
+    let line = crate::accounts::words::join(&[&forge, " · ".as_bytes(), &detail]);
+    b.open(Role::Slot);
+    b.style(look::WELCOME_FORGE_STATUS);
+    if done {
+        b.style(look::FLOW_DONE);
+    }
+    b.open(Role::Paragraph);
+    b.name(&line);
+    match w.shell {
+        Shell::Browser => {
+            b.open(Role::Slot);
+            if done {
+                b.style(look::WELCOME_OK);
+                b.text(Run::Plain, "✓".as_bytes());
+            } else {
+                b.style(look::WELCOME_SPIN);
+            }
+            b.close();
+            b.open(Role::Text);
+            b.run(Run::Strong, &forge);
+            b.close();
+            b.open(Role::Text);
+            b.style(look::WELCOME_SEP);
+            b.run(Run::Plain, " · ".as_bytes());
+            b.close();
+            b.open(Role::Text);
+            b.style(look::FLOW_MUTED);
+            b.run(Run::Plain, &detail);
+            b.close();
+        }
+        Shell::Terminal => {
+            let words = if done { crate::accounts::words::join(&["✓ ".as_bytes(), &line]) } else { line };
+            b.text(Run::Plain, &words);
+        }
+    }
+    b.close();
+    if !done && row.kind != Kind::GitHub {
+        each_step(b, root, w, row);
+    }
+    b.close();
+}
+fn forge_done(w: &Words, row: &Row) -> Box<[u8]> {
+    if row.kind == Kind::GitHub {
+        for installation in &row.installations {
+            if !installation.stray && !installation.suspended {
+                let account = match &installation.account {
+                    Some(account) => copy_of(&account.login),
+                    None => forge::words::installation_words(installation),
+                };
+                return w.say(Word::WelcomeForgeGitHubApp, &[Hole::Name(account)]);
+            }
+        }
+    }
+    let Connection::Connected { login, .. } = &row.connection else { return forge::words::forge_connection(row) };
+    let login = w.say(Word::WelcomeForgeDoneDetail, &[Hole::Name(copy_of(login))]);
+    if let Some(first) = &row.first
+        && let FirstState::Made { .. } = first.state
+    {
+        let repository = w.say(
+            Word::WelcomeForgeDoneRepository,
+            &[Hole::Name(forge::words::full_name(&first.org, &first.repository))],
+        );
+        return crate::accounts::words::join(&[&login, " · ".as_bytes(), &repository]);
+    }
+    login
 }
 /// The welcome's Model step says what Forge did (client/README.md, 3.5).
 pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
@@ -1064,7 +1172,7 @@ fn setup_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeB
     for (field, word) in
         [(SetupField::Organization, Word::SetupOrganization), (SetupField::Repository, Word::SetupRepository)]
     {
-        setup_field(b, root, w, bindings, field, word, number, Some(look::FLOW_FIELD));
+        setup_field(b, root, w, bindings, field, word, number, Some(look::FLOW_FIELD), Place::Connect);
     }
     b.close();
 }
@@ -1078,6 +1186,7 @@ fn setup_field(
     word: Word,
     number: u16,
     style: Option<skein_ui::Style>,
+    place: Place,
 ) {
     let draft = root.forge().setup_form();
     let invalid = match root.forge().set_up() {
@@ -1098,8 +1207,13 @@ fn setup_field(
         b.state(State::Invalid);
     }
     b.close();
-    if draft.required(field) {
-        text(b, w, Role::Alert, Word::SetupRequired);
+    match place {
+        Place::Connect => {
+            if draft.required(field) {
+                text(b, w, Role::Alert, Word::SetupRequired);
+            }
+        }
+        Place::Welcome => {}
     }
     b.close();
 }

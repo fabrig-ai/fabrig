@@ -223,10 +223,11 @@ skein-io socket
     its tokens answer as, written over the one the record was made with
     at each `Check` done (2.2); a GitHub forge commits as its App's bot,
     from its `AppSlug` and `User` records (2.5);
-  - for a first set up, the first repository's intent: its
-    organization, name and runner label, and no project (setup.md, 6.7), kept
-    so that a restart before the repository is made makes it at the next
-    connect;
+  - for a first set up, its intent, and no project (setup.md, 6.7):
+    `Empty`'s organization, name and runner label, kept so that a restart
+    before the repository is made makes it at the next connect; `Copies`'
+    addresses, kept for the client to ask them at Ready and after a restart;
+    or `Nothing`;
   - its state: kept, or ended, with whether its secrets are erased and
     its box group removed (2.3).
 
@@ -331,8 +332,8 @@ skein-io socket
   act is admitted, so a refused act makes nothing:
   - `SetUp` of a new owned Forgejo, under the box alone and while no
     owned forge is kept, takes the machine's owned place
-    (configuration.md, section 3), and keeps the first repository's
-    intent;
+    (configuration.md, section 3), and keeps its intent, its row saying
+    it (setup.md, 6.7);
   - `Connect` of a new GitHub forge takes the machine's GitHub place,
     github.com's when it names none, and its git program;
   - `Connect` as a Forgejo's admin (setup.md, 5.5) takes the address,

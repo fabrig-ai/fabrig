@@ -353,7 +353,7 @@ fn welcome_ready_names_the_sign_in_under_way() {
     let source = h::signing(&front);
     started(&mut front, &mut root, source);
     h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"), true);
-    has(&root, "Model ChatGPT · signing in");
+    has(&root, "Model ChatGPT plan · signing in…");
 }
 
 // client/README.md 3.5 The welcome Ready: the made usable account names its model line.
