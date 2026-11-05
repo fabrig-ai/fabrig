@@ -137,6 +137,13 @@ impl Service {
         }
     }
 
+    /// Give each agent the dump directory (temper/docs/design/draft/dogfood-hacks.md, 2.13).
+    pub fn dump_llm(&mut self, directory: &[u8]) {
+        if let Some(worker) = &mut self.worker {
+            worker.dump_llm(directory);
+        }
+    }
+
     pub fn configure_program_sources(
         &mut self,
         resources: crate::program_sources::Resources,

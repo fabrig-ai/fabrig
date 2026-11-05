@@ -31,8 +31,9 @@ pub use service::teardown::{Answer, Close, Step, Teardown};
 pub use terminal::{Last, last};
 
 pub use service::{
-    AdoptError, Config, ConfigError, Effects, Failure, Limits, ProgramBackend, Service, done, effects_valid, failure,
-    io_valid, iterate, next_deadline, next_policy_deadline, program_operations, program_valid, valid, work_pending,
+    AdoptError, Config, ConfigError, Dump, Dumped, Effects, Failure, Limits, Model, ProgramBackend, Service, Started,
+    done, effects_valid, failure, io_valid, iterate, next_deadline, next_policy_deadline, program_operations,
+    program_valid, valid, work_pending,
 };
 
 #[cfg(any(test, feature = "fixture"))]
