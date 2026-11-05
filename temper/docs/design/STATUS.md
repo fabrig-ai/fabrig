@@ -74,8 +74,10 @@ no engine (`protocol/credentials.md`), and a closed change whose
 repository a removal erased leaves no project the Changes document
 (`client/README.md`);
 public reading still lacks a deployment's proxy configuration and
-figures, and its negative walk plays the proxy's own rules against
-scripted upstreams rather than temper's service
+figures, its negative walk plays the proxy's own rules against
+scripted upstreams rather than temper's service, and the server walk
+gives a forge's sign-in meta at `forge connect` where the user's
+request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
