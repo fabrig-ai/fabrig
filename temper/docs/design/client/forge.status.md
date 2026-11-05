@@ -2,9 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [forge.md](forge.md).
 
-- **Not yet:** 5.4: `Forges`' tab and rows in Settings' language
-  (`README.md`, 3.5, *The rows*): `forge/forges.rs` draws the old ones.
-  2.1: a queued change's place in its own panel. 2.3:
+- **Not yet:** 2.1: a queued change's place in its own panel. 2.3:
   amending a change's gates from its panel. 4: approvals, a person
   task's card at a head and the browser panel's counted forge reviews;
   ctl's `change show` carries the counted people and heads, the rules'
