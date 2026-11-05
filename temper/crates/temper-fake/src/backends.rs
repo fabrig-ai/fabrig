@@ -592,10 +592,12 @@ fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Res
     Ok(read::joined(&[b"{\"listen\":", &address(socket)?, b",\"admin_token\":", &text(&path(data, b"github-admin.token"))?,
         br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0,"setup_url":"#,&setup,br#"},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))
 }
+// The report scope names a fresh box's first project and goal, after chat 1.
+// A later chat's goal is refused this scope and ends without a report.
 fn model_document(socket: &[u8], data: &[u8]) -> Result<Box<[u8]>, Refusal> {
     Ok(read::joined(&[b"{\"listen\":", &address(socket)?, b",\"key\":", &text(&path(data, b"llm.key"))?,
         b",\"added_keys\":[", &text(&path(data, b"signed-in.key"))?,
-        br#"],"tls":null,"models":[{"name":"gpt-6-luna","window":1048576,"output":8192}],"cued":[],"asked":[],"otherwise":["Hello from the local fake model."]}"#]))
+        br#"],"tls":null,"models":[{"name":"gpt-6-luna","window":1048576,"output":8192}],"cued":[{"cue":"You are a goal: the work your person asked for","turns":[{"lines":[{"call":"note","arguments":{"scope":{"kind":"goal","project":1,"goal":2},"description":"report: The local goal wrote its report.","body":"I wrote this report on the local fake box.\n\nLeft: Nothing remains in this demonstration.\nRisk: This scripted model does not change a repository."}}],"finish":"tool_calls","tokens":64},{"lines":[{"call":"finish","arguments":{"form":"report","text":"The local goal wrote its report.","fields":{}}}],"finish":"tool_calls","tokens":16}]}],"asked":[{"cue":"Start a local goal and write its report.","turns":[{"lines":[{"call":"goal","arguments":{"words":"Write a report for this local demonstration."}}],"finish":"tool_calls","tokens":16},"I started a goal to write its report."]}],"otherwise":["Hello from the local fake model."]}"#]))
 }
 fn duplicates(d: &Document) -> Result<(), Refusal> {
     for at in 0..d.len() {

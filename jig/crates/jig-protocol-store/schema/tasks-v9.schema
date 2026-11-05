@@ -255,6 +255,7 @@ record TranscriptState { ever_turned: bool }
 record TaskHistory {
     last_activity: u64
     ended_below: Endings
+    ended_delegates: Endings
     question_lines: list 128 QuestionLine
     hold: u64
     placed: option u64
