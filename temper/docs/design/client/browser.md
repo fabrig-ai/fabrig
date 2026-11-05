@@ -1175,15 +1175,17 @@ from the engine's own answers, is where the look is tuned.
 | `github-install` | GitHub's connected App, installed nowhere yet |
 | `github-picker` | the installation's reached repositories, ready to adopt |
 | `github-adopted` | the adopted GitHub repository and its primary Open act |
-| `welcome-model-choose` | the welcome's Model choices, with ChatGPT sign-in and an API key |
+| `welcome-model-choose` | the welcome's Model choices, ChatGPT and Claude |
 | `welcome-model-forge-under-way` | Model at first run step 6, Forgejo setting up, its Forge pane and Each step |
 | `welcome-model-forge-fetching` | Model at first run step 6, Forgejo fetching at 42%, its bar filled and the figure at its end |
 | `welcome-model-forge-fetching-bytes` | Model at first run step 6, Forgejo fetching with no size, its moving bar and 41 MB at its end |
 | `welcome-model-forge-done` | Model at first run step 7, Forgejo connected, its marked Forge pane without Each step |
 | `welcome-model-forge-failed` | Model at first run step 9, Forgejo failed, its Forge pane and Each step |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
-| `welcome-model-signing-in` | signing in to ChatGPT inside the welcome |
-| `welcome-model-signin-ready` | ChatGPT Ready with the account's address and Accounts-page line |
+| `welcome-model-connected` | a usable ChatGPT plan, its ticked status and Continue to Ready |
+| `welcome-model-away` | ChatGPT’s sign-in in this tab, its note and folded paste |
+| `welcome-model-signing-in` | the same note while signing in to ChatGPT inside the welcome |
+| `welcome-model-signin-ready` | the connected state after signing in to ChatGPT |
 | `welcome-model-declined`, `welcome-model-renewed`, `welcome-model-refused` | the other sign-in endings inside the welcome |
 | `welcome-paste-waiting`, `welcome-paste-written` | the elsewhere entry, with an empty or supplied secret address |
 | `welcome-paste-too-long`, `welcome-paste-address`, `welcome-paste-state` | the length and address refusals, ready for a fresh paste |

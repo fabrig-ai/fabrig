@@ -322,47 +322,47 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-expired",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT from another computer",
         parts: &[
             Part::Named { role: Role::Status, name: "This sign-in has ended." },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
-            Part::Absent { role: Role::TextField, name: "Address of the page that couldn't be reached" },
+            Part::Absent { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
         ],
     },
     Holds {
         name: "welcome-model-declined",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-model-renewed",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+        parts: &[Part::Named { role: Role::Link, name: "Continue" }],
     },
     Holds {
         name: "welcome-model-refused",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-waiting",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-written",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-long",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-sending",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-finishing",
@@ -371,33 +371,33 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-address",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-state",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-many",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT from another computer",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-ended",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT from another computer",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-lost",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-unsent",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "forges-github-install",
@@ -433,21 +433,37 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-model-key-details",
+        heading: "An OpenAI API key",
+        parts: &[Part::Named { role: Role::TextField, name: "Key, pasted once" }],
+    },
+    Holds {
+        name: "welcome-model-connected",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Key (pasted once)" }],
+        parts: &[
+            Part::Named { role: Role::Status, name: "ChatGPT plan · sam@example.com" },
+            Part::Named { role: Role::Link, name: "Continue" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-away",
+        heading: "Connect a model",
+        parts: &[
+            Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" },
+            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn't be reached?" },
+        ],
     },
     Holds {
         name: "welcome-model-signing-in",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Heading { level: 2 }, name: "Signing in to ChatGPT" }],
+        parts: &[Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" }],
     },
     Holds {
         name: "welcome-model-signin-ready",
         heading: "Connect a model",
-        parts: &[Part::Named {
-            role: Role::Slot,
-            name: "ChatGPT · pat@example.com is on the Accounts page, with its details.",
-        }],
+        parts: &[
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Button, name: "Continue with ChatGPT" },
+        ],
     },
     Holds {
         name: "github-app-details",
@@ -530,6 +546,8 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-choose",
         heading: "Connect a model",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "ChatGPT" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Claude" },
             Part::Named { role: Role::Paragraph, name: "Sign in, in this tab · about a minute" },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
         ],

@@ -47,6 +47,8 @@ welcome-model-forge-fetching-bytes
 welcome-model-forge-done
 welcome-model-forge-failed
 welcome-model-key-details
+welcome-model-connected
+welcome-model-away
 welcome-model-signing-in
 welcome-model-signin-ready
 welcome-model-declined
