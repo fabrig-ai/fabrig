@@ -6,6 +6,15 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[dependencies]
+hearth-protocol-tree.workspace = true
+hearth-lib.workspace = true
+skein-world.workspace = true
+skein-shell.workspace = true
+skein-io.workspace = true
+skein-scratch.workspace = true
+skein-lib.workspace = true
+
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"
