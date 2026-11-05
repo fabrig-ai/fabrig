@@ -404,6 +404,7 @@ fn special_mockup(name: &str) -> Option<String> {
     None
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive table maps each page and world to its mockup")]
 pub fn mockup(sample: &Sample) -> Option<String> {
     if let Then::Paste(frame) = sample.then {
         return Some(format!(
@@ -461,7 +462,11 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Home { .. } | Address::Settings { .. } | Address::Configure { .. } | Address::Adopt { .. } => {
+        Address::Goals { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
+        | Address::Configure { .. }
+        | Address::Adopt { .. } => {
             return None;
         }
     };
@@ -493,6 +498,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => String::new(),
     };

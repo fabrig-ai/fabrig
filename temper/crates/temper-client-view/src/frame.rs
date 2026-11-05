@@ -578,6 +578,7 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
         | Address::ConnectForge { .. }
         | Address::Adopt { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
@@ -625,7 +626,8 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     let current = match root.pages().address() {
         Address::Settings { .. } | Address::Configure { .. } => true,
         Address::Chat { .. } => crate::pages::chat::configuring(root),
-        Address::Home { .. }
+        Address::Goals { .. }
+        | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Task { .. }
@@ -653,6 +655,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Adopt { .. } => (false, true),
         Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::ConnectForge { .. }
         | Address::Forges
@@ -709,6 +712,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Settings { .. }
+            | Address::Goals { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. }
             | Address::ConnectModel { .. }
@@ -777,6 +781,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Inbox { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     };
@@ -809,6 +814,7 @@ pub(crate) fn accounts_link(
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     } {

@@ -519,6 +519,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::Project { project } } => {
             choose_project(pages, client, project);
             match &pages.address {
+                Address::Goals { .. } => {
+                    out.push(Request::Show { address: Address::Goals { project, filter: crate::GoalsFilter::All } });
+                }
                 Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
                 Address::Settings { .. } => out.push(Request::Show { address: Address::Settings { project } }),
                 Address::Configure { .. } => out.push(Request::Show { address: Address::Configure { project } }),
@@ -790,6 +793,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Welcome { .. }
             | Address::Chat { .. }
             | Address::Task { .. }
+            | Address::Goals { .. }
             | Address::Home { .. }
             | Address::Settings { .. }
             | Address::Configure { .. }
@@ -1027,7 +1031,10 @@ fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contra
 
 fn address_project(address: &Address) -> Option<u32> {
     match address {
-        Address::Home { project } | Address::Settings { project } | Address::Configure { project } => Some(*project),
+        Address::Home { project }
+        | Address::Goals { project, .. }
+        | Address::Settings { project }
+        | Address::Configure { project } => Some(*project),
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts
@@ -1224,6 +1231,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Goals { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
