@@ -124,7 +124,10 @@ its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration, and its sheet, "Add repositories", is unbuilt;
 `draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a
-repository" where they have "Adopt a repository"; the others
+repository" where they have "Adopt a repository";
+`draft/dogfood-hacks.md`'s holds one a plan's requester decided, with no
+record of the user weighing it, Forgejo's link page keeping an empty signup
+form; the others
 record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap.
@@ -169,6 +172,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
+- [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
