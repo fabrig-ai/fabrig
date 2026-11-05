@@ -36,6 +36,8 @@ pub enum Word {
     NeedsAnswered,
     NeedsDone,
     NeedsFunds,
+    NeedsFundsUsed,
+    NeedsRelease,
     NeedsKindFunds,
     HomeNeedsNone,
     HomeNeedsOne,
@@ -868,7 +870,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring chat tag adds one literal phrase (3.5).
 // Needs count and toast add five phrases (client/README.md, 3.5).
 // Needs you adds sixteen phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1367;
+const PHRASES: u32 = 1369;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -882,8 +884,8 @@ const PHRASES: u32 = 1367;
 // The configuring chat tag adds one literal segment (3.5).
 // Needs count and toast add eleven literal and hole segments (3.5).
 // Needs you adds thirty-four literal and hole segments (3.5).
-const SEGMENTS: u32 = 2370;
-const ALL: [Word; 771] = [
+const SEGMENTS: u32 = 2376;
+const ALL: [Word; 773] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -908,6 +910,8 @@ const ALL: [Word; 771] = [
     Word::NeedsAnswered,
     Word::NeedsDone,
     Word::NeedsFunds,
+    Word::NeedsFundsUsed,
+    Word::NeedsRelease,
     Word::NeedsKindFunds,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
@@ -1684,6 +1688,8 @@ impl Word {
             Self::NeedsAnswered => 3212,
             Self::NeedsDone => 3213,
             Self::NeedsFunds => 3214,
+            Self::NeedsFundsUsed => 3216,
+            Self::NeedsRelease => 3217,
             Self::NeedsKindFunds => 3215,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
@@ -2658,7 +2664,7 @@ impl Words {
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Needs count and toast add 87 literal bytes (3.5).
             // Needs you adds 225 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87 + 225,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87 + 225 + 20,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2762,7 +2768,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsLast => (&[b"The last one"], &[]),
         Word::NeedsAnswered => (&[b"Answered"], &[]),
         Word::NeedsKindFunds => (&[b"funds"], &[]),
-        Word::NeedsFunds => (&[b"$", b" of $", b" used"], &[Number, Number]),
+        Word::NeedsFunds => (&[b"", b" of ", b" used"], &[Number, Number]),
+        Word::NeedsFundsUsed => (&[b"", b" of ", b" used."], &[Number, Number]),
+        Word::NeedsRelease => (&[b"Release"], &[]),
         Word::NeedsDone => (&[b"Every question is answered. Work carries on; Home tells you what changed."], &[]),
         Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
         Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),

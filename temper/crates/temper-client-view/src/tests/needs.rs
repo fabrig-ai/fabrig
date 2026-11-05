@@ -445,3 +445,293 @@ fn unnamed_cards_and_answered_lines_use_task_number() {
     assert!(has(&view, b"Task 9:"));
     assert!(f::find(view.tree(), Role::Link, b"Task 9").is_some());
 }
+
+fn words(value: &str) -> c::DocumentText {
+    c::DocumentText::complete(c::Text::new(value.as_bytes().into(), 4096).unwrap())
+}
+fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
+    let mut acts = List::with_capacity(u32::try_from(kinds.len()).unwrap());
+    for act in kinds {
+        acts.push(c::Offered { act: *act, admission: c::Admission::Allowed, effect: None }).unwrap();
+    }
+    acts
+}
+fn proposal(proposer: c::Proposer) -> c::Proposal {
+    let source = f::chat::proposal_root();
+    let mut proposal = source.pages().cards().unwrap().iter().find_map(|card| {
+        if let Some(c::ReadValue::Proposal(p)) = &card.page { Some(p.as_ref().clone()) } else { None }
+    }).unwrap();
+    proposal.key.proposer = proposer;
+    proposal.reason = words("Accept how temper will run your work? The agent follows this plan.");
+    proposal.acts = offers(&[c::ActKind::Accept, c::ActKind::Reject]);
+    let task = f::task::document();
+    let mut tasks = List::with_capacity(1);
+    tasks.push(c::ProposedTask {
+        number: 1, executor: task.chip.details.details.executor, spec: task.spec, authority: task.authority,
+        contract: task.result_contract, deadline: c::NewDeadline::Named, budget: 6, funder: task.budget.funder, wake: task.wake,
+        dependencies: List::with_capacity(0), resources: List::with_capacity(0), priority: None, cut: false,
+    }).unwrap();
+    proposal.action = c::ProposalAction::Batch(tasks);
+    proposal.funding = List::with_capacity(1);
+    proposal.funding.push(c::FundingOffer { source: c::Funder::Pool { project: f::PROJECT, person: 73, period: 1 }, needed: 5, left: Some(20), after: Some(15) }).unwrap();
+    proposal
+}
+fn held(reason: Option<c::HoldCategory>) -> c::Escalation {
+    let source = f::task::held_root();
+    let mut task = source.pages().task().unwrap().document(source.client()).unwrap().clone();
+    task.chip.title = words("first-run-projects");
+    task.spec.specification.words = words("Both halves of the store task run.");
+    task.budget.numbers.spent = 31;
+    task.budget.numbers.budget = 40;
+    match reason {
+        Some(reason) => {
+            let hold = task.hold.as_mut().unwrap();
+            hold.reason = reason;
+            hold.words = Some(words("The Ready page waits for this decision."));
+        }
+        None => task.hold = None,
+    }
+    c::Escalation { task: Box::new(task), acts: offers(&[c::ActKind::Release, c::ActKind::LeaveHeld]) }
+}
+fn person() -> c::PersonTask {
+    let mut task = f::task::document();
+    task.chip.title = words("Review the plan");
+    task.spec.specification.words = words("Read the proposed plan and record your review.");
+    c::PersonTask {
+        task: task.chip, revision: c::Revision { value: 3 }, requester: task.requester, spec: task.spec,
+        address: c::PersonAddress::Party(73), taken_by: None, since: None, stall: None, deadline: None,
+        contract: task.result_contract, results: List::with_capacity(0), cut: false,
+        acts: offers(&[c::ActKind::Take, c::ActKind::HandBack]),
+    }
+}
+fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
+    let (mut root, _, watch) = f::root_at(Address::Inbox { filter: d::address::Filter::ALL }, &limits());
+    let mut entries = List::with_capacity(u32::try_from(values.len()).unwrap());
+    for (i, (object, _, _)) in values.iter().enumerate() {
+        entries.push(documents::entry(*object, f::PROJECT, u64::try_from(i).unwrap(), Wall::EPOCH, None)).unwrap();
+    }
+    let mut out = Queue::uncapped();
+    event(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched {
+        watch: watch.unwrap(), event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(documents::inbox(
+            entries.clone(), u32::try_from(values.len()).unwrap(), c::Count { value: 0, limited: false }, 0, false,
+        )))),
+    } } }, &mut out);
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read {
+            read, what: jig_client::Readable::Jig(what),
+        } } } = request {
+            let page = if let c::Read::Inbox { group, .. } = &what {
+                Some(c::ReadValue::Inbox(Box::new(c::InboxPage { selection: None, before: None,
+                    rows: if *group == c::InboxReadGroup::Needs { entries.clone() } else { List::with_capacity(0) },
+                    after: None, cut: false })))
+            } else {
+                values.iter().find(|(_, wanted, _)| *wanted == what).map(|(_, _, page)| page.clone())
+            };
+            if let Some(page) = page {
+                event(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::ReadDone {
+                    read, result: jig_client::Readout::Jig(c::ReadResult::Value(page)),
+                } } }, &mut out);
+            }
+        }
+    }
+    root
+}
+fn proposal_row(p: c::Proposal) -> (c::ObjectKey, c::Read, c::ReadValue) {
+    (c::ObjectKey::Proposal(p.key), c::Read::Proposal { proposal: p.key }, c::ReadValue::Proposal(Box::new(p)))
+}
+fn held_row(h: c::Escalation) -> (c::ObjectKey, c::Read, c::ReadValue) {
+    (c::ObjectKey::Escalation(h.task.chip.task), c::Read::Escalation { task: h.task.chip.task }, c::ReadValue::Escalation(Box::new(h)))
+}
+fn ordered(view: &crate::View) {
+    let positions: Vec<_> = [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES, look::PAIR, look::NEXT_UP]
+        .iter().map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)).unwrap()).collect();
+    assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
+}
+#[test]
+fn proposal_parts_accept_reject_and_task_open() {
+    for proposer in [c::Proposer::Task(f::INBOX_TASK), c::Proposer::Party(73)] {
+        let p = proposal(proposer);
+        let object = c::ObjectKey::Proposal(p.key);
+        let root = kinds(&[proposal_row(p)]);
+        let mut view = f::browser_page_view(&root);
+        ordered(&view);
+        assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(b"Accept how temper will run your work? The agent follows this plan.".as_slice()));
+        assert!(has(&view, b"Funding"));
+        assert_eq!(styled(&view, look::RECOMMENDED).name.as_deref(), Some(b"Accept".as_slice()));
+        assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::REC)));
+        for (name, act) in [(b"Accept".as_slice(), c::ActKind::Accept), (b"Reject", c::ActKind::Reject)] {
+            assert_eq!(press(&mut view, name), d::Action::Pages(pages::Act::Decide { object, revision: None, act }));
+        }
+        let reject = main(&view).iter().position(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Reject")).unwrap();
+        assert!(super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_CHOICES)).iter().any(|n| n.role == Role::TextArea));
+        assert!(main(&view)[reject..].iter().any(|n| n.role == Role::TextArea && n.name.as_deref() == Some(b"Reason")));
+        assert_eq!(f::find(view.tree(), Role::Button, b"Open").is_some(), matches!(proposer, c::Proposer::Task(_)));
+        assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object }));
+    }
+}
+#[test]
+fn proposal_short_stops_at_sentence_or_first_line_and_batch_uses_heading() {
+    for (reason, expected) in [("First. Second.", "First."), ("First line\nSecond. More", "First line"), ("Whole reason", "Whole reason")] {
+        let mut p = proposal(c::Proposer::Task(9));
+        p.reason = words(reason);
+        let root = kinds(&[proposal_row(p)]);
+        let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+        assert_eq!(crate::pages::ask::read(card, &f::words()).short.as_ref(), expected.as_bytes());
+    }
+    let mut p = proposal(c::Proposer::Task(9));
+    p.reason = words("");
+    let heading = match &mut p.action {
+        c::ProposalAction::Batch(tasks) => {
+            tasks.get_mut(0).unwrap().spec.specification.words = words("Run the work. Keep its checks\nIts full specification.");
+            "Run the work. Keep its checks"
+        }
+        _ => panic!("batch fixture"),
+    };
+    assert_eq!(styled(&f::browser_page_view(&kinds(&[proposal_row(p)])), look::FLOW_Q).name.as_deref(), Some(heading.as_bytes()));
+}
+#[test]
+fn held_parts_release_leave_held_and_missing_hold() {
+    for reason in [Some(c::HoldCategory::Stalled), None] {
+        let h = held(reason);
+        let object = c::ObjectKey::Escalation(h.task.chip.task);
+        let revision = h.task.hold.as_ref().map(|hold| hold.revision());
+        let root = kinds(&[held_row(h)]);
+        let mut view = f::browser_page_view(&root);
+        ordered(&view);
+        assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(b"first-run-projects".as_slice()));
+        assert!(has(&view, b"Both halves of the store task run."));
+        assert_eq!(has(&view, b"The Ready page waits"), reason.is_some());
+        assert!(skein_lib::bytes::find(styled(&view, look::ASK_META).name.as_ref().unwrap(), b"held").is_some());
+        assert_eq!(styled(&view, look::RECOMMENDED).name.as_deref(), Some(b"Release".as_slice()));
+        assert!(f::find(view.tree(), Role::Disclosure, b"Leave held").is_some());
+        for (name, act) in [(b"Release".as_slice(), c::ActKind::Release), (b"Leave held", c::ActKind::LeaveHeld)] {
+            assert_eq!(press(&mut view, name), d::Action::Pages(pages::Act::Decide { object, revision, act }));
+        }
+        assert_eq!(press(&mut view, b"Open"), d::Action::Pages(pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } }));
+    }
+}
+#[test]
+fn funds_use_budget_reason_plain_numbers_and_held_acts() {
+    for reason in [c::HoldCategory::Budget, c::HoldCategory::Exceeded(c::Exceeded { bound: c::Bound::Reasoning, value: 2048 })] {
+        let root = kinds(&[held_row(held(Some(reason)))]);
+        let view = f::browser_page_view(&root);
+        let funds = reason == c::HoldCategory::Budget;
+        assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(if funds { b"31 of 40 used.".as_slice() } else { b"first-run-projects" }));
+        assert_eq!(skein_lib::bytes::find(styled(&view, look::ASK_META).name.as_ref().unwrap(), b"funds").is_some(), funds);
+        assert!(f::find(view.tree(), Role::Button, b"Release").is_some());
+        assert!(f::find(view.tree(), Role::Button, b"Leave held").is_some());
+        assert!(!has(&view, b"$"));
+        assert!(f::find(view.tree(), Role::Button, b"Add $10").is_none());
+    }
+}
+#[test]
+fn person_spec_and_plain_acts() {
+    let person = person();
+    let object = c::ObjectKey::PersonTask(person.task.task);
+    let root = kinds(&[(object, c::Read::PersonTask { task: person.task.task }, c::ReadValue::PersonTask(Box::new(person)))]);
+    let mut view = f::browser_page_view(&root);
+    ordered(&view);
+    assert_eq!(styled(&view, look::FLOW_Q).name.as_deref(), Some(b"Review the plan".as_slice()));
+    assert!(has(&view, b"Read the proposed plan and record your review."));
+    assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::RECOMMENDED)));
+    for (name, act) in [(b"Take".as_slice(), c::ActKind::Take), (b"Hand back", c::ActKind::HandBack)] {
+        assert_eq!(press(&mut view, name), d::Action::Pages(pages::Act::Decide { object, revision: Some(c::Revision { value: 3 }), act }));
+    }
+    assert!(f::find(view.tree(), Role::Button, b"Open").is_some());
+    assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object }));
+}
+#[test]
+fn mixed_kinds_next_line_uses_each_short() {
+    let p = proposal(c::Proposer::Task(9));
+    let mut p = p;
+    p.reason = words("Accept the plan. More context.");
+    let mut h = held(Some(c::HoldCategory::Stalled));
+    h.task.chip.task = 10;
+    let mut funds = held(Some(c::HoldCategory::Budget));
+    funds.task.chip.task = 11;
+    let mut person = person();
+    person.task.task = 12;
+    let rows = [proposal_row(p), held_row(h), held_row(funds), (c::ObjectKey::PersonTask(12), c::Read::PersonTask { task: 12 }, c::ReadValue::PersonTask(Box::new(person)))];
+    let mut root = kinds(&rows);
+    for (row, short) in rows.iter().zip(["Accept the plan.", "first-run-projects", "31 of 40 used", "Review the plan"]) {
+        act(&mut root, needs::Act::Open { object: row.0 });
+        let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+        assert_eq!(crate::pages::ask::read(card, &f::words()).short.as_ref(), short.as_bytes());
+        let view = f::browser_page_view(&root);
+        let next = if row.0 == rows[0].0 { "Next: first-run-projects · first-run-projects" } else { "Next: Task 9 · Accept the plan." };
+        assert!(has(&view, next.as_bytes()));
+    }
+}
+
+fn page_act(root: &mut d::Domain, action: pages::Act, out: &mut Queue<d::Request>) {
+    event(root, Event::Act { action: d::Action::Pages(action) }, out);
+}
+#[test]
+fn deciding_reasons_keep_their_value_and_confirmation_over_the_page() {
+    let p = proposal_row(proposal(c::Proposer::Task(9)));
+    let h = held_row(held(Some(c::HoldCategory::Stalled)));
+    for (row, name, act_kind, dialog) in [
+        (&p, b"Reject".as_slice(), c::ActKind::Reject, Some(b"Reject with reason".as_slice())),
+        (&p, b"Accept", c::ActKind::Accept, Some(b"Accept".as_slice())),
+        (&h, b"Leave held", c::ActKind::LeaveHeld, None),
+        (&h, b"Release", c::ActKind::Release, Some(b"Release task".as_slice())),
+    ] {
+        let mut root = kinds(&[row.clone()]);
+        let mut view = f::browser_page_view(&root);
+        let mut out = Queue::uncapped();
+        if act_kind == c::ActKind::Reject || act_kind == c::ActKind::LeaveHeld {
+            let textarea = f::find(view.tree(), Role::TextArea, b"Reason").unwrap();
+            let input = crate::act(&mut view, textarea, Act::Input { value: b"Keep the current plan".as_slice().into() }).unwrap();
+            event(&mut root, Event::Act { action: input }, &mut out);
+            let view = f::browser_page_view(&root);
+            let reason = main(&view).iter().find(|n| n.role == Role::TextArea).unwrap();
+            assert_eq!(reason.value.as_ref().unwrap().text.as_ref(), b"Keep the current plan");
+        }
+        let action = press(&mut view, name);
+        event(&mut root, Event::Act { action }, &mut out);
+        let view = f::browser_page_view(&root);
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, styled(&view, look::FLOW_Q).name.as_ref().unwrap()).is_some());
+        if let Some(dialog) = dialog {
+            assert!(f::find(view.tree(), Role::Dialog, dialog).is_some());
+            assert!(root.pages().inbox().unwrap().cards.get(0).unwrap().key.is_none());
+            page_act(&mut root, pages::Act::Confirm, &mut out);
+        }
+        let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+        assert!(card.key.is_some());
+        assert!(!root.pages().needs().held(row.0));
+        assert!(root.pages().needs().answered(f::NOW, needs::ANSWERED_ON_NEEDS, None).is_empty());
+    }
+}
+#[test]
+fn sent_cards_replace_all_acts_with_progress_and_the_returned_outcome() {
+    let p = proposal_row(proposal(c::Proposer::Task(9)));
+    let mut root = kinds(&[p.clone()]);
+    let mut view = f::browser_page_view(&root);
+    let action = press(&mut view, b"Accept");
+    let mut out = Queue::uncapped();
+    event(&mut root, Event::Act { action }, &mut out);
+    page_act(&mut root, pages::Act::Confirm, &mut out);
+    let view = f::browser_page_view(&root);
+    for name in [b"Accept".as_slice(), b"Reject", b"Open", b"Later", b"Undo"] {
+        assert!(f::find(view.tree(), Role::Button, name).is_none());
+    }
+    event(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+    let attempt = out.iter().find_map(|request| {
+        if let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } } } = request {
+            Some(*attempt)
+        } else { None }
+    }).expect("decision sends without the question hold");
+    let view = f::browser_page_view(&root);
+    assert!(main(&view).iter().any(|n| n.role == Role::Status));
+    event(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer {
+        attempt, envelope: skein_lib::RequestEnvelope::Final, why: None,
+        answer: Some(jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None })),
+    } } }, &mut out);
+    let view = f::browser_page_view(&root);
+    assert!(has(&view, b"This act is not offered"));
+    for name in [b"Accept".as_slice(), b"Reject", b"Open", b"Later", b"Undo"] {
+        assert!(f::find(view.tree(), Role::Button, name).is_none());
+    }
+    assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::ANSWERED)));
+    assert!(root.pages().needs().answered(f::NOW, needs::ANSWERED_ON_NEEDS, None).is_empty());
+}

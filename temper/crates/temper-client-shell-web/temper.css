@@ -1698,6 +1698,12 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-needs a { color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 .temper-needs a:hover { text-decoration-color: var(--gf-ink); }
 .temper-needs .temper-ask-context { color: var(--gf-ink-2); white-space: pre-line; }
+.temper-needs .temper-ask-context > * + * { margin-top: 8px; }
+.temper-needs .temper-ask-context .temper-proposal-facts { margin: 0; padding: 0; border: 0; background: none; }
+.temper-needs .temper-ask-context :is(h2, h3, h4) { margin: 0; font-size: 16px; font-weight: 500; }
+.temper-needs .temper-ask-context dl { margin: 0; }
+.temper-needs .temper-ask-context dt { margin-top: 8px; color: var(--gf-muted); font-size: 13px; }
+.temper-needs .temper-ask-context dd { margin: 0; }
 .temper-needs .temper-ask-saw { font-size: 14px; color: var(--gf-muted); }
 .temper-needs .temper-ask-saw summary { cursor: pointer; width: fit-content; }
 .temper-needs .temper-ask-saw p { margin-top: 6px; }
@@ -1709,6 +1715,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-needs .temper-ask-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
 .temper-needs .temper-rec { margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; opacity: .72; }
 .temper-needs .temper-ask-choices { display: flex; gap: 8px; flex-direction: column; align-items: stretch; }
+.temper-needs .temper-ask-choices > details { border: 0; padding: 0; }
+.temper-needs .temper-ask-choices > details > summary { display: flex; align-items: center; min-height: 54px; padding: 10px 18px; border: 1px solid var(--gf-line-2); border-radius: 12px; background: var(--gf-surface); color: var(--gf-ink); cursor: pointer; font-size: 16px; }
+.temper-needs .temper-ask-choices > details[open] { display: flex; flex-direction: column; gap: 8px; }
+.temper-needs .temper-ask-choices > details textarea { width: 100%; margin-top: 8px; box-sizing: border-box; }
 .temper-needs .temper-ask-choices button { min-height: 54px; padding: 10px 18px; border-radius: 12px; font-size: 16px; }
 .temper-needs .temper-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .temper-needs .temper-pair button { justify-content: center; min-height: 46px; border: 0; border-radius: 12px; background: var(--gf-hover); color: var(--gf-ink); }

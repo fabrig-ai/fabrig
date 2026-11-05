@@ -65,6 +65,14 @@ pub(crate) fn controls(b: &mut Builder, root: &Domain, card: &Card, words: &Word
     }
 }
 pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
+    controls_at(b, root, card, words, bindings, false);
+}
+
+/// Browser card acts share the terminal's admissions, reasons and outcomes (client/README.md, 3.5).
+pub(crate) fn needs_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
+    controls_at(b, root, card, words, bindings, true);
+}
+fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, needs: bool) {
     let Some(page) = &card.page else { return };
     if let Some(outcome) = &card.outcome {
         outcome_words(b, words, outcome);
@@ -86,12 +94,19 @@ pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: 
             Admission::Allowed | Admission::Bounded { .. } => {
                 let rejecting = act == ActKind::Reject && proposal_object(card.object);
                 let answering = act == ActKind::Answer;
-                if rejecting || answering {
+                let disclosure = rejecting || answering || (needs && act == ActKind::LeaveHeld);
+                if disclosure {
                     b.open(Role::Disclosure);
-                    b.name(&words.say(if answering { Word::AnswerInWords } else { Word::Reject }, &[]));
+                    b.name(&words.say(if answering {
+                        Word::AnswerInWords
+                    } else if needs && act == ActKind::LeaveHeld {
+                        Word::LeaveHeld
+                    } else if needs {
+                        Word::RejectProposal
+                    } else { Word::Reject }, &[]));
                     if let Some(open) = root.pages().confirmation()
                         && open.object == card.object
-                        && open.act == ActKind::Reject
+                        && open.act == act
                     {
                         b.state(skein_ui::State::Expanded);
                     }
@@ -109,14 +124,16 @@ pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: 
                     b.bind(bindings.insert(Act::CardWords { object: card.object, words: Box::default() }));
                     b.close();
                 }
-                button(
-                    b,
-                    bindings,
-                    words,
-                    if rejecting { Word::RejectProposal } else { word },
-                    Act::Decide { object: card.object, revision: acts::revision(page), act },
-                );
-                if rejecting || answering {
+                let word = if needs && act == ActKind::Release { Word::NeedsRelease }
+                    else if rejecting { Word::RejectProposal } else { word };
+                b.open(Role::Button);
+                b.name(&words.say(word, &[]));
+                b.bind(bindings.insert(Act::Decide { object: card.object, revision: acts::revision(page), act }));
+                if needs && (act == ActKind::Accept || act == ActKind::Release) {
+                    b.style(crate::look::RECOMMENDED);
+                }
+                b.close();
+                if disclosure {
                     b.close();
                 }
             }

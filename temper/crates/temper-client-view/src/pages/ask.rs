@@ -49,7 +49,28 @@ pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
     let short = match &parsed {
         Some(parsed) => parsed.question.clone(),
         None => match &card.page {
-            Some(ReadValue::Proposal(proposal)) => first_sentence(proposal.reason.bytes()),
+            Some(ReadValue::Proposal(proposal)) => {
+                if proposal.reason.bytes().is_empty() {
+                    match &proposal.action {
+                        jig_client::contract::ProposalAction::Batch(tasks) => match tasks.get(0) {
+                            Some(task) => {
+                                let words = task.spec.specification.words.bytes();
+                                let end = skein_lib::bytes::find(words, b"\n").unwrap_or(words.len());
+                                words.get(..end).expect("batch heading").into()
+                            },
+                            None => title.clone(),
+                        },
+                        jig_client::contract::ProposalAction::Settings(_)
+                        | jig_client::contract::ProposalAction::Effect { .. }
+                        | jig_client::contract::ProposalAction::ProcedureEffect { .. }
+                        | jig_client::contract::ProposalAction::Amend { .. }
+                        | jig_client::contract::ProposalAction::Widen { .. }
+                        | jig_client::contract::ProposalAction::Release { .. } => title.clone(),
+                    }
+                } else {
+                    first_sentence(proposal.reason.bytes())
+                }
+            },
             Some(page) => {
                 let words = super::inbox::card_words(page);
                 if words.is_empty() { title.clone() } else { words }
@@ -238,9 +259,10 @@ pub(crate) fn link(b: &mut Builder, bindings: &mut Bindings, words: &[u8], addre
 }
 
 fn first_sentence(words: &[u8]) -> Box<[u8]> {
-    let end = match skein_lib::bytes::find(words, b". ") {
+    let sentence = match skein_lib::bytes::find(words, b". ") {
         Some(at) => at.checked_add(1).expect("sentence end fits"),
         None => words.len(),
     };
-    words.get(..end).expect("sentence in words").into()
+    let line = skein_lib::bytes::find(words, b"\n").unwrap_or(words.len());
+    words.get(..sentence.min(line)).expect("sentence in words").into()
 }

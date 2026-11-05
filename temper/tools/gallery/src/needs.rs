@@ -21,10 +21,17 @@ fn text(words: &str) -> c::DocumentText {
 fn object(task: u64) -> c::ObjectKey {
     c::ObjectKey::Question { task, message: 1 }
 }
-fn entries() -> List<c::InboxEntry> {
+fn first_object(name: &str) -> c::ObjectKey {
+    match name {
+        "needs-proposal" => c::ObjectKey::Proposal(c::ProposalKey { proposer: c::Proposer::Task(1), number: 1 }),
+        "needs-held" | "needs-funds" => c::ObjectKey::Escalation(1),
+        _ => object(1),
+    }
+}
+fn entries(name: &str) -> List<c::InboxEntry> {
     let mut entries = List::with_capacity(3);
     for task in 1..=3 {
-        entries.push(documents::entry(object(task), 1, task, Wall::EPOCH, None)).expect("three questions");
+        entries.push(documents::entry(if task == 1 { first_object(name) } else { object(task) }, 1, task, Wall::EPOCH, None)).expect("three questions");
     }
     entries
 }
@@ -36,7 +43,11 @@ pub fn domain(name: &str) -> Domain {
     let mut me = source.pages().me(source.client()).expect("fixture me").clone();
     me.projects.get_mut(0).expect("project").name = text("fabrig");
     me.needs_total = 3;
-    me.needs = c::Needs { questions: 3, proposals: 0, escalations: 0, person_tasks: 0 };
+    me.needs = c::Needs {
+        questions: if name == "needs-proposal" || name == "needs-held" || name == "needs-funds" { 2 } else { 3 },
+        proposals: u32::from(name == "needs-proposal"),
+        escalations: u32::from(name == "needs-held" || name == "needs-funds"), person_tasks: 0,
+    };
     let prototype = source
         .pages()
         .inbox()
@@ -74,7 +85,7 @@ pub fn domain(name: &str) -> Domain {
                     &mut root,
                     watch,
                     c::Delivery::Inbox(Box::new(documents::inbox(
-                        entries(),
+                        entries(name),
                         3,
                         c::Count { value: 0, limited: false },
                         0,
@@ -84,7 +95,7 @@ pub fn domain(name: &str) -> Domain {
                 );
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
-                let rows = if group == c::InboxReadGroup::Needs { entries() } else { List::with_capacity(0) };
+                let rows = if group == c::InboxReadGroup::Needs { entries(name) } else { List::with_capacity(0) };
                 driver::answer(
                     &mut root,
                     read,
@@ -118,6 +129,17 @@ pub fn domain(name: &str) -> Domain {
                 );
                 driver::answer(&mut root, read, c::ReadValue::Question(Box::new(q)), &mut out);
             }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { .. }) } => {
+                let mut p = source.pages().inbox().expect("source inbox").cards.iter().find_map(|card| {
+                    if let Some(c::ReadValue::Proposal(p)) = &card.page { Some(p.as_ref().clone()) } else { None }
+                }).expect("source proposal");
+                p.key = c::ProposalKey { proposer: c::Proposer::Task(1), number: 1 };
+                p.reason = text("Accept how temper will run your work. New work follows this plan.");
+                driver::answer(&mut root, read, c::ReadValue::Proposal(Box::new(p)), &mut out);
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Escalation { .. }) } => {
+                driver::answer(&mut root, read, c::ReadValue::Escalation(Box::new(escalation(name))), &mut out);
+            }
             _ => {}
         }
     }
@@ -142,4 +164,22 @@ fn actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
         }
         _ => {}
     }
+}
+
+fn escalation(name: &str) -> c::Escalation {
+    let source = worlds::world(World::Solo, Address::Task { task: 3, filter: temper_client_domain::PlanFilter::All }, Then::Held).0;
+    let mut task = source.pages().task().expect("task page").document(source.client()).expect("task").clone();
+    task.chip.task = 1;
+    task.chip.title = text("first-run-projects");
+    task.spec.specification.words = text("Both halves of the store task run. The Ready page waits for this decision.");
+    task.budget.numbers.spent = 31;
+    task.budget.numbers.budget = 40;
+    let hold = task.hold.as_mut().expect("held fixture");
+    hold.reason = if name == "needs-funds" { c::HoldCategory::Budget } else { c::HoldCategory::Failures { class: c::HoldFailure::Run } };
+    hold.words = Some(text("Without release the goal stops after they land, with the Ready page undone."));
+    // The escalation's offers are independent of its task's offers.
+    let mut acts = List::with_capacity(2);
+    acts.push(c::Offered { act: c::ActKind::Release, admission: c::Admission::Allowed, effect: Some(c::Effect::Release(c::ReleaseEffect::RunAgain)) }).expect("release");
+    acts.push(c::Offered { act: c::ActKind::LeaveHeld, admission: c::Admission::Allowed, effect: None }).expect("leave held");
+    c::Escalation { task: Box::new(task), acts }
 }
