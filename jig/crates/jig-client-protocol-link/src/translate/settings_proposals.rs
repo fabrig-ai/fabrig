@@ -222,7 +222,7 @@ fn decode_setting_pieces(values: &[u8], limits: &Limits) -> Result<List<c::Setti
     let mut reader = Reader::new(values);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        let piece = piece(&mut reader)?.ok_or(super::too_large())?;
+        let piece = super::piece(&mut reader)?.ok_or(super::too_large())?;
         let mut input = Reader::new(&piece);
         let row = w::SettingItem::decode(limits.receiving(), &mut input)?;
         if !input.is_empty() {
@@ -261,7 +261,7 @@ fn decode_review_pieces(values: &[u8], limits: &Limits) -> Result<List<c::Review
     let mut reader = Reader::new(values);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        let piece = piece(&mut reader)?.ok_or(super::too_large())?;
+        let piece = super::piece(&mut reader)?.ok_or(super::too_large())?;
         let mut input = Reader::new(&piece);
         let row = w::ReviewItem::decode(limits.receiving(), &mut input)?;
         if !input.is_empty() {
@@ -274,15 +274,9 @@ fn decode_review_pieces(values: &[u8], limits: &Limits) -> Result<List<c::Review
 fn piece_count(values: &[u8]) -> Result<u32, w::Problem> {
     let mut reader = Reader::new(values);
     for count in 0_u32..=128 {
-        if piece(&mut reader)?.is_none() {
+        if super::piece(&mut reader)?.is_none() {
             return Ok(count);
         }
     }
     Err(super::too_large())
-}
-fn piece(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, w::Problem> {
-    match skein_codec::piece::split(reader) {
-        Ok(value) => Ok(value),
-        Err(reason) => Err(super::piece_problem(reason)),
-    }
 }

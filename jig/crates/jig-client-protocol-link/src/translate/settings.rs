@@ -918,13 +918,9 @@ fn decode_setting_item_pieces(values: &[u8], limits: &Limits) -> Result<List<c::
     let count = item_count(values, limits)?;
     let mut reader = Reader::new(values);
     let mut rows = List::with_capacity(count);
+    let mut sum = 0_u64;
     for _ in 0_u32..=1024 {
-        let Some(piece) = (match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(super::piece_problem(reason)),
-        }) else {
-            return Ok(rows);
-        };
+        let Some(piece) = super::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let mut input = Reader::new(&piece);
         let row = w::SettingItem::decode(limits.receiving(), &mut input)?;
         if !input.is_empty() {
@@ -961,13 +957,9 @@ fn decode_revision_item_pieces(values: &[u8], limits: &Limits) -> Result<List<c:
     let count = item_count(values, limits)?;
     let mut reader = Reader::new(values);
     let mut rows = List::with_capacity(count);
+    let mut sum = 0_u64;
     for _ in 0_u32..=1024 {
-        let Some(piece) = (match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(super::piece_problem(reason)),
-        }) else {
-            return Ok(rows);
-        };
+        let Some(piece) = super::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let mut input = Reader::new(&piece);
         let row = w::RevisionItem::decode(limits.receiving(), &mut input)?;
         if !input.is_empty() {
@@ -1167,11 +1159,9 @@ fn item_count(values: &[u8], limits: &Limits) -> Result<u32, w::Problem> {
         return Err(super::too_large());
     }
     let mut reader = Reader::new(values);
+    let mut sum = 0_u64;
     for count in 0_u32..=1024 {
-        let piece = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(super::piece_problem(reason)),
-        };
+        let piece = super::next_piece(&mut reader, &mut sum, limits)?;
         if piece.is_none() {
             return Ok(count);
         }

@@ -1,5 +1,5 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
-use super::{Limits, List, Reader, bytes, c, piece_problem, too_large, w};
+use super::{Limits, List, Reader, bytes, c, too_large, w};
 
 pub(crate) fn cursor_fields(value: &w::Cursor, limits: &Limits) -> Result<c::Cursor, w::Problem> {
     match c::Cursor::new(bytes::copy_of(value.value()), limits.wire().cursor_value) {
@@ -40,21 +40,7 @@ pub(crate) fn task_line_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
     for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(too_large());
-        }
+        let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::TaskLine::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = crate::translate::queries::line(&row, limits)?;
         if rows.push(row).is_err() {
