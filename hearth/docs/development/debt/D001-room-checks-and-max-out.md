@@ -61,6 +61,11 @@ first, and each order's test is named beside it.
 | Where | Check | Keeps |
 |---|---|---|
 | `hearth-protocol-mmdebstrap/src/tail.rs`, `admit` | `tail.lines.room() == 0` | A capacity, `tail_lines`, at an edge. An order too: the oldest line leaves first. `generated_failures_keep_the_reference_s_tail_and_cause`, in `hearth/tests/mmdebstrap`. |
+| `hearth-protocol-builder/src/resolve.rs`, `requests` | capacity 1, twice | An order: one scan out at a time, which `Reader`'s `waiting` keeps. `a_pipe_reader_has_one_scan_out_whatever_the_cuts`, in `hearth/tests/mmdebstrap`. |
+| `hearth-protocol-builder/src/resolve.rs`, `seen` | capacity 1 | An order: a delivery gives one thing, the one `stream` takes, and the pipe's end comes last, once. `line`'s one return and `Reader`'s `ended` keep them. `a_delivery_gives_a_pipe_s_caller_at_most_one_thing` and `a_pipe_ends_once_and_last`, in `hearth/tests/mmdebstrap`. |
+| `hearth-protocol-builder/src/resolve.rs`, `pending` | capacity 4 | Nothing: it holds each pipe's next demand, and one scan out at a time keeps that to two. |
+| `hearth-protocol-builder/src/indices.rs`, `demands` | capacity 1, twice | An order: one scan out at a time, which `Stanzas`' `state` keeps. `a_list_reader_has_one_scan_out_whatever_the_cuts`, in `hearth/tests/mmdebstrap`. |
+| `hearth-protocol-builder/src/indices.rs`, `found`, and its loop on `UP_MAX_OUT.above` | capacity 2 | An order: a list's end follows its last stanza, once, which `up`'s `End` arm and `State::Ended` keep. `a_list_s_end_follows_its_last_stanza_and_comes_once`, in `hearth/tests/mmdebstrap`. A capacity too: one stanza a scan, `a_delivery_gives_a_list_s_caller_at_most_one_stanza`, there too. |
 | `hearth-protocol-builder/src/lib.rs`, `revision_stdout` | `stdout.room()`, three times | A capacity at an edge: `rev-parse`'s answer, of `MAX_STDOUT` and one byte to see excess. |
 | `hearth-protocol-builder/src/indices.rs`, `Indices` | `self.intake.room()` | A capacity: a read of a `Packages` file asks for no more than its intake holds. |
 | `hearth-protocol-tree/src/fields.rs`, `Fields::value` | `values.room()` | A capacity at an edge: a stored value's items, refused past `limit`. |
