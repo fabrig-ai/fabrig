@@ -3,3 +3,27 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-changes/inputs/request.md", "temper/docs/design/client/forge.md", "temper/docs/design/domain/after-landing.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "changes-wire"
+title = "the subject changes on the wire"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[part]]
+id = "landing-log"
+title = "family 30, a ring per repository, written at each merge"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/after-landing.md, 10"
+
+[[slice]]
+id = 1
+story = "a landing's title outlives its change's close, and the client's document has a shape"
+parts = ["changes-wire", "landing-log"]
+walk = false
