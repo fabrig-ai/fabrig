@@ -4107,6 +4107,7 @@ dependencies = [
  "skein-world",
  "smith-domain",
  "smith-protocol-machine",
+ "smith-tools-world",
 ]
 
 [[package]]
@@ -4271,14 +4272,11 @@ dependencies = [
  "skein-llm",
  "skein-llm-world",
  "skein-world",
- "smith-agent-service",
  "smith-domain",
  "smith-domain-session",
  "smith-domain-tools",
  "smith-protocol-llm",
- "smith-protocol-translate",
  "smith-tools-world",
- "smith-transcript",
 ]
 
 [[package]]
@@ -4290,7 +4288,6 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "smith-domain-tools",
- "smith-machine-world",
  "smith-protocol-machine",
 ]
 

@@ -513,3 +513,78 @@ fn removal_checks_versions_and_confines_one_file_or_empty_directory() {
         );
     }
 }
+
+const ALL: tools::Grants = tools::Grants { inspect: true, modify: true, shell: true };
+
+#[test]
+fn a_command_whose_child_outlives_it_ends_with_its_group_at_the_deadline() {
+    use skein_lib::{Duration, Env, Queue, Token, Wall};
+    use smith_tools_world::{Settings, calls::shell, fixture::Fixture};
+    use self::ALL;
+    use smith_protocol_machine::{FromDomain, ToDomain};
+    let calm = Settings::calm(101);
+    let limits = tools::Limits {
+        shell_output: 8,
+        shell_head: 4,
+        shell_tail: 4,
+        shell_timeout: Duration::from_millis(1),
+        tool_deadline: Duration::from_millis(1),
+        ..calm.tools
+    };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut domain = tools::Domain::new(&limits);
+    let mut out = Queue::uncapped();
+    tools::step(
+        &mut domain,
+        &env,
+        tools::Event::Open { jobs: 0, session: Token::new(1), authority: Fixture::new().authority(ALL) },
+        &mut out,
+    );
+    let Some(tools::Request::Opened { kit, .. }) = out.pop() else { panic!("native kit opened") };
+    while domain.pop_fact().is_some() {}
+    tools::step(
+        &mut domain,
+        &env,
+        tools::Event::Call {
+            kit,
+            reply_to: skein_lib::ReplyTo::new(Token::new(2)),
+            observation: None,
+            call: shell(b"fork", None),
+            deadline: Time::from_nanos(1_000_000_000),
+        },
+        &mut out,
+    );
+    let Some(tools::Request::Io { owner, op, deadline }) = out.pop() else { panic!("issued command") };
+    let mut machine = smith_machine_world::World::new(101, &[]);
+    let terminal = machine.request(FromDomain::Op { owner, op, deadline });
+    let ToDomain::Done { owner, done } = terminal else { panic!("native command terminal") };
+    assert!(machine.trace().iter().any(|entry| entry.contains("to: Group")));
+    machine.settle();
+    while domain.pop_fact().is_some() {}
+    let after = Env { now: machine.now(), ..env };
+    tools::step(&mut domain, &after, tools::Event::Done { owner, done }, &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(tools::Request::Answer {
+            to: skein_lib::ReplyTo::new(Token::new(2)),
+            outcome: exited(tools::Exit::TimedOut, b"", b"", 0),
+        })
+    );
+    while domain.pop_fact().is_some() {}
+    tools::step(&mut domain, &after, tools::Event::Close { kit }, &mut out);
+    assert_eq!(out.pop(), Some(tools::Request::Closed { session: Token::new(1) }));
+    domain.reclaim();
+    assert_eq!((domain.kits(), domain.flights()), (0, 0));
+}
+
+fn exited(exit: tools::Exit, head: &[u8], tail: &[u8], dropped: u64) -> tools::Outcome {
+    tools::Outcome::Exited {
+        exit,
+        head: head.into(),
+        tail: tail.into(),
+        dropped,
+        timeout: tools::TimeoutClamp::Within,
+        output: tools::BytesClamp::Within,
+    }
+}
+

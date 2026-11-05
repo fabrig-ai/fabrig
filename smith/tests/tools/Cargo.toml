@@ -15,9 +15,6 @@ smith-protocol-machine.workspace = true
 skein-fake-checkout.workspace = true
 skein-world.workspace = true
 
-[dev-dependencies]
-smith-machine-world = { path = "../machine" }
-
 # Ordinary Rust (programming-model.md, section 10.2), so not the step crates' lints.
 # tests/clippy.toml bans what would make a run unrepeatable.
 [lints.rust]

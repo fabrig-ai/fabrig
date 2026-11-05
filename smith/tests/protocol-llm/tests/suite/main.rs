@@ -24,6 +24,9 @@ mod referee;
 mod render;
 mod replay;
 mod tools;
+mod startup_receiving;
+mod turn_codec;
+mod window_room;
 mod workspace;
 
 mod fuzzy {
