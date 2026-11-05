@@ -105,7 +105,9 @@ Forgejo's command without its binary and paths
 configuration names a `uuid`, reading no row, where the `runner-labels`
 request of 2026-11-05 has the uuid match (`protocol/setup.md`), and a
 held task names no run's failure, which
-is the user's to decide (`domain/worker.md`); with
+is the user's to decide (`domain/worker.md`); a start past 20 slots on
+the owned example names a limit no document raises, and no test runs 8
+past a start (`domain/worker.md`); with
 `TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
 for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
