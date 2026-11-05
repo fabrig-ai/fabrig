@@ -238,7 +238,11 @@ pub(super) fn error_reply(server: &mut Server, env: &Env<Limits>, error: api::Er
             .expect("one header");
     }
     match git::server::error(error, &env.limits.git()) {
-        Ok(body) => respond(server, &env.limits, response::Reply { status: failure.status, headers: headers.into_boxed(), body }),
+        Ok(body) => respond(
+            server,
+            &env.limits,
+            response::Reply { status: failure.status, headers: headers.into_boxed(), body },
+        ),
         Err(_) => fail(server, &env.limits, 413),
     }
 }

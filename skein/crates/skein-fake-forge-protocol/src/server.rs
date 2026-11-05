@@ -91,9 +91,7 @@ impl Server {
     }
     #[must_use]
     pub fn has_work(&self) -> bool {
-        self.connection.has_work()
-            || !self.json_events.is_empty()
-            || !self.json_down.is_empty()
+        self.connection.has_work() || !self.json_events.is_empty() || !self.json_down.is_empty()
     }
 }
 pub fn start(
@@ -281,9 +279,10 @@ fn resume_on(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
+    let http_env = Env { now: env.now, wall: env.wall, limits: env.limits.http };
     for _ in 0..8u32 {
-        if !server.connection.events.is_empty() {
-            http_event(server, service, domain.as_mut(), env, above, below);
+        if let Some(turn) = connection::turn(&mut server.connection, &env.limits.http) {
+            http_event(server, service, domain.as_mut(), env, turn, above, below);
             if server.connection.head_pending() {
                 break;
             }
@@ -317,20 +316,8 @@ fn resume_on(
                 }
             }
         } else if let Some(down) = server.json_down.pop() {
-            connection::down(
-                &mut server.connection,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.http },
-                http::Request::Body(down),
-                below,
-            );
-        } else if let Some(request) = server.connection.requests.pop() {
-            connection::down(
-                &mut server.connection,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.http },
-                request,
-                below,
-            );
-        } else {
+            connection::down(&mut server.connection, &http_env, http::Request::Body(down), below);
+        } else if !connection::request(&mut server.connection, &http_env, below) {
             break;
         }
     }
@@ -355,11 +342,7 @@ pub fn close(
     json_down(server, env, json::Request::Close);
     server.json_events.clear();
     server.json_down.clear();
-    connection::close(
-        &mut server.connection,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.http },
-        below,
-    );
+    connection::close(&mut server.connection, &Env { now: env.now, wall: env.wall, limits: env.limits.http }, below);
     above.push(Event::Close);
 }
 pub fn closed(
@@ -414,10 +397,11 @@ fn http_event(
     service: &mut Service,
     domain: Option<&mut Hosted<'_>>,
     env: &Env<Limits>,
+    turn: Turn,
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    match connection::turn(&mut server.connection, &env.limits.http).expect("pending HTTP event") {
+    match turn {
         Turn::Call(call) => entrance(server, service, domain, env, call, above),
         Turn::Body(up) => {
             if server.connection.state == State::Body {
@@ -536,7 +520,11 @@ fn decoded(
         return;
     }
     if let Some(message) = missing_scope(&request, &server.scopes) {
-        respond(server, &env.limits, response::failure(&env.limits, errors::Failure { status: 403, message, retry_after: None }));
+        respond(
+            server,
+            &env.limits,
+            response::failure(&env.limits, errors::Failure { status: 403, message, retry_after: None }),
+        );
         return;
     }
     if let Some(reply) = service.setup.answer_with_domain(&request, server.user, &mut service.config, env, domain) {
@@ -804,7 +792,12 @@ fn respond(server: &mut Server, limits: &Limits, reply: response::Reply) {
     connection::respond(
         &mut server.connection,
         &limits.http,
-        connection::Reply { status: reply.status, headers: headers.into_boxed(), body: reply.body, bodyless: reply.status == 204 },
+        connection::Reply {
+            status: reply.status,
+            headers: headers.into_boxed(),
+            body: reply.body,
+            bodyless: reply.status == 204,
+        },
     );
 }
 
