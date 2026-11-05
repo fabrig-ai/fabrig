@@ -324,8 +324,8 @@ const ROOT: Root = Root {
         transcript_bytes: 65_536,
         // At least brief.brief_bytes and jig small people.words: the root's worst case.
         result_bytes: 14_592,
-        // Run charter carrier in the root's worst case; jig small core.run_bytes.
-        run_bytes: 16_384,
+        // The fake backends' stock charter carrier needs 16,446 bytes.
+        run_bytes: 20_480,
     },
     loads: engine::loads::Limits {
         // Concurrent loads, from the root world.
@@ -389,9 +389,9 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
         reviews: 131_584,
         ..ROOT.brief.budgets
     },
-    // tests/stock_brief.rs derives charter 1's room (362,335) less 1,472
-    // bytes for 64 titles and framing and 588 margin; below 395,520.
-    brief_bytes: 360_275,
+    // tests/stock_brief.rs derives charter 1's room (361,474) less 1,472
+    // bytes for 64 titles and framing and 567 margin; below 395,520.
+    brief_bytes: 359_435,
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {
