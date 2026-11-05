@@ -8,7 +8,7 @@
   `Board { project }` with its reordering, no address in
   `temper-client-domain`'s `address.rs`. 3.5, 4.6, 5.3, 5.10:
   `Changes { project }`, its subject `changes`, its rail's entry and a
-  change's breadcrumb. 3.5, 5.13, 10:
+  change's breadcrumb. 5.3: the banner's "Board" and "Changes". 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
   with their tests; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
