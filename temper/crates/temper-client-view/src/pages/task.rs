@@ -147,6 +147,15 @@ pub(crate) fn act(
         c::Admission::Allowed | c::Admission::Bounded { .. } => {
             b.open(Role::Button);
             b.name(&words.say(word, &[]));
+            if task.priority.is_some() {
+                b.style(look::GOAL_BTN);
+                if word != Word::SendAmendment {
+                    b.style(look::GOAL_SMALL);
+                }
+                if kind == c::ActKind::Cancel {
+                    b.style(look::GOAL_QUIET);
+                }
+            }
             b.bind(bindings.insert(act));
             b.close();
         }
@@ -191,14 +200,17 @@ fn amendment_outcome(b: &mut Builder, root: &Domain, words: &Words, bindings: &m
             ..
         })) = outcome
         {
-            button(b, Word::LookAgain, Act::AmendAgain, words, bindings);
+            button(b, Word::LookAgain, Act::AmendAgain, words, bindings, page.shape == Shape::Tracked);
         }
     }
 }
 
-fn button(b: &mut Builder, word: Word, act: Act, words: &Words, bindings: &mut Bindings) {
+fn button(b: &mut Builder, word: Word, act: Act, words: &Words, bindings: &mut Bindings, goal: bool) {
     b.open(Role::Button);
     b.name(&words.say(word, &[]));
+    if goal {
+        b.style(look::GOAL_BTN);
+    }
     b.bind(bindings.insert(act));
     b.close();
 }
@@ -208,7 +220,8 @@ pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings:
     let Some(open) = &page.amending else { return };
     let Some(task) = page.document(root.client()) else { return };
     b.open(Role::Region);
-    b.style(look::TASK_AMEND);
+    let goal = page.shape == Shape::Tracked;
+    b.style(if goal { look::GOAL_FIELD } else { look::TASK_AMEND });
     let title = words.say(Word::AmendTask, &[Hole::Number(page.number)]);
     b.name(&title);
     text(b, Role::Heading { level: 2 }, &title);
@@ -223,6 +236,9 @@ pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings:
         // The text area's name is its label too, drawn where a person sees it.
         text(b, Role::Paragraph, &words.say(Word::Specification, &[]));
         b.open(Role::TextArea);
+        if goal {
+            b.style(look::GOAL_TEXT);
+        }
         b.name(&words.say(Word::Specification, &[]));
         b.value(&open.words, 0);
         b.bind(bindings.insert(Act::AmendWords { words: Box::default() }));
@@ -237,6 +253,9 @@ pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings:
         }
         b.close();
         b.open(Role::TextField);
+        if goal {
+            b.style(look::GOAL_TEXT);
+        }
         b.name(&words.say(Word::AmendPriority, &[]));
         let priority = match tracking {
             c::Tracking::Tracked { priority } => priority,
@@ -257,7 +276,7 @@ pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings:
     } else {
         act(b, task, c::ActKind::Amend, Word::SendAmendment, Act::SendAmendment, words, bindings);
     }
-    button(b, Word::Discard, Act::DiscardAmendment, words, bindings);
+    button(b, Word::Discard, Act::DiscardAmendment, words, bindings, goal);
     amendment_outcome(b, root, words, bindings);
     b.close();
 }

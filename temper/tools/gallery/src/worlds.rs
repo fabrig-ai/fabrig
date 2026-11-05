@@ -1595,6 +1595,11 @@ impl GoalPage {
         task.chip = goal_line(w, &self.facts).chip;
         task.label = 2;
         task.priority = Some(1);
+        task.acts = offers(&[
+            c::ActKind::Amend,
+            if self.facts.state == GoalState::Paused { c::ActKind::Release } else { c::ActKind::Stop },
+            c::ActKind::Cancel,
+        ]);
         task.goal = Some(self.facts.number);
         task.requester = match self.facts.number {
             118 => c::Requester::Task(2),

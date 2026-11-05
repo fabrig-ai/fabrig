@@ -132,6 +132,8 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         Act::Cancel => pages.confirm = None,
         Act::MessageWords { .. }
         | Act::Send
+        | Act::Pause
+        | Act::Resume
         | Act::Stop
         | Act::Close
         | Act::DelegateFate { .. }
