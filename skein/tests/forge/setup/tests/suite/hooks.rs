@@ -260,7 +260,7 @@ fn the_host_adopt_waits_for_the_secret_write_then_makes_the_hook_before_done() {
     assert!(world.heard().is_empty());
     assert!(world.file(Item::WebhookSecret).is_none());
     assert_eq!(world.store().repository_hooks(1).count(), 0);
-    assert_eq!(world.requests().routes.get(&Route::ApiSettings), None);
+    assert_eq!(world.tally().routes.get(&Route::ApiSettings), None);
     let Some(Need::Write { item: Item::WebhookSecret, bytes }) = world.needs().last() else {
         panic!("webhook secret write")
     };
@@ -279,14 +279,14 @@ fn the_host_adopt_waits_for_the_secret_write_then_makes_the_hook_before_done() {
         hook.id
     };
     assert_eq!(world.heard(), &[Heard::Done { run: Token::new(1), outcome: Outcome::Nothing, at: Duration::ZERO }]);
-    assert_eq!(world.requests().routes.get(&Route::CreateRepoHook), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::CreateRepoHook), Some(&1));
 
     let since = world.needs().len();
     world.run_plan(2, plan);
     world.finish();
     assert_eq!(world.store().repository_hooks(1).next().expect("kept hook").id, hook_id);
-    assert_eq!(world.requests().routes.get(&Route::CreateRepoHook), Some(&1));
-    assert_eq!(world.requests().routes.get(&Route::EditRepoHook), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::CreateRepoHook), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::EditRepoHook), Some(&1));
     assert_eq!(
         world.needs().get(since..),
         Some([Need::Read(Item::AdminToken), Need::Read(Item::WebhookSecret)].as_slice())

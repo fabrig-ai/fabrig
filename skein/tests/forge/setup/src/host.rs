@@ -1,6 +1,6 @@
 //! The host over HTTP bytes, a fake Forgejo and io played by hand
 //! (skein/docs/design/forge-setup.md, 6.3).
-use crate::{fixtures, tls::Carrier, world::seeded_config};
+use crate::{fixtures, tls::Carrier, host::plans::seeded_config};
 use skein_fake_forge_domain as domain;
 use skein_fake_forge_forgejo::{self as fake, Service};
 use skein_forge_machine_world::github::{self, Fake};
@@ -56,11 +56,19 @@ struct Peer {
 }
 #[path = "closing.rs"]
 mod closing;
+#[path = "plans.rs"]
+mod plans;
+pub use plans::Ended;
 #[path = "memory.rs"]
 pub mod memory;
 type CopyKey = (u16, Box<[u8]>, Box<[u8]>);
 
 pub struct HostWorld {
+    repositories: Vec<fake::Repository>,
+    forge: skein_forge_setup::host::Forge,
+    adopted: Box<[u64]>,
+    requests: Vec<skein_forge::forgejo::request::Request>,
+    secrets: Vec<Secret>,
     host: memory::Metered,
     tls_addresses: Vec<skein_io::Addr>,
     env: Env<Limits>,
@@ -215,13 +223,22 @@ impl HostWorld {
                 skein_forge_setup::host::Transport::Tls { .. } => Some(forge.address),
             })
             .collect();
-        let (service, fake_limits) = seeded_config(seed, false, config);
+        let forge = settings.forges.as_slice().iter().find(|forge| forge.forgejo().is_some())
+            .cloned().expect("Forgejo fixture");
+        let owned = forge.forgejo().is_some_and(|given| given.org_owner.is_some());
+        let repositories = config.repositories.iter().cloned().collect();
+        let (service, fake_limits) = seeded_config(seed, owned, config);
         let mut documents = skein_forge_setup::host::documents(&limits);
         // The host may retain a larger GitHub PEM scalar than Forgejo's peer emits.
         assert!(documents.string_bytes >= fake_limits.documents.string_bytes);
         documents.string_bytes = fake_limits.documents.string_bytes;
         assert_eq!(documents, fake_limits.documents);
         Self {
+            repositories,
+            forge,
+            adopted: Box::new([]),
+            requests: Vec::new(),
+            secrets: vec![fixtures::secret(fixtures::ADMIN)],
             host: memory::Metered::new(Host::new(&limits, settings, fixtures::crypto()).expect("host fixtures")),
             tls_addresses,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -316,6 +333,9 @@ impl HostWorld {
         self.service.setup_mut()
     }
     pub fn put(&mut self, item: Item, bytes: Secret) {
+        if matches!(item, Item::AdminToken | Item::ApiToken | Item::GitToken | Item::WebhookSecret) {
+            self.secrets.push(bytes.clone());
+        }
         if let Some((_, value)) = self.files.iter_mut().find(|(key, _)| *key == item) {
             *value = bytes;
         } else {
@@ -384,7 +404,7 @@ impl HostWorld {
         }
     }
     #[must_use]
-    pub fn requests(&self) -> &fake::Tally {
+    pub fn tally(&self) -> &fake::Tally {
         self.service.tally()
     }
     pub fn close(&mut self) {
@@ -527,6 +547,12 @@ impl HostWorld {
                         fake::up(server, &mut self.service, &self.fake_env, event, &mut peer.above, &mut peer.below);
                     }
                     drop(server.take_head());
+                    while let Some(request) = server.take_request() {
+                        if let skein_forge::forgejo::request::Request::CreateUser { password, .. } = &request {
+                            self.secrets.push(password.clone());
+                        }
+                        self.requests.push(request);
+                    }
                 } else if peer.github {
                     github_answer(
                         peer,
@@ -545,12 +571,29 @@ impl HostWorld {
             let peer = self.peers.get_mut(&owner).expect("peer");
             while let Some(event) = peer.above.pop() {
                 match event {
-                    fake::Event::Domain(event) => domain::step(
-                        self.domain.as_mut().expect("repository domain"),
-                        &self.domain_env,
-                        event,
-                        &mut self.domain_out,
-                    ),
+                    fake::Event::Domain(event) => {
+                        if let Some(domain) = &mut self.domain {
+                            domain::step(domain, &self.domain_env, event, &mut self.domain_out);
+                        } else {
+                            let domain::Event::Call { reply_to, user, repository,
+                                op: domain::api::Op::Read(domain::api::Read::ListingPermission) } = event else {
+                                panic!("unexpected repository domain call")
+                            };
+                            let id = self.repositories.iter().find(|repo| repo.full == repository)
+                                .expect("scenario repository").id;
+                            let login = &self.forge.forgejo().expect("Forgejo fixture").bot_login;
+                            let grant = self.service.setup().find(login).filter(|account| account.id == user)
+                                .and_then(|account| self.service.setup().collaborator(id, &account.login));
+                            let permission = match grant {
+                                None => domain::api::Permission::None,
+                                Some(skein_forge::forgejo::request::Grant::Read) => domain::api::Permission::Read,
+                                Some(skein_forge::forgejo::request::Grant::Write) => domain::api::Permission::Write,
+                                Some(skein_forge::forgejo::request::Grant::Admin) => domain::api::Permission::Admin,
+                            };
+                            self.domain_out.push(domain::Request::Reply {
+                                to: reply_to, result: Ok(domain::api::Answer::Permission(permission)) });
+                        }
+                    }
                     fake::Event::Close => {
                         fake::closed(
                             peer.server.as_mut().expect("fake server"),

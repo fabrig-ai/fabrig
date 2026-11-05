@@ -5,15 +5,11 @@ use skein_forge_setup::item::Item;
 use skein_forge_setup::{
     call::{Auth, Call},
     given::Given,
-    reconcile::{self, Event, Failure, Need, Outcome, Reconcile, Reply},
+    reconcile::{self, Event, Need, Outcome, Reconcile, Reply},
 };
 use skein_lib::{Env, Queue, Rng, Secret, Time, Wall};
 use std::net::SocketAddr;
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Ended {
-    Done,
-    Stop(Failure),
-}
+use crate::Ended;
 pub struct World {
     given: Given,
     domain: Option<skein_fake_forge_domain::Domain>,
