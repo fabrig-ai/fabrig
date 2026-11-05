@@ -300,7 +300,9 @@ fn world_in_layout(
                         }
                         c::Subject::Inbox { window } => Some(c::Delivery::Inbox(Box::new(inbox_window(w, window)))),
                         c::Subject::Task { task: number } => {
-                            let mut task = shown_task(w, number, then);
+                            let mut task = page_goal(goals)
+                                .filter(|g| g.facts.number == number)
+                                .map_or_else(|| shown_task(w, number, then), |g| g.document(w));
                             if configuring_chat {
                                 configuring_chip(&mut task.chip);
                             }
@@ -315,7 +317,11 @@ fn world_in_layout(
                             }
                             Some(c::Delivery::Task(Box::new(task)))
                         }
-                        c::Subject::Tree { task, window } => Some(plan_tree(w, task, window, then)),
+                        c::Subject::Tree { task, window } => Some(
+                            page_goal(goals)
+                                .filter(|g| g.facts.number == task)
+                                .map_or_else(|| plan_tree(w, task, window, then), |g| g.tree(w, window)),
+                        ),
                         c::Subject::Deployment => {
                             let mut doc = deployment(w);
                             if let Then::Hosts { connected: true, .. } = then {
@@ -1080,8 +1086,40 @@ fn proposal() -> c::ReadValue {
         }
     }))
 }
+#[expect(clippy::too_many_lines, reason = "one dispatch answers every gallery read with its world fixture")]
 fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Option<c::ReadValue> {
+    if let Some(goal) = page_goal(goals)
+        && let Some(value) = goal.read(w, what)
+    {
+        return Some(value);
+    }
     match what {
+        c::Read::Tasks { query, .. } if query.tracked == Some(true) && query.requester.is_some() => {
+            let mut rows = List::with_capacity(1);
+            for number in [3, 12] {
+                if (w == Solo && number == 3) || (w == Reference && number == 12) {
+                    let task = document(w, number);
+                    if *query == temper_client_domain::pages::goal::own_line_query(&task) {
+                        let children = facts(w, number).children;
+                        let mut line = task_line(task);
+                        line.delegates_total = u32::try_from(children.len()).expect("few delegates");
+                        line.delegates_done = u32::try_from(
+                            children
+                                .iter()
+                                .filter(|n| matches!(facts(w, **n).phase, c::Phase::Done | c::Phase::Ended))
+                                .count(),
+                        )
+                        .expect("few delegates");
+                        rows.push(line).expect("one goal");
+                    }
+                }
+            }
+            Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                live: rows,
+                live_after: None,
+                ended: c::EndedGroup::None,
+            })))
+        }
         c::Read::Tasks { query, .. } if query.tracked == Some(true) => {
             Some(c::ReadValue::Tasks(Box::new(goal_page(w, goals))))
         }
@@ -1094,8 +1132,8 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
                 goal_notes(w, scope)
             },
         ))),
-        c::Read::Inbox { group, project, .. } => {
-            Some(c::ReadValue::Inbox(Box::new(goal_inbox(w, *group, *project, goals))))
+        c::Read::Inbox { group, project, goal, .. } => {
+            Some(c::ReadValue::Inbox(Box::new(goal_inbox(w, *group, *project, *goal, goals))))
         }
         c::Read::Tasks { query: c::TaskQuery { parent: Some(parent), phase, .. }, .. }
             if *phase == Some(c::PhaseClass::Ended) =>
@@ -1562,13 +1600,43 @@ fn goal_notes(w: World, scope: &c::NoteScope) -> c::NotePage {
     }
     c::NotePage { rows, before: None, after: None, cut: false }
 }
-fn goal_inbox(w: World, group: c::InboxReadGroup, project: Option<u32>, name: Option<&str>) -> c::InboxPage {
+fn goal_inbox(
+    w: World,
+    group: c::InboxReadGroup,
+    project: Option<u32>,
+    goal: Option<u64>,
+    name: Option<&str>,
+) -> c::InboxPage {
     let room = u32::try_from(goal_facts(w).len()).expect("small goals");
     let mut rows = List::with_capacity(room);
     let mut selection = List::with_capacity(room);
+    if w == Solo
+        && goal == Some(3)
+        && group == c::InboxReadGroup::Needs
+        && project.is_none_or(|project| project == PROJECT)
+    {
+        let object = c::InboxObject::Question { message: 1 };
+        let at = Some(offset(w, -18));
+        let cursor = c::InboxCursor::Inbox { task: 3, object, at };
+        rows.push(c::InboxEntry {
+            reply: None,
+            task: c::TaskLink::Live(document(w, 3).chip),
+            project: Some(PROJECT),
+            object,
+            activity: Some(1),
+            at,
+            unread: Some(true),
+            cursor,
+        })
+        .expect("solo goal question");
+        selection
+            .push(c::InboxSelection { cursor, goals: List::from_boxed(Box::new([3])) })
+            .expect("solo goal selection");
+    }
     for f in goal_facts(w) {
         if group == c::InboxReadGroup::Needs
             && project.is_none_or(|project| project == PROJECT)
+            && goal.is_none_or(|goal| goal == f.number)
             && matches!(f.state, GoalState::Needs { .. })
             && goal_in_sample(f, name)
         {
@@ -1595,6 +1663,379 @@ fn goal_inbox(w: World, group: c::InboxReadGroup, project: Option<u32>, name: Op
         }
     }
     c::InboxPage { rows, selection: Some(selection), before: None, after: None, cut: false }
+}
+
+/// The goal page's mock records (temper/docs/design/client/browser.md, 7.2).
+struct GoalPage {
+    facts: GoalFacts,
+    brief: &'static str,
+    body: &'static str,
+    spent: u64,
+    budget: u64,
+    made: i64,
+    whole: bool,
+    delegates: &'static [(&'static str, c::Phase, i64)],
+}
+#[expect(clippy::too_many_lines, reason = "four mock goals keep their report words and delegate records together")]
+fn page_goal(name: Option<&str>) -> Option<GoalPage> {
+    let name = name?;
+    let mut page = match name {
+        "goal-running" | "goal-needs-funds" | "goal-paused" | "goal-no-report" => GoalPage {
+            facts: GoalFacts {
+                number: 108,
+                title: "first-run-projects",
+                state: GoalState::Running,
+                done: 6,
+                total: 9,
+                headline: Some(
+                    "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+                ),
+                at: -2,
+            },
+            brief: "Build first-run-projects.\nDraft: docs/design/draft/first-run-projects.md\nChat: T1",
+            body: "The project records, the project page’s empty state and the welcome’s Default project landed on the goal branch overnight, each checked. The Ready page waits on the store task.\n\nThe store task adds the project policy record to jig’s store. It failed twice on the wasm client’s size limit, so I split it: the record and its migration first, the client’s lazy loading second. Both run now, about 4 each.\n\nLeft: the two halves, the Ready page’s Open Default, and the welcome journey’s print.\nRisk: lazy loading touches every page that lists projects; its check runs the client’s journeys.\nDecided: Split the store task, 05:40 · Retried it once, 05:12 · Kept the Default project’s name in English, 01:20",
+            spent: 31,
+            budget: 40,
+            made: -770,
+            whole: true,
+            delegates: &[
+                ("Project records", c::Phase::Ended, -620),
+                ("Project page, empty state", c::Phase::Ended, -465),
+                ("Welcome’s Default project", c::Phase::Ended, -358),
+                ("Playground project", c::Phase::Ended, -270),
+                ("Banner’s set-up link", c::Phase::Ended, -230),
+                ("Pane’s playground line", c::Phase::Ended, -179),
+                ("Store: policy record", c::Phase::Running, -22),
+                ("Client: lazy project loading", c::Phase::Running, -12),
+                ("Ready page’s Open Default", c::Phase::Waiting, -12),
+            ],
+        },
+        "goal-needs-question" | "goal-stopped" => GoalPage {
+            facts: GoalFacts {
+                number: 118,
+                title: "welcome-stall",
+                state: GoalState::Needs { funds: false },
+                done: 1,
+                total: 3,
+                headline: Some("Reproduced in a box test; the fault is in jig’s store. Waiting on where to fix it."),
+                at: -36,
+            },
+            brief: "Fix the welcome stall.\nChat: T2",
+            body: "The box test walks the welcome to Ready and presses Open Default. MakeProject’s write lands in the store, then the client’s watch closes before the answer arrives, so the page waits forever.\n\nTwo fixes work in a spike: jig’s store answers before it closes the watch, which changes a stored record; or temper serve keeps the watch open until the answer. Both pass the box test.\n\nLeft: the fix, wherever it goes, and the box test landing with it.\nRisk: none known beyond the choice itself.\nDecided: Wrote the box test before the fix, 19:05",
+            spent: 4,
+            budget: 15,
+            made: -820,
+            whole: false,
+            delegates: &[
+                ("Box test: Open Default", c::Phase::Ended, -560),
+                ("The fix", c::Phase::Waiting, -40),
+                ("Welcome-set-up journey", c::Phase::Waiting, -40),
+            ],
+        },
+        "goal-planning" | "goal-failed" => GoalPage {
+            facts: GoalFacts {
+                number: 122,
+                title: "forge-cards",
+                state: GoalState::Planning,
+                done: 0,
+                total: 0,
+                headline: None,
+                at: -50,
+            },
+            brief: "Build forge-cards.\nDraft: docs/design/draft/forge-cards.md\nChat: T1",
+            body: "",
+            spent: 3,
+            budget: 20,
+            made: -235,
+            whole: true,
+            delegates: &[],
+        },
+        "goal-landed" | "goal-landed-open" => GoalPage {
+            facts: GoalFacts {
+                number: 123,
+                title: "pane-chat-line",
+                state: GoalState::Landed,
+                done: 2,
+                total: 2,
+                headline: Some("Landed whole at 01:12: two tasks and one journey print."),
+                at: -408,
+            },
+            brief: "Make the pane’s chat one compact line.\nChat: T3",
+            body: "A chat in the side pane is one compact line: its title and when, then its status and T number, the whole line its link.\n\nLeft: nothing.\nRisk: none.",
+            spent: 5,
+            budget: 10,
+            made: -570,
+            whole: true,
+            delegates: &[("Pane chat line", c::Phase::Ended, -430), ("Journey print", c::Phase::Ended, -408)],
+        },
+        _ => return None,
+    };
+    match name {
+        "goal-needs-funds" => page.facts.state = GoalState::Needs { funds: true },
+        "goal-paused" => page.facts.state = GoalState::Paused,
+        "goal-no-report" => page.facts.headline = None,
+        "goal-stopped" => {
+            page.facts.state = GoalState::Stopped;
+            page.facts.headline = None;
+        }
+        "goal-failed" => page.facts.state = GoalState::Failed,
+        _ => {}
+    }
+    Some(page)
+}
+fn goal_doc(words: &str) -> c::DocumentText {
+    c::DocumentText::complete(c::Text::new(words.as_bytes().into(), 4096).expect("mock report and question words"))
+}
+// The goal mock’s morning is Tuesday, two days before the Reference world’s.
+fn goal_wall(w: World, minutes: i64) -> Wall {
+    offset(w, minutes - 2880)
+}
+impl GoalPage {
+    fn document(&self, w: World) -> c::Task {
+        let mut task = base_task(self.facts.number, self.facts.title);
+        task.chip = goal_line(w, &self.facts).chip;
+        task.label = 2;
+        task.priority = Some(1);
+        task.acts = offers(&[
+            c::ActKind::Message,
+            c::ActKind::Amend,
+            if self.facts.state == GoalState::Paused { c::ActKind::Release } else { c::ActKind::Stop },
+            c::ActKind::Cancel,
+        ]);
+        task.goal = Some(self.facts.number);
+        task.requester = match self.facts.number {
+            118 => c::Requester::Task(2),
+            123 => c::Requester::Task(3),
+            _ => c::Requester::Person(73),
+        };
+        task.flags.conversation = false;
+        task.flags.listed = true;
+        task.spec.specification.words = doc(self.brief);
+        task.made = goal_wall(w, self.made);
+        task.changed = goal_wall(w, self.facts.at);
+        task.last_activity = task.changed;
+        task.budget.numbers.spent = self.spent;
+        task.budget.numbers.budget = self.budget;
+        task.budget.left = self.budget.saturating_sub(self.spent);
+        task.chip.details.details.budget = task.budget.clone();
+        task.hold = task.chip.details.details.hold.clone().map(Box::new);
+        if self.facts.state == (GoalState::Needs { funds: true }) {
+            let mut prototype = shown_task(Solo, 3, Then::Held);
+            let mut hold = prototype.hold.take().expect("held task");
+            hold.reason = c::HoldCategory::Budget;
+            hold.words = Some(doc(
+                "Both halves of the store task run, about 4 each. Without funds the goal stops after they land, with the Ready page undone.",
+            ));
+            task.chip.details.phase = c::ChipPhase::Held {
+                reason: c::HoldCategory::Exceeded(c::Exceeded { bound: c::Bound::Answer, value: 1 }),
+                revision: hold.revision,
+            };
+            task.chip.details.details.hold = Some(*hold.clone());
+            task.hold = Some(hold);
+        }
+        if goal_ended(&self.facts) {
+            let ending = match self.facts.state {
+                GoalState::Landed => c::ChipEnding::Done(c::ResultValue::Report(doc(
+                    "Landed whole at 01:12: two tasks and one journey print.",
+                ))),
+                GoalState::Stopped => c::ChipEnding::Cancelled {
+                    reason: doc("Stopped by you."),
+                    result: None,
+                    by: c::Requester::Person(73),
+                    at: task.changed,
+                },
+                GoalState::Failed => c::ChipEnding::Failed(doc("The owned set up could not create work/hello.")),
+                _ => unreachable!("ended goal state"),
+            };
+            task.result = Some(c::TaskResult::Ending(Box::new(ending.clone())));
+            task.chip.details.details.ending = Some(ending);
+            task.chip.details.details.ended_at = Some(task.changed);
+            task.acts.clear();
+        }
+        if self.whole {
+            let number = self.facts.number.to_string();
+            task.resources = List::with_capacity(1);
+            task.resources
+                .push(c::ResourceLine {
+                    part: c::Part {
+                        connector: FORGE,
+                        kind: c::PartKind::Resource,
+                        key: c::PartKey::Path(path(&[b"temper", number.as_bytes(), format!("g{number}").as_bytes()])),
+                    },
+                    kind: 1,
+                    taken: true,
+                    holder: Some(self.facts.number),
+                    writer: None,
+                    writer_lost: false,
+                })
+                .expect("goal branch");
+        }
+        task
+    }
+    fn delegate(&self, w: World, index: usize) -> c::TaskLine {
+        let (title, phase, at) = self.delegates[index];
+        let number = self.facts.number + u64::try_from(index).expect("small delegate index") + 1;
+        let mut task = base_task(number, title);
+        task.flags.conversation = false;
+        task.requester = c::Requester::Task(self.facts.number);
+        task.chip.phase = phase;
+        task.last_activity = goal_wall(w, at);
+        if phase == c::Phase::Ended {
+            task.result =
+                Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Report(doc("Landed."))))));
+        }
+        let mut line = task_line(finish_document(task));
+        let dependencies: &[u64] = match (self.facts.number, index) {
+            (108, 8) => &[115, 116],
+            (118, 2) => &[120],
+            _ => &[],
+        };
+        if !dependencies.is_empty() {
+            line.chip.details.phase = c::ChipPhase::Waiting {
+                dependencies: List::from_boxed(Box::from(dependencies)),
+                more: false,
+                holds: false,
+            };
+        }
+        line
+    }
+    fn tree(&self, w: World, window: u32) -> c::Delivery {
+        let mut rows = List::with_capacity(window);
+        for index in 0..self.delegates.len() {
+            let line = self.delegate(w, index);
+            if line.chip.phase != c::Phase::Ended {
+                rows.push(c::TreeRow {
+                    chip: line.chip,
+                    parent: self.facts.number,
+                    depth: 1,
+                    proposals: List::with_capacity(0),
+                    spent: 0,
+                    dependencies: List::with_capacity(0),
+                    cut: false,
+                })
+                .expect("goal live delegates fit");
+            }
+        }
+        c::Delivery::Tree(Box::new(c::Tree {
+            root: self.document(w).chip,
+            rows,
+            folded: List::with_capacity(0),
+            held_below: 0,
+            next: None,
+        }))
+    }
+    #[expect(clippy::too_many_lines, reason = "one dispatch answers the goal’s related read documents")]
+    fn read(&self, w: World, what: &c::Read) -> Option<c::ReadValue> {
+        match what {
+            c::Read::Tasks { query, .. }
+                if *query == temper_client_domain::pages::goal::own_line_query(&self.document(w)) =>
+            {
+                let mut line = task_line(self.document(w));
+                line.delegates_done = self.facts.done;
+                line.delegates_total = self.facts.total;
+                let rows = List::from_boxed(Box::new([line]));
+                let page = if goal_ended(&self.facts) {
+                    c::TaskPage {
+                        live: List::with_capacity(0),
+                        live_after: None,
+                        ended: c::EndedGroup::Rows { rows, after: None, cut: false },
+                    }
+                } else {
+                    c::TaskPage { live: rows, live_after: None, ended: c::EndedGroup::None }
+                };
+                Some(c::ReadValue::Tasks(Box::new(page)))
+            }
+            c::Read::Tasks { query, .. } if query.parent == Some(self.facts.number) => {
+                let mut rows = List::with_capacity(self.facts.total);
+                for index in 0..self.delegates.len() {
+                    let line = self.delegate(w, index);
+                    if line.chip.phase == c::Phase::Ended {
+                        rows.push(line).expect("ended delegates");
+                    }
+                }
+                Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    live: List::with_capacity(0),
+                    live_after: None,
+                    ended: c::EndedGroup::Rows { rows, after: None, cut: false },
+                })))
+            }
+            c::Read::Notes { scope, .. }
+                if *scope == (c::NoteScope::Task { project: PROJECT, task: self.facts.number }) =>
+            {
+                let mut rows = List::with_capacity(1);
+                if let Some(headline) = self.facts.headline {
+                    rows.push(c::Note {
+                        number: 1,
+                        revision: c::Revision { value: 1 },
+                        scope: scope.clone(),
+                        description: doc(&format!("report: {headline}")),
+                        body: goal_doc(self.body),
+                        writer: c::NoteAuthor::Task { task: self.facts.number, attempt: 1 },
+                        tasks: List::with_capacity(0),
+                        changed: Some(goal_wall(w, self.facts.at)),
+                        acts: List::with_capacity(0),
+                        cut: false,
+                    })
+                    .expect("goal report");
+                }
+                Some(c::ReadValue::Notes(Box::new(c::NotePage { rows, before: None, after: None, cut: false })))
+            }
+            c::Read::Inbox { group, goal: Some(goal), .. } if *goal == self.facts.number => {
+                let mut rows = List::with_capacity(1);
+                let mut selection = List::with_capacity(1);
+                if *group == c::InboxReadGroup::Needs && matches!(self.facts.state, GoalState::Needs { .. }) {
+                    let (task, object) = if self.facts.state == (GoalState::Needs { funds: true }) {
+                        (self.facts.number, c::InboxObject::Escalation { revision: 7 })
+                    } else {
+                        (120, c::InboxObject::Question { message: 1 })
+                    };
+                    let cursor = c::InboxCursor::Inbox { task, object, at: Some(goal_wall(w, -40)) };
+                    let chip = if task == self.facts.number { self.document(w).chip } else { self.delegate(w, 1).chip };
+                    rows.push(c::InboxEntry {
+                        reply: None,
+                        task: c::TaskLink::Live(chip),
+                        project: Some(PROJECT),
+                        object,
+                        activity: Some(1),
+                        at: Some(goal_wall(w, -40)),
+                        unread: Some(true),
+                        cursor,
+                    })
+                    .expect("goal need");
+                    selection
+                        .push(c::InboxSelection { cursor, goals: List::from_boxed(Box::new([self.facts.number])) })
+                        .expect("goal selection");
+                }
+                Some(c::ReadValue::Inbox(Box::new(c::InboxPage {
+                    rows,
+                    selection: Some(selection),
+                    before: None,
+                    after: None,
+                    cut: false,
+                })))
+            }
+            c::Read::Escalation { task: 108, .. } if self.facts.state == (GoalState::Needs { funds: true }) => {
+                Some(c::ReadValue::Escalation(Box::new(c::Escalation {
+                    task: Box::new(self.document(w)),
+                    acts: offers(&[c::ActKind::Release, c::ActKind::LeaveHeld]),
+                })))
+            }
+            c::Read::Question { task: 120, .. } if self.facts.state == (GoalState::Needs { funds: false }) => {
+                Some(c::ReadValue::Question(Box::new(c::Question {
+                    task: self.delegate(w, 1).chip,
+                    from: Some(c::Requester::Task(self.facts.number)),
+                    message: 1,
+                    words: goal_doc(
+                        "Fix the dropped watch in jig’s store, or keep it alive in temper serve?\n\nMakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local but leaves jig’s behaviour as it is.\n\nSaw: The box test reproduces it every time: the store’s write lands, then the watch closes before the answer comes. The test and its log are on the goal.\nChoice: In jig’s store (recommended)\nChoice: In temper serve",
+                    ),
+                    since: goal_wall(w, -40),
+                    acts: offers(&[c::ActKind::Answer]),
+                    ending: None,
+                })))
+            }
+            _ => None,
+        }
+    }
 }
 
 struct TaskFacts {
@@ -2936,6 +3377,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
         label: CHAT_LABEL,
         flags: CHAT_FLAGS,
         last_activity: Wall::EPOCH,
+        made: Wall::EPOCH,
         waits_on: c::WaitsOn::Nothing,
         goal: None,
         priority: None,
@@ -3123,7 +3565,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
         t.flags.listed = true;
     }
     if then == Then::Held || then == Then::Releasing || (then == Then::HeldChange && task == 2) {
-        t.goal = Some(task);
+        t.priority = None;
         t.flags.conversation = false;
         t.flags.listed = true;
         let hold = c::ChipHold {
@@ -3324,9 +3766,10 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
     forges_watched(root, FirstRun { step: 7 }, watch, out);
 }
 
-/// Changes samples use the mock's landed clocks and relative ages (client/browser.md, 7.2).
+/// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        name if name.starts_with("goal-") => goal_wall(world, 0),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
         "changes-landed-only" => offset(Reference, 2),
         _ => now(world),

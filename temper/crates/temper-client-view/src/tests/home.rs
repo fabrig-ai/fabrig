@@ -1035,7 +1035,7 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
                 &mut view,
                 Role::Link,
                 b"Add a README",
-                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
             );
             assert_action(
                 &mut view,
@@ -1076,7 +1076,7 @@ fn unread_need_has_only_meta_and_unknown_headline() {
             &mut view,
             Role::Link,
             b"T9",
-            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
         );
     }
 }
@@ -1147,7 +1147,7 @@ fn nonquestion_need_opens_inbox_and_keeps_its_lowercase_kind() {
                 &mut view,
                 Role::Button,
                 b"Open",
-                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
             );
             assert!(
                 !main_nodes(view.tree())
@@ -1316,7 +1316,7 @@ fn read_need_without_a_title_links_by_task_number() {
             &mut view,
             Role::Link,
             b"Task 9",
-            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
         );
         assert_action(
             &mut view,

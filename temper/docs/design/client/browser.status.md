@@ -6,6 +6,16 @@
   chat's document, its sheet and `Ctrl+\`. 7.2: `chat-draft-*`, `chat-new-draft`,
   `chat-start-goal*`, `chat-goal-linked`, `chats-drafts`, `configure-chat-document*`
   and `rail-new-menu`.
+- **Not yet:** 7.2: `goal-sending` has one pending message and "Being sent",
+  but no earlier accepted message or next words in the composer.
+  `goal-toast` answers Pause without delivering a paused task document, so
+  its toast says "Paused" while the header and acts still read running and
+  Pause (`tools/gallery/src/samples.rs`, `goal_domain`).
+- **Departs:** 7.2: `start-goal` is Chats without a sheet, since `OpenStart`
+  without a supplied draft no longer opens one; `start-goal-draft` and
+  `start-goal-refused` still draw the sheet. Goals' entry goes to Chats'
+  Drafts filter, as the `ui-goal-page` `goal-browser` answer of 2026-11-05
+  accepts; `ui-chat-draft` owns the continuation.
 - **Not yet:** 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
@@ -14,9 +24,6 @@
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,
   which names none (`forge.status.md`). 7.2: `google-sign-in`,
-  `forge-details`, `forge-setting-up-middle`, `welcome-setup-failed`,
-  `welcome-ready-under-way`, `welcome-ready-adopted`,
-  `settings-drafts-off`,
-  `settings-goals-off`, `settings-changes-off` and `settings-away-off` are states the gallery
-  holds (`tools/gallery/names.txt`, `tools/gallery/src/samples.rs`) that
-  the table does not list.
+  `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
+  states the gallery holds (`tools/gallery/names.txt`,
+  `tools/gallery/src/samples.rs`) that the table does not list.

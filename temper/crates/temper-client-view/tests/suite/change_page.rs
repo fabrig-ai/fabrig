@@ -157,11 +157,7 @@ mod tests {
         let mut root = domain::unlinked(&domain_limits(), 11);
         let mut requests = root_event(
             &mut root,
-            Event::Start {
-                address: domain::Address::Task { task: TASK, filter: domain::PlanFilter::All },
-                kept: List::with_capacity(0),
-                with: None,
-            },
+            Event::Start { address: domain::Address::Task { task: TASK }, kept: List::with_capacity(0), with: None },
         );
         for event in [
             jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
@@ -301,7 +297,7 @@ mod tests {
         else {
             unreachable!("missing {name} link: {}", text(view.tree().nodes()))
         };
-        let destination = domain::address::print(&domain::Address::Task { task, filter: domain::PlanFilter::All });
+        let destination = domain::address::print(&domain::Address::Task { task });
         assert_eq!(
             temper_client_view::href(view, node).as_deref(),
             Some(destination.as_ref()),
@@ -562,7 +558,7 @@ mod tests {
         else {
             unreachable!("missing row link {name}: {}", text(view.tree().nodes()))
         };
-        let destination = domain::address::print(&domain::Address::Task { task, filter: domain::PlanFilter::All });
+        let destination = domain::address::print(&domain::Address::Task { task });
         assert_eq!(
             temper_client_view::href(view, node).as_deref(),
             Some(destination.as_ref()),

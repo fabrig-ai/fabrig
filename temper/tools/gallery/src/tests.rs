@@ -100,9 +100,133 @@ enum Part {
     Chats { live: u32, closed: u32 },
     Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
-    PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds { name: "start-goal", heading: "Talk to an agent", parts: &[Part::NoRole { role: Role::Dialog }] },
+    Holds {
+        name: "start-goal-draft",
+        heading: "T1 · Director",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
+            Part::Value { role: Role::TextField, name: "Name", value: "first-run-projects" },
+            Part::Named { role: Role::ChoiceGroup, name: "How it runs" },
+            Part::Named { role: Role::Button, name: "Start goal" },
+        ],
+    },
+    Holds {
+        name: "start-goal-refused",
+        heading: "T1 · Director",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
+            Part::Text { text: "This act is not offered" },
+        ],
+    },
+    Holds {
+        name: "goal-sending",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Text { text: "Keep the Ready page in this goal." },
+            Part::Named { role: Role::Status, name: "Being sent" },
+            Part::Named { role: Role::TextArea, name: "Tell first-run-projects something" },
+        ],
+    },
+    Holds {
+        name: "goal-amending",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Amend task 108" },
+            Part::Named { role: Role::TextArea, name: "Specification" },
+        ],
+    },
+    Holds {
+        name: "goal-stop-dialog",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Stop first-run-projects?" },
+            Part::Text { text: "What landed on its branch stays there." },
+        ],
+    },
+    Holds {
+        name: "goal-toast",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[Part::Text { text: "Paused: running tasks stop, nothing new starts." }],
+    },
+    Holds {
+        name: "goal-running",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Text { text: "31 of 40 spent" },
+            Part::Text { text: "since Mon 19:10" },
+            Part::Text { text: "waits on 2 tasks" },
+            Part::Text { text: "Left: " },
+            Part::Text { text: "Risk: " },
+            Part::Named { role: Role::Disclosure, name: "6 landed" },
+            Part::Named { role: Role::Figure, name: "6 landed of 9" },
+        ],
+    },
+    Holds {
+        name: "goal-needs-funds",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Text { text: "needs funds" },
+            Part::Text { text: "31 of 40 used." },
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+        ],
+    },
+    Holds {
+        name: "goal-needs-question",
+        heading: "Reproduced in a box test; the fault is in jig’s store. Waiting on where to fix it.",
+        parts: &[
+            Part::Text { text: "needs you" },
+            Part::Named { role: Role::Button, name: "In jig’s store" },
+            Part::Named { role: Role::Button, name: "In temper serve" },
+            Part::Named { role: Role::Link, name: "Chat T2" },
+            Part::Text { text: "waits on you" },
+            Part::Text { text: "waits on The fix" },
+        ],
+    },
+    Holds {
+        name: "goal-planning",
+        heading: "Planning from forge-cards.md: reading it and the designs it cites.",
+        parts: &[
+            Part::Text { text: "Proposing tasks from the draft…" },
+            Part::Named { role: Role::Figure, name: "Planning" },
+        ],
+    },
+    Holds {
+        name: "goal-paused",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[Part::Text { text: "paused by you" }],
+    },
+    Holds {
+        name: "goal-landed",
+        heading: "Landed whole at 01:12: two tasks and one journey print.",
+        parts: &[Part::Text { text: "Landed at 01:12." }, Part::Named { role: Role::Disclosure, name: "2 landed" }],
+    },
+    Holds {
+        name: "goal-landed-open",
+        heading: "Landed whole at 01:12: two tasks and one journey print.",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Journey print" },
+            Part::Named { role: Role::Link, name: "Pane chat line" },
+        ],
+    },
+    Holds {
+        name: "goal-stopped",
+        heading: "Stopped by you. What landed on the goal branch stays there.",
+        parts: &[Part::Text { text: "Stopped before it landed." }],
+    },
+    Holds {
+        name: "goal-failed",
+        heading: "Failed: The owned set up could not create work/hello.",
+        parts: &[Part::Text { text: "Failed before it landed." }],
+    },
+    Holds {
+        name: "goal-no-report",
+        heading: "6 of 9 tasks landed.",
+        parts: &[Part::Text { text: "running" }, Part::Named { role: Role::Figure, name: "6 landed of 9" }],
+    },
     Holds {
         name: "chat-draft-empty",
         heading: "T1 · Away mode, draft",
@@ -1584,14 +1708,14 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "task-solo-T3",
-        heading: "CSV import",
+        heading: "0 of 2 tasks landed.",
         parts: &[
-            Part::Named { role: Role::Status, name: "waiting on an answer from you" },
-            Part::Plan { live: SOLO_PLAN_LIVE, title: "CSV import: the quoted-field parser" },
-            Part::Named { role: Role::Region, name: "Budget and authority" },
-            Part::Named { role: Role::Paragraph, name: "5 spent · 15 left of 20" },
-            Part::Named { role: Role::Term, name: "Funded by" },
-            Part::Named { role: Role::Description, name: "Your pool" },
+            Part::Text { text: "CSV import" },
+            Part::Text { text: "needs you" },
+            Part::Text {
+                text: "The old parser accepts a trailing comma as an empty last field. RFC 4180 does not. Keep it, or drop it in 0.5?",
+            },
+            Part::Named { role: Role::Figure, name: "0 landed of 2" },
         ],
     },
     Holds {
@@ -1867,10 +1991,17 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Accept" },
         ],
     },
-    Holds { name: "task-held", heading: "CSV import", parts: &[Part::Named { role: Role::Button, name: "Release" }] },
+    Holds {
+        name: "task-held",
+        heading: "T3 · CSV import",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Plan { live: SOLO_PLAN_LIVE, title: "CSV import: the quoted-field parser" },
+        ],
+    },
     Holds {
         name: "task-releasing",
-        heading: "CSV import",
+        heading: "T3 · CSV import",
         parts: &[Part::Named { role: Role::Dialog, name: "Release" }],
     },
     Holds {
@@ -1964,18 +2095,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "task-reference-T12",
-        heading: "Harness",
-        parts: &[
-            Part::Named { role: Role::Paragraph, name: "Its delegates: 6 live, 3 ended." },
-            Part::Named { role: Role::Button, name: "All" },
-            Part::Named { role: Role::Button, name: "Live only" },
-            Part::PlanWithEnded {
-                live: 6,
-                ended: 3,
-                before: "Advise: the fake server's API",
-                after: "Fake server: typed errors",
-            },
-        ],
+        heading: "3 of 9 tasks landed.",
+        parts: &[Part::Text { text: "Harness" }, Part::Named { role: Role::Disclosure, name: "3 landed" }],
     },
     Holds {
         name: "task-solo-T9",
@@ -2058,30 +2179,6 @@ fn find(tree: &skein_ui::Tree, role: Role, name: &str, sample: &str) -> skein_ui
         Found::Node(node) => node,
         Found::Absent | Found::Pending => panic!("{sample}: missing {role:?} {name:?}"),
     }
-}
-fn plan_with_ended(tree: &skein_ui::Tree, live: u32, ended: u32, before: &str, after: &str, sample: &str) {
-    let plan = find(tree, Role::Tree, "Plan", sample);
-    let nodes = tree.nodes();
-    let start = nodes.iter().position(|node| node.id == plan).expect("plan node");
-    let end = start + usize::try_from(nodes[start].size).expect("plan subtree");
-    let rows: Vec<_> = (start..end).filter(|index| nodes[*index].role == Role::TreeItem).collect();
-    let window = driver::limits().client.domain.rows;
-    assert_eq!(
-        rows.len(),
-        usize::try_from(live.min(window) + ended.min(window)).expect("row count"),
-        "{sample}: live and ended plan rows"
-    );
-    let [before, after] = [before, after].map(|title| {
-        rows.iter()
-            .position(|start| {
-                let end = *start + usize::try_from(nodes[*start].size).expect("row subtree");
-                nodes[*start..end]
-                    .iter()
-                    .any(|node| node.role == Role::Paragraph && node.name.as_deref() == Some(title.as_bytes()))
-            })
-            .unwrap_or_else(|| panic!("{sample}: missing plan row {title:?}"))
-    });
-    assert!(before < after, "{sample}: lower-numbered ended row before live row");
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
@@ -2177,9 +2274,6 @@ fn each_state_holds_what_its_name_says() {
                     }
                     assert_eq!(count, available, "{}: windowed chat rows", sample.name);
                 }
-                Part::PlanWithEnded { live, ended, before, after } => {
-                    plan_with_ended(tree, *live, *ended, before, after, sample.name);
-                }
                 Part::Plan { live, title } => {
                     let plan = find(tree, Role::Tree, "Plan", sample.name);
                     let row = Find::named(Role::Paragraph, title.as_bytes()).within(Box::new([
@@ -2199,6 +2293,64 @@ fn each_state_holds_what_its_name_says() {
                     );
                 }
             }
+        }
+    }
+}
+#[test]
+fn goal_pages_hold_reports_counts_and_only_their_needs() {
+    use temper_client_domain::pages::goals::State;
+    for (name, number, done, total, state, report) in [
+        ("goal-running", 108, 6, 9, State::Running, true),
+        ("goal-needs-funds", 108, 6, 9, State::Needs { funds: true }, true),
+        ("goal-needs-question", 118, 1, 3, State::Needs { funds: false }, true),
+        ("goal-planning", 122, 0, 0, State::Planning, false),
+        ("goal-paused", 108, 6, 9, State::Paused, true),
+        ("goal-landed", 123, 2, 2, State::Landed, true),
+        ("goal-landed-open", 123, 2, 2, State::Landed, true),
+        ("goal-stopped", 118, 1, 3, State::Stopped, false),
+        ("goal-failed", 122, 0, 0, State::Failed, false),
+        ("goal-no-report", 108, 6, 9, State::Running, false),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("goal sample");
+        let root = samples::domain(&sample);
+        let page = root.pages().task().expect("task page");
+        let task = page.document(root.client()).expect("goal document");
+        let goal = page.goal.as_ref().expect("goal page reads");
+        assert_eq!(task.chip.task, number, "{name}");
+        assert_eq!(goal.line.as_ref().expect("own line read").chip.task, number, "{name}");
+        assert_eq!(goal.counts(task, None), temper_client_domain::pages::goal::Counts { done, total }, "{name}");
+        assert_eq!(goal.report.is_some(), report, "{name}");
+        assert!(page.cards.is_empty(), "{name}: needs belong to the filtered inbox");
+        let inbox = root.pages().inbox().expect("goal inbox");
+        let open = root.pages().needs().open(inbox);
+        assert_eq!(open.len(), usize::from(matches!(state, State::Needs { .. })), "{name}");
+        assert_eq!(goal.state(task, None, !open.is_empty()), state, "{name}");
+        for card in &open {
+            assert!(card.page.is_some(), "{name}: need document delivered");
+        }
+        let view = view(&sample);
+        let bylines = view
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| node.styles.as_slice().contains(&temper_client_view::look::GOAL_BYLINE));
+        assert_eq!(bylines, report, "{name}: only a report has a byline");
+        if name == "goal-needs-question" {
+            let choice = find(view.tree(), Role::Button, "In jig’s store", name);
+            assert!(
+                view.tree()
+                    .find(choice)
+                    .expect("recommended choice")
+                    .styles
+                    .as_slice()
+                    .contains(&temper_client_view::look::GOAL_PRIMARY)
+            );
+        }
+        if matches!(state, State::Landed | State::Stopped | State::Failed) {
+            assert!(
+                !view.tree().nodes().iter().any(|node| node.role == Role::TextArea),
+                "{name}: ended page has no composer"
+            );
         }
     }
 }
@@ -2248,6 +2400,10 @@ fn print_writes_every_page_and_the_bundle() {
             assert!(at >= position, "stylesheet order");
             position = at + link.len();
         }
+    }
+    for name in ["goal-landed", "goal-landed-open"] {
+        let page = fs::read_to_string(out.join(format!("{name}.html"))).expect("landed goal print");
+        assert_eq!(page.contains("open class=\"temper-goal-landed-fold\""), name == "goal-landed-open");
     }
     let signin = fs::read_to_string(out.join("connect-model-signing-in.html")).expect("sign-in page");
     assert!(signin.contains("href=\"https://issuer.example/visit/gallery-sign-in\""), "external sign-in href");
@@ -2537,6 +2693,26 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
         String::from_utf8(text).expect("lede UTF-8"),
         "A goal turns a draft into landed work, its own way: task by task, plan, tasks, land whole, plan, then wait for me, one agent, one branch."
     );
+}
+
+#[test]
+fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
+    for (name, role, label) in [
+        ("goal-amending", Role::Region, "Amend task 108"),
+        ("goal-stop-dialog", Role::Dialog, "Stop first-run-projects?"),
+        ("goal-toast", Role::Status, ""),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
+        let root = samples::domain(&sample);
+        let view = view(&sample);
+        if name == "goal-toast" {
+            assert_eq!(root.pages().needs().toast(), Some(&temper_client_domain::pages::needs::Toasted::Paused));
+            assert!(root.pages().task().unwrap().pending.is_empty());
+            assert!(view.tree().nodes().iter().any(|node| node.role == role));
+        } else {
+            find(view.tree(), role, label, name);
+        }
+    }
 }
 
 #[test]
