@@ -1244,7 +1244,7 @@ dependencies = [
  "jig-protocol-store",
  "jig-protocol-tools",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "jig-test-domain",
  "jig-test-patches-smith",
  "jig-test-profile",

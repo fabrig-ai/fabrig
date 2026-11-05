@@ -18,7 +18,7 @@ jig-protocol-store.workspace = true
 jig-fake-workers.workspace = true
 jig-fake-parties.workspace = true
 jig-test-connector.workspace = true
-jig-test-connector-world = { path = "../test-connector" }
+jig-test-connector-kit.workspace = true
 jig-test-system.workspace = true
 jig-domain-core.workspace = true
 jig-domain-host.workspace = true

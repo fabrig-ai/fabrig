@@ -167,7 +167,7 @@ fn run_program(world: &mut World, task: u64) {
     let event = root::procedure_input(
         context,
         u16::try_from(PROCEDURE_CODE).expect("test procedure code"),
-        jig_test_connector_world::path(1, 1),
+        jig_test_connector_kit::path(1, 1),
     );
     world.send(root::Event::Connector { number: CONNECTOR, event });
 }
@@ -546,7 +546,7 @@ fn a_procedure_receives_pending_dependencies_with_their_amendment_provenance() {
     let connector::Event::Procedure { pending, added, .. } = root::procedure_input(
         context,
         u16::try_from(PROCEDURE_CODE).expect("test code"),
-        jig_test_connector_world::path(1, 1),
+        jig_test_connector_kit::path(1, 1),
     ) else {
         panic!("procedure event")
     };
