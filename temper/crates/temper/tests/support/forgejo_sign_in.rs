@@ -329,7 +329,7 @@ fn no_registration(
     browser.signed_out_of_forgejo();
     let missing = through_temper(browser, temper, forge)?;
     no_sam(&instance);
-    link_page("(1) no account", &missing, forge);
+    let mut signup_form = link_page("(1) no account", &missing, forge);
 
     let csrf = csrf(&missing.body);
     eprintln!("Forgejo link form CSRF field: {}", csrf.is_some());
@@ -361,12 +361,12 @@ fn no_registration(
     assert_eq!(created.status, 201, "admin makes sam");
     browser.signed_out_of_forgejo();
     let unlinked = through_temper(browser, temper, forge)?;
-    link_page("(3) existing unlinked account", &unlinked, forge);
+    signup_form |= link_page("(3) existing unlinked account", &unlinked, forge);
     let wrong = link_password(browser, forge, &unlinked.body, "wrong-throwaway-password")?;
     landing("(3) wrong password", &wrong);
     browser.signed_out_of_forgejo();
     let still_unlinked = through_temper(browser, temper, forge)?;
-    link_page("(3) wrong password linked nothing", &still_unlinked, forge);
+    signup_form |= link_page("(3) wrong password linked nothing", &still_unlinked, forge);
     let right = link_password(browser, forge, &still_unlinked.body, &password)?;
     landing("(3) right password", &right);
     assert_eq!(right.status, 200);
@@ -378,6 +378,7 @@ fn no_registration(
     assert_eq!(once.status, 200);
     assert!(!once.address.contains("/user/link_account"));
     signed_in_as_sam(browser, forge)?;
+    assert!(!signup_form, "link page offers no registration");
     Ok(instance)
 }
 
@@ -385,7 +386,7 @@ fn landing(leg: &str, landed: &Landed) {
     eprintln!("{leg}: {} {}", landed.status, landed.address.split('?').next().expect("address"));
 }
 
-fn link_page(leg: &str, landed: &Landed, forge: std::net::SocketAddr) {
+fn link_page(leg: &str, landed: &Landed, forge: std::net::SocketAddr) -> bool {
     landing(leg, landed);
     let page = std::str::from_utf8(&landed.body).expect("link page text");
     let signin = page.contains("action=\"/user/link_account_signin\"");
@@ -394,10 +395,41 @@ fn link_page(leg: &str, landed: &Landed, forge: std::net::SocketAddr) {
         "{leg}: link_account_signin form {signin}; link_account_signup form {signup}; CSRF field {}",
         csrf(&landed.body).is_some()
     );
+    for form in page.split("<form ").skip(1) {
+        let (tag, contents) = form.split_once('>').expect("form tag");
+        if !tag.contains("action=\"/user/link_account_signup\"") {
+            continue;
+        }
+        let contents = contents.split_once("</form>").expect("closed signup form").0;
+        let mut names = Vec::new();
+        for element in contents.split('<').skip(1) {
+            let tag = element.split_once('>').expect("element tag").0;
+            let kind = tag.split_whitespace().next().expect("element name");
+            if ["input", "button", "select", "textarea"].contains(&kind) {
+                let name = tag.split_once("name=\"").map(|(_, after)| after.split_once('"').expect("name end").0);
+                names.push((kind, name));
+            }
+        }
+        let mut text = String::new();
+        let mut in_tag = false;
+        for character in contents.chars() {
+            match character {
+                '<' => in_tag = true,
+                '>' => {
+                    in_tag = false;
+                    text.push(' ');
+                }
+                _ if !in_tag => text.push(character),
+                _ => {}
+            }
+        }
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        eprintln!("{leg}: link_account_signup controls (tag, name): {names:?}; text: {text:?}");
+    }
     assert_eq!(landed.status, 200);
     assert_eq!(landed.address, format!("http://{forge}/user/link_account"));
     assert!(signin, "link page offers password linking");
-    assert!(!signup, "link page offers no registration");
+    signup
 }
 
 fn no_sam(instance: &skein_throwaway_forgejo::Instance) {
@@ -430,6 +462,7 @@ fn link_password(
     password: &str,
 ) -> io::Result<Landed> {
     let csrf = csrf(page);
+    eprintln!("Forgejo password link POST CSRF field: {}", csrf.is_some());
     let mut fields = vec![("user_name", "sam"), ("password", password)];
     if let Some(value) = &csrf {
         fields.push(("_csrf", value));
