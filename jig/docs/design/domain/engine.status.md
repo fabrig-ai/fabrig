@@ -4,8 +4,6 @@
 Unlisted sections have no known gap.
 
 - **Not yet:** 10: a chat's own scope.
-- **Not yet:** 10: a written note's answer's `lines`, `added`, `removed` and
-  `first`.
 - **Not yet:** 10: a body's bound of 65,536 and 32,768 bytes.
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the

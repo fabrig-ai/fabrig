@@ -129,7 +129,7 @@ pub enum CallAnswer {
     /// Box the problem to keep the existing answer slots within their allocation budget.
     ChangeRefused { problem: Box<jig_domain_tasks::Problem>, named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
     /// A note write's durable name and revision.
-    NoteWritten { name: u64, revision: u32 },
+    NoteWritten { name: u64, revision: u32, lines: u32, added: u32, removed: u32, first: u32 },
     /// One bounded notes recall page.
     NoteRecalled { entries: Box<[jig_domain_notes::Entry]>, more: bool },
     /// A note request changed nothing.
@@ -222,8 +222,15 @@ impl CallAnswer {
             CallAnswer::ChangeRefused { problem, .. } => {
                 jig_domain_core::CallPart::DelegationRefused(problem.as_ref().clone())
             }
-            CallAnswer::NoteWritten { name, revision } => {
-                jig_domain_core::CallPart::NoteWritten { name: *name, revision: *revision }
+            CallAnswer::NoteWritten { name, revision, lines, added, removed, first } => {
+                jig_domain_core::CallPart::NoteWritten {
+                    name: *name,
+                    revision: *revision,
+                    lines: *lines,
+                    added: *added,
+                    removed: *removed,
+                    first: *first,
+                }
             }
             CallAnswer::NoteRecalled { entries, more } => {
                 jig_domain_core::CallPart::NoteRecalled { entries: entries.clone(), more: *more }
@@ -285,8 +292,15 @@ impl CallAnswer {
                 CallAnswer::DelegationDenied { answer: *answer, findings: findings.clone() }
             }
             jig_domain_core::CallPart::DelegationRefused(problem) => CallAnswer::DelegationRefused(problem.clone()),
-            jig_domain_core::CallPart::NoteWritten { name, revision } => {
-                CallAnswer::NoteWritten { name: *name, revision: *revision }
+            jig_domain_core::CallPart::NoteWritten { name, revision, lines, added, removed, first } => {
+                CallAnswer::NoteWritten {
+                    name: *name,
+                    revision: *revision,
+                    lines: *lines,
+                    added: *added,
+                    removed: *removed,
+                    first: *first,
+                }
             }
             jig_domain_core::CallPart::NoteRecalled { entries, more } => {
                 CallAnswer::NoteRecalled { entries: entries.clone(), more: *more }

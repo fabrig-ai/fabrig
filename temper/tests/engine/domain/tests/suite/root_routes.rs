@@ -1560,7 +1560,7 @@ fn a_note_tool_without_its_family_is_refused_with_an_authority_finding() {
 }
 
 fn written_note_name(driver: &Driver, expected_call: u64) -> u64 {
-    let Some(engine::CallAnswer::NoteWritten { name, revision: 1 }) = driver.answered(expected_call) else {
+    let Some(engine::CallAnswer::NoteWritten { name, revision: 1, .. }) = driver.answered(expected_call) else {
         panic!("note write answered after commit")
     };
     *name

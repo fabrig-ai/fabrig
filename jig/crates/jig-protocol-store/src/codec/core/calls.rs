@@ -66,6 +66,7 @@ pub(super) fn decode_call_key(value: wire::CallKey) -> domain::CallKey {
     domain::CallKey { task, attempt, completion, position }
 }
 
+#[expect(clippy::too_many_lines, reason = "each durable call part is translated in one exhaustive match")]
 pub(super) fn encode_call_part(value: &domain::CallPart, limits: &View) -> Result<wire::CallPart, wire::Problem> {
     Ok(match value {
         domain::CallPart::SettingsRefused(value) => encode_settings_refusal(value, limits)?,
@@ -155,10 +156,17 @@ pub(super) fn encode_call_part(value: &domain::CallPart, limits: &View) -> Resul
                 wire::CallPartDelegationRefusedParts { value: encode_task_problem(value, limits)? },
             )?)
         }
-        domain::CallPart::NoteWritten { name, revision } => {
+        domain::CallPart::NoteWritten { name, revision, lines, added, removed, first } => {
             wire::CallPart::NoteWritten(wire::CallPartNoteWritten::new(
                 &limits.core,
-                wire::CallPartNoteWrittenParts { name: *name, revision: *revision },
+                wire::CallPartNoteWrittenParts {
+                    name: *name,
+                    revision: *revision,
+                    lines: *lines,
+                    added: *added,
+                    removed: *removed,
+                    first: *first,
+                },
             )?)
         }
         domain::CallPart::NoteRecalled { entries, more } => encode_part_note_recalled(entries, *more, limits)?,
@@ -264,8 +272,8 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &View) -> Result<d
             domain::CallPart::DelegationRefused(decode_task_problem(value, limits)?)
         }
         wire::CallPart::NoteWritten(value) => {
-            let wire::CallPartNoteWrittenParts { name, revision } = value.into_parts();
-            domain::CallPart::NoteWritten { name, revision }
+            let wire::CallPartNoteWrittenParts { name, revision, lines, added, removed, first } = value.into_parts();
+            domain::CallPart::NoteWritten { name, revision, lines, added, removed, first }
         }
         wire::CallPart::NoteRecalled(value) => {
             let wire::CallPartNoteRecalledParts { entries, more } = value.into_parts();

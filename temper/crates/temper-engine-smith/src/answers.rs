@@ -434,7 +434,7 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             }
             false
         }
-        CallAnswer::NoteWritten { name, revision } => {
+        CallAnswer::NoteWritten { name, revision, .. } => {
             text.add(b"Note ")?;
             text.number(*name)?;
             text.add(b" revision ")?;

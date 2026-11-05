@@ -70,7 +70,7 @@ Activity:
               Call 1
               Using tool delegate
               Call completed
-              Delegate
+              Delegate ten
               [14] Open input and result for delegate
             Call 1
             Call completed
