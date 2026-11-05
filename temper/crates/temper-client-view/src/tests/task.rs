@@ -1637,7 +1637,7 @@ fn an_agents_task_has_its_parts_in_order() {
     let view = agent(f::delegate());
     let tree = view.tree();
     let lineage = styled(tree, look::AGENT_LINEAGE);
-    let bar = styled(tree, look::CHATBAR);
+    let bar = styled(tree, look::TASKBAR);
     let brief = styled(tree, look::AGENT_BRIEF);
     let run = styled(tree, look::AGENT_RUN);
     let log = index_of(tree, Role::Log, b"Conversation");
@@ -1698,7 +1698,7 @@ fn the_taskbar_says_number_title_state_executor_and_own_spend() {
     task.budget.numbers.spent_below = 91;
     let view = agent(task);
     let tree = view.tree();
-    let nodes = subtree(tree, styled(tree, look::CHATBAR));
+    let nodes = subtree(tree, styled(tree, look::TASKBAR));
     assert!(named(nodes, Role::Heading { level: 1 }, "T9 · Refresh token handling".as_bytes()));
     assert!(named(nodes, Role::Status, "running · writing".as_bytes()));
     assert!(named(nodes, Role::Paragraph, b"Agent"));
@@ -1958,7 +1958,7 @@ fn an_agents_plan_shows_only_with_a_delegate_or_a_card() {
 #[test]
 fn an_agents_page_carries_its_tokens_on_their_roles() {
     let live = agent(f::delegate());
-    assert_eq!(fixtures::styles(live.tree(), Role::Main).as_ref(), [Box::from([look::MAIN, look::CHAT])]);
+    assert_eq!(fixtures::styles(live.tree(), Role::Main).as_ref(), [Box::from([look::MAIN, look::AGENT_PAGE])]);
     for (token, role) in
         [(look::AGENT_LINEAGE, Role::Slot), (look::AGENT_BRIEF, Role::Region), (look::AGENT_RUN, Role::Slot)]
     {
@@ -2104,7 +2104,7 @@ fn an_agents_taskbar_has_stop_and_its_composer_has_the_steering_note() {
     let mut root = f::agent_root(task, Some(f::tree()), true);
     let mut view = fixtures::page_view(&root);
     let tree = view.tree();
-    let bar = styled(tree, look::CHATBAR);
+    let bar = styled(tree, look::TASKBAR);
     assert!(named(subtree(tree, bar), Role::Button, b"Stop"));
     let composer = styled(tree, look::COMPOSER_AREA);
     let steer = styled(tree, look::AGENT_STEER);
@@ -2117,7 +2117,7 @@ fn an_agents_taskbar_has_stop_and_its_composer_has_the_steering_note() {
     assert_eq!(action, Some(Action::Pages(Act::MessageWords { words: Box::from(*b"Steer") })));
     press_button(&mut root, b"Stop");
     let view = fixtures::page_view(&root);
-    assert!(!named(subtree(view.tree(), styled(view.tree(), look::CHATBAR)), Role::Button, b"Stop"));
+    assert!(!named(subtree(view.tree(), styled(view.tree(), look::TASKBAR)), Role::Button, b"Stop"));
 }
 #[test]
 fn an_agents_refused_or_proposed_message_says_why_in_the_composers_place() {

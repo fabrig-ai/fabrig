@@ -504,12 +504,18 @@ fn the_accounts_banner_is_a_named_region() {
     assert_eq!(node.name.as_deref(), Some(b"LLM account".as_slice()));
 }
 #[test]
-fn the_account_line_precedes_entry_inside_the_composer_area() {
+fn the_account_line_stays_in_the_choice_above_the_session_composer() {
     let view = fixtures::page_view(&task_root());
     let nodes = view.tree().nodes();
-    let area = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::COMPOSER_AREA)).unwrap();
-    let line = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_LINE)).unwrap();
-    let entry = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::ENTRY)).unwrap();
+    let area = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::CHOICE)).unwrap();
+    let line = nodes
+        .iter()
+        .enumerate()
+        .skip(area)
+        .find(|(_, n)| n.styles.as_slice().contains(&crate::look::ACCOUNT_LINE))
+        .unwrap()
+        .0;
+    let entry = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::SESSION_COMPOSER)).unwrap();
     assert_eq!(nodes[line].role, Role::Paragraph);
     assert!(area < line && line < entry && line < area + usize::try_from(nodes[area].size).unwrap());
 }

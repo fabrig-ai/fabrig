@@ -29,14 +29,14 @@ pub(crate) fn main(
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
-    b.style(look::CHAT);
+    b.style(look::AGENT_PAGE);
     if let Some(page) = root.pages().task()
         && let Some(task) = page.document(root.client())
     {
         let me = root.pages().me(root.client());
         lineage(b, task, words, bindings);
         b.open(Role::Slot);
-        b.style(look::CHATBAR);
+        b.style(look::TASKBAR);
         b.open(Role::Slot);
         text(
             b,

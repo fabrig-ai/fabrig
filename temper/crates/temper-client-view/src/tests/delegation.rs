@@ -893,7 +893,7 @@ fn the_dark_theme_chat_has_its_whole_answer_and_waits_with_its_composer() {
     }
     let mut composer = false;
     for node in view.tree().nodes() {
-        composer |= node.styles.as_slice().contains(&look::COMPOSER_AREA);
+        composer |= node.styles.as_slice().contains(&look::SESSION_FOOT);
     }
     assert!(composer);
 }
@@ -908,13 +908,13 @@ fn a_failed_chat_has_one_end_line_with_its_reason() {
 }
 
 #[test]
-fn an_ended_chat_has_no_composer_line_or_chooser() {
+fn an_ended_chat_has_no_composer_or_chooser() {
     let mut chat = change();
     chat.chip.task = CHAT;
     chat.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Failed(document(b"No capacity")))));
     let view = view_root(&root_chat(Some(&chat), &[], after_call(), &[]));
     for node in view.tree().nodes() {
-        for token in [look::COMPOSER_AREA, look::CHOICE, look::ACCOUNT_LINE] {
+        for token in [look::SESSION_FOOT, look::CHOICE] {
             assert!(!node.styles.as_slice().contains(&token));
         }
         assert!(!(node.role == Role::Disclosure && node.name.as_deref() == Some(b"Change model")));

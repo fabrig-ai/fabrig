@@ -39,7 +39,7 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     let configuring = configuring(root);
-    b.style(if configuring { look::SESSION } else { look::CHAT });
+    b.style(look::SESSION);
     if let Some(chat) = root.pages().chat()
         && let Some(task) = chat.task(root.client())
     {
@@ -47,41 +47,34 @@ pub(crate) fn main(
             Word::ChatTitle,
             &[Hole::Number(chat.task), Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],
         );
+        super::session::top(
+            b,
+            root,
+            words,
+            bindings,
+            Some(task.project),
+            if configuring { super::session::Path::Settings } else { super::session::Path::Chats },
+            super::session::Heading::Chat { whole: &title, title: task.chip.title.bytes() },
+        );
+        super::session::right(b);
         if configuring {
-            super::session::top(
-                b,
-                root,
-                words,
-                bindings,
-                Some(task.project),
-                super::session::Path::Settings,
-                super::session::Heading::Words(&title),
-            );
-            super::session::right(b);
             super::configure::byline(b, root, words, task.project);
-            bar_status(b, root, task, words, times);
-            bar_actions(b, task, words, bindings);
-            b.close();
-            b.close();
-            b.open(Role::Region);
-            b.name(&words.say_card(P::ConversationLog, &[]));
-            b.style(look::CONVO);
         } else {
-            b.open(Role::Region);
-            b.name(&title);
-            b.style(look::CHATBAR);
             b.open(Role::Slot);
-            heading(b, &title, task.chip.title.bytes());
-            bar_status(b, root, task, words, times);
+            b.style(look::BYLINE);
+            crate::choice::using(b, root, Some(task), words);
             b.close();
-            b.open(Role::Slot);
-            bar_actions(b, task, words, bindings);
-            b.close();
-            b.close();
-            context(b, root, task.project, words);
         }
+        bar_status(b, root, task, words, times);
+        bar_actions(b, task, words, bindings);
+        b.close();
+        b.close();
+        b.open(Role::Region);
+        b.name(&words.say_card(P::ConversationLog, &[]));
+        b.style(look::CONVO);
         b.open(Role::Slot);
         b.style(look::THREAD);
+        context(b, root, task.project, words);
         if chat.offers_older() {
             control(b, bindings, Role::Button, &words.say(Word::Older, &[]), Act::Older);
         }
@@ -126,17 +119,16 @@ pub(crate) fn main(
         }
         act_status(b, root, chat, words);
         b.close();
-        if configuring {
-            session_composer(b, root, chat, task, words, bindings);
-            b.close();
-        } else {
-            composer(b, root, chat, task, words, bindings, times);
+        if task.result.is_none() && !super::chats::ended(&task.chip) && !configuring {
+            crate::choice::composer(b, root, Some(task), words, bindings, times);
         }
+        session_composer(b, root, chat, task, words, bindings);
+        b.close();
     }
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();
 }
-/// The delivered chat's chip decides its layout and current navigation entry (client/README.md, 3.5).
+/// The delivered chat's chip decides its path and current navigation entry (client/README.md, 3.5).
 pub(crate) fn configuring(root: &Domain) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };
@@ -147,8 +139,7 @@ fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, tim
     if task.result.is_some() || super::chats::ended(&task.chip) {
         closed_status(b, task, words, times);
     } else if let Some(me) = root.pages().me(root.client()) {
-        super::chats::status(
-            b,
+        let (token, name) = super::chats::status_words(
             &task.chip,
             (
                 &task.waits_on,
@@ -160,16 +151,24 @@ fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, tim
             me,
             words,
         );
+        b.open(Role::Status);
+        b.style(token);
+        if token == look::STATUS_YOURS || token == look::STATUS_WAITING {
+            b.style(look::STATE_NEEDS);
+        }
+        b.name(&name);
+        b.text(Run::Plain, &name);
+        b.close();
     }
 }
 fn bar_actions(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
-    spend(b, task, words);
     if temper_client_domain::pages::chat::allowed(task, c::ActKind::Stop) {
         control(b, bindings, Role::Button, &words.say(Word::Stop, &[]), Act::Stop);
     }
     if temper_client_domain::pages::chat::allowed(task, c::ActKind::Cancel) {
         control(b, bindings, Role::Button, &words.say(Word::Close, &[]), Act::Close);
     }
+    spend(b, task, words);
 }
 fn session_composer(
     b: &mut Builder,
@@ -197,7 +196,7 @@ fn session_composer(
     b.close();
     b.open(Role::Button);
     b.name(&words.say(Word::Send, &[]));
-    if !crate::choice::can_send(root) {
+    if chat.words.is_empty() || !crate::choice::can_send(root) {
         b.state(State::Disabled);
     }
     b.bind(bindings.insert(Act::Send));
@@ -223,25 +222,6 @@ fn closed_status(b: &mut Builder, task: &c::Task, words: &Words, times: &mut Tim
     b.text(Run::Plain, &name);
     b.close();
 }
-fn heading(b: &mut Builder, title: &[u8], suffix: &[u8]) {
-    b.open(Role::Heading { level: 1 });
-    b.name(title);
-    let title_at = title.len().checked_sub(suffix.len()).expect("title hole is a suffix");
-    let prefix = title.get(..title_at).expect("title suffix is within the phrase");
-    let separator_at = skein_lib::bytes::find(prefix, b" ").expect("chat heading separates number and title");
-    for part in [
-        prefix.get(..separator_at).expect("number precedes the separator"),
-        prefix.get(separator_at..).expect("separator is within the prefix"),
-        title.get(title_at..).expect("title suffix is within the phrase"),
-    ] {
-        b.open(Role::Text);
-        b.name(part);
-        b.run(Run::Plain, part);
-        b.close();
-    }
-    b.close();
-}
-
 fn act_status(b: &mut Builder, root: &Domain, chat: &Chat, words: &Words) {
     for (key, kind) in &chat.pending {
         match kind {
@@ -290,6 +270,7 @@ pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Word
     };
     b.open(Role::Slot);
     b.style(look::CONTEXT);
+    b.style(look::META_LINE);
     let repository = words
         .say(Word::PlaygroundRepository, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]);
     b.open(Role::Paragraph);
@@ -490,60 +471,6 @@ fn spend(b: &mut Builder, task: &c::Task, words: &Words) {
             &[Hole::Number(task.budget.numbers.spent), Hole::Number(task.budget.numbers.budget)],
         ),
     );
-}
-fn composer(
-    b: &mut Builder,
-    root: &Domain,
-    chat: &Chat,
-    task: &c::Task,
-    words: &Words,
-    bindings: &mut Bindings,
-    times: &mut Times,
-) {
-    if task.result.is_some() {
-        return;
-    }
-    if let c::ChipPhaseFacts { phase: c::ChipPhase::Ended, .. } = task.chip.details.as_ref() {
-        return;
-    }
-    if temper_client_domain::pages::chat::allowed(task, c::ActKind::Message) {
-        b.open(Role::Slot);
-        b.style(look::COMPOSER_AREA);
-        crate::choice::composer(b, root, Some(task), words, bindings, times);
-        b.open(Role::Slot);
-        b.style(look::ENTRY);
-        b.open(Role::TextArea);
-        b.name(&words.say(Word::Message, &[]));
-        b.placeholder(&words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]));
-        if crate::choice::can_send(root) {
-            b.state(State::SubmitsOnEnter);
-        }
-        b.style(look::COMPOSER);
-        b.value(&chat.words, temper_client_domain::pages::shown(root.pages()));
-        b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
-        b.close();
-        b.open(Role::Paragraph);
-        b.style(look::HINT);
-        words.text(b, Word::ChatSendHint, &[]);
-        b.close();
-        b.open(Role::Button);
-        b.name(&words.say(Word::Send, &[]));
-        if !crate::choice::can_send(root) {
-            b.state(State::Disabled);
-        }
-        b.bind(bindings.insert(Act::Send));
-        b.close();
-        if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
-            && let Some(outcome) = &chat.outcome
-            && !super::chats::accepted(outcome)
-        {
-            super::chats::outcome_text(b, words, outcome, 0);
-        }
-        b.close();
-        b.close();
-    } else {
-        crate::choice::composer(b, root, Some(task), words, bindings, times);
-    }
 }
 /// The chat projects a request and assistant messages; an agent keeps every work line.
 pub(crate) enum Drawn<'a> {

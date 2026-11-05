@@ -100,8 +100,8 @@ fn each_style_or_region_is_named_under_temper() {
         (CORNER, b"temper-corner"),
         (ACCOUNTS, b"temper-accounts"),
         (ACCOUNT_LINE, b"temper-account-line"),
-        (CHAT, b"temper-chat"),
-        (CHATBAR, b"temper-chatbar"),
+        (AGENT_PAGE, b"temper-agent-page"),
+        (TASKBAR, b"temper-taskbar"),
         (THREAD, b"temper-thread"),
         (MESSAGE, b"temper-message"),
         (BY_PERSON, b"temper-by-person"),
@@ -209,11 +209,11 @@ fn each_pages_main_carries_the_main_token() {
     let view = fixtures::page_view(&fixtures::adoption_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
     let view = fixtures::page_view(&fixtures::chat::chat_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, CHAT])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, SESSION])]);
 }
 #[test]
 fn the_composers_carry_the_composer_token() {
-    let view = fixtures::page_view(&fixtures::chat::messaging_root());
+    let view = agent_composer();
     assert_eq!(fixtures::styles(view.tree(), Role::TextArea).as_ref(), [Box::from([COMPOSER])]);
 }
 
@@ -275,9 +275,10 @@ fn the_conversation_tokens_stay_on_their_roles() {
     let message_tree = fixtures::chat::tree(&super::chat::structured_thread());
     let proposal = fixtures::page_view(&fixtures::chat::proposal_root());
     let composer = fixtures::page_view(&fixtures::chat::messaging_root());
+    let agent = agent_composer();
     for token in [
-        CHAT,
-        CHATBAR,
+        AGENT_PAGE,
+        TASKBAR,
         THREAD,
         MESSAGE,
         BY_PERSON,
@@ -292,13 +293,13 @@ fn the_conversation_tokens_stay_on_their_roles() {
         COMPOSER_AREA,
     ] {
         let role = match token {
-            CHAT => Role::Main,
-            CHATBAR | MARKER => Role::Region,
+            AGENT_PAGE => Role::Main,
+            MARKER => Role::Region,
             CARDS => Role::List,
             _ => Role::Slot,
         };
         let mut found = false;
-        for tree in [&message_tree, proposal.tree(), composer.tree()] {
+        for tree in [&message_tree, proposal.tree(), composer.tree(), agent.tree()] {
             for node in tree.nodes() {
                 if node.styles.as_slice().contains(&token) {
                     if token == WORK && node.role == Role::Disclosure {
@@ -451,4 +452,12 @@ fn account_rows_and_sign_ins_have_distinct_style_names() {
     assert_eq!(NAMES.style(ACCOUNT_ROW), Some(b"temper-account-row".as_slice()));
     assert_eq!(NAMES.style(SIGN_IN), Some(b"temper-sign-in".as_slice()));
     assert_ne!(ACCOUNT_ROW, SIGN_IN);
+}
+
+fn agent_composer() -> crate::View {
+    use jig_client::contract as c;
+    let mut task = fixtures::task::delegate();
+    task.acts = skein_lib::List::with_capacity(1);
+    task.acts.push(c::Offered { act: c::ActKind::Message, admission: c::Admission::Allowed, effect: None }).unwrap();
+    fixtures::page_view(&fixtures::task::agent_root(task, None, true))
 }

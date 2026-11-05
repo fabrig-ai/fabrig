@@ -120,7 +120,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
 }
 
 #[test]
-fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
+fn a_chats_context_is_first_in_the_thread_only_in_the_playground_project() {
     for (row, project, model, playground, shown) in [
         ("playground", f::PROJECT, true, true, true),
         ("forge alone", f::PROJECT, false, true, true),
@@ -136,7 +136,7 @@ fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
         let mut chatbar = None;
         let mut context = None;
         for (index, node) in view.tree().nodes().iter().enumerate() {
-            if node.styles.as_slice().contains(&crate::look::CHATBAR) {
+            if node.styles.as_slice().contains(&crate::look::THREAD) {
                 chatbar = Some(index);
             }
             if node.styles.as_slice().contains(&crate::look::CONTEXT) {
@@ -146,11 +146,7 @@ fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
         assert_eq!(context.is_some(), shown, "{row}");
         if shown {
             let chatbar = chatbar.unwrap();
-            assert_eq!(
-                context.unwrap(),
-                chatbar + usize::try_from(view.tree().nodes()[chatbar].size).unwrap(),
-                "{row}"
-            );
+            assert_eq!(context.unwrap(), chatbar + 1, "{row}");
         }
     }
 }

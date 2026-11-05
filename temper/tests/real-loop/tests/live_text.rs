@@ -9,7 +9,7 @@ use temper_real_loop_world::{
 static HEAP: Counting = Counting;
 // The production view's Provisional word (cards/words.rs).
 const PROVISIONAL: &str = "Writing...";
-const PROVISIONAL_LINE: &str = "  * Writing...\n";
+const PROVISIONAL_LINE: &str = "    * Writing...\n";
 const REPLY: &[u8] = b"The answer is forty-two.";
 // The ctl call that signs in and provisions the deployment's key.
 const SIGN_IN: usize = 0;
@@ -72,5 +72,5 @@ fn a_person_reads_a_chats_reply_as_it_is_written_then_its_committed_turn() {
 
 fn provisional(text: &str) -> Option<String> {
     let (_, text) = text.split_once(PROVISIONAL_LINE)?;
-    Some(text.lines().map_while(|line| line.strip_prefix("  ")).collect::<Vec<_>>().join("\n"))
+    Some(text.lines().map_while(|line| line.strip_prefix("    ")).collect::<Vec<_>>().join("\n"))
 }
