@@ -1,12 +1,13 @@
 use super::fixtures::{self, Harness, boxed};
 use crate::{
-    Server, Source, git,
+    Server, Source,
     setup::migrate::{MISSING_SOURCE, PRIVATE_SOURCE},
 };
 use skein_fake_forge_domain::{
     self as fake,
     api::{self as a, Fill},
 };
+use skein_fake_forge_http::git;
 use skein_forge::forgejo::{
     document::{Document, Row},
     request::{Repo, Request},

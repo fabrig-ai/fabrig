@@ -695,7 +695,7 @@ pub mod github_stories {
 pub mod copy_stories {
     use super::{Duration, config, host_settings};
     use skein_fake_forge_domain::{self as domain, api};
-    use skein_fake_forge_protocol::{Config, Source};
+    use skein_fake_forge_forgejo::{Config, Source};
     use skein_forge_setup::host::{Kind, Settings};
 
     pub const ADDRESS: &[u8] = b"https://source.invalid/upstream/starter";
