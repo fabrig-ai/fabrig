@@ -404,8 +404,8 @@ keeps (`../protocol/configuration.md`, section 2).
   4. *Its own spend,* "N spent · of B", in the view and hidden in the
      browser.
 
-  The next plan adds the mode group and "Start goal…" after the byline, so
-  the bar's right part is a flex row that takes them.
+  The bar's right part is a flex row, which takes what the draft beside a
+  chat adds after the byline (section 11).
 - **A conversation's turns** are named "You" when the turn is the
   person's own, "Temper" when it is the agent's, and by the party's
   name otherwise (`chat.html`), on every page that draws a
@@ -1339,8 +1339,8 @@ keeps (`../protocol/configuration.md`, section 2).
     Refused, or lost, the card comes back with "temper couldn't keep
     that. Try Skip again." under its line; *unknown,* the subject
     answers it, and nothing is said. A skip is never undone, and nothing
-    is lost by it: the first step's act stays on the Chats page, the
-    second's in Settings, the third's in the rail.
+    is lost by it: the first and second steps' acts stay in Settings, the
+    third's in the rail.
   - *Until it is known:* To begin waits for the facts it reads. Until the
     person's dismissals, the `forges` rows, the project's chats and the
     `settings` document are delivered, it is left out, so that a project
@@ -1676,16 +1676,13 @@ keeps (`../protocol/configuration.md`, section 2).
   the scripted model finds the cue there (`../protocol/setup.md`, 8.4), so
   the chat plays the cue's script; the composer's text is left as it
   was.
-- **The first chat** (`../draft/configuring.md`, 5.1): on the chats
-  page of a project that is not the playground's and holds no chat
-  yet, live or ended, under "All", the offer "Tell temper how you
-  work", a button after the chats list. Pressed, it opens `Configure {
-  project }` (below). Home's first step makes the same offer, its
-  "Start" the same act: a step says what the person does, so both keep
-  these words, and what they open is named "Configure temper". "How work
-  runs" makes the same offer (5.13). The chat starts with the person's
-  own words, never with canned ones. Once the project holds a chat, the
-  chats page's offer goes.
+- **The first chat** (`../draft/configuring.md`, 5.1): Home's first step
+  offers "Tell temper how you work", and its "Start" opens `Configure {
+  project }` (below): a step says what the person does, and what it opens
+  is named "Configure temper". Settings keeps its "Configure temper"
+  (*Settings,* below), and "How work runs" makes the same offer (5.13). The
+  chat starts with the person's own words, never with canned ones. The
+  Chats page makes no such offer.
 - **The configuring chat's page** (the mock's
   `chat.html?id=new&configure=1`, in the project's frame):
   `Configure { project }`, at `/projects/<project>/settings/configure`,
@@ -4131,7 +4128,7 @@ Its rules:
   `.task-toolbar`, which draws its Cancel as `.button.danger`;
   AGENT_STEER on the composer's note, the mockup's
   `.agent-steer-note`; TASK_AMEND on the editor's region. The taskbar's
-  acts and the composer keep the chat's tokens. `task-pages.css` draws
+  acts and the composer keep the agent's page's tokens (5.9). `task-pages.css` draws
   them (`browser.md`, 2.5).
 
 ### 5.12 Times
@@ -5275,6 +5272,13 @@ own tests:
   Chats."; a command in the composer ("/clear") once the composer takes
   commands. It waits for the look request `configure-chat-draft`, held,
   which draws it. Default: a configuring chat is closed with its "Close".
+- **The draft beside a chat** (3.5; the greenfield mock's `chat.html?id=T4`):
+  a chat writes a draft beside its conversation, its bar adds a mode group
+  and "Start goal…" after the byline, and the Chats page's lede reads "A chat
+  answers a question or changes the code, and can write a draft beside it. A
+  draft becomes a goal for bigger work." It waits for the user's request
+  `ui-chat-draft`. Default: no chat has a draft, and the lede stops at "changes
+  the code."
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings` and `temper ctl
   forge list` says them. Home's line for a copy, the sheet "Add
