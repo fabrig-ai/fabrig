@@ -1,6 +1,6 @@
 # Testing hearth: status
 
-2026-11-04. Where hearth's code lags or departs from [testing.md](testing.md).
+2026-11-05. Where hearth's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 2.3: the M2 system world joining the builder and the real tree
   helper on one fake machine. 2.5, 2.6: the tree helper's protocol and simulated
@@ -53,20 +53,15 @@
 - **Departs:** 8.4: a world's memory tests are modules of its suite, not a
   binary of their own, because a suite has one counting allocator
   (`skein/docs/design/testing.md`, 6).
-- **Not yet:** 8.4: only the builder world's four scenarios and git's step
-  peak are held under ceilings. The other worlds' peaks are still held to
-  formulas, the render world keeps `Memory::Checked` as a flag beside its
-  own meter, and the large render isn't built
-  (`hearth/docs/development/debt/D003-memory-tests-on-formulas.md`).
 - **Departs:** 9.1: no global timeout holds hearth's suites alone, because
   the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
   sum each tree's figures, hearth's 30 s and 120 s among them. Measured on
-  2026-11-04 on a shared machine: focused, 35 to 36 CPU s and 6 to 7 s of
-  wall; fuzzy, 68 CPU s and 16 to 21 s of wall. On a full gate hearth adds
+  2026-11-05 by focused-budget: focused, 44.886618 CPU s, still 14.886618
+  CPU s over its 30 CPU s budget. Fuzzy measured on 2026-11-04 on a shared
+  machine: 68 CPU s and 16 to 21 s of wall. On a full gate hearth adds
   27 s to the test build and 9 s to clippy. A change to `skein-lib` reaches
   28 of hearth's 30 packages and rebuilds them in 3 s of wall, with its
   compiler caches warm. `hearth-render-world`, in `.config/gate/always.txt`,
   costs every hearth change 3.4 CPU s focused and 29 CPU s fuzzy. The
-  figures await the user (`hearth/docs/design/domain/testing.md`, 11);
-  they are idle-machine figures until the user sets CPU budgets
-  (`skein/docs/foundation/testing-strategy.md`, 8.1).
+  focused overrun remains open (`hearth/docs/design/domain/testing.md`, 11;
+  `skein/docs/foundation/testing-strategy.md`, 8.1).

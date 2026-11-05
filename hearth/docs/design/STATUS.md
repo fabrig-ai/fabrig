@@ -1,6 +1,6 @@
 # Status
 
-2026-11-04. Where hearth's code lags or departs from its design, and its design from its
+2026-11-05. Where hearth's code lags or departs from its design, and its design from its
 draft, from the status files below. M1 has render and diff in-process, canonical
 encoding and a store without layers; M2 has build keys, planning and ordered
 stage, run, seal and discard, with scripted steps and a fake helper
@@ -8,8 +8,8 @@ stage, run, seal and discard, with scripted steps and a fake helper
 `hearth/docs/design/domain/build.md`, `hearth/docs/design/client/README.md`).
 Real layer operations, the helper process, build-step runners and sandboxes,
 pins and collection remain unbuilt; the client reports steps as unavailable.
-Tool versions and rebuild times are missing, and the resolution reply, layer
-peak formulas, reconciled-base retention and mmdebstrap hooks have unsettled
+Tool versions and rebuild times are missing, and the resolution reply,
+reconciled-base retention and mmdebstrap hooks have unsettled
 departures in those documents. The store reports unreadable or invalid layer
 records as strays and refuses a second staging request. The activator, steward
 and their link, remaining crates and support are absent; printed errors and
