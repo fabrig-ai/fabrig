@@ -1,0 +1,3 @@
+draft = "debt-19"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-19/inputs/request.md", "skein/docs/development/debt/D012-anthropic-on-openai.md", "skein/docs/development/debt/D014-forge-setup-vocabulary.md", "skein/docs/development/debt/D032-world-harness-copies.md", "jig/docs/development/debt/D008-link-translate-split-by-number.md", "jig/docs/development/debt/D009-limits-mapped-by-hand.md", "smith/docs/development/debt/D011-bench-string-errors.md", "smith/docs/development/debt/D015-path-modules.md"]
