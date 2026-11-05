@@ -2191,10 +2191,12 @@ for its kind, its user's login and its installations. Its nodes:
   taken`, the playground's forge, which only its reset removes; or
   *unknown*.
 - **`Dismiss`:** of the project it names, from any party with a role
-  there (`../domain/forge.md`, 5.5): `what`, `Dismissal`, what the party
-  has done with: `to_begin`, `ToBegin`, the project (u32), "Skip" on
-  that project's "To begin", the one kind for now. The root names the
-  project as the request's scope, whatever scope the record came under.
+  there (`../domain/forge.md`, 5.5): `what`, `PersonFact`, a fact the party
+  keeps: `to_begin`, `ToBegin`, the project (u32), "Skip" on that project's
+  "To begin"; or `goal_from`, `GoalFrom`, the project (u32), the chat (u64) and
+  the goal (u64), that the person started that goal from that chat's document.
+  The root names the project as the request's scope, whatever scope the record
+  came under.
   Its outcome: *dismissed*, `dismissed`, no fields, once the row has
   committed, and the same for a second, under any key, from any device;
   *forge refused*, `too large`, the family's bound reached (the forge

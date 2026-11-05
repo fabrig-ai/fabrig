@@ -136,7 +136,7 @@ section 7).
 
   | Byte | Family | Key | What a row holds | Bounded by |
   |---|---|---|---|---|
-  | 34 | `Dismissed` | `Dismissed { party, what }`: the party, then what it dismissed, `ToBegin { project }` the one kind for now | what the person dismissed, on every device and across restarts (`../domain/forge.md`, 5.5). Its record is its key's fields, `{ party, what }`, as `Flight`'s is. Written by the party's `Dismiss` (`../client/README.md`, 4.6), a second writing nothing; erased in the decision that releases its project (jig's `domain/connectors.md`, section 2). A family of the forge connector's though it is people's, as `Binding` is. jig erases no party, so nothing erases a row by its party: a member removed keeps theirs, as a binding stays (`sign-in.md`, section 5; section 7) | the forge's `bindings` times its `judge_projects`: the members times the projects |
+  | 34 | `Dismissed` | `Dismissed { party, what }`: the party, then a `PersonFact`, `ToBegin { project }` or `GoalFrom { project, chat, goal }` | what the person dismissed, on every device and across restarts (`../domain/forge.md`, 5.5). Its record is its key's fields, `{ party, what }`, as `Flight`'s is. Written by the party's `Dismiss` (`../client/README.md`, 4.6), a second writing nothing; erased in the decision that releases its project (jig's `domain/connectors.md`, section 2). A family of the forge connector's though it is people's, as `Binding` is. jig erases no party, so nothing erases a row by its party: a member removed keeps theirs, as a binding stays (`sign-in.md`, section 5; section 7) | the forge's `bindings` times its `judge_projects`: the members times the projects |
 
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads a row: what a party sees of them comes in
@@ -171,8 +171,8 @@ section 7).
   - the client's key is its variant (0 `Live`, 1 `Repository`), then its
     resource or repository, a resource's `What` tagged as `Name`'s is,
     its branch one byte string;
-  - `Dismissed` is the party, then what it dismissed: 0 `ToBegin` and
-    the project.
+  - `Dismissed` is the party, then its fact: 0 `ToBegin` and the project; 1
+    `GoalFrom`, the project, the chat and the goal.
 - **Written out, not generated:** each family has a small encoder and
   decoder in `temper-protocol-store`. A property test holds each encoder
   to the order `Key` derives, on generated keys of every family, and
