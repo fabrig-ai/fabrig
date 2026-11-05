@@ -30,7 +30,7 @@
       "headers": [],
       "models": [
         {
-          "name": "gpt-6-luna",
+          "name": "gpt-6.1-sol",
           "prices": {
             "input": 1,
             "cached": 1,

@@ -30,7 +30,7 @@
           "number": 1,
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
-          "models": ["gpt-6-luna"],
+          "models": ["gpt-6.1-sol"],
           "sources": {
             "keys": true,
             "sign_in": {
@@ -71,7 +71,7 @@
       ],
       "models": [
         {
-          "name": "gpt-6-luna",
+          "name": "gpt-6.1-sol",
           "endpoint": "openai",
           "window": 1048576,
           "output": 8192,
