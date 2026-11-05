@@ -10,6 +10,15 @@ use temper_forge_setup::sign_in;
 use temper_forge_setup_shell::process as host;
 use temper_service::startup::Named;
 
+/// A dogfood hack's switch (temper/docs/design/draft/dogfood-hacks.md, 2.8).
+pub(crate) fn first_sign_in() -> sign_in::FirstSignIn {
+    if std::env::var_os("TEMPER_FORGE_NO_REGISTRATION").is_some_and(|value| !value.is_empty()) {
+        sign_in::FirstSignIn::LinksOnly
+    } else {
+        sign_in::FirstSignIn::MakesAccount
+    }
+}
+
 pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named, number: u16) -> Result<u8, String> {
     let row = named
         .sign_in
@@ -36,7 +45,7 @@ pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named,
     };
     let mut discovery = origin;
     discovery.extend_from_slice(b"/.well-known/openid-configuration");
-    let instructions = sign_in::instructions(b"forgejo", None, &client.id, &client.secret, &discovery);
+    let instructions = sign_in::instructions(b"forgejo", None, &client.id, &client.secret, &discovery, first_sign_in());
     make_missing(super::path(&provider.key), true)?;
     make_missing(super::path(&client.secret), false)?;
     std::io::stdout().write_all(&instructions).map_err(|why| format!("print instructions: {why}"))?;

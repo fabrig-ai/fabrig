@@ -3217,6 +3217,9 @@ page (5.1): a navigation named by the open project, in this order:
   page keeps its address, hiding removing the way in and not the page.
   Until kind 7 is read, or if its read is refused, the optional entries
   are hidden (5.13);
+  Whether a project has a goal is `Domain::has_goals(project)`, a fact the
+  domain keeps whatever the rail does, from a live watch and one ended
+  read of the goals' query with window 1, per open project;
 - `div.temper-rail-new`, one dashed box split in two: "+ New chat", named "New
   chat", a link to `NewChat` (`/chats/new`); and at its right a 36-pixel button
   behind a dashed line, named "More ways to start work", drawn as a chevron, its

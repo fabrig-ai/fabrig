@@ -231,7 +231,11 @@ pub(crate) fn start(
             webhook_listener(&named).map_err(refused)?.map(|socket| socket.ip()),
         )
         .with_sign_in(
-            named.sign_in.as_ref().is_some_and(|sign_in| sign_in.forges.iter().any(|row| row.forge == number)),
+            named
+                .sign_in
+                .as_ref()
+                .is_some_and(|sign_in| sign_in.forges.iter().any(|row| row.forge == number))
+                .then(super::forge_sign_in::first_sign_in),
         ),
     )
     .map_err(|why| refused(failure(why, &place)))?;

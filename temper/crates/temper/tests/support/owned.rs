@@ -44,14 +44,29 @@ pub fn configuration(directory: &Path, names: &Names<'_>) {
     super::write_private(&directory.join("box/groups/1"), b"owned\n");
 }
 #[must_use]
+pub fn prepare_command(directory: &Path, forge: u16) -> Command {
+    let mut command = Command::new(skein_scratch::paths::binary("temper"));
+    command
+        .args(["forge", "prepare"])
+        .args(super::configuration::flags(directory))
+        .arg(forge.to_string())
+        .current_dir(directory)
+        .env_remove("TEMPER_FORGE_NO_REGISTRATION");
+    command
+}
+#[must_use]
 pub fn prepare(directory: &Path, forge: u16) -> Output {
     super::story_command::standalone(
-        Command::new(skein_scratch::paths::binary("temper"))
-            .args(["forge", "prepare"])
-            .args(super::configuration::flags(directory))
-            .arg(forge.to_string())
-            .current_dir(directory),
+        &mut prepare_command(directory, forge),
         "the owned forge's preparation",
+        super::boxed::BOX_DEADLINE,
+    )
+}
+#[must_use]
+pub fn prepare_no_registration(directory: &Path, forge: u16) -> Output {
+    super::story_command::standalone(
+        prepare_command(directory, forge).env("TEMPER_FORGE_NO_REGISTRATION", "1"),
+        "the owned forge's preparation without registration",
         super::boxed::BOX_DEADLINE,
     )
 }

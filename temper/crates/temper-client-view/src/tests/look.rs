@@ -522,6 +522,21 @@ fn agent_composer() -> crate::View {
 }
 
 #[test]
+fn the_settings_controls_have_their_own_names_and_small_element() {
+    for (style, name) in [
+        (SETTINGS_CHECKS, b"temper-settings-checks".as_slice()),
+        (SETTINGS_SWITCH, b"temper-settings-switch".as_slice()),
+        (SETTINGS_TOGGLE_ROW, b"temper-settings-toggle-row".as_slice()),
+        (SETTINGS_TEXT, b"temper-settings-text".as_slice()),
+        (SETTINGS_FACTS, b"temper-settings-facts".as_slice()),
+        (SETTINGS_REFUSAL, b"temper-settings-refusal".as_slice()),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+    assert!(ELEMENTS.contains(&(crate::frame::owner(), Role::Text, SETTINGS_DETAIL, "small")));
+}
+
+#[test]
 fn configuring_opening_and_needs_have_their_css_names() {
     for (style, name) in [
         (STARTER_LEDE, b"temper-starter-lede".as_slice()),

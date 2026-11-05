@@ -1522,3 +1522,57 @@ fn an_unknown_departed_proposal_keeps_its_number_without_a_time() {
     assert_eq!(f.chat.decided, None);
     assert_eq!(f.chat.departed_proposal, Some(PROPOSAL.number));
 }
+
+#[test]
+fn a_retained_settings_card_keeps_the_documents_acceptance_time() {
+    let mut f = f::opened();
+    proposals(&mut f, &[PROPOSAL]);
+    let handle = reads(&mut f.out)[0].0;
+    let c::ReadValue::Proposal(mut proposal) = fixtures::acts::proposal(c::ActKind::Accept, c::Admission::Allowed)
+    else {
+        panic!("proposal fixture")
+    };
+    proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+        against: 0,
+        items: skein_lib::List::with_capacity(0),
+        review: None,
+        made: None,
+    }));
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Proposal(proposal))) },
+        &mut f.out,
+    );
+    proposals(&mut f, &[]);
+    assert_eq!(f.chat.cards.len(), 1, "settings keeps its card after the decision");
+    let at = skein_lib::Wall::from_nanos(50_580_000_000_000);
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
+                key: c::ObjectKey::Proposal(PROPOSAL),
+                value: c::EndedValue::Proposal(c::ProposalHistory {
+                    action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                        against: 0,
+                        items: skein_lib::List::with_capacity(0),
+                        made: Some(1),
+                    }),
+                    number: PROPOSAL.number,
+                    proposer: f::TASK,
+                    as_holder: true,
+                    state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(fixtures::PARTY) },
+                }),
+                at: Some(at),
+                by: None,
+            })))),
+        },
+        &mut f.out,
+    );
+    assert_eq!(f.chat.decided, Some((PROPOSAL.number, at)));
+    let Some(c::ReadValue::Ended(_)) = &f.chat.cards.get(0).unwrap().page else {
+        panic!("settings keeps its ended proposal card")
+    };
+}
