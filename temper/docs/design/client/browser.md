@@ -568,6 +568,14 @@ replay says the same clocks (`README.md`, 5.12).
   project's name, its menu at least 220 px wide, and the tab bar fixed
   at the foot, four links, the page leaving it room. The link's state
   shows at the rail's foot, with its dot, while it is not live.
+- **The page covers the display,** `viewport-fit=cover`, as the greenfield
+  mock's does, wherever a page's head is printed: the bundler's page
+  (skein's `ui-web.md`, 4.3), the playground's, the setup pages', and the
+  gallery's and journeys' prints. So what sits at the foot keeps off a
+  phone's home bar by `env(safe-area-inset-bottom)`, which is 0 on a display
+  without one and so measures as the mock draws it: the tab bar's padding,
+  a chat's foot, and at 760 px and under the toast, 88 px over it, clear of
+  the tabs.
 - **The navigation** of a page that is no project's sits in the banner
   after the projects, as in the mockups. At phone width, 760 px and under as in the mockups, the
   banner keeps temper's name and the view's "Menu" alone (`README.md`,

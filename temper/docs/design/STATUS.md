@@ -136,7 +136,12 @@ last looked and the status agent is built, but on the stock policy a
 person's pool leaves it no funding, the reference names no charter 9, no
 walk on a box reaches a brief, and a project's first run counts its span
 from the epoch (`client/README.md`,
-`domain/forge.md`, `protocol/configuration.md`). The
+`domain/forge.md`, `protocol/configuration.md`). The Away switch, a goal's
+`decided`, Home's away form, Overturn and Settings' section are built, but the
+switch still offers its act with its watch refused or ended, an Overturn or its
+message gone astray reads as overturned already or as ended, where a live task
+then hears nothing, no page starts a goal that always asks (`client/README.md`),
+and `decided` is declared past charter 1 (`domain/agent.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither

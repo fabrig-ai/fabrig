@@ -221,7 +221,9 @@ Steps from the standard, each needing one before it only where it says.
 ### 4.3 The page and the starter
 
 - **The bundler's page,** `index.html`: `<meta charset="utf-8">`, a
-  viewport, a title of the application's name, `skein-ui.css` then the
+  viewport that covers the display (`width=device-width, initial-scale=1,
+  viewport-fit=cover`), what the application pins keeping off the safe
+  area by its own sheets, a title of the application's name, `skein-ui.css` then the
   application's stylesheets by `<link rel="stylesheet">`, the starter as
   `<script type="module">` by `src`, an empty mount element,
   `<div id="app">`, which the reference shell finds by its id, and a

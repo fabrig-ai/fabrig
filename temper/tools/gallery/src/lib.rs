@@ -171,7 +171,7 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");
     }
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title>{styles}</head><body>{html}</body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>{title}</title>{styles}</head><body>{html}</body></html>\n"
     )
 }
 fn heading(tree: &skein_ui::Tree) -> Vec<u8> {
@@ -205,7 +205,7 @@ fn escape(text: &str) -> String {
 #[must_use]
 pub fn index(samples: &[Sample]) -> String {
     let mut html = String::from(
-        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>temper gallery</title></head><body><h1>temper gallery</h1><ul>\n",
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>temper gallery</title></head><body><h1>temper gallery</h1><ul>\n",
     );
     for sample in samples {
         write!(html, "<li><a href=\"{0}.html\">{0}</a>", sample.name).expect("write string");

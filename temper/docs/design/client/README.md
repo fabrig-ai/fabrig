@@ -1988,7 +1988,7 @@ keeps (`../protocol/configuration.md`, section 2).
     white words, the knob at the right. Its words: "Away" off; "Away until
     08:00" on, `until` by 5.12's *clock*; "Away" alone on with `until` none.
     On a phone the foot is hidden: a second button, `temper-away-chip`, the
-    mock's `.away-chip`, at the banner's right beside the project switcher,
+    mock's `.away-chip`, at the top bar's right (5.3) beside the project switcher,
     min-height 36, radius 18: "Away: off", "Away until 08:00", "Away" alone
     on with `until` none; the browser's alone. In the terminal the rail's
     button, numbered as any. While its request is out it is disabled.
@@ -3439,8 +3439,8 @@ page (5.1): a navigation named by the open project, in this order:
   Skein's keys, arrows and Escape; a press on an item closes it; a focused item
   takes the hover's grey. A phone doesn't show the entry. Which templates it offers
   is fixed until `../draft/template-places.md` is taken up;
-- at its foot: the Away switch, only while kind 7 shows it or while Away
-  is on; while the playground runs and is not leaving (4.8),
+- at its foot: the Away switch, while 3.5's *Away* shows it; while the
+  playground runs and is not leaving (4.8),
   "Set up temper", as the banner has it (5.1); the link's state, as
   5.1 has it, the browser hiding it while live; "Behind" while a
   page's watch reopens, beside the link's region in the browser, so
@@ -6106,7 +6106,8 @@ own tests:
   fresh one.
 - **The Away switch and quiet hours** (3.5, *Away*): "08:00" is the mock's
   end of its quiet hours, a fixed hour here. Quiet hours and notifications
-  are later parts, and a setting of the hour would come with them.
+  are later parts, and a setting of the hour would come with them. The
+  terminal reads no zone (5.12), so its 08:00 is universal time's.
 - **A browser on another machine, detected.** A sign-in's redirect
   reaches the engine on loopback; a browser elsewhere lands on its own
   error page, and its person finishes by pasting that page's address
