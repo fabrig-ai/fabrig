@@ -102,3 +102,22 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report, with the new room figure.
+
+## Rebase (2026-11-05, step merge, foreman ui-goals/report-stock/foreman-1)
+
+preserve both limits changes and regenerate Story A’s log after rebasing
+The merge conflicts in:
+- `temper/crates/temper-service/src/tests/limits.rs`
+- `temper/tests/playground/tests/fixtures/story-a.log`
+
+In `the_standard_profile_holds_fabrig_scale_work`, combine report-stock’s figures with commit `9ef746a800` (“Count direct delegate endings on task lines”):
+- Keep `brief_bytes: 359_435` and `result_bytes: 359_435`.
+- Keep the landing’s `transcript_bytes: 22_467_648`.
+- Check the automatically merged `src/limits.rs` agrees.
+
+Both branches regenerated Story A’s log; selecting either side loses the other change. Main also changed this fixture through merge `1148efe989` (“Merge reference-walks/finding-317”).
+The fixture is outside the spec’s permitted paths: take that scope extension to the director before retaining or regenerating it.
+Once authorized, regenerate from the combined code using `SKEIN_CODEGEN_WRITE=1` and the test `suite::walk::story_a_walks_from_the_welcome_to_the_csv_change_landed` in package `temper-playground-world`, binary `suite`, through heavy.
+Then run `suite::walk::story_a_kept_log_replays_natively` without the write variable.
+The recording mechanism is in `temper/tests/playground/tests/suite/walk.rs`; `temper/docs/design/playground.md`, section 9, requires recording a new log when replay changes.
+Verify the limits resolution with the focused `temper-service` library test `tests::limits::the_standard_profile_holds_fabrig_scale_work`.
