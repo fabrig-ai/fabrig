@@ -38,7 +38,8 @@ pub(crate) fn main(
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
-    b.style(look::CHAT);
+    let configuring = configuring(root);
+    b.style(if configuring { look::SESSION } else { look::CHAT });
     if let Some(chat) = root.pages().chat()
         && let Some(task) = chat.task(root.client())
     {
@@ -46,36 +47,31 @@ pub(crate) fn main(
             Word::ChatTitle,
             &[Hole::Number(chat.task), Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],
         );
-        b.open(Role::Region);
-        b.name(&title);
-        b.style(look::CHATBAR);
-        b.open(Role::Slot);
-        heading(b, &title, task.chip.title.bytes());
-        if task.result.is_some() || super::chats::ended(&task.chip) {
-            closed_status(b, task, words, times);
-        } else if let Some(me) = root.pages().me(root.client()) {
-            super::chats::status(
-                b,
-                &task.chip,
-                (&task.waits_on, Some(chat.waiting_delegates(root.client())), task.run_wait.as_ref()),
-                (task.project, task.requester),
-                Some(&task.wake),
-                me,
-                words,
-            );
+        if configuring {
+            super::configure::top(b, root, words, bindings, task.project, &title);
+            b.open(Role::Slot);
+            b.style(look::SESSION_ACTIONS);
+            bar_status(b, root, task, words, times);
+            bar_actions(b, task, words, bindings);
+            b.close();
+            b.close();
+            b.open(Role::Region);
+            b.name(&words.say_card(P::ConversationLog, &[]));
+            b.style(look::CONVO);
+        } else {
+            b.open(Role::Region);
+            b.name(&title);
+            b.style(look::CHATBAR);
+            b.open(Role::Slot);
+            heading(b, &title, task.chip.title.bytes());
+            bar_status(b, root, task, words, times);
+            b.close();
+            b.open(Role::Slot);
+            bar_actions(b, task, words, bindings);
+            b.close();
+            b.close();
+            context(b, root, task.project, words);
         }
-        b.close();
-        b.open(Role::Slot);
-        spend(b, task, words);
-        if temper_client_domain::pages::chat::allowed(task, c::ActKind::Stop) {
-            control(b, bindings, Role::Button, &words.say(Word::Stop, &[]), Act::Stop);
-        }
-        if temper_client_domain::pages::chat::allowed(task, c::ActKind::Cancel) {
-            control(b, bindings, Role::Button, &words.say(Word::Close, &[]), Act::Close);
-        }
-        b.close();
-        b.close();
-        context(b, root, task.project, words);
         b.open(Role::Slot);
         b.style(look::THREAD);
         if chat.offers_older() {
@@ -122,9 +118,89 @@ pub(crate) fn main(
         }
         act_status(b, root, chat, words);
         b.close();
-        composer(b, root, chat, task, words, bindings, times);
+        if configuring {
+            session_composer(b, root, chat, task, words, bindings);
+            b.close();
+        } else {
+            composer(b, root, chat, task, words, bindings, times);
+        }
     }
     crate::confirm::main(b, root, words, bindings, rows);
+    b.close();
+}
+/// The delivered chat's chip decides its layout and current navigation entry (client/README.md, 3.5).
+pub(crate) fn configuring(root: &Domain) -> bool {
+    let Some(chat) = root.pages().chat() else { return false };
+    let Some(task) = chat.task(root.client()) else { return false };
+    let Some(me) = root.pages().me(root.client()) else { return false };
+    temper_client_domain::pages::chats::configuring(me, task.project, &task.chip.executor)
+}
+fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, times: &mut Times) {
+    if task.result.is_some() || super::chats::ended(&task.chip) {
+        closed_status(b, task, words, times);
+    } else if let Some(me) = root.pages().me(root.client()) {
+        super::chats::status(
+            b,
+            &task.chip,
+            (
+                &task.waits_on,
+                Some(root.pages().chat().expect("chat page").waiting_delegates(root.client())),
+                task.run_wait.as_ref(),
+            ),
+            (task.project, task.requester),
+            Some(&task.wake),
+            me,
+            words,
+        );
+    }
+}
+fn bar_actions(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
+    spend(b, task, words);
+    if temper_client_domain::pages::chat::allowed(task, c::ActKind::Stop) {
+        control(b, bindings, Role::Button, &words.say(Word::Stop, &[]), Act::Stop);
+    }
+    if temper_client_domain::pages::chat::allowed(task, c::ActKind::Cancel) {
+        control(b, bindings, Role::Button, &words.say(Word::Close, &[]), Act::Close);
+    }
+}
+fn session_composer(
+    b: &mut Builder,
+    root: &Domain,
+    chat: &Chat,
+    task: &c::Task,
+    words: &Words,
+    bindings: &mut Bindings,
+) {
+    if task.result.is_some()
+        || super::chats::ended(&task.chip)
+        || !temper_client_domain::pages::chat::allowed(task, c::ActKind::Message)
+    {
+        return;
+    }
+    super::configure::foot(b, &words.say(Word::Message, &[]));
+    b.open(Role::TextArea);
+    b.name(&words.say(Word::Message, &[]));
+    b.placeholder(&words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]));
+    if crate::choice::can_send(root) {
+        b.state(State::SubmitsOnEnter);
+    }
+    b.value(&chat.words, temper_client_domain::pages::shown(root.pages()));
+    b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
+    b.close();
+    b.open(Role::Button);
+    b.name(&words.say(Word::Send, &[]));
+    if !crate::choice::can_send(root) {
+        b.state(State::Disabled);
+    }
+    b.bind(bindings.insert(Act::Send));
+    b.close();
+    super::configure::hint(b, words);
+    if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
+        && let Some(outcome) = &chat.outcome
+        && !super::chats::accepted(outcome)
+    {
+        super::chats::outcome_text(b, words, outcome, 0);
+    }
     b.close();
 }
 fn closed_status(b: &mut Builder, task: &c::Task, words: &Words, times: &mut Times) {

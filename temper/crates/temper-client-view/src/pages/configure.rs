@@ -20,6 +20,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     b.style(look::MAIN);
     b.style(look::SESSION);
     top(b, root, w, bindings, project, &w.say(Word::FirstChat, &[]));
+    b.close();
     b.open(Role::Region);
     b.name(&w.say_card(crate::cards::P::ConversationLog, &[]));
     b.style(look::CONVO);
@@ -55,7 +56,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     b.close();
 }
 
-/// The configuring layout's path, heading and runs' line (client/README.md, 3.5).
+/// Opens the configuring layout's top bar; its caller closes it (client/README.md, 3.5).
 pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, heading: &[u8]) {
     // Banner is a page landmark in skein-ui; this bar belongs inside the main.
     b.open(Role::Slot);
@@ -97,16 +98,11 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
     if !line.is_empty() {
         text(b, Role::Paragraph, &line, Some(look::BYLINE));
     }
-    b.close();
 }
 
 fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pending: bool, text_limit: u32) {
     let Some(chats) = root.pages().chats() else { return };
-    b.open(Role::Form);
-    b.name(&w.say(Word::FirstChat, &[]));
-    b.style(look::SESSION_FOOT);
-    b.open(Role::Slot);
-    b.style(look::SESSION_COMPOSER);
+    foot(b, &w.say(Word::FirstChat, &[]));
     b.open(Role::TextArea);
     let name = w.say(Word::ConfigureWords, &[]);
     b.name(&name);
@@ -129,8 +125,7 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     }
     b.bind(bindings.insert(Act::StartChat));
     b.close();
-    b.close();
-    text(b, Role::Paragraph, &w.say(Word::ChatSendHint, &[]), Some(look::SESSION_HINT));
+    hint(b, w);
     if chats.refusal.is_some() {
         w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
     }
@@ -140,6 +135,20 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
         super::chats::outcome_text(b, w, outcome, text_limit);
     }
     b.close();
+}
+
+/// Opens the shared composer form and its entry; the caller adds controls and closes it.
+pub(crate) fn foot(b: &mut Builder, name: &[u8]) {
+    b.open(Role::Form);
+    b.name(name);
+    b.style(look::SESSION_FOOT);
+    b.open(Role::Slot);
+    b.style(look::SESSION_COMPOSER);
+}
+/// Closes the entry and follows it with the shared keyboard hint.
+pub(crate) fn hint(b: &mut Builder, w: &Words) {
+    b.close();
+    text(b, Role::Paragraph, &w.say(Word::ChatSendHint, &[]), Some(look::SESSION_HINT));
 }
 
 fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style>) {

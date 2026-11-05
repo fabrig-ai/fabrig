@@ -622,6 +622,25 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure-chat",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Navigation, name: "Where" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Button, name: "Close" },
+            Part::Absent { role: Role::Disclosure, name: "Change model" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chats-tag",
+        heading: "Chats",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Configuring" },
+            Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED },
+        ],
+    },
+    Holds {
         name: "chats-solo",
         heading: "Chats",
         parts: &[

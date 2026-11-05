@@ -164,7 +164,13 @@ fn providers(w: World) -> List<c::ProviderOffer> {
 fn needs(w: World) -> c::Needs {
     c::Needs { proposals: u32::from(w == Solo), questions: u32::from(w == Solo), escalations: 0, person_tasks: 0 }
 }
-/// Configure's four gallery states list the configuring template and its creating bounds.
+/// The gallery's T10 is configuring beside ordinary chats.
+fn configuring_chip(chip: &mut c::Chip) {
+    if chip.task == 10 {
+        chip.executor = c::ChipExecutor::Agent { charter: 3 };
+    }
+}
+/// The configuring gallery states list template 3 and its creating bounds.
 fn configure_frame(me: &mut c::Me) {
     let member = me.projects.get_mut(0).expect("configure project");
     let stock = member.templates.get(0).expect("stock chat").clone();
@@ -202,9 +208,15 @@ fn configure_frame(me: &mut c::Me) {
     });
 }
 
-#[expect(clippy::too_many_lines, reason = "one ordered dispatch answers the gallery page’s document reads")]
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    let configuring = matches!(address, Address::Configure { .. });
+    world_in_layout(w, address, then, false)
+}
+pub(super) fn configuring_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
+    world_in_layout(w, address, then, true)
+}
+#[expect(clippy::too_many_lines, reason = "one ordered dispatch answers the gallery page’s document reads")]
+fn world_in_layout(w: World, address: Address, then: Then, configuring_chat: bool) -> (Domain, Option<Token>) {
+    let configuring = configuring_chat || matches!(address, Address::Configure { .. });
     let connecting = matches!(
         address,
         Address::ConnectModel { .. } | Address::Welcome { step: temper_client_domain::Step::Model { .. } }
@@ -226,10 +238,22 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
                             accounts_watch = Some(watch);
                             Some(c::Delivery::Accounts(Box::new(accounts(w, then))))
                         }
-                        c::Subject::Tasks { window, .. } => Some(c::Delivery::Tasks(Box::new(task_window(w, window)))),
+                        c::Subject::Tasks { window, .. } => {
+                            let mut tasks = task_window(w, window);
+                            if configuring_chat {
+                                for row in tasks.rows.iter_mut() {
+                                    configuring_chip(&mut row.chip);
+                                }
+                            }
+                            Some(c::Delivery::Tasks(Box::new(tasks)))
+                        }
                         c::Subject::Inbox { window } => Some(c::Delivery::Inbox(Box::new(inbox_window(w, window)))),
                         c::Subject::Task { task: number } => {
-                            Some(c::Delivery::Task(Box::new(shown_task(w, number, then))))
+                            let mut task = shown_task(w, number, then);
+                            if configuring_chat {
+                                configuring_chip(&mut task.chip);
+                            }
+                            Some(c::Delivery::Task(Box::new(task)))
                         }
                         c::Subject::Tree { task, window } => Some(plan_tree(w, task, window, then)),
                         c::Subject::Deployment => Some(c::Delivery::Deployment(Box::new(deployment(w)))),

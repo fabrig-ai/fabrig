@@ -569,7 +569,8 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
     let (home, inbox, chats) = match root.pages().address() {
         Address::Home { .. } => (true, false, false),
         Address::Inbox { .. } => (false, true, false),
-        Address::Chats { .. } | Address::Chat { .. } => (false, false, true),
+        Address::Chats { .. } => (false, false, true),
+        Address::Chat { .. } => (false, false, !crate::pages::chat::configuring(root)),
         Address::Task { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
@@ -621,7 +622,21 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     let name = w.say(crate::words::Word::RailSettings, &[]);
     crate::link(b, &name, bindings.insert(Act::Go { address: Address::Settings { project } }));
     b.text(Run::Plain, &name);
-    if let Address::Settings { .. } | Address::Configure { .. } = root.pages().address() {
+    let current = match root.pages().address() {
+        Address::Settings { .. } | Address::Configure { .. } => true,
+        Address::Chat { .. } => crate::pages::chat::configuring(root),
+        Address::Home { .. }
+        | Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::Task { .. }
+        | Address::Accounts
+        | Address::ConnectModel { .. }
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Adopt { .. }
+        | Address::Welcome { .. } => false,
+    };
+    if current {
         b.state(skein_ui::State::Current);
     }
     forge_mark(b, root, w, true);
