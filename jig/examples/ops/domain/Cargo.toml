@@ -11,6 +11,7 @@ publish.workspace = true
 skein-lib.workspace = true
 jig-ops-domain-connectors.workspace = true
 jig-protocol-tools.workspace = true
+jig-ops-protocol-observability.workspace = true
 jig-domain-core.workspace = true
 jig-domain-link.workspace = true
 jig-domain-tasks.workspace = true
