@@ -289,7 +289,10 @@ impl State {
         config.limits.title_bytes = 512;
         config.limits.body_bytes = 2048;
         (fixture.configure_domain)(&mut config);
-        assert!(skein_fake_forge_protocol::git::fits(&protocol_limits(), &config.limits), "bounded git trees fit");
+        assert!(
+            skein_fake_forge_protocol::git::fits(&protocol_limits().git(), &config.limits),
+            "bounded git trees fit"
+        );
         let clock = skein_shell::Clock::new().now();
         config.skew = domain::Skew::Ahead(Duration::from_nanos(
             clock.wall.as_nanos().checked_sub(clock.now.as_nanos()).expect("wall after monotonic"),

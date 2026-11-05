@@ -121,8 +121,8 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
 
 /// The playground's git reaches the live peer that issues its bot's credential.
 #[must_use]
-pub fn route(document: &serde_json::Value) -> Option<skein_fake_forge_protocol::Limits> {
-    (!document["application"]["demo"].is_null()).then(temper_fake::forge::git_limits)
+pub fn route(document: &serde_json::Value) -> Option<skein_fake_forge_protocol::git::Limits> {
+    (!document["application"]["demo"].is_null()).then(|| temper_fake::forge::git_limits().git())
 }
 
 /// The visitor follows the service and its two fake peers.

@@ -20,7 +20,7 @@ pub(super) fn entrance(
 ) {
     let name = match name {
         Ok(name) => name,
-        Err(git::Unrouted::NotFound | git::Unrouted::Method | git::Unrouted::Malformed) => {
+        Err(git::Unrouted::NotFound) => {
             service.tally.count_store(None);
             server.requests.push(http::Request::Discard);
             fail(server, &env.limits, 404);
@@ -62,7 +62,7 @@ pub(super) fn entrance(
     // A git body uses its wire bound as well as the tokenizer's grammar caps.
     server.json = json::Tokenizer::new(&json_limits(server, &env.limits));
     server.json_started = true;
-    server.git_decoder = Some(git::server::decoder(name, &env.limits));
+    server.git_decoder = Some(git::server::decoder(name, &env.limits.git()));
     super::json_down(server, env, json::Request::Next);
 }
 pub(super) fn json_limits(server: &Server, limits: &Limits) -> json::Limits {
@@ -115,7 +115,7 @@ pub(super) fn decoded(
                 fail(server, &env.limits, 404);
                 return;
             };
-            let result = git::store::answer(hosted, call, &env.limits, service.config.max_response_items);
+            let result = git::store::answer(hosted, call, &env.limits.git(), service.config.max_response_items);
             if faults(server, service, env, above, below) {
                 return;
             }
@@ -218,7 +218,7 @@ pub(super) fn down(
         }
     };
     match result {
-        Ok(answer) => match git::server::encode(&answer, &env.limits) {
+        Ok(answer) => match git::server::encode(&answer, &env.limits.git()) {
             Ok(body) => respond(server, response::Reply { status: 200, headers: Box::new([]), body }),
             Err(_) => fail(server, &env.limits, 413),
         },
@@ -237,7 +237,7 @@ pub(super) fn error_reply(server: &mut Server, env: &Env<Limits>, error: api::Er
             })
             .expect("one header");
     }
-    match git::server::error(error, &env.limits) {
+    match git::server::error(error, &env.limits.git()) {
         Ok(body) => respond(server, response::Reply { status: failure.status, headers: headers.into_boxed(), body }),
         Err(_) => fail(server, &env.limits, 413),
     }

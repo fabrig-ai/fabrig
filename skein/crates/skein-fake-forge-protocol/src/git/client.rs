@@ -1,6 +1,6 @@
 //! Client call spelling and streaming answer decoding, for a fake git client.
+use super::Limits;
 use super::{Answer, Call, Decoder as Scratch, Name, read, write};
-use crate::Limits;
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api;
 use skein_json::{tokenizer, writer};
