@@ -3129,15 +3129,20 @@ page (5.1): a navigation named by the open project, in this order:
 - the switcher (*Projects in the rail,* below);
 - "Home", to the open project's `Home`; "Needs you", to *Needs you*
   filtered by the open project, with the count of what needs the person
-  there (*What the client keeps,* 3.5), omitted when zero; "Goals", to the project's `Goals` with the filter All, only while the project's
-  kind 7 shows them; "Chats", to `Chats`; and "Changes", to `Changes { project }`, only while
-  kind 7 shows them; current on `Home`, on `Inbox`, on Goals, a tracked goal and a task whose document names a goal, on
-  `Chats`, `NewChat` and `Chat`, but a configuring chat's, whose current entry is
-  "Settings", and on Changes. On Goals, on a goal and on Changes their
-  entry stays shown, so that nothing goes from under the person; a hidden
-  page keeps its address, hiding removing the way in and not the page.
-  Until kind 7 is read, or if its read is refused, the optional entries
-  are hidden (5.13);
+  there (*What the client keeps,* 3.5), omitted when zero; "Goals", to
+  the project's `Goals` with the filter All, only while the project's kind
+  7 shows them; "Chats", to `Chats`; and "Changes", to
+  `Changes { project }`, only while kind 7 shows them;
+  current on `Home`, on `Inbox`, on `Goals`, on a goal (a tracked agent's
+  `Task`) and on a task whose document names a goal, and on `Changes`,
+  on `Chats`, `NewChat` and `Chat`, but a configuring chat's, whose current entry is
+  "Settings". On Goals, on a goal and on Changes their entry stays
+  shown, so that nothing goes from under the person; a hidden page keeps
+  its address, hiding removing the way in and not the page. Until kind 7
+  is read, or if its read is refused, the optional entries are hidden (5.13).
+  Whether a project has a goal is `Domain::has_goals(project)`, a fact the
+  domain keeps whatever the rail does, from a live watch and one ended
+  read of the goals' query with window 1, per open project;
 - "+ New chat", named "New chat", to `NewChat`
   (`/chats/new`);
 - at its foot: the Away switch, only while kind 7 shows it or while Away

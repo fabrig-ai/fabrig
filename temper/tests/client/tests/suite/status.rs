@@ -215,6 +215,12 @@ impl Story {
     }
 
     fn watch(&mut self, who: ClientId) {
+        // Observers exercise status alone; their unused account and settings
+        // subscriptions leave room for Home within the engine's fixed view bound.
+        let settings = self.probes[who.0].root.person().forge().settings_handle();
+        for handle in [temper_client_domain::pages::accounts::handle(), settings] {
+            self.event(who, Event::Client { event: jig_client::Event::Unwatch { handle } }.into());
+        }
         self.event(
             who,
             Event::Client {

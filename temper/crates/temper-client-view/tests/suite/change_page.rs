@@ -34,8 +34,9 @@ mod tests {
                     }],
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
-                    handles: 9,
-                    watches: 9,
+                    // Session settings, its project read and the standing needs watch.
+                    handles: 12,
+                    watches: 11,
                     turn_bytes: 65536,
                     backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                     authority: 12,
@@ -615,7 +616,13 @@ mod tests {
                 assert_order(&page, &["Change · Task 9", "Shop", "Goal", "Task 12", "PR #216"]);
                 task_link(&mut view, 12);
             } else {
-                assert!(!page.contains("Goal"), "no other goal means no slot: {page}");
+                assert!(
+                    !view.tree().nodes().iter().any(|node| {
+                        node.role == skein_ui::Role::Paragraph
+                            && node.text.iter().any(|run| run.text.as_ref() == b"Goal")
+                    }),
+                    "no other goal means no header slot: {page}"
+                );
             }
         }
     }

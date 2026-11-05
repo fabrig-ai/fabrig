@@ -221,15 +221,8 @@ fn home_documents_with_status(
     settings_delivered: bool,
     status: Option<&StatusFixture>,
 ) -> (d::Domain, Token) {
-    let (mut root, me_watch, _, _, accounts, _, needs_watch) = f::root_at_with_dismissals_and_needs(
-        Address::Settings { project: f::PROJECT },
-        &home_limits(),
-        b"Shop",
-        None,
-        None,
-        Some(rows),
-        dismissed,
-    );
+    let (mut root, me_watch, accounts, settings, needs_watch) =
+        f::home_root(&home_limits(), rows, dismissed, status.is_some_and(|fixture| fixture.goals));
     let template_root = f::chat::messaging_root();
     let template_me = template_root.pages().me(template_root.client()).unwrap();
     let mut me = root.pages().me(root.client()).unwrap().clone();
@@ -281,7 +274,7 @@ fn home_documents_with_status(
         d::Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
-                    watch: needs_watch.unwrap(),
+                    watch: needs_watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
                         List::with_capacity(0),
                         0,
@@ -296,7 +289,6 @@ fn home_documents_with_status(
     while let Some(request) = delivered.pop() {
         out.push(request);
     }
-    let mut settings = None;
     let mut live = None;
     for request in &out {
         if let d::Request::Unlinked {
@@ -307,9 +299,9 @@ fn home_documents_with_status(
         } = request
         {
             match subject {
-                c::Subject::Settings => settings = Some(*watch),
                 c::Subject::Tasks { query, .. } if query.tracked != Some(true) => live = Some(*watch),
                 c::Subject::Tasks { .. }
+                | c::Subject::Settings
                 | c::Subject::Me
                 | c::Subject::Task { .. }
                 | c::Subject::Tree { .. }
@@ -334,7 +326,7 @@ fn home_documents_with_status(
     if settings_delivered {
         deliver(
             &mut root,
-            settings.expect("Home settings"),
+            settings,
             c::Delivery::Settings(Box::new(c::SettingsDocument {
                 newest: 0,
                 settings: lines,
@@ -364,7 +356,7 @@ fn home_documents_with_status(
         out.push(request);
     }
     settle_home(&mut root, &mut out, needs.as_ref(), chats.as_ref(), status);
-    (root, accounts.unwrap())
+    (root, accounts)
 }
 fn read_done(root: &mut d::Domain, read: Token, value: c::ReadValue) -> Queue<d::Request> {
     drive(

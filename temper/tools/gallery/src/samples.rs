@@ -73,7 +73,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 201;
+pub const N: usize = 212;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -382,6 +382,9 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-accepted", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-new", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
         Sample { name: "chat-new-no-repository", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
@@ -459,6 +462,14 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-drafts-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-goals-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-changes-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-away-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-all-hidden", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-goals", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-chat-open", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-refused", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
         welcome_sample("welcome-first-run-0", temper_client_domain::Step::Welcome),
@@ -739,7 +750,7 @@ fn special_mockup(name: &str) -> Option<String> {
     None
 }
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one match keeps gallery addresses and mock states together")]
+#[expect(clippy::too_many_lines, reason = "one address table maps the gallery pages to their mockups")]
 pub fn mockup(sample: &Sample) -> Option<String> {
     if sample.name == "chat-new-first-run-1" {
         return None;
@@ -872,8 +883,11 @@ pub fn mockup(sample: &Sample) -> Option<String> {
     Some(format!("{page}.html?world={world}{task}{forge}{way}&bare"))
 }
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one dispatch composes the named gallery states and their follow-up events")]
+#[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with the world that builds it")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name == "settings" || sample.name.starts_with("settings-") {
+        return crate::worlds::settings_world(sample.name);
+    }
     if sample.name == "welcome-ready-copies" {
         return crate::worlds::copies_world(sample.address.clone(), sample.then);
     }
@@ -1221,6 +1235,9 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
 }
 
 fn configure_domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("configure-chat-") {
+        return crate::worlds::settings_chat_world(sample.name);
+    }
     if matches!(sample.name, "configure-chat" | "configure-chats-tag") {
         return crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then).0;
     }
@@ -1866,6 +1883,10 @@ fn home_domain(name: &str) -> Domain {
             }
             Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                 let value = match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("Home read").read() {
+                    w::Read::Setting(setting) if setting.kind() == 7 => {
+                        crate::worlds::project_ways(&mut root, read, with_goals, false, &mut out);
+                        continue;
+                    }
                     w::Read::Deployment => Some(wire::deployment_answer(
                         &w::DeploymentAnswer::new(
                             &w::CEILINGS,

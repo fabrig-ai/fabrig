@@ -3,7 +3,7 @@ use super::{Request, welcome};
 use crate::{Domain, forge, owner::Owner};
 use alloc::boxed::Box;
 use forge::dismissed::{self, Dismissal};
-use jig_client::{Client, Handle, Key, Latest, Told, Watchable, contract as c};
+use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
 use skein_lib::{Env, List, Queue, bytes};
 use temper_client_protocol_wire::{source, v1 as w};
 
@@ -31,7 +31,7 @@ impl Home {
     pub(super) fn new(project: u32, number: u64, limits: forge::Limits, out: &mut Queue<Request>) -> Self {
         let mut home = Self {
             add: None,
-            settings: Handle { asker: Owner::Pages.asker(), number },
+            settings: forge::ways::handle(),
             project,
             status: None,
             document: None,
@@ -41,20 +41,14 @@ impl Home {
             skip_refused: false,
             copies: List::uncapped(),
         };
-        out.push(Request::Client(jig_client::Event::Watch {
-            handle: home.settings,
-            subject: Watchable::Jig(c::Subject::Settings),
-        }));
         if let Some(subject) = forge::status::watch(project, &limits) {
-            let handle =
-                Handle { asker: Owner::Pages.asker(), number: number.checked_add(1).expect("page handles fit") };
+            let handle = Handle { asker: Owner::Pages.asker(), number };
             home.status = Some(handle);
             out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
         }
         home
     }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
-        out.push(Request::Client(jig_client::Event::Unwatch { handle: self.settings }));
         if let Some(handle) = self.status {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
@@ -461,7 +455,7 @@ pub fn facts(root: &Domain, project: u32) -> Facts {
             forge::forges::State::Rows(_) | forge::forges::State::Ended => true,
         }
         && match home {
-            Some(home) => delivered(root.client(), home.settings),
+            Some(home) => forge::ways::ended(root.forge()) || delivered(root.client(), home.settings),
             None => false,
         }
         && match root.pages().chats() {

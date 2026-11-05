@@ -126,6 +126,7 @@ pub enum Act {
     Suggest {
         cue: u8,
     },
+    FocusComposer,
     MessageWords {
         words: Box<[u8]>,
     },
@@ -527,7 +528,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
         Event::Act { act: Act::PlanFilter { filter } } => plan_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
-        Event::Act { act: act @ (Act::MessageWords { .. } | Act::Send | Act::Older) } => {
+        Event::Act { act: act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older) } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
             } else if let Some(task) = &mut pages.task {
@@ -994,7 +995,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         if let Address::Home { project } = address {
             pages.home = Some(home::Home::new(project, pages.next, env.limits.forge, out));
-            pages.next = pages.next.checked_add(2).expect("page handles fit");
+            pages.next = pages.next.checked_add(1).expect("page handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
             pages.next = pages.next.checked_add(2).expect("page handles fit");
             pages.inbox = Some(inbox::Inbox::new(
@@ -1196,6 +1197,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
     true
 }
 
+#[expect(clippy::too_many_lines, reason = "confirmation dispatch lists every page action")]
 fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act, out: &mut Queue<Request>) {
     if let Act::Confirm = act
         && let Some(page) = &mut pages.task
@@ -1285,6 +1287,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Playground
         | Act::RetryPlayground
         | Act::Suggest { .. }
+        | Act::FocusComposer
         | Act::MessageWords { .. }
         | Act::Send
         | Act::Older
