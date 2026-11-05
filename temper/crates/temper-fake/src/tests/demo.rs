@@ -630,3 +630,14 @@ fn a_persons_new_request_restarts_the_chat_script() {
     assert_eq!(restarted.finish, first.finish);
     assert_eq!(restarted.usage.output, first.usage.output);
 }
+
+/// A person's draft request must reach the unsuggested script through Smith's
+/// open-chat opening (temper/docs/design/domain/agent.md, 8.3).
+#[test]
+fn a_chat_document_request_calls_note_from_smiths_opening() {
+    let answers = answers("Please write this up. Write this up as a draft beside us.", run::Mode::Open, 1);
+    assert_eq!(answers[0].finish, Finish::ToolCalls, "draft request: {:?}", answers[0].parts);
+    let note = call(&answers[0], b"note");
+    assert_eq!(note["scope"], json!({"kind": "goal", "project": 1, "goal": 1}));
+    assert_eq!(note["description"], "Away mode");
+}
