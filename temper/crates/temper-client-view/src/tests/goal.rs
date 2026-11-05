@@ -64,6 +64,7 @@ fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool
 }
 struct Side {
     activity: Option<c::ActivityPage>,
+    specification: Option<Box<[u8]>>,
     rows: List<c::TreeRow>,
     ended: c::TaskPage,
     need: Option<u64>,
@@ -73,6 +74,7 @@ impl Side {
     fn empty() -> Self {
         Self {
             activity: None,
+            specification: None,
             rows: List::uncapped(),
             ended: c::TaskPage {
                 live: List::uncapped(),
@@ -226,6 +228,17 @@ fn read_value(
                 rows.push(note.clone()).unwrap();
             }
             Some(c::ReadValue::Notes(Box::new(c::NotePage { rows, before: None, after: None, cut: false })))
+        }
+        c::Read::TaskText { task, field: c::TaskTextField::Specification, from: 0 } if side.specification.is_some() => {
+            let words = side.specification.as_deref().unwrap();
+            Some(c::ReadValue::TaskText(Box::new(c::TaskText {
+                task,
+                field: c::TaskTextField::Specification,
+                from: 0,
+                total: skein_lib::len_u64(words.len()),
+                next: None,
+                text: c::Text::new(words.into(), u32::try_from(words.len()).unwrap()).unwrap(),
+            })))
         }
         c::Read::Tasks { query, .. } if query.tracked == Some(true) => {
             let mut line = chats::line();
@@ -509,6 +522,30 @@ fn draft_and_chat_links() {
                 );
             }
         }
+    }
+}
+#[test]
+fn a_cut_goal_keeps_its_draft_return_link() {
+    let mut task = document();
+    task.spec.specification.words = text(b"A long draft's preview");
+    task.spec.specification.words.cut = true;
+    let mut side = Side::empty();
+    side.specification = Some(b"Draft: away.md\nChat: T4".as_slice().into());
+    let root = root_with_side(task, DONE, TOTAL, None, false, side);
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let (tree, bindings, _) = draw(&root, &words);
+        let mut draft = None;
+        for node in tree.nodes() {
+            if node.role == Role::Link && node.name.as_deref() == Some(b"Draft") {
+                draft = Some(node);
+                break;
+            }
+        }
+        let draft = draft.expect("the full specification supplies the Draft return link");
+        assert_eq!(
+            bindings.decode(draft.binding.unwrap().token, skein_ui::Act::Press),
+            Some(temper_client_domain::Action::Pages(Act::Go { address: Address::Chat { task: 4 } }))
+        );
     }
 }
 fn report_paragraphs(tree: &Tree) -> Box<[Box<[u8]>]> {
