@@ -1,0 +1,35 @@
+draft = "debt-21"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-21/inputs/request.md", "jig/docs/development/debt/D004-ops-root-jig-wiring.md", "skein/docs/development/debt/D009-oauth-credentials-raw.md", "skein/docs/development/debt/D020-forge-connection-states.md", "jig/docs/development/debt/D017-unreachable-re-narrowing.md", "hearth/docs/development/debt/D009-worlds-as-kits.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "shell-cwd-grader"
+title = "the shell-cwd grader compiles against its frozen tree, proved on a bundle or recorded as not validated"
+mode = "direct"
+needs = []
+design = "smith/docs/design/benchmarks.md, 5.2"
+
+[[slice]]
+id = 1
+story = "the grader's oracle names what the frozen tree exports, and the status says whether a bundle has shown it"
+parts = ["shell-cwd-grader"]
+walk = false
+
+[[part]]
+id = "d004-record"
+title = "jig's D004 says the test root's rebuild is undecided, and whose recommendation leaving it is"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 3"
+
+[[slice]]
+id = 2
+story = "the debt record says who has decided what"
+parts = ["d004-record"]
+walk = false
