@@ -27,17 +27,22 @@ merge queue, `ui-goal-page` still has `goal-proof` to run.
 | 8 | `decided-charter` | 7 | medium, 40 | charter 1's words |
 | 9 | `away-client` | 2, 3, 5 | high, 75 | the client's watch, its act and toasts |
 | 10 | `away-switch` | 9 | high, 90 | the control, the chip, the terminal, `rail-away-on` |
-
-The rest of the plan follows this push: Home's form, Overturn, Settings' section, the goal's sheet and page, the meeting point
-and the proof.
+| 11 | `home-decided` | 9 | high, 75 | Home watches `decided`, reads its tasks, `Facts.away` |
+| 12 | `home-away` | 10, 11 | high, 90 | the intro, the section, Needs' head, `home-away`, `home-away-one` |
+| 13 | `away-walk` | 6, 7, 11 | high, 60 | the meeting point: real roots, a fake clock past `until` |
+| 14 | `overturn` | 12 | high, 75 | the request, the message, its toasts, `home-away-overturned` |
+| 15 | `settings-away` | 14 | high, 75 | the section, "Limits" lands on it, `settings-away` |
+| 16 | `goal-asks` | 8, 15 | high, 75 | "When it needs you" on the sheet, "How it runs" on the page |
+| 17 | `away-proof` | 13, 16 | high, 90 | the mock beside it at three widths, the fake box's walk, the statuses |
 
 The request's task 1, the design, is this cut's own: `domain/forge.md`, 5.8 and 5.9; `protocol/store.md`, 2 and 3; `client/README.md`, 3.5
 (*Away*), 4.6, 5.12, sections 8 and 11; `client/browser.md`, 2.1 and 7.2; `domain/agent.md`, 4.3; `protocol/configuration.md`, 13.4. Its 2 is
-tasks 3, 4, 6, 9 and 10; its 3 is 7 and 8.
+tasks 3, 4, 6, 9 and 10; its 3 is 7 and 8; its 4 is 11 and 12; its 5 is 14; its 6 is 15. Tasks 1 and 2 are what it stands on, 5 is what "08:00" needs, 13 and 17 are its proof and 16 is the rulings'.
 
 ## Critical path
 
-`home-base`, `client-base`, `away-client`, `away-switch` and on through Home's tasks, as it stands.
+`client-base`, `away-client`, `away-switch`, `home-away`, `overturn`, `settings-away`, `goal-asks`, `away-proof`: ~630 implementer-minutes, then the trunk's end check, held by `after` until `ui-home-status`, `ui-settings` and
+`ui-goal-page` have landed. `away-forge`, `decided-tool`, `decided-charter` stand beside it, ~220, and join at `goal-asks`; `away-walk` joins at the proof. `away-wire`, `away-forge` and `client-zone` start at once. The view, the stylesheet, the gallery and the goldens take one writer at a time, 10, 12, 14, 15, 16, then 17.
 
 ## What the cut settled, for the user to see
 
