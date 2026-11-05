@@ -227,6 +227,24 @@ fn responses_accepts_sse_without_content_type_but_rejects_explicit_wrong_or_dupl
 }
 
 #[test]
+fn rejected_encoding_keeps_the_response_request_id() {
+    let mut world = World::new(
+        call(1),
+        limits(),
+        response(200, "Content-Encoding: gzip\r\nx-request-id: rejected-head\r\n", b"", false),
+        2,
+    );
+    world.request(client::Request::Start);
+    world.run();
+    world.assert_once();
+    assert!(world.seen.iter().any(|event| matches!(
+        event,
+        client::Event::Failed { failure: Failure::Protocol, report, .. }
+            if report.request.as_ref() == b"rejected-head"
+    )));
+}
+
+#[test]
 fn malformed_truncated_and_oversized_streams_fail_once() {
     let mut small = limits();
     small.skip = 32;
