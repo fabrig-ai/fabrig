@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::Measure;
+use crate::{Fault, Measure, bound, input, mismatch};
 
 /// The fixed normalisation selected by an adapter's recorded format.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -62,7 +62,7 @@ impl TokenCounts {
         }
     }
 
-    pub(crate) fn add(&self, other: &Self) -> Result<Self, String> {
+    pub(crate) fn add(&self, other: &Self) -> Result<Self, Fault> {
         Ok(Self {
             fresh: add_measure(&self.fresh, &other.fresh)?,
             cache_read: add_measure(&self.cache_read, &other.cache_read)?,
@@ -114,12 +114,12 @@ impl Usage {
     }
 
     /// Apply the convention, rejecting impossible or overflowing provider values.
-    pub fn normalise(&self) -> Result<TokenCounts, String> {
+    pub fn normalise(&self) -> Result<TokenCounts, Fault> {
         match *self {
             Self::Codex { input, cached_input, cache_write, output, reasoning } => {
-                let fresh = input.checked_sub(cached_input).ok_or("cached input exceeds input")?;
+                let fresh = input.checked_sub(cached_input).ok_or_else(|| bound("cached input exceeds input"))?;
                 if cache_write.is_some_and(|writes| writes > fresh) || reasoning.is_some_and(|tokens| tokens > output) {
-                    return Err("Codex cache writes or reasoning exceed their containing total".into());
+                    return Err(bound("Codex cache writes or reasoning exceed their containing total"));
                 }
                 Ok(TokenCounts {
                     fresh: observed(fresh),
@@ -132,7 +132,7 @@ impl Usage {
                 })
             }
             Self::ClaudeCode { input, cache_read, cache_write, output } => Ok(TokenCounts {
-                fresh: observed(input.checked_add(cache_write).ok_or("fresh token overflow")?),
+                fresh: observed(input.checked_add(cache_write).ok_or_else(|| bound("fresh token overflow"))?),
                 cache_read: observed(cache_read),
                 cache_write: observed(cache_write),
                 output: observed(output),
@@ -178,14 +178,14 @@ fn parts(measure: &Measure<u64>) -> (Option<u64>, Vec<String>) {
     }
 }
 
-fn add_measure(left: &Measure<u64>, right: &Measure<u64>) -> Result<Measure<u64>, String> {
+fn add_measure(left: &Measure<u64>, right: &Measure<u64>) -> Result<Measure<u64>, Fault> {
     let (left_value, mut missing) = parts(left);
     let (right_value, right_missing) = parts(right);
     missing.extend(right_missing);
     missing.sort();
     missing.dedup();
     let value = match (left_value, right_value) {
-        (Some(left), Some(right)) => Some(left.checked_add(right).ok_or("token sum overflow")?),
+        (Some(left), Some(right)) => Some(left.checked_add(right).ok_or_else(|| bound("token sum overflow"))?),
         (Some(value), None) | (None, Some(value)) => Some(value),
         (None, None) => None,
     };
@@ -261,17 +261,17 @@ impl TokenLedger {
         role: ScopeKind,
         convention: Convention,
         unavailable: &str,
-    ) -> Result<(), String> {
+    ) -> Result<(), Fault> {
         if id.is_empty()
             || id == "total"
             || unavailable.is_empty()
             || role == ScopeKind::Total
             || self.scopes.contains_key(id)
         {
-            return Err("scope needs a unique nonempty id, a non-total role and an unavailable reason".into());
+            return Err(input("scope needs a unique nonempty id, a non-total role and an unavailable reason"));
         }
         if role == ScopeKind::Root && self.scopes.values().any(|scope| scope.role == ScopeKind::Root) {
-            return Err("attempt has more than one root scope".into());
+            return Err(input("attempt has more than one root scope"));
         }
         self.scopes
             .insert(id.into(), Scope { role, convention, unavailable: unavailable.into(), responses: BTreeMap::new() });
@@ -280,12 +280,12 @@ impl TokenLedger {
 
     /// Count an immutable response once, returning false for an identical repeat.
     /// Conflicting repeats and convention changes fail rather than replace usage.
-    pub fn record(&mut self, scope: &str, response: &str, usage: Usage) -> Result<bool, String> {
+    pub fn record(&mut self, scope: &str, response: &str, usage: Usage) -> Result<bool, Fault> {
         self.record_with_reason(scope, response, "", usage, None)
     }
 
     /// Count response usage with the model resolved by its conversation.
-    pub fn record_model(&mut self, scope: &str, response: &str, model: &str, usage: Usage) -> Result<bool, String> {
+    pub fn record_model(&mut self, scope: &str, response: &str, model: &str, usage: Usage) -> Result<bool, Fault> {
         self.record_with_reason(scope, response, model, usage, None)
     }
 
@@ -302,16 +302,16 @@ impl TokenLedger {
         model: &str,
         usage: Usage,
         reason: Option<&str>,
-    ) -> Result<bool, String> {
-        let target = self.scopes.get_mut(scope).ok_or_else(|| format!("unknown token scope {scope}"))?;
+    ) -> Result<bool, Fault> {
+        let target = self.scopes.get_mut(scope).ok_or_else(|| input(format!("unknown token scope {scope}")))?;
         if response.is_empty() || target.convention != usage.convention() {
-            return Err("response needs an id and its scope's convention".into());
+            return Err(input("response needs an id and its scope's convention"));
         }
         if let Some(previous) = self.responses.get(response) {
             if previous != &usage
                 || self.priced_responses.iter().any(|record| record.scope == response && record.model != model)
             {
-                return Err(format!("conflicting repeated usage for response {response}"));
+                return Err(mismatch(format!("conflicting repeated usage for response {response}")));
             }
             return Ok(false);
         }
@@ -342,7 +342,7 @@ impl TokenLedger {
     }
 
     /// Emit each scope and its total, requiring a root and one convention.
-    pub fn records(&self) -> Result<Vec<TokenRecord>, String> {
+    pub fn records(&self) -> Result<Vec<TokenRecord>, Fault> {
         let mut records = Vec::new();
         for (id, scope) in &self.scopes {
             let mut responses = scope.responses.values();
@@ -357,11 +357,13 @@ impl TokenLedger {
                 usage,
             });
         }
-        let root =
-            records.iter().find(|record| record.role == ScopeKind::Root).ok_or("token total needs a root scope")?;
+        let root = records
+            .iter()
+            .find(|record| record.role == ScopeKind::Root)
+            .ok_or_else(|| input("token total needs a root scope"))?;
         let convention = root.convention;
         if records.iter().any(|record| record.convention != convention) {
-            return Err("a token total cannot mix conventions".into());
+            return Err(input("a token total cannot mix conventions"));
         }
         let mut total = scoped_counts(&root.usage, &root.scope);
         for record in &records {

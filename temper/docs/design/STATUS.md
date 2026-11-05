@@ -83,13 +83,17 @@ design admits one with the printed link off
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
 (`domain/root.md`). Ready names no email for a ChatGPT sign-in,
-which waits on jig's account-facts draft, and Goals draws neither
-heading nor filters for a project with no goal template
-(`client/README.md`). The
+which waits on jig's account-facts draft, and draws no words for a
+sign-in made with no model usable, which has none yet, or for an
+ending with no ChatGPT sign-in offered; Goals draws neither heading
+nor filters for a project with no goal template; and under a kind or
+goal filter Needs you's answered lines and head count what the filter
+leaves out (`client/README.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
-GitHub proof has yet run on `fabrig-ai` alone, and the live scripts
+GitHub proof has yet run on `fabrig-ai` alone, the held record's guard
+is shown on the fake issuer alone, and the live scripts
 default to a scratch layout of whoever runs fabrig's development, in a
 form the outward check does not match (`domain/testing.md`). temper's one story on macOS has not run green
 on the runner, so `draft/macos.md`'s acceptance stands open

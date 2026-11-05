@@ -57,8 +57,6 @@ pub const LIMITS: Limits = Limits {
     contract_choices: 4,
     charters: 2,
     charter_documents: 2,
-    versions: 8,
-    revisions: 4,
     authority_grants: 4,
     authority_segments: 4,
     authority_bytes: 64,
@@ -98,7 +96,7 @@ pub fn charters() -> Box<[CharterModels]> {
 /// A tasks domain configured with `charters` and `EFFORTS`.
 #[must_use]
 pub fn domain(limits: &Limits, seed: u64) -> Domain {
-    Domain::new(limits, seed, 1, charters(), Box::new(EFFORTS))
+    Domain::new(limits, jig_domain_tasks::Kept { revisions: 4, versions: 8 }, seed, 1, charters(), Box::new(EFFORTS))
 }
 
 #[must_use]

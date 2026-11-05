@@ -2,19 +2,12 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
-mod access;
-pub mod adopt;
 pub mod call;
-pub mod check;
-pub mod copy;
-pub mod create;
+mod forgejo;
 pub mod github;
-pub mod given;
 pub mod host;
 pub mod item;
-pub mod limits;
-pub mod reachable;
-pub mod reconcile;
-pub mod take_over;
+pub mod plan;
+pub use forgejo::{adopt, check, copy, create, given, limits, reachable, reconcile, take_over};
 #[cfg(test)]
 mod tests;

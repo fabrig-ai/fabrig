@@ -15,7 +15,6 @@ const LIMITS: Limits = Limits {
     program_sources: 12,
     source_detail_bytes: 4096,
     needs_bytes: 4096,
-    versions: 0,
     workers: 3,
     engine_slots: 0,
     slots: 2,
@@ -67,12 +66,12 @@ impl Harness {
     }
 
     fn with_needs(limits: Limits, needs: crate::Needs) -> Harness {
-        Self::with_catalogue(limits, needs, Box::new([]))
+        Self::with_catalogue(limits, 0, needs, Box::new([]))
     }
 
-    fn with_catalogue(limits: Limits, needs: crate::Needs, catalogue: Box<[Box<[u8]>]>) -> Harness {
+    fn with_catalogue(limits: Limits, versions: u32, needs: crate::Needs, catalogue: Box<[Box<[u8]>]>) -> Harness {
         let out = Queue::uncapped();
-        let mut domain = Domain::new(&limits, needs, catalogue);
+        let mut domain = Domain::new(&limits, versions, needs, catalogue);
         let mut names = List::with_capacity(limits.configured_workers);
         for index in 0..limits.configured_workers {
             let name = skein_lib::Decimal::of(u64::from(index));
@@ -1175,7 +1174,7 @@ fn facts_beyond_the_room_are_dropped_and_counted() {
 #[test]
 fn source_and_worker_counts_need_no_output_headroom() {
     for limits in [Limits { configured_workers: u32::MAX, ..LIMITS }, Limits { program_sources: u32::MAX, ..LIMITS }] {
-        assert!(valid(&limits));
+        assert!(valid(&limits, 0));
     }
 }
 

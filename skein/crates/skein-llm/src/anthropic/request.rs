@@ -1,12 +1,12 @@
 //! Measured native Messages requests and shape-derived cache markers.
 //! Keeps no state; replay is never modified. Entrances validate, measure and encode.
 //! Contract: llm.md, sections 4.5 and 4.7.
-use crate::{Block, Error, Json, Prompt, Provider, Replay, Role, Tool, openai};
+use crate::{Block, Error, Json, Prompt, Provider, Replay, Role, Tool, wire};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer};
 
 /// Encode the request under the endpoint's nonzero declared output ceiling.
-pub fn encode_request(prompt: &Prompt, declared_output: u32, limits: &openai::Limits) -> Result<Box<[u8]>, Error> {
+pub fn encode_request(prompt: &Prompt, declared_output: u32, limits: &wire::Limits) -> Result<Box<[u8]>, Error> {
     let length = measure_request(prompt, declared_output, limits)?;
     encode_measured_request(prompt, declared_output, limits, length)
 }
@@ -15,7 +15,7 @@ pub fn encode_request(prompt: &Prompt, declared_output: u32, limits: &openai::Li
 pub(crate) fn encode_measured_request(
     prompt: &Prompt,
     declared_output: u32,
-    limits: &openai::Limits,
+    limits: &wire::Limits,
     length: u32,
 ) -> Result<Box<[u8]>, Error> {
     let bounded = writer::Limits { depth: limits.depth, length: limits.request };
@@ -25,7 +25,7 @@ pub(crate) fn encode_measured_request(
 }
 
 /// Validates the prompt and measures its escaped wire representation before allocating it.
-pub fn measure_request(prompt: &Prompt, declared_output: u32, limits: &openai::Limits) -> Result<u32, Error> {
+pub fn measure_request(prompt: &Prompt, declared_output: u32, limits: &wire::Limits) -> Result<u32, Error> {
     validate(prompt, declared_output, limits)?;
     let bounded = writer::Limits { depth: limits.depth, length: limits.request };
     let mut out = writer::Encoder::measure(&bounded);
@@ -33,7 +33,7 @@ pub fn measure_request(prompt: &Prompt, declared_output: u32, limits: &openai::L
     measured(out, bounded, crate::Cap::Request)
 }
 
-pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &openai::Limits) -> Result<(), Error> {
+pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &wire::Limits) -> Result<(), Error> {
     if declared_output == 0 {
         return Err(Error::Invalid);
     }
@@ -74,7 +74,7 @@ pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &openai::L
         text(&tool.name, &mut budget, limits)?;
         text(&tool.description, &mut budget, limits)?;
         json(&tool.schema, &mut budget, limits)?;
-        if openai::json::kind(tool.schema.view(), 0) != Some(Kind::ObjectStart) {
+        if wire::json::kind(tool.schema.view(), 0) != Some(Kind::ObjectStart) {
             return Err(Error::Invalid);
         }
     }
@@ -96,7 +96,7 @@ pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &openai::L
     Ok(())
 }
 
-fn validate_block(block: &Block, role: Role, budget: &mut u64, limits: &openai::Limits) -> Result<(), Error> {
+fn validate_block(block: &Block, role: Role, budget: &mut u64, limits: &wire::Limits) -> Result<(), Error> {
     match block {
         Block::Oversize { .. } | Block::Cut { .. } => Err(Error::Invalid),
         Block::Dropped { .. } => Ok(()),
@@ -142,15 +142,15 @@ fn validate_block(block: &Block, role: Role, budget: &mut u64, limits: &openai::
             }
             json(&replay.value, budget, limits)?;
             let mut next = 0;
-            for _token in 0..openai::json::len(replay.value.view()) {
-                let item = match openai::response::reasoning::replay_item(&replay.value, &mut next) {
+            for _token in 0..wire::json::len(replay.value.view()) {
+                let item = match wire::reasoning::replay_item(&replay.value, &mut next) {
                     Ok(Some(item)) => item,
                     Ok(None) => break,
                     Err(error) => return Err(crate::translate::decode(error)),
                 };
                 let bounded = writer::Limits { depth: limits.depth, length: limits.reasoning };
                 let mut measure = writer::Encoder::measure(&bounded);
-                openai::json::write_view(&mut measure, item);
+                wire::json::write_view(&mut measure, item);
                 let _length = measured(measure, bounded, crate::Cap::Reasoning)?;
                 validate_reasoning(item)?;
             }
@@ -175,7 +175,7 @@ fn identifier(value: &[u8], maximum: usize) -> Result<(), Error> {
     Ok(())
 }
 
-fn validate_reasoning(tokens: (&Document, openai::json::Span)) -> Result<(), Error> {
+fn validate_reasoning(tokens: (&Document, wire::json::Span)) -> Result<(), Error> {
     let kind = field_text(tokens, b"type")?;
     match kind {
         b"thinking" => {
@@ -196,29 +196,29 @@ fn validate_reasoning(tokens: (&Document, openai::json::Span)) -> Result<(), Err
     Ok(())
 }
 
-fn field_text<'a>(tokens: (&'a Document, openai::json::Span), key: &[u8]) -> Result<&'a [u8], Error> {
-    let at = match openai::json::required(tokens, key) {
+fn field_text<'a>(tokens: (&'a Document, wire::json::Span), key: &[u8]) -> Result<&'a [u8], Error> {
+    let at = match wire::json::required(tokens, key) {
         Ok(at) => at,
         Err(error) => return Err(crate::translate::decode(error)),
     };
-    let value = match openai::json::value_at(tokens, at) {
+    let value = match wire::json::value_at(tokens, at) {
         Ok(value) => value,
         Err(error) => return Err(crate::translate::decode(error)),
     };
-    match openai::json::text_ref(value) {
+    match wire::json::text_ref(value) {
         Ok(value) => Ok(value),
         Err(error) => Err(crate::translate::decode(error)),
     }
 }
 
-fn charge(size: usize, budget: &mut u64, limits: &openai::Limits) -> Result<(), Error> {
+fn charge(size: usize, budget: &mut u64, limits: &wire::Limits) -> Result<(), Error> {
     *budget = budget
         .checked_add(u64::try_from(size).expect("usize fits u64"))
         .ok_or(Error::limit(crate::Cap::Request, limits.request))?;
     if *budget > u64::from(limits.request) { Err(Error::limit(crate::Cap::Request, limits.request)) } else { Ok(()) }
 }
 
-fn text(value: &[u8], budget: &mut u64, limits: &openai::Limits) -> Result<(), Error> {
+fn text(value: &[u8], budget: &mut u64, limits: &wire::Limits) -> Result<(), Error> {
     let mut measure = writer::Encoder::measure(&writer::Limits { depth: limits.depth, length: limits.request });
     measure.string(value);
     let _length =
@@ -226,13 +226,13 @@ fn text(value: &[u8], budget: &mut u64, limits: &openai::Limits) -> Result<(), E
     charge(value.len(), budget, limits)
 }
 
-fn json(value: &Json, budget: &mut u64, limits: &openai::Limits) -> Result<(), Error> {
+fn json(value: &Json, budget: &mut u64, limits: &wire::Limits) -> Result<(), Error> {
     let view = value.view();
-    for index in 0..openai::json::len(view) {
+    for index in 0..wire::json::len(view) {
         charge(1, budget, limits)?;
-        match openai::json::kind(view, index).expect("admitted record") {
+        match wire::json::kind(view, index).expect("admitted record") {
             Kind::Key | Kind::String | Kind::Number => {
-                text(openai::json::record_text(view, index).expect("admitted text"), budget, limits)?;
+                text(wire::json::record_text(view, index).expect("admitted text"), budget, limits)?;
             }
             Kind::ObjectStart
             | Kind::ObjectEnd
@@ -264,7 +264,7 @@ fn write_request(
     out: &mut writer::Encoder,
     prompt: &Prompt,
     declared_output: u32,
-    limits: &openai::Limits,
+    limits: &wire::Limits,
 ) -> Result<(), Error> {
     let marks = breakpoints(prompt);
     out.object_start();
@@ -414,11 +414,11 @@ fn write_tools(out: &mut writer::Encoder, tools: &[Tool]) {
     out.array_end();
 }
 
-fn write_block(out: &mut writer::Encoder, block: &Block, marked: bool, limits: &openai::Limits) -> Result<(), Error> {
+fn write_block(out: &mut writer::Encoder, block: &Block, marked: bool, limits: &wire::Limits) -> Result<(), Error> {
     match block {
         Block::Oversize { .. } | Block::Cut { .. } => return Err(Error::Invalid),
         Block::Dropped { .. } => {}
-        Block::Reasoning { replay } => openai::response::reasoning::write_replay(out, &replay.value),
+        Block::Reasoning { replay } => wire::reasoning::write_replay(out, &replay.value),
         Block::Text { text, replay: _ } | Block::Refusal { text, replay: _ } => {
             out.object_start();
             out.key(b"type");
@@ -458,7 +458,7 @@ fn write_block(out: &mut writer::Encoder, block: &Block, marked: bool, limits: &
     Ok(())
 }
 
-fn write_arguments(out: &mut writer::Encoder, arguments: &[u8], limits: &openai::Limits) -> Result<(), Error> {
+fn write_arguments(out: &mut writer::Encoder, arguments: &[u8], limits: &wire::Limits) -> Result<(), Error> {
     let bounded = skein_json::tokenizer::Limits {
         depth: limits.depth,
         string: 0,

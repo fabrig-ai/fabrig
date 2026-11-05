@@ -109,7 +109,9 @@ pass made is told first. Requests to the kernel go out as `Submit`
 records into the queue the loop hands the kernel. The kernel's
 submission and completion queues stay capped, with
 `MAX_OUT_DOWN`/`MAX_OUT_UP` and `takes` keeping their room checks
-(programming-model.md, section 2). Queues between io and the protocol
+(programming-model.md, section 2); the stage relies on an entry point
+submitting no more than its `MAX_OUT_*`, and asserts it at each entry.
+Queues between io and the protocol
 layer use `Queue::uncapped`: a push cannot fail and the loop reserves no
 room there. New external work waits at the root's watermark
 (programming-model.md, 7.1).
@@ -1413,12 +1415,13 @@ simulator's machine seam (testing.md, 4).
   every order, each call with the kernel queues' declared room; sends
   within the room granted, and one past it, or with none granted,
   asserted.
-- **io worlds** (`tests/io`, `skein-io-world`): a loop over the
-  simulator drives each process's io and a scripted owner, which runs
+- **io worlds** (`tests/io`, `skein-io-world`): `skein_world`'s loop
+  over the simulator drives each process's io, on the stage a service
+  runs on, and a scripted owner, which runs
   each connection by a plan of sends within the room granted and demands
-  of every kind; a referee holds each scenario's expectations; the
-  harness checks the kernel queues' `MAX_OUT_DOWN`/`MAX_OUT_UP` and the
-  accept batch at each call, both halves of the stream contract in a
+  of every kind; a referee holds each scenario's expectations; the stage
+  holds each call to the kernel queues' `MAX_OUT_*`, and the world checks
+  the accept batch each iteration and both halves of the stream contract in a
   ledger (io's, and the owner's as the side above), the invariants once
   settled, and replay. Thirteen scenarios: accept, bind and reject;
   connects made, refused for a slot and by the peer; connects waiting on

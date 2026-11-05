@@ -486,7 +486,9 @@ fn assert_exec(
     let trace = observing.prepared.program_source().then(|| agent_trace(observing.prepared.trace.as_deref()));
     if let Some(trace) = &trace {
         // agent_trace feeds and finishes the spawned agent's observer.
-        observing.agent_trace(trace.as_deref().map_err(Clone::clone));
+        observing.agent_trace(
+            trace.as_deref().map_err(|detail| smith_bench::Fault::new(smith_bench::FaultKind::Stream, detail)),
+        );
     }
     let end = observing.observer.classify(result.exit, result.forced).end;
     let detail_end = observing.events().classify(result.exit, result.forced).end;
@@ -497,7 +499,7 @@ fn assert_exec(
     }
     let mut errors = Vec::new();
     errors.extend(result.error.iter().cloned());
-    errors.extend(finish.as_ref().err().map(|fault| fault.what.clone()));
+    errors.extend(finish.as_ref().err().map(|fault| fault.detail.clone()));
     errors.extend(trace.as_ref().and_then(|trace| trace.as_ref().err()).cloned());
     let error = (!errors.is_empty()).then(|| errors.join("; "));
     let settled = Settled { error: error.as_deref(), ..Settled::of(result) };
