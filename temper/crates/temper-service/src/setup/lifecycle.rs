@@ -1490,20 +1490,17 @@ fn file_answer(engine: &mut crate::engine::Engine, forge: u16) -> bool {
     true
 }
 
-pub(crate) fn first(
-    engine: &mut crate::engine::Engine,
-    forge: u16,
-    org: Box<[u8]>,
-    repository: Box<[u8]>,
-    playground: bool,
-) {
+pub(crate) fn first(engine: &mut crate::engine::Engine, forge: u16, first: domain::SetUpFirst) {
     if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
-    if let Some(local) = engine.setup.lifecycle.local_mut(forge)
-        && local.first_source == IntentSource::Request
-    {
-        local.first = Some(Intent { playground, label: b"temper-host".as_slice().into(), org, repository });
+    if let Some(local) = engine.setup.lifecycle.local_mut(forge) {
+        local.first = match first {
+            domain::SetUpFirst::Empty { org, repository, playground } => {
+                Some(Intent { playground, label: b"temper-host".as_slice().into(), org, repository })
+            }
+            domain::SetUpFirst::Copies { .. } | domain::SetUpFirst::Nothing => None,
+        };
     }
 }
 

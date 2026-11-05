@@ -67,10 +67,8 @@ pub fn to_root(
                         digest,
                         carried,
                         request: temper_engine_domain::Application::Forge(forge::Ask::SetUp {
-                            playground: value.playground,
                             forge,
-                            org: value.org,
-                            repository: value.repository,
+                            first: setup_first(value.first),
                         }),
                     }));
                 }
@@ -965,6 +963,11 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
                 Some(first) => Some(first_repository(first, limits)?),
                 None => None,
             },
+            starts_with: match row.starts_with {
+                forge::StartsWith::Repository => w::StartsWith::Repository,
+                forge::StartsWith::Copies { addresses } => w::StartsWith::Copies(copy_addresses(addresses, limits)?),
+                forge::StartsWith::Nothing => w::StartsWith::Nothing,
+            },
             installations: forge_installations(row.installations, limits)?,
             ended,
             app: match row.app {
@@ -1623,4 +1626,32 @@ fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
         w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
         w::Read::Playground | w::Read::Deployment => None,
     }
+}
+
+fn setup_first(first: w::SetUpFirst) -> forge::SetUpFirst {
+    match first {
+        w::SetUpFirst::Empty(first) => {
+            let w::FirstEmptyParts { org, repository, playground } = first.into_parts();
+            forge::SetUpFirst::Empty { org, repository, playground }
+        }
+        w::SetUpFirst::Copies(copies) => {
+            let mut addresses = List::with_capacity(copies.addresses().len());
+            for address in copies.into_parts().addresses.into_boxed() {
+                let address = match wire::source::parse(&address) {
+                    Ok(source) => wire::source::address(&source),
+                    Err(_) => address,
+                };
+                addresses.push(address).expect("decoded copy list");
+            }
+            forge::SetUpFirst::Copies { addresses: addresses.into_boxed() }
+        }
+        w::SetUpFirst::Nothing => forge::SetUpFirst::Nothing,
+    }
+}
+fn copy_addresses(addresses: Box<[Box<[u8]>]>, limits: &w::Limits) -> Option<w::CopyAddresses> {
+    let mut list = List::with_capacity(wire::FIRST_COPIES);
+    for address in addresses {
+        list.push(address).ok()?;
+    }
+    w::CopyAddresses::new(limits, w::CopyAddressesParts { addresses: list }).ok()
 }

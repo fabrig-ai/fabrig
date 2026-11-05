@@ -6,7 +6,8 @@ change-refusal model wording, shell authority for runs that cannot deliver
 and the fake's goal script.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
 Section 4.3 has no gap in bounded file and pull-file feedback and recovery.
-Section 8.1 has no gap in settings pagination using the host answer allowance.
+Section 8.1 has no gap in settings pagination using the host answer allowance
+or discovery of project repository identities for charter documents.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks. 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`), since jig's `setting` read names jig's kinds and an application's alone (jig's `client/domain/contract.md`, 5.1), so the configuring agent proposes a project's policy without reading it first.
 - **Not yet:** 4.3.1: a change's refusal omits which model its charter
