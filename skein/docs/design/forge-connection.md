@@ -680,8 +680,8 @@ in no call's cost, one at a time.
 
 Each is in a slab of the component: a **call**, a **forge's start**, a
 **forge connection** (bound to io's socket and one forge, or one of its
-log origins, with its stack: TLS, HTTP client, JSON tokenizer, the
-answer's decoder), the **tables** (repositories, users, page caps,
+log origins, with its stack: TLS, HTTP client, JSON tokenizer), the
+**tables** (repositories, users, page caps,
 credentials, secrets, and a GitHub forge's installations and log
 origins), each forge's **own connection**, which its start, its mints,
 its installations' reads and its puller share, one request at a time, a
@@ -693,8 +693,8 @@ and the hint it holds until the owner has room).
 
 Each configured forge has one **entry** in the component: what its owner
 configured (3.1), its start (8.3), its own connection, and its dialect's
-state, whose variant holds the forge's own plan and, for a GitHub forge,
-its installations and its puller. An entry is made when its forge is
+state, whose variant holds the forge's own plan and exchange (8.1) and,
+for a GitHub forge, its installations and its puller. An entry is made when its forge is
 added and goes whole when it is removed. What the forges share (the
 connections, the calls, the tables, the owner's word) sits beside the
 entries, and a step on one forge is handed that forge's entry. A forge's
@@ -826,8 +826,8 @@ of the phase, set in one place after each transition
 the link's close deadline and then io's.
 
 A forge connection speaks no dialect. Its stack carries an exchange's
-bytes, tokens and ending; the exchange itself (the request, the decoder,
-what was heard of it) is its holder's, in its holder's dialect, made new
+bytes, tokens and ending; the exchange itself (the table's request and
+decoder, and what was heard of it) is its holder's, in its holder's dialect, made new
 each time the holder takes a connection. So a plan and a connection of
 different dialects cannot meet, and the connection's own table above
 holds for both.

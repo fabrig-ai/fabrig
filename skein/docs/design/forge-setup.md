@@ -540,9 +540,9 @@ whole, finishes what the last one left.
      has written nothing but the org.
    - present and `Copying` kept: the plan reads its default branch
      (`Branch`). There, it is this copy, finished. A 404, it is what a
-     copy cut short left, or a copy Forgejo is still making (section
-     8): the plan sends `DeleteRepository { at }`, takes a 404 as good,
-     writes `Copying` again and sends `Migrate`.
+     copy cut short or refused left, or a copy Forgejo is still making
+     (section 8): the plan sends `DeleteRepository { at }`, takes a 404
+     as good, writes `Copying` again and sends `Migrate`.
 
    After a `Migrate`'s `201`, the plan reads the default branch too. A
    404 there is a source with no branch: the run stops at `Empty`, and
@@ -578,7 +578,9 @@ whole, finishes what the last one left.
 - **Forgejo's refusals** of `Migrate`, each a stop at `Repository`,
   `Refused(status)`, its message going up first (6.3): a source
   missing or private, a host refused by Forgejo's migration settings, a
-  source that is not a git repository.
+  source that is not a git repository. A missing source leaves an empty
+  repository at the name (section 8), which `Copying` names as this
+  copy's, so the same copy, run again, deletes it (step 3).
 - **Not for a connected Forgejo or GitHub,** where the owner holds no
   admin's token; `supports` refuses it, as it does `Create`.
 - **A writing run,** one per forge at once (6.3): a second writing run
@@ -1120,9 +1122,14 @@ pin (forge.md, section 4.3), and named by the fact's name.
   only the listed scope succeeds; one carrying only unrelated `read:issue`
   gets `403` naming the required scope. Forgejo refuses to mint a token
   with an empty scope list. Write includes read within its own category,
-  and `all` includes every category. The nineteen `setup-scope-*` facts
-  record these grants and refusals; settings is
-  `setup-scope-settings-needs-no-scope`.
+  and `all` includes every category. The twenty-seven `setup-scope-*`
+  facts record these grants and refusals; settings is
+  `setup-scope-settings-needs-no-scope`. A `DeleteRepository` in an org
+  takes `write:organization`
+  (`setup-scope-delete-repository-is-write-organization`), so
+  `setup-scope-delete-repository-is-write-repository` and
+  `setup-scope-delete-repository-without-write-repository-is-refused`
+  are recorded `fails`.
 
   | Request | Least scope |
   |---|---|
@@ -1132,13 +1139,14 @@ pin (forge.md, section 4.3), and named by the fact's name.
   | `CreateToken`, `DeleteToken` | `write:admin` |
   | `Org` | `read:organization` |
   | `CreateOrg` | `write:admin` |
-  | `CreateRepository` | `write:organization` |
+  | `CreateRepository`, `DeleteRepository` | `write:organization` |
   | `RepositoryById`, `Repository`, `Branch`, `Raw`, `Permission`, `RepoHooks`, `RepoSearch` | `read:repository` |
-  | `AddCollaborator`, `CreateRepoHook`, `EditRepoHook`, `DeleteRepoHook`, `CreateFile`, `Migrate`, `DeleteRepository` | `write:repository` |
+  | `AddCollaborator`, `CreateRepoHook`, `EditRepoHook`, `DeleteRepoHook`, `CreateFile`, `Migrate` | `write:repository` |
   | `ApiSettings` | none; the route also answers anonymously |
 
   The conformance runner's `--admin-scopes` mode records each grant and
-  refusal on a fresh loopback Forgejo. The four-scope token succeeds on
+  refusal on a fresh loopback Forgejo, and `--migrate` those of `Migrate`
+  and `DeleteRepository`. The four-scope token succeeds on
   every route; removing each category is refused at a request that needs
   it (`setup-admin-scopes-need-each-of-the-four-categories`). The fake enforces these scopes
   through its issued-token model; its configured tokens have unrestricted
@@ -1158,19 +1166,24 @@ pin (forge.md, section 4.3), and named by the fact's name.
   `setup-file-missing-reads-raw-404`.
 - **A copy** (4.10), from a source served by a second throwaway on
   loopback, with `ALLOW_LOCALNETWORKS` on in the first throwaway alone
-  (fake-forge.md, section 7): `Migrate` answers 201 once whole, private,
+  (fake-forge.md, section 7): `Migrate` refuses a plain `http` source
+  until `ALLOW_UNENCRYPTED` is on; it answers 201 once whole, private,
   with the source's default branch and every branch; it brings no
   issues; a name already there answers 409; a missing source is refused
-  with a message and leaves no repository; a source with no commit
-  answers 201 with no branch; an address on a local network is refused
-  by Forgejo's default settings; `OFFLINE_MODE` leaves migrations on; a
-  migration cut short by stopping Forgejo leaves a repository that reads
-  with no default branch, and it deletes and copies again; a migration
-  whose client went away goes on, and what a `DeleteRepository` does to
-  it while it runs is recorded; `DeleteRepository` answers 204 and
-  a second 404; a name that is a user's reads 404 as an org and
-  `CreateOrg` refuses it; with `.forgejo/workflows` and
-  `.github/workflows` both there, Actions reads the first alone:
+  422 with a message and leaves an empty repository at the name, so its
+  fact, whose name says it leaves nothing, is recorded `fails`; a source
+  with no commit answers 201 with no branch; an address on a local
+  network is refused by Forgejo's default settings; `OFFLINE_MODE`
+  leaves migrations on; a migration cut short by stopping Forgejo leaves
+  a repository that reads with no default branch, and it deletes and
+  copies again; a migration whose client went away goes on, and a
+  `DeleteRepository` while it runs answers 204, the repository stays
+  gone once the migration ends, and the name copies again;
+  `DeleteRepository` answers 204 and a second 404; a name that is a
+  user's reads 404 as an org and `CreateOrg` refuses it; with
+  `.forgejo/workflows` and `.github/workflows` both there, Actions reads
+  the first alone:
+  `setup-migrate-loopback-http-needs-allow-unencrypted`,
   `setup-migrate-answers-201-whole-and-private`,
   `setup-migrate-keeps-the-sources-default-branch`,
   `setup-migrate-brings-nothing-but-git`,
@@ -1252,12 +1265,10 @@ pin (forge.md, section 4.3), and named by the fact's name.
   the `Add`.
 - **A fine-grained token as a connected GitHub.** Default: later; a
   connected GitHub is an App the person made (5.8).
-- **A copy Forgejo is still making, deleted.** A run past
-  `copy_deadline` leaves Forgejo's migration running
-  (`setup-migrate-goes-on-when-its-client-goes`), and the next run
-  deletes what it finds empty. Default: as 4.10 has it, what the
-  conformance records (`setup-migrate-deleted-while-it-runs`) deciding
-  whether the plan must wait instead.
+- **What a refused copy leaves.** Forgejo keeps an empty repository at
+  the name of a source it could not clone (section 8), and only this
+  copy, run again, takes it away (4.10, step 3). Default: so; the plan
+  could delete it at the refusal, for an owner that runs no such copy.
 - **Forgejo's own bound on a migration,** `[git.timeout] MIGRATE`. temper's
   owned `app.ini` sets none of `[git.timeout]`, so Forgejo's default
   holds, which may end a large copy before `copy_deadline` does.

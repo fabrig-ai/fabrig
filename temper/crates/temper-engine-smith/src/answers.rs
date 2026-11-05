@@ -557,7 +557,10 @@ fn authority_findings(
             finding_text(text, *finding)?;
         }
         text.add(b"; ")?;
-        if delegation && let Finding::Executor { .. } | Finding::Grant { .. } = finding {
+        if delegation
+            && tool != b"delegate"
+            && let Finding::Executor { .. } | Finding::Grant { .. } = finding
+        {
             change_hint = true;
         }
     }

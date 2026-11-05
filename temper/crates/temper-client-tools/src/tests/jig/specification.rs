@@ -119,3 +119,89 @@ fn continuation_line(from: u64, out: &mut crate::jig::render::Text) {
     out.put(b"read on with: task text 1 --field specification --from ");
     out.number(from);
 }
+
+#[expect(clippy::disallowed_methods, reason = "test argv converts decimal bytes into command arguments")]
+fn text_read(words: &[u8], from: u64, limits: &crate::jig::Limits, json: bool) -> crate::jig::Printed {
+    let (core, bounds, row) = f::source_task(words);
+    let mut root = f::signed_in(f::PARTY);
+    root.limits.tools = *limits;
+    let offset = skein_lib::Decimal::of(from);
+    let offset = core::str::from_utf8(offset.as_bytes()).unwrap();
+    let argv = ["task", "text", "1", "--field", "instructions", "--from", offset, "--json"];
+    let call = root.submit(argv.get(..if json { 8 } else { 7 }).unwrap());
+    for _ in 0..words.len().max(1) {
+        let Some((_, c::Read::TaskText { from, field, .. })) = root.reads.get(&call) else { break };
+        assert_eq!(*field, c::TaskTextField::Instructions);
+        let page = f::source_chunk(&core, &bounds, &row, jig_domain_core::reads::TaskTextField::Instructions, *from);
+        root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page))));
+    }
+    root.answer(call).expect("bounded text retrieval completes")
+}
+
+#[test]
+fn task_text_joins_3554_instruction_bytes_in_one_call() {
+    const INSTRUCTION_BYTES: usize = 3554; // The charter size in finding 264.
+    let words = "é".repeat(INSTRUCTION_BYTES / "é".len()).into_bytes();
+    for json in [false, true] {
+        for from in [0, 126] {
+            let printed = text_read(&words, from, &crate::limits::tools(), json);
+            assert_eq!(printed.status, 0);
+            assert!(find(&printed.stdout, &words[usize::try_from(from).unwrap()..]).is_some());
+            assert!(find(&printed.stdout, if json { b"\"next\":null" } else { b"no more" }).is_some());
+        }
+    }
+}
+
+#[test]
+fn task_text_joins_to_its_bounds_with_exact_utf8_offsets() {
+    let words = "é".repeat(1000).into_bytes();
+    for json in [false, true] {
+        let preset = crate::limits::tools();
+        // Each ceiling admits 259 source bytes; the final é leaves 258 UTF-8 bytes.
+        for limits in [
+            crate::jig::Limits { part: 259, ..preset },
+            crate::jig::Limits { text: 771, ..preset },
+            crate::jig::Limits { result_bytes: 2066, ..preset },
+        ] {
+            let retained = 258;
+            let printed = text_read(&words, 126, &limits, json);
+            assert_eq!(printed.status, 0, "{printed:?}");
+            assert!(find(&printed.stdout, &words[..retained]).is_some());
+            let continuation = if json { "\"next\":384" } else { "--from 384" };
+            assert!(find(&printed.stdout, continuation.as_bytes()).is_some(), "{printed:?}");
+            assert!(printed.stdout.len() <= usize::try_from(limits.text).unwrap());
+            assert!(skein_lib::len_u64(printed.stdout.len()) <= limits.result_bytes);
+        }
+    }
+}
+
+#[test]
+fn task_text_keeps_a_continuation_when_retrieval_stalls_or_is_refused() {
+    let (core, limits, row) = f::source_task(&[b'x'; 300]);
+    for refused in [false, true] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(&["task", "text", "1", "--field", "instructions"]);
+        let page = f::source_chunk(&core, &limits, &row, jig_domain_core::reads::TaskTextField::Instructions, 0);
+        root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page))));
+        assert_eq!(
+            root.reads.get(&call).expect("join next page").1,
+            c::Read::TaskText { task: 1, field: c::TaskTextField::Instructions, from: 128 }
+        );
+        let result = if refused {
+            c::ReadResult::None(c::ReadNone::Unknown)
+        } else {
+            c::ReadResult::Value(c::ReadValue::TaskText(Box::new(c::TaskText {
+                task: 1,
+                field: c::TaskTextField::Instructions,
+                from: 128,
+                total: 300,
+                next: Some(128),
+                text: c::Text::new(Box::new([]), 128).unwrap(),
+            })))
+        };
+        root.serve(call, result);
+        let printed = root.answer(call).expect("stopped retrieval");
+        assert_eq!(printed.status, 0);
+        assert!(find(&printed.stdout, b"--from 128").is_some());
+    }
+}
