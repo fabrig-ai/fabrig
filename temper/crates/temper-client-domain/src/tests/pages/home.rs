@@ -1070,9 +1070,11 @@ fn enter_skipped() -> Fixture {
 fn a_watch_opens_with_the_page_and_closes_with_it() {
     let mut f = fixture();
     let settings = f.root.pages().home().unwrap().settings;
-    let chats = f.root.pages().chats().unwrap();
-    let status = jig_client::Handle { number: chats.live.number - 1, ..chats.live };
-    assert!(f.root.client().document(status).is_some(), "Home owns its status handle before chats");
+    let status = jig_client::Handle {
+        number: f.root.pages().chats().unwrap().live.number - 1,
+        asker: crate::owner::Owner::Pages.asker(),
+    };
+    assert!(f.root.client().document(status).is_some(), "Home owns its project status handle");
     for watch in [f.status, f.settings] {
         up(&mut f.root, Up::Watched { watch, event: c::WatchEvent::Opened });
     }
@@ -1088,7 +1090,7 @@ fn a_watch_opens_with_the_page_and_closes_with_it() {
     }
     assert_eq!(closes, 1);
     assert!(f.root.client().document(status).is_none());
-    assert!(f.root.client().document(settings).is_some(), "the session retains settings");
+    assert!(f.root.client().document(settings).is_some(), "session settings survives Home");
     let out = go(&mut f.root, f::PROJECT);
     assert_ne!(opened(&out, &forge::status::watch(f::PROJECT, &f::limits().forge).unwrap()), Some(f.status));
 }
@@ -1175,6 +1177,7 @@ fn a_second_entry_looks_again() {
         up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
     }
     let out = go(&mut f.root, f::PROJECT);
+    assert!(opened(&out, &Watchable::Jig(c::Subject::Settings)).is_none(), "settings stays with the session");
     assert_eq!(look_sends(&out), 0, "the new facts must settle");
     for request in &out {
         if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request {
@@ -1198,6 +1201,7 @@ fn a_second_entry_looks_again() {
         c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
     );
     assert_eq!(look_sends(&out), 1, "facts={:?}; output={out:?}", home::facts(&f.root, f::PROJECT));
+    assert_eq!(look_sends(&settings(&mut f, c::SettingFollows::Default)), 0);
     assert_ne!(look_key(&f), first);
 }
 #[test]
@@ -1293,6 +1297,7 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
     let subject = forge::status::watch(f::PROJECT, &f::limits().forge).unwrap();
     assert!(opened(&out, &subject).is_none());
     assert_eq!(home::facts(&f.root, f::PROJECT).status, home::Status::Unknown);
+    assert!(opened(&out, &Watchable::Jig(c::Subject::Settings)).is_none(), "settings stays with the session");
     assert!(
         opened(&settings(&mut f, c::SettingFollows::Default), &subject).is_none(),
         "a later step cannot retry the watch"

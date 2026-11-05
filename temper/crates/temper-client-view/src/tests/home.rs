@@ -222,7 +222,7 @@ fn home_documents_with_status(
     status: Option<&StatusFixture>,
 ) -> (d::Domain, Token) {
     let (mut root, me_watch, accounts, settings, needs_watch) =
-        f::home_root(&home_limits(), status.is_some_and(|fixture| fixture.goals), rows, dismissed);
+        f::home_root(&home_limits(), rows, dismissed, status.is_some_and(|fixture| fixture.goals));
     let template_root = f::chat::messaging_root();
     let template_me = template_root.pages().me(template_root.client()).unwrap();
     let mut me = root.pages().me(root.client()).unwrap().clone();

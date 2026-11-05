@@ -271,15 +271,21 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   also fit whole. Otherwise, or when that page is too large, the run
   lists directories with `read_file` at both endpoints and reads
   selected files at each within `max_bytes`. The refusal stays marked
-  an error and fits the host answer's byte bound.
+  an error and fits the host answer's byte bound. A successful comparison
+  whose rendered form exceeds that bound returns measured-size feedback
+  with the same recovery instead of losing its body at the worker.
 - **File reads fit the host answer's bound.** The adapter measures rendered
   file, directory and pull-file answers, including metadata and byte escaping.
-  A file keeps the largest UTF-8 prefix that fits with its metadata and a
-  visible `[file truncated]` marker, counting escaping (up to four output
+  A file keeps the largest UTF-8 prefix that fits with its metadata,
+  recovery feedback when room permits, and a visible `[file truncated]`
+  marker, counting escaping (up to four output
   bytes per input byte). An explicit `max_bytes` still bounds the raw forge
   prefix; host fitting may cut it further. A cut is never the whole file,
-  and there is no offset. If metadata leaves no room for content, bounded
-  error feedback directs a shorter path or a larger `core.call_answer_bytes`;
+  and there is no offset. A host-fitted prefix also names the measured
+  rendered size and effective body bound, and gives configuration recovery
+  when room permits; tiny bounds retain the cut marker alone. If metadata
+  leaves no room for content, bounded error feedback directs a shorter path
+  or raising the limiting core or agent allowance;
   lowering `max_bytes` cannot fit metadata. An oversized directory answer
   is an error naming its rendered byte size and numeric host bound. An oversized
   pull-file page retains a changed-path inventory as room permits, marks
@@ -323,7 +329,13 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   asks again under the same name after busy or a lost answer (smith's
   `domain/run.md`, 5.2).
 - **An answer fits what the agent takes** (`domain/worker.md`, 4.3):
-  a call past the worker's input bound, `core.call_answer_bytes`, is
+  forge-read rendering uses the minimum of `core.call_answer_bytes` less
+  the tool name and the checked receiving `agent.limits.bodies.host_reply_text`.
+  The latter comes from the local agent's `agent.json`
+  `profile.declared.tool_payload`. Raising `core.call_answer_bytes` alone
+  cannot overcome a smaller agent allowance. Engine-only processes without
+  local agent metadata retain their configured core allowance.
+  A call past the worker's input bound, `core.call_answer_bytes`, is
   answered `call too large` under its name, and the run goes on (jig's
   worker link). An answer past the agent's `host_reply_bytes` (smith's,
   its channel's `host_reply_text`, the agent's `tool_payload`) reaches
@@ -801,9 +813,11 @@ changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
 lost-fact count. Claude built-in Read refusals instead retain the permission
 message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
-A forge read whose rendered answer exceeds `core.call_answer_bytes` or
-`root.journal.transcript_bytes` returns a bounded error naming the exceeded
-limit and measured bytes, including the tool name. Its refusal fact names
+Forge file, directory, pull-file and compare replies fit the effective
+core and receiving-agent body allowance (section 4.3), retaining prefixes
+or actionable size feedback. A forge read still exceeding the core settled
+answer bound or `root.journal.transcript_bytes` returns a bounded error
+naming the exceeded limit and measured bytes, including the tool name. Its refusal fact names
 `host-render` and that limit. An oversized comparison points to `read_pull`
 for the head and `read_pull_files` pages; an oversized pull-file page points
 to directory and selected-file `read_file` calls at both endpoints with

@@ -3906,6 +3906,45 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     .expect("changes panel")
 }
 
+/// Home's computed facts (client/README.md, 3.5), delivered by its status watch.
+pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1::ProjectStatus> {
+    use temper_client_protocol_wire::v1 as w;
+    let (landed, seen, queued, red, previous, last) = match name {
+        "home-computed" => (3, 1, 3, false, Some(540), Some(6)),
+        "home-last-looked-none" => (3, 1, 3, false, None, Some(6)),
+        "home-landing-none" => (0, 0, 0, false, Some(540), None),
+        "home-landing-red" => (3, 1, 0, true, Some(540), Some(60)),
+        "home-chats-sentence" => (0, 0, 0, false, None, None),
+        _ => return None,
+    };
+    let now = now(FirstRun { step: 7 });
+    Some(
+        w::ProjectStatus::new(
+            &w::CEILINGS,
+            w::ProjectStatusParts {
+                project: PROJECT,
+                landed,
+                seen,
+                queued,
+                red,
+                previous: previous.map(|minutes: u64| {
+                    now.as_nanos()
+                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
+                        .expect("Home previous follows epoch")
+                }),
+                last_landed: last.map(|minutes: u64| {
+                    now.as_nanos()
+                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
+                        .expect("Home landing follows epoch")
+                }),
+                brief: None,
+                branch: b"main".as_slice().into(),
+            },
+        )
+        .expect("Home status fits"),
+    )
+}
+
 /// Settings' delivered kinds 6 and 7 (client/browser.md, 7.2).
 fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::v1 as v;
@@ -4161,45 +4200,6 @@ fn builders() -> List<c::Host> {
         .expect("three builders");
     }
     rows
-}
-
-/// Home's computed facts (client/README.md, 3.5), delivered by its status watch.
-pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1::ProjectStatus> {
-    use temper_client_protocol_wire::v1 as w;
-    let (landed, seen, queued, red, previous, last) = match name {
-        "home-computed" => (3, 1, 3, false, Some(540), Some(6)),
-        "home-last-looked-none" => (3, 1, 3, false, None, Some(6)),
-        "home-landing-none" => (0, 0, 0, false, Some(540), None),
-        "home-landing-red" => (3, 1, 0, true, Some(540), Some(60)),
-        "home-chats-sentence" => (0, 0, 0, false, None, None),
-        _ => return None,
-    };
-    let now = now(FirstRun { step: 7 });
-    Some(
-        w::ProjectStatus::new(
-            &w::CEILINGS,
-            w::ProjectStatusParts {
-                project: PROJECT,
-                landed,
-                seen,
-                queued,
-                red,
-                previous: previous.map(|minutes: u64| {
-                    now.as_nanos()
-                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
-                        .expect("Home previous follows epoch")
-                }),
-                last_landed: last.map(|minutes: u64| {
-                    now.as_nanos()
-                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
-                        .expect("Home landing follows epoch")
-                }),
-                brief: None,
-                branch: b"main".as_slice().into(),
-            },
-        )
-        .expect("Home status fits"),
-    )
 }
 
 /// Home's copies share Ready's intent; the watch supplies progress and adoptions (client/README.md, 3.5).
