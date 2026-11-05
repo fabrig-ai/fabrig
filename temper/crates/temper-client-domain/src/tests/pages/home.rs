@@ -68,10 +68,12 @@ fn fixture_with_me(frame: c::Me) -> Fixture {
     let out = deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
     let dismissed = opened(&out, &forge::dismissed::watch(&f::limits().forge).unwrap()).unwrap();
     let forges = opened(&out, &forge::forges::watch(&f::limits().forge).unwrap()).unwrap();
+    let standing = opened(&out, &Watchable::Jig(c::Subject::Inbox { window: f::limits().client.domain.rows }));
     let out = go(&mut root, f::PROJECT);
     let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
-    let inbox =
-        opened(&out, &Watchable::Jig(c::Subject::Inbox { window: root.pages().inbox().unwrap().window })).unwrap();
+    let inbox = opened(&out, &Watchable::Jig(c::Subject::Inbox { window: root.pages().inbox().unwrap().window }))
+        .or(standing)
+        .unwrap();
     let mut live = None;
     let mut closed = None;
     for request in &out {
@@ -564,7 +566,8 @@ fn home_reads_its_projects_needs_and_releases_them() {
                 closed |= *watch == f.inbox;
             }
         }
-        assert!(closed, "the inbox watch closes");
+        assert!(!closed, "the standing count keeps the shared inbox watch open");
+        assert!(f.root.client().document(pages::needs::handle()).is_some());
         go(&mut f.root, f::PROJECT);
         assert!(f.root.pages().home().unwrap().settings.number > last, "no handle is reused");
     }

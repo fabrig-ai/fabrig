@@ -954,8 +954,8 @@ fn home_domain(name: &str) -> Domain {
                         c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
                     }
                     c::Subject::Inbox { .. } => c::Delivery::Inbox(Box::new(temper_fixtures::client_documents::inbox(
-                        List::with_capacity(0),
-                        0,
+                        home_needs(name),
+                        me.needs_total,
                         c::Count { value: 0, limited: false },
                         0,
                         false,
@@ -1022,24 +1022,7 @@ fn home_domain(name: &str) -> Domain {
                 &mut out,
             ),
             Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
-                let mut rows = List::with_capacity(3);
-                if group == c::InboxReadGroup::Needs {
-                    let tasks: &[u64] = match name {
-                        "home-at-work" | "home-needs-under-begin" => &[3],
-                        "home-needs-several" => &[3, 2, 1],
-                        _ => &[],
-                    };
-                    for task in tasks {
-                        rows.push(temper_fixtures::client_documents::entry(
-                            c::ObjectKey::Question { task: *task, message: 1 },
-                            1,
-                            1,
-                            home_since(4),
-                            None,
-                        ))
-                        .expect("Home needs");
-                    }
-                }
+                let rows = if group == c::InboxReadGroup::Needs { home_needs(name) } else { List::with_capacity(0) };
                 crate::driver::answer(
                     &mut root,
                     read,
@@ -1312,4 +1295,24 @@ fn home_accounts(name: &str, mut accounts: c::Accounts) -> c::Accounts {
     rows.push(row).expect("account variant");
     accounts.accounts = rows;
     accounts
+}
+
+fn home_needs(name: &str) -> skein_lib::List<c::InboxEntry> {
+    let mut rows = skein_lib::List::with_capacity(3);
+    let tasks: &[u64] = match name {
+        "home-at-work" | "home-needs-under-begin" => &[3],
+        "home-needs-several" => &[3, 2, 1],
+        _ => &[],
+    };
+    for task in tasks {
+        rows.push(temper_fixtures::client_documents::entry(
+            c::ObjectKey::Question { task: *task, message: 1 },
+            1,
+            1,
+            home_since(4),
+            None,
+        ))
+        .expect("Home needs");
+    }
+    rows
 }

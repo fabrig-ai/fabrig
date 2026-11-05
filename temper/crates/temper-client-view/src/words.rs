@@ -107,6 +107,11 @@ pub enum Word {
     BrandHome,
     RailHome,
     NeedsYouCount,
+    NeedsYouCountCut,
+    ToastAnswered,
+    ToastLater,
+    ToastUndo,
+    AnsweredReply,
     RailSettings,
     Sections,
 
@@ -845,7 +850,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
-const PHRASES: u32 = 1346;
+// Needs count and toast add five phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1351;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -857,8 +863,9 @@ const PHRASES: u32 = 1346;
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
-const SEGMENTS: u32 = 2325;
-const ALL: [Word; 750] = [
+// Needs count and toast add eleven literal and hole segments (3.5).
+const SEGMENTS: u32 = 2336;
+const ALL: [Word; 755] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -954,6 +961,11 @@ const ALL: [Word; 750] = [
     Word::BrandHome,
     Word::RailHome,
     Word::NeedsYouCount,
+    Word::NeedsYouCountCut,
+    Word::ToastAnswered,
+    Word::ToastLater,
+    Word::ToastUndo,
+    Word::AnsweredReply,
     Word::RailSettings,
     Word::Sections,
     Word::ForgeHereVersionDetails,
@@ -1706,6 +1718,11 @@ impl Word {
             Self::BrandHome => 3080,
             Self::RailHome => 3081,
             Self::NeedsYouCount => 3083,
+            Self::NeedsYouCountCut => 3086,
+            Self::ToastAnswered => 3087,
+            Self::ToastLater => 3088,
+            Self::ToastUndo => 3089,
+            Self::AnsweredReply => 3090,
             Self::RailSettings => 3084,
             Self::Sections => 3085,
 
@@ -2414,6 +2431,13 @@ fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // The toast wraps the outgoing choice or the reply label (3.5).
+    if word == Word::ToastAnswered {
+        return temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow);
+    }
+    if word == Word::AnsweredReply {
+        return Ok(temper_client_protocol_wire::CUE_BYTES);
+    }
     // The phone link names the joined title, question and its colon (3.5).
     if word == Word::HomeAnswerName {
         return home_answer_bytes(joined);
@@ -2582,11 +2606,13 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11,
+            // Needs count and toast add 87 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
+                .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
                 .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
@@ -2830,6 +2856,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BrandHome => (&[b"temper home"], &[]),
         Word::RailHome => (&[b"Home"], &[]),
         Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
+        Word::NeedsYouCountCut => (&[b"Needs you ", b"+"], &[Number]),
+        Word::ToastAnswered => (&[b"Answered: ", b""], &[Name]),
+        Word::ToastLater => (&[b"Later: it stays in Needs you, after the others."], &[]),
+        Word::ToastUndo => (&[b"Undo"], &[]),
+        Word::AnsweredReply => (&[b"Replied: \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name]),
         Word::RailSettings => (&[b"Settings"], &[]),
         Word::Sections => (&[b"Sections"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),
