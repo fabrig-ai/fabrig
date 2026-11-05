@@ -1,16 +1,12 @@
 //! The hosted git codec and two-parent walk under the counting allocator.
 use skein_fake_forge_domain as domain;
-#[cfg(test)]
-// The protocol's unit tests share these fixtures with the memory suite.
-#[path = "../../../../crates/skein-fake-forge-forgejo/src/tests/fixtures.rs"]
-#[expect(dead_code, reason = "the protocol's shared fixture also serves route and document tests")]
-mod fixtures;
-#[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::fixtures;
+    use super::domain;
+    use alloc::boxed::Box;
     use skein_fake_forge_http::git;
     use skein_lib::{List, Writer};
-    use skein_world::domain::heap::Meter;
+    use skein_heap::Meter;
 
     fn bytes(count: u32, byte: u8) -> Box<[u8]> {
         let mut writer = Writer::new(count.try_into().expect("test bytes"));

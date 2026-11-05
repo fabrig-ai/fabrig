@@ -8,6 +8,5 @@ use skein_fake_forge_forgejo::{
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
-mod forgejo_memory;
 mod github_memory;
 mod memory;

@@ -2846,6 +2846,7 @@ dependencies = [
  "skein-fake-forge-domain",
  "skein-fake-forge-http",
  "skein-forge",
+ "skein-heap",
  "skein-http",
  "skein-json",
  "skein-lib",

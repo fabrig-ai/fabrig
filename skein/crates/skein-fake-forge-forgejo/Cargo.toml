@@ -15,6 +15,8 @@ skein-http.workspace = true
 skein-json.workspace = true
 skein-fake-forge-domain.workspace = true
 
+[dev-dependencies]
+skein-heap.workspace = true
 
 [lints]
 workspace = true
