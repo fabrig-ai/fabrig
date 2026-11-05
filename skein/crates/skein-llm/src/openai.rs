@@ -1,8 +1,8 @@
 //! `OpenAI` Responses documents, both sides, and an ordered answer decoder.
 mod common;
 pub(crate) mod filter;
+pub(crate) use crate::wire::json;
 pub(crate) use common::{limit_detail, measured};
-pub(crate) mod json;
 mod request;
 pub(crate) use request::VERBOSITY;
 pub(crate) mod response;
