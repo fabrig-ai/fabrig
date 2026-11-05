@@ -30,6 +30,7 @@ pub struct Diagnostics {
     pub long_bodies: u64,
     pub malformed: u64,
 }
+/// Out of its `Waiting` while `drive_calls` drives the call.
 #[derive(Debug)]
 pub(crate) enum Side {
     Unbegun,
@@ -48,6 +49,20 @@ pub(crate) struct GitHubCall {
     pub route: Option<github_calls::Route>,
     pub discovery: Option<github_calls::Discovery>,
     pub discovered: Option<api::Answer>,
+}
+impl GitHubCall {
+    fn new() -> Self {
+        Self {
+            exchange: connection::github::Exchange::new(),
+            plan: None,
+            route: None,
+            discovery: None,
+            discovered: None,
+        }
+    }
+    fn origin(&self) -> Option<u32> {
+        self.route?.origin
+    }
 }
 #[derive(Debug)]
 #[expect(clippy::enum_variant_names, reason = "the GitHub own plans retain their shared names")]
@@ -88,30 +103,11 @@ impl Waiting {
             deadline,
         }
     }
-    fn origin(&self) -> Option<u32> {
-        let route = match &self.side {
-            Side::GitHub(call) => call.route,
-            Side::Unbegun | Side::Forgejo(_) => None,
-        };
-        route?.origin
-    }
     fn begun(&self) -> bool {
         match &self.side {
             Side::Unbegun => false,
             Side::Forgejo(_) => true,
             Side::GitHub(call) => call.plan.is_some(),
-        }
-    }
-    fn forgejo(&mut self) -> Option<&mut ForgejoCall> {
-        match &mut self.side {
-            Side::Forgejo(call) => Some(call),
-            Side::Unbegun | Side::GitHub(_) => None,
-        }
-    }
-    fn github(&mut self) -> Option<&mut GitHubCall> {
-        match &mut self.side {
-            Side::GitHub(call) => Some(call),
-            Side::Unbegun | Side::Forgejo(_) => None,
         }
     }
     fn error(&self, error: api::Error) -> api::Error {
