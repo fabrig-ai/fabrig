@@ -194,6 +194,7 @@ pub enum Word {
     HomeLooked,
     HomeLandedOne,
     HomeLandedMany,
+    HomeByline,
     HomeLanding,
     HomeChatsSentence,
     LookedMinute,
@@ -981,7 +982,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Goal rows and ways add eighteen phrases; the page adds sixteen (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
-const PHRASES: u32 = 1477;
+// Home's byline adds one phrase (3.5).
+const PHRASES: u32 = 1478;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -996,8 +998,9 @@ const PHRASES: u32 = 1477;
 // Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
-const SEGMENTS: u32 = 2570;
-const ALL: [Word; 881] = [
+// Home's byline adds three literal and hole segments (3.5).
+const SEGMENTS: u32 = 2573;
+const ALL: [Word; 882] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1178,6 +1181,7 @@ const ALL: [Word; 881] = [
     Word::HomeLooked,
     Word::HomeLandedOne,
     Word::HomeLandedMany,
+    Word::HomeByline,
     Word::HomeLanding,
     Word::HomeChatsSentence,
     Word::LookedMinute,
@@ -2065,6 +2069,7 @@ impl Word {
             Self::HomeLooked => 3305,
             Self::HomeLandedOne => 3306,
             Self::HomeLandedMany => 3307,
+            Self::HomeByline => 3316,
             Self::HomeLanding => 3308,
             Self::HomeChatsSentence => 3309,
             Self::LookedMinute => 3310,
@@ -3008,8 +3013,8 @@ impl Words {
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            // Home's status and last-look words add 280 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 280 + 87 + 225 + 15 + 54,
+            // Home's status, last-look words and byline add 310 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 310 + 87 + 225 + 15 + 54,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3252,6 +3257,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeLooked => (&[b"", b" \xc2\xb7 you last looked ", b" ago"], &[Name, Name]),
         Word::HomeLandedOne => (&[b"One change landed since you last looked."], &[]),
         Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
+        Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),
         Word::HomeLanding => (&[b"Landing: "], &[]),
         Word::HomeChatsSentence => (&[b"A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing."], &[]),
         Word::LookedMinute => (&[b"a minute"], &[]),
@@ -3260,7 +3266,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LookedHours => (&[b"", b" hours"], &[Number]),
         Word::LookedDay => (&[b"a day"], &[]),
         Word::LookedDays => (&[b"", b" days"], &[Number]),
-        Word::HomeDayTime => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::HomeDayTime => (&[b"", b", ", b""], &[Name, Name]),
         Word::HomeDone => (&[b"Done. "], &[]),
         Word::HomeNumber => (&[b"", b". "], &[Number]),
         Word::PublicUnknown => (&[b"Not public, or not here."], &[]),
@@ -4058,6 +4064,7 @@ pub enum TimeForm {
     Looked,
     Span,
     Clock,
+    Weekday,
     Day,
 }
 const MINUTE: u64 = 60_000_000_000;
@@ -4094,7 +4101,7 @@ impl Words {
             TimeForm::Ago if minutes < 720 => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked if elapsed < DAY => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked => Some(DAY),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day => None,
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => None,
         };
         let next = next_tick(at, now, elapsed, unit);
         let said = match form {
@@ -4102,7 +4109,7 @@ impl Words {
             TimeForm::Span => self.time_span(minutes),
             TimeForm::Ago if minutes == 0 => self.say(Word::TimeJustNow, &[]),
             TimeForm::Ago if minutes < 720 => self.say(Word::TimeAgo, &[Hole::Name(self.time_span(minutes))]),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day => self.calendar_time(form, at, now),
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => self.calendar_time(form, at, now),
         };
         (said, next)
     }
@@ -4144,6 +4151,7 @@ impl Words {
                 };
                 self.say(Word::TimePair, &[Hole::Name(date), Hole::Name(clock)])
             }
+            TimeForm::Weekday => self.time_weekday(day, true),
             TimeForm::Day => {
                 let date = self.say(
                     Word::TimePair,

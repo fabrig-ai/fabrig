@@ -210,13 +210,28 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-morning",
+        heading: "41 changes landed overnight. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Tuesday, 08:04 · you last looked 9 hours ago" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "first-run-projects is six of nine tasks in. Its store task hit the wasm size limit twice and was split in two.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Written by the status agent at 07:42" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Chats" },
+            Part::Text { text: "Landing: " },
+            Part::Text { text: "3 queued" },
+            Part::Text { text: "last landed 6 min ago" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
         name: "home-computed",
         heading: "2 changes landed since you last looked. Nothing needs you.",
         parts: &[
-            Part::Named {
-                role: Role::Paragraph,
-                name: "Today · Thursday 22 October · 21:19 · you last looked 9 hours ago",
-            },
+            Part::Named { role: Role::Paragraph, name: "Thursday, 21:19 · you last looked 9 hours ago" },
             Part::Text { text: "3 queued" },
             Part::Text { text: "last landed 6 min ago" },
             Part::Named { role: Role::Link, name: "Changes" },
@@ -226,7 +241,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "home-last-looked-none",
         heading: "2 changes landed since you last looked. Nothing needs you.",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "Today · Thursday 22 October · 21:19" },
+            Part::Named { role: Role::Paragraph, name: "Thursday, 21:19" },
             Part::Text { text: "3 queued" },
             Part::Named { role: Role::Link, name: "Changes" },
         ],

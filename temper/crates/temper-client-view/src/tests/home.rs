@@ -1117,7 +1117,7 @@ fn home_kicker_tracks_the_current_day_and_minute() {
     let (root, _) = home_root(List::with_capacity(0), false, false);
     let mut view = f::browser_page_view(&root);
     let kicker = styled(view.tree(), crate::look::HOME_KICKER).name.as_deref().unwrap();
-    contains(kicker, "Thursday 1 January");
+    contains(kicker, "Thursday,");
     contains(kicker, "00:00");
     absent(kicker, "Shop");
     assert_eq!(view.next_change(), Some(skein_lib::Wall::from_nanos(60_000_000_000)));
@@ -1968,12 +1968,12 @@ fn kicker(root: &d::Domain, browser: bool) -> Box<[u8]> {
 fn the_kicker_says_when_you_last_looked() {
     // The fractional spans prove the displayed unit is rounded down.
     for (seconds, expected) in [
-        (61, "Today · Monday 5 January · 00:00 · you last looked a minute ago"),
-        (179, "Today · Monday 5 January · 00:00 · you last looked 2 minutes ago"),
-        (3601, "Today · Monday 5 January · 00:00 · you last looked an hour ago"),
-        (35_999, "Today · Monday 5 January · 00:00 · you last looked 9 hours ago"),
-        (86_401, "Today · Monday 5 January · 00:00 · you last looked a day ago"),
-        (259_201, "Today · Monday 5 January · 00:00 · you last looked 3 days ago"),
+        (61, "Monday, 00:00 · you last looked a minute ago"),
+        (179, "Monday, 00:00 · you last looked 2 minutes ago"),
+        (3601, "Monday, 00:00 · you last looked an hour ago"),
+        (35_999, "Monday, 00:00 · you last looked 9 hours ago"),
+        (86_401, "Monday, 00:00 · you last looked a day ago"),
+        (259_201, "Monday, 00:00 · you last looked 3 days ago"),
     ] {
         let mut parts = status_parts();
         parts.previous = Some(STATUS_NOW - seconds * 1_000_000_000);
@@ -1990,7 +1990,7 @@ fn no_previous_says_nothing() {
     parts.previous = None;
     let root = status_home(parts, true, false, false);
     for browser in [false, true] {
-        assert_eq!(kicker(&root, browser).as_ref(), "Today · Monday 5 January · 00:00".as_bytes());
+        assert_eq!(kicker(&root, browser).as_ref(), "Monday, 00:00".as_bytes());
     }
 }
 #[test]
@@ -2491,6 +2491,142 @@ fn to_begin_keeps_chats() {
         main_find(view.tree(), Role::Region, b"Chats");
         for node in main_nodes(view.tree()) {
             assert!(node.role != Role::Region || node.name.as_deref() != Some(b"Goals"));
+        }
+    }
+}
+
+const BRIEF_SENTENCE: &str = "41 changes landed overnight.";
+const BRIEF_LEDE: &str =
+    "first-run-projects is six of nine tasks in. Its store task hit the wasm size limit twice and was split in two.";
+
+fn brief_parts(landed: u64, lede: &str, at: u64) -> w::ProjectStatusParts {
+    let mut parts = status_parts();
+    parts.brief = Some(
+        w::StatusBrief::new(
+            &w::CEILINGS,
+            w::StatusBriefParts {
+                sentence: BRIEF_SENTENCE.as_bytes().into(),
+                lede: lede.as_bytes().into(),
+                at,
+                landed,
+            },
+        )
+        .unwrap(),
+    );
+    parts
+}
+
+fn no_brief_prose(view: &crate::View) {
+    for style in [crate::look::HOME_LEDE, crate::look::HOME_BYLINE] {
+        for node in main_nodes(view.tree()) {
+            assert!(!node.styles.as_slice().contains(&style));
+        }
+    }
+    let text = f::main_text(view.tree());
+    absent(&text, BRIEF_SENTENCE);
+    absent(&text, BRIEF_LEDE);
+    absent(&text, "Written by the status agent");
+}
+
+#[test]
+fn a_brief_above_seen_says_its_words() {
+    let root = status_home(brief_parts(2, BRIEF_LEDE, STATUS_NOW), true, false, false);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        main_find(view.tree(), Role::Heading { level: 1 }, b"41 changes landed overnight. Nothing needs you.");
+        let lede = styled(view.tree(), crate::look::HOME_LEDE);
+        let byline = styled(view.tree(), crate::look::HOME_BYLINE);
+        assert_eq!(lede.name.as_deref(), Some(BRIEF_LEDE.as_bytes()));
+        assert_eq!(byline.name.as_deref(), Some(b"Written by the status agent at 00:00".as_slice()));
+        let intro = children(subtree(view.tree(), styled(view.tree(), crate::look::HOME_INTRO).id));
+        if browser {
+            assert_eq!(intro.len(), 4);
+            assert_eq!(intro[2].id, lede.id);
+            assert_eq!(intro[3].id, byline.id);
+        } else {
+            assert_eq!(intro[1].role, Role::Paragraph);
+            let expected = crate::accounts::words::join(&[
+                b"Monday, 00:00 \xc2\xb7 you last looked 9 hours ago 41 changes landed overnight. Nothing needs you. ",
+                BRIEF_LEDE.as_bytes(),
+            ]);
+            assert_eq!(f::nodes_text(subtree(view.tree(), intro[1].id)).as_ref(), expected.as_ref());
+        }
+        let print = printed(&view);
+        let kicker = skein_lib::bytes::find(&print, b"you last looked").unwrap();
+        let headline = if browser {
+            kicker
+        } else {
+            skein_lib::bytes::find_from(&print, BRIEF_SENTENCE.as_bytes(), kicker).unwrap()
+        };
+        let lede = skein_lib::bytes::find(&print, BRIEF_LEDE.as_bytes()).unwrap();
+        let byline = skein_lib::bytes::find(&print, b"Written by the status agent").unwrap();
+        assert!(kicker <= headline && headline < lede && lede < byline);
+        absent(&print, "2 changes landed since");
+    }
+}
+
+#[test]
+fn a_brief_at_seen_is_the_computed_words() {
+    for landed in [0, 1] {
+        let root = status_home(brief_parts(landed, BRIEF_LEDE, STATUS_NOW), true, false, false);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            main_find(
+                view.tree(),
+                Role::Heading { level: 1 },
+                b"2 changes landed since you last looked. Nothing needs you.",
+            );
+            no_brief_prose(&view);
+        }
+    }
+}
+
+#[test]
+fn no_brief_no_lede_no_byline() {
+    for root in [
+        Box::new(status_home(status_parts(), true, false, false)),
+        Box::new(status_home(brief_parts(2, BRIEF_LEDE, STATUS_NOW), false, false, false)),
+    ] {
+        for browser in [false, true] {
+            no_brief_prose(&status_view(&root, browser));
+        }
+    }
+}
+
+#[test]
+fn an_empty_lede_keeps_the_byline() {
+    let root = status_home(brief_parts(2, "", STATUS_NOW), true, false, false);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        for node in main_nodes(view.tree()) {
+            assert!(!node.styles.as_slice().contains(&crate::look::HOME_LEDE));
+        }
+        assert_eq!(
+            styled(view.tree(), crate::look::HOME_BYLINE).name.as_deref(),
+            Some(b"Written by the status agent at 00:00".as_slice())
+        );
+    }
+}
+
+#[test]
+fn the_byline_says_its_clock() {
+    for (now, at, expected) in [
+        (
+            STATUS_NOW + 8 * 60 * STATUS_MINUTE,
+            STATUS_NOW + (7 * 60 + 42) * STATUS_MINUTE,
+            "Written by the status agent at 07:42",
+        ),
+        (
+            STATUS_NOW + 8 * 60 * STATUS_MINUTE,
+            STATUS_NOW - (24 * 60 - 7 * 60 - 42) * STATUS_MINUTE,
+            "Written by the status agent at Sun 07:42",
+        ),
+    ] {
+        let root = status_home(brief_parts(2, BRIEF_LEDE, at), true, false, false);
+        for words in [f::words(), f::browser_words()] {
+            let mut view = f::view_of(words);
+            crate::build(&mut view, &root, skein_lib::Wall::from_nanos(now), &mut Queue::uncapped());
+            assert_eq!(styled(view.tree(), crate::look::HOME_BYLINE).name.as_deref(), Some(expected.as_bytes()));
         }
     }
 }

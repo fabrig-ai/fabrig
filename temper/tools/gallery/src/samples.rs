@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 143;
+pub const N: usize = 144;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -77,6 +77,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "changes-empty", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-one", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-landed-only", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
+        Sample {
+            name: "home-morning",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
         Sample {
             name: "home-computed",
             world: FirstRun { step: 7 },
@@ -1065,7 +1071,7 @@ fn home_domain(name: &str) -> Domain {
     me.projects = projects;
     me.needs_total = match name {
         "home-at-work" | "home-needs-under-begin" | "home-one-need" => 1,
-        "home-needs-several" | "home-morning-card" | "home-answered" => 3,
+        "home-morning" | "home-needs-several" | "home-morning-card" | "home-answered" => 3,
         _ => 0,
     };
     me.needs = c::Needs { questions: me.needs_total, proposals: 0, escalations: 0, person_tasks: 0 };
@@ -1106,7 +1112,8 @@ fn home_domain(name: &str) -> Domain {
     }
     let everyday = matches!(
         name,
-        "home-at-work"
+        "home-morning"
+            | "home-at-work"
             | "home-needs-several"
             | "home-nothing-needs"
             | "home-morning-card"
@@ -1216,7 +1223,11 @@ fn home_domain(name: &str) -> Domain {
                     w::Watch::Forges => wire::forges(
                         &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Home forges"),
                     ),
-                    w::Watch::Status(_) => match crate::worlds::home_status(status_name) {
+                    w::Watch::Status(_) => match if status_name == "home-morning" {
+                        Some(morning_status())
+                    } else {
+                        crate::worlds::home_status(status_name)
+                    } {
                         Some(status) => wire::project_status(&status),
                         None => continue,
                     },
@@ -1328,7 +1339,7 @@ fn home_domain(name: &str) -> Domain {
                         from: None,
                         message,
                         words: home_text(home_question(name, task)),
-                        since: home_since(4),
+                        since: home_since(name, 4),
                         acts: {
                             let mut offers = List::with_capacity(1);
                             offers
@@ -1499,9 +1510,9 @@ fn home_text(words: &str) -> c::DocumentText {
         c::Text::new(words.as_bytes().into(), crate::driver::limits().client.domain.text).expect("Home words"),
     )
 }
-fn home_since(minutes: u64) -> skein_lib::Wall {
+fn home_since(name: &str, minutes: u64) -> skein_lib::Wall {
     skein_lib::Wall::from_nanos(
-        crate::worlds::now(FirstRun { step: 7 })
+        crate::worlds::sample_now(FirstRun { step: 7 }, name)
             .as_nanos()
             .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home minutes fit"))
             .expect("Home time follows epoch"),
@@ -1517,12 +1528,16 @@ fn home_title(task: u64) -> &'static str {
 }
 fn home_chat_rows(name: &str, source: &c::TaskLine, ended: bool) -> skein_lib::List<c::TaskLine> {
     let tasks: &[u64] = match (name, ended) {
-        ("home-at-work" | "home-needs-several" | "home-morning-card" | "home-answered" | "home-one-need", false) => {
-            &[3]
-        }
-        ("home-at-work" | "home-needs-several" | "home-morning-card" | "home-answered" | "home-one-need", true) => {
-            &[2, 1]
-        }
+        (
+            "home-morning" | "home-at-work" | "home-needs-several" | "home-morning-card" | "home-answered"
+            | "home-one-need",
+            false,
+        ) => &[3],
+        (
+            "home-morning" | "home-at-work" | "home-needs-several" | "home-morning-card" | "home-answered"
+            | "home-one-need",
+            true,
+        ) => &[2, 1],
         ("home-nothing-needs", true) => &[1],
         _ => &[],
     };
@@ -1532,8 +1547,8 @@ fn home_chat_rows(name: &str, source: &c::TaskLine, ended: bool) -> skein_lib::L
         row.project = 1;
         row.chip.task = *task;
         row.chip.title = home_text(home_title(*task));
-        row.last_activity = home_since(if ended { 60 } else { 4 });
-        row.ended_at = if ended { Some(home_since(60)) } else { None };
+        row.last_activity = home_since(name, if ended { 60 } else { 4 });
+        row.ended_at = if ended { Some(home_since(name, 60)) } else { None };
         row.waits_on = if ended {
             c::WaitsOn::Nothing
         } else {
@@ -1662,7 +1677,7 @@ fn home_needs(name: &str) -> skein_lib::List<c::InboxEntry> {
     let mut rows = skein_lib::List::with_capacity(3);
     let tasks: &[u64] = match name {
         "home-at-work" | "home-needs-under-begin" | "home-one-need" => &[3],
-        "home-needs-several" | "home-morning-card" | "home-answered" => &[3, 2, 1],
+        "home-morning" | "home-needs-several" | "home-morning-card" | "home-answered" => &[3, 2, 1],
         _ => &[],
     };
     for task in tasks {
@@ -1670,7 +1685,7 @@ fn home_needs(name: &str) -> skein_lib::List<c::InboxEntry> {
             c::ObjectKey::Question { task: *task, message: 1 },
             1,
             1,
-            home_since(4),
+            home_since(name, 4),
             None,
         ))
         .expect("Home needs");
@@ -1694,4 +1709,26 @@ fn home_question(name: &str, task: u64) -> &'static str {
     } else {
         "The repository has no license. Name one in the README?\n\nThe README is written apart from this line.\nChoice: MIT (recommended)\nChoice: Apache-2.0\nChoice: No license line"
     }
+}
+
+fn morning_status() -> temper_client_protocol_wire::v1::ProjectStatus {
+    use temper_client_protocol_wire::v1 as w;
+    let now = crate::worlds::sample_now(FirstRun { step: 7 }, "home-morning").as_nanos();
+    let minute = 60_000_000_000;
+    w::ProjectStatus::new(&w::CEILINGS, w::ProjectStatusParts {
+        project: 1,
+        landed: 41,
+        last_landed: Some(now - 6 * minute),
+        brief: Some(w::StatusBrief::new(&w::CEILINGS, w::StatusBriefParts {
+            sentence: b"41 changes landed overnight.".as_slice().into(),
+            lede: b"first-run-projects is six of nine tasks in. Its store task hit the wasm size limit twice and was split in two.".as_slice().into(),
+            at: now - 22 * minute,
+            landed: 41,
+        }).expect("morning brief fits")),
+        previous: Some(now - 9 * 60 * minute),
+        seen: 0,
+        queued: 3,
+        red: false,
+        branch: b"main".as_slice().into(),
+    }).expect("morning status fits")
 }
