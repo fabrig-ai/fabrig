@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use io::kernel::{self, Done, Fd, Op, OpenHow};
 use skein_io as io;
-use skein_lib::{Token, Writer};
+use skein_lib::{Buffer, Token};
 use temper_worker_domain::tooling::Event;
 
 #[derive(Debug)]
@@ -14,7 +14,7 @@ pub(in crate::worker) struct File {
     bytes: Box<[u8]>,
     at: u32,
     most: u32,
-    result: Option<Writer>,
+    result: Option<Buffer>,
     failed: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -61,7 +61,7 @@ impl File {
                 bytes: Box::new([]),
                 at: 0,
                 most,
-                result: Some(Writer::new(usize::try_from(most).expect("file bound"))),
+                result: Some(Buffer::with_capacity(most)),
                 failed: false,
             },
             Op::Open { root, path, how: OpenHow::ReadNoFollow },
@@ -73,7 +73,7 @@ impl File {
         } else {
             Event::Read {
                 owner: self.owner,
-                bytes: if self.failed { None } else { Some(self.result.take().expect("read buffer").finish()) },
+                bytes: if self.failed { None } else { Some(self.result.take().expect("read buffer").to_boxed()) },
             }
         })
     }
