@@ -709,42 +709,32 @@ fn json_body_demands_are_batched_across_bounded_pumps() {
     let body = joined(&[br#"{"id":2,"login":"writer","ignored":["#, &fixtures::filled(180, b' '), b"]}"]);
     let response = fixtures::ok(&body);
     let mut h = fixtures::ConnectionHarness::new();
-    h.connection
-        .start(&h.env, &h.forge, fixtures::USER_AGENT, fixtures::forgejo_exchange(request::Request::User, None))
-        .expect("user request");
+    h.start(fixtures::forgejo_exchange(request::Request::User, None)).expect("user request");
     let heard = h.buffered_answer(&response, response.len(), false);
     user_decoded(&heard);
     assert_eq!(h.connection.phase, Phase::Idle);
-    assert!(!h.connection.ready(), "no ready work after the terminal");
+    assert!(!h.ready(), "no ready work after the terminal");
     assert!(h.local_pumps > 1, "buffered work survives a pump boundary");
     assert_eq!(h.body_demands, 1, "one buffered body batch");
 }
 
-fn user_decoded(heard: &skein_lib::List<crate::connection::Heard>) {
-    use crate::connection::Heard;
+fn user_decoded(heard: &skein_lib::List<skein_forge::forgejo::plans::Heard>) {
     use skein_forge::forgejo::plans;
     assert_eq!(heard.len(), 2, "one head and one terminal: {heard:?}");
     assert_eq!(
         heard.get(1),
-        Some(&Heard::Forgejo(plans::Heard::Done(plans::Body::Document(d::Document::User(d::User {
+        Some(&plans::Heard::Done(plans::Body::Document(d::Document::User(d::User {
             id: 2,
             login: Box::from(&b"writer"[..]),
             is_admin: false,
             full_name: Box::from([]),
-        }))))),
+        })))),
         "complete decoded body"
     );
 }
 
 fn user_request(h: &mut fixtures::ConnectionHarness) {
-    h.connection
-        .start(
-            &h.env,
-            &h.forge,
-            fixtures::USER_AGENT,
-            fixtures::forgejo_exchange(skein_forge::forgejo::request::Request::User, None),
-        )
-        .expect("user request");
+    h.start(fixtures::forgejo_exchange(skein_forge::forgejo::request::Request::User, None)).expect("user request");
 }
 
 #[test]
@@ -757,7 +747,7 @@ fn json_body_fragments_and_final_bytes_precede_end() {
                 user_request(&mut h);
                 let heard = h.buffered_answer(&response, fragment, eof);
                 user_decoded(&heard);
-                assert!(!h.connection.ready(), "chunk{chunk}/fragment{fragment}/eof{eof}: no residual work");
+                assert!(!h.ready(), "chunk{chunk}/fragment{fragment}/eof{eof}: no residual work");
                 assert!(h.body_demands > 0, "body read");
             }
         }
@@ -788,12 +778,12 @@ fn closing_with_a_partial_json_batch_drops_local_work() {
     user_request(&mut h);
     let heard = h.buffered_answer(response, response.len(), false);
     assert_eq!(heard.len(), 1, "only the head before the incomplete string");
-    assert!(!h.connection.ready(), "waits for bytes, not a local spin");
+    assert!(!h.ready(), "waits for bytes, not a local spin");
     h.connection.close(&h.env, true, &mut h.io);
     h.connection.stream(&h.env, skein_lib::stream::Up::End);
     h.pump();
-    assert!(!h.connection.ready(), "close leaves no local work");
-    assert!(h.connection.heard().is_none(), "no answer after close");
+    assert!(!h.ready(), "close leaves no local work");
+    assert!(h.forgejo.heard(&mut h.connection).is_none(), "no answer after close");
 }
 
 #[test]
@@ -819,7 +809,7 @@ fn json_body_intakes_stay_under_the_ceiling_and_release_on_teardown() {
         for at in 0..connections.len() {
             let h = connections.get_mut(at).expect("configured connection");
             h.connection.close(&h.env, false, &mut h.io);
-            assert!(!h.connection.ready(), "closed connections do not spin");
+            assert!(!h.ready(), "closed connections do not spin");
         }
     }
     let grown = span.end();

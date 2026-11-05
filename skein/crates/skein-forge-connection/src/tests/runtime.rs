@@ -210,7 +210,7 @@ fn removal_discards_queued_notifications_and_listener_hints() {
     hook.offer();
     let mut up = Queue::uncapped();
     let mut io = Queue::uncapped();
-    hook.pump(Token::new(101), &h.env, &empty(), &mut up, &mut io);
+    hook.pump(Token::new(101), &h.env, &List::with_capacity(0), &empty().word, &mut up, &mut io);
     assert!(up.is_empty(), "listener drops a removed forge's hint when popped");
 }
 
