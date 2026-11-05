@@ -722,6 +722,7 @@ fn client_crates_carry_the_client_prefix() {
         "jig-protocol-engine-clients",
         "jig-protocol-engine-clients-http",
         "jig-engine-clients-world",
+        "jig-engine-clients-kit",
         "jig-fake-parties",
         "jig-protocol-transcript",
         "jig-test",

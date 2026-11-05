@@ -978,7 +978,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
- "jig-engine-clients-world",
+ "jig-engine-clients-kit",
  "jig-fake-parties",
  "jig-fake-workers",
  "jig-protocol-config",
@@ -1219,7 +1219,7 @@ dependencies = [
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
- "jig-engine-clients-world",
+ "jig-engine-clients-kit",
  "jig-fake-parties",
  "jig-fake-workers",
  "jig-protocol-engine-clients",
@@ -1413,6 +1413,24 @@ dependencies = [
 [[package]]
 name = "jig-engine-clients-kit"
 version = "0.0.0"
+dependencies = [
+ "jig-client-protocol-wire",
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "jig-protocol-config",
+ "jig-protocol-engine-clients",
+ "jig-protocol-engine-clients-http",
+ "jig-test-service",
+ "skein-http",
+ "skein-io",
+ "skein-lib",
+ "skein-world",
+]
 
 [[package]]
 name = "jig-engine-clients-world"
@@ -1424,13 +1442,10 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-test-records",
  "jig-core-kit",
- "jig-domain-accounts",
- "jig-domain-authority",
  "jig-domain-core",
- "jig-domain-fleet",
  "jig-domain-people",
  "jig-domain-tasks",
- "jig-domain-views",
+ "jig-engine-clients-kit",
  "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
@@ -1439,7 +1454,6 @@ dependencies = [
  "jig-test-service",
  "serde_json",
  "skein-http",
- "skein-io",
  "skein-lib",
  "skein-oauth-issuer",
  "skein-scratch",
