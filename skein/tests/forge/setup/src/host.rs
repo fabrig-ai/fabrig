@@ -1,6 +1,6 @@
 //! The host over HTTP bytes, a fake Forgejo and io played by hand
 //! (skein/docs/design/forge-setup.md, 6.3).
-use crate::{fixtures, tls::Carrier, host::plans::seeded_config};
+use crate::{fixtures, host::plans::seeded_config, tls::Carrier};
 use skein_fake_forge_domain as domain;
 use skein_fake_forge_forgejo::{self as fake, Service};
 use skein_forge_machine_world::github::{self, Fake};
@@ -223,8 +223,13 @@ impl HostWorld {
                 skein_forge_setup::host::Transport::Tls { .. } => Some(forge.address),
             })
             .collect();
-        let forge = settings.forges.as_slice().iter().find(|forge| forge.forgejo().is_some())
-            .cloned().expect("Forgejo fixture");
+        let forge = settings
+            .forges
+            .as_slice()
+            .iter()
+            .find(|forge| forge.forgejo().is_some())
+            .cloned()
+            .unwrap_or_else(|| fixtures::host_settings().forges.get(0).expect("Forgejo fixture").clone());
         let owned = forge.forgejo().is_some_and(|given| given.org_owner.is_some());
         let repositories = config.repositories.iter().cloned().collect();
         let (service, fake_limits) = seeded_config(seed, owned, config);
@@ -575,14 +580,27 @@ impl HostWorld {
                         if let Some(domain) = &mut self.domain {
                             domain::step(domain, &self.domain_env, event, &mut self.domain_out);
                         } else {
-                            let domain::Event::Call { reply_to, user, repository,
-                                op: domain::api::Op::Read(domain::api::Read::ListingPermission) } = event else {
+                            let domain::Event::Call {
+                                reply_to,
+                                user,
+                                repository,
+                                op: domain::api::Op::Read(domain::api::Read::ListingPermission),
+                            } = event
+                            else {
                                 panic!("unexpected repository domain call")
                             };
-                            let id = self.repositories.iter().find(|repo| repo.full == repository)
-                                .expect("scenario repository").id;
+                            let id = self
+                                .repositories
+                                .iter()
+                                .find(|repo| repo.full == repository)
+                                .expect("scenario repository")
+                                .id;
                             let login = &self.forge.forgejo().expect("Forgejo fixture").bot_login;
-                            let grant = self.service.setup().find(login).filter(|account| account.id == user)
+                            let grant = self
+                                .service
+                                .setup()
+                                .find(login)
+                                .filter(|account| account.id == user)
                                 .and_then(|account| self.service.setup().collaborator(id, &account.login));
                             let permission = match grant {
                                 None => domain::api::Permission::None,
@@ -591,7 +609,9 @@ impl HostWorld {
                                 Some(skein_forge::forgejo::request::Grant::Admin) => domain::api::Permission::Admin,
                             };
                             self.domain_out.push(domain::Request::Reply {
-                                to: reply_to, result: Ok(domain::api::Answer::Permission(permission)) });
+                                to: reply_to,
+                                result: Ok(domain::api::Answer::Permission(permission)),
+                            });
                         }
                     }
                     fake::Event::Close => {

@@ -27,9 +27,16 @@ impl Store {
     pub fn seed_repository_hook(&mut self, repository: u32, hook: HookSpec) -> Option<u64> {
         let id = self.next_repo_hook;
         let next = id.checked_add(1)?;
-        self.repo_hooks.push(RepositoryHook {
-            id, repository, url: hook.url, secret: hook.secret, events: hook.events, active: hook.active,
-        }).ok()?;
+        self.repo_hooks
+            .push(RepositoryHook {
+                id,
+                repository,
+                url: hook.url,
+                secret: hook.secret,
+                events: hook.events,
+                active: hook.active,
+            })
+            .ok()?;
         self.next_repo_hook = next;
         Some(id)
     }
@@ -37,7 +44,8 @@ impl Store {
     pub fn delete_repository_hook(&mut self, repository: u32, id: u64) -> bool {
         for index in 0..self.repo_hooks.len() {
             if let Some(hook) = self.repo_hooks.get(index)
-                && hook.repository == repository && hook.id == id
+                && hook.repository == repository
+                && hook.id == id
             {
                 super::remove(&mut self.repo_hooks, index);
                 return true;
