@@ -1,11 +1,11 @@
 //! A compressed artifact at the shared answer bound fits its component ledger.
-use super::{fixtures as f, github_files::CallHeap};
-use alloc::boxed::Box;
 use skein_forge::{
     api::{Answer, Op, Read},
     forgejo::{document as d, server},
 };
+use skein_forge_machine_world::hand::{self as f, CallHeap};
 use skein_lib::Duration;
+use std::boxed::Box;
 const RUN: u64 = 7;
 const ARTIFACT: u64 = 11;
 const REQUESTS: u32 = 3; // Listing, run, complete ZIP.
@@ -20,7 +20,7 @@ fn warm() -> f::Harness {
     h
 }
 #[test]
-#[expect(clippy::print_stdout, clippy::disallowed_macros, reason = "report the artifact's measured component peak")]
+#[expect(clippy::print_stdout, reason = "report the artifact's measured component peak")]
 fn an_answer_bound_inflated_artifact_fits_the_owned_heap() {
     // Peak 133840 bytes, plus a quarter, rounded up to two significant digits.
     const CEILING: u64 = 170_000;
@@ -34,7 +34,7 @@ fn an_answer_bound_inflated_artifact_fits_the_owned_heap() {
             run_id: RUN,
             size_in_bytes: u64::from(bound),
         }])),
-        &crate::limits::documents(&f::limits()),
+        &skein_forge_connection::limits::documents(&f::limits()),
     )
     .expect("listing fits");
     let mut h = warm();
