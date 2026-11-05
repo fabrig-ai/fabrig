@@ -181,6 +181,7 @@ fake person. What waits is in section 18, and what is open in section
 | required | a field its form needs filled |
 | submits on enter | a text field or a text area that takes a `Submit` on Enter |
 | completed | an item done: a step of a sequence finished, an entry of a checklist met |
+| folds away | a disclosure a shell folds on a press outside it or on Escape, as a panel |
 
 There is no provisional state: no accessibility API has one. A node
 whose content is provisional says so in words (a status), and its look
@@ -926,6 +927,7 @@ The page part keeps the full mapping (ui-web.md, section 6); in brief:
 | pressed, selected | `aria-pressed`, a check's `checked`; `aria-selected`, a choice's `checked`, an option's `selected` |
 | required, submits on enter | `required` or `aria-required`; `enterkeyhint="send"` |
 | completed | the page part's word, last in the item, hidden from sight and read (ui-web.md, section 6) |
+| folds away | `data-folds-away` on the `<details>`, read by the page part (ui-web.md, section 7) |
 | a name, a description, a level | `aria-label`; `aria-describedby`; `<h1>` to `<h6>`, deeper `aria-level` |
 | a placeholder | `placeholder` |
 | an entry kind | `type`: `text`, `number`, `email`, `tel`, `url`, `date`, `time`, `password` |

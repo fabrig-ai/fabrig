@@ -232,7 +232,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Home { project }` | `/projects/<project>` |
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
-  | `Chats { filter, start }` | `/chats`, and its filter's and start's query |
+  | `Chats { filter }` | `/chats`, and its filter's query |
+  | `NewChat` | `/chats/new` |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
   | `Task { task, filter }` | `/tasks/<task>`, and its plan's filter's query |
@@ -275,14 +276,6 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   doesn't read as one of the page's, `/tasks/9?state=closed` among
   them, or a field of another name, is dropped, and the address
   replaced with the printed one. A filter chosen is a move (below).
-- **The chats' start is `?at=start`,** as the welcome's step is
-  `?at=`: `/chats?at=start` is the Chats page
-  with the focus in its start's text area ("Start a chat", or the
-  playground's start's while the playground's start is drawn in its place), the
-  address the inbox's "+ New chat" links to (`README.md`, 3.5's
-  inbox); with a filter, `state` comes first,
-  `/chats?state=live&at=start`. Every other `/chats` leaves the focus
-  on its heading, as any move does.
 - **The welcome's step is its query:** none for its first step,
   Welcome, so that `/welcome` is the welcome; `?at=forge`, `?at=model`
   and `?at=ready` for the others (`README.md`, 3.5, The welcome). As
@@ -318,8 +311,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   link's, at the page's top with the focus on its heading, and back
   returns to the filter before. Like any move it folds the open
   disclosures (2.5), so the Kind menu closes on its choice. A move
-  that stays on the chats list, or on one goal's page, changing its
-  filter or its start alone, keeps the page: its composers' words, the
+  that stays on the chats list, between `Chats` and `NewChat`, or on one
+  goal's page, changing its filter alone, keeps the page: its composers' words, the
   closed chats and ended delegates it read, which it reads not again;
   the inbox's filter, a query the engine answers, reads its page anew.
 - **A path that is no page** opens the inbox, and the address is
@@ -550,29 +543,30 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   phone width its list drops under it, the open one ticked. "Set up
   temper →" is the banner's one coloured control, outlined in the
   accent, its arrow drawn by the sheet (`README.md`, 5.1).
-- **The chats page reads as a terminal** (`README.md`, 3.5): a narrow
-  left pane under the banner, of the viewport's height and scrolling
-  alone, ruled from the rest; in it the new chat's bar and context as
-  lines, the heading "Chats" in small capitals over its filters as
-  plain words and a flat list, each chat a compact line, its title and
-  when, then its status and number, the whole line its link and its
-  spend left out, and the playground's banner over a hairline, in the
-  chats' size. The rest is the prompt, a bare box,
-  its hint under its left edge and the composer's line under its
-  right, the chooser's list dropping below it; under 1100 px the hint
-  gives way to that line. At phone width the pane follows the prompt,
-  as a section of its own. The sheet selects the pane's page by the
-  pane (`:has`), so a page without it is drawn as before.
+- **The Chats page and every chat are the greenfield mock's**
+  (`README.md`, 3.5): each selector the document names is the mock's rule
+  copied onto the client's own classes, pixel for pixel, under the sheet's
+  `/* ==== ui: chats ==== */` marker, in the `--gf-*` tokens, with
+  `--gf-hint: #8a8a93`, `--gf-signal-ink: #9a3412` and
+  `--gf-signal-line: #f1d5bd`; the mock's phone rules for those selectors
+  come from its last `@media (max-width: 760px)` block. The tokens:
+  `CHATS_PAGE` on the Chats page's main and `SESSION` on every chat's and
+  `NewChat`'s. An agent's task's page keeps its own look, `AGENT_PAGE` and
+  `TASKBAR`, with `ENTRY`, `COMPOSER_AREA`, `COMPOSER` and `HINT` for its
+  composer.
+- **What the mock lacks and a print needs** stays in the view, hidden by the
+  sheet in the browser. A word the browser alone shows, or says otherwise,
+  the view chooses by its shell.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).
-- **The composers** (the chats' and a chat's) are text areas with
+- **The composers** (`NewChat`'s and a chat's) are text areas with
   skein-ui's `SubmitsOnEnter`: Enter sends, Shift+Enter is a new line
   (skein's `ui-web.md`, section 7), which the view allows in a
   composer's words, counted within its bound (`README.md`, 5.1). A
-  chat's shows its placeholder, "Message T6…", while it is empty, as
-  `placeholder`, its name staying "Message", and the chats' "Describe
-  a change", its name staying "Start a chat" (`README.md`, 3.5). They
+  chat's shows its placeholder, "Reply to T6", while it is empty, as
+  `placeholder`, its name staying "Message", and `NewChat`'s "What do you
+  want done?", its name too (`README.md`, 3.5). They
   grow with their words and shrink after sending by `temper.css` alone
   (`field-sizing: content`, from one line to a bound), with no
   component and no script of temper's; a browser without it shows an
@@ -1144,11 +1138,22 @@ from the engine's own answers, is where the look is tuned.
 | `configure-chat` | the solo world’s T10 as a configuring chat, conversation and proposal in the Settings layout |
 | `configure-chats-tag` | the solo world’s chats with T10 tagged Configuring beside ordinary chats |
 | `chats-solo` | the solo world's chats |
+| `chats-live` | `chats-solo` under "Live" |
+| `chats-closed` | `chats-solo` under "Closed" |
+| `chats-no-repository` | the Chats page of a project with no repository: its band |
+| `chat-new` | `NewChat` with a repository: its `.meta-line` and focused composer |
+| `chat-new-no-repository` | `NewChat` with no repository |
+| `chat-new-first-run-1` | `NewChat` at the first run's first screen: the playground's start |
+| `chat-working` | a live chat at work: its three dots |
+| `chat-change-running` | a chat with a delegated change running: its one line |
+| `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
+| `chat-goal` | a chat with a goal it started: its one line |
+| `chat-byline-open` | a chat with its byline pressed: the chooser's panel |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's inbox: a proposal, a question |
 | `task-solo-T3` | the solo world's goal T3, its plan and budget |
 | `accounts-solo` | the solo world's accounts |
-| `chats-first-run-1` | the first run's first screen: the playground's start |
+| `chats-first-run-1` | the first run's Chats at step 1: an empty list |
 | `welcome-first-run-0` | the first run's welcome: its two cards |
 | `connect-forge-first-run-6` | the first run's `ConnectForge` at step 6: Forgejo here setting up, the box preparing |
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
@@ -1187,7 +1192,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-first-run-3-T1` | the first run's chat T1 at step 3, its change landed |
 | `chat-first-run-4-T4` | the first run's chat T4 at step 4, waiting at rest for the person’s words |
 | `playground-resetting` | the first run's Chats while the playground resets: "Leaving the playground…", and no playground's start |
-| `chats-first-run-5` | Chats after the first plan connects, its ChatGPT composer |
+| `chats-first-run-5` | Chats after the first plan connects |
 | `inbox-reference` | the reference world's inbox |
 | `accounts-reference` | the reference world's accounts |
 | `accounts-first-run-1` | the first run's accounts at step 1: the playground's account |
@@ -1226,7 +1231,7 @@ gallery builds it.
 - **Each state holds what its name says:** a table of rows, each a
   name, its page's heading and the one part the state is about, found
   by role and name (the proposal in `chat-solo-T10`, the three
-  suggested requests in `chats-first-run-1`, the alert in
+  suggested requests in `chat-new-first-run-1`, the alert in
   `adoption-refused`).
 - **The print:** the program run into a scratch directory writes every
   name's page, the index linking each, and the bundle's stylesheets in
