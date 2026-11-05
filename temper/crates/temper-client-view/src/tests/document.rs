@@ -71,6 +71,9 @@ fn activity(outcomes: &[&str]) -> c::ActivityPage {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ProposalState {
     Ordinary,
+    DraftOffered,
+    EndedDraftOffered,
+    UnsendableDraftOffered,
     NotProposed,
     Waiting,
     Accepted,
@@ -97,7 +100,15 @@ fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, sta
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
     if state != ProposalState::Ordinary {
-        let me = configuring_me(&source);
+        let mut me = configuring_me(&source);
+        if state == ProposalState::DraftOffered
+            || state == ProposalState::EndedDraftOffered
+            || state == ProposalState::UnsendableDraftOffered
+        {
+            let template = me.projects.get_mut(0).unwrap().templates.get_mut(1).unwrap();
+            template.tracked = Some(1);
+            template.flags.conversation = false;
+        }
         d::step(
             &mut root,
             &env,
@@ -111,7 +122,18 @@ fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, sta
             },
             &mut out,
         );
-        task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+        if state != ProposalState::DraftOffered
+            && state != ProposalState::EndedDraftOffered
+            && state != ProposalState::UnsendableDraftOffered
+        {
+            task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+        }
+        if state == ProposalState::UnsendableDraftOffered {
+            task.acts.clear();
+        }
+        if state == ProposalState::EndedDraftOffered {
+            task.chip.phase = c::Phase::Ended;
+        }
     }
     if state == ProposalState::Waiting || state == ProposalState::Accepted || state == ProposalState::Unknown {
         task.proposals = List::with_capacity(1);
@@ -606,5 +628,74 @@ fn no_document_no_group_on_a_chat() {
         let byline = nodes.iter().position(|node| node.styles.as_slice().contains(&look::BYLINE)).unwrap();
         let group = nodes.iter().position(|node| node.styles.as_slice().contains(&look::SEG)).unwrap();
         assert_eq!(group, byline + usize::try_from(nodes[byline].size).unwrap());
+    }
+}
+
+pub(super) fn offered(body: Option<&[u8]>, ended: bool) -> d::Domain {
+    document_root(
+        body,
+        Mode::Chat,
+        &[],
+        if ended { ProposalState::EndedDraftOffered } else { ProposalState::DraftOffered },
+    )
+}
+fn plus(tree: &Tree) -> bool {
+    tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"+ Draft"))
+}
+#[test]
+fn plus_draft_shows_with_a_tracked_template() {
+    for shell in [Shell::Browser, Shell::Terminal] {
+        let mut shown = view(&offered(None, false), shell);
+        let node = shown.tree().nodes().iter().find(|node| node.name.as_deref() == Some(b"+ Draft")).unwrap();
+        assert!(node.styles.as_slice().contains(&look::ADD_DRAFT));
+        let id = node.id;
+        assert_eq!(crate::act(&mut shown, id, skein_ui::Act::Press), Some(d::Action::Pages(Act::AddDraft)));
+        assert!(!plus(view(&root(None, Mode::Chat, &[]), shell).tree()));
+    }
+}
+#[test]
+fn none_on_an_ended_chat() {
+    for shell in [Shell::Browser, Shell::Terminal] {
+        assert!(!plus(view(&offered(None, true), shell).tree()));
+    }
+}
+#[test]
+fn none_with_a_document() {
+    for shell in [Shell::Browser, Shell::Terminal] {
+        assert!(!plus(view(&offered(Some(BODY), false), shell).tree()));
+    }
+}
+#[test]
+fn the_empty_pane() {
+    let mut root = offered(None, false);
+    f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(Act::AddDraft) });
+    for shell in [Shell::Browser, Shell::Terminal] {
+        let view = view(&root, shell);
+        assert_eq!(skein_ui::outline::check(view.tree()), None);
+        assert!(!plus(view.tree()), "the first press removes the action");
+        assert_eq!(styled(view.tree(), look::MODE_SPLIT).len(), 1);
+        assert_eq!(section_words(view.tree(), look::DOC_EMPTY), b"The draft appears here as you write it together.");
+        let path = section_words(view.tree(), look::DOC_PATH);
+        assert!(path.starts_with(b"untitled.md"));
+        assert!(path.ends_with(b"writing"));
+    }
+}
+#[test]
+fn an_empty_thread_names_its_draft() {
+    for body in [None, Some(BODY)] {
+        let mut root = document_root(body, Mode::Chat, &[], ProposalState::UnsendableDraftOffered);
+        if body.is_none() {
+            f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(Act::AddDraft) });
+        }
+        let view = view(&root, Shell::Browser);
+        let words = section_words(view.tree(), look::META_LINE);
+        assert_eq!(
+            words,
+            if body.is_some() {
+                b"A chat that writes how-shop-works.md. Say what it should hold.".as_slice()
+            } else {
+                b"A chat that writes a draft. Say what it should hold."
+            }
+        );
     }
 }

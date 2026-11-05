@@ -1576,3 +1576,76 @@ fn a_retained_settings_card_keeps_the_documents_acceptance_time() {
         panic!("settings keeps its ended proposal card")
     };
 }
+
+fn draft_ready() -> f::Fixture {
+    let mut f = f::opened();
+    f.client.step_unlinked(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Watch { handle: crate::pages::me_handle(), subject: Watchable::Jig(c::Subject::Me) },
+        &mut Queue::uncapped(),
+    );
+    let mut me = fixtures::chats::me();
+    let member = me.projects.get_mut(0).unwrap();
+    let mut goal = member.templates.get(0).unwrap().clone();
+    goal.number = 2;
+    goal.tracked = Some(1);
+    goal.flags.conversation = false;
+    let mut templates = skein_lib::List::with_capacity(2);
+    templates.push(member.templates.get(0).unwrap().clone()).unwrap();
+    templates.push(goal).unwrap();
+    member.templates = templates;
+    f.client.step_unlinked(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Up {
+            up: jig_client::Up::Watched { watch: f.me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+        },
+        &mut Queue::uncapped(),
+    );
+    let mut task = f::task();
+    task.acts = fixtures::acts::offered(c::ActKind::Message, c::Admission::Allowed);
+    f::deliver(&mut f.client, f.watch, task);
+    while f.out.pop().is_some() {}
+    let mut limits = fixtures::limits();
+    limits.client.domain.text = 128;
+    f.chat.thread = jig_client::thread::Thread::new(f::TASK, &crate::pages::chat::thread_limits(&limits));
+    f
+}
+#[test]
+fn add_draft_sends_and_goes_to_split() {
+    let mut f = draft_ready();
+    f.chat.words = b"Unsent words".as_slice().into();
+    let mut serial = SERIAL;
+    for _ in 0_u32..2 {
+        f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::AddDraft, &mut serial, &mut f.out);
+    }
+    assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Split);
+    assert!(f.chat.writing);
+    assert_eq!(f.chat.words.as_ref(), b"Unsent words");
+    let sent = fixtures::acts::sent(&mut f.out);
+    let [c::Ask::Message { project, task, words }] = sent.as_ref() else { panic!("one draft message: {sent:?}") };
+    assert_eq!(
+        (*project, *task, words.bytes()),
+        (fixtures::PROJECT, f::TASK, crate::pages::chat::document::WRITE_THIS_UP)
+    );
+    assert_eq!(f.chat.pending.len(), 1);
+    assert_eq!(f.chat.pending.get(0).unwrap().1, Sending::Message);
+    assert!(f.chat.thread.words.pending(f.chat.pending.get(0).unwrap().0));
+}
+#[test]
+fn a_refused_add_keeps_the_pane_and_its_words() {
+    let mut f = draft_ready();
+    f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::AddDraft, &mut { SERIAL }, &mut f.out);
+    let key = f.chat.pending.get(0).unwrap().0;
+    let refused = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+        refusal: c::Refusal::NotOffered,
+        at: None,
+    }));
+    f.chat.told(Time::ZERO, &f.client, Told::Answered { key, outcome: refused.clone() }, &mut f.out);
+    assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Split);
+    assert!(f.chat.writing);
+    assert_eq!(f.chat.outcome, Some(refused));
+    assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
+    assert!(f.chat.pending.is_empty());
+}

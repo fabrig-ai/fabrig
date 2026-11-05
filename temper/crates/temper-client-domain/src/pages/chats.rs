@@ -1,5 +1,8 @@
 //! Live chats are borrowed from the client; closed rows are one bounded read page.
-use super::Request;
+use super::{
+    Request,
+    chat::document::{Mode, WRITE_THIS_UP},
+};
 use crate::address::ChatsFilter;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -7,7 +10,7 @@ use jig_client::contract::{
     self as c, Delivery, EndedGroup, Me, Read, ReadResult, ReadValue, TaskPage, TaskQuery, Text,
 };
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable};
-use skein_lib::{Env, Queue};
+use skein_lib::{Env, Queue, Writer};
 
 /// The configuring agent's stock template (temper/docs/design/protocol/configuration.md, 13.4).
 const CONFIGURING_TEMPLATE: u32 = 3;
@@ -23,6 +26,8 @@ pub struct Chats {
     pub page: Option<TaskPage>,
     pub refusal: Option<jig_client::shapes::NotOffered>,
     pub outcome: Option<jig_client::Outcome>,
+    pub(crate) opening: Option<(u64, Mode)>,
+    starting_mode: Mode,
     query: Option<TaskQuery>,
     first: bool,
     page_delivered: bool,
@@ -38,6 +43,8 @@ impl Chats {
             page: None,
             refusal: None,
             outcome: None,
+            opening: None,
+            starting_mode: Mode::Chat,
             query: None,
             first: true,
             page_delivered: false,
@@ -110,16 +117,38 @@ impl Chats {
             self.words = words;
         }
     }
+    #[expect(clippy::too_many_arguments, reason = "the route selects the first message and opening mode")]
     pub(crate) fn start(
         &mut self,
         env: &Env<Limits>,
         me: Option<&Me>,
         project: Option<u32>,
         choice: &super::choice::Draft,
+        draft: bool,
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        self.send(env, me, project, jig_client::shapes::CHAT, self.words.clone(), Some(choice), serial, out);
+        if self.start.is_some() || self.words.is_empty() {
+            return;
+        }
+        let words = if draft {
+            let Some(size) = self.words.len().checked_add(2) else { return };
+            let Some(size) = size.checked_add(WRITE_THIS_UP.len()) else { return };
+            if size > usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("cue bound fits") {
+                return;
+            }
+            let mut words = Writer::new(size);
+            words.put(&self.words).expect("measured cue");
+            words.put(b"\n\n").expect("measured separator");
+            words.put(WRITE_THIS_UP).expect("measured draft request");
+            words.finish()
+        } else {
+            self.words.clone()
+        };
+        self.send(env, me, project, jig_client::shapes::CHAT, words, Some(choice), serial, out);
+        if self.start.is_some() {
+            self.starting_mode = if draft { Mode::Split } else { Mode::Chat };
+        }
     }
     #[expect(
         clippy::too_many_arguments,
@@ -197,6 +226,7 @@ impl Chats {
                 *serial = serial.checked_add(1).expect("page keys fit");
                 let key = Key { asker: Owner::Pages.asker(), number: *serial };
                 self.start = Some(key);
+                self.starting_mode = Mode::Chat;
                 self.refusal = None;
                 self.outcome = None;
                 out.push(Request::Client(jig_client::Event::Send {
@@ -235,10 +265,12 @@ impl Chats {
             Told::Answered { key, outcome } if Some(key) == self.start => {
                 if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(value))) = &outcome {
                     if let c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) = value {
+                        self.opening = Some((*first, self.starting_mode));
                         show_chat(*first, address, out);
                     } else if let c::Outcome::Made { what: c::Made::Tasks { tasks } } = value
                         && let Some(task) = tasks.get(0)
                     {
+                        self.opening = Some((*task, self.starting_mode));
                         show_chat(*task, address, out);
                     }
                 }
@@ -358,7 +390,7 @@ fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
 
 fn show_chat(task: u64, from: &Address, out: &mut Queue<Request>) {
     let address = Address::Chat { task };
-    out.push(if *from == Address::NewChat { Request::Replace { address } } else { Request::Show { address } });
+    out.push(if let Address::NewChat { .. } = from { Request::Replace { address } } else { Request::Show { address } });
 }
 
 fn newest_configuring(rows: &skein_lib::List<c::TaskLine>, me: &Me, project: u32, newest: &mut Option<u64>) {

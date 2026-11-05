@@ -453,7 +453,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         Address::Goals { project: f::PROJECT, filter: GoalsFilter::All },
         Address::Inbox { filter: d::address::Filter::ALL },
         Address::Chats { filter: ChatsFilter::All },
-        Address::NewChat,
+        Address::NewChat { draft: false },
         Address::Chat { task: 9 },
         Address::Task { task: 9, filter: d::PlanFilter::All },
         Address::Accounts,
@@ -501,7 +501,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 let current = match address {
                     Address::Home { .. } => Some(b"Home".as_slice()),
                     Address::Inbox { .. } => Some(needs),
-                    Address::Chats { .. } | Address::NewChat | Address::Chat { .. } => Some(b"Chats".as_slice()),
+                    Address::Chats { .. } | Address::NewChat { .. } | Address::Chat { .. } => Some(b"Chats".as_slice()),
                     Address::Changes { .. } => Some(b"Changes".as_slice()),
                     Address::Goals { .. } => Some(b"Goals".as_slice()),
                     Address::Settings { .. }

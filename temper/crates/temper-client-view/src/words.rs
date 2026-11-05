@@ -11,6 +11,12 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    PlusDraft,
+    DraftEmpty,
+    DraftWriting,
+    DraftWords,
+    ChatWrites,
+    DraftName,
     DraftGroup,
     DraftChat,
     DraftSplit,
@@ -1159,7 +1165,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1650;
+const PHRASES: u32 = 1656;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1175,8 +1181,14 @@ const PHRASES: u32 = 1650;
 // Forge status adds four segments and removes View (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
-const SEGMENTS: u32 = 2880;
-const ALL: [Word; 1053] = [
+const SEGMENTS: u32 = 2888;
+const ALL: [Word; 1059] = [
+    Word::PlusDraft,
+    Word::DraftEmpty,
+    Word::DraftWriting,
+    Word::DraftWords,
+    Word::ChatWrites,
+    Word::DraftName,
     Word::DraftGroup,
     Word::DraftChat,
     Word::DraftSplit,
@@ -2960,6 +2972,12 @@ impl Word {
             Self::DelegateMove => 156,
             Self::ToolCalls => 1040,
             Self::ToolSeparator => 1041,
+            Self::PlusDraft => 3505,
+            Self::DraftEmpty => 3506,
+            Self::DraftWriting => 3507,
+            Self::DraftWords => 3508,
+            Self::ChatWrites => 3509,
+            Self::DraftName => 3510,
             Self::DraftGroup => 3483,
             Self::DraftChat => 3484,
             Self::DraftSplit => 3485,
@@ -3562,7 +3580,7 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
-            text_bytes: 41203 + 204 + 88 + 148 + 99,
+            text_bytes: 41203 + 204 + 88 + 148 + 99 + 142,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4257,6 +4275,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Milestone => (&[b"Milestone ", b""], &[Number]),
         Word::ToolCalls => (&[b"", b" tool calls"], &[Number]),
         Word::ToolSeparator => (&[b" \xc2\xb7 "], &[]),
+        Word::PlusDraft => (&[b"+ Draft"], &[]),
+        Word::DraftEmpty => (&[b"The draft appears here as you write it together."], &[]),
+        Word::DraftWriting => (&[b"writing"], &[]),
+        Word::DraftWords => (&[b"What should this draft hold?"], &[]),
+        Word::ChatWrites => (&[b"A chat that writes ", b". Say what it should hold."], &[Name]),
+        Word::DraftName => (&[b"a draft"], &[]),
         Word::DraftGroup => (&[b"The draft"], &[]),
         Word::DraftChat => (&[b"Chat"], &[]),
         Word::DraftSplit => (&[b"Split"], &[]),

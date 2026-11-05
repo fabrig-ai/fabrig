@@ -63,6 +63,15 @@ pub(crate) fn main(
             crate::choice::byline(b, root, Some(task), words, bindings);
         }
         super::document::seg(b, chat, words, bindings);
+        if chat.draft.is_none()
+            && !chat.writing
+            && task.result.is_none()
+            && !super::chats::ended(&task.chip)
+            && let Some(me) = root.pages().me(root.client())
+            && temper_client_domain::pages::drafts_offered(me, task.project)
+        {
+            super::document::add(b, words, bindings, Act::AddDraft);
+        }
         if configuring && chat.draft.is_some() && task.result.is_none() && !super::chats::ended(&task.chip) {
             b.open(Role::Button);
             b.name(&words.say(Word::StartOver, &[]));
@@ -104,6 +113,17 @@ fn conversation_head(b: &mut Builder, root: &Domain, words: &Words, bindings: &m
     let chat = root.pages().chat().expect("chat page");
     let task = chat.task(root.client()).expect("chat task");
     context(b, root, task.project, words);
+    if chat.thread.lines().is_empty() && (chat.draft.is_some() || chat.writing) {
+        let name = match &chat.draft {
+            Some(draft) => words
+                .say(Word::DraftFile, &[Hole::Name(temper_client_domain::pages::chat::document::slug(&draft.title))]),
+            None => words.say(Word::DraftName, &[]),
+        };
+        b.open(Role::Paragraph);
+        b.style(look::META_LINE);
+        b.text(Run::Plain, &words.say(Word::ChatWrites, &[Hole::Name(name)]));
+        b.close();
+    }
     if chat.offers_older() {
         b.open(Role::Button);
         b.style(look::CHATS_MORE);
@@ -229,7 +249,7 @@ fn session_composer(
     }
     b.bind(bindings.insert(Act::Send));
     b.close();
-    super::session::hint(b, words, chat.draft.is_some());
+    super::session::hint(b, words, chat.draft.is_some() || chat.writing);
     if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome
         && !super::chats::accepted(outcome)

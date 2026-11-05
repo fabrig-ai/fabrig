@@ -48,7 +48,7 @@ fn start(draft: &Draft, me: &c::Me) -> Box<[c::Ask]> {
     let mut out = Queue::with_capacity(OUTPUTS);
     let mut serial = SERIAL;
     chats.write(Box::from(*b"Hello"), &limits);
-    chats.start(&fixtures::env(&limits), Some(me), Some(PROJECT), draft, &mut serial, &mut out);
+    chats.start(&fixtures::env(&limits), Some(me), Some(PROJECT), draft, false, &mut serial, &mut out);
     fixtures::acts::sent(&mut out)
 }
 #[test]

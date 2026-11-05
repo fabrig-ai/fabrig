@@ -7,7 +7,7 @@ use temper_client_domain::ChatsFilter;
 
 #[test]
 fn the_start_keeps_status_context_meta_and_suggestions_in_order() {
-    let root = f::playground_root(Address::NewChat, f::PROJECT, true);
+    let root = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
     let at = |role, name: &[u8]| {
@@ -155,7 +155,7 @@ fn a_chats_context_is_first_in_the_thread_only_in_the_playground_project() {
 fn the_context_repository_has_its_own_node_and_style() {
     // Each page has exactly one playground repository in its context.
     const REPOSITORIES: u32 = 1;
-    for address in [Address::NewChat, Address::Chat { task: f::chat::TASK }] {
+    for address in [Address::NewChat { draft: false }, Address::Chat { task: f::chat::TASK }] {
         let root = f::playground_root(address, f::PROJECT, true);
         let view = f::page_view(&root);
         let mut repositories = skein_lib::List::with_capacity(REPOSITORIES);
@@ -172,7 +172,7 @@ fn the_context_repository_has_its_own_node_and_style() {
 
 #[test]
 fn the_suggestions_follow_the_meta_line_in_the_starter() {
-    let root = f::playground_root(Address::NewChat, f::PROJECT, true);
+    let root = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
     let at = nodes.iter().position(|node| node.styles.as_slice().contains(&crate::look::STARTERS)).unwrap();
@@ -217,7 +217,9 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         );
         f::root_event(
             &mut root,
-            temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+            temper_client_domain::Event::Went {
+                place: temper_client_domain::Place::Address(Address::NewChat { draft: false }),
+            },
         );
         let mut view = f::page_view(&root);
         let field =
@@ -259,7 +261,9 @@ fn enter_and_send_wait_for_the_playground_start_answer() {
     let attempt = f::playground_start_attempt(&mut root);
     f::root_event(
         &mut root,
-        temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+        temper_client_domain::Event::Went {
+            place: temper_client_domain::Place::Address(Address::NewChat { draft: false }),
+        },
     );
     assert_eq!(f::type_into(&mut root, b"What do you want done?", b"Add CSV export").as_ref(), b"Add CSV export");
     assert!(root.forge().playground_starting());
@@ -281,7 +285,7 @@ fn enter_and_send_wait_for_the_playground_start_answer() {
 }
 
 fn start_root() -> temper_client_domain::Domain {
-    let address = Address::NewChat;
+    let address = Address::NewChat { draft: false };
     let template = f::playground_root(address.clone(), f::PROJECT, true);
     let (mut root, me, _, _, accounts, _) = f::root_at_with_forges(
         address,
