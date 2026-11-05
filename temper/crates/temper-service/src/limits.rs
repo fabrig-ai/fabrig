@@ -167,8 +167,8 @@ const FORGE: forge::Limits = forge::Limits {
     changes: 8,
     // Live issue projections, from the engine forge world fixture.
     issues: 8,
-    // Held to the agent's two checkout repositories.
-    resources_per_task: 2,
+    // A goal watches its held g and r branches and landings on main.
+    resources_per_task: 3,
     // Paths retained by one subscription, from the engine forge world fixture.
     paths_per_subscription: 4,
     // Direct connector fixture; engine() takes the configured authority.segments.

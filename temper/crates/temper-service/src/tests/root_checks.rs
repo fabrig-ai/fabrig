@@ -105,16 +105,23 @@ fn forge_count_past_the_accounts_credentials_refuses_the_start() {
     }
 }
 #[test]
-fn the_engines_repositories_below_the_checkouts_refuse_the_start() {
-    assert_eq!(
-        &*started(&fixtures::with(
-            &fixtures::document(),
-            b"application.limits.overrides",
-            br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"forge.name_bytes":256,"forge.resources_per_task":2}"#,
-        )),
-        b"application.limits.overrides.forge.resources_per_task: must agree with checkout.repositories and checkout.name_bytes\n"
-    );
+fn watched_names_do_not_change_checkout_channel_capacity() {
+    for watched in [1, 3, 8] {
+        let overrides = format!(r#"{{"forge.resources_per_task":{watched}}}"#);
+        assert_eq!(
+            &*started(&fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides.as_bytes())),
+            b"",
+            "watched names: {watched}"
+        );
+        let mut own = crate::limits::profile(crate::limits::Profile::Small);
+        own.forge.resources_per_task = watched;
+        assert_eq!(
+            crate::translate::limits(&own).expect("channel limits").items_repositories,
+            own.checkout.repositories
+        );
+    }
 }
+
 #[test]
 fn the_hubs_accounts_past_the_agents_name_both_limits() {
     let document =

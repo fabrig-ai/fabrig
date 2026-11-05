@@ -9,7 +9,7 @@ use temper_protocol_worker_wire::{self as wire, v1};
 #[must_use]
 pub fn limits(own: &crate::limits::Limits) -> Option<v1::Limits> {
     wire::limits(&wire::Bounds {
-        repositories: own.checkout.repositories.min(own.forge.resources_per_task),
+        repositories: own.checkout.repositories,
         name_bytes: own.checkout.name_bytes.min(own.forge.name_bytes),
         remote_bytes: own.checkout.name_bytes,
         conflicts: own.checkout.conflicts,
