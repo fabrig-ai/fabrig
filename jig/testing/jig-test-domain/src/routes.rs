@@ -1186,7 +1186,7 @@ mod tests {
     fn a_restore_ask_reaches_the_connector_and_its_answer_reaches_the_core() {
         let mut domain = fixtures::domain();
         let env = fixtures::env();
-        let mut config = jig_test_connector_world::config(1);
+        let mut config = jig_test_connector_kit::config(1);
         config.settings = Some(connector::SettingsKind {
             kind: 71,
             project: false,
