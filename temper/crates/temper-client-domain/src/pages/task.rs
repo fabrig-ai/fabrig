@@ -436,6 +436,7 @@ impl Task {
             | Act::Suggest { .. }
             | Act::Stop
             | Act::Close
+            | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::ClosedChats
             | Act::MoreGoals
@@ -553,6 +554,7 @@ impl Task {
             | Act::Send
             | Act::Stop
             | Act::Close
+            | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older
             | Act::ClosedChats

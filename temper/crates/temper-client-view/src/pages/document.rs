@@ -64,7 +64,7 @@ pub(crate) fn seg(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bi
     b.close();
 }
 
-pub(crate) fn pane(b: &mut Builder, _root: &Domain, chat: &Chat, task: &c::Task, words: &Words, times: &mut Times) {
+pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, words: &Words, times: &mut Times) {
     let Some(draft) = &chat.draft else { return };
     if chat.mode == Mode::Chat {
         return;
@@ -76,7 +76,11 @@ pub(crate) fn pane(b: &mut Builder, _root: &Domain, chat: &Chat, task: &c::Task,
     b.style(look::DOC_INNER);
     b.open(Role::Paragraph);
     b.style(look::DOC_PATH);
-    b.text(Run::Plain, &words.say(Word::DraftPath, &[Hole::Name(document::slug(&draft.title))]));
+    if super::chat::configuring(root) {
+        proposal_line(b, chat, words, times);
+    } else {
+        b.text(Run::Plain, &words.say(Word::DraftPath, &[Hole::Name(document::slug(&draft.title))]));
+    }
     if let Some(changed) = draft.changed {
         let ago = times.say(words, TimeForm::Ago, changed);
         if words.shell == Shell::Terminal {
@@ -175,4 +179,22 @@ fn opening(b: &mut Builder, bytes: &[u8]) {
     b.text(Run::Plain, rest.get(..end).expect("introductory paragraph"));
     b.close();
     skein_ui::markdown::read(rest.get(end..).expect("remaining body"), 1, b);
+}
+
+fn proposal_line(b: &mut Builder, chat: &Chat, words: &Words, times: &mut Times) {
+    for card in &chat.cards {
+        if let Some(c::ReadValue::Proposal(proposal)) = &card.page {
+            // Every named holder means the configuring proposal waits for its owner.
+            b.text(Run::Plain, &words.say(Word::DraftWaits, &[Hole::Number(proposal.key.number)]));
+            return;
+        }
+    }
+    if let Some((_, at)) = chat.decided {
+        let at = times.say(words, TimeForm::Clock, at);
+        b.text(Run::Plain, &words.say(Word::DraftAccepted, &[Hole::Name(at)]));
+    } else if let Some(number) = chat.departed_proposal {
+        b.text(Run::Plain, &words.say(Word::DraftDecided, &[Hole::Number(number)]));
+    } else {
+        b.text(Run::Plain, &words.say(Word::DraftNotProposed, &[Hole::Number(chat.task)]));
+    }
 }
