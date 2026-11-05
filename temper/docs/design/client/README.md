@@ -5191,16 +5191,27 @@ own tests:
 - **"Changes" on the rail by a project's settings** (the greenfield mock's
   "What the project shows"): a project hides the page, and its entry with it.
   Default: the entry shows for every project (5.3).
-- **A question answered on Home** (the same request): choices, a
-  recommended one, a context line, "Later", an answer in place and its
-  "Undo" wait on the question card's upstream change (below) and on a
-  retraction jig has not. Default: "Reply" opens the inbox, which
-  answers in words.
 - **Goals on Home** (the same request): Goals in place of Chats where
   goals are on. Whether they are is the default configuration, still the
   user's, and no fact says so (`Domain::has_goals` says whether a project
   has any).
   Default: Chats.
+- **A goal's own page, and its report whole** (3.5, *Goals*; the request of
+  2026-11-05 leaves them to the plan `ui-goal-page`): Goals' "Start one from a
+  draft" with its sheet, which reads `goals::ways`, and a goal's page drawn from
+  the greenfield mock's `goal.html`, reading `goals::state` and the rest of what
+  `report::parse` gives. Default: no such link, 5.8's page, and the report's
+  headline the only part of it a page draws.
+- **"Goals" on the rail by a project's settings** (the greenfield mock's "What
+  the project shows"): a project turns goals off, and the entry's test is that
+  setting, `Domain::has_goals` staying for what else reads it. No kind says so
+  (`../protocol/configuration.md`, 13.2). Default: the entry shows where the
+  project has a goal or the page is `Goals` (5.3).
+- **A project's only goal ending while it is open** (5.3): `Domain::has_goals`
+  reads the ended group once, so once the live watch holds no row it says false
+  of a project with a goal, and the rail and the tab bar drop "Goals", until the
+  project is opened again. Reading the ended group again as the watch changes
+  would keep it. Default: one read, as the request of 2026-11-05 has it.
 - **What a chat did, on its line** (the same request): its chat's line
   says "landed · 1 h" where the chat's delegates landed. The chats' list
   gives a chat's state, not what its delegates landed, so saying it takes

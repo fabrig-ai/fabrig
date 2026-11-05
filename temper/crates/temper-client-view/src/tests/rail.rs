@@ -447,8 +447,8 @@ fn the_tab_bar_is_four_either_way() {
 fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
     let addresses = [
         Address::Home { project: f::PROJECT },
-        Address::Goals { project: f::PROJECT, filter: GoalsFilter::All },
         Address::Changes { project: f::PROJECT },
+        Address::Goals { project: f::PROJECT, filter: GoalsFilter::All },
         Address::Inbox { filter: d::address::Filter::ALL },
         Address::Chats { filter: ChatsFilter::All, start: false },
         Address::Chat { task: 9 },
@@ -550,16 +550,18 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                         .iter()
                         .map(|n| (n.id, n.name.clone(), n.states.as_slice().contains(&State::Current)))
                         .collect::<Vec<_>>();
-                    let hrefs = if goals && style != look::TABBAR {
-                        vec![
-                            b"/projects/1".as_slice(),
-                            b"/?project=1",
-                            b"/projects/1/goals",
-                            b"/chats",
-                            b"/projects/1/changes",
-                        ]
-                    } else if goals {
-                        vec![b"/projects/1".as_slice(), b"/?project=1", b"/projects/1/goals", b"/chats"]
+                    let hrefs = if goals {
+                        if style == look::TABBAR {
+                            vec![b"/projects/1".as_slice(), b"/?project=1", b"/projects/1/goals", b"/chats"]
+                        } else {
+                            vec![
+                                b"/projects/1".as_slice(),
+                                b"/?project=1",
+                                b"/projects/1/goals",
+                                b"/chats",
+                                b"/projects/1/changes",
+                            ]
+                        }
                     } else {
                         vec![
                             b"/projects/1".as_slice(),
@@ -568,7 +570,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                             if style == look::TABBAR { b"/projects/1/settings" } else { b"/projects/1/changes" },
                         ]
                     };
-                    for ((id, name, marked), href) in ids.into_iter().zip(hrefs.iter().copied()) {
+                    for ((id, name, marked), href) in ids.into_iter().zip(hrefs) {
                         assert_eq!(marked, name.as_deref() == current && current.is_some());
                         assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
                     }

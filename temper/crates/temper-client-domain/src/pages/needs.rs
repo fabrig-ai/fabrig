@@ -67,7 +67,7 @@ impl Default for Count {
 /// The standing inbox watch, outside the increasing page handle namespace.
 #[must_use]
 pub fn handle() -> Handle {
-    Handle { asker: Owner::Pages.asker(), number: u64::MAX.checked_sub(3).expect("reserved handle") }
+    Handle { asker: Owner::Pages.asker(), number: u64::MAX.checked_sub(3).expect("reserved needs handle") }
 }
 #[derive(Debug)]
 pub struct Session {

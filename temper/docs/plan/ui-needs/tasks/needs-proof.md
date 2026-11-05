@@ -81,3 +81,13 @@ Options, each with its default:
 
 As the implementer's text asks, with: the builder; the screenshots' directory; the table of differences;
 the walk's log lines, with the words the goal heard.
+
+## Rebase (2026-11-05, step merge, foreman ui-needs/needs-proof/foreman-1)
+
+resolve README §11 by keeping main’s Changes rail question and removing the obsolete Home-answer question
+The merge failed only in `temper/docs/design/client/README.md`.
+Main commit `66f15d79786d3d892ad99c1da30bcc5d13668ac9`, brought into integration by `acd9947a97`, adds **"Changes" on the rail by a project's settings** immediately before the paragraph this branch deletes.
+Resolve that hunk by retaining the new Changes paragraph and deleting **A question answered on Home**, as `a90238d0c9` intends: its claim that Home answers await upstream support contradicts the built behavior and §3.5.
+Keep main’s other README updates concerning chat lineage and queues owning a change.
+Preserve the automatically merged status and browser edits from both sides.
+Run the citations check after resolving; no implementation change is indicated by this refusal.
