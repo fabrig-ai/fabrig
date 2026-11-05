@@ -683,6 +683,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "settings",
         heading: "Settings for tally",
         parts: &[
+            Part::Named { role: Role::Link, name: "Configure temper" },
             Part::Named { role: Role::Link, name: "Forges" },
             Part::Named { role: Role::Link, name: "Accounts" },
             Part::Named { role: Role::Link, name: "Adopt a repository" },
