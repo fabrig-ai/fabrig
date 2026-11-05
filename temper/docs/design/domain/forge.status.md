@@ -76,6 +76,10 @@
     question waits on an ended foreman. A question released past the bound
     at such a step meets the spent allowance again at the next: the release
     is that step's alone, and `next_act` holds the change.
+  - 8.11: an agent's own words: the `message` call does not refuse them,
+    and at a step they take the fallback feedback for a requester
+    (`temper-engine-domain/src/route/forge_route/relay.rs`, `take`); the
+    stock coding charter does not say where its report goes.
   - 8.11: a repair's or a resolution's question, relayed as a producer's
     is (`temper-engine-domain/src/route/forge_route/relay.rs`,
     `asking_delegate`), is unobserved in stories: every relay story's
