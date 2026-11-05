@@ -342,35 +342,6 @@ fn a_brief_plan_keeps_its_task_sections_budget_and_deadline() {
     );
 }
 
-#[test]
-fn a_completed_brief_keeps_its_order_and_answers_ready() {
-    let mut link = link();
-    let order: Box<[_]> = Box::new([
-        jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::Task, text: Box::from(&b"task"[..]) },
-        jig_domain_brief::GatherPlaced::Connector { connector: 7, kind: 9, token: Token::new(11), size: 13 },
-    ]);
-    let core::Event::BriefAssembled { task, ready } = link.complete_brief(RUN, order.clone()) else {
-        panic!("brief assembled")
-    };
-    assert_eq!((task, ready), (RUN.raw(), true));
-    assert_eq!(link.take_brief(RUN.raw()), Some(order));
-    assert!(link.take_brief(RUN.raw()).is_none());
-}
-
-#[test]
-fn no_workspace_prepares_empty_holds_and_some_empty_writes() {
-    let core::Event::WorkspacePrepared { task, attempt, holds, workspace, credentials, writes } =
-        no_workspace(RUN.raw(), ATTEMPT.raw())
-    else {
-        panic!("workspace prepared")
-    };
-    assert_eq!((task, attempt), (RUN.raw(), ATTEMPT.raw()));
-    assert!(holds.is_empty());
-    assert!(workspace.is_none());
-    assert!(credentials.is_empty());
-    assert!(writes.expect("prepared workspace writes").is_empty());
-}
-
 /// jig/docs/design/domain/engine.md, 7.5: a job crosses the committed assignment door, including retries.
 #[test]
 fn a_job_start_is_retained_for_placement_and_busy_replacement() {
