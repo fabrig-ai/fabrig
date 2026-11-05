@@ -47,46 +47,30 @@ pub(crate) fn escalation_decided(
         }
         _ => return,
     };
+    complete_escalation(core, env, flight, (task, revision), outcome, out);
+}
+
+fn complete_escalation(
+    core: &mut Core,
+    env: &Env<Limits>,
+    flight: crate::routing::PersonEscalation,
+    identity: (u64, u64),
+    outcome: tasks::EscalationOutcome,
+    out: &mut Queue<Request>,
+) {
+    let (task, revision) = identity;
     assert!(flight.task == task && flight.revision == revision, "exact held choice terminal");
-    let choice = match outcome {
-        tasks::EscalationOutcome::Released => people::EscalationChoice::Released,
-        tasks::EscalationOutcome::Rejected => people::EscalationChoice::Rejected,
-        tasks::EscalationOutcome::Passed { .. } => people::EscalationChoice::Passed,
-        tasks::EscalationOutcome::NoFurther => {
-            append_people(
-                core,
-                env,
-                people::Event::Decided {
-                    request: flight.request,
-                    outcome: people::Outcome::Refused(people::Refusal::NoFurther),
-                },
-                out,
-            );
-            return;
-        }
-        tasks::EscalationOutcome::Limit => {
-            append_people(
-                core,
-                env,
-                people::Event::Decided {
-                    request: flight.request,
-                    outcome: people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Words }),
-                },
-                out,
-            );
-            return;
-        }
-        tasks::EscalationOutcome::Stale => {
-            out.push(Request::Now(Box::new(Now::EndedEscalation {
-                request: flight.request,
-                person: flight.person,
-                project: flight.project,
-                task,
-                revision,
-            })));
-            return;
-        }
-    };
+    let Some(choice) = escalation_outcome(core, env, &flight, outcome, out) else { return };
+    if let Some(operation) = flight.notice {
+        assert_eq!(outcome, tasks::EscalationOutcome::Rejected, "only a successful rejection delivers words");
+        let reply_to = ReplyTo::new(core.fly(Flight::Retired));
+        crate::routing::children::append_tasks(
+            core,
+            env,
+            tasks::Event::AuthorizedMessage { reply_to, project: flight.project, operation },
+            out,
+        );
+    }
     out.push(Request::Write(Write::Save(Record::Core(CoreRecord::EscalationDecision(EscalationDecisionRecord {
         project: flight.project,
         requester: flight.requester,
@@ -105,6 +89,55 @@ pub(crate) fn escalation_decided(
         },
         out,
     );
+}
+
+fn escalation_outcome(
+    core: &mut Core,
+    env: &Env<Limits>,
+    flight: &crate::routing::PersonEscalation,
+    outcome: tasks::EscalationOutcome,
+    out: &mut Queue<Request>,
+) -> Option<people::EscalationChoice> {
+    let (task, revision) = (flight.task, flight.revision);
+    match outcome {
+        tasks::EscalationOutcome::Released => Some(people::EscalationChoice::Released),
+        tasks::EscalationOutcome::Rejected => Some(people::EscalationChoice::Rejected),
+        tasks::EscalationOutcome::Passed { .. } => Some(people::EscalationChoice::Passed),
+        tasks::EscalationOutcome::NoFurther => {
+            append_people(
+                core,
+                env,
+                people::Event::Decided {
+                    request: flight.request,
+                    outcome: people::Outcome::Refused(people::Refusal::NoFurther),
+                },
+                out,
+            );
+            None
+        }
+        tasks::EscalationOutcome::Limit => {
+            append_people(
+                core,
+                env,
+                people::Event::Decided {
+                    request: flight.request,
+                    outcome: people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Words }),
+                },
+                out,
+            );
+            None
+        }
+        tasks::EscalationOutcome::Stale => {
+            out.push(Request::Now(Box::new(Now::EndedEscalation {
+                request: flight.request,
+                person: flight.person,
+                project: flight.project,
+                task,
+                revision,
+            })));
+            None
+        }
+    }
 }
 
 pub(crate) fn escalation_needed(
