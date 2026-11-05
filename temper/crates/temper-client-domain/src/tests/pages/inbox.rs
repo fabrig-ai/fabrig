@@ -122,6 +122,33 @@ fn a_filter_by_project_shows_only_that_projects_entries() {
         .push(fixtures::inbox_entry(ObjectKey::PersonTask(TASK), InboxGroup::PersonTasks, OTHER_PROJECT, POSITION))
         .expect("second entry");
     let mut out = fixtures::inbox_entries(&mut root, watch, entries);
+    assert_eq!(
+        reads(&mut out).as_ref(),
+        [contract::InboxReadGroup::Needs, contract::InboxReadGroup::Updates].map(|group| Read::Inbox {
+            group,
+            project: Some(OTHER_PROJECT),
+            kind: None,
+            goal: None,
+            after: None,
+        })
+    );
+    assert!(root.pages().inbox().unwrap().cards.is_empty(), "the party window cannot select the project");
+    let handle = root.pages().inbox().unwrap().queries[0];
+    let mut selected = rows(ObjectKey::Result(TASK), InboxGroup::Results, PROJECT);
+    selected
+        .push(fixtures::inbox_entry(ObjectKey::PersonTask(TASK), InboxGroup::PersonTasks, OTHER_PROJECT, POSITION))
+        .unwrap();
+    crate::route::told(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        jig_client::Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Inbox(Box::new(
+                contract::InboxPage { rows: selected, cut: false, before: None, after: None, selection: None },
+            )))),
+        },
+        &mut out,
+    );
     assert_eq!(reads(&mut out).as_ref(), [Read::PersonTask { task: TASK }]);
 }
 #[test]
@@ -256,26 +283,31 @@ fn a_refused_or_failed_result_seen_is_resent_on_the_next_follow() {
 }
 #[test]
 fn going_to_a_results_task_from_another_page_sends_no_seen() {
-    let mut pages = result_pages();
-    shown(&mut fixtures::acts::act(
-        &mut pages,
-        Act::Go { address: crate::Address::Task { task: TASK, filter: crate::PlanFilter::All } },
-    ));
-    let client = crate::unlinked(&fixtures::limits(), fixtures::SEED);
-    let mut out = Queue::with_capacity(16);
-    crate::pages::step(
-        &mut pages,
-        &fixtures::env(&fixtures::limits()),
-        client.client(),
-        crate::pages::Event::Went { address: crate::Address::Chats { filter: crate::ChatsFilter::All, start: false } },
-        &mut out,
-    );
-    assert!(fixtures::acts::sent(&mut out).is_empty());
-    shown(&mut fixtures::acts::act(
-        &mut pages,
-        Act::Go { address: crate::Address::Task { task: TASK, filter: crate::PlanFilter::All } },
-    ));
-    shown(&mut open_result(&mut pages, POSITION));
+    for address in [
+        crate::Address::Chats { filter: crate::ChatsFilter::All, start: false },
+        crate::Address::Home { project: PROJECT },
+    ] {
+        let mut pages = result_pages();
+        shown(&mut fixtures::acts::act(
+            &mut pages,
+            Act::Go { address: crate::Address::Task { task: TASK, filter: crate::PlanFilter::All } },
+        ));
+        let client = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+        let mut out = Queue::uncapped();
+        crate::pages::step(
+            &mut pages,
+            &fixtures::env(&fixtures::limits()),
+            client.client(),
+            crate::pages::Event::Went { address },
+            &mut out,
+        );
+        assert!(fixtures::acts::sent(&mut out).is_empty());
+        shown(&mut fixtures::acts::act(
+            &mut pages,
+            Act::Go { address: crate::Address::Task { task: TASK, filter: crate::PlanFilter::All } },
+        ));
+        shown(&mut open_result(&mut pages, POSITION));
+    }
 }
 #[test]
 fn result_seen_pending_and_answer_survive_navigation() {

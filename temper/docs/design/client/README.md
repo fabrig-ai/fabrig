@@ -349,8 +349,9 @@ keeps (`../protocol/configuration.md`, section 2).
 
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
-| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its kicker, headline and lede, "To begin" and "Connected" (*Home,* below) | `me`; the `forges` watch; the project's chats' `tasks{query}`, as `Chats` reads them, to say whether one was asked; `settings`, to say whether a way of working is configured | start the configuring chat; adopt the first repository again, or open the adoption form; rename the project |
+| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | start the configuring chat; adopt the first repository again, or open the adoption form; skip "To begin" |
 | `Settings { project }` | none | a project's settings: "Settings for PROJECT", the links to `Forges`, `Accounts` and `Adopt { project }`, and "Sign out" (*Settings,* below) | `me` | sign out |
+| `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
 | `Inbox` (the root) | `inbox.html` | what needs the person, across projects, filtered by project, kind and goal (its root): proposals, questions, held tasks, person tasks; then updates (results, replies); "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | accept ("Accept"), reject with a reason, answer, release, leave held, take, hand back |
 | `Chats` | `chats.html`; the playground's start at the first run's first step, which `first-run.html` opens | a pane at the head of its main, a complementary region named "Project" (`browser.md`, 2.5): the new chat's bar (below), in the playground's project while the playground starts or runs the playground's start (4.8, 5.6), then the person's chats under the level-1 heading "Chats", as one list, "Your chats", live and ended together, newest first, under All, Live or Closed (below), each with its project and number, title, status, own spend and live delegates, and last the playground's banner while it runs or is leaving (5.1); beside the pane, the composer to start a chat alone: its text area "Start a chat", showing "Describe a change" while it is empty, and its button "Start chat", with the hint "enter to start · shift+enter for newline", then its line and its chooser (5.5) under it, and in the playground's start its suggested requests under them (5.6) | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; choose the list's filter; more closed chats |
 | `Chat { task }` | `chat.html` | its chatbar: its number and title, its status, its spend and acts; after it, the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate` or a `change`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); its status and spend; Stop and Close; the composer, while the chat lives: its line and its chooser (5.5), its text area "Message" with the placeholder "Message T6…", T6 the chat's number, shown while it is empty and never its name, and the hint "Enter to send · Shift+Enter for newline", and "Send", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, its line and chooser alone; an ended chat draws no composer and no composer's line | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7) | message, stop, close, accept or reject a proposal in place |
@@ -801,8 +802,8 @@ keeps (`../protocol/configuration.md`, section 2).
   - *Its frame* is temper's brand link to Chats (named "temper chats"),
     temper box's line and the steps alone: no person's name or "Sign
     out", no project, navigation or link state, and no accounts' banner
-    (5.1); the playground's line, while the playground runs or resets,
-    as on every page (4.8, 5.6). temper box's line says what this
+    (5.1); the playground's line while the playground is leaving, as on
+    every page but the chats page (4.8, 5.1, 5.6). temper box's line says what this
     temper is for, in fixed words: "**temper box** · on this machine,
     to try it · more later, from Settings · Run temper on a server ↗",
     the last an external link to temper's help on running a server
@@ -1141,7 +1142,7 @@ keeps (`../protocol/configuration.md`, section 2).
   watch refused, ended or not delivered yet, nothing is said. It is
   usable meanwhile: its chats start and run, a chat that names no
   repository running with no workspace (`../domain/agent.md`, 4.2).
-  Home says so in its lede and its second step (*Home,* below). Its
+  Home says so in its second step (*Home,* below). Its
   chats page says so where its repository would show, before the
   composer: "No repository yet", and "Adopt a repository", a link to
   the adoption form into this project, `Adopt { project }` (4.4). The
@@ -1156,72 +1157,143 @@ keeps (`../protocol/configuration.md`, section 2).
   the address's number, and the chats' link. One column of prose, in
   this order:
   - *Its intro:* a kicker, the current day and time, updated each minute
-    (the user, 2026-11-04; section 11); the headline, the level-1
-    heading, by what To begin leaves: "You’re set up. Nothing has run
-    yet." with three steps left, "Two things left to begin with.", "One
-    thing left to begin with.", then "PROJECT is ready for work."; the
-    lede, "Your agents run on your ACCOUNT.", ACCOUNT the kind of
-    the account Connected names ("ChatGPT plan"), then "Forgejo runs on
-    this machine." for an owned Forgejo or "FORGE holds your code." for
-    another connected forge, each left out with no such fact, and
-    "PROJECT has no repository yet." while *A project with no
-    repository* says so.
-  - *To begin,* a level-2 heading and three numbered steps, each a
-    level-3 heading, a line and its acts. Done, a step's number is a
-    green tick and its heading muted and regular (`temper-home-done`);
-    its acts go.
-    1. "Tell temper how you work", "In your own words: how you plan,
-       review and land work. temper proposes how it will run that, and
-       nothing changes until you accept.", with "Start", the act of *The
-       first chat* (below). Done once a line of the `settings` document
-       follows a change: a way of working was accepted. A person who
-       cannot read that document sees it not done.
-    2. The repository, in the first state that holds: adopted (a row's
-       `repositories` names the project), done, "ORG/NAME is in
-       PROJECT", "temper can change its code now; checked changes land
-       on main through temper's merge queue.", ORG/NAME the project's
-       first adopted (5.3); while Ready's adoption is out, not done, with
-       no acts, "Adopting ORG/NAME into PROJECT", "Chats can change its
-       code once it is in."; with a first repository to adopt, not done,
-       "Adopt a repository", "ORG/NAME, made on your Forgejo at set up,
-       is in no project yet. Until one is in, chats talk and plan but
-       change no code.", the refusal's words after it (4.7) when Ready's
-       adoption was refused, with "Adopt ORG/NAME", which sends that
-       adoption again, and a quiet "Adopt another…", to `Adopt { project
-       }`; with none, on GitHub, not done, "Adopt a repository", "temper’s
-       App reaches its repositories on ACCOUNT. Until one is in, chats
-       talk and plan but change no code.", ACCOUNT the first accepted
-       installation's, with "Adopt", to `Adopt { project }`, whose picker
-       is the mock's; otherwise, not done, "Adopt a repository", "Until
-       one is in, chats talk and plan but change no code.", with "Adopt",
-       the same. The adoption being out is the session's fact: after a
-       reload it reads as a first repository to adopt until the rows say
-       it is in, and a first "Adopt ORG/NAME" names Ready's key, so that
-       the engine answers the one adoption.
-    3. "Start a chat", "Ask a question or ask for a change.", with
-       "New chat", to the chats' start. Done once the project holds a
-       chat, live or ended, as `Chats` reads them; the configuring chat,
-       labelled as a chat is, counts.
-  - *Connected,* a level-2 heading and a line each, the act at its
-    right a quiet underlined link: for each forge the Forges page lists
-    (`forge.md`, 5.4) but the fake, its name then, muted, " · connected
-    as LOGIN", and " · ORG/NAME, in PROJECT" for the project's first
-    adopted on it, with "Open Forgejo ↗", as Ready's forge line (sign-in
-    through temper), or "Forges", to `Forges`, where none is drawn; the
-    first usable account of the person's, as Ready's model line chooses
-    it, by its kind ("ChatGPT plan"), then, muted, " · MODEL", the first
-    model `me` serves for the project, with "Accounts"; and "Project
-    PROJECT", muted " · ORG/NAME", or " · no repository yet", with
-    "Rename" to an owner, the rename's form opening in this line (5.3).
+    (the user, 2026-11-04; section 11), the level-1 heading and
+    a lede, as *To begin* or *Home on any project* (below) says.
+  - *To begin* (`../draft/to-begin.md`, 2 to 4), while it shows (below).
+  - *Needs you* and *Chats,* as on any Home, and left out, empty, while
+    To begin shows, since its steps stand for them.
+  - *The landing's line,* left out while To begin shows.
 
-  What it does not draw: the composer and the chats' list, which stay
-  `Chats`'s, and the composer's line with "Change model". With the
-  `forges` watch refused, ended or not delivered, step 2 and the forges'
-  lines say nothing of what they do not know: step 2 is "Adopt a
-  repository" with no ORG/NAME once it ended, and absent until it is
-  delivered, the headline counting it as left. In the terminal the
-  headline, To begin with its three steps, and Connected keep their
-  headings, each line one readable run of words.
+  **To begin,** on a project's Home while a step is left and the person
+  has not skipped it on that project, a project the welcome made or any
+  other, the playground's as any: nothing records which project the
+  welcome made, and every fact below is read, none kept but the skip, so
+  a refresh, a restart of the engine or another device computes the
+  same. While it shows:
+  - *The intro:* the kicker; the headline "PROJECT is ready.", never a
+    count, since nothing in To begin is owed; the lede, "Your agents run
+    on your ACCOUNT, and Forgejo on this machine." (ACCOUNT the kind of
+    the first usable account of the person's, as Ready's model line
+    chooses it: "ChatGPT plan", "Claude subscription", and with a key
+    "Your agents run on an API key"), ", and FORGE holds your code."
+    for another connected forge, each half left out with no such fact.
+  - *More accounts:* after the lede, on its line where it fits and under
+    it on a phone, a link to `Accounts` naming what the person does not
+    hold yet: "Add Claude or another plan" with a ChatGPT plan alone,
+    "Add ChatGPT or another plan" with a Claude subscription alone, "Add
+    another account" with both or with a key, and with no usable account
+    at all. Its words offer other providers and models and promise no
+    capacity, since a limited task waits for its own account (jig's
+    `domain/accounts.md`, 4.3).
+  - *The card:* a region named "To begin", its head holding the level-2
+    heading "To begin", the tag "Optional" and, at its right, the button
+    "Skip"; under them a line by what is left: "Three steps left. Skip
+    them if you like; they stay in Settings and Chats.", "Two steps left.
+    Skip them if you like; they stay in Settings and Chats.", "Two steps
+    left. Skip them if you like; they stay in Settings." with the first
+    and second left, "One step left. Skip it if you like; it stays in
+    Settings." with the first or the second left, and "One step left.
+    Skip it if you like; it stays in Chats." with the third. Then one row
+    a step in this order, a done step keeping its place: its mark, drawn
+    by style, the step's number or a green tick once done (the terminal
+    says them in words); its title, a level-3 heading, over one short
+    line; its act at the row's right while the step is left. Done, the
+    title is muted and regular (`temper-home-done`).
+    1. "Tell temper how you work", "temper runs its default way of
+       working until you change it.", with "Start", filled, the act of
+       *The first chat* (below). Done once a configuring chat runs or ran
+       in the project, or a line of the `settings` document follows a
+       change; done, its title alone. A configuring chat is a row of the
+       project's chats, as `Chats` reads them, whose chip's executor is
+       the charter of template 3 as `me` lists it
+       (`../protocol/configuration.md`, 13.4): a row names its label,
+       which is a chat's, and no template. With no template 3 in `me`
+       the act starts the stock chat, and only a setting's change marks
+       the step done. A person who cannot read that document sees no
+       change.
+    2. The repository, in the first state that holds: adopted (a row's
+       `repositories` names the project), done, "ORG/NAME is in PROJECT",
+       "temper can change its code now; checked changes land on main
+       through temper's merge queue.", ORG/NAME the project's first
+       adopted (5.3), one line on a laptop; while Ready's adoption is
+       out, not done, with no act, "Adopting ORG/NAME into PROJECT…",
+       "Chats can change its code once it is in."; with a first
+       repository to adopt, not done, "Adopt a repository", "ORG/NAME,
+       made on your Forgejo at set up, is in no project yet.", the
+       refusal's words after it (4.7) when Ready's adoption was refused,
+       with "Adopt", filled, which sends that adoption again; with none,
+       on GitHub, not done, "Adopt a repository", "temper’s App reaches
+       its repositories on ACCOUNT.", ACCOUNT the first accepted
+       installation's, with "Adopt", filled, to `Adopt { project }`,
+       whose picker is the mock's; otherwise, not done, "Adopt a
+       repository", "Until one is in, chats talk and plan but change no
+       code.", with "Adopt", the same. The adoption being out is the
+       session's fact: after a reload it reads as a first repository to
+       adopt until the rows say it is in, and a first "Adopt" names
+       Ready's key, so that the engine answers the one adoption.
+    3. "Start a chat", "Ask a question or ask for a change.", with "New
+       chat", to the chats' start. Done once the project holds a chat
+       other than a configuring one, live or ended, as `Chats` reads
+       them; done, its title alone.
+  - *"Skip"* sends the FORGE request `Dismiss { to_begin(project) }`
+    (4.6), one act, one request (3.6), and the card goes at once, while
+    it is out and for as long as the person's dismissals name the
+    project, so another device's Home drops it when the skip commits.
+    Refused, or lost, the card comes back with "temper couldn't keep
+    that. Try Skip again." under its line; *unknown,* the subject
+    answers it, and nothing is said. A skip is never undone, and nothing
+    is lost by it: the first step's act stays on the chats page, the
+    second's in Settings and on the chats page, the third's in the rail.
+  - *Until it is known:* To begin waits for the facts it reads. Until the
+    person's dismissals, the `forges` rows, the project's chats and the
+    `settings` document are delivered, it is left out, so that a project
+    skipped or done never flashes it. A `forges`, chats' or `settings`
+    watch refused or ended counts as delivered, its step left; the
+    `dismissed` watch refused or ended leaves To begin out, since
+    nothing then says it was not skipped.
+
+  **Home on any project,** To begin gone, skipped or with every step
+  done (the mock's everyday `home.html`; section 11 holds what it draws
+  that no client is given):
+  - *The intro:* the kicker, and the headline by what needs the person
+    in this project: "Nothing needs you.", "One thing needs you.", "N
+    things need you.", "N+ things need you." where the read is cut, and
+    the project's name until its needs are delivered. It has no lede and
+    no byline.
+  - *Needs you,* a region named "Needs you": what needs the person in
+    this project, the groups of `Inbox` but its updates, read as `Inbox`
+    reads them filtered by the project. Its head is the level-2 heading
+    "Needs you", "Needs you · N" in the signal colour while something
+    does, and, at its right on a wide page while more than one does,
+    "Answer in a row", to that filtered inbox. Empty: "Nothing needs
+    you. Work carries on, and this page tells you what changed when you
+    come back."
+    - *The first,* a card (`temper-ask`): a small mono line, the asked
+      task's link as the inbox's card has it, its kind and age ("Add a
+      README · a question · 4 min"); its words, as the inbox's card
+      draws them; "Reply" on a question and "Open" on any other kind, to
+      that filtered inbox, quiet. On a phone it gives way to one line on
+      a pale signal ground, "TITLE: WORDS", the whole a link to that
+      inbox with "Answer" across it; the browser's alone.
+    - *The others,* a line each under it, to that inbox, at most five:
+      its short words, then at the right its kind and age.
+  - *Chats,* a region named "Chats": its head the level-2 heading
+    "Chats" and, at its right with any chat, "All N", named "All N
+    chats", "All N+" where the rows are cut, to `Chats`; a line per chat
+    at most five, live by last activity and then ended, each a link to
+    its `Chat`: its title, then at the right its state and age,
+    "waiting on you · 4 min", "closed · 1 h", any other state as `Chats`
+    words it, the age as 5.12's span. Empty: "No chats yet."
+
+  In the rail and the tab bar, "Needs you"'s count takes the signal
+  colour.
+
+  What Home does not draw: the composer and the full chats' list, which
+  stay `Chats`'s, and the composer's line with "Change model". With the
+  `forges` watch refused or ended, step 2 is "Adopt a repository" with
+  no ORG/NAME. In the terminal the headline, To begin with its three
+  steps, and the sections of Home on any project keep their headings,
+  each line one readable run of words.
 - **Settings:** `Settings { project }`, at `/projects/<project>/settings`,
   has the level-1 heading "Settings for PROJECT"; a list of links, "Forges",
   "Accounts" and "Adopt a repository", each with the marks 5.3 gives it;
@@ -1237,21 +1309,65 @@ keeps (`../protocol/configuration.md`, section 2).
 - **The first chat** (`../draft/configuring.md`, 5.1): on the chats
   page of a project that is not the playground's and holds no chat
   yet, live or ended, under "All", the offer "Tell temper how you
-  work", a button above the composer. Pressed, it starts the
-  configuring chat, from the configuring agent's stock template,
-  template 3 (`../protocol/configuration.md`, 13.4), while `me` lists
-  template 3 among the project's templates, else the stock chat,
-  template 1, so the offer moves to the configuring agent once the
-  settings offer it, with nothing else changed; its first message, the
-  person's, is "Help me tell temper how I work.", as a suggested
-  request starts its chat: one act, one request, the offer and the
-  send disabled while it is pending, the composer's text left as it
-  was, and the chat's page opened once it is made. The chat names no
-  repository. Home's first step makes the same offer, its "Start" the
-  same act, from no chats page; after the welcome's Ready, whose act
-  opens the Home of the project it made (3.5, The welcome), it is the
-  person's first chat. Once the project holds a chat, the offer goes;
-  "How work runs" makes the same offer (5.13).
+  work", a button above the composer. Pressed, it opens `Configure {
+  project }` (below). Home's first step makes the same offer, its
+  "Start" the same act, and "How work runs" too (5.13). The chat starts
+  with the person's own words, never with canned ones. Once the project
+  holds a chat, the chats page's offer goes.
+- **The configuring chat's page** (the mock's
+  `chat.html?id=new&configure=1`, in the project's frame):
+  `Configure { project }`, at `/projects/<project>/settings/configure`,
+  under `Settings`, so that it reads as configuring temper and not as
+  one more chat; `Settings`, which the path names, is the page above
+  until it is designed. It opens that project as `Home` does; with no
+  such project in `me` it says what `Home` says. Each main of this
+  layout (`temper-session`) is the page's height, in this order:
+  - *Its top bar:* the path, a navigation named "Where": on a wide page
+    PROJECT, a link to `Home`, and "Settings", a link to `Settings`, each
+    followed by "/", then the level-1 heading "Tell temper how you
+    work"; on a phone "‹", a link named "Settings", alone before the
+    heading. At its right on a wide page, the line of what the chat's
+    runs use, "ChatGPT plan · gpt-6-luna", the first usable account's
+    kind, as Ready's model line chooses it, and the first model `me`
+    serves for the project.
+  - *The conversation,* a region named "Conversation": centred, the
+    configuring agent's line, "temper’s configuring agent. Describe how
+    you work, in your own words or by pointing at a document. It
+    proposes how temper will run that; nothing changes until you
+    accept."; under it "Ways to begin", a list named so of three
+    starters: "I work alone on small changes: one chat per change, landed
+    once CI passes.", "I write a design draft first; agents plan its
+    tasks and land them together once checked." and "Not sure yet. What
+    can temper do?".
+  - *The composer,* a form named "Tell temper how you work", at the
+    foot, focused as the page opens: its text area "How do you work?",
+    that its placeholder too; "Send", the send arrow on ink in a rounded
+    square, grey while disabled, which it is while the text is empty;
+    under it the chat page's hint, "Enter to send · Shift+Enter for
+    newline". It has no composer's line and no chooser: the configuring
+    role's models are a setting (5.13), which this chat can change. On a
+    phone the frame's top bar and tab bar go, so that the composer keeps
+    the foot, and with them the model's line and the hint.
+
+  A starter or "Send" starts the chat, its words the first message, as
+  a suggested request does: one act, one request (3.6), from template 3
+  (`../protocol/configuration.md`, 13.4) while `me` lists it among the
+  project's templates, else template 1, with its template's own models.
+  While it is out, the starters and "Send" are disabled and the words
+  stay; made, the chat's page opens; refused, jig's words stay under the
+  composer, the words kept. The chat names no repository.
+- **A configuring chat** is a chat whose chip's executor is the charter
+  of template 3 as `me` lists it (*Home,* above). In `Chats` it is listed
+  with the others, tagged "Configuring". Its `Chat { task }`, opened from
+  there, from its start or from its proposal's review (5.13), has this
+  layout: the same top bar, its path still through `Settings`, its
+  heading the chat's number and title as a chat's is, then its line of
+  what its runs use, its status, its spend, Stop and Close; the
+  conversation as a chat's in place of the starters; the composer of
+  this layout, its text area "Message" as a chat's, with no composer's
+  line and no chooser, and none on an ended chat; "Settings" is the
+  rail's current entry. Its address stays `/chats/<task>`. A chat from
+  template 1 is any chat.
 - **The work's account and model.** A chat's composer names the
   account and model its next run takes in one line, the composer's line
   (5.5), and under it offers the models `me`
@@ -1997,7 +2113,7 @@ for its kind, its user's login and its installations. Its nodes:
   it does `forges`, from when `me` is first delivered while the link
   is live, for every party: a watch refused or ended is kept as such,
   with no rows, and not opened again until the next sign-in. Its rows are
-  the forge side's facts, which no page reads (section 11).
+  the forge side's facts, which Home reads to compute To begin (3.5).
 - **The forge's documents' records:** its other reads, subjects and
   documents, and its other requests, beside `Adopt` and `SetUp`
   (`forge.md`, section 9).
@@ -2096,7 +2212,8 @@ client removes no account and closes no chat of its own.
   owner alone, while `me` says the role and a playground is read; once
   either ends, the side drops it. For any other person it opens none.
 - **What shows:** while the playground runs, or is leaving, the
-  banner's one line on every page (5.1, 5.6); the playground's start,
+  banner's one line at the foot of the chats page's pane, and while it
+  is leaving on every other page as well (5.1, 5.6); the playground's start,
   on the chats page, while a playground is read that is not resetting
   and the person is in its project, or in none while its project is
   not made yet (3.5); the context line, on the playground's start and on a
@@ -2165,15 +2282,17 @@ client removes no account and closes no chat of its own.
     model runs (4.8): a region named "LLM account", its words and three buttons
     (5.5), on every page but the accounts page, `ConnectModel` and
     `Welcome`;
-  - *the playground's banner,* while the playground runs or is
-    leaving (4.8): a region named "Playground", one line, its words and
-    its link "set up temper" (5.6), on every page, `Welcome`, the
-    accounts and the forges pages and a chat's page among them, above
-    their chatbars, after the accounts' banner where both show, but
-    the chats page, whose pane it ends (3.5); while the link is signed
-    out or out of date, none;
+  - *the playground's banner:* a region named "Playground", one line,
+    its words and its link "set up temper" (5.6); on the chats page,
+    whose pane it ends (3.5), while the playground runs or is leaving
+    (4.8); on every other page, `Welcome`, the accounts and the forges
+    pages and a chat's page among them, while it is leaving alone,
+    above their chatbars, after the accounts' banner where both show,
+    the rail's or the banner's "Set up temper" being the way out while
+    it runs (the user, 2026-11-03); while the link is signed out or out
+    of date, none;
   - *the main:* the page at the address (3.5), its title its level-1
-    heading, but `Home`'s, whose headline changes with its steps:
+    heading, but `Home`'s, whose headline changes with what it says:
     "Home".
 
   Then skein-ui diffs it and keeps the tree.
@@ -2330,7 +2449,8 @@ page (5.1): a navigation named by the open project, in this order:
 - "Home", to the open project's `Home`; "Needs you", to the inbox,
   with the count of what needs the person from `me`, omitted when
   zero, its page still the inbox; and "Chats", to `Chats`; current on
-  `Home`, on `Inbox`, and on `Chats` and `Chat`. The entries the
+  `Home`, on `Inbox`, and on `Chats` and `Chat`, but a configuring
+  chat's, whose current entry is "Settings". The entries the
   banner's navigation offers for a project, "Board" and "Changes",
   follow "Chats" when they are built;
 - "+ New chat", named "New chat", to the chats' start
@@ -2341,14 +2461,14 @@ page (5.1): a navigation named by the open project, in this order:
   page's watch reopens, beside the link's region in the browser, so
   that it shows while the link is live, and in the region in the
   terminal, whose first line reads it (6.4); "Settings", to `Settings
-  { project }`, current there, with the dots "Forges" and "Accounts"
+  { project }`, current there, on `Configure` and on a configuring
+  chat's `Chat` (3.5), with the dots "Forges" and "Accounts"
   carry below, each its state in words; the person's name; and "Sign
   out did not reach the engine." while `me` or the page cannot say
   otherwise (6.6), "Sign out" itself being Settings' (3.5).
 
 "Forges", "Accounts" and "Adopt a repository" are no entries of the
-rail: they are `Settings`' and Home's Connected's (3.5), each current
-on nothing there. On a phone, at 760 px and under, the rail is a top
+rail: they are `Settings`' (3.5), each current on nothing there. On a phone, at 760 px and under, the rail is a top
 bar showing the switcher alone, and the tab bar closes the page: in the
 browser, a navigation named "Sections" after the main, with "Home",
 "Needs you", "Chats" and "Settings", as the rail's, drawn at phone
@@ -2406,7 +2526,8 @@ not the time they were adopted.
 With no home known, "3 repositories" is the row's words; the stand-in
 leaves that state unreached until the client is given the home. In the
 terminal a row reads "PROJECT · work/hello", one run of words. Choosing
-a project keeps the page where it can (3.5): on `Home` and `Settings`,
+a project keeps the page where it can (3.5): on `Home`, `Settings` and
+`Configure`,
 that project's page.
 
 The acts of both, each one act and one request (3.6):
@@ -2734,7 +2855,9 @@ by the person's name for it (with the user, 2026-10-23;
 `../draft/archive/first-run.md`, 2.3); OWNER/NAME is the playground's
 repository, and the cues the playground's, copied in from its read:
 
-- **The banner,** one line, while the playground runs: "This is the
+- **The banner,** one line, at the foot of the chats page's pane
+  while the playground runs, and on every page while it is leaving
+  (5.1): "This is the
   playground: a scripted model and in-memory forge. Use the wizard to
   set up temper", "set up temper" its link, which sends `EndPlayground`
   (4.8); while it is leaving, "Leaving the playground…" in its place,
@@ -3604,8 +3727,8 @@ section 5. The pages' look and place are the user's to make (section
   holds it to."; the newest revision, "Revision 8, accepted by Pat today
   at 14:03" (who decided it and when, 5.12; "temper's defaults" for the
   first start's and "temper 0.4's defaults" for a release's); the
-  offer "Tell temper how you work", which starts the configuring chat
-  (template 3, `../protocol/configuration.md`, 13.4) and opens it; each
+  offer "Tell temper how you work", which opens the open project's
+  `Configure { project }` (3.5); each
   pending proposal of settings as a line, "Proposal 13 waits for an
   owner. Lee asked for a Reviewer role, from "Reviews"", with "Review".
   Then five sections, each a level-2 heading with its count and a line
@@ -4607,7 +4730,10 @@ own tests:
   adoption sent once, after the project is made and never before, the
   project open while it is out, nothing sent with no first repository,
   and a refusal leaving the project made and the adoption offered from
-  Home; a project with no
+  Home; "Skip" on Home reaching every client of the person, holding
+  across a restart, and leaving another person's To begin and the
+  person's other projects' as they were; the configuring chat started
+  from `Configure`, from template 3; a project with no
   repository saying so on its chats page, with "Adopt a repository";
   with jig's faults (drops,
   the engine restarting, a double press, a reload with an adoption
@@ -4671,6 +4797,32 @@ own tests:
   "temper can change its code now; checked changes land on main through
   temper's merge queue.". Supplying a creation age or a first CI result
   needs its own protocol decision.
+- **What changed since the person last looked** (*Home,* 3.5; the
+  request `project-home-everyday`): the mock's kicker adds "you last
+  looked an hour ago", its headline opens with what landed, and a lede
+  and a byline say what the status agent or the latest chat wrote. No
+  client is given when the person last looked, and nothing writes that
+  intro; each is a new fact of a protocol or a stored one, the user's.
+  Default: the day and time, the headline's count, no lede and no byline.
+- **The landing's line on Home** ("Landing: main last moved 1 h ago ·
+  nothing queued"; the same request): no client is given a project's
+  landing branch's last move or its queue's depth: `LandingsPanel` lists
+  turns alone, a queue's merge making no landing task. A new fact of the
+  forge's protocol, the user's. Default: Home draws no such line.
+- **A question answered on Home** (the same request): choices, a
+  recommended one, a context line, "Later", an answer in place and its
+  "Undo" wait on the question card's upstream change (below) and on a
+  retraction jig has not. Default: "Reply" opens the inbox, which
+  answers in words.
+- **Goals on Home** (the same request): Goals in place of Chats where
+  goals are on. Whether they are is the default configuration, still the
+  user's, and no fact says so; the private `Board` is not built either.
+  Default: Chats.
+- **How a project lands, on To begin's second step**
+  (`../draft/to-begin.md`, 3): its line names temper's landing turn for
+  a project landing by turn, and no client is given a project's `by`
+  (`../domain/landing.md`, 13.1). A new fact of a protocol, the user's.
+  Default: the merge queue's words on every project.
 - **A project's home in the switcher** (5.3, 4.4): `me` does not say
   which repository is a project's home, so the first listed stands in
   for it, and a row with several repositories never reads "3
@@ -4751,12 +4903,6 @@ own tests:
   machine's goes so at once. Later: a client relaying the redirect
   (jig's `protocol/llm.md`, section 10). Default: undetected, the
   person's choice.
-- **"Skip" on Home** (*Home,* 3.5; `../draft/to-begin.md`, sections 2
-  and 5): the store, the request and the read are designed (4.6), and
-  the card and its "Skip" are the look requests'
-  `project-home-everyday` and `project-home-onboarding` (`journeys.md`,
-  7). Default: Home offers no "Skip": no act sends `Dismiss`, and no
-  page reads the subject `dismissed`.
 - **The first use of a plan,** in the terminal: a card in the
   conversation, or a card that waits to be dismissed, another kind of
   `Dismissed`, keyed by its account (`../draft/to-begin.md`, section 5).

@@ -5,7 +5,7 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 11] = [
+    let pages: [(Address, &[u8]); 14] = [
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All, start: false }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
@@ -17,6 +17,9 @@ fn each_page_round_trips_through_its_path() {
         (Address::Home { project: 3 }, b"/projects/3"),
         (Address::Settings { project: 3 }, b"/projects/3/settings"),
         (Address::Adopt { project: 3 }, b"/projects/3/adopt"),
+        (Address::Configure { project: 0 }, b"/projects/0/settings/configure"),
+        (Address::Configure { project: u32::MAX }, b"/projects/4294967295/settings/configure"),
+        (Address::Configure { project: 3 }, b"/projects/3/settings/configure"),
     ];
     for (address, path) in pages {
         assert_eq!(&*print(&address), path, "{address:?}");
@@ -59,6 +62,7 @@ fn the_inbox_prints_its_set_fields_in_one_order() {
 #[test]
 fn another_pages_query_is_dropped() {
     assert_eq!(parse(b"/chats/7?x=1"), Place::Address(Address::Chat { task: 7 }));
+    assert_eq!(parse(b"/projects/3/settings/configure?x=1"), Place::Address(Address::Configure { project: 3 }));
 }
 
 #[test]
@@ -95,6 +99,8 @@ fn one_trailing_slash_is_ignored() {
         (&b"/chats/7/"[..], Place::Address(Address::Chat { task: 7 })),
         (b"/chats/", Place::Address(Address::Chats { filter: ChatsFilter::All, start: false })),
         (b"/chats/7//", Place::Missing),
+        (b"/projects/3/settings/configure/", Place::Address(Address::Configure { project: 3 })),
+        (b"/projects/3/settings/configure//", Place::Missing),
     ] {
         assert_eq!(parse(path), expected, "{path:?}");
     }
@@ -117,6 +123,13 @@ fn a_path_that_is_no_page_is_missing() {
         b"/projects/4294967296/settings",
         b"/projects/01/settings",
         b"/projects/99999999999/settings",
+        b"/projects/4294967296/settings/configure",
+        b"/projects/01/settings/configure",
+        b"/projects/x/settings/configure",
+        b"/projects//settings/configure",
+        b"/projects/-1/settings/configure",
+        b"/projects/+1/settings/configure",
+        b"/projects/3/settings/configure/extra",
         b"/projects/1/board",
         b"/projects/3/adopt/x",
         b"//",

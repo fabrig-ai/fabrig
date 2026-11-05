@@ -1,6 +1,34 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+/// A configuring chat's status, spend and controls (client/README.md, 3.5).
+pub const SESSION_ACTIONS: Style = Style { owner: owner(), token: 246 };
+/// A configuring chat's tag in Chats (client/README.md, 3.5).
+pub const CONFIGURING_TAG: Style = Style { owner: owner(), token: 247 };
+/// A configuring session’s main. (client/README.md, 3.5).
+pub const SESSION: Style = Style { owner: owner(), token: 234 };
+/// The configuring layout’s path and runs’ line. (client/README.md, 3.5).
+pub const SESSION_TOP: Style = Style { owner: owner(), token: 235 };
+/// The configuring session’s composer form. (client/README.md, 3.5).
+pub const SESSION_FOOT: Style = Style { owner: owner(), token: 236 };
+/// The configuring session’s text area and Send. (client/README.md, 3.5).
+pub const SESSION_COMPOSER: Style = Style { owner: owner(), token: 237 };
+/// The configuring session’s keyboard hint. (client/README.md, 3.5).
+pub const SESSION_HINT: Style = Style { owner: owner(), token: 238 };
+/// The configuring session’s conversation region. (client/README.md, 3.5).
+pub const CONVO: Style = Style { owner: owner(), token: 239 };
+/// The configuring layout’s Where navigation. (client/README.md, 3.5).
+pub const CRUMBS: Style = Style { owner: owner(), token: 240 };
+/// The phone’s link back to Settings. (client/README.md, 3.5).
+pub const BACK: Style = Style { owner: owner(), token: 241 };
+/// The wide page’s path through Home and Settings. (client/README.md, 3.5).
+pub const TRAIL: Style = Style { owner: owner(), token: 242 };
+/// The configuring layout’s account and model line. (client/README.md, 3.5).
+pub const BYLINE: Style = Style { owner: owner(), token: 243 };
+/// The configuring agent’s introduction and starters. (client/README.md, 3.5).
+pub const STARTER: Style = Style { owner: owner(), token: 244 };
+/// The configuring session’s suggested first messages. (client/README.md, 3.5).
+pub const STARTERS: Style = Style { owner: owner(), token: 245 };
 /// A folded account.
 pub const ACCOUNT_ROW: Style = Style { owner: owner(), token: 124 };
 /// The rail switcher's panel.
@@ -31,14 +59,46 @@ pub const HOME_ACTS: Style = Style { owner: owner(), token: 207 };
 pub const HOME_PRIMARY: Style = Style { owner: owner(), token: 208 };
 /// Home's quiet (client/README.md, 3.5).
 pub const HOME_QUIET: Style = Style { owner: owner(), token: 209 };
-/// Home's connected (client/README.md, 3.5).
-pub const HOME_CONNECTED: Style = Style { owner: owner(), token: 210 };
-/// Home's lines (client/README.md, 3.5).
-pub const HOME_LINES: Style = Style { owner: owner(), token: 211 };
-/// Home's muted (client/README.md, 3.5).
-pub const HOME_MUTED: Style = Style { owner: owner(), token: 212 };
 /// Home's done (client/README.md, 3.5).
 pub const HOME_DONE: Style = Style { owner: owner(), token: 213 };
+/// Home's Needs you region (client/README.md, 3.5).
+pub const HOME_NEEDS: Style = Style { owner: owner(), token: 214 };
+/// A Home section's heading and link (client/README.md, 3.5).
+pub const HOME_HEAD: Style = Style { owner: owner(), token: 215 };
+/// The Needs you heading while something needs the person (client/README.md, 3.5).
+pub const HOME_SIGNAL: Style = Style { owner: owner(), token: 216 };
+/// Home's wide-page Answer in a row link (client/README.md, 3.5).
+pub const HOME_IN_A_ROW: Style = Style { owner: owner(), token: 217 };
+/// Home's linked needs or chat rows (client/README.md, 3.5).
+pub const HOME_ROWS: Style = Style { owner: owner(), token: 218 };
+/// A Home row's kind or state and age (client/README.md, 3.5).
+pub const HOME_WHEN: Style = Style { owner: owner(), token: 219 };
+/// A Home section's empty words (client/README.md, 3.5).
+pub const HOME_EMPTY: Style = Style { owner: owner(), token: 220 };
+/// Home's Chats region (client/README.md, 3.5).
+pub const HOME_CHATS: Style = Style { owner: owner(), token: 221 };
+/// Home's phone question and Answer link (client/README.md, 3.5).
+pub const HOME_CTA: Style = Style { owner: owner(), token: 222 };
+/// Home's phone Answer control (client/README.md, 3.5).
+pub const HOME_CTA_GO: Style = Style { owner: owner(), token: 223 };
+/// To begin's optional tag (client/README.md, 3.5).
+pub const HOME_TAG: Style = Style { owner: owner(), token: 229 };
+/// To begin's Skip button (client/README.md, 3.5).
+pub const HOME_SKIP: Style = Style { owner: owner(), token: 231 };
+/// Home’s lede and Accounts link (client/README.md, 3.5).
+pub const HOME_LEDES: Style = Style { owner: owner(), token: 233 };
+/// To begin’s remaining steps note (client/README.md, 3.5).
+pub const HOME_NOTE: Style = Style { owner: owner(), token: 232 };
+/// Home's first needs card (client/README.md, 3.5).
+pub const ASK: Style = Style { owner: owner(), token: 224 };
+/// The needs card's task link, kind and age (client/README.md, 3.5).
+pub const ASK_META: Style = Style { owner: owner(), token: 225 };
+/// The needs card's words (client/README.md, 3.5).
+pub const ASK_QUESTION: Style = Style { owner: owner(), token: 226 };
+/// The needs card's actions (client/README.md, 3.5).
+pub const ASK_CHOICES: Style = Style { owner: owner(), token: 227 };
+/// A quiet action on the needs card (client/README.md, 3.5).
+pub const ASK_QUIET: Style = Style { owner: owner(), token: 228 };
 /// The frame's banner.
 pub const BANNER: Style = Style { owner: owner(), token: 0 };
 /// The frame's navigation.
@@ -629,27 +689,44 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-acts",
         b"temper-home-primary",
         b"temper-home-quiet",
-        b"temper-home-connected",
-        b"temper-home-lines",
-        b"temper-home-muted",
+        b"temper-reserved-210",
+        b"temper-reserved-211",
+        b"temper-reserved-212",
         b"temper-home-done",
-        b"temper-reserved-214",
-        b"temper-reserved-215",
-        b"temper-reserved-216",
-        b"temper-reserved-217",
-        b"temper-reserved-218",
-        b"temper-reserved-219",
-        b"temper-reserved-220",
-        b"temper-reserved-221",
-        b"temper-reserved-222",
-        b"temper-reserved-223",
-        b"temper-reserved-224",
-        b"temper-reserved-225",
-        b"temper-reserved-226",
-        b"temper-reserved-227",
-        b"temper-reserved-228",
-        b"temper-reserved-229",
+        b"temper-home-needs",
+        b"temper-home-head",
+        b"temper-home-signal",
+        b"temper-home-in-a-row",
+        b"temper-home-rows",
+        b"temper-home-when",
+        b"temper-home-empty",
+        b"temper-home-chats",
+        b"temper-home-cta",
+        b"temper-home-cta-go",
+        b"temper-ask",
+        b"temper-ask-meta",
+        b"temper-ask-question",
+        b"temper-ask-choices",
+        b"temper-ask-quiet",
+        b"temper-home-tag",
         b"temper-settings",
+        b"temper-home-skip",
+        b"temper-home-note",
+        b"temper-home-ledes",
+        b"temper-session",
+        b"temper-session-top",
+        b"temper-session-foot",
+        b"temper-session-composer",
+        b"temper-session-hint",
+        b"temper-convo",
+        b"temper-crumbs",
+        b"temper-back",
+        b"temper-trail",
+        b"temper-byline",
+        b"temper-starter",
+        b"temper-starters",
+        b"temper-session-actions",
+        b"temper-configuring-tag",
     ],
     regions: &[b"temper-link"],
 };
