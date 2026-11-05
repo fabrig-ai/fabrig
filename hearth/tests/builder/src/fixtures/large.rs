@@ -4,8 +4,8 @@ use skein_io::kernel::Done;
 use skein_sim::{Entry, Event, Summary};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const ENTRIES: usize = 2_048;
-pub const DOCUMENTS: usize = 256;
+pub const ENTRIES: usize = 4_096;
+pub const DOCUMENTS: usize = 512;
 pub const TARGETS: usize = 64;
 
 // Fleet, environment and hearth, then each host's base and production documents.
@@ -23,9 +23,14 @@ pub fn scenario() -> Scenario<'static> {
     files.iter_mut().find(|file| file.path == "envs/prod.json").expect("production environment").body =
         br#"{"_note":"Production defaults."}"#;
     for host in 0..TARGETS {
-        let tasks = [0, 1, COMMON_TASKS + host % (TASKS - COMMON_TASKS)]
-            .map(|task| format!(r#""service{task:03}":{{"message":"Service {task:03} is configured."}}"#))
-            .join(",");
+        let tasks = [
+            0,
+            1,
+            COMMON_TASKS + 2 * host % (TASKS - COMMON_TASKS),
+            COMMON_TASKS + (2 * host + 1) % (TASKS - COMMON_TASKS),
+        ]
+        .map(|task| format!(r#""service{task:03}":{{"message":"Service {task:03} is configured."}}"#))
+        .join(",");
         files.push(file(
             format!("hosts/node{host:03}/node{host:03}.json"),
             format!(r#"{{"_note":"node{host:03}",{tasks}}}"#).into_bytes(),
@@ -71,7 +76,7 @@ fn file(path: String, body: Vec<u8>) -> File {
     File { path: path.leak(), body: body.leak(), mode: 0o644 }
 }
 
-/// Count listing entries and decoded inputs actually served by hosted git.
+/// Count listing entries and decoded inputs served by hosted git.
 /// Git emits one response per entry or blob; short writes finish that same response.
 #[must_use]
 pub fn served(trace: &[Entry]) -> (usize, usize) {

@@ -24,7 +24,7 @@ fn queued_specs_hold_no_more_than_their_ceiling() {
 
 #[test]
 fn a_large_render_holds_no_more_than_its_ceiling() {
-    const CEILING: u64 = 1_900_000;
+    const CEILING: u64 = 2_700_000;
     let outcome = simulated::checked_with(&fixtures::large::scenario(), bounds::SEED, hearth::limits(), CEILING);
     let output = outcome.machine.contents(fixtures::OUTPUT).expect("printed specs");
     assert_eq!(
