@@ -455,7 +455,7 @@ impl Service {
     /// resolved bearer slots remain valid through dispatch.
     pub fn request(&mut self, request: &Request<'_>, now: Wall, reply_to: ReplyTo) -> Outcome {
         self.poll(now);
-        if let Some(name) = skein_fake_forge_protocol::git::name(request.target) {
+        if let Some(name) = skein_fake_forge_http::git::name(request.target) {
             return self.git_request(request, name, now, reply_to, None);
         }
         let outcome = self.request_inner(request, now, reply_to);
