@@ -249,3 +249,138 @@ fn job_spec_and_result_heap_bytes_include_their_allocations() {
     let end = End::Finished { result: TaskResult::Job { bytes: Box::new([0xff; 11]) }, cancel_delegates: false };
     assert_eq!(terminal_bytes(&end), Some(11));
 }
+
+mod classifiers {
+    use crate::{Hold, MessageKind, NewsClass, NoticeState, Party, Phase, ResultKind, Stored, Word};
+    use skein_lib::{Queue, Wall};
+    use super::revisions::{Harness, task};
+
+    const TASK: u64 = 1;
+    const SOURCE: u64 = 2;
+    const MESSAGE: u64 = 11;
+    const SUBSCRIPTION: u64 = 7;
+    const HOLD: u64 = 13;
+    const QUESTION: u64 = 17;
+
+    fn message_word(kind: MessageKind) -> Word {
+        Word { number: MESSAGE, from: Party::Task(SOURCE), kind, words: Box::new([1]), at: Wall::EPOCH, hits: 1, eligible: false }
+    }
+
+    #[test]
+    fn message_families_keep_their_inbox_and_activity_behaviour() {
+        use MessageKind as M;
+        let mut h = Harness::new();
+        h.make(vec![task(TASK, &[])]);
+        let base = h.domain.task(TASK).expect("fixture task").clone();
+        // Spoken activity, separate slot, subscription hint, finish request,
+        // and membership in the news batch, read from the callers' lists.
+        for (kind, spoken, separate, hint, finish, news_batch) in [
+            (M::Escalation { task: SOURCE, revision: 3 }, false, false, false, false, false),
+            (M::Proposal { proposer: SOURCE, proposal: 5, kind: crate::ProposalKind::Batch }, false, false, false, false, false),
+            (M::PersonStalled { task: SOURCE }, false, false, false, false, true),
+            (M::ProposalDecision { proposal: 5, accepted: true }, false, false, false, false, false),
+            (M::SettingsDecision { proposal: 5, outcome: crate::SettingsOutcome::Rejected }, false, false, false, false, false),
+            (M::Words, true, false, false, false, false),
+            (M::EffectNotMade { entry: 3 }, false, false, false, false, false),
+            (M::Amendment { revision: 3 }, false, true, false, false, false),
+            (M::FinishRequested { revision: 3 }, false, true, false, true, false),
+            (M::Question, true, false, false, false, false),
+            (M::Answer { question: QUESTION }, true, false, false, false, false),
+            (M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Held { revision: 3 } }, false, false, true, false, false),
+            (M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Done }, false, false, true, false, false),
+            (M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Failed }, false, false, true, false, false),
+            (M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Cancelled }, false, false, true, false, false),
+            (M::Timer { subscription: SUBSCRIPTION }, false, false, true, false, false),
+            (M::News { subscription: SUBSCRIPTION, class: NewsClass::Wakes }, false, false, true, false, true),
+            (M::News { subscription: SUBSCRIPTION, class: NewsClass::Kept }, false, false, true, false, true),
+            (M::News { subscription: SUBSCRIPTION, class: NewsClass::Dropped }, false, false, true, false, true),
+            (M::Result(ResultKind::Report), false, false, false, false, false),
+            (M::Met { dependency: SOURCE, removed: true }, false, true, false, false, false),
+            (M::QuestionEnded { question: QUESTION }, false, false, false, false, false),
+            (M::QuestionAnswered { question: QUESTION }, false, false, false, false, false),
+            (M::QuestionOwed, false, false, false, false, false),
+            (M::NothingAwaited, false, true, false, false, false),
+        ] {
+            let word = message_word(kind);
+            let mut row = base.clone();
+            let mut out = Queue::uncapped();
+            crate::activity::message(&mut row, &word, h.env.limits.inbox_messages, &mut out);
+            let expected_line = if spoken {
+                crate::Line::Words { message: MESSAGE, by: word.from, kind: word.kind.clone(), words: word.words.clone() }
+            } else {
+                crate::Line::Heard(word.clone())
+            };
+            assert_eq!(out.pop(), Some(crate::Request::Save { record: Stored::Activity(crate::ActivityLine {
+                task: TASK, position: base.activity + 1, at: word.at, line: expected_line,
+            }) }), "{:?}: activity", word.kind);
+            assert_eq!(word.finish_requested(), finish, "{:?}: finish", word.kind);
+
+            row.inbox = Box::new([word.clone()]);
+            row.subscriptions = Box::new([crate::Subscription { number: SUBSCRIPTION, kind: crate::SubscriptionKind::Topic { connector: 1, topic: 1 } }]);
+            assert_eq!(crate::subscriptions::credit(&row, &h.env.limits).map(|(count, _)| count), Some(usize::from(!hint)), "{:?}: hint credit", word.kind);
+            row.subscriptions = Box::new([]);
+            crate::domain::task_mut(&mut h.domain, TASK).expect("fixture task").record = row;
+            let limits = crate::Limits { inbox_messages: 0, ..h.env.limits };
+            assert_eq!(crate::inbox::room(&h.domain, &limits, TASK, 0, 0), separate, "{:?}: separate slot", word.kind);
+
+            let batch = message_word(M::News { subscription: SUBSCRIPTION + 1, class: NewsClass::Wakes });
+            let row = &mut crate::domain::task_mut(&mut h.domain, TASK).expect("fixture task").record;
+            row.inbox = Box::new([word.clone(), batch.clone()]);
+            // Two single-hit messages reach the threshold only in the same category.
+            row.wake.news = crate::WakeRule::Batch { count: 2, age: skein_lib::Duration::from_secs(1) };
+            crate::wake::after_message(&mut h.domain, &h.env, TASK, None, batch, &mut out);
+            assert_eq!(h.domain.task(TASK).expect("fixture task").inbox.first().expect("first word").eligible, news_batch, "{:?}: news batch", word.kind);
+        }
+    }
+
+    #[test]
+    fn result_shapes_keep_payload_and_owned_byte_accounting() {
+        let fields = Box::new([crate::ResultField { name: Box::new([1]), value: Box::new([2]) }]);
+        let field_storage = u64::try_from(size_of::<crate::ResultField>()).expect("field size fits");
+        for (kind, payload, owned) in [
+            (MessageKind::Words, Some(1), Some(1)),
+            (MessageKind::Result(ResultKind::Job), Some(1), Some(1)),
+            (MessageKind::Result(ResultKind::Approved { state: Box::new([2, 3, 4]), words_present: true }), Some(4), Some(4)),
+            (MessageKind::Result(ResultKind::Approved { state: Box::new([]), words_present: false }), None, None),
+            (MessageKind::Result(ResultKind::NoChange), Some(1), Some(1)),
+            (MessageKind::Result(ResultKind::Report), Some(1), Some(1)),
+            (MessageKind::Result(ResultKind::Verdict { code: 1, fields }), Some(3), Some(3 + field_storage)),
+            (MessageKind::Result(ResultKind::Change { connector: 1, kind: 2, resource: 3 }), Some(1), Some(1)),
+            (MessageKind::Result(ResultKind::Failed), Some(1), Some(1)),
+            (MessageKind::Result(ResultKind::Cancelled), Some(1), Some(1)),
+        ] {
+            let word = message_word(kind);
+            assert_eq!(word.payload_bytes(), payload, "{:?}: payload", word.kind);
+            let record = Stored::Activity(crate::ActivityLine { task: TASK, position: 1, at: word.at, line: crate::Line::Heard(word.clone()) });
+            assert_eq!(crate::stored_bytes(&record), owned, "{:?}: owned", word.kind);
+        }
+    }
+
+    #[test]
+    fn placed_holds_keep_their_identity() {
+        for (why, placed) in [
+            (Hold::Exceeded(crate::Exceeded { bound: crate::Bound::Answer, value: 1 }), None),
+            (Hold::Failures(crate::Class::Run), None),
+            (Hold::Stalled, None),
+            (Hold::Dependency(SOURCE), None),
+            (Hold::Stopped, None),
+            (Hold::Placed { hold: HOLD }, Some(HOLD)),
+            (Hold::Drift, None),
+            (Hold::Effects, None),
+            (Hold::EffectFailed, None),
+            (Hold::Uncertain { entry: 3 }, None),
+            (Hold::Budget, None),
+            (Hold::Deadline, None),
+            (Hold::HoldsWaited, None),
+            (Hold::ResourceUnavailable, None),
+            (Hold::ResourceAccess, None),
+            (Hold::PoolLost { pool: 3 }, None),
+            (Hold::Procedure, None),
+            (Hold::Circle, None),
+        ] {
+            let phase = Phase::Held { was: crate::Was::Waiting, why, source: None };
+            assert_eq!(crate::placed::placed_reason(&phase), placed, "{why:?}: identity");
+            assert_eq!(crate::placed::is_placed(why), placed.is_some(), "{why:?}: placed");
+        }
+    }
+}
