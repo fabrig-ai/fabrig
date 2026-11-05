@@ -37,7 +37,7 @@ temper runs software work for people: agents take tasks on the repositories of a
 - temper help forge: GitHub or Forgejo, connected, managed or owned:
   GitHub's App and installations, and what temper writes there.
 - temper help repository: a forge's repository adopted into a project:
-  its role, temper's branch prefix, CI or checks, and the home.
+  made, copied from a public source, or adopted; its role, prefix, CI or checks, and home.
 - temper help account: how a deployment pays an LLM provider: accounts
   and their sources, a move between deployments, and the models.
 - temper help task: a numbered piece of work, its delegates, phases,

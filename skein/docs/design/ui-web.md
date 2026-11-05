@@ -914,7 +914,9 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
     refused, plaintext loopback with and without `loopback-navigation`;
   - the bundler: the directory named by its digest, the same inputs
     giving the same bundle, references under the prefix, an own page's
-    marker, and each refusal of 4.2 and 4.3 naming its file.
+    marker, and each refusal of 4.2 and 4.3 naming its file;
+  - the stylesheet (section 12): its 101 rules for a progress, read from
+    `skein_ui_bundle::STYLESHEET` against the numbers 0 to 100.
 - **The wasm32 builds in skein's gate:** `skein-ui`, `skein-ui-web`, the
   example's view and its browser shell, built for
   `wasm32-unknown-unknown` with clippy's lints as errors, since the

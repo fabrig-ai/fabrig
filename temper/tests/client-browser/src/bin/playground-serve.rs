@@ -118,6 +118,7 @@ fn mime(path: &Path) -> &'static str {
 }
 
 fn main() -> io::Result<()> {
+    skein_fail_stop::install();
     let mut args = std::env::args_os().skip(1);
     let root = args.next().expect("usage: playground-serve OUT");
     assert!(args.next().is_none(), "usage: playground-serve OUT");

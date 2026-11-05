@@ -52,6 +52,8 @@ pub fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
         | Request::DeleteOrgHook { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }
@@ -142,7 +144,7 @@ pub fn decoder(request: &Request, limits: &Limits) -> Option<Decoder> {
         Request::Artifacts { .. } => Kind::Action(ActionKind::Artifacts),
         Request::Commits { .. } => Kind::File(FileKind::Range),
         Request::CreateFile { .. } => Kind::Setup(setup::SetupKind::CreatedFile),
-        Request::CreateRepository { .. } => Kind::Setup(setup::SetupKind::CreatedRepository),
+        Request::CreateRepository { .. } | Request::Migrate { .. } => Kind::Setup(setup::SetupKind::CreatedRepository),
         Request::Org { .. } | Request::CreateOrg { .. } => Kind::Setup(setup::SetupKind::Org),
         Request::CreateTeam { .. } | Request::EditTeam { .. } => Kind::Setup(setup::SetupKind::Team),
         Request::Teams { .. } => Kind::Setup(setup::SetupKind::Teams),
@@ -152,6 +154,7 @@ pub fn decoder(request: &Request, limits: &Limits) -> Option<Decoder> {
         | Request::CreateRepoHook { .. }
         | Request::EditRepoHook { .. } => Kind::Setup(setup::SetupKind::Hook),
         Request::ArtifactZip { .. }
+        | Request::DeleteRepository { .. }
         | Request::DeleteRepoHook { .. }
         | Request::AddCollaborator { .. }
         | Request::DeleteOrgHook { .. }

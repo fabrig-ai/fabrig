@@ -225,16 +225,14 @@ pub(crate) struct Call {
 }
 
 #[derive(Debug)]
-#[cfg_attr(
-    target_pointer_width = "64",
-    expect(clippy::large_enum_variant, reason = "bounded call slots retain their answers inline; limits count State")
-)]
 enum State {
     /// The answer is decided, and goes out when the call's timer fires; then
     /// the call lands, if it is to land late.
     Waiting { reply_to: ReplyTo, result: Result<Answer, Error>, landing: Option<Landing> },
     /// Answered as timed out: it is made when the call's timer fires again.
     Landing(Landing),
+    /// The destination exists empty until this call's alarm (fake-forge.md, 2.6).
+    Copying { reply_to: ReplyTo, source: Id<Repository>, destination: Id<Repository>, result: Result<Answer, Error> },
     /// Terminal: holds nothing.
     Closed,
 }
@@ -492,11 +490,27 @@ pub fn fire(domain: &mut Domain, env: &Env<Config>, out: &mut Queue<Request>) {
     };
     match alarm {
         Alarm::Call(id) => answer(domain, env, id, out),
-        Alarm::Check { repository, commit, context } => ci::report(domain, env, repository, commit, context),
-        Alarm::Rerun { repository, commit, context } => ci::rerun(domain, env, repository, commit, context),
-        Alarm::Workflow { repository, run, job } => crate::dispatch::report(domain, env, repository, run, job),
+        Alarm::Check { repository, commit, context } => {
+            if !domain.repositories.get(repository).expect("retained alarm slot").gone {
+                ci::report(domain, env, repository, commit, context);
+            }
+        }
+        Alarm::Rerun { repository, commit, context } => {
+            if !domain.repositories.get(repository).expect("retained alarm slot").gone {
+                ci::rerun(domain, env, repository, commit, context);
+            }
+        }
+        Alarm::Workflow { repository, run, job } => {
+            if !domain.repositories.get(repository).expect("retained alarm slot").gone {
+                crate::dispatch::report(domain, env, repository, run, job);
+            }
+        }
         Alarm::Hook(id) => hooks::deliver(domain, id, out),
-        Alarm::Queue(id) => crate::queue::process(domain, env, id),
+        Alarm::Queue(id) => {
+            if !domain.repositories.get(id).expect("retained alarm slot").gone {
+                crate::queue::process(domain, env, id);
+            }
+        }
     }
 }
 
@@ -537,7 +551,9 @@ fn call(
                     && crate::store::fits(link, limits.body_bytes.max(limits.name_bytes.saturating_add(51))).is_ok()
             }
             Write::Update { .. } => crate::store::fits(repository, env.limits.limits.name_bytes).is_ok(),
-            Write::Rerun { .. }
+            Write::Copy { .. } => false,
+            Write::DeleteRepository
+            | Write::Rerun { .. }
             | Write::SetProtection { .. }
             | Write::CreateIssue { .. }
             | Write::Comment { .. }
@@ -563,21 +579,52 @@ fn call(
             | Write::PutPage { .. }
             | Write::DeletePage { .. } => true,
         },
-        Op::Read(_) | Op::Git(_) => true,
+        Op::Read(_) => false,
+        Op::Git(_) => true,
     };
     let admission = if admitted { faults::available(domain, env) } else { faults::admit(domain, env, user) };
-    let (result, landing) = match admission {
-        Err(error) => (Err(error), None),
-        Ok(()) if can_land && observe::subject(&op).is_some() && faults::lands_late(domain, env) => {
-            (Err(Error::Timeout), Some(Landing { user, repository: copy_of(repository), op }))
-        }
-        Ok(()) => {
-            let result = make(domain, env, user, repository, op);
-            (faults::finish(domain, env, result), None)
-        }
+    let mut extra = Duration::ZERO;
+    let state = match admission {
+        Err(error) => State::Waiting { reply_to, result: Err(error), landing: None },
+        Ok(()) => match op {
+            Op::Write(Write::Copy { owner, name, fill }) => {
+                match crate::creation::copy::start(domain, env, repository, user, &owner, &name) {
+                    Ok((source, destination, answer)) => {
+                        let mut result = faults::finish(domain, env, Ok(answer));
+                        match fill {
+                            crate::api::Fill::Whole => {}
+                            crate::api::Fill::Slow(span) => extra = span,
+                            crate::api::Fill::Cut => {
+                                if result.is_ok() {
+                                    domain.tally.timeouts = domain.tally.timeouts.saturating_add(1);
+                                }
+                                result = Err(Error::Timeout);
+                            }
+                        }
+                        State::Copying { reply_to, source, destination, result }
+                    }
+                    Err(error) => {
+                        if error == Error::Full {
+                            domain.tally.full = domain.tally.full.saturating_add(1);
+                        }
+                        let result = faults::finish(domain, env, Err(error));
+                        State::Waiting { reply_to, result, landing: None }
+                    }
+                }
+            }
+            op @ (Op::Read(_) | Op::Write(_) | Op::Git(_)) => {
+                let (result, landing) = if can_land && faults::lands_late(domain, env) {
+                    (Err(Error::Timeout), Some(Landing { user, repository: copy_of(repository), op }))
+                } else {
+                    let result = make(domain, env, user, repository, op);
+                    (faults::finish(domain, env, result), None)
+                };
+                State::Waiting { reply_to, result, landing }
+            }
+        },
     };
-    let at = faults::latency(domain, env);
-    let call = Call { state: State::Waiting { reply_to, result, landing } };
+    let at = faults::latency(domain, env).saturating_add(extra);
+    let call = Call { state };
     let id = domain.calls.insert(call).expect("checked for room above");
     domain.timers.arm(Alarm::Call(id), at).expect("a timer per call fits");
 }
@@ -605,6 +652,8 @@ fn execute(domain: &mut Domain, env: &Env<Config>, user: u64, repository: &[u8],
     match op {
         Op::Read(read) => authorized_read(domain, &env.limits, id, user, &read),
         Op::Write(write) => match write {
+            Write::Copy { .. } => unreachable!("copies have their own call state"),
+            Write::DeleteRepository => crate::creation::copy::delete(domain, id, user),
             Write::SetProtection { protection } => {
                 let limits = &env.limits.limits;
                 let repository = domain.repositories.get_mut(id).expect("a named repository");
@@ -757,6 +806,16 @@ fn answer(domain: &mut Domain, env: &Env<Config>, id: Id<Call>, out: &mut Queue<
             domain.tally.landed = domain.tally.landed.saturating_add(1);
             // What it answered went out long ago.
             let _made = make(domain, env, user, &repository, op);
+        }
+        State::Copying { reply_to, source, destination, mut result } => {
+            domain.calls.retire(id);
+            if domain.repositories.get(destination).expect("retained copy slot").gone {
+                result = Err(Error::Missing(What::Repository));
+            } else if result.is_ok() {
+                result = crate::creation::copy::fill(domain, source, destination);
+            }
+            out.push(Request::Reply { to: reply_to, result });
+            domain.tally.answered = domain.tally.answered.saturating_add(1);
         }
         State::Closed => unreachable!("a closed call has no timer"),
     }

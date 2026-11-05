@@ -46,7 +46,13 @@ fn a_key_decoder_refuses_each_malformed_key() {
         branch.tag(1).bytes(&[]);
     }
     branch.tag(0);
+    let mut making_forge = skein_kv::KeyWriter::new(u32::MAX);
+    making_forge.tag(keys::MAKING).u64(65_536).bytes(b"owner").bytes(b"repo");
+    let mut making_trailing = skein_kv::KeyWriter::new(u32::MAX);
+    making_trailing.tag(keys::MAKING).u64(1).bytes(b"owner").bytes(b"repo").tag(0);
     for (name, bytes) in [
+        ("making forge width", making_forge.finish().expect("small key")),
+        ("making trailing byte", making_trailing.finish().expect("small key")),
         ("family tag", Box::from([19])),
         ("What tag", what.finish().expect("small key")),
         ("forge width", forge.finish().expect("small key")),
@@ -78,6 +84,8 @@ fn every_forge_key_lies_in_the_interval_and_no_core_key_does() {
 
 #[test]
 fn branch_empty_segments_and_binding_escapes_fit_the_calculated_key_bound() {
+    // One family byte, an eight-byte forge, and two escaped 128-byte names with terminators.
+    const MAKING_KEY_BYTES: u32 = 525;
     let mut segments: skein_lib::List<Box<[u8]>> = skein_lib::List::with_capacity(fixtures::LIMITS.name_bytes);
     for _ in 0..fixtures::LIMITS.name_bytes {
         segments.push(Box::new([])).expect("bounded branch");
@@ -89,8 +97,20 @@ fn branch_empty_segments_and_binding_escapes_fit_the_calculated_key_bound() {
     let key = Key::Binding(Box::new([0; 254]));
     let bytes = keys::encode(&key, 511).expect("escaped binding bound");
     assert_eq!(bytes.len(), 511);
-    assert_eq!(keys::largest(&fixtures::LIMITS), Some(511));
     assert_eq!(keys::encode(&key, 510), None);
+    assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+    let name_bytes = usize::try_from(fixtures::LIMITS.name_bytes).expect("fixture name bound");
+    assert_eq!(keys::largest(&fixtures::LIMITS), Some(MAKING_KEY_BYTES));
+    let key = Key::Making(temper_engine_domain_forge::MakingKey {
+        forge: u16::MAX,
+        org: skein_lib::bytes::zeroed(name_bytes),
+        name: skein_lib::bytes::zeroed(name_bytes),
+    });
+    let bytes = keys::encode(&key, MAKING_KEY_BYTES).expect("escaped making bound");
+    assert_eq!(bytes.first(), Some(&35));
+    assert_eq!(bytes.len(), usize::try_from(MAKING_KEY_BYTES).expect("fixture key bound"));
+    assert_eq!(keys::encode(&key, MAKING_KEY_BYTES - 1), None);
+
     assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
 }
 

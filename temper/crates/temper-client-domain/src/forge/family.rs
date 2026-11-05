@@ -108,7 +108,9 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
             w::ForgeReason::PrefixOccupied => forge::Reason::PrefixOccupied,
         }),
         w::Outcome::Unknown => forge::Answer::Unknown,
-        w::Outcome::Page(_)
+        w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_)
+        | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
         | w::Outcome::Connecting
@@ -205,7 +207,9 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
             w::SetUpRefusal::Invalid => R::Invalid,
         }),
         w::Outcome::Unknown => O::Unknown,
-        w::Outcome::Page(_)
+        w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_)
+        | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
         | w::Outcome::Connecting
@@ -233,7 +237,21 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
         let row = row.into_parts();
         let fetched = fetched_from(&row.connection);
         let connection = connection_from(row.connection);
+        let mut makings = List::with_capacity(row.makings.len());
+        for making in row.makings.into_boxed() {
+            let making = making.into_parts();
+            makings
+                .push(forge::making::Making {
+                    org: making.org,
+                    name: making.name,
+                    from: making.from,
+                    into: making.into,
+                    state: making.state,
+                })
+                .ok()?;
+        }
         rows.push(Row {
+            makings: makings.into_boxed(),
             read_only: row.read_only,
             number: row.number,
             host: row.host,

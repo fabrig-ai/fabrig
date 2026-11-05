@@ -11,6 +11,7 @@ mod hooks;
 mod job_clone;
 pub mod json;
 pub mod mask;
+pub mod migrate;
 mod orgs;
 mod registration;
 mod repo_setup;

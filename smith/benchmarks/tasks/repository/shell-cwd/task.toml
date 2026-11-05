@@ -1,5 +1,5 @@
 id = "shell-cwd"
-version = 2
+version = 3
 kind = "repository"
 tier = "working"
 deadline_seconds = 2400
@@ -19,7 +19,7 @@ CARGO_PROFILE_DEV_DEBUG = "0"
 CARGO_PROFILE_TEST_DEBUG = "0"
 
 [[grade]]
-command = ["sh", "-c", "cp Cargo.lock ../grader/Cargo.lock && cargo test --offline --manifest-path ../grader/Cargo.toml"]
+command = ["sh", "-c", "grep -E '^skein-(lib|llm-world) = ' Cargo.toml >> ../grader/Cargo.toml && cp Cargo.lock ../grader/Cargo.lock && cargo test --offline --manifest-path ../grader/Cargo.toml"]
 deadline_seconds = 80
 max_output_bytes = 4194304
 

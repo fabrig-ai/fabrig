@@ -691,6 +691,18 @@ connection** (its stack: HTTP server,
 tokenizer, the delivery's decoder; the HMAC state, the fields decoded
 and the hint it holds until the owner has room).
 
+Each configured forge has one **entry** in the component: what its owner
+configured (3.1), its start (8.3), its own connection, and its dialect's
+state, whose variant holds the forge's own plan and, for a GitHub forge,
+its installations and its puller. An entry is made when its forge is
+added and goes whole when it is removed. What the forges share (the
+connections, the calls, the tables, the owner's word) sits beside the
+entries, and a step on one forge is handed that forge's entry. A forge's
+dialect is known from its entry and is not asked again: a call's plan
+sits in a variant of its own dialect, chosen once where the call meets
+its forge, and a call whose variant is not its forge's is answered as a
+call to a forge that has gone (3.1).
+
 ### 7.2 Limits
 
 The component's own; their values are the owner's.
@@ -812,6 +824,13 @@ of the phase, set in one place after each transition
 (programming-model.md, section 5.4). A connection stands on a link
 (link.md): a closing one sends TLS's `close_notify`, and is bounded by
 the link's close deadline and then io's.
+
+A forge connection speaks no dialect. Its stack carries an exchange's
+bytes, tokens and ending; the exchange itself (the request, the decoder,
+what was heard of it) is its holder's, in its holder's dialect, made new
+each time the holder takes a connection. So a plan and a connection of
+different dialects cannot meet, and the connection's own table above
+holds for both.
 
 ### 8.2 A call
 

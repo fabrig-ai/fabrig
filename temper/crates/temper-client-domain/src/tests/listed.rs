@@ -33,6 +33,7 @@ fn row(number: u16, repositories: Box<[Adoption]>) -> Row {
         fetched: None,
         admin: false,
         ended_stop: None,
+        makings: Box::default(),
     }
 }
 

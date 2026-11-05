@@ -30,3 +30,5 @@ mod create_repository;
 mod create;
 mod create_bounds;
 mod create_file;
+
+mod copy;

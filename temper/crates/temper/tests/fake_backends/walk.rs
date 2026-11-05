@@ -20,6 +20,7 @@ enum Act {
     /// Follow the preceding act's printed address through the box's supervised peers.
     ProgramLogin(&'static str),
     Mark(&'static str),
+    Visit,
 }
 
 impl Walk {
@@ -59,7 +60,6 @@ impl Walk {
         }))
     }
 
-    #[expect(dead_code, reason = "the walk retains its no-check entry point beside run_then")]
     fn run(&self, acts: Vec<Act>) -> Seen {
         self.run_then(acts, |_, _| ())
     }
@@ -67,12 +67,13 @@ impl Walk {
     /// `run`, then `check` while the box still serves, given the configuration
     /// directory and the client root that ctl signed in under.
     fn run_then(&self, acts: Vec<Act>, check: impl FnOnce(&Path, &Path)) -> Seen {
-        let count = acts.iter().filter(|act| !matches!(act, Act::Mark(_))).count();
+        let count = acts.iter().filter(|act| !matches!(act, Act::Mark(_) | Act::Visit)).count();
         let mut steps = vec![Step::Run(Call::sign_in())];
         steps.extend(acts.into_iter().map(|act| match act {
             Act::Now(call) => Step::Run(call),
             Act::ProgramLogin(name) => Step::ProgramLogin(name),
             Act::Mark(name) => Step::Mark(name),
+            Act::Visit => Step::Visit,
             Act::After(next) => Step::Then(Box::new(move |seen| {
                 let (_, answers) = seen.split_first().expect("signed in before the welcome's acts");
                 next(answers)
@@ -153,9 +154,11 @@ struct Seen {
     answers: Vec<Ended>,
 }
 
+mod copy;
 mod here_key;
 mod open_default;
 mod program_here;
+mod sign_in;
 
 fn assert_reply(seen: &Seen) {
     let [.., waited, conversation] = seen.answers.as_slice() else { panic!("reply and conversation reads") };

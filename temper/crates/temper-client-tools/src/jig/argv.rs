@@ -356,7 +356,7 @@ pub(crate) fn approval_state(call: &Call) -> Option<Box<[u8]>> {
     let Some(Value::Cursor(bytes)) = decode(&[], Kind::Cursor, super::table::Bound::None, state) else { return None };
     Some(bytes)
 }
-/// Defaults are added only to waiting reads; a bare read has no timer.
+/// Defaults are added only to calls that wait; a bare read has no timer.
 pub(crate) fn defaults(args: &[Argument], values: &mut [Option<Values>], limits: &Limits) {
     let mut waiting = false;
     for (arg, value) in args.iter().zip(values.iter()) {

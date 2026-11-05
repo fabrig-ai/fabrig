@@ -635,6 +635,7 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
             | crate::Output::ForgeGone { .. }
             | crate::Output::BoxGroup { .. }
             | crate::Output::BoxRemove { .. }
+            | crate::Output::MakingCopied { .. }
             | crate::Output::SetUp { .. }
             | crate::Output::Account(_)
             | crate::Output::Busy(_)

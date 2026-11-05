@@ -146,6 +146,7 @@ dependencies = [
 name = "fabrig-boundary"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "skein-scratch",
 ]
 
@@ -1497,6 +1498,7 @@ dependencies = [
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-hub-link",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1650,9 +1652,13 @@ dependencies = [
 name = "jig-protocol-charter"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-brief",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-tasks",
+ "jig-protocol-tools",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -1949,6 +1955,7 @@ dependencies = [
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-hub-link",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -4464,6 +4471,7 @@ dependencies = [
  "jig-protocol-config",
  "serde_json",
  "skein-browser",
+ "skein-fail-stop",
  "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-fake-oauth",
@@ -5481,6 +5489,7 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
+ "skein-fail-stop",
  "skein-scratch",
  "temper-settings-form",
 ]

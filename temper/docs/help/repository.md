@@ -31,6 +31,8 @@ A repository is a forge's repository adopted into a project: owned, a fork or co
 
 ## How it changes
 
+`repository make` makes an empty repository; `repository copy` copies a public HOST/OWNER/NAME, each adopted into the project.
+
 - **Adopted:** `repository adopt` adopts one into a project; `forge
   setup`, and `forge connect` with a first repository, make one and
   adopt it (temper help forge).

@@ -102,6 +102,7 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 | root::Request::ResetAct { .. }
                 | root::Request::BoxRemove { .. }
                 | root::Request::Return { .. }
+                | root::Request::MakingCopied { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Connect { .. }
                 | root::Request::Replace { .. }

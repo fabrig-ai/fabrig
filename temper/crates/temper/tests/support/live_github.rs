@@ -40,7 +40,7 @@ impl Inputs {
     #[expect(clippy::disallowed_methods, reason = "the live proof supplies its owner through the test environment")]
     fn read(scratch: &Path) -> Self {
         let owner = std::env::var("TEMPER_LIVE_GITHUB_OWNER").expect("owner from proof-live-github.sh");
-        assert!(matches!(owner.as_str(), "freeekanayaka" | "fabrig-ai"), "probe owner only");
+        assert_eq!(owner, "fabrig-ai", "probe owner only");
         let fixtures = PathBuf::from(std::env::var_os("TEMPER_LIVE_GITHUB_FIXTURES").expect("fixtures path"));
         let app: Value = serde_json::from_slice(&fs::read(fixtures.join("app.json")).expect("public App fixture"))
             .expect("App JSON");

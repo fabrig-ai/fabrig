@@ -694,7 +694,10 @@ have one, an engine alone none. Each:
   `engine.limits` and in each worker's `limits`, since each kept forge
   has a git identity; and `forge.repositories` and its kin, the
   connector's and the forge client's rows, shared by every kept forge,
-  never a sum over them. Memory is metered as any held bytes are.
+  never a sum over them, `forge.makings` among them, the rows of
+  repositories being made or failed, at most 64, the `forges` document's
+  bound (`../client/README.md`, 4.6). Memory is metered as any held bytes
+  are.
 - **The webhooks', the keep's settling, the records', the forges', the
   GitHub App's, the setup's, the routes', the picker's, the box's and
   the bundle's limits,** whose numbers are `small`'s constants, as every
@@ -1486,6 +1489,8 @@ box: fake github http://ADDR
 box: fake issuer http://ADDR
 box: fake model http://ADDR
 box: fake forgejo http://ADDR
+box: copy source ADDRESS
+box: copy source ADDRESS
 box: model key FILE
 box: Forgejo elsewhere admin token file FILE
 box: program login: COMMAND

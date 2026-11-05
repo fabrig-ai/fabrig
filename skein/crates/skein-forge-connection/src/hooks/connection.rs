@@ -1,6 +1,6 @@
 //! One streaming, authenticated webhook connection (forge-connection.md, 5 and 8).
 use super::Hinted;
-use crate::{Event, Limits, limits, settings::Settings};
+use crate::{Event, Limits, component::entry::ForgeEntry, limits};
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_forge::forgejo::plans::hint;
@@ -137,10 +137,11 @@ impl Hooked {
             }),
         );
     }
-    fn call(&mut self, env: &Env<Limits>, settings: &Settings, call: http::Call) {
+    fn call(&mut self, env: &Env<Limits>, forges: &skein_lib::List<ForgeEntry>, call: http::Call) {
         let forge = delivery::hook_forge(&call.target);
         let mut secret = None;
-        for configured in &settings.forges {
+        for entry in forges {
+            let configured = &entry.base.forge;
             if Some(configured.number) == forge {
                 secret = match &configured.access {
                     Some(access) => access.webhook_secret.as_ref(),
@@ -253,7 +254,8 @@ impl Hooked {
         &mut self,
         owner: Token,
         env: &Env<Limits>,
-        settings: &Settings,
+        forges: &skein_lib::List<ForgeEntry>,
+        word: &[u8],
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
@@ -264,7 +266,8 @@ impl Hooked {
                 self.hint_state = HintState::Awaited;
                 let hint = self.hint.take().expect("ready hint");
                 let mut configured = false;
-                for forge in &settings.forges {
+                for entry in forges {
+                    let forge = &entry.base.forge;
                     if forge.number == hint.repository.forge {
                         configured = true;
                         break;
@@ -296,7 +299,7 @@ impl Hooked {
             } else if let Some(down) = self.json_down.pop() {
                 self.down(env, http::Request::Body(down));
             } else if self.ended && self.decoder.is_none() && self.mac.is_some() {
-                self.verified(env, &settings.word);
+                self.verified(env, word);
             } else if let Some(event) = self.events.pop() {
                 match event {
                     http::Event::Call(call) => {
@@ -304,7 +307,7 @@ impl Hooked {
                             self.events.push(http::Event::Call(call));
                             break;
                         }
-                        self.call(env, settings, call);
+                        self.call(env, forges, call);
                     }
                     http::Event::Body(event) => self.body(env, event),
                     http::Event::Done(reuse) => {

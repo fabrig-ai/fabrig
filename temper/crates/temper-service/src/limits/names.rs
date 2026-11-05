@@ -92,6 +92,12 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.name_bytes" => limits.forge.name_bytes = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.output" => limits.forge.output = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.facts" => limits.forge.facts = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.makings" => {
+            if value == 0 || value > 64 {
+                return Err(Refused::Range);
+            }
+            limits.forge.makings = u32::try_from(value).or(Err(Refused::Range))?;
+        }
         b"forge.adoptions" => limits.forge.adoptions = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.applications" => limits.forge.applications = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.collaborators" => limits.forge.collaborators = u32::try_from(value).or(Err(Refused::Range))?,
@@ -310,7 +316,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 162] = [
+pub static NAMES: [Name; 163] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -616,6 +622,12 @@ pub static NAMES: [Name; 162] = [
         unit: Unit::Count,
         line: "Bounds facts awaiting the forge connector's drain.",
         value: |limits| u64::from(limits.forge.facts),
+    },
+    Name {
+        name: "forge.makings",
+        unit: Unit::Count,
+        line: "Bounds repositories being made or failed, from 1 to 64.",
+        value: |limits| u64::from(limits.forge.makings),
     },
     Name {
         name: "forge.adoptions",

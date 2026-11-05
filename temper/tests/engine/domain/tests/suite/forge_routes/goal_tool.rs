@@ -31,7 +31,85 @@ fn an_agreed_goals_nested_goal_is_refused_with_its_plan_instruction() {
     }
 }
 
-fn ask_plan_and_wait(world: &mut World, chat: &engine::Assignment, run: &engine::Assignment) {
+#[test]
+fn an_answered_agreed_goals_nested_goal_points_to_change() {
+    const REQUEST: &[u8] = b"Add CSV export to widget. Before anything is changed, have the work tell me its plan and wait for my go-ahead.";
+    const APPROVAL: &[u8] = b"Go ahead. The CSV's first line must be the header fruit,count.";
+    let (mut world, chat, run) = running_goal_for_request(true, REQUEST);
+    refused_tool(
+        &mut world,
+        &run,
+        NESTED_GOAL_CALL,
+        engine::Tool::Goal { words: REQUEST.into(), advisor: false, agree: true },
+        ASK_PLAN,
+    );
+    let question = ask_plan_and_wait(&mut world, &chat, &run);
+    let resumed = answer_plan(&mut world, &chat, &run, question, APPROVAL);
+    for name in [CONTINUED_CALL + 4, CONTINUED_CALL + 6] {
+        refused_tool(
+            &mut world,
+            &resumed,
+            name,
+            engine::Tool::Goal { words: REQUEST.into(), advisor: false, agree: true },
+            b"a goal starts an advisor alone: set advisor, or make the change with change",
+        );
+    }
+    let change = delegated(call(
+        &mut world,
+        &resumed,
+        CONTINUED_CALL + 8,
+        engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(APPROVAL.into(), None)]) },
+    ));
+    assert_eq!(live(&world, change).requester, tasks::Party::Task(run.task));
+    assert_eq!(live(&world, change).spec.words.as_ref(), APPROVAL);
+    assert!(live(&world, run.task).spec.asks, "answering preserves the agreement mark");
+    let chat_work: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|record| match record {
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+                if row.requester == tasks::Party::Task(chat.task) =>
+            {
+                Some(row.number)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(chat_work, [run.task], "the chat starts no replacement work");
+    world.close();
+}
+
+fn answer_plan(
+    world: &mut World,
+    chat: &engine::Assignment,
+    run: &engine::Assignment,
+    question: u64,
+    words: &[u8],
+) -> engine::Assignment {
+    const ANSWER_KEY: u8 = 110; // Distinct from chat creation and tool call keys.
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(ANSWER_KEY))),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [ANSWER_KEY; 16],
+        ask: people::Ask::AnswerQuestion { project: 1, task: chat.task, question, words: words.into() },
+    }));
+    world.until(Until::Ready);
+    let resumed = world.assigned.iter().rev().find(|a| a.task == run.task).expect("goal resumed").clone();
+    assert!(resumed.attempt > run.attempt, "answer wakes a new run");
+    let row = live(world, run.task);
+    assert!(row.asked_requester && row.questions.is_empty(), "the question is answered");
+    assert!(
+        row.inbox
+            .iter()
+            .any(|message| message.kind == tasks::MessageKind::Answer { question } && message.words.as_ref() == words),
+        "the approved header reaches the goal"
+    );
+    resumed
+}
+
+fn ask_plan_and_wait(world: &mut World, chat: &engine::Assignment, run: &engine::Assignment) -> u64 {
     const PLAN: &[u8] = b"Add CSV export with a header. Go ahead?";
     let engine::CallAnswer::Sent { message } = call(
         world,
@@ -61,8 +139,19 @@ fn ask_plan_and_wait(world: &mut World, chat: &engine::Assignment, run: &engine:
     assert_eq!(live(world, run.task).phase, tasks::Phase::Active(tasks::Active::Idle));
     assert_eq!(live(world, run.task).questions.len(), 1);
     assert_eq!(world.assigned.len(), 2, "no change starts before the answer");
-    assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::OpenPull { .. })));
+    assert!(
+        !world.store.rows.values().any(|record| matches!(record,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+                if row.requester == tasks::Party::Task(run.task)
+        )),
+        "no change task before the answer"
+    );
+    assert!(!world.writes.iter().any(|write| matches!(
+        write,
+        skein_forge::api::Write::OpenPull { .. } | skein_forge::api::Write::CreateBranch { .. }
+    )));
     assert_eq!(world.merges, 0);
+    message
 }
 
 fn assert_plan_inbox(world: &mut World, chat: u64, message: u64, plan: &[u8]) {
@@ -321,7 +410,11 @@ fn a_chats_ended_goal_is_listed_by_project() {
 }
 
 fn running_goal_with_agreement(agree: bool) -> (World, engine::Assignment, engine::Assignment) {
-    let (mut world, chat) = start_chat(World::configured(true, true), 400, 11, 3, Some(PERSON_REQUEST));
+    running_goal_for_request(agree, PERSON_REQUEST)
+}
+
+fn running_goal_for_request(agree: bool, request: &[u8]) -> (World, engine::Assignment, engine::Assignment) {
+    let (mut world, chat) = start_chat(World::configured(true, true), 400, 11, 3, Some(request));
     let task = delegated(call(
         &mut world,
         &chat,

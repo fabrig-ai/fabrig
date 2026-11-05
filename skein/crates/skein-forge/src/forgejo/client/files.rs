@@ -268,6 +268,8 @@ fn target(request: &Request, out: &mut Target) {
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }

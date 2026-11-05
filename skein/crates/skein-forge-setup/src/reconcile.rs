@@ -39,7 +39,9 @@ pub enum Outcome {
     /// Nothing to serve or show.
     Nothing,
     /// The first repository, ready for adoption (4.9).
-    Created { id: core::num::NonZeroU64 },
+    Created { id: core::num::NonZeroU64, branch: Box<[u8]> },
+    /// A public repository copied and ready for adoption (4.10).
+    Copied { id: core::num::NonZeroU64, branch: Box<[u8]> },
     /// The form target, manifest JSON and the host-given state they were made for (5.1).
     Manifest { state: Box<[u8]>, target: Box<[u8]>, manifest: Box<[u8]> },
     /// The App's missing wanted access, possibly empty (5.6 and 5.8).
@@ -119,6 +121,12 @@ pub enum Why {
     /// The installation listing exceeds `pages`; the strays seen were
     /// uninstalled and the accepted set was left unpruned.
     Crowded,
+    /// The copy destination belongs to another run (4.10).
+    Taken,
+    /// The copied source has no default branch (4.10).
+    Empty,
+    /// The copy exceeded its whole-run deadline (4.10).
+    TimedOut,
     Down,
     Unexpected,
 }

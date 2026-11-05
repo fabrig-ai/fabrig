@@ -5,14 +5,15 @@ edition = "2024"
 
 [workspace]
 
+[profile.dev]
+debug = 0
+overflow-checks = true
+
+# Last on purpose: the first grade appends the frozen workspace's own
+# skein-lib and skein-llm-world lines here, whose git source is the one
+# its Cargo.lock and vendored sources name.
 [dependencies]
 smith-domain = { path = "../workspace/crates/smith-domain" }
 smith-protocol-llm = { path = "../workspace/crates/smith-protocol-llm" }
 smith-protocol-machine = { path = "../workspace/crates/smith-protocol-machine" }
-skein-lib = { git = "https://git.ekanayaka.io/ai/skein.git" }
-skein-llm-world = { git = "https://git.ekanayaka.io/ai/skein.git" }
 serde_json = "=1.0.151"
-
-[profile.dev]
-debug = 0
-overflow-checks = true

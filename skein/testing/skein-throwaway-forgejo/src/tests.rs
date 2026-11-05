@@ -73,3 +73,47 @@ fn a_basic_request_records_its_scheme_and_holds_no_credential() {
     let sent = http::request(3000, &Outgoing::get("/api/v1/user", None), Some("Basic MASKED"));
     assert_eq!(sent, b"GET /api/v1/user HTTP/1.1\r\nHost: 127.0.0.1:3000\r\nAuthorization: Basic MASKED\r\nConnection: close\r\n\r\n");
 }
+
+#[test]
+fn the_app_ini_allows_local_migrations_only_when_requested() {
+    let mut settings = Settings::small();
+    assert!(!settings.local_migrations);
+    let original = ini(Path::new("/scratch"), 3000, &settings, "fixture", "secret", "internal");
+    settings.local_migrations = true;
+    let rendered = ini(Path::new("/scratch"), 3000, &settings, "fixture", "secret", "internal");
+    assert_eq!(rendered, format!("{original}[migrations]\nALLOW_LOCALNETWORKS = true\n"));
+}
+
+#[test]
+#[ignore = "needs SKEIN_FORGEJO"]
+fn a_repository_survives_a_kill_and_restart_on_the_same_scratch_and_port() {
+    let forgejo = crate::Forgejo::from_path(Path::new(
+        &std::env::var_os("SKEIN_FORGEJO").expect("SKEIN_FORGEJO must name the pinned Forgejo"),
+    ))
+    .expect("pinned Forgejo");
+    let scratch = skein_scratch::paths::target_tmp().join("throwaway-restart");
+    for stop_after_kill in [false, true] {
+        let mut instance = forgejo.start(&scratch, &Settings::small()).expect("started");
+        let admin = instance.admin().clone();
+        let made = instance.create_repository(&admin, "specimen", crate::Init::Readme).expect("made");
+        let target = format!("/api/v1/repos/{}/{}/raw/README.md", made.owner, made.name);
+        let outgoing = Outgoing::get(&target, Some(&admin.token));
+        let before = instance.exchange(&outgoing).expect("read before kill");
+        assert_eq!(before.status, 200);
+        assert!(!before.body.is_empty());
+        let port = instance.port();
+        instance.kill().expect("killed");
+        assert!(scratch.join("forgejo.db").is_file(), "kill keeps the database");
+        instance.restart().expect("restarted and ready");
+        assert_eq!(instance.port(), port);
+        assert_eq!(instance.scratch(), std::fs::canonicalize(&scratch).expect("same scratch"));
+        let after = instance.exchange(&outgoing).expect("read after restart");
+        assert_eq!(after.status, 200);
+        assert_eq!(after.body, before.body);
+        if stop_after_kill {
+            instance.kill().expect("killed again");
+        }
+        instance.stop().expect("stopped");
+        assert!(!scratch.exists(), "stop removes the scratch after restart or kill");
+    }
+}

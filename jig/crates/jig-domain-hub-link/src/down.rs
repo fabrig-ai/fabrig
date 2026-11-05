@@ -1,5 +1,5 @@
-//! Translate committed hub records (jig/docs/design/domain/hosts.md, 6.1).
-use crate::Link;
+//! Translate the core's hub outputs (jig/docs/design/domain/root.md, 5).
+use crate::{Event, Link};
 use jig_domain_core as core;
 use jig_domain_host as host;
 use skein_lib::Token;
@@ -81,4 +81,57 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::Grant { .. }) => return Err(other),
     };
     Ok((channel, value))
+}
+
+/// The core's `Now`s that are the link's; any other comes back (jig/docs/design/domain/root.md, 5).
+/// # Errors
+/// Returns any other output without consuming it.
+#[expect(clippy::result_large_err, reason = "an untranslated output returns to its root without another allocation")]
+pub fn now(value: core::Now) -> Result<Event, core::Now> {
+    Ok(match value {
+        core::Now::Relayed { channel, run, attempt, call, answer } => {
+            Event::Relayed { channel, run, attempt, call, answer }
+        }
+        core::Now::DropPayload { payload } => Event::DropPayload { payload },
+        core::Now::TurnPayload { run, attempt, turn, body } => Event::TurnPayload { run, attempt, turn, body },
+        core::Now::AnswerPayload { run, attempt, payload } => Event::AnswerPayload { run, attempt, payload },
+        core::Now::AcceptedTurn { payload, task, attempt, turn, accepted } => {
+            Event::AcceptedTurn { payload, task, attempt, turn, accepted }
+        }
+        core::Now::RefusedPayload { request, problem } => Event::RefusedPayload { request, problem },
+        other @ (core::Now::TaskRead { .. }
+        | core::Now::SettingsAnswer { .. }
+        | core::Now::CallBusy { .. }
+        | core::Now::EffectAnswer { .. }
+        | core::Now::SettledCallRefused { .. }
+        | core::Now::Call { .. }
+        | core::Now::RelayBusy { .. }
+        | core::Now::DropCall { .. }
+        | core::Now::Undelivered { .. }
+        | core::Now::SignInRefused { .. }
+        | core::Now::WatchRefused { .. }
+        | core::Now::Account(_)
+        | core::Now::RunText { .. }
+        | core::Now::NotesIndexed { .. }
+        | core::Now::NotesRecalled { .. }
+        | core::Now::NotesRefused { .. }
+        | core::Now::NoteBusy { .. }
+        | core::Now::DropAssignment { .. }
+        | core::Now::Activate { .. }
+        | core::Now::StartPreparation { .. }
+        | core::Now::SeenConversation { .. }
+        | core::Now::LoadEndedRead { .. }
+        | core::Now::EndedProposal { .. }
+        | core::Now::DecidedProposal { .. }
+        | core::Now::EndedPersonTask { .. }
+        | core::Now::EndedTask { .. }
+        | core::Now::PartyInputs { .. }
+        | core::Now::CompleteBrief { .. }
+        | core::Now::BriefCorePlanned { .. }
+        | core::Now::WorkspaceRequest { .. }
+        | core::Now::RunPreparationFailed { .. }
+        | core::Now::RunPrepared { .. }
+        | core::Now::EndedEscalation { .. }
+        | core::Now::RestoreRefused) => return Err(other),
+    })
 }

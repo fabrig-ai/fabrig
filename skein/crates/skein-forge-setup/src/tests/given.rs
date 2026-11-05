@@ -121,10 +121,12 @@ fn invalid(place: Place, value: &[u8]) -> Given {
         | Place::FilesLimit
         | Place::FileBytesLimit
         | Place::CreateOrg
+        | Place::CopyFrom
         | Place::CreateRepository
         | Place::Files
         | Place::FilePath(_)
         | Place::FileContent(_)
+        | Place::CopyDeadline
         | Place::Plan
         | Place::Page
         | Place::RepositoriesLimit
@@ -208,6 +210,7 @@ fn a_zero_limit_names_its_place() {
         Place::RepositoriesLimit,
         Place::ReachableLimit,
         Place::Deadline,
+        Place::CopyDeadline,
         Place::Backoff,
         Place::BackoffMax,
     ] {
@@ -217,6 +220,7 @@ fn a_zero_limit_names_its_place() {
             Place::RepositoriesLimit => given.limits.repositories = 0,
             Place::ReachableLimit => given.limits.reachable = 0,
             Place::Deadline => given.limits.deadline = Duration::ZERO,
+            Place::CopyDeadline => given.limits.copy_deadline = Duration::ZERO,
             Place::Backoff => given.limits.backoff = Duration::ZERO,
             Place::BackoffMax => given.limits.backoff_max = Duration::ZERO,
             Place::Word
@@ -232,6 +236,7 @@ fn a_zero_limit_names_its_place() {
             | Place::FilesLimit
             | Place::FileBytesLimit
             | Place::CreateOrg
+            | Place::CopyFrom
             | Place::CreateRepository
             | Place::Files
             | Place::FilePath(_)
@@ -317,4 +322,70 @@ fn the_owners_check_of_adopted_refuses_what_check_refuses() {
 #[test]
 fn an_empty_adopted_passes_the_owners_check() {
     assert_eq!(given::check_adopted(&[], &fixtures::limits()), Ok(()));
+}
+
+// The 33 bytes of https://source.invalid/owner/repo, including its scheme (4.10).
+const COPY_STRING: u32 = 33;
+fn copy_plan(from: &[u8]) -> crate::host::Plan {
+    crate::host::Plan::Copy {
+        forge: 1,
+        org: b"first".as_slice().into(),
+        repository: b"copied".as_slice().into(),
+        from: from.into(),
+        files: Box::new([]),
+    }
+}
+#[test]
+fn copy_sources_accept_visible_https_at_the_string_bound() {
+    for source in [b"https://x".as_slice(), b"https://source.invalid/owner/repo", b"https://!~"] {
+        assert_eq!(given::check_copy(&fixtures::limits(), COPY_STRING, &copy_plan(source)), Ok(()));
+    }
+}
+#[test]
+fn copy_sources_refuse_non_https_empty_invisible_and_oversize() {
+    for source in [
+        b"http://source.invalid/a/b".as_slice(),
+        b"",
+        b"https://",
+        b"https://a b",
+        b"https://a\n",
+        b"https://a\x7f",
+        b"https://a\x80",
+        b"https://source.invalid/owner/repos",
+    ] {
+        assert_eq!(
+            given::check_copy(&fixtures::limits(), COPY_STRING, &copy_plan(source)),
+            Err(Refused { place: Place::CopyFrom, other: None }),
+            "{source:?}"
+        );
+    }
+}
+#[test]
+fn copy_admission_refuses_another_plan() {
+    assert_eq!(
+        given::check_copy(&fixtures::limits(), COPY_STRING, &crate::host::Plan::Check { forge: 1 }),
+        Err(Refused { place: Place::Plan, other: None })
+    );
+}
+#[test]
+fn copy_admission_keeps_creation_field_refusals() {
+    let mut invalid_org = copy_plan(b"https://x");
+    let mut invalid_repository = invalid_org.clone();
+    let mut invalid_file = invalid_org.clone();
+    if let crate::host::Plan::Copy { org, .. } = &mut invalid_org {
+        *org = b".bad".as_slice().into();
+    }
+    if let crate::host::Plan::Copy { repository, .. } = &mut invalid_repository {
+        *repository = b"..".as_slice().into();
+    }
+    if let crate::host::Plan::Copy { files, .. } = &mut invalid_file {
+        *files = Box::new([crate::host::File { path: b"/absolute".as_slice().into(), content: Box::new([]) }]);
+    }
+    for (plan, place) in [
+        (invalid_org, Place::CreateOrg),
+        (invalid_repository, Place::CreateRepository),
+        (invalid_file, Place::FilePath(0)),
+    ] {
+        assert_eq!(given::check_copy(&fixtures::limits(), COPY_STRING, &plan), Err(Refused { place, other: None }));
+    }
 }

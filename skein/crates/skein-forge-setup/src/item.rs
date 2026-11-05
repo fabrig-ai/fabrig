@@ -21,6 +21,8 @@ pub enum Item {
     Accepted,
     /// A pasted PEM, read once and never written.
     Pasted,
+    /// The one-byte mark kept with a copy (forge-setup.md, 4.10 and 6.4).
+    Copying,
 }
 
 /// The bounds `fits` asks of each item; a zero fits no nonempty value of its kind.
@@ -36,6 +38,11 @@ pub struct Bounds {
 #[must_use]
 pub fn user(bytes: &[u8]) -> Option<NonZeroU64> {
     NonZeroU64::new(u64::from_le_bytes(bytes.try_into().ok()?))
+}
+/// Whether the bytes are the copy's retained mark (forge-setup.md, 6.4).
+#[must_use]
+pub fn copying(bytes: &[u8]) -> bool {
+    bytes == [1]
 }
 /// A token's or a secret's item: 1 to `token_bytes` bytes, each visible
 /// ASCII (0x21 to 0x7e), so it fits a header as it is.
@@ -152,5 +159,6 @@ pub fn fits(item: Item, bytes: &[u8], bounds: &Bounds) -> bool {
         Item::AppKey => app_key(bytes, bounds.key_bytes).is_some(),
         Item::Accepted => accepted(bytes, bounds.installations).is_some(),
         Item::Pasted => pasted(bytes, bounds.key_bytes).is_some(),
+        Item::Copying => copying(bytes),
     }
 }
