@@ -3,7 +3,7 @@
 //! It knows neither terminal demand nor child state. `begin`, root answers and
 //! shutdown update the machine; `follow_close` submits roots in the down pass.
 
-use super::{HostIo, Operation, file, file_layer, kernel};
+use super::{HostIo, PROGRAM_ROOT, file, file_layer, kernel};
 use skein_lib::{Time, Token};
 
 const ROOT_OWNER: Token = Token::new(u64::MAX);
@@ -123,16 +123,13 @@ impl HostIo {
                 &mut self.file_submissions,
             );
         }
-        if self.close.closing() && self.submissions.room() > 0 && self.operations.len() < self.operations.capacity() {
+        if self.close.closing() && self.edge_room() {
             let root = match &mut self.programs {
                 Some(checks) => checks.closing_root(),
                 None => None,
             };
             if let Some(fd) = root {
-                let op = Token::new(self.next_operation);
-                self.next_operation = self.next_operation.checked_add(1).expect("root close operation");
-                self.operations.insert(op, Operation::ProgramRoot).expect("root close route");
-                self.submissions.push(kernel::Submit { op, kind: kernel::Op::Close { fd } });
+                self.forward(kernel::Submit { op: PROGRAM_ROOT, kind: kernel::Op::Close { fd } });
             }
         }
     }
