@@ -3101,6 +3101,7 @@ dependencies = [
  "skein-heap",
  "skein-json",
  "skein-lib",
+ "skein-protocol-kit",
  "skein-scratch",
 ]
 

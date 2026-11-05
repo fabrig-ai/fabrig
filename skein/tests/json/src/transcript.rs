@@ -25,10 +25,10 @@
 //! maximum, which the tests otherwise vary.
 
 use std::fmt::Write as _;
-use std::fs;
 
 use skein_json::Token;
 use skein_json::tokenizer::{Error, Limits};
+use skein_protocol_kit::transcript::{kept, quote, unquote};
 
 use crate::{Decoded, Outcome};
 
@@ -52,25 +52,17 @@ pub struct Transcript {
 #[must_use]
 pub fn all() -> Vec<Transcript> {
     let directory = skein_scratch::paths::tree().join("tests/json").join("transcripts");
-    let mut names = Vec::new();
-    for entry in fs::read_dir(&directory).expect("the transcripts directory") {
-        let path = entry.expect("a directory entry").path();
-        if path.extension().is_some_and(|extension| extension == "json") {
-            names.push(path.file_stem().expect("a name").to_string_lossy().into_owned());
-        }
-    }
-    names.sort();
     let mut transcripts = Vec::new();
-    for name in names {
-        let document = fs::read(directory.join(format!("{name}.json"))).expect("the document");
-        let (limits, pinned_chunk, expected) = match fs::read(directory.join(format!("{name}.expect"))) {
-            Ok(text) => {
+    for transcript in kept(&directory, "json") {
+        let name = transcript.name;
+        let (limits, pinned_chunk, expected) = match transcript.expect {
+            Some(text) => {
                 let (limits, pinned, decoded) = parse(&text).unwrap_or_else(|error| panic!("{name}.expect: {error}"));
                 (limits, pinned, Some(decoded))
             }
-            Err(_) => (LIMITS, false, None),
+            None => (LIMITS, false, None),
         };
-        transcripts.push(Transcript { name, document, limits, pinned_chunk, expected });
+        transcripts.push(Transcript { name, document: transcript.bytes, limits, pinned_chunk, expected });
     }
     transcripts
 }
@@ -127,8 +119,11 @@ pub fn parse(text: &[u8]) -> Result<(Limits, bool, Decoded), String> {
                 b"array" => tokens.push(Token::ArrayEnd),
                 _ => return Err(at("end object, or end array")),
             },
-            b"key" => tokens.push(Token::Key(unquote(rest).ok_or_else(|| at("a quoted key"))?)),
-            b"string" => tokens.push(Token::String(unquote(rest).ok_or_else(|| at("a quoted string"))?)),
+            b"key" => {
+                tokens.push(Token::Key(unquote(rest).map(Vec::into_boxed_slice).ok_or_else(|| at("a quoted key"))?));
+            }
+            b"string" => tokens
+                .push(Token::String(unquote(rest).map(Vec::into_boxed_slice).ok_or_else(|| at("a quoted string"))?)),
             b"number" => tokens.push(Token::Number(rest.into())),
             b"true" => tokens.push(Token::True),
             b"false" => tokens.push(Token::False),
@@ -196,60 +191,4 @@ fn error(name: &[u8]) -> Option<Error> {
 
 fn error_name(error: Error) -> &'static str {
     ERRORS.iter().find(|(known, _)| *known == error).map_or("stream", |(_, name)| name)
-}
-
-/// Text in quotes, as an expectation writes it: UTF-8 as it is, and the
-/// rest escaped.
-fn quote(text: &[u8]) -> String {
-    let mut out = String::from("\"");
-    for chunk in text.utf8_chunks() {
-        for character in chunk.valid().chars() {
-            match character {
-                '"' => out.push_str("\\\""),
-                '\\' => out.push_str("\\\\"),
-                '\n' => out.push_str("\\n"),
-                '\r' => out.push_str("\\r"),
-                '\t' => out.push_str("\\t"),
-                _ if character.is_control() => {
-                    let mut buffer = [0; 4];
-                    for byte in character.encode_utf8(&mut buffer).as_bytes() {
-                        write!(out, "\\x{byte:02x}").expect("writing to a String");
-                    }
-                }
-                _ => out.push(character),
-            }
-        }
-        for byte in chunk.invalid() {
-            write!(out, "\\x{byte:02x}").expect("writing to a String");
-        }
-    }
-    out.push('"');
-    out
-}
-
-/// The text of `"..."`, unescaped.
-fn unquote(quoted: &[u8]) -> Option<Box<[u8]>> {
-    let inner = quoted.strip_prefix(b"\"")?.strip_suffix(b"\"")?;
-    let mut text = Vec::new();
-    let mut bytes = inner.iter();
-    while let Some(&byte) = bytes.next() {
-        if byte != b'\\' {
-            text.push(byte);
-            continue;
-        }
-        match bytes.next()? {
-            b'\\' => text.push(b'\\'),
-            b'"' => text.push(b'"'),
-            b'n' => text.push(b'\n'),
-            b'r' => text.push(b'\r'),
-            b't' => text.push(b'\t'),
-            b'x' => {
-                let high = char::from(*bytes.next()?).to_digit(16)?;
-                let low = char::from(*bytes.next()?).to_digit(16)?;
-                text.push(u8::try_from(high * 16 + low).ok()?);
-            }
-            _ => return None,
-        }
-    }
-    Some(text.into_boxed_slice())
 }
