@@ -11,6 +11,7 @@ use skein_lib::{Env, Id, List, Queue, Token, Writer};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as forge_change;
 
+#[expect(clippy::too_many_lines, reason = "assembly preserves the section owner's permanent failure reason")]
 pub(crate) fn brief_outputs(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -104,14 +105,21 @@ pub(crate) fn brief_outputs(
                 }
                 drop(domain.brief_document_titles.remove(&task));
                 if missing_owner {
-                    domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: false }));
+                    domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled {
+                        task,
+                        failure: Some(brief::GatherFailure {
+                            fate: brief::GatherFate::Permanent,
+                            section: b"brief",
+                            words: b"a section's owner no longer holds it",
+                        }),
+                    }));
                     continue;
                 }
                 // Text still being gathered in the core or forge is not counted;
                 // completed sections enter the root's ownership here.
                 domain.hold_bytes(crate::budget::section_bytes(sections.as_slice()));
                 crate::link::keep_sections(domain, task, sections.into_boxed());
-                domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: true }));
+                domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, failure: None }));
             }
             brief::GatherRequest::Failed { .. } | brief::GatherRequest::Refused { .. } => {
                 unreachable!("the core abandons refused brief preparation")
@@ -456,7 +464,14 @@ pub(crate) fn finish_brief_plan(
     bind_documents(domain, env, task, &mut wanted, documents);
     if !plan_home_access(domain, env, task, parent, &mut wanted) {
         abandon_plan(domain, task);
-        domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: false }));
+        domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled {
+            task,
+            failure: Some(brief::GatherFailure {
+                fate: brief::GatherFate::Permanent,
+                section: b"home",
+                words: b"no room for its required section",
+            }),
+        }));
         return;
     }
     if let Some(parent) = parent
@@ -489,7 +504,14 @@ pub(crate) fn finish_brief_plan(
         }
         if room < needed {
             abandon_plan(domain, task);
-            domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: false }));
+            domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled {
+                task,
+                failure: Some(brief::GatherFailure {
+                    fate: brief::GatherFate::Permanent,
+                    section: b"brief",
+                    words: b"no room for its required forge sections",
+                }),
+            }));
             return;
         }
         make_forge_room(&mut wanted, needed);

@@ -371,7 +371,7 @@ fn clear_stale_preparation(
             crate::routing::step::step_tasks(
                 core,
                 env,
-                tasks::Event::PreparationFailed { task: task.number },
+                tasks::Event::PreparationPaused { task: task.number, reason: Box::new([]) },
                 &mut follow,
             );
             for _ in 0..follow.len() {

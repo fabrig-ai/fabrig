@@ -438,7 +438,7 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
         Work::Event(event) => step_one(core, env, event, work),
         Work::StartBrief { task } => start_brief(core, env, work, task),
         Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
-        Work::PreparationFailed { task } => route_preparation_failed(core, work, task),
+        Work::PreparationFailed { task, failure } => route_preparation_failed(core, work, task, failure),
         Work::Forget { owner } => crate::reads::forget::forget(core, work, &owner),
     }
 }
@@ -540,7 +540,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
-        Event::BriefAssembled { task, ready } => brief_assembled(core, work, task, ready),
+        Event::BriefAssembled { task, failure } => brief_assembled(core, work, task, failure),
         Event::WorkspacePrepared { task, attempt, writes, holds, credentials, workspace } => {
             workspace_prepared(core, env, work, task, attempt, writes, holds, credentials, workspace)
         }

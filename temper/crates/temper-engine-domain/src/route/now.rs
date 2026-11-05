@@ -92,6 +92,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             brief_outputs(domain, env, decision, &mut child);
         }
         core::Now::WorkspaceRequest { task, attempt, context } => workspace(domain, env, task, attempt, &context),
+        core::Now::BriefFailed { .. } => {}
         core::Now::RunPreparationFailed { task } => {
             drop(domain.brief_document_titles.remove(&task));
             if let Some(sections) = crate::link::take_sections(domain, task) {

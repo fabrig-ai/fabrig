@@ -234,7 +234,7 @@ fn a_run_hands_a_held_resource_to_a_procedure_while_it_still_holds_the_writer_sl
         if slot.resource == name && slot.writer == Writer::Run { task: 1, attempt: 1 })));
     assert_eq!(world.claim_budget_writing(2, 2, 50, Box::new([name.clone()])), Reply::WriterWaiting(name.clone()));
 
-    world.send(Event::PreparationFailed { task: 2 });
+    world.send(Event::PreparationPaused { task: 2, reason: b"brief: no brief slot is free".as_slice().into() });
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(jig_domain_tasks::Accepted::New));
     assert!(!world.records.values().any(|row| matches!(row, Stored::Writer(slot) if slot.resource == name)));
     world.elapse(Duration::from_secs(2));
