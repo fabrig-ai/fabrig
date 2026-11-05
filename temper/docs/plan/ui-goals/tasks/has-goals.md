@@ -66,3 +66,18 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report, with the limits as they stand and how many tests moved.
+
+## Rebase (2026-11-05, step merge, foreman ui-goals/has-goals/foreman-1)
+
+regenerate story-a.log from the combined code after rebasing
+The merge conflicts only in `temper/tests/playground/tests/fixtures/story-a.log`.
+Branch commit `82f05a0c29` adds the goal-presence Watch and Read, changing the recorded exchanges and subsequent steps.
+Integration commit `9311793a79` independently regenerated the same fixture for stock goal reports.
+Preserve both implementations, including the automatic merges in `temper/crates/temper/tests/support/person.rs` and `temper/docs/design/protocol/configuration.md`.
+Regenerate the entire log rather than hand-merging it or retaining either side.
+Its writer is `temper/tests/playground/tests/suite/walk.rs`, enabled by `SKEIN_CODEGEN_WRITE`.
+Run:
+`SKEIN_CODEGEN_WRITE=1 TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`
+Then verify the recorded walk and replay without the write flag:
+`TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed) | test(=walk::story_a_kept_log_replays_natively)'`
+Confirm both verification tests ran and passed; include the regenerated fixture in the rebase result.
