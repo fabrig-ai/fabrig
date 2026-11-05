@@ -85,7 +85,7 @@ pub fn package_change(request: Names) -> crate::diff::PartChange {
 #[must_use]
 pub fn change_record(part: crate::diff::PartChange) -> crate::records::Record {
     crate::records::Record::Change(crate::diff::Change {
-        target: copy_of(b"ion-prod"),
+        target: copy_of(b"west-prod"),
         change: crate::diff::TargetChange::Changed { parts: Box::new([part]), rebuild: crate::diff::Rebuild::Nothing },
     })
 }

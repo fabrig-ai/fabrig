@@ -208,8 +208,9 @@ skein-io socket
   - its kind, Forgejo or GitHub, and its mode, connected, managed,
     owned or fake (setup.md, the modes);
   - its place: its API's host, port and TLS name, none for plaintext to
-    loopback; the base of its remotes, `git`; and GitHub's browser
-    pages, `web`;
+    loopback; the base of its remotes, `git`; and its browser pages,
+    `web`: GitHub's, and a Forgejo's where a connect gives them apart
+    from `git` (`sign-in.md`, 9.7);
   - its git program, the executable workers run for its repositories,
     or none for their own (configuration.md, section 4): a Forgejo's as
     its admin's `Connect` gives it, GitHub's the machine's

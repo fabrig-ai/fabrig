@@ -83,7 +83,7 @@ Download an owned forge's Forgejo and runner binaries into the cache.
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-Fetches only the binaries the forge's setup gives as "fetched", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent.
+Fetches only the binaries the forge's setup gives as "fetched", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
 
 ## temper forge prepare
 
@@ -94,6 +94,8 @@ Prepare an owned forge before its Forgejo first runs.
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
+A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+
 ## temper forge run
 
 `temper forge run [DIRECTORIES] FORGE forgejo|runner`
@@ -103,7 +105,7 @@ Run an owned forge's Forgejo or its runner.
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child.
+Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
 
 ## temper forge remove
 
