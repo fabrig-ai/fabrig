@@ -552,7 +552,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 // decides whether a cancelled read may be asked again.
                 task.link(client.link().state);
             }
-            link_changed(pages, link, out);
+            link_changed(pages, &env.limits, link, out);
         }
         Event::Told { told: event } => {
             if !told(pages, env, client, event, out) {
@@ -569,6 +569,24 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.accounts.configure(owner, &mut pages.next, out);
+    let showing = pages.watching
+        && pages.project.is_some()
+        && match pages.address {
+            Address::Welcome { .. } => false,
+            Address::Home { .. }
+            | Address::Inbox { .. }
+            | Address::Chats { .. }
+            | Address::Chat { .. }
+            | Address::Task { .. }
+            | Address::Accounts
+            | Address::Forges
+            | Address::ConnectForge { .. }
+            | Address::ConnectModel { .. }
+            | Address::Settings { .. }
+            | Address::Configure { .. }
+            | Address::Adopt { .. } => true,
+        };
+    pages.needs.configure(showing, &env.limits, out);
     let me = pages.me(client);
     let project = conversation_project(pages);
     if let Some(chats) = &mut pages.chats {
@@ -890,7 +908,10 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Told::Changed { handle } | Told::Ended { handle, .. } = &told
-        && (*handle == accounts::handle() || *handle == me_handle() || Some(*handle) == pages.accounts.deployment)
+        && (*handle == needs::handle()
+            || *handle == accounts::handle()
+            || *handle == me_handle()
+            || Some(*handle) == pages.accounts.deployment)
     {
         return true;
     }
@@ -1169,7 +1190,7 @@ fn awaits_first_read(thread: &jig_client::thread::Thread) -> bool {
         }
 }
 
-fn link_changed(pages: &mut Pages, link: Link, out: &mut Queue<Request>) {
+fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<Request>) {
     match link {
         Link::SignedOut | Link::OutOfDate => {
             if pages.watching {
@@ -1182,6 +1203,7 @@ fn link_changed(pages: &mut Pages, link: Link, out: &mut Queue<Request>) {
                 page.leave();
             }
             pages.accounts = accounts::Accounts::default();
+            pages.needs.configure(false, limits, out);
             pages.needs = needs::Session::default();
             pages.choice = choice::Draft::default();
             pages.switcher = switcher::Switcher::default();

@@ -6,7 +6,7 @@ use super::{
 use crate::{Address, Limits, acts, address::Filter, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{
-    Key, Outcome, Told,
+    Client, Handle, Key, Latest, Outcome, State, Told,
     contract::{self, ActKind, ObjectKey, ReadValue, Text},
 };
 use skein_lib::{Duration, Env, List, Queue, Time, Wall};
@@ -52,8 +52,26 @@ pub enum Toasted {
     Answered { object: ObjectKey, label: Label },
     Later,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Count {
+    pub count: u32,
+    /// The document was cut: the view says "N+".
+    pub cut: bool,
+}
+#[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
+impl Default for Count {
+    fn default() -> Self {
+        Self { count: 0, cut: false }
+    }
+}
+/// The standing inbox watch, outside the increasing page handle namespace.
+#[must_use]
+pub fn handle() -> Handle {
+    Handle { asker: Owner::Pages.asker(), number: u64::MAX.checked_sub(1).expect("reserved handle") }
+}
 #[derive(Debug)]
 pub struct Session {
+    watching: bool,
     answered: List<Answered>,
     later: List<ObjectKey>,
     refused: List<(ObjectKey, Outcome)>,
@@ -64,6 +82,7 @@ pub struct Session {
 impl Default for Session {
     fn default() -> Self {
         Self {
+            watching: false,
             answered: List::with_capacity(CAPACITY),
             later: List::with_capacity(CAPACITY),
             refused: List::with_capacity(CAPACITY),
@@ -74,6 +93,33 @@ impl Default for Session {
     }
 }
 impl Session {
+    pub(super) fn configure(&mut self, showing: bool, limits: &Limits, out: &mut Queue<Request>) {
+        if showing && !self.watching {
+            self.watching = true;
+            out.push(Request::Client(jig_client::Event::Watch {
+                handle: handle(),
+                subject: jig_client::Watchable::Jig(contract::Subject::Inbox { window: limits.client.domain.rows }),
+            }));
+        } else if !showing && self.watching {
+            self.watching = false;
+            out.push(Request::Client(jig_client::Event::Unwatch { handle: handle() }));
+        }
+    }
+    #[must_use]
+    pub fn count(&self, client: &Client, project: u32) -> Count {
+        let Some(document) = client.document(handle()) else { return Count::default() };
+        if !self.watching || document.state == State::Ended {
+            return Count::default();
+        }
+        let Some(Latest::Jig(contract::Delivery::Inbox(inbox))) = document.latest else { return Count::default() };
+        let mut count = 0_u32;
+        for row in &inbox.needs {
+            if row.project == Some(project) && self.line(row.card_key()).is_none() {
+                count = count.checked_add(1).expect("inbox rows fit");
+            }
+        }
+        Count { count, cut: inbox.next.is_some() }
+    }
     #[must_use]
     pub fn open<'a>(&self, inbox: &'a Inbox) -> Box<[&'a Card]> {
         let mut cards = List::with_capacity(inbox.cards.len());
