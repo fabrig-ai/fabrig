@@ -4,18 +4,19 @@ use crate::harness::DraftOutcome;
 use jig_client::{
     Key,
     contract::{
-        Answer, Ask, Creating, DocumentOutcome, HistoryHolder, MessageProposalKind, Outcome, ProposalKey,
-        ProposeAction, Proposer, ReadValue, Recipient,
+        Answer, Ask, Creating, DocumentOutcome, HistoryHolder, Lacking, MessageProposalKind, NewBudget, Outcome,
+        ProposalKey, ProposeAction, Proposer, ReadValue, Recipient, Refusal,
     },
     shapes::{self, Fall, GoalDraft},
 };
 use skein_lib::Token;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 #[derive(Debug, Default)]
 pub(crate) struct Offers {
     latest: BTreeMap<(ClientId, u32), Creating>,
     shown: BTreeMap<(ClientId, u32), Creating>,
     drafts: BTreeMap<(ClientId, u64), Fall>,
+    as_allowed: BTreeSet<(ClientId, u64)>,
     recipients: BTreeMap<ProposalKey, Recipient>,
     proposed: BTreeMap<ProposalKey, Vec<Recipient>>,
     parties: BTreeMap<ClientId, u64>,
@@ -112,8 +113,8 @@ impl Offers {
         };
         self.recipient(key, &to, judge);
     }
-    pub(super) fn sent(&mut self, client: ClientId, ask: &Ask, judge: &mut JudgeOf) -> Option<Fall> {
-        let (project, draft, deadline) = match ask {
+    pub(super) fn sent(&mut self, client: ClientId, key: Key, ask: &Ask, judge: &mut JudgeOf) -> Option<Fall> {
+        let (project, draft, deadline, budget) = match ask {
             Ask::Create { project, tasks } | Ask::Propose { project, action: ProposeAction::Batch { tasks }, .. }
                 if tasks.len() == 1 =>
             {
@@ -129,6 +130,7 @@ impl Offers {
                         llm: task.llm.clone(),
                     },
                     task.deadline,
+                    &task.budget,
                 )
             }
             Ask::Create { .. }
@@ -165,6 +167,9 @@ impl Offers {
             | Ask::SetPool { .. } => return None,
         };
         if let Some(creating) = self.shown.get(&(client, project)) {
+            if let NewBudget::AsAllowed { .. } = budget {
+                self.as_allowed.insert((client, key.number));
+            }
             // A delivered change before sending explicitly permits the newer offer.
             let creating = self.latest.get(&(client, project)).unwrap_or(creating);
             let offer = shapes::fall(creating, &draft, deadline);
@@ -193,13 +198,20 @@ impl Offers {
                 let party = self.parties.get(&client).expect("a draft's confirmed party was delivered");
                 DraftOutcome::Proposed(ProposalKey { proposer: Proposer::Party(*party), number })
             }
-            outcome @ (DraftOutcome::Made | DraftOutcome::Proposed(_) | DraftOutcome::Refused) => outcome,
+            outcome @ (DraftOutcome::Made
+            | DraftOutcome::Proposed(_)
+            | DraftOutcome::NoBudget
+            | DraftOutcome::Refused) => outcome,
         };
+        let as_allowed = self.as_allowed.remove(&(client, attempt.raw()));
         let Some(offer) = self.drafts.remove(&(client, attempt.raw())) else {
             return;
         };
         match (offer, outcome) {
             (Fall::Within, DraftOutcome::Made) => {}
+            // AsAllowed is resolved against the live pool, not its delivered snapshot
+            // (jig/docs/design/client/domain/contract.md, 3.2 and 5.3).
+            (Fall::Within, DraftOutcome::NoBudget) if as_allowed => {}
             (Fall::Proposable(to), DraftOutcome::Proposed(proposal)) => {
                 if let Some(recipient) = self.recipients.get(&proposal) {
                     judge.check(*recipient == to, "offers kept: proposed to a different recipient");
@@ -219,6 +231,10 @@ pub(crate) fn outcome(answer: &Answer) -> Option<DraftOutcome> {
         Answer::Done(Outcome::Document(DocumentOutcome::Proposed { proposal, to })) => {
             Some(DraftOutcome::ProposedByParty { number: *proposal, to: *to })
         }
+        Answer::Refused {
+            refusal: Refusal::Authority { lacking: Lacking::Budget { needed: 1, left: 0 }, proposable: None },
+            ..
+        } => Some(DraftOutcome::NoBudget),
         Answer::Refused { .. } => Some(DraftOutcome::Refused),
         Answer::Done(_) => None,
     }

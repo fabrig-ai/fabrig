@@ -12,7 +12,7 @@ fn fixture() -> Host {
     fixture_forges(None)
 }
 fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> Host {
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, temper_client_view::sign_in::Ways::NONE);
+    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     host.root = root::unlinked(&host.env.limits, 11);
     host.event(Event::Start { address: Address::Accounts, kept: List::with_capacity(0), with: None });
     host.client(jig_client::Event::StartUnlinked { kept: List::with_capacity(0) });
@@ -335,7 +335,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     const TASK_PATH: &[u8] = b"/tasks/7";
     const RUN: u64 = 44;
     const ONE_LINE: u32 = 1;
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, temper_client_view::sign_in::Ways::NONE);
+    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     host.start(TASK_PATH, Vec::new(), None);
     let activity = host
         .requests()
@@ -545,7 +545,7 @@ fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
 fn a_stream_refused_full_reaches_the_client_link() {
     use jig_client_protocol_wire as w;
     for bound in [w::StreamBound::Component, w::StreamBound::Transport] {
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, temper_client_view::sign_in::Ways::NONE);
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
         host.start(b"/", Vec::new(), None);
         host.requests();
         host.heard(Heard::StreamRefused { status: 409 });

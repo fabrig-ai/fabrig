@@ -1134,7 +1134,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @media (max-width: 760px) {
   #app:has(> .temper-rail) { grid-template-columns: minmax(0, 1fr); }
   #app > .temper-rail { z-index: 20; height: auto; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px 20px; border-right: 0; background: var(--gf-paper); overflow: visible; }
-  #app > .temper-rail > :not(.temper-projects) { display: none; }
+  #app > .temper-rail > :not(.temper-projects, .temper-away-chip) { display: none; }
   #app > .temper-rail .temper-projects > summary { justify-content: flex-start; padding: 6px 0; border: 0; background: none; font-size: 17px; font-weight: 600; }
   #app > .temper-rail .temper-projects > summary::before { content: '✦'; margin-right: 8px; color: var(--gf-signal); font-weight: 400; }
   #app > .temper-rail .temper-projects-menu { right: auto; min-width: 220px; }
@@ -1790,7 +1790,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-settings .temper-settings-col > section > :not(input[type=checkbox], input[type=checkbox] + label) { grid-column: 1 / -1; }
 .temper-settings .temper-settings-col > section > input[type=checkbox] { align-self: center; margin: 14px 0 0; accent-color: var(--gf-ink); }
 .temper-settings .temper-settings-col > section > input[type=checkbox] + label { margin-top: 14px; font-size: 14px; }
-.temper-settings [role=radiogroup] { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; margin-top: 14px; font-size: 14px; }
 .temper-settings [role=radiogroup] > input { align-self: baseline; margin-top: 4px; accent-color: var(--gf-ink); }
 .temper-settings .temper-settings-col > section > .temper-settings-btn { justify-self: start; margin-top: 14px; font-family: var(--gf-sans); }
 .temper-settings .temper-settings-btn:disabled { opacity: .45; cursor: default; }
@@ -1955,6 +1954,43 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 
+
+/* ==== ui: away ==== */
+.temper-settings [role=radiogroup]:has(> input) { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; margin-top: 14px; font-size: 14px; }
+.temper-settings-checks > div { display: flex; align-items: baseline; gap: 10px; }
+.temper-settings-checks > div > input { flex: none; width: 13px; height: 13px; margin: revert; }
+.temper-settings-checks > div > label { min-width: 0; }
+#app > .temper-home .temper-decided { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
+#app > .temper-home .temper-decision { display: flex; align-items: center; gap: 16px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); }
+#app > .temper-home .temper-decision > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#app > .temper-home .temper-decision > div > :first-child { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-home .temper-decision > div > :nth-child(2) { color: var(--gf-muted); }
+#app > .temper-home .temper-decision-took { font-weight: 500; }
+#app > .temper-home .temper-decision-why { font-size: 14px; color: var(--gf-muted); }
+#app > .temper-home .temper-decision-late { flex: none; max-width: 14em; font-size: 12.5px; color: var(--gf-faint); text-align: right; }
+#app > .temper-home .temper-decision-overturned .temper-decision-took { text-decoration: line-through; color: var(--gf-faint); }
+#app > .temper-home .temper-decision > .temper-home-small { flex: none; display: inline-flex; align-items: center; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); }
+#app > .temper-home .temper-decision > .temper-home-small:hover { border-color: #b4b4ae; }
+#app > .temper-home .temper-decision > .temper-home-small:disabled { opacity: .45; cursor: default; }
+#app > .temper-home > section:has(> .temper-decided) > .temper-home-head > button { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home > section:has(> .temper-decided) > .temper-home-head > button:hover { text-decoration-color: var(--gf-ink); }
+@media (max-width: 760px) {
+  #app > .temper-home .temper-decision { padding: 12px 0; }
+  #app > .temper-home .temper-decision .temper-decision-why { display: none; }
+  #app > .temper-home .temper-decision .temper-decision-late { max-width: 8em; }
+}
+
+#app > .temper-rail > .temper-rail-foot > .temper-away { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--gf-line); border-radius: 8px; background: var(--gf-surface); font: 400 13.5px/1.6 var(--gf-sans); color: var(--gf-muted); text-align: left; }
+.temper-away-track { position: relative; flex: none; width: 30px; height: 18px; border-radius: 9px; background: var(--gf-line-2); transition: background .15s; }
+.temper-away-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+#app > .temper-rail > .temper-rail-foot > .temper-away[aria-pressed=true] { background: var(--gf-ink); border-color: var(--gf-ink); color: #fff; }
+.temper-away[aria-pressed=true] > .temper-away-track { background: #52525b; }
+.temper-away[aria-pressed=true] > .temper-away-track::after { left: 14px; }
+#app > .temper-rail > .temper-away-chip { display: none; }
+@media (max-width: 760px) {
+  #app > .temper-rail > .temper-away-chip { display: block; flex: none; min-height: 36px; padding: 4px 14px; border: 1px solid var(--gf-line-2); border-radius: 18px; background: var(--gf-surface); color: var(--gf-muted); font: 400 13px/1.6 var(--gf-sans); }
+  #app > .temper-rail > .temper-away-chip[aria-pressed=true] { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; }
+}
 
 /* ==== ui: welcome ==== */
 

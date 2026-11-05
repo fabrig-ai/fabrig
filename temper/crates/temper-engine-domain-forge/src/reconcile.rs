@@ -36,6 +36,8 @@ pub enum RecordKind {
     Dismissed,
     ProjectFacts,
     Looked,
+    Away,
+    Decided,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Need {
@@ -250,6 +252,8 @@ impl Reconciliation {
             | Stored::Binding { .. }
             | Stored::Making(_)
             | Stored::ProjectFacts(_)
+            | Stored::Away(_)
+            | Stored::Decided(_)
             | Stored::Looked(_)
             | Stored::Dismissed { .. } => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
@@ -357,6 +361,8 @@ impl Domain {
             | RecordKind::Making
             | RecordKind::Binding
             | RecordKind::ProjectFacts
+            | RecordKind::Away
+            | RecordKind::Decided
             | RecordKind::Looked
             | RecordKind::Dismissed
             | RecordKind::Setting
