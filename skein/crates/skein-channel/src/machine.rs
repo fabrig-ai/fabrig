@@ -19,7 +19,7 @@
 //! | Closing | output settled | Closed, Closed |
 use alloc::boxed::Box;
 use core::mem;
-use skein_lib::{List, Queue, Token, bytes, stream};
+use skein_lib::{List, Queue, Token, bytes, stream, usize_of};
 
 use super::boundary::{Closed, Event, Lower, LowerEvent, ReadWait, Request, Room, Unsent, Waiting, WriteWait};
 use super::frame::{Control, Frame, Header, Term, control_frame, decode_control, parse_header};
@@ -771,8 +771,8 @@ impl Machine {
             ReadState::Body { header, mut body, filled } => {
                 let count = u32::try_from(bytes.len()).expect("bounded read chunk");
                 let end = filled.checked_add(count).expect("body length bounded");
-                let start = usize::try_from(filled).expect("bounded offset");
-                let end_index = usize::try_from(end).expect("bounded offset");
+                let start = usize_of(filled);
+                let end_index = usize_of(end);
                 let target = body.get_mut(start..end_index).expect("chunk fits body");
                 for (destination, source) in target.iter_mut().zip(bytes.iter()) {
                     *destination = *source;
@@ -812,7 +812,7 @@ impl Machine {
                 if header.body_len == 0 {
                     self.received(header.kind, Box::from([]), above);
                 } else {
-                    let body = bytes::zeroed(usize::try_from(header.body_len).expect("header length bounded"));
+                    let body = bytes::zeroed(usize_of(header.body_len));
                     self.read = ReadState::Body { header, body, filled: 0 };
                 }
             }

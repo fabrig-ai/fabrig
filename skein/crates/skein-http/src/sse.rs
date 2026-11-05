@@ -50,7 +50,7 @@
 use alloc::boxed::Box;
 
 use skein_lib::stream::{Down, Fault, Read, Up};
-use skein_lib::{Env, Intake, Queue, bytes};
+use skein_lib::{Env, Intake, Queue, bytes, usize_of};
 
 mod lines;
 pub mod writer;
@@ -257,7 +257,7 @@ pub fn up(reader: &mut Reader, env: &Env<Limits>, event: Up, above: &mut Queue<E
         Up::Bytes(piece) => {
             assert!(reader.body_wait && reader.piece.is_empty(), "a delivery meets the body's one demand");
             assert!(
-                piece.len() <= usize::try_from(env.limits.chunk).expect("u32 fits usize"),
+                piece.len() <= usize_of(env.limits.chunk),
                 "a line scan fits its chunk"
             );
             for byte in piece.get(..piece.len().saturating_sub(1)).expect("a delivery prefix") {
@@ -453,7 +453,7 @@ fn pump(reader: &mut Reader, env: &Env<Limits>, above: &mut Queue<Event>) {
         .expect("inside the line piece");
     for _ in 0..remaining {
         let byte =
-            *reader.piece.get(usize::try_from(reader.at).expect("u32 fits usize")).expect("inside the line piece");
+            *reader.piece.get(usize_of(reader.at)).expect("inside the line piece");
         reader.at = reader.at.checked_add(1).expect("bounded by the delivery");
         let action = reader.lines.byte(&env.limits, byte);
         match action {
@@ -473,7 +473,7 @@ fn pump(reader: &mut Reader, env: &Env<Limits>, above: &mut Queue<Event>) {
             },
             Step::Dispatched(dispatch) => {
                 assert!(
-                    usize::try_from(reader.at).expect("u32 fits usize") == reader.piece.len(),
+                    usize_of(reader.at) == reader.piece.len(),
                     "a blank line ends the delivery"
                 );
                 reader.intake.clear();
@@ -497,7 +497,7 @@ fn pump(reader: &mut Reader, env: &Env<Limits>, above: &mut Queue<Event>) {
 }
 
 fn finish_piece(reader: &mut Reader) {
-    if usize::try_from(reader.at).expect("u32 fits usize") == reader.piece.len() {
+    if usize_of(reader.at) == reader.piece.len() {
         reader.piece = bytes::copy_of(b"");
         reader.at = 0;
     }
