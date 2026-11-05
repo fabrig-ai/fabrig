@@ -1,5 +1,5 @@
 //! Existing file opens and cuts (io.md, 5).
-use super::{FileIo, Pending, terminal_failure};
+use super::{FileIo, Pending, Work, issue, terminal_failure};
 use crate::file::Event;
 use crate::kernel::{Error, Fd, Op, OpenHow, Submit};
 use alloc::boxed::Box;
@@ -13,17 +13,16 @@ pub(super) fn open_read(
     how: OpenHow,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
-) {
+) -> Work {
     if name.contains(&0) {
         events.push(Event::failed(owner, Error::InvalidArgument));
-        return;
+        return Work::Idle;
     }
     if io.files.len() == io.files.capacity() {
         events.push(Event::failed(owner, Error::TooManyOpenFiles));
-        return;
+        return Work::Idle;
     }
-    io.pending = Some(Pending::OpenRead { owner });
-    io.issue(Op::Open { root, path: name, how }, subs);
+    issue(io, Pending::OpenRead(owner), Op::Open { root, path: name, how }, subs)
 }
 
 pub(super) fn cut(
@@ -33,16 +32,13 @@ pub(super) fn cut(
     length: u64,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
-) {
+) -> Work {
     let Some(fd) = io.file(file) else {
-        terminal_failure(events, owner, Error::NotFound);
-        return;
+        return terminal_failure(events, owner, Error::NotFound);
     };
     let op = Op::Truncate { fd, length };
     if !op.is_valid() {
-        terminal_failure(events, owner, Error::InvalidArgument);
-        return;
+        return terminal_failure(events, owner, Error::InvalidArgument);
     }
-    io.pending = Some(Pending::Cut { owner });
-    io.issue(op, subs);
+    issue(io, Pending::Cut(owner), op, subs)
 }

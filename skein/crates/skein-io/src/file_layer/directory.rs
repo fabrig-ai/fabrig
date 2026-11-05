@@ -1,10 +1,10 @@
 //! Pages use the owner's open directory as their cursor (io.md, 5).
-use super::{Complete, Done, Entry, Error, Event, Fd, FileIo, Op, Pending, Queue, Submit, Token, Vec, vec};
+use super::{Complete, Done, Entry, Error, Event, Fd, FileIo, Op, Pending, Work, issue, Queue, Submit, Token, Vec, vec};
 use alloc::boxed::Box;
 
 impl FileIo {
-    fn list_at_most(&mut self, fd: Fd, most: u32, subs: &mut Queue<Submit>) {
-        self.issue(
+    fn list_at_most(&mut self, pending: Pending, fd: Fd, most: u32, subs: &mut Queue<Submit>) -> Work {
+        issue(self, pending,
             Op::List {
                 fd,
                 entries: vec![crate::kernel::Entry::BLANK; usize::try_from(most.min(32)).expect("u32 fits usize")]
@@ -12,8 +12,8 @@ impl FileIo {
                 names: vec![0_u8; 8192].into_boxed_slice(),
             },
             subs,
-        );
-    }
+        )
+}
 }
 
 pub(super) fn page(
@@ -23,22 +23,19 @@ pub(super) fn page(
     max: u32,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
-) {
+) -> Work {
     let Some(fd) = io.file(directory) else {
-        super::terminal_failure(events, owner, Error::NotFound);
-        return;
+        return super::terminal_failure(events, owner, Error::NotFound);
     };
     if max == 0 || max > io.max_entries {
-        super::terminal_failure(events, owner, Error::InvalidArgument);
-        return;
+        return super::terminal_failure(events, owner, Error::InvalidArgument);
     }
-    io.pending = Some(Pending::Page {
+    io.list_at_most(Pending::Page {
         owner,
         fd,
         max,
         entries: Vec::with_capacity(usize::try_from(max).expect("u32 fits usize")),
-    });
-    io.list_at_most(fd, max, subs);
+    }, fd, max, subs)
 }
 
 pub(super) fn answered(
@@ -48,13 +45,12 @@ pub(super) fn answered(
     stopped: Option<Error>,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
-) {
+) -> Work {
     let Pending::Page { owner, fd, max, mut entries } = page else { unreachable!("a page completion") };
     let count = match complete.result {
         Ok(Done::Count(count)) => count,
         Err(error) => {
-            super::terminal_failure(events, owner, stopped.unwrap_or(error));
-            return;
+            return super::terminal_failure(events, owner, stopped.unwrap_or(error));
         }
         Ok(_) => unreachable!("a list answers a count"),
     };
@@ -67,29 +63,27 @@ pub(super) fn answered(
     if count == 0 || held == max {
         events.push(Event::Listed { owner, entries: entries.into_boxed_slice() });
     } else if let Some(reason) = stopped {
-        super::terminal_failure(events, owner, reason);
+        return super::terminal_failure(events, owner, reason);
     } else {
-        io.pending = Some(Pending::Page { owner, fd, max, entries });
-        io.list_at_most(fd, max.checked_sub(held).expect("the list never takes past max"), subs);
+        return io.list_at_most(Pending::Page { owner, fd, max, entries }, fd, max.checked_sub(held).expect("the list never takes past max"), subs);
     }
+    Work::Idle
 }
 
 /// A lock is synchronous and always retains its own answer, even after a stop.
-pub(super) fn lock(io: &mut FileIo, owner: Token, root: Token, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    io.deadline = None;
+pub(super) fn lock(io: &mut FileIo, owner: Token, root: Token, events: &mut Queue<Event>, subs: &mut Queue<Submit>) -> Work {
     let Some(fd) = io.file(root) else {
-        super::terminal_failure(events, owner, Error::NotFound);
-        return;
+        return super::terminal_failure(events, owner, Error::NotFound);
     };
-    io.pending = Some(Pending::Lock { owner });
-    io.issue(Op::Lock { fd }, subs);
+    issue(io, Pending::Lock(owner), Op::Lock { fd }, subs)
 }
 
-pub(super) fn locked(owner: Token, complete: Complete, events: &mut Queue<Event>) {
+pub(super) fn locked(owner: Token, complete: Complete, events: &mut Queue<Event>) -> Work {
     match complete.result {
         Ok(Done::Nothing) => events.push(Event::Locked { owner }),
         Err(Error::Busy) => events.push(Event::Busy { owner }),
-        Err(error) => super::terminal_failure(events, owner, error),
+        Err(error) => return super::terminal_failure(events, owner, error),
         Ok(_) => unreachable!("a lock answers nothing"),
     }
+    Work::Idle
 }

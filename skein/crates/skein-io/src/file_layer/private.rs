@@ -3,7 +3,7 @@
 //! and descriptors until cleanup. It never infers a user from a path.
 //! `start`, `up`, and `stopped` run only through `FileIo`'s entry points.
 
-use super::{FileIo, Pending};
+use super::{FileIo, Pending, Work};
 use crate::file::{Event, Unsafe};
 use crate::kernel::{Complete, Error, Fd, Kind, Op, OpenHow, Stat, Submit};
 use alloc::boxed::Box;
@@ -119,23 +119,19 @@ pub(super) fn start(
     action: Action,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
-) {
+) -> Work {
     let Some(fd) = io.file(root) else {
-        super::terminal_failure(events, owner, Error::NotFound);
-        return;
+        return super::terminal_failure(events, owner, Error::NotFound);
     };
     if path.len() >= 4096 || path.contains(&0) {
-        super::terminal_failure(events, owner, Error::InvalidArgument);
-        return;
+        return super::terminal_failure(events, owner, Error::InvalidArgument);
     }
     let Some((parent, name)) = super::store::split_path(&path) else {
-        super::terminal_failure(events, owner, Error::InvalidArgument);
-        return;
+        return super::terminal_failure(events, owner, Error::InvalidArgument);
     };
     match action {
         Action::Private { .. } if io.files.len() == io.files.capacity() => {
-            super::terminal_failure(events, owner, Error::TooManyOpenFiles);
-            return;
+            return super::terminal_failure(events, owner, Error::TooManyOpenFiles);
         }
         Action::Private { .. } | Action::Make { .. } => {}
         Action::Refusal { .. } => unreachable!("a refusal is started after a denied load"),
@@ -145,8 +141,7 @@ pub(super) fn start(
         Action::Refusal { .. } => unreachable!("a refusal has its root and path"),
         Action::Make { mode } => {
             if mode & !crate::kernel::PERMISSIONS != 0 {
-                super::terminal_failure(events, owner, Error::InvalidArgument);
-                return;
+                return super::terminal_failure(events, owner, Error::InvalidArgument);
             }
             io.private_owner(root).is_some()
         }
@@ -162,46 +157,45 @@ pub(super) fn start(
         terminal: None,
         made: false,
     };
-    issue(io, opening, Op::Open { root: fd, path: parent, how }, subs);
+    issue(io, opening, Op::Open { root: fd, path: parent, how }, subs)
 }
 
-fn issue(io: &mut FileIo, opening: Opening, operation: Op, subs: &mut Queue<Submit>) {
-    io.pending = Some(Pending::Private(opening));
-    io.issue(operation, subs);
+fn issue(io: &mut FileIo, opening: Opening, operation: Op, subs: &mut Queue<Submit>) -> Work {
+    super::issue(io, Pending::Private(opening), operation, subs)
 }
 
-fn open(io: &mut FileIo, mut opening: Opening, subs: &mut Queue<Submit>) {
+fn open(io: &mut FileIo, mut opening: Opening, subs: &mut Queue<Submit>) -> Work {
     opening.phase = Phase::Opening;
     let operation =
         Op::Open { root: opening.parent.expect("parent open"), path: opening.name.clone(), how: OpenHow::ReadNoFollow };
-    issue(io, opening, operation, subs);
+    issue(io, opening, operation, subs)
 }
 
-fn cleanup(io: &mut FileIo, mut opening: Opening, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
+fn cleanup(io: &mut FileIo, mut opening: Opening, events: &mut Queue<Event>, subs: &mut Queue<Submit>) -> Work {
     if opening.terminal.is_some()
         && let Some(fd) = opening.file.take()
     {
         opening.phase = Phase::ClosingFile;
-        issue(io, opening, Op::Close { fd }, subs);
+        return issue(io, opening, Op::Close { fd }, subs);
     } else if let Some(fd) = opening.parent.take() {
         opening.phase = Phase::ClosingParent;
-        issue(io, opening, Op::Close { fd }, subs);
-    } else {
-        match opening.terminal {
-            Some(terminal) => events.push(terminal),
-            None => {
-                let user = match opening.action {
-                    Action::Private { user } => user,
-                    Action::Make { .. } | Action::Refusal { .. } => {
-                        unreachable!("non-admitting requests have their terminal")
-                    }
-                };
-                let fd = opening.file.take().expect("private root held until parent closes");
-                let file = io.insert_private(fd, user).expect("admission reserved an open file slot");
-                events.push(Event::Opened { owner: opening.owner, file, len: 0 });
-            }
+        return issue(io, opening, Op::Close { fd }, subs);
+    }
+    match opening.terminal {
+        Some(terminal) => events.push(terminal),
+        None => {
+            let user = match opening.action {
+                Action::Private { user } => user,
+                Action::Make { .. } | Action::Refusal { .. } => {
+                    unreachable!("non-admitting requests have their terminal")
+                }
+            };
+            let fd = opening.file.take().expect("private root held until parent closes");
+            let file = io.insert_private(fd, user).expect("admission reserved an open file slot");
+            events.push(Event::Opened { owner: opening.owner, file, len: 0 });
         }
     }
+    Work::Idle
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive transition match keeps refusal and cleanup together")]
@@ -211,7 +205,7 @@ pub(super) fn up(
     complete: Complete,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
-) {
+) -> Work {
     match complete.result {
         Err(error) => {
             match opening.phase {
@@ -224,8 +218,7 @@ pub(super) fn up(
                         path: opening.name.clone(),
                         how: OpenHow::PathNoFollow,
                     };
-                    issue(io, opening, operation, subs);
-                    return;
+                    return issue(io, opening, operation, subs);
                 }
                 Phase::Opening if error == Error::NotFound && !opening.made => {
                     opening.made = true;
@@ -235,13 +228,11 @@ pub(super) fn up(
                         name: opening.name.clone(),
                         mode: 0o700,
                     };
-                    issue(io, opening, operation, subs);
-                    return;
+                    return issue(io, opening, operation, subs);
                 }
                 Phase::Making => match opening.action {
                     Action::Private { .. } if error == Error::Exists => {
-                        open(io, opening, subs);
-                        return;
+                        return open(io, opening, subs);
                     }
                     Action::Make { .. } | Action::Private { .. } => {}
                     Action::Refusal { .. } => unreachable!("a denial makes nothing"),
@@ -271,7 +262,7 @@ pub(super) fn up(
             if opening.terminal.is_none() {
                 opening.terminal = Some(Event::failed(opening.owner, error));
             }
-            cleanup(io, opening, events, subs);
+            cleanup(io, opening, events, subs)
         }
         Ok(done) => match opening.phase {
             Phase::ParentOpening => {
@@ -282,7 +273,7 @@ pub(super) fn up(
                     Action::Make { mode } => {
                         opening.phase = Phase::Making;
                         let operation = Op::MakeDirectory { dir: fd, name: opening.name.clone(), mode };
-                        issue(io, opening, operation, subs);
+                        issue(io, opening, operation, subs)
                     }
                     Action::Refusal { .. } => unreachable!("a denial already names its root"),
                 }
@@ -291,7 +282,7 @@ pub(super) fn up(
                 super::store::done_nothing(done);
                 opening.phase = Phase::SyncingParent;
                 let fd = opening.parent.expect("made directory's parent remains open");
-                issue(io, opening, Op::Sync { fd }, subs);
+                issue(io, opening, Op::Sync { fd }, subs)
             }
             Phase::SyncingParent => {
                 super::store::done_nothing(done);
@@ -300,7 +291,7 @@ pub(super) fn up(
                     Action::Refusal { .. } => unreachable!("a denial makes nothing"),
                     Action::Make { .. } => {
                         opening.terminal = Some(Event::Made { owner: opening.owner });
-                        cleanup(io, opening, events, subs);
+                        cleanup(io, opening, events, subs)
                     }
                 }
             }
@@ -308,7 +299,7 @@ pub(super) fn up(
                 let fd = super::store::done_fd(done);
                 opening.file = Some(fd);
                 opening.phase = Phase::Stating;
-                issue(io, opening, Op::Stat { fd }, subs);
+                issue(io, opening, Op::Stat { fd }, subs)
             }
             Phase::Stating => {
                 let stat = super::store::done_stat(done);
@@ -319,13 +310,13 @@ pub(super) fn up(
                 if let Some(found) = unsafe_root(stat, user) {
                     opening.terminal = Some(Event::Refused { owner: opening.owner, found });
                 }
-                cleanup(io, opening, events, subs);
+                cleanup(io, opening, events, subs)
             }
             Phase::DeniedOpening => {
                 let fd = super::store::done_fd(done);
                 opening.file = Some(fd);
                 opening.phase = Phase::DeniedStating;
-                issue(io, opening, Op::Stat { fd }, subs);
+                issue(io, opening, Op::Stat { fd }, subs)
             }
             Phase::DeniedStating => {
                 let stat = super::store::done_stat(done);
@@ -337,14 +328,15 @@ pub(super) fn up(
                 if let Some(found) = found {
                     opening.terminal = Some(Event::Refused { owner: opening.owner, found });
                 }
-                cleanup(io, opening, events, subs);
+                cleanup(io, opening, events, subs)
             }
             Phase::ClosingFile | Phase::ClosingParent => {
                 super::store::done_nothing(done);
-                cleanup(io, opening, events, subs);
+                cleanup(io, opening, events, subs)
             }
         },
     }
+
 }
 
 pub(super) fn stopped(
@@ -354,7 +346,7 @@ pub(super) fn stopped(
     reason: Error,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
-) {
+) -> Work {
     match opening.phase {
         Phase::ParentOpening => {
             if let Ok(done) = complete.result {
@@ -381,7 +373,7 @@ pub(super) fn stopped(
             Event::failed(opening.owner, reason)
         });
     }
-    cleanup(io, opening, events, subs);
+    cleanup(io, opening, events, subs)
 }
 
 /// Kernel path refusals that already establish unsafe private metadata.
@@ -402,7 +394,7 @@ pub(super) fn refuse_file(
     found: Unsafe,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
-) {
+) -> Work {
     let opening = Opening {
         owner,
         action: Action::Make { mode: 0 },
@@ -413,11 +405,11 @@ pub(super) fn refuse_file(
         terminal: Some(Event::Refused { owner, found }),
         made: false,
     };
-    cleanup(io, opening, events, subs);
+    cleanup(io, opening, events, subs)
 }
 
 /// A denied private load is probed only to name its refusal, never to admit bytes.
-pub(super) fn denied_load(io: &mut FileIo, owner: Token, loading: super::Loading, subs: &mut Queue<Submit>) {
+pub(super) fn denied_load(io: &mut FileIo, owner: Token, loading: super::Loading, subs: &mut Queue<Submit>) -> Work {
     let operation = Op::Open { root: loading.root, path: loading.path.clone(), how: OpenHow::PathNoFollow };
     let opening = Opening {
         owner,
@@ -429,5 +421,5 @@ pub(super) fn denied_load(io: &mut FileIo, owner: Token, loading: super::Loading
         terminal: Some(Event::failed(owner, Error::Permission)),
         made: false,
     };
-    issue(io, opening, operation, subs);
+    issue(io, opening, operation, subs)
 }
