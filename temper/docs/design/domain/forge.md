@@ -2886,6 +2886,13 @@ whole.
 
 - **"The brief on Home" in Settings** (5.7): the status agent always runs
   for now; the switch is another plan's. Default: it runs.
+- **What funds a status run** (5.7): a run takes what its project's period has
+  unreserved, and the stock policy's pools are each as large as the period, so
+  once one opens the run is refused, at each sitting of that period
+  (`../client/README.status.md`, 3.5). Either the stock roles' pools leave room,
+  which changes what a person may spend; or a run draws on the pool of whoever
+  looked, which is no party's request; or a charge of its own beside the period.
+  Default: as built, a project whose pools leave funding has the agent's words.
 - **A status run's kept row** (5.7): a task made for the deployment is
   never forgotten, as jig forgets a result only for a person's request. At
   most one a sitting and an hour, each small. Default: kept, until jig
