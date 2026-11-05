@@ -888,7 +888,10 @@ impl Domain {
         if !self.repositories.contains_key(&repository) {
             return Some((b"repository is not adopted; select an adopted owner/name", None));
         }
-        None
+        match &subscription.topic {
+            Topic::Landings { branch, .. } => admission::landing_subscription_problem(self, limits, repository, branch),
+            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
+        }
     }
 
     /// Current subscriber for an automatic goal topic, preserving its durable number.
@@ -1550,7 +1553,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Withdraw { entry } => withdraw(d, env, entry, out),
         Event::VetoChange { task, entry, prior } => veto_change(d, env, task, entry, prior, out),
         Event::Subscribe { subscription } => subscribe(d, env, subscription, out),
-        Event::Unsubscribe { task, topic } => unsubscribe(d, task, topic, out),
+        Event::Unsubscribe { task, topic } => unsubscribe(d, env, task, topic, out),
         Event::Hint { hint } => {
             crate::landing::hinted(d, &hint, out);
             crate::tiers::hinted(d, &hint, out);
@@ -4326,7 +4329,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
             }
         }
         for topic in &topics {
-            unsubscribe(d, task, topic.clone(), out);
+            unsubscribe(d, env, task, topic.clone(), out);
         }
         unnamed(d, env, task, true, out);
         end_change(d, env, task, out);
@@ -5018,6 +5021,10 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
     }
     let key = (task, subscription.topic.clone());
     d.subscriptions.insert(key, subscription.clone()).expect("preflighted subscription capacity");
+    let landing = match &subscription.topic {
+        Topic::Landings { .. } => true,
+        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => false,
+    };
     topics::subscribe(d, &subscription, out);
     let tasks = subscription.goal_tasks.clone();
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Subscription(subscription) });
@@ -5029,9 +5036,12 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
     if let Some((repository, head)) = ci {
         ci_refresh(d, env, repository, head, out);
     }
+    if landing {
+        crate::tiers::watch(d, env, out);
+    }
 }
 
-fn unsubscribe(d: &mut Domain, task: u64, topic: Topic, out: &mut Queue<Request>) {
+fn unsubscribe(d: &mut Domain, env: &Env<Limits>, task: u64, topic: Topic, out: &mut Queue<Request>) {
     if d.subscriptions.remove(&(task, topic.clone())).is_some() {
         emit(out, Request::Erase { key: Key::Subscription { task, topic: topic.clone() } });
         match topic {
@@ -5046,7 +5056,8 @@ fn unsubscribe(d: &mut Domain, task: u64, topic: Topic, out: &mut Queue<Request>
                     emit(out, Request::Erase { key: Key::Ci { repository, head } });
                 }
             }
-            Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Landings { .. } => crate::tiers::watch(d, env, out),
+            Topic::Pull { .. } | Topic::Participation { .. } => {}
         }
     }
 }

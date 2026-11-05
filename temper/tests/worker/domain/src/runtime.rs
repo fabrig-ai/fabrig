@@ -296,7 +296,10 @@ impl World {
                 let done = self.git(op);
                 self.owed.push_back(Event::Done { owner, done });
             }
-            Request::Job { .. } | Request::CancelRelay { .. } | Request::CancelIo { .. } => panic!("unscripted output"),
+            Request::JobAnswer { .. }
+            | Request::Job { .. }
+            | Request::CancelRelay { .. }
+            | Request::CancelIo { .. } => panic!("unscripted output"),
         }
     }
 

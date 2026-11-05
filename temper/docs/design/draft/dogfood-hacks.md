@@ -41,13 +41,16 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **The pipeline:** the machine's user units read one file.
 - **A real design:** a project's build environment as a setting a person can see, with secrets kept out.
 
-### 2.4 A worker on a build machine
+### 2.4 A worker on a build machine, as its user
 
-- **What:** a temper worker on a machine we build on, dialling the deployment's engine over a private network, with the engine and its forge elsewhere. The machine isn't settled.
-- **Why:** the machine that runs the engine can't build this workspace. temper leaves clusters across machines out of v0.1.0.
-- **Cost and risk:** 2.2's admission is local to a machine, and to one user: a worker under its own user shares no lock, no disk budget and no memory accounting with the pipeline's builds on that machine, and their sums would need setting apart.
-- **The pipeline:** assigns runs to machines by ssh, with its places counted.
-- **A real design:** clusters.
+- **What:** a temper worker on one of the machines we build on, running as that machine's own user, dialling the deployment's engine over a private network, with the engine and its forge elsewhere. The user's choice, 2026-11-05. Which machine is being settled.
+- **Why:** the machine that runs the engine can't build this workspace, and temper leaves clusters across machines out of v0.1.0. As the same user, 2.2's admission is shared: one set of build places, one disk budget, one account of memory with the pipeline's builds.
+- **Cost and risk:**
+  - with no contained trees, a run has all of that user's permissions: every checkout of the pipeline's on the machine, what its logins and keys are while lent, and everything else that user can reach. A run's mistake or a bad prompt can reach them;
+  - with 2.1, a run's `.git/hooks` reach later workstreams, and the worker's own git runs them with push credentials in reach; and here, as the same user;
+  - both are acceptable for one trusted person's work only.
+- **The pipeline:** assigns runs to machines by ssh, with its places counted, under the same user and with the same exposure.
+- **A real design:** a worker's own user and contained trees, with clusters.
 
 ### 2.5 The deployed binary
 
@@ -81,10 +84,10 @@ For the user to weigh; each can become an entry.
 - **Between a run's commands** the claim is dropped, since the worker tells the wrapper nothing of a hold. Under disk pressure a held workspace's target can be reclaimed, and its next build is cold.
 - **Two commands at once in one workspace:** only the first holds the claim. cargo's own lock serialises them, but reclaim could reach the second under disk pressure.
 - **A new machine starts cold:** the pipeline's checkouts are warmed from a template. A target can't be copied across paths safely (2.2), so each workspace's first build goes through the compile cache alone.
-- **The benchmark's fairness:** on a shared machine both draw on one set of places and one disk. Run them one at a time.
+- **The benchmark's noise:** on a shared machine both draw on one set of places and one disk. The user reads that as mostly noise, since a temper goal should run much as a plan of the pipeline's does, its slots mostly independent. So they may run side by side; the figures say so.
 - **No figure yet:** nothing here has been measured with a real run.
 
 ## 4. Open questions
 
-- Which machine runs the worker, and as which user (2.4)? It decides whether 2.2's admission can be shared at all.
+- Which machine runs the worker (2.4)?
 - Does any entry become a real feature before the switch, rather than after v0.1.0?
