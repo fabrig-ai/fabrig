@@ -5,6 +5,7 @@
 - **Design lags:**
   - 3: step 1, "a setting the project reads holds a change": `../client/README.md`, 3.5 marks it done by any line of the `settings` document that follows a change, another project's own policy among them, and `temper-client-domain`'s `pages/home.rs`, `configured`, reads no line's setting.
 - **Design departs:**
+  - 3: "as the chats page's offer does": `../client/README.md`, 3.5: the Chats page has no offer; Home's first step and Settings keep theirs; the user's request `ui-chats`, 2026-11-05.
   - 2: "Connected and the landing's line wait for "To begin" to go": `../client/README.md`, 3.5: Home has no Connected at all, the user's decision in the look request `home-drops-connected`; the landing's line waits for To begin to go, as here.
   - 3: "By turn, it names temper's landing turn": `../client/README.md`, 3.5: the second step has the merge queue's words on every project, since no client is given a project's `by`; section 11 there holds the question.
   - 3: step 1's act, "the configuring chat, as the chats page's offer starts it": `../client/README.md`, 3.5: "Start" opens `Configure { project }`, the chat starting with the person's own words, the user's decision in the look request `configure-chat-in-settings`.

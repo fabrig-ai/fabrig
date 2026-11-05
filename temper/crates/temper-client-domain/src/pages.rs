@@ -563,7 +563,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::OpenProject { project } } => {
             choose_project(pages, client, project);
-            out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
+            out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All } });
         }
         Event::Act { act: Act::Project { project } } => {
             choose_project(pages, client, project);
@@ -577,6 +577,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Configure { .. } => out.push(Request::Show { address: Address::Configure { project } }),
                 Address::Inbox { .. }
                 | Address::Chats { .. }
+                | Address::NewChat
                 | Address::Accounts
                 | Address::Forges
                 | Address::ConnectForge { .. }
@@ -623,6 +624,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::Goals { .. }
             | Address::Inbox { .. }
             | Address::Chats { .. }
+            | Address::NewChat
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Accounts
@@ -760,7 +762,7 @@ fn closed_chats(pages: &mut Pages, out: &mut Queue<Request>) {
 }
 fn chat_filter(pages: &Pages, filter: ChatsFilter, out: &mut Queue<Request>) {
     if pages.chats.is_some() {
-        out.push(Request::Show { address: Address::Chats { filter, start: false } });
+        out.push(Request::Show { address: Address::Chats { filter } });
     }
 }
 
@@ -787,10 +789,12 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
     pages.needs.went(&pages.address, &address);
     pages.switcher.went(&address);
-    if let (Address::Chats { .. }, Address::Chats { filter, .. }, Some(page)) =
+    if let (Address::Chats { .. } | Address::NewChat, Address::Chats { .. } | Address::NewChat, Some(page)) =
         (&pages.address, &address, &mut pages.chats)
     {
-        page.filter = *filter;
+        if let Address::Chats { filter } = address {
+            page.filter = filter;
+        }
         pages.address = address;
         return;
     }
@@ -889,7 +893,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
                 out,
             ));
         }
-        if let Address::Settings { .. } | Address::Configure { .. } = address {
+        if let Address::Settings { .. } | Address::Configure { .. } | Address::NewChat = address {
             pages.chats = Some(chats::Chats::new(pages.next));
         }
         if let Address::Chats { filter, .. } = address {
@@ -913,6 +917,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             }
             Address::Inbox { .. }
             | Address::Chats { .. }
+            | Address::NewChat
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -1045,7 +1050,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Some(chats) = &mut pages.chats {
-        if !chats.told(told.clone(), out) {
+        if !chats.told(told.clone(), &pages.address, out) {
             return match &mut pages.inbox {
                 Some(inbox) => inbox.told(client, told, out),
                 None => false,
@@ -1179,6 +1184,7 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Configure { project } => Some(*project),
         Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::NewChat
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
@@ -1369,6 +1375,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         }
         Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::NewChat
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }

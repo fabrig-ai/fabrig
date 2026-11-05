@@ -41,17 +41,17 @@ fn a_container_without_hearth_exits_zero() {
 #[test]
 fn a_host_names_the_missing_hearth_declaration() {
     assert_eq!(
-        f::render_no_hearth(b"rhi-prod").stdout,
-        b"tasks/hearth/task.json: rhi-prod: no task hearth under tasks/\n"
+        f::render_no_hearth(b"east-prod").stdout,
+        b"tasks/hearth/task.json: east-prod: no task hearth under tasks/\n"
     );
 }
 #[test]
 fn a_host_without_hearth_exits_two() {
-    assert_eq!(f::render_no_hearth(b"rhi-prod").exit, reserved::CONFIGURATION_EXIT);
+    assert_eq!(f::render_no_hearth(b"east-prod").exit, reserved::CONFIGURATION_EXIT);
 }
 #[test]
 fn a_container_names_hearth_at_its_key() {
-    assert_eq!(f::render_container_hearth().stdout, b"hosts/chat/chat-prod.json:1:56: chat-prod: hearth: \"hearth\" is reserved: a container has no hearth task (protocol/format.md, 5.12)\n");
+    assert_eq!(f::render_container_hearth().stdout, b"hosts/chat/chat-prod.json:1:57: chat-prod: hearth: \"hearth\" is reserved: a container has no hearth task (protocol/format.md, 5.12)\n");
 }
 #[test]
 fn a_container_naming_hearth_exits_two() {

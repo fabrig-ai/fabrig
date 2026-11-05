@@ -123,7 +123,7 @@ pub enum Role {
     Drawing,
 }
 
-/// A semantic state, never a visual style.
+/// A semantic state, never a visual style (ui.md, 3.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum State {
     /// The node is disabled.
@@ -146,6 +146,8 @@ pub enum State {
     Completed,
     /// The node is submitsonenter.
     SubmitsOnEnter,
+    /// A disclosure folds on an outside press or Escape.
+    FoldsAway,
 }
 
 /// A token from an owner's closed style set.

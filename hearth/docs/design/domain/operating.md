@@ -248,7 +248,7 @@ The postfix task, its checks and the user its command check runs as:
   `mail-prod`'s public probe changes `mail-prod`'s and its probers'
   `checks` parts, and nothing else.
 - **The prober's hearth reports the result** as its own fact, naming the
-  probed target: `mail-prod/postfix.smtp-public` run by `ion-prod`. The
+  probed target: `mail-prod/postfix.smtp-public` run by `west-prod`. The
   engine pairs it with the probed machine; neither hearth needs the
   other.
 - **Within one environment.** A lab target never probes production, and
@@ -534,7 +534,7 @@ side, so snapshotting it and backing it up is the activator's work, and
 it may use `btrfs send`, which needs root. Data is kept by class
 (hearth/docs/design/protocol/format.md, 5.7): `core`, `data` and `cache`, one subvolume each, with a
 policy per class, as os's and the bash fleet's layout intended. The bash
-fleet relied on snapper, which missed `/srv/data` and was off on rhi for
+fleet relied on snapper, which missed `/srv/data` and was off on east for
 lack of disk, and had no off-machine backup of service data at all.
 
 ### 7.1 Snapshots [M5]

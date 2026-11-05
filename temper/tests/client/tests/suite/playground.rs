@@ -76,6 +76,7 @@ fn try_run_and_leave_the_playground_through_its_banner() {
     press(&mut front, &mut root, b"Try the playground");
     assert_eq!(front.playground_starts.len(), 1);
     assert_eq!(root.person().pages().project(), Some(1));
+    go(&mut front, &mut root, f::chats_page());
     assert!(has(&root, Role::Region, b"Playground"));
     for address in [Address::Forges, Address::Accounts] {
         go(&mut front, &mut root, address);

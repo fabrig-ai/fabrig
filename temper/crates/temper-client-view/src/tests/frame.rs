@@ -31,7 +31,7 @@ fn the_project_chosen_is_the_first_of_me_at_start() {
 #[test]
 fn the_running_playground_project_button_is_named_by_its_record() {
     let root = fixtures::playground_root(
-        temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+        temper_client_domain::Address::Chats { filter: ChatsFilter::All },
         fixtures::PROJECT,
         true,
     );
@@ -382,7 +382,7 @@ fn the_navigation_marks_only_the_current_page() {
     for (address, current) in [
         (Address::Inbox { filter: Filter::ALL }, Some(b"Needs you".as_slice())),
         (Address::Inbox { filter: Filter { goal: Some(9), ..Filter::ALL } }, Some(b"Needs you".as_slice())),
-        (Address::Chats { filter: ChatsFilter::All, start: false }, Some(b"Chats".as_slice())),
+        (Address::Chats { filter: ChatsFilter::All }, Some(b"Chats".as_slice())),
         (Address::Adopt { project: fixtures::PROJECT }, None),
         (Address::Accounts, None),
         (Address::Chat { task: 9 }, Some(b"Chats".as_slice())),
@@ -711,8 +711,9 @@ fn the_offline_rail_keeps_its_choices() {
 fn the_qa_controls_keep_their_accessible_names_with_the_menu_closed() {
     for (root, controls) in [
         (
-            Box::new(fixtures::chats_root()),
-            &[(Role::Link, b"Chats".as_slice()), (Role::TextArea, b"Start a chat"), (Role::Button, b"Start chat")][..],
+            Box::new(fixtures::playground_root(temper_client_domain::Address::NewChat, fixtures::PROJECT, true)),
+            &[(Role::Link, b"Chats".as_slice()), (Role::TextArea, b"What do you want done?"), (Role::Button, b"Send")]
+                [..],
         ),
         (
             Box::new(fixtures::chat::messaging_root()),
@@ -1008,7 +1009,7 @@ fn browser_google_sign_in_has_the_mark_heading_and_return_link() {
     for (address, expected) in [
         // Signed out, the page stays at its address; its query is percent-encoded into `then`.
         (
-            Address::Chats { filter: ChatsFilter::All, start: false },
+            Address::Chats { filter: ChatsFilter::All },
             b"https://temper.example.com/sign-in/google?then=/%3Fproject%3D1".as_slice(),
         ),
     ] {
@@ -1096,7 +1097,7 @@ fn the_brand_links_to_chats_with_its_accessible_label() {
         assert_eq!(
             crate::act(&mut view, brand, Act::Press),
             Some(Action::Pages(pages::Act::Go {
-                address: temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+                address: temper_client_domain::Address::Chats { filter: ChatsFilter::All },
             }))
         );
     }
@@ -1110,10 +1111,10 @@ fn the_banner_is_one_line_with_its_set_up_link() {
         Address::Accounts,
         Address::Forges,
         Address::Welcome { step: Step::Welcome },
-        Address::Chats { filter: ChatsFilter::All, start: false },
+        Address::Chats { filter: ChatsFilter::All },
     ] {
-        let chats = address == Address::Chats { filter: ChatsFilter::All, start: false };
-        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+        let chats = address == Address::Chats { filter: ChatsFilter::All };
+        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
         f::root_event(
             &mut root,
             temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(address) },
@@ -1155,7 +1156,7 @@ fn the_banner_is_one_line_with_its_set_up_link() {
 fn the_link_sends_end_playground_and_shows_leaving() {
     use super::fixtures as f;
     use temper_client_domain::{Address, Event, forge};
-    let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
     let mut view = f::page_view(&root);
     let link = f::find(view.tree(), Role::Link, b"set up temper").unwrap();
     let action = crate::act(&mut view, link, Act::Press).unwrap();
@@ -1178,7 +1179,11 @@ fn switcher_act(root: &mut temper_client_domain::Domain, act: pages::switcher::A
 fn switcher_owner(start: bool) -> temper_client_domain::Domain {
     use jig_client::contract as c;
     let (mut root, watch, _) = fixtures::root_at(
-        temper_client_domain::Address::Chats { filter: ChatsFilter::All, start },
+        if start {
+            temper_client_domain::Address::NewChat
+        } else {
+            temper_client_domain::Address::Chats { filter: ChatsFilter::All }
+        },
         &fixtures::domain_limits(),
     );
     let mut me = root.pages().me(root.client()).unwrap().clone();
@@ -1440,7 +1445,7 @@ fn assert_refusal_under_field(view: &crate::View, form_name: &[u8], field_name: 
 fn opening_rename_on_the_start_address_focuses_its_field_and_cancel_restores_the_composer() {
     let mut root = switcher_owner(true);
     let mut view = fixtures::page_view(&root);
-    assert_eq!(switcher_node(&view, Role::TextArea, b"Start a chat").focus, Some(0));
+    assert_eq!(switcher_node(&view, Role::TextArea, b"What do you want done?").focus, Some(0));
     let rename = switcher_node(&view, Role::Button, b"Rename Shop").id;
     let action = crate::act(&mut view, rename, Act::Press).unwrap();
     fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
@@ -1454,7 +1459,7 @@ fn opening_rename_on_the_start_address_focuses_its_field_and_cancel_restores_the
     let action = crate::act(&mut view, cancel, Act::Press).unwrap();
     fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
     fixtures::build(&mut view, &root);
-    assert_eq!(switcher_node(&view, Role::TextArea, b"Start a chat").focus, Some(0));
+    assert_eq!(switcher_node(&view, Role::TextArea, b"What do you want done?").focus, Some(0));
     assert!(fixtures::person_find(view.tree(), Role::TextField, b"Rename").is_none());
 }
 

@@ -42,7 +42,7 @@ fn fixture() -> Fixture {
     f
 }
 fn chats() -> Address {
-    Address::Chats { filter: ChatsFilter::All, start: false }
+    Address::Chats { filter: ChatsFilter::All }
 }
 fn event(f: &mut Fixture, event: Event) {
     pages::step(&mut f.pages, &fixtures::env(&fixtures::limits()), f.root.client(), event, &mut f.out);

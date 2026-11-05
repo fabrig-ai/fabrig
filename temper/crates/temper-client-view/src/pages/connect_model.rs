@@ -10,7 +10,6 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
-use temper_client_domain::ChatsFilter;
 use temper_client_domain::{
     Address, Domain, WayKind,
     pages::{
@@ -296,6 +295,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::ConnectForge { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::NewChat
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
@@ -580,7 +580,7 @@ fn ready_body(
             true,
         );
     } else {
-        go(b, bindings, &say(w, W::StartChat), Address::Chats { filter: ChatsFilter::All, start: false }, true);
+        go(b, bindings, &say(w, W::StartChat), Address::NewChat, true);
     }
     manage_usage(b, root, w, way);
     if model::model_way(way).kind == WayKind::SignIn {

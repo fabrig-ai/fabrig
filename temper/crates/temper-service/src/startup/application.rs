@@ -92,8 +92,12 @@ pub fn clients(document: &Document, at: u32, path: &Path, bundle: bool, problems
     Some(Clients { listener, bundle: directory, public })
 }
 /// The forge's browser origin (protocol/sign-in.md, 9.1 and 9.7).
-pub(crate) fn forge_origin(git: &[u8], public: Option<&temper_forge_setup::setup::Origin>) -> Box<[u8]> {
-    let Some(public) = public else { return bytes::copy_of(git) };
+pub(crate) fn forge_origin(
+    git: &[u8],
+    web: Option<&[u8]>,
+    public: Option<&temper_forge_setup::setup::Origin>,
+) -> Box<[u8]> {
+    let Some(public) = public else { return bytes::copy_of(web.unwrap_or(git)) };
     let port = skein_lib::Decimal::of(u64::from(public.port));
     let mut parts = List::with_capacity(4);
     parts.push(b"https://".as_slice()).expect("four origin pieces");

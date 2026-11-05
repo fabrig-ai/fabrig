@@ -1,5 +1,4 @@
 //! Route the shared client's tells to temper's owning child.
-use crate::ChatsFilter;
 use crate::{Action, Address, Domain, Event, Fact, Limits, Place, Request, forge, owner::Owner};
 use skein_lib::{Env, Queue};
 pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, out: &mut Queue<Request>) {
@@ -167,6 +166,7 @@ pub(crate) fn route_forge(
                     }
                     Address::Inbox { .. }
                     | Address::Chats { .. }
+                    | Address::NewChat
                     | Address::Accounts
                     | Address::Forges
                     | Address::ConnectForge { .. }
@@ -379,7 +379,7 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     root.pages.playground_choice = crate::pages::PlaygroundChoice::Waiting;
     forge(root, env, forge::Event::Act { act: forge::Act::StartPlayground }, out);
     playground_facts(root);
-    out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false }, replace: false });
+    out.push(Request::Show { address: Address::NewChat, replace: false });
 }
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {

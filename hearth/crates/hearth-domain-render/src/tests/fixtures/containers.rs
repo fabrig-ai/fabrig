@@ -12,11 +12,11 @@ pub fn fleet() -> Fleet {
         documents = with_document(&documents, path, document(None));
     }
     for (path, on) in [
-        (b"hosts/rhi/rhi-prod.json".as_slice(), None),
-        (b"hosts/rhi/rhi-lab.json", None),
-        (b"hosts/chat/chat-prod.json", Some(b"rhi-prod".as_slice())),
-        (b"hosts/mail/mail-prod.json", Some(b"rhi-prod")),
-        (b"hosts/mail/mail-lab.json", Some(b"rhi-lab")),
+        (b"hosts/east/east-prod.json".as_slice(), None),
+        (b"hosts/east/east-lab.json", None),
+        (b"hosts/chat/chat-prod.json", Some(b"east-prod".as_slice())),
+        (b"hosts/mail/mail-prod.json", Some(b"east-prod")),
+        (b"hosts/mail/mail-lab.json", Some(b"east-lab")),
         (b"hosts/empty/empty-prod.json", None),
     ] {
         documents = with_document(&documents, path, document(Some(placement(on))));
@@ -79,4 +79,4 @@ pub fn root(fleet: &Fleet, name: &[u8]) -> crate::evaluate::Value {
     panic!("containers key")
 }
 
-pub const RHI_PROD_CONTAINERS: &[&[u8]] = &[b"chat-prod", b"mail-prod"];
+pub const EAST_PROD_CONTAINERS: &[&[u8]] = &[b"chat-prod", b"mail-prod"];
