@@ -100,7 +100,7 @@ fn pinned_product_check(conversations: i64) -> smith_bench::process::ProcessResu
         environment: &environment,
     };
     let layer: toml::Value =
-        toml::from_str(include_str!("../../../benchmarks/agents/smith/everything.toml")).expect("product layer");
+        toml::from_str(include_str!("../../benchmarks/agents/smith/everything.toml")).expect("product layer");
     let base = serde_json::to_value(layer).expect("layer values");
     let mut rendered = smith_bench::agent::smith::product_settings(&context, &base, &login).expect("product rendering");
     let invocation = rendered.as_object_mut().expect("layer").remove("invocation").expect("product flags");

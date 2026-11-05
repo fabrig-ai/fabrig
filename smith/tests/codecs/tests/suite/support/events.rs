@@ -1494,7 +1494,6 @@ fn accounts_samples() -> Vec<(&'static str, Record, Capture)> {
     samples
 }
 
-#[path = "events/accounts.rs"]
 mod accounts;
 
 fn recorded(event: Event) -> Record {
