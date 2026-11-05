@@ -2,6 +2,7 @@
 //! Forge records and playground scripts (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 10).
 pub mod account_acts;
 mod dismissed;
+mod status;
 use crate::app::Event;
 use crate::{app::Temper, fixtures, translate};
 use jig_client_world::{
@@ -21,6 +22,7 @@ pub struct Joint {
     pub engine: Driver,
     pub sign_ins: u32,
     dismissal_sends: usize,
+    status_looks: BTreeMap<ClientId, usize>,
     /// The ctl caller in this world; existing stories use person 1.
     pub caller: u64,
     pub leaves: Vec<Box<[u8]>>,
@@ -746,18 +748,18 @@ impl Joint {
     /// client/README.md, 8 and 10: a pushed change lands through CI and an agent gate.
     #[must_use]
     pub fn with_change_landing(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, false)
+        Self::change_landing(seed, limits, None, false)
     }
     /// Settings and a following change through the same joined engine.
     #[must_use]
     pub fn with_settings_changes(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, true)
+        Self::change_landing(seed, limits, None, true)
     }
     #[expect(
         clippy::too_many_lines,
         reason = "the shared change fixture keeps its policy and settings variant together"
     )]
-    fn change_landing(seed: u64, limits: &client::Limits, settings: bool) -> Self {
+    fn change_landing(seed: u64, limits: &client::Limits, session: Option<Duration>, settings: bool) -> Self {
         // Chat, reviewer, foreman and change procedure; chat/change/producer depth;
         // the same owner in the project and deployment.
         const SETTINGS_EXECUTORS: u32 = 4;
@@ -770,6 +772,9 @@ impl Joint {
         use jig_domain_authority as a;
         let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
             let (mut config, mut limits) = Self::procedure_config(seed);
+            if let Some(session) = session {
+                limits.people.sign_in_lifetime = session;
+            }
             let connector = config.core.connectors[0];
             // Same agent gate and rule as forge_routes.rs's configured_policy
             // (domain/forge.md, 8.3 and 8.7), on the client world's repository.
@@ -938,22 +943,13 @@ impl Joint {
     ) -> Self {
         Self::with_engine_with_refused_hello(seed, limits, store, configs, engine_limits, slots, false)
     }
-    fn with_engine_with_refused_hello(
-        seed: u64,
-        limits: &client::Limits,
-        store: Store,
-        configs: [engine::Config; 2],
+    fn worker_hello(
+        config: &engine::Config,
         engine_limits: &engine::Limits,
         slots: u32,
         refuse_hello: bool,
-    ) -> Self {
-        let mut transport = Transport::new(jig_client::contract::VersionRange {
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
-        });
-        transport.models.clone_from(&configs[1].core.settings.models);
-        transport.providers = configs[1].core.settings.llm_providers.clone();
-        let worker_models = configs[1]
+    ) -> engine::Event {
+        let worker_models = config
             .core
             .settings
             .models
@@ -979,6 +975,24 @@ impl Joint {
             const UNCONFIGURED_WORKER: u32 = 7;
             *worker = UNCONFIGURED_WORKER;
         }
+        hello
+    }
+    fn with_engine_with_refused_hello(
+        seed: u64,
+        limits: &client::Limits,
+        store: Store,
+        configs: [engine::Config; 2],
+        engine_limits: &engine::Limits,
+        slots: u32,
+        refuse_hello: bool,
+    ) -> Self {
+        let mut transport = Transport::new(jig_client::contract::VersionRange {
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        });
+        transport.models.clone_from(&configs[1].core.settings.models);
+        transport.providers = configs[1].core.settings.llm_providers.clone();
+        let hello = Self::worker_hello(&configs[1], engine_limits, slots, refuse_hello);
         // protocol/configuration.md, 7: documents fit the client this world serves.
         // Smaller text projections still retain the full task spec and brief.
         let mut engine_limits = *engine_limits;
@@ -999,6 +1013,7 @@ impl Joint {
             engine,
             sign_ins: 0,
             dismissal_sends: 0,
+            status_looks: BTreeMap::new(),
             caller: fixtures::PARTY,
             leaves: Vec::new(),
             refuse_return: false,
@@ -1832,6 +1847,7 @@ impl Front<Temper> for Joint {
     fn wire(&mut self, who: ClientId, now: Time, _wall: Wall, request: Request) {
         self.advance(now);
         self.count_dismissal(&request);
+        self.count_status_look(who, &request);
         self.request(who, request);
     }
     fn poll(&mut self, now: Time, _wall: Wall) -> Vec<(ClientId, Event)> {
