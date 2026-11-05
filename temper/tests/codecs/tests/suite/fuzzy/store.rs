@@ -57,6 +57,10 @@ fn making_row(rng: &mut Rng) -> forge::Stored {
     })
 }
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the seeded corpus mutates named decision answers beside the other store records"
+)]
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
@@ -133,6 +137,8 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             outcome: Some(skein_forge_client::Outcome::Queued),
         },
         forge::CallPayload::Read(Box::new(Ok(skein_forge::api::Answer::Queued))),
+        forge::CallPayload::Decided { took: None },
+        forge::CallPayload::Decided { took: Some(Box::from(b"Small".as_slice())) },
         forge::CallPayload::Read(Box::new(Err(skein_forge::api::Error::NotInstalled))),
     ] {
         let row =

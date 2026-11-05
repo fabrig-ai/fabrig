@@ -47,6 +47,8 @@ fn queued_effect_outcomes_and_merge_answers_round_trip_durably() {
     for answer in [
         CallPayload::Effect { entry: 1, deadline: skein_lib::Wall::EPOCH, outcome: Some(Outcome::Queued) },
         CallPayload::Read(Box::new(Ok(Answer::Queued))),
+        CallPayload::Decided { took: None },
+        CallPayload::Decided { took: Some(Box::from(b"Small".as_slice())) },
     ] {
         let value = Stored::Call { key: NamedCall { task: 1, attempt: 2, completion: 3, position: 4 }, answer };
         let bytes = records::encode(&value);

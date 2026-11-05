@@ -128,7 +128,8 @@ record AnswerValue { answer: Answer }
 enum ReadResult { answer: boxed AnswerValue, error: ErrorValue }
 record CallRead { result: ReadResult }
 record CallEffect { entry: u64 deadline: u64 outcome: option Outcome }
-enum CallPayload { effect: CallEffect, refused: ErrorValue, read: CallRead }
+record CallDecided { took: option bytes 120 }
+enum CallPayload { effect: CallEffect, refused: ErrorValue, read: CallRead, decided: CallDecided }
 record NamedCall { task: u64 attempt: u64 completion: u32 position: u32 }
 record Call { key: NamedCall answer: CallPayload }
 
