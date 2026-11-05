@@ -1,10 +1,11 @@
 //! Declarations reserve a durable name before any host operation is possible.
-use jig_accounts_world::{LIMITS, World, account, provider, providers, source};
+use jig_accounts_world::{
+    HOLDER, LIMITS, PROVIDER, World, account, held, issued, program, provider, providers, source,
+};
 use jig_domain_accounts::{Event, Holder, Kind, Refusal, Request, Stored, programs};
 use skein_lib::{Env, Queue};
-const HOLDER: Holder = Holder::Party(7);
 const OTHER: Holder = Holder::Party(8);
-const PROVIDER: u32 = 1;
+const JOINED_ACCOUNT: u32 = 20;
 fn configured() -> jig_domain_accounts::Providers {
     let mut offered = provider(PROVIDER, true, true);
     offered.offers.programs = Box::new([b"claude_code".as_slice().into()]);
@@ -31,9 +32,6 @@ fn declare(
     }
     (result, requests)
 }
-fn issued(number: u32, name: &[u8]) -> Stored {
-    Stored::Issued { number, holder: HOLDER, name: name.into(), signed_out: false }
-}
 #[test]
 fn a_declaration_saves_its_reservation_atomically() {
     let mut world = fresh();
@@ -42,18 +40,9 @@ fn a_declaration_saves_its_reservation_atomically() {
         (
             Ok(1),
             vec![
-                Request::Save { record: account(0, PROVIDER, HOLDER, b"") },
+                Request::Save { record: held(0, b"") },
                 Request::Save { record: issued(1, b"personal") },
-                Request::Save {
-                    record: Stored::Source {
-                        account: 0,
-                        number: 1,
-                        place: 0,
-                        kind: Kind::Program,
-                        name: b"personal".as_slice().into(),
-                        held: None
-                    }
-                },
+                Request::Save { record: program(0, 1, 0, b"personal") },
                 Request::Save { record: Stored::Next { number: 2 } },
                 Request::Programs {
                     names: Box::new([jig_domain_accounts::Program {
@@ -75,7 +64,7 @@ fn a_program_joins_at_the_last_source_place() {
     let mut world = World::with_start(
         jig_accounts_world::LIMITS,
         configured(),
-        &[account(20, PROVIDER, HOLDER, b""), source(20, 21, 0, Kind::Key)],
+        &[held(JOINED_ACCOUNT, b""), source(JOINED_ACCOUNT, 21, 0, Kind::Key)],
     );
     world.step(Event::Want);
     assert_eq!(declare(&mut world, HOLDER, PROVIDER, Some(20), b"personal").0, Ok(22));
@@ -89,7 +78,7 @@ fn a_foreign_holder_cannot_join_an_account() {
     let mut world = World::with_start(
         jig_accounts_world::LIMITS,
         configured(),
-        &[account(20, PROVIDER, OTHER, b""), source(20, 21, 0, Kind::Key)],
+        &[account(JOINED_ACCOUNT, PROVIDER, OTHER, b""), source(JOINED_ACCOUNT, 21, 0, Kind::Key)],
     );
     world.step(Event::Want);
     assert_eq!(
@@ -577,18 +566,14 @@ fn a_new_login_raises_the_program_grant_s_generation() {
 #[test]
 fn a_restored_program_grant_uses_the_durable_counter_epoch() {
     for held in [None, Some(jig_domain_accounts::Held::Refused)] {
-        let program = Stored::Source {
-            account: 0,
-            number: 1,
-            place: 0,
-            kind: Kind::Program,
-            name: b"personal".as_slice().into(),
-            held,
-        };
+        let mut row = program(0, 1, 0, b"personal");
+        if let Stored::Source { held: kept, .. } = &mut row {
+            *kept = held;
+        }
         let mut world = World::with_start(
             jig_accounts_world::LIMITS,
             configured(),
-            &[account(0, PROVIDER, HOLDER, b""), program, issued(1, b"personal"), Stored::Next { number: 3 }],
+            &[jig_accounts_world::held(0, b""), row, issued(1, b"personal"), Stored::Next { number: 3 }],
         );
         let requests = world.step(Event::Want);
         assert_eq!(requests.contains(&Request::Granted { grant: named_grant(1, 3) }), held.is_none());
@@ -619,19 +604,7 @@ fn signing_out_withdraws_the_program_grant() {
 #[test]
 fn a_login_check_with_an_exhausted_epoch_changes_nothing() {
     // Restoring the counter before Want gives the greatest representable epoch.
-    let rows = [
-        account(0, PROVIDER, HOLDER, b""),
-        Stored::Source {
-            account: 0,
-            number: 1,
-            place: 0,
-            kind: Kind::Program,
-            name: b"personal".as_slice().into(),
-            held: None,
-        },
-        issued(1, b"personal"),
-        Stored::Next { number: u32::MAX },
-    ];
+    let rows = [held(0, b""), program(0, 1, 0, b"personal"), issued(1, b"personal"), Stored::Next { number: u32::MAX }];
     let mut world = World::with_start(jig_accounts_world::LIMITS, configured(), &rows);
     world.step(Event::Want);
     let mut out = Queue::uncapped();

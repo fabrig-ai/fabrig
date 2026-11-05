@@ -2750,7 +2750,6 @@ version = "0.0.0"
 dependencies = [
  "skein-echo-client",
  "skein-echo-service",
- "skein-echo-world",
  "skein-fail-stop",
  "skein-io",
  "skein-lib",
@@ -2943,7 +2942,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-oauth",
  "skein-shell",
  "skein-sim",
@@ -3131,6 +3130,9 @@ dependencies = [
 [[package]]
 name = "skein-http-kit"
 version = "0.0.0"
+dependencies = [
+ "skein-http",
+]
 
 [[package]]
 name = "skein-http-world"
@@ -3138,8 +3140,9 @@ version = "0.0.0"
 dependencies = [
  "skein-heap",
  "skein-http",
+ "skein-http-kit",
  "skein-json",
- "skein-json-world",
+ "skein-json-kit",
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
@@ -3177,6 +3180,10 @@ dependencies = [
 [[package]]
 name = "skein-json-kit"
 version = "0.0.0"
+dependencies = [
+ "skein-json",
+ "skein-lib",
+]
 
 [[package]]
 name = "skein-json-world"
@@ -3184,6 +3191,7 @@ version = "0.0.0"
 dependencies = [
  "skein-heap",
  "skein-json",
+ "skein-json-kit",
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
@@ -3251,7 +3259,7 @@ dependencies = [
  "skein-fake-llm-protocol",
  "skein-http",
  "skein-json",
- "skein-json-world",
+ "skein-json-kit",
  "skein-lib",
  "skein-scratch",
 ]
@@ -3280,7 +3288,7 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-sim",
  "skein-tls",
  "skein-tls-world",
@@ -3290,6 +3298,14 @@ dependencies = [
 [[package]]
 name = "skein-llm-kit"
 version = "0.0.0"
+dependencies = [
+ "skein-fake-llm-domain",
+ "skein-fake-llm-protocol",
+ "skein-http",
+ "skein-json",
+ "skein-lib",
+ "skein-llm",
+]
 
 [[package]]
 name = "skein-llm-world"
@@ -3300,10 +3316,11 @@ dependencies = [
  "skein-fake-llm-protocol",
  "skein-heap",
  "skein-http",
- "skein-http-world",
+ "skein-http-kit",
  "skein-json",
  "skein-lib",
  "skein-llm",
+ "skein-llm-kit",
  "skein-scratch",
 ]
 
@@ -3384,7 +3401,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-oauth",
  "skein-sim",
  "skein-world",
@@ -3436,7 +3453,7 @@ version = "0.0.0"
 dependencies = [
  "skein-http",
  "skein-json",
- "skein-json-world",
+ "skein-json-kit",
  "skein-lib",
  "skein-protocol-kit",
  "skein-world",
@@ -3549,7 +3566,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-protocol-kit",
  "skein-scratch",
  "skein-shell",

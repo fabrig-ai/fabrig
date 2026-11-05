@@ -3,7 +3,7 @@ id = "hand-forgejo"
 part = "connection-worlds"
 kind = "migration"
 needs = ["hand-face"]
-files = ["skein/tests/forge/machine/tests/suite/hand/forgejo.rs", "skein/tests/forge/machine/tests/suite/hand/forgejo/**", "skein/tests/forge/machine/src/hand.rs", "skein/crates/skein-forge-connection/src/tests.rs", "skein/crates/skein-forge-connection/src/tests/contents.rs", "skein/crates/skein-forge-connection/src/tests/writes.rs", "skein/crates/skein-forge-connection/src/tests/reads.rs", "skein/crates/skein-forge-connection/src/tests/connection.rs", "skein/crates/skein-forge-connection/src/tests/artifact.rs", "skein/crates/skein-forge-connection/src/tests/abort.rs"]
+files = ["skein/tests/forge/machine/tests/suite/hand/forgejo.rs", "skein/tests/forge/machine/tests/suite/hand/forgejo/**", "skein/tests/forge/machine/src/hand.rs", "skein/crates/skein-forge-connection/src/tests.rs", "skein/crates/skein-forge-connection/src/tests/contents.rs", "skein/crates/skein-forge-connection/src/tests/writes.rs", "skein/crates/skein-forge-connection/src/tests/reads.rs", "skein/crates/skein-forge-connection/src/tests/connection.rs", "skein/crates/skein-forge-connection/src/tests/artifact.rs"]
 effort = "medium"
 minutes = 35
 +++
@@ -12,11 +12,11 @@ minutes = 35
 
 ## Goal
 
-Skein D030's Forgejo batch: `contents`, `writes`, `reads`, `connection`, `artifact`, `abort`, and `src/tests.rs`' six sites, about 88 tests. By `temper/docs/plan/debt-24/notes/hand.md`.
+Skein D030's Forgejo batch: `contents`, `writes`, `reads`, `connection`, `artifact`, and `src/tests.rs`' six sites, about 83 tests. `abort` is `hand-face`'s. By `temper/docs/plan/debt-24/notes/hand.md`.
 
 Acceptance:
 
-- Their `Harness` tests are in `tests/suite/hand/forgejo/`, under the same file names. `artifact` and `abort` leave the crate; the mixed files keep what isn't on `Harness`. `reads`'s and `connection`'s tests that use a private drive call stay in the crate until `connection-seam`, for `hand-rows`.
+- Their `Harness` tests are in `tests/suite/hand/forgejo/`, under the same file names. `artifact` leaves the crate; the mixed files keep what isn't on `Harness`. `reads`'s and `connection`'s tests that use a private drive call stay in the crate until `connection-seam`, for `hand-rows`.
 - Each test's asserts read as they did; `artifact`'s ceiling holds.
 - `heavy cargo nextest run -p skein-forge-connection --lib` and `-p skein-forge-machine-world` pass; the world gains what the crate loses.
 
@@ -38,3 +38,13 @@ The script from `hand-face`'s report; `cargo fmt`; `(cd skein && python3 -I -B s
 ## Report
 
 The common note's items; the assert comparison; the time. A move: no rule to break by hand.
+
+## Answers
+
+### 2026-11-05: Complete and merge hand-face before rerunning hand-forgejo (recommended), or authorize this task to supply the missing shared harness and suite scaffolding? (debt-24/hand-forgejo-1, foreman debt-24/hand-forgejo/foreman-1)
+
+Complete and merge hand-face before rerunning hand-forgejo.
+The hand-forgejo spec declares `needs = ["hand-face"]` and requires “The script from `hand-face`'s report”.
+Hand-face owns the missing shared harness and suite scaffolding; its acceptance requires “`pub mod hand;` in `lib.rs`” and “`tests/suite/hand.rs`, `hand/forgejo.rs` and `hand/github.rs`”.
+Hand-forgejo's ownership says “`hand.rs` only gains what its files read.”
+The next hand-forgejo run uses the completed prerequisite's harness, scaffolding and reported script, then performs its migration and acceptance checks.

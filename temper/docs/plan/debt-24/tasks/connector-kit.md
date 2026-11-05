@@ -3,7 +3,7 @@ id = "connector-kit"
 part = "jig-kits"
 kind = "migration"
 needs = ["kit-packages", "world-exemptions"]
-files = ["jig/testing/jig-test-connector-kit/**", "jig/tests/test-connector/src/**", "jig/tests/test-connector/Cargo.toml", "jig/tests/core/Cargo.toml", "jig/tests/core/src/**", "jig/tests/conformance/Cargo.toml", "jig/tests/conformance/src/**", "jig/testing/jig-test-domain/Cargo.toml", "jig/testing/jig-test-domain/src/**", "jig/testing/jig-test-store/Cargo.toml", "jig/testing/jig-test-store/src/**", "jig/testing/jig-test-store-files/Cargo.toml", "jig/testing/jig-test-store-files/src/**", "jig/tests/boundary/src/tests/kits.rs", "Cargo.lock"]
+files = ["jig/testing/jig-test-connector-kit/**", "jig/tests/test-connector/src/**", "jig/tests/test-connector/Cargo.toml", "jig/tests/core/Cargo.toml", "jig/tests/core/src/**", "jig/tests/core/tests/**", "jig/tests/conformance/Cargo.toml", "jig/tests/conformance/src/**", "jig/testing/jig-test-domain/Cargo.toml", "jig/testing/jig-test-domain/src/**", "jig/testing/jig-test-store/Cargo.toml", "jig/testing/jig-test-store/src/**", "jig/testing/jig-test-store-files/Cargo.toml", "jig/testing/jig-test-store-files/src/**", "jig/tests/boundary/src/tests/kits.rs", "Cargo.lock"]
 effort = "medium"
 minutes = 30
 +++
@@ -40,3 +40,7 @@ The recipe; `cargo fmt`; `(cd jig && python3 -I -B scripts/old_forms.py)`; `heav
 ## Report
 
 The common note's items, the kits note's lines. A pure move: no rule to break by hand.
+
+## Answers
+
+2026-11-05. May the scope include crate-path-only edits in `jig/tests/core/tests/**`? Yes. `jig-core-world` is a reader this spec names, and recipe step 4 renames the crate path in that package's `.rs` files; the header left its test files out, and the edge can't go without them. The header now lists them. Only the crate path changes there: its 41 uses across `jig/tests/core` are all `path` and `kind`, which the kit holds, so assertions, test names and counts stay. `rustfmt` may rewrap a line it shortens. Finish the fifth edge on the pushed branch: the core manifest line, `src/**`, `tests/**`, its `PENDING` line.

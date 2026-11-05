@@ -3,7 +3,7 @@
 //! sign-in; every other unread cause ends it before Visit. An outstanding file
 //! operation retains its owner token through cancellation and root closing.
 
-use super::names::{missing_id, number};
+use super::names::missing_id;
 use super::{Component, FileLower, Lending, Lifecycle, State, failed, recorded};
 use crate::exchange::Stage;
 use crate::keeper::{Operation, Pending, Store};
@@ -51,8 +51,8 @@ impl Component {
         files: &mut Queue<FileLower>,
     ) -> bool {
         for account in 0..self.entries.len() {
-            let removing = !self.live(account);
             let entry = self.entries.get_mut(account).expect("account entry");
+            let removing = !entry.live();
             let keeper = match &mut entry.store {
                 Store::Private(keeper) => keeper,
                 Store::Owner => continue,
@@ -273,7 +273,8 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<Lower>,
     ) {
-        let keeper = match &mut self.entries.get_mut(account).expect("account entry").store {
+        let entry = self.entries.get_mut(account).expect("account entry");
+        let keeper = match &mut entry.store {
             Store::Private(keeper) => keeper,
             Store::Owner => unreachable!("private storing"),
         };
@@ -303,7 +304,7 @@ impl Component {
             | file::Event::Failed { .. }
             | file::Event::Cancelled { .. } => Keeping::NotKept,
         };
-        let id = self.entries.get(account).expect("account entry").binding.expect("file retains exchange");
+        let id = entry.binding.expect("file retains exchange");
         self.exchanges.get_mut(id).expect("bound exchange").file_active = false;
         self.kept(env, account, generation, keeping, up, io);
         if self.exchanges.get(id).is_some() {
@@ -320,8 +321,9 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<Lower>,
     ) {
+        let entry = self.entries.get(account).expect("account entry");
         let (mut record, failure) = match record {
-            Some(record) => match &self.entries.get(account).expect("account entry").source {
+            Some(record) => match &entry.source {
                 crate::accounts::Source::SignIn { registration, .. } if missing_id(registration, &record) => {
                     (None, Some(Failure::Unloaded { at: Place::File, why: Unloaded::Unreadable }))
                 }
@@ -332,18 +334,19 @@ impl Component {
         if self.lock_loaded(env, account, &mut record, failure, up, io) {
             return;
         }
-        let waiting_grant = match &mut self.entries.get_mut(account).expect("account entry").store {
+        let entry = self.entries.get_mut(account).expect("account entry");
+        let waiting_grant = match &mut entry.store {
             Store::Private(keeper) => core::mem::replace(&mut keeper.waiting_grant, false),
             Store::Owner => unreachable!("private loading"),
         };
         let has_record = record.is_some();
         match record {
             Some(record) => {
-                self.entries.get_mut(account).expect("account entry").state = recorded(record, env, Lending::Free);
+                entry.state = recorded(record, env, Lending::Free);
             }
             None => {}
         }
-        let signer = match self.entries.get(account).expect("account entry").binding {
+        let signer = match entry.binding {
             Some(id) => match self.exchanges.get(id).expect("bound exchange").stage {
                 Stage::Loading => Some(id),
                 Stage::Locking
@@ -357,7 +360,7 @@ impl Component {
         };
         if self.lifecycle == Lifecycle::Aborting {
             if waiting_grant {
-                failed(number(&self.entries, account), Failure::Exchange(oauth::Failure::Cancelled), up);
+                failed(entry.name.number(), Failure::Exchange(oauth::Failure::Cancelled), up);
             }
             match signer {
                 Some(id) => {
@@ -381,7 +384,7 @@ impl Component {
             ) => false,
         };
         if waiting_grant && !has_record {
-            failed(number(&self.entries, account), failure.unwrap_or(Failure::Expired), up);
+            failed(entry.name.number(), failure.unwrap_or(Failure::Expired), up);
         }
         match signer {
             Some(id) if self.exchanges.get(id).expect("loading exchange").signing_out() => {
@@ -390,7 +393,7 @@ impl Component {
                 } else {
                     self.exchanges.get_mut(id).expect("loading exchange").stage = Stage::Finished;
                     up.push(Event::Refused {
-                        account: number(&self.entries, account),
+                        account: entry.name.number(),
                         asked: Asked::SignOut,
                         why: Refusal::NoRecord,
                     });

@@ -1,6 +1,6 @@
 //! Accounts as accounts.md, 3 has them: numbered, held, with sources each in its own state, and
 //! kept by the store: each change saved in the step that makes it, and restored at the start.
-use jig_accounts_world::{LIMITS, World, account, provider, providers, source};
+use jig_accounts_world::{LIMITS, PROVIDER, World, account, provider, providers, source};
 use jig_domain_accounts::{
     Bound, Event, Form, FromComponent, Held, Holder, Key, Kind, Refusal, Request, Scheme, SignIn, State, Stored,
     ToComponent, room_for_sign_in,
@@ -226,6 +226,7 @@ fn commit(store: &mut BTreeMap<Key, Stored>, requests: Vec<Request>) {
 
 #[test]
 fn each_record_restores_to_the_same_model() {
+    const ALICE_ACCOUNT: u32 = 20;
     let start = |store: &BTreeMap<Key, Stored>| {
         let mut world = World::with_start(
             jig_accounts_world::LIMITS,
@@ -240,9 +241,9 @@ fn each_record_restores_to_the_same_model() {
     for record in [
         account(7, 1, Holder::Deployment, b""),
         source(7, 8, 0, Kind::SignIn),
-        account(20, 1, ALICE, b"alice"),
-        source(20, 21, 0, Kind::SignIn),
-        source(20, 22, 1, Kind::Key),
+        account(ALICE_ACCOUNT, PROVIDER, ALICE, b"alice"),
+        source(ALICE_ACCOUNT, 21, 0, Kind::SignIn),
+        source(ALICE_ACCOUNT, 22, 1, Kind::Key),
         Stored::Next { number: 23 },
     ] {
         store.insert(record.key(), record);
