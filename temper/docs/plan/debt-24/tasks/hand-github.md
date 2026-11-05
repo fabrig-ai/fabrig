@@ -38,3 +38,14 @@ The script from `hand-face`'s report; `cargo fmt`; `(cd skein && python3 -I -B s
 ## Report
 
 The common note's items; the assert comparison; the time. A move: no rule to break by hand.
+
+## Answers
+
+### 2026-11-05: Resume after hand-face publishes its harness and move script (recommended), or authorize this task to implement that prerequisite too? (debt-24/hand-github-1, foreman debt-24/hand-github/foreman-1)
+
+Resume after hand-face publishes its harness and move script; hand-github does not implement that prerequisite.
+The spec declares `needs = ["hand-face"]`.
+Its steps require: “The script from `hand-face`'s report”.
+Its ownership limit says: “`hand.rs` only gains what its files read, at its end”.
+The next run resumes with hand-face's prerequisite available, performs the GitHub migration, and completes the specified checks before committing and pushing.
+Acceptance remains unmet; pushing the unchanged base does not complete the task.
