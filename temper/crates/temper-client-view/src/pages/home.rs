@@ -41,17 +41,19 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::HOME);
-    intro(b, root, w, project, name, &facts, times);
-    if facts.left() > 0 {
+    intro(b, root, w, name, &facts, times);
+    if facts.to_begin() {
         to_begin(b, root, w, bindings, project, name, &facts);
     }
     needs(b, root, w, bindings, project, &facts, times);
-    chats(b, root, w, bindings, facts.left() > 0, times);
-    connected(b, root, w, bindings, project, name, sign_in);
+    chats(b, root, w, bindings, facts.to_begin(), times);
+    if !facts.to_begin() {
+        connected(b, root, w, bindings, project, name, sign_in);
+    }
     b.close();
 }
 
-fn intro(b: &mut Builder, root: &Domain, w: &Words, project: u32, name: &[u8], facts: &Facts, times: &mut Times) {
+fn intro(b: &mut Builder, root: &Domain, w: &Words, name: &[u8], facts: &Facts, times: &mut Times) {
     b.open(Role::Slot);
     b.style(look::HOME_INTRO);
     // The kicker is this Home's day and time, not a project's creation time.
@@ -69,20 +71,19 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, project: u32, name: &[u8], f
     };
     times.next = [times.next, next].into_iter().flatten().min();
     text(b, Role::Paragraph, &kicker, Some(look::HOME_KICKER));
-    let headline = match facts.left() {
-        0 => match facts.needs {
+    let headline = if facts.to_begin() {
+        w.say(Word::HomeProjectReady, &[Hole::Name(name.into())])
+    } else {
+        match facts.needs {
             Needs::Unknown => name.into(),
             Needs::Count { count, cut: true } => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::from(count))]),
             Needs::Count { count: 0, cut: false } => w.say(Word::HomeNeedsNone, &[]),
             Needs::Count { count: 1, cut: false } => w.say(Word::HomeNeedsOne, &[]),
             Needs::Count { count, cut: false } => w.say(Word::HomeNeedsMany, &[Hole::Number(u64::from(count))]),
-        },
-        1 => w.say(Word::HomeOne, &[]),
-        2 => w.say(Word::HomeTwo, &[]),
-        3..=u8::MAX => w.say(Word::HomeThree, &[]),
+        }
     };
     text(b, Role::Heading { level: 1 }, &headline, None);
-    if facts.left() == 0 {
+    if !facts.to_begin() {
         b.close();
         return;
     }
@@ -111,9 +112,6 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, project: u32, name: &[u8], f
             | Connection::Connecting
             | Connection::Stopped { .. } => {}
         }
-    }
-    if forge::listed::held(root.forges(), root.forge().playground(), project) == forge::listed::Held::None {
-        lede = sentence_after(&lede, &w.say(Word::HomeNoRepository, &[Hole::Name(name.into())]));
     }
     if !lede.is_empty() {
         text(b, Role::Paragraph, &lede, Some(look::HOME_LEDE));
@@ -177,7 +175,7 @@ fn needs(
         Some(inbox) => inbox.needs().count(),
         None => 0,
     };
-    if count == 0 && facts.left() > 0 {
+    if count == 0 && facts.to_begin() {
         return;
     }
     b.open(Role::Region);
@@ -384,7 +382,9 @@ fn step(b: &mut Builder, w: &Words, number: u64, done: bool, heading: &[u8], det
         }
     };
     text(b, Role::Heading { level: 3 }, &heading, None);
-    text(b, Role::Paragraph, detail, None);
+    if !detail.is_empty() {
+        text(b, Role::Paragraph, detail, None);
+    }
 }
 fn acts(b: &mut Builder) {
     b.open(Role::Slot);
@@ -408,6 +408,36 @@ fn button(b: &mut Builder, bindings: &mut Bindings, label: &[u8], act: Act, styl
     b.bind(bindings.insert(act));
     b.close();
 }
+fn optional(b: &mut Builder, w: &Words) {
+    let optional = w.say(Word::HomeOptional, &[]);
+    let optional = match w.shell {
+        Shell::Browser => optional,
+        Shell::Terminal => crate::accounts::words::join(&[&optional, b" "]),
+    };
+    b.open(Role::Text);
+    b.style(look::HOME_TAG);
+    b.run(Run::Plain, &optional);
+    b.close();
+}
+fn begin_head(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
+    b.open(Role::Slot);
+    b.style(look::HOME_HEAD);
+    text(b, Role::Heading { level: 2 }, &w.say(Word::HomeBegin, &[]), None);
+    if w.shell == Shell::Browser {
+        optional(b, w);
+    }
+    let skip = w.say(Word::HomeSkip, &[]);
+    b.open(Role::Button);
+    b.style(look::HOME_SKIP);
+    b.name(&skip);
+    b.bind(bindings.insert(Act::SkipToBegin));
+    if w.shell == Shell::Terminal {
+        optional(b, w);
+        b.text(Run::Plain, &skip);
+    }
+    b.close();
+    b.close();
+}
 fn to_begin(
     b: &mut Builder,
     root: &Domain,
@@ -417,10 +447,42 @@ fn to_begin(
     name: &[u8],
     facts: &Facts,
 ) {
-    section(b, w, Word::HomeBegin, look::HOME_BEGIN);
+    let heading = w.say(Word::HomeBegin, &[]);
+    b.open(Role::Region);
+    b.style(look::HOME_BEGIN);
+    b.name(&heading);
+    begin_head(b, w, bindings);
+    let note = match facts.left() {
+        0 | 1 => {
+            if facts.chat_asked {
+                Word::HomeNoteSettings
+            } else {
+                Word::HomeNoteChats
+            }
+        }
+        2 => {
+            if facts.chat_asked {
+                Word::HomeNoteTwoSettings
+            } else {
+                Word::HomeNoteTwo
+            }
+        }
+        3..=u8::MAX => Word::HomeNoteThree,
+    };
+    text(b, Role::Paragraph, &w.say(note, &[]), Some(look::HOME_NOTE));
+    if facts.skip_refused {
+        text(b, Role::Alert, &w.say(Word::HomeSkipRefused, &[]), None);
+    }
     b.open(Role::List);
     b.style(look::HOME_STEPS);
-    step(b, w, 1, facts.configured, &w.say(Word::HomeHow, &[]), &w.say(Word::HomeHowDetail, &[]));
+    step(
+        b,
+        w,
+        1,
+        facts.configured,
+        &w.say(Word::HomeHow, &[]),
+        &if facts.configured { Box::default() } else { w.say(Word::HomeHowDetail, &[]) },
+    );
     if !facts.configured {
         acts(b);
         let pending = match root.pages().chats() {
@@ -432,7 +494,14 @@ fn to_begin(
     }
     b.close();
     repository_step(b, w, bindings, project, name, &facts.repository);
-    step(b, w, 3, facts.chat_asked, &w.say(Word::HomeChat, &[]), &w.say(Word::HomeChatDetail, &[]));
+    step(
+        b,
+        w,
+        3,
+        facts.chat_asked,
+        &w.say(Word::HomeChat, &[]),
+        &if facts.chat_asked { Box::default() } else { w.say(Word::HomeChatDetail, &[]) },
+    );
     if !facts.chat_asked {
         acts(b);
         go(b, bindings, &w.say(Word::HomeNewChat, &[]), Address::Chats { filter: ChatsFilter::All, start: true }, None);
@@ -496,15 +565,7 @@ fn repository_step(
                 );
             }
             acts(b);
-            button(
-                b,
-                bindings,
-                &w.say(Word::HomeAdopt, &[Hole::Name(first.org.clone()), Hole::Name(first.name.clone())]),
-                Act::AdoptFirst,
-                look::HOME_PRIMARY,
-                false,
-            );
-            go(b, bindings, &w.say(Word::HomeAnother, &[]), Address::Adopt { project }, Some(look::HOME_QUIET));
+            button(b, bindings, &w.say(Word::HomeAdoptLink, &[]), Act::AdoptFirst, look::HOME_PRIMARY, false);
             b.close();
         }
         Repository::GitHub { account } => {

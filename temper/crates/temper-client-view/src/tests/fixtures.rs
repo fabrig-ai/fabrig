@@ -286,7 +286,6 @@ fn root_at_with_activity(
     (root, me, page, tree, accounts)
 }
 
-#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
 pub(super) fn root_at_with_forges(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -294,6 +293,19 @@ pub(super) fn root_at_with_forges(
     playground: Option<(u32, bool, w::PlaygroundState)>,
     activity: Option<c::ActivityPage>,
     forge_rows: Option<List<w::ForgeRow>>,
+) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
+    root_at_with_dismissals(address, limits, project_name, playground, activity, forge_rows, Some(&[]))
+}
+
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
+pub(super) fn root_at_with_dismissals(
+    address: temper_client_domain::Address,
+    limits: &Limits,
+    project_name: &[u8],
+    playground: Option<(u32, bool, w::PlaygroundState)>,
+    activity: Option<c::ActivityPage>,
+    forge_rows: Option<List<w::ForgeRow>>,
+    dismissed: Option<&[u32]>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
     use jig_client::contract::{Delivery, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
@@ -339,8 +351,16 @@ pub(super) fn root_at_with_forges(
     let mut tree_watch = None;
     let mut account_watch = None;
     let mut activity_read = None;
+    let mut dismissed_watch = None;
     for _ in 0..out.len() {
         let request = out.pop();
+        if let Some(Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        }) = request.as_ref()
+            && Some(subject.clone()) == forge::dismissed::watch(&limits.forge)
+        {
+            dismissed_watch = Some(*watch);
+        }
         if let Some(read) = activity_token(request.as_ref()) {
             activity_read = Some(read);
         }
@@ -390,7 +410,41 @@ pub(super) fn root_at_with_forges(
         {
             forges = Some(*watch);
         }
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = &request
+            && Some(subject.clone()) == forge::dismissed::watch(&limits.forge)
+        {
+            dismissed_watch = Some(*watch);
+        }
         out.push(request);
+    }
+    if let (Some(watch), Some(projects)) = (dismissed_watch, dismissed) {
+        let mut dismissed = List::with_capacity(wire::DISMISSED);
+        for project in projects {
+            dismissed
+                .push(w::Dismissal::ToBegin(
+                    w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap(),
+                ))
+                .unwrap();
+        }
+        root_event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::FamilyDelivered {
+                        watch,
+                        record: jig_client::Family {
+                            family: wire::FORGE,
+                            version: wire::CLIENT_VERSION,
+                            bytes: wire::dismissals(
+                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap(),
+                            ),
+                        },
+                    },
+                },
+            },
+        );
     }
     if let Some(watch) = forges {
         let rows = match forge_rows {

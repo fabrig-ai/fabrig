@@ -59,6 +59,12 @@ pub const HOME_CHATS: Style = Style { owner: owner(), token: 221 };
 pub const HOME_CTA: Style = Style { owner: owner(), token: 222 };
 /// Home's phone Answer control (client/README.md, 3.5).
 pub const HOME_CTA_GO: Style = Style { owner: owner(), token: 223 };
+/// To begin's optional tag (client/README.md, 3.5).
+pub const HOME_TAG: Style = Style { owner: owner(), token: 229 };
+/// To begin's Skip button (client/README.md, 3.5).
+pub const HOME_SKIP: Style = Style { owner: owner(), token: 231 };
+/// To begin's remaining steps note (client/README.md, 3.5).
+pub const HOME_NOTE: Style = Style { owner: owner(), token: 232 };
 /// Home's first needs card (client/README.md, 3.5).
 pub const ASK: Style = Style { owner: owner(), token: 224 };
 /// The needs card's task link, kind and age (client/README.md, 3.5).
@@ -678,8 +684,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ask-question",
         b"temper-ask-choices",
         b"temper-ask-quiet",
-        b"temper-reserved-229",
+        b"temper-home-tag",
         b"temper-settings",
+        b"temper-home-skip",
+        b"temper-home-note",
     ],
     regions: &[b"temper-link"],
 };
