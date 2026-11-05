@@ -202,6 +202,7 @@ pub(crate) struct Stages {
     file_submissions: Queue<kernel::Submit>,
     submissions: Queue<kernel::Submit>,
     completions: Queue<kernel::Complete>,
+    io_completions: Queue<kernel::Complete>,
     owners: Slab<Owner>,
     operations: Map<Token, Operation>,
     next_operation: u64,
@@ -249,9 +250,6 @@ pub fn valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
 /// Whether native IO tables and the shared socket composition fit (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn io_valid(limits: &Limits) -> bool {
-    // Skein's IO constructor needs flights = 2 * operations and timers =
-    // 2 * sockets; these checks bound the native IO tables.
-    let Some(operations) = io::operations(&limits.io) else { return false };
     let Some(other) = limits.io.sockets.checked_sub(limits.llm.connection.connections) else { return false };
     let writers = match limits.events {
         Some(events) => match events.sinks.destinations.checked_add(1) {
@@ -261,9 +259,7 @@ pub fn io_valid(limits: &Limits) -> bool {
         None => 1,
     };
     let child = limits.llm.connection.io;
-    limits.io.is_usable()
-        && operations.checked_mul(2).is_some()
-        && limits.io.sockets.checked_mul(2).is_some()
+    io::valid(&limits.io)
         && other >= writers
         && child.intake == limits.io.intake
         && child.receive == limits.io.receive
