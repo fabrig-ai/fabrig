@@ -13,10 +13,12 @@ pub const NO_BUNDLE_PAGE: &[u8] = include_bytes!("no-bundle.html");
 
 /// A bundle path's bound (jig's testing/jig-test/src/bundle.rs).
 pub const NAME_BYTES: u32 = 1024;
-/// The bundle read whole at start (client/browser.md, 2.2).
+/// The bundle and its kept forges' metas (client/browser.md, 2.2; protocol/sign-in.md, 9.7).
 #[derive(Debug)]
 pub struct Bundle {
     pub page: Box<[u8]>,
+    /// Bytes of forge metas immediately before the page's `</head>`.
+    pub forge_meta_bytes: usize,
     pub etag: Box<[u8]>,
     pub digest: Box<[u8]>,
     pub files: Map<Box<[u8]>, File>,
@@ -188,10 +190,24 @@ impl Clients {
             | http::Event::Reply(Up::Failed(_))
             | http::Event::Body(Up::Failed(_)) => {
                 self.replies.remove(&call);
+                self.publish_forge_metas();
                 self.server.done(call, &mut self.server_out);
             }
             http::Event::Body(_) | http::Event::Reply(_) => {}
             http::Event::Call(_) => unreachable!("a head is routed, not an event"),
+        }
+    }
+    /// A page already being sent keeps its body until every page reply ends.
+    pub(super) fn publish_forge_metas(&mut self) {
+        for (_, reply) in &self.replies {
+            if reply.answer == Answer::Page {
+                return;
+            }
+        }
+        if let Some(metas) = self.pending_forge_metas.take()
+            && let Some(bundle) = &mut self.bundle
+        {
+            bundle.set_forge_metas(&metas).expect("the prepared page has a head and the metas fit");
         }
     }
     fn chunk(&mut self, call: Token) {
@@ -221,12 +237,27 @@ impl Bundle {
         self.insert_meta(meta)
     }
     fn insert_meta(&mut self, meta: &[u8]) -> Option<()> {
-        const HEX: &[u8] = b"0123456789abcdef";
         let at = bytes::find(&self.page, b"</head>")?;
-        let mut out = skein_lib::Writer::new(self.page.len().checked_add(meta.len())?);
+        self.replace_metas(at, at, meta)
+    }
+    /// Set the page's forge metas and entity tag (protocol/sign-in.md, 9.7).
+    pub(crate) fn set_forge_metas(&mut self, metas: &[u8]) -> Option<()> {
+        let end = bytes::find(&self.page, b"</head>")?;
+        let at = end.checked_sub(self.forge_meta_bytes)?;
+        if self.page.get(at..end)? == metas {
+            return Some(());
+        }
+        self.replace_metas(at, end, metas)?;
+        self.forge_meta_bytes = metas.len();
+        Some(())
+    }
+    fn replace_metas(&mut self, at: usize, end: usize, meta: &[u8]) -> Option<()> {
+        const HEX: &[u8] = b"0123456789abcdef";
+        let length = self.page.len().checked_sub(end.checked_sub(at)?)?.checked_add(meta.len())?;
+        let mut out = skein_lib::Writer::new(length);
         out.put(self.page.get(..at)?).ok()?;
         out.put(meta).ok()?;
-        out.put(self.page.get(at..)?).ok()?;
+        out.put(self.page.get(end..)?).ok()?;
         self.page = out.finish();
         // The bundle reader uses FNV-1a, quoted as sixteen lower-case hex digits.
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
@@ -243,93 +274,5 @@ impl Bundle {
         tag.put(b"\"").ok()?;
         self.etag = tag.finish();
         Some(())
-    }
-}
-
-fn attribute(byte: &u8) -> &[u8] {
-    match byte {
-        b'&' => b"&amp;",
-        b'"' => b"&quot;",
-        b'\'' => b"&#39;",
-        b'<' => b"&lt;",
-        b'>' => b"&gt;",
-        _ => core::slice::from_ref(byte),
-    }
-}
-fn meta_put(writer: &mut skein_lib::Writer, length: &mut usize, measuring: bool, value: &[u8]) -> Option<()> {
-    *length = length.checked_add(value.len())?;
-    if !measuring {
-        writer.put(value).ok()?;
-    }
-    Some(())
-}
-fn forge_metas(
-    sign_in: &crate::startup::SignIn,
-    forges: &[crate::settings::Forge],
-    setup: &temper_forge_setup::setup::Setup,
-    writer: &mut skein_lib::Writer,
-    measuring: bool,
-) -> Option<usize> {
-    let mut length = 0_usize;
-    for row in &sign_in.forges {
-        let mut forge = None;
-        for configured in forges {
-            if configured.number == row.forge {
-                forge = Some(configured);
-                break;
-            }
-        }
-        let forge = forge?;
-        let mut mode = b"other".as_slice();
-        let mut public = None;
-        for entry in &setup.entries {
-            if entry.forge == row.forge
-                && let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode
-            {
-                mode = b"owned";
-                public = owned.public.as_ref();
-                break;
-            }
-        }
-        meta_put(writer, &mut length, measuring, b"<meta name=\"temper-forge-sign-in\" content=\"")?;
-        let number = skein_lib::Decimal::of(u64::from(row.forge));
-        meta_put(writer, &mut length, measuring, number.as_bytes())?;
-        let origin = crate::startup::application::forge_origin(&forge.git, public);
-        for value in [&row.client, &origin] {
-            meta_put(writer, &mut length, measuring, b" ")?;
-            for byte in value {
-                meta_put(writer, &mut length, measuring, attribute(byte))?;
-            }
-        }
-        meta_put(writer, &mut length, measuring, b" ")?;
-        meta_put(writer, &mut length, measuring, mode)?;
-        meta_put(writer, &mut length, measuring, b"\">")?;
-    }
-    Some(length)
-}
-impl Bundle {
-    /// Publish checked forge sign-in facts beside the page's sign-in ways.
-    pub fn fill_forge_sign_in(
-        &mut self,
-        sign_in: Option<&crate::startup::SignIn>,
-        forges: &[crate::settings::Forge],
-        setup: &temper_forge_setup::setup::Setup,
-        limit: u32,
-    ) -> Option<()> {
-        let Some(sign_in) = sign_in else { return Some(()) };
-        let length = forge_metas(sign_in, forges, setup, &mut skein_lib::Writer::new(0), true)?;
-        if length == 0 {
-            return Some(());
-        }
-        let mut total = self.page.len().checked_add(length)?;
-        for (_, file) in &self.files {
-            total = total.checked_add(file.bytes.len())?;
-        }
-        if total > usize::try_from(limit).ok()? {
-            return None;
-        }
-        let mut out = skein_lib::Writer::new(length);
-        assert_eq!(forge_metas(sign_in, forges, setup, &mut out, false), Some(length), "measured forge metas");
-        self.insert_meta(&out.finish())
     }
 }
