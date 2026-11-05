@@ -940,7 +940,9 @@ of `../draft/v0.1.0.md`, 2.1.
     (`question.words.cut`), have no trailing lines: the first paragraph
     is the question, the rest the context, with nothing the agent saw
     and no choices, and they are answered by a reply alone. Any question
-    a person, a change's relay or an older goal wrote draws this way.
+    a person or an older goal wrote draws this way, and one a change
+    passes up with a foreman's reasons beneath it (forge.md, 8.11), whose
+    last lines are those reasons.
 - **The person answers in the inbox,** `temper ctl task answer TASK
   QUESTION TEXT` (`../client/tools.md`, 5.3), Home's card or the inbox's
   page, and
@@ -1061,6 +1063,11 @@ host:
   person's priorities, its notes), or ask its person a question of its
   own and answer the goal once it has the answer, in place of 8.2's
   route through the person's inbox. Default: 8.2's route.
+- **Who else writes a question's line form** (8.2): the stock goal alone
+  is taught it, by one sentence of charter 1, as the request of 2026-11-05
+  for *Needs you* asks. A change's producers, its repairs and resolutions, and
+  the reference's charters are not, so their questions read as words,
+  answered by a reply. Default: as it is; a line in each charter that asks.
 - **A change's foremen's LLM choice** (forge.md, 8.11): `llm` (4.3.1)
   names the producer's and the reviews' roles, and a change's foremen
   run at their charter's default, where the reference's draft gives
