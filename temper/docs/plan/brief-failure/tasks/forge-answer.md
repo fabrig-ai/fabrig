@@ -57,3 +57,13 @@ No probe of a real host, ever (`AGENTS.md`, 3): the capture is what you have.
 ## Report
 
 As the implementer's text has it, and what the real answer held that the code didn't take.
+
+## Answers
+
+2026-11-05. **What did the deployment's API answer to the refused reads?** The capture has come: `temper/docs/plan/brief-failure/notes/pr7/`, with `index.txt` naming each file's request and `inputs/capture.md` pointing to it. Step 2 no longer applies; take steps 3 and 4 and the capture acceptance.
+
+- **The compare's cause, by reading (run nothing on a real host; prove it with the test):** `compare-base-sha.json` has two `files[]` rows with `"status":"removed"`. `skein-forge/src/forgejo/client/files.rs`, `status`, knows `added`, `deleted`, `modified`, `changed`, `renamed` and `copied`, so the row is `Malformed::Value { field: b"status" }`, which `plans/contents.rs` turns into `InvalidAnswer`. No conformance transcript holds a compare with a removed file, which is why it never showed. `temper-engine-domain-forge/src/brief.rs` reads this compare, so it is a likely route to the repair's stuck brief.
+- **The fix is the pre-approved dialect's decoding:** `removed` reads as `FileStatus::Deleted`, with `deleted` still taken. An unknown word stays refused, with a test that says so.
+- **The test:** the failing test goes in `skein-forge/src/forgejo/plans/tests`, driving `Read::Compare` through the plan, so it shows `InvalidAnswer` rather than the decoder's `Malformed`. The fixture is the captured compare, its addresses, names and messages replaced by the fixtures' own, keeping its 50 rows with their repeated paths and its two `removed`. Its answer's `files` lists each path once, the two removed files with their `after` side absent where the raw read answers 404.
+- **The pull is not explained by the capture.** By reading, `pull.json` and `status.json` decode today, `"creator":null` and the relative `target_url` included, and the capture holds no `/pulls/<base>/<head>` answer. Add them as fixtures only if they cost little, as tests that pass today; they aren't the failing test. Don't loosen `read_accepts` or anything else for `read_pull_for` without evidence. Name its refusal as open under `## Left`, saying what would settle it: the by-branch answer with its request path, and the asked head and base.
+- **Outside this task, for `## Left`, not for you:** a conformance fact for a compare with a removed file (`skein/tests/forge/conformance`), and the design's words in `skein/docs/design/forge.md` on the words a compare's file status takes, as the report item the acceptance asks for.
