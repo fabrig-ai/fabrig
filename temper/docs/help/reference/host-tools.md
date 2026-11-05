@@ -317,7 +317,7 @@ A read.
 
 ## read_pull_files
 
-Read a page of the files a pull request changes at one head.
+Read changed files at a head. Sides fit forge and host limits; oversized pages omit contents. Use read_file at both commits; later pages skip this page.
 
 A read.
 
@@ -347,14 +347,14 @@ A read.
 
 ## read_file
 
-Read a file at one head, cut at a byte limit; a directory's path, the root as ".", lists its entries.
+Read a file prefix or list a directory. max_bytes limits raw bytes; metadata and escaping use host room. Too large: lower max_bytes; a prefix is incomplete.
 
 A read.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `head`: text; required. The commit's id: 40 or 64 lowercase hexadecimal digits.
 - `path`: text; required. A file's or a directory's path; "." or empty for the root.
-- `max_bytes`: an integer from 1 to 4294967295; optional. At most this many bytes; the read's limit when absent.
+- `max_bytes`: an integer from 1 to 4294967295; optional. Raw prefix bytes; default: read limit. Leave host room for metadata and escaping (up to 4x); a cut is incomplete.
 
 ## read_job
 

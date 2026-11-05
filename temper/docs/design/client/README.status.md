@@ -21,6 +21,12 @@
   email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
+  3.5, *Ready*: two endings leave nothing under "Model none yet"
+  (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no
+  test holds either: a sign-in `Made` or `Renewed`, not declined, with no
+  account usable, since 5.5 has no words for it and no walk has ended so
+  (section 11); and any ending where `me` offers no ChatGPT plan's sign-in,
+  since the function finds that way before it draws the ending's words.
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`), so Home's GitHub step's
   "Adopt" opens the form with no picker, and its line counts no

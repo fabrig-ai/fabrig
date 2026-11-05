@@ -173,7 +173,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `change` (4.3.1); with the authorised brief, its task section a whole
   spec (`../protocol/configuration.md`, section 7), and 1,472 bytes for
   64 stock sections' titles and framing (16 title bytes and 7 framing
-  bytes each), it leaves at least 813 bytes at `temper init`'s
+  bytes each), it leaves at least 607 bytes at `temper init`'s
   models; `temper-service`'s step tests hold each stock charter's
   figures. A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
@@ -272,6 +272,23 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lists directories with `read_file` at both endpoints and reads
   selected files at each within `max_bytes`. The refusal stays marked
   an error and fits the host answer's byte bound.
+- **File reads fit the host answer's bound.** The adapter measures rendered
+  file, directory and pull-file answers, including metadata and byte escaping.
+  An oversized answer is an error naming its rendered byte size and numeric
+  host bound. A file refusal directs `read_file` with smaller `max_bytes`,
+  leaving room for metadata and escaping (up to four output bytes per input
+  byte). This reads a prefix, never the whole file when truncated, and has
+  no offset. A fitting read retains its truncation marker. An oversized
+  pull-file page retains a changed-path inventory as room permits, marks
+  content omitted separately from absent sides, marks omitted paths, and
+  keeps whether more pages follow. Omitted paths are recovered through
+  directory reads at both commits. It directs selected `read_file` calls
+  at the head for after and the comparison's base commit for before;
+  the base commit must be resolved separately. Advancing pages alone cannot
+  recover the oversized page. A forge size refusal, whose measured size
+  is unknown, names that uncertainty, the forge bounds and the numeric host
+  bound with the same tool-specific recovery. At a host bound too small
+  for the guidance, the refusal itself is cut to fit.
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
