@@ -247,7 +247,7 @@ pub(crate) fn limits(limits: &Limits) -> protocol::Limits {
         connections: 1,
         http: limits.http,
         raw_bytes: limits.body,
-        documents: skein_forge::forgejo::limits::Limits {
+        documents: skein_forge::limits::Limits {
             json: json::Limits { length: limits.github.json.length.min(limits.body), ..limits.github.json },
             writer: skein_json::writer::Limits {
                 length: limits.github.writer.length.min(limits.response),
