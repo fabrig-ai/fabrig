@@ -154,8 +154,8 @@ pub fn read_output(bytes: &[u8], seed: u64, limits: &Limits, end: End) -> Run {
     wire.write(bytes);
     wire.eof = true;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut above = Queue::with_capacity(output::UP_MAX_OUT.above);
-    let mut below = Queue::with_capacity(output::UP_MAX_OUT.below);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut reader = Reader::new(limits);
     output::open(&mut reader, &env, &mut below);
     let mut decoded = Decoded { insts: Vec::new(), fetched: 0, error: None, tail: Vec::new(), cause: Cause::Other };
@@ -197,8 +197,8 @@ pub fn read_output_metered(bytes: &[u8], limits: &Limits, ceiling: u64) -> u64 {
         stream::{Down, Read},
     };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut intake = Intake::with_capacity(
         u32::try_from(bytes.len()).expect("bounded fixture value").max(output::largest_demand(limits)),
     );
@@ -246,8 +246,8 @@ pub fn read_index(bytes: &[u8], seed: u64, limits: &Limits, end: End) -> crate::
     wire.write(bytes);
     wire.eof = true;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut above = Queue::with_capacity(packages::UP_MAX_OUT.above);
-    let mut below = Queue::with_capacity(packages::UP_MAX_OUT.below);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut reader = Stanzas::new(limits);
     packages::open(&mut reader, &env, &mut below);
     let mut decoded = crate::reference::IndexDecoded { stanzas: Vec::new(), error: None };
@@ -283,8 +283,8 @@ pub fn read_index_metered(bytes: &[u8], limits: &Limits, ceiling: u64) -> u64 {
         stream::{Down, Read},
     };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut above = Queue::with_capacity(packages::UP_MAX_OUT.above);
-    let mut below = Queue::with_capacity(packages::UP_MAX_OUT.below);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut intake = Intake::with_capacity(u32::try_from(bytes.len()).expect("fixture fits"));
     intake.append(bytes).expect("fixture fits");
     let meter = Meter::new();
