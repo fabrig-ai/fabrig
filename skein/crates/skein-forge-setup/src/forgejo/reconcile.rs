@@ -4,7 +4,8 @@ mod orgs;
 mod tokens;
 mod walk;
 use crate::forgejo::Reply as Answer;
-use crate::forgejo::{admin::{self, Admin, Move}, reply, unexpected};
+use crate::forgejo::admin::{self, Admin, Move};
+use crate::forgejo::{reply, unexpected};
 pub use crate::plan::{Event, Failure, Need, Outcome, Reply, Stage, Why};
 use crate::{
     call::Auth,

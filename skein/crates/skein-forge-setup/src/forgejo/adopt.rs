@@ -1,7 +1,8 @@
 //! Gives the bot access before its owner's first call (forge-setup.md, 4.5, steps 1 to 4).
+use crate::forgejo::admin::{self, Admin};
 use crate::{
     call::Auth,
-    forgejo::{access::{Access, Fail, Move, Shared}, admin::{self, Admin}},
+    forgejo::access::{Access, Fail, Move, Shared},
     given::{self, Given, Place, Refused},
     item::Item,
     plan::{self, Event, Need, Outcome, Stage, Why},

@@ -1,5 +1,6 @@
 //! Takes over an owned Forgejo's handed admin token (forge-setup.md, 4.7).
-use crate::forgejo::{admin::{self, Admin}, Reply, reply, unexpected};
+use crate::forgejo::admin::{self, Admin};
+use crate::forgejo::{Reply, reply, unexpected};
 use crate::{
     call::Auth,
     given::{self, Given, Refused},

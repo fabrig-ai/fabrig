@@ -1,5 +1,6 @@
 //! Makes or copies a repository, sharing org, access and file steps (skein/docs/design/forge-setup.md, 4.9 and 4.10).
-use crate::forgejo::{admin::{self, Admin}, Reply, reply, unexpected};
+use crate::forgejo::admin::{self, Admin};
+use crate::forgejo::{Reply, reply, unexpected};
 use crate::{
     call::Auth,
     forgejo::access::{Access, Fail, Move, Shared},
@@ -316,11 +317,7 @@ impl Create {
             },
             State::Migrate | State::CopyBranch { .. } | State::Delete => self.copy_answer(answer),
             State::Branch | State::Raw | State::File => self.file_answer(answer),
-            State::Admin(_)
-            | State::CopyMark
-            | State::Mark
-            | State::Access
-            | State::Ended => {
+            State::Admin(_) | State::CopyMark | State::Mark | State::Access | State::Ended => {
                 unreachable!("creation reply phases")
             }
         }

@@ -1,5 +1,6 @@
 //! Checks the admin once for Forgejo's plans (skein/docs/design/forge-setup.md, 4.2 and 4.3).
-use crate::{forgejo::reconcile, plan::{Event, Why}};
+use crate::forgejo::reconcile;
+use crate::plan::{Event, Why};
 use skein_forge::forgejo::document::User;
 use skein_lib::Secret;
 
