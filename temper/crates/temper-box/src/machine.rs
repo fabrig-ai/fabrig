@@ -124,7 +124,6 @@ pub(crate) struct State {
     kind: Kind,
     role: Role,
     ready: bool,
-    notice: Option<Fact>,
     waiting: bool,
     withdraw: bool,
     group: Option<usize>,
@@ -217,7 +216,6 @@ impl Machine {
                         None => Role::Command,
                     },
                     ready: step.step.ready().is_some(),
-                    notice: (!step.step.started_notice().is_empty()).then_some(Fact::Started { step: index }),
                     waiting: false,
                     withdraw: false,
                     group,
@@ -526,6 +524,12 @@ impl Machine {
             orders.push(Order::Hold { step });
         }
         if let Some(state) = self.states.get_mut(step) {
+            if let Some(group) = state.group {
+                let group = self.groups.get(group).expect("group");
+                if group.chained && step == group.first && state.phase == Phase::Dormant {
+                    orders.push(Order::Terminal { fact: Fact::GroupStarting { forge: group.forge } });
+                }
+            }
             state.phase = Phase::Starting { next };
             state.waiting = false;
             state.withdraw = false;
@@ -723,10 +727,11 @@ impl Machine {
             return;
         }
         self.states.get_mut(step).expect("step").phase = Phase::Live { next: None };
-        let starting_group = self.starting_group(step).is_some();
-        let state = self.states.get_mut(step).expect("step");
-        if !starting_group && let Some(fact) = state.notice {
-            orders.push(Order::Terminal { fact });
+        if let Some(group) = self.states.get(step).expect("step").group {
+            let group = self.groups.get(group).expect("group");
+            if group.chained && self.states.get(step).expect("step").ready {
+                orders.push(Order::Terminal { fact: Fact::GroupStarted { forge: group.forge } });
+            }
         }
         if let Some(group) = self.starting_group(step) {
             if self.group_failing(step) {

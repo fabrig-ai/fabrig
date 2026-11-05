@@ -185,6 +185,9 @@ fn jig_words(what: config::What) -> &'static [u8] {
         config::What::Duplicate => b"duplicate",
         config::What::Kind => b"wrong value kind",
         config::What::Bound => b"past its bound",
+        config::What::SlotsPastHub => {
+            b"past this worker's limits.overrides.hub.slots, which must be at least its slots"
+        }
         config::What::Form | config::What::ProviderKey { .. } => b"invalid form",
         config::What::Unique => b"must be unique",
         config::What::Refers => b"unknown reference",
@@ -492,6 +495,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 | config::What::Duplicate
                 | config::What::Kind
                 | config::What::Bound
+                | config::What::SlotsPastHub
                 | config::What::Form
                 | config::What::Unique
                 | config::What::Refers

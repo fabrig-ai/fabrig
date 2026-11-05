@@ -2508,10 +2508,7 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
         fn act(&mut self, _now: skein_lib::Time, clients: &mut [NativeClient]) {
             let client = &mut clients[0];
             if client.started() && !self.opened {
-                client.go(temper_client_domain::Address::Task {
-                    task: self.task,
-                    filter: temper_client_domain::PlanFilter::All,
-                });
+                client.go(temper_client_domain::Address::Task { task: self.task });
                 self.opened = true;
             }
             if self.closing {

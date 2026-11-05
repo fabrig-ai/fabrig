@@ -131,6 +131,7 @@ pub fn task_record() -> w::Task {
             )
             .expect("fixture flags"),
             last_activity: 0,
+            made: 7,
             waits_on: w::WaitsOn::Nothing,
             chip: chip_record(),
             goal: None,

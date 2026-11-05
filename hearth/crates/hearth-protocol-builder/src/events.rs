@@ -1,15 +1,20 @@
 //! Pipe routing for the git child (hearth/docs/design/domain/render.md, 2.2).
-use crate::{git, git::Intake, render, terminal::stream_ended};
+use crate::{
+    git,
+    git::{Intake, Stage},
+    render,
+    terminal::stream_ended,
+};
 use skein_lib::{Token, stream::Up};
 
 pub(super) fn stream_up(child: &mut git::Child, owner: Token, up: Up) -> Option<Up> {
-    if child.closing {
+    if child.stage == Stage::Closing {
         return None;
     }
     if let Up::Failed(_) = &up {
         child.fault = Some(render::errors::Ended::Stream);
     }
-    if child.error == Some(owner) {
+    if child.error.token() == Some(owner) {
         match up {
             Up::Bytes(bytes) => {
                 child.tail.admit(&bytes);
@@ -26,7 +31,7 @@ pub(super) fn stream_up(child: &mut git::Child, owner: Token, up: Up) -> Option<
         }
         return None;
     }
-    if child.output == Some(owner) && (child.output_state == Intake::Draining || child.failed) {
+    if child.output.token() == Some(owner) && (child.output_state == Intake::Draining || child.failed) {
         match up {
             Up::Bytes(_) => child.output_state = Intake::Waiting,
             Up::End => child.output_state = Intake::Ended,
@@ -38,7 +43,7 @@ pub(super) fn stream_up(child: &mut git::Child, owner: Token, up: Up) -> Option<
         }
         return None;
     }
-    if child.output == Some(owner) {
+    if child.output.token() == Some(owner) {
         child.output_state = if stream_ended(&up) { Intake::Ended } else { Intake::Waiting };
     }
     Some(up)

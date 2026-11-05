@@ -1757,3 +1757,104 @@ fn a_stalled_pipe_keeps_the_latest_and_every_reply() {
     assert!(Harness::contains(&fetch_log(&mut h), b"fetched runner 32 bytes\n"));
     stop_fetch_box(&mut h);
 }
+
+#[test]
+fn owned_hands_wait_for_the_log_slot_keep_their_time_and_never_echo() {
+    use crate::host::Echo;
+    use skein_lib::Wall;
+    use skein_shell::Host;
+    for echo in [Echo::None, Echo::Steps] {
+        let mut steps = grouped_steps();
+        steps.asked[0].recorded = false;
+        steps.asked[0].steps = Box::new([(temper_forge_setup::Stage::Run, long(b"forgejo 3", &[b"never"]))]);
+        steps.asked[0].steps[0]
+            .1
+            .set_started_notice(b"Forgejo: api http://127.0.0.1:3000/api/v1\nForgejo: person ada\n".as_slice().into());
+        let mut h = Harness::configured_echo(steps, &[], true, 16, &crate::limits::small(), echo);
+        h.run_until_idle();
+        h.write_child(h.serve_index(), 1, b"http://first\n");
+        h.run_until_idle();
+        h.wall = Wall::from_nanos(3_723_000_000_000);
+        h.hold_spawn = Some(b"forgejo 3".as_slice().into());
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        assert!(h.held_spawn.is_some());
+        h.hold_log_write = true;
+        h.write_child(h.serve_index(), 2, b"occupied\n");
+        h.run_until_idle();
+        assert!(h.held_log_write.is_some());
+        h.release_spawn();
+        h.run_until_idle();
+        assert!(Harness::contains(&h.terminal_bytes(), b"01:02:03Z Forge 3 (Forgejo): starting\n"));
+        assert!(Harness::contains(&h.terminal_bytes(), b"01:02:03Z Forge 3 (Forgejo): started\n"));
+        receive_replies(&mut h, b"step 3 run\nstarted 3\n");
+        assert!(!h.service.work_pending(h.sim.now()), "a busy log waits for its completion");
+        // Serve's sign-in channel progresses while the diagnostic log is busy.
+        h.write_child(h.serve_index(), 1, b"http://fresh\n");
+        h.run_until_idle();
+        assert!(Harness::contains(&h.stdout(), b"http://fresh\n"));
+        h.wall = Wall::from_nanos(7_200_000_000_000);
+        h.release_log_write();
+        h.run_until_idle();
+        let root = h.machine.reopen_root(0);
+        let fd = h.machine.open(root, b"box/logs/forgejo-3.log", skein_fake_machine::How::Read).unwrap();
+        let log = h.machine.read(fd, 0, 4096).unwrap();
+        assert_eq!(log, b"1970-01-01T01:02:03Z Forgejo: api http://127.0.0.1:3000/api/v1\n1970-01-01T01:02:03Z Forgejo: person ada\n");
+        h.machine.close(fd);
+        h.machine.close(root);
+        let output = h.terminal_bytes();
+        assert_eq!(bytes::count(&output, b"01:02:03Z Forge 3 (Forgejo): started\n", 2), 1);
+        assert!(!Harness::contains(&output, b"Forgejo: api "));
+        assert!(!Harness::contains(&output, b"Forgejo: person "));
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        assert_eq!(bytes::count(&h.terminal_bytes(), b"Forge 3 (Forgejo): started\n", 2), 1, "a reask is wire-only");
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        h.sim.assert_quiescent(h.pid);
+        h.sim.assert_no_open_fds(h.pid);
+        assert_eq!(h.machine.open_handles(), 0);
+    }
+}
+
+#[test]
+fn bound_kind_labels_follow_the_number_through_start_stop_and_failure() {
+    for label in [b"Forge $forge (Forgejo)".as_slice(), b"Playground"] {
+        for forge in [17, u16::MAX] {
+            let mut steps = super::fixtures::kind_steps();
+            steps.asked[0].label = label.into();
+            let mut h = Harness::grouped(steps, &[], true);
+            h.run_until_idle();
+            h.write_child(h.serve_index(), 1, b"http://first\n");
+            h.run_until_idle();
+            let number = skein_lib::Decimal::of(u64::from(forge));
+            let start = crate::lines::joined(&[b"start ", number.as_bytes(), b" fake\n"]);
+            h.ask(&start);
+            h.run_until_idle();
+            h.ask(&crate::lines::joined(&[b"stop ", number.as_bytes(), b"\n"]));
+            h.run_until_idle();
+            finish_child(&mut h, b"fake-forge", 0);
+            let expected = if label == b"Playground" {
+                bytes::copy_of(b"Playground")
+            } else {
+                crate::lines::joined(&[b"Forge ", number.as_bytes(), b" (Forgejo)"])
+            };
+            for suffix in [b": starting\n".as_slice(), b": started\n", b": stopped\n"] {
+                assert!(Harness::contains(
+                    &h.terminal_bytes(),
+                    &crate::lines::joined(&[b"00:00:00Z ", &expected, suffix])
+                ));
+            }
+            h.hold_spawn = Some(b"fake-forge".as_slice().into());
+            h.ask(&start);
+            h.run_until_idle();
+            h.fail_spawn();
+            h.run_until_idle();
+            assert!(Harness::contains(
+                &h.terminal_bytes(),
+                &crate::lines::joined(&[&expected, b": failed, fake-forge-", number.as_bytes(), b" did not start\n"])
+            ));
+            stop_fetch_box(&mut h);
+        }
+    }
+}

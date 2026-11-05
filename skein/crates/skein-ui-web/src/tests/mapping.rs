@@ -19,6 +19,7 @@ const ROLES: &[(Role, &str, &[&[u8]])] = &[
     (Role::Form, r#"<form data-node="1"></form>"#, &[b"form"]),
     (Role::Search, r#"<search data-node="1"></search>"#, &[b"search"]),
     (Role::Region, r#"<section data-node="1"></section>"#, &[b"region"]),
+    (Role::Group, r#"<div data-node="1" role="group"></div>"#, &[b"group"]),
     (Role::Heading { level: 1 }, r#"<h1 data-node="1"></h1>"#, &[b"heading"]),
     (Role::Heading { level: 2 }, r#"<h2 data-node="1"></h2>"#, &[b"heading"]),
     (Role::Heading { level: 3 }, r#"<h3 data-node="1"></h3>"#, &[b"heading"]),

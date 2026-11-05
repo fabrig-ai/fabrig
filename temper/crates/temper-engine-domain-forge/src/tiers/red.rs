@@ -85,7 +85,9 @@ pub(super) fn answered(
     }
     let fetch = match fetch {
         Fetch::Run { id } => match answer {
-            Ok(api::Answer::Run(run)) if run.id == id => jobs(run, env.limits.brief_bytes),
+            Ok(api::Answer::Run(run)) if run.id == id => {
+                jobs(run, env.limits.brief_bytes, env.limits.client.answer_bytes)
+            }
             Ok(_) | Err(_) => Fetch::Done(Box::new([])),
         },
         Fetch::Jobs { attempts, mut logs, next, share } => {
@@ -123,7 +125,7 @@ pub(super) fn answered(
     }
 }
 
-fn jobs(run: api::Run, bytes: u32) -> Fetch {
+fn jobs(run: api::Run, bytes: u32, answer_bytes: u32) -> Fetch {
     let count = u32::try_from(run.jobs.len()).expect("bounded run jobs");
     let mut attempts = List::with_capacity(count);
     let mut logs = List::with_capacity(count);
@@ -135,7 +137,7 @@ fn jobs(run: api::Run, bytes: u32) -> Fetch {
             logs.push(JobLog { name: job.name, end: None }).expect("one log per failed job");
         }
     }
-    let share = bytes.checked_div(attempts.len().max(1)).expect("positive failed job count");
+    let share = bytes.checked_div(attempts.len().max(1)).expect("positive failed job count").min(answer_bytes);
     Fetch::Jobs { attempts: attempts.into_boxed(), logs: logs.into_boxed(), next: 0, share }
 }
 

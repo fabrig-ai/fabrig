@@ -88,6 +88,10 @@ A chat is a conversation between a party and an agent in a project: an untracked
 
 - **Words between turns:** a message sent while a run works reaches
   it at the next turn's boundary.
+- **Long chats continue:** when saved history cannot be resumed, the
+  next run starts fresh with recent conversation text and pending
+  messages. If that history cannot be read, a retry continues with the
+  pending messages alone.
 - **Each delegate decided at the close:** none is left without an
   owner; the ones not moved are cancelled with the chat.
 - **The transcript stays** after the close: `chat show` and `task
@@ -117,7 +121,7 @@ A chat is a conversation between a party and an agent in a project: an untracked
   On the web, a project's first chat starts it when template 3 is
   offered; otherwise it starts the default chat.
 - **temper's runs** in a chat use the host tools `change`, `goal`,
-  `delegate` and `message`, and read these pages with `read_docs`.
+  `delegate`, `decided` and `message`, and read these pages with `read_docs`.
 
 ## Limits
 

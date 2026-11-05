@@ -50,11 +50,18 @@ impl Bindings {
                         filter.goal = if value.is_empty() { None } else { Some(skein_ui::number(&value)?) };
                         Act::Filter { filter }
                     }
+                    (Act::StartWay { template }, skein_ui::Act::Toggle) => Act::StartWay { template: *template },
+                    (Act::StartAsks { always }, skein_ui::Act::Toggle) => Act::StartAsks { always: *always },
+                    (Act::StartName { .. }, skein_ui::Act::Input { value }) => Act::StartName { words: value },
                     (Act::AmendWords { .. }, skein_ui::Act::Input { value }) => Act::AmendWords { words: value },
                     (Act::AmendPriority { .. }, skein_ui::Act::Input { value }) => {
                         Act::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }
                     }
                     (Act::AmendTracked, skein_ui::Act::Toggle) => Act::AmendTracked,
+                    (
+                        Act::Away(choice @ temper_client_domain::pages::away::Act::Kinds { .. }),
+                        skein_ui::Act::Toggle,
+                    ) => Act::Away(*choice),
                     (Act::ChatWords { .. }, skein_ui::Act::Input { value }) => Act::ChatWords { words: value },
                     (Act::MessageWords { .. }, skein_ui::Act::Input { value }) => Act::MessageWords { words: value },
                     (Act::CardWords { object, .. }, skein_ui::Act::Input { value }) => {
@@ -72,6 +79,11 @@ impl Bindings {
                     (Act::Switcher(switcher::Act::NewWords { .. }), skein_ui::Act::Submit) => {
                         Act::Switcher(switcher::Act::Create)
                     }
+                    (Act::AddChoose { start }, skein_ui::Act::Toggle) => Act::AddChoose { start: *start },
+                    (Act::AddWrite { field, .. }, skein_ui::Act::Input { value }) => {
+                        Act::AddWrite { field: *field, words: value }
+                    }
+                    (Act::AddWrite { .. }, skein_ui::Act::Submit) => Act::AddSubmit,
                     (Act::DefaultName { .. }, skein_ui::Act::Input { value }) => Act::DefaultName { words: value },
                     (Act::DefaultName { .. }, skein_ui::Act::Submit) => Act::MakeDefault,
                     (Act::ChatWords { .. }, skein_ui::Act::Submit) => Act::StartChat,
@@ -383,11 +395,12 @@ pub(crate) fn banner(
     let me = pages.me(root.client());
     builder.open(Role::Banner);
     builder.style(crate::look::BANNER);
-    crate::link(
-        builder,
-        &words.say(crate::words::Word::BrandChats, &[]),
-        bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }),
-    );
+    let (brand, address) = if let Address::Welcome { .. } = pages.address() {
+        (crate::words::Word::Brand, Address::Welcome { step: temper_client_domain::Step::Welcome })
+    } else {
+        (crate::words::Word::BrandChats, Address::Chats { filter: ChatsFilter::All })
+    };
+    crate::link(builder, &words.say(brand, &[]), bindings.insert(Act::Go { address }));
     builder.style(crate::look::BRAND);
     builder.text(Run::Plain, &words.say(crate::words::Word::Brand, &[]));
     builder.close();
@@ -398,7 +411,7 @@ pub(crate) fn banner(
             && deployment.welcome
         {
             box_line(builder, words);
-            crate::pages::welcome::steps(builder, root, words, *step);
+            crate::pages::welcome::steps(builder, root, words, bindings, *step);
         }
         builder.close();
         return;
@@ -493,6 +506,7 @@ pub(crate) fn rail(
     bindings: &mut Bindings,
     forge: &mut crate::forge::bindings::Bindings,
     project: u32,
+    times: &mut crate::words::Times,
 ) {
     use crate::words::{Shell, Word};
     b.open(Role::Navigation);
@@ -503,14 +517,49 @@ pub(crate) fn rail(
     b.style(crate::look::BRAND);
     w.text(b, Word::Brand, &[]);
     b.close();
+    if w.shell == Shell::Browser
+        && (root.pages().chat().is_some() || root.pages().address() == &(Address::NewChat { draft: true }))
+    {
+        b.open(Role::Disclosure);
+        b.name(&w.say(Word::RailUnfold, &[]));
+        b.state(skein_ui::State::FoldsAway);
+        b.style(crate::look::RAIL_UNFOLD);
+        b.close();
+    }
     switcher(b, root, w, bindings, Some(project), Place::Rail);
+    if w.shell == Shell::Browser {
+        away(b, root, w, bindings, times, project, crate::look::AWAY_CHIP);
+    }
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    entries(b, root, w, bindings, project, true);
+    entries(b, root, w, bindings, project, shown(root, project));
     b.close();
-    crate::link(b, &w.say(Word::NewChat, &[]), bindings.insert(Act::Go { address: Address::NewChat }));
+    b.open(Role::Slot);
     b.style(crate::look::RAIL_NEW);
+    crate::link(b, &w.say(Word::NewChat, &[]), bindings.insert(Act::Go { address: Address::NewChat { draft: false } }));
     w.text(b, Word::NewChatLink, &[]);
+    b.close();
+    b.open(Role::Menu);
+    b.name(&w.say(Word::RailNewMenu, &[]));
+    for (name, description, draft) in [
+        (Word::RailNewChat, Word::RailNewChatDescription, false),
+        (Word::RailNewGoal, Word::RailNewGoalDescription, true),
+    ] {
+        if draft && !temper_client_domain::pages::drafts_offered(root, project) {
+            continue;
+        }
+        b.open(Role::MenuItem);
+        b.name(&w.say(name, &[]));
+        b.description(&w.say(description, &[]));
+        b.bind(bindings.insert(Act::Go { address: Address::NewChat { draft } }));
+        b.close();
+    }
+    b.open(Role::MenuItem);
+    b.style(crate::look::RAIL_NEW_ALL);
+    b.name(&w.say(Word::RailNewAll, &[]));
+    b.bind(bindings.insert(Act::Go { address: Address::Settings { project } }));
+    b.close();
+    b.close();
     b.close();
     b.open(Role::Slot);
     b.style(crate::look::RAIL_FOOT);
@@ -539,6 +588,7 @@ pub(crate) fn rail(
     if behind && w.shell == Shell::Browser {
         text(b, Role::Status, &w.say(Word::Behind, &[]), Some(crate::look::BEHIND));
     }
+    away(b, root, w, bindings, times, project, crate::look::AWAY);
     settings_link(b, root, w, bindings, project);
     if let Some(me) = root.pages().me(root.client()) {
         text(b, Role::Status, me.party.name.bytes(), None);
@@ -550,24 +600,69 @@ pub(crate) fn rail(
     b.close();
 }
 
+/// The shared switch and browser chip (temper/docs/design/client/README.md, 3.5, Away).
+fn away(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    times: &mut crate::words::Times,
+    project: u32,
+    style: skein_ui::Style,
+) {
+    use crate::words::{TimeForm, Word};
+    if !root.away_shown(project, times.now) {
+        return;
+    }
+    let on = root.away_on(project, times.now);
+    let until = match root.forge().away(project) {
+        Some(row) => row.until,
+        None => None,
+    };
+    let said = if on {
+        match until {
+            Some(until) => {
+                times.next = [times.next, Some(until)].into_iter().flatten().min();
+                let clock = times.say(w, TimeForm::Clock, until);
+                w.say(Word::AwayUntil, &[skein_ui::phrases::Hole::Name(clock)])
+            }
+            None => w.say(Word::Away, &[]),
+        }
+    } else {
+        w.say(if style == crate::look::AWAY_CHIP { Word::AwayChipOff } else { Word::Away }, &[])
+    };
+    b.open(Role::Button);
+    b.style(style);
+    b.name(&said);
+    b.bind(bindings.insert(Act::Away(temper_client_domain::pages::away::Act::Toggle { project })));
+    if on {
+        b.state(skein_ui::State::Pressed);
+    }
+    if root.pages().away_busy() {
+        b.state(skein_ui::State::Disabled);
+    }
+    if style == crate::look::AWAY {
+        b.open(Role::Slot);
+        b.style(crate::look::AWAY_TRACK);
+        b.close();
+    }
+    b.close();
+}
+
 /// A phone's tab bar, the browser's alone (temper/docs/design/client/README.md, 5.3).
 pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project, false);
+    entries(b, root, w, bindings, project, Shown { changes: false, ..shown(root, project) });
     if !goals_shown(root, project) {
         settings_link(b, root, w, bindings, project);
     }
     b.close();
 }
 
-fn goals_shown(root: &Domain, project: u32) -> bool {
-    root.has_goals(project) || root.pages().goals().is_some()
-}
-
 fn goals_current(root: &Domain) -> bool {
-    if root.pages().goals().is_some() {
+    if let Address::Goals { .. } = root.pages().address() {
         return true;
     }
     if let Some(page) = root.pages().task()
@@ -578,19 +673,27 @@ fn goals_current(root: &Domain) -> bool {
     false
 }
 
-fn entries(
-    b: &mut Builder,
-    root: &Domain,
-    w: &crate::words::Words,
-    bindings: &mut Bindings,
-    project: u32,
+fn goals_shown(root: &Domain, project: u32) -> bool {
+    let shown = match root.forge().ways(project) {
+        Some(ways) => ways.goals,
+        None => false,
+    };
+    shown || goals_current(root)
+}
+
+#[expect(clippy::struct_excessive_bools, reason = "the frame keeps each entry’s visibility or current state together")]
+struct Shown {
+    home: bool,
+    inbox: bool,
+    chats: bool,
     changes: bool,
-) {
-    use crate::words::Word;
+}
+// Navigation follows project ways and keeps the open page (client/README.md, 5.3).
+fn shown(root: &Domain, project: u32) -> Shown {
     let (home, inbox, chats) = match root.pages().address() {
         Address::Home { .. } => (true, false, false),
         Address::Inbox { .. } => (false, true, false),
-        Address::Chats { .. } | Address::NewChat => (false, false, true),
+        Address::Chats { .. } | Address::NewChat { .. } => (false, false, true),
         Address::Chat { .. } => (false, false, !crate::pages::chat::configuring(root)),
         Address::Task { .. }
         | Address::Accounts
@@ -600,10 +703,28 @@ fn entries(
         | Address::Adopt { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
+    let changes = match root.forge().ways(project) {
+        Some(ways) => ways.changes,
+        None => false,
+    } || root.pages().address() == &(Address::Changes { project });
+    Shown { home, inbox, chats, changes }
+}
+fn entries(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: u32,
+    shown: Shown,
+) {
+    use crate::words::Word;
+    let Shown { home, inbox, chats, changes } = shown;
     action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
     let count = root.pages().needs().count(root.client(), project);
     let name = if count.count == 0 {
@@ -674,20 +795,23 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     crate::link(b, &name, bindings.insert(Act::Go { address: Address::Settings { project } }));
     b.text(Run::Plain, &name);
     let current = match root.pages().address() {
-        Address::Settings { .. } | Address::Configure { .. } => true,
-        Address::Chat { .. } => crate::pages::chat::configuring(root),
-        Address::Goals { .. }
-        | Address::Home { .. }
-        | Address::Changes { .. }
-        | Address::Inbox { .. }
-        | Address::Chats { .. }
-        | Address::NewChat
-        | Address::Task { .. }
+        Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
+        | Address::Configure { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
         | Address::ConnectForge { .. }
-        | Address::Adopt { .. }
+        | Address::Adopt { .. } => true,
+        Address::Chat { .. } => crate::pages::chat::configuring(root),
+        Address::Goals { .. }
+        | Address::Changes { .. }
+        | Address::Home { .. }
+        | Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::NewChat { .. }
+        | Address::Task { .. }
         | Address::Welcome { .. } => false,
     };
     if current {
@@ -708,13 +832,15 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::ConnectForge { .. }
         | Address::Forges
         | Address::Welcome { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::ConnectModel { .. }
@@ -758,7 +884,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         &words.say(crate::words::Word::Chats, &[]),
         Act::Go { address: Address::Chats { filter: ChatsFilter::All } },
         match root.pages().address() {
-            Address::Chats { .. } | Address::NewChat | Address::Chat { .. } => true,
+            Address::Chats { .. } | Address::NewChat { .. } | Address::Chat { .. } => true,
             Address::ConnectForge { .. }
             | Address::Forges
             | Address::Welcome { .. }
@@ -767,6 +893,8 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Builders { .. }
+            | Address::Repositories { .. }
             | Address::Goals { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. }
@@ -831,13 +959,15 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Inbox { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
@@ -864,7 +994,7 @@ pub(crate) fn accounts_link(
         Address::Accounts | Address::ConnectModel { .. } => true,
         Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Welcome { .. }
         | Address::Forges
         | Address::ConnectForge { .. }
@@ -873,6 +1003,8 @@ pub(crate) fn accounts_link(
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
@@ -883,7 +1015,7 @@ pub(crate) fn accounts_link(
     builder.close();
 }
 
-fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
+pub(crate) fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
     use temper_client_domain::forge::listed::{self, Dot};
     let dot = match listed::dot(root.forges(), temper_client_domain::forge::connect::playground(root.forge())) {
         Dot::None => None,
@@ -904,7 +1036,7 @@ fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words,
     }
 }
 
-fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
+pub(crate) fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
     if let Some(mark) = crate::accounts::words::mark(root) {
         use crate::accounts::words::{Mark, Word};
         let (word, style) = match mark {
@@ -924,7 +1056,13 @@ fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Word
 }
 
 /// The session's transient status and held answer's Undo (client/README.md, 3.5).
-pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
+pub(crate) fn toast(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    times: &mut crate::words::Times,
+) {
     use crate::words::Word;
     use temper_client_domain::pages::needs::{self, Toasted};
     let session = root.pages().needs();
@@ -935,14 +1073,128 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
             (w.say(Word::ToastAnswered, &[skein_ui::phrases::Hole::Name(label)]), Some(*object))
         }
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
+        Toasted::Paused => (w.say(Word::ToastPaused, &[]), None),
+        Toasted::Resumed => (w.say(Word::ToastResumed, &[]), None),
+        Toasted::AwayOn { project, until } => {
+            let name =
+                crate::pages::project_name(root.pages().me(root.client()), *project).expect("Away project has a name");
+            let said = match until {
+                Some(until) => {
+                    let clock = times.say(w, crate::words::TimeForm::Clock, *until);
+                    w.say(
+                        Word::ToastAwayOnUntil,
+                        &[skein_ui::phrases::Hole::Name(clock), skein_ui::phrases::Hole::Name(name)],
+                    )
+                }
+                None => w.say(Word::ToastAwayOn, &[skein_ui::phrases::Hole::Name(name)]),
+            };
+            (said, None)
+        }
+        Toasted::AwayOff => (w.say(Word::ToastAwayOff, &[]), None),
+        Toasted::AwayRefused => (w.say(Word::ToastAwayRefused, &[]), None),
+        Toasted::Overturned => (w.say(Word::ToastOverturned, &[]), None),
+        Toasted::OverturnEnded => (w.say(Word::ToastOverturnEnded, &[]), None),
+        Toasted::OverturnAlready => (w.say(Word::ToastOverturnAlready, &[]), None),
+        Toasted::Proposed { .. } | Toasted::Refused { .. } => (Box::default(), None),
     };
     b.open(Role::Status);
     b.style(crate::look::TOAST);
-    b.text(Run::Plain, &said);
+    match toast {
+        Toasted::Proposed { to } => {
+            proposed(b, w, to);
+        }
+        Toasted::Refused { outcome } => {
+            crate::confirm::outcome_words(b, w, outcome);
+            if let jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+                refusal: jig_client::contract::Refusal::Moved { .. },
+                ..
+            })) = outcome
+            {
+                action(b, Role::Button, &w.say(Word::LookAgain, &[]), Act::Needs(needs::Act::Dismiss), false, bindings);
+            }
+        }
+        Toasted::AwayOn { .. }
+        | Toasted::AwayOff
+        | Toasted::AwayRefused
+        | Toasted::Overturned
+        | Toasted::OverturnEnded
+        | Toasted::OverturnAlready
+        | Toasted::Answered { .. }
+        | Toasted::Later
+        | Toasted::Paused
+        | Toasted::Resumed => b.text(Run::Plain, &said),
+    }
+    if let Toasted::AwayOn { project, .. } = toast {
+        action(
+            b,
+            Role::Button,
+            &w.say(Word::AwayLimits, &[]),
+            Act::Away(temper_client_domain::pages::away::Act::Limits { project: *project }),
+            false,
+            bindings,
+        );
+    }
     if let Some(object) = undo
         && session.held(object)
     {
         action(b, Role::Button, &w.say(Word::ToastUndo, &[]), Act::Needs(needs::Act::Undo { object }), false, bindings);
     }
     b.close();
+}
+
+fn proposed(b: &mut Builder, w: &crate::words::Words, to: &jig_client::contract::Recipient) {
+    use crate::{
+        cards::{P, words::say},
+        words::Word,
+    };
+    use jig_client::contract::Recipient;
+    use skein_ui::phrases::Hole;
+    w.text(b, Word::ToastProposed, &[]);
+    match to {
+        Recipient::Party(number) => b.text(Run::Plain, &say(w, P::ToPerson, &[Hole::Number(*number)])),
+        Recipient::Task(number) => b.text(Run::Plain, &say(w, P::ToTask, &[Hole::Number(*number)])),
+        Recipient::Role { project, role } => {
+            b.text(
+                Run::Plain,
+                &say(w, P::ToRole, &[Hole::Number(u64::from(*role)), Hole::Number(u64::from(*project))]),
+            );
+        }
+        Recipient::Roles { project, roles } => {
+            for role in roles {
+                b.text(
+                    Run::Plain,
+                    &say(w, P::ToRole, &[Hole::Number(u64::from(*role)), Hole::Number(u64::from(*project))]),
+                );
+            }
+        }
+    }
+    w.text(b, Word::ToastProposedEnd, &[]);
+}
+
+#[cfg(test)]
+mod start_goal_tests {
+    use super::*;
+    use crate::tests::fixtures as f;
+    use jig_client::contract::Recipient;
+    #[test]
+    fn proposed_toast_names_the_recipient_and_waits_for_acceptance() {
+        for w in [f::words(), f::browser_words()] {
+            for (to, expected) in [
+                (Recipient::Party(4), "Proposed to Person 4: it starts once accepted."),
+                (Recipient::Task(4), "Proposed to Task 4: it starts once accepted."),
+                (Recipient::Role { project: 1, role: 2 }, "Proposed to Role 2 in project 1: it starts once accepted."),
+                (
+                    Recipient::Roles { project: 1, roles: List::from_boxed(Box::new([2])) },
+                    "Proposed to Role 2 in project 1: it starts once accepted.",
+                ),
+            ] {
+                let mut b = Builder::new(&f::tree_limits());
+                b.open(Role::Status);
+                proposed(&mut b, &w, &to);
+                b.close();
+                let tree = b.finish();
+                assert_eq!(f::text(&tree).as_ref(), expected.as_bytes());
+            }
+        }
+    }
 }

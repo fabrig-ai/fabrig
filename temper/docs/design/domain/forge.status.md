@@ -3,7 +3,6 @@
 2026-11-05. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 5.5: `GoalFrom`'s `at`.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
@@ -22,7 +21,9 @@
     linear history, code owners and the App's bypass
     (`temper-service/src/family.rs`).
   - 7.1, 12: the findings topic and findings (`findings.md`).
-  - 7.3: a hold parked until a landing.
+  - 7.3: a hold parked until a landing. An explicit landing subscription
+    with no paths receives a known landing as kept news; it does not wake
+    a parked hold.
   - 8.1: per-change bounds and gates are not caller overrides: `change` takes parameters 1
     to 6, 9 to 12, 14 and 16, its bounds, the questions it takes among
     them, are the deployment's `change_policy`, and its gates its landing
@@ -34,6 +35,30 @@
   - 8.4: widening exhausted spend with ctl before release: `task amend`'s
     `--budget` is not implemented (`../client/tools.md`, 5.5). A spend
     hold offers cancellation or asking afresh instead.
+  - 8.4: `change show`'s `held:` line for a cancelled delegate reads `a
+    delegate or a write failed for good`: the panel's hold is the client
+    wire's `failed` (`temper-client-protocol-wire/schema/client-wire-v1.schema`,
+    `Hold`), and its words are the client's
+    (`temper-client-domain/src/forge/words.rs`, `FailedHold`), and the plan
+    `first-goal-fixes` edits neither, the ui drafts holding them, so a cancel
+    is said by `task show` and not by this line.
+  - 8.4: the walk the request `brief-failure` of 2026-11-05 ends with has not
+    passed: on a real Forgejo, a change whose CI goes red gets a repair that
+    starts, and a repair whose brief can't be read ends held with the reason in
+    `temper ctl`. Its QA rung is not drafted yet, so both stand on the fake
+    forge's stories alone
+    (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`).
+  - 8.4: `[the reviews could not be read: REASON]`, a gate's repair standing on
+    its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
+    `brief_answer`), but those stories run a CI repair's pair alone and no test
+    holds its words.
+  - 8.4: a green head ending a repair has no story for a repair waiting for an
+    answer to its question (none asks from a repair), a repair finding nothing
+    to do (`NoChange`, read as failed), or a task closing or held with its
+    attempt running, taken as a run in progress
+    (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate_running`):
+    the policy's tests hold a failed status and `delegate_running` alone
+    (`temper-engine-domain-forge-change/src/tests/green.rs`).
   - 8.4, 8.5: a goal's landing held past its repairs, then released after
     a change into its goal branch (`../draft/reference-landing.md`,
     section 9's second story), is built, but its story is ignored: after
@@ -72,8 +97,9 @@
     is that step's alone, and `next_act` holds the change.
   - 8.11: a repair's or a resolution's question, relayed as a producer's
     is (`temper-engine-domain/src/route/forge_route/relay.rs`,
-    `asking_delegate`), is unobserved in stories: every relay story's
-    asker is the change's producing task
+    `asking_delegate`), and its words, refused as a producer's are, are
+    unobserved in stories: every relay story runs the change's producing
+    task only
     (`tests/engine/domain/tests/suite/forge_routes/questions.rs`,
     `foremen.rs` and `goal_questions.rs`).
   - 9: a branch a tier follows still pauses its queue on its own CI's
@@ -94,6 +120,95 @@
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
     on.
+- **Departs:** 5.7: a project's first run's words count their span from the
+  epoch: `temper-engine-domain-forge/src/status/words.rs`, `specification`,
+  takes `Wall::EPOCH` with no brief, so the agent reads "Since the last brief:"
+  and some half a million hours, where a brief has never been written. This
+  section names no span for a first brief, the plan's test gives its row a brief
+  (`its_words_say_what_landed_since_the_brief`), and no reason is recorded.
+- **Design departs:** 5.6, 5.7, from the request `ui-home-status` of 2026-11-05,
+  each decided by its plan's cut, for the user to see:
+  - 5.6: `Looked` keeps `next_seen`, a field the request doesn't name, where the
+    request has a new sitting set `seen` to the current `landed`. That would read
+    as nothing landed at the moment the person comes back; the request's own
+    definition of `seen`, the count at `previous`, is what holds.
+  - 5.7: `ProjectFacts.running`, a field the request doesn't name, so that "none
+    running" survives a restart and a run held past an hour never stops the next.
+  - 5.7: a run is a procedure of the project's period that delegates charter 9,
+    where the request has an agent's task under the project's pool, because jig's
+    connector task takes the project's whole ceiling as its authority and can't
+    narrow it, and an agent reading change titles should not hold merge
+    authority. So a project whose policy's delegation doesn't name charter 9 has
+    no brief, and a period its people's pools reserve whole has none either
+    (`../client/README.status.md`, 3.5).
+  - 5.7: a run's task is kept, where the request has it forgotten once read,
+    because jig forgets a result only for a person's request (section 20).
+  - 5.7: a live goal's "landed and total changes" are its delegates done and
+    total, because the forge keeps no count a goal, and "failures the forge holds
+    since" are what each tier holds now, because it keeps no times on them.
+- **Design departs:** 5.8, 5.9, from the request `ui-away` of 2026-11-05, each
+  decided by its plan's cut, for the user to see:
+  - 5.8: `Away` keeps `off` in place of the request's `on`: "23:10 to 08:03" needs
+    the time it went off, and a row holding both could disagree with itself. On is
+    `off` none; the wire's `SetAway` keeps `on`.
+  - 5.9: `Decided` keeps `party`, a field the request doesn't name, and its document
+    is the asking party's alone: "decided for you" would be false on a colleague's
+    Home, and Overturn sends the requester's message.
+  - 5.9: the caller's person is found through its chat, where the request has
+    `domain.core.tasks.delegation`: a chat's goal has the chat as its requester, so
+    the root takes jig's `served_chat`, then the chat's person.
+  - 5.9: "Only goals call it" is held by the root, where the request leaves it to
+    charter 1's words: goals and chats share that charter, so a chat's call answers
+    ask (`agent.status.md`, 4.3).
+- **Design departs:** 8.4, from the request `repair-green` of 2026-11-05, each
+  decided by its plan's cut, for the user to see:
+  - The request's rule 1 ends a held repair when CI has passed at the head. A
+    hold at gating, past the bound or short of authority, stays held
+    (`temper-engine-domain-forge-change/src/domain.rs`, `held_on_ci`), because
+    its state can't say whether it is a gate's or CI's, and the plan kept what a
+    hold stores.
+  - Rule 1's hold ends on a wake alone, and a poll wakes a change only when what
+    it read of the pull request moved (`temper-engine-domain-forge/src/domain.rs`,
+    the pull read's `wakes`). Under required contexts a check they don't name can
+    keep the pull request's CI as it was, so that hold waits for a hint or a
+    person's release, and where nothing delivers hints, for the release. It
+    costs time and makes no fresh repair.
+  - Rule 1 ends a retrying repair with no agent's work. A run ending into a retry
+    wakes no change, and the change reads again within `poll`
+    (`temper-engine-domain-forge/src/domain.rs`, `repair_poll`), so a backoff
+    shorter than that starts another run, which rule 2 leaves to finish.
+  - The request has its stories in the forge world or lower. The held and
+    retrying ones run in the engine's domain world, above it
+    (`tests/engine/domain/tests/suite/forge_routes/repair_green.rs`), where a
+    task's phase, its cancel and the deployment's release meet; the forge world
+    (`tests/engine/forge/tests/suite/green.rs`) tells the policy's.
+- **Design departs:** 8.4, from the request `brief-failure` of 2026-11-05, each
+  decided by its plan's cut, for the user to see:
+  - The request's true capacity is a place, an account or a brief slot. 8.4 also
+    pauses, with no bound, for a forge client `Busy` at the brief's deadline, a
+    forge not connected and a connector with no room, so a repair waits out a
+    disconnected forge unheld, though saying why, rather than making a person
+    release each.
+  - The request has a CI repair's stories in the forge world. They run in the
+    engine's domain world (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`),
+    where the core and the connector meet; the forge world
+    (`tests/engine/forge/tests/suite/brief.rs`) tells a lone section's failure.
+- **Design departs:** 8.11 and jig's `domain/tasks.md`, 5.7, from the request
+  `producer-failure` of 2026-11-05, decided by its plan's cut, for the user to
+  see: the request recommends refusing an asker's `finish` at the call, with the
+  words `Your question is still open: call wait; the answer reaches this run.`
+  The run parks instead, as a done finish does: smith judges a `finish` with no
+  call to its host, and the tasks child decides at the answer's commit, the run
+  and its host knowing nothing of it (jig's `domain/engine.md`, 7.4). A refusal
+  at the call would need a new crossing from jig through the worker to smith, and
+  costs the run a turn that parking does not. So those words reach no run; the
+  stock coding charter says the same before it finishes.
+- **Design departs:** 8.11, from the request `report-in-finish` of 2026-11-05,
+  decided by its plan's cut, for the user to see: the call's refusal and the
+  words at a step take a change's repair and resolution beside its producing
+  task, where the request names the producing task alone, because all three run
+  under the one charter and each would pay the same turn
+  (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
 - **Departs:** 9: the first keeps its turn only until the next ready change
   steps: `queue_first` (`temper-engine-domain-forge/src/domain.rs`) chooses
   among `queue_ready`'s changes, which leave out one at `Updating`, `Checking`,

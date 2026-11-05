@@ -1,9 +1,11 @@
+mod builders;
 mod changes;
 mod chats;
 mod choice;
 mod configure;
 mod confirm;
 mod delegation;
+mod document;
 mod model_forge;
 mod new_chat;
 pub use temper_fixtures::client_documents as documents;
@@ -11,6 +13,7 @@ pub(crate) mod fixtures;
 mod forge_page;
 mod forges;
 mod frame;
+mod goal;
 mod goals;
 mod home;
 mod inbox;
@@ -20,6 +23,8 @@ mod playground;
 mod playground_start;
 mod public;
 mod rail;
+mod settings;
+mod start_goal;
 mod toast;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;
@@ -106,6 +111,7 @@ fn a_part_needing_a_document_says_shown_on_the_forge() {
 }
 
 mod chat;
+mod chat_sheet;
 
 mod task;
 
@@ -158,3 +164,5 @@ fn validity_accepts_large_ui_edges_and_refuses_overflowing_scene_capacity() {
     limits.tree.styles_per_node = 2;
     assert!(!crate::valid(&limits, &domain, &words));
 }
+
+mod words;

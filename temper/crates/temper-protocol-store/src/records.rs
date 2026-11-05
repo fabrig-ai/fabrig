@@ -6,6 +6,7 @@ use temper_engine_domain_forge as d;
 mod answers;
 mod api;
 mod application;
+mod away;
 mod change;
 mod client;
 #[cfg(test)]
@@ -18,6 +19,7 @@ mod landing_log;
 mod making;
 mod names;
 mod settings;
+mod status;
 mod tiers;
 mod topics;
 mod verification;
@@ -27,6 +29,10 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
+        d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
+        d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
+        d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),
         d::Stored::Making(row) => w::Value::Making(making::encode(row)),
         d::Stored::Setting(row) => w::Value::Setting(settings::encode(row)),
         d::Stored::Tier(row) => w::Value::Tier(Box::new(tiers::encode(row))),
@@ -59,9 +65,12 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
                 d::PersonFact::ToBegin { project } => w::PersonFact::ToBegin(
                     w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).expect(FITS),
                 ),
-                d::PersonFact::GoalFrom { project, chat, goal } => w::PersonFact::GoalFrom(
-                    w::GoalFrom::new(&w::CEILINGS, w::GoalFromParts { project: *project, chat: *chat, goal: *goal })
-                        .expect(FITS),
+                d::PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
+                    w::GoalFrom::new(
+                        &w::CEILINGS,
+                        w::GoalFromParts { project: *project, chat: *chat, goal: *goal, at: *at },
+                    )
+                    .expect(FITS),
                 ),
             };
             w::Value::Dismissed(w::Dismissed::new(&w::CEILINGS, w::DismissedParts { party: *party, what }).expect(FITS))
@@ -91,6 +100,10 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
     Ok(match row.into_parts().value {
+        w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
+        w::Value::Away(row) => d::Stored::Away(away::decode_away(row)?),
+        w::Value::Decided(row) => d::Stored::Decided(away::decode_decided(row)?),
+        w::Value::Looked(row) => d::Stored::Looked(status::decode_looked(row)),
         w::Value::Making(row) => d::Stored::Making(making::decode(row)),
         w::Value::Setting(row) => d::Stored::Setting(settings::decode(row, bounds)?),
         w::Value::Tier(row) => d::Stored::Tier(tiers::decode(*row)?),
@@ -111,9 +124,12 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             let w::DismissedParts { party, what } = value.into_parts();
             let what = match what {
                 w::PersonFact::ToBegin(value) => d::PersonFact::ToBegin { project: value.into_parts().project },
-                w::PersonFact::GoalFrom(value) => {
-                    d::PersonFact::GoalFrom { project: value.project(), chat: value.chat(), goal: value.goal() }
-                }
+                w::PersonFact::GoalFrom(value) => d::PersonFact::GoalFrom {
+                    project: value.project(),
+                    chat: value.chat(),
+                    goal: value.goal(),
+                    at: value.at(),
+                },
             };
             d::Stored::Dismissed { party, what }
         }
@@ -247,8 +263,8 @@ mod holds;
 
 fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
-        first_intent_org: forge.name_bytes,
-        first_intent_repository: forge.name_bytes,
+        empty_intent_org: forge.name_bytes,
+        empty_intent_repository: forge.name_bytes,
         landing_state_members: forge.landing_members,
         landing_member_gates: forge.gates,
         landing_row_asks: forge.landing_members,

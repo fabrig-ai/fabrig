@@ -343,3 +343,36 @@ fn requires_reads_rules_that_do_not_enforce() {
         assert_eq!(requires(&[held(PROJECT, FIRST_RULE, rule)], &main_name()), expected, "{label}");
     }
 }
+
+#[test]
+fn a_projects_kinds_are_judged() {
+    use crate::settings::ProjectWays;
+    use temper_engine_domain_forge_change::Route;
+    let values = [
+        (6, Value::Questions(Route::None)),
+        (6, Value::Questions(Route::Foreman)),
+        (6, Value::Questions(Route::Up)),
+        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: u32::MAX })),
+    ];
+    for (kind, value) in values {
+        assert_eq!(Kind::of(kind).unwrap().number(), kind);
+        let base = Item { kind, scope: PROJECT, number: 1, value: Some(value) };
+        for (label, item, expected) in [
+            ("set", base.clone(), Ok(())),
+            ("scope", Item { scope: 0, ..base.clone() }, Err(Refusal::Scope)),
+            ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
+            ("two", Item { number: 2, ..base.clone() }, Err(Refusal::Number)),
+            ("charter", Item { value: Some(Value::Charter(1)), ..base.clone() }, Err(Refusal::Value)),
+            ("rule", Item { value: Some(Value::Rule(main_rule())), ..base.clone() }, Err(Refusal::Value)),
+            ("remove or reset", Item { value: None, ..base.clone() }, Ok(())),
+        ] {
+            assert_eq!(judge(&item, &BOUNDS), expected, "{kind}: {label}");
+        }
+        let other = if kind == 6 {
+            Value::Ways(ProjectWays { drafts: false, goals: false, changes: false, away: false, way: 0 })
+        } else {
+            Value::Questions(Route::None)
+        };
+        assert_eq!(judge(&Item { value: Some(other), ..base }, &BOUNDS), Err(Refusal::Value));
+    }
+}

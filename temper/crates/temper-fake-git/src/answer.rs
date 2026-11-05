@@ -33,11 +33,26 @@ impl Answer {
 }
 /// Answer one admitted invocation using only the fake checkout and transport.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the invocation answer table keeps every supported git command together")]
 pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl Transport) -> Answer {
     transport.authenticate(checked.credential.as_ref());
     let at = checked.at.as_ref();
     match &checked.command {
         Command::Version => Answer::success(b"git version 2.47.3\n".to_vec()),
+        Command::Origin { directory } => {
+            let directory = path(at, directory);
+            if let Some(remote) = checkout.content(&path(&directory, b".git/temper-remote")) {
+                Answer::success([remote, b"\n"].concat())
+            } else if checkout.exists(&path(&directory, b".git")) {
+                Answer { exit: 1, stdout: Vec::new(), stderr: Vec::new() }
+            } else {
+                Answer {
+                    exit: 128,
+                    stdout: Vec::new(),
+                    stderr: b"fatal: --local can only be used inside a git repository\n".to_vec(),
+                }
+            }
+        }
         Command::Clone { remote, directory } => {
             let destination = path(at, directory);
             match git::clone_repository(transport, checkout, remote, &destination) {
@@ -50,13 +65,23 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
         }
         Command::Fetch { remote, source } => fetch(checkout, at, transport, remote, source),
         Command::Create { remote, branch, commit } => create(checked, transport, remote, branch, commit),
-        Command::CheckOut { commit } => match git::check_out(transport, checkout, at, count(*commit)) {
-            Ok(()) => {
-                write_index(checkout, at, working(checkout, at));
-                Answer::success(Vec::new())
+        Command::CheckOut { commit } => {
+            let lock = path(at, b".git/index.lock");
+            if checkout.exists(&lock) {
+                return Answer {
+                    exit: 128,
+                    stdout: Vec::new(),
+                    stderr: format!("fatal: Unable to create '{}': File exists.\n", text(&lock)).into_bytes(),
+                };
             }
-            Err(_) => Answer::local_failure(),
-        },
+            match git::check_out(transport, checkout, at, count(*commit)) {
+                Ok(()) => {
+                    write_index(checkout, at, working(checkout, at));
+                    Answer::success(Vec::new())
+                }
+                Err(_) => Answer::local_failure(),
+            }
+        }
         Command::Clean => {
             let index = staged(checkout, at);
             let mut tree = working(checkout, at);

@@ -195,7 +195,7 @@ fn proposal_rows_and_task_release_keep_their_own_shapes() {
             ][..],
         ),
         (
-            Box::new(fixtures::task::held_root()),
+            Box::new(super::task::held_agent_root()),
             &[Role::Paragraph, Role::Text, Role::Paragraph, Role::Text, Role::Button][..],
         ),
     ] {
@@ -248,7 +248,7 @@ fn a_rejecting_chat_keeps_its_reason_disclosure_open() {
 }
 #[test]
 fn releases_card_tree_stays_byte_identical() {
-    let root = fixtures::task::held_root();
+    let root = super::task::held_agent_root();
     let mut loaded = None;
     for card in root.pages().cards().unwrap() {
         if card.page.is_some() {

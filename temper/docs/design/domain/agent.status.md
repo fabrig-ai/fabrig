@@ -2,11 +2,15 @@
 
 2026-11-05. Where temper's code lags or departs from [agent.md](agent.md).
 The remaining gaps concern settings reads, verdict follow-up tasks,
-change-refusal model wording, shell authority for runs that cannot deliver
-and the fake's goal script.
+change-refusal model wording, shell authority for runs that cannot deliver,
+the fake's goal script and who is offered `decided`.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
-Section 4.3 has no gap in bounded file and pull-file feedback and recovery.
+Section 4.3 has no gap in file, pull-file and compare fitting to the checked
+local receiving-agent allowance, size feedback, recovery and settled-call replay.
+Section 7 has no known gap in fresh preparation from unusable history.
 Section 8.1 has no gap in settings pagination using the host answer allowance.
+Section 8.1 has no gap in discovery of project repository identities for
+charter documents.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks. 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`), since jig's `setting` read names jig's kinds and an application's alone (jig's `client/domain/contract.md`, 5.1), so the configuring agent proposes a project's policy without reading it first.
 - **Not yet:** 8.3: a document built in parts is proved on a script alone: no real model has built one, so whether it counts lines right, appends rather than rewrites, and recovers from a refusal is unobserved.
@@ -22,6 +26,12 @@ Section 8.1 has no gap in settings pagination using the host answer allowance.
   `temper-engine-smith/src/tests.rs` pins the shell staying. The stock
   charters grant no shell; the reference's charter 2 does
   (`../protocol/configuration.md`, 13.9). No reason is recorded.
+- **Design departs:** 4.3, from the request `ui-away` of 2026-11-05, decided by its
+  plan's cut: `decided` is declared to every run, where the request has it charter
+  1's, because the host part declares its fixed tools whatever a charter says
+  (`temper-engine-smith/src/calls.rs`, `tools_for`). So a coding agent's run spends
+  its room on it too; a call from anything but a goal answers ask, or is refused
+  for want of the control family (`forge.status.md`, 5.9).
 - **Departs:** 8.3: the scripted fake model's goal script names literal
   numbers, project 1 and goal 2 (`temper-fake/src/backends.rs`,
   `model_document`), because its scripts are static, so on `temper box

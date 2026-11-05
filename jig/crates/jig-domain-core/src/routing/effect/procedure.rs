@@ -4,6 +4,12 @@ use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue};
 
+pub(crate) struct ProcedureCall {
+    pub(crate) task: u64,
+    pub(crate) step: u64,
+    pub(crate) connector: u16,
+}
+
 pub(crate) fn problem(task: u64, why: tasks::Refusal) -> StepRefusal {
     StepRefusal::Refused(tasks::Problem { task: Some(task), why, blocked_by: None, capacity: None })
 }
@@ -77,10 +83,15 @@ pub(crate) fn parts(
     })
 }
 
-pub(crate) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, event: tasks::Event) -> Queue<Request> {
-    let tasks::Event::Procedure { reply_to, task: named, step: named_step, read, decision } = event else {
-        unreachable!("procedure event")
-    };
+pub(crate) fn apply(
+    core: &mut Core,
+    env: &Env<Limits>,
+    reply_to: skein_lib::ReplyTo,
+    task: u64,
+    step: u64,
+    read: Option<u64>,
+    decision: tasks::ProcedureDecision,
+) -> Queue<Request> {
     let token = reply_to.into_token();
     let mut revised = List::with_capacity(env.limits.tasks.batch.checked_mul(2).expect("step revision room"));
     let mut first = None;
@@ -99,13 +110,7 @@ pub(crate) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, ev
     crate::routing::step::step_tasks(
         core,
         env,
-        tasks::Event::Procedure {
-            reply_to: skein_lib::ReplyTo::new(token),
-            task: named,
-            step: named_step,
-            read,
-            decision,
-        },
+        tasks::Event::Procedure { reply_to: skein_lib::ReplyTo::new(token), task, step, read, decision },
         &mut child,
     );
     let mut kept = Queue::uncapped();

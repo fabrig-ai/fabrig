@@ -88,6 +88,7 @@ impl CompoundTask<'_> {
                 MessageFamily::Spoken(Spoken::Words)
                 | MessageFamily::Hint(_)
                 | MessageFamily::Slot(_)
+                | MessageFamily::Separate(_)
                 | MessageFamily::Result
                 | MessageFamily::Virtual => true,
             },
@@ -206,9 +207,8 @@ impl Staged {
             }
             row.questions = credits.into_boxed();
         }
-        if plan.prepared.word.kind == crate::MessageKind::Question {
-            let Party::Task(source) = plan.prepared.word.from else { unreachable!("question source checked") };
-            let credit = crate::inbox::question_credit(domain, plan.number, &plan.prepared.word);
+        if let Some(source) = plan.asked_by {
+            let credit = crate::inbox::question_credit(domain, source, plan.number, &plan.prepared.word);
             let requester = self.record(domain, source).expect("admitted sender").requester;
             let row = self.row_mut(domain, source);
             row.asked_requester |= requester == Party::Task(plan.number);
@@ -238,7 +238,7 @@ impl Staged {
                 && let Some(selected) = cancel.closing()
                 && crate::batch::contains(selected, number)
             {
-                row.phase = crate::closing::cancelled(&row.phase, cancel.by, cancel.at, &cancel.reason);
+                row.phase = Phase::Closing(crate::closing::cancelled(&row.phase, cancel.by, cancel.at, &cancel.reason));
                 row.revision = row.revision.checked_add(1).expect("admission checked");
             }
             project_placed(&mut row, plan);
@@ -592,7 +592,10 @@ fn returned_circle(number: u64, phase: Phase) -> Option<(u64, crate::Circle)> {
     match phase {
         Phase::Held { why: crate::Hold::Circle, source: Some(source), .. } => match *source {
             crate::HoldSource::Circle(circle) => Some((number, circle)),
-            crate::HoldSource::Resource(_) | crate::HoldSource::Effect { .. } | crate::HoldSource::Account { .. } => {
+            crate::HoldSource::Preparation { .. }
+            | crate::HoldSource::Resource(_)
+            | crate::HoldSource::Effect { .. }
+            | crate::HoldSource::Account { .. } => {
                 unreachable!("circle source")
             }
         },
@@ -637,20 +640,18 @@ fn project_placed(row: &mut CompoundTask<'_>, plan: &Plan) {
         for (target, placed) in &changes.tasks {
             if *target == row.number {
                 row.placed = *placed;
-                if crate::placed::placed_reason(&row.phase).is_some() {
-                    row.phase = match &row.phase {
-                        Phase::Held { was, .. } => crate::placed::resumed(was),
-                        Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => {
-                            unreachable!("placed phase")
+                match &row.phase {
+                    Phase::Held { was, why, .. } if why.placed().is_some() => {
+                        row.phase = crate::placed::resumed(was);
+                        if let Some(hold) = placed {
+                            row.phase = Phase::Held {
+                                was: crate::run::was(row.phase.clone()),
+                                why: crate::Hold::Placed { hold: *hold },
+                                source: None,
+                            };
                         }
-                    };
-                    if let Some(hold) = placed {
-                        row.phase = Phase::Held {
-                            was: crate::run::was(row.phase.clone()),
-                            why: crate::Hold::Placed { hold: *hold },
-                            source: None,
-                        };
                     }
+                    Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Held { .. } | Phase::Ended(_) => {}
                 }
             }
         }

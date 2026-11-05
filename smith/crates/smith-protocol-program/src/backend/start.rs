@@ -221,6 +221,9 @@ impl Backend {
             );
             return;
         };
+        if let Some(given) = &mut self.given {
+            given.push(super::Given::Arguments(launch.args.clone()));
+        }
         if !self.compaction() && !self.startup.resuming() {
             self.first_prompt_measure(env.now);
         }

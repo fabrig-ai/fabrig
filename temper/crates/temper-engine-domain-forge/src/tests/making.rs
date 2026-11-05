@@ -591,3 +591,43 @@ fn rows_read_in_the_forges_document_in_key_order() {
     let document = d.forges();
     assert_eq!(document.rows[0].makings.as_ref(), &[first, last]);
 }
+
+#[test]
+fn copy_address_admission_uses_512_bytes_instead_of_name_bytes() {
+    // The 100-byte address is longer than this deployment's 32-byte names.
+    const ADDRESS: usize = 100;
+    let prefix = b"https://source.example/owner/";
+    let mut address = skein_lib::Writer::new(ADDRESS);
+    address.put(prefix).unwrap();
+    for _ in prefix.len()..ADDRESS {
+        address.put(b"r").unwrap();
+    }
+    let address = address.finish();
+    let mut d = kept();
+    let mut value = intent();
+    value.into = None;
+    value.from = MakeFrom::Copy { address };
+    let mut env = env();
+    env.limits.name_bytes = 32;
+    let mut out = Queue::uncapped();
+    step(
+        &mut d,
+        &env,
+        Event::Application {
+            request: Token::new(101),
+            token: Token::new(201),
+            retention: Duration::from_secs(60),
+            role: Some(jig_domain_people::Role::Owner),
+            carried: None,
+            ask: Ask::MakeRepository {
+                forge: FORGE,
+                org: value.key.org,
+                name: value.key.name,
+                from: value.from,
+                into: None,
+            },
+        },
+        &mut out,
+    );
+    answer(&d, MakeAnswer::Kept);
+}

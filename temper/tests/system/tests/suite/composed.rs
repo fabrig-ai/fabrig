@@ -639,3 +639,91 @@ fn assert_unfinished_reads(agent: &smith_agent_world::World) {
         .collect::<Vec<_>>();
     assert_eq!(refused, [true, true, false, false, false, false]);
 }
+
+#[test]
+fn a_long_chat_recovers_from_unusable_resume_history() {
+    for mode in [0, 1, 2] {
+        World::recover_long_chat(mode);
+    }
+}
+
+#[test]
+fn forge_reads_fit_the_receiving_agents_reply_bound() {
+    use temper_system_world::composed::call;
+    let mut content = vec![b'x'; 19_336];
+    content[..6].copy_from_slice(b"Intro\n");
+    content[9000..9019].copy_from_slice(b"## Family numbers\n\n");
+    // Tabs require escaping, so fitting must count more than the raw prefix.
+    content[100..104].copy_from_slice(b"\t\t\t\t");
+    let mut turns = vec![
+        call(b"read_compare", br#"{"before":"$BEFORE","after":"$HEAD"}"#),
+        call(b"read_pull_files", br#"{"number":1,"head":"$HEAD"}"#),
+    ];
+    for maximum in [None, Some(16000), Some(12000), Some(8000)] {
+        let bound = maximum.map_or_else(String::new, |value| format!(",\"max_bytes\":{value}"));
+        turns.push(call(
+            b"read_file",
+            format!(r#"{{"head":"$HEAD","path":"docs/design/formats.md"{bound}}}"#).as_bytes(),
+        ));
+    }
+    turns.extend(report_script(false).turns);
+    let script =
+        skein_fake_llm_domain::api::Script { cue: b"@system".as_slice().into(), turns: turns.into_boxed_slice() };
+    for refused in [false, true] {
+        let mut world = World::forge_reads(956, script.clone(), &content, refused);
+        world.run();
+        assert_forge_read_feedback(&world, refused);
+    }
+}
+
+fn assert_forge_read_feedback(world: &World, refused: bool) {
+    use skein_fake_llm_domain::api::Part;
+    let outputs: Vec<_> = world
+        .agent()
+        .prompts()
+        .last()
+        .expect("next model turn")
+        .messages
+        .iter()
+        .flat_map(|message| &message.parts)
+        .filter_map(|part| match part {
+            Part::ToolOutput { output, is_error, .. } => Some((String::from_utf8_lossy(output), *is_error)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(outputs.len(), 6);
+    assert_eq!(world.observed.replays, 6, "every read replays its settled body");
+    for (output, _) in &outputs {
+        assert!(!output.contains("answer-not-shown"), "forge feedback was destroyed: {output}");
+        assert!(output.len() <= 8192);
+    }
+    assert!(outputs[0].0.contains("read_file"), "compare must give recovery: {}", outputs[0].0);
+    if refused {
+        for (output, error) in &outputs[..2] {
+            assert!(error);
+            assert!(output.contains("measured size unknown"));
+            assert!(output.contains("8192"));
+        }
+        for (output, error) in &outputs {
+            if *error {
+                assert!(output.contains("read_file") && output.contains("max_bytes"));
+            }
+        }
+        return;
+    }
+    assert!(outputs[0].1, "oversized successful compare becomes actionable error feedback");
+    assert!(outputs[0].0.contains("rendered size"));
+    assert!(outputs[1].0.contains("[omitted]"));
+    assert_eq!(outputs[2].0.len(), 8192, "metadata and escaping share the exact receiving bound");
+    assert!(outputs[2].0.contains("\\x09"));
+    for (index, (output, error)) in outputs[2..].iter().enumerate() {
+        assert!(!error);
+        assert!(output.contains("Intro"));
+        assert!(output.contains("[file truncated]"));
+        if index < 3 {
+            assert!(output.contains("8192"), "effective bound: {output}");
+            assert!(output.contains("agent.json profile.declared.tool_payload"));
+        }
+        assert!(!output.contains("Family numbers"));
+    }
+}

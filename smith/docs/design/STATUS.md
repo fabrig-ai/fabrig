@@ -18,11 +18,11 @@ at version 3, unseen on its bundle and a version past its baselines,
 with four departures (`benchmarks.md`). Three domain worlds call
 protocol crates (`testing.md`). Two step
 crates drive skein's JSON tokenizer over a whole buffer by hand
-(`domain/tools.md`, `protocol/events.md`), and two hand copies of
-skein's io check lack its operation table's ceiling
-(`protocol/limits.md`). The system text keeps "checkout" for the
-workspace (`domain/run.md`), and two effective limits keep `adapter`
-in their names (`protocol/limits.md`). `domain/session.md`,
+(`domain/tools.md`, `protocol/events.md`). The system text keeps
+"checkout" for the workspace (`domain/run.md`), and two effective limits keep `adapter`
+in their names (`protocol/limits.md`). A host may have the shell keep
+each model request and what a program was given in a private directory
+(`protocol/agent.md`, `protocol/programs.md`). `domain/session.md`,
 `protocol/channel.md`,
 `protocol/charter.md`, `protocol/llm.md` and
 `protocol/transcript.md` have no gap. smith has no drafts.

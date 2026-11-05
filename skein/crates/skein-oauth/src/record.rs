@@ -16,32 +16,30 @@ pub struct ClaimSelector {
 }
 /// Metadata needed for Starting or the next refresh; access tokens are optional
 /// in the owner's table and are not required to ask for the first refresh.
-#[derive(Clone, PartialEq, Eq, Hash)]
-#[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RefreshState {
     pub key: u32,
     pub generation: u64,
-    pub refresh_token: Box<[u8]>,
+    pub refresh_token: Secret,
     pub issued_client_id: Option<Box<[u8]>>,
     pub granted_scopes: Option<Box<[u8]>>,
     pub subject: Option<Box<[u8]>>,
-    pub id_token: Option<Box<[u8]>>,
+    pub id_token: Option<Secret>,
 }
 /// Token record its owner keeps before lending; access-only records cannot refresh.
 /// `expires_at` is restart metadata, never a cross-host grant deadline.
-#[derive(Clone, PartialEq, Eq, Hash)]
-#[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SavedToken {
     pub key: u32,
     pub generation: u64,
-    pub access_token: Box<[u8]>,
-    pub refresh_token: Option<Box<[u8]>>,
+    pub access_token: Secret,
+    pub refresh_token: Option<Secret>,
     pub metadata: Option<Box<[u8]>>,
     pub expires_at: Wall,
     pub issued_client_id: Option<Box<[u8]>>,
     pub granted_scopes: Option<Box<[u8]>>,
     pub subject: Option<Box<[u8]>>,
-    pub id_token: Option<Box<[u8]>>,
+    pub id_token: Option<Secret>,
     pub earliest_refresh_at: Option<Wall>,
 }
 impl SavedToken {
@@ -77,14 +75,14 @@ pub fn rotate(
     wall: Wall,
     limits: &Limits,
 ) -> Result<SavedToken, DecodeError> {
-    common::bounded(&previous.refresh_token, limits.token_bytes)?;
-    common::text(&previous.refresh_token)?;
+    common::bounded(previous.refresh_token.expose(), limits.token_bytes)?;
+    common::text(previous.refresh_token.expose())?;
     validate_refresh_additions(previous, limits)?;
     complete(
         SavedToken {
             key: previous.key,
             generation: previous.generation,
-            access_token: Box::new([]),
+            access_token: Secret::new(Box::new([])),
             refresh_token: Some(previous.refresh_token.clone()),
             metadata: None,
             expires_at: wall,
@@ -115,7 +113,7 @@ pub(crate) fn complete(
     candidate.metadata = match claim {
         None => None,
         Some(selector) => {
-            let claims = jwt::read_claims(&response.access_token, selector, wall, limits)?;
+            let claims = jwt::read_claims(response.access_token.expose(), selector, wall, limits)?;
             if let Some(expiry) = claims.expires_at {
                 expires_at = expires_at.min(expiry);
             }
@@ -132,19 +130,19 @@ pub(crate) fn complete(
     Ok(candidate)
 }
 fn validate(record: &SavedToken, limits: &Limits) -> Result<(), DecodeError> {
-    common::bearer(&record.access_token, limits)?;
+    common::bearer(record.access_token.expose(), limits)?;
     if let Some(refresh_token) = &record.refresh_token {
-        common::bounded(refresh_token, limits.token_bytes)?;
-        common::text(refresh_token)?;
+        common::bounded(refresh_token.expose(), limits.token_bytes)?;
+        common::text(refresh_token.expose())?;
     }
     if let Some(id) = &record.metadata {
         jwt::check_metadata(id, limits)?;
     }
     for (value, cap) in [
-        (&record.issued_client_id, limits.issued_client_bytes),
-        (&record.granted_scopes, limits.granted_bytes),
-        (&record.subject, limits.subject_bytes),
-        (&record.id_token, limits.id_token_bytes),
+        (record.issued_client_id.as_deref(), limits.issued_client_bytes),
+        (record.granted_scopes.as_deref(), limits.granted_bytes),
+        (record.subject.as_deref(), limits.subject_bytes),
+        (secret_ref(record.id_token.as_ref()), limits.id_token_bytes),
     ] {
         if let Some(value) = value {
             common::optional_text(value, cap)?;
@@ -181,22 +179,6 @@ fn problem(problem: v3::Problem) -> DecodeError {
 }
 
 #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
-fn secret(value: Option<Box<[u8]>>) -> Option<Secret> {
-    match value {
-        Some(value) => Some(Secret::new(value)),
-        None => None,
-    }
-}
-
-#[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
-fn exposed(value: Option<Secret>) -> Option<Box<[u8]>> {
-    match value {
-        Some(value) => Some(value.into_exposed()),
-        None => None,
-    }
-}
-
-#[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
 fn generated(record: &SavedToken, limits: &Limits) -> Result<v3::SavedToken, DecodeError> {
     let schema_limits = record_limits(limits).ok_or(DecodeError::TooLarge)?;
     validate(record, limits)?;
@@ -204,13 +186,13 @@ fn generated(record: &SavedToken, limits: &Limits) -> Result<v3::SavedToken, Dec
         key: record.key,
         generation: record.generation,
         expires_at: record.expires_at.as_nanos(),
-        access_token: Secret::new(record.access_token.clone()),
-        refresh_token: secret(record.refresh_token.clone()),
+        access_token: record.access_token.clone(),
+        refresh_token: record.refresh_token.clone(),
         metadata: record.metadata.clone(),
         issued_client_id: record.issued_client_id.clone(),
         granted_scopes: record.granted_scopes.clone(),
         subject: record.subject.clone(),
-        id_token: secret(record.id_token.clone()),
+        id_token: record.id_token.clone(),
         earliest_refresh_at: match record.earliest_refresh_at {
             Some(wall) => Some(wall.as_nanos()),
             None => None,
@@ -257,13 +239,13 @@ pub fn decode_record(input: &[u8], limits: &Limits) -> Result<SavedToken, Decode
         key: parts.key,
         generation: parts.generation,
         expires_at: Wall::from_nanos(parts.expires_at),
-        access_token: parts.access_token.into_exposed(),
-        refresh_token: exposed(parts.refresh_token),
+        access_token: parts.access_token,
+        refresh_token: parts.refresh_token,
         metadata: parts.metadata,
         issued_client_id: parts.issued_client_id,
         granted_scopes: parts.granted_scopes,
         subject: parts.subject,
-        id_token: exposed(parts.id_token),
+        id_token: parts.id_token,
         earliest_refresh_at: match parts.earliest_refresh_at {
             Some(nanos) => Some(Wall::from_nanos(nanos)),
             None => None,
@@ -276,14 +258,22 @@ pub fn decode_record(input: &[u8], limits: &Limits) -> Result<SavedToken, Decode
 /// Checks held identity fields before the machine retains or copies them.
 pub(crate) fn validate_refresh_additions(state: &RefreshState, limits: &Limits) -> Result<(), DecodeError> {
     for (value, cap) in [
-        (&state.issued_client_id, limits.issued_client_bytes),
-        (&state.granted_scopes, limits.granted_bytes),
-        (&state.subject, limits.subject_bytes),
-        (&state.id_token, limits.id_token_bytes),
+        (state.issued_client_id.as_deref(), limits.issued_client_bytes),
+        (state.granted_scopes.as_deref(), limits.granted_bytes),
+        (state.subject.as_deref(), limits.subject_bytes),
+        (secret_ref(state.id_token.as_ref()), limits.id_token_bytes),
     ] {
         if let Some(value) = value {
             common::optional_text(value, cap)?;
         }
     }
     Ok(())
+}
+
+#[must_use]
+pub fn secret_ref(value: Option<&Secret>) -> Option<&[u8]> {
+    match value {
+        Some(value) => Some(value.expose()),
+        None => None,
+    }
 }

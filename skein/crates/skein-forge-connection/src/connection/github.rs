@@ -169,7 +169,7 @@ impl Exchange {
                 }
             }
         }
-        if c.phase == Phase::Closed {
+        if c.phase() == Phase::Closed {
             self.request = None;
             self.decoder = None;
         }

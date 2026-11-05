@@ -10,29 +10,33 @@ no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); seven of its artifact facts are unchecked at the
 pinned Forgejo (`forge.md`), as are a copy's facts, one of them not
-recorded at all (`forge-setup.md`); the fake Forgejo leaves no repository
-at a refused copy and asks a delete the wrong scope, and the fake GitHub
-refuses no push as `GH013` (`fake-forge.md`).
+recorded at all, and no fact records a site admin's read of a repository
+by its path (`forge-setup.md`), nor a comparison's `removed` (`forge.md`); the fake Forgejo leaves no repository
+at a refused copy, asks a delete the wrong scope and answers a read by
+path `403` to a caller with no grant, a public repository's too, and the
+fake GitHub refuses no push as `GH013` (`fake-forge.md`).
 No macOS runner runs skein's suites (`shell.md`). json, tls and http's collector have no fuzz target
 (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
 `examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live
 suite's logins have no design (`skein-live`), five of its provider
 stories being manual, run by the owner (`llm.md`). Most carriers still
 print the bytes they hold, credentials among them on known paths
-(`lib.md`), as does a server's written head (`http.md`). The code departs
-in `skein-playground`'s manifest (`playground.md`).
+(`lib.md`, `oauth.md`), as does a server's written head (`http.md`). The code departs
+in `skein-playground`'s manifest (`playground.md`). An owner may ask a call
+to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
+fake LLM peer to keep what it read (`fake-llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
-`browser.md` have no gap. The state machines of io,
-forge-connection, Forgejo's plans, the fake forge's connection, oauth
-and its accounts, llm,
+`browser.md` have no gap. The state machines of io's file store and
+private opening, forge-connection, Forgejo's plans, the fake forge's
+connection, oauth and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
 (`fake-forge.md`, `fake-llm.md`); single departures stand in
-`channel.md`, `fake-forge.md`, `forge-connection.md`, `io.md`,
-`json.md`, `kv.md`, `link.md`, `llm.md`, `shell.md`, `testing.md` and
-`ui.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
+`channel.md`, `fake-forge.md`, `forge.md`, `forge-connection.md`, `io.md`,
+`json.md`, `kv.md`, `lib.md`, `link.md`, `llm.md`, `shell.md`,
+`testing.md` and `ui.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
 `lib.md` and `io.md` to name its items, the design departs from

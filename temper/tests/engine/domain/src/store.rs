@@ -295,6 +295,17 @@ impl Store {
     /// Read one root page through the component and the service's decoding.
     #[must_use]
     pub fn page(&mut self, range: &Range, after: Option<&Key>, most: u32) -> (Box<[Record]>, Option<Key>) {
+        let (rows, next, _) = self.page_with_texts(range, after, most);
+        (rows, next)
+    }
+    /// Read a page with the production protocol's rendered transcript tail.
+    #[must_use]
+    pub fn page_with_texts(
+        &mut self,
+        range: &Range,
+        after: Option<&Key>,
+        most: u32,
+    ) -> (Box<[Record]>, Option<Key>, Option<engine::TranscriptTexts>) {
         self.request(engine::StoreRequest::Load {
             owner: Token::new(1),
             range: range.clone(),
@@ -306,7 +317,7 @@ impl Store {
             if !self.replies.is_empty() {
                 let reply = self.replies.remove(0);
                 match reply {
-                    engine::StoreInput::Loaded { rows, next, .. } => return (rows, next),
+                    engine::StoreInput::Loaded { rows, next, texts, .. } => return (rows, next, texts),
                     engine::StoreInput::MissingLink { record, target, .. } => {
                         self.missing.push((record, target));
                         continue;

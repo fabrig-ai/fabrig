@@ -1026,6 +1026,10 @@ Notes on the table:
   as `Original` (section 12).
 - **Markers** at the head of a body, a comment or a review are decoded
   into its `key` (section 6).
+- **A changed file's `status`** is `added`, `deleted` or `removed`,
+  `modified` or `changed`, `renamed` or `copied`; `removed` is what a real
+  Forgejo's comparison says of a file gone, and reads as `deleted` does. Any
+  other word is a malformed answer.
 - **What may follow** is told by the page coming full, `X-HasMore`, or
   `total_count`. For a call made of several requests, `more` is its
   listing's.
@@ -1058,7 +1062,7 @@ such a request costs nothing.
 | anything after a byte was written: a reset, the end of the stream, the call's deadline, `5xx`; a `429` after one of the call's writes succeeded (`Merge`'s read after its merge) | `Timeout` |
 | a malformed answer (5.3) | `Timeout` on a write; `InvalidAnswer` on a read |
 | `401`, `403` | `Forbidden` |
-| a `404` on a branch leaf (`reads::Stage::Read`, `Read::Branch`) or contents leaf (`contents::Stage::File`), classified as `Asked::Leaf` | `Missing`, `Drop::Nothing`: the repository row stays |
+| a `404` on a branch leaf (`Read::Branch`'s own read, not its resolution) or contents leaf (`Read::File`'s own read), classified as `Asked::Leaf` | `Missing`, `Drop::Nothing`: the repository row stays |
 | every other `404` that ends the call (one 5.2 says ends nothing is an answer, and the path stays), including repository resolution, its own GET and listings | `Missing`, the repository's path dropped; `MissingJob` on `Job`'s reads |
 | `413` (Forgejo's quota) | `Full` |
 | `423` (the repository is archived) | `Forbidden` |
@@ -1572,6 +1576,15 @@ the suites (testing.md, section 6).
 
 ## 12. Open questions
 
+- **A real Forgejo's refused reads, unexplained** (3.4, 5.3): on a deployment,
+  an agent's `PullFor` was refused `InvalidAnswer`. The answers captured there
+  show a comparison's `removed` (5.3), and no cause for that: none is a by-branch
+  answer, and none was read with CI red. What would settle it is that answer,
+  with its request path and the head and base asked, and a section's reads at a
+  red head. A comparison whose `commits` come shorter than its `total_commits`
+  is refused the same way (`skein-forge/src/forgejo/plans/commits.rs`); whether
+  Forgejo answers one on a long range is unknown. Default: as they stand, until
+  an answer shows a fault.
 - **Long threads, read whole.** Each `Item` read of a participating
   object streams its whole thread, since Forgejo does not page comments.
   Its timeline is paged (`issues/{n}/timeline?since&page&limit`) but
@@ -1615,3 +1628,8 @@ the suites (testing.md, section 6).
 - **GitHub's further gaps.** Settled: its dialect is a module of
   `skein-forge`, and section 10 lists what it adds. Open:
   forge-github.md, section 15.
+- **What the call plans' states leave** (4.2): a plan's cells are arms of one
+  `match`, where programming-model.md, section 5.4 has one handler each.
+  Default: as they stand, until a debt item names them. The `if let`s
+  `forgejo/client` and `forgejo/server` keep on their own enums go with `D015`
+  of `skein/docs/development/debt/`.

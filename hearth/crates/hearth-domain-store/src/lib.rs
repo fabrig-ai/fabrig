@@ -24,11 +24,33 @@ enum Timer {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 enum Phase {
     Closed,
-    Locking,
+    Locking { said: bool },
     Recording,
     Writing,
     Scanning,
     Ready,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+enum Standing {
+    Usable,
+    Declining(vocabulary::Decline),
+}
+#[derive(Debug, Hash)]
+#[expect(clippy::large_enum_variant, reason = "the chain stays inline without allocating for each request")]
+enum Flight {
+    Idle,
+    Finding,
+    Writing(hearth_lib::encode::Digest),
+    Entering(enter::Entering),
+    Chain(staging::Working),
+}
+impl Flight {
+    fn chain(&self) -> Option<&staging::Working> {
+        match self {
+            Self::Chain(working) => Some(working),
+            Self::Idle | Self::Finding | Self::Writing(_) | Self::Entering(_) => None,
+        }
+    }
 }
 #[derive(Debug, Hash)]
 pub struct Store {
@@ -36,13 +58,8 @@ pub struct Store {
     uid: u32,
     timers: Deadlines<Timer>,
     scan: scan::Scan,
-    entering: Option<enter::Entering>,
-    usable: bool,
-    said: bool,
-    finding: bool,
-    writing: Option<hearth_lib::encode::Digest>,
-    decline: vocabulary::Decline,
-    working: Option<staging::Working>,
+    standing: Standing,
+    flight: Flight,
     staged: Option<staging::Staged>,
 }
 impl Store {
@@ -53,13 +70,8 @@ impl Store {
             uid,
             timers: Deadlines::with_capacity(2),
             scan: scan::Scan::new(limits),
-            entering: None,
-            usable: false,
-            said: false,
-            finding: false,
-            writing: None,
-            decline: vocabulary::Decline::Unusable { step: vocabulary::Step::List },
-            working: None,
+            standing: Standing::Declining(vocabulary::Decline::Unusable { step: vocabulary::Step::List }),
+            flight: Flight::Idle,
             staged: None,
         }
     }
@@ -73,24 +85,32 @@ pub fn step(store: &mut Store, env: &Env<Limits>, ev: Event, out: &mut Queue<Out
         staging::seal(store, env, key, parent, inputs, out);
     } else if let Event::Discard { key } = ev {
         staging::discard(store, env, key, out);
-    } else if store.working.is_some() {
-        staging::step(store, ev, out);
-    } else if store.writing.is_some() {
-        resolutions::record(store, env, ev, out);
-    } else if let Event::Record { .. } | Event::Room = ev {
-        resolutions::record(store, env, ev, out);
-    } else if let Event::Find { .. } = ev {
-        resolutions::find(store, env, ev, out);
-    } else if store.finding {
-        resolutions::find(store, env, ev, out);
-    } else if store.entering.is_some() {
-        enter::step(store, env, ev, out);
-    } else if let Event::Arrived { .. } = ev {
-        enter::step(store, env, ev, out);
-    } else if store.phase == Phase::Scanning {
-        scan::step(store, env, ev, out);
     } else {
-        start::step(store, env, ev, out);
+        match store.flight {
+            Flight::Chain(_) => return staging::step(store, ev, out),
+            Flight::Writing(_) => return resolutions::record(store, env, ev, out),
+            Flight::Idle | Flight::Finding | Flight::Entering(_) => {}
+        }
+        if let Event::Record { .. } | Event::Room = ev {
+            resolutions::record(store, env, ev, out);
+        } else if let Event::Find { .. } = ev {
+            resolutions::find(store, env, ev, out);
+        } else {
+            match store.flight {
+                Flight::Finding => resolutions::find(store, env, ev, out),
+                Flight::Entering(_) => enter::step(store, env, ev, out),
+                Flight::Idle => {
+                    if let Event::Arrived { .. } = ev {
+                        enter::step(store, env, ev, out);
+                    } else if store.phase == Phase::Scanning {
+                        scan::step(store, env, ev, out);
+                    } else {
+                        start::step(store, env, ev, out);
+                    }
+                }
+                Flight::Chain(_) | Flight::Writing(_) => unreachable!("flight dispatched"),
+            }
+        }
     }
 }
 pub fn fire(store: &mut Store, env: &Env<Limits>, out: &mut Queue<Output>) {

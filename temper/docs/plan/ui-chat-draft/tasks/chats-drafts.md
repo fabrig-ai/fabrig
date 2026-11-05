@@ -65,3 +65,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Limit goal links to one rows window, no jig change: watch the goals of the newest rows' chats across both lists; a row past that shows no "started goal" line and stays otherwise correct. Say so in the report and the design's status, and finish.

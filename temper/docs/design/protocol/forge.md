@@ -166,9 +166,9 @@ skein-io socket
   The setup's host gives its plans the same word (setup.md, section 5),
   and their requests carry the same user agent. The component reads
   nothing else of a forge's record: its `git` base is the routing's, for
-  runs' remotes (channel.md, section 4), its `web` is the setup's and
-  the client's (GitHub's browser pages), and its bot is its git
-  identity's, which the component never holds (2.5).
+  runs' remotes (channel.md, section 4), its `web` is the setup's, the
+  client's and the sign-in page's (its browser pages, 2.1), and its bot
+  is its git identity's, which the component never holds (2.5).
 - **What crosses to the root** is the root's boundary: a
   `Request::Forge { call, repository, op }`, which the routing hands to
   the component, ended by exactly one `client::Event::Answered { call,
@@ -223,10 +223,11 @@ skein-io socket
     its tokens answer as, written over the one the record was made with
     at each `Check` done (2.2); a GitHub forge commits as its App's bot,
     from its `AppSlug` and `User` records (2.5);
-  - for a first set up, the first repository's intent: its
-    organization, name and runner label, and no project (setup.md, 6.7), kept
-    so that a restart before the repository is made makes it at the next
-    connect;
+  - for a first set up, its intent, and no project (setup.md, 6.7):
+    `Empty`'s organization, name and runner label, kept so that a restart
+    before the repository is made makes it at the next connect; `Copies`'
+    addresses, kept for the client to ask them at Ready and after a restart;
+    or `Nothing`;
   - its state: kept, or ended, with whether its secrets are erased and
     its box group removed (2.3).
 
@@ -331,8 +332,8 @@ skein-io socket
   act is admitted, so a refused act makes nothing:
   - `SetUp` of a new owned Forgejo, under the box alone and while no
     owned forge is kept, takes the machine's owned place
-    (configuration.md, section 3), and keeps the first repository's
-    intent;
+    (configuration.md, section 3), and keeps its intent, its row saying
+    it (setup.md, 6.7);
   - `Connect` of a new GitHub forge takes the machine's GitHub place,
     github.com's when it names none, and its git program;
   - `Connect` as a Forgejo's admin (setup.md, 5.5) takes the address,
@@ -1062,7 +1063,7 @@ Held by skein's `forge-connection.md`, section 8: a forge connection
 | not connected | start with no access, an incomplete, unreadable or mismatched set (2.1); a setup run's `Stop` on a forge with none | `NotConnected` |
 | not set up | start, an owned forge with neither its handover file nor an `AdminToken` record (setup.md, 6.5) | `NotConnected` |
 | setting up | the box's link's `start` written, for an owned forge's `SetUp` or the playground's fake forge, then each `step` line, with its step (2.8) | `NotConnected` |
-| set up failed | the box's `failed`, or its pipe closed during the ask (2.8) | `NotConnected` |
+| set up failed | the box's `failed`, or its pipe closed during the ask (2.8); a managed forge's start whose plan stopped (setup.md, 5.1) | `NotConnected` |
 | connecting | a run that connects begins (2.6) | `NotConnected` |
 | connected | `Event::Connected` (2.2) | served |
 | stopped | `Event::Stopped` (2.3) | `NotConnected` |
@@ -1072,9 +1073,11 @@ A connecting forge goes back to what it was when its run stops; a
 stopped one is connected again by its next `Connected`, after a Replace
 or, on a connected Forgejo, a `Connect` with its tokens.
 A setting up forge, at the box's `started`, connects as 2.2 says; set up
-failed, it is asked again from the client, as not set up is. Only a
-forge the box runs, owned or fake, is ever setting up or set up failed,
-and only an owned one not set up. An ended forge stays ended until its
+failed, it is asked again from the client, as not set up is, and a
+managed one is connected again as its admin (setup.md, 5.5). Only a
+forge the box runs, owned or fake, is ever setting up, only one of those
+or a managed one set up failed, and only an owned one not set up. An
+ended forge stays ended until its
 removal is whole and its record erased (2.3): the routing's events for
 it change nothing, the setup host runs nothing for it, a webhook's hint
 for it is dropped, and no list shows it (`../domain/forge.md`, 4.1).

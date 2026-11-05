@@ -1,6 +1,6 @@
 # Documentation in the binary
 
-Provisional, 2026-10-26, revised 2026-10-27. temper's documentation,
+Provisional, 2026-10-26, revised 2026-11-05. temper's documentation,
 for agents: pages in the repository, compiled into the binary, read at
 the command line by the agents that run and drive temper and by
 temper's own runs through a host tool. It builds `../draft/agent-docs.md`
@@ -227,6 +227,12 @@ in `../draft/agent-docs.md` 6's voice.
   decoder takes or one of the members gone, which its decoder refuses
   naming where it went. Where the decoder is jig's, its members' rows
   are jig's, as `limits-engine`'s are.
+- **`configuration`'s last section, `The merge command`,** gives the
+  contract `merge_job`'s command is written to (`tooling.md`, 4.1) to
+  whoever writes one, since a member's line holds at most 160 bytes: that
+  member's line points to it. Its words sit beside the page's renderer,
+  which reads the bounds and the `PATH` it names from the limits that hold
+  them, so the section cannot drift from them.
 
 ## 9. Errors
 

@@ -1,7 +1,7 @@
 use super::fixtures;
 use skein_ui::{Act, Role};
+use temper_client_domain::ChatsFilter;
 use temper_client_domain::{Action, pages};
-use temper_client_domain::{ChatsFilter, PlanFilter};
 
 #[test]
 fn the_navigation_is_named_main_navigation() {
@@ -105,7 +105,7 @@ fn no_project_chosen_offers_no_adoption_link() {
 fn adopt_a_repository_is_offered_whatever_the_persons_role() {
     let mut view = fixtures::page_view(
         &fixtures::root_at(
-            temper_client_domain::Address::Settings { project: fixtures::PROJECT },
+            temper_client_domain::Address::Repositories { project: fixtures::PROJECT },
             &fixtures::domain_limits(),
         )
         .0,
@@ -157,11 +157,7 @@ fn choosing_another_project_changes_the_navigations_project() {
 }
 #[test]
 fn a_sign_out_that_did_not_reach_the_engine_is_offered_again() {
-    let mut root = fixtures::root_at(
-        temper_client_domain::Address::Settings { project: fixtures::PROJECT },
-        &fixtures::domain_limits(),
-    )
-    .0;
+    let mut root = fixtures::root_at(temper_client_domain::Address::Accounts, &fixtures::domain_limits()).0;
     fixtures::root_event(&mut root, temper_client_domain::Event::Act { action: Action::Pages(pages::Act::SignOut) });
     fixtures::root_event(&mut root, temper_client_domain::Event::Client { event: jig_client::Event::SignOutLost });
     let mut view = fixtures::view();
@@ -383,15 +379,18 @@ fn the_navigation_marks_only_the_current_page() {
         (Address::Inbox { filter: Filter::ALL }, Some(b"Needs you".as_slice())),
         (Address::Inbox { filter: Filter { goal: Some(9), ..Filter::ALL } }, Some(b"Needs you".as_slice())),
         (Address::Chats { filter: ChatsFilter::All }, Some(b"Chats".as_slice())),
-        (Address::Adopt { project: fixtures::PROJECT }, None),
-        (Address::Accounts, None),
+        (Address::Adopt { project: fixtures::PROJECT }, Some(b"Settings".as_slice())),
+        (Address::Accounts, Some(b"Settings".as_slice())),
         (Address::Chat { task: 9 }, Some(b"Chats".as_slice())),
-        (Address::Task { task: 9, filter: PlanFilter::All }, None),
+        (Address::Task { task: 9 }, None),
     ] {
         let root = fixtures::root_at(address, &fixtures::domain_limits()).0;
         let view = fixtures::page_view(&root);
         let mut found = None;
         for node in view.tree().nodes() {
+            if node.role == Role::Main {
+                break;
+            }
             if node.states.as_slice().contains(&skein_ui::State::Current) {
                 assert_eq!(node.role, Role::Link);
                 assert!(found.is_none(), "one current page");
@@ -711,7 +710,11 @@ fn the_offline_rail_keeps_its_choices() {
 fn the_qa_controls_keep_their_accessible_names_with_the_menu_closed() {
     for (root, controls) in [
         (
-            Box::new(fixtures::playground_root(temper_client_domain::Address::NewChat, fixtures::PROJECT, true)),
+            Box::new(fixtures::playground_root(
+                temper_client_domain::Address::NewChat { draft: false },
+                fixtures::PROJECT,
+                true,
+            )),
             &[(Role::Link, b"Chats".as_slice()), (Role::TextArea, b"What do you want done?"), (Role::Button, b"Send")]
                 [..],
         ),
@@ -1180,7 +1183,7 @@ fn switcher_owner(start: bool) -> temper_client_domain::Domain {
     use jig_client::contract as c;
     let (mut root, watch, _) = fixtures::root_at(
         if start {
-            temper_client_domain::Address::NewChat
+            temper_client_domain::Address::NewChat { draft: false }
         } else {
             temper_client_domain::Address::Chats { filter: ChatsFilter::All }
         },
@@ -1479,7 +1482,7 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
         (Role::Link, crate::look::BRAND),
         (Role::Disclosure, crate::look::PROJECTS),
         (Role::Slot, crate::look::RAIL_NAV),
-        (Role::Link, crate::look::RAIL_NEW),
+        (Role::Slot, crate::look::RAIL_NEW),
         (Role::Slot, crate::look::RAIL_FOOT),
     ] {
         assert_eq!(nodes[at].role, role);
@@ -1488,6 +1491,10 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
             assert_eq!(nodes[at].name.as_deref(), Some(project));
         }
         at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        if style == crate::look::PROJECTS && nodes[at].styles.as_slice().contains(&crate::look::AWAY_CHIP) {
+            assert_eq!(nodes[at].role, Role::Button);
+            at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        }
     }
     assert_eq!(at, rail.checked_add(usize::try_from(nodes[rail].size).unwrap()).unwrap());
 }
@@ -1545,7 +1552,24 @@ fn goals_opens_in_its_projects_frame() {
                 Event::Went { place: Place::Address(address.clone()) },
                 &mut out,
             );
-            assert!(out.is_empty(), "opening Goals asks for no reads or watches");
+            // Switching projects reads its kind-7 ways; Goals has no page watch without a template.
+            assert_eq!(out.len(), 1, "only the new project’s ways are read: {out:?}");
+            let Some(Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { what: jig_client::Readable::Family { record, .. }, .. },
+                    },
+            }) = out.pop()
+            else {
+                panic!("project ways read")
+            };
+            let reading =
+                temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+                    .unwrap();
+            let temper_client_protocol_wire::v1::Read::Setting(setting) = reading.read() else {
+                panic!("project ways setting")
+            };
+            assert_eq!((setting.kind(), setting.scope()), (7, fixtures::PROJECT));
             assert_eq!(root.pages().address(), &address);
             assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
             fixtures::build(&mut view, &root);

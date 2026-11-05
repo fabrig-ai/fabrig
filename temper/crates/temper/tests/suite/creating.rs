@@ -82,7 +82,7 @@ fn the_cluster_offers_every_stock_charter() {
     let mut engine = cluster_engine("cluster-creating");
     let frame = stock_frame(&engine);
     let expected: Vec<_> = engine.charters.iter().map(|charter| charter.number).collect();
-    assert_eq!(expected.len(), 5, "stock chat, producer, configuring and reviewers");
+    assert_eq!(expected.len(), 6, "stock chat, producer, configuring, reviewer, foreman and status");
     assert_eq!(offered(&frame), expected);
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
     let words = jig_client::contract::Text::new(b"Hello".as_slice().into(), engine.limits.core.people.words)
@@ -92,7 +92,7 @@ fn the_cluster_offers_every_stock_charter() {
     assert_eq!(project, 1);
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks.get(0).expect("chat task").executor, jig_client::contract::Executor::Agent { charter: 1 });
-    engine.limits.core.documents.lines = 4;
+    engine.limits.core.documents.lines = 5;
     assert!(stock_frame(&engine).projects.get(0).expect("project").creating.is_none(), "overflow refuses whole");
 }
 
@@ -100,7 +100,7 @@ fn the_cluster_offers_every_stock_charter() {
 fn the_browser_receives_a_complete_stock_me_offer() {
     let mut engine = cluster_engine("browser-creating");
     // Isolate the receiver from the cluster's independently checked offer capacity.
-    engine.limits.core.documents.lines = 5;
+    engine.limits.core.documents.lines = 6;
     let frame = stock_frame(&engine);
     assert_eq!(offered(&frame).len(), engine.charters.len());
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
@@ -121,7 +121,7 @@ fn the_forgejo_fixture_offers_every_stock_charter() {
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
     let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
     let engine = configured_engine(&value);
-    assert_eq!(engine.charters.len(), 5);
+    assert_eq!(engine.charters.len(), 6);
     assert_eq!(
         offered(&stock_frame(&engine)),
         engine.charters.iter().map(|charter| charter.number).collect::<Vec<_>>()

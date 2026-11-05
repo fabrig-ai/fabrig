@@ -14,7 +14,7 @@ fn generated_documents_mutated_and_cut_read_as_the_reference_reads_them() {
         let limits = world::limits(&mut rng);
         let mut document = generate::document(&mut rng, &limits);
         if rng.chance(700) {
-            document = generate::mutate(&mut rng, &document);
+            document = hearth_test_fixtures::hostile::mutate(&mut rng, &document);
         }
         let settings = Settings::chaotic(&mut rng, limits, document.len());
         seen.record(&world::check(&document, &settings, seed), &settings);

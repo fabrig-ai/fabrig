@@ -33,8 +33,8 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 accounts.return_to(source, location);
             }
         }
-        root::Request::SetUp { forge, request, org, repository, playground } => {
-            crate::setup::lifecycle::first(engine, forge, org, repository, playground);
+        root::Request::SetUp { forge, request, first } => {
+            crate::setup::lifecycle::first(engine, forge, first);
             let mut out = skein_lib::Queue::with_capacity(3);
             engine.box_link.group(forge, temper_engine_domain_forge::BoxKind::Owned, request, &mut out);
             box_link::drain(engine, &mut out);
@@ -57,6 +57,9 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         }
         root::Request::Manifest { forge, request, back } => {
             crate::setup::public::manifest(engine, forge, request, back);
+        }
+        root::Request::AdoptAccess { forge, request, owner, name } => {
+            crate::setup::public::adopt_access(engine, forge, request, owner, name);
         }
         root::Request::Reachable { forge, request, installation, page } => {
             crate::setup::public::reachable(engine, forge, request, installation, page);
@@ -362,13 +365,14 @@ fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Op
 
 fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
     match delivery {
-        root::HostDelivery::Settings { to, answer, application, from, requested } => {
-            let (body, error) = temper_engine_smith::settings_answer_bounded(
+        root::HostDelivery::Settings { to, answer, repositories, application, from, requested } => {
+            let (body, error) = temper_engine_smith::settings_repository_answer(
                 &answer,
                 from,
                 requested,
                 engine.domain.models(),
                 application.as_ref(),
+                &repositories,
                 engine.env.limits.call_answer_bytes.saturating_sub(8),
             )
             .into_parts();
@@ -398,7 +402,14 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
 fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallAnswer, tool: &[u8], task: u64) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
-    engine.events.push(crate::tools::render_for_task(to, answer, tool, bytes, task));
+    engine.events.push(crate::tools::render_for_task(
+        to,
+        answer,
+        tool,
+        bytes,
+        task,
+        engine.host_reply_bytes.unwrap_or(u32::MAX),
+    ));
 }
 
 /// A job uses the same repository translation as an agent (temper/docs/design/domain/worker.md, 4.4).

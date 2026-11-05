@@ -42,6 +42,8 @@ fn each_adoption_form_state_prints_as_its_golden_file() {
 #[test]
 fn each_fixture_page_prints_as_its_golden_file() {
     for (name, tree) in [
+        ("settings", fixtures::chat::settings()),
+        ("builders", fixtures::page(&temper_client_domain::Address::Builders { project: 1 }, false)),
         ("changes", fixtures::changes_page()),
         ("inbox", fixtures::inbox_page()),
         ("chats", fixtures::chats_page()),

@@ -172,7 +172,7 @@ fn process_settings(value: &mut Value) -> Value {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
     for (name, minimum) in [
-        ("tasks.charters", 5),
+        ("tasks.charters", 6),
         ("core.templates", 3),
         ("authority.grants", 16),
         ("notes.scopes", 32),
@@ -421,8 +421,8 @@ impl Judge {
             value["engine"]["limits"]["overrides"][key] = 3.into();
         }
         // accounts' program hosts hold documents.lines rows (jig documents/programs.rs `hosts`);
-        // four lines also carry all stock charters in the creation offer.
-        value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
+        // six lines also carry all stock charters in the creation offer.
+        value["engine"]["limits"]["overrides"]["documents.lines"] = 6.into();
         value["engine"]["hosts"]["workers"][0]["name"] = "ws".into();
         value["engine"]["hosts"]["workers"].as_array_mut().expect("hosts").truncate(self.cast.len());
         let secret = b"s2-case-fixture-secret";

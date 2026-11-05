@@ -130,6 +130,20 @@ impl Service {
         }
     }
 
+    /// Keep matching workspace clones on the worker, when one is present.
+    pub fn reuse_workspaces(&mut self) {
+        if let Some(worker) = &mut self.worker {
+            worker.reuse_workspaces();
+        }
+    }
+
+    /// Give each agent the dump directory (temper/docs/design/draft/dogfood-hacks.md, 2.13).
+    pub fn dump_llm(&mut self, directory: &[u8]) {
+        if let Some(worker) = &mut self.worker {
+            worker.dump_llm(directory);
+        }
+    }
+
     pub fn configure_program_sources(
         &mut self,
         resources: crate::program_sources::Resources,
@@ -221,7 +235,6 @@ impl Service {
             .expect("checked forge limits");
         forge.log_origin_limit = settings.limits.forges.log_origins;
         let notes = Queue::with_capacity(settings.limits.forge.forges);
-        let configured = Box::new([]);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let mut core = jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed);
         core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
@@ -235,7 +248,7 @@ impl Service {
             forge: forge_config,
             identities,
             machine: Some(machine_config(&settings.machine)),
-            forges: configured,
+            forges: Box::new([]),
             under_box: box_line_bytes.is_some(),
             playground: playground_config(settings.demo.as_ref(), settings.welcome, settings.limits.setup.deadline),
         };
@@ -250,6 +263,7 @@ impl Service {
             values,
             first_periods,
         )?;
+        engine.host_reply_bytes = settings.host_reply_bytes;
         if let Some(line_bytes) = box_line_bytes {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }

@@ -10,6 +10,7 @@ const DESIGNER: u32 = 7;
 const CODER: u32 = 2;
 const FOREMAN: u32 = 6;
 const TRIAGE: u32 = 8;
+const STATUS: u32 = 9;
 const GOAL: u32 = 4;
 // The reference supplies five charters, one template and two landing rules.
 const ITEMS: u32 = 8;
@@ -154,11 +155,9 @@ fn the_reference_settings_file_decodes() {
                   them under Left.";
     let instructions = stock.replace("You can run nothing.", checks);
     assert!(coder.instructions.bytes().starts_with(instructions.as_bytes()));
-    assert!(
-        std::str::from_utf8(coder.instructions.bytes())
-            .expect("coding instructions are UTF-8")
-            .contains("in the question form")
-    );
+    let coder_instructions = std::str::from_utf8(coder.instructions.bytes()).expect("coding instructions are UTF-8");
+    assert!(coder_instructions.contains("in the question form"));
+    assert!(coder_instructions.contains("Then call wait: the answer reaches this run."));
     let SettingValue::Charter(foreman) = value(&items, Setting::Charter(SettingNumber { number: FOREMAN })) else {
         panic!("foreman charter")
     };
@@ -183,8 +182,7 @@ fn the_reference_settings_file_decodes() {
     assert!(triage.documents.is_empty());
     assert!(bytes::find(triage.instructions.bytes(), b"You never edit, push or run anything.").is_some());
     assert!(
-        core::str::from_utf8(coder.instructions.bytes())
-            .expect("coding instructions")
+        coder_instructions
             .contains("Push as you go: deliver a first head as soon as the change builds, then again as it grows.")
     );
     let SettingValue::Template(goal) = value(&items, Setting::Template(SettingNumber { number: GOAL })) else {
@@ -359,7 +357,7 @@ fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
 
 fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] {
     use jig_client::contract::AuthorityExecutor as Executor;
-    let ten = vec![
+    let eleven = vec![
         Executor::Charter(1),
         Executor::Charter(2),
         Executor::Charter(3),
@@ -367,14 +365,15 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] 
         Executor::Charter(COORDINATOR),
         Executor::Charter(FOREMAN),
         Executor::Charter(DESIGNER),
+        Executor::Charter(STATUS),
         Executor::Procedure(2),
         Executor::Procedure(3),
         Executor::Procedure(4),
     ];
-    let nine = ten.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
-    let mut twelve = ten.clone();
-    twelve.extend([Executor::Job(3), Executor::Role(0)]);
-    [ten.clone(), nine, ten, twelve]
+    let ten = eleven.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
+    let mut thirteen = eleven.clone();
+    thirteen.extend([Executor::Job(3), Executor::Role(0)]);
+    [eleven.clone(), ten, eleven, thirteen]
 }
 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
@@ -423,4 +422,25 @@ fn init_limits_hold_reference_delegation() {
         let document: serde_json::Value = serde_json::from_slice(bytes).expect("shipped configuration JSON");
         check_reference_delegation(reference_engine(&document["engine"]["limits"]));
     }
+}
+
+#[test]
+fn the_reference_project_file_shows_its_goals() {
+    let items = settings_form::file::decode(
+        include_bytes!("../../../../docs/examples/reference/project.json"),
+        &temper_client_tools::limits::form(),
+    )
+    .expect("reference project settings");
+    assert_eq!(items.len(), 1);
+    let SettingValue::Application(bytes) = value(&items, Setting::Application { kind: 7, scope: 1, number: 1 }) else {
+        panic!("project ways")
+    };
+    let decoded = temper_engine_smith::kinds::decode(
+        7,
+        bytes,
+        &temper_engine_smith::kinds::Bounds { segments: 16, segment_bytes: 4096, gates: 64, approvals: 64 },
+    )
+    .expect("reference ways");
+    let temper_engine_domain_forge::settings::Value::Ways(ways) = decoded.value else { panic!("project ways record") };
+    assert_eq!((ways.drafts, ways.goals, ways.changes, ways.away, ways.way), (true, true, true, true, 4));
 }

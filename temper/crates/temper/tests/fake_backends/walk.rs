@@ -154,6 +154,7 @@ struct Seen {
     answers: Vec<Ended>,
 }
 
+mod away;
 mod chat_document;
 mod copy;
 mod goal;
@@ -162,6 +163,7 @@ mod note_parts;
 mod open_default;
 mod program_here;
 mod sign_in;
+mod status;
 
 fn assert_reply(seen: &Seen) {
     let [.., waited, conversation] = seen.answers.as_slice() else { panic!("reply and conversation reads") };

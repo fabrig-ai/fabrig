@@ -207,7 +207,7 @@ fn card_main(
                     b,
                     bindings,
                     &w.say(Word::HomeOpen, &[]),
-                    Act::Go { address: Address::Task { task, filter: temper_client_domain::PlanFilter::All } },
+                    Act::Go { address: Address::Task { task } },
                     look::ASK_QUIET,
                 );
             }

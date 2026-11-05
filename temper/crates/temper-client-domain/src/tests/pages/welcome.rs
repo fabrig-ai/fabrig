@@ -13,7 +13,7 @@ pub(super) fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     crate::step(root, &f::env(&f::limits()), event, &mut out);
     out
 }
-fn up(root: &mut Domain, up: Up) -> Queue<Request> {
+pub(super) fn up(root: &mut Domain, up: Up) -> Queue<Request> {
     event(root, Event::Client { event: jig_client::Event::Up { up } })
 }
 fn go(root: &mut Domain, step: Step) -> Queue<Request> {
@@ -109,6 +109,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                 w::ForgeRow::new(
                     &limits,
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         makings: List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number,
@@ -203,7 +204,8 @@ fn shown(mut out: Queue<Request>) -> Option<(Address, bool)> {
 }
 #[test]
 fn no_welcome_moves_each_step_on_to_the_inbox() {
-    for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
         let (mut root, _, _, _) = opened(true, step);
         crate::tests::deployment::answer(&mut root, false, false);
         let Some((address, _)) = shown(go(&mut root, step)) else { panic!("{step:?} moves on") };
@@ -358,7 +360,7 @@ fn try_the_playground_opens_new_chat_without_a_playground_row() {
     forge_rows(&mut root, forges.unwrap(), None, false);
     assert_eq!(
         shown(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) })),
-        Some((Address::NewChat, false))
+        Some((Address::NewChat { draft: false }, false))
     );
     assert!(root.forge().playground_starting());
 }
@@ -517,6 +519,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         makings: List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number: 3,
@@ -810,13 +813,23 @@ fn made_name(out: &mut Queue<Request>) -> Option<Box<[u8]>> {
 #[test]
 fn ready_makes_the_first_project_as_named() {
     let (mut root, me) = ready_default();
-    assert_eq!(root.pages().default_project().shown(&pages::welcome::offered(root.pages().welcome_first())), b"Hello");
+    assert_eq!(
+        root.pages()
+            .default_project()
+            .shown(&pages::welcome::offered(root.pages().welcome_first(), root.pages().welcome_copies())),
+        b"Hello"
+    );
     assert!(name_default(&mut root, b"  Shop ").is_empty());
     let mut out = press_default(&mut root);
     assert_eq!(made_name(&mut out).as_deref(), Some(b"Shop".as_slice()));
     // While it is out, the name stays as asked.
     name_default(&mut root, b"Other");
-    assert_eq!(root.pages().default_project().asked(&pages::welcome::offered(root.pages().welcome_first())), b"Shop");
+    assert_eq!(
+        root.pages()
+            .default_project()
+            .asked(&pages::welcome::offered(root.pages().welcome_first(), root.pages().welcome_copies())),
+        b"Shop"
+    );
     // Taken, it opens the person's project of that name.
     let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
     frame.projects.get_mut(0).unwrap().name =
@@ -843,7 +856,12 @@ fn ready_asks_for_a_name_before_making_anything() {
     assert!(!root.pages().default_project().unnamed);
     // jig's name bound holds the field: a longer name leaves it as it was.
     name_default(&mut root, &[b'x'; 65]);
-    assert_eq!(root.pages().default_project().shown(&pages::welcome::offered(root.pages().welcome_first())), b"S");
+    assert_eq!(
+        root.pages()
+            .default_project()
+            .shown(&pages::welcome::offered(root.pages().welcome_first(), root.pages().welcome_copies())),
+        b"S"
+    );
     assert_eq!(made_name(&mut press_default(&mut root)).as_deref(), Some(b"S".as_slice()));
 }
 #[test]
@@ -893,12 +911,15 @@ fn ready_offers_the_first_repository_name_within_jigs_bound() {
         (over_bound.as_slice(), b"My project".as_slice()),
     ] {
         let first = pages::welcome::First { forge: 3, org: b"work".as_slice().into(), name: name.into() };
-        assert_eq!(pages::welcome::offered(Some(&first)).as_ref(), expected);
+        assert_eq!(pages::welcome::offered(Some(&first), None).as_ref(), expected);
     }
-    assert_eq!(pages::welcome::offered(None).as_ref(), b"My project");
+    assert_eq!(pages::welcome::offered(None, None).as_ref(), b"My project");
 }
 fn shown_name(root: &Domain) -> Box<[u8]> {
-    root.pages().default_project().shown(&pages::welcome::offered(root.pages().welcome_first())).into()
+    root.pages()
+        .default_project()
+        .shown(&pages::welcome::offered(root.pages().welcome_first(), root.pages().welcome_copies()))
+        .into()
 }
 #[test]
 fn ready_follows_first_repository_rows_until_the_person_writes() {
@@ -966,4 +987,184 @@ pub(super) fn ready_without_first() -> Domain {
     account(&mut root, accounts, 18, true);
     forge_rows(&mut root, forges.unwrap(), Some(3), true);
     root
+}
+
+#[test]
+fn step_marks_tick_facts_and_keep_the_address_current() {
+    // Each row gives the ticks for no facts, model alone, forge alone, and both.
+    for (step, current, ticks) in [
+        (
+            Step::Welcome,
+            0_u8,
+            [
+                [false, false, false, false],
+                [false, false, true, false],
+                [false, true, false, false],
+                [false, true, true, false],
+            ],
+        ),
+        (
+            Step::Forge { forge: None },
+            1,
+            [
+                [true, false, false, false],
+                [true, false, true, false],
+                [true, false, false, false],
+                [true, false, true, false],
+            ],
+        ),
+        (
+            Step::Model { way: None },
+            2,
+            [
+                [true, false, false, false],
+                [true, false, false, false],
+                [true, true, false, false],
+                [true, true, false, false],
+            ],
+        ),
+        (
+            Step::Ready,
+            3,
+            [
+                [true, false, false, false],
+                [true, false, true, false],
+                [true, true, false, false],
+                [true, true, true, false],
+            ],
+        ),
+    ] {
+        for ((forge, model), expected) in
+            [(false, false), (false, true), (true, false), (true, true)].into_iter().zip(ticks)
+        {
+            let marks = pages::welcome::step_marks(step, forge, model);
+            assert_eq!(marks.map(|mark| mark.ticked), expected, "{step:?}, forge {forge}, model {model}");
+            assert_eq!(marks.map(|mark| mark.current), [current == 0, current == 1, current == 2, current == 3]);
+        }
+    }
+    for (step, equivalent) in [
+        (Step::WelcomeAsked, Step::Welcome),
+        (Step::Forge { forge: Some(crate::Choice::Owned) }, Step::Forge { forge: None }),
+        (
+            Step::Model { way: Some(crate::ModelWay { provider: 17, kind: crate::WayKind::Key, source: None }) },
+            Step::Model { way: None },
+        ),
+    ] {
+        assert_eq!(pages::welcome::step_marks(step, true, true), pages::welcome::step_marks(equivalent, true, true));
+    }
+}
+
+#[test]
+fn the_asked_welcome_stays_until_the_store_is_whole() {
+    for (forge, model, whole) in [(false, false, false), (false, true, false), (true, false, false), (true, true, true)]
+    {
+        let (mut root, _, accounts, forges) = opened(true, Step::WelcomeAsked);
+        answer(&mut root, false);
+        account(&mut root, accounts, 18, model);
+        let out = forge_rows(&mut root, forges.unwrap(), if forge { Some(3) } else { None }, false);
+        assert_eq!(shown(out), if whole { Some((Address::Chats { filter: ChatsFilter::All }, true)) } else { None });
+        assert!(decided(&root));
+        assert_eq!(root.pages().address(), &Address::Welcome { step: Step::WelcomeAsked });
+    }
+}
+
+#[test]
+fn model_step_selects_each_welcome_shape_and_usable_wins_at_every_way() {
+    use crate::{ModelWay, WayKind};
+    use pages::{
+        accounts::Way,
+        connect_model::Act as A,
+        welcome::{ModelStep as S, model_step},
+    };
+    let sign_in = Way::SignIn { provider: 17, plan: true };
+    for (kind, elsewhere, finishing, expected) in [
+        (None, false, false, S::Choose),
+        (Some(WayKind::Key), false, false, S::Key { way: Way::Key { provider: 17 } }),
+        (Some(WayKind::Program), false, false, S::Program { way: Way::Program { provider: 17 } }),
+        (Some(WayKind::SignIn), false, false, S::SignIn { way: sign_in }),
+        (Some(WayKind::SignIn), false, true, S::Away { way: sign_in }),
+        (Some(WayKind::SignIn), true, false, S::Paste { way: sign_in }),
+        (Some(WayKind::SignIn), true, true, S::Finishing { way: sign_in }),
+    ] {
+        let (mut root, me, accounts, _) = opened(false, Step::Model { way: None });
+        let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+        frame.providers.get_mut(0).unwrap().programs = List::with_capacity(1);
+        frame
+            .providers
+            .get_mut(0)
+            .unwrap()
+            .programs
+            .push(c::Text::new(b"Claude Code".as_slice().into(), 32).unwrap())
+            .unwrap();
+        deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+        let step = Step::Model {
+            way: match kind {
+                Some(kind) => Some(ModelWay { provider: 17, kind, source: None }),
+                None => None,
+            },
+        };
+        go(&mut root, step);
+        if elsewhere || finishing {
+            let act = if elsewhere {
+                A::SignInElsewhere { name: [1; 16], way: sign_in }
+            } else {
+                A::SignIn { name: [1; 16], way: sign_in }
+            };
+            let mut out = event(&mut root, Event::Act { action: Action::Pages(Act::ConnectModel(act)) });
+            let mut stored = event(&mut root, Event::Client { event: jig_client::Event::Stored });
+            while let Some(request) = stored.pop() {
+                out.push(request);
+            }
+            let attempt = model_attempt(&out);
+            up(
+                &mut root,
+                Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                        c::DocumentOutcome::AccountSignInStarted {
+                            source: 43,
+                            address: b"https://accounts.example/sign-in".as_slice().into(),
+                        },
+                    )))),
+                    why: None,
+                },
+            );
+            if elsewhere && finishing {
+                event(&mut root, Event::SignInAddress { value: Secret::new(b"fixture".as_slice().into()) });
+                let out = event(
+                    &mut root,
+                    Event::Act { action: Action::Pages(Act::ConnectModel(A::Finish { name: [2; 16] })) },
+                );
+                let attempt = model_attempt(&out);
+                up(
+                    &mut root,
+                    Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::AccountFinishing { source: 43 },
+                        )))),
+                        why: None,
+                    },
+                );
+            }
+        }
+        assert_eq!(model_step(&root), Some(expected));
+        account(&mut root, accounts, 17, true);
+        assert_eq!(model_step(&root), Some(S::Usable), "usable at {step:?}");
+    }
+    let root = crate::unlinked(&f::limits(), f::SEED);
+    assert_eq!(model_step(&root), None);
+}
+
+fn model_attempt(out: &Queue<Request>) -> Token {
+    for request in out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, .. } } } =
+            request
+        {
+            return *attempt;
+        }
+    }
+    panic!("Model request sent")
 }

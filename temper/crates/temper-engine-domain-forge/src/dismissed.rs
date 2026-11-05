@@ -4,7 +4,7 @@ pub enum PersonFact {
     /// "Skip" on the project's "To begin".
     ToBegin { project: u32 },
     /// The person started `goal` from `chat`'s document.
-    GoalFrom { project: u32, chat: u64, goal: u64 },
+    GoalFrom { project: u32, chat: u64, goal: u64, at: u64 },
 }
 
 /// A dismissal's answer (temper/docs/design/domain/forge.md, 5.5).

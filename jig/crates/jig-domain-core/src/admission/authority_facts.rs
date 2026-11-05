@@ -49,10 +49,8 @@ impl Core {
                     people::Lack::Tool
                 } else if lacks.models {
                     people::Lack::Models
-                } else if lacks.notes {
-                    people::Lack::Scope
                 } else {
-                    unreachable!("authority deficit has a component")
+                    people::Lack::Scope
                 };
                 people::Refusal::Authority { proposable, lacking }
             }

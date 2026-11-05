@@ -67,19 +67,17 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, numbe
     out.push(Request::Done { reply_to: to });
 }
 
-#[expect(clippy::too_many_arguments, reason = "claim carries the caller's bounded write set")]
-pub(crate) fn claim(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    to: ReplyTo,
-    number: u64,
-    attempt: u64,
-    resumed: bool,
-    budget: u64,
-    account: Option<u32>,
-    writes: &[crate::Name],
-    out: &mut Queue<Request>,
-) {
+pub(crate) struct Claiming {
+    pub(crate) number: u64,
+    pub(crate) attempt: u64,
+    pub(crate) resumed: bool,
+    pub(crate) budget: u64,
+    pub(crate) account: Option<u32>,
+    pub(crate) writes: Box<[crate::Name]>,
+}
+
+pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: Claiming, out: &mut Queue<Request>) {
+    let Claiming { number, attempt, resumed, budget, account, writes } = claiming;
     let to = match entrance(domain, to, number) {
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
@@ -109,7 +107,7 @@ pub(crate) fn claim(
     if !fits {
         return refused(to, Some(number), Refusal::Funding, out);
     }
-    match crate::writers::claim(domain, env, number, attempt, writes, out) {
+    match crate::writers::claim(domain, env, number, attempt, &writes, out) {
         Ok(()) => {}
         Err(Some(resource)) => return out.push(Request::WriterWaiting { reply_to: to, task: Some(number), resource }),
         Err(None) => return refused(to, Some(number), Refusal::Holds, out),
@@ -404,18 +402,16 @@ pub(crate) fn refuses_job_end(executor: crate::Executor, end: &End) -> bool {
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "one fenced activation terminal")]
+pub(crate) struct Ended {
+    pub(crate) number: u64,
+    pub(crate) attempt: u64,
+    pub(crate) end: End,
+    pub(crate) saved: Option<Box<[SavedResource]>>,
+}
+
 #[expect(clippy::too_many_lines, reason = "one terminal normalizes the result and settles its current attempt")]
-pub(crate) fn activation(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    to: ReplyTo,
-    number: u64,
-    attempt: u64,
-    end: End,
-    saved: Option<Box<[SavedResource]>>,
-    out: &mut Queue<Request>,
-) {
+pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, ended: Ended, out: &mut Queue<Request>) {
+    let Ended { number, attempt, end, saved } = ended;
     if !domain.ready() {
         return refused(to, Some(number), Refusal::NotReady, out);
     }
@@ -488,7 +484,7 @@ pub(crate) fn activation(
         }
         End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => end,
     };
-    let parked = kept.parks(&end);
+    let parked = kept.run_parks(&end);
     let end = if parked { End::Parked } else { end };
     let refuses_live = match &end {
         End::Finished { cancel_delegates, .. } => !cancel_delegates && !result_followups,
@@ -540,8 +536,8 @@ pub(crate) fn activation(
                 if narrowed && !kept.blocks_claims() { Phase::Active(Active::Due) } else { Phase::Active(Active::Idle) }
             }
             End::Exceeded(value) => exceeded(domain, number, value),
-            End::Failed(class) => failure(domain, env, number, class),
-            End::Refused => pause(domain, env, number),
+            End::Failed(class) => failure(domain, env, number, class, None),
+            End::Refused => pause(domain, env, number, None),
             End::Recheck => {
                 if kept.blocks_claims() {
                     Phase::Active(Active::Idle)
@@ -639,28 +635,36 @@ fn wall_after(env: &Env<Limits>, duration: skein_lib::Duration) -> skein_lib::Wa
     skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(duration.as_nanos()))
 }
 
-fn failure(domain: &mut Domain, env: &Env<Limits>, number: u64, class: Class) -> Phase {
+fn failure(domain: &mut Domain, env: &Env<Limits>, number: u64, class: Class, reason: Option<Box<[u8]>>) -> Phase {
     let task = task_mut(domain, number).expect("failure names live task");
     task.record.tries.add(class);
     task.record.refusals = 0;
     let times = task.record.tries.of(class);
     let retry = env.limits.retries.of(class);
-    task.record.retry_notice = Some(crate::RetryNotice::Failed { class, count: times, allowance: retry.retries });
+    task.record.retry_notice =
+        Some(crate::RetryNotice::Failed { class, count: times, allowance: retry.retries, reason: reason.clone() });
     fact(domain, Fact::Failed { task: number, class });
     if times > retry.retries {
         fact(domain, Fact::Held { task: number, why: Hold::Failures(class) });
-        Phase::Held { was: Was::Active(Active::Due), why: Hold::Failures(class), source: None }
+        Phase::Held {
+            was: Was::Active(Active::Due),
+            why: Hold::Failures(class),
+            source: match reason {
+                Some(words) => Some(Box::new(crate::HoldSource::Preparation { words })),
+                None => None,
+            },
+        }
     } else {
         let duration = crate::failures::backoff(times, retry, &mut domain.rng);
         Phase::Active(Active::BackingOff { until: wall_after(env, duration) })
     }
 }
 
-fn pause(domain: &mut Domain, env: &Env<Limits>, number: u64) -> Phase {
+fn pause(domain: &mut Domain, env: &Env<Limits>, number: u64, reason: Option<Box<[u8]>>) -> Phase {
     let task = task_mut(domain, number).expect("pause names live task");
     task.record.refusals = task.record.refusals.saturating_add(1);
     let times = task.record.refusals;
-    task.record.retry_notice = Some(crate::RetryNotice::Refused { count: times });
+    task.record.retry_notice = Some(crate::RetryNotice::Refused { count: times, reason });
     let duration = crate::failures::backoff(times, env.limits.retries.transient, &mut domain.rng);
     Phase::Active(Active::BackingOff { until: wall_after(env, duration) })
 }
@@ -677,25 +681,40 @@ pub(crate) fn preparation_waiting(domain: &mut Domain, env: &Env<Limits>, number
     }
 }
 
-pub(crate) fn preparation_failed(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
-    if !domain.ready() {
-        return;
-    }
-    if let Some(task) = record(domain, number)
+fn preparation_reason(reason: &[u8]) -> Box<[u8]> {
+    Box::from(skein_lib::bytes::utf8_prefix(reason, skein_lib::length::usize_of(crate::REASON_BYTES)))
+}
+
+pub(crate) fn preparation_paused(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u64,
+    reason: &[u8],
+    out: &mut Queue<Request>,
+) {
+    if domain.ready()
+        && let Some(task) = record(domain, number)
         && task.phase == Phase::Active(Active::Preparing)
     {
-        let phase = pause(domain, env, number);
+        let phase = pause(domain, env, number, Some(preparation_reason(reason)));
         task_mut(domain, number).expect("prepared task exists").record.phase = phase;
         publish(domain, env, number, out);
     }
 }
 
-pub(crate) fn preparation_unread(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+pub(crate) fn preparation_counted(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u64,
+    class: Class,
+    reason: &[u8],
+    out: &mut Queue<Request>,
+) {
     if domain.ready()
         && let Some(task) = record(domain, number)
         && task.phase == Phase::Active(Active::Preparing)
     {
-        let phase = failure(domain, env, number, Class::Transient);
+        let phase = failure(domain, env, number, class, Some(preparation_reason(reason)));
         task_mut(domain, number).expect("prepared task exists").record.phase = phase;
         publish(domain, env, number, out);
     }

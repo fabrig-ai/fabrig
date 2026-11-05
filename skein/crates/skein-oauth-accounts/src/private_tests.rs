@@ -18,7 +18,7 @@ impl Owner {
     pub(super) fn configured(accounts: impl IntoIterator<Item = Account>, profile: &Limits) -> Owner {
         let mut configured = List::with_capacity(profile.accounts);
         for account in accounts {
-            configured.push(account).ok().expect("configured account room");
+            configured.push(account).expect("configured account room");
         }
         let mut owner = Owner::new();
         owner.component = Component::new(configured, profile, crypto(17)).expect("valid registrations");
@@ -48,7 +48,7 @@ impl Owner {
         for _ in 0_u32..8 {
             self.fire();
             if let Some(Event::Visit { url, .. }) = self.above.pop() {
-                return url;
+                return url.into_exposed();
             }
         }
         panic!("visit after listening")
@@ -95,7 +95,7 @@ impl Owner {
                 authorization_url: bytes::copy_of(b"https://issuer.example/authorize"),
                 token_endpoint: bytes::copy_of(b"http://127.0.0.1:31000/token"),
                 client_id: bytes::copy_of(b"client"),
-                client_secret: Some(bytes::copy_of(b"fake secret")),
+                client_secret: Some(skein_lib::Secret::new(bytes::copy_of(b"fake secret"))),
                 redirect_uri: bytes::copy_of(b"https://service.example/callback"),
                 scope: bytes::copy_of(b"read"),
                 wire: skein_oauth::WireFormat::Form,
@@ -188,7 +188,7 @@ fn a_refresh_refused_as_sign_in_again_loads_the_file_at_the_next_grant() {
     owner.ask(Request::Grant { account: 0 });
     let load = owner.opened();
     let mut record = tests_record(0);
-    record.refresh_token = Some(bytes::copy_of(b"refresh"));
+    record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"refresh")));
     record.expires_at = Wall::from_nanos(5_000_000_000);
     owner.terminal(file::Event::Loaded {
         owner: load,
@@ -636,7 +636,7 @@ impl Owner {
         for part in parts {
             uri.put(part).expect("fixture URI room");
         }
-        self.ask(Request::Redirected { account: 0, uri: uri.finish() });
+        self.ask(Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri.finish()) });
     }
 
     pub(super) fn finish_tokens(&mut self, identity: Token, body: &[u8]) -> Queue<Event> {
@@ -697,7 +697,7 @@ fn a_private_keeper_loads_its_file_again_under_the_lock() {
     let load = owner.opened();
     assert!(owner.above.is_empty(), "a load takes no owner lock");
     let mut record = tests_record(0);
-    record.refresh_token = Some(bytes::copy_of(b"refresh"));
+    record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"refresh")));
     record.expires_at = Wall::from_nanos(Duration::from_secs(5).as_nanos());
     owner.terminal(file::Event::Loaded {
         owner: load,

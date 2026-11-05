@@ -49,12 +49,14 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::ConnectForge { .. }
             | Address::Inbox { .. }
             | Address::Chats { .. }
-            | Address::NewChat
+            | Address::NewChat { .. }
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Builders { .. }
+            | Address::Repositories { .. }
             | Address::Goals { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. } => false,
@@ -531,7 +533,9 @@ pub(crate) fn new_chat_model(root: &Domain, w: &Words) -> Box<[u8]> {
         },
         _ => None,
     };
-    let choice = if root.pages().address() == &Address::NewChat && root.pages().choice().project() == project {
+    let choice = if let Address::NewChat { .. } = root.pages().address()
+        && root.pages().choice().project() == project
+    {
         root.pages().choice().requested.as_ref().or(choice)
     } else {
         choice

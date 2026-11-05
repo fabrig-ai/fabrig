@@ -1,29 +1,17 @@
 # project-landing
 
-The intended walk is on a fresh `temper box --fake-backends`: the box's
-printed sign-in link opened, the welcome walked through, Forgejo run on
-this machine with an empty `work/hello`, and the ChatGPT plan signed in
-through the fake sign-in. Ready offers "Hello"; "Create your project"
-creates it and adopts `work/hello`. Once Home says "work/hello is in
-Hello", reloading `/projects/1` starts the recording there.
+On a fresh `temper box --fake-backends`: the box's printed sign-in link
+opened, "Set up temper" pressed, then Forgejo's "Run on this machine"
+and its sheet's own "Run on this machine", with the offered empty
+`work/hello`. On Model, "Continue with ChatGPT" signs in through the
+fake issuer and returns to Ready. Ready offers "Hello"; "Create your
+project" creates it and adopts `work/hello`.
 
-The fresh walk in Chromium reaches Home. The kept recording starts at
-`/welcome` and holds no act. Home's recording is temper's UI owner's, on
-a new walk of the journey.
+Once Home says "work/hello is in Hello", reloading `/projects/1` starts
+the recording there. Alt+Shift+S saves the settled Home. The recording
+holds no act; its first replay proves the print against the live page.
 
-- `01.html`: the welcome, as the kept recording ends; it does not show
-  the intended project's Home.
-
-The `project-home-onboarding` and `to-begin-more-accounts` look requests
-draw Home in Hello, with `work/hello` adopted and To begin. They cannot
-equal this Welcome print until Home is recorded. Their render checks
-use the gallery's `home-two-left`, not this recording. The requests'
-`project-at-work` and `project-after-skip` pages are hand-made, are not
-committed journeys, and no recording reaches them.
-`temper-client-gallery` draws the Home implementation through its
-`home-three-left`, `home-two-left`, `home-one-left`, `home-ready`,
-`home-adopting`, `home-refused`, `home-no-repository`, `home-github`,
-`home-after-skip`, `home-skip-refused`, `home-needs-under-begin`,
-`home-begin-settings-left` and `home-begin-one-chats` states. They are
-hand-made deliveries to the client, not a recording of the box. The
-recording gap is `../../journeys.status.md`, 9.
+- `01.html`: Home in Hello, with "Hello is ready.", the ChatGPT plan
+  and Forgejo line, and To begin's two steps left: "Tell temper how you
+  work" and "Start a chat". The repository step says "work/hello is in
+  Hello". "Skip" and "Add Claude or another plan" remain available.

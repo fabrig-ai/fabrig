@@ -28,12 +28,7 @@ fn checked(answer: Answer, numbers: Option<crate::Numbers>) -> Checked {
 }
 
 fn ceilings(domain: &Domain, policy: &Policy, authority: &Authority, answer: &mut Answer, why: &mut Queue<Finding>) {
-    for source in [Source::Project, Source::Deployment] {
-        let ceiling = match source {
-            Source::Project => &policy.ceiling,
-            Source::Deployment => &domain.rules().ceiling,
-            Source::Task | Source::Role => unreachable!("only ceiling sources are iterated"),
-        };
+    for (source, ceiling) in [(Source::Project, &policy.ceiling), (Source::Deployment, &domain.rules().ceiling)] {
         let lacks = differences(
             authority,
             ceiling,
@@ -100,6 +95,12 @@ fn matches_resource(effect: &Effect, pattern: &crate::Pattern) -> bool {
     false
 }
 
+#[derive(Clone, Copy)]
+struct Drawn {
+    numbers: crate::Numbers,
+    source: Source,
+}
+
 /// Batch reservations are all-or-nothing. Every direct child consumes one lifetime task slot in
 /// addition to the capacity allotted below that child. Root's pure bounded creation check,
 /// returning the strictest answer and proposed replacement funding numbers only on allowance.
@@ -113,23 +114,20 @@ pub fn check_batch(domain: &Domain, ask: &BatchAsk, why: &mut Queue<Finding>) ->
     let Some(policy) = domain.policy(ask.project) else {
         return checked(refuse(why, Finding::UnknownProject), None);
     };
-    batch(domain, policy, &ask.creator, ask.numbers, ask.tasks_left, &ask.tasks, Source::Task, why)
+    let drawn = Drawn { numbers: ask.numbers, source: Source::Task };
+    batch(domain, policy, &ask.creator, drawn, ask.tasks_left, &ask.tasks, why)
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "a batch check borrows its values without allocating an intermediate ask"
-)]
 fn batch(
     domain: &Domain,
     policy: &Policy,
     creator: &Authority,
-    numbers: crate::Numbers,
+    drawn: Drawn,
     tasks_left: u32,
     tasks: &[Delegate],
-    source: Source,
     why: &mut Queue<Finding>,
 ) -> Checked {
+    let Drawn { numbers, source } = drawn;
     let task_answer = Answer::Propose;
     let mut answer = Answer::Allow;
     if numbers.spent.checked_add(numbers.spent_below).is_none() {
@@ -260,13 +258,9 @@ fn grants(
     answer: &mut Answer,
     why: &mut Queue<Finding>,
 ) {
-    for source in [Source::Task, Source::Project, Source::Deployment] {
-        let holder = match source {
-            Source::Task => authority,
-            Source::Project => &policy.ceiling,
-            Source::Deployment => &domain.rules().ceiling,
-            Source::Role => unreachable!("only task and ceiling sources are iterated"),
-        };
+    for (source, holder) in
+        [(Source::Task, authority), (Source::Project, &policy.ceiling), (Source::Deployment, &domain.rules().ceiling)]
+    {
         if !has_grant(holder, effect, domain) {
             let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
             find(answer, why, strict, Finding::Grant { source });
@@ -297,17 +291,16 @@ fn writable(effect: &Effect, answer: &mut Answer, why: &mut Queue<Finding>) {
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the price check borrows one action and its current funding snapshot")]
 fn price(
     domain: &Domain,
     policy: &Policy,
     authority: &Authority,
-    numbers: crate::Numbers,
-    funder: Source,
+    drawn: Drawn,
     effect: &Effect,
     answer: &mut Answer,
     why: &mut Queue<Finding>,
 ) {
+    let Drawn { numbers, source: funder } = drawn;
     let Some(maximum) = effect.price else { return };
     if numbers.spent.checked_add(numbers.spent_below).is_none() {
         find(answer, why, Answer::Refuse, Finding::Arithmetic);
@@ -418,7 +411,8 @@ pub fn check_effect(domain: &Domain, ask: &EffectAsk, given: &[Given], why: &mut
     let mut answer = Answer::Allow;
     grants(domain, policy, &ask.authority, &ask.effect, &mut answer, why);
     writable(&ask.effect, &mut answer, why);
-    price(domain, policy, &ask.authority, ask.numbers, Source::Task, &ask.effect, &mut answer, why);
+    let drawn = Drawn { numbers: ask.numbers, source: Source::Task };
+    price(domain, policy, &ask.authority, drawn, &ask.effect, &mut answer, why);
     requirements(&domain.rules().requirements, &ask.effect, given, ask.now, &mut answer, why);
     requirements(&policy.requirements, &ask.effect, given, ask.now, &mut answer, why);
     answer
@@ -655,13 +649,11 @@ pub fn check_call(domain: &Domain, ask: &CallAsk, why: &mut Queue<Finding>) -> A
         return refuse(why, Finding::UnknownProject);
     };
     let mut answer = Answer::Allow;
-    for source in [Source::Task, Source::Project, Source::Deployment] {
-        let holder = match source {
-            Source::Task => &ask.authority,
-            Source::Project => &policy.ceiling,
-            Source::Deployment => &domain.rules().ceiling,
-            Source::Role => unreachable!("only task and ceiling sources are iterated"),
-        };
+    for (source, holder) in [
+        (Source::Task, &ask.authority),
+        (Source::Project, &policy.ceiling),
+        (Source::Deployment, &domain.rules().ceiling),
+    ] {
         if ask.family.0 & !holder.tools.0 != 0 {
             let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
             find(&mut answer, why, strict, Finding::Tool);
@@ -676,13 +668,11 @@ pub fn check_call(domain: &Domain, ask: &CallAsk, why: &mut Queue<Finding>) -> A
             }
         }
         Call::Note(scope) => {
-            for source in [Source::Task, Source::Project, Source::Deployment] {
-                let holder = match source {
-                    Source::Task => &ask.authority,
-                    Source::Project => &policy.ceiling,
-                    Source::Deployment => &domain.rules().ceiling,
-                    Source::Role => unreachable!("only task and ceiling sources are iterated"),
-                };
+            for (source, holder) in [
+                (Source::Task, &ask.authority),
+                (Source::Project, &policy.ceiling),
+                (Source::Deployment, &domain.rules().ceiling),
+            ] {
                 if !scope_covered(scope, holder) {
                     let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
                     find(&mut answer, why, strict, Finding::Scope { source });
@@ -835,12 +825,13 @@ pub fn check_request_with_standing(
     if needs_funding(&ask.request) && ask.pool.budget > role.period_spend {
         return checked(refuse(why, Finding::PeriodSpend), None);
     }
+    let drawn = Drawn { numbers: ask.pool, source: Source::Role };
     match &ask.request {
         PersonRequest::Create(tasks) => {
             if !delegates_within(tasks, domain.limits()) {
                 return checked(refuse(why, Finding::Oversized), None);
             }
-            batch(domain, policy, &role.authority, ask.pool, ask.tasks_left, tasks, Source::Role, why)
+            batch(domain, policy, &role.authority, drawn, ask.tasks_left, tasks, why)
         }
         PersonRequest::Allot(authority) | PersonRequest::Amend(authority) | PersonRequest::Move(authority) => {
             if !authority_within(authority, domain.limits()) {
@@ -856,9 +847,7 @@ pub fn check_request_with_standing(
                 return checked(refuse(why, Finding::Undecidable), None);
             }
             match action {
-                Action::Batch(tasks) => {
-                    batch(domain, policy, &role.authority, ask.pool, ask.tasks_left, tasks, Source::Role, why)
-                }
+                Action::Batch(tasks) => batch(domain, policy, &role.authority, drawn, ask.tasks_left, tasks, why),
                 Action::Effect(effect) => {
                     let mut answer = Answer::Allow;
                     if !has_grant(&role.authority, effect, domain) {
@@ -871,7 +860,7 @@ pub fn check_request_with_standing(
                         find(&mut answer, why, Answer::Refuse, Finding::Grant { source: Source::Deployment });
                     }
                     writable(effect, &mut answer, why);
-                    price(domain, policy, &role.authority, ask.pool, Source::Role, effect, &mut answer, why);
+                    price(domain, policy, &role.authority, drawn, effect, &mut answer, why);
                     let numbers = if answer == Answer::Allow {
                         match effect.price {
                             Some(amount) => charge(ask.pool, amount),

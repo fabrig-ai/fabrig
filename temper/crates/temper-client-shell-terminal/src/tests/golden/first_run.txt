@@ -10,29 +10,32 @@ demo:
   [6] Home
   [7] Needs you
   [8] Chats (current)
-  [9] Changes
-  [10] + New chat
-  [11] Set up temper
-  [12] Settings
+  [9] + New chat
+  More ways to start work:
+    [10] Chat
+      Ask a question or ask for a change.
+    [11] All ways to start work
+  [12] Set up temper
+  [13] Settings
   * Pat
 Playground:
   This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
 Where:
-  [13] Chats
-  [14] demo
-  [15] Chats
+  [14] Chats
+  [15] demo
+  [16] Chats
 Change model: Scripted model · Default
-  - [16] Scripted model
-  [17] Reset choice
+  - [17] Scripted model
+  [18] Reset choice
 Conversation:
   * Ready
   playground/widget
   Say what you want; the agent works in playground/widget.
   Suggested requests:
-    - [18] Add CSV export to widget
-    - [19] Add a dark theme to widget
-    - [20] Fix widget’s empty search state
+    - [19] Add CSV export to widget
+    - [20] Add a dark theme to widget
+    - [21] Fix widget’s empty search state
   What do you want done?
-    [21] What do you want done?: (empty) (enter sends)
+    [22] What do you want done?: (empty) (enter sends)
     [-] Send (disabled)
     Enter sends · Shift+Enter for a new line

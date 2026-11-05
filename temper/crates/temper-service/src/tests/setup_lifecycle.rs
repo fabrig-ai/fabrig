@@ -1992,3 +1992,26 @@ fn foreign_versions_and_former_layouts_are_refused() {
         assert_eq!(paste_ended(&mut service, false, b"*").as_deref(), Some(why));
     }
 }
+
+#[test]
+fn restored_deferred_intents_have_no_create_to_run() {
+    for first in [
+        domain::FirstIntent::Nothing,
+        domain::FirstIntent::Copies {
+            addresses: Box::new([Box::from(b"https://source.example/owner/repo".as_slice())]),
+        },
+    ] {
+        let mut record = runtime_record(domain::Kind::Forgejo, domain::Mode::Owned);
+        record.first = Some(first);
+        // A fresh lifecycle on each start takes the durable choice, never a default repository.
+        for _restart in 0_u32..2 {
+            let mut service = local_service(runtime_config(), local_store(false));
+            let engine = service.engine.as_mut().unwrap();
+            insert_runtime_forge(engine, &record);
+            keep(engine, &record);
+            let local = engine.setup.lifecycle.local(2).unwrap();
+            assert!(local.first.is_none());
+            assert_eq!(local.first_source, lifecycle::IntentSource::Record);
+        }
+    }
+}

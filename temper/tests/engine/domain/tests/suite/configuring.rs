@@ -10,6 +10,46 @@ use temper_engine_domain::{self as engine, Delivery, Event, PartyInput};
 use temper_engine_domain_world::host_tool::host_tool;
 
 #[test]
+fn a_configuring_chat_discovers_the_forge_host_for_charter_documents() {
+    use serde_json::json;
+    let mut world = repository_projects();
+    configuring_repository_text(&mut world, &["rules\n".into(), "words\n".into()]);
+    adopt_repository(&mut world, 2, b"other", 28);
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    let row = inventory
+        .lines()
+        .find_map(|line| line.strip_prefix("  forge "))
+        .expect("settings inventory exposes the canonical forge host and repository");
+    let (host, repository) = row.split_once(" repository ").expect("repository identity");
+    assert_eq!(host, "forge.example:3847", "the canonical host keeps its port");
+    assert_eq!(repository, "org/repo");
+    assert!(!inventory.contains("org/other"), "another project's repository stays private");
+    let mut value = read_charter(&mut world.driver, &run, 10, CHAT);
+    value["documents"] = json!([{
+        "forge":host,"repository":repository,"branch":"main","path":"docs/direction.md"
+    }]);
+    let items = json!([{"setting":{"kind":"charter","number":CHAT},"set":value}]);
+    let proposal = propose(&mut world.driver, &run, 20, 1, &items);
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+    let chat = world.chat(CHAT, world.owner, 22);
+    let section = chat
+        .sections
+        .iter()
+        .find(|section| {
+            matches!(&section.kind,
+        engine::BriefKind::Forge(engine::ForgeBriefKind::Document(name))
+            if name.as_ref() == b"org/repo docs/direction.md")
+        })
+        .expect("accepted charter document gathered through the fake forge");
+    let engine::BriefBody::Text(text) = &section.body else { panic!("document text: {:?}", section.body) };
+    let text = std::str::from_utf8(text).expect("document UTF-8");
+    assert!(text.starts_with("At main's head "), "{text}");
+    assert!(text.contains("rules\n"), "{text}");
+}
+
+#[test]
 fn an_owners_configuring_chat_proposes_and_hears_it_accepted() {
     let mut world = World::stock();
     let run = world.chat(CONFIGURING, world.owner, 20);
@@ -347,35 +387,45 @@ fn settings_and_named_documents_use_the_host_answer_allowance() {
 }
 
 fn configuring_repository(world: &mut World) {
+    configuring_repository_text(world, &["rules\n".repeat(5334), "words\n".repeat(2167)]);
+}
+
+fn configuring_repository_text(world: &mut World, contents: &[String; 2]) {
     use skein_fake_forge_domain::api as raw;
     use temper_engine_domain_world::forge_stand::ForgeStand;
     let paths = ["docs/direction.md", "docs/conventions.md"];
-    let contents = ["rules\n".repeat(5334), "words\n".repeat(2167)];
-    world.driver.forge = Some(ForgeStand::with_setup(Box::new([raw::Setup {
-        workflows: Box::new([]),
-        id: 2,
-        name: b"org/repo".as_slice().into(),
-        default: b"main".as_slice().into(),
-        tree: paths
-            .iter()
-            .zip(&contents)
-            .map(|(path, content)| raw::File { path: path.as_bytes().into(), content: content.as_bytes().into() })
-            .collect(),
-        labels: Box::new([]),
-        protection: None,
-        hooked: false,
-        checks: raw::Checks {
-            cues: Box::new([]),
-            contexts: Box::new([]),
-            latency_min: skein_lib::Duration::ZERO,
-            latency_max: skein_lib::Duration::ZERO,
-            silent: 0,
-            passes: 1000,
-            reruns: 0,
-            cue: None,
-        },
-    }])));
-    adopt_configuring_repository(world);
+    world.driver.forge = Some(ForgeStand::with_setup(
+        [(2, "org/repo"), (3, "org/other")]
+            .map(|(id, name)| raw::Setup {
+                workflows: Box::new([]),
+                id,
+                name: name.as_bytes().into(),
+                default: b"main".as_slice().into(),
+                tree: paths
+                    .iter()
+                    .zip(contents)
+                    .map(|(path, content)| raw::File {
+                        path: path.as_bytes().into(),
+                        content: content.as_bytes().into(),
+                    })
+                    .collect(),
+                labels: Box::new([]),
+                protection: None,
+                hooked: false,
+                checks: raw::Checks {
+                    cues: Box::new([]),
+                    contexts: Box::new([]),
+                    latency_min: skein_lib::Duration::ZERO,
+                    latency_max: skein_lib::Duration::ZERO,
+                    silent: 0,
+                    passes: 1000,
+                    reruns: 0,
+                    cue: None,
+                },
+            })
+            .into(),
+    ));
+    adopt_repository(world, PROJECT, b"repo", 29);
 }
 
 fn configuring_documents(world: &mut World, run: &engine::Assignment) {
@@ -405,6 +455,7 @@ fn configuring_documents(world: &mut World, run: &engine::Assignment) {
             assert!(text.ends_with("[file truncated]"));
             let (_, prefix) = text.split_once(":\n").expect("file metadata");
             let prefix = prefix.strip_suffix("\n[file truncated]").expect("visible cut");
+            let prefix = prefix.split_once("\nread_file rendered size ").map_or(prefix, |(content, _)| content);
             assert!(contents[index].starts_with(prefix) && !prefix.is_empty());
             if max_bytes.is_some() {
                 assert_eq!(prefix.len(), 64);
@@ -413,22 +464,22 @@ fn configuring_documents(world: &mut World, run: &engine::Assignment) {
     }
 }
 
-fn adopt_configuring_repository(world: &mut World) {
+fn adopt_repository(world: &mut World, project: u32, name: &[u8], key: u8) {
     use temper_engine_domain_forge as forge;
     world.driver.send(Event::Party(PartyInput::Application {
-        scope: people::ApplicationScope::Project(PROJECT),
-        reply_to: ReplyTo::new(Token::new(29)),
+        scope: people::ApplicationScope::Project(project),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
         sign_in: world.owner,
-        key: [29; 16],
-        digest: [29; 32],
+        key: [key; 16],
+        digest: [key; 32],
         carried: None,
         request: engine::Application::Forge(forge::Ask::Adopt(forge::Adoption {
-            project: PROJECT,
+            project,
             home: false,
             forge: 1,
-            host: b"forge.example".as_slice().into(),
+            host: b"forge.example:3847".as_slice().into(),
             owner: b"org".as_slice().into(),
-            name: b"repo".as_slice().into(),
+            name: name.into(),
             checks: Box::new([]),
             ci: true,
             landing: b"main".as_slice().into(),
@@ -437,4 +488,19 @@ fn adopt_configuring_repository(world: &mut World) {
         })),
     }));
     world.driver.settle();
+    let reply = world.driver.delivered.iter().rev().find(|delivery| {
+        matches!(delivery,
+        Delivery::Application { to, .. } | Delivery::WebReply { to, .. }
+            if *to == ReplyTo::new(Token::new(u64::from(key))))
+    });
+    assert!(
+        matches!(
+            reply,
+            Some(Delivery::Application {
+                outcome: Some(engine::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(_))),
+                ..
+            })
+        ),
+        "repository adopted in project {project}: {reply:?}"
+    );
 }

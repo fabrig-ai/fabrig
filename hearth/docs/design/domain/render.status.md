@@ -27,3 +27,17 @@
   `hearth-protocol-builder`'s `up` reads `!above.is_empty()`, of the whole
   queue, as that step's answer; the queue's order and the indices' `waiting`
   keep it true.
+- **Departs:** 8.5: the request of 2026-11-05 for the config machine has
+  the queues beside the JSON decoder uncapped, and one test driver keeps
+  both at capacity 1:
+  `hearth/testing/hearth-test-render/src/golden/repository.rs`, `decoded`,
+  with `JSON_QUEUE`. That round left the file alone, as another plan was
+  moving it into that kit, and no order rests on it: a second output
+  panics there, and loses nothing.
+- **Departs:** 8: `skein/docs/foundation/programming-model.md`, 5.4 asks for one explicit
+  state enum per lifecycle, each state holding exactly its data, no lifecycle
+  in flags or `Option`s beside it; `hearth-protocol-builder`'s
+  `store.rs` keeps `pending`, `cursor`, `closing`, `deferred` and `walk`, and
+  `keep.rs` `removing` and `failed` with its `Option`s, because the request of
+  2026-11-05 that gave the rest of that crate its states paid a debt item that
+  did not name these two.

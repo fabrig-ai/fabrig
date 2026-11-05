@@ -49,6 +49,7 @@ fn facts() -> Facts {
         pending: Box::new([]),
         ask: None,
         branch: Some(HEAD),
+        titled: true,
         expected_base: BASE,
         pull: Pull::Open { head: HEAD, base: BASE },
         ci: Ci { head: HEAD, status: Status::Passed },
@@ -82,6 +83,7 @@ fn heard() -> Heard {
         lacking: None,
         spend: None,
         delegate: Status::Pending,
+        delegate_running: false,
         effect: EffectResult::None,
         released: false,
         cancelled: false,
@@ -231,6 +233,7 @@ fn failed_producer() -> (Change, Facts, Heard) {
     let mut f = facts();
     f.branch = None;
     f.pull = Pull::Missing;
+    f.titled = false;
     let mut c = change(State::Producing { requested: false });
     c.last_head = None;
     let first = decide(&c, &f, &heard());
@@ -240,6 +243,54 @@ fn failed_producer() -> (Change, Facts, Heard) {
     let failed = decide(&first.change, &f, &h);
     assert_eq!(failed.decision, Decision::Hold(Hold::Failed));
     (failed.change, f, h)
+}
+
+#[test]
+fn a_producer_that_pushed_then_failed_holds_without_taking_its_head() {
+    let mut c = change(State::Producing { requested: true });
+    c.last_head = None;
+    let mut f = facts();
+    f.pull = Pull::Missing;
+    let failed = decide(&c, &f, &Heard { delegate: Status::Failed, ..heard() });
+    assert_eq!(failed.decision, Decision::Hold(Hold::Failed));
+    assert_eq!(failed.change.state, State::Held { was: Box::new(c.state), why: Hold::Failed });
+    assert_eq!(failed.change.last_head, None);
+}
+
+#[test]
+fn failed_repairs_and_resolutions_do_not_take_a_pushed_head() {
+    for state in
+        [State::Repairing { requested: true, why: Repair::Ci }, State::Resolving { requested: true, base: BASE }]
+    {
+        let c = change(state);
+        let mut f = facts();
+        f.branch = Some(NEW);
+        let failed = decide(&c, &f, &Heard { delegate: Status::Failed, ..heard() });
+        assert_eq!(failed.decision, Decision::Hold(Hold::Failed));
+        assert_eq!(failed.change.state, State::Held { was: Box::new(c.state), why: Hold::Failed });
+        assert_eq!(failed.change.last_head, Some(HEAD));
+    }
+}
+
+#[test]
+fn an_untitled_pushed_head_waits_for_a_successful_producer() {
+    let mut f = facts();
+    f.pull = Pull::Missing;
+    f.titled = false;
+    let mut c = change(State::Producing { requested: false });
+    c.last_head = None;
+    let fresh = decide(&c, &f, &heard());
+    assert_eq!(fresh.decision, Decision::Delegate(Delegate::Produce));
+    assert_eq!(fresh.change.last_head, None);
+    for delegate in [Status::Pending, Status::Passed] {
+        let waiting = decide(&fresh.change, &f, &Heard { delegate, ..heard() });
+        assert_eq!(waiting.decision, Decision::Wait { until: Some(at(31)) });
+        assert_eq!(waiting.change.state, State::Producing { requested: true });
+        assert_eq!(waiting.change.last_head, None);
+    }
+    f.titled = true;
+    let opening = decide(&fresh.change, &f, &Heard { delegate: Status::Passed, ..heard() });
+    assert_eq!(opening.change.state, State::Opening { requested: false });
 }
 
 fn failed_ci_repair() -> (Change, Facts, Heard, Limits) {
@@ -311,14 +362,17 @@ fn a_released_failed_repair_keeps_its_reason_and_checks_the_current_base() {
 #[test]
 fn a_released_change_makes_a_fresh_producer_after_its_first_failed_for_good() {
     let (c, mut f, h) = failed_producer();
+    f.branch = Some(HEAD);
     let lifted = released(&c, at(1));
     let reset = decide(&lifted, &f, &h);
     assert_eq!(reset.change.state, State::Producing { requested: false });
     let fresh = decide(&reset.change, &f, &h);
     assert_eq!(fresh.decision, Decision::Delegate(Delegate::Produce));
     assert_eq!(fresh.change.state, State::Producing { requested: true });
+    f.branch = None;
     assert_eq!(decide(&fresh.change, &f, &heard()).decision, Decision::Wait { until: Some(at(31)) });
     f.branch = Some(NEW);
+    f.titled = true;
     let opened = decide(&fresh.change, &f, &Heard { delegate: Status::Passed, ..heard() });
     assert_eq!(opened.change.state, State::Opening { requested: false });
     assert_eq!(decide(&opened.change, &f, &heard()).decision, Decision::Effect(Effect::Open));
@@ -328,7 +382,8 @@ fn a_released_change_makes_a_fresh_producer_after_its_first_failed_for_good() {
 fn a_released_failed_producers_replacement_needs_authority_and_a_bare_release_holds_again() {
     use crate::{AuthorityHold, AuthorityLack, AuthorityRecovery};
     for lack in [AuthorityLack::Tasks, AuthorityLack::Depth, AuthorityLack::Spend] {
-        let (c, f, mut h) = failed_producer();
+        let (c, mut f, mut h) = failed_producer();
+        f.branch = Some(HEAD);
         let cause = AuthorityHold {
             recovery: AuthorityRecovery { task: c.task, spec: 0, hold: 2, tasks: 2 },
             lack,
@@ -375,20 +430,14 @@ fn has_hold_words(words: &[u8], expected: &[u8]) -> bool {
 }
 
 #[test]
-fn a_release_keeps_other_producing_holds_and_a_pushed_head_goes_on_without_a_new_producer() {
-    let (c, mut f, h) = failed_producer();
+fn a_release_keeps_other_producing_holds_and_restarts_a_failed_producer_with_a_last_head() {
+    let (mut c, f, h) = failed_producer();
     let stalled = change(State::Held { was: Box::new(State::Producing { requested: true }), why: Hold::Stalled });
     let reset = decide(&released(&stalled, at(1)), &f, &h);
     assert_eq!(reset.change.state, State::Producing { requested: true });
-    let mut previously_pushed = c.clone();
-    previously_pushed.last_head = Some(HEAD);
-    let kept = decide(&released(&previously_pushed, at(1)), &f, &h);
-    assert_eq!(kept.change.state, State::Producing { requested: true });
-    f.branch = Some(NEW);
+    c.last_head = Some(HEAD);
     let reset = decide(&released(&c, at(1)), &f, &h);
-    let next = decide(&reset.change, &f, &h);
-    assert_eq!(next.change.state, State::Opening { requested: false });
-    assert_eq!(next.change.last_head, Some(NEW));
+    assert_eq!(reset.change.state, State::Producing { requested: false });
 }
 
 /// A conflict resolves under rules asking no update (temper/docs/design/domain/forge.md, 8.4).
@@ -913,6 +962,7 @@ fn every_delegate_checks_authority_before_becoming_pending() {
     let mut standing = heard();
     standing.lacking = Some(cause);
     let mut f = facts();
+    f.ci.status = Status::Failed;
     for state in [
         State::Producing { requested: false },
         State::Repairing { requested: false, why: Repair::Ci },
@@ -1041,6 +1091,7 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
     assert_eq!(decide(&c, &f, &heard()).decision, Decision::CancelGates { head: HEAD });
 }
 
+mod green;
 mod merge;
 mod relay;
 mod verifying;

@@ -36,6 +36,8 @@ pub(crate) struct Process {
     script: Script,
     /// The previous activation's concrete turns, which a resume restores.
     history: Option<smith::Transcript>,
+    fresh: Option<Script>,
+    pub(super) history_messages: Option<u32>,
     mounts: Vec<(Vec<u8>, Vec<u8>)>,
     agent: Option<Agent>,
     up: VecDeque<agent::Up>,
@@ -113,6 +115,8 @@ impl Process {
             seed,
             script,
             history: None,
+            fresh: None,
+            history_messages: None,
             mounts: Vec::new(),
             agent: None,
             up: VecDeque::new(),
@@ -155,18 +159,31 @@ impl Process {
     /// The next activation, with smith's concrete history and more script.
     pub(crate) fn resume(&mut self, script: Script) {
         let agent = self.agent.as_ref().expect("parked activation");
-        assert!(matches!(agent.answer(), run::Answer::Parked { .. }));
-        let mut history = crate::world::transcript(agent);
-        if let Some(previous) = &self.history {
-            let mut turns = previous.turns.to_vec();
-            turns.extend(history.turns);
-            history.turns = turns.into_boxed_slice();
+        let mut history = self.history.clone();
+        if matches!(agent.answer(), run::Answer::Parked { .. }) {
+            let mut current = crate::world::transcript(agent);
+            if let Some(previous) = history {
+                let mut turns = previous.turns.to_vec();
+                turns.extend(current.turns);
+                current.turns = turns.into_boxed_slice();
+            }
+            history = Some(current);
+        } else {
+            assert!(
+                matches!(agent.answer(), run::Answer::Failed { failure: run::RunFailure::Transcript(_), .. }),
+                "{:?}",
+                agent.answer()
+            );
         }
+        let fresh = if script.turns.is_empty() { self.fresh.clone() } else { Some(script.clone()) };
         let mut turns = self.script.turns.to_vec();
         turns.extend(script.turns);
         let script = Script { cue: self.script.cue.clone(), turns: turns.into_boxed_slice() };
+        let history_messages = self.history_messages;
         *self = Process::new(self.seed, script);
-        self.history = Some(history);
+        self.history = history;
+        self.fresh = fresh;
+        self.history_messages = history_messages;
     }
 
     /// Whether the next activation is waiting to spawn its process.
@@ -291,6 +308,10 @@ impl Process {
         let transcript = start.transcript.map(agent::Transcript::into_value);
         let restored = transcript.as_ref().map_or(0, |transcript| transcript.turns.len());
         assert_eq!(restored, assignment.transcript.len(), "the committed turns cross whole");
+        if transcript.is_none() && self.history.is_some() {
+            self.script = self.fresh.take().expect("the pending activation's script");
+            self.history = None;
+        }
         if let Some(history) = &self.history {
             let restored = transcript.as_ref().expect("a resumed conversation");
             assert_eq!(restored.turns, history.turns, "restored concrete history is the committed prefix");
@@ -302,7 +323,15 @@ impl Process {
         if matches!(assignment.run.contract, jig_domain_tasks::Contract::Verdict { .. }) {
             measure(&charter, workspace.as_ref(), &receiving, self.charter.len());
         }
-        let settings = activation_settings(self.seed, &charter, transcript.is_some(), &receiving);
+        let mut settings = activation_settings(self.seed, &charter, transcript.is_some(), &receiving);
+        if let Some(cap) = self.history_messages {
+            settings.limits.session.history_messages = cap;
+            settings.limits.session.answer_bytes = 65536;
+            settings.limits.session.completion_bytes = 131_072;
+            settings.limits.session.history_bytes = 4 * 1_048_576;
+            settings.provider.script_bytes = 4 * 1_048_576;
+            settings.provider.query_bytes = 4 * 1_048_576;
+        }
         let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
         let event = smith::Event::Start(smith::Start {
             reply_to: ReplyTo::new(Token::new(402)),
@@ -460,10 +489,15 @@ fn result(answer: &run::Answer) -> (u32, u64, agent::RunResult) {
                     agent::RunFailure::Policy(agent::Policy::Unfinished { nudges, rejected })
                 }
                 run::RunFailure::Model(_) => agent::RunFailure::Model(agent::ModelFault::Provider),
-                other @ (run::RunFailure::Transcript(_)
-                | run::RunFailure::Budget { .. }
-                | run::RunFailure::Cancelled
-                | run::RunFailure::Stale) => panic!("unscripted Smith failure: {other:?}"),
+                run::RunFailure::Transcript(reason) => agent::RunFailure::Transcript(match reason {
+                    run::TranscriptRefusal::Version => agent::TranscriptRefusal::Version,
+                    run::TranscriptRefusal::Malformed => agent::TranscriptRefusal::Malformed,
+                    run::TranscriptRefusal::Unresolved => agent::TranscriptRefusal::Unresolved,
+                    run::TranscriptRefusal::TooLarge => agent::TranscriptRefusal::TooLarge,
+                }),
+                other @ (run::RunFailure::Budget { .. } | run::RunFailure::Cancelled | run::RunFailure::Stale) => {
+                    panic!("unscripted Smith failure: {other:?}")
+                }
             };
             (turns, spent.units, agent::RunResult::Failed { failure })
         }

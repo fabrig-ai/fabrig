@@ -95,6 +95,7 @@ fn change_step_task(
         task,
         entry,
         heard: change::Heard {
+            delegate_running: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -486,6 +487,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
         task: 51,
         entry,
         heard: change::Heard {
+            delegate_running: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -529,6 +531,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Connect { .. }
                 | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
+                | top::Request::AdoptAccess { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }
@@ -569,6 +572,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Read { .. }
                 | top::Request::BriefClient { .. }
                 | top::Request::BriefReady { .. }
+                | top::Request::BriefReadRefused { .. }
                 | top::Request::BriefSized { .. }
                 | top::Request::BriefTaken { .. }
                 | top::Request::ApplicationPart { .. }
@@ -576,10 +580,12 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::StatusRun { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::Decided { .. }
                 | top::Request::Call { .. } => {}
             }
         }
@@ -881,6 +887,9 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         | change::Decision::CancelProducer
                         | change::Decision::Delegate(_)
                         | change::Decision::CancelGates { .. }
+                        | change::Decision::CancelRepair { .. }
+                        | change::Decision::EndHold
+                        | change::Decision::RepairEnded { .. }
                         | change::Decision::Effect(_)
                         | change::Decision::Ready
                         | change::Decision::QueueRepair
@@ -905,6 +914,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                 task: 51,
                 entry,
                 heard: change::Heard {
+                    delegate_running: false,
                     start_conflict: None,
                     lacking: None,
                     spend: None,

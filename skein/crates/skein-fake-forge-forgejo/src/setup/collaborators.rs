@@ -134,6 +134,13 @@ impl Store {
             let caller = self.user(user)?;
             return Some(self.repository_by_id(*id, &caller, config, limits, Some(hosted)));
         }
+        if let Request::Repository { at } = request
+            && let Some(caller) = self.user(user)
+            && caller.is_admin
+            && let Some(id) = repository(config, at)
+        {
+            return Some(self.repository_by_id(u64::from(id), &caller, config, limits, Some(hosted)));
+        }
         let Request::AddCollaborator { at, login, permission } = request else {
             return self.answer(request, user, config, limits);
         };

@@ -101,7 +101,7 @@ fn a_selector_chromium_rejects_is_refused_protocol() {
     let mut world = world();
     world.fault(b"DOM.querySelector", Fault::InvalidSelector);
     ask(&mut world, b"[", b"value");
-    assert!(matches!(world.above.pop(), Some(Event::Refused { op: READ, why: Refusal::Protocol })));
+    assert!(matches!(world.above.pop(), Some(Event::Refused { op: READ, why: Refusal::Protocol, .. })));
 }
 fn bound_world() -> World {
     // The existing startup's frame/context identifiers fit the six-byte value bound.
@@ -122,7 +122,7 @@ fn an_attribute_past_the_text_bound_is_refused() {
     let mut world = bound_world();
     world.attributes = r#"["value","1234567"]"#.into();
     ask(&mut world, b"input", b"value");
-    assert!(matches!(world.above.pop(), Some(Event::Refused { op: READ, why: Refusal::Limit })));
+    assert!(matches!(world.above.pop(), Some(Event::Refused { op: READ, why: Refusal::Limit, .. })));
 }
 fn notify(world: &mut World, message: &[u8]) {
     up(
@@ -179,5 +179,5 @@ fn a_selector_at_the_text_bound_is_admitted() {
 fn a_selector_past_the_text_bound_is_refused() {
     let mut world = bound_world();
     ask(&mut world, b"#inputs", b"value");
-    assert!(matches!(world.above.pop(), Some(Event::Refused { op: READ, why: Refusal::Limit })));
+    assert!(matches!(world.above.pop(), Some(Event::Refused { op: READ, why: Refusal::Limit, .. })));
 }

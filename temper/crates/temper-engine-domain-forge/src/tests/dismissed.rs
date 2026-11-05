@@ -151,9 +151,9 @@ fn a_release_with_no_dismissals_marks_nothing() {
     assert_eq!(d.dismissals(PARTY).as_ref(), [PersonFact::ToBegin { project: 0 }]);
 }
 
-const GOAL_FROM: PersonFact = PersonFact::GoalFrom { project: 1, chat: 7, goal: 11 };
+const GOAL_FROM: PersonFact = PersonFact::GoalFrom { project: 1, chat: 7, goal: 11, at: 0 };
 fn goal_row(party: u64, project: u32) -> Stored {
-    Stored::Dismissed { party, what: PersonFact::GoalFrom { project, chat: 7, goal: 11 } }
+    Stored::Dismissed { party, what: PersonFact::GoalFrom { project, chat: 7, goal: 11, at: 0 } }
 }
 fn dismiss_goal(d: &mut Domain) -> Box<[Request]> {
     outputs(d, Event::Dismiss { request: REQUEST, token: ANSWER, party: PARTY, what: GOAL_FROM })
@@ -186,7 +186,10 @@ fn too_large_at_the_partys_own_bound() {
         outputs(
             &mut d,
             Event::Restore {
-                record: Stored::Dismissed { party: PARTY, what: PersonFact::GoalFrom { project: 1, chat: 7, goal } },
+                record: Stored::Dismissed {
+                    party: PARTY,
+                    what: PersonFact::GoalFrom { project: 1, chat: 7, goal, at: 0 },
+                },
             },
         );
     }

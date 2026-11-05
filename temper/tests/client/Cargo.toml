@@ -44,6 +44,7 @@ temper-client-view.workspace = true
 temper-engine-domain.workspace = true
 temper-engine-smith.workspace = true
 temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-world = { path = "../engine/domain" }
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

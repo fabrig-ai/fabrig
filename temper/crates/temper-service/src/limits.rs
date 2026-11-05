@@ -392,9 +392,9 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
         reviews: 131_584,
         ..ROOT.brief.budgets
     },
-    // tests/stock_brief.rs derives charter 1's room (359,341) less 1,472
+    // tests/stock_brief.rs derives charter 1's room (358,103) less 1,472
     // bytes for 64 titles and framing and 361 margin; below 395,520.
-    brief_bytes: 357_508,
+    brief_bytes: 356_270,
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {
@@ -411,7 +411,7 @@ const STANDARD_ROOT: Root = Root {
     brief: STANDARD_BRIEF,
     journal: engine::JournalLimits {
         // Deep task row at jig standard's bounds, including its inbox (engine::row_bound).
-        transcript_bytes: 22_467_648,
+        transcript_bytes: 22_467_664,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },
@@ -423,7 +423,7 @@ const CLIENTS: Clients = Clients {
     bundle_bytes: 16 << 20,
 };
 /// The standalone process's socket admission holds standard's owned example with both listeners and a sign-in.
-pub const SOCKETS: u32 = 128;
+pub const SOCKETS: u32 = 256;
 
 /// Constant profile values in each owner's limits.
 #[must_use]

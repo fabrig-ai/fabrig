@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::{self as wire, v1};
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness, settings};
+use temper_engine_domain_forge_change::Route;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bounds {
@@ -39,6 +40,19 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::ForgeCharter::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Charter(record.charter())
         }
+        6 => {
+            let record = v1::ProjectQuestions::decode(&v1::CEILINGS, &mut reader).ok()?;
+            settings::Value::Questions(match record.route() {
+                v1::QuestionsRoute::None => Route::None,
+                v1::QuestionsRoute::Foreman => Route::Foreman,
+                v1::QuestionsRoute::Up => Route::Up,
+            })
+        }
+        7 => {
+            let v1::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way } =
+                v1::ProjectWays::decode(&v1::CEILINGS, &mut reader).ok()?.into_parts();
+            settings::Value::Ways(settings::ProjectWays { drafts, goals, changes, away, way })
+        }
         _ => return None,
     };
     if !reader.is_empty() {
@@ -63,6 +77,18 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
             record.encode(&mut writer).expect("measured room");
             writer.finish()
         }
+        settings::Value::Questions(route) => {
+            let record = wire_questions(*route);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Ways(ways) => {
+            let record = wire_ways(*ways);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
     }
 }
 
@@ -72,6 +98,8 @@ pub fn size(value: &settings::Value) -> u32 {
     match value {
         settings::Value::Rule(rule) => wire_rule(rule).measure(),
         settings::Value::Charter(charter) => wire_charter(*charter).measure(),
+        settings::Value::Questions(route) => wire_questions(*route).measure(),
+        settings::Value::Ways(ways) => wire_ways(*ways).measure(),
     }
 }
 
@@ -186,4 +214,21 @@ fn wire_rule(rule: &settings::LandingRule) -> v1::LandingRule {
 
 fn wire_charter(charter: u32) -> v1::ForgeCharter {
     v1::ForgeCharter::new(&v1::CEILINGS, v1::ForgeCharterParts { charter }).expect("fixed charter field")
+}
+
+fn wire_questions(route: Route) -> v1::ProjectQuestions {
+    let route = match route {
+        Route::None => v1::QuestionsRoute::None,
+        Route::Foreman => v1::QuestionsRoute::Foreman,
+        Route::Up => v1::QuestionsRoute::Up,
+    };
+    v1::ProjectQuestions::new(&v1::CEILINGS, v1::ProjectQuestionsParts { route }).expect("fixed route field")
+}
+
+fn wire_ways(ways: settings::ProjectWays) -> v1::ProjectWays {
+    v1::ProjectWays::new(
+        &v1::CEILINGS,
+        v1::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
+    )
+    .expect("fixed ways fields")
 }

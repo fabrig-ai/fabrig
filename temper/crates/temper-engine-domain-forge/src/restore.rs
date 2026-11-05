@@ -286,6 +286,36 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.repository_makings.capacity(),
             d.repository_makings.contains_key(&row.key),
         ),
+        Stored::ProjectFacts(row) => room(
+            K::ProjectFacts,
+            Rows(K::ProjectFacts),
+            d.project_facts.len(),
+            d.project_facts.capacity(),
+            d.project_facts.contains_key(&row.project),
+        ),
+        Stored::Away(row) => room(
+            K::Away,
+            Rows(K::Away),
+            d.aways.len(),
+            d.aways.capacity(),
+            d.aways.contains_key(&(row.party, row.project)),
+        ),
+        Stored::Decided(row) => {
+            let replacing = d.decisions.contains_key(&(row.project, row.number));
+            let mut held = 0_u32;
+            for _ in d.decisions.range((row.project, 0)..=(row.project, u32::MAX)) {
+                held = held.saturating_add(1);
+            }
+            room(K::Decided, Rows(K::Decided), held, 64, replacing)?;
+            room(K::Decided, Rows(K::Decided), d.decisions.len(), l.decided(), replacing)
+        }
+        Stored::Looked(row) => room(
+            K::Looked,
+            Rows(K::Looked),
+            d.looked.len(),
+            d.looked.capacity(),
+            d.looked.contains_key(&(row.party, row.project)),
+        ),
         Stored::Dismissed { party, what } => room(
             K::Dismissed,
             Rows(K::Dismissed),

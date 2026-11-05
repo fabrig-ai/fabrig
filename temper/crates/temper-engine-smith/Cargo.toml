@@ -25,6 +25,7 @@ jig-domain-tasks.workspace = true
 jig-domain-people.workspace = true
 skein-forge-client.workspace = true
 temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-change.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-accounts.workspace = true
 jig-domain-host.workspace = true

@@ -24,6 +24,9 @@ impl Recorder {
         ] {
             this.keep(&line);
         }
+        if facts.zone_minutes != 0 {
+            this.keep(&Line::Zone(facts.zone_minutes));
+        }
         if let Some((content, origin)) = &facts.ways {
             this.keep(&Line::Ways { content: content.clone(), origin: origin.clone() });
         }

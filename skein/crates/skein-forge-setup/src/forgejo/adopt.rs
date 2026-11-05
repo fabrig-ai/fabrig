@@ -9,7 +9,7 @@ use crate::{
     reconcile,
 };
 use alloc::boxed::Box;
-use skein_forge::forgejo::request::Request;
+use skein_forge::forgejo::request::{Repo, Request};
 use skein_lib::{Queue, Secret};
 
 #[derive(Debug)]
@@ -35,21 +35,28 @@ impl Adopt {
         if repository == 0 {
             return Err(Refused { place: Place::Repository(0), other: None });
         }
-        Ok(Self {
+        Ok(Self::with_access(given, Access::new(repository, &given.bot_login, Self::url(given))))
+    }
+    /// Refuses an invalid given; path bytes are bounded by the request's encoding.
+    pub fn at(given: &Given, owner: Box<[u8]>, name: Box<[u8]>) -> Result<Self, Refused> {
+        given::check(given)?;
+        Ok(Self::with_access(given, Access::named(Repo { owner, name }, &given.bot_login, Self::url(given))))
+    }
+    fn url(given: &Given) -> Option<Box<[u8]>> {
+        match given.listener {
+            Some(address) => reconcile::hook_url(address, given.forge),
+            None => None,
+        }
+    }
+    fn with_access(given: &Given, access: Access) -> Self {
+        Self {
             forge: given.forge,
             admin_name: given.admin_name.clone(),
             state: State::Admin(Admin::Begin),
             admin: None,
             shared: Shared { cap: None, secret: None },
-            access: Access::new(
-                repository,
-                &given.bot_login,
-                match given.listener {
-                    Some(address) => reconcile::hook_url(address, given.forge),
-                    None => None,
-                },
-            ),
-        })
+            access,
+        }
     }
     fn send(&self, request: Request) -> Need {
         Need::Send {

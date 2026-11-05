@@ -22,8 +22,8 @@ const ONE: u32 = 1;
 const NEED_GROUPS: u32 = 4;
 const INBOX_CARDS: u32 = 5;
 const INBOX_QUERIES: usize = 2;
-// Settings, two chats handles, entries and two inbox queries.
-const HOME_HANDLES: u32 = 6;
+// Two chats handles, entries and two inbox queries.
+const HOME_HANDLES: u32 = 5;
 // The ordered repository fixture holds three adoptions on its lower forge.
 const REPOSITORIES: u32 = 3;
 // Home has three independently completed steps (client/README.md, 3.5).
@@ -58,19 +58,34 @@ struct Fixture {
     forges: Token,
     inbox: Token,
     dismissed: Token,
+    status: Token,
+    decided: Token,
+    away: Token,
 }
 fn fixture() -> Fixture {
     fixture_with_me(f::chats::me())
 }
 fn fixture_with_me(frame: c::Me) -> Fixture {
-    let mut root = crate::unlinked(&f::limits(), f::SEED);
+    fixture_with_limits(frame, f::limits())
+}
+fn fixture_with_limits(frame: c::Me, limits: crate::Limits) -> Fixture {
+    let mut root = crate::unlinked(&limits, f::SEED);
     let me = f::start(&mut root, List::with_capacity(EMPTY));
     let out = deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
     let dismissed = opened(&out, &forge::dismissed::watch(&f::limits().forge).unwrap()).unwrap();
     let forges = opened(&out, &forge::forges::watch(&f::limits().forge).unwrap()).unwrap();
-    let standing = opened(&out, &Watchable::Jig(c::Subject::Inbox { window: f::limits().client.domain.rows }));
-    let out = go(&mut root, f::PROJECT);
     let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
+    let away = opened(&out, &forge::away::watch(&f::limits().forge).unwrap()).unwrap();
+    let standing = opened(&out, &Watchable::Jig(c::Subject::Inbox { window: f::limits().client.domain.rows }));
+    let mut out = Queue::uncapped();
+    crate::step(
+        &mut root,
+        &f::env(&limits),
+        Event::Went { place: Place::Address(Address::Home { project: f::PROJECT }) },
+        &mut out,
+    );
+    let status = opened(&out, &forge::status::watch(f::PROJECT, &f::limits().forge).unwrap()).unwrap();
+    let decided = opened(&out, &forge::decided::watch(f::PROJECT, &f::limits().forge).unwrap()).unwrap();
     let inbox = opened(&out, &Watchable::Jig(c::Subject::Inbox { window: root.pages().inbox().unwrap().window }))
         .or(standing)
         .unwrap();
@@ -86,9 +101,20 @@ fn fixture_with_me(frame: c::Me) -> Fixture {
             }
         }
     }
-    Fixture { root, settings, live: live.unwrap(), closed: closed.unwrap(), forges, inbox, dismissed }
+    Fixture {
+        root,
+        settings,
+        live: live.unwrap(),
+        closed: closed.unwrap(),
+        forges,
+        inbox,
+        dismissed,
+        status,
+        decided,
+        away,
+    }
 }
-fn settings(fixture: &mut Fixture, follows: c::SettingFollows) {
+fn settings(fixture: &mut Fixture, follows: c::SettingFollows) -> Queue<Request> {
     let mut lines = List::with_capacity(ONE);
     lines
         .push(c::SettingLine { setting: c::Setting::Rules, name: None, follows, last: None, application: None })
@@ -102,10 +128,11 @@ fn settings(fixture: &mut Fixture, follows: c::SettingFollows) {
             held: List::with_capacity(EMPTY),
             pending: List::with_capacity(EMPTY),
         })),
-    );
+    )
 }
 fn row(number: u16) -> w::ForgeRowParts {
     w::ForgeRowParts {
+        starts_with: w::StartsWith::Repository,
         host: b"git.example:3000".as_slice().into(),
         number,
         kind: w::Kind::Forgejo,
@@ -218,19 +245,22 @@ fn the_three_steps_count_only_what_is_left() {
         (true, Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() }, false, ONE_STEP),
         (true, Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() }, true, NO_STEPS),
         (true, Repository::Unknown, true, ONE_STEP),
+        (true, Repository::Add { forge: FORGE }, true, ONE_STEP),
         (true, Repository::Adopting(first()), true, ONE_STEP),
         (true, Repository::Offer { first: first(), refused: None }, true, ONE_STEP),
         (true, Repository::GitHub { account: None }, true, ONE_STEP),
     ] {
         assert_eq!(
             Facts {
+                away: None,
                 configured,
                 repository,
                 chat_asked,
                 needs: Needs::Unknown,
                 delivered: true,
                 skip: Skip::NotSkipped,
-                skip_refused: false
+                skip_refused: false,
+                status: home::Status::Unknown,
             }
             .left(),
             left
@@ -240,12 +270,12 @@ fn the_three_steps_count_only_what_is_left() {
 #[test]
 fn settings_are_configured_only_after_a_change_is_delivered() {
     let mut f = fixture();
-    assert!(!home::facts(&f.root, f::PROJECT).configured, "undelivered");
+    assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured, "undelivered");
     settings(&mut f, c::SettingFollows::Default);
-    assert!(!home::facts(&f.root, f::PROJECT).configured, "defaults");
+    assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured, "defaults");
     let before = pages::shown(f.root.pages());
     settings(&mut f, c::SettingFollows::Change);
-    assert!(home::facts(&f.root, f::PROJECT).configured);
+    assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured);
     assert!(pages::shown(f.root.pages()) > before, "a settings change redraws Home");
 }
 #[test]
@@ -254,16 +284,17 @@ fn refused_and_ended_settings_are_not_configured() {
         let mut f = fixture();
         settings(&mut f, c::SettingFollows::Change);
         up(&mut f.root, Up::WatchEnded { watch: f.settings, end });
-        assert!(!home::facts(&f.root, f::PROJECT).configured, "{end:?}");
+        assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured, "{end:?}");
     }
 }
 #[test]
-fn home_owns_and_releases_its_settings_and_chat_reads() {
+fn home_shares_settings_and_releases_its_chat_reads() {
     let mut f = fixture();
     up(&mut f.root, Up::Watched { watch: f.settings, event: c::WatchEvent::Opened });
     let settings = f.root.pages().home().unwrap().settings;
     let chats = f.root.pages().chats().unwrap();
-    let handles = [settings, chats.live, chats.closed];
+    assert_eq!(settings, f.root.forge().settings_handle());
+    let handles = [chats.live, chats.closed];
     assert_eq!(chats.filter, crate::ChatsFilter::All);
     let repeat = go(&mut f.root, f::PROJECT);
     assert!(opened(&repeat, &Watchable::Jig(c::Subject::Settings)).is_none());
@@ -273,7 +304,7 @@ fn home_owns_and_releases_its_settings_and_chat_reads() {
     }
     assert!(f.root.pages().home().is_none());
     let chats = f.root.pages().chats().expect("Settings holds its own chats");
-    assert_ne!(chats.live, handles[1]);
+    assert_ne!(chats.live, handles[0]);
     assert!(f.root.client().document(chats.live).is_some());
     let mut closed = false;
     for request in &out {
@@ -283,14 +314,15 @@ fn home_owns_and_releases_its_settings_and_chat_reads() {
             closed |= *watch == f.settings;
         }
     }
-    assert!(closed, "Home closes its settings watch");
+    assert!(!closed, "the session keeps its settings watch");
+    assert!(f.root.client().document(settings).is_some());
 }
 #[test]
 fn unknown_and_ended_forges_never_invent_a_repository() {
     let mut f = fixture();
-    assert_eq!(home::facts(&f.root, f::PROJECT).repository, Repository::Unknown);
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository, Repository::Unknown);
     up(&mut f.root, Up::WatchEnded { watch: f.forges, end: c::WatchEnd::NotAllowed });
-    assert_eq!(home::facts(&f.root, f::PROJECT).repository, Repository::None);
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository, Repository::None);
 }
 #[test]
 fn the_first_project_repository_uses_forge_then_repository_order() {
@@ -327,7 +359,7 @@ fn the_first_project_repository_uses_forge_then_repository_order() {
         .unwrap();
     rows(&mut f.root, f.forges, Box::new([lower, adopted(row(OTHER_FORGE), f::PROJECT, b"higher")]));
     assert_eq!(
-        home::facts(&f.root, f::PROJECT).repository,
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository,
         Repository::In { owner: b"work".as_slice().into(), name: b"first".as_slice().into() }
     );
     assert_eq!(
@@ -339,22 +371,32 @@ fn the_first_project_repository_uses_forge_then_repository_order() {
 fn a_first_repository_is_offered_until_it_is_adopted_anywhere() {
     let mut f = fixture();
     rows(&mut f.root, f.forges, Box::new([with_first(row(FORGE))]));
-    assert_eq!(home::facts(&f.root, f::PROJECT).repository, Repository::Offer { first: first(), refused: None });
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository,
+        Repository::Offer { first: first(), refused: None }
+    );
     rows(&mut f.root, f.forges, Box::new([adopted(with_first(row(FORGE)), OTHER_PROJECT, b"hello")]));
-    assert_eq!(home::facts(&f.root, f::PROJECT).repository, Repository::None);
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository, Repository::Add { forge: FORGE });
 }
 #[test]
 fn adoption_out_precedes_an_offer_and_refusal_is_kept() {
     let (mut root, forges) = adopting();
-    assert_eq!(home::facts(&root, f::PROJECT).repository, Repository::Adopting(first()));
+    assert_eq!(home::facts(&root, f::PROJECT, Wall::EPOCH).repository, Repository::Adopting(first()));
     adoption_answer(&mut root, refusal());
     assert_eq!(
-        home::facts(&root, f::PROJECT).repository,
+        home::facts(&root, f::PROJECT, Wall::EPOCH).repository,
         Repository::Offer { first: first(), refused: Some(forge::Answer::ForgeRefused(forge::Reason::HomeHeld)) }
     );
-    assert_eq!(home::facts(&root, OTHER_PROJECT).repository, Repository::Offer { first: first(), refused: None });
+    assert_eq!(
+        home::facts(&root, OTHER_PROJECT, Wall::EPOCH).repository,
+        Repository::Offer { first: first(), refused: None }
+    );
     rows(&mut root, forges, Box::new([adopted(with_first(row(FORGE)), OTHER_PROJECT, b"hello")]));
-    assert_eq!(home::facts(&root, f::PROJECT).repository, Repository::None, "no stale offer after adoption elsewhere");
+    assert_eq!(
+        home::facts(&root, f::PROJECT, Wall::EPOCH).repository,
+        Repository::Add { forge: FORGE },
+        "no stale offer after adoption elsewhere"
+    );
 }
 #[test]
 fn adopted_rows_win_in_either_order_of_rows_and_answers() {
@@ -371,14 +413,14 @@ fn adopted_rows_win_in_either_order_of_rows_and_answers() {
         rows(&mut root, forges, Box::new([adopted(with_first(row(FORGE)), f::PROJECT, b"hello")]));
         if !answer_first {
             assert_eq!(
-                home::facts(&root, f::PROJECT).repository,
+                home::facts(&root, f::PROJECT, Wall::EPOCH).repository,
                 Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() },
                 "rows override an outstanding adoption"
             );
             adoption_answer(&mut root, answer);
         }
         assert_eq!(
-            home::facts(&root, f::PROJECT).repository,
+            home::facts(&root, f::PROJECT, Wall::EPOCH).repository,
             Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() },
             "answer_first={answer_first}"
         );
@@ -410,7 +452,7 @@ fn github_uses_the_first_accepted_usable_installations_account() {
         }
         rows(&mut f.root, f.forges, Box::new([github]));
         assert_eq!(
-            home::facts(&f.root, f::PROJECT).repository,
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository,
             Repository::GitHub { account: if with_account { Some(b"accepted".as_slice().into()) } else { None } }
         );
     }
@@ -424,7 +466,7 @@ fn chat_rows() -> List<c::TaskLine> {
 fn home_counts_live_and_ended_chats_as_asked() {
     for ended in [false, true] {
         let mut f = fixture();
-        assert!(!home::facts(&f.root, f::PROJECT).chat_asked, "undelivered");
+        assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).chat_asked, "undelivered");
         if ended {
             up(
                 &mut f.root,
@@ -440,8 +482,8 @@ fn home_counts_live_and_ended_chats_as_asked() {
         } else {
             deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows: chat_rows(), more: false })));
         }
-        assert!(home::facts(&f.root, f::PROJECT).chat_asked, "ended={ended}");
-        assert!(!home::facts(&f.root, OTHER_PROJECT).chat_asked, "another project's facts");
+        assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).chat_asked, "ended={ended}");
+        assert!(!home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).chat_asked, "another project's facts");
     }
 }
 #[test]
@@ -460,7 +502,7 @@ fn another_persons_project_cannot_start_a_configuring_chat() {
         }
     }
     assert!(!sent, "Configure's address never falls back to another project");
-    assert!(!home::facts(&f.root, OTHER_PROJECT).chat_asked);
+    assert!(!home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).chat_asked);
 }
 
 #[test]
@@ -530,9 +572,9 @@ fn home_reads_its_projects_needs_and_releases_them() {
         assert_eq!(inbox.filter, crate::address::Filter { project: Some(f::PROJECT), kind: None, goal: None });
         let settings = f.root.pages().home().unwrap().settings;
         let chats = f.root.pages().chats().unwrap();
-        assert_eq!(chats.live.number, settings.number + 1);
-        assert_eq!(chats.closed.number, settings.number + 2);
-        assert_eq!(inbox.entries.number, settings.number + 3);
+        assert_eq!(chats.live.asker, crate::owner::Owner::Pages.asker());
+        assert_eq!(chats.closed.number, chats.live.number + 1);
+        assert_eq!(inbox.entries.number, chats.live.number + 2);
         up(&mut f.root, Up::Watched { watch: f.inbox, event: c::WatchEvent::Opened });
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
         let reads = inbox_reads(&out);
@@ -544,13 +586,13 @@ fn home_reads_its_projects_needs_and_releases_them() {
         let inbox = f.root.pages().inbox().unwrap();
         let chats = f.root.pages().chats().unwrap();
         let mut handles = List::with_capacity(inbox.cards.len().checked_add(HOME_HANDLES).unwrap());
-        for handle in [settings, chats.live, chats.closed, inbox.entries, inbox.queries[0], inbox.queries[1]] {
+        for handle in [chats.live, chats.closed, inbox.entries, inbox.queries[0], inbox.queries[1]] {
             handles.push(handle).unwrap();
         }
         for card in &inbox.cards {
             handles.push(card.handle).unwrap();
         }
-        let mut last = settings.number;
+        let mut last = 0;
         for handle in &handles {
             last = last.max(handle.number);
         }
@@ -572,19 +614,24 @@ fn home_reads_its_projects_needs_and_releases_them() {
         assert!(!closed, "the standing count keeps the shared inbox watch open");
         assert!(f.root.client().document(pages::needs::handle()).is_some());
         go(&mut f.root, f::PROJECT);
-        assert!(f.root.pages().home().unwrap().settings.number > last, "no handle is reused");
+        assert_eq!(f.root.pages().home().unwrap().settings, settings, "settings is the session handle");
+        assert!(f.root.pages().chats().unwrap().live.number > last, "no page handle is reused");
     }
 }
 #[test]
 fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
     for cut in [false, true] {
         let mut f = fixture();
-        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown);
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Unknown);
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
-        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown, "queries still pending");
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Unknown, "queries still pending");
         let reads = inbox_reads(&out);
         let needs = inbox_page(&mut f.root, reads[0].0, need_rows(), cut);
-        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown, "updates and card reads pending");
+        assert_eq!(
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
+            Needs::Unknown,
+            "updates and card reads pending"
+        );
         let mut updates = List::with_capacity(ONE);
         updates.push(f::inbox_entry(c::ObjectKey::Result(CHAT), c::InboxGroup::Results, f::PROJECT, 0)).unwrap();
         let updates = inbox_page(&mut f.root, reads[1].0, updates, !cut);
@@ -592,10 +639,10 @@ fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
         let updates = inbox_reads(&updates);
         let cards = needs.iter().chain(updates.iter());
         for (read, _) in cards {
-            assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown, "each card must answer");
+            assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Unknown, "each card must answer");
             up(&mut f.root, Up::ReadDone { read: *read, result: Readout::Limit });
         }
-        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: NEED_GROUPS, cut });
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: NEED_GROUPS, cut });
         let inbox = f.root.pages().inbox().unwrap();
         for (card, group) in inbox.needs().zip([
             c::InboxGroup::Questions,
@@ -606,13 +653,13 @@ fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
             assert_eq!(card.group, group);
         }
         assert_eq!(inbox.cards.len(), INBOX_CARDS, "the update stays in Inbox");
-        assert_eq!(home::facts(&f.root, OTHER_PROJECT).needs, Needs::Unknown);
+        assert_eq!(home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).needs, Needs::Unknown);
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
-        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown, "refresh waits again");
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Unknown, "refresh waits again");
         for (read, _) in inbox_reads(&out) {
             inbox_page(&mut f.root, read, List::with_capacity(EMPTY), false);
         }
-        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: 0, cut: false });
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: 0, cut: false });
     }
 }
 #[test]
@@ -642,8 +689,8 @@ fn home_hears_its_chats_and_its_inbox_alike() {
             }
             assert!(pages::shown(f.root.pages()) > before, "both pages redraw Home");
         }
-        assert!(home::facts(&f.root, f::PROJECT).chat_asked);
-        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: 0, cut: true });
+        assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).chat_asked);
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: 0, cut: true });
     }
 }
 
@@ -712,7 +759,7 @@ fn ready(f: &mut Fixture) {
         c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
     );
     dismissal_rows(f, &[]);
-    assert!(home::facts(&f.root, f::PROJECT).to_begin());
+    assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
 }
 fn skip(f: &mut Fixture) -> (jig_client::Key, Queue<Request>) {
     let serial = f.root.pages().serial;
@@ -743,10 +790,10 @@ fn a_configuring_chat_marks_the_first_step_and_not_the_third() {
         } else {
             chat_page(&mut f, rows, source == 1, None);
         }
-        let facts = home::facts(&f.root, f::PROJECT);
+        let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert!(facts.configured, "source={source}");
         assert!(!facts.chat_asked, "configuring alone source={source}");
-        assert!(!home::facts(&f.root, OTHER_PROJECT).configured);
+        assert!(!home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).configured);
     }
 }
 #[test]
@@ -759,7 +806,7 @@ fn a_stock_chat_marks_the_third_step_alone() {
             } else {
                 chat_page(&mut f, chat_rows(), source == 1, None);
             }
-            let facts = home::facts(&f.root, f::PROJECT);
+            let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
             assert!(!facts.configured);
             assert!(facts.chat_asked);
         }
@@ -783,7 +830,7 @@ fn a_stock_chat_marks_the_third_step_alone() {
                 Some(c::Cursor::new(b"next".as_slice().into(), NAME_BYTES).unwrap()),
             );
         }
-        let facts = home::facts(&f.root, f::PROJECT);
+        let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert!(!facts.configured, "a configuring chat past the cut isn't seen");
         assert!(facts.chat_asked, "a cut counts as another chat");
     }
@@ -797,11 +844,11 @@ fn to_begin_waits_for_every_fact() {
                 deliver_fact(&mut f, fact);
             }
         }
-        let facts = home::facts(&f.root, f::PROJECT);
+        let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert!(!facts.to_begin(), "withheld={withheld}");
         assert_eq!(facts.delivered, withheld == 4);
         deliver_fact(&mut f, withheld);
-        assert!(home::facts(&f.root, f::PROJECT).to_begin());
+        assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
     }
     for ended in [c::WatchEnd::NotAllowed, c::WatchEnd::SubjectEnded] {
         let mut f = fixture();
@@ -810,23 +857,23 @@ fn to_begin_waits_for_every_fact() {
         }
         up(&mut f.root, Up::ReadDone { read: f.closed, result: Readout::Limit });
         dismissal_rows(&mut f, &[]);
-        let facts = home::facts(&f.root, f::PROJECT);
+        let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert!(facts.delivered);
         assert_eq!(facts.left(), THREE_STEPS);
         assert!(facts.to_begin());
         up(&mut f.root, Up::WatchEnded { watch: f.dismissed, end: ended });
-        assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Unknown);
-        assert!(!home::facts(&f.root, f::PROJECT).to_begin());
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::Unknown);
+        assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
     }
     let mut f = fixture_with_me(configuring_me());
     ready(&mut f);
     let mut rows = chat_rows();
     rows.get_mut(0).unwrap().chip.executor = c::ChipExecutor::Agent { charter: CONFIGURING };
     deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
-    assert!(home::facts(&f.root, f::PROJECT).configured);
+    assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured);
     up(&mut f.root, Up::WatchEnded { watch: f.live, end: c::WatchEnd::SubjectEnded });
-    assert!(!home::facts(&f.root, f::PROJECT).configured, "ended live read leaves its step");
-    let mut facts = home::facts(&f.root, f::PROJECT);
+    assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured, "ended live read leaves its step");
+    let mut facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
     facts.configured = true;
     facts.chat_asked = true;
     facts.repository = Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() };
@@ -835,7 +882,9 @@ fn to_begin_waits_for_every_fact() {
 fn deliver_fact(f: &mut Fixture, fact: u32) {
     match fact {
         0 => rows(&mut f.root, f.forges, Box::default()),
-        1 => settings(f, c::SettingFollows::Default),
+        1 => {
+            settings(f, c::SettingFollows::Default);
+        }
         2 => {
             let out = deliver(
                 &mut f.root,
@@ -879,7 +928,7 @@ fn a_skipped_project_hides_to_begin_and_a_refused_skip_brings_it_back() {
         jig_client::Outcome::Unconfirmed,
         jig_client::Outcome::Held,
         jig_client::Outcome::Unsent,
-        jig_client::Outcome::Full { held: ONE, room_at: skein_lib::Wall::EPOCH },
+        jig_client::Outcome::Full { held: ONE, room_at: Wall::EPOCH },
     ];
     for outcome in refusals {
         let mut f = fixture();
@@ -891,6 +940,9 @@ fn a_skipped_project_hides_to_begin_and_a_refused_skip_brings_it_back() {
                 request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, .. } },
             } = request
             {
+                if *request == forge::status::ask(f::PROJECT, &f::limits().forge).unwrap() {
+                    continue;
+                }
                 assert_eq!(
                     *request,
                     forge::dismissed::ask(
@@ -903,22 +955,22 @@ fn a_skipped_project_hides_to_begin_and_a_refused_skip_brings_it_back() {
             }
         }
         assert_eq!(sends, 1);
-        assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped);
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::Skipped);
         assert!(event(&mut f.root, Event::Act { action: Action::Pages(Act::SkipToBegin) }).is_empty());
-        assert_eq!(f.root.pages().serial, key.number, "one press, one key");
-        skip_answer(&mut f, jig_client::Key { number: key.number + 1, ..key }, outcome.clone());
-        assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped, "only our answer");
+        assert_eq!(f.root.pages().serial, key.number + 1, "one skip and one look key");
+        skip_answer(&mut f, jig_client::Key { number: key.number + 2, ..key }, outcome.clone());
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::Skipped, "only our answer");
         skip_answer(&mut f, key, outcome);
-        let facts = home::facts(&f.root, f::PROJECT);
+        let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert!(facts.skip_refused);
         assert_eq!(facts.skip, Skip::NotSkipped);
         assert!(facts.to_begin());
         let (next, _) = skip(&mut f);
         assert_ne!(next, key);
-        assert!(!home::facts(&f.root, f::PROJECT).skip_refused);
+        assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip_refused);
         dismissal_rows(&mut f, &[f::PROJECT]);
         skip_answer(&mut f, next, jig_client::Outcome::Unknown);
-        assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped, "subject answers unknown");
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::Skipped, "subject answers unknown");
     }
 }
 #[test]
@@ -930,16 +982,22 @@ fn a_skip_answered_before_its_row_arrives_stays_hidden() {
     skip_answer(&mut f, key, family_answer(w::Outcome::Dismissed));
     assert!(pages::shown(f.root.pages()) > before);
     dismissal_rows(&mut f, &[]);
-    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped);
-    assert!(!home::facts(&f.root, f::PROJECT).to_begin());
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::Skipped);
+    assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
     event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     assert!(event(&mut f.root, Event::Act { action: Action::Pages(Act::SkipToBegin) }).is_empty());
     go(&mut f.root, f::PROJECT);
-    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::NotSkipped, "acknowledgement lasts until leaving Home");
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip,
+        Skip::NotSkipped,
+        "acknowledgement lasts until leaving Home"
+    );
     for outcome in [jig_client::Outcome::Unknown, family_answer(w::Outcome::Unknown)] {
+        let mut f = fixture();
+        ready(&mut f);
         let (key, _) = skip(&mut f);
         skip_answer(&mut f, key, outcome);
-        let facts = home::facts(&f.root, f::PROJECT);
+        let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert_eq!(facts.skip, Skip::NotSkipped, "unknown follows the subject");
         assert!(!facts.skip_refused);
         let (next, _) = skip(&mut f);
@@ -952,11 +1010,11 @@ fn another_projects_dismissal_leaves_to_begin() {
     let mut f = fixture();
     ready(&mut f);
     dismissal_rows(&mut f, &[OTHER_PROJECT]);
-    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::NotSkipped);
-    assert!(home::facts(&f.root, f::PROJECT).to_begin());
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::NotSkipped);
+    assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
     dismissal_rows(&mut f, &[f::PROJECT]);
-    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped);
-    assert!(!home::facts(&f.root, f::PROJECT).to_begin());
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::Skipped);
+    assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
 }
 
 #[test]
@@ -979,7 +1037,7 @@ fn skip_respects_its_page_and_request_bounds() {
     );
     assert!(out.is_empty());
     assert_eq!(f.root.pages().serial, serial);
-    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::NotSkipped);
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::NotSkipped);
     pages::step(
         &mut f.root.pages,
         &f::env(&f::limits()),
@@ -1001,7 +1059,7 @@ fn skip_respects_its_page_and_request_bounds() {
         }))
     );
     assert!(out.is_empty());
-    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped);
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::Skipped);
     for address in [Address::Settings { project: f::PROJECT }, Address::Chats { filter: crate::ChatsFilter::All }] {
         event(&mut f.root, Event::Went { place: Place::Address(address) });
         let serial = f.root.pages().serial;
@@ -1010,13 +1068,319 @@ fn skip_respects_its_page_and_request_bounds() {
     }
 }
 
+fn status_document(f: &mut Fixture, document: &w::ProjectStatus) -> Queue<Request> {
+    up(&mut f.root, Up::FamilyDelivered { watch: f.status, record: crate::tests::status::record(document) })
+}
+fn look_sends(out: &Queue<Request>) -> u32 {
+    let expected = forge::status::ask(f::PROJECT, &f::limits().forge).unwrap();
+    let mut sends = 0_u32;
+    for request in out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, .. } } } =
+            request
+            && *request == expected
+        {
+            sends = sends.checked_add(1).unwrap();
+        }
+    }
+    sends
+}
+fn look_key(f: &Fixture) -> jig_client::Key {
+    jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: f.root.pages().serial }
+}
+fn looked(f: &mut Fixture, key: jig_client::Key, outcome: jig_client::Outcome) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    crate::route::told(&mut f.root, &f::env(&f::limits()), Told::Answered { key, outcome }, &mut out);
+    out
+}
+fn enter_skipped() -> Fixture {
+    let mut f = fixture();
+    dismissal_rows(&mut f, &[f::PROJECT]);
+    rows(&mut f.root, f.forges, Box::default());
+    settings(&mut f, c::SettingFollows::Default);
+    chat_page(&mut f, List::with_capacity(EMPTY), false, None);
+    deliver(
+        &mut f.root,
+        f.live,
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
+    );
+    f
+}
+#[test]
+fn a_watch_opens_with_the_page_and_closes_with_it() {
+    let mut f = fixture();
+    let settings = f.root.pages().home().unwrap().settings;
+    let status = jig_client::Handle {
+        number: f.root.pages().chats().unwrap().live.number - 1,
+        asker: crate::owner::Owner::Pages.asker(),
+    };
+    assert!(f.root.client().document(status).is_some(), "Home owns its project status handle");
+    for watch in [f.status, f.settings] {
+        up(&mut f.root, Up::Watched { watch, event: c::WatchEvent::Opened });
+    }
+    let out = event(&mut f.root, Event::Went { place: Place::Missing });
+    let mut closes = 0_u32;
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+            request
+            && *watch == f.status
+        {
+            closes = closes.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(closes, 1);
+    assert!(f.root.client().document(status).is_none());
+    assert!(f.root.client().document(settings).is_some(), "session settings survives Home");
+    let out = go(&mut f.root, f::PROJECT);
+    assert_ne!(opened(&out, &forge::status::watch(f::PROJECT, &f::limits().forge).unwrap()), Some(f.status));
+}
+#[test]
+fn a_look_goes_once_when_the_facts_are_delivered() {
+    for last in 0..FACTS {
+        let mut f = fixture();
+        let serial = f.root.pages().serial;
+        for fact in 0..FACTS {
+            if fact != last {
+                deliver_fact(&mut f, fact);
+            }
+        }
+        if last != 4 {
+            dismissal_rows(&mut f, &[f::PROJECT]);
+        }
+        assert_eq!(f.root.pages().serial, serial, "withheld fact {last}");
+        if last == 4 {
+            dismissal_rows(&mut f, &[f::PROJECT]);
+        } else {
+            deliver_fact(&mut f, last);
+        }
+        let key = look_key(&f);
+        assert_eq!(key.number, serial + 1, "last fact {last} sends one look");
+        assert!(f.root.client().pending(key).is_some(), "Pages owns the look key");
+        let document = crate::tests::status::document(3, 1, None);
+        assert_eq!(look_sends(&status_document(&mut f, &document)), 0, "not resent while out");
+        assert_eq!(look_sends(&looked(&mut f, key, family_answer(w::Outcome::Looked))), 0);
+        assert_eq!(look_sends(&status_document(&mut f, &document)), 0, "not resent after the answer");
+        assert_eq!(f.root.pages().serial, key.number);
+    }
+    let mut f = fixture();
+    let serial = f.root.pages().serial;
+    for fact in 0..4 {
+        deliver_fact(&mut f, fact);
+    }
+    assert_eq!(f.root.pages().serial, serial);
+    let out = up(&mut f.root, Up::WatchEnded { watch: f.dismissed, end: c::WatchEnd::NotAllowed });
+    assert_eq!(look_sends(&out), 1, "ended dismissals settle To begin too");
+}
+#[test]
+fn no_look_goes_while_to_begin_shows() {
+    let mut f = fixture();
+    let serial = f.root.pages().serial;
+    ready(&mut f);
+    assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
+    assert_eq!(f.root.pages().serial, serial);
+    let document = crate::tests::status::document(3, 1, None);
+    assert_eq!(look_sends(&status_document(&mut f, &document)), 0);
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Unknown);
+}
+#[test]
+fn a_skip_sends_the_look() {
+    let mut f = fixture();
+    ready(&mut f);
+    let (skip_key, out) = skip(&mut f);
+    assert_eq!(look_sends(&out), 1);
+    assert_eq!(look_key(&f).number, skip_key.number + 1);
+    assert_eq!(look_key(&f).asker, crate::owner::Owner::Pages.asker());
+    assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
+    skip_answer(&mut f, skip_key, family_answer(w::Outcome::Dismissed));
+    assert_eq!(look_sends(&settings(&mut f, c::SettingFollows::Change)), 0);
+}
+#[test]
+fn a_last_step_sends_the_look() {
+    let mut f = fixture();
+    let serial = f.root.pages().serial;
+    ready(&mut f);
+    rows(&mut f.root, f.forges, Box::new([adopted(row(FORGE), f::PROJECT, b"hello")]));
+    deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows: chat_rows(), more: false })));
+    assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
+    assert_eq!(look_sends(&settings(&mut f, c::SettingFollows::Change)), 1);
+    assert_eq!(f.root.pages().serial, serial + 1);
+}
+#[test]
+fn a_second_entry_looks_again() {
+    let mut f = enter_skipped();
+    let first = look_key(&f);
+    assert!(f.root.client().pending(first).is_some());
+    event(&mut f.root, Event::Went { place: Place::Missing });
+    let out = looked(&mut f, first, family_answer(w::Outcome::Looked));
+    assert_eq!(look_sends(&out), 0, "an answer after leaving sends nothing");
+    for watch in [f.status, f.live, f.inbox] {
+        up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
+    }
+    let out = go(&mut f.root, f::PROJECT);
+    assert!(opened(&out, &Watchable::Jig(c::Subject::Settings)).is_none(), "settings stays with the session");
+    assert_eq!(look_sends(&out), 0, "the new facts must settle");
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request {
+            match down {
+                Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { .. }) } => f.live = *watch,
+                Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => f.closed = *read,
+                Down::Open { .. }
+                | Down::Read { .. }
+                | Down::Save { .. }
+                | Down::Erase { .. }
+                | Down::Send { .. }
+                | Down::Continue { .. }
+                | Down::Close { .. } => {}
+            }
+        }
+    }
+    chat_page(&mut f, List::with_capacity(EMPTY), false, None);
+    let out = deliver(
+        &mut f.root,
+        f.live,
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
+    );
+    assert_eq!(look_sends(&out), 1, "facts={:?}; output={out:?}", home::facts(&f.root, f::PROJECT, Wall::EPOCH));
+    assert_eq!(look_sends(&settings(&mut f, c::SettingFollows::Default)), 0);
+    assert_ne!(look_key(&f), first);
+}
+#[test]
+fn a_refused_watch_leaves_status_unknown() {
+    for end in [c::WatchEnd::NotAllowed, c::WatchEnd::SubjectEnded] {
+        let mut f = enter_skipped();
+        let key = look_key(&f);
+        looked(&mut f, key, family_answer(w::Outcome::Looked));
+        let document = crate::tests::status::document(3, 1, None);
+        status_document(&mut f, &document);
+        assert_eq!(
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).status,
+            home::Status::Shown(Box::new(document.clone()))
+        );
+        let out = up(&mut f.root, Up::WatchEnded { watch: f.status, end });
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Unknown);
+        assert!(opened(&out, &forge::status::watch(f::PROJECT, &f::limits().forge).unwrap()).is_none());
+        let out = status_document(&mut f, &document);
+        assert_eq!(
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).status,
+            home::Status::Unknown,
+            "late documents stay ended"
+        );
+        assert!(opened(&out, &forge::status::watch(f::PROJECT, &f::limits().forge).unwrap()).is_none());
+    }
+}
+#[test]
+fn status_waits_for_the_looks_answer() {
+    for document_first in [true, false] {
+        let mut f = enter_skipped();
+        let key = look_key(&f);
+        let document = crate::tests::status::document(3, 1, Some(3));
+        if document_first {
+            status_document(&mut f, &document);
+        }
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Unknown);
+        looked(&mut f, jig_client::Key { number: key.number + 1, ..key }, family_answer(w::Outcome::Looked));
+        assert_eq!(
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).status,
+            home::Status::Unknown,
+            "only the look's answer"
+        );
+        looked(&mut f, key, family_answer(w::Outcome::Looked));
+        if !document_first {
+            assert_eq!(
+                home::facts(&f.root, f::PROJECT, Wall::EPOCH).status,
+                home::Status::Unknown,
+                "the document must arrive too"
+            );
+            status_document(&mut f, &document);
+        }
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Shown(Box::new(document)));
+        let next = crate::tests::status::document(4, 1, Some(4));
+        status_document(&mut f, &next);
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Shown(Box::new(next)));
+        assert_eq!(home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).status, home::Status::Unknown);
+    }
+}
+#[test]
+fn a_refused_look_still_shows_the_document() {
+    for answer in
+        [refusal(), jig_client::Outcome::Unknown, family_answer(w::Outcome::Unknown), jig_client::Outcome::Lost]
+    {
+        let mut f = enter_skipped();
+        let key = look_key(&f);
+        let document = crate::tests::status::document(3, 1, None);
+        status_document(&mut f, &document);
+        assert_eq!(look_sends(&looked(&mut f, key, answer)), 0);
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Shown(Box::new(document)));
+    }
+}
+#[test]
+fn landed_since_saturates() {
+    let mut facts = home::facts(&fixture().root, f::PROJECT, Wall::EPOCH);
+    assert_eq!(facts.landed_since(), 0);
+    for (landed, seen, expected) in [(4, 2, 2), (2, 2, 0), (1, 2, 0), (u64::MAX, 0, u64::MAX)] {
+        facts.status = home::Status::Shown(Box::new(crate::tests::status::document(landed, seen, None)));
+        assert_eq!(facts.landed_since(), expected);
+    }
+}
+#[test]
+fn a_brief_is_shown_only_above_seen() {
+    let mut facts = home::facts(&fixture().root, f::PROJECT, Wall::EPOCH);
+    assert!(facts.brief().is_none());
+    for brief in [None, Some(1), Some(2), Some(3)] {
+        let document = crate::tests::status::document(4, 2, brief);
+        facts.status = home::Status::Shown(Box::new(document.clone()));
+        let expected = if brief == Some(3) { document.brief().as_ref() } else { None };
+        assert_eq!(facts.brief(), expected);
+    }
+}
+#[test]
+fn a_watch_that_cannot_be_made_waits_for_reentry() {
+    let mut f = fixture();
+    event(&mut f.root, Event::Went { place: Place::Missing });
+    for watch in [f.status, f.live, f.inbox] {
+        up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
+    }
+    let mut limits = f::limits();
+    limits.forge.field_bytes = u32::MAX;
+    let mut out = Queue::uncapped();
+    crate::step(
+        &mut f.root,
+        &f::env(&limits),
+        Event::Went { place: Place::Address(Address::Home { project: f::PROJECT }) },
+        &mut out,
+    );
+    let subject = forge::status::watch(f::PROJECT, &f::limits().forge).unwrap();
+    assert!(opened(&out, &subject).is_none());
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Unknown);
+    assert!(opened(&out, &Watchable::Jig(c::Subject::Settings)).is_none(), "settings stays with the session");
+    assert!(
+        opened(&settings(&mut f, c::SettingFollows::Default), &subject).is_none(),
+        "a later step cannot retry the watch"
+    );
+    let out = event(&mut f.root, Event::Went { place: Place::Missing });
+    assert!(opened(&out, &subject).is_none());
+    let out = go(&mut f.root, f::PROJECT);
+    assert!(opened(&out, &subject).is_some(), "the next page entry opens status");
+}
+#[test]
+fn a_status_document_must_name_this_project() {
+    let mut f = enter_skipped();
+    let key = look_key(&f);
+    looked(&mut f, key, family_answer(w::Outcome::Looked));
+    let document = crate::tests::status::document(3, 1, None);
+    let mut other = document.clone().into_parts();
+    other.project = OTHER_PROJECT;
+    status_document(&mut f, &w::ProjectStatus::new(&w::CEILINGS, other).unwrap());
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Unknown);
+    status_document(&mut f, &document);
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Shown(Box::new(document)));
+}
 #[test]
 fn a_refused_goal_from_changes_no_page() {
     let mut f = fixture();
     ready(&mut f);
-    let before = home::facts(&f.root, f::PROJECT);
+    let before = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
     let key = jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: CHAT };
-    let fact = forge::dismissed::PersonFact::GoalFrom { project: f::PROJECT, chat: CHAT, goal: CHAT + 1 };
+    let fact = forge::dismissed::PersonFact::GoalFrom { project: f::PROJECT, chat: CHAT, goal: CHAT + 1, at: 0 };
     event(
         &mut f.root,
         Event::Client {
@@ -1034,7 +1398,7 @@ fn a_refused_goal_from_changes_no_page() {
         family_answer(w::Outcome::Dismissed),
     ] {
         skip_answer(&mut f, key, outcome);
-        assert_eq!(home::facts(&f.root, f::PROJECT), before);
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH), before);
     }
 }
 
@@ -1053,7 +1417,7 @@ fn needs_count_falls_when_answered_and_keeps_later_cards() {
         &mut f.root,
         Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Later { object: f::acts::QUESTION })) },
     );
-    assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: ONE, cut: false });
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: ONE, cut: false });
     event(
         &mut f.root,
         Event::Act {
@@ -1063,10 +1427,902 @@ fn needs_count_falls_when_answered_and_keeps_later_cards() {
             })),
         },
     );
-    assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: EMPTY, cut: false });
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: EMPTY, cut: false });
     event(
         &mut f.root,
         Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Undo { object: f::acts::QUESTION })) },
     );
-    assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: ONE, cut: false });
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: ONE, cut: false });
+}
+
+const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
+fn copy_row() -> w::ForgeRowParts {
+    let mut row = row(FORGE);
+    row.starts_with = w::StartsWith::Copies(
+        w::CopyAddresses::new(
+            &w::CEILINGS,
+            w::CopyAddressesParts { addresses: List::from_boxed(COPY_ADDRESSES.map(Into::into).into()) },
+        )
+        .unwrap(),
+    );
+    row
+}
+fn copy_making(address: &[u8], state: w::MakingState, project: Option<u32>) -> w::RepositoryMaking {
+    let (org, name) = forge::making::target(address).unwrap();
+    w::RepositoryMaking::new(
+        &w::CEILINGS,
+        w::RepositoryMakingParts {
+            org,
+            name,
+            from: w::MakeFrom::Copy(
+                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: address.into() }).unwrap(),
+            ),
+            into: match project {
+                Some(project) => Some(
+                    w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: address == COPY_ADDRESSES[0] })
+                        .unwrap(),
+                ),
+                None => None,
+            },
+            state,
+        },
+    )
+    .unwrap()
+}
+fn copy_adopted(address: &[u8], project: u32) -> w::Adoption {
+    let (owner, name) = forge::making::target(address).unwrap();
+    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner, name, project }).unwrap()
+}
+fn copy_failed() -> w::MakingState {
+    w::MakingState::Failed(
+        w::MakingFailed::new(
+            &w::CEILINGS,
+            w::MakingFailedParts {
+                step: w::MakeStep::Repository,
+                reason: w::MakeFailure::Taken,
+                words: b"name taken".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    )
+}
+fn copy_line(name: &[u8], state: home::CopyState) -> home::CopyLine {
+    home::CopyLine { org: b"acme".as_slice().into(), name: name.into(), state }
+}
+#[test]
+fn copy_states_follow_the_intent_before_repository_and_forge_key_order() {
+    use home::CopyState::{Failed, In, Running, Waiting};
+    type Case = (&'static str, Box<[(usize, w::MakingState)]>, Box<[usize]>, Repository);
+    let cases: [Case; 5] = [
+        (
+            "one running, one waiting",
+            Box::new([(0, w::MakingState::Making), (1, w::MakingState::Waiting)]),
+            Box::new([]),
+            Repository::Copying {
+                lines: Box::new([
+                    copy_line(b"widget", Running { host: b"github.com".as_slice().into() }),
+                    copy_line(b"other", Waiting),
+                ]),
+            },
+        ),
+        (
+            "one in, one failed",
+            Box::new([(1, copy_failed())]),
+            Box::new([0]),
+            Repository::Copying {
+                lines: Box::new([
+                    copy_line(b"widget", In),
+                    copy_line(
+                        b"other",
+                        Failed { words: b"acme/other failed at repository: name taken".as_slice().into() },
+                    ),
+                ]),
+            },
+        ),
+        (
+            "all in",
+            Box::new([]),
+            Box::new([1, 0]),
+            Repository::CopiesIn {
+                names: Box::new([b"acme/widget".as_slice().into(), b"acme/other".as_slice().into()]),
+            },
+        ),
+        (
+            "one left unasked",
+            Box::new([]),
+            Box::new([0]),
+            Repository::CopyOffer { forge: FORGE, addresses: Box::new([COPY_ADDRESSES[1].into()]) },
+        ),
+        (
+            "none asked",
+            Box::new([]),
+            Box::new([]),
+            Repository::CopyOffer { forge: FORGE, addresses: COPY_ADDRESSES.map(Into::into).into() },
+        ),
+    ];
+    for (label, makings, repositories, expected) in cases {
+        let mut f = fixture();
+        let mut row = copy_row();
+        // The watch's keys sort other before widget; intent order is the reverse.
+        row.makings = List::with_capacity(2);
+        for (i, state) in makings.iter().rev() {
+            row.makings.push(copy_making(COPY_ADDRESSES[*i], state.clone(), Some(f::PROJECT))).unwrap();
+        }
+        row.repositories = List::with_capacity(2);
+        for i in repositories {
+            row.repositories.push(copy_adopted(COPY_ADDRESSES[i], f::PROJECT)).unwrap();
+        }
+        rows(&mut f.root, f.forges, Box::new([row]));
+        let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
+        assert_eq!(facts.repository, expected, "{label}");
+        assert_eq!(facts.left(), if label == "all in" { TWO_STEPS } else { THREE_STEPS }, "{label}");
+    }
+}
+#[test]
+fn copies_elsewhere_are_asked_but_have_no_line_and_renamed_destinations_are_not_ready_copies() {
+    let mut f = fixture();
+    let mut row = copy_row();
+    row.makings = List::from_boxed(Box::new([
+        copy_making(COPY_ADDRESSES[0], w::MakingState::Making, Some(OTHER_PROJECT)),
+        copy_making(COPY_ADDRESSES[1], w::MakingState::Waiting, None),
+    ]));
+    rows(&mut f.root, f.forges, Box::new([row.clone()]));
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository, Repository::Add { forge: FORGE });
+    row.makings = List::with_capacity(0);
+    row.repositories = List::from_boxed(Box::new([
+        copy_adopted(COPY_ADDRESSES[0], OTHER_PROJECT),
+        copy_adopted(COPY_ADDRESSES[1], f::PROJECT),
+    ]));
+    rows(&mut f.root, f.forges, Box::new([row.clone()]));
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository,
+        Repository::CopiesIn { names: Box::new([b"acme/other".as_slice().into()]) }
+    );
+    let renamed = row.repositories.get(0).unwrap().clone().into_parts();
+    *row.repositories.get_mut(0).unwrap() =
+        w::Adoption::new(&w::CEILINGS, w::AdoptionParts { name: b"renamed".as_slice().into(), ..renamed }).unwrap();
+    rows(&mut f.root, f.forges, Box::new([row]));
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository,
+        Repository::CopyOffer { forge: FORGE, addresses: Box::new([COPY_ADDRESSES[0].into()]) }
+    );
+}
+#[test]
+fn made_and_adopting_copies_share_the_adopting_line_and_other_rows_follow_intent() {
+    let made =
+        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 1, branch: b"main".as_slice().into() }).unwrap();
+    let mut f = fixture();
+    let mut row = copy_row();
+    row.makings = List::from_boxed(Box::new([
+        copy_making(COPY_ADDRESSES[1], w::MakingState::Adopting(made.clone()), Some(f::PROJECT)),
+        copy_making(COPY_ADDRESSES[0], w::MakingState::Made(made), Some(f::PROJECT)),
+    ]));
+    let mut other = self::row(OTHER_FORGE);
+    other.makings = List::from_boxed(Box::new([copy_making(
+        b"https://code.example/else/last",
+        w::MakingState::Making,
+        Some(f::PROJECT),
+    )]));
+    rows(&mut f.root, f.forges, Box::new([row, other]));
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository,
+        Repository::Copying {
+            lines: Box::new([
+                copy_line(b"widget", home::CopyState::Adopting),
+                copy_line(b"other", home::CopyState::Adopting),
+                home::CopyLine {
+                    org: b"else".as_slice().into(),
+                    name: b"last".as_slice().into(),
+                    state: home::CopyState::Running { host: b"code.example".as_slice().into() }
+                },
+            ])
+        }
+    );
+}
+fn copy_act(root: &mut Domain, act: Act) -> Queue<pages::Request> {
+    let mut out = Queue::uncapped();
+    pages::step(&mut root.pages, &f::env(&f::limits()), &root.client, pages::Event::Act { act }, &mut out);
+    out
+}
+type CopySend = (jig_client::Key, skein_lib::RequestKey, w::MakeRepository);
+fn copy_sends(out: Queue<pages::Request>) -> Box<[CopySend]> {
+    let mut sends = List::uncapped();
+    for request in &out {
+        if let pages::Request::Client(jig_client::Event::Send {
+            key,
+            name,
+            request: jig_client::Ask::Family { record, .. },
+        }) = request
+        {
+            let request = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request;
+            let w::Request::MakeRepository(ask) = request else { panic!("copy request") };
+            sends.push((*key, name.unwrap(), ask)).unwrap();
+        }
+    }
+    sends.into_boxed()
+}
+#[test]
+fn restarting_offers_only_unasked_copies_under_the_ready_keys_once_while_out() {
+    let mut f = fixture();
+    let mut row = copy_row();
+    row.repositories = List::from_boxed(Box::new([copy_adopted(COPY_ADDRESSES[0], f::PROJECT)]));
+    rows(&mut f.root, f.forges, Box::new([row]));
+    let sends = copy_sends(copy_act(&mut f.root, Act::CopyOffered));
+    assert_eq!(sends.len(), 1);
+    assert_eq!(sends[0].1, forge::copy_key(2));
+    assert_eq!(sends[0].2.org(), b"acme");
+    assert_eq!(sends[0].2.name(), b"other");
+    assert_eq!(w::MakeRepository::into(&sends[0].2).as_ref().unwrap().project(), f::PROJECT);
+    assert!(!w::MakeRepository::into(&sends[0].2).as_ref().unwrap().home());
+    assert!(copy_sends(copy_act(&mut f.root, Act::CopyOffered)).is_empty());
+    crate::route::told(
+        &mut f.root,
+        &f::env(&f::limits()),
+        Told::Answered { key: sends[0].0, outcome: jig_client::Outcome::Unknown },
+        &mut Queue::uncapped(),
+    );
+    assert_eq!(copy_sends(copy_act(&mut f.root, Act::CopyOffered))[0].1, forge::copy_key(2));
+}
+#[test]
+fn retry_copies_the_failed_rows_source_and_into_under_its_own_key_once_while_out() {
+    let mut f = fixture();
+    let mut row = copy_row();
+    let making = copy_making(COPY_ADDRESSES[0], copy_failed(), Some(f::PROJECT));
+    row.makings = List::from_boxed(Box::new([making.clone()]));
+    rows(&mut f.root, f.forges, Box::new([row]));
+    let act = Act::CopyAgain { org: b"acme".as_slice().into(), name: b"widget".as_slice().into() };
+    let sends = copy_sends(copy_act(&mut f.root, act.clone()));
+    assert_eq!(sends.len(), 1);
+    assert_eq!(sends[0].2.from(), making.from());
+    assert_eq!(w::MakeRepository::into(&sends[0].2), w::RepositoryMaking::into(&making));
+    let number = skein_lib::Decimal::of(sends[0].0.number);
+    let label = skein_lib::bytes::concat(&[b"home-copy-again-", number.as_bytes()]);
+    assert_eq!(sends[0].1, crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&label).unwrap()));
+    assert!(copy_sends(copy_act(&mut f.root, act.clone())).is_empty());
+    crate::route::told(
+        &mut f.root,
+        &f::env(&f::limits()),
+        Told::Answered { key: sends[0].0, outcome: jig_client::Outcome::Unknown },
+        &mut Queue::uncapped(),
+    );
+    let again = copy_sends(copy_act(&mut f.root, act.clone()));
+    assert_eq!(again.len(), 1);
+    assert_ne!(again[0].1, sends[0].1);
+    go(&mut f.root, OTHER_PROJECT);
+    assert!(copy_sends(copy_act(&mut f.root, act)).is_empty());
+}
+
+fn add_act(root: &mut Domain, act: Act) -> Queue<Request> {
+    event(root, Event::Act { action: Action::Pages(act) })
+}
+fn add_fixture(start: forge::forges::Start) -> Fixture {
+    let mut f = fixture();
+    let mut forge = row(FORGE);
+    forge.starts_with = w::StartsWith::Nothing;
+    rows(&mut f.root, f.forges, Box::new([forge]));
+    add_act(&mut f.root, Act::AddOpen { start });
+    f
+}
+#[test]
+fn add_is_for_the_lowest_connected_owned_or_managed_real_forgejo() {
+    for (kind, mode, connected, expected) in [
+        (w::Kind::Forgejo, w::Mode::Owned, true, Repository::Add { forge: FORGE }),
+        (w::Kind::Forgejo, w::Mode::Managed, true, Repository::Add { forge: FORGE }),
+        (w::Kind::Forgejo, w::Mode::Connected, true, Repository::None),
+        (w::Kind::Forgejo, w::Mode::Fake, true, Repository::None),
+        (w::Kind::Forgejo, w::Mode::Owned, false, Repository::None),
+        (w::Kind::Github, w::Mode::Owned, true, Repository::GitHub { account: None }),
+    ] {
+        let mut f = fixture();
+        let mut forge = row(FORGE);
+        forge.kind = kind;
+        forge.mode = mode;
+        if !connected {
+            forge.connection = w::Connection::NotConnected;
+        }
+        rows(&mut f.root, f.forges, Box::new([forge]));
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository, expected);
+    }
+    let mut f = fixture();
+    rows(&mut f.root, f.forges, Box::new([row(FORGE), row(OTHER_FORGE)]));
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository, Repository::Add { forge: FORGE });
+    rows(&mut f.root, f.forges, Box::new([row(FORGE), with_first(row(OTHER_FORGE))]));
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository,
+        Repository::Offer { first: First { forge: OTHER_FORGE, ..first() }, refused: None }
+    );
+}
+fn add_sends(f: &mut Fixture) -> Box<[(jig_client::Key, skein_lib::RequestKey, jig_client::Ask)]> {
+    let mut sends = List::uncapped();
+    let mut out = Queue::uncapped();
+    pages::step(
+        &mut f.root.pages,
+        &f::env(&f::limits()),
+        &f.root.client,
+        pages::Event::Act { act: Act::AddSubmit },
+        &mut out,
+    );
+    while let Some(request) = out.pop() {
+        if let pages::Request::Client(jig_client::Event::Send { key, name: Some(name), request }) = request {
+            sends.push((key, name, request)).unwrap();
+        }
+    }
+    sends.into_boxed()
+}
+#[test]
+fn add_copies_send_together_in_order_with_only_the_first_home() {
+    let mut f = add_fixture(forge::forges::Start::Copies);
+    add_act(
+        &mut f.root,
+        Act::AddWrite {
+            field: home::AddField::Addresses,
+            words: b"acme/widget\nhttps://github.com/acme/other.git".as_slice().into(),
+        },
+    );
+    let serial = f.root.pages().serial;
+    let sends = add_sends(&mut f);
+    assert_eq!(sends.len(), COPY_ADDRESSES.len());
+    for (index, ((key, name, request), address)) in sends.iter().zip(COPY_ADDRESSES).enumerate() {
+        let number = serial + u64::try_from(index).unwrap() + 1;
+        assert_eq!(key.number, number);
+        let number_words = skein_lib::Decimal::of(number);
+        let label = skein_lib::bytes::concat(&[b"home-add-", number_words.as_bytes()]);
+        assert_eq!(*name, crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&label).unwrap()));
+        let (org, target) = forge::making::target(address).unwrap();
+        let into = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: f::PROJECT, home: index == 0 }).unwrap();
+        assert_eq!(
+            *request,
+            forge::make_repository(
+                &forge::making::ask(FORGE, &org, &target, Some(address), Some(into)).unwrap(),
+                &f::limits().forge
+            )
+            .unwrap()
+        );
+    }
+    assert!(add_sends(&mut f).is_empty(), "a pending sheet sends once");
+    add_act(&mut f.root, Act::AddClose);
+    assert!(f.root.pages().home().unwrap().add.is_some(), "a pending sheet stays");
+    skip_answer(&mut f, sends[1].0, family_answer(w::Outcome::MakeKept));
+    assert!(f.root.pages().home().unwrap().add.as_ref().unwrap().out.is_some());
+    skip_answer(&mut f, sends[0].0, family_answer(w::Outcome::MakeKept));
+    assert!(f.root.pages().home().unwrap().add.is_none(), "all accepted closes the sheet");
+}
+#[test]
+fn add_empty_checks_fields_and_sends_into_this_project() {
+    let mut f = add_fixture(forge::forges::Start::Empty);
+    add_act(&mut f.root, Act::AddWrite { field: home::AddField::Org, words: Box::default() });
+    assert!(add_sends(&mut f).is_empty());
+    assert_eq!(f.root.pages().home().unwrap().add.as_ref().unwrap().refused, Some(home::AddRefused::Blank));
+    add_act(&mut f.root, Act::AddWrite { field: home::AddField::Org, words: b" team ".as_slice().into() });
+    add_act(&mut f.root, Act::AddWrite { field: home::AddField::Name, words: b" fresh ".as_slice().into() });
+    let sends = add_sends(&mut f);
+    assert_eq!(sends.len(), 1);
+    let into = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: f::PROJECT, home: true }).unwrap();
+    assert_eq!(
+        sends[0].2,
+        forge::make_repository(
+            &forge::making::ask(FORGE, b"team", b"fresh", None, Some(into)).unwrap(),
+            &f::limits().forge
+        )
+        .unwrap()
+    );
+}
+#[test]
+fn add_refusals_stay_in_the_sheet_and_leaving_drops_it() {
+    for why in [
+        w::MakeRefusal::NoSuchForge,
+        w::MakeRefusal::NotOffered,
+        w::MakeRefusal::NotOwner,
+        w::MakeRefusal::Invalid,
+        w::MakeRefusal::HomeHeld,
+        w::MakeRefusal::Full,
+    ] {
+        let mut f = add_fixture(forge::forges::Start::Empty);
+        let sends = add_sends(&mut f);
+        let refused = w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why: why.clone() }).unwrap();
+        skip_answer(&mut f, sends[0].0, family_answer(w::Outcome::MakeRefused(refused)));
+        let sheet = f.root.pages().home().unwrap().add.as_ref().unwrap();
+        assert_eq!(sheet.refused, Some(home::AddRefused::Make(why)));
+        assert!(sheet.out.is_none());
+        event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+        go(&mut f.root, f::PROJECT);
+        assert!(f.root.pages().home().unwrap().add.is_none());
+    }
+}
+
+const DAY: u64 = 86_400_000_000_000;
+use crate::tests::decided::decision;
+use skein_lib::Wall;
+fn decisions(f: &mut Fixture, values: &[w::Decision]) -> Queue<Request> {
+    up(&mut f.root, Up::FamilyDelivered { watch: f.decided, record: crate::tests::decided::record(values) })
+}
+fn away_form(f: &Fixture, wall: u64) -> Option<home::AwayForm> {
+    home::facts(&f.root, f::PROJECT, Wall::from_nanos(wall)).away
+}
+fn task_reads(out: &Queue<Request>) -> Box<[(u64, Token)]> {
+    let mut reads = List::uncapped();
+    for request in out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) },
+                },
+        } = request
+        {
+            reads.push((*task, *read)).unwrap();
+        }
+    }
+    reads.into_boxed()
+}
+fn spell(f: &mut Fixture, off: Option<u64>, until: Option<u64>, landed: u64) {
+    let mut rows = List::with_capacity(1);
+    rows.push(
+        w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: f::PROJECT, since: 10, until, off, landed, kinds: 7 })
+            .unwrap(),
+    )
+    .unwrap();
+    up(
+        &mut f.root,
+        Up::FamilyDelivered {
+            watch: f.away,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::aways(&w::Aways::new(&w::CEILINGS, w::AwaysParts { rows }).unwrap()),
+            },
+        },
+    );
+}
+#[test]
+fn home_watches_decided_while_open() {
+    let mut f = fixture();
+    up(&mut f.root, Up::Watched { watch: f.decided, event: c::WatchEvent::Opened });
+    decisions(&mut f, &[decision(1, 100)]);
+    assert!(away_form(&f, 100).is_some());
+    let out = event(&mut f.root, Event::Went { place: Place::Missing });
+    let mut closed = false;
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+            request
+        {
+            closed |= *watch == f.decided;
+        }
+    }
+    assert!(closed, "leaving closes decided");
+    assert!(away_form(&f, 100).is_none());
+    finish_closes(&mut f, &out);
+    let out = go(&mut f.root, f::PROJECT);
+    let next = opened(&out, &forge::decided::watch(f::PROJECT, &f::limits().forge).unwrap()).unwrap();
+    assert_ne!(next, f.decided);
+}
+#[test]
+fn rows_show_for_twenty_four_hours() {
+    let mut f = fixture();
+    decisions(&mut f, &[decision(1, 100)]);
+    assert!(away_form(&f, 99).is_some(), "a clock behind still shows it");
+    assert!(away_form(&f, 100).is_some());
+    assert!(away_form(&f, DAY + 99).is_some());
+    assert!(away_form(&f, DAY + 100).is_none());
+    decisions(&mut f, &[decision(2, u64::MAX)]);
+    assert!(away_form(&f, u64::MAX).is_some(), "expiry arithmetic cannot wrap");
+}
+#[test]
+fn the_seven_newest_are_kept_oldest_first() {
+    let mut f = fixture();
+    let values = [
+        decision(2, 20),
+        decision(8, 80),
+        decision(1, 10),
+        decision(9, 90),
+        decision(3, 30),
+        decision(7, 70),
+        decision(4, 40),
+        decision(6, 60),
+        decision(5, 50),
+    ];
+    decisions(&mut f, &values);
+    let form = away_form(&f, 100).unwrap();
+    assert_eq!(decision_numbers(&form.rows).as_ref(), [3, 4, 5, 6, 7, 8, 9]);
+    let row = &form.rows[0];
+    assert_eq!(row.task, 3);
+    assert_eq!(row.at, Wall::from_nanos(30));
+    assert_eq!(row.question.as_ref(), b"Which approach?");
+    assert_eq!(row.took.as_ref(), b"The smaller change");
+    assert_eq!(row.why.as_ref(), b"It fits the goal.");
+    assert!(!row.overturned);
+    let mut parts = decision(10, 100).into_parts();
+    parts.overturned = true;
+    decisions(&mut f, &[w::Decision::new(&w::CEILINGS, parts).unwrap()]);
+    assert!(away_form(&f, 100).unwrap().rows[0].overturned);
+}
+#[test]
+fn showing_counts_past_seven() {
+    let mut f = fixture();
+    let values = nine_decisions();
+    decisions(&mut f, &values);
+    assert_eq!(away_form(&f, 100).unwrap().showing, 9);
+    assert_eq!(away_form(&f, DAY + 1).unwrap().showing, 8);
+}
+#[test]
+fn expires_is_when_the_oldest_stops_showing() {
+    let mut f = fixture();
+    let values = nine_decisions();
+    decisions(&mut f, &values);
+    assert_eq!(away_form(&f, 100).unwrap().expires, Wall::from_nanos(DAY + 1));
+    assert_eq!(away_form(&f, DAY + 1).unwrap().expires, Wall::from_nanos(DAY + 2));
+}
+#[test]
+fn no_form_while_to_begin_shows() {
+    let mut f = fixture();
+    ready(&mut f);
+    let out = decisions(&mut f, &[decision(1, 100)]);
+    assert!(away_form(&f, 100).is_none());
+    assert!(task_reads(&out).is_empty());
+    let (_, out) = skip(&mut f);
+    assert!(away_form(&f, 100).is_some());
+    assert_eq!(task_reads(&out).len(), 1);
+}
+#[test]
+fn span_is_since_and_its_end() {
+    let mut f = fixture();
+    decisions(&mut f, &[decision(1, 100)]);
+    assert_eq!(away_form(&f, 100).unwrap().span, None);
+    for (off, until, wall, end) in [
+        (None, None, 100, None),
+        (None, Some(200), 199, None),
+        (None, Some(200), 200, Some(200)),
+        (Some(150), Some(200), 201, Some(150)),
+    ] {
+        spell(&mut f, off, until, 0);
+        assert_eq!(
+            away_form(&f, wall).unwrap().span,
+            Some((
+                Wall::from_nanos(10),
+                match end {
+                    Some(at) => Some(Wall::from_nanos(at)),
+                    None => None,
+                }
+            ))
+        );
+    }
+}
+#[test]
+fn landed_is_since_the_rows_count() {
+    let mut f = fixture();
+    decisions(&mut f, &[decision(1, 100)]);
+    assert_eq!(away_form(&f, 100).unwrap().landed, None);
+    status_document(&mut f, &crate::tests::status::document(9, 2, None));
+    assert_eq!(away_form(&f, 100).unwrap().landed, None);
+    spell(&mut f, None, None, 3);
+    assert_eq!(away_form(&f, 100).unwrap().landed, Some(6), "uses status even before looked");
+    spell(&mut f, None, None, 10);
+    assert_eq!(away_form(&f, 100).unwrap().landed, Some(0));
+    up(&mut f.root, Up::WatchEnded { watch: f.status, end: c::WatchEnd::NotAllowed });
+    assert_eq!(away_form(&f, 100).unwrap().landed, None);
+}
+#[test]
+fn each_row_reads_its_task() {
+    let mut limits = f::limits();
+    limits.client.domain.reads = 32;
+    let mut bounded = fixture_with_limits(f::chats::me(), limits);
+    assert_eq!(bounded.root.pages().inbox().unwrap().cards.capacity(), 16);
+    let mut out = Queue::uncapped();
+    let values = nine_decisions();
+    crate::step(
+        &mut bounded.root,
+        &f::env(&limits),
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::FamilyDelivered { watch: bounded.decided, record: crate::tests::decided::record(&values) },
+            },
+        },
+        &mut out,
+    );
+    assert_eq!(read_numbers(&task_reads(&out)).as_ref(), [3, 4, 5, 6, 7, 8, 9], "only the seven drawn tasks read");
+    let mut f = enter_skipped();
+    let values = [decision(1, 10), decision(2, 20)];
+    let out = decisions(&mut f, &values);
+    let reads = task_reads(&out);
+    assert_eq!(read_numbers(&reads).as_ref(), [1, 2]);
+    for row in &away_form(&f, 100).unwrap().rows {
+        assert_eq!(row.title, None);
+        assert_eq!(row.state, home::DecisionTask::Unknown);
+    }
+    for (task, read) in reads {
+        let mut document = f::chat::task();
+        document.chip.task = task;
+        document.chip.title =
+            c::DocumentText::complete(c::Text::new(b"A useful task title".as_slice().into(), 64).unwrap());
+        let title = skein_lib::bytes::copy_of(document.chip.title.bytes());
+        up(
+            &mut f.root,
+            Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(document)))) },
+        );
+        let form = away_form(&f, 100).unwrap();
+        let mut found = false;
+        for row in &form.rows {
+            if row.task == task {
+                assert_eq!(row.title.as_deref(), Some(title.as_ref()));
+                assert_eq!(row.state, home::DecisionTask::Live);
+                found = true;
+            }
+        }
+        assert!(found, "the read task has a row");
+    }
+    assert!(task_reads(&decisions(&mut f, &values)).is_empty(), "same document does not reread");
+    assert_eq!(read_numbers(&task_reads(&decisions(&mut f, &[values[0].clone(), decision(3, 30)]))).as_ref(), [3]);
+    let stale = task_reads(&decisions(&mut f, &[decision(4, 40)]))[0].1;
+    let out = event(&mut f.root, Event::Went { place: Place::Missing });
+    finish_closes(&mut f, &out);
+    let out = go(&mut f.root, f::PROJECT);
+    f.decided = opened(&out, &forge::decided::watch(f::PROJECT, &f::limits().forge).unwrap()).unwrap();
+    let read = task_reads(&decisions(&mut f, &[decision(4, 40)]))[0].1;
+    assert_ne!(read, stale, "reentry reads again");
+    let mut wrong = f::chat::task();
+    wrong.chip.task = 999;
+    up(
+        &mut f.root,
+        Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(wrong)))) },
+    );
+    assert_eq!(away_form(&f, 100).unwrap().rows[0].state, home::DecisionTask::Unknown);
+}
+#[test]
+fn a_read_ended_or_done_says_so() {
+    for (done, retained) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut f = enter_skipped();
+        let out = decisions(&mut f, &[decision(1, 10)]);
+        let read = task_reads(&out)[0].1;
+        let mut task = f::chat::task();
+        task.chip.task = 1;
+        f::chat::phase(&mut task, c::ChipPhase::Ended);
+        task.chip.details.details.ended_at = Some(Wall::from_nanos(20));
+        task.chip.details.details.ending = Some(if done {
+            c::ChipEnding::Done(c::ResultValue::Words(c::DocumentText::complete(
+                c::Text::new(b"Done".as_slice().into(), 64).unwrap(),
+            )))
+        } else {
+            c::ChipEnding::Failed(c::DocumentText::complete(c::Text::new(b"Stopped".as_slice().into(), 64).unwrap()))
+        });
+        let value = if retained {
+            let result = c::Result {
+                task: task.chip.clone(),
+                ending: c::Ending::Done,
+                value: None,
+                at: Some(Wall::from_nanos(30)),
+                details: None,
+                acts: List::with_capacity(0),
+            };
+            c::ReadValue::Ended(Box::new(c::Ended {
+                key: c::ObjectKey::Task(1),
+                at: Some(Wall::from_nanos(30)),
+                by: None,
+                value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result) },
+            }))
+        } else {
+            c::ReadValue::Task(Box::new(task))
+        };
+        up(&mut f.root, Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(value)) });
+        let at = Wall::from_nanos(if retained { 30 } else { 20 });
+        assert_eq!(
+            away_form(&f, 100).unwrap().rows[0].state,
+            if done { home::DecisionTask::Done(at) } else { home::DecisionTask::Ended(at) }
+        );
+    }
+}
+#[test]
+fn a_limit_leaves_it_unknown() {
+    for page in [
+        Readout::Limit,
+        Readout::NotServed { family: None, served: None },
+        Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
+    ] {
+        let mut f = enter_skipped();
+        let read = task_reads(&decisions(&mut f, &[decision(1, 10)]))[0].1;
+        up(&mut f.root, Up::ReadDone { read, result: page });
+        let form = away_form(&f, 100).unwrap();
+        assert_eq!(form.rows[0].state, home::DecisionTask::Unknown);
+        assert_eq!(form.rows[0].title, None);
+        assert!(task_reads(&decisions(&mut f, &[decision(1, 10)])).is_empty());
+    }
+}
+
+fn finish_closes(f: &mut Fixture, out: &Queue<Request>) {
+    for request in out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+            request
+        {
+            up(&mut f.root, Up::WatchEnded { watch: *watch, end: c::WatchEnd::Closed });
+        }
+    }
+}
+
+fn nine_decisions() -> Box<[w::Decision]> {
+    let mut values = List::with_capacity(9);
+    for n in 1..=9 {
+        values.push(decision(n, u64::from(n))).unwrap();
+    }
+    values.into_boxed()
+}
+fn decision_numbers(rows: &[home::DecisionLine]) -> Box<[u32]> {
+    let mut values = List::uncapped();
+    for row in rows {
+        values.push(row.number).unwrap();
+    }
+    values.into_boxed()
+}
+fn read_numbers(reads: &[(u64, Token)]) -> Box<[u64]> {
+    let mut values = List::uncapped();
+    for (task, _) in reads {
+        values.push(*task).unwrap();
+    }
+    values.into_boxed()
+}
+
+fn overturn_limits() -> crate::Limits {
+    let mut limits = f::limits();
+    limits.client.domain.text = 512;
+    limits
+}
+fn overturn_fixture() -> Fixture {
+    let mut f = enter_skipped();
+    let mut second = decision(2, 0).into_parts();
+    second.question = b"Which retry?".as_slice().into();
+    second.took = b"Split it".as_slice().into();
+    let reads = task_reads(&decisions(&mut f, &[decision(1, 0), w::Decision::new(&w::CEILINGS, second).unwrap()]));
+    for (task, read) in reads {
+        let mut document = f::chat::task();
+        document.chip.task = task;
+        up(
+            &mut f.root,
+            Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(document)))) },
+        );
+    }
+    f
+}
+fn overturn_act(f: &mut Fixture, number: u32) -> (jig_client::Key, Queue<Request>) {
+    let key = jig_client::Key {
+        asker: crate::owner::Owner::Pages.asker(),
+        number: f.root.pages().serial.checked_add(1).unwrap(),
+    };
+    let mut out = Queue::uncapped();
+    crate::step(
+        &mut f.root,
+        &f::env(&overturn_limits()),
+        Event::Act { action: Action::Pages(Act::Away(pages::away::Act::Overturn { project: f::PROJECT, number })) },
+        &mut out,
+    );
+    (key, out)
+}
+fn overturn_answer(f: &mut Fixture, key: jig_client::Key, outcome: jig_client::Outcome) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    crate::route::told(&mut f.root, &f::env(&overturn_limits()), Told::Answered { key, outcome }, &mut out);
+    out
+}
+fn sent(out: &Queue<Request>) -> Box<[jig_client::Ask]> {
+    let mut sends = List::uncapped();
+    for request in out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, .. } } } =
+            request
+        {
+            sends.push(request.clone()).unwrap();
+        }
+    }
+    sends.into_boxed()
+}
+fn overturn_message(f: &mut Fixture, key: jig_client::Key) -> (jig_client::Key, Queue<Request>) {
+    let next = jig_client::Key { asker: key.asker, number: f.root.pages().serial.checked_add(1).unwrap() };
+    (next, overturn_answer(f, key, family_answer(w::Outcome::Overturned)))
+}
+#[test]
+fn overturn_sends_the_request_then_the_message() {
+    let mut f = overturn_fixture();
+    let (key, out) = overturn_act(&mut f, 1);
+    assert_eq!(sent(&out).as_ref(), [forge::decided::overturn(f::PROJECT, 1, &f::limits().forge).unwrap()]);
+    let (message, out) = overturn_message(&mut f, key);
+    assert_eq!(sent(&out).len(), 1);
+    assert_ne!(key, message);
+    assert!(f.root.pages().overturn_busy());
+    assert!(away_form(&f, 0).unwrap().rows[0].overturned);
+    overturn_answer(
+        &mut f,
+        message,
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::Said { task: 1, message: 9 },
+        )))),
+    );
+    assert!(!f.root.pages().overturn_busy());
+    assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::Overturned));
+}
+#[test]
+fn the_message_says_question_and_took() {
+    let mut f = overturn_fixture();
+    let original = decision(1, 0);
+    let (key, _) = overturn_act(&mut f, 1);
+    decisions(&mut f, &[decision(2, 0)]);
+    let (_, out) = overturn_message(&mut f, key);
+    assert_eq!(
+        sent(&out).as_ref(),
+        [jig_client::Ask::Jig(Box::new(c::Ask::Message {
+            project: f::PROJECT,
+            task: 1,
+            words: c::Text::new(
+                skein_lib::bytes::concat(&[
+                    b"I overturn your decision. ",
+                    original.question(),
+                    b" You took ",
+                    original.took(),
+                    b". Ask me again with message, as a question, and wait for my answer.",
+                ]),
+                512
+            )
+            .unwrap(),
+        }))]
+    );
+    let question = [b'q'; 400];
+    let took = [b't'; 120];
+    let words = forge::decided::overturn_words(&question, &took);
+    assert_eq!(words.len(), 512);
+    c::Text::new(words, 512).expect("maximum overturn fits the deployed message bound");
+    let unicode = "é".repeat(200);
+    let words = forge::decided::overturn_words(unicode.as_bytes(), &took);
+    assert!(words.len() <= 512);
+    assert!(skein_lib::bytes::is_utf8(&words));
+    assert!(words.ends_with(&skein_lib::bytes::concat(&[
+        &took,
+        b". Ask me again with message, as a question, and wait for my answer."
+    ])));
+}
+#[test]
+fn a_refused_message_leaves_the_row_and_toasts() {
+    let mut f = overturn_fixture();
+    let (key, _) = overturn_act(&mut f, 1);
+    let (message, _) = overturn_message(&mut f, key);
+    overturn_answer(&mut f, message, jig_client::Outcome::NotKept);
+    assert!(away_form(&f, 0).unwrap().rows[0].overturned);
+    assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::OverturnEnded));
+    assert!(sent(&overturn_act(&mut f, 1).1).is_empty());
+}
+#[test]
+fn a_refused_overturn_sends_no_message() {
+    for outcome in [
+        family_answer(w::Outcome::OverturnRefused(
+            w::OverturnRefused::new(&w::CEILINGS, w::OverturnRefusedParts { reason: w::OverturnRefusal::Already })
+                .unwrap(),
+        )),
+        family_answer(w::Outcome::OverturnRefused(
+            w::OverturnRefused::new(&w::CEILINGS, w::OverturnRefusedParts { reason: w::OverturnRefusal::Unknown })
+                .unwrap(),
+        )),
+        family_answer(w::Outcome::Unknown),
+        jig_client::Outcome::Unknown,
+    ] {
+        let mut f = overturn_fixture();
+        let (key, _) = overturn_act(&mut f, 1);
+        assert!(sent(&overturn_answer(&mut f, key, outcome)).is_empty());
+        assert!(!f.root.pages().overturn_busy());
+        assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::OverturnAlready));
+    }
+}
+#[test]
+fn a_second_act_waits() {
+    let mut f = overturn_fixture();
+    let (key, _) = overturn_act(&mut f, 1);
+    for number in [1, 2] {
+        assert!(sent(&overturn_act(&mut f, number).1).is_empty());
+    }
+    let (message, _) = overturn_message(&mut f, key);
+    assert!(sent(&overturn_act(&mut f, 2).1).is_empty());
+    overturn_answer(&mut f, message, jig_client::Outcome::NotKept);
+    assert_eq!(sent(&overturn_act(&mut f, 2).1).len(), 1);
+}
+#[test]
+fn leaving_home_still_sends_it() {
+    let mut f = overturn_fixture();
+    let (key, _) = overturn_act(&mut f, 1);
+    event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    assert!(f.root.pages().home().is_none());
+    let (message, out) = overturn_message(&mut f, key);
+    assert_eq!(sent(&out).len(), 1);
+    overturn_answer(&mut f, message, jig_client::Outcome::NotKept);
+    assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::OverturnEnded));
 }

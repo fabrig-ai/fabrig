@@ -537,8 +537,10 @@ fn remarks(ids: &[u64]) -> Box<[api::Remark]> {
 pub(super) mod write_cases;
 use crate::api::Write;
 use crate::forgejo::plans::{
-    Failure,
+    Body, Failure, Heard,
     failure::{self, Asked, Classified, Drop},
+    tables::Tables,
+    writes,
 };
 use write_cases::{REVIEWERS, begun, create_issue, open_pull};
 
@@ -720,3 +722,54 @@ fn directory_entries_fill_the_byte_bound_or_are_cut() {
 mod turn;
 
 mod artifact;
+#[test]
+fn write_errors_keep_the_exchange_state() {
+    let limits = fixtures::limits();
+    for (write, bodies, expected) in [
+        (open_pull(), &[REPOSITORY, BRANCH, BRANCH][..], Error::Unavailable),
+        (Write::Merge { number: 1, head: HEAD, how: api::MergeHow::Style }, &[REPOSITORY, b""][..], Error::Timeout),
+    ] {
+        for count in (if expected == Error::Timeout { bodies.len() } else { 0 })..=bodies.len() {
+            let mut tables = Tables::new(ROWS, ROWS);
+            let mut plan = writes::Plan::new(REPO, write.clone());
+            let mut step = plan.begin(BOUNDS, fixtures::WORD, &mut tables).unwrap();
+            write_hear(&mut plan, &mut tables, Heard::Head { status: 200, fields: fixtures::fields() }).unwrap();
+            for body in &bodies[..count] {
+                let Step::Send(exchange) = step else { panic!("exchange expected") };
+                let body = match crate::forgejo::client::decoder(&exchange.request, &limits) {
+                    Some(decoder) => Body::Document(fixtures::decode(decoder, body, &limits).document.unwrap()),
+                    None => Body::Empty,
+                };
+                step = write_hear(&mut plan, &mut tables, Heard::Done(body)).unwrap().unwrap();
+            }
+            assert_eq!(plan.error(Error::Timeout), expected, "{write:?} {count}");
+            let forbidden = if expected == Error::Timeout { Error::Timeout } else { Error::Forbidden };
+            assert_eq!(plan.error(Error::Forbidden), forbidden);
+            assert_eq!(write_hear(&mut plan, &mut tables, Heard::Done(Body::Empty)), Err(expected));
+        }
+    }
+}
+#[test]
+fn beginning_a_write_touches_repository_recency() {
+    let mut run = Run::known(Op::Write(create_issue()));
+    for repository in 2..=ROWS {
+        run.tables().keep_repository(api::Repository { repository, ..REPO }, fixtures::specimen());
+    }
+    run.begin();
+    run.tables().keep_repository(api::Repository { repository: ROWS + 1, ..REPO }, fixtures::specimen());
+    assert!(run.tables().repository(REPO).is_some());
+    assert!(run.tables().repository(api::Repository { repository: 2, ..REPO }).is_none());
+}
+#[test]
+fn mismatched_pull_ids_are_rejected_before_keeping_reviewers() {
+    let mut run = Run::known(Op::Write(Write::SetReviewers { number: 1, reviewers: Box::from([8]) }));
+    let mut row = fixtures::specimen();
+    row.object_format = crate::forgejo::id::ObjectFormat::Sha256;
+    run.tables().keep_repository(REPO, row);
+    run.begin();
+    assert_eq!(run.answer(200, REVIEWERS), Step::Done(Err(Error::Timeout)));
+    assert_eq!(run.tables().user(REPO.forge, 8), None);
+}
+fn write_hear(plan: &mut writes::Plan, tables: &mut Tables, heard: Heard) -> Result<Option<Step>, Error> {
+    plan.heard(heard, BOUNDS, fixtures::WORD, tables)
+}

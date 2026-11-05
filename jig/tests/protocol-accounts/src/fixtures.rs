@@ -135,8 +135,8 @@ pub fn kept() -> oauth::SavedToken {
     oauth::SavedToken {
         key: ACCOUNT_CHAT,
         generation: 1,
-        access_token: bytes::copy_of(TOKEN_FIRST),
-        refresh_token: Some(bytes::copy_of(b"seed")),
+        access_token: skein_lib::Secret::new(bytes::copy_of(TOKEN_FIRST)),
+        refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"seed"))),
         metadata: None,
         expires_at: Wall::from_nanos(Duration::from_secs(300).as_nanos()),
         issued_client_id: None,
@@ -151,8 +151,8 @@ pub fn rotate() -> fake::Plan {
     fake::Plan {
         status: 200,
         body: fake::Body::Token(oauth::TokenResponse {
-            access_token: bytes::copy_of(TOKEN_SECOND),
-            refresh_token: Some(bytes::copy_of(b"next")),
+            access_token: skein_lib::Secret::new(bytes::copy_of(TOKEN_SECOND)),
+            refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"next"))),
             expires_in: 300,
             scope: None,
             id_token: None,
@@ -166,7 +166,7 @@ pub fn rotate() -> fake::Plan {
 pub fn refuse() -> fake::Plan {
     fake::Plan {
         status: 400,
-        body: fake::Body::Raw(bytes::copy_of(b"{\"error\":\"invalid_grant\"}")),
+        body: fake::Body::Raw(skein_lib::Secret::new(bytes::copy_of(b"{\"error\":\"invalid_grant\"}"))),
         delay: Duration::from_millis(5),
         retry_after: Duration::ZERO,
     }
@@ -312,7 +312,7 @@ pub fn issuer_plans(story: crate::world::Story) -> Vec<fake::Plan> {
 fn rate_limit() -> fake::Plan {
     fake::Plan {
         status: 429,
-        body: fake::Body::Raw(bytes::copy_of(b"{\"error\":\"temporarily_unavailable\"}")),
+        body: fake::Body::Raw(skein_lib::Secret::new(bytes::copy_of(b"{\"error\":\"temporarily_unavailable\"}"))),
         delay: Duration::from_millis(5),
         retry_after: Duration::from_secs(7),
     }
@@ -320,7 +320,7 @@ fn rate_limit() -> fake::Plan {
 fn client_rejected() -> fake::Plan {
     fake::Plan {
         status: 401,
-        body: fake::Body::Raw(bytes::copy_of(b"{\"error\":\"invalid_client\"}")),
+        body: fake::Body::Raw(skein_lib::Secret::new(bytes::copy_of(b"{\"error\":\"invalid_client\"}"))),
         delay: Duration::from_millis(5),
         retry_after: Duration::ZERO,
     }
@@ -387,7 +387,7 @@ fn account_sign_in_plans(story: crate::world::Story) -> Vec<fake::Plan> {
     }
     let revoke = fake::Plan {
         status: if story == (crate::world::Story::AccountSignOut { confirmed: false }) { 400 } else { 200 },
-        body: fake::Body::Raw(bytes::copy_of(b"{}")),
+        body: fake::Body::Raw(skein_lib::Secret::new(bytes::copy_of(b"{}"))),
         delay: Duration::ZERO,
         retry_after: Duration::ZERO,
     };

@@ -7,6 +7,9 @@ Unlisted sections have no known gap.
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
   the role and `documents.lines` as checks, without asserting either cause.
+- **Not yet:** 5.5: `temper help task`'s Limits still says temper does not
+  let ctl take a task or hand it back, where area 3's `task take` and
+  `task hand-back` do so for a person task.
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,

@@ -145,17 +145,19 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
     }
     if let Some(index) = settings_delivery {
         let Delivery::Host(delivery) = driver.delivered.remove(index) else { panic!("settings delivery") };
-        let engine::HostDelivery::Settings { to, answer, application, from, requested } = *delivery else {
+        let engine::HostDelivery::Settings { to, answer, repositories, application, from, requested } = *delivery
+        else {
             panic!("settings read")
         };
         Some((
             to,
-            temper_engine_smith::settings_answer_bounded(
+            temper_engine_smith::settings_repository_answer(
                 &answer,
                 from,
                 requested,
                 driver.root.models(),
                 application.as_ref(),
+                &repositories,
                 driver.env.limits.call_answer_bytes.saturating_sub(8),
             ),
         ))

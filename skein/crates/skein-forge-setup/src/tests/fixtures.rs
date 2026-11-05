@@ -409,6 +409,9 @@ pub struct AdoptRun {
 pub fn adopt() -> AdoptRun {
     AdoptRun { machine: crate::adopt::Adopt::new(&given(), 7).expect("fixture admitted") }
 }
+pub fn adopt_at(owner: &[u8], name: &[u8]) -> AdoptRun {
+    AdoptRun { machine: crate::adopt::Adopt::at(&given(), owner.into(), name.into()).expect("fixture admitted") }
+}
 impl AdoptRun {
     pub fn step(&mut self, event: crate::reconcile::Event) -> crate::reconcile::Need {
         let mut out = skein_lib::Queue::uncapped();

@@ -12,6 +12,7 @@ fn the_frame_carries_its_tokens() {
 #[test]
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
+    assert_eq!(NAMES.style(CHAT_GOAL), Some(b"temper-chat-goal".as_slice()));
 }
 const FLOW_NAMES: [(skein_ui::Style, &[u8]); 25] = [
     (FLOW_BUSY, b"temper-flow-busy"),
@@ -60,7 +61,7 @@ const HOME_NAMES: [(skein_ui::Style, &[u8]); 18] = [
     (ASK_CHOICES, b"temper-ask-choices"),
     (ASK_QUIET, b"temper-ask-quiet"),
 ];
-const GOALS_NAMES: [(skein_ui::Style, &[u8]); 25] = [
+const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (GOALS, b"temper-goals"),
     (GOALS_INTRO, b"temper-goals-intro"),
     (GOALS_KICKER, b"temper-goals-kicker"),
@@ -86,18 +87,79 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 25] = [
     (GOALS_STATE_PAUSED, b"temper-goals-state-paused"),
     (GOALS_STATE_LANDED, b"temper-goals-state-landed"),
     (GOALS_STATE_STOPPED, b"temper-goals-state-stopped"),
+    (GOAL, b"temper-goal"),
+    (GOAL_HEAD, b"temper-goal-head"),
+    (GOAL_META, b"temper-goal-meta"),
+    (GOAL_BYLINE, b"temper-goal-byline"),
+    (GOAL_ACTS, b"temper-goal-acts"),
+    (GOAL_BTN, b"temper-goal-btn"),
+    (GOAL_SMALL, b"temper-goal-small"),
+    (GOAL_QUIET, b"temper-goal-quiet"),
+    (GOAL_PRIMARY, b"temper-goal-primary"),
+    (GOAL_BAND, b"temper-goal-band"),
+    (GOAL_BAND_TAG, b"temper-goal-band-tag"),
+    (GOAL_CHOICES, b"temper-goal-choices"),
+    (GOAL_TWO, b"temper-goal-two"),
+    (GOAL_REPORT, b"temper-goal-report"),
+    (GOAL_TITLE, b"temper-goal-title"),
+    (GOAL_TYPING, b"temper-goal-typing"),
+    (GOAL_SIDE, b"temper-goal-side"),
+    (GOAL_SECTION, b"temper-goal-section"),
+    (GOAL_FACTS, b"temper-goal-facts"),
+    (GOAL_BAR, b"temper-goal-bar"),
+    (GOAL_BAR_LANDED, b"temper-goal-bar-landed"),
+    (GOAL_BAR_RUNNING, b"temper-goal-bar-running"),
+    (GOAL_LINE, b"temper-goal-line"),
+    (GOAL_LINE_RUNNING, b"temper-goal-line-running"),
+    (GOAL_LINE_NEEDS, b"temper-goal-line-needs"),
+    (GOAL_LANDED_FOLD, b"temper-goal-landed-fold"),
+    (GOAL_SENT, b"temper-goal-sent"),
+    (GOAL_YOU, b"temper-goal-you"),
+    (GOAL_COMPOSER_BOX, b"temper-goal-composer-box"),
+    (GOAL_COMPOSER, b"temper-goal-composer"),
+    (GOAL_HINT, b"temper-goal-hint"),
+    (GOAL_FIELD, b"temper-goal-field"),
+    (GOAL_TEXT, b"temper-goal-text"),
+    (SHEET, b"temper-sheet"),
+    (SHEET_MUTED, b"temper-sheet-muted"),
+    (SHEET_FIELDSET, b"temper-sheet-fieldset"),
+    (SHEET_OPTION, b"temper-sheet-option"),
+    (SHEET_LINK, b"temper-sheet-link"),
+    (SHEET_FOOT, b"temper-sheet-foot"),
+    (SHEET_ERROR, b"temper-sheet-error"),
 ];
-const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
+const RAIL_NAMES: [(skein_ui::Style, &[u8]); 9] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
     (RAIL_NEW, b"temper-rail-new"),
+    (RAIL_NEW_ALL, b"temper-rail-new-all"),
     (RAIL_FOOT, b"temper-rail-foot"),
     (TABBAR, b"temper-tabbar"),
+    (AWAY, b"temper-away"),
+    (AWAY_CHIP, b"temper-away-chip"),
+    (AWAY_TRACK, b"temper-away-track"),
 ];
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 100] = [
+    let named: [(skein_ui::Style, &[u8]); 114] = [
+        (MODE_CHAT, b"temper-mode-chat"),
+        (MODE_SPLIT, b"temper-mode-split"),
+        (MODE_DRAFT, b"temper-mode-draft"),
+        (DOC, b"temper-doc"),
+        (DOC_INNER, b"temper-doc-inner"),
+        (DOC_PATH, b"temper-doc-path"),
+        (DOC_SEC, b"temper-doc-sec"),
+        (DOC_CHANGED, b"temper-doc-changed"),
+        (DOC_NOTE, b"temper-doc-note"),
+        (DOC_FLASH, b"temper-doc-flash"),
+        (DOC_EMPTY, b"temper-doc-empty"),
+        (ADD_DRAFT, b"temper-add-draft"),
+        (DOC_MUTED, b"temper-doc-muted"),
+        (SEG, b"temper-seg"),
+        (SEG_SPLIT, b"temper-seg-split"),
+        (RAIL_UNFOLD, b"temper-rail-unfold"),
+        (START_OVER, b"temper-start-over"),
         (PROPOSAL_FACTS, b"temper-proposal-facts"),
         (SESSION_RIGHT, b"temper-session-right"),
         (META_LINE, b"temper-meta-line"),
@@ -165,18 +227,16 @@ fn each_style_or_region_is_named_under_temper() {
         (PLAN, b"temper-plan"),
         (PLAN_ROW, b"temper-plan-row"),
         (PLAN_HOLD, b"temper-plan-hold"),
-        (EVENTS, b"temper-events"),
         (STATUS_DONE, b"temper-status-done"),
         (CHOICE, b"temper-choice"),
         (ACCOUNTS_PAGE, b"temper-accounts-page"),
+        (SETTINGS_COL, b"temper-settings-col"),
         (ADOPTION_PAGE, b"temper-adoption-page"),
         (REFUSAL, b"temper-refusal"),
         (STEPS, b"temper-steps"),
         (STEP, b"temper-step"),
         (STEP_DONE, b"temper-step-done"),
         (UNAVAILABLE, b"temper-unavailable"),
-        (TASK_CONTRACT, b"temper-task-contract"),
-        (TASK_BUDGET, b"temper-task-budget"),
         (PLAN_SPEND, b"temper-plan-spend"),
         (DEPENDENCIES, b"temper-dependencies"),
         (STATUS_WAITING, b"temper-status-waiting"),
@@ -187,7 +247,6 @@ fn each_style_or_region_is_named_under_temper() {
         (REPOSITORY, b"temper-repository"),
         (TASK_ACTS, b"temper-task-acts"),
         (AGENT_STEER, b"temper-agent-steer"),
-        (TASK_DANGER, b"temper-task-danger"),
         (TASK_AMEND, b"temper-task-amend"),
         (DAY, b"temper-day"),
         (CHANGE, b"temper-change"),
@@ -234,15 +293,15 @@ fn each_pages_main_carries_the_main_token() {
     let view = fixtures::page_view(&fixtures::chats_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, CHATS_PAGE])]);
     let view = fixtures::page_view(&fixtures::task::held_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, GOAL])]);
     let view = fixtures::page_view(&fixtures::inbox_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
     let view = fixtures::page_view(&fixtures::account_root().0);
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, SETTINGS])]);
     let view = fixtures::page_view(&fixtures::adoption_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, SETTINGS])]);
     let view = fixtures::page_view(&fixtures::chat::chat_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, SESSION])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MODE_CHAT, SESSION])]);
 }
 #[test]
 fn the_composers_carry_the_composer_token() {
@@ -391,7 +450,7 @@ fn the_inbox_tokens_stay_on_their_roles() {
 
 #[test]
 fn the_task_tokens_stay_on_their_roles() {
-    let view = fixtures::page_view(&fixtures::task::held_root());
+    let view = fixtures::page_view(&super::task::held_agent_root());
     let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
     let mut task = fixtures::task::document();
     task.chip.phase = jig_client::contract::Phase::Done;
@@ -404,24 +463,20 @@ fn the_task_tokens_stay_on_their_roles() {
         None,
     );
     let done = builder.finish();
-    let activity = super::task::activity_tree(&[super::task::activity_news()]);
     let plan = super::task::dependency_plan();
     for (token, role) in [
         (TASK_HEADING, Role::Region),
-        (TASK_CONTRACT, Role::Paragraph),
-        (TASK_BUDGET, Role::Region),
         (TASK_CARD, Role::Region),
         (PLAN, Role::Tree),
         (PLAN_ROW, Role::Slot),
         (PLAN_SPEND, Role::Paragraph),
         (DEPENDENCIES, Role::List),
         (PLAN_HOLD, Role::List),
-        (EVENTS, Role::List),
         (STATUS_DONE, Role::Status),
         (STATUS_WAITING, Role::Status),
     ] {
         let mut found = false;
-        for tree in [view.tree(), &done, &activity, &plan] {
+        for tree in [view.tree(), &done, &plan] {
             for node in tree.nodes() {
                 if node.styles.as_slice().contains(&token) {
                     assert_eq!(node.role, role);
@@ -437,10 +492,14 @@ fn the_task_tokens_stay_on_their_roles() {
 fn the_choice_token_stays_on_the_composer_slot() {
     let mut roots = skein_lib::List::with_capacity(3);
     roots
-        .push(fixtures::playground_root(temper_client_domain::Address::NewChat, fixtures::PROJECT, true))
+        .push(fixtures::playground_root(
+            temper_client_domain::Address::NewChat { draft: false },
+            fixtures::PROJECT,
+            true,
+        ))
         .expect("new chat");
     roots.push(fixtures::chat::messaging_root()).expect("chat");
-    roots.push(fixtures::task::root(jig_client::contract::ChipExecutor::Agent { charter: 1 }, Some(1))).expect("task");
+    roots.push(fixtures::task::root(jig_client::contract::ChipExecutor::Agent { charter: 1 }, None)).expect("task");
     for root in &roots {
         let view = fixtures::page_view(root);
         let mut found = false;
@@ -455,12 +514,22 @@ fn the_choice_token_stays_on_the_composer_slot() {
 }
 
 #[test]
-fn the_account_and_adoption_bars_keep_their_headings() {
+fn the_account_and_adoption_pages_keep_their_headings() {
     // One root at a time: two outgrow a stack array's 16 KiB.
-    for token in [ACCOUNTS_PAGE, ADOPTION_PAGE] {
-        let root = if token == ACCOUNTS_PAGE { fixtures::account_root().0 } else { fixtures::adoption_root() };
+    for token in [ACCOUNTS_PAGE, SETTINGS_COL] {
+        let root = if token == ACCOUNTS_PAGE {
+            let (mut root, watch, _) =
+                fixtures::root_at(temper_client_domain::Address::Accounts, &fixtures::domain_limits());
+            let mut me = root.pages().me(root.client()).unwrap().clone();
+            me.projects.clear();
+            fixtures::deliver_me(&mut root, watch, me);
+            root
+        } else {
+            fixtures::adoption_root()
+        };
         let view = fixtures::page_view(&root);
-        assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).as_ref(), [Box::from([])]);
+        let heading: Box<[skein_ui::Style]> = Box::from([SETTINGS_HEADLINE]);
+        assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).as_ref(), [heading]);
         let mut found = false;
         for node in view.tree().nodes() {
             if node.styles.as_slice().contains(&token) {
@@ -471,7 +540,7 @@ fn the_account_and_adoption_bars_keep_their_headings() {
                 found = true;
             }
         }
-        assert!(found);
+        assert!(!found);
     }
 }
 
@@ -482,9 +551,9 @@ fn the_delegation_steps_keep_their_roles() {
 
 #[test]
 fn account_rows_and_sign_ins_have_distinct_style_names() {
-    assert_eq!(NAMES.style(ACCOUNT_ROW), Some(b"temper-account-row".as_slice()));
+    assert_eq!(NAMES.style(SETTINGS_ROW), Some(b"temper-settings-row".as_slice()));
     assert_eq!(NAMES.style(SIGN_IN), Some(b"temper-sign-in".as_slice()));
-    assert_ne!(ACCOUNT_ROW, SIGN_IN);
+    assert_ne!(SETTINGS_ROW, SIGN_IN);
 }
 
 fn agent_composer() -> crate::View {
@@ -493,6 +562,21 @@ fn agent_composer() -> crate::View {
     task.acts = skein_lib::List::with_capacity(1);
     task.acts.push(c::Offered { act: c::ActKind::Message, admission: c::Admission::Allowed, effect: None }).unwrap();
     fixtures::page_view(&fixtures::task::agent_root(task, None, true))
+}
+
+#[test]
+fn the_settings_controls_have_their_own_names_and_small_element() {
+    for (style, name) in [
+        (SETTINGS_CHECKS, b"temper-settings-checks".as_slice()),
+        (SETTINGS_SWITCH, b"temper-settings-switch".as_slice()),
+        (SETTINGS_TOGGLE_ROW, b"temper-settings-toggle-row".as_slice()),
+        (SETTINGS_TEXT, b"temper-settings-text".as_slice()),
+        (SETTINGS_FACTS, b"temper-settings-facts".as_slice()),
+        (SETTINGS_REFUSAL, b"temper-settings-refusal".as_slice()),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+    assert!(ELEMENTS.contains(&(crate::frame::owner(), Role::Text, SETTINGS_DETAIL, "small")));
 }
 
 #[test]
@@ -507,5 +591,72 @@ fn configuring_opening_and_needs_have_their_css_names() {
         (NEEDS, b"temper-needs"),
     ] {
         assert_eq!(NAMES.style(style), Some(name));
+    }
+}
+
+#[test]
+fn settings_styles_keep_their_css_names_beside_main_pages() {
+    for (style, name) in [
+        (SETTINGS_COL, b"temper-settings-col".as_slice()),
+        (SETTINGS_INTRO, b"temper-settings-intro".as_slice()),
+        (SETTINGS_KICKER, b"temper-settings-kicker".as_slice()),
+        (SETTINGS_HEADLINE, b"temper-settings-headline".as_slice()),
+        (SETTINGS_LEDE, b"temper-settings-lede".as_slice()),
+        (SETTINGS_TABS, b"temper-settings-tabs".as_slice()),
+        (SETTINGS_BODY, b"temper-settings-body".as_slice()),
+        (SETTINGS_SETTING, b"temper-settings-setting".as_slice()),
+        (SETTINGS_SECTION, b"temper-settings-section".as_slice()),
+        (SETTINGS_SECTION_HEAD, b"temper-settings-section-head".as_slice()),
+        (SETTINGS_SECTION_TITLE, b"temper-settings-section-title".as_slice()),
+        (SETTINGS_LINES, b"temper-settings-lines".as_slice()),
+        (SETTINGS_WHEN, b"temper-settings-when".as_slice()),
+        (SETTINGS_BAND, b"temper-settings-band".as_slice()),
+        (SETTINGS_QUIET_BAND, b"temper-settings-quiet-band".as_slice()),
+        (SETTINGS_TAG, b"temper-settings-tag".as_slice()),
+        (SETTINGS_BTN, b"temper-settings-btn".as_slice()),
+        (SETTINGS_PRIMARY, b"temper-settings-primary".as_slice()),
+        (SETTINGS_SMALL, b"temper-settings-small".as_slice()),
+        (SETTINGS_DETAIL, b"temper-settings-detail".as_slice()),
+        (SETTINGS_END, b"temper-settings-end".as_slice()),
+        (SETTINGS_ROW, b"temper-settings-row".as_slice()),
+        (SETTINGS_PATH, b"temper-settings-path".as_slice()),
+        (SETTINGS_TEXT, b"temper-settings-text".as_slice()),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+}
+
+#[test]
+fn welcome_and_repository_styles_keep_their_css_names() {
+    for (style, name) in [
+        (WELCOME_FORGE_STATUS, b"temper-welcome-forge-status".as_slice()),
+        (WELCOME_SPIN, b"temper-welcome-spin"),
+        (WELCOME_ACTS, b"temper-welcome-acts"),
+        (WELCOME_OK, b"temper-welcome-ok"),
+        (WELCOME_SEP, b"temper-welcome-sep"),
+        (WELCOME_PANEL, b"temper-welcome-panel"),
+        (WELCOME_AWAY, b"temper-welcome-away"),
+        (WELCOME_NUMBERED, b"temper-welcome-numbered"),
+        (WELCOME_FIELD, b"temper-welcome-field"),
+        (WELCOME_CMD, b"temper-welcome-cmd"),
+        (WELCOME_CURRENT, b"temper-welcome-current"),
+        (HOME_COPY, b"temper-home-copy"),
+        (HOME_SMALL, b"temper-home-small"),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+}
+
+#[test]
+fn decision_tokens_name_the_away_rows() {
+    for (token, name) in [
+        (DECIDED, b"temper-decided".as_slice()),
+        (DECISION, b"temper-decision"),
+        (DECISION_TOOK, b"temper-decision-took"),
+        (DECISION_WHY, b"temper-decision-why"),
+        (DECISION_LATE, b"temper-decision-late"),
+        (DECISION_OVERTURNED, b"temper-decision-overturned"),
+    ] {
+        assert_eq!(NAMES.style(token), Some(name));
     }
 }

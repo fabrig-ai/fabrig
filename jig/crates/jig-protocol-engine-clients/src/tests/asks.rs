@@ -348,3 +348,41 @@ fn set_visibility_reaches_the_people_child_as_sent() {
         }
     }
 }
+
+fn tasks_scope() -> w::NoteScope {
+    w::NoteScope::Tasks(w::NoteScopeTasks::new(&f::wire(), w::NoteScopeTasksParts { project: 3 }).unwrap())
+}
+
+#[test]
+fn an_edit_naming_tasks_is_refused() {
+    let limits = f::wire();
+    let value = w::Ask::EditNote(
+        w::EditNote::new(
+            &limits,
+            w::EditNoteParts {
+                project: 3,
+                note: 8,
+                scope: tasks_scope(),
+                revision: f::revision(1),
+                description: Box::new([]),
+                body: Box::new([]),
+                references: skein_lib::List::with_capacity(0),
+            },
+        )
+        .unwrap(),
+    );
+    assert_eq!(ask(value, &f::models(), &limits), Err(Untranslatable { path: w::Path::EditNoteScope }));
+}
+
+#[test]
+fn a_deletion_naming_tasks_is_refused() {
+    let limits = f::wire();
+    let value = w::Ask::DeleteNote(
+        w::DeleteNote::new(
+            &limits,
+            w::DeleteNoteParts { project: 3, note: 8, scope: tasks_scope(), revision: f::revision(1) },
+        )
+        .unwrap(),
+    );
+    assert_eq!(ask(value, &f::models(), &limits), Err(Untranslatable { path: w::Path::DeleteNoteScope }));
+}

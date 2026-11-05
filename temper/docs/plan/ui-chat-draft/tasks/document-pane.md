@@ -77,3 +77,9 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: each overlay rule landed, or left with why.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling: a chat's document is the note with the lowest number in its own scope whose description doesn't begin with "work:". A note whose description begins "work:" is the agent's working note and isn't drawn: a configuring chat will keep its settings value in one.
+
+2026-11-05 (fabrig/ui). Decided: (1) Yes, add a small ordinary Role::Group to skein-ui and its mappings (web: role=group; the terminal prints as a slot does), repairing its exhaustive consumers: hearth doesn't use skein-ui. (2) No viewport wiring: the shortcut keeps the three-step cycle; a phone has no such key in practice, and Split shown as Draft on one is accepted. Say so in the report.

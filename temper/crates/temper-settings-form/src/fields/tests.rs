@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 52] = [
+const SHAPES: [Shape; 54] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -58,6 +58,8 @@ const SHAPES: [Shape; 52] = [
     Shape::LandingPattern,
     Shape::LandingLast,
     Shape::ForgeCharter,
+    Shape::ProjectWays,
+    Shape::ProjectQuestions,
 ];
 fn kinds() -> &'static [Word] {
     for field in members(Shape::Setting) {
@@ -258,12 +260,15 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && field.name == b"project"
                         && kind != b"landing-rule"
                         && kind != b"project-policy"
+                        && kind != b"project-ways"
+                        && kind != b"project-questions"
                     {
                         continue;
                     }
                     if shape == Shape::Setting
                         && field.name == b"number"
-                        && (kind == b"rules" || kind == b"project-policy")
+                        && [b"rules".as_slice(), b"project-policy", b"project-ways", b"project-questions"]
+                            .contains(&kind)
                     {
                         continue;
                     }
@@ -374,7 +379,7 @@ fn every_generated_file_decodes() {
             decodes(Edit::Null(field));
         }
         if let Value::Words(words) = field.value {
-            // The four kinds are already generated together; each set's shape
+            // The kinds are already generated together; each set's shape
             // must agree with its selector. Edits select the edit-only form.
             if field.shape != Shape::Setting {
                 for at in 0..words.len() {
@@ -566,7 +571,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 16, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter` or `project-policy`, or null.
+- `set`: list of at most 16, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter`, `project-policy`, `project-ways` or `project-questions`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }

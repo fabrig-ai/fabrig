@@ -122,7 +122,7 @@ fn callback() -> Vec<u8> {
 fn elsewhere_keeps_connect_in_the_page_and_the_welcome_offers_none() {
     let (mut front, mut root) = h::plan_fixture(f::SEED);
     h::event(&mut front, &mut root, Temper::went(at(b"/welcome?at=model")));
-    assert!(offered(&root, Role::Button, b"Continue with ChatGPT"));
+    assert!(offered(&root, Role::Link, b"Continue"));
     assert!(!offered(&root, Role::Button, ELSEWHERE));
     let (front, root, _) = begin(b"/accounts/connect", true, true);
     assert!(front.engine.protocol.returns.is_empty(), "no native tab return for elsewhere");

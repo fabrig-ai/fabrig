@@ -25,10 +25,23 @@ pub mod boundary;
 mod brief;
 mod brief_ci;
 mod brief_document;
+mod brief_words;
+pub use brief_words::{BriefFate, BriefUnread};
 mod capabilities;
 mod ci;
 mod commit;
 mod connect;
+mod status;
+pub use status::{
+    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
+    StatusView, status_paragraphs, status_subject,
+};
+mod away;
+pub use away::{
+    AWAY_SUBJECT, Away, AwaysView, DECIDED_OPTION_BYTES, DECIDED_OPTIONS, DECIDED_PER_PROJECT, DECIDED_QUESTION_BYTES,
+    DECIDED_WHY_BYTES, Decided, DecidedCall, DecisionKind, DecisionView, DecisionsView, OverturnAnswer, SetAwayAnswer,
+    decided_subject,
+};
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
 mod domain;
@@ -81,7 +94,7 @@ mod verification;
 pub use boundary::*;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
-pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
+pub use domain::{DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
 pub use gates::{GateCandidate, GateLast, GatePattern, Requires};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{
@@ -264,6 +277,10 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
+        Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::Away(row) => Key::Away { party: row.party, project: row.project },
+        Stored::Decided(row) => Key::Decided { project: row.project, number: row.number },
+        Stored::Looked(row) => Key::Looked { party: row.party, project: row.project },
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -370,11 +387,22 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             if let Some(web) = &row.place.web {
                 held = held.checked_add(bytes(web))?;
             }
-            if let Some(first) = &row.first {
-                held = held
-                    .checked_add(bytes(&first.org))?
-                    .checked_add(bytes(&first.repository))?
-                    .checked_add(bytes(&first.label))?;
+            match &row.first {
+                Some(FirstIntent::Empty(first)) => {
+                    held = held
+                        .checked_add(bytes(&first.org))?
+                        .checked_add(bytes(&first.repository))?
+                        .checked_add(bytes(&first.label))?;
+                }
+                Some(FirstIntent::Copies { addresses }) => {
+                    held = held.checked_add(
+                        skein_lib::len_u64(addresses.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+                    )?;
+                    for address in addresses {
+                        held = held.checked_add(bytes(address))?;
+                    }
+                }
+                Some(FirstIntent::Nothing) | None => {}
             }
             Some(held)
         }
@@ -398,16 +426,36 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                             .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
                     )
             }
-            settings::Edit::Set(settings::SizedValue { value: settings::Value::Charter(_), .. })
+            settings::Edit::Set(settings::SizedValue {
+                value: settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_),
+                ..
+            })
             | settings::Edit::Remove
             | settings::Edit::Reset => Some(0),
         },
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::Decided(row) => {
+            let mut bytes = skein_lib::len_u64(row.question.len()).checked_add(skein_lib::len_u64(row.why.len()))?;
+            for option in &row.options {
+                bytes = bytes.checked_add(skein_lib::len_u64(option.len()))?;
+            }
+            Some(bytes)
+        }
+        Stored::ProjectFacts(row) => Some(match &row.brief {
+            Some(brief) => {
+                skein_lib::len_u64(brief.sentence.len()).checked_add(skein_lib::len_u64(brief.lede.len()))?
+            }
+            None => 0,
+        }),
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
+            CallPayload::Decided { took } => Some(match took {
+                Some(words) => skein_lib::len_u64(words.len()),
+                None => 0,
+            }),
             CallPayload::Effect { .. } | CallPayload::Refused(_) => Some(0),
             CallPayload::Read(answer) => match answer.as_ref() {
                 Ok(answer) => skein_forge::measure::answer(answer),
@@ -493,7 +541,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::Dismissed { .. }
+        Stored::Away(_)
+        | Stored::Looked(_)
+        | Stored::Dismissed { .. }
         | Stored::ForgeNumber { .. }
         | Stored::Playground(_)
         | Stored::Ci(_)

@@ -21,6 +21,10 @@ A project is where work happens: the repositories adopted into it, one of them i
   (temper help party).
 - **Its policy** is its own: what its work may do and spend, and what
   each role may start (temper help policy).
+- **What it shows** comes from its `project-ways` setting: drafts in chats,
+  Goals, Changes and the Away switch, and the way a goal starts by.
+  Its `project-questions` setting gives a change's question route when its
+  maker names none (temper help settings).
 - **Its period** holds what its work may spend; each member's pool is
   drawn from it (temper help budget).
 

@@ -546,7 +546,7 @@ fn a_refused_replacement_stops_its_sequence_and_retains_the_kit_refusal() {
         }
         face.requests().for_each(drop);
         let op = Token::new(face.serial());
-        face.event(&Event::Refused { op, why: Refusal::Gone });
+        face.event(&Event::Refused { op, why: Refusal::Gone, detail: Box::default() });
         assert!(!face.pending());
         assert_eq!(face.refusal(), Some(Refusal::Gone));
         assert!(face.failure().unwrap().contains("Gone"));

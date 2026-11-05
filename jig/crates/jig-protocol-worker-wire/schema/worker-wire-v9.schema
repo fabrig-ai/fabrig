@@ -47,7 +47,7 @@ record Call {
     input: bytes 1048576
     deadline: duration
 }
-enum StartCause { other, grants }
+enum StartCause { other, grants, transcript }
 record InvalidStart { why: bytes 4096 cause: StartCause }
 enum Invalid { charter, transcript, grants, messages, start: InvalidStart }
 record InvalidValue { value: Invalid }
@@ -65,7 +65,7 @@ enum Bound { reasoning, metadata, items, answer, tools, history_items, history, 
 record Exceeded { bound: Bound value: u64 }
 enum RunFailure {
     model, budget, policy, cancelled, stale,
-    limited: LimitedAccount, refused: RefusedAccount, exceeded: Exceeded }
+    limited: LimitedAccount, refused: RefusedAccount, exceeded: Exceeded, transcript }
 record RunFailureValue { value: RunFailure }
 enum AgentFailure { unstarted, exited, rules, no_progress, wall_time }
 record AgentFailureValue { value: AgentFailure }

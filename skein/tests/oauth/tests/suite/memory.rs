@@ -58,11 +58,11 @@ fn check_client(document: oauth::Limits) {
         prior: oauth::RefreshState {
             key: 1,
             generation: 0,
-            refresh_token: boxed(b"seed"),
+            refresh_token: skein_lib::Secret::new(boxed(b"seed")),
             issued_client_id: Some(boxed(&[b'c'; 64])),
             granted_scopes: Some(boxed(&[b's'; 64])),
             subject: Some(boxed(&[b'u'; 64])),
-            id_token: Some(boxed(&[b'i'; 1024])),
+            id_token: Some(skein_lib::Secret::new(boxed(&[b'i'; 1024]))),
         },
         now: Time::ZERO,
     };
@@ -87,7 +87,7 @@ fn check_issuer(document: oauth::Limits) {
             client_id: boxed(b"client"),
             client_secret: None,
             redirect_uri: boxed(b"http://127.0.0.1:1234/callback"),
-            refresh_token: boxed(b"seed"),
+            refresh_token: skein_lib::Secret::new(boxed(b"seed")),
             terms: Some(issued(&[&[b'c'; 1024][..]; fake::ISSUED])),
         },
         fake_limits,
@@ -97,11 +97,11 @@ fn check_issuer(document: oauth::Limits) {
         .queue(fake::Plan {
             status: 200,
             body: fake::Body::Token(oauth::TokenResponse {
-                access_token: boxed(b"access"),
-                refresh_token: Some(boxed(b"next")),
+                access_token: skein_lib::Secret::new(boxed(b"access")),
+                refresh_token: Some(skein_lib::Secret::new(boxed(b"next"))),
                 expires_in: 30,
                 scope: Some(boxed(&[b's'; 64])),
-                id_token: Some(boxed(&[b'i'; 1024])),
+                id_token: Some(skein_lib::Secret::new(boxed(&[b'i'; 1024]))),
                 earliest_refresh_at: Some(Wall::from_nanos(10_000_000_000)),
             }),
             delay: Duration::ZERO,
@@ -115,7 +115,10 @@ fn check_issuer(document: oauth::Limits) {
         url.extend_from_slice(format!("={index}").as_bytes());
     }
     let mut authorization = Queue::uncapped();
-    issuer.step(fake::Event::Authorize { url: url.into_boxed_slice(), now: Time::ZERO }, &mut authorization);
+    issuer.step(
+        fake::Event::Authorize { url: skein_lib::Secret::new(url.into_boxed_slice()), now: Time::ZERO },
+        &mut authorization,
+    );
     assert!(matches!(authorization.pop(), Some(fake::Request::Redirect { .. })));
     assert_eq!(issuer.carried().len(), usize::try_from(fake_limits.carried).expect("u32 fits"));
     let request = oauth::HttpRequest {
@@ -215,7 +218,7 @@ fn accounts_at_every_code_slot_stay_under_their_heap_ceiling() {
             })
             .expect("account");
         issuer.step(fake::Event::Authorize {
-            url: boxed(b"https://issuer.example/authorize?response_type=code&client_id=client&redirect_uri=http://127.0.0.1:1234/callback&state=0123456789abcdef&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"),
+            url: skein_lib::Secret::new(boxed(b"https://issuer.example/authorize?response_type=code&client_id=client&redirect_uri=http://127.0.0.1:1234/callback&state=0123456789abcdef&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256")),
             now: Time::ZERO,
         }, &mut out);
         let Some(fake::Request::Redirect { .. }) = out.pop() else { panic!("code retained") };

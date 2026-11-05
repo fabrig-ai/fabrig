@@ -45,6 +45,12 @@ pub fn request(a: &forge::Adoption, limits: &w::Limits) -> Option<jig_client::Fa
     })
 }
 #[must_use]
+pub fn make_repository(request: &w::MakeRepository, limits: &w::Limits) -> Option<jig_client::Family> {
+    let record =
+        w::Requesting::new(limits, w::RequestingParts { request: w::Request::MakeRepository(request.clone()) }).ok()?;
+    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
+}
+#[must_use]
 pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limits) -> Option<forge::Answer> {
     if record.family != wire::number(wire::Owner::Forge) {
         return None;
@@ -122,9 +128,13 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::StartRefused(_)
         | w::Outcome::StartFailed(_)
         | w::Outcome::Removed
+        | w::Outcome::Looked
         | w::Outcome::Dismissed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
+        | w::Outcome::Away
+        | w::Outcome::Overturned
+        | w::Outcome::OverturnRefused(_)
         | w::Outcome::EndRefused(_) => return None,
     })
 }
@@ -177,10 +187,10 @@ pub fn set_up(
     let request = w::SetUp::new(
         limits,
         w::SetUpParts {
-            playground,
+            first: w::SetUpFirst::Empty(
+                w::FirstEmpty::new(limits, w::FirstEmptyParts { org, repository, playground }).ok()?,
+            ),
             forge: w::Making::Kept(w::Kept::new(limits, w::KeptParts { forge }).ok()?),
-            org,
-            repository,
         },
     )
     .ok()?;
@@ -222,9 +232,13 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::StartRefused(_)
         | w::Outcome::StartFailed(_)
         | w::Outcome::Removed
+        | w::Outcome::Looked
         | w::Outcome::Dismissed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
+        | w::Outcome::Away
+        | w::Outcome::Overturned
+        | w::Outcome::OverturnRefused(_)
         | w::Outcome::EndRefused(_) => return None,
     })
 }
@@ -275,6 +289,13 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
             first: match row.first {
                 Some(first) => Some(first_from(first)),
                 None => None,
+            },
+            starts_with: match row.starts_with {
+                w::StartsWith::Repository => super::forges::StartsWith::Repository,
+                w::StartsWith::Copies(copies) => {
+                    super::forges::StartsWith::Copies { addresses: copies.into_parts().addresses.into_boxed() }
+                }
+                w::StartsWith::Nothing => super::forges::StartsWith::Nothing,
             },
             installations: installations_from(row.installations)?,
             ended: match row.ended {

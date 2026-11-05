@@ -1973,7 +1973,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
     for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
         let tree = view.tree();
         let main = styled(tree, look::SESSION);
-        assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MAIN, look::SESSION]);
+        assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MODE_CHAT, look::SESSION]);
         assert_eq!(style_position(tree.nodes(), look::AGENT_PAGE), None);
         let top = styled(tree, look::SESSION_TOP);
         let bar = styled(tree, look::SESSION_RIGHT);
@@ -2206,6 +2206,43 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
     }
 }
 
+fn goals_navigation(root: &temper_client_domain::Domain, shown: bool) {
+    let view = fixtures::browser_page_view(root);
+    // The rail and the phone's tab bar follow the same Goals visibility.
+    for style in [crate::look::RAIL_NAV, crate::look::TABBAR] {
+        let mut at = None;
+        for (index, node) in view.tree().nodes().iter().enumerate() {
+            if node.styles.as_slice().contains(&style) {
+                at = Some(index);
+                break;
+            }
+        }
+        let children = subtree(view.tree(), at.unwrap());
+        let mut found = false;
+        for node in children {
+            found |= node.role == Role::Link && node.name.as_deref() == Some(b"Goals");
+        }
+        assert_eq!(found, shown);
+    }
+}
+#[test]
+fn goals_navigation_shows_when_the_setting_is_on() {
+    let root = fixtures::root_with_ways(
+        temper_client_domain::Address::Home { project: fixtures::PROJECT },
+        Some(temper_client_domain::forge::ways::Ways { goals: true, ..temper_client_domain::forge::ways::Ways::STOCK }),
+    );
+    goals_navigation(&root, true);
+}
+#[test]
+fn goals_navigation_hides_an_existing_goal_until_kind_seven_shows_it() {
+    let (mut root, me, _) = fixtures::root_at(
+        temper_client_domain::Address::Home { project: fixtures::PROJECT },
+        &fixtures::domain_limits(),
+    );
+    super::rail::with_goal_fact(&mut root, me, Some(true));
+    goals_navigation(&root, false);
+}
+
 #[test]
 fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_path() {
     use crate::look;
@@ -2415,5 +2452,32 @@ fn the_log_has_one_column_with_older_before_turns() {
         assert!(column[older].styles.as_slice().contains(&crate::look::CHATS_MORE));
         let message = named_position(column, Role::Paragraph, Some(b"A retained message")).unwrap();
         assert!(older < message);
+    }
+}
+
+#[test]
+fn a_note_turn_draws_no_cut_words() {
+    use fixtures::first_run as run;
+    for other_cut in [false, true] {
+        let mut blocks = List::with_capacity(2);
+        blocks.push(run::call(1, b"note", b"", Some("Note 1 revision 1 written · 12 lines".as_bytes()))).unwrap();
+        if other_cut {
+            blocks.push(c::Block::Text(run::text(b"A long reply, also cut"))).unwrap();
+        }
+        let mut line = run::turn(1, ATTEMPT, 1, &[run::message(c::Speaker::Assistant, blocks.as_slice())], 512);
+        let Some(c::ArchivedTurn { turn: c::TurnRead::Decoded(turn), .. }) = &mut line.decoded else {
+            panic!("decoded turn")
+        };
+        turn.cut = true;
+        line.source.task = TASK;
+        line.decoded.as_mut().unwrap().task = TASK;
+        let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+        let mut rows = List::with_capacity(1);
+        rows.push(line).unwrap();
+        thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+        let tree = tree(&thread);
+        assert_eq!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_some(), other_cut);
+        assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
     }
 }

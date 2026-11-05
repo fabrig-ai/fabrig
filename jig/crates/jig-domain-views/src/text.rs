@@ -75,17 +75,21 @@ pub(crate) struct Flight {
     revision: u64,
 }
 
-#[expect(clippy::too_many_arguments, reason = "a host's writing report carries its named turn, offset, text and call")]
+pub(crate) struct At {
+    pub(crate) run: Token,
+    pub(crate) turn: TurnName,
+    pub(crate) offset: u32,
+}
+
 pub(crate) fn written(
     domain: &mut Domain,
     env: &Env<Limits>,
-    token: Token,
-    turn: TurnName,
-    offset: u32,
+    at: At,
     text: &[u8],
     call: Option<Call>,
     out: &mut Queue<Request>,
 ) {
+    let At { run: token, turn, offset } = at;
     let limits = &env.limits;
     if let Some(call) = &call
         && !fits(call, limits.text_bytes)
@@ -451,18 +455,16 @@ fn prepare(domain: &mut Domain, limits: &Limits, token: Token, turn: TurnName) -
     Some(new_turn)
 }
 
-#[expect(clippy::too_many_arguments, reason = "a live input report carries its turn, identity and byte offset")]
 pub(crate) fn input(
     domain: &mut Domain,
     env: &Env<Limits>,
-    token: Token,
-    turn: TurnName,
-    offset: u32,
+    at: At,
     id: Box<[u8]>,
     tool: Box<[u8]>,
     input: &[u8],
     out: &mut Queue<Request>,
 ) {
+    let At { run: token, turn, offset } = at;
     let Some(identity) = id.len().checked_add(tool.len()) else {
         return;
     };

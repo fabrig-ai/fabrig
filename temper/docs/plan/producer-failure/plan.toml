@@ -1,0 +1,65 @@
+draft = "producer-failure"
+repo = "fabrig"
+sources = ["temper/docs/plan/producer-failure/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "failed-producer"
+title = "a failed producer holds at producing, whatever it delivered; no empty title reaches a forge"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[part]]
+id = "stock-words"
+title = "the stock coding words say to wait after asking"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.11"
+
+[[slice]]
+id = 1
+story = "a producer that delivers then fails holds at producing, and a coding run is told how to end after asking"
+parts = ["failed-producer", "stock-words"]
+walk = false
+
+[[part]]
+id = "asker-finish"
+title = "a run's own finish parks, whatever its form, while its own question is open"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 5.7"
+
+[[part]]
+id = "asker-left"
+title = "a producer's finish waits for its answer, and a question left by its asker's end says so"
+mode = "direct"
+needs = ["asker-finish"]
+design = "temper/docs/design/domain/forge.md, 8.11"
+
+[[part]]
+id = "status-close"
+title = "this plan's Not yet entries leave the status files"
+mode = "direct"
+needs = ["failed-producer", "stock-words", "asker-finish", "asker-left"]
+design = "DESIGN.md, 2"
+
+[[slice]]
+id = 2
+story = "a producer asks and finishes: it parks, its answer resumes it, and its finish goes through; an asker that ends says so to the requester"
+parts = ["asker-finish", "asker-left", "status-close"]
+walk = false
+
+[[question]]
+id = "finish-refused-at-the-call"
+parts = ["asker-finish", "asker-left"]
+text = """The request recommends refusing an asker's `finish` at the call, with the words `Your question is still open: call wait; the answer reaches this run.`, and asks for a question if that is much larger than it reads. It is larger: smith judges a `finish` with no call to its host, and the tasks child decides at the answer's commit, the run and its host knowing nothing of it (`jig/docs/design/domain/engine.md`, 7.4). No task waits for this answer; the plan goes on with (a).
+
+Options:
+(a) The run parks, as a done finish already does (`jig/docs/design/domain/tasks.md`, 5.7). No protocol or store change, and no turn spent. The story runs as asks, finishes, parks, answered, resumes, finishes, but those words reach no run: the stock coding charter says the same beforehand. A resumed run's transcript shows its earlier `finish` as accepted, then its waking instruction and the answer.
+(b) Refuse at the call as well: a new crossing from jig through the worker to smith, so the run hears the words live. It changes smith's design and the worker's protocol, and (a) is still needed underneath, since a live refusal cannot cover every path to a finish.
+
+Recommendation: (a). Choose (b) only if a run's hearing those words live is worth a protocol change; it would be a later plan on top of this one."""

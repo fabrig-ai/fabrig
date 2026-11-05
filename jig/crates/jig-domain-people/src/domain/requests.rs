@@ -112,13 +112,11 @@ pub(super) fn refused(to: ReplyTo, refusal: Refusal, out: &mut Queue<Request>) {
     out.push(Request::Reply { to, reply: Reply::Refused(refusal) });
 }
 
-#[expect(clippy::too_many_arguments, reason = "one keyed request includes its canonical original model context")]
 pub(super) fn admit_ask(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    sign_in: u64,
-    bytes: [u8; 16],
+    (sign_in, bytes): (u64, [u8; 16]),
     ask: Ask,
     models: Box<[Box<[u8]>]>,
     out: &mut Queue<Request>,

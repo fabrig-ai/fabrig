@@ -149,7 +149,7 @@ fn a_preparing_agent_is_kept_and_its_stale_preparation_cannot_make_it_due() {
     assert_eq!(response(&mut world, |reply_to| Event::Prepare { reply_to, task: 1 }), Reply::Done);
     keep(&mut world);
     world.send(Event::PreparationWaiting { task: 1 });
-    world.send(Event::PreparationFailed { task: 1 });
+    world.send(Event::PreparationPaused { task: 1, reason: b"brief: no brief slot is free".as_slice().into() });
     assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
 }
 

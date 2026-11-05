@@ -8,7 +8,6 @@ use alloc::boxed::Box;
 use jig_client::contract::{EndedValue, InboxGroup, ObjectKey, Proposer, ReadValue, ResultValue};
 use skein_lib::Decimal;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
-use temper_client_domain::PlanFilter;
 use temper_client_domain::{
     Address, Domain,
     address::{Filter, Kind},
@@ -131,7 +130,13 @@ fn filters(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindin
     b.open(Role::Slot);
     b.style(look::FILTERS);
     // The new chat's link leads the filters' row, as the mockup's button does.
-    control(b, bindings, Role::Link, &words.say(Word::NewChatLink, &[]), Act::Go { address: Address::NewChat });
+    control(
+        b,
+        bindings,
+        Role::Link,
+        &words.say(Word::NewChatLink, &[]),
+        Act::Go { address: Address::NewChat { draft: false } },
+    );
     project_filter(b, root, filter, words, bindings);
     b.open(Role::Disclosure);
     b.style(look::KIND_MENU);
@@ -284,7 +289,7 @@ fn entry(
                 bindings,
                 Role::Link,
                 &words.say(Word::TaskWho, &[Hole::Number(task)]),
-                Act::Go { address: Address::Task { task, filter: PlanFilter::All } },
+                Act::Go { address: Address::Task { task } },
             );
         }
         if let Some(page) = &card.page
@@ -306,6 +311,10 @@ fn entry(
             b.close();
             return;
         }
+        if crate::cards::proposal::settings(b, root, card, words, bindings, false) {
+            b.close();
+            return;
+        }
         body(b, page, words);
         crate::cards::proposal_reason(b, page);
         if has_facts(page) {
@@ -324,13 +333,7 @@ fn entry(
             && let Some(task) = source_task(card.object)
         {
             let name = open_task_name(words, task);
-            control(
-                b,
-                bindings,
-                Role::Link,
-                &name,
-                Act::Go { address: Address::Task { task, filter: PlanFilter::All } },
-            );
+            control(b, bindings, Role::Link, &name, Act::Go { address: Address::Task { task } });
         }
     } else if update && let Some(task) = source_task(card.object) {
         b.open(Role::Heading { level: 3 });
@@ -348,7 +351,7 @@ fn update_act(card: &Card, task: u64) -> Act {
     {
         Act::OpenResult { task, through }
     } else {
-        Act::Go { address: Address::Task { task, filter: PlanFilter::All } }
+        Act::Go { address: Address::Task { task } }
     }
 }
 fn open_task_name(words: &Words, task: u64) -> Box<[u8]> {

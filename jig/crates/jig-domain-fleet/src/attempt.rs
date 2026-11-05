@@ -154,7 +154,7 @@ pub(crate) struct Run {
 pub(crate) enum State {
     /// Started, or refused as busy: waits for an eligible slot, and for no worker to
     /// host another attempt of its run. `serial` is its place in the queue.
-    Waiting { to: ReplyTo, workstream: u64, kinds: Kinds, version: crate::Version, serial: u64 },
+    Waiting { claiming: Claiming, serial: u64 },
     /// Adopted after a restart, no worker having listed it yet: until the
     /// grace passes.
     Adopted { to: ReplyTo, until: Time },
@@ -275,30 +275,42 @@ pub(crate) fn lost_host(attempt: &Attempt) -> Option<Token> {
 
 /// The names a request about an attempt carries.
 #[derive(Clone, Copy, Debug)]
-struct Names {
-    run: Token,
-    attempt: Token,
+pub(crate) struct Names {
+    pub(crate) run: Token,
+    pub(crate) attempt: Token,
+}
+
+/// The parent's claim and placement requirements.
+#[derive(Debug)]
+pub(crate) struct Claiming {
+    pub(crate) to: ReplyTo,
+    pub(crate) workstream: u64,
+    pub(crate) kinds: Kinds,
+    pub(crate) version: crate::Version,
+}
+
+struct Placing {
+    assignment: Assignment,
+    job: Option<jig_domain_link::JobBound>,
+    channel: Id<Channel>,
+    names: Names,
 }
 
 // Entry points: one per event, alarm or resume that concerns an attempt.
 
 /// Start: refused at the entrance, or queued for a slot, its run's claim
 /// replaced.
-#[expect(clippy::too_many_arguments, reason = "a start takes the parent's complete placement request")]
 pub(crate) fn start(
     domain: &mut Domain,
     env: &Env<Limits>,
-    to: ReplyTo,
-    run: Token,
-    attempt: Token,
-    workstream: u64,
-    kinds: Kinds,
-    version: crate::Version,
+    claiming: Claiming,
+    names: Names,
     placement: Option<crate::PlacementConstraint>,
     assignment: Assignment,
     out: &mut Queue<Request>,
 ) -> bool {
-    let refusal = if workstream == 0 {
+    let Names { run, attempt } = names;
+    let refusal = if claiming.workstream == 0 {
         Some(Refusal::Workstream)
     } else if domain.names.contains_key(&(run, attempt)) {
         Some(Refusal::Duplicate)
@@ -308,42 +320,36 @@ pub(crate) fn start(
         None
     };
     if let Some(refusal) = refusal {
-        refuse(domain, to, Names { run, attempt }, refusal, out);
+        refuse(domain, claiming.to, names, refusal, out);
         return false;
     }
     replace(domain, run, out);
     let serial = next_serial(&mut domain.serial);
-    insert(domain, run, attempt, false, assignment, State::Waiting { to, workstream, kinds, version, serial });
+    insert(domain, run, attempt, false, assignment, State::Waiting { claiming, serial });
     let id = *domain.names.get(&(run, attempt)).expect("inserted attempt");
     domain.attempts.get_mut(id).expect("inserted attempt").placement = placement;
     true
 }
 
 /// A job shares claims, slots and recovery with runs (jig/docs/design/domain/engine.md, 7.5).
-#[expect(clippy::too_many_arguments, reason = "the job claim carries its placement bounds and recovery mode")]
 pub(crate) fn start_job(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    run: Token,
-    attempt: Token,
+    names: Names,
     workstream: u64,
-    job: jig_domain_link::JobBound,
-    restoring: bool,
+    (job, restoring): (jig_domain_link::JobBound, bool),
     out: &mut Queue<Request>,
 ) {
+    let Names { run, attempt } = names;
     let accepted = if restoring {
         adopt(domain, env, to, run, attempt, 0, out)
     } else {
         start(
             domain,
             env,
-            to,
-            run,
-            attempt,
-            workstream,
-            Kinds::Both,
-            crate::Version { charter: 0, revision: 0 },
+            Claiming { to, workstream, kinds: Kinds::Both, version: crate::Version { charter: 0, revision: 0 } },
+            names,
             None,
             Assignment { turns: Token::new(0), answered: Token::new(0) },
             out,
@@ -414,11 +420,8 @@ pub(crate) fn adopt(
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
         State::Stray { at, until: _ } => located(
-            to,
+            Claiming { to, workstream: 0, kinds: Kinds::Workers, version: crate::Version { charter: 0, revision: 0 } },
             at,
-            0,
-            Kinds::Workers,
-            crate::Version { charter: 0, revision: 0 },
             names,
             &mut domain.facts,
             out,
@@ -524,9 +527,7 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
-        State::Waiting { to, workstream: _, kinds: _, version: _, serial: _ } => {
-            withdrawn(to, Withdrawal::Cancelled, names, out)
-        }
+        State::Waiting { claiming: Claiming { to, .. }, .. } => withdrawn(to, Withdrawal::Cancelled, names, out),
         State::Adopted { to, until } => State::Cancelled { to, at: Where::Adrift { until } },
         State::Claimed { to, at, workstream: _, kinds: _, version: _ } => {
             cancelled(to, at, names, &domain.channels, out)
@@ -589,15 +590,9 @@ pub(crate) fn place(
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
-        State::Waiting { to, workstream, kinds, version, serial: _ } => assigned(
-            to,
-            workstream,
-            kinds,
-            version,
-            entry.assignment,
-            entry.job,
-            channel,
-            names,
+        State::Waiting { claiming, serial: _ } => assigned(
+            claiming,
+            Placing { assignment: entry.assignment, job: entry.job, channel, names },
             env,
             &mut domain.channels,
             &mut domain.facts,
@@ -639,15 +634,12 @@ pub(crate) fn listed(
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
-        State::Waiting { to, workstream, kinds, version, serial: _ } => {
-            hosted(to, workstream, kinds, version, channel, names, env, &mut domain.channels, &mut domain.facts, out)
+        State::Waiting { claiming, serial: _ } => {
+            hosted(claiming, channel, names, env, &mut domain.channels, &mut domain.facts, out)
         }
         State::Adopted { to, until: _ } => located(
-            to,
+            Claiming { to, workstream: 0, kinds: Kinds::Workers, version: crate::Version { charter: 0, revision: 0 } },
             on,
-            0,
-            Kinds::Workers,
-            crate::Version { charter: 0, revision: 0 },
             names,
             &mut domain.facts,
             out,
@@ -709,9 +701,9 @@ pub(crate) fn answer(
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
-        State::Waiting { to, workstream, kinds, version, serial } => {
+        State::Waiting { claiming, serial } => {
             resent(payload, &mut domain.facts, out);
-            State::Waiting { to, workstream, kinds, version, serial }
+            State::Waiting { claiming, serial }
         }
         State::Adopted { to, until } => match answer {
             Answer::Busy => {
@@ -726,7 +718,7 @@ pub(crate) fn answer(
             Answer::Busy => {
                 refused(payload, &mut domain.facts, out);
                 let serial = next_serial(&mut domain.serial);
-                State::Waiting { to, workstream, kinds, version, serial }
+                State::Waiting { claiming: Claiming { to, workstream, kinds, version }, serial }
             }
             Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid => {
                 handed(to, answer, payload, on, names, &mut domain.facts, out)
@@ -894,7 +886,7 @@ pub(crate) fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
             continue;
         }
         let (workstream, version) = match &entry.state {
-            State::Waiting { workstream, version, .. } => (*workstream, *version),
+            State::Waiting { claiming: Claiming { workstream, version, .. }, .. } => (*workstream, *version),
             State::Adopted { .. }
             | State::Claimed { .. }
             | State::Cancelled { .. }
@@ -907,7 +899,7 @@ pub(crate) fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
             | State::Closed => unreachable!("only a waiting attempt is queued for a slot"),
         };
         let kinds = match &entry.state {
-            State::Waiting { kinds, .. } => *kinds,
+            State::Waiting { claiming: Claiming { kinds, .. }, .. } => *kinds,
             State::Adopted { .. }
             | State::Claimed { .. }
             | State::Cancelled { .. }
@@ -952,7 +944,7 @@ pub(crate) fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
     if let Some(id) = recheck {
         let entry = domain.attempts.get_mut(id).expect("queued claim");
         let before = implied(&entry.state);
-        let State::Waiting { to, .. } = mem::replace(&mut entry.state, State::Closed) else {
+        let State::Waiting { claiming: Claiming { to, .. }, .. } = mem::replace(&mut entry.state, State::Closed) else {
             unreachable!("queued claim")
         };
         out.push(Request::Refused { to, run: entry.run, attempt: entry.token, refusal: Refusal::Recheck });
@@ -1003,9 +995,7 @@ fn replace(domain: &mut Domain, run: Token, out: &mut Queue<Request>) {
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
-        State::Waiting { to, workstream: _, kinds: _, version: _, serial: _ } => {
-            withdrawn(to, Withdrawal::Replaced, names, out)
-        }
+        State::Waiting { claiming: Claiming { to, .. }, .. } => withdrawn(to, Withdrawal::Replaced, names, out),
         State::Adopted { to, until } => superseded(to, Where::Adrift { until }, names, out),
         State::Claimed { to, at, workstream: _, kinds: _, version: _ } => {
             again(at, false, names, &domain.channels, out);
@@ -1136,17 +1126,8 @@ fn presumed(to: ReplyTo, names: Names, facts: &mut Lossy<Fact>, out: &mut Queue<
 
 /// An adopted attempt found, or a stray adopted: the parent's claim from now
 /// on, which the parent hears is on a worker.
-#[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
-fn located(
-    to: ReplyTo,
-    at: Where,
-    workstream: u64,
-    kinds: Kinds,
-    version: crate::Version,
-    names: Names,
-    facts: &mut Lossy<Fact>,
-    out: &mut Queue<Request>,
-) -> State {
+fn located(claiming: Claiming, at: Where, names: Names, facts: &mut Lossy<Fact>, out: &mut Queue<Request>) -> State {
+    let Claiming { to, workstream, kinds, version } = claiming;
     facts.push(Fact::Found);
     out.push(Request::Placed { run: names.run, attempt: names.attempt });
     State::Claimed { to, at, workstream, kinds, version }
@@ -1171,21 +1152,16 @@ fn moved(
 
 /// Waiting, placed: assigned to the worker of `channel`, which holds its
 /// workstream from now on.
-#[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
 fn assigned(
-    to: ReplyTo,
-    workstream: u64,
-    kinds: Kinds,
-    version: crate::Version,
-    assignment: Assignment,
-    job: Option<jig_domain_link::JobBound>,
-    channel: Id<Channel>,
-    names: Names,
+    claiming: Claiming,
+    placing: Placing,
     env: &Env<Limits>,
     channels: &mut Slab<Channel>,
     facts: &mut Lossy<Fact>,
     out: &mut Queue<Request>,
 ) -> State {
+    let Claiming { to, workstream, kinds, version } = claiming;
+    let Placing { assignment, job, channel, names } = placing;
     let entry = channels.get_mut(channel).expect("a worker chosen is in contact");
     if entry.kind == HostKind::Worker {
         channel::cache(entry, &env.limits, workstream);
@@ -1207,12 +1183,8 @@ fn assigned(
 }
 
 /// Waiting, listed: a worker hosts it already, so it is not assigned again.
-#[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
 fn hosted(
-    to: ReplyTo,
-    workstream: u64,
-    kinds: Kinds,
-    version: crate::Version,
+    claiming: Claiming,
     channel: Id<Channel>,
     names: Names,
     env: &Env<Limits>,
@@ -1221,8 +1193,8 @@ fn hosted(
     out: &mut Queue<Request>,
 ) -> State {
     let entry = channels.get_mut(channel).expect("a worker saying hello is in contact");
-    channel::cache(entry, &env.limits, workstream);
-    located(to, Where::On(channel), workstream, kinds, version, names, facts, out)
+    channel::cache(entry, &env.limits, claiming.workstream);
+    located(claiming, Where::On(channel), names, facts, out)
 }
 
 /// Listed, and not tracked: fenced off at once if its run is claimed by

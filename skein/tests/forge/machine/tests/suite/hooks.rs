@@ -214,6 +214,79 @@ fn a_held_hint_stops_the_next_body_until_it_is_offered() {
     assert_eq!(world.hints().len(), 2);
 }
 
+#[test]
+fn a_body_keeps_the_deadline_that_started_at_accept() {
+    let mut world = world();
+    let peer = world.accept();
+    let post = deliveries::push(b"main", 7);
+    world.run_for(Duration::from_secs(9));
+    world.write(peer, &post.head);
+    world.write(peer, &post.body[..post.body.len() - 1]);
+    world.advance_to(skein_lib::Time::from_nanos(9_999_999_999));
+    assert!(!world.peer(peer).closed);
+    world.advance_to(skein_lib::Time::from_nanos(10_000_000_000));
+    assert!(world.peer(peer).closed);
+    assert_eq!(world.status(peer), None);
+    assert!(world.hints().is_empty());
+}
+
+#[test]
+fn done_restarts_the_deadline_and_a_late_offer_keeps_it() {
+    let mut world = world();
+    let peer = world.accept();
+    world.run_for(Duration::from_secs(9));
+    world.send(peer, &deliveries::push(b"main", 7));
+    assert_eq!(world.status(peer), Some(204));
+    let expected = world.hints()[0].clone();
+    world.refuse();
+    world.advance_to(skein_lib::Time::from_nanos(10_000_000_000));
+    assert!(!world.peer(peer).closed);
+    assert!(world.hints().is_empty());
+    world.advance_to(skein_lib::Time::from_nanos(18_000_000_000));
+    world.request(Request::Offer);
+    assert_eq!(world.hints(), &[expected]);
+    world.advance_to(skein_lib::Time::from_nanos(18_999_999_999));
+    assert!(!world.peer(peer).closed);
+    world.advance_to(skein_lib::Time::from_nanos(19_000_000_000));
+    assert!(world.peer(peer).closed);
+}
+
+#[test]
+fn a_clients_close_still_offers_the_verified_hint() {
+    let mut world = world();
+    let peer = world.accept();
+    let mut post = deliveries::push(b"main", 7);
+    let mut head = post.head.into_vec();
+    head.splice(head.len() - 2.., b"Connection: close\r\n\r\n".iter().copied());
+    post.head = head.into_boxed_slice();
+    world.send(peer, &post);
+    assert_eq!(world.status(peer), Some(204));
+    assert_eq!(world.hints().len(), 1);
+    assert!(world.hinted_after_answer());
+    assert!(world.peer(peer).closed);
+}
+
+#[test]
+fn a_hint_returned_during_body_is_replaced_only_by_a_verified_delivery() {
+    for verified in [false, true] {
+        let mut world = world();
+        let peer = world.accept();
+        world.send(peer, &deliveries::push(b"main", 7));
+        let returned = world.hints()[0].clone();
+        let mut post = deliveries::push(b"other", 8);
+        world.write(peer, &post.head);
+        world.refuse();
+        if !verified {
+            post.body[0] = b' ';
+        }
+        world.write(peer, &post.body);
+        assert_eq!(world.statuses(peer), [204, if verified { 204 } else { 403 }]);
+        let [hinted] = world.hints() else { panic!("one hint") };
+        assert_eq!(hinted == &returned, !verified);
+        assert_eq!(world.peer(peer).closed, !verified);
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 enum HookPhase {
     Head,

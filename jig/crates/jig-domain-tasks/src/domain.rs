@@ -613,7 +613,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::DecidePersonProposal { reply_to, proposer, proposal, by, message, decision, revision } => {
             crate::proposals::decide_person(
-                domain, env, reply_to, proposer, proposal, by, message, decision, revision, out,
+                domain,
+                env,
+                reply_to,
+                crate::proposals::ProposalDeciding { proposer, number: proposal, by, message, decision },
+                revision,
+                out,
             );
         }
         Event::TickRecurring { task, period } => crate::recurring::tick(domain, env, task, period, out),
@@ -622,7 +627,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::recurring::make_batch(domain, env, task, period, &numbers, out);
         }
         Event::Procedure { reply_to, task, step, read, decision } => {
-            crate::procedure::stepped(domain, env, reply_to, task, step, read, decision, out);
+            crate::procedure::stepped(domain, env, reply_to, task, (step, read), decision, out);
         }
         Event::TakePerson { reply_to, task, person } => {
             crate::person::take(domain, env, reply_to, task, person, out);
@@ -640,25 +645,31 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::proposals::decide_settings(domain, env, reply_to, decision, out);
         }
         Event::DecideProposal { reply_to, proposer, proposal, message, by, decision } => {
-            crate::proposals::decide(domain, env, reply_to, proposer, proposal, message, by, decision, out);
+            crate::proposals::decide(
+                domain,
+                env,
+                reply_to,
+                crate::proposals::ProposalDeciding { proposer, number: proposal, by, message, decision },
+                out,
+            );
         }
         Event::StalledProposal { proposer, proposal, from, revision, holder } => {
-            crate::proposals::stalled(domain, env, proposer, proposal, from, revision, holder, out);
+            crate::proposals::stalled(domain, env, (proposer, proposal), from, revision, holder, out);
         }
         Event::WithdrawProposal { reply_to, proposer, proposal } => {
             crate::proposals::withdraw(domain, env, reply_to, proposer, proposal, out);
         }
         Event::Cancel { reply_to, by, operation } => {
-            crate::control::apply(domain, env, reply_to, by, crate::Operation::Cancel(operation), out);
+            crate::control::cancel(domain, env, reply_to, by, operation, out);
         }
         Event::Release { reply_to, by, operation } => {
-            crate::control::apply(domain, env, reply_to, by, crate::Operation::Release(operation), out);
+            crate::control::release(domain, env, reply_to, by, operation, out);
         }
         Event::Amend { reply_to, by, operation, funder, places } => {
-            crate::control::amend(domain, env, reply_to, by, operation, &places, funder, out);
+            crate::control::amend(domain, env, reply_to, (by, funder), operation, &places, out);
         }
         Event::Move { reply_to, operation, person, period, pool_budget, period_budget } => {
-            crate::moving::apply(domain, env, reply_to, operation, person, period, pool_budget, period_budget, out);
+            crate::moving::apply(domain, env, reply_to, operation, (person, period, pool_budget, period_budget), out);
         }
         Event::Subscribe { reply_to, task, subscription } => {
             crate::subscriptions::subscribe(domain, env, reply_to, task, subscription, false, out);
@@ -696,14 +707,20 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::escalation::routed(domain, env, task, revision, holder, entry, out);
         }
         Event::DecideEscalation { reply_to, task, revision, by, entry, decision } => {
-            crate::escalation::decide(domain, env, reply_to, task, revision, by, entry, decision, out);
+            crate::escalation::decide(
+                domain,
+                env,
+                reply_to,
+                crate::escalation::Deciding { number: task, revision, by, entry, decision },
+                out,
+            );
         }
         Event::PeriodNext { project, period, next } => crate::periods::observe(domain, project, period, next, out),
         Event::OpenPeriod { reply_to, project, period, budget } => {
             crate::funders::open(domain, env, reply_to, project, period, budget, out);
         }
         Event::CarvePool { reply_to, project, person, period, budget } => {
-            crate::funders::carve(domain, env, reply_to, project, person, period, budget, out);
+            crate::funders::carve(domain, env, reply_to, project, person, (period, budget), out);
         }
         Event::ResizePool { reply_to, project, person, period, budget } => {
             crate::funders::resize_pool(domain, reply_to, project, person, period, budget, out);
@@ -718,8 +735,18 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Message { reply_to, project, operation } => {
             crate::inbox::message(domain, env, reply_to, project, operation, false, out);
         }
-        event @ Event::PersonQuestion { .. } => crate::questions::person_question(domain, env, event, out),
-        event @ Event::PersonQuestionAnswer { .. } => crate::questions::person_answer(domain, env, event, out),
+        Event::PersonQuestion { reply_to, project, task, person, word } => {
+            crate::questions::person_question(domain, env, reply_to, (project, person), task, word, out);
+        }
+        Event::PersonQuestionAnswer { reply_to, project, asked, person, question, word, notice } => {
+            crate::questions::person_answer(
+                domain,
+                env,
+                reply_to,
+                crate::questions::Answering { project, recipient: asked, person, question, word, notice },
+                out,
+            );
+        }
         Event::AuthorizedMessage { reply_to, project, operation } => {
             crate::inbox::message(domain, env, reply_to, project, operation, true, out);
         }
@@ -729,7 +756,13 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Prepare { reply_to, task } => crate::run::prepare(domain, env, reply_to, task, out),
         Event::Claim { reply_to, task, attempt, resumed, budget, account, writes } => {
-            crate::run::claim(domain, env, reply_to, task, attempt, resumed, budget, account, &writes, out);
+            crate::run::claim(
+                domain,
+                env,
+                reply_to,
+                crate::run::Claiming { number: task, attempt, resumed, budget, account, writes },
+                out,
+            );
         }
         Event::ReadAfresh { resource } => crate::writers::read_afresh(domain, env, &resource, out),
         Event::ChargeEffect { funder, maximum } => crate::funders::charge_effect(domain, env, funder, maximum, out),
@@ -742,14 +775,16 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 domain,
                 env,
                 reply_to,
-                task,
-                attempt,
-                turn,
-                read,
-                &refused,
-                offered,
-                &outstanding,
-                cumulative,
+                crate::admission::Turned {
+                    number: task,
+                    attempt,
+                    turn,
+                    read,
+                    refusals: refused,
+                    offered,
+                    outstanding,
+                    cumulative,
+                },
                 out,
             );
         }
@@ -759,7 +794,14 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Activation { reply_to, task, attempt, end, saved, cause } => match cause {
             crate::Cause::Priced { cumulative } => {
-                crate::admission::activation(domain, env, reply_to, task, attempt, end, saved, cumulative, out);
+                crate::admission::activation(
+                    domain,
+                    env,
+                    reply_to,
+                    crate::run::Ended { number: task, attempt, end, saved },
+                    cumulative,
+                    out,
+                );
             }
             crate::Cause::Unpriced => match end {
                 crate::End::FinishedWithFollowups { .. } => {
@@ -768,7 +810,13 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                         None => false,
                     };
                     if job {
-                        crate::run::activation(domain, env, reply_to, task, attempt, end, saved, out);
+                        crate::run::activation(
+                            domain,
+                            env,
+                            reply_to,
+                            crate::run::Ended { number: task, attempt, end, saved },
+                            out,
+                        );
                     } else {
                         refused(reply_to, Some(task), Refusal::Contract, out);
                     }
@@ -779,13 +827,21 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 | crate::End::Failed(_)
                 | crate::End::Refused
                 | crate::End::Recheck => {
-                    crate::run::activation(domain, env, reply_to, task, attempt, end, saved, out);
+                    crate::run::activation(
+                        domain,
+                        env,
+                        reply_to,
+                        crate::run::Ended { number: task, attempt, end, saved },
+                        out,
+                    );
                 }
             },
         },
         Event::PreparationWaiting { task } => crate::run::preparation_waiting(domain, env, task, out),
-        Event::PreparationFailed { task } => crate::run::preparation_failed(domain, env, task, out),
-        Event::PreparationUnread { task } => crate::run::preparation_unread(domain, env, task, out),
+        Event::PreparationPaused { task, reason } => crate::run::preparation_paused(domain, env, task, &reason, out),
+        Event::PreparationCounted { task, class, reason } => {
+            crate::run::preparation_counted(domain, env, task, class, &reason, out);
+        }
         Event::Place { reply_to, hold } => crate::placed::place(domain, env, reply_to, hold, out),
         Event::Lift { reply_to, by, hold, revision, with_tasks } => crate::placed::lift(
             domain,
@@ -809,7 +865,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::PersonStallNotice { task, message } => crate::person::stalled(domain, env, task, message, out),
         Event::MetNotice { task, dependency, removed, by, message } => {
-            crate::wake::met(domain, env, task, dependency, removed, by, message, out);
+            crate::wake::met(domain, env, task, (dependency, removed), by, message, out);
         }
         Event::Restore { record } => crate::stored::restore(domain, env, record, out),
         Event::Check => crate::stored::check(domain, env, out),
@@ -1341,14 +1397,11 @@ pub(crate) fn make_admitted(
         let archived = if source_period == current_period {
             None
         } else {
-            match source_period {
-                crate::Funder::Period { project, period } => {
-                    Some(crate::Funder::Recurring { project, task: root_number, period })
-                }
-                crate::Funder::Task(_) | crate::Funder::Pool { .. } | crate::Funder::Recurring { .. } => {
-                    unreachable!("resolved original period")
-                }
-            }
+            Some(crate::Funder::Recurring {
+                project: source_period.project,
+                task: root_number,
+                period: source_period.period,
+            })
         };
         // Count each made task in its own period, so a standing root's old
         // delegates retain their old allotment after that root renews.
@@ -1371,14 +1424,11 @@ pub(crate) fn make_admitted(
             Some(funder) => Some(funder),
             None => {
                 if record(domain, root_number).expect("live root").recurring.is_some() {
-                    match current_period {
-                        crate::Funder::Period { project, period } => {
-                            Some(crate::Funder::Recurring { project, task: root_number, period })
-                        }
-                        crate::Funder::Task(_) | crate::Funder::Pool { .. } | crate::Funder::Recurring { .. } => {
-                            unreachable!("resolved original period")
-                        }
-                    }
+                    Some(crate::Funder::Recurring {
+                        project: current_period.project,
+                        task: root_number,
+                        period: current_period.period,
+                    })
                 } else {
                     None
                 }

@@ -325,6 +325,8 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client-scripted-engine",
                 // The real joint world joins the core and pure test connector
                 // (client/domain/testing.md, 5); client step crates stay separate.
+                // Joint stories use shipped limits (jig/docs/design/protocol/configuration.md, 6).
+                "jig-protocol-config",
                 "jig-domain-core",
                 "jig-domain-authority",
                 "jig-domain-people",

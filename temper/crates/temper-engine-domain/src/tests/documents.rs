@@ -46,6 +46,7 @@ fn plan(documents: &[PlannedDocument], capacity: u32) -> List<brief::Planned> {
     for planned in documents {
         wanted
             .push(brief::Planned::Connector {
+                name: b"document",
                 connector: planned.document.connector,
                 kind: jig_domain_core::DOCUMENT_KIND,
                 token: planned.token,
@@ -170,7 +171,7 @@ fn a_name_that_is_no_forge_branch_is_missing_without_asking_the_forge() {
     let mut requests = Queue::uncapped();
     requests.push(brief::GatherRequest::Gather { connector: 0, section: token, budget: 4096 });
     outputs(&mut domain, &env, &mut requests);
-    let Some(Work::Brief(brief::GatherEvent::Missing { brief, section })) = domain.work.pop() else {
+    let Some(Work::Brief(brief::GatherEvent::Missing { brief, section, .. })) = domain.work.pop() else {
         panic!("missing document")
     };
     assert_eq!((brief, section), (Token::new(8), token));
@@ -322,7 +323,7 @@ fn required_forge_context_without_optional_core_room_abandons_the_documents() {
         if let Work::Brief(brief::GatherEvent::Plan { .. }) = work {
             panic!("no room for a ready plan");
         }
-        if let Work::Core(jig_domain_core::Event::BriefAssembled { task: 8, ready: false }) = work {
+        if let Work::Core(jig_domain_core::Event::BriefAssembled { task: 8, failure: Some(_) }) = work {
             failed = true;
         }
     }
@@ -350,7 +351,7 @@ fn a_gathered_document_keeps_its_kind_and_frees_the_binding_at_completion() {
     brief_outputs(&mut domain, &env, &mut decision, &mut requests);
     let Some(Work::Forge(event)) = domain.work.pop() else { panic!("forge gather") };
     forge::step(&mut domain.forge, &crate::translate::environment_forge(&env), event, &mut out);
-    let Some(forge::Request::BriefSized { section, size: Some(size) }) = out.pop() else { panic!("gathered words") };
+    let Some(forge::Request::BriefSized { section, size: Ok(size) }) = out.pop() else { panic!("gathered words") };
     assert_eq!(section, token);
     assert!(out.is_empty());
     requests.push(brief::GatherRequest::Complete {

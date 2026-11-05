@@ -303,6 +303,7 @@ fn verifying() -> Domain {
 
 fn heard(cancelled: bool) -> change::Heard {
     change::Heard {
+        delegate_running: false,
         start_conflict: None,
         lacking: None,
         spend: None,
@@ -1071,3 +1072,6 @@ fn retained_tier_runs_survive_later_verdicts_restart_and_shared_change_release()
 
 #[path = "landing_log.rs"]
 mod landing_log_tests;
+
+#[path = "status.rs"]
+mod status_tests;

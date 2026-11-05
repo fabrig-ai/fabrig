@@ -1,7 +1,9 @@
 //! Real engine root on its direct store driver, with jig's protocol correlation.
 //! Forge records and playground scripts (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 10).
 pub mod account_acts;
+mod away;
 mod dismissed;
+mod status;
 use crate::app::Event;
 use crate::{app::Temper, fixtures, translate};
 use jig_client_world::{
@@ -21,6 +23,7 @@ pub struct Joint {
     pub engine: Driver,
     pub sign_ins: u32,
     dismissal_sends: usize,
+    status_looks: BTreeMap<ClientId, usize>,
     /// The ctl caller in this world; existing stories use person 1.
     pub caller: u64,
     pub leaves: Vec<Box<[u8]>>,
@@ -36,6 +39,8 @@ pub struct Joint {
     pub playground_starts: Vec<skein_lib::RequestKey>,
     pub playground_removals: Vec<skein_lib::RequestKey>,
     pub playground_reads: usize,
+    pub note_reads: usize,
+    pub note_read_ends: VecDeque<jig_client::contract::ReadNone>,
     /// Terminal replies for successive task-document attempts, before the real engine serves one.
     pub task_read_ends: VecDeque<jig_client::contract::ReadNone>,
     pub reachable_reads: Vec<(u16, Option<u64>, u32)>,
@@ -91,6 +96,11 @@ struct HeldReply {
 }
 fn engine_limits() -> engine::Limits {
     let mut limits = temper_engine_domain_world::fixtures::forge_limits();
+    // The world's engine admits the whole starters and cues its client offers.
+    limits.people.words = limits.people.words.max(temper_client_protocol_wire::CUE_BYTES);
+    limits.tasks.spec_bytes = limits.tasks.spec_bytes.max(temper_client_protocol_wire::CUE_BYTES);
+    limits.tasks.message_bytes = limits.tasks.message_bytes.max(limits.people.words);
+    limits.tasks.inbox_bytes = limits.tasks.inbox_bytes.max(limits.tasks.message_bytes);
     // The world's own bound, not production's: automatic Seen takes a key per arrival.
     limits.people.requests = 5;
     // A goal's driver plus two clients, as a fresh client at an address beside the person's.
@@ -222,7 +232,14 @@ impl Joint {
             }]);
             (config, engine_limits)
         });
-        let mut front = Self::with_engine(seed, &limits, Store::new(), [bootstrap, config], &engine_limits, 1);
+        let mut front = Self::with_engine(
+            seed,
+            &limits,
+            Store::with_limits(&engine_limits),
+            [bootstrap, config],
+            &engine_limits,
+            1,
+        );
         front.reachable_empty = empty;
         front.engine.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(&[
             (b"acme", b"shop", 7),
@@ -363,14 +380,47 @@ impl Joint {
     }
     #[must_use]
     pub fn new(seed: u64, limits: client::Limits) -> Joint {
+        let engine_limits = engine_limits();
         Self::with_engine(
             seed,
             &limits,
-            Store::new(),
+            Store::with_limits(&engine_limits),
             [walking::config(seed), walking::config(seed)],
-            &engine_limits(),
+            &engine_limits,
             1,
         )
+    }
+    /// A chat with authority to write its document, read through the real client component.
+    #[must_use]
+    pub fn with_chat_draft(seed: u64, limits: client::Limits) -> Self {
+        let configs = std::array::from_fn(|_| {
+            let mut config = walking::config(seed);
+            config.core.connectors = Box::new([fixtures::FORGE]);
+            for permission in &mut config.core.seed_projects[0].policy.permissions {
+                permission.connector = fixtures::FORGE;
+            }
+            config.core.defaults.rules.ceiling.notes = jig_domain_authority::Scopes(1);
+            let policy = &mut config.core.seed_projects[0].policy.policy;
+            policy.ceiling.notes = jig_domain_authority::Scopes(1);
+            policy.roles[0].authority.notes = jig_domain_authority::Scopes(1);
+            for template in &mut config.core.defaults.templates {
+                if template.tracked.is_some() {
+                    template.deadline = jig_domain_people::TemplateDeadline::None;
+                }
+            }
+            config
+        });
+        // The chat snapshot includes its instructions, goal line and provenance.
+        let mut engine_limits = engine_limits();
+        // One slot for the chat and one for its goal.
+        engine_limits.fleet.slots = 2;
+        engine_limits.tasks.spec_bytes = 1024;
+        engine_limits.people.words = 1024;
+        engine_limits.tasks.message_bytes = engine_limits.people.words;
+        engine_limits.tasks.inbox_bytes = engine_limits.people.words;
+        engine_limits.journal.result_bytes = engine_limits.journal.result_bytes.max(engine_limits.people.words);
+        engine_limits.watermark = engine::default_watermark(&engine_limits.journal);
+        Self::with_engine(seed, &limits, Store::new(), configs, &engine_limits, 2)
     }
     /// Temper's stock kinds through the joined client and engine roots.
     #[must_use]
@@ -504,13 +554,22 @@ impl Joint {
         Self::open_chats_with_refused_hello(seed, limits, true)
     }
     fn open_chats_with_refused_hello(seed: u64, limits: client::Limits, refuse_hello: bool) -> Joint {
+        let engine_limits = engine_limits();
         let configs = std::array::from_fn(|_| {
             let mut config = walking::config(seed);
             config.core.defaults.templates =
                 temper_engine_domain_world::fixtures::templates_ending(jig_domain_tasks::EndedBy::Requester);
             config
         });
-        Self::with_engine_with_refused_hello(seed, &limits, Store::new(), configs, &engine_limits(), 1, refuse_hello)
+        Self::with_engine_with_refused_hello(
+            seed,
+            &limits,
+            Store::with_limits(&engine_limits),
+            configs,
+            &engine_limits,
+            1,
+            refuse_hello,
+        )
     }
     /// The small profile carries a whole turn while an activity page can size it.
     #[must_use]
@@ -533,7 +592,7 @@ impl Joint {
         Self::with_engine(
             seed,
             limits,
-            Store::with_transcript_bytes(bytes),
+            Store::with_limits(&engine_limits),
             [walking::config(seed), walking::config(seed)],
             &engine_limits,
             1,
@@ -566,7 +625,7 @@ impl Joint {
             engine_limits.journal.held = 192;
             (config, engine_limits)
         });
-        Self::with_engine(seed, &limits, Store::new(), [bootstrap, config], &engine_limits, 2)
+        Self::with_engine(seed, &limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 2)
     }
     pub(crate) fn with_questions(seed: u64, limits: &client::Limits) -> Self {
         Self::with_question_text_bound(seed, limits, None, false)
@@ -603,7 +662,8 @@ impl Joint {
                 // The chat, its goal and the goal's possible delegate fit the tree.
                 engine_limits.tasks.tree_tasks = tasks;
             }
-            engine_limits.tasks.inbox_bytes = 512;
+            engine_limits.tasks.inbox_bytes =
+                engine_limits.tasks.message_bytes.checked_mul(8).expect("question and answer slots fit");
             if let Some(text) = text {
                 engine_limits.documents.text_bytes = text;
             }
@@ -614,7 +674,7 @@ impl Joint {
             engine_limits.journal.held = 192;
             (config, engine_limits)
         });
-        Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, 2)
+        Self::with_engine(seed, limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 2)
     }
     /// A goal and its delegated authority fit, with bounds chosen by the story.
     pub(crate) fn with_delegates(seed: u64, limits: &client::Limits, delegates: u32, page_rows: u32) -> Self {
@@ -652,7 +712,8 @@ impl Joint {
             engine_limits.authority = authority_limits;
             // The core prices two inbox projections for each live task.
             engine_limits.people.inbox_tasks = tasks * 2;
-            engine_limits.tasks.inbox_bytes = 512;
+            engine_limits.tasks.inbox_bytes =
+                engine_limits.tasks.message_bytes.checked_mul(8).expect("question and answer slots fit");
             engine_limits.fleet.slots = 2;
             engine_limits.fleet.attempts = 4;
             engine_limits.journal.writes = 4096;
@@ -660,7 +721,7 @@ impl Joint {
             engine_limits.journal.held = 192;
             (config, engine_limits)
         });
-        Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, 2)
+        Self::with_engine(seed, limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 2)
     }
     /// A real forge procedure is admitted by this scenario's policy.
     #[must_use]
@@ -670,7 +731,7 @@ impl Joint {
         const PARAMETERS: u32 = 2;
         let [(bootstrap, mut engine_limits), (config, _)] = std::array::from_fn(|_| Self::procedure_config(seed));
         engine_limits.tasks.parameters = PARAMETERS;
-        Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, SLOTS)
+        Self::with_engine(seed, limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, SLOTS)
     }
     fn procedure_config(seed: u64) -> (engine::Config, engine::Limits) {
         use jig_domain_authority as a;
@@ -722,6 +783,23 @@ impl Joint {
     /// client/README.md, 8 and 10: a pushed change lands through CI and an agent gate.
     #[must_use]
     pub fn with_change_landing(seed: u64, limits: &client::Limits) -> Self {
+        Self::change_landing(seed, limits, None, false)
+    }
+    /// Settings and a following change through the same joined engine.
+    #[must_use]
+    pub fn with_settings_changes(seed: u64, limits: &client::Limits) -> Self {
+        Self::change_landing(seed, limits, None, true)
+    }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the shared change fixture keeps its policy and settings variant together"
+    )]
+    fn change_landing(seed: u64, limits: &client::Limits, session: Option<Duration>, settings: bool) -> Self {
+        // Chat, reviewer, foreman and change procedure; chat/change/producer depth;
+        // the same owner in the project and deployment.
+        const SETTINGS_EXECUTORS: u32 = 4;
+        const SETTINGS_DEPTH: u32 = 3;
+        const SETTINGS_OWNERS: u32 = 2;
         const SLOTS: u32 = 1;
         // domain/forge.md, 8.4: six descendants, plus the change itself.
         const CHANGE_DESCENDANTS: u32 = 6;
@@ -729,6 +807,9 @@ impl Joint {
         use jig_domain_authority as a;
         let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
             let (mut config, mut limits) = Self::procedure_config(seed);
+            if let Some(session) = session {
+                limits.people.sign_in_lifetime = session;
+            }
             let connector = config.core.connectors[0];
             // Same agent gate and rule as forge_routes.rs's configured_policy
             // (domain/forge.md, 8.3 and 8.7), on the client world's repository.
@@ -824,6 +905,33 @@ impl Joint {
             limits.brief.read_bytes = 512;
             limits.brief.budgets.pull = 384;
             limits.brief.budgets.ci = 384;
+            if settings {
+                config.core.kinds = temper_service::stock::kinds(&limits, connector);
+                let owner = config.core.owners[0].clone();
+                config.core.owners =
+                    Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
+                limits.people.initial_owners = SETTINGS_OWNERS;
+                let mut foreman = config.core.defaults.charters[0].clone();
+                foreman.number = 6;
+                let mut charters = config.core.defaults.charters.into_vec();
+                charters.push(foreman);
+                config.core.defaults.charters = charters.into_boxed_slice();
+                rules.ceiling.delegation.kinds = Box::new([
+                    a::Executor::Charter(1),
+                    a::Executor::Charter(4),
+                    a::Executor::Charter(6),
+                    a::Executor::Procedure(2),
+                ]);
+                policy.ceiling.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
+                policy.roles[0].authority.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
+                rules.ceiling.delegation.depth = SETTINGS_DEPTH;
+                policy.ceiling.delegation.depth = SETTINGS_DEPTH;
+                policy.roles[0].authority.delegation.depth = SETTINGS_DEPTH;
+                limits.tasks.depth = SETTINGS_DEPTH;
+                limits.authority.executors = SETTINGS_EXECUTORS;
+                limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
+                limits.documents.executors = SETTINGS_EXECUTORS;
+            }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();
             a::step(&mut domain, a::Event::Policy { project: 1, policy }, &mut out);
@@ -832,7 +940,26 @@ impl Joint {
             config.core.defaults.rules = domain.rules().clone();
             (config, limits)
         });
-        Self::with_engine(seed, limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, SLOTS)
+        if settings {
+            let mut driver = Driver::cold(Store::with_limits(&engine_limits), bootstrap, &engine_limits);
+            driver.settle();
+            let mut store = driver.take_store();
+            store.seed(
+                temper_engine_domain_world::fixtures::account_rows(&config.core.settings.llm_providers),
+                Box::new([]),
+            );
+            let restart = temper_engine_domain_world::oracle::config::copy(&config);
+            Self::with_engine(seed, limits, store, [config, restart], &engine_limits, SLOTS)
+        } else {
+            Self::with_engine(
+                seed,
+                limits,
+                Store::with_limits(&engine_limits),
+                [bootstrap, config],
+                &engine_limits,
+                SLOTS,
+            )
+        }
     }
     fn landing_reviewer(config: &mut engine::Config) {
         let mut reviewer = config.core.defaults.charters[0].clone();
@@ -851,22 +978,13 @@ impl Joint {
     ) -> Self {
         Self::with_engine_with_refused_hello(seed, limits, store, configs, engine_limits, slots, false)
     }
-    fn with_engine_with_refused_hello(
-        seed: u64,
-        limits: &client::Limits,
-        store: Store,
-        configs: [engine::Config; 2],
+    fn worker_hello(
+        config: &engine::Config,
         engine_limits: &engine::Limits,
         slots: u32,
         refuse_hello: bool,
-    ) -> Self {
-        let mut transport = Transport::new(jig_client::contract::VersionRange {
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
-        });
-        transport.models.clone_from(&configs[1].core.settings.models);
-        transport.providers = configs[1].core.settings.llm_providers.clone();
-        let worker_models = configs[1]
+    ) -> engine::Event {
+        let worker_models = config
             .core
             .settings
             .models
@@ -886,11 +1004,30 @@ impl Joint {
             unreachable!("worker hello")
         };
         value.bounds.models = worker_models;
+        value.bounds.message_bytes = engine_limits.tasks.message_bytes;
         if refuse_hello {
             // The fixture configures only worker zero.
             const UNCONFIGURED_WORKER: u32 = 7;
             *worker = UNCONFIGURED_WORKER;
         }
+        hello
+    }
+    fn with_engine_with_refused_hello(
+        seed: u64,
+        limits: &client::Limits,
+        store: Store,
+        configs: [engine::Config; 2],
+        engine_limits: &engine::Limits,
+        slots: u32,
+        refuse_hello: bool,
+    ) -> Self {
+        let mut transport = Transport::new(jig_client::contract::VersionRange {
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        });
+        transport.models.clone_from(&configs[1].core.settings.models);
+        transport.providers = configs[1].core.settings.llm_providers.clone();
+        let hello = Self::worker_hello(&configs[1], engine_limits, slots, refuse_hello);
         // protocol/configuration.md, 7: documents fit the client this world serves.
         // Smaller text projections still retain the full task spec and brief.
         let mut engine_limits = *engine_limits;
@@ -911,6 +1048,7 @@ impl Joint {
             engine,
             sign_ins: 0,
             dismissal_sends: 0,
+            status_looks: BTreeMap::new(),
             caller: fixtures::PARTY,
             leaves: Vec::new(),
             refuse_return: false,
@@ -925,6 +1063,8 @@ impl Joint {
             playground_starts: Vec::new(),
             playground_removals: Vec::new(),
             playground_reads: 0,
+            note_reads: 0,
+            note_read_ends: VecDeque::new(),
             task_read_ends: VecDeque::new(),
             reachable_reads: Vec::new(),
             reachable_empty: false,
@@ -1171,6 +1311,37 @@ impl Joint {
         }
         false
     }
+    fn note_read_end(&mut self, who: ClientId, request: &Request) -> bool {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Read {
+                            read,
+                            what: jig_client::Readable::Jig(jig_client::contract::Read::Notes { .. }),
+                        },
+                },
+        } = request
+        {
+            self.note_reads += 1;
+            if let Some(why) = self.note_read_ends.pop_front() {
+                self.callbacks.push((
+                    who,
+                    RootEvent::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Jig(jig_client::contract::ReadResult::None(why)),
+                            },
+                        },
+                    }
+                    .into(),
+                ));
+                return true;
+            }
+        }
+        false
+    }
     fn task_read_end(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Unlinked {
             request:
@@ -1334,7 +1505,8 @@ impl Joint {
         if self.reachable(who, &request) || self.start_playground(who, &request) {
             return;
         }
-        if self.playground_read(who, &request) || self.task_read_end(who, &request) {
+        if self.playground_read(who, &request) || self.note_read_end(who, &request) || self.task_read_end(who, &request)
+        {
             return;
         }
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
@@ -1422,6 +1594,7 @@ impl Joint {
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         makings: skein_lib::List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number: playground.forge(),
@@ -1743,6 +1916,7 @@ impl Front<Temper> for Joint {
     fn wire(&mut self, who: ClientId, now: Time, _wall: Wall, request: Request) {
         self.advance(now);
         self.count_dismissal(&request);
+        self.count_status_look(who, &request);
         self.request(who, request);
     }
     fn poll(&mut self, now: Time, _wall: Wall) -> Vec<(ClientId, Event)> {
@@ -1808,11 +1982,19 @@ impl Front<Temper> for Joint {
                     fixtures::REPOSITORIES,
                 );
                 self.engine.pump();
-                self.engine.send(temper_engine_domain_world::protocol::hello_slots(
+                let mut hello = temper_engine_domain_world::protocol::hello_slots(
                     fixtures::QUESTION_WORKER,
                     limits.fleet.slots,
                     hosting,
-                ));
+                );
+                if let engine::Event::Worker(engine::WorkerInput::Link {
+                    link: engine::Link::Hello { hello, .. },
+                    ..
+                }) = &mut hello
+                {
+                    hello.bounds.message_bytes = limits.tasks.message_bytes;
+                }
+                self.engine.send(hello);
                 self.engine.settle();
                 self.reads = 0;
                 self.read_loads.clear();

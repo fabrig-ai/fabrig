@@ -274,6 +274,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
+        | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
         | core::Now::RestoreRefused => stop::invalid_restore(engine),
     }

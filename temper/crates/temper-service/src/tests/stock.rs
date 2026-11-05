@@ -267,7 +267,7 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
     let engine = engine(&single_model());
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
-        assert!(charter.policy.inspect);
+        assert_eq!(charter.policy.inspect, charter.number != 9);
         assert!(!charter.policy.shell);
         assert_eq!(charter.policy.modify, charter.number == 2);
         assert_eq!(charter.policy.agents, charter.number == 1 || charter.number == 2);
@@ -278,8 +278,11 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
 fn the_configuring_agent_is_charter_3_and_template_3() {
     let engine = engine(&single_model());
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
-    assert_eq!(defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 6]);
-    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 1920, 512, 512]) {
+    assert_eq!(
+        defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
+        [1, 2, 3, 4, 6, 9]
+    );
+    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 1920, 512, 512, 0]) {
         assert_eq!(charter.policy.tools, jig_domain_tasks::Tools(tools));
     }
     let mut expected = defaults.charters[0].clone();
@@ -290,7 +293,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 4173);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 4807);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -338,15 +341,15 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     }
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 5742, Setting::Policy(1), "the stock's policy 1 needs 5742 bytes"),
+        (b"core.policy_bytes", 5774, Setting::Policy(1), "the stock's policy 1 needs 5774 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 8, Setting::Rules, "the stock's rules need 8 executors"),
+        (b"authority.executors", 9, Setting::Rules, "the stock's rules need 9 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 5, Setting::Charter(1), "the stock offers 5 charters"),
+        (b"tasks.charters", 6, Setting::Charter(1), "the stock offers 6 charters"),
         (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
         (b"documents.text_bytes", 11, Setting::Template(3), "the stock's template 3 needs 11 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
@@ -459,7 +462,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5742 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5774 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -512,6 +515,40 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     ] {
         assert!(goal.contains(phrase), "{phrase}");
     }
+}
+
+// temper/docs/design/protocol/configuration.md, 13.4; domain/agent.md, 4.3.
+#[test]
+fn a_goal_is_told_to_call_decided_before_it_asks() {
+    let words = include_str!("../stock/chat.txt");
+    let goal = words
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
+        .expect("goal paragraph");
+    assert!(goal.contains("Otherwise do the work without asking. Before you ask your requester anything, call decided with the question, its options, the one you'd take, why, and its kind; on Decided carry on with it and ask no one; on Ask, ask them with message, as a question."), "the goal calls decided before asking and follows its answer");
+    assert!(
+        goal.contains("Funds, sign-ins, machines, a plan's go-ahead and anything hard to reverse are kind other."),
+        "these decisions wait for the person"
+    );
+    assert!(
+        goal.contains("If they tell you a decision was overturned, ask it with message, as a question, and wait."),
+        "an overturned decision waits for the person's answer"
+    );
+}
+
+#[test]
+fn asks_always_is_told_never_to_call_it() {
+    let words = include_str!("../stock/chat.txt");
+    let goal = words
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
+        .expect("goal paragraph");
+    assert!(
+        goal.contains(
+            "If your words hold the line Asks: always, never call decided: ask them with message, as a question."
+        ),
+        "Asks: always bypasses decided and asks the person"
+    );
 }
 
 #[test]
@@ -730,7 +767,10 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 fn the_foremans_charter_reads_and_gives_a_verdict() {
     let engine = engine(&single_model());
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
-    assert_eq!(defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 6]);
+    assert_eq!(
+        defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
+        [1, 2, 3, 4, 6, 9]
+    );
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let mut expected = defaults.charters[3].clone();
     expected.number = 6;
@@ -823,7 +863,7 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
         for (charter, (turns, seconds)) in
-            stock.charters.iter().zip([(64, 3600), (800, 28_800), (64, 3600), (800, 28_800), (800, 28_800)])
+            stock.charters.iter().zip([(64, 3600), (800, 28_800), (64, 3600), (800, 28_800), (800, 28_800), (4, 300)])
         {
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "{row}");
@@ -944,6 +984,7 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
                 Executor::Charter(3),
                 Executor::Charter(4),
                 Executor::Charter(6),
+                Executor::Charter(9),
                 Executor::Procedure(2),
                 Executor::Procedure(3),
                 Executor::Procedure(4)
@@ -982,6 +1023,21 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
     );
     assert!(words.contains("After calling change, say only that work started until the delegate reports."));
     assert!(words.contains("Name only checks or tests the result names."));
+}
+
+#[test]
+fn the_coders_words_put_its_report_in_finish() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("Summarize the change in finish; message your change only in the question form."));
+}
+
+#[test]
+fn the_coders_words_wait_after_asking() {
+    let engine = engine(&single_model());
+    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let coder = stock.charters.iter().find(|charter| charter.number == 2).expect("coding charter 2");
+    let words = core::str::from_utf8(&coder.policy.instructions).expect("coding instructions");
+    assert!(words.contains("After asking, call wait, not finish: the answer reaches this run."));
 }
 
 #[test]
@@ -1067,6 +1123,22 @@ fn kinds_are_declared_with_their_bounds() {
                 value_bytes: temper_engine_smith::kinds::size(&settings::Value::Charter(2)),
                 per_scope: 2,
                 charters: 1
+            },
+            Kind {
+                number: 6,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 1,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 7,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 8,
+                per_scope: 1,
+                charters: 0
             },
         ]
     );
@@ -1190,5 +1262,54 @@ fn assert_document_rule(words: &str) {
         "Mermaid is not drawn, so do not draw diagrams",
     ] {
         assert!(words.contains(phrase), "missing document instruction: {phrase}");
+    }
+}
+
+#[test]
+fn the_status_charter_is_small_and_reaches_nothing() {
+    let engine = engine(&generated());
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let status = defaults.charters.iter().find(|charter| charter.number == 9).expect("status charter");
+    let mut expected = defaults.charters[0].clone();
+    expected.number = 9;
+    expected.policy.instructions = include_bytes!("../stock/status.txt").as_slice().into();
+    expected.policy.turns = 4;
+    expected.policy.time = skein_lib::Duration::from_secs(300);
+    expected.policy.inspect = false;
+    expected.policy.agents = false;
+    expected.policy.tools = jig_domain_tasks::Tools(0);
+    assert_eq!(*status, expected);
+    assert_eq!(status.policy.reserve_turns, 1);
+    assert_eq!(status.policy.reserve_time, skein_lib::Duration::from_secs(60));
+    assert!(!status.policy.inspect);
+    assert!(!status.policy.modify);
+    assert!(!status.policy.shell);
+    assert!(!status.policy.agents);
+    assert_eq!(status.policy.tools, jig_domain_tasks::Tools(0));
+}
+
+#[test]
+fn the_status_charters_words_are_the_requests() {
+    let words = include_str!("../stock/status.txt");
+    assert_eq!(
+        words,
+        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why. Say only what the facts say. No greetings, no lists, no advice."
+    );
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let status = defaults.charters.iter().find(|charter| charter.number == 9).expect("status charter");
+    assert_eq!(status.policy.instructions.as_ref(), words.as_bytes());
+}
+
+#[test]
+fn the_rules_delegate_to_the_status_charter() {
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let policy = &defaults.policies.get(&1).expect("policy 1").policy;
+    for authority in [&defaults.rules.ceiling, &policy.ceiling]
+        .into_iter()
+        .chain(policy.roles.iter().filter(|role| role.authority.budget.spend != 0).map(|role| &role.authority))
+    {
+        assert!(authority.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(9)));
     }
 }

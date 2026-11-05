@@ -6,7 +6,15 @@ extern crate alloc;
 
 #[rustfmt::skip]
 #[path = "generated/v1.rs"]
+#[expect(clippy::similar_names, reason = "the schema names the ways fields away and way")]
 pub mod v1;
+
+/// Kinds with typed settings values at temper's entrances
+/// (temper/docs/design/protocol/configuration.md, 13.2).
+#[must_use]
+pub const fn settings_kind(kind: u32) -> bool {
+    kind == 1 || kind == 2 || kind == 3 || kind == 6 || kind == 7
+}
 
 /// The forge's visitor records (temper/docs/design/client/forge.md, 11.4).
 #[rustfmt::skip]
@@ -74,6 +82,8 @@ pub const DISMISSED: u32 = 8192;
 pub const INSTALLATIONS: u32 = 64;
 /// The maximum repository makings per forge (temper/docs/design/client/README.md, 4.6).
 pub const MAKINGS: u32 = 64;
+/// The set up's maximum number of deferred copies (protocol/setup.md, 6.7).
+pub const FIRST_COPIES: u32 = 16;
 /// The last connect's maximum stop reason length (client/README.md, 4.6).
 pub const CONNECT_WHY_BYTES: u32 = 256;
 /// The box's maximum setup failure line length (client/README.md, 4.6).
@@ -154,8 +164,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         playground_answer_cues_item: CUE_BYTES,
         first_ask_org: bounds.field_bytes,
         first_ask_repository: bounds.field_bytes,
-        set_up_org: bounds.field_bytes,
-        set_up_repository: bounds.field_bytes,
+        first_empty_org: bounds.field_bytes,
+        first_empty_repository: bounds.field_bytes,
         first_repository_org: bounds.field_bytes,
         first_repository_repository: bounds.field_bytes,
         adopt_owner: bounds.field_bytes,
@@ -317,6 +327,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         }
         v1::Request::Accept(value) if value.installation() == 0 => return None,
         v1::Request::Reachable(value) if value.page() == 0 => return None,
+        v1::Request::SetAway(value) if value.kinds() > 15 => return None,
         v1::Request::Reachable(_)
         | v1::Request::Accept(_)
         | v1::Request::Install(_)
@@ -324,6 +335,9 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
         | v1::Request::Dismiss(_)
+        | v1::Request::Looked(_)
+        | v1::Request::SetAway(_)
+        | v1::Request::Overturn(_)
         | v1::Request::Replace(_)
         | v1::Request::RemoveForge(_)
         | v1::Request::StartPlayground
@@ -455,6 +469,51 @@ pub fn decode_changes_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Cha
     if reader.is_empty() { Some(record) } else { None }
 }
 
+/// Encode a party's project status (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn project_status(record: &v1::ProjectStatus) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete project status (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_project_status(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ProjectStatus> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::ProjectStatus::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a party's away rows (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn aways(record: &v1::Aways) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete aways document (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_aways(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Aways> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::Aways::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a project's decisions (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decisions(record: &v1::Decisions) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete decisions document (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_decisions(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Decisions> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::Decisions::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
 /// Encode the current value of a forge setting (client/forge.md, 9).
 #[must_use]
 pub fn setting_answer(record: &v1::SettingAnswer) -> Box<[u8]> {
@@ -483,3 +542,10 @@ pub fn decode_proposal_items_answer(bytes: &[u8], limits: &v1::Limits) -> Option
     let record = v1::ProposalItemsAnswer::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
+
+/// A goal reads its work as a goal (temper/docs/design/domain/agent.md, 4.3.2).
+pub const GOAL_SCOPE: &[u8] =
+    b"You are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.";
+/// A goal asks for agreement before changes (temper/docs/design/domain/agent.md, 8.2).
+pub const GOAL_AGREED: &[u8] =
+    b"The work is to be agreed: before anything is changed, ask your requester your plan with message, as a question, and wait for the answer.";

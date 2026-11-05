@@ -33,8 +33,9 @@ mod tests {
                     }],
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
-                    handles: 9,
-                    watches: 9,
+                    // Session settings, its project read and the standing needs watch.
+                    handles: 12,
+                    watches: 11,
                     turn_bytes: 65536,
                     backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                     authority: 12,
@@ -155,11 +156,7 @@ mod tests {
         let mut root = domain::unlinked(&domain_limits(), 11);
         let mut requests = root_event(
             &mut root,
-            Event::Start {
-                address: domain::Address::Task { task: TASK, filter: domain::PlanFilter::All },
-                kept: List::with_capacity(0),
-                with: None,
-            },
+            Event::Start { address: domain::Address::Task { task: TASK }, kept: List::with_capacity(0), with: None },
         );
         // Successful sign-in ends the pre-sign-in read; its owner asks anew
         // before the first me (client/README.md, 3.4). Keep that output too.
@@ -290,10 +287,6 @@ mod tests {
         .expect("one activity");
         c::ReadValue::Activity(Box::new(c::ActivityPage { rows, before: None, after: None, cut: false }))
     }
-    fn act(root: &mut Domain, act: domain::pages::Act) -> Vec<jig_client::Down> {
-        root_event(root, Event::Act { action: domain::Action::Pages(act) })
-    }
-
     fn went(root: &mut Domain, address: domain::Address) -> Vec<jig_client::Down> {
         root_event(root, Event::Went { place: domain::Place::Address(address) })
     }
@@ -350,34 +343,6 @@ mod tests {
         );
         assert_eq!(root.pages().task().expect("agent").shape, domain::pages::task::Shape::Agent);
         assert!(root.pages().task().expect("agent").ended.is_none());
-    }
-
-    // A filter moves within the goal's page; reopening the unfiltered address shows All.
-    #[test]
-    fn goal_filter_moves_without_wire_work_and_the_plain_address_reopens_all() {
-        let (mut root, watch, tree_watch, _) = opened(goal());
-        let local = act(&mut root, domain::pages::Act::PlanFilter { filter: domain::address::PlanFilter::Live });
-        assert!(local.is_empty(), "filter move emitted no wire work");
-        let moved = went(&mut root, domain::Address::Task { task: TASK, filter: domain::PlanFilter::Live });
-        assert!(moved.is_empty(), "same task keeps its reads");
-        assert_eq!(root.pages().task().expect("goal").filter, domain::PlanFilter::Live);
-        drop(went(&mut root, domain::Address::Chats { filter: domain::ChatsFilter::All }));
-        let requests = went(&mut root, domain::Address::Task { task: TASK, filter: domain::PlanFilter::All });
-        let page = root.pages().task().expect("reopened task");
-        assert_eq!(page.filter, domain::address::PlanFilter::All);
-        let new_watch = requests
-            .iter()
-            .find_map(|request| match request {
-                jig_client::Down::Open {
-                    watch,
-                    subject: jig_client::Watchable::Jig(c::Subject::Task { task: TASK }),
-                } => Some(*watch),
-                _ => None,
-            })
-            .expect("new document watch");
-        assert_ne!(new_watch, watch, "new open uses a fresh task watch");
-        let late = deliver(&mut root, tree_watch, tree(&goal()));
-        assert!(reads(&late).is_empty(), "old tree cannot invalidate new page");
     }
 
     // client/README.md 5.9: a live run has a run watch, no run out ends it as a chat's;

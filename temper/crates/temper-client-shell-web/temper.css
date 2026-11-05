@@ -143,11 +143,11 @@ a { color: inherit; text-decoration: none; }
 .temper-main:focus-visible, :where(.temper-main) :focus-visible { outline-width: 2.33px; outline-offset: 2.33px; }
 :where(.temper-main) [data-drawn] > :not(svg), :where(.temper-main) [id^="skein-ui-state-"] { width: 1.17px; height: 1.17px; margin: -1.17px; }
 /* skein's absolute small label is 13px in Chromium; unlike inherited type it needs its own length. */
-:where(.temper-main) label[for^="skein-ui-label-"]:has(+ input:not([type="radio"], [type="checkbox"])) { font-size: 15.17px; }
+:where(.temper-main:where(:not(.temper-settings))) label[for^="skein-ui-label-"]:has(+ input:not([type="radio"], [type="checkbox"])) { font-size: 15.17px; }
 /* Native checks and radios have a 13px intrinsic box, which zoom enlarged too. */
 :where(.temper-main) input:is([type=radio], [type=checkbox]) { width: 15.17px; height: 15.17px; }
-.temper-main h1, .temper-main h2 { margin: 0 0 10.5px; font: 700 16.33px/1.3 var(--temper-mono); letter-spacing: -.025em; }
-.temper-main h2 { margin-top: 26.83px; }
+.temper-main:where(:not(.temper-settings)) h1, .temper-main:where(:not(.temper-settings)) h2 { margin: 0 0 10.5px; font: 700 16.33px/1.3 var(--temper-mono); letter-spacing: -.025em; }
+.temper-main:where(:not(.temper-settings)) h2 { margin-top: 26.83px; }
 /* .terminal-entry-composer: prompt, growing text and named send control. */
 .temper-entry { width: min(886.67px, 100%); min-height: 49px; border: 1px solid #dcd4c9; border-radius: 7px; background: var(--temper-paper); display: flex; align-items: flex-end; gap: 10.5px; padding: 9.33px 10.5px 9.33px 14px; margin-bottom: 24.5px; }
 .temper-entry:focus-within { border-color: #cba893; box-shadow: 0 0 0 2.33px #f4e7de; }
@@ -163,13 +163,13 @@ a { color: inherit; text-decoration: none; }
 .temper-hint { align-self: center; color: #aaa399; font-size: 11.67px; white-space: nowrap; margin: 0; }
 .temper-time { color: var(--temper-muted); font-size: 12.83px; text-align: right; }
 /* .tag: status words with their five meaning colours. */
-.temper-status-yours, .temper-status-held, .temper-status-retrying, .temper-status-active, .temper-status-quiet { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; }
-.temper-status-yours { color: var(--temper-accent-dark); background: var(--temper-accent-pale); }
-.temper-status-held { color: var(--temper-red); background: var(--temper-red-pale); }
-.temper-status-retrying { color: var(--temper-amber); background: var(--temper-amber-pale); }
-.temper-status-active { color: var(--temper-green); background: var(--temper-green-pale); }
-.temper-status-quiet { color: #6d695f; background: #f3f1eb; }
-.temper-status-waiting { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; color: var(--temper-amber); background: var(--temper-amber-pale); }
+.temper-status-yours:where(:not(.temper-settings-row *)), .temper-status-held:where(:not(.temper-settings-row *)), .temper-status-retrying:where(:not(.temper-settings-row *)), .temper-status-active:where(:not(.temper-settings-row *)), .temper-status-quiet:where(:not(.temper-settings-row *)) { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; }
+.temper-status-yours:where(:not(.temper-settings-row *)) { color: var(--temper-accent-dark); background: var(--temper-accent-pale); }
+.temper-status-held:where(:not(.temper-settings-row *)) { color: var(--temper-red); background: var(--temper-red-pale); }
+.temper-status-retrying:where(:not(.temper-settings-row *)) { color: var(--temper-amber); background: var(--temper-amber-pale); }
+.temper-status-active:where(:not(.temper-settings-row *)) { color: var(--temper-green); background: var(--temper-green-pale); }
+.temper-status-quiet:where(:not(.temper-settings-row *)) { color: #6d695f; background: #f3f1eb; }
+.temper-status-waiting:where(:not(.temper-settings-row *)) { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; color: var(--temper-amber); background: var(--temper-amber-pale); }
 /* .first-run-context: the project and signed-in role. */
 .temper-context { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; color: var(--temper-muted); font-size: 12.83px; margin: 0 0 21px; }
 /* The shared card and the agent page's composer. */
@@ -488,8 +488,8 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 /* .card.card-pad and .card-top h2: the task's stacked cards. */
 .temper-page > .temper-task-card { min-width: 0; padding: 17.5px 21px; border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); margin-block: 0 10.5px; overflow-wrap: anywhere; }
 .temper-task-card > h2 { margin: 0; font: 700 16.33px/1.3 var(--temper-mono); letter-spacing: -.025em; }
-/* What was asked and .rule: markdown followed by the supplied resource row. */
-.temper-task-card > p, .temper-task-card > ul:not(.temper-events), .temper-task-card > ol, .temper-task-card > pre, .temper-task-card > blockquote { margin: 16.33px 0 0; font-size: 14px; line-height: 1.7; }
+/* A task card's markdown and supplied resource row. */
+.temper-task-card > p, .temper-task-card > ul, .temper-task-card > ol, .temper-task-card > pre, .temper-task-card > blockquote { margin: 16.33px 0 0; font-size: 14px; line-height: 1.7; }
 .temper-task-card pre { overflow-x: auto; white-space: pre; overflow-wrap: normal; }
 .temper-task-card code { font: inherit; }
 .temper-task-card > .temper-meta { border-top: 1px solid var(--temper-line); padding-top: 14px; margin-top: 14px; }
@@ -533,15 +533,6 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-plan-hold button:first-of-type { background: var(--temper-accent); border-color: var(--temper-accent); color: white; }
 .temper-plan-hold button:first-of-type:hover { background: #a8563e; }
 .temper-plan-hold textarea { display: block; width: 100%; min-height: 87.5px; margin-top: 9.33px; border: 1px solid #d8d0c5; border-radius: 5.83px; padding: 9.33px; resize: vertical; font: inherit; }
-/* .timeline and .event: faint wall-clock times beside activity words. */
-.temper-events { display: grid; list-style: none; padding: 0; margin: 0; }
-.temper-events > li { display: grid; grid-template-columns: 63px minmax(0, 1fr); gap: 14px; padding: 9.33px 0; border-bottom: 1px solid #f0ede8; font-size: 12.83px; }
-.temper-events > li:last-child { border-bottom: 0; }
-.temper-events > li > p { color: #a09c93; margin: 0; }
-.temper-events > li > div { min-width: 0; }
-.temper-events > li > div p { margin: 3.5px 0 0; color: var(--temper-muted); font-size: 12.83px; }
-/* .event strong: the first line is the ink headline, level with the time. */
-.temper-events > li > div > p:first-child { margin-top: 0; color: var(--temper-ink); }
 /* .page at 850px: keep the task heading on the page's left edge. */
 @media (max-width: 850px) {
   .temper-main.temper-page > .temper-task-heading { margin-left: 19.83px; }
@@ -596,82 +587,8 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 }
 
 
-/* accounts.html's page and cards; .welcome keeps adoption's own column. */
-.temper-main.temper-page > :is(.temper-accounts-page, .temper-adoption-page) { width: 100%; margin: 0; color: var(--temper-ink); }
-.temper-accounts-page > :not(.temper-pagebar) { width: min(1353.33px, calc(100% - 56px)); margin-inline: auto; }
-.temper-adoption-page > :not(.temper-pagebar) { width: min(886.67px, calc(100% - 56px)); margin-inline: auto; }
-:is(.temper-accounts-page, .temper-adoption-page) .temper-pagebar { height: auto; min-height: 43.17px; padding-block: 10.5px; }
-:is(.temper-accounts-page, .temper-adoption-page) .temper-pagebar h1 { margin: 0; font: 700 12.83px/1.58 var(--temper-mono); }
-/* .first-run-panel: supplied regions and the standalone form are cards. */
-.temper-accounts-page :is(section, form) { border: 1px solid var(--temper-line); border-radius: 5.83px; background: #fffefd; padding: 17.5px 21px; margin-block: 14px; min-width: 0; }
-.temper-adoption-page section { border: 1px solid #dbd4ca; border-radius: 10.5px; background: #fffefd; padding: 23.33px; margin-block: 14px; min-width: 0; }
-.temper-accounts-page h2 { margin: 25.67px 0 10.5px; font: 700 16.33px/1.3 var(--temper-mono); }
-.temper-accounts-page section h2 { margin-top: 0; }
-.temper-accounts-page .temper-heading > :is(h2, p) { margin-block: 0; }
-.temper-accounts-page h3 { margin: 0 0 10.5px; font: 700 14px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
-.temper-accounts-page section h3 { font-size: 16.33px; }
-:is(.temper-accounts-page, .temper-adoption-page) :is(p, [role=status]) { margin-block: 7px 0; font-size: 12.83px; color: #756e65; overflow-wrap: anywhere; }
-:is(.temper-accounts-page, .temper-adoption-page) [role=alert] { margin-top: 14px; font-size: 12.83px; color: var(--temper-red); overflow-wrap: anywhere; }
-/* .kv: preserve the source's complete text and supplied order. */
-.temper-accounts-page ul { list-style: none; margin: 7px 0 0; padding: 0; }
-.temper-accounts-page li { display: flex; flex-wrap: wrap; gap: 14px; padding: 9.33px 0; border-bottom: 1px solid #f0ede8; color: var(--temper-ink); font-size: 12.83px; overflow-wrap: anywhere; min-width: 0; }
-.temper-accounts-page li:last-child { border-bottom: 0; padding-bottom: 0; }
-/* .rule and .field: panels keep the existing sibling fields in a grid. */
-.temper-accounts-page form { position: relative; margin-top: 43.17px; display: grid; grid-template-columns: repeat(auto-fill, minmax(256.67px, 1fr)); gap: 0 16.33px; }
-.temper-accounts-page form::before { content: ''; position: absolute; top: -22.17px; left: 0; right: 0; height: 1px; background: var(--temper-line); }
-.temper-accounts-page form .temper-card, .temper-adoption-page section .temper-card { padding: 0; border: 0; border-radius: 0; background: transparent; }
-:is(.temper-accounts-page, .temper-adoption-page) div:has(> input:not([type=radio]):not([type=checkbox])) { min-width: 0; }
-/* Keep the former :is() arm's three-class specificity for Accounts. */
-.temper-accounts-page form > .temper-card:has(> input:not([type=radio]):not([type=checkbox])) { display: flex; flex-direction: column; justify-content: flex-end; }
-.temper-accounts-page label[for]:has(+ input:not([type=radio], [type=checkbox])) { display: block; margin: 14px 0 5.83px; color: #756e65; font: 12.83px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
-.temper-accounts-page input:not([type=radio]):not([type=checkbox]) { display: block; width: 100%; min-width: 0; border: 1px solid #d8d0c5; background: #fff; color: var(--temper-ink); border-radius: 9.33px; padding: 10.5px 12.83px; font: 14px/1.58 var(--temper-mono); }
-/* The forges form's .forge-field, with the renderer's sibling label. */
-.temper-adoption-page label[for]:has(+ input:not([type=radio], [type=checkbox])) { display: block; margin: 14px 0 4.67px; color: #77756e; font: 11.67px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
-.temper-adoption-page input:not([type=radio]):not([type=checkbox]) { display: block; width: 100%; min-width: 0; border: 1px solid #dcd4c9; background: #fffefd; color: var(--temper-ink); border-radius: 5.83px; padding: 7px 9.33px; font: 12.83px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-/* Existing model validation marks both the field and its adjacent explanation. */
-:is(.temper-accounts-page, .temper-adoption-page) input[aria-invalid=true]:not([type=radio]):not([type=checkbox]) { border-color: var(--temper-red); }
-:is(.temper-accounts-page, .temper-adoption-page) input[aria-invalid=true] + [role=status] { color: var(--temper-red); }
-/* .stack and .kv: one radio or check and its existing words on each row. */
-.temper-adoption-page [role=radiogroup] { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10.5px; margin-top: 21px; }
-.temper-adoption-page [role=radiogroup] > label { display: block; padding: 9.33px 0; margin: 0; border-bottom: 1px solid #f0ede8; color: var(--temper-ink); font-size: 12.83px; overflow-wrap: anywhere; }
-.temper-adoption-page [role=radiogroup] > label:last-child { border-bottom: 0; }
-.temper-adoption-page input:is([type=radio], [type=checkbox]) { flex: none; margin: 0; accent-color: var(--temper-accent); }
-/* The pinned renderer emits the input and its label as siblings. */
-.temper-adoption-page [role=radiogroup] > input { align-self: center; }
-/* .button-row and dialog actions: Accounts stays plain; Adopt is primary. */
-.temper-accounts-page form > .temper-card:first-of-type { grid-column: 1; }
-.temper-accounts-page form > label, .temper-accounts-page form > .temper-card:has(> button) { grid-column: 1 / -1; }
-.temper-accounts-page form > input { grid-column: 1; }
-.temper-accounts-page form > :is(p, [role=status], [role=alert], a) { grid-column: 1 / -1; min-width: 0; }
-.temper-accounts-page .temper-status-done { color: var(--temper-green); }
-.temper-accounts-page form > .temper-card:has(> button) { display: flex; flex-wrap: wrap; align-items: center; gap: 9.33px; margin-top: 21px; }
-.temper-accounts-page form > .temper-card:has(> button) > :not(button) { flex-basis: 100%; }
-.temper-page :is(.temper-accounts-page, .temper-adoption-page) button, .temper-page .temper-accounts-page .temper-card button { min-height: 32.67px; max-width: 100%; border: 1px solid #d8d0c5; border-radius: 5.83px; background: #fffefd; color: var(--temper-ink); padding: 7px 11.67px; margin: 0; font: 600 12.83px/1.3 var(--temper-mono); overflow-wrap: anywhere; }
-.temper-accounts-page form > button { justify-self: start; margin: 0 0 7px; }
-/* The form's checks on the radios' grid, each check and the act on the fields' 14px rhythm. */
-.temper-adoption-page section { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10.5px; }
-.temper-adoption-page section > :not(input[type=checkbox], input[type=checkbox] + label) { grid-column: 1 / -1; }
-.temper-adoption-page section > input[type=checkbox] { grid-column: 1; align-self: center; margin-top: 14px; }
-.temper-adoption-page section > input[type=checkbox] + label { grid-column: 2; margin: 14px 0 0; }
-.temper-page .temper-adoption-page section > button { justify-self: start; margin-top: 14px; }
-:is(.temper-accounts-page, .temper-adoption-page) button:disabled { opacity: .55; cursor: default; }
-.temper-accounts-page a { color: var(--temper-accent); text-decoration: underline; overflow-wrap: anywhere; }
-.temper-accounts-page .temper-heading > a { color: var(--temper-ink); text-decoration: none; }
-@media (max-width: 850px) {
-  .temper-accounts-page > :not(.temper-pagebar) { width: calc(100% - 39.67px); }
-}
-@media (max-width: 760px) {
-  .temper-accounts-page > :not(.temper-pagebar) { width: calc(100% - 32.67px); }
-}
-/* .first-run-panel on a phone: adoption's 18.67px edges and one field per row. */
-@media (max-width: 600px) {
-  .temper-adoption-page > :not(.temper-pagebar) { width: calc(100% - 37.33px); }
-  .temper-accounts-page form { grid-template-columns: minmax(0, 1fr); }
-  :is(.temper-accounts-page, .temper-adoption-page) .temper-pagebar { padding-inline: 18.67px; }
-}
-
 /* Supplied refusals keep Status semantics and share the Accounts alert colour. */
-.temper-main [role=status].temper-refusal { color: var(--temper-red); font-size: 12.83px; overflow-wrap: anywhere; }
+.temper-main:where(:not(.temper-settings)) [role=status].temper-refusal { color: var(--temper-red); font-size: 12.83px; overflow-wrap: anywhere; }
 
 /* Existing unavailable guidance uses the Accounts card and reading column. */
 .temper-main:has(> .temper-unavailable) { width: 100%; padding-top: 191.33px; }
@@ -819,15 +736,12 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-welcome-muted, .temper-welcome-after { color: var(--temper-muted); }
 .temper-welcome-after { margin-top: 23.33px; }
 .temper-welcome p.temper-welcome-tiny { font-size: 12.83px; }
-.temper-welcome .temper-welcome-checklist { gap: 18.67px; margin: 30.33px 0; }
-.temper-welcome-checklist > li > :is(p, :where(.temper-account-line)) { margin: 0; }
-.temper-welcome-checklist .temper-welcome-end { margin-left: -21px; }
 .temper-welcome-status { margin-bottom: 23.33px; color: var(--temper-muted); font-size: 12.83px; }
 .temper-welcome .temper-welcome-status > p { margin: 0; color: var(--temper-muted); font-size: 12.83px; }
 .temper-repository-private { display: inline-flex; align-items: center; gap: 5.83px; white-space: nowrap; padding: 2.33px 7px; border-radius: 3.5px; background: #f3f1eb; color: #6d695f; font-size: 11.67px; font-weight: 600; }
 .temper-repository-choice { display: flex; align-items: center; gap: 9.33px; grid-column: 1 / -1; padding: 8.17px 11.67px; border: 1px solid #e8e4dc; border-radius: 5.83px; background: var(--temper-paper); font: 12.83px var(--temper-mono); }
 .temper-repository-choice.temper-repository-selected { border-color: #ba694e; background: var(--temper-accent-pale); }
-.temper-flow-card .temper-repository-choice > input[type=radio] { display: block; width: 15.17px; margin: 0; padding: 0; border: 0; background: transparent; accent-color: var(--temper-accent); }
+.temper-flow-card:where(:not(.temper-settings-row *)) .temper-repository-choice > input[type=radio] { display: block; width: 15.17px; margin: 0; padding: 0; border: 0; background: transparent; accent-color: var(--temper-accent); }
 .temper-repository-choice > label { margin: 0; color: var(--temper-ink); font: 12.83px var(--temper-mono); }
 
 .temper-welcome-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9.33px; }
@@ -847,12 +761,12 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-flow-step { border-top: 3.5px solid var(--temper-line); padding-top: 10.5px; font-size: 11.67px; color: var(--temper-muted); }
 .temper-flow-step[aria-current] { border-color: var(--temper-ink); color: var(--temper-ink); font-weight: 700; }
 .temper-flow-done { border-color: var(--temper-green); color: var(--temper-green); }
-.temper-flow-card { border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); padding: 23.33px; margin-bottom: 16.33px; }
+.temper-flow-card:where(:not(.temper-settings-row *)) { border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); padding: 23.33px; margin-bottom: 16.33px; }
 /* The welcome's Forge step: its two choices share the row, as the welcome's own two cards do. */
 @media (min-width: 761px) { .temper-welcome .temper-flow-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.temper-welcome .temper-flow-card { border-radius: 10.5px; }
-.temper-flow-card h2 { margin-top: 0; }
-.temper-flow-card :is(p, :where(div.temper-flow-muted, div.temper-flow-subtitle)) { font-size: 12.83px; line-height: 1.6; }
+.temper-welcome .temper-flow-card:where(:not(.temper-settings-row *)) { border-radius: 10.5px; }
+.temper-flow-card:where(:not(.temper-settings-row *)) h2 { margin-top: 0; }
+.temper-flow-card:where(:not(.temper-settings-row *)) :is(p, :where(div.temper-flow-muted, div.temper-flow-subtitle)) { font-size: 12.83px; line-height: 1.6; }
 .temper-flow-muted { color: var(--temper-muted); font-size: 11.67px; }
 /* Empty alternative text keeps decorative marks out of the accessible name. */
 .temper-flow-progress { list-style: none; padding: 0; display: grid; gap: 7px; font-size: 12.83px; font-weight: 400; }
@@ -876,28 +790,28 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* ConnectForge's column and the flow's configuration entries. */
 .temper-connect-forge { max-width: 886.67px; margin: 32.67px auto; }
 .temper-flow-code { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11.67px; background: var(--temper-topbar); padding: 14px; border: 1px solid var(--temper-line); }
-.temper-flow-card > a, .temper-flow-card > button { display: inline-flex; align-items: center; min-height: 35px; border: 1px solid var(--temper-accent); border-radius: 5.83px; padding: 7px 12.83px; background: var(--temper-paper); color: var(--temper-accent-dark); }
-.temper-flow-card > button:disabled { cursor: default; opacity: .55; }
+.temper-flow-card:where(:not(.temper-settings-row *)) > a, .temper-flow-card:where(:not(.temper-settings-row *)) > button { display: inline-flex; align-items: center; min-height: 35px; border: 1px solid var(--temper-accent); border-radius: 5.83px; padding: 7px 12.83px; background: var(--temper-paper); color: var(--temper-accent-dark); }
+.temper-flow-card:where(:not(.temper-settings-row *)) > button:disabled { cursor: default; opacity: .55; }
 .temper-connect-forge > a { color: var(--temper-accent-dark); text-decoration: underline; text-underline-offset: 3.5px; }
-.temper-flow-card input, .temper-flow-card textarea { display: block; width: 100%; margin: 4.67px 0 14px; padding: 7px 9.33px; border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); }
+.temper-flow-card:where(:not(.temper-settings-row *)) input, .temper-flow-card:where(:not(.temper-settings-row *)) textarea { display: block; width: 100%; margin: 4.67px 0 14px; padding: 7px 9.33px; border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); }
 
 /* Priority is assigned by the view, including controls inside forms. */
-.temper-main .temper-flow-primary { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; min-height: 32.67px; padding: 5.83px 10.5px; border: 1px solid var(--temper-accent); border-radius: 4.67px; background: var(--temper-accent); color: var(--temper-paper); font: 600 12.83px/1.35 var(--temper-mono); }
-.temper-main .temper-flow-primary:hover { background: var(--temper-accent-dark); border-color: var(--temper-accent-dark); color: var(--temper-paper); }
-.temper-main .temper-flow-primary:focus-visible, .temper-welcome-foot > :is(a, button):focus-visible { outline: 2.33px solid var(--temper-accent); outline-offset: 3.5px; }
-.temper-main .temper-flow-primary:disabled { cursor: default; opacity: .55; }
+.temper-main:where(:not(.temper-settings)) .temper-flow-primary { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; min-height: 32.67px; padding: 5.83px 10.5px; border: 1px solid var(--temper-accent); border-radius: 4.67px; background: var(--temper-accent); color: var(--temper-paper); font: 600 12.83px/1.35 var(--temper-mono); }
+.temper-main:where(:not(.temper-settings)) .temper-flow-primary:hover { background: var(--temper-accent-dark); border-color: var(--temper-accent-dark); color: var(--temper-paper); }
+.temper-main:where(:not(.temper-settings)) .temper-flow-primary:focus-visible, .temper-welcome-foot > :is(a, button):focus-visible { outline: 2.33px solid var(--temper-accent); outline-offset: 3.5px; }
+.temper-main:where(:not(.temper-settings)) .temper-flow-primary:disabled { cursor: default; opacity: .55; }
 .temper-flow-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .temper-flow-pair > * { min-width: 0; }
 @media (max-width: 760px) { .temper-flow-pair { grid-template-columns: minmax(0, 1fr); } }
 
 /* Explicit connection priorities; Model's holder controls retain their own look. */
-.temper-main .temper-flow-secondary { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; min-height: 32.67px; padding: 5.83px 10.5px; border: 1px solid #dcd5ca; border-radius: 4.67px; background: var(--temper-paper); color: var(--temper-ink); font: 600 12.83px/1.35 var(--temper-mono); }
-.temper-main .temper-flow-secondary:hover { border-color: #c9b7a8; background: #faf7f2; color: var(--temper-ink); }
-.temper-main .temper-flow-quiet { display: inline; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: #9c573f; font: 600 12.83px/1.58 var(--temper-mono); text-decoration: none; }
-.temper-main .temper-flow-quiet:hover { text-decoration: underline; }
+.temper-main:where(:not(.temper-settings)) .temper-flow-secondary { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; min-height: 32.67px; padding: 5.83px 10.5px; border: 1px solid #dcd5ca; border-radius: 4.67px; background: var(--temper-paper); color: var(--temper-ink); font: 600 12.83px/1.35 var(--temper-mono); }
+.temper-main:where(:not(.temper-settings)) .temper-flow-secondary:hover { border-color: #c9b7a8; background: #faf7f2; color: var(--temper-ink); }
+.temper-main:where(:not(.temper-settings)) .temper-flow-quiet { display: inline; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: #9c573f; font: 600 12.83px/1.58 var(--temper-mono); text-decoration: none; }
+.temper-main:where(:not(.temper-settings)) .temper-flow-quiet:hover { text-decoration: underline; }
 .temper-welcome-foot > .temper-flow-quiet:hover { text-decoration: none; }
-.temper-main :is(.temper-flow-secondary, .temper-flow-quiet):focus-visible { outline: 2.33px solid var(--temper-accent); outline-offset: 3.5px; }
-.temper-main :is(.temper-flow-secondary, .temper-flow-quiet):disabled { cursor: default; opacity: .55; }
+.temper-main:where(:not(.temper-settings)) :is(.temper-flow-secondary, .temper-flow-quiet):focus-visible { outline: 2.33px solid var(--temper-accent); outline-offset: 3.5px; }
+.temper-main:where(:not(.temper-settings)) :is(.temper-flow-secondary, .temper-flow-quiet):disabled { cursor: default; opacity: .55; }
 .temper-flow-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18.67px; }
 .temper-model-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18.67px; }
 .temper-flow-choice { display: flex; flex-direction: column; align-items: flex-start; margin: 0; }
@@ -917,40 +831,20 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 :is(.temper-flow-details, .temper-model-key) > input { font: 12.83px var(--temper-mono); color: var(--temper-ink); }
 /* Preserve the picker's sibling input/label structure while keeping radios intrinsic. */
 :is(.temper-flow-details, .temper-model-key) > [role=radiogroup] { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4.67px 9.33px; margin: 0 0 14px; }
-.temper-flow-card [role=radiogroup] > input[type=radio] { display: block; width: 15.17px; margin: 0; padding: 0; border: 0; background: transparent; accent-color: var(--temper-accent); }
+.temper-flow-card:where(:not(.temper-settings-row *)) [role=radiogroup] > input[type=radio] { display: block; width: 15.17px; margin: 0; padding: 0; border: 0; background: transparent; accent-color: var(--temper-accent); }
 :is(.temper-flow-details, .temper-model-key) > [role=radiogroup] > label { margin: 0; padding: 8.17px 0; color: var(--temper-ink); font: 12.83px var(--temper-mono); }
 .temper-flow-field { display: grid; gap: 4.67px; margin: 0 0 11.67px; font-size: 11.67px; color: var(--temper-muted); }
-.temper-flow-card .temper-flow-field input { margin: 0; color: var(--temper-ink); font: 12.83px var(--temper-mono); }
+.temper-flow-card:where(:not(.temper-settings-row *)) .temper-flow-field input { margin: 0; color: var(--temper-ink); font: 12.83px var(--temper-mono); }
 .temper-flow-facts { padding-left: 18.67px; font-size: 12.83px; color: var(--temper-muted); }
 @media (max-width: 760px) { .temper-flow-choices, .temper-model-choices { grid-template-columns: minmax(0, 1fr); } }
 
 
 /* T2: the Forges page, setup strip and navigation dot (client/forge.md, 5.4). */
-.temper-forges { max-width: 1236.67px; }
-.temper-forges > h2 { margin-top: 30.33px; }
-.temper-forges > p { color: var(--temper-muted); font-size: 12.83px; }
-.temper-forges > a { display: inline-block; margin: 9.33px 0 18.67px; border: 1px solid #ddd6cb; border-radius: 5.83px; padding: 5.83px 11.67px; background: var(--temper-paper); font-size: 12.83px; }
-:is(.temper-forge-row, .temper-account-row) { margin: 14px 0; border: 1px solid var(--temper-line); border-radius: 7px; background: var(--temper-paper); }
-:is(.temper-forge-row, .temper-account-row) > summary { display: grid; gap: 5.83px; position: relative; padding: 21px 23.33px 21px 44.33px; cursor: pointer; list-style: none; font-size: 15.17px; font-weight: 700; overflow-wrap: anywhere; }
-:is(.temper-forge-row, .temper-account-row) > summary::-webkit-details-marker { display: none; }
-:is(.temper-forge-row, .temper-account-row) > summary::before { content: '›'; position: absolute; left: 21px; top: 21px; transition: transform .15s; }
-:is(.temper-forge-row, .temper-account-row)[open] > summary::before { transform: rotate(90deg); }
-:is(.temper-forge-row, .temper-account-row) > summary > [id^="skein-ui-description-"] { display: block; font-size: 11.67px; font-weight: 400; color: var(--temper-muted); }
-:is(.temper-forge-row, .temper-account-row) > :nth-child(2) { border-top: 1px solid var(--temper-line); }
-:is(.temper-forge-row, .temper-account-row) > :not(summary) { margin: 0; padding: 11.67px 23.33px; }
-:is(.temper-forge-row, .temper-account-row) dt { font-size: 11.67px; color: var(--temper-muted); }
-:is(.temper-forge-row, .temper-account-row) dd { margin: 0; font-size: 12.83px; }
-:is(.temper-forge-row, .temper-account-row) > a { display: inline-block; color: var(--temper-accent-dark); font-size: 12.83px; }
 .temper-setup-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 10px 24px; background: var(--temper-amber-pale); border-bottom: 1px solid var(--temper-line); font-size: 11px; }
 .temper-setup-strip > p { margin: 0; }
 .temper-setup-strip > a { color: var(--temper-accent-dark); font-weight: 700; }
 
-/* Accounts share the forge disclosure cards and keep their row acts together. */
-.temper-account-row button { margin: 7px 7px 7px 0 !important; }
-.temper-account-row [role=term] { color: var(--temper-muted); font-size: 11.67px; }
-.temper-account-row [role=definition] { margin: 0; font-size: 12.83px; }
 /* The first repository stays visible in a folded forge's summary (client/forge.md, 5.4). */
-.temper-forge-row > summary > [id^="skein-ui-description-"] { white-space: pre-line; }
 
 /* protocol/sign-in.md, 7: the stock browser sign-in card. */
 .temper-main.temper-sign-in { width: min(583.33px, calc(100% - 37.33px)); margin: 0 auto; padding: 65.33px 0 81.67px; }
@@ -974,11 +868,11 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-main [role=alert].temper-flow-failed { color: var(--temper-red); font-size: 12.83px; }
 
 /* Scoped field labels override the shell's more specific native-label fallback. */
-.temper-main :is(.temper-flow-details, .temper-model-key, .temper-flow-field, .temper-flow-card:has(> .temper-admin-first)) label[for]:has(+ input:not([type=radio], [type=checkbox])) { display: block; margin: 0; color: var(--temper-muted); font: 11.67px/1.58 var(--temper-mono); }
+.temper-main :is(.temper-flow-details, .temper-model-key, .temper-flow-field, .temper-flow-card:where(:not(.temper-settings-row *)):has(> .temper-admin-first)) label[for]:has(+ input:not([type=radio], [type=checkbox])) { display: block; margin: 0; color: var(--temper-muted); font: 11.67px/1.58 var(--temper-mono); }
 /* The configured elsewhere admin keeps the reference's native fieldset and legend. */
 .temper-admin-first { min-width: 0; }
 .temper-main .temper-admin-legend { font: 400 14px/1.58 var(--temper-mono); }
-.temper-flow-card:has(> .temper-admin-first) input { color: var(--temper-ink); font: 12.83px var(--temper-mono); }
+.temper-flow-card:where(:not(.temper-settings-row *)):has(> .temper-admin-first) input { color: var(--temper-ink); font: 12.83px var(--temper-mono); }
 .temper-admin-first > p { color: var(--temper-muted); font-size: 12.83px; }
 
 /* Model ending facts and actions never select Accounts or Forges rows. */
@@ -1015,55 +909,14 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-kind-question > details > summary::-webkit-details-marker { display: none; }
 .temper-kind-question > a, .temper-page .temper-kind-proposal > a { display: inline-block; margin-top: 11.67px; color: var(--temper-accent-dark); font-size: 12.83px; font-weight: 600; }
 
-/* Account rows use the forge row's summary, with the supplied holder and state. */
-.temper-account-row > .temper-heading { margin: 0; border: 0; padding: 21px 23.33px 21px 44.33px; }
-.temper-account-row > .temper-heading h3 { margin: 0; font-size: 15.17px; }
-.temper-account-row > .temper-heading p { margin: 0; font-size: 11.67px; font-weight: 400; color: var(--temper-muted); }
-.temper-account-row > ul { list-style: none; }
-.temper-account-row > ul > li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; padding: 9.33px 0; border-bottom: 1px solid var(--temper-line); }
-.temper-account-row > ul > li > p { flex-basis: 100%; margin: 0; }
-.temper-account-row > .temper-details { display: grid; gap: 9.33px; border: 0; border-top: 1px solid var(--temper-line); border-radius: 0; background: transparent; }
-.temper-account-row .temper-details > section { display: flex; justify-content: space-between; gap: 21px; }
-.temper-account-row .temper-details [role=definition] { text-align: right; }
-/* As in the wide banner, visible summary parts share the native summary's grid
-   cell. Its own accessible name and description stay with its native control. */
-@supports selector(::details-content) {
-  .temper-account-row:has(> .temper-heading) { display: grid; grid-template-columns: minmax(0, 1fr); }
-  .temper-account-row:has(> .temper-heading)::details-content { content-visibility: visible; display: contents; }
-  .temper-account-row:has(> .temper-heading) > summary { grid-area: 1 / 1; padding: 0; font-size: 0; color: transparent; }
-  .temper-account-row:has(> .temper-heading) > summary::before { color: var(--temper-muted); font-size: 15.17px; }
-  .temper-account-row:has(> .temper-heading) > summary > [id^=skein-ui-description-] { display: none; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading { grid-area: 1 / 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4.67px 18.67px; pointer-events: none; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading > h3 { grid-column: 1; grid-row: 1; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading > p:first-of-type { grid-column: 1; grid-row: 2; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading > [role=status] { grid-column: 2; grid-row: 1; align-self: start; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading > p:last-child { grid-column: 1 / -1; grid-row: 3; }
-  .temper-account-row:has(> .temper-heading) > :not(summary):not(.temper-heading) { grid-column: 1; }
-  .temper-account-row:has(> .temper-heading):not([open]) > :not(summary):not(.temper-heading) { display: none; }
-  .temper-account-row:has(> .temper-heading)[open] > .temper-heading + * { border-top: 1px solid var(--temper-line); }
-}
-/* The account lead stays under its heading; Connect wraps below it on phones. */
-.temper-accounts-page > .temper-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 14px; align-items: center; }
-.temper-accounts-page > .temper-heading > h2 { grid-column: 1; grid-row: 1; }
-.temper-accounts-page > .temper-heading > .temper-subtle-count { grid-column: 2; grid-row: 1; margin: 0; }
-.temper-accounts-page > .temper-heading > a { grid-column: 3; grid-row: 1 / 3; }
-.temper-accounts-page > .temper-heading > p:last-child { grid-column: 1 / 3; grid-row: 2; margin: 0; color: var(--temper-muted); font-size: 12.83px; }
-@media (max-width: 430px) {
-  .temper-accounts-page > .temper-heading > p:last-child { grid-column: 1 / -1; }
-  .temper-accounts-page > .temper-heading > a { grid-column: 1 / -1; grid-row: 3; justify-self: start; margin-top: 14px; }
-}
 
-.temper-accounts-page > .temper-empty { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 11.67px; margin-block: 11.67px 28px; }
-.temper-accounts-page > .temper-empty > p { margin: 0; }
 
-.temper-account-row:not(:has(> .temper-heading)) > summary { color: var(--temper-muted); font-size: 12.83px; font-weight: 400; }
 
 .temper-kind-proposal > a { display: inline-flex; align-items: center; min-height: 35px; vertical-align: top; }
 
 /* Command containers retain the paragraphs' browser layout (client/README.md, 6.5). */
 .temper-change > .temper-change { margin: 1em 0; }
 .temper-page .temper-meta > .temper-meta { display: block; }
-.temper-welcome-checklist > li > .temper-account-line { width: auto; color: inherit; }
 
 /* The nested lineage is metadata too; its following wait keeps the old zero margin. */
 .temper-page .temper-meta > p.temper-wait { margin-top: 0; }
@@ -1090,11 +943,11 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-welcome) .temper-flow-steps { display: flex; align-items: center; gap: 0; margin: 0; padding: 0; counter-reset: gf-step; }
 #app:has(> .temper-welcome) .temper-flow-step { display: flex; align-items: center; padding: 0; border: 0; counter-increment: gf-step; color: var(--gf-muted); font: 400 14.5px/1.6 var(--gf-sans); }
 #app:has(> .temper-welcome) .temper-flow-step + .temper-flow-step::before { content: ''; width: 18px; height: 1px; margin: 0 4px; background: var(--gf-line-2); }
-#app:has(> .temper-welcome) .temper-flow-step > span { display: flex; align-items: center; gap: 8px; padding: 6px 8px; }
-#app:has(> .temper-welcome) .temper-flow-step > span::before { content: counter(gf-step); width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 13px; box-sizing: border-box; }
+#app:has(> .temper-welcome) .temper-flow-step > a { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 20px; color: inherit; text-decoration: none; }
+#app:has(> .temper-welcome) .temper-flow-step > a::before { content: counter(gf-step); width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 13px; box-sizing: border-box; }
 #app:has(> .temper-welcome) .temper-flow-step[aria-current] { color: var(--gf-ink); font-weight: 500; }
-#app:has(> .temper-welcome) .temper-flow-step[aria-current] > span::before { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; }
-#app:has(> .temper-welcome) .temper-flow-step.temper-flow-done > span::before { content: '✓'; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
+#app:has(> .temper-welcome) .temper-flow-step[aria-current] > a::before { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; }
+#app:has(> .temper-welcome) .temper-flow-step.temper-flow-done > a::before { content: '✓'; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
 /* temper box's line, between the brand and the steps; its own row when narrow. */
 #app:has(> .temper-welcome) .temper-welcome-box-line { margin: 0 auto 0 24px; font: 14px/1.6 var(--gf-sans); color: var(--gf-muted); }
 #app:has(> .temper-welcome) .temper-welcome-box-line strong { color: var(--gf-ink); font-weight: 600; }
@@ -1111,13 +964,13 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-welcome .temper-welcome-lead strong { font-weight: 600; color: var(--gf-ink); }
 /* The choices: two cards, side by side; the default one, its button filled, bordered in ink. */
 #app > .temper-welcome :is(.temper-welcome-choices, .temper-flow-choices, .temper-model-choices) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 32px; }
-#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) { display: flex; flex-direction: column; align-items: flex-start; margin: 0; padding: 22px; border: 0; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
-#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card):has(> .temper-flow-primary, > .temper-flow-actions > .temper-flow-primary) { box-shadow: 0 0 0 1.5px var(--gf-ink); }
-#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) > h2 { margin: 0 0 6px; font: 500 18px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
-#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) :is(p, .temper-welcome-setup-description) { margin: 0; font-size: 15px; line-height: 1.6; color: var(--gf-ink-2); }
-#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) > :is(.temper-welcome-muted, .temper-flow-muted) { margin: 8px 0 0; font-size: 13px; line-height: 1.6; color: var(--gf-faint); }
-#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) > :is(button, a, .temper-flow-actions) { margin-top: auto; }
-#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) > :is(h2, p, div:not(.temper-flow-actions)):has(+ :is(button, a, .temper-flow-actions)) { margin-bottom: 18px; }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))) { display: flex; flex-direction: column; align-items: flex-start; margin: 0; padding: 22px; border: 0; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))):has(> .temper-flow-primary, > .temper-flow-actions > .temper-flow-primary) { box-shadow: 0 0 0 1.5px var(--gf-ink); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))) > h2 { margin: 0 0 6px; font: 500 18px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))) :is(p, .temper-welcome-setup-description) { margin: 0; font-size: 15px; line-height: 1.6; color: var(--gf-ink-2); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))) > :is(.temper-welcome-muted, .temper-flow-muted) { margin: 8px 0 0; font-size: 13px; line-height: 1.6; color: var(--gf-faint); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))) > :is(button, a, .temper-flow-actions) { margin-top: auto; }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))) > :is(h2, p, div:not(.temper-flow-actions)):has(+ :is(button, a, .temper-flow-actions)) { margin-bottom: 18px; }
 #app > .temper-welcome .temper-flow-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 /* Buttons: ink filled for the default, white bordered otherwise; quiet acts as underlined words. */
 #app > .temper-welcome :where(.temper-flow-primary, .temper-flow-secondary, .temper-welcome-card > button, .temper-welcome-card > a) { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 14.5px/1.6 var(--gf-sans); text-decoration: none; }
@@ -1171,16 +1024,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* Ready, as the greenfield mockup draws it: the checklist's lines, each
    with its mark in a circle and a hairline under it, then the first
    project's form. */
-#app > .temper-welcome .temper-welcome-checklist { display: flex; flex-direction: column; gap: 0; margin: 0 0 32px; padding: 0; border-top: 1px solid var(--gf-line); font-size: 15px; }
-#app > .temper-welcome .temper-welcome-checklist > li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-checklist > li::before { content: '' / ''; position: static; grid-column: 1; grid-row: 1; box-sizing: border-box; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 12.5px; line-height: 1; color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-checklist > li.temper-flow-done::before { content: '✓' / ''; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
-#app > .temper-welcome .temper-welcome-checklist > li > * { grid-column: 2 / -1; margin: 0; }
-#app > .temper-welcome .temper-welcome-checklist > li > :first-child { grid-column: 2; grid-row: 1; }
-#app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 3; grid-row: 1; font-size: 14.5px; }
-#app > .temper-welcome .temper-welcome-checklist > li :is(p, .temper-account-line) { line-height: 1.6; color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-checklist > li strong { font-weight: 500; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-checklist .temper-welcome-end { margin-left: 0; }
 #app > .temper-welcome form.temper-welcome-project { display: grid; grid-template-columns: minmax(0, 300px) auto; justify-content: start; align-items: center; gap: 8px; margin: 0 0 32px; }
 #app > .temper-welcome .temper-welcome-project > label { grid-column: 1 / -1; font: 600 14px/1.6 var(--gf-sans); color: var(--gf-ink); }
 #app > .temper-welcome .temper-welcome-project > input { box-sizing: border-box; width: 100%; min-height: 40px; margin: 0; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 15px/1.6 var(--gf-sans); }
@@ -1191,64 +1034,57 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-welcome .temper-welcome-project > [role=alert] { color: #b42318; font-size: 14px; }
 /* Forgejo on this machine's sheet over the Forge step: what it starts with, the chosen
    one's own fields under it, then Cancel and Run. The generic dialog's look is undone. */
-#app > .temper-welcome dialog.temper-welcome-sheet { width: min(620px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 24px 26px; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); font: 400 15px/1.6 var(--gf-sans); letter-spacing: normal; }
-#app > .temper-welcome dialog.temper-welcome-sheet[open] { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 20px; }
-#app > .temper-welcome dialog.temper-welcome-sheet[open] > * { flex: none; margin: 0; }
-#app > .temper-welcome dialog.temper-welcome-sheet::backdrop { background: rgba(24, 24, 27, .32); }
-#app > .temper-welcome .temper-welcome-sheet p { margin: 0; color: inherit; font-size: inherit; line-height: 1.6; }
-#app > .temper-welcome .temper-welcome-sheet-head { display: flex; flex-direction: column; gap: 6px; }
-#app > .temper-welcome .temper-welcome-sheet-head > h2 { margin: 0; font: 500 19px/1.6 var(--gf-sans); letter-spacing: -.01em; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-sheet-head > p { font-size: 14px; color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-start { min-width: 0; margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
-#app > .temper-welcome .temper-welcome-start > legend { margin: 0 0 8px; padding: 0; font: 600 14px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-option { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 10px; padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 10px; cursor: pointer; }
-#app > .temper-welcome .temper-welcome-option:has(input:checked) { border-color: var(--gf-ink); background: #fafaf9; }
-#app > .temper-welcome .temper-welcome-option > input { width: auto; height: auto; margin: 4px 0 0; accent-color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-option > label { font-weight: 500; color: var(--gf-ink); cursor: pointer; }
+#app > :is(.temper-welcome, .temper-home) dialog.temper-welcome-sheet { margin: auto; width: min(620px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 24px 26px; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); font: 400 15px/1.6 var(--gf-sans); letter-spacing: normal; }
+#app > :is(.temper-welcome, .temper-home) dialog.temper-welcome-sheet[open] { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 20px; }
+#app > :is(.temper-welcome, .temper-home) dialog.temper-welcome-sheet[open] > * { flex: none; margin: 0; }
+#app > :is(.temper-welcome, .temper-home) dialog.temper-welcome-sheet::backdrop { background: rgba(24, 24, 27, .32); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet p { margin: 0; color: inherit; font-size: inherit; line-height: 1.6; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-head { display: flex; flex-direction: column; gap: 6px; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-head > h2 { margin: 0; font: 500 19px/1.6 var(--gf-sans); letter-spacing: -.01em; color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-head > p { font-size: 14px; color: var(--gf-muted); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-start { min-width: 0; margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-start > legend { margin: 0 0 8px; padding: 0; font: 600 14px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 10px; padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 10px; cursor: pointer; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option:has(input:checked) { border-color: var(--gf-ink); background: #fafaf9; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option > input { width: auto; height: auto; margin: 4px 0 0; accent-color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option > label { font-weight: 500; color: var(--gf-ink); cursor: pointer; }
 /* The whole card picks its choice, as the mock's label does. */
-#app > .temper-welcome .temper-welcome-option > label::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
-#app > .temper-welcome .temper-welcome-option > p { grid-column: 2; font-size: 13px; color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-option-more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: -2px 0 6px 28px; }
-#app > .temper-welcome .temper-welcome-option-more:has(> textarea) { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-#app > .temper-welcome .temper-welcome-option-more label, #app > .temper-welcome .temper-welcome-option-more > p { display: block; margin: 0 0 4px; font: 600 13px/1.6 var(--gf-sans); color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-option-more :is(input, textarea) { box-sizing: border-box; width: 100%; min-height: 38px; margin: 0; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 15px/1.6 var(--gf-sans); }
-#app > .temper-welcome .temper-welcome-option-more textarea { display: block; min-height: 76px; padding: 8px 12px; resize: vertical; font: 13px/1.5 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace; }
-#app > .temper-welcome .temper-welcome-option-more [role=alert] { margin-top: 4px; color: #b42318; font-size: 13px; }
-#app > .temper-welcome .temper-welcome-sheet > [role=alert] { margin: -8px 0 0; color: #b42318; font-size: 14px; }
-#app > .temper-welcome .temper-welcome-sheet-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--gf-line); }
-#app > .temper-welcome .temper-welcome-sheet-foot > button { display: inline-flex; align-items: center; min-height: 40px; margin: 0; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 400 14.5px/1.6 var(--gf-sans); cursor: pointer; }
-#app > .temper-welcome .temper-welcome-sheet-foot > button:hover { background: #ececea; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-sheet-foot > button.temper-flow-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
-#app > .temper-welcome .temper-welcome-sheet-foot > button.temper-flow-primary:hover { border-color: #000; background: #000; }
-#app > .temper-welcome .temper-welcome-sheet-foot > button:disabled { opacity: .45; cursor: default; }
-#app > .temper-welcome .temper-welcome-sheet :focus-visible { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option > label::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option > p { grid-column: 2; font-size: 13px; color: var(--gf-muted); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option-more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: -2px 0 6px 28px; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option-more:has(> textarea) { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option-more label, #app > :is(.temper-welcome, .temper-home) .temper-welcome-option-more > p { display: block; margin: 0 0 4px; font: 600 13px/1.6 var(--gf-sans); color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option-more :is(input, textarea) { box-sizing: border-box; width: 100%; min-height: 38px; margin: 0; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 15px/1.6 var(--gf-sans); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option-more textarea { display: block; min-height: 76px; padding: 8px 12px; resize: vertical; font: 13px/1.5 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-option-more [role=alert] { margin-top: 4px; color: #b42318; font-size: 13px; }
+#app > :is(.temper-welcome, .temper-home) dialog.temper-welcome-sheet[open] > [role=alert] { margin: -8px 0 0; color: #b42318; font-size: 14px; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--gf-line); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button { display: inline-flex; align-items: center; min-height: 40px; margin: 0; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 400 14.5px/1.6 var(--gf-sans); cursor: pointer; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button:hover { background: #ececea; color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button.temper-flow-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button.temper-flow-primary:hover { border-color: #000; background: #000; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button:disabled { opacity: .45; cursor: default; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet :focus-visible { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
 @media (max-width: 760px) {
   #app:has(> .temper-welcome) > .temper-banner { padding: 14px 16px; }
-  #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > span { font-size: 0; gap: 0; padding: 6px 4px; }
-  #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > span::before { font-size: 13px; }
+  #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > a { font-size: 0; gap: 0; padding: 6px 4px; }
+  #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > a::before { font-size: 13px; }
   #app:has(> .temper-welcome) .temper-flow-step + .temper-flow-step::before { width: 8px; margin: 0 2px; }
   #app > .temper-welcome { padding: 16px 20px 56px; }
   #app > .temper-welcome h1, #app > .temper-welcome h1.temper-welcome-intro { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
   #app > .temper-welcome .temper-welcome-lead, #app > .temper-welcome .temper-welcome-tagline + .temper-welcome-lead { margin-bottom: 24px; font-size: 15.5px; }
   #app > .temper-welcome :is(.temper-welcome-choices, .temper-flow-choices, .temper-model-choices) { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
-  #app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) { padding: 18px; }
+  #app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))) { padding: 18px; }
   #app > .temper-welcome .temper-welcome-checklist { margin-bottom: 24px; }
   #app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 2 / -1; grid-row: auto; justify-self: start; }
   #app > .temper-welcome form.temper-welcome-project { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
   #app > .temper-welcome .temper-welcome-project > button { justify-content: center; min-height: 48px; font-size: 15.5px; }
 }
 
-/* The project's settings */
-.temper-settings > ul { list-style: none; margin: 7px 0 14px; padding: 0; }
-.temper-settings > ul > li { padding: 9.33px 0; }
-.temper-settings .temper-nav-needs, .temper-settings .temper-nav-limited { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; overflow: hidden; text-indent: 100%; white-space: nowrap; }
-.temper-settings .temper-nav-needs { background: var(--temper-red); }
-.temper-settings .temper-nav-limited { background: var(--temper-amber); }
-
 /* The project's frame */
 :root:has(#app > .temper-rail) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
-  --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-signal-pale: #fff7ed; --gf-good: #15803d;
+  --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-signal-pale: #fff7ed; --gf-signal-line: #f1d5bd; --gf-hint: #8a8a93; --gf-good: #15803d;
   --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
   --gf-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -1285,8 +1121,28 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-rail > .temper-rail-nav > a { display: flex; justify-content: space-between; padding: 7px 10px; border-radius: 6px; color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-nav > a:hover { background: #f0f0ee; }
 #app > .temper-rail > .temper-rail-nav > a[aria-current] { background: var(--gf-hover); font-weight: 500; }
-#app > .temper-rail > .temper-rail-new { padding: 9px 10px; border: 1px dashed #c9c9c3; border-radius: 8px; color: var(--gf-ink); }
+#app > .temper-rail > .temper-rail-new { position: relative; display: flex; padding: 0; border: 1px dashed #c9c9c3; border-radius: 8px; color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-new:hover { border-color: var(--gf-ink); }
+/* new-menu: "+ New chat" keeps its one press, and a button beside it opens a short menu of the ways to start work: Chat, Goal, and "All ways to start work". */
+#app > .temper-rail > .temper-rail-new > a { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 7px 0 0 7px; }
+#app > .temper-rail > .temper-rail-new > :is(a, [aria-haspopup]):hover { background: #f0f0ee; }
+#app > .temper-rail > .temper-rail-new > [aria-haspopup] { flex: none; width: 36px; padding: 0; border: 0; border-left: 1px dashed #c9c9c3; border-radius: 0 7px 7px 0; background: none; font-size: 0; color: var(--gf-muted); }
+#app > .temper-rail > .temper-rail-new > [aria-haspopup]::before { content: '⌄'; font-size: 15px; line-height: 1; }
+#app > .temper-rail > .temper-rail-new > [aria-expanded=true] { background: var(--gf-hover); color: var(--gf-ink); }
+#app > .temper-rail:has(> .temper-rail-new > [aria-expanded=true]) { overflow: visible; }
+#app > .temper-rail > .temper-rail-new > [role=menu] { position: absolute; top: calc(100% + 6px); left: -1px; z-index: 30; width: 288px; display: flex; flex-direction: column; padding: 6px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-surface); box-shadow: 0 12px 32px rgba(24, 24, 27, .12); }
+#app > .temper-rail > .temper-rail-new > [role=menu][hidden] { display: none; }
+#app > .temper-rail [role=menuitem] { position: relative; display: flex; flex-direction: column; padding: 8px 10px; border-radius: 6px; color: var(--gf-ink); cursor: pointer; }
+#app > .temper-rail [role=menuitem]:is(:hover, :focus) { background: var(--gf-hover); outline: 0; }
+#app > .temper-rail [role=menuitem] > span:first-child { font-weight: 500; }
+#app > .temper-rail [role=menuitem] > span + span { font-size: 12.5px; line-height: 1.5; color: var(--gf-muted); }
+#app > .temper-rail [role=menuitem].temper-rail-new-all { margin-top: 7px; font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-rail [role=menuitem].temper-rail-new-all > span:first-child { font-weight: 400; }
+#app > .temper-rail [role=menuitem].temper-rail-new-all::before { content: ''; position: absolute; top: -4px; left: 4px; right: 4px; border-top: 1px solid var(--gf-line); }
+@media (max-width: 760px) {
+  #app > .temper-rail > .temper-rail-new { display: none; }
+}
+
 #app > .temper-rail > .temper-rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-rail > .temper-rail-foot > :is(a, [role=status], [data-region=temper-link]) { padding: 6px 10px; border-radius: 6px; }
 #app > .temper-rail > .temper-rail-foot > a:hover { background: #f0f0ee; color: var(--gf-ink); }
@@ -1298,7 +1154,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @media (max-width: 760px) {
   #app:has(> .temper-rail) { grid-template-columns: minmax(0, 1fr); }
   #app > .temper-rail { z-index: 20; height: auto; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px 20px; border-right: 0; background: var(--gf-paper); overflow: visible; }
-  #app > .temper-rail > :not(.temper-projects) { display: none; }
+  #app > .temper-rail > :not(.temper-projects, .temper-away-chip) { display: none; }
   #app > .temper-rail .temper-projects > summary { justify-content: flex-start; padding: 6px 0; border: 0; background: none; font-size: 17px; font-weight: 600; }
   #app > .temper-rail .temper-projects > summary::before { content: '✦'; margin-right: 8px; color: var(--gf-signal); font-weight: 400; }
   #app > .temper-rail .temper-projects-menu { right: auto; min-width: 220px; }
@@ -1329,6 +1185,14 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 }
 
 /* Home's column. */
+
+/* ==== ui: home ==== */
+#app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
+#app > .temper-home .temper-home-facts { font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-home .temper-home-facts > a { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home .temper-home-facts > a:hover { text-decoration-color: var(--gf-ink); }
+#app > .temper-home .temper-home-facts .temper-changes-red { color: var(--gf-signal); }
+
 #app > .temper-home { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; display: flex; flex-direction: column; align-items: center; gap: 60px; font-size: 15px; letter-spacing: normal; }
 #app > .temper-home > * { width: 100%; max-width: 720px; margin: 0; }
 #app > .temper-home > .temper-home-intro { display: flex; flex-direction: column; gap: 16px; }
@@ -1348,6 +1212,12 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 #app > .temper-home .temper-home-acts > :is(a, button) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); text-decoration: none; }
 #app > .temper-home .temper-home-acts > :is(a, button):hover { border-color: #b4b4ae; }
+#app > .temper-home .temper-home-acts > .temper-home-small { min-height: 34px; padding: 5px 12px; font-size: 13.5px; }
+#app > .temper-home .temper-home-acts:has(> .temper-home-small) { max-width: 320px; }
+@media (max-width: 760px) {
+  #app > .temper-home .temper-home-steps > li:has(.temper-home-small) { grid-template-columns: 30px minmax(0, 1fr); }
+  #app > .temper-home .temper-home-steps > li > .temper-home-acts:has(> .temper-home-small) { grid-column: 2; grid-row: auto; margin: 10px 0 0; }
+}
 #app > .temper-home .temper-home-acts > .temper-home-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
 #app > .temper-home .temper-home-acts > .temper-home-primary:hover { background: #000; }
 #app > .temper-home .temper-home-acts > .temper-home-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
@@ -1355,7 +1225,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* Home for a project at work, the greenfield mockup's everyday home.html:
    what changed since the person last looked, what needs them, the chats,
    and the landing's line. */
-#app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
 #app > .temper-home .temper-home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #app > .temper-home .temper-home-head > h2.temper-home-signal { color: var(--gf-signal); }
 #app > .temper-home .temper-home-head > a { font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
@@ -1367,7 +1236,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-rows > li > a { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 4px; color: var(--gf-ink); }
 #app > .temper-home .temper-home-rows > li > a:hover { background: #f1f1ef; }
 #app > .temper-home .temper-home-when { flex: none; font-size: 13px; color: var(--gf-faint); }
-#app > .temper-home > .temper-home-facts { font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-home .temper-home-empty { margin: 0; padding: 4px 0; color: var(--gf-muted); }
 
 @media (max-width: 760px) {
@@ -1404,6 +1272,20 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+#app > .temper-session .temper-session-right > .temper-chat-goal { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
+#app > .temper-session .temper-session-right > .temper-chat-goal:hover { border-color: #b4b4ae; }
+#app > .temper-session .temper-session-right > .temper-chat-goal.temper-goal-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-session .temper-session-right > .temper-chat-goal.temper-goal-primary:hover { background: #000; }
+#app > .temper-session .temper-session-right > button.temper-add-draft { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
+#app > .temper-session .temper-session-right > button.temper-add-draft:hover { border-color: #b4b4ae; background: var(--gf-surface); color: var(--gf-ink); }
+#app > .temper-session .temper-doc-empty { color: var(--gf-muted); }
+
+#app > .temper-session .temper-doc-sec { border-radius: 8px; transition: background .8s; }
+#app > .temper-session .temper-doc-sec:focus { outline: none; }
+#app > .temper-session .temper-doc-flash { border-radius: 8px; animation: flash 1.8s ease-out; }
+@keyframes flash { 0% { background: #fde7cf; } 100% { background: var(--gf-signal-pale); } }
+#app > .temper-session .temper-turn-tool > button:hover { color: var(--gf-ink); text-decoration-color: var(--gf-ink); }
+
 
 /* The keyboard hint has no paragraph margin below the mock's composer. */
 #app > .temper-session .temper-session-foot > .temper-session-hint { margin-bottom: 0; }
@@ -1412,7 +1294,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* Calls and delegations share the conversation's pen line. */
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -8px 0 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-size: 13px; color: var(--gf-muted); }
-#app > .temper-session :is(.temper-task-card, .temper-turn-tool > summary)::before { content: ''; flex: none; display: inline-block; width: 14px; height: 14px; background: var(--gf-faint); mask: url(files/pen.svg) center / contain no-repeat; }
+#app > .temper-session :is(.temper-task-card, .temper-turn-tool > summary, div.temper-turn-tool)::before { content: ''; flex: none; display: inline-block; width: 14px; height: 14px; background: url(files/pen.svg) center / contain no-repeat; }
 #app > .temper-session details.temper-turn-tool { display: block; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 0; margin: 0; border: 0; background: none; list-style: none; font: inherit; color: var(--gf-muted); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > summary::-webkit-details-marker { display: none; }
@@ -1422,13 +1304,14 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-task-card > :is(.temper-meta, .temper-steps) { display: none; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > :is(p, .temper-title, .temper-details) { margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-title { font-weight: 400; color: var(--gf-ink-2); }
-#app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-tool-file { font-family: var(--gf-mono); font-size: 12.5px; color: var(--gf-ink-2); }
+#app > .temper-session .temper-turn-tool > .temper-tool-file { font-weight: 500; color: var(--gf-ink-2); }
+#app > .temper-session .temper-task-card > .temper-tool-file { font-family: var(--gf-mono); font-size: 12.5px; color: var(--gf-ink-2); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > [role=status] { padding: 0; margin: 0; border: 0; border-radius: 0; background: none; font: inherit; color: var(--gf-faint); text-transform: lowercase; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-status-held { color: var(--gf-signal); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > [role=status]::before { content: none; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-details { color: var(--gf-faint); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-details > * { margin: 0; font: inherit; }
-#app > .temper-session :is(.temper-turn-tool, .temper-task-card) > a { padding: 0; border: 0; background: none; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; }
+#app > .temper-session :is(.temper-turn-tool, .temper-task-card) > :is(a, button) { padding: 0; border: 0; background: none; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; }
 /* Conversation cards use the mock's proposal, independently of the inbox. */
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 20px 22px; border: 0; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) > * { margin: 0; }
@@ -1476,9 +1359,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-chats-page .temper-chats-row { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 18px 0; border-bottom: 1px solid var(--gf-line); }
 #app > .temper-chats-page .temper-chats-top { display: flex; justify-content: space-between; gap: 12px; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
 #app > .temper-chats-page .temper-chats-top a { color: inherit; text-decoration: none; }
-#app > .temper-chats-page .temper-chats-top a::after { content: ''; position: absolute; inset: 0; }
-#app > .temper-chats-page .temper-chats-top a:focus-visible { outline: none; }
-#app > .temper-chats-page .temper-chats-top a:focus-visible::after { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
+#app > .temper-chats-page .temper-chats-top > :first-child > :first-child::after { content: ''; position: absolute; inset: 0; }
+#app > .temper-chats-page .temper-chats-top > :first-child > a:not(:first-child) { position: relative; z-index: 1; }
+#app > .temper-chats-page .temper-chats-top > :first-child > :first-child:focus-visible { outline: none; }
+#app > .temper-chats-page .temper-chats-top > :first-child > :first-child:focus-visible::after { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
 #app > .temper-chats-page .temper-chats-top [role=status] { display: inline; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; font: inherit; color: inherit; text-transform: lowercase; }
 #app > .temper-chats-page .temper-chats-top .temper-state-needs { color: var(--gf-signal); }
 #app > .temper-chats-page .temper-chats-top .temper-time { font: inherit; color: inherit; }
@@ -1521,7 +1405,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-session-composer > button { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--gf-ink) url(files/send.svg) center / 16px no-repeat; color: transparent; font-size: 0; overflow: hidden; }
 #app > .temper-session .temper-session-composer > button:disabled { background-color: var(--gf-line-2); cursor: default; }
 @media (max-width: 760px) {
-  #app:has(> .temper-session) > :is(.temper-rail, .temper-tabbar) { display: none; }
+  #app:has(> .temper-session) > :is(.temper-rail, .temper-tabbar, .temper-accounts) { display: none; }
   #app > .temper-session > .temper-session-top { padding: 10px 12px; gap: 8px; }
   #app > .temper-session .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
   #app > .temper-session .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
@@ -1562,8 +1446,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-session-right > p:not(.temper-byline) { display: none; }
 #app > .temper-session .temper-session-right > [role=status] { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 12px; font-weight: 400; color: var(--gf-faint); text-transform: lowercase; }
 #app > .temper-session .temper-session-right > .temper-state-needs { color: var(--gf-signal); }
-#app > .temper-session .temper-session-right > button { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }
-#app > .temper-session .temper-session-right > button:hover { background: var(--gf-hover); color: var(--gf-ink); }
+#app > .temper-session .temper-session-right > button:not(.temper-start-over) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }
+#app > .temper-session .temper-session-right > button:not(.temper-start-over):hover { background: var(--gf-hover); color: var(--gf-ink); }
 #app > .temper-session :is(.temper-thread, .temper-thread-inner) > .temper-meta-line.temper-context { padding: 0; border: 0; background: none; }
 #app > .temper-session :is(.temper-thread, .temper-thread-inner) > .temper-meta-line.temper-context > p { margin: 0; }
 #app > .temper-session .temper-meta-line .temper-repository { font-weight: 400; }
@@ -1637,6 +1521,69 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @media (max-width: 760px) {
   #app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin-top: 4vh; }
 }
+
+#app > .temper-session .temper-start-over { padding: 4px 10px; border: 1px solid var(--gf-line); border-radius: 8px; background: none; color: var(--gf-muted); font: 400 13px/1.5 var(--gf-sans); white-space: nowrap; }
+#app > .temper-session .temper-start-over:hover { border-color: var(--gf-line-2); color: var(--gf-ink); }
+#app > .temper-session .temper-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--gf-hover); }
+#app > .temper-session .temper-seg > button { padding: 4px 11px; border: 0; border-radius: 7px; background: none; color: var(--gf-muted); font: 400 13px/1.5 var(--gf-sans); }
+#app > .temper-session .temper-seg > button:hover { color: var(--gf-ink); }
+#app > .temper-session .temper-seg > button[aria-pressed=true] { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+#app > .temper-session:is(.temper-mode-split, .temper-mode-draft) { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+#app > .temper-session.temper-mode-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+#app > .temper-session.temper-mode-draft { grid-template-rows: auto minmax(0, 1fr) auto; }
+#app > .temper-session:is(.temper-mode-split, .temper-mode-draft) > .temper-session-top { grid-column: 1 / -1; }
+#app > .temper-session.temper-mode-split > .temper-convo { min-height: 0; }
+#app > .temper-session.temper-mode-chat > .temper-doc { display: none; }
+#app > .temper-session.temper-mode-draft > .temper-convo { grid-row: 3; background: var(--gf-surface); }
+#app > .temper-session.temper-mode-draft .temper-thread { display: none; }
+#app > .temper-session > .temper-doc { min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 44px 56px 80px; border-left: 1px solid var(--gf-line); background: var(--gf-surface); }
+#app > .temper-session.temper-mode-draft > .temper-doc { grid-row: 2; padding-bottom: 24px; border-left: 0; }
+#app > .temper-session .temper-doc-inner { max-width: 640px; margin: 0 auto; font-size: 15.5px; line-height: 1.7; color: var(--gf-ink); }
+#app > .temper-session .temper-doc-inner p { margin: 0 0 8px; }
+#app > .temper-session .temper-doc-path { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; margin-bottom: 18px !important; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-session .temper-doc-inner h2 { margin: 0 0 4px; font: 500 28px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
+#app > .temper-session .temper-doc-inner h3 { margin: 26px 0 8px; font: 600 17px/1.5 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > .temper-session :is(.temper-doc-sub, .temper-doc-muted) { color: var(--gf-muted); }
+#app > .temper-session .temper-doc-muted { font-size: 14px; }
+#app > .temper-session .temper-doc-inner ul { margin: 0; padding-left: 20px; }
+#app > .temper-session .temper-doc-inner li + li { margin-top: 4px; }
+#app > .temper-session .temper-doc-inner table { width: 100%; margin: 4px 0 10px; border-collapse: collapse; font-size: 14.5px; line-height: 1.5; }
+#app > .temper-session .temper-doc-inner :is(th, td) { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--gf-line); text-align: left; vertical-align: top; }
+#app > .temper-session .temper-doc-inner th { font-size: 12.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--gf-muted); }
+#app > .temper-session .temper-doc-changed { margin-inline: -14px; padding: 1px 14px 8px; border-radius: 8px; background: var(--gf-signal-pale); }
+#app > .temper-session .temper-doc-note { font-size: 12px; color: #9a3412; }
+#app > .temper-rail > .temper-rail-unfold { display: none; }
+#app:has(> .temper-rail):has(> .temper-mode-split) { grid-template-columns: 56px minmax(0, 1fr); }
+#app:has(> .temper-mode-split) > .temper-rail { align-items: center; gap: 14px; padding: 18px 0; }
+#app:has(> .temper-mode-split) > .temper-rail > :not(.temper-brand, .temper-rail-unfold) { display: none; }
+#app:has(> .temper-mode-split) > .temper-rail > .temper-brand { font-size: 0; }
+#app:has(> .temper-mode-split) > .temper-rail > .temper-brand::before { font-size: 17px; line-height: 1.6; }
+#app:has(> .temper-mode-split) > .temper-rail > .temper-rail-unfold { display: block; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent url(files/menu.svg) center / 18px no-repeat; color: transparent; font-size: 0; }
+#app:has(> .temper-mode-split) > .temper-rail > .temper-rail-unfold:hover { background-color: var(--gf-hover); }
+@media (max-width: 760px) {
+  #app > .temper-session .temper-seg > .temper-seg-split { display: none; }
+  #app > .temper-session .temper-seg { margin-left: auto; }
+  #app > .temper-session.temper-mode-split .temper-seg > button:last-child { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+  #app > .temper-session > .temper-doc { padding: 24px 16px 60px; border-left: 0; scrollbar-gutter: auto; }
+  #app:has(> .temper-rail):has(> .temper-mode-split) { grid-template-columns: minmax(0, 1fr); }
+  #app > .temper-session.temper-mode-split { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
+  #app > .temper-session.temper-mode-split > .temper-doc { grid-row: 2; }
+  #app > .temper-session.temper-mode-split > .temper-convo { grid-row: 3; background: var(--gf-surface); }
+  #app > .temper-session.temper-mode-split .temper-thread { display: none; }
+}
+
+#app > .temper-rail > .temper-rail-unfold > summary { height: 100%; padding: 0; list-style: none; cursor: pointer; }
+#app > .temper-rail > .temper-rail-unfold > summary::marker { content: ''; }
+#app > .temper-session .temper-seg > button { display: flex; align-items: center; gap: 6px; }
+#app > .temper-session .temper-seg > button::before { content: ''; width: 15px; height: 15px; background: url(files/chat.svg) center / 15px no-repeat; }
+#app > .temper-session .temper-seg > .temper-seg-split::before { background-image: url(files/split.svg); }
+#app > .temper-session .temper-seg > button:last-child::before { background-image: url(files/doc.svg); }
+#app > .temper-session .temper-doc-path > span:last-child { text-transform: lowercase; }
+#app > .temper-session .temper-doc-inner tr:has(> th):not(:has(> th:not(:empty))) { display: none; }
+#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) { position: fixed; inset: 0 auto 0 0; z-index: 20; width: 240px; align-items: stretch; padding: 18px 16px; background: var(--gf-paper); box-shadow: 8px 0 24px rgba(0, 0, 0, .08); }
+#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > :not(.temper-brand, .temper-rail-unfold) { display: flex; }
+#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > .temper-brand { font-size: 17px; }
+
 
 /* ==== ui: needs ==== */
 
@@ -1750,12 +1697,13 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 .temper-toast { position: fixed; left: 50%; bottom: 28px; z-index: 50; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px); padding: 10px 14px 10px 18px; border-radius: 10px; background: var(--gf-ink); color: #fff; font-size: 14px; transform: translate(-50%, 0); }
 .temper-toast button { padding: 0; border: 0; background: none; color: #fff; text-decoration: underline; font-size: 14px; }
-@media (max-width: 760px) { .temper-toast { bottom: 88px; } }
+@media (max-width: 760px) { .temper-toast { bottom: calc(88px + env(safe-area-inset-bottom)); } }
 
 
 
 
 /* ==== ui: goals ==== */
+#app:has(> .temper-rail) .temper-goal-composer textarea { field-sizing: content; min-width: 0; overflow-y: auto; }
 
 /* The column includes the main gutters: 720 px of content plus 48 px on each side. */
 #app:has(> .temper-rail) .temper-goals { width: 100%; max-width: 816px; margin: 0 auto; padding: 64px 48px 96px; display: flex; flex-direction: column; gap: 60px; font: 15px/1.6 var(--gf-sans); letter-spacing: normal; }
@@ -1794,8 +1742,104 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app:has(> .temper-rail) .temper-goals-line { font-size: 15px; }
 }
 
-
-
+/* A goal and its start sheet (client/browser.md, 2.5). */
+#app:has(> .temper-rail) .temper-goal { width: 100%; max-width: 1096px; margin: 0 auto; padding: 64px 48px 96px; display: flex; flex-direction: column; gap: 48px; font: 15px/1.6 var(--gf-sans); letter-spacing: normal; }
+#app:has(> .temper-rail) :is(.temper-goal, .temper-sheet) p { margin: 0; }
+#app:has(> .temper-rail) .temper-goal-byline { font-size: 12px; color: var(--gf-faint); }
+#app:has(> .temper-rail) :is(.temper-goal-btn, .temper-goal-choices button, .temper-goal-choices summary) { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 14.5px; text-decoration: none; text-align: left; }
+#app:has(> .temper-rail) .temper-goal-btn:hover { border-color: #b4b4ae; }
+#app:has(> .temper-rail) :is(.temper-goal-btn.temper-goal-primary, .temper-goal-choices .temper-recommended) { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app:has(> .temper-rail) .temper-goal-btn.temper-goal-primary:hover { background: #000; }
+#app:has(> .temper-rail) .temper-goal-btn.temper-goal-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-goal-btn.temper-goal-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-goal-btn.temper-goal-small { min-height: 34px; padding: 5px 12px; font-size: 13.5px; }
+#app:has(> .temper-rail) .temper-goal-btn .temper-goal-primary { margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; opacity: .72; }
+#app:has(> .temper-rail) .temper-goal-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+#app:has(> .temper-rail) .temper-goal-band { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; padding: 20px 24px; border-radius: 12px; background: var(--gf-signal-pale); }
+#app:has(> .temper-rail) .temper-goal-band > p { flex: 1 1 280px; }
+#app:has(> .temper-rail) .temper-goal-band .temper-goal-band-tag { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-signal); }
+#app:has(> .temper-rail) .temper-goal-band .temper-goal-btn:not(.temper-goal-primary) { border-color: var(--gf-signal-line); }
+#app:has(> .temper-rail) .temper-goal-head { max-width: 720px; display: flex; flex-direction: column; gap: 14px; }
+#app:has(> .temper-rail) .temper-goal-head .temper-goal-meta { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+#app:has(> .temper-rail) .temper-goal-head .temper-goal-meta strong { color: var(--gf-ink); font-weight: 500; }
+#app:has(> .temper-rail) .temper-goal-head h1 { margin: 0; font-size: 30px; line-height: 1.3; font-weight: 500; letter-spacing: -.02em; transition: opacity .3s; }
+#app:has(> .temper-rail) .temper-goal-two { display: flex; flex-wrap: wrap; gap: 56px; }
+#app:has(> .temper-rail) .temper-goal-report { flex: 1 1 460px; min-width: 0; max-width: 640px; display: flex; flex-direction: column; gap: 16px; font-size: 16px; line-height: 1.75; }
+#app:has(> .temper-rail) .temper-goal-report > .temper-goal-title { line-height: 1.75; }
+#app:has(> .temper-rail) .temper-goal-report strong { font-weight: 600; }
+#app:has(> .temper-rail) .temper-goal-side { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 36px; }
+#app:has(> .temper-rail) .temper-goal-bar { display: flex; gap: 3px; margin: 0 0 10px; }
+#app:has(> .temper-rail) .temper-goal-bar > * { flex: 1; height: 6px; border-radius: 3px; background: var(--gf-line); }
+#app:has(> .temper-rail) .temper-goal-bar .temper-goal-bar-landed { background: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-goal-bar .temper-goal-bar-running { background: #a1a1aa; }
+#app:has(> .temper-rail) .temper-goal-line { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 14px; }
+#app:has(> .temper-rail) .temper-goal-line > :last-child { flex: none; color: var(--gf-faint); }
+#app:has(> .temper-rail) .temper-goal-line.temper-goal-line-running > :last-child { color: var(--gf-good); }
+#app:has(> .temper-rail) .temper-goal-sent { display: flex; flex-direction: column; gap: 10px; max-width: 720px; }
+#app:has(> .temper-rail) .temper-goal-sent p { font-size: 14.5px; }
+#app:has(> .temper-rail) .temper-goal-sent .temper-goal-you { align-self: flex-end; max-width: 85%; padding: 8px 14px; border-radius: 14px 14px 4px 14px; background: var(--gf-hover); }
+#app:has(> .temper-rail) .temper-goal-composer { display: flex; align-items: flex-end; gap: 10px; padding: 8px 8px 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 14px; background: var(--gf-surface); }
+#app:has(> .temper-rail) .temper-goal-composer:focus-within { border-color: #a8a8a2; box-shadow: 0 0 0 3px rgba(24, 24, 27, .05); }
+#app:has(> .temper-rail) .temper-goal-composer textarea { flex: 1; min-height: 26px; max-height: 220px; margin: 6px 0; padding: 0; border: 0; outline: none; resize: none; background: none; line-height: 1.55; }
+#app:has(> .temper-rail) .temper-goal-composer textarea::placeholder { color: var(--gf-hint); }
+#app:has(> .temper-rail) .temper-goal-composer button { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--gf-ink) url(files/send.svg) center / 16px no-repeat; color: transparent; font-size: 0; overflow: hidden; }
+#app:has(> .temper-rail) .temper-goal-composer button:disabled { background-color: var(--gf-line-2); cursor: default; }
+#app:has(> .temper-rail) .temper-goal p.temper-goal-hint { margin: 6px 6px 0; font-size: 12px; color: var(--gf-faint); }
+#app:has(> .temper-rail) .temper-goal-typing { display: flex; gap: 4px; margin: 0; padding: 6px 0; }
+#app:has(> .temper-rail) .temper-goal-typing > * { width: 6px; height: 6px; border-radius: 50%; background: var(--gf-hint); animation: typing 1s infinite ease-in-out; }
+#app:has(> .temper-rail) .temper-goal-typing > :nth-child(2) { animation-delay: .15s; }
+#app:has(> .temper-rail) .temper-goal-typing > :nth-child(3) { animation-delay: .3s; }
+#app:has(> .temper-rail) .temper-sheet { width: min(620px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); }
+#app:has(> .temper-rail) .temper-sheet::backdrop { background: rgba(24, 24, 27, .32); }
+#app:has(> .temper-rail) .temper-sheet form { display: flex; flex-direction: column; gap: 20px; padding: 24px 26px; }
+#app:has(> .temper-rail) .temper-sheet form > :first-child { display: flex; flex-direction: column; gap: 6px; }
+#app:has(> .temper-rail) .temper-sheet h2 { margin: 0; font: 500 19px/1.6 var(--gf-sans); letter-spacing: -.01em; }
+#app:has(> .temper-rail) .temper-sheet button { margin: 0; font-family: var(--gf-sans); font-weight: 400; line-height: 1.6; }
+#app:has(> .temper-rail) .temper-sheet button.temper-goal-primary { font-weight: 500; }
+#app:has(> .temper-rail) .temper-sheet-fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
+#app:has(> .temper-rail) .temper-sheet-fieldset legend { margin-bottom: 8px; padding: 0; font-size: 14px; font-weight: 600; }
+#app:has(> .temper-rail) .temper-sheet-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 10px; padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 10px; cursor: pointer; }
+#app:has(> .temper-rail) .temper-sheet-option:has(input:checked) { border-color: var(--gf-ink); background: #fafaf9; }
+#app:has(> .temper-rail) .temper-sheet-option input { margin: 4px 0 0; accent-color: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-sheet-option label { font-weight: 500; cursor: pointer; }
+#app:has(> .temper-rail) .temper-sheet-option small { grid-column: 2; color: var(--gf-muted); font-size: 13px; }
+#app:has(> .temper-rail) .temper-goal-field { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field { display: grid; grid-template-columns: max-content minmax(0, 1fr); max-width: 720px; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field > :is(h2, p, textarea, [role=status]) { grid-column: 1 / -1; margin: 0; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field > textarea { min-height: 160px; resize: vertical; font: inherit; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field > input[type=text] { width: 100%; min-width: 0; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field > button { justify-self: start; }
+#app:has(> .temper-rail) .temper-goal-field > label { min-width: 6.5em; font-size: 14px; font-weight: 600; }
+#app:has(> .temper-rail) .temper-goal-text { min-height: 38px; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); }
+#app:has(> .temper-rail) .temper-sheet .temper-sheet-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--gf-line); }
+#app:has(> .temper-rail) .temper-goal-btn:disabled { opacity: .45; cursor: default; }
+#app:has(> .temper-rail) .temper-sheet-error { margin: -8px 0 0; color: #b42318; font-size: 14px; }
+#app:has(> .temper-rail) .temper-goal-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+#app:has(> .temper-rail) .temper-goal-choices > details { margin: 0; }
+#app:has(> .temper-rail) .temper-goal-choices summary { list-style: none; cursor: pointer; }
+#app:has(> .temper-rail) .temper-goal-choices summary::-webkit-details-marker { display: none; }
+#app:has(> .temper-rail) .temper-goal-choices textarea { display: block; width: 100%; min-height: 90px; margin: 8px 0; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; }
+#app:has(> .temper-rail) .temper-goal-title { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-goal-section { display: flex; flex-direction: column; gap: 6px; }
+#app:has(> .temper-rail) .temper-goal-side > .temper-goal-section:first-child { gap: 4px; }
+#app:has(> .temper-rail) .temper-goal-side > .temper-goal-section:first-child > .temper-goal-title { margin-bottom: 8px; }
+#app:has(> .temper-rail) .temper-goal-facts { font-size: 13.5px; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-goal-line > .temper-goal-line-needs { color: var(--gf-signal); }
+#app:has(> .temper-rail) .temper-goal-landed-fold > summary { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; margin-top: 6px; cursor: pointer; }
+#app:has(> .temper-rail) .temper-goal-landed-fold > summary:hover { text-decoration-color: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-goal-composer-box { max-width: 720px; }
+#app:has(> .temper-rail) .temper-sheet-muted { color: var(--gf-muted); font-size: 14px; }
+#app:has(> .temper-rail) .temper-sheet-link { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-sheet-link:hover { text-decoration-color: var(--gf-ink); }
+@keyframes typing { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+@media (max-width: 760px) {
+  #app:has(> .temper-rail) .temper-goal { padding: 8px 20px 112px; gap: 32px; }
+  #app:has(> .temper-rail) .temper-goal-choices { flex-direction: column; align-items: stretch; }
+  #app:has(> .temper-rail) .temper-goal-choices :is(.temper-goal-btn, button, summary) { min-height: 48px; font-size: 15.5px; }
+  #app:has(> .temper-rail) .temper-goal-choices .temper-goal-btn.temper-goal-quiet { min-height: 44px; }
+  #app:has(> .temper-rail) .temper-goal-head h1 { font-size: 23px; }
+  #app:has(> .temper-rail) .temper-goal-two { gap: 32px; }
+}
 
 /* ==== ui: changes ==== */
 #app > .temper-changes .temper-changes-mono { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
@@ -1809,6 +1853,170 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: settings ==== */
+
+/* Settings proposal cards, from greenfield/mock.css's .proposal rules. */
+.temper-settings-proposal { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; border-radius: 12px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
+.temper-settings-proposal.temper-settings-proposal-superseded { opacity: .5; }
+.temper-settings-proposal-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+.temper-settings-proposal-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.temper-settings-proposal-items li { display: flex; flex-direction: column; gap: 2px; }
+.temper-settings-proposal-items .temper-settings-proposal-reason { color: var(--gf-ink); }
+.temper-settings-proposal-items small { font: 12px var(--gf-mono); color: var(--gf-faint); }
+.temper-settings-proposal-acts { display: flex; flex-wrap: wrap; gap: 10px; }
+.temper-settings-proposal .temper-settings-btn { min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 13.5px var(--gf-sans); }
+.temper-settings-proposal .temper-settings-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+.temper-settings-proposal .temper-settings-small { border-color: transparent; background: none; color: var(--gf-muted); }
+.temper-settings-proposal .temper-settings-small:hover { background: var(--gf-hover); color: var(--gf-ink); }
+.temper-settings-proposal .temper-settings-primary:hover { background: #000; }
+.temper-settings-proposal-state { margin: 0; font-size: 13.5px; color: var(--gf-faint); }
+.temper-settings-proposal-state.temper-settings-proposal-ok { color: var(--gf-good); }
+
+/* Flow paths use Configure's crumbs (client/README.md, 3.5, The flows' paths). */
+.temper-main .temper-settings-path { min-width: 0; font: 400 14px/1.6 var(--gf-sans); }
+.temper-settings-path .temper-crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; color: var(--gf-muted); }
+.temper-settings-path .temper-crumbs > .temper-back { display: none; }
+.temper-settings-path .temper-trail { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.temper-settings-path .temper-trail > a::after { content: '/'; margin-left: 4px; color: var(--gf-muted); }
+.temper-settings-path .temper-crumbs a { color: inherit; text-decoration: none; }
+.temper-settings-path .temper-crumbs a:hover { color: var(--gf-ink); }
+.temper-settings-path .temper-trail > .temper-settings-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 14px/1.6 var(--gf-sans); color: var(--gf-ink); }
+
+/* Adoption's fields and choices take the mock's text, checks and button values. */
+.temper-settings .temper-settings-text { display: block; width: 100%; min-width: 0; min-height: 38px; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: inherit; }
+.temper-settings label[for]:has(+ .temper-settings-text) { display: block; margin-top: 14px; font-size: 14px; font-weight: 600; }
+.temper-settings .temper-settings-text[aria-invalid=true] { border-color: var(--gf-signal); }
+.temper-settings .temper-settings-col > section { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; min-width: 0; }
+.temper-settings .temper-settings-col > section > :not(input[type=checkbox], input[type=checkbox] + label) { grid-column: 1 / -1; }
+.temper-settings .temper-settings-col > section > input[type=checkbox] { align-self: center; margin: 14px 0 0; accent-color: var(--gf-ink); }
+.temper-settings .temper-settings-col > section > input[type=checkbox] + label { margin-top: 14px; font-size: 14px; }
+.temper-settings [role=radiogroup] > input { align-self: baseline; margin-top: 4px; accent-color: var(--gf-ink); }
+.temper-settings .temper-settings-col > section > .temper-settings-btn { justify-self: start; margin-top: 14px; font-family: var(--gf-sans); }
+.temper-settings .temper-settings-btn:disabled { opacity: .45; cursor: default; }
+.temper-settings .temper-settings-col > section > [role=status] { margin: 6px 0; color: var(--gf-muted); overflow-wrap: anywhere; }
+.temper-settings .temper-settings-col > section > [role=alert] { color: var(--gf-signal); overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .temper-settings-path .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
+  .temper-settings-path .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
+  .temper-settings-path .temper-trail { display: none; }
+}
+
+/* The settings column, head, tabs and rows, from greenfield/mock.css. */
+#app > .temper-settings { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; font: 400 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+.temper-settings-col { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 60px; }
+.temper-settings-intro { display: flex; flex-direction: column; gap: 16px; }
+.temper-settings .temper-settings-kicker { margin: 0; font-size: 13px; color: var(--gf-muted); }
+.temper-settings .temper-settings-headline { margin: 0; font: 500 32px/1.25 var(--gf-sans); letter-spacing: -.02em; }
+.temper-settings .temper-settings-lede { margin: 0; font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }
+.temper-settings-tabs { display: flex; flex-wrap: wrap; gap: 20px; border-bottom: 1px solid var(--gf-line); font-size: 14px; }
+.temper-settings .temper-settings-tabs a { padding: 8px 0; color: var(--gf-muted); text-decoration: none; }
+.temper-settings .temper-settings-tabs a[aria-current] { color: var(--gf-ink); font-weight: 500; box-shadow: inset 0 -2px var(--gf-ink); }
+.temper-settings-body { display: flex; flex-direction: column; gap: 44px; }
+.temper-settings-setting { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 280px); align-items: center; gap: 6px 28px; padding: 14px 0; border-bottom: 1px solid var(--gf-line); }
+.temper-settings-setting > div > .temper-settings-detail { display: block; margin-top: 2px; font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-setting select, .temper-settings-setting .temper-settings-text { width: 100%; min-width: 0; min-height: 38px; padding: 6px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font-size: 14px; }
+.temper-settings-setting select:disabled { color: var(--gf-faint); background: transparent; }
+.temper-settings-checks { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.temper-settings-checks label { display: flex; align-items: baseline; gap: 10px; }
+.temper-settings-checks input { accent-color: var(--gf-ink); }
+.temper-settings-checks :disabled + label { color: var(--gf-faint); }
+.temper-settings .temper-settings-switch { appearance: none; position: relative; flex: none; width: 34px; height: 20px; margin: 0; padding: 0; border: 0; border-radius: 10px; background: var(--gf-line-2); cursor: pointer; transition: background .15s; }
+.temper-settings-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.temper-settings .temper-settings-switch:checked { background: var(--gf-ink); }
+.temper-settings-switch:checked::after { left: 16px; }
+.temper-settings-switch:disabled { cursor: default; }
+.temper-settings-switch + label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.temper-settings-toggle-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-size: 14px; color: var(--gf-muted); }
+.temper-settings-toggle-row input[type=radio] { width: auto; height: auto; margin: revert; accent-color: auto; }
+.temper-settings .temper-settings-facts { margin: 0; font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-refusal { grid-column: 1 / -1; }
+.temper-settings :is(input, select):focus-visible { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
+.temper-settings-end { display: flex; justify-content: flex-end; }
+.temper-settings-section { display: flex; flex-direction: column; gap: 14px; }
+.temper-settings-body > .temper-settings-section { gap: 0; }
+.temper-settings-body > .temper-settings-section > .temper-settings-section-title { margin-bottom: 6px; }
+.temper-settings-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.temper-settings .temper-settings-section-title { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+.temper-settings-section-head a { font-size: 13px; }
+.temper-settings .temper-settings-empty { color: var(--gf-muted); padding: 4px 0; }
+.temper-settings .temper-settings-facts { font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-lines > div > div > .temper-settings-detail { display: block; margin-top: 2px; font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-lines { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
+.temper-settings-lines > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 4px; border-bottom: 1px solid var(--gf-line); text-decoration: none; }
+.temper-settings-lines .temper-settings-when { flex: none; font-size: 13px; color: var(--gf-faint); }
+.temper-settings-band { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; padding: 20px 24px; border-radius: 12px; background: var(--gf-signal-pale); }
+.temper-settings-band > p { flex: 1 1 280px; margin: 0; }
+.temper-settings-band .temper-settings-tag { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-signal); }
+.temper-settings-band .temper-settings-btn:not(.temper-settings-primary) { border-color: #f1d5bd; }
+.temper-settings-quiet-band { background: #f1f1ee; }
+.temper-settings-quiet-band .temper-settings-tag { color: var(--gf-muted); }
+.temper-settings :is(.temper-settings-btn, .temper-settings-primary) { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 14.5px; text-decoration: none; text-align: left; }
+.temper-settings :is(.temper-settings-btn, .temper-settings-primary):hover { border-color: #b4b4ae; }
+.temper-settings .temper-settings-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+.temper-settings .temper-settings-primary:hover { background: #000; }
+.temper-settings .temper-settings-small { min-height: 34px; padding: 5px 12px; font-size: 13.5px; }
+.temper-settings-tabs :is(.temper-nav-needs, .temper-nav-limited) { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; overflow: hidden; text-indent: 100%; white-space: nowrap; }
+.temper-settings-tabs .temper-nav-needs { background: #a65d53; }
+.temper-settings-tabs .temper-nav-limited { background: #9b7343; }
+
+/* Folded forge and account rows (client/README.md, 3.5, The rows). */
+.temper-settings .temper-refusal { color: var(--gf-signal); font-size: 13.5px; overflow-wrap: anywhere; }
+.temper-settings-lines > details.temper-settings-row { padding: 14px 4px; border-bottom: 1px solid var(--gf-line); }
+.temper-settings-row { min-width: 0; overflow-wrap: anywhere; }
+.temper-settings-row > summary { position: relative; padding-right: 24px; list-style: none; cursor: pointer; color: var(--gf-ink); font-size: 15px; font-weight: 400; }
+.temper-settings-row > summary::-webkit-details-marker { display: none; }
+.temper-settings-row > summary::after { content: '⌄'; position: absolute; right: 0; top: 0; color: var(--gf-faint); font-weight: 400; }
+.temper-settings-row > summary > [id^="skein-ui-description-"] { display: block; color: var(--gf-muted); font-size: 13.5px; white-space: pre-line; }
+.temper-settings-row > summary + * { margin-top: 14px; }
+.temper-settings-row .temper-settings-setting > [role=term] { font-size: 15px; color: var(--gf-ink); }
+.temper-settings-row .temper-settings-setting > [role=definition] { margin: 0; min-width: 0; }
+.temper-settings-row :is(button, a) { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 14.5px/1.6 var(--gf-sans); text-decoration: none; text-align: left; }
+.temper-settings-row :is(button, a):hover { border-color: #b4b4ae; }
+.temper-settings-row .temper-flow-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+.temper-settings-row .temper-flow-primary:hover { background: #000; }
+.temper-settings-row .temper-flow-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
+.temper-settings-row .temper-flow-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
+.temper-settings-row :is(button, a):focus-visible, .temper-settings-row input:focus-visible { outline: 2px solid var(--gf-ink); outline-offset: 3px; }
+.temper-settings-row button:disabled { opacity: .45; cursor: default; }
+.temper-settings-row input { width: 100%; min-width: 0; min-height: 38px; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); }
+.temper-settings-row label { display: block; margin-top: 14px; font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-row > :is(button, a) { margin: 14px 8px 0 0; }
+.temper-settings-row a:empty::before { content: attr(aria-label); }
+.temper-settings-row .temper-flow-card { margin: 14px 0 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.temper-settings-row .temper-flow-card h2 { margin: 0; font: 500 15px/1.6 var(--gf-sans); letter-spacing: normal; }
+
+
+/* Account sources, observations and forms keep their document order in the rows. */
+.temper-settings-row h3 { margin: 0; font: 500 15px/1.6 var(--gf-sans); letter-spacing: normal; }
+.temper-settings-row p { margin: 6px 0; }
+.temper-settings-row :is(p, [role=status], [role=definition]) { font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-row :is(.temper-status-active, .temper-status-done) { color: var(--gf-good); }
+.temper-settings-row .temper-status-retrying { color: var(--gf-signal); }
+.temper-settings-row :is(.temper-status-held, [role=alert]) { color: var(--gf-signal); }
+.temper-settings-row ul { list-style: none; margin: 14px 0; padding: 0; }
+.temper-settings-row li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; padding: 14px 0; border-bottom: 1px solid var(--gf-line); min-width: 0; }
+.temper-settings-row li > p { flex-basis: 100%; margin: 0; }
+.temper-settings-row li > [role=status] { font-size: 13.5px; }
+.temper-settings-row li > :is(button, a) { min-height: 34px; padding: 5px 12px; font-size: 13.5px; }
+.temper-settings-row input { font: 400 14px/1.6 var(--gf-sans); color: var(--gf-ink); }
+.temper-settings-row input[aria-invalid=true] { border-color: var(--gf-signal); }
+.temper-settings-row [role=alert] { margin-top: 14px; font-size: 13.5px; }
+.temper-settings-row code { display: block; white-space: pre-wrap; font: 400 13px/1.6 var(--gf-mono); }
+.temper-settings-row details:not(.temper-settings-row) { margin-top: 14px; }
+.temper-settings-row details:not(.temper-settings-row) > summary { cursor: pointer; color: var(--gf-muted); font-size: 13.5px; }
+
+@media (max-width: 760px) {
+  #app > .temper-settings { padding: 8px 20px 112px; }
+  .temper-settings-col { gap: 32px; }
+  .temper-settings-intro { gap: 10px; }
+  .temper-settings .temper-settings-headline { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
+  .temper-settings .temper-settings-lede { font-size: 15.5px; }
+  .temper-settings-tabs { flex-wrap: wrap; }
+  .temper-settings-setting { grid-template-columns: minmax(0, 1fr); }
+  .temper-settings [role=radiogroup]:has(> .temper-settings-setting) { grid-template-columns: minmax(0, 1fr); }
+  .temper-settings .temper-settings-primary { min-height: 44px; }
+}
+
 
 /* configure-temper-name: the opening as a page and one column for turns and composer. */
 #app > .temper-session .temper-thread:not(:has(> [role=log])) { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 36px 40px 24px; }
@@ -1842,15 +2050,152 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-session .temper-starter-ways { margin-top: 32px; }
   #app > .temper-session .temper-starters { gap: 10px; }
   #app > .temper-session .temper-starters button { padding: 12px 16px 14px; }
-  #app > .temper-session .temper-session-foot { padding: 8px 16px 14px; scrollbar-gutter: auto; }
+  #app > .temper-session .temper-session-foot { padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); scrollbar-gutter: auto; }
 }
 
 
 
 
+/* ==== ui: away ==== */
+.temper-settings [role=radiogroup]:has(> input) { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; margin-top: 14px; font-size: 14px; }
+.temper-settings-checks > div { display: flex; align-items: baseline; gap: 10px; }
+.temper-settings-checks > div > input { flex: none; width: 13px; height: 13px; margin: revert; }
+.temper-settings-checks > div > label { min-width: 0; }
+#app > .temper-home .temper-decided { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
+#app > .temper-home .temper-decision { display: flex; align-items: center; gap: 16px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); }
+#app > .temper-home .temper-decision > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#app > .temper-home .temper-decision > div > :first-child { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-home .temper-decision > div > :nth-child(2) { color: var(--gf-muted); }
+#app > .temper-home .temper-decision-took { font-weight: 500; }
+#app > .temper-home .temper-decision-why { font-size: 14px; color: var(--gf-muted); }
+#app > .temper-home .temper-decision-late { flex: none; max-width: 14em; font-size: 12.5px; color: var(--gf-faint); text-align: right; }
+#app > .temper-home .temper-decision-overturned .temper-decision-took { text-decoration: line-through; color: var(--gf-faint); }
+#app > .temper-home .temper-decision > .temper-home-small { flex: none; display: inline-flex; align-items: center; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); }
+#app > .temper-home .temper-decision > .temper-home-small:hover { border-color: #b4b4ae; }
+#app > .temper-home .temper-decision > .temper-home-small:disabled { opacity: .45; cursor: default; }
+#app > .temper-home > section:has(> .temper-decided) > .temper-home-head > button { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home > section:has(> .temper-decided) > .temper-home-head > button:hover { text-decoration-color: var(--gf-ink); }
+@media (max-width: 760px) {
+  #app > .temper-home .temper-decision { padding: 12px 0; }
+  #app > .temper-home .temper-decision .temper-decision-why { display: none; }
+  #app > .temper-home .temper-decision .temper-decision-late { max-width: 8em; }
+}
+
+#app > .temper-rail > .temper-rail-foot > .temper-away { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--gf-line); border-radius: 8px; background: var(--gf-surface); font: 400 13.5px/1.6 var(--gf-sans); color: var(--gf-muted); text-align: left; }
+.temper-away-track { position: relative; flex: none; width: 30px; height: 18px; border-radius: 9px; background: var(--gf-line-2); transition: background .15s; }
+.temper-away-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+#app > .temper-rail > .temper-rail-foot > .temper-away[aria-pressed=true] { background: var(--gf-ink); border-color: var(--gf-ink); color: #fff; }
+.temper-away[aria-pressed=true] > .temper-away-track { background: #52525b; }
+.temper-away[aria-pressed=true] > .temper-away-track::after { left: 14px; }
+#app > .temper-rail > .temper-away-chip { display: none; }
+@media (max-width: 760px) {
+  #app > .temper-rail > .temper-away-chip { display: block; flex: none; min-height: 36px; padding: 4px 14px; border: 1px solid var(--gf-line-2); border-radius: 18px; background: var(--gf-surface); color: var(--gf-muted); font: 400 13px/1.6 var(--gf-sans); }
+  #app > .temper-rail > .temper-away-chip[aria-pressed=true] { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; }
+}
+
 /* ==== ui: welcome ==== */
+
+#app > .temper-home .temper-home-steps > li > .temper-home-copy { grid-column: 2 / -1; display: flex; align-items: baseline; gap: 12px; color: var(--gf-muted); font-size: 14px; line-height: 1.55; min-width: 0; }
+#app > .temper-home .temper-home-copy > p { margin: 0; overflow-wrap: anywhere; }
+#app > .temper-home .temper-home-copy.temper-home-done::before { content: '✓' / ''; color: var(--gf-good); }
+#app > .temper-home .temper-home-copy > .temper-home-acts { flex-shrink: 0; margin: 0; }
+#app > .temper-home .temper-home-steps > li > :is(h3, p) { min-width: 0; overflow-wrap: anywhere; }
+
+
+#app > .temper-welcome .temper-welcome-checklist > li > .temper-account-line { width: auto; }
+#app > .temper-welcome .temper-welcome-checklist { display: flex; flex-direction: column; gap: 0; margin: 0 0 32px; padding: 0; border-top: 1px solid var(--gf-line); font-size: 15px; }
+#app > .temper-welcome .temper-welcome-checklist > li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li::before { content: '' / ''; position: static; grid-column: 1; grid-row: 1; box-sizing: border-box; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 12.5px; line-height: 1; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li.temper-flow-done::before { content: '✓' / ''; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
+#app > .temper-welcome .temper-welcome-checklist > li > * { grid-column: 2 / -1; margin: 0; }
+#app > .temper-welcome .temper-welcome-checklist > li > :first-child { grid-column: 2; grid-row: 1; }
+#app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 3; grid-row: 1; font-size: 14.5px; }
+#app > .temper-welcome .temper-welcome-checklist > li :is(p, .temper-account-line) { font-size: 15px; line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li strong { font-weight: 500; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-checklist .temper-welcome-end { margin-left: 0; }
+#app > .temper-welcome .temper-welcome-checklist .temper-welcome-end:empty { display: none; }
+#app > .temper-welcome .temper-welcome-checklist .temper-account-line > a { color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li.temper-welcome-current::before { border-top-color: var(--gf-ink); animation: temper-welcome-spin .9s linear infinite; }
+#app > .temper-welcome > .temper-flow-facts { padding: 0; margin: 0 0 32px; font-size: 14.5px; line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-welcome:has(> .temper-welcome-checklist) > button.temper-flow-secondary { align-self: flex-start; width: auto; }
+@media (prefers-reduced-motion: reduce) {
+  #app > .temper-welcome .temper-welcome-checklist > li.temper-welcome-current::before { animation: none; }
+}
+@media (max-width: 760px) {
+  #app > .temper-welcome .temper-welcome-checklist { margin-bottom: 24px; }
+  #app > .temper-welcome > .temper-flow-facts { margin-bottom: 24px; }
+  #app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 2 / -1; grid-row: auto; justify-self: start; }
+}
+
+
+#app:has(> .temper-welcome) { --gf-hover: #ececea; --gf-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace; }
+#app > .temper-welcome > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 32px; }
+
+#app:has(> .temper-welcome) .temper-welcome-panel,
+#app:has(> .temper-welcome) .temper-welcome-away { padding: 22px; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
+#app:has(> .temper-welcome) .temper-welcome-panel { display: flex; flex-direction: column; gap: 18px; margin-bottom: 32px; }
+#app:has(> .temper-welcome) .temper-welcome-panel > :is(p, form, .temper-welcome-acts, .temper-welcome-field) { margin: 0; }
+#app:has(> .temper-welcome) .temper-welcome-panel > p { font-size: 15px; line-height: 1.6; }
+#app:has(> .temper-welcome) .temper-welcome-panel .temper-flow-facts { padding: 0; border: 0; font-size: 14.5px; color: var(--gf-muted); }
+#app:has(> .temper-welcome) .temper-welcome-cmd { margin: 0; padding: 12px 14px; border-radius: 8px; background: #f1f1ee; font: 13.5px var(--gf-mono); overflow-x: auto; }
+#app:has(> .temper-welcome) .temper-welcome-field { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.6; color: var(--gf-muted); }
+#app:has(> .temper-welcome) .temper-welcome-field .temper-flow-field { margin: 0; }
+#app:has(> .temper-welcome) .temper-welcome-field label { display: block; margin: 0; font: inherit; color: var(--gf-muted); }
+#app:has(> .temper-welcome) .temper-welcome-field input { width: 100%; min-height: 38px; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); margin: 0; }
+#app:has(> .temper-welcome) .temper-welcome-numbered { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; list-style-type: decimal; }
+#app:has(> .temper-welcome) .temper-welcome-numbered p { margin: 0; }
+#app:has(> .temper-welcome) .temper-welcome-numbered a { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app:has(> .temper-welcome) .temper-welcome-acts .temper-flow-quiet { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font-size: 14.5px; text-decoration: none; }
+#app:has(> .temper-welcome) .temper-welcome-acts .temper-flow-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
+#app:has(> .temper-welcome) .temper-welcome-away { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 32px; }
+#app:has(> .temper-welcome) .temper-welcome-away p { margin: 0; font-size: 15px; line-height: 1.6; }
+#app:has(> .temper-welcome) .temper-welcome-away .temper-flow-muted { margin-top: 4px; font-size: 15px; line-height: 1.6; }
+#app:has(> .temper-welcome) .temper-welcome-away .temper-welcome-spin { margin-top: 5px; }
+#app:has(> .temper-welcome) .temper-welcome-forge-status > [role=status] { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+#app:has(> .temper-welcome) .temper-welcome-forge-status > [role=status] > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
+#app:has(> .temper-welcome) .temper-welcome-panel .temper-flow-primary:disabled { opacity: .45; }
+@media (max-width: 760px) {
+  #app > .temper-welcome > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 24px; }
+  #app:has(> .temper-welcome) .temper-welcome-panel { margin-bottom: 24px; }
+  #app:has(> .temper-welcome) .temper-welcome-panel,
+  #app:has(> .temper-welcome) .temper-welcome-away { padding: 18px; }
+}
+
+
+#app > .temper-welcome .temper-welcome-forge-status { padding: 14px 16px; border-radius: 10px; background: #f1f1ee; font-size: 14.5px; }
+#app > .temper-welcome .temper-welcome-forge-status.temper-flow-done { background: #eef6f0; }
+#app > .temper-welcome .temper-welcome-forge-status > p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-forge-status strong { font-weight: 500; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-forge-status > p > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
+#app > .temper-welcome .temper-welcome-sep { color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-spin { flex: none; width: 14px; height: 14px; border: 2px solid var(--gf-line-2); border-top-color: var(--gf-ink); border-radius: 50%; animation: temper-welcome-spin .9s linear infinite; }
+@keyframes temper-welcome-spin { to { transform: rotate(360deg); } }
+#app > .temper-welcome .temper-welcome-ok { color: var(--gf-good); font-weight: 600; }
+#app > .temper-welcome .temper-welcome-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0; }
+#app > .temper-welcome .temper-welcome-forge-status > details > summary { width: fit-content; margin-top: 6px; cursor: pointer; font-size: 13px; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--gf-faint); }
+#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li { padding-left: 0; color: var(--gf-faint); }
+#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li::before { position: static; content: '○' / ''; display: inline-block; width: 1.4em; }
+#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done { color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done::before { content: '✓' / ''; color: var(--gf-good); }
+#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li[aria-current] { color: var(--gf-ink); font-weight: 400; }
+#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li[aria-current]::before { content: '●' / ''; color: var(--gf-good); }
+@media (max-width: 760px) {
+  #app > .temper-welcome .temper-welcome-acts { margin: 24px 0; }
+  #app > .temper-welcome .temper-welcome-forge-status .temper-welcome-sep { display: none; }
+  #app > .temper-welcome .temper-welcome-forge-status > p > .temper-flow-muted { flex-basis: 100%; padding-left: 22px; }
+}
+
+
+#app:has(> .temper-welcome) .temper-flow-step > a:hover { color: var(--gf-ink); }
 
 
 
 
 /* ==== ui: phone ==== */
+@media (max-width: 760px) {
+  /* The tabs occupy 63px; keep a pixel clear when scrolling a control. */
+  :root:has(#app > .temper-tabbar):not(:has(#app > .temper-session)) { scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .temper-main:where(:not(.temper-settings)) .temper-flow-primary { min-height: 44px; }
+  dialog > button:nth-last-child(2) { min-height: 44px; }
+}

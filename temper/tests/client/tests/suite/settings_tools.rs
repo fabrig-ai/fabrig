@@ -621,3 +621,94 @@ fn restored_forge_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 
         shown
     })
 }
+
+const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"away":true,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"foreman"}]}"#;
+
+#[test]
+fn settings_show_prints_a_projects_ways_and_questions() {
+    let mut world = revision_world();
+    let agent = fixtures::agent(&mut world);
+    for (kind, value) in [
+        (b"project-ways".as_slice(), r#"{"drafts":false,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (b"project-questions", "\"none\""),
+    ] {
+        let shown = call(&mut world, agent, &[b"settings", b"show", kind, b"1"]);
+        assert!(shown.contains(value) && shown.contains("the stock"), "{shown}");
+    }
+    let proposal = submit_file(&mut world, agent, PROJECT_WAYS_FILE, "to project 1's owners");
+    let review = call(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
+    assert!(review.contains("project-ways 1") && review.contains("project-questions 1"), "{review}");
+    assert!(!review.contains("application kind"), "{review}");
+    ctl_accept(&mut world, agent, &proposal, b"accept-project-ways");
+    let inventory = call(&mut world, agent, &[b"settings", b"show"]);
+    assert!(inventory.contains("project-ways 1") && inventory.contains("project-questions 1"), "{inventory}");
+    let project = configuration().core.seed_projects[0].name.as_bytes().to_vec();
+    for (kind, value) in [
+        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":true,"changes":false,"away":true,"way":0}"#),
+        (b"project-questions", "\"foreman\""),
+    ] {
+        for selector in [b"1".as_slice(), project.as_ref()] {
+            let shown = call(&mut world, agent, &[b"settings", b"show", kind, selector]);
+            assert!(shown.contains(value) && !shown.contains("the stock"), "{shown}");
+        }
+        let json = call(&mut world, agent, &[b"settings", b"show", kind, b"1", b"--json"]);
+        assert!(json.contains(&format!("\"value\":{value}")) && json.contains("\"project\":1"), "{json}");
+        assert!(!json.contains("\"number\":1"), "{json}");
+        let historical = call(&mut world, agent, &[b"settings", b"show", kind, b"1", b"--revision", b"2"]);
+        assert!(historical.contains(value), "{historical}");
+    }
+    let revision = call(&mut world, agent, &[b"revision", b"show", b"2"]);
+    assert!(revision.contains("project-ways 1") && revision.contains("project-questions 1"), "{revision}");
+    assert!(!revision.contains("application kind"), "{revision}");
+    let changed = PROJECT_WAYS_FILE.replace("foreman", "up").replace("\"changes\":false", "\"changes\":true");
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"project.json", b"--against", b"2", b"--key", b"apply-project"],
+        changed.as_bytes(),
+    );
+    let applied = fixtures::answered(&mut world, agent, number);
+    assert_eq!(applied.status, 0, "{applied:?}");
+    let shown = call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1"]);
+    assert!(shown.contains("\"up\""), "{shown}");
+    let historical =
+        call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1", b"--revision", b"2", b"--json"]);
+    assert!(historical.contains("\"value\":\"foreman\""), "{historical}");
+}
+
+#[test]
+fn a_settings_file_changes_a_projects_questions_and_a_change_takes_them() {
+    use temper_engine_domain_world::{forge_routes::Until, kinds};
+    let mut world = kinds::forge_world();
+    let goal = kinds::goal(&mut world);
+    let items = temper_client_tools::jig::settings_file::decode(
+        br#"{"items":[{"setting":{"kind":"project-questions","project":1},"set":"up"}]}"#,
+        &temper_client_tools::limits::tools(),
+    )
+    .expect("questions settings file");
+    let item = items.get(0).expect("questions item");
+    let c::Setting::Application { kind, scope, number } = item.setting else { panic!("project setting") };
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set questions") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("questions bytes") };
+    let against = kinds::revision(&world.store.rows);
+    let input = temper_service::clients::translation::to_root(jig_domain_core::Event::ChangeSettings {
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(94)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [94; 16],
+        digest: [94; 32],
+        change: Box::new(settings::Change {
+            against,
+            running: settings::Running::Stays,
+            items: Box::new([settings::Item {
+                setting: settings::Setting::Application { kind, scope, number },
+                edit: settings::Edit::Set(settings::Value::Application(bytes.clone())),
+            }]),
+        }),
+    })
+    .expect("client entrance");
+    world.send(engine::Event::Party(input));
+    world.until(Until::Ready);
+    assert_eq!(kinds::revision(&world.store.rows), against + 1, "{:?}", world.web_replies);
+    let (task, _) = kinds::goal_change(&mut world, &goal);
+    assert_eq!(kinds::change_row(&world, task).questions.route, temper_engine_domain_forge_change::Route::Up);
+}

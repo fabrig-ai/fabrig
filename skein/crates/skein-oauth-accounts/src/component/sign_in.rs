@@ -3,7 +3,7 @@
 //! the OAuth client owns state authentication and the exchange's deadline.
 
 use super::names::number;
-use super::{Component, State};
+use super::{AccountEntry, Component, State};
 use crate::accounts::{Source, copy_registration};
 use crate::exchange::{Exchange, Stage};
 use crate::keeper::Store;
@@ -11,7 +11,7 @@ use crate::listener::Listener;
 use crate::redirect;
 use crate::{Asked, Ends, Event, Failure, Limits, Lower, Refusal};
 use alloc::boxed::Box;
-use skein_lib::{CryptoRng, Env, Queue, Time, Writer, usize_of};
+use skein_lib::{CryptoRng, Env, Queue, Secret, Time, Writer, usize_of};
 use skein_oauth as oauth;
 use skein_oauth::Redirect;
 
@@ -28,9 +28,9 @@ impl Component {
                 return;
             }
         }
-        let id = match self.bindings.get(account) {
-            Some(Some(id)) => *id,
-            Some(None) | None => return,
+        let id = match self.entries.get(account) {
+            Some(AccountEntry { binding: Some(id), .. }) => *id,
+            Some(AccountEntry { binding: None, .. }) | None => return,
         };
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
         if !exchange.signing_in() {
@@ -66,30 +66,34 @@ impl Component {
             && subject.len() > usize_of(env.limits.client.document.subject_bytes)
         {
             up.push(Event::Failed {
-                account: number(&self.names, account),
+                account: number(&self.entries, account),
                 ends: Ends::SignIn,
                 failure: Failure::Exchange(oauth::Failure::Limit),
             });
             return;
         }
-        let registration = match self.sources.get(account).expect("configured source") {
+        let registration = match &self.entries.get(account).expect("account entry").source {
             Source::SignIn { registration, .. } => copy_registration(registration),
             Source::HandedIn => {
                 up.push(Event::Refused {
-                    account: number(&self.names, account),
+                    account: number(&self.entries, account),
                     asked: Asked::SignIn,
                     why: Refusal::Source,
                 });
                 return;
             }
         };
-        if self.bindings.get(account) != Some(&None) {
-            up.push(Event::Refused { account: number(&self.names, account), asked: Asked::SignIn, why: Refusal::Busy });
+        if self.entries.get(account).expect("account entry").binding.is_some() {
+            up.push(Event::Refused {
+                account: number(&self.entries, account),
+                asked: Asked::SignIn,
+                why: Refusal::Busy,
+            });
             return;
         }
         if self.exchanges.is_full() {
             up.push(Event::Refused {
-                account: number(&self.names, account),
+                account: number(&self.entries, account),
                 asked: Asked::SignIn,
                 why: Refusal::Full { bound: env.limits.exchanges },
             });
@@ -103,7 +107,7 @@ impl Component {
                     continue;
                 }
                 let reserved = match exchange.stage {
-                    Stage::Loading => match self.sources.get(exchange.account).expect("account source") {
+                    Stage::Loading => match &self.entries.get(exchange.account).expect("account entry").source {
                         Source::SignIn { registration, .. } => registration.client_secret.is_none(),
                         Source::HandedIn => false,
                     },
@@ -124,7 +128,7 @@ impl Component {
             }
             if listeners >= env.limits.listeners {
                 up.push(Event::Refused {
-                    account: number(&self.names, account),
+                    account: number(&self.entries, account),
                     asked: Asked::SignIn,
                     why: Refusal::Full { bound: env.limits.listeners },
                 });
@@ -135,13 +139,13 @@ impl Component {
         let mut exchange = Exchange::new(account, client, false);
         exchange.subject = subject;
         exchange.sign_in_deadline = Some(env.now.saturating_add(env.limits.client.sign_in_time));
-        exchange.sign_in = Some(prepare_sign_in(registration, number(&self.names, account), env, &mut self.crypto));
+        exchange.sign_in = Some(prepare_sign_in(registration, number(&self.entries, account), env, &mut self.crypto));
         exchange.stage = Stage::Loading;
         exchange.purpose = crate::exchange::Purpose::SignIn { waiting: false };
         let id = self.insert_exchange(exchange);
-        *self.bindings.get_mut(account).expect("account binding") = Some(id);
-        let must_load = match self.accounts.get(account).expect("account state") {
-            State::Empty => match self.keepers.get_mut(account).expect("account keeper") {
+        self.entries.get_mut(account).expect("account entry").binding = Some(id);
+        let must_load = match &self.entries.get(account).expect("account entry").state {
+            State::Empty => match &mut self.entries.get_mut(account).expect("account entry").store {
                 Store::Private(keeper) => {
                     keeper.reload();
                     true
@@ -156,17 +160,17 @@ impl Component {
     }
 
     pub(super) fn begin_sign_in(&mut self, env: &Env<Limits>, account: u32, io: &mut Queue<Lower>) {
-        let registration = match self.sources.get(account).expect("configured source") {
+        let registration = match &self.entries.get(account).expect("account entry").source {
             Source::SignIn { registration, .. } => copy_registration(registration),
             Source::HandedIn => unreachable!("admitted sign-in source"),
         };
         let public = registration.client_secret.is_none();
-        let id = self.bindings.get(account).expect("account binding").expect("admitted exchange");
+        let id = self.entries.get(account).expect("account entry").binding.expect("admitted exchange");
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
         let event = exchange.sign_in.as_mut().expect("prepared sign-in");
         match event {
             oauth::Event::SignIn { generation, issued_client_id, id_token, subject, .. } => {
-                match self.accounts.get(account).expect("account") {
+                match &self.entries.get(account).expect("account entry").state {
                     State::Record { record, .. } | State::Loaded { record } => {
                         *generation = record.generation;
                         issued_client_id.clone_from(&record.issued_client_id);
@@ -248,39 +252,41 @@ impl Component {
     pub(super) fn redirected(&mut self, env: &Env<Limits>, account: u32, uri: &[u8], up: &mut Queue<Event>) {
         // A redirect completes the already admitted sign-in through a close.
         let draining_reply = match self.lifecycle {
-            super::Lifecycle::Closing => match self.bindings.get(account) {
-                Some(Some(id)) => self.exchanges.get(*id).expect("bound exchange").waiting(),
-                Some(None) | None => false,
+            super::Lifecycle::Closing => match self.entries.get(account) {
+                Some(AccountEntry { binding: Some(id), .. }) => {
+                    self.exchanges.get(*id).expect("bound exchange").waiting()
+                }
+                Some(AccountEntry { binding: None, .. }) | None => false,
             },
             super::Lifecycle::Live | super::Lifecycle::Aborting | super::Lifecycle::Closed => false,
         };
         if !draining_reply && self.refused(account, Asked::Redirected, up) {
             return;
         }
-        if account >= self.accounts.len() {
+        if account >= self.entries.len() {
             up.push(Event::Refused {
-                account: number(&self.names, account),
+                account: number(&self.entries, account),
                 asked: Asked::Redirected,
                 why: Refusal::Account,
             });
             return;
         }
-        let registered = match self.sources.get(account).expect("configured source") {
+        let registered = match &self.entries.get(account).expect("account entry").source {
             Source::SignIn { registration, .. } => &registration.redirect_uri,
             Source::HandedIn => {
                 up.push(Event::Refused {
-                    account: number(&self.names, account),
+                    account: number(&self.entries, account),
                     asked: Asked::Redirected,
                     why: Refusal::Source,
                 });
                 return;
             }
         };
-        let id = match self.bindings.get(account).expect("account binding") {
+        let id = match &self.entries.get(account).expect("account entry").binding {
             Some(id) => *id,
             None => {
                 up.push(Event::Refused {
-                    account: number(&self.names, account),
+                    account: number(&self.entries, account),
                     asked: Asked::Redirected,
                     why: Refusal::NotWaiting,
                 });
@@ -299,7 +305,7 @@ impl Component {
             || !exchange.above.is_empty()
         {
             up.push(Event::Refused {
-                account: number(&self.names, account),
+                account: number(&self.entries, account),
                 asked: Asked::Redirected,
                 why: Refusal::NotWaiting,
             });
@@ -307,7 +313,7 @@ impl Component {
         }
         if exchange.state_refusals >= crate::STATE_REFUSALS {
             up.push(Event::Refused {
-                account: number(&self.names, account),
+                account: number(&self.entries, account),
                 asked: Asked::Redirected,
                 why: Refusal::Full { bound: crate::STATE_REFUSALS },
             });
@@ -322,12 +328,12 @@ impl Component {
             None => Err(Refusal::Redirect),
         };
         match result {
-            Ok(()) => up.push(Event::Taken { account: number(&self.names, account) }),
+            Ok(()) => up.push(Event::Taken { account: number(&self.entries, account) }),
             Err(why) => {
                 if why == Refusal::State {
                     exchange.state_refusals = exchange.state_refusals.checked_add(1).expect("bounded state refusals");
                 }
-                up.push(Event::Refused { account: number(&self.names, account), asked: Asked::Redirected, why });
+                up.push(Event::Refused { account: number(&self.entries, account), asked: Asked::Redirected, why });
             }
         }
     }
@@ -382,9 +388,9 @@ fn prepare_sign_in(
     env: &Env<Limits>,
     crypto: &mut CryptoRng,
 ) -> oauth::Event {
-    let state = draw(crypto, 24);
+    let state = Secret::new(draw(crypto, 24));
     let verifier = if registration.client_secret.is_none() || registration.pkce_for_confidential {
-        Some(draw(crypto, 32))
+        Some(Secret::new(draw(crypto, 32)))
     } else {
         None
     };
@@ -393,7 +399,10 @@ fn prepare_sign_in(
         None => false,
     };
     let nonce = if openid {
-        Some(draw(crypto, env.limits.client.nonce_bytes.min(32).checked_mul(3).expect("bounded nonce").div_euclid(4)))
+        Some(Secret::new(draw(
+            crypto,
+            env.limits.client.nonce_bytes.min(32).checked_mul(3).expect("bounded nonce").div_euclid(4),
+        )))
     } else {
         None
     };

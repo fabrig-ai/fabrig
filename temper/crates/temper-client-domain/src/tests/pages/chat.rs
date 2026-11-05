@@ -12,7 +12,7 @@ const REPLY: u64 = 1;
 #[test]
 fn opening_a_chat_watches_task_and_reads_its_first_activity_page() {
     let mut out = Queue::with_capacity(OUTPUTS);
-    let chat = Chat::new(f::TASK, f::FIRST, &fixtures::limits(), &mut out);
+    let chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, &fixtures::limits(), &mut out);
     assert_eq!(
         out.pop(),
         Some(Request::Client(Event::Watch {
@@ -52,7 +52,10 @@ fn leaving_a_chat_unwatches_its_task_activity_and_run() {
     let mut f = f::opened();
     while f.out.pop().is_some() {}
     f.chat.leave(&mut f.out);
-    assert_eq!(f::handles(&mut f.out).as_ref(), [f.chat.document, f.chat.activity, f.chat.run.expect("run")]);
+    assert_eq!(
+        f::handles(&mut f.out).as_ref(),
+        [f.chat.document, f.chat.activity, draft_handle(&f.chat), f.chat.run.expect("run")]
+    );
 }
 fn open_run(f: &mut f::Fixture) -> skein_lib::Token {
     let mut emitted = Queue::with_capacity(OUTPUTS);
@@ -842,8 +845,8 @@ fn leaving_a_chat_unwatches_its_delegations() {
     let watched = watches(&mut f.out);
     f.chat.leave(&mut f.out);
     let left = f::handles(&mut f.out);
-    assert_eq!(left.len(), 5, "document, activity, run and both delegations");
-    assert_eq!(&left[3..], [watched[0].0, watched[1].0]);
+    assert_eq!(left.len(), 6, "document, activity, draft read, run and both delegations");
+    assert_eq!(&left[4..], [watched[0].0, watched[1].0]);
 }
 #[test]
 fn an_ended_delegation_reads_its_task_and_keeps_its_result() {
@@ -933,7 +936,7 @@ fn a_chat_fills_its_window_to_the_start_without_offering_older() {
     let limits = fixtures::limits();
     let client = jig_client::Client::unlinked(&limits.client, fixtures::SEED).unwrap();
     let mut out = Queue::with_capacity(OUTPUTS);
-    let mut chat = Chat::new(f::TASK, f::FIRST, &limits, &mut out);
+    let mut chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, &limits, &mut out);
     while out.pop().is_some() {}
     for page in 0..5 {
         window_page(&mut chat, &client, &mut out, page, 5);
@@ -949,7 +952,7 @@ fn a_full_chat_window_offers_older_and_reads_it_when_asked() {
     let limits = fixtures::limits();
     let client = jig_client::Client::unlinked(&limits.client, fixtures::SEED).unwrap();
     let mut out = Queue::with_capacity(OUTPUTS);
-    let mut chat = Chat::new(f::TASK, f::FIRST, &limits, &mut out);
+    let mut chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, &limits, &mut out);
     while out.pop().is_some() {}
     for page in 0..8 {
         window_page(&mut chat, &client, &mut out, page, 10);
@@ -1143,4 +1146,521 @@ fn a_chats_transient_older_read_keeps_its_cursor() {
     f.chat.fire(due, &mut f.out);
     assert_eq!(f.out.pop(), Some(asked));
     assert!(f.out.is_empty());
+}
+
+fn draft_handle(chat: &Chat) -> jig_client::Handle {
+    jig_client::Handle { asker: chat.document.asker, number: chat.document.number.checked_add(2).unwrap() }
+}
+fn take_draft_reads(f: &mut f::Fixture) -> usize {
+    let mut count = 0_usize;
+    while let Some(request) = f.out.pop() {
+        if let Request::Client(Event::Read {
+            handle,
+            read: Readable::Jig(c::Read::Notes { scope, description, after }),
+        }) = request
+        {
+            assert_eq!(handle, draft_handle(&f.chat));
+            assert_eq!(scope, c::NoteScope::Task { project: fixtures::PROJECT, task: f::TASK });
+            assert_eq!(description, None);
+            assert_eq!(after, None);
+            count = count.checked_add(1).unwrap();
+        }
+    }
+    count
+}
+fn draft_answer(f: &mut f::Fixture, page: jig_client::Readout) {
+    f.chat.told(Time::ZERO, &f.client, Told::Page { handle: draft_handle(&f.chat), page }, &mut f.out);
+}
+pub(super) fn notes_page(notes: &[c::Note]) -> jig_client::Readout {
+    let mut rows = skein_lib::List::with_capacity(u32::try_from(notes.len()).unwrap());
+    for note in notes {
+        rows.push(note.clone()).unwrap();
+    }
+    jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
+        rows,
+        before: None,
+        after: None,
+        cut: false,
+    }))))
+}
+pub(super) fn draft_note(number: u64, revision: u64, body: &[u8]) -> c::Note {
+    c::Note {
+        number,
+        revision: c::Revision { value: revision },
+        scope: c::NoteScope::Task { project: fixtures::PROJECT, task: f::TASK },
+        description: f::document_text(b"A draft"),
+        body: f::document_text(body),
+        writer: c::NoteAuthor::Task { task: f::TASK, attempt: f::ATTEMPT },
+        tasks: skein_lib::List::with_capacity(0),
+        changed: Some(skein_lib::Wall::from_nanos(123)),
+        acts: skein_lib::List::with_capacity(0),
+        cut: false,
+    }
+}
+fn note_call(f: &mut f::Fixture, number: u64, position: u64) {
+    let mut call = f::delegate_call(number);
+    call.tool = fixtures::acts::text(b"note");
+    call.objects = skein_lib::List::with_capacity(0);
+    call.outcome = Some(c::Text::new("Note 12 revision 1 written · 64 lines".as_bytes().into(), 64).unwrap());
+    let mut blocks = skein_lib::List::with_capacity(1);
+    blocks.push(c::Block::Call(call)).unwrap();
+    f::activity_blocks(f, c::Speaker::Assistant, blocks, position);
+}
+#[test]
+fn reads_once_the_task_arrives() {
+    // Task, activity, draft read and goal chip reserve four handles; the live run uses one.
+    const RESERVED_AND_RUN: u64 = 5;
+    let mut f = f::opened();
+    assert_eq!(take_draft_reads(&mut f), 1);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    assert_eq!(take_draft_reads(&mut f), 0);
+    assert!(!f.chat.wanted, "the same task delivery does not request another read");
+    assert_eq!(f.chat.next, f::FIRST.checked_add(RESERVED_AND_RUN).unwrap());
+    // The final task's read is the other first-arrival path.
+    let limits = fixtures::limits();
+    let mut out = Queue::uncapped();
+    let mut chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, 20, &limits, &mut out);
+    while out.pop().is_some() {}
+    chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page {
+            handle: chat.document,
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(f::task())))),
+        },
+        &mut out,
+    );
+    let mut notes = 0_u32;
+    while let Some(request) = out.pop() {
+        if let Request::Client(Event::Read { read: Readable::Jig(c::Read::Notes { scope, .. }), .. }) = request {
+            assert_eq!(scope, c::NoteScope::Task { project: fixtures::PROJECT, task: f::TASK });
+            notes = notes.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(notes, 1);
+}
+#[test]
+fn a_new_note_call_reads_again() {
+    let mut f = f::opened();
+    assert_eq!(take_draft_reads(&mut f), 1);
+    draft_answer(&mut f, notes_page(&[]));
+    note_call(&mut f, 11, f::POSITION);
+    assert_eq!(take_draft_reads(&mut f), 1);
+    assert_eq!(
+        f.chat.newest_write(),
+        crate::pages::chat::document::note_write("Note 12 revision 1 written · 64 lines".as_bytes())
+    );
+    draft_answer(&mut f, notes_page(&[]));
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    assert_eq!(take_draft_reads(&mut f), 0, "the old note call is already seen");
+}
+#[test]
+fn a_note_number_reused_in_a_later_turn_reads_again() {
+    let mut f = f::opened();
+    take_draft_reads(&mut f);
+    draft_answer(&mut f, notes_page(&[draft_note(12, 1, b"# First")]));
+    note_call(&mut f, 1, f::POSITION);
+    take_draft_reads(&mut f);
+    draft_answer(&mut f, notes_page(&[draft_note(12, 1, b"# First")]));
+    note_call(&mut f, 1, f::POSITION + 1);
+    assert_eq!(take_draft_reads(&mut f), 1, "each turn has its own call numbers");
+    draft_answer(&mut f, notes_page(&[draft_note(12, 2, b"# Revised")]));
+    assert_eq!(f.chat.draft.as_ref().unwrap().body.as_ref(), b"# Revised");
+}
+#[test]
+fn one_read_out_wanted_once_more() {
+    let mut f = f::opened();
+    assert_eq!(take_draft_reads(&mut f), 1);
+    note_call(&mut f, 11, f::POSITION);
+    note_call(&mut f, 12, f::POSITION + 1);
+    assert_eq!(take_draft_reads(&mut f), 0);
+    assert!(f.chat.wanted);
+    draft_answer(&mut f, notes_page(&[]));
+    assert_eq!(take_draft_reads(&mut f), 1, "coalesced triggers ask once after the pending answer");
+    assert!(!f.chat.wanted);
+    draft_answer(&mut f, notes_page(&[]));
+    assert_eq!(take_draft_reads(&mut f), 0);
+}
+#[test]
+fn a_transient_end_retries_on_activitys_waits() {
+    for why in [c::ReadNone::Busy, c::ReadNone::Unreachable, c::ReadNone::SignedOut] {
+        let mut f = f::opened();
+        take_draft_reads(&mut f);
+        let mut now = Time::ZERO;
+        for seconds in [1, 2, 4, 8, 16, 30, 30] {
+            f.chat.told(
+                now,
+                &f.client,
+                Told::Page { handle: draft_handle(&f.chat), page: jig_client::Readout::Jig(c::ReadResult::None(why)) },
+                &mut f.out,
+            );
+            let due = now.saturating_add(Duration::from_secs(seconds));
+            assert_eq!(f.chat.next_deadline(), Some(due));
+            f.chat.fire(now, &mut f.out);
+            assert_eq!(take_draft_reads(&mut f), 0);
+            f.chat.fire(due, &mut f.out);
+            assert_eq!(take_draft_reads(&mut f), 1);
+            now = due;
+        }
+        draft_answer(&mut f, notes_page(&[]));
+        assert_eq!(f.chat.next_deadline(), None);
+    }
+}
+#[test]
+fn off_a_call_to_note_reads_again() {
+    let mut f = f::opened();
+    let watch = open_run(&mut f);
+    draft_answer(&mut f, notes_page(&[]));
+    let c::Delivery::RunState(mut state) = run_state(None) else { panic!("run state") };
+    state.call = Some(c::CurrentCall {
+        identity: c::CallIdentity {
+            owner: skein_lib::Token::new(1),
+            sequence: 1,
+            retry: 0,
+            id: fixtures::acts::text(b"n1"),
+        },
+        tool: fixtures::acts::text(b"note"),
+        input: fixtures::acts::text(b"{}"),
+        cut: false,
+        began: None,
+    });
+    run_delivery(&mut f, watch, c::Delivery::RunState(state));
+    assert_eq!(take_draft_reads(&mut f), 0);
+    run_delivery(&mut f, watch, run_state(None));
+    assert_eq!(take_draft_reads(&mut f), 1);
+}
+#[test]
+fn an_empty_answer_leaves_the_document() {
+    let mut f = f::opened();
+    take_draft_reads(&mut f);
+    draft_answer(&mut f, notes_page(&[draft_note(12, 1, b"# Body")]));
+    let saved = f.chat.draft.clone().unwrap();
+    note_call(&mut f, 11, f::POSITION);
+    take_draft_reads(&mut f);
+    draft_answer(&mut f, notes_page(&[]));
+    assert_eq!(f.chat.draft.as_ref(), Some(&saved));
+    note_call(&mut f, 12, f::POSITION + 1);
+    take_draft_reads(&mut f);
+    draft_answer(&mut f, jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)));
+    assert_eq!(f.chat.draft.as_ref(), Some(&saved));
+    assert_eq!(f.chat.next_deadline(), None);
+}
+#[test]
+fn the_lowest_numbered_is_the_document() {
+    let mut f = f::opened();
+    take_draft_reads(&mut f);
+    let mut foreign = draft_note(1, 1, b"Wrong scope");
+    foreign.scope = c::NoteScope::Task { project: fixtures::PROJECT, task: f::TASK + 1 };
+    draft_answer(&mut f, notes_page(&[draft_note(13, 1, b"Later note"), foreign, draft_note(12, 3, b"# Current")]));
+    let draft = f.chat.draft.as_ref().unwrap();
+    assert_eq!(
+        (draft.note, draft.revision, draft.title.as_ref(), draft.body.as_ref(), draft.changed),
+        (12, 3, b"A draft".as_slice(), b"# Current".as_slice(), Some(skein_lib::Wall::from_nanos(123)))
+    );
+}
+#[test]
+fn mode_and_show_section_are_page_state() {
+    use crate::pages::chat::document::Mode;
+    let mut f = f::opened();
+    let mut serial = SERIAL;
+    assert_eq!(f.chat.mode, Mode::Chat);
+    for (act, mode, shown, count) in [
+        (Act::ShowSection { line: 31 }, Mode::Split, Some(31), 1),
+        (Act::Mode { mode: Mode::Draft }, Mode::Draft, Some(31), 1),
+        (Act::ShowSection { line: 7 }, Mode::Draft, Some(7), 2),
+        (Act::Mode { mode: Mode::Chat }, Mode::Chat, Some(7), 2),
+    ] {
+        f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, act, &mut serial, &mut f.out);
+        assert_eq!((f.chat.mode, f.chat.shown, f.chat.shown_count), (mode, shown, count));
+    }
+}
+
+fn start_over_pages() -> (crate::pages::Pages, jig_client::Client) {
+    let mut f = f::with_delegate();
+    let mut me = fixtures::chats::me();
+    let project = me.projects.get_mut(0).unwrap();
+    let mut configuring = project.templates.get(0).unwrap().clone();
+    configuring.number = 3;
+    let mut templates = skein_lib::List::with_capacity(2);
+    templates.push(project.templates.get(0).unwrap().clone()).unwrap();
+    templates.push(configuring).unwrap();
+    project.templates = templates;
+    f.client.step_unlinked(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Up {
+            up: jig_client::Up::Watched { watch: f.me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+        },
+        &mut Queue::uncapped(),
+    );
+    let mut task = f::task();
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+    task.acts = fixtures::acts::offered(c::ActKind::Cancel, c::Admission::Allowed);
+    f::deliver(&mut f.client, f.watch, task);
+    let mut pages = crate::pages::Pages::new();
+    crate::pages::step(
+        &mut pages,
+        &fixtures::env(&fixtures::limits()),
+        &f.client,
+        crate::pages::Event::Went { address: crate::Address::Chat { task: f::TASK } },
+        &mut Queue::uncapped(),
+    );
+    let handle = pages.chat().unwrap().document;
+    chat_told(&mut pages, &f.client, Told::Changed { handle });
+    let handle = draft_handle(pages.chat().unwrap());
+    chat_told(&mut pages, &f.client, Told::Page { handle, page: notes_page(&[draft_note(1, 1, b"# How it works")]) });
+    (pages, f.client)
+}
+fn start_over_act(pages: &mut crate::pages::Pages, client: &jig_client::Client, act: Act) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    crate::pages::step(pages, &fixtures::env(&fixtures::limits()), client, crate::pages::Event::Act { act }, &mut out);
+    out
+}
+#[test]
+fn start_over_asks_first() {
+    let (mut pages, client) = start_over_pages();
+    let mut out = start_over_act(&mut pages, &client, Act::StartOver);
+    assert!(fixtures::acts::sent(&mut out).is_empty());
+    assert!(pages.confirmation().is_some());
+    let chat = pages.chat().unwrap();
+    assert!(chat.restarting);
+    assert!(chat.closing.is_some());
+    assert!(chat.pending.is_empty());
+}
+#[test]
+fn confirmed_it_closes_with_the_chats_own_close() {
+    let (mut pages, client) = start_over_pages();
+    start_over_act(&mut pages, &client, Act::StartOver);
+    let expected = pages.chat().unwrap().closing.clone().unwrap();
+    let mut out = start_over_act(&mut pages, &client, Act::Confirm);
+    assert_eq!(fixtures::acts::sent(&mut out).as_ref(), [expected]);
+    assert!(pages.confirmation().is_none());
+    assert_eq!(pages.chat().unwrap().pending.get(0).unwrap().1, Sending::Close);
+    assert!(start_over_act(&mut pages, &client, Act::Confirm).is_empty());
+}
+fn answer_start_over(
+    pages: &mut crate::pages::Pages,
+    client: &jig_client::Client,
+    outcome: jig_client::Outcome,
+) -> Queue<Request> {
+    let key = pages.chat().unwrap().pending.get(0).unwrap().0;
+    let mut out = Queue::uncapped();
+    crate::pages::step(
+        pages,
+        &fixtures::env(&fixtures::limits()),
+        client,
+        crate::pages::Event::Told { told: Told::Answered { key, outcome } },
+        &mut out,
+    );
+    out
+}
+#[test]
+fn the_close_answered_shows_configure() {
+    let (mut pages, client) = start_over_pages();
+    start_over_act(&mut pages, &client, Act::StartOver);
+    start_over_act(&mut pages, &client, Act::Confirm);
+    let mut out = answer_start_over(&mut pages, &client, seen_answer());
+    assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Configure { project: fixtures::PROJECT } }));
+    assert!(out.is_empty());
+}
+#[test]
+fn a_refused_close_stays() {
+    let (mut pages, client) = start_over_pages();
+    start_over_act(&mut pages, &client, Act::StartOver);
+    start_over_act(&mut pages, &client, Act::Confirm);
+    let refused = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+        refusal: c::Refusal::NotOffered,
+        at: None,
+    }));
+    assert!(answer_start_over(&mut pages, &client, refused.clone()).is_empty());
+    assert_eq!(pages.address(), &crate::Address::Chat { task: f::TASK });
+    assert_eq!(pages.chat().unwrap().outcome.as_ref(), Some(&refused));
+    assert_eq!(pages.chat().unwrap().outcome_kind, Some(Sending::Close));
+    assert!(!pages.chat().unwrap().restarting);
+}
+#[test]
+fn cancel_changes_nothing() {
+    let (mut pages, client) = start_over_pages();
+    let draft = pages.chat().unwrap().draft.clone();
+    start_over_act(&mut pages, &client, Act::StartOver);
+    assert!(start_over_act(&mut pages, &client, Act::Cancel).is_empty());
+    assert!(pages.confirmation().is_none());
+    let chat = pages.chat().unwrap();
+    assert!(chat.closing.is_none());
+    assert!(!chat.restarting);
+    assert!(chat.pending.is_empty());
+    assert_eq!(chat.draft, draft);
+    assert_eq!(pages.address(), &crate::Address::Chat { task: f::TASK });
+}
+fn departed_answer(f: &mut f::Fixture, key: c::ProposalKey, result: c::ReadResult) {
+    proposals(f, &[key]);
+    reads(&mut f.out);
+    proposals(f, &[]);
+    let reads = reads(&mut f.out);
+    let [(handle, read)] = reads.as_ref() else { panic!("departed proposal read") };
+    assert_eq!(*read, key);
+    assert!(f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page { handle: *handle, page: jig_client::Readout::Jig(result) },
+        &mut f.out
+    ));
+}
+#[test]
+fn a_departed_proposals_own_read_keeps_its_acceptance_time() {
+    let mut f = f::opened();
+    let at = skein_lib::Wall::from_nanos(50_580_000_000_000);
+    departed_answer(
+        &mut f,
+        PROPOSAL,
+        c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
+            key: c::ObjectKey::Proposal(PROPOSAL),
+            value: c::EndedValue::Proposal(c::ProposalHistory {
+                action: c::RetainedAction::Batch(skein_lib::List::with_capacity(0)),
+                number: PROPOSAL.number,
+                proposer: f::TASK,
+                as_holder: true,
+                state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(fixtures::PARTY) },
+            }),
+            at: Some(at),
+            by: None,
+        }))),
+    );
+    assert_eq!(f.chat.decided, Some((PROPOSAL.number, at)));
+    proposals(&mut f, &[]);
+    assert_eq!(f.chat.decided, Some((PROPOSAL.number, at)), "later task documents keep the decision");
+}
+#[test]
+fn an_unknown_departed_proposal_keeps_its_number_without_a_time() {
+    let mut f = f::opened();
+    departed_answer(&mut f, PROPOSAL, c::ReadResult::None(c::ReadNone::Unknown));
+    assert_eq!(f.chat.decided, None);
+    assert_eq!(f.chat.departed_proposal, Some(PROPOSAL.number));
+}
+
+#[test]
+fn a_retained_settings_card_keeps_the_documents_acceptance_time() {
+    let mut f = f::opened();
+    proposals(&mut f, &[PROPOSAL]);
+    let handle = reads(&mut f.out)[0].0;
+    let c::ReadValue::Proposal(mut proposal) = fixtures::acts::proposal(c::ActKind::Accept, c::Admission::Allowed)
+    else {
+        panic!("proposal fixture")
+    };
+    proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+        against: 0,
+        items: skein_lib::List::with_capacity(0),
+        review: None,
+        made: None,
+    }));
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Proposal(proposal))) },
+        &mut f.out,
+    );
+    proposals(&mut f, &[]);
+    assert_eq!(f.chat.cards.len(), 1, "settings keeps its card after the decision");
+    let at = skein_lib::Wall::from_nanos(50_580_000_000_000);
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
+                key: c::ObjectKey::Proposal(PROPOSAL),
+                value: c::EndedValue::Proposal(c::ProposalHistory {
+                    action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                        against: 0,
+                        items: skein_lib::List::with_capacity(0),
+                        made: Some(1),
+                    }),
+                    number: PROPOSAL.number,
+                    proposer: f::TASK,
+                    as_holder: true,
+                    state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(fixtures::PARTY) },
+                }),
+                at: Some(at),
+                by: None,
+            })))),
+        },
+        &mut f.out,
+    );
+    assert_eq!(f.chat.decided, Some((PROPOSAL.number, at)));
+    let Some(c::ReadValue::Ended(_)) = &f.chat.cards.get(0).unwrap().page else {
+        panic!("settings keeps its ended proposal card")
+    };
+}
+
+fn draft_ready() -> f::Fixture {
+    let mut f = f::opened();
+    f.client.step_unlinked(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Watch { handle: crate::pages::me_handle(), subject: Watchable::Jig(c::Subject::Me) },
+        &mut Queue::uncapped(),
+    );
+    let mut me = fixtures::chats::me();
+    let member = me.projects.get_mut(0).unwrap();
+    let mut goal = member.templates.get(0).unwrap().clone();
+    goal.number = 2;
+    goal.tracked = Some(1);
+    goal.flags.conversation = false;
+    let mut templates = skein_lib::List::with_capacity(2);
+    templates.push(member.templates.get(0).unwrap().clone()).unwrap();
+    templates.push(goal).unwrap();
+    member.templates = templates;
+    f.client.step_unlinked(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Up {
+            up: jig_client::Up::Watched { watch: f.me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+        },
+        &mut Queue::uncapped(),
+    );
+    let mut task = f::task();
+    task.acts = fixtures::acts::offered(c::ActKind::Message, c::Admission::Allowed);
+    f::deliver(&mut f.client, f.watch, task);
+    while f.out.pop().is_some() {}
+    let mut limits = fixtures::limits();
+    limits.client.domain.text = 128;
+    f.chat.thread = jig_client::thread::Thread::new(f::TASK, &crate::pages::chat::thread_limits(&limits));
+    f
+}
+#[test]
+fn add_draft_sends_and_goes_to_split() {
+    let mut f = draft_ready();
+    f.chat.words = b"Unsent words".as_slice().into();
+    let mut serial = SERIAL;
+    for _ in 0_u32..2 {
+        f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::AddDraft, &mut serial, &mut f.out);
+    }
+    assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Split);
+    assert!(f.chat.writing);
+    assert_eq!(f.chat.words.as_ref(), b"Unsent words");
+    let sent = fixtures::acts::sent(&mut f.out);
+    let [c::Ask::Message { project, task, words }] = sent.as_ref() else { panic!("one draft message: {sent:?}") };
+    assert_eq!(
+        (*project, *task, words.bytes()),
+        (fixtures::PROJECT, f::TASK, crate::pages::chat::document::WRITE_THIS_UP)
+    );
+    assert_eq!(f.chat.pending.len(), 1);
+    assert_eq!(f.chat.pending.get(0).unwrap().1, Sending::Message);
+    assert!(f.chat.thread.words.pending(f.chat.pending.get(0).unwrap().0));
+}
+#[test]
+fn a_refused_add_keeps_the_pane_and_its_words() {
+    let mut f = draft_ready();
+    f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::AddDraft, &mut { SERIAL }, &mut f.out);
+    let key = f.chat.pending.get(0).unwrap().0;
+    let refused = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+        refusal: c::Refusal::NotOffered,
+        at: None,
+    }));
+    f.chat.told(Time::ZERO, &f.client, Told::Answered { key, outcome: refused.clone() }, &mut f.out);
+    assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Split);
+    assert!(f.chat.writing);
+    assert_eq!(f.chat.outcome, Some(refused));
+    assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
+    assert!(f.chat.pending.is_empty());
 }

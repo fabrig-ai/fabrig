@@ -34,8 +34,9 @@ mod tests {
                     }],
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
-                    handles: 9,
-                    watches: 9,
+                    // Session settings, its project read and the standing needs watch.
+                    handles: 12,
+                    watches: 11,
                     turn_bytes: 65536,
                     backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                     authority: 12,
@@ -156,11 +157,7 @@ mod tests {
         let mut root = domain::unlinked(&domain_limits(), 11);
         let mut requests = root_event(
             &mut root,
-            Event::Start {
-                address: domain::Address::Task { task: TASK, filter: domain::PlanFilter::All },
-                kept: List::with_capacity(0),
-                with: None,
-            },
+            Event::Start { address: domain::Address::Task { task: TASK }, kept: List::with_capacity(0), with: None },
         );
         for event in [
             jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
@@ -300,7 +297,7 @@ mod tests {
         else {
             unreachable!("missing {name} link: {}", text(view.tree().nodes()))
         };
-        let destination = domain::address::print(&domain::Address::Task { task, filter: domain::PlanFilter::All });
+        let destination = domain::address::print(&domain::Address::Task { task });
         assert_eq!(
             temper_client_view::href(view, node).as_deref(),
             Some(destination.as_ref()),
@@ -561,7 +558,7 @@ mod tests {
         else {
             unreachable!("missing row link {name}: {}", text(view.tree().nodes()))
         };
-        let destination = domain::address::print(&domain::Address::Task { task, filter: domain::PlanFilter::All });
+        let destination = domain::address::print(&domain::Address::Task { task });
         assert_eq!(
             temper_client_view::href(view, node).as_deref(),
             Some(destination.as_ref()),
@@ -616,7 +613,13 @@ mod tests {
                 assert_order(&page, &["Change · Task 9", "Shop", "Goal", "Task 12", "PR #216"]);
                 task_link(&mut view, 12);
             } else {
-                assert!(!page.contains("Goal"), "no other goal means no slot: {page}");
+                assert!(
+                    !view.tree().nodes().iter().any(|node| {
+                        node.role == skein_ui::Role::Paragraph
+                            && node.text.iter().any(|run| run.text.as_ref() == b"Goal")
+                    }),
+                    "no other goal means no header slot: {page}"
+                );
             }
         }
     }

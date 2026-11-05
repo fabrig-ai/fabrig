@@ -1,5 +1,7 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
-use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, What};
+use crate::{
+    Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, Topic, What,
+};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_forge::api::{self, Commit, Repository, Write};
@@ -91,8 +93,9 @@ fn name(repository: Repository, branch: &[u8]) -> Name {
     Name { forge: repository.forge, repository: repository.repository, what: What::Branch(path_parts(branch)) }
 }
 pub(crate) fn watched(d: &Domain) -> List<Name> {
+    let capacity = d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches");
     let mut names =
-        List::with_capacity(d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches"));
+        List::with_capacity(capacity.checked_add(d.subscriptions.capacity()).expect("subscription watches"));
     for (repository, _) in &d.repositories {
         if d.forge_ended(repository.forge) {
             continue;
@@ -106,6 +109,17 @@ pub(crate) fn watched(d: &Domain) -> List<Name> {
                     names.push(name).expect("one watch per tier");
                 }
             }
+        }
+    }
+    for (_, subscription) in &d.subscriptions {
+        match &subscription.topic {
+            Topic::Landings { repository, branch } if !d.forge_ended(repository.forge) => {
+                let name = name(*repository, branch);
+                if !names.as_slice().contains(&name) {
+                    names.push(name).expect("one watch per subscription");
+                }
+            }
+            Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
         }
     }
     names
@@ -714,10 +728,35 @@ fn observed_part(
 ) {
     let outcome = match follow.outcome {
         Some(landing::Verdict::Passed) => p::Outcome::Passed,
-        Some(landing::Verdict::Fault(_)) => p::Outcome::Fault,
+        Some(landing::Verdict::Fault(fault)) => {
+            words::fault(row, follow, fault_words(fault));
+            p::Outcome::Fault
+        }
         Some(landing::Verdict::Failed | landing::Verdict::Running) | None => return,
     };
     advance(d, env, row, follow, outcome, out);
+}
+fn reported_part(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut TierRow,
+    follow: &mut crate::runs::Follow,
+    answer: Result<api::Answer, api::Error>,
+    out: &mut Queue<Request>,
+) -> bool {
+    if let Err(api::Error::Busy) = &answer {
+        return false;
+    }
+    let reason = match &answer {
+        Err(error) => joined(&[b"artifact report: ", crate::effect_words::error_words(*error)]),
+        Ok(_) => Box::from(b"artifact report is empty, malformed or names no failing tests".as_slice()),
+    };
+    let outcome = reported(d, env, row, answer);
+    if outcome == p::Outcome::Fault {
+        words::fault(row, follow, &reason);
+    }
+    advance(d, env, row, follow, outcome, out);
+    true
 }
 fn advance(
     d: &mut Domain,
@@ -1169,9 +1208,7 @@ pub(crate) fn answered(
         None => false,
     };
     let ended = if reporting {
-        let outcome = reported(d, env, &row, answer);
-        advance(d, env, &mut row, &mut follow, outcome, out);
-        true
+        reported_part(d, env, &mut row, &mut follow, answer, out)
     } else {
         let ended = follow.answered(answer, writer, env.now, env.limits.client.lifetime).is_some();
         words::observe(&mut row, &follow);

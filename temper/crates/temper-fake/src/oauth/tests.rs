@@ -179,7 +179,7 @@ fn authorize(issuer: &mut issuer::Issuer, endpoint: &[u8]) -> issuer::Request {
     let challenge = skein_oauth::challenge(VERIFIER).unwrap();
     let url = read::joined(&[endpoint,
         b"?response_type=code&client_id=dynamic_agent_client&redirect_uri=http://127.0.0.1:1455/auth/callback&state=0123456789abcdef&nonce=fake-nonce&resource=https://api.openai.com/v1&code_challenge_method=S256&code_challenge=", &challenge]);
-    step(issuer, issuer::Event::Authorize { url, now: Time::ZERO })
+    step(issuer, issuer::Event::Authorize { url: skein_lib::Secret::new(url), now: Time::ZERO })
 }
 
 #[test]
@@ -225,7 +225,7 @@ fn three_code_exchanges_and_a_refresh_keep_the_fixed_bearer() {
         let redirect = authorize(&mut issuer, &authorization);
         let issuer::Request::Redirect { code, client_id, .. } = redirect else { panic!("auto-granted authorization") };
         assert_eq!(client_id.as_deref(), Some(b"issued-client".as_slice()));
-        let body = read::joined(&[b"grant_type=authorization_code&client_id=issued-client&redirect_uri=http://127.0.0.1:1455/auth/callback&code=", &code, b"&code_verifier=", VERIFIER]);
+        let body = read::joined(&[b"grant_type=authorization_code&client_id=issued-client&redirect_uri=http://127.0.0.1:1455/auth/callback&code=", code.expose(), b"&code_verifier=", VERIFIER]);
         let response = post(&mut issuer, &endpoint, body);
         assert_eq!(
             response["access_token"],

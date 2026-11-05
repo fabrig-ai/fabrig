@@ -1,7 +1,7 @@
 //! Root-authorized changes to live tasks (domain/tasks.md, sections 5.5 and 7).
 //! The child keeps only current state; root owns durable call decisions and
 //! commits every emitted save before any worker sees a control outcome.
-use crate::compound::{Operation, Staged};
+use crate::compound::Staged;
 use crate::domain::{Domain, entrance, publish, record, refused, task_mut};
 use crate::{
     Active, Authority, Limits, MessageKind, Party, Phase, Refusal, Request, Spec, Stored, Tries, WakePolicy, Was, Word,
@@ -253,15 +253,13 @@ pub(crate) struct AmendPlan {
     pub(crate) met: Option<u64>,
 }
 
-#[expect(clippy::too_many_arguments, reason = "the single amendment entrance carries dependency places and funding")]
 pub(crate) fn amend(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    by: Party,
+    (by, funder): (Party, Option<crate::Funder>),
     change: Amend,
     places: &[DependencyPlace],
-    funder: Option<crate::Funder>,
     out: &mut Queue<Request>,
 ) {
     let number = change.task;
@@ -326,7 +324,7 @@ pub(crate) fn check_amend(
         if record(domain, *dependency).is_none() && place(places, *dependency).is_none() {
             return Err(Box::new(crate::Problem::new(Some(*dependency), Refusal::Unknown)));
         }
-        if !dependency_reached(domain, staged, env, by, old.project, number, *dependency, places) {
+        if !dependency_reached(domain, staged, env, by, (old.project, number, *dependency), places) {
             return Err(Box::new(crate::Problem::naming(Some(number), Refusal::Dependencies, &[*dependency])));
         }
         if record(domain, *dependency).is_some() {
@@ -374,15 +372,12 @@ fn place(places: &[DependencyPlace], number: u64) -> Option<&DependencyPlace> {
 
 /// Live reach stays as for a batch; ended reach follows stored requesters
 /// (`domain/tasks.md`, section 7).
-#[expect(clippy::too_many_arguments, reason = "dependency reach includes loaded places")]
 fn dependency_reached(
     domain: &Domain,
     staged: &Staged,
     env: &Env<Limits>,
     by: Party,
-    project: u32,
-    task: u64,
-    dependency: u64,
+    (project, task, dependency): (u32, u64, u64),
     places: &[DependencyPlace],
 ) -> bool {
     if task == dependency {
@@ -787,61 +782,106 @@ pub(crate) fn allowed(domain: &Domain, number: u64, by: Party, bound: u32) -> bo
     }
 }
 
-pub(crate) fn apply(
+fn control_entrance(
+    domain: &Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    by: Party,
+    number: u64,
+    cancelling: bool,
+) -> Result<ReplyTo, (ReplyTo, Refusal)> {
+    let to = entrance(domain, to, number)?;
+    let permitted = match by {
+        Party::Deployment { project } => match record(domain, number) {
+            Some(task) => task.project == project && (cancelling || own_hold(task)),
+            None => false,
+        },
+        Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
+    };
+    if permitted { Ok(to) } else { Err((to, Refusal::Reference)) }
+}
+
+// A procedure's own hold, which its connector may find gone (jig/docs/design/domain/tasks.md, 7).
+fn own_hold(task: &crate::TaskRecord) -> bool {
+    match task.executor {
+        crate::Executor::Procedure { .. } => {}
+        crate::Executor::Agent { .. } | crate::Executor::Job { .. } | crate::Executor::Person(_) => return false,
+    }
+    if task.placed.is_some() {
+        return false;
+    }
+    match task.phase {
+        Phase::Held { why, .. } => match why {
+            crate::Hold::Procedure | crate::Hold::EffectFailed | crate::Hold::Stalled | crate::Hold::Budget => true,
+            crate::Hold::Exceeded(_)
+            | crate::Hold::Failures(_)
+            | crate::Hold::Dependency(_)
+            | crate::Hold::Stopped
+            | crate::Hold::Placed { .. }
+            | crate::Hold::Drift
+            | crate::Hold::Effects
+            | crate::Hold::Uncertain { .. }
+            | crate::Hold::Deadline
+            | crate::Hold::HoldsWaited
+            | crate::Hold::ResourceUnavailable
+            | crate::Hold::ResourceAccess
+            | crate::Hold::PoolLost { .. }
+            | crate::Hold::Circle => false,
+        },
+        Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => false,
+    }
+}
+
+pub(crate) fn cancel(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     by: Party,
-    operation: Operation,
+    operation: Cancel,
     out: &mut Queue<Request>,
 ) {
-    let number = operation.task();
-    let to = match entrance(domain, to, number) {
+    let number = operation.task;
+    let to = match control_entrance(domain, env, to, by, number, true) {
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
-    let permitted = match by {
-        Party::Deployment { project } => match &operation {
-            Operation::Cancel(_) => match record(domain, number) {
-                Some(task) => task.project == project,
-                None => false,
-            },
-            Operation::Release(_) => false,
-            Operation::Move(_) | Operation::Amend(_) | Operation::Message(_) | Operation::Stop { .. } => {
-                unreachable!("single control operation")
-            }
-        },
-        Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
-    };
-    if !permitted {
-        return refused(to, Some(number), Refusal::Reference, out);
+    match check_cancel(domain, &Staged::new(0), env, by, operation) {
+        Ok(plan) => apply_cancel(domain, env, by, plan, out),
+        Err(problem) => return out.push(Request::Refused { reply_to: to, problem: *problem }),
     }
-    match operation {
-        Operation::Cancel(cancel) => match check_cancel(domain, &Staged::new(0), env, by, cancel) {
-            Ok(plan) => apply_cancel(domain, env, by, plan, out),
-            Err(problem) => return out.push(Request::Refused { reply_to: to, problem: *problem }),
-        },
-        Operation::Release(operation) => match check_release(domain, &Staged::new(0), env, by, operation) {
-            Ok(plan) => apply_release(domain, env, by, plan, out),
-            Err(why) => {
-                let problem = release_problem(domain, &Staged::new(0), &env.limits, number, by, why);
-                if why == Refusal::Busy {
-                    let capacity = match problem.capacity {
-                        Some(capacity) => capacity,
-                        None => crate::Capacity {
-                            project: Some(record(domain, number).expect("release task live").project),
-                            by,
-                            action: crate::CapacityAction::Release,
-                            cause: crate::capacity::inbox(number, &env.limits),
-                        },
-                    };
-                    domain.remember_capacity(env.wall, capacity);
-                }
-                return out.push(Request::Refused { reply_to: to, problem });
+    out.push(Request::Done { reply_to: to });
+}
+
+pub(crate) fn release(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    by: Party,
+    operation: Release,
+    out: &mut Queue<Request>,
+) {
+    let number = operation.task;
+    let to = match control_entrance(domain, env, to, by, number, false) {
+        Ok(to) => to,
+        Err((to, why)) => return refused(to, Some(number), why, out),
+    };
+    match check_release(domain, &Staged::new(0), env, by, operation) {
+        Ok(plan) => apply_release(domain, env, by, plan, out),
+        Err(why) => {
+            let problem = release_problem(domain, &Staged::new(0), &env.limits, number, by, why);
+            if why == Refusal::Busy {
+                let capacity = match problem.capacity {
+                    Some(capacity) => capacity,
+                    None => crate::Capacity {
+                        project: Some(record(domain, number).expect("release task live").project),
+                        by,
+                        action: crate::CapacityAction::Release,
+                        cause: crate::capacity::inbox(number, &env.limits),
+                    },
+                };
+                domain.remember_capacity(env.wall, capacity);
             }
-        },
-        Operation::Move(_) | Operation::Amend(_) | Operation::Message(_) | Operation::Stop { .. } => {
-            unreachable!("single control operation")
+            return out.push(Request::Refused { reply_to: to, problem });
         }
     }
     out.push(Request::Done { reply_to: to });

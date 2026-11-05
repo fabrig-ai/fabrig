@@ -12,6 +12,7 @@ use temper_client_domain::forge::{
 use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(super) fn row(connection: C) -> Row {
     Row {
+        starts_with: forge::forges::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
         number: 3,
@@ -43,6 +44,7 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,
@@ -167,7 +169,7 @@ fn every_state_renders_as_text_and_structured_json() {
         let document = concat(&[
             br#"{"forges":[{"number":3,"host":"git.example:3000","kind":"forgejo","read_only":false,"mode":"owned","offer":"offered","#,
             fields,
-            br#","installations":[],"ended":null,"first":null,"makings":[]}]}"#,
+            br#","installations":[],"ended":null,"starts_with":"repository","first":null,"makings":[]}]}"#,
         ]);
         let digest = jig::digest::Digest::of(&document).hex();
         let expected = concat(&[
@@ -489,7 +491,7 @@ fn setup_carries_repository_fields_with_each_project_argument() {
         else {
             panic!("setup")
         };
-        assert_eq!((value.org(), value.repository()), (org, repository));
+        assert_eq!((empty_setup(value.first()).org(), empty_setup(value.first()).repository()), (org, repository));
     }
 }
 
@@ -838,6 +840,7 @@ fn settled_wait_with_installations(count: u32) {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,
@@ -992,6 +995,7 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
             w::ForgeRow::new(
                 &bounds,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,
@@ -1225,8 +1229,11 @@ fn playground_setup_sends_its_copy_and_default_or_explicit_project() {
         else {
             panic!("setup")
         };
-        assert!(value.playground());
-        assert_eq!((value.org(), value.repository()), (b"playground".as_slice(), b"widget".as_slice()));
+        assert!(empty_setup(value.first()).playground());
+        assert_eq!(
+            (empty_setup(value.first()).org(), empty_setup(value.first()).repository()),
+            (b"playground".as_slice(), b"widget".as_slice())
+        );
     }
 }
 #[test]
@@ -1272,16 +1279,16 @@ fn forge_setup_without_a_number_sends_a_new_owned_forge() {
         };
         let w::Making::New(new) = request.forge() else { panic!("new forge") };
         assert_eq!(new.forge(), &w::ForgeAsk::Owned);
-        assert_eq!(request.playground(), words.contains(&"--playground"));
+        assert_eq!(empty_setup(request.first()).playground(), words.contains(&"--playground"));
         if words.contains(&"--org") {
-            assert_eq!(request.org(), b"team");
-            assert_eq!(request.repository(), b"widget");
-        } else if request.playground() {
-            assert_eq!(request.org(), b"playground");
-            assert_eq!(request.repository(), b"widget");
+            assert_eq!(empty_setup(request.first()).org(), b"team");
+            assert_eq!(empty_setup(request.first()).repository(), b"widget");
+        } else if empty_setup(request.first()).playground() {
+            assert_eq!(empty_setup(request.first()).org(), b"playground");
+            assert_eq!(empty_setup(request.first()).repository(), b"widget");
         } else {
-            assert_eq!(request.org(), b"work");
-            assert_eq!(request.repository(), b"hello");
+            assert_eq!(empty_setup(request.first()).org(), b"work");
+            assert_eq!(empty_setup(request.first()).repository(), b"hello");
         }
     }
 }
@@ -1351,6 +1358,9 @@ fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)])
                 | w::Request::Reachable(_)
                 | w::Request::Accept(_)
                 | w::Request::MakeRepository(_)
+                | w::Request::SetAway(_)
+                | w::Request::Overturn(_)
+                | w::Request::Looked(_)
                 | w::Request::Dismiss(_)
                 | w::Request::StartPlayground) => panic!("unexpected {other:?}"),
             }
@@ -1428,4 +1438,61 @@ fn human_forges_shows_a_refused_job_log_origin_as_a_diagnostic() {
     assert_eq!(plain.status, 0);
     assert!(skein_lib::bytes::find(&plain.stdout, b"Job-log origin refused: https://unrelated.test:443").is_some());
     assert!(skein_lib::bytes::find(&plain.stdout, b"The last connect stopped").is_none());
+}
+
+fn empty_setup(first: &w::SetUpFirst) -> &w::FirstEmpty {
+    let w::SetUpFirst::Empty(first) = first else { panic!("empty setup fixture") };
+    first
+}
+
+#[test]
+fn deferred_choices_print_their_intent_without_a_made_repository() {
+    use forge::forges::StartsWith;
+    for (starts_with, fields) in [
+        (StartsWith::Nothing, br#""starts_with":"nothing""#.as_slice()),
+        (
+            StartsWith::Copies { addresses: Box::new([Box::from(b"https://source.example/owner/repo".as_slice())]) },
+            br#""starts_with":"copies","copies":["https://source.example/owner/repo"]"#,
+        ),
+    ] {
+        let mut row = row(C::Connected { id: 1, login: b"temper".as_slice().into() });
+        row.starts_with = starts_with;
+        let rows = [row];
+        let printed = forges::print_rows(Some(&rows), true, None, &f::limits_root());
+        assert!(skein_lib::bytes::find(&printed.stdout, fields).is_some());
+        assert!(skein_lib::bytes::find(&printed.stdout, br#""first":null"#).is_some());
+        let printed = forges::print_rows(Some(&rows), false, None, &f::limits_root());
+        assert!(skein_lib::bytes::find(&printed.stdout, b"no repository").is_some());
+        assert!(!forges::holds(&rows, b"made:3"));
+    }
+}
+
+#[test]
+fn sixteen_forges_with_sixteen_copy_addresses_fit_the_client_document() {
+    // jig's carried family request ceiling is one MiB.
+    const FAMILY_REQUEST: u64 = 1_048_576;
+    let limits = f::limits_root();
+    let bounds = forge::wire_limits(&limits.domain.forge).unwrap();
+    let mut addresses = List::with_capacity(wire::FIRST_COPIES);
+    for _ in 0..wire::FIRST_COPIES {
+        addresses.push(skein_lib::bytes::zeroed(wire::source::ADDRESS_BYTES)).unwrap();
+    }
+    let copies = w::CopyAddresses::new(&bounds, w::CopyAddressesParts { addresses }).unwrap();
+    let one = record(w::Connection::NotSetUp);
+    let template =
+        wire::decode_forges(&one.bytes, &bounds).unwrap().into_parts().forges.into_boxed()[0].clone().into_parts();
+    let mut rows = List::with_capacity(wire::FORGES);
+    for number in 1..=wire::FORGES {
+        let mut row = template.clone();
+        row.number = u16::try_from(number).unwrap();
+        row.starts_with = w::StartsWith::Copies(copies.clone());
+        rows.push(w::ForgeRow::new(&bounds, row).unwrap()).unwrap();
+    }
+    let forges = w::Forges::new(&bounds, w::ForgesParts { forges: rows }).unwrap();
+    let encoded = wire::forges(&forges);
+    assert!(w::Forges::decoded_bound(&bounds).is_some());
+    let request = w::Requesting::encoded_bound(&bounds).unwrap();
+    assert!(u64::try_from(encoded.len()).unwrap() <= limits.domain.client.domain.document_bytes);
+    assert_eq!(wire::decode_forges(&encoded, &bounds), Some(forges));
+    assert!(request <= FAMILY_REQUEST);
 }

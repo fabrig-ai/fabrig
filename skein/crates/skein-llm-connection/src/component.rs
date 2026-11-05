@@ -14,8 +14,9 @@ use skein_lib::{Env, Id, Lifecycle, List, Queue, Slab, Token, earliest, usize_of
 use skein_llm::{self as llm, Call, Credential, Prompt};
 use skein_tls::client as tls;
 
-use crate::boundary::{Event, Refusal, Request};
-use crate::call::{Connection, Phase};
+use crate::boundary::{Body, Event, Refusal, Request};
+use crate::call::Connection;
+use crate::call::Phase::{Closing, Connecting, Draining, Handshaking, Head, Idle, Ready, Streaming};
 use crate::endpoint::{Endpoint, EndpointError, Transport};
 use crate::limits::{Limits, check};
 
@@ -63,9 +64,29 @@ pub struct Component {
     waiting: List<Option<Waiting>>,
     arrival: u64,
     reserved: u64,
+    bodies: Option<Queue<Body>>,
 }
 
 impl Component {
+    /// Keeps later prepared bodies (skein/docs/design/llm-connection.status.md).
+    pub fn keep_bodies(&mut self) {
+        if self.bodies.is_none() {
+            self.bodies = Some(Queue::uncapped());
+        }
+    }
+
+    /// Takes the next body in preparation order.
+    pub fn pop_body(&mut self) -> Option<Body> {
+        self.bodies.as_mut()?.pop()
+    }
+
+    fn take_body(&mut self, call: Token, endpoint: u32, client: &mut llm::client::Client) {
+        if let Some(bytes) = client.take_kept_body() {
+            let provider = self.endpoints.get(endpoint).expect("admitted endpoint").llm.provider;
+            self.bodies.as_mut().expect("asked for bodies").push(Body { call, provider, bytes });
+        }
+    }
+
     /// Validates bounds and stream capacities before the loop starts.
     pub fn new(mut endpoints: List<Endpoint>, limits: &Limits) -> Result<Component, EndpointError> {
         check(limits, &endpoints)?;
@@ -94,12 +115,13 @@ impl Component {
             waiting,
             arrival: 0,
             reserved: 0,
+            bodies: None,
         })
     }
 
     /// Check and prepare a standalone call; down measures starts and prepares on running.
     pub fn admit(
-        &self,
+        &mut self,
         call: Token,
         endpoint: u32,
         prompt: Prompt,
@@ -110,7 +132,7 @@ impl Component {
 
     /// Checks one call with its owner's explicit model policy before any IO.
     pub fn admit_with_reasoning_drop(
-        &self,
+        &mut self,
         call: Token,
         endpoint: u32,
         prompt: Prompt,
@@ -121,7 +143,7 @@ impl Component {
     }
 
     fn admit_policy(
-        &self,
+        &mut self,
         call: Token,
         endpoint: u32,
         prompt: Prompt,
@@ -130,7 +152,10 @@ impl Component {
     ) -> Result<llm::client::Client, Refusal> {
         let request = self.measure_start(call, endpoint, prompt, credential, drop_reasoning)?;
         match llm::client::Client::prepare_measured(request) {
-            Ok(client) => Ok(client),
+            Ok(mut client) => {
+                self.take_body(call, endpoint, &mut client);
+                Ok(client)
+            }
             Err(error) => Err(Refusal::Client(error)),
         }
     }
@@ -163,7 +188,7 @@ impl Component {
             None => destination.limits.drop_reasoning,
         };
         let input = Call { owner: call, prompt, credential, endpoint: destination.llm.clone() };
-        let request = match llm::client::measure_request(input, &destination.limits, enabled) {
+        let mut request = match llm::client::measure_request(input, &destination.limits, enabled) {
             Ok(request) => request,
             Err(error) => return Err(Refusal::Client(error)),
         };
@@ -171,6 +196,9 @@ impl Component {
             llm::client::reservation(request.measured(), &destination.limits).expect("admitted largest reservation");
         if reservation > self.limits.memory {
             return Err(Refusal::Memory { reservation, bound: self.limits.memory });
+        }
+        if self.bodies.is_some() {
+            request.keep_body();
         }
         Ok(request)
     }
@@ -186,7 +214,7 @@ impl Component {
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get_mut(*id) {
-                    Some(connection) if connection.call.is_none() => {
+                    Some(connection) if connection.call().is_none() => {
                         self.reserved =
                             self.reserved.checked_sub(connection.reservation).expect("running reservation held");
                         connection.reservation = 0;
@@ -243,11 +271,12 @@ impl Component {
         }
     }
 
-    fn prepare_waiting(waiting: Waiting) -> Prepared {
+    fn prepare_waiting(&mut self, waiting: Waiting) -> Prepared {
         let measured = waiting.request.measured();
-        let prepared =
+        let mut prepared =
             llm::client::Client::prepare_measured(waiting.request).expect("measurement made every preparation refusal");
         assert_eq!(prepared.measured(), measured, "admitted lengths encode identically");
+        self.take_body(waiting.call, waiting.endpoint, &mut prepared);
         Prepared {
             client: prepared,
             call: waiting.call,
@@ -301,7 +330,7 @@ impl Component {
                 for slot in &self.slots {
                     match slot {
                         Some(id) => match self.connections.get_mut(*id) {
-                            Some(connection) if connection.call == Some(call) => {
+                            Some(connection) if connection.call() == Some(call) => {
                                 connection.next(env, id.token(), up, io);
                                 break;
                             }
@@ -332,7 +361,7 @@ impl Component {
                 for slot in &self.slots {
                     match slot {
                         Some(id) => match self.connections.get_mut(*id) {
-                            Some(connection) if connection.call == Some(call) => {
+                            Some(connection) if connection.call() == Some(call) => {
                                 connection.cancel(env, id.token(), up, io);
                                 break;
                             }
@@ -375,10 +404,11 @@ impl Component {
                 None => {}
             },
             IoEvent::Connected { .. } => match self.connections.get_mut(id) {
-                Some(connection) if connection.phase == Phase::Connecting => {
-                    connection.connected(env, owner, up, io);
-                }
-                Some(_) | None => {}
+                Some(connection) => match connection.phase {
+                    Connecting { .. } => connection.connected(env, owner, up, io),
+                    Handshaking { .. } | Head { .. } | Streaming { .. } | Draining | Idle | Ready | Closing { .. } => {}
+                },
+                None => {}
             },
             IoEvent::Stream { up: stream, .. } => match self.connections.get_mut(id) {
                 Some(connection) => connection.cipher_up(env, owner, stream, up, io),
@@ -627,7 +657,7 @@ impl Component {
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get(*id) {
-                    Some(connection) if connection.call.is_some() => {
+                    Some(connection) if connection.call().is_some() => {
                         count = count.checked_add(1).expect("bounded conversations");
                     }
                     Some(_) | None => {}
@@ -685,11 +715,17 @@ impl Component {
                                 Some(connection) => {
                                     if connection.endpoint == waiting.endpoint {
                                         count = count.checked_add(1).expect("bounded connections");
-                                        if connection.phase == Phase::Idle || connection.phase == Phase::Ready {
-                                            reusable = true;
-                                        }
-                                    } else if connection.phase == Phase::Idle {
-                                        evictable = true;
+                                    }
+                                    match connection.phase {
+                                        Idle | Ready if connection.endpoint == waiting.endpoint => reusable = true,
+                                        Idle => evictable = true,
+                                        Connecting { .. }
+                                        | Handshaking { .. }
+                                        | Head { .. }
+                                        | Streaming { .. }
+                                        | Draining
+                                        | Ready
+                                        | Closing { .. } => {}
                                     }
                                 }
                                 None => {}
@@ -715,12 +751,15 @@ impl Component {
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get(*id) {
-                    Some(connection)
-                        if connection.endpoint == endpoint
-                            && (connection.phase == Phase::Idle || connection.phase == Phase::Ready) =>
-                    {
-                        return Some(*id);
-                    }
+                    Some(connection) if connection.endpoint == endpoint => match connection.phase {
+                        Idle | Ready => return Some(*id),
+                        Connecting { .. }
+                        | Handshaking { .. }
+                        | Head { .. }
+                        | Streaming { .. }
+                        | Draining
+                        | Closing { .. } => {}
+                    },
                     Some(_) | None => {}
                 },
                 None => {}
@@ -729,6 +768,7 @@ impl Component {
         None
     }
 
+    #[expect(clippy::too_many_lines, reason = "exhaustive connection reuse, eviction and opening")]
     fn serve_waiting(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<IoRequest>) -> bool {
         let index = match self.runnable_waiting() {
             Some(index) => index,
@@ -742,7 +782,7 @@ impl Component {
         let reusable = self.reusable_connection(endpoint);
         let prepared = if reusable.is_some() || !self.connections.is_full() {
             let waiting = self.waiting.get_mut(index).expect("waiting index").take().expect("waiting call");
-            Some(Self::prepare_waiting(waiting))
+            Some(self.prepare_waiting(waiting))
         } else {
             None
         };
@@ -756,9 +796,7 @@ impl Component {
             }
             connection.activity = 0;
             connection.reservation = waiting.reservation;
-            connection.call = Some(waiting.call);
-            connection.phase = Phase::Head;
-            connection.idle_at = None;
+            connection.phase = Head { call: waiting.call };
             connection.deadlines = waiting.deadlines;
             connection.sync_deadlines(env);
             if waiting.asked {
@@ -772,12 +810,22 @@ impl Component {
             for slot in &self.slots {
                 match slot {
                     Some(id) => match self.connections.get_mut(*id) {
-                        Some(connection) if connection.endpoint != endpoint && connection.phase == Phase::Idle => {
-                            connection.request_close(false);
-                            connection.route(env, id.token(), up, io);
-                            return true;
-                        }
-                        Some(_) | None => {}
+                        Some(connection) => match connection.phase {
+                            Idle if connection.endpoint != endpoint => {
+                                connection.request_close(false);
+                                connection.route(env, id.token(), up, io);
+                                return true;
+                            }
+                            Connecting { .. }
+                            | Handshaking { .. }
+                            | Head { .. }
+                            | Streaming { .. }
+                            | Draining
+                            | Idle
+                            | Ready
+                            | Closing { .. } => {}
+                        },
+                        None => {}
                     },
                     None => {}
                 }
@@ -865,8 +913,7 @@ mod link_tests {
         connection.link.connecting(Token::new(100), &mut io);
         connection.link.close(&crate::call::link_env(&env), false, &mut io);
         // The routing budget can leave TLS's Closed queued between entrances.
-        connection.phase = Phase::Closing;
-        connection.call = None;
+        connection.phase = Closing { call: None };
         connection.sync_deadlines(&env);
         assert!(component.has_work(), "queued link work keeps a closing connection runnable");
         component.fire(&env, &mut up, &mut io);

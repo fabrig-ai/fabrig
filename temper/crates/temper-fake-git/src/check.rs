@@ -32,6 +32,7 @@ pub enum Refusal {
 /// Validate settings, exact argv, environment and remote safety.
 /// # Errors
 /// Returns Usage for unsupported argv, or Broken naming a contract violation.
+#[expect(clippy::too_many_lines, reason = "spawn validation checks the complete invocation and environment together")]
 pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
     let args: Vec<_> = spawn.args.iter().map(AsRef::as_ref).collect();
     for (pair, setting) in args.chunks(2).take(invocation::SETTINGS.len()).zip(invocation::SETTINGS) {
@@ -80,7 +81,8 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::CommitTree { .. } => {}
-            Command::Version
+            Command::Origin { .. }
+            | Command::Version
             | Command::Clone { .. }
             | Command::Fetch { .. }
             | Command::Create { .. }
@@ -198,12 +200,16 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::DiffIndex { .. }
         | Command::WriteTree
         | Command::CommitTree { .. }
+        | Command::Origin { .. }
         | Command::IsAncestor { .. } => None,
     }
 }
 fn parse(args: &[&[u8]]) -> Option<Command> {
     Some(match args {
         [b"version"] => Command::Version,
+        [git_dir, b"config", b"--local", b"--get", b"remote.origin.url"] => {
+            Command::Origin { directory: git_dir.strip_prefix(b"--git-dir=")?.strip_suffix(b"/.git")?.into() }
+        }
         [b"clone", b"--no-checkout", b"--no-tags", b"--origin", b"origin", b"--", url, dir] => {
             Command::Clone { remote: (*url).into(), directory: (*dir).into() }
         }

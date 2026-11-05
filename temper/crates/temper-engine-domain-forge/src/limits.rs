@@ -78,6 +78,11 @@ pub struct Limits {
 }
 
 impl Limits {
+    /// Retained decisions per project (temper/docs/design/domain/forge.md, 5.9).
+    #[must_use]
+    pub const fn decided(&self) -> u32 {
+        self.judge_projects.saturating_mul(64)
+    }
     /// Eight times members times projects, saturating (temper/docs/design/domain/forge.md, 5.5).
     #[must_use]
     pub const fn dismissed(&self) -> u32 {

@@ -53,7 +53,7 @@ pub enum BriefRead {
     /// The bytes the connector rendered, and bytes left out at its read bound.
     Got { bytes: Box<[u8]>, left: u64 },
     /// The pinned section could not be read.
-    Failed,
+    Failed(crate::BriefUnread),
 }
 
 /// A resource of one configured forge repository (domain/forge.md, section 2).
@@ -174,9 +174,7 @@ pub enum Ask {
     Adopt(Adoption),
     SetUp {
         forge: Making,
-        org: Box<[u8]>,
-        repository: Box<[u8]>,
-        playground: bool,
+        first: SetUpFirst,
     },
     RemoveForge {
         forge: u16,
@@ -248,6 +246,9 @@ pub enum Answered {
     Accept(AcceptAnswer),
     Reachable(ReachableAnswer),
     Dismiss(crate::DismissAnswer),
+    Looked(crate::LookedAnswer),
+    SetAway(crate::SetAwayAnswer),
+    Overturn(crate::OverturnAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge.md, 4.5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -412,11 +413,32 @@ pub struct Bot {
 }
 /// The first repository's intent (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct FirstIntent {
+pub struct EmptyIntent {
     pub playground: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
+}
+/// The set up's durable choice (temper/docs/design/protocol/setup.md, 6.7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum FirstIntent {
+    Empty(EmptyIntent),
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
+}
+/// The set up's admitted input (temper/docs/design/client/README.md, 4.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum SetUpFirst {
+    Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool },
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
+}
+/// The row's first-repository choice (temper/docs/design/protocol/setup.md, 6.7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum StartsWith {
+    Repository,
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
 }
 /// A forge kept in the connector's store (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -571,6 +593,7 @@ pub struct Row {
     pub fetched: Option<SetUpFetched>,
     pub offer: Offer,
     pub first: Option<First>,
+    pub starts_with: StartsWith,
     pub installations: Box<[(u64, Installation)]>,
     pub ended: Option<Box<[u8]>>,
     pub app: Option<AppWay>,
@@ -858,7 +881,7 @@ pub struct ChangeRow {
     /// The foreman's charter captured when made (domain/forge.md, 8.11).
     pub foreman_charter: u32,
     pub effect_account: Option<EffectAccount>,
-    /// Producer failure words retained within the hold account bound (domain/forge.md, 8.4).
+    /// Words of the hold its delegate's end made, within the hold account bound (domain/forge.md, 8.4).
     pub producer_failure: Option<Box<[u8]>>,
     /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
     pub report: Box<[u8]>,
@@ -1036,6 +1059,7 @@ pub struct NamedCall {
 /// The connector's part of a named answer; core decisions remain outside it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallPayload {
+    Decided { took: Option<Box<[u8]>> },
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
     Refused(skein_forge::api::Error),
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
@@ -1135,6 +1159,10 @@ pub enum Stored {
         party: u64,
         what: crate::PersonFact,
     },
+    ProjectFacts(crate::ProjectFacts),
+    Looked(crate::Looked),
+    Away(crate::Away),
+    Decided(crate::Decided),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1178,6 +1206,10 @@ pub enum Key {
     LandingLog { repository: skein_forge::api::Repository },
     Dismissed { party: u64, what: crate::PersonFact },
     Making(crate::MakingKey),
+    ProjectFacts { project: u32 },
+    Looked { party: u64, project: u32 },
+    Away { party: u64, project: u32 },
+    Decided { project: u32, number: u32 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1266,6 +1298,30 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    SetAway {
+        request: Token,
+        token: Token,
+        party: u64,
+        project: u32,
+        on: bool,
+        until: Option<skein_lib::Wall>,
+        kinds: u8,
+    },
+    Overturn {
+        request: Token,
+        token: Token,
+        party: u64,
+        project: u32,
+        number: u32,
+    },
+    Decided {
+        to: skein_lib::ReplyTo,
+        key: NamedCall,
+        party: u64,
+        project: u32,
+        task: u64,
+        call: crate::DecidedCall,
+    },
     MakingStarted {
         key: crate::MakingKey,
     },
@@ -1300,6 +1356,17 @@ pub enum Event {
     TierWords {
         task: u64,
         words: Box<[u8]>,
+    },
+    StatusTask {
+        project: u32,
+        task: u64,
+    },
+    StatusRefused {
+        project: u32,
+    },
+    StatusHeard {
+        task: u64,
+        report: Option<Box<[u8]>>,
     },
     TierTask {
         repository: skein_forge::api::Repository,
@@ -1387,6 +1454,11 @@ pub enum Event {
         request: Token,
         answer: ConnectAnswer,
     },
+    AccessAnswered {
+        forge: u16,
+        request: Token,
+        answer: Result<(), AdoptionRefusal>,
+    },
     ReachableAnswered {
         forge: u16,
         request: Token,
@@ -1447,6 +1519,12 @@ pub enum Event {
         role: Option<jig_domain_people::Role>,
         carried: Option<jig_domain_core::Carried>,
     },
+    Looked {
+        request: Token,
+        token: Token,
+        party: u64,
+        project: u32,
+    },
     /// A core-admitted dismissal (temper/docs/design/domain/forge.md, 5.5).
     Dismiss {
         request: Token,
@@ -1472,6 +1550,7 @@ pub enum Event {
     PlanBrief {
         section: Token,
         source: BriefSource,
+        partner: Option<Token>,
     },
     /// Gather a planned section with the core's allotted budget.
     GatherPlanned {
@@ -1754,6 +1833,11 @@ pub enum Event {
     reason = "Save carries the change row and its producer report; changing the request boundary is separate"
 )]
 pub enum Request {
+    Decided {
+        to: skein_lib::ReplyTo,
+        key: NamedCall,
+        took: Option<Box<[u8]>>,
+    },
     MakingCopied {
         key: crate::MakingKey,
     },
@@ -1762,6 +1846,11 @@ pub enum Request {
         act: [u8; 16],
         adoption: Adoption,
         repository: skein_forge::api::Repository,
+    },
+    /// Make Home's brief task (temper/docs/design/domain/forge.md, 5.7).
+    StatusRun {
+        project: u32,
+        words: Box<[u8]>,
     },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
     TierRun {
@@ -1826,9 +1915,7 @@ pub enum Request {
     SetUp {
         forge: u16,
         request: Token,
-        org: Box<[u8]>,
-        repository: Box<[u8]>,
-        playground: bool,
+        first: SetUpFirst,
     },
     Connect {
         forge: u16,
@@ -1850,6 +1937,12 @@ pub enum Request {
         forge: u16,
         request: Token,
         back: Option<Box<[u8]>>,
+    },
+    AdoptAccess {
+        forge: u16,
+        request: Token,
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
     },
     Reachable {
         forge: u16,
@@ -1920,7 +2013,13 @@ pub enum Request {
     /// A held section has this rendered size, or its gather/cut failed.
     BriefSized {
         section: Token,
-        size: Option<u32>,
+        size: Result<u32, crate::BriefUnread>,
+    },
+    /// A section read failed, whether or not its paired brief goes on (domain/forge.md, 8.4).
+    BriefReadRefused {
+        section: Token,
+        stage: &'static str,
+        error: Option<skein_forge::api::Error>,
     },
     /// A held section transferred its rendered bytes to the root.
     BriefTaken {

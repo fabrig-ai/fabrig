@@ -619,16 +619,24 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
     let intent = match request.into_parts().request {
         temper_client_protocol_wire::v1::Request::SetUp(request) => {
             let request = request.into_parts();
+            let first = match request.first {
+                temper_client_protocol_wire::v1::SetUpFirst::Empty(first) => first.into_parts(),
+                temper_client_protocol_wire::v1::SetUpFirst::Copies(_)
+                | temper_client_protocol_wire::v1::SetUpFirst::Nothing => return,
+            };
             Some(Intent {
-                playground: request.playground,
+                playground: first.playground,
                 forge: making_number(&request.forge),
-                org: request.org,
-                project: jig::call::Project::Name(request.repository.clone()),
-                repository: request.repository,
+                org: first.org,
+                project: jig::call::Project::Name(first.repository.clone()),
+                repository: first.repository,
             })
         }
         temper_client_protocol_wire::v1::Request::StartPlayground => None,
         temper_client_protocol_wire::v1::Request::RemoveForge(_)
+        | temper_client_protocol_wire::v1::Request::SetAway(_)
+        | temper_client_protocol_wire::v1::Request::Overturn(_)
+        | temper_client_protocol_wire::v1::Request::Looked(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
         | temper_client_protocol_wire::v1::Request::MakeRepository(_)
         | temper_client_protocol_wire::v1::Request::EndPlayground
@@ -930,6 +938,20 @@ fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
             Some(why) => out.string(why),
             None => out.null(),
         }
+        out.key(b"starts_with");
+        match &row.starts_with {
+            domain::StartsWith::Repository => out.string(b"repository"),
+            domain::StartsWith::Copies { addresses } => {
+                out.string(b"copies");
+                out.key(b"copies");
+                out.array_start();
+                for address in addresses {
+                    out.string(address);
+                }
+                out.array_end();
+            }
+            domain::StartsWith::Nothing => out.string(b"nothing"),
+        }
         out.key(b"first");
         match &row.first {
             Some(first) => first_json(first, out),
@@ -994,6 +1016,13 @@ fn text_rows(rows: Option<&[Row]>, digest: Option<Digest>, met: Option<bool>, ou
             if let Some(first) = &row.first {
                 out.put(b" \xc2\xb7 ");
                 out.put(&words::first_repository(first));
+            } else {
+                match row.starts_with {
+                    domain::StartsWith::Repository => {}
+                    domain::StartsWith::Copies { .. } | domain::StartsWith::Nothing => {
+                        out.put(b" \xc2\xb7 no repository");
+                    }
+                }
             }
             for installation in &row.installations {
                 out.put(b"\n  ");
@@ -1476,9 +1505,17 @@ fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
             &bounds,
             w::SetUpParts {
                 forge,
-                org: intent.org.clone(),
-                repository: intent.repository.clone(),
-                playground: intent.playground,
+                first: w::SetUpFirst::Empty(
+                    w::FirstEmpty::new(
+                        &bounds,
+                        w::FirstEmptyParts {
+                            org: intent.org.clone(),
+                            repository: intent.repository.clone(),
+                            playground: intent.playground,
+                        },
+                    )
+                    .ok()?,
+                ),
             },
         )
         .ok()?,

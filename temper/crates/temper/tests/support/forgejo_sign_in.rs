@@ -54,6 +54,41 @@ struct Browser {
 }
 impl Browser {
     fn call(&mut self, url: &str, body: Option<&[u8]>) -> io::Result<Answer> {
+        self.request(url, body, "application/octet-stream")
+    }
+    fn form(&mut self, url: &str, fields: &[(&str, &str)]) -> io::Result<Answer> {
+        let encode = |value: &str| {
+            let mut encoded = String::new();
+            for byte in value.bytes() {
+                if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
+                    encoded.push(char::from(byte));
+                } else {
+                    write!(encoded, "%{byte:02X}").expect("form byte");
+                }
+            }
+            encoded
+        };
+        let body = fields
+            .iter()
+            .map(|(name, value)| format!("{}={}", encode(name), encode(value)))
+            .collect::<Vec<_>>()
+            .join("&");
+        self.request(url, Some(body.as_bytes()), "application/x-www-form-urlencoded")
+    }
+    fn signed_out_of_forgejo(&mut self) {
+        self.cookies.retain(|(name, _, _)| name.starts_with("jig-"));
+    }
+    fn follow(&mut self, mut address: String, mut answer: Answer) -> io::Result<Landed> {
+        for _ in 0..5 {
+            if !matches!(answer.status, 302 | 303 | 307) {
+                break;
+            }
+            address = answer.location.expect("browser redirect");
+            answer = self.call(&address, None)?;
+        }
+        Ok(Landed { status: answer.status, address, body: answer.body })
+    }
+    fn request(&mut self, url: &str, body: Option<&[u8]>, content_type: &str) -> io::Result<Answer> {
         let (host, path) = url.strip_prefix("http://").expect("local HTTP").split_once('/').expect("URL path");
         let path = format!("/{path}");
         let address: std::net::SocketAddr = host.parse().expect("literal socket");
@@ -76,7 +111,7 @@ impl Browser {
         let mut request =
             format!("{method} {path} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\nCookie: {cookie}\r\n");
         if body.is_some() {
-            write!(request, "Content-Type: application/octet-stream\r\nJig-Client: browser\r\nOrigin: http://{host}\r\nSec-Fetch-Site: same-origin\r\nContent-Length: {}\r\n", data.len()).expect("browser headers");
+            write!(request, "Content-Type: {content_type}\r\nJig-Client: browser\r\nOrigin: http://{host}\r\nSec-Fetch-Site: same-origin\r\nContent-Length: {}\r\n", data.len()).expect("browser headers");
         }
         request.push_str("\r\n");
         stream.write_all("the Forgejo browser's request", skein_lib::Duration::from_secs(2), request.as_bytes())?;
@@ -183,17 +218,20 @@ fn run_owned(directory: &Path) -> io::Result<()> {
     sign_in(&mut browser, temper, forge, link)?;
     member_named(&instance);
     let member_signed_in = clock.now().now;
+    let instance = no_registration(directory, &mut browser, temper, forge, instance)?;
+    let registration_checked = clock.now().now;
     connect(directory, forge, temper, &stdout, link, &mut browser)?;
     let connected = clock.now().now;
     serve.stop();
     instance.stop().expect("Forgejo stopped");
     assert!(!directory.join("box/groups").exists(), "the walk needs no group's file");
     eprintln!(
-        "Forgejo sign-in: whole {:?}; past Forgejo start {:?}; member sign-in {:?}; admin connect {:?}; shutdown {:?}",
+        "Forgejo sign-in: whole {:?}; past Forgejo start {:?}; member sign-in {:?}; no registration {:?}; admin connect {:?}; shutdown {:?}",
         clock.now().now.saturating_since(whole),
         clock.now().now.saturating_since(past_start),
         member_signed_in.saturating_since(past_start),
-        connected.saturating_since(member_signed_in),
+        registration_checked.saturating_since(member_signed_in),
+        connected.saturating_since(registration_checked),
         clock.now().now.saturating_since(connected)
     );
     Ok(())
@@ -221,6 +259,23 @@ fn sign_in(
     let signed = browser.call(&format!("http://{temper}/jig/v1/sign-in/link"), Some(&out.finish()))?;
     assert_eq!(signed.status, 200);
     assert!(browser.cookies.iter().any(|(name, _, _)| name == "jig-sign-in"), "printed link set the browser cookie");
+    let landed = through_temper(browser, temper, forge)?;
+    assert_eq!(landed.status, 200);
+    Ok(())
+}
+
+struct Landed {
+    status: u16,
+    address: String,
+    body: Vec<u8>,
+}
+
+fn through_temper(
+    browser: &mut Browser,
+    temper: std::net::SocketAddr,
+    forge: std::net::SocketAddr,
+) -> io::Result<Landed> {
+    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
     let opened = browser.call(&format!("http://{forge}/user/oauth2/temper"), None)?;
     assert_eq!(opened.status, 307);
     let authorization = opened.location.expect("provider authorization redirect");
@@ -239,15 +294,181 @@ fn sign_in(
     else {
         panic!("signed-in page must receive go")
     };
-    let mut callback = browser.call(std::str::from_utf8(go.location()).expect("callback URL"), None)?;
-    for _ in 0..5 {
-        if !matches!(callback.status, 302 | 303 | 307) {
-            break;
-        }
-        callback = browser.call(&callback.location.expect("callback redirect"), None)?;
+    let address = std::str::from_utf8(go.location()).expect("callback URL");
+    let callback = browser.call(address, None)?;
+    browser.follow(address.into(), callback)
+}
+
+/// The real settings' registration and password-linking proof
+/// (temper/docs/design/draft/dogfood-hacks.md, 2.8).
+fn no_registration(
+    directory: &Path,
+    browser: &mut Browser,
+    temper: std::net::SocketAddr,
+    forge: std::net::SocketAddr,
+    instance: skein_throwaway_forgejo::Instance,
+) -> io::Result<skein_throwaway_forgejo::Instance> {
+    use skein_throwaway_forgejo::Outgoing;
+    instance.stop().expect("Forgejo stopped for preparation");
+    success(&super::owned::prepare_no_registration(directory, 1));
+    let running = super::owned::run(directory, "forgejo");
+    let instance = super::owned::attach(directory, forge.port(), running);
+
+    browser.signed_out_of_forgejo();
+    let linked = through_temper(browser, temper, forge)?;
+    landing("(2) already linked", &linked);
+    assert_eq!(linked.status, 200);
+    assert!(!linked.address.contains("/user/link_account"));
+    signed_in_as_sam(browser, forge)?;
+
+    let deleted = instance
+        .exchange(&Outgoing::json("DELETE", "/api/v1/admin/users/sam", Some(&instance.admin().token), b"{}"))
+        .expect("delete member");
+    assert_eq!(deleted.status, 204, "admin deletes sam");
+    no_sam(&instance);
+    browser.signed_out_of_forgejo();
+    let missing = through_temper(browser, temper, forge)?;
+    no_sam(&instance);
+    link_page("(1) no account", &missing, forge);
+
+    let csrf = csrf(&missing.body);
+    eprintln!("Forgejo link form CSRF field: {}", csrf.is_some());
+    let password = skein_throwaway_forgejo::fresh_secret().expect("throwaway password");
+    let mut fields = vec![
+        ("user_name", "sam"),
+        ("email", "sam@example.com"),
+        ("password", password.as_str()),
+        ("retype", password.as_str()),
+    ];
+    if let Some(value) = &csrf {
+        fields.push(("_csrf", value));
     }
-    assert_eq!(callback.status, 200);
+    let signup = browser.form(&format!("http://{forge}/user/link_account_signup"), &fields)?;
+    eprintln!("(3) POST /user/link_account_signup: {}", signup.status);
+    assert_eq!(signup.status, 403);
+    let signup = browser.form(&format!("http://{forge}/user/sign_up"), &fields)?;
+    eprintln!("(3) POST /user/sign_up: {}", signup.status);
+    assert_eq!(signup.status, 403);
+    no_sam(&instance);
+
+    let body = serde_json::to_vec(
+        &json!({"username":"sam", "email":"sam@example.com", "password":password, "must_change_password":false}),
+    )
+    .expect("member JSON");
+    let created = instance
+        .exchange(&Outgoing::json("POST", "/api/v1/admin/users", Some(&instance.admin().token), &body))
+        .expect("make unlinked member");
+    assert_eq!(created.status, 201, "admin makes sam");
+    browser.signed_out_of_forgejo();
+    let unlinked = through_temper(browser, temper, forge)?;
+    link_page("(3) existing unlinked account", &unlinked, forge);
+    let wrong = link_password(browser, forge, &unlinked.body, "wrong-throwaway-password")?;
+    landing("(3) wrong password", &wrong);
+    browser.signed_out_of_forgejo();
+    let still_unlinked = through_temper(browser, temper, forge)?;
+    link_page("(3) wrong password linked nothing", &still_unlinked, forge);
+    let right = link_password(browser, forge, &still_unlinked.body, &password)?;
+    landing("(3) right password", &right);
+    assert_eq!(right.status, 200);
+    assert!(!right.address.contains("/user/link_account"));
+    signed_in_as_sam(browser, forge)?;
+    browser.signed_out_of_forgejo();
+    let once = through_temper(browser, temper, forge)?;
+    landing("(3) linked once; (2) signs in again", &once);
+    assert_eq!(once.status, 200);
+    assert!(!once.address.contains("/user/link_account"));
+    signed_in_as_sam(browser, forge)?;
+    Ok(instance)
+}
+
+fn landing(leg: &str, landed: &Landed) {
+    eprintln!("{leg}: {} {}", landed.status, landed.address.split('?').next().expect("address"));
+}
+
+fn link_page(leg: &str, landed: &Landed, forge: std::net::SocketAddr) {
+    landing(leg, landed);
+    let page = std::str::from_utf8(&landed.body).expect("link page text");
+    let signin = page.contains("action=\"/user/link_account_signin\"");
+    let signup = page.contains("action=\"/user/link_account_signup\"");
+    eprintln!(
+        "{leg}: link_account_signin form {signin}; link_account_signup form {signup}; CSRF field {}",
+        csrf(&landed.body).is_some()
+    );
+    for form in page.split("<form ").skip(1) {
+        let (tag, contents) = form.split_once('>').expect("form tag");
+        if !tag.contains("action=\"/user/link_account_signup\"") {
+            continue;
+        }
+        let contents = contents.split_once("</form>").expect("closed signup form").0;
+        let mut names = Vec::new();
+        for element in contents.split('<').skip(1) {
+            let tag = element.split_once('>').expect("element tag").0;
+            let kind = tag.split_whitespace().next().expect("element name");
+            if ["input", "button", "select", "textarea"].contains(&kind) {
+                let name = tag.split_once("name=\"").map(|(_, after)| after.split_once('"').expect("name end").0);
+                names.push((kind, name));
+            }
+        }
+        let mut text = String::new();
+        let mut in_tag = false;
+        for character in contents.chars() {
+            match character {
+                '<' => in_tag = true,
+                '>' => {
+                    in_tag = false;
+                    text.push(' ');
+                }
+                _ if !in_tag => text.push(character),
+                _ => {}
+            }
+        }
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        eprintln!("{leg}: link_account_signup controls (tag, name): {names:?}; text: {text:?}");
+        assert!(names.is_empty(), "link page offers no registration fields");
+    }
+    assert_eq!(landed.status, 200);
+    assert_eq!(landed.address, format!("http://{forge}/user/link_account"));
+    assert!(signin, "link page offers password linking");
+}
+
+fn no_sam(instance: &skein_throwaway_forgejo::Instance) {
+    let missing = instance
+        .exchange(&skein_throwaway_forgejo::Outgoing::get("/api/v1/users/sam", Some(&instance.admin().token)))
+        .expect("missing member API");
+    eprintln!("GET /api/v1/users/sam: {}", missing.status);
+    assert_eq!(missing.status, 404, "sign-in made no account");
+}
+
+fn signed_in_as_sam(browser: &mut Browser, forge: std::net::SocketAddr) -> io::Result<()> {
+    let member = browser.call(&format!("http://{forge}/user/settings"), None)?;
+    eprintln!("GET /user/settings: {}", member.status);
+    assert_eq!(member.status, 200, "only the signed-in account can read its settings");
+    let page = std::str::from_utf8(&member.body).expect("signed-in settings text");
+    assert!(page.contains("value=\"sam\""), "private profile settings name sam");
     Ok(())
+}
+
+fn csrf(page: &[u8]) -> Option<String> {
+    let page = std::str::from_utf8(page).expect("form text");
+    let after = page.split_once("name=\"_csrf\"")?.1;
+    Some(after.split_once("value=\"")?.1.split_once('"')?.0.into())
+}
+
+fn link_password(
+    browser: &mut Browser,
+    forge: std::net::SocketAddr,
+    page: &[u8],
+    password: &str,
+) -> io::Result<Landed> {
+    let csrf = csrf(page);
+    eprintln!("Forgejo password link POST CSRF field: {}", csrf.is_some());
+    let mut fields = vec![("user_name", "sam"), ("password", password)];
+    if let Some(value) = &csrf {
+        fields.push(("_csrf", value));
+    }
+    let address = format!("http://{forge}/user/link_account_signin");
+    let answer = browser.form(&address, &fields)?;
+    browser.follow(address, answer)
 }
 
 fn fixture_bundle(directory: &Path) {

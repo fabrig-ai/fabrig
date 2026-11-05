@@ -552,10 +552,13 @@ pub fn owned_row(read: &Value) -> &Value {
 pub fn live_from_hands(config: &Path, data: &Path, client: &Path, stderr: &[u8]) -> Evidence {
     let words = std::str::from_utf8(stderr).expect("box terminal UTF-8");
     let number = owned_forge(client)["number"].as_u64().expect("forge number");
-    let label = "Forgejo: ";
-    let mut lines = words.lines().skip_while(|line| !line.ends_with(&format!("{label}started")));
-    lines.next().expect("owned forge started");
-    let api = lines.next().expect("API line after started").split_once(&format!("{label}api ")).expect("API label").1;
+    assert!(
+        words.lines().any(|line| line.ends_with(&format!("Forge {number} (Forgejo): started"))),
+        "owned forge started"
+    );
+    let log = fs::read_to_string(data.join(format!("box/logs/forgejo-{number}.log"))).expect("Forgejo step log");
+    let mut lines = log.lines().skip_while(|line| !line.contains("Forgejo: api "));
+    let api = lines.next().expect("API line in log").split_once("Forgejo: api ").expect("API label").1;
     let login = lines.next().expect("person line after API").split_once("Forgejo: person ").expect("person label").1;
     let read = data.join(format!("forge-{number}/person_read.header"));
     let write = data.join(format!("forge-{number}/person_write.header"));
@@ -662,10 +665,7 @@ pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
         fn act(&mut self, _now: skein_lib::Time, clients: &mut [NativeClient]) {
             let client = &mut clients[0];
             if client.started() && !self.opened {
-                client.go(temper_client_domain::Address::Task {
-                    task: self.task,
-                    filter: temper_client_domain::PlanFilter::All,
-                });
+                client.go(temper_client_domain::Address::Task { task: self.task });
                 self.opened = true;
             }
             if self.closing {
@@ -743,7 +743,8 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
     let Evidence { delegation, producer, page, panel, .. } = evidence;
     assert_eq!(panel.exit, Some(Exit::Code(0)), "{run}: {}", String::from_utf8_lossy(&panel.stderr));
     let panel = super::ctl::json(panel);
-    assert_eq!(panel["pull"]["address"], format!("http://{}/work/hello/pulls/1", evidence.address), "{run}: {panel}");
+    let address = format!("http://{}/work/hello/pulls/1", evidence.address);
+    assert_eq!(panel["pull"]["address"], address, "{run}: {panel}");
     eprintln!("{run} producer's committed calls: {producer}");
     eprintln!("{run} change page: {page}");
     eprintln!("{run} first task's committed calls: {delegation}");
@@ -766,7 +767,11 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
     let (landed, _) = super::ctl::landed_result(&task);
     assert!(landed.starts_with("result: Landed · pull request #1 · merge commit "), "{run}: {task}");
     assert!(task.contains("on forge 1"), "{run}: {task}");
-    assert!(!task.contains("pull request:"), "{run}: a cut address is left to the panel: {task}");
+    assert_eq!(
+        task.lines().find_map(|line| line.strip_prefix("pull request: ")),
+        Some(address.as_str()),
+        "{run}: the task prints the forge's complete pull-request address: {task}"
+    );
     assert!(producer.contains("\"path\":\"README.md\"}\nRead "), "the worker read hello's cloned README: {producer}");
     assert!(producer.contains("Edited 1 matches"), "the worker applied its README edit: {producer}");
     assert!(

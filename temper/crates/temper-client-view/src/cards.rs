@@ -1,6 +1,6 @@
 //! Temper's cards read delivered objects and jig's public decision facts.
 pub(crate) mod delegation;
-mod proposal;
+pub(crate) mod proposal;
 pub mod words;
 use crate::words::Words;
 use alloc::boxed::Box;
@@ -26,9 +26,9 @@ pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
         c::Refusal::Account { account, .. } => Some(Hole::Number(u64::from(*account))),
         c::Refusal::Taken { by } => Some(Hole::Number(*by)),
         c::Refusal::Llm { model, .. } => Some(Hole::Name(words.model_name(model.bytes()))),
-        c::Refusal::Stale(_)
-        | c::Refusal::Full(_)
-        | c::Refusal::AccountMove { .. }
+        c::Refusal::Stale(stale) => Some(Hole::Number(u64::from(stale.newest))),
+        c::Refusal::Full(full) => Some(Hole::Number(u64::from(full.revision))),
+        c::Refusal::AccountMove { .. }
         | c::Refusal::SignInRedirect { .. }
         | c::Refusal::NoEscalationHolder
         | c::Refusal::NameTaken

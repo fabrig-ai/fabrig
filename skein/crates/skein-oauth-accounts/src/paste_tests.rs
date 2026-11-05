@@ -12,7 +12,8 @@ fn account(public: bool, issued: bool) -> Account {
     let mut account = refresh_account(0, ([127, 0, 0, 1], 31000).into());
     if let Account::SignIn { registration, keeper, .. } = &mut account {
         registration.redirect_uri = bytes::copy_of(if public { REGISTERED } else { CONFIDENTIAL });
-        registration.client_secret = if public { None } else { Some(bytes::copy_of(b"fake secret")) };
+        registration.client_secret =
+            if public { None } else { Some(skein_lib::Secret::new(bytes::copy_of(b"fake secret"))) };
         registration.terms = Some(skein_oauth::Terms { varying_port: public, issued_client_id: issued, ..terms() });
         *keeper = Keeper::Owner { kept: None };
     }
@@ -43,7 +44,10 @@ fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     out.finish()
 }
 fn paste(owner: &mut Owner, address: &[u8], state: &[u8], fields: &[u8]) {
-    owner.ask(Request::Redirected { account: 0, uri: joined(&[address, b"?state=", state, fields]) });
+    owner.ask(Request::Redirected {
+        account: 0,
+        uri: skein_lib::Secret::new(joined(&[address, b"?state=", state, fields])),
+    });
 }
 fn taken(owner: &mut Owner) {
     assert_event(owner.above.pop(), Event::Taken { account: 0 });
@@ -310,7 +314,7 @@ fn a_state_bound_under_32_is_unusable() {
         let mut profile = limits();
         profile.client.state_bytes = bound;
         let mut configured = List::with_capacity(1);
-        configured.push(account(true, false)).ok().expect("account room");
+        configured.push(account(true, false)).expect("account room");
         assert_eq!(Component::new(configured, &profile, crypto(17)).err(), expected, "state bound {bound}");
         if bound == 32 {
             let mut owner = Owner::configured([account(true, false)], &profile);

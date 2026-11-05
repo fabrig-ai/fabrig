@@ -47,7 +47,9 @@ pub(crate) fn apply(defaults: &mut Defaults, flags: &Value, stock_period_spend: 
             .expect("stock charters plus case helper");
         let mut charters = List::with_capacity(capacity);
         for charter in &defaults.charters {
-            charters.push(charter.clone()).expect("counted stock charters");
+            if charter.number != helper.number {
+                charters.push(charter.clone()).expect("counted stock charters");
+            }
         }
         charters.push(helper).expect("room for case helper charter");
         defaults.charters = charters.into_boxed();

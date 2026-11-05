@@ -92,6 +92,7 @@ enum Phase {
     Download { after: usize, earlier: Option<Vec<u8>> },
     Gap { earlier: Vec<u8>, until: Time },
     Still { save: Vec<u8> },
+    AfterMark { until: Time },
     Find { control: Control },
     Finished,
 }
@@ -167,8 +168,11 @@ impl Walker {
                             self.save(face, None);
                         }
                     } else {
-                        self.phase =
-                            Phase::Gap { earlier: save, until: now.saturating_add(Duration::from_millis(500)) };
+                        let gap = match &self.steps[self.at] {
+                            Step::Mark => Duration::from_secs(1),
+                            Step::Act { .. } | Step::End => Duration::from_millis(500),
+                        };
+                        self.phase = Phase::Gap { earlier: save, until: now.saturating_add(gap) };
                     }
                 } else {
                     self.phase = Phase::Download { after, earlier };
@@ -194,12 +198,22 @@ impl Walker {
                 Step::Mark => {
                     face.key(Key::Letter { letter: b'm', alt: true }, true);
                     self.advance();
+                    // A key mark's half-second window ends before another control is acted on.
+                    self.phase = Phase::AfterMark { until: now.saturating_add(Duration::from_secs(1)) };
                 }
                 Step::End => {
                     self.recording = Some(save);
                     return Ok(Next::Done);
                 }
             },
+            Phase::AfterMark { until } => {
+                if now >= until {
+                    self.phase = Phase::Start;
+                } else {
+                    self.phase = Phase::AfterMark { until };
+                    return Ok(Next::Wait { until: Some(until) });
+                }
+            }
             Phase::Find { control } => {
                 let find = Find::exactly_named(control.role, &control.name).nth(control.order);
                 match face.find(&find) {

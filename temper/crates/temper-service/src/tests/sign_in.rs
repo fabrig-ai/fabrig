@@ -94,13 +94,13 @@ pub(crate) fn world_settings(
             authorization_url: settings.authorization,
             token_endpoint: settings.token,
             client_id: settings.client,
-            client_secret: Some(settings.secret.expose().into()),
+            client_secret: Some(settings.secret),
             redirect_uri: if public {
                 b"https://temper.example.com/sign-in/google/return".as_slice().into()
             } else {
                 b"http://127.0.0.1:7100/sign-in/google/return".as_slice().into()
             },
-            refresh_token: b"throwaway-refresh".as_slice().into(),
+            refresh_token: Secret::new(b"throwaway-refresh".as_slice().into()),
             terms: Some(fake::Terms {
                 issued: Box::new([]),
                 omit_issued: false,
@@ -193,12 +193,12 @@ pub(crate) fn start(service: &mut crate::Service, issuer: &mut fake::Issuer, tar
 }
 fn redirect(issuer: &mut fake::Issuer, url: Box<[u8]>) -> Box<[u8]> {
     let mut out = Queue::uncapped();
-    issuer.step(fake::Event::Authorize { url, now: NOW }, &mut out);
+    issuer.step(fake::Event::Authorize { url: Secret::new(url), now: NOW }, &mut out);
     let Some(fake::Request::Redirect { state, code, .. }) = out.pop() else { panic!("issuer redirect") };
     format!(
         "/sign-in/google/return?state={}&code={}",
-        core::str::from_utf8(&state).unwrap(),
-        core::str::from_utf8(&code).unwrap()
+        core::str::from_utf8(state.expose()).unwrap(),
+        core::str::from_utf8(code.expose()).unwrap()
     )
     .into_bytes()
     .into_boxed_slice()
@@ -227,7 +227,7 @@ fn token_plan(issuer: &mut fake::Issuer) {
         .queue(fake::Plan {
             status: 200,
             body: fake::Body::Token(oauth::TokenResponse {
-                access_token: b"throwaway-access".as_slice().into(),
+                access_token: Secret::new(b"throwaway-access".as_slice().into()),
                 refresh_token: None,
                 expires_in: 3600,
                 scope: Some(b"openid email profile".as_slice().into()),

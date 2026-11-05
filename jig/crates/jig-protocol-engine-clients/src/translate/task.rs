@@ -342,6 +342,7 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
             label: value.label,
             flags: super::me::flags(value.flags, limits)?,
             last_activity: value.last_activity.as_nanos(),
+            made: value.made.as_nanos(),
             waits_on: super::queries::waits(value.waits_on.clone(), limits)?,
             chip: chips::chip(&value.chip, limits)?,
             goal: value.goal,

@@ -37,7 +37,7 @@ pub(crate) fn main(
     times: &mut Times,
 ) {
     b.open(Role::Main);
-    b.style(look::MAIN);
+    b.style(super::document::mode(root.pages().chat()));
     let configuring = configuring(root);
     b.style(look::SESSION);
     if let Some(chat) = root.pages().chat()
@@ -61,6 +61,23 @@ pub(crate) fn main(
             super::configure::byline(b, root, words, task.project);
         } else {
             crate::choice::byline(b, root, Some(task), words, bindings);
+        }
+        super::document::seg(b, chat, words, bindings);
+        super::chat_sheet::bar(b, root, words, bindings);
+        if chat.draft.is_none()
+            && !chat.writing
+            && task.result.is_none()
+            && !super::chats::ended(&task.chip)
+            && temper_client_domain::pages::drafts_offered(root, task.project)
+        {
+            super::document::add(b, words, bindings, Act::AddDraft);
+        }
+        if configuring && chat.draft.is_some() && task.result.is_none() && !super::chats::ended(&task.chip) {
+            b.open(Role::Button);
+            b.name(&words.say(Word::StartOver, &[]));
+            b.style(look::START_OVER);
+            b.bind(bindings.insert(Act::StartOver));
+            b.close();
         }
         bar_status(b, root, task, words, times);
         bar_actions(b, task, words, bindings);
@@ -87,6 +104,7 @@ pub(crate) fn main(
         }
         session_composer(b, root, chat, task, words, bindings);
         b.close();
+        super::document::pane(b, root, chat, task, words, times);
     }
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();
@@ -95,6 +113,17 @@ fn conversation_head(b: &mut Builder, root: &Domain, words: &Words, bindings: &m
     let chat = root.pages().chat().expect("chat page");
     let task = chat.task(root.client()).expect("chat task");
     context(b, root, task.project, words);
+    if chat.thread.lines().is_empty() && (chat.draft.is_some() || chat.writing) {
+        let name = match &chat.draft {
+            Some(draft) => words
+                .say(Word::DraftFile, &[Hole::Name(temper_client_domain::pages::chat::document::slug(&draft.title))]),
+            None => words.say(Word::DraftName, &[]),
+        };
+        b.open(Role::Paragraph);
+        b.style(look::META_LINE);
+        b.text(Run::Plain, &words.say(Word::ChatWrites, &[Hole::Name(name)]));
+        b.close();
+    }
     if chat.offers_older() {
         b.open(Role::Button);
         b.style(look::CHATS_MORE);
@@ -207,6 +236,9 @@ fn session_composer(
     if crate::choice::can_send(root) {
         b.state(State::SubmitsOnEnter);
     }
+    if chat.composer_focus != 0 {
+        b.focus(chat.composer_focus);
+    }
     b.value(&chat.words, temper_client_domain::pages::shown(root.pages()));
     b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
     b.close();
@@ -217,7 +249,7 @@ fn session_composer(
     }
     b.bind(bindings.insert(Act::Send));
     b.close();
-    super::session::hint(b, words);
+    super::session::hint(b, words, chat.draft.is_some() || chat.writing);
     if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome
         && !super::chats::accepted(outcome)
@@ -327,8 +359,10 @@ fn proposal_card(
 ) {
     b.open(role);
     b.name(&super::inbox::card_name(root, card.object, Word::Proposal, words));
-    b.style(look::CARD);
-    b.style(look::KIND_PROPOSAL);
+    if crate::cards::proposal::settings_proposal(root, card).is_none() {
+        b.style(look::CARD);
+        b.style(look::KIND_PROPOSAL);
+    }
     if role == Role::Item {
         b.key(super::inbox::card_key(card.object));
     }
@@ -338,7 +372,10 @@ fn proposal_card(
     {
         proposal_wait(b, words, times, since);
     }
-    crate::confirm::card(b, root, card, words, bindings, rows);
+    let replaced = settings_replaced(root, card.object, rows);
+    if !crate::cards::proposal::settings(b, root, card, words, bindings, replaced) {
+        crate::confirm::card(b, root, card, words, bindings, rows);
+    }
     b.close();
 }
 
@@ -535,6 +572,10 @@ pub(crate) fn conversation(
 }
 
 // Agent task pages keep their own treatment of moments (client/README.md, 5.12).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one conversation walk interleaves turns, proposals and the person's goal start"
+)]
 pub(crate) fn conversation_with_times(
     b: &mut Builder,
     thread: &Thread,
@@ -560,6 +601,7 @@ pub(crate) fn conversation_with_times(
         conversation_head(b, root, words, bindings);
     }
     let lines = thread.lines().into_boxed();
+    let mut started = super::chat_sheet::started(proposals);
     let mut day = None;
     // A chat started with no words opens on its first words line (3.5).
     if thread.lines.edges.after == jig_client::thread::window::Edge::End
@@ -570,6 +612,7 @@ pub(crate) fn conversation_with_times(
         request_message(b, request, speakers.requester, words, clock.as_deref());
     }
     for line in lines {
+        super::chat_sheet::before(b, &mut started, Some(&line), words, bindings);
         if hidden_line(&line, projected, delegations) {
             heard_card(b, &line, delegations, (&mut tasks, &mut shown), words, bindings);
             continue;
@@ -628,6 +671,7 @@ pub(crate) fn conversation_with_times(
         }
         b.close();
     }
+    super::chat_sheet::before(b, &mut started, None, words, bindings);
     // The live delegates anchor follows the window's last line (client/README.md, 5.7).
     live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings);
     if let Some(root) = proposals {
@@ -707,12 +751,12 @@ fn turn_time(
     b: &mut Builder,
     at: Option<skein_lib::Wall>,
     times: &mut Option<&mut Times>,
-    day: &mut Option<u64>,
+    day: &mut Option<i64>,
     words: &Words,
 ) -> Option<Box<[u8]>> {
     let at = at?;
     let times = times.as_mut()?;
-    let date = at.as_nanos() / 86_400_000_000_000;
+    let date = words.calendar_day(at);
     if *day != Some(date) {
         let said = times.say(words, TimeForm::Day, at);
         b.open(Role::Paragraph);
@@ -992,12 +1036,22 @@ fn committed(
             }
             for block in blocks {
                 if let c::Block::Call(call) = block {
+                    super::document::tool_line(
+                        b,
+                        call,
+                        match delegations {
+                            Some((chat, _)) => Some(chat),
+                            None => None,
+                        },
+                        words,
+                        bindings,
+                    );
                     tasks.clear();
                     delegation::delegated(call, tasks);
                     cards(b, tasks, delegations, shown, words, bindings);
                 }
             }
-            folded_calls(b, blocks, tasks, delegations, words);
+            folded_calls(b, blocks, tasks, delegations, words, true);
             for (block_at, block) in blocks.iter().enumerate() {
                 if let c::Block::Call(call) = block
                     && let Some((root, name)) = proposals
@@ -1025,9 +1079,49 @@ fn committed(
             }
         }
     }
-    if turn.cut {
+    if turn.cut && !note_only(turn, rows) {
         words.status(b, P::TurnCut, &[]);
     }
+}
+
+// A full structural prefix or any other content can have its own cut.
+// Turn::cut carries no provenance, so those turns keep the omission words.
+fn note_only(turn: &c::Turn, rows: u32) -> bool {
+    if turn.messages.len() >= rows {
+        return false;
+    }
+    let mut wrote = false;
+    for message in &turn.messages {
+        if message.blocks.len() >= rows {
+            return false;
+        }
+        for block in &message.blocks {
+            match block {
+                c::Block::Call(call) if super::document::write(call).is_some() => wrote = true,
+                c::Block::Result { call, failed: false, .. } => {
+                    let mut found = false;
+                    for message in &turn.messages {
+                        for block in &message.blocks {
+                            if let c::Block::Call(source) = block
+                                && source.number == *call
+                                && super::document::write(source).is_some()
+                            {
+                                found = true;
+                            }
+                        }
+                    }
+                    if !found {
+                        return false;
+                    }
+                }
+                c::Block::Text(text) if text.bytes().is_empty() => {}
+                c::Block::Text(_) | c::Block::Call(_) | c::Block::Result { .. } | c::Block::Opaque { .. } => {
+                    return false;
+                }
+            }
+        }
+    }
+    wrote
 }
 fn committed_lines(
     b: &mut Builder,
@@ -1112,7 +1206,7 @@ fn committed_lines(
                 }
             }
         }
-        folded_calls(b, blocks, tasks, delegations, words);
+        folded_calls(b, blocks, tasks, delegations, words, false);
         b.close();
         b.close();
     }
@@ -1132,8 +1226,16 @@ fn call_line(b: &mut Builder, call: &c::Call) {
     b.close();
 }
 
-fn other_call(block: &c::Block, tasks: &mut List<u64>, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
+fn other_call(
+    block: &c::Block,
+    tasks: &mut List<u64>,
+    delegations: Option<(&Chat, &jig_client::Client)>,
+    notes: bool,
+) -> bool {
     let c::Block::Call(call) = block else { return false };
+    if notes && super::document::write(call).is_some() {
+        return false;
+    }
     if let Some((chat, _)) = delegations {
         for card in &chat.cards {
             if call.objects.as_slice().contains(&card.object) {
@@ -1151,10 +1253,11 @@ fn folded_calls(
     tasks: &mut List<u64>,
     delegations: Option<(&Chat, &jig_client::Client)>,
     words: &Words,
+    notes: bool,
 ) {
     let mut count = 0_u64;
     for block in blocks {
-        if other_call(block, tasks, delegations) {
+        if other_call(block, tasks, delegations, notes) {
             count = count.checked_add(1).expect("bounded call count");
         }
     }
@@ -1167,7 +1270,7 @@ fn folded_calls(
     let mut length = 0_usize;
     for (at, block) in blocks.iter().enumerate() {
         let c::Block::Call(call) = block else { continue };
-        if !other_call(block, tasks, delegations) {
+        if !other_call(block, tasks, delegations, notes) {
             continue;
         }
         let mut repeated = 0_u64;
@@ -1175,7 +1278,7 @@ fn folded_calls(
         for (index, candidate) in blocks.iter().enumerate() {
             if let c::Block::Call(other) = candidate
                 && other.tool == call.tool
-                && other_call(candidate, tasks, delegations)
+                && other_call(candidate, tasks, delegations, notes)
             {
                 repeated = repeated.checked_add(1).expect("bounded repeated calls");
                 if index < at {
@@ -1210,7 +1313,7 @@ fn folded_calls(
     b.name(&count);
     b.description(&description.finish());
     for block in blocks {
-        if other_call(block, tasks, delegations)
+        if other_call(block, tasks, delegations, notes)
             && let c::Block::Call(call) = block
         {
             call_line(b, call);
@@ -1310,4 +1413,35 @@ fn markdown(b: &mut Builder, bytes: &[u8], words: &Words, most: u32) {
     if end < bytes.len() {
         words.status(b, P::TurnCut, &[]);
     }
+}
+
+// Only a later settings proposal anchored in this conversation replaces an ended one.
+fn settings_replaced(root: &Domain, object: c::ObjectKey, rows: u32) -> bool {
+    let Some(chat) = root.pages().chat() else { return false };
+    let Some(anchor) = proposal_anchor(chat, object, rows) else { return false };
+    let mut reached = false;
+    for line in chat.thread.lines().into_boxed() {
+        if let Line::Turn { name, turn, .. } = line {
+            for (message, value) in turn.messages.iter().enumerate() {
+                for (block, value) in value.blocks.iter().enumerate() {
+                    if (name, message, block) == anchor {
+                        reached = true;
+                        continue;
+                    }
+                    if reached && let c::Block::Call(call) = value {
+                        for card in &chat.cards {
+                            if call.objects.as_slice().contains(&card.object)
+                                && card.object != object
+                                && proposal_anchor(chat, card.object, rows) == Some((name, message, block))
+                                && crate::cards::proposal::settings_proposal(root, card).is_some()
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
 }

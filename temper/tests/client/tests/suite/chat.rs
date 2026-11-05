@@ -30,10 +30,7 @@ fn a_message_in_a_chat_is_answered_in_its_conversation() {
 fn a_task_with_the_chat_label_opens_as_a_chat() {
     let mut world = fixtures::world(fixtures::SEED);
     let task = fixtures::chat(world.front(), b"Hello");
-    let person = world.client(
-        fixtures::PARTY,
-        temper_client_domain::Address::Task { task, filter: temper_client_domain::PlanFilter::All },
-    );
+    let person = world.client(fixtures::PARTY, temper_client_domain::Address::Task { task });
     world.person(person, vec![Step::See { find: Find::named(Role::TextArea, b"Message"), within: fixtures::WITHIN }]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
 }
@@ -210,7 +207,7 @@ fn chat_from_new_chat(world: &mut ChatWorld, task: u64) -> jig_client_world::har
     world.person(person, vec![press(Role::Link, b"+ New chat"), see(composer())]);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
-    assert_eq!(world.root(person).person().pages().address(), &Address::NewChat);
+    assert_eq!(world.root(person).person().pages().address(), &Address::NewChat { draft: false });
     assert!(printed(world, person).contains("What do you want done?"));
     world.person(
         person,

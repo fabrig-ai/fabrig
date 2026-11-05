@@ -1165,3 +1165,227 @@ fn a_runs_settings_reason_past_people_words_is_refused_durably() {
     assert_eq!(world.store.rows.get(&address), Some(&stored));
     assert!(fixtures::live_row(&world, task).proposal.is_none());
 }
+
+#[test]
+fn a_release_withdraws_a_parked_runs_proposal_and_tells_its_task() {
+    let (mut world, _, task) = proposing_run(true);
+    let item = run_charter(&world, b"Pending instructions");
+    let proposal = run_proposed(&run_propose(&mut world, 1, Box::new([item])));
+    world.park_for_message(0);
+    seed_release_accounts(&mut world);
+    let before = world.assignments.len();
+    restart(&mut world, released_run_configuration());
+    assert_eq!(revision(&world, 2, false).head.by, settings::Decider::Release);
+    assert!(!world.store.rows.contains_key(&task_set(task, proposal)));
+    assert_eq!(
+        run_outcome(&world, task, proposal).kind,
+        tasks::MessageKind::SettingsDecision { proposal, outcome: tasks::SettingsOutcome::Stale { newest: 2 } }
+    );
+    resume_release_host(&mut world);
+    assert_eq!(world.assignments.len(), before + 1, "one next run after the start");
+    let assignment = world.assigned.as_ref().expect("proposer resumes");
+    assert_eq!(assignment.task, task);
+    assert_eq!(
+        assignment
+            .messages
+            .iter()
+            .filter(|word| matches!(word.kind,
+        tasks::MessageKind::SettingsDecision { proposal: number, .. } if number == proposal))
+            .count(),
+        1
+    );
+    restart(&mut world, released_run_configuration());
+    assert_eq!(world.domain.settings().newest(), 2);
+    assert_eq!(
+        fixtures::live_row(&world, task)
+            .inbox
+            .iter()
+            .filter(|word| matches!(word.kind,
+        tasks::MessageKind::SettingsDecision { proposal: number, .. } if number == proposal))
+            .count(),
+        1
+    );
+    world.close();
+}
+
+fn released_run_configuration() -> root::Config {
+    let mut config = run_configuration().0;
+    config.core.defaults.charters[0].policy.instructions = b"Released default".as_slice().into();
+    config
+}
+
+fn seed_release_accounts(world: &mut World) {
+    world.seed(jig_test_profile::fixtures::account_rows(&run_configuration().0.core.settings.llm_providers));
+}
+
+fn resume_release_host(world: &mut World) {
+    release_host(world, Box::new([]));
+    world.send(root::Event::Core(core::Event::Period { project: 1, period: 2, budget: 100, next: None }));
+}
+
+fn release_host(world: &mut World, hosting: Box<[jig_domain_fleet::Hosting]>) {
+    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
+        worker: 0,
+        channel: skein_lib::Token::new(7),
+        hello: jig_domain_fleet::Hello {
+            jobs: Box::default(),
+            bounds: jig_test_profile::fixtures::bounds(),
+            stop_bound: skein_lib::Duration::from_millis(1),
+            slots: 1,
+            workstreams: Box::new([]),
+            hosting,
+        },
+    })));
+}
+
+#[test]
+fn a_release_withdraws_the_proposal_of_a_run_still_claimed() {
+    let (mut world, _, task) = proposing_run(true);
+    let item = run_charter(&world, b"Pending instructions");
+    let proposal = run_proposed(&run_propose(&mut world, 1, Box::new([item])));
+    let assignment = world.assigned.as_ref().expect("claimed proposer");
+    let attempt = assignment.attempt;
+    let claim = fixtures::live_row(&world, task).phase.clone();
+    let assignments = world.assignments.clone();
+    let inbound = world.inbound.clone();
+    seed_release_accounts(&mut world);
+    world.hold_restore_pages = true;
+    world.hold_switch = true;
+    let mut config = released_run_configuration();
+    config.core.workers_in_process = false;
+    world.restart_with(config);
+    release_host(
+        &mut world,
+        Box::new([jig_domain_fleet::Hosting {
+            run: skein_lib::Token::new(task),
+            attempt: skein_lib::Token::new(attempt),
+            phase: jig_domain_fleet::Phase::Active,
+        }]),
+    );
+    world.finish_restore_pages();
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Switch));
+    assert_eq!(world.assignments, assignments);
+    assert_eq!(world.inbound, inbound, "no relay before durable Wires");
+    assert!(!world.store.rows.contains_key(&task_set(task, proposal)));
+    let outcome = run_outcome(&world, task, proposal).clone();
+    assert_eq!(
+        outcome.kind,
+        tasks::MessageKind::SettingsDecision { proposal, outcome: tasks::SettingsOutcome::Stale { newest: 2 } }
+    );
+    world.finish_switch();
+    assert!(world.domain.ready());
+    assert_eq!(fixtures::live_row(&world, task).phase, claim);
+    assert_eq!(world.assignments, assignments, "adoption keeps the same attempt");
+    assert_eq!(world.inbound, inbound, "the restored word waits for the next turn");
+    world.turn(1, 0, None, b"Read the release's decision");
+    assert_eq!(world.inbound.iter().filter(|word| word.number == outcome.number).count(), 1);
+    world.turn(2, 0, Some(outcome.number), b"The pending proposal is stale");
+    assert!(!fixtures::live_row(&world, task).inbox.iter().any(|word| word.number == outcome.number));
+    fixtures::finish_chat(&mut world, 0, b"Done after adoption");
+    let mut config = released_run_configuration();
+    config.core.workers_in_process = false;
+    restart(&mut world, config);
+    assert_eq!(world.domain.settings().newest(), 2);
+    world.close();
+}
+
+#[test]
+fn a_release_with_a_held_revision_withdraws_a_runs_proposal() {
+    let (mut world, signed, task) = proposing_run(true);
+    let item = template_edit(&world, 7);
+    changed(&change(&mut world, signed, 103, 1, Box::new([item])), 2);
+    assert_eq!(fixtures::live_row(&world, task).settings.task, 1);
+    assert_eq!(
+        world.assigned.as_ref().expect("old goal keeps its run").run.policy.instructions.as_ref(),
+        b"Answer within the granted authority."
+    );
+    let item = run_charter(&world, b"Pending against revision two");
+    let proposal = run_proposed(&run_propose(&mut world, 2, Box::new([item])));
+    world.park_for_message(0);
+    seed_release_accounts(&mut world);
+    restart(&mut world, released_run_configuration());
+    assert_eq!(revision(&world, 3, false).head.by, settings::Decider::Release);
+    assert!(!world.store.rows.contains_key(&task_set(task, proposal)));
+    assert_eq!(
+        run_outcome(&world, task, proposal).kind,
+        tasks::MessageKind::SettingsDecision { proposal, outcome: tasks::SettingsOutcome::Stale { newest: 3 } }
+    );
+    assert_eq!(
+        inventory(&mut world, signed).held.iter().map(|row| (row.head.number, row.holders)).collect::<Vec<_>>(),
+        [(1, 1), (3, 0)]
+    );
+    resume_release_host(&mut world);
+    assert_eq!(
+        world.assigned.as_ref().expect("held goal resumes").run.policy.instructions.as_ref(),
+        b"Answer within the granted authority."
+    );
+    assert_eq!(fixtures::live_row(&world, task).settings.run, Some(1));
+    let rows = settings_rows(&world);
+    restart(&mut world, released_run_configuration());
+    assert_eq!(world.domain.settings().newest(), 3);
+    assert_eq!(settings_rows(&world), rows);
+    assert_eq!(
+        fixtures::live_row(&world, task)
+            .inbox
+            .iter()
+            .filter(|word| matches!(word.kind,
+        tasks::MessageKind::SettingsDecision { proposal: number, .. } if number == proposal))
+            .count(),
+        1
+    );
+    world.close();
+}
+
+#[test]
+fn a_crash_after_the_releases_commit_leaves_the_withdrawal_done() {
+    let (mut world, _, task) = proposing_run(true);
+    let item = run_charter(&world, b"Pending instructions");
+    let proposal = run_proposed(&run_propose(&mut world, 1, Box::new([item])));
+    world.park_for_message(0);
+    seed_release_accounts(&mut world);
+    let assignments = world.assignments.clone();
+    world.hold_switch = true;
+    world.restart_with(released_run_configuration());
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Switch));
+    assert_eq!(world.assignments, assignments, "no activation before durable Wires");
+    assert_eq!(revision(&world, 2, false).head.by, settings::Decider::Release);
+    assert!(!world.store.rows.contains_key(&task_set(task, proposal)));
+    let outcome = run_outcome(&world, task, proposal).clone();
+    assert_eq!(
+        outcome.kind,
+        tasks::MessageKind::SettingsDecision { proposal, outcome: tasks::SettingsOutcome::Stale { newest: 2 } }
+    );
+    let release = world
+        .commits
+        .iter()
+        .find(|writes| {
+            writes.iter().any(|write| {
+                matches!(write,
+        root::Write::Save(row) if row.key() == key(settings::Key::Held(2)))
+            })
+        })
+        .expect("release decision");
+    assert!(release.contains(&root::Write::Erase(task_set(task, proposal))), "withdrawal shares the release commit");
+    assert!(
+        release.iter().any(|write| matches!(write,
+        root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
+            if row.number == task && row.inbox.iter().any(|word| word == &outcome))),
+        "the same decision saves the proposer's word"
+    );
+    world.hold_switch = false;
+    restart(&mut world, released_run_configuration());
+    assert_eq!(world.domain.settings().newest(), 2);
+    assert_eq!(run_outcome(&world, task, proposal), &outcome);
+    assert_eq!(fixtures::live_row(&world, task).inbox.iter().filter(|word| word.number == outcome.number).count(), 1);
+    let header = &world.store.rows[&root::Key::Core(core::Key::Core(core::CoreKey::Deployment))];
+    let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(numbers))) = header else {
+        panic!("deployment header")
+    };
+    assert!(numbers.messages >= outcome.number);
+    resume_release_host(&mut world);
+    assert_eq!(world.assignments.len(), assignments.len() + 1, "the crash leaves exactly one next run due");
+    assert_eq!(world.assigned.as_ref().expect("next run").task, task);
+    world.turn(1, 0, Some(outcome.number), b"The proposal was withdrawn");
+    world.park_for_message(0);
+    world.close();
+}

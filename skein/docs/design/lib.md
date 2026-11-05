@@ -220,7 +220,8 @@ where it holds it.
 - **A carrier prints lengths.** A record carrying a peer's bytes prints them
   as their length in `Debug`, never a byte of them, and a header prints its
   name and its value's length, so a credential passing through prints and
-  traces without its bytes (http.md, 2; channel.md, 3).
+  traces without its bytes (http.md, 2; channel.md, 3). Only what oauth.md, 4
+  names as no credential prints as it came.
 - **Widening:** `length::usize_of` widens a `u32` count to an index and `length::len_u64` a length to a count, so no step writes `try_from` for either.
 
 ### 6.1 Base64
@@ -761,3 +762,9 @@ What of this document is not built is in [`lib.status.md`](lib.status.md).
   draft asks for it; `lib.status.md` names those it has not reached. The
   stream's records and `Intake` would close the most at once, since every
   head, body and frame passes through them.
+- **Widening's other shapes:** a `u32` written through `.ok()`, `?` or
+  `is_err` can never fail, so `usize_of` (section 6) could take it too, as
+  `len_u64` could `skein-fake-checkout`'s two lengths, should it take
+  `skein-lib`. `lib.status.md` names what stands, and
+  `skein/scripts/old_forms.py`'s `widening` holds the `.expect(..)` form at its
+  floor.

@@ -120,8 +120,8 @@ pub fn run(document: &[u8], settings: &Settings, seed: u64) -> Run {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: settings.limits };
     let mut rng = Rng::new(seed);
     let mut decoder = Decoder::new(&env.limits);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut wire = Wire::new(seed);
     wire.write(settings.sent(document));
     wire.eof = true;
@@ -187,7 +187,7 @@ pub fn run(document: &[u8], settings: &Settings, seed: u64) -> Run {
                 json::up(&mut decoder, &env, event, &mut above, &mut below);
             }
         }
-        assert!(above.len() <= 1 && below.len() <= 1, "MAX_OUT");
+        assert!(above.len() <= 1 && below.len() <= 1, "one thing an entry point");
         if let Some(down) = below.pop() {
             match &down {
                 Down::Demand { read: Read::Nothing, room: 0 } => {
@@ -214,6 +214,82 @@ pub fn run(document: &[u8], settings: &Settings, seed: u64) -> Run {
     }
     panic!("seed {seed} failed to settle under {settings:?}");
 }
+
+/// What one entry point left in a decoder's queues, before the driver took them.
+/// Orders follow hearth/docs/design/domain/render.md, 8.5.
+#[derive(Debug)]
+pub struct Step {
+    pub above: Vec<Event>,
+    pub below: Vec<Down>,
+}
+
+fn snapshot(above: &mut Queue<Event>, below: &mut Queue<Down>) -> Step {
+    let mut step = Step { above: Vec::new(), below: Vec::new() };
+    while let Some(event) = above.pop() {
+        step.above.push(event);
+    }
+    while let Some(down) = below.pop() {
+        step.below.push(down);
+    }
+    step
+}
+
+fn take_step(wire: &mut Wire, step: &Step) {
+    for down in &step.below {
+        wire.take(match down {
+            Down::Demand { read, room } => Down::Demand { read: *read, room: *room },
+            Down::Send(bytes) => Down::Send(bytes.clone()),
+            Down::Finish => Down::Finish,
+        });
+    }
+}
+
+/// A decoder over `document` at seeded cuts, from `Decode` to its outcome, then `Close`.
+/// The first step is `Decode`'s; the last four are `Close`'s and three strays past it:
+/// `Up::End`, `Up::Failed(StreamFault::Reset)` and `Up::Bytes` of one byte.
+#[must_use]
+pub fn steps(document: &[u8], limits: &Limits, seed: u64) -> Vec<Step> {
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
+    let mut decoder = Decoder::new(limits);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    let mut wire = Wire::new(seed);
+    wire.write(document);
+    wire.eof = true;
+    json::down(&mut decoder, &env, Request::Decode, &mut above, &mut below);
+    let first = snapshot(&mut above, &mut below);
+    take_step(&mut wire, &first);
+    let mut steps = vec![first];
+    for _ in 0..document.len() * 100 + 10_000 {
+        if steps
+            .last()
+            .expect("Decode's step")
+            .above
+            .iter()
+            .any(|event| matches!(event, Event::Decoded(_) | Event::Failed(_)))
+        {
+            json::down(&mut decoder, &env, Request::Close, &mut above, &mut below);
+            let closed = snapshot(&mut above, &mut below);
+            take_step(&mut wire, &closed);
+            steps.push(closed);
+            for stray in [Up::End, Up::Failed(StreamFault::Reset), Up::Bytes(Box::from(&b"x"[..]))] {
+                json::up(&mut decoder, &env, stray, &mut above, &mut below);
+                steps.push(snapshot(&mut above, &mut below));
+            }
+            return steps;
+        }
+        // Steps retain the observations; the wire's formatted trace need not accumulate.
+        wire.trace.clear();
+        if let Some(event) = wire.answer() {
+            json::up(&mut decoder, &env, event, &mut above, &mut below);
+            let step = snapshot(&mut above, &mut below);
+            take_step(&mut wire, &step);
+            steps.push(step);
+        }
+    }
+    panic!("seed {seed} failed to settle for {document:?}");
+}
+
 /// Roomy defaults for the nine documents; generated worlds draw smaller ones.
 pub const DEFAULTS: Limits = SHIPPED;
 

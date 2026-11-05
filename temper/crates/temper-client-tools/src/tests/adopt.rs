@@ -86,7 +86,7 @@ fn each_forge_refusal_exits_2_in_its_words() {
     for (reason, expected) in [
         (w::ForgeReason::NoSuchForge, b"No forge 1 is configured.\n".as_slice()),
         (w::ForgeReason::NotFound, b"No repository o/n on forge 1 that temper's forge user can see.\n".as_slice()),
-        (w::ForgeReason::NoAccess, b"temper's forge user may not read o/n on forge 1.\n".as_slice()),
+        (w::ForgeReason::NoAccess, b"temper's forge user may not read o/n on forge 1.\nA managed or owned forge gives that access by its site admin's token, which needs write:repository: the server's log names the step.\n".as_slice()),
         (w::ForgeReason::Refused, b"The forge connector refused it: another project writes o/n, the project has a home already, or branches under temper/ are not this deployment's.\n".as_slice()),
         (w::ForgeReason::AnotherProject, b"Another project writes o/n. Adopt it as context to read it, or use the project that writes it.\n".as_slice()),
         (w::ForgeReason::HomeHeld, b"The project has a home already. Adopt this repository without making it home, or choose a new project.\n  temper ctl DIR repository adopt --project 1 --forge 1 --owner o --name n --landing main --role owned --prefix temper/ --no-home --key KEY\n".as_slice()),
@@ -314,10 +314,18 @@ fn a_saved_setup_request_is_not_restored_as_an_adoption() {
                 w::SetUp::new(
                     &w::CEILINGS,
                     w::SetUpParts {
-                        playground: false,
                         forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                        org: b"work".as_slice().into(),
-                        repository: b"hello".as_slice().into(),
+                        first: w::SetUpFirst::Empty(
+                            w::FirstEmpty::new(
+                                &w::CEILINGS,
+                                w::FirstEmptyParts {
+                                    playground: false,
+                                    org: b"work".as_slice().into(),
+                                    repository: b"hello".as_slice().into(),
+                                },
+                            )
+                            .expect("setup names fit wire ceilings"),
+                        ),
                     },
                 )
                 .expect("forge"),
@@ -363,4 +371,37 @@ fn a_retry_keeps_the_adoptions_nondefault_options_and_quotes_arguments() {
     root.adoption_answer(call, fixtures::forge_refused(w::ForgeReason::HomeHeld));
     let printed = root.answer(call).expect("refused durably");
     assert!(skein_lib::bytes::find(&printed.stderr, b"repository adopt --project 1 --forge 2 --owner o --name n --landing main --role fork --prefix 'old'\\''/' --no-home --no-ci --check 3 --key KEY").is_some());
+}
+
+#[test]
+fn a_read_only_adoption_says_so() {
+    let limits = temper_client_domain::forge::wire_limits(&fixtures::limits_root().domain.forge).expect("forge limits");
+    for role in [w::Role::Owned, w::Role::Context] {
+        let (mut root, call) = fixtures::adopt_root(&[]);
+        let outcome = w::Outcome::Adopted(
+            w::Adopted::new(
+                &limits,
+                w::AdoptedParts {
+                    forge: 1,
+                    repository: 7,
+                    owner: b"o".as_slice().into(),
+                    name: b"n".as_slice().into(),
+                    role: role.clone(),
+                    home: false,
+                    kinds: w::Kinds::new(
+                        &limits,
+                        w::KindsParts { skein_bools: [true, false, false, false, false, false, false, false, false] },
+                    )
+                    .expect("kinds"),
+                    protection: w::Protection::Unknown,
+                },
+            )
+            .expect("adopted"),
+        );
+        root.adoption_answer(call, outcome);
+        let printed = root.answer(call).expect("answered");
+        assert_eq!(printed.status, 0);
+        let line = b"temper's forge user can only read o/n on forge 1: work there fails until it has write.\n";
+        assert_eq!(skein_lib::bytes::find(&printed.stdout, line).is_some(), role == w::Role::Owned);
+    }
 }

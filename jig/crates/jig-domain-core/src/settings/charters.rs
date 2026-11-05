@@ -79,17 +79,9 @@ pub(crate) fn models(current: &super::Current, settings: &Settings, limits: &Lim
 }
 
 fn append_models(current: &super::Current, settings: &Settings, charters: &mut List<tasks::CharterModels>) {
-    for setting in &current.offered() {
-        let number = match setting {
-            super::Setting::Charter(number) => *number,
-            super::Setting::Template(_)
-            | super::Setting::Policy(_)
-            | super::Setting::Rules
-            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
-            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-        };
+    for number in current.offered_charters() {
         let charter = current.charter(number).expect("offered charter");
-        let (_, origin) = current.lookup(*setting);
+        let (_, origin) = current.lookup(super::Setting::Charter(number));
         let (_, revision) = origin.expect("offered charter version");
         let value = one_models(charter, revision, settings);
         charters.push(value).expect("configured charter count");

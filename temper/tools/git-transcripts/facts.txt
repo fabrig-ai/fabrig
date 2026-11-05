@@ -2,3 +2,4 @@
 # git version 2.47.3
 holds git-follows-a-renamed-repository-redirect
 holds protected-push-is-remote-rejected-declined
+holds clone-writes-the-url-as-given

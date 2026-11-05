@@ -1299,10 +1299,7 @@ What the steward must keep across restarts and reboots lives in
   every layer, so no other user, container or nspawn range may overlap
   it. hearth refuses a range missing, short, overlapping or in more
   than one entry, and a store made with another (6.6); a host's
-  activator refuses a container whose range overlaps it [M5]. The
-  fleet's containers clear it today: carbon-forge's base is 65536,
-  east-chat's 327680, the first id past the builder's range, and
-  south-agent-control has no user namespace.
+  activator refuses a container whose range overlaps it [M5].
 - **Aligned where there is an activator.** Only the shift needs the
   alignment, so a machine with an activator refuses an unaligned range,
   while a builder alone (a developer's machine, a lab builder, the real
@@ -1470,7 +1467,7 @@ What the steward must keep across restarts and reboots lives in
 - **A reconciled layer's base:** 6.2 lets it be collected while its
   descendants are kept, while 7.1 holds it as an ancestor under a
   descendant's pin; one of the two is to change.
-- **The containers named in 9.2:** whether the sentence on how the fleet's
-  containers clear the builder's range stays, the rule before it being
-  what holds; the user's to decide, with the example fleet's SSH port and
-  zone (hearth/docs/design/protocol/format.md, 13).
+- **A scan's and a chain's lifecycles** (4, 8.2): `Scan` and `Working` keep
+  theirs in flags and `Option`s beside `Pass` and `Next`
+  (`skein/docs/foundation/programming-model.md`, 5.4). Default: as they stand,
+  until a debt item names them.

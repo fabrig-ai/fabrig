@@ -42,8 +42,17 @@ fn world(seed: u64, flaky: Box<[Box<[u8]>]>, reports: bool) -> World {
     configured_world(seed, workflow(flaky, reports))
 }
 fn configured_world(seed: u64, workflow: raw::Workflow) -> World {
+    let mut world = following_world(seed, workflow, top::Follows::Landing);
+    attach(&mut world, 1, BASELINE);
+    world
+}
+fn following_world(seed: u64, workflow: raw::Workflow, follows: top::Follows) -> World {
     let mut world = World::tiered(seed, workflow);
     world.adopt();
+    world.run_for(10);
+    if follows == top::Follows::Goals {
+        hold_goal(&mut world);
+    }
     assert!(world.project_landing(
         5,
         change::Way::Queue,
@@ -56,12 +65,11 @@ fn configured_world(seed: u64, workflow: raw::Workflow) -> World {
                 ignored: Box::new([b"docs".as_slice().into()]),
                 artifact: b"report".as_slice().into(),
                 format: p::Format::Lines,
-                follows: top::Follows::Landing,
+                follows,
                 span: None,
             }]),
         }])
     ));
-    attach(&mut world, 1, BASELINE);
     world
 }
 fn row(world: &World) -> &top::TierRow {
@@ -173,8 +181,11 @@ fn start_baseline(world: &mut World) {
     step(world, BASELINE, 1001);
 }
 fn push(world: &mut World, path: &[u8], content: &[u8]) -> api::Commit {
-    world.push_file(b"main", path, content);
-    let commit = translate::commit(world.branch(b"main"));
+    push_on(world, b"main", path, content)
+}
+fn push_on(world: &mut World, branch: &[u8], path: &[u8], content: &[u8]) -> api::Commit {
+    world.push_file(branch, path, content);
+    let commit = translate::commit(world.branch(branch));
     for _ in 0..80 {
         if world
             .stored()
@@ -408,18 +419,69 @@ fn baseline_failures_are_inherited_by_the_first_range() {
     assert_eq!(inherited.failing, failures());
 }
 
-#[test]
-fn a_confirmed_red_tells_its_goal_the_failed_jobs_end() {
-    const GOAL: u64 = 201;
-    const CHANGE: u64 = 202;
-    const SUBSCRIPTION: u64 = 203;
-    const TEST: &[u8] = b"suite.first";
-    // The fake's workflow step writes four numbered failure lines.
-    const LOG: &[u8] =
-        b"failing check browser 0\nfailing check browser 1\nfailing check browser 2\nfailing check browser 3\n";
-    let mut world = world(21, Box::new([]), true);
+const GOAL: u64 = 201;
+const CHANGE: u64 = 202;
+const SUBSCRIPTION: u64 = 203;
+// The fake's failed workflow step writes four numbered lines.
+const LOG: &[u8] =
+    b"failing check browser 0\nfailing check browser 1\nfailing check browser 2\nfailing check browser 3\n";
+
+fn goal_name() -> top::Name {
+    top::Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: top::What::Branch(b"temper/1/g201".split(|byte| *byte == b'/').map(Box::from).collect()),
+    }
+}
+fn hold_goal(world: &mut World) {
+    world.produce_on(b"temper/1/g201", b"main");
+    world.event(top::Event::Hold { entry: 0, task: GOAL, resource: goal_name(), from: None });
+}
+fn goal_push(world: &mut World, path: &[u8], content: &[u8]) -> api::Commit {
+    let name = goal_name();
+    world.event(top::Event::Claim { task: GOAL, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.push_file(b"temper/1/g201", path, content);
+    let commit = translate::commit(world.branch(b"temper/1/g201"));
+    world.event(top::Event::Answered { task: GOAL, attempt: 1, pushed: Box::new([(name, commit)]) });
+    // The restored tier supplies the tracked tip; the forge supplies runs and logs.
+    let mut saved = row(world).clone();
+    saved.goals[0].tip = Some(commit);
+    world.restore_tier(saved);
+    world.run_for(10);
+    commit
+}
+fn subscribe_red(world: &mut World, branch: Box<[u8]>) {
+    world.event(top::Event::Subscribe {
+        subscription: top::Subscriber {
+            task: GOAL,
+            number: SUBSCRIPTION,
+            topic: top::Topic::Landings { repository: REPO, branch },
+            own_change: None,
+            goal_tasks: Some(Box::new([CHANGE])),
+            paths: Box::new([]),
+        },
+    });
+}
+fn red_range(follows: &top::Follows) -> (World, api::Commit, Box<[u8]>) {
+    let mut world = following_world(21, workflow(Box::new([]), true), follows.clone());
+    let branch: Box<[u8]> = if *follows == top::Follows::Goals {
+        world.run_for(10);
+        world.restart();
+        world.run_for(10);
+        goal_push(&mut world, b"file", b"baseline");
+        b"temper/1/g201".as_slice().into()
+    } else {
+        b"main".as_slice().into()
+    };
+    attach(&mut world, 1, BASELINE);
+    subscribe_red(&mut world, branch.clone());
     start_baseline(&mut world);
-    let commit = push(&mut world, b"failures", b"suite.first\n");
+    let commit = if *follows == top::Follows::Goals {
+        assert_eq!(finish(&mut world, BASELINE).failing, p::Failures::Tests(Box::new([])));
+        goal_push(&mut world, b"failures", b"suite.first\n")
+    } else {
+        push_on(&mut world, &branch, b"failures", b"suite.first\n")
+    };
     world.event(top::Event::Restore {
         record: top::Stored::Verification(top::Verification {
             repository: REPO,
@@ -432,49 +494,78 @@ fn a_confirmed_red_tells_its_goal_the_failed_jobs_end() {
             }]),
         }),
     });
-    world.event(top::Event::Subscribe {
-        subscription: top::Subscriber {
-            task: GOAL,
-            number: SUBSCRIPTION,
-            topic: top::Topic::Landings { repository: REPO, branch: b"main".as_slice().into() },
-            own_change: None,
-            goal_tasks: Some(Box::new([CHANGE])),
-            paths: Box::new([]),
-        },
-    });
-    finish(&mut world, BASELINE);
+    if *follows != top::Follows::Goals {
+        assert_eq!(finish(&mut world, BASELINE).failing, p::Failures::Tests(Box::new([])));
+    }
     attach(&mut world, 2, RANGE);
     world.take_calls();
+    (world, commit, branch)
+}
+fn red_news(world: &mut World) -> (Vec<top::Request>, Vec<api::Op>) {
     let mut news = Vec::new();
-    let verdict = finish_news(&mut world, RANGE, &mut news);
-    keep_news(&mut world, &mut news);
-    let failing = p::Failures::Tests(Box::new([TEST.into()]));
-    assert_eq!(verdict.landings.as_ref(), &[p::Blame::Owns(failing.clone())]);
+    let verdict = finish_news(world, RANGE, &mut news);
+    keep_news(world, &mut news);
+    assert_eq!(verdict.failing, p::Failures::Tests(Box::new([b"suite.first".as_slice().into()])));
     let calls = world.take_calls();
     assert_eq!(selections(&calls), [None, Some(b"suite.first\n".as_slice().into())]);
-    let run = calls
-        .iter()
-        .filter_map(|op| match op {
-            api::Op::Read(api::Read::Job { attempt, .. }) => Some(attempt.run),
-            api::Op::Read(_) | api::Op::Write(_) => None,
-        })
-        .next_back()
-        .expect("failed job log read");
-    let url = format!("http://forge/org/repo/actions/runs/{run}").into_bytes().into_boxed_slice();
+    (news, calls)
+}
+fn assert_red_news(
+    news: &[top::Request],
+    commit: api::Commit,
+    branch: Box<[u8]>,
+    follows: &top::Follows,
+    end: Option<Box<[u8]>>,
+) {
+    let failing = p::Failures::Tests(Box::new([b"suite.first".as_slice().into()]));
+    let on = if *follows == top::Follows::Goals {
+        top::RedOn::Goal { branch: branch.clone(), tip: commit, new: failing, still: p::Failures::Tests(Box::new([])) }
+    } else {
+        top::RedOn::Landing { commit, branch: branch.clone(), failing }
+    };
+    let [top::Request::News { news: top::News::Red(red), .. }] = news else { panic!("one confirmed red: {news:?}") };
+    assert!(red.url.as_ref().expect("run URL").starts_with(b"http://forge/org/repo/actions/runs/"));
     assert_eq!(
         news,
         [top::Request::News {
             task: GOAL,
             subscription: SUBSCRIPTION,
-            topic: top::Topic::Landings { repository: REPO, branch: b"main".as_slice().into() },
+            topic: top::Topic::Landings { repository: REPO, branch },
             news: top::News::Red(top::RedNews {
                 tier: b"browser".as_slice().into(),
                 run: 2,
-                url: Some(url),
-                on: top::RedOn::Landing { commit, branch: b"main".as_slice().into(), failing },
-                logs: Box::new([top::JobLog { name: b"browser".as_slice().into(), end: Some(LOG.into()) }]),
+                url: red.url.clone(),
+                on,
+                logs: Box::new([top::JobLog { name: b"browser".as_slice().into(), end }]),
             }),
             class: top::Class::Wakes,
         }]
     );
+}
+fn confirmed_red(follows: &top::Follows, brief_bytes: u32, answer_bytes: u32) {
+    let (mut world, commit, branch) = red_range(follows);
+    world.tier_log_room(brief_bytes, answer_bytes);
+    let (news, calls) = red_news(&mut world);
+    let cap = usize::try_from(brief_bytes.min(answer_bytes)).expect("log room fits usize");
+    let end = &LOG[LOG.len().saturating_sub(cap)..];
+    assert_red_news(&news, commit, branch, follows, Some(end.into()));
+    let reads: Vec<_> = calls
+        .iter()
+        .filter_map(|op| if let api::Op::Read(api::Read::Job { max_bytes, .. }) = op { Some(*max_bytes) } else { None })
+        .collect();
+    assert_eq!(reads, [brief_bytes.min(answer_bytes)]);
+}
+#[test]
+fn a_confirmed_red_tells_its_goal_the_failed_jobs_end() {
+    confirmed_red(&top::Follows::Landing, 4096, 4096);
+}
+#[test]
+fn red_news_keeps_job_logs_when_brief_exceeds_client_answer_room() {
+    const STANDARD_BRIEF: u32 = 131_584;
+    const STANDARD_ANSWER: u32 = 65_536;
+    const TAIL: u32 = 32;
+    for follows in [top::Follows::Landing, top::Follows::Goals] {
+        confirmed_red(&follows, STANDARD_BRIEF, STANDARD_ANSWER);
+        confirmed_red(&follows, TAIL, 4096);
+    }
 }

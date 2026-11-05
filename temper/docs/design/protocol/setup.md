@@ -253,7 +253,8 @@ connected  the forge component       ◄── its access, built from the record
   again overwrites them (credentials.md, the records).
 - **Nothing passes between the layers** in an argument or the
   environment but the directories' flags and the forge's number; the
-  commands read the forge's setup from its group's file (7.1).
+  commands read the forge's setup from its group's file (7.1), and with
+  none as 7.4 says.
 
 ## 4. Connected
 
@@ -354,7 +355,10 @@ runs it or writes what it makes.
   leaves the forge as it was. A start's reconcile that stops leaves that
   forge not connected, named, until the next start, a managed connect or
   an owned forge's next set up ask (6.5); the engine and every other
-  forge run on.
+  forge run on. A managed forge's row names it too: its plan's stop
+  shows as `SetUpFailed`, with the plan, the step and the why, and Connect
+  stays offered, so a repository whose access a start could not repair
+  is said where the person looks.
 
 - **Closing progresses without diagnostic consumption.** The service's
   setup adapter tracks closing requested separately from host `Close`
@@ -459,11 +463,25 @@ runs it or writes what it makes.
 - **`Adopt { forge, repository }`** runs before an adoption's reads on a
   managed, owned or fake Forgejo (skein's `forge-setup.md`, 4.5): the bot made
   a collaborator with write, and the repository's hook made when the
-  listener is configured, with the forge's secret. Stopped, the adoption
+  listener is configured, with the forge's secret; a managed forge is
+  served none (5.5). A person's adoption gives the plan the path its
+  request carries, since the bot may not see the repository yet; the
+  fake's start-time plans give ids. Stopped, the adoption
   is refused, named (`../domain/forge.md`, access at adoption). A
   `403` here, at reconcile's step 6 or at the picker's read, is the
   admin's token without `write:repository` (skein's 4.3, step 1): it
   is shown as that scope missing, named with its step.
+- **A stop reads as one of the adoption's refusals**
+  (`../client/README.md`, 4.7), and the log names the plan, its step and
+  its why:
+
+  | The plan's stop | The adoption's refusal |
+  |---|---|
+  | `Repository`, `Missing` | not found |
+  | `Admin`, whatever its why; `Refused(_)` at `Repository` | no access |
+  | `Down` or `TimedOut`, or the run ended by the forge's end | unreachable |
+  | the host busy (5.1) | in flight |
+  | any other | invalid answer |
 - **At each start,** reconcile's step 6 checks each adopted
   repository's access, and repairs what changed.
 - **A fake forge:** its repositories are
@@ -645,8 +663,8 @@ binaries; and decides by
    person's two header files made again, each alone, when missing, as
    on a forge prepared before they were (a person who revokes a token
    deletes its file, and the next start mints a new one). A configured
-   runner is registered again with its existing secret, keeping the same
-   registration, and its configuration is rendered from the current setup.
+   runner keeps its row (below), and its configuration is rendered from
+   the current setup, with the `uuid` its present configuration names.
    If the configuration is identical, its file is left untouched and no
    runner lock is needed, so a box can restart Forgejo while the runner
    runs. A changed or missing configuration is written whole under the
@@ -667,13 +685,31 @@ binaries; and decides by
    whether there is one, and `app.ini`'s `[actions]` follows the setup
    (6.2). A runner added is prepared under the runner's lock too, as a
    first preparation prepares it: its secret drawn into `runner/secret`
-   when that file is missing, and kept otherwise; registered; its
-   connection written. A runner removed is recorded as none, and its
-   files and its registration are left, unused, so that a runner added
-   again registers as the same one. A runner's recorded version is
-   compared with its pin only while the setup has one. Either may come
-   with an upgrade, in one preparation.
+   when that file is missing, and kept otherwise; registered, unless it
+   keeps its row (below); its connection written. A runner removed is
+   recorded as none, and its files and its registration are left, unused,
+   so that a runner added again is the same one. A runner's recorded
+   version is compared with its pin only while the setup has one. Either
+   may come with an upgrade, in one preparation.
 
+- **The runner's row is the runner's once it is made.** `forgejo-cli
+  actions register` writes the row over: its labels as given, raw
+  (`NAME:host`; `runner-register-again-keeps-one-global-runner`), and no
+  version. The runner declares over it at its start, and only then: its
+  labels' names and its version, which a job's `runs-on: NAME` matches
+  (`runner-connection-alone-takes-the-jobs`). So a preparation writing
+  the row under a runner that has declared, here or on another host (no
+  lock of this one sees that), leaves its jobs waiting with no error
+  until it starts again. A preparation registers only where the row may
+  not exist: a first one, one that draws a secret, and one whose
+  `runner/config.yaml` is missing or names no `uuid`, since that file is
+  written only after `register` has answered. Otherwise, at the same
+  versions, for an upgrade of either binary and for a runner added again,
+  it runs no `register`: changed labels reach the row when the runner
+  starts on its new configuration. Forgejo's command line cannot read the
+  row, so a row a person removed in the site administration is not
+  noticed: removing `runner/config.yaml` before a start registers it
+  again.
 - **Forgejo's command line only,** on the work path, never its web: under
   the lock no Forgejo runs, so nothing writes its database beside the
   preparation.
@@ -1057,14 +1093,19 @@ its own for any other host.
 
 ### 6.7 The first repository
 
-- **Asked with the set up, with no project.** `SetUp` carries an
-  organization (default `work`) and a repository (default `hello`),
-  and names no project: the repository is made unadopted, and its
+- **Asked with the set up, with no project.** `SetUp`'s `first` is one
+  of `Empty { org, name }`, an organization (default `work`) and a
+  repository (default `hello`); `Copies { addresses }`, at most 16, each
+  as `../draft/repository-copies.md`, 5.4, has it; or `Nothing`. It
+  names no project: `Empty`'s repository is made unadopted, and its
   adoption is a later act's, into a project the person has
-  (`../draft/first-run-projects.md`, 4). The forge domain keeps
-  them in the forge's record (forge.md, 2.1), the set up's intent: one
-  per forge, written in the decision that admits `SetUp`, and replaced
-  by the next `SetUp` it admits.
+  (`../draft/first-run-projects.md`, 4). `Copies` and `Nothing` make no
+  repository at set up: the forge connects with no `Create`, and the
+  copies wait for a project to go into (`../client/README.md`, 3.5). The
+  forge domain keeps it in the forge's record (forge.md, 2.1), the set
+  up's intent: one per forge, written in the decision that admits
+  `SetUp`, and replaced by the next `SetUp` it admits. `temper ctl forge
+  setup` and a managed connect's `first` ask `Empty` alone.
 - **Asked at a managed connect.** `ForgejoAdmin.first` carries the same
   organization and repository, with no project, and the person's runner label
   (default `docker` in the client and ctl), kept in the forge's record
@@ -1127,9 +1168,10 @@ its own for any other host.
   `widget` unless the call names one. A set up asked again takes its own request's fields, with
   the flag or without: a first repository already made stays, and the
   new one is made beside it.
-- **The row says it,** the forge's first repository beside its
-  connection (`../client/forge.md`, 5.4; `../client/README.md`, 4.6):
-  none; making `ORG/NAME` from the `SetUp`'s admission; made
+- **The row says it,** the intent, `starts_with`, and the forge's first
+  repository beside its connection (`../client/forge.md`, 5.4;
+  `../client/README.md`, 4.6): with `Copies` or `Nothing` the first
+  repository is none; else none; making `ORG/NAME` from the `SetUp`'s admission; made
   `ORG/NAME`, unadopted, once `Create` is done; or failed
   `ORG/NAME`, at the step that stopped (the admin, the org, the
   repository with its access, or the file). A `Create` that stops
@@ -1510,8 +1552,9 @@ temper box
     `<label>: stopped` as the pipe says them; its `step` lines are the
     client's row's alone; each start of an owned forge, an asked
     group's `started` or the box's own start of one that starts with it,
-    is followed by its hands (`../client/tools.md`, 11.5): `<label>: api
-    http://ADDRESS/api/v1` and `<label>: person LOGIN, read header PATH,
+    writes its hands (`../client/tools.md`, 11.5) to its Forgejo step's
+    log, `forgejo-N.log`, never the terminal: `Forgejo: api
+    http://ADDRESS/api/v1` and `Forgejo: person LOGIN, read header PATH,
     write header PATH`, the files' paths and never their contents;
   - a long step's exit, `<WHY>; restarting in <n> s`, and the box's give
     up, `<WHY>; giving up`, `<WHY>` in `failed`'s words (7.1);
@@ -1665,8 +1708,9 @@ temper box
   `remover` is the once step its removal runs (7.1); and its `started`
   writes the box's record. `label: Box<[u8]>` is the words the terminal
   names it by (7.2), owned opaque bytes passed from the setup/fake
-  constructor into the box's layout and written verbatim: `Playground`
-  for the fake kind's, `Forgejo` for the owned kind's. The box never
+  constructor into the box's layout and written verbatim but for its
+  `FORGE_ARGUMENT`, as a step's name is: `Playground` for the fake kind's,
+  `Forge N (Forgejo)` for the owned kind's, N the forge's number. The box never
   infers a label from arguments; it adds no label field to a wire reply
   or stored record. `before` is its place in the order:
   the index in `always` it runs just before (its length puts it last).
@@ -1733,7 +1777,7 @@ asks.
   connect on a store started afresh, where the forge is numbered 1
   again;
 - **the process tier** (section 13.4), which runs the commands itself,
-  writing a group's file as serve does under the box;
+  with no group's file, as a host's own units do;
 - **a container image** whose entry point is `temper box`, every process
   of its tree ending with the container.
 
@@ -2065,8 +2109,13 @@ runs it (section 7).
   13.4) with the overrides configuration.md, section 7 asks so that the
   engine's documents fit temper's client, those its agent sets, and the
   machine's concurrency the box keeps, and no other:
-  - `documents.rows` 2 and `documents.text_bytes` 128: temper's client's
-    rows and text;
+  - `documents.rows` 2, temper's client's rows, and
+    `documents.text_bytes` 512, the most document text its web and
+    terminal clients receive: their wire takes the larger of their
+    `text`, 512, and a hold's account, 512 (jig's
+    `client/domain/contract.md`, 5.3), and refuses a longer one. It is
+    also the piece a task's text reads in (jig's
+    `client/domain/contract.md`, 6), so it is as large as they take;
   - `tasks.message_bytes` and `tasks.result_bytes`, the agent's
     advertised message bytes (above): the fleet holds the agent to the
     engine's message bound at its hello (jig's
@@ -3288,7 +3337,10 @@ relies on.
   files with no `state` refused; a later preparation taking Forgejo's
   lock alone when the runner configuration is unchanged; a changed
   capacity at the same versions rewrites the runner's YAML while keeping
-  its registration and secrets. The shell checks that a live runner's
+  its registration and secrets; `register` run only where the row may
+  not exist (6.3), so that what a runner declared stays over a later
+  preparation, an upgrade and a runner added again. The shell checks
+  that a live runner's
   lock permits identical YAML to remain and refuses changed YAML until
   the runner stops.
 - **The specs:** each command's arguments and environment, and no secret
@@ -3519,7 +3571,11 @@ the preparation relies on stays here:
     `runner-token-is-the-secret`), which a file may hold (`token_url:
     file:`; `runner-connection-with-a-token-file-comes-online`); a runner
     started on that connection alone takes the instance's jobs
-    (`runner-connection-alone-takes-the-jobs`).
+    (`runner-connection-alone-takes-the-jobs`), a job's `runs-on: kit-host`
+    over a row registered raw as `kit-host:host`, since it declares at its
+    start. `register` run again writes the row's labels over
+    (`runner-register-again-keeps-one-global-runner`), which is why a
+    preparation runs it only where the row may not exist (6.3).
 
 ### 13.4 The process tier
 
@@ -3530,9 +3586,9 @@ it checks of this document:
   directories' flags, each a scratch directory of the test's own; the
   owned example is copied as a configuration directory (8.1). No test
   resolves a default under `$HOME`.
-- **Owned in place of the test's support:** the test writes the
-  forge's group's file as serve does under the box (7.1), runs `temper
-  forge prepare`, `run forgejo` and `run runner` itself, then `temper serve`,
+- **Owned in place of the test's support:** the test runs `temper forge
+  prepare`, `run forgejo` and `run runner` itself, with no group's file
+  (7.4), then `temper serve`,
   whose setup host takes the handover and reconciles (6.5), with the
   binaries `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER` name, and
   webhooks on. Its repository runs Actions, so its landing rule asks for
@@ -3644,15 +3700,16 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **A start holding the engine's documents to temper's clients** (8.1):
+  no start compares `documents.text_bytes` with what the web and terminal
+  clients receive, so a deployment past 512 starts, and those clients
+  refuse a document whose text is longer. A test holds `temper init`'s
+  documents to them; a deployment's own override is held by nothing.
 - **The deployment's own UX:** what `temper init` alone writes and says
   beyond 8.2, and how a server is set up. For now it is the cheapest
   bare deployment.
 - **Flags of their own** (`--welcome`, `--playground`), when a
   deployment wants some of the box's parts and not others (8.2).
-- **The welcome's copies** (6.7; `../draft/repository-copies.md`,
-  section 7): `SetUp`'s first repository as one of `Empty`, `Copies` or
-  `Nothing`, and Ready asking `MakeRepository` (6.9) for each address,
-  the first the project's home.
 - **After the first repository** (6.7): "New repository" on a connected owned or managed card is the general
   form of the same flow, with the same fields and `Create`, a managed
   forge's org needing an owner, and like it adopting nothing. The
@@ -3729,6 +3786,33 @@ Each is intended; what it needs is named with it.
   OAuth peer's count; `fake github`, `fake forgejo` and `fake model` turn
   theirs away silently, and skein's forge and LLM peers count none. Each
   takes the same count and line when a walk meets its cap.
+- **A Forgejo's own links at its `web`** (7.4; `sign-in.md`, 9.7): a
+  Forgejo connected with a `web` apart from its `git`, as a host's own
+  units' is, takes its browser origin from it for sign-in alone. Its pull
+  links, the public page's repository address and a brief's `Address:`
+  are made from `git` (`../client/forge.md`, 9.2), so on that walk they
+  name its loopback address. Taking `web` when it has one changes those
+  three and that section, whose "its `web` is always null" goes with
+  them; the request of 2026-11-05 left `docs/design/client/` alone.
+- **An adopted row's kinds after the forge changes** (5.4;
+  `../domain/forge.md`, 4.2): a row keeps the kinds its adoption read,
+  and only a capability refusal reads them afresh, which a row that may
+  not push never meets. So a repository adopted while temper's user could
+  only read stays so in its row until it is adopted again, whatever the
+  forge says after: a person's write on a connected Forgejo, or reconcile's
+  repair on a managed one, for a row whose adoption ran no `Adopt`. "Work
+  there fails until it has write" (`../client/README.md`, 4.7) does not
+  say so. Reading each adopted repository's permission at a connect is
+  what would close it.
+- **Reading a runner's row** (6.3): a preparation goes by
+  `runner/config.yaml`, since Forgejo's command line cannot read the
+  row. So a row a person removed stays gone until that file is removed
+  before a start, which no help page says until one covers removing a
+  runner, and `register`, where a preparation still runs it, leaves a
+  runner still running elsewhere on a raw row until it starts again.
+  Noticing either needs a reader with Forgejo running, at
+  `GET /api/v1/admin/actions/runners` as 13.3's facts read it, which
+  the preparation is not.
 
 ## 16. Open questions
 
@@ -3751,6 +3835,12 @@ Each is intended; what it needs is named with it.
 - **A hook left at an old listener's address,** after the listener
   moves, is skein's question (skein's `forge-setup.md`, section 9).
   Default: left alone; the person deletes it.
+- **A task's text past what the clients receive** (8.1). A spec reads in
+  pieces of `documents.text_bytes`, 512, each a `read_task` turn, where the
+  request `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the
+  web and terminal clients' `text` raised, or a task's text read under a
+  bound of its own (jig's `client/domain/contract.md`, 6). Default: 512. The
+  user's to choose, with no answer yet.
 - **A managed forge whose host list refuses the listener.** Default:
   nothing tells the person but the hints that never arrive
   (`../domain/forge.md`, section 4).
@@ -3775,6 +3865,15 @@ Each is intended; what it needs is named with it.
   written in the merge's `Entry`'s commit, is the route when a run
   needs either, a store schema change in place until the first release
   (store.md, section 4; skein's `codec.md`, section 5).
+- **A managed Forgejo's listener.** 5.5 serves a forge connected as its
+  admin none, so it polls. `../draft/github.md`, 12.2, and the request
+  `adopt-access` of 2026-11-05 have its hook at adoption and at each
+  start's repair, and 5.3's table, 5.6's last point and `credentials.md`,
+  section 2's webhooks' secret read as if it had one. A forge on another
+  host can't reach a loopback listener, and given one it would post,
+  signed, to its own loopback; one on this host could. The user's, not
+  yet answered. Recommended: serve it to a managed forge whose API is on
+  loopback, and keep polling for one elsewhere. Default: 5.5's.
 - **Demo after a reset** (8.4; `../draft/first-run-projects.md`, 9):
   a second playground run makes "Demo" again, the first having been
   deleted by the reset, and reuses nothing but the name. The user's to

@@ -1,21 +1,20 @@
 //! LLM keys and moved records travel by carried number only (domain/accounts.md, section 5).
+use super::dispatch::Signed;
 use crate::{Carried, Core, Held, Limits, Request, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
-use skein_lib::{Env, Queue, ReplyTo, Token};
+use skein_lib::{Env, Queue, Token};
 
-#[expect(clippy::too_many_arguments, reason = "the carried party envelope is passed unchanged")]
 pub(crate) fn start(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    reply_to: ReplyTo,
-    sign_in: u64,
-    key: [u8; 16],
+    signed: Signed,
     ask: people::Ask,
     carried: Carried,
 ) -> Queue<Request> {
+    let Signed { reply_to, sign_in, key } = signed;
     let digest = if let people::Ask::AccountChange {
         change:
             people::AccountChange::AddKey { digest, .. }

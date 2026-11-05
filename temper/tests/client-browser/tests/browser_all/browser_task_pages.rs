@@ -4,9 +4,39 @@
 //! The client world's task scenarios and the terminal's agent-page golden
 //! hold the page contents; Chromium holds the first full load at `/tasks/3`.
 use skein_fake_person::{Find, Step as PersonStep, Target};
-use skein_fake_person_browser::Step;
+use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
 use temper_client_browser_world::{ABSENT, FIRST_CHAT, Tier, WITHIN};
+
+/// Goals' draft entry changes the tab's address; Back returns to Goals.
+/// The sheet's fields and submission are held by the client domain and view worlds
+/// (temper/docs/design/client/README.md, 5.14 and 10).
+#[test]
+fn start_goal_opens_chats_for_a_draft() {
+    let tier = Tier::new("start-goal-draft-address").with_model();
+    let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
+    let entry = || Find::exactly_named(Role::Link, b"Start one from a draft");
+    let chats = || Find::named(Role::Heading { level: 1 }, b"Talk to an agent");
+    let mut script = Script::new(
+        vec![
+            see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
+            Step::Person(PersonStep::Go { address: b"/projects/1/goals".as_slice().into() }),
+            see(entry()),
+            Step::Address(b"/projects/1/goals".as_slice().into()),
+            Step::Person(PersonStep::Press { find: entry() }),
+            see(chats()),
+            Step::Address(b"/chats".as_slice().into()),
+            Step::Back,
+            see(entry()),
+            Step::Address(b"/projects/1/goals".as_slice().into()),
+            Step::Forward,
+            see(chats()),
+            Step::Address(b"/chats".as_slice().into()),
+        ]
+        .into_boxed_slice(),
+    );
+    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
+}
 
 /// Follow the CSV change through its plan, agent and fresh addresses in the chat story.
 pub(super) fn plan_and_agent_steps(tier: &Tier) -> Vec<Step> {

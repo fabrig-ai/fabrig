@@ -1,6 +1,6 @@
 //! The server and Chromium are children of one io loop (ui-web.md, 14.2).
 use crate::BrowserFace;
-use browser::boundary::{Below, Down, Event, Request};
+use browser::boundary::{Below, Down, Event, Request, Trouble};
 use skein_browser::{self as browser, Browser};
 use skein_fake_peers::Listening;
 use skein_fake_person::Next;
@@ -652,7 +652,7 @@ impl Runtime {
             | io::Event::Shutdown { .. } => {}
         }
     }
-    fn event(&mut self, event: &Event, setup: &Harness) {
+    fn event(&mut self, event: &Event, setup: &Harness, people: &[&mut dyn Play]) {
         match event {
             Event::Ready { .. } => {
                 self.ready = true;
@@ -671,16 +671,12 @@ impl Runtime {
                     });
                 }
             }
-            Event::Trouble { page, trouble, text } => {
-                let person = usize::try_from(page.raw().saturating_sub(100)).unwrap_or(0);
-                if !setup.expected.iter().chain(self.expected.get(person).into_iter().flatten()).any(|expected| {
-                    !expected.is_empty() && text.windows(expected.len()).any(|part| part == expected.as_ref())
-                }) {
-                    self.fail(
-                        usize::try_from(page.raw().saturating_sub(100)).unwrap_or(0),
-                        0,
-                        format!("unexpected {trouble:?}: {}", String::from_utf8_lossy(text)),
-                    );
+            Event::Trouble { page, trouble, text, url } => {
+                let (person, step) = trouble_step(*page, people);
+                if !expected_trouble(&setup.expected, text)
+                    && !expected_trouble(self.expected.get(person).map_or(&[], Vec::as_slice), text)
+                {
+                    self.fail(person, step, trouble_report(*trouble, text, url));
                 }
             }
             Event::Snapshot { op: SNAPSHOT, text } => {
@@ -702,7 +698,7 @@ impl Runtime {
                 }
                 self.capturing = 3;
             }
-            Event::Refused { op, why } if *op == SNAPSHOT || *op == IMAGE => {
+            Event::Refused { op, why, .. } if *op == SNAPSHOT || *op == IMAGE => {
                 write!(self.snapshot, "\ncapture refused: {why:?}").expect("string write");
                 self.capturing = 3;
             }
@@ -872,7 +868,7 @@ impl Runtime {
             self.outcome = Some(Outcome::Done);
         }
     }
-    fn tick(&mut self, setup: &Harness, faces: &mut [BrowserFace<'_>], now: Time) -> bool {
+    fn tick(&mut self, setup: &Harness, faces: &mut [BrowserFace<'_>], people: &[&mut dyn Play], now: Time) -> bool {
         let mut opened = false;
         io::stage::up(&mut self.io, &self.ienv, &mut self.complete, &mut self.io_events, &mut self.submits, now);
         while let Some(event) = self.io_events.pop() {
@@ -910,7 +906,7 @@ impl Runtime {
             if let Event::Opened { .. } = event {
                 opened = true;
             }
-            self.event(&event, setup);
+            self.event(&event, setup, people);
         }
         opened
     }
@@ -1028,7 +1024,7 @@ impl Runtime {
                 self.start(setup, peers);
             }
             // Observe answers and bad exits before classifying an unanswered wait.
-            if self.tick(setup, &mut faces, time.now) {
+            if self.tick(setup, &mut faces, people, time.now) {
                 opening_page = false;
             }
             self.drive_commands(&mut faces, people, time.now);
@@ -1216,6 +1212,7 @@ impl Runtime {
     }
 }
 fn step_failure(play: &mut dyn Play, face: &mut BrowserFace<'_>, now: Time) -> Option<(u32, String)> {
+    face.tick(now);
     // A completed Keep advances the script before its failure names that step.
     play.check_deadline(face, now);
     face.failure().map(|why| (play.at().saturating_sub(1), why))
@@ -1285,4 +1282,21 @@ fn event_owner(event: &io::Event) -> Option<Token> {
         | io::Event::Closed { owner } => Some(*owner),
         io::Event::Resized | io::Event::Window { .. } | io::Event::Shutdown { .. } => None,
     }
+}
+
+fn trouble_report(trouble: Trouble, text: &[u8], url: &[u8]) -> String {
+    let mut report = format!("unexpected {trouble:?}: {}", String::from_utf8_lossy(text));
+    if !url.is_empty() {
+        write!(report, " ({})", String::from_utf8_lossy(url)).expect("string write");
+    }
+    report
+}
+
+fn expected_trouble(expected: &[Box<[u8]>], text: &[u8]) -> bool {
+    expected.iter().any(|words| !words.is_empty() && text.windows(words.len()).any(|part| part == words.as_ref()))
+}
+
+fn trouble_step(page: Token, people: &[&mut dyn Play]) -> (usize, u32) {
+    let person = usize::try_from(page.raw().saturating_sub(100)).unwrap_or(0);
+    (person, people.get(person).map_or(0, |play| play.at()))
 }

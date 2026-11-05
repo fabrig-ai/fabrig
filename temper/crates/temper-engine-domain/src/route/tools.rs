@@ -106,6 +106,7 @@ pub(crate) fn relay_payload(
                 body.tool
             };
             match tool {
+                Tool::Decided(call) => super::decided::call(domain, env, decision, reply_to, key, call),
                 Tool::ReadTask { .. } => unreachable!("task reads enter before replay"),
                 Tool::Settings { .. } => unreachable!("settings reads enter before replay"),
                 Tool::ProposeSettings { against, items, reason, kinds } => {
@@ -314,7 +315,17 @@ pub(crate) fn relay_payload(
                 }
                 Tool::Message { target, form, words } => {
                     let kind = match form {
-                        MessageForm::Words => tasks::MessageKind::Words,
+                        MessageForm::Words => {
+                            if let Some(words) = forge_route::own_agents_words(domain, key.task, target) {
+                                super::host_route::rendered(
+                                    domain,
+                                    reply_to,
+                                    core::SettledAnswer::Host { error: true, body: words.into() },
+                                );
+                                return;
+                            }
+                            tasks::MessageKind::Words
+                        }
                         MessageForm::Question => tasks::MessageKind::Question,
                         MessageForm::Answer { question } => tasks::MessageKind::Answer { question },
                     };

@@ -16,6 +16,7 @@ fn repository(project: u32, name: &[u8]) -> Adoption {
 }
 fn row(number: u16, repositories: Box<[Adoption]>) -> Row {
     Row {
+        starts_with: crate::forge::forges::StartsWith::Repository,
         number,
         host: b"git.example:3000".as_slice().into(),
         repositories,

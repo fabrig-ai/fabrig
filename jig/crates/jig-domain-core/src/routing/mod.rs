@@ -93,6 +93,7 @@ pub(crate) struct PersonEscalation {
     pub(crate) task: u64,
     pub(crate) revision: u64,
     pub(crate) decision: people::EscalationDecision,
+    pub(crate) notice: Option<tasks::Message>,
 }
 
 #[derive(Debug)]
@@ -437,7 +438,7 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
         Work::Event(event) => step_one(core, env, event, work),
         Work::StartBrief { task } => start_brief(core, env, work, task),
         Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
-        Work::PreparationFailed { task } => route_preparation_failed(core, work, task),
+        Work::PreparationFailed { task, failure } => route_preparation_failed(core, work, task, failure),
         Work::Forget { owner } => crate::reads::forget::forget(core, work, &owner),
     }
 }
@@ -449,12 +450,22 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Err(answer) => return answer,
     };
     match event {
-        Event::ChangeSettings { reply_to, sign_in, key, digest, change } => {
-            settings::dispatch::start(core, env, work, reply_to, sign_in, key, digest, change)
-        }
-        Event::ProposeSettings { reply_to, sign_in, key, digest, change } => {
-            settings::dispatch::propose_start(core, env, work, reply_to, sign_in, key, digest, *change)
-        }
+        Event::ChangeSettings { reply_to, sign_in, key, digest, change } => settings::dispatch::start(
+            core,
+            env,
+            work,
+            party::dispatch::Signed { reply_to, sign_in, key },
+            digest,
+            change,
+        ),
+        Event::ProposeSettings { reply_to, sign_in, key, digest, change } => settings::dispatch::propose_start(
+            core,
+            env,
+            work,
+            party::dispatch::Signed { reply_to, sign_in, key },
+            digest,
+            *change,
+        ),
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
         Event::ProjectReleased { connector, project } => {
             crate::admission::deletion::released(core, env, connector, project)
@@ -466,14 +477,22 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::Stopping => stopping::start(core),
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
-            party::deployment_acts::start(core, env, work, reply_to, connector, key, act, carried)
+            party::deployment_acts::start(core, env, work, reply_to, people::ActKey { connector, key }, act, carried)
         }
         Event::Key { reply_to, sign_in, key, ask, carried } => {
-            party::key_routes::start(core, env, work, reply_to, sign_in, key, *ask, carried)
+            party::key_routes::start(core, env, work, party::dispatch::Signed { reply_to, sign_in, key }, *ask, carried)
         }
         Event::Application { reply_to, sign_in, key, scope, connector, digest, owner, carried } => {
             let input = application_routes::Input { connector, owner, carried: application_routes::number(carried) };
-            application_routes::start(core, env, work, reply_to, sign_in, key, scope, digest, input)
+            application_routes::start(
+                core,
+                env,
+                work,
+                party::dispatch::Signed { reply_to, sign_in, key },
+                scope,
+                digest,
+                input,
+            )
         }
         Event::ApplicationPart { request, ask } => application_routes::part(core, env, work, request, *ask),
         Event::ApplicationFinished { request, outcome } => {
@@ -486,7 +505,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::EffectStart { owner, connector, origin } => crate::effects::start(core, env, owner, connector, origin),
         Event::EffectConnector(event) => crate::effects::connector(core, env, work, event),
         Event::SubscribeTopic { to, key, connector, topic, resources } => {
-            effect::topics::subscribe(core, env, work, to, key, connector, topic, &resources)
+            effect::topics::subscribe(core, env, work, to, key, (connector, topic), &resources)
         }
         Event::EffectDeadline if !core.ready() => stopping::empty(),
         Event::EffectDeadline => crate::effects::deadline(core, env),
@@ -526,10 +545,14 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         }
         Event::RunCall { run, attempt, call } => view::routes::run_call(core, env, run, attempt, call),
         Event::RunInput { run, attempt, turn, retry, offset, id, tool, input } => {
-            view::routes::run_input(core, env, run, attempt, turn, retry, offset, id, tool, input)
+            let written =
+                view::routes::Written { run, turn: views::TurnName { attempt: attempt.raw(), turn, retry }, offset };
+            view::routes::run_input(core, env, written, id, tool, input)
         }
         Event::RunText { run, attempt, turn, retry, offset, text, call } => {
-            view::routes::run_text(core, env, run, attempt, turn, retry, offset, text, call)
+            let written =
+                view::routes::Written { run, turn: views::TurnName { attempt: attempt.raw(), turn, retry }, offset };
+            view::routes::run_text(core, env, written, text, call)
         }
         Event::Tasks(event) => {
             let mut out = route_tasks(core, env, work, event);
@@ -539,10 +562,15 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
-        Event::BriefAssembled { task, ready } => brief_assembled(core, work, task, ready),
-        Event::WorkspacePrepared { task, attempt, writes, holds, credentials, workspace } => {
-            workspace_prepared(core, env, work, task, attempt, writes, holds, credentials, workspace)
-        }
+        Event::BriefAssembled { task, failure } => brief_assembled(core, work, task, failure),
+        Event::WorkspacePrepared { task, attempt, writes, holds, credentials, workspace } => workspace_prepared(
+            core,
+            env,
+            work,
+            task,
+            attempt,
+            run::preparation::Prepared { writes, holds, credentials, workspace },
+        ),
         Event::ClaimPrepared { task, attempt, budget, writes } => {
             route_claim_prepared(core, env, work, task, attempt, budget, writes)
         }
@@ -562,7 +590,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             out
         }
         Event::TurnPayload { run, attempt, turn, body, read, cumulative, refused } => {
-            route_turn_payload(core, work, run, attempt, turn, body, read, refused, cumulative)
+            route_turn_payload(core, work, run, attempt, crate::TurnProof { turn, cumulative, read }, body, refused)
         }
         Event::AnswerPayload { run, attempt, payload, cumulative, end, saved, invalid_saved, read, refused } => {
             route_answer_payload(
@@ -571,17 +599,21 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
                 work,
                 run,
                 attempt,
-                payload,
-                cumulative,
-                end,
-                saved,
-                invalid_saved,
-                read,
-                &refused,
+                run::payloads::Answer { payload, cumulative, end, saved, invalid_saved, read, refused },
             )
         }
         Event::AcceptedTurn { task, attempt, turn, accepted, cumulative, read, transcript, opens_window } => {
-            route_accepted_turn(core, env, task, attempt, turn, accepted, cumulative, read, transcript, opens_window)
+            let record = crate::TurnRecord {
+                task,
+                attempt,
+                turn,
+                spent: cumulative,
+                read,
+                transcript,
+                opens_window,
+                at: env.wall,
+            };
+            route_accepted_turn(core, env, accepted, record)
         }
         Event::RefusedPayload { request, problem, payload } => {
             route_refused_payload(core, work, request, problem, payload)
@@ -636,11 +668,16 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             delegate_holdings(core, env, work, request, connector, holdings, refused)
         }
         Event::ProcedureStep { task, step, connector, code, decision: action } => {
-            procedure_step(core, env, work, task, step, connector, code, action)
+            procedure_step(core, env, work, effect::procedure::ProcedureCall { task, step, connector }, code, action)
         }
-        Event::ProcedureHoldings { task, step, connector, holdings, refused } => {
-            procedure_holdings(core, env, work, task, step, connector, holdings, refused)
-        }
+        Event::ProcedureHoldings { task, step, connector, holdings, refused } => procedure_holdings(
+            core,
+            env,
+            work,
+            effect::procedure::ProcedureCall { task, step, connector },
+            holdings,
+            refused,
+        ),
         Event::Brief(event) => route_brief(core, env, event),
         Event::Account(event) => route_account(core, env, work, event),
         Event::View(event) => route_view(core, env, event),

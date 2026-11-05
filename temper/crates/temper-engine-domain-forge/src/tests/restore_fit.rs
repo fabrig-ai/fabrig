@@ -129,6 +129,31 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             effects_settled: true,
             releasing: true,
         }),
+        RecordKind::ProjectFacts => Stored::ProjectFacts(ProjectFacts {
+            project: u32::try_from(n).unwrap(),
+            landed: 0,
+            last_landed: Wall::EPOCH,
+            brief: None,
+            running: None,
+        }),
+        RecordKind::Looked => {
+            Stored::Looked(Looked { party: n, project: 0, previous: None, latest: Wall::EPOCH, seen: 0, next_seen: 0 })
+        }
+        RecordKind::Away => {
+            Stored::Away(Away { party: 1, project: 1, since: Wall::EPOCH, until: None, kinds: 7, landed: 0, off: None })
+        }
+        RecordKind::Decided => Stored::Decided(Decided {
+            project: 1,
+            number: 1,
+            party: 1,
+            task: 1,
+            at: Wall::EPOCH,
+            question: Box::new([]),
+            options: Box::new([Box::from(b"a".as_slice()), Box::from(b"b".as_slice())]),
+            took: 0,
+            why: Box::new([]),
+            overturned: false,
+        }),
         RecordKind::Client => panic!("no own table"),
     }
 }

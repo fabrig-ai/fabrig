@@ -134,7 +134,7 @@ fn registration() -> oauth::Registration {
         redirect_uri: boxed(REDIRECT),
         scope: boxed(b"openid profile email"),
         wire: oauth::WireFormat::Form,
-        client_secret: Some(boxed(b"secret")),
+        client_secret: Some(skein_lib::Secret::new(boxed(b"secret"))),
         pkce_for_confidential: true,
         metadata_claim: None,
         terms: Some(oauth::Terms {
@@ -436,8 +436,8 @@ impl World {
         assert_eq!(code.as_ref(), value.expose(), "wire code");
         let event = oauth::Event::Redirected {
             uri: boxed(uri),
-            state,
-            code: Some(code),
+            state: Secret::new(state),
+            code: Some(Secret::new(code)),
             error: None,
             client_id: None,
             now: self.now,
@@ -448,11 +448,11 @@ impl World {
     fn check_record(&mut self, record: &oauth::SavedToken) {
         assert!(record.refresh_token.is_none() && record.refresh_state().is_none(), "access-only sign-in");
         assert_eq!(record.subject.as_deref(), Some(person().subject.as_ref()), "record subject");
-        let claims = decoded_claims(record.id_token.as_deref().expect("ID token"));
+        let claims = decoded_claims(record.id_token.as_ref().expect("ID token").expose());
         assert_eq!(json_string(&claims, b"preferred_username"), person().username.expect("username"));
         assert_eq!(json_string(&claims, b"email"), person().email.expect("email").address);
         assert_eq!(json_string(&claims, b"name"), person().name.expect("name"));
-        let (status, body) = self.userinfo(USERINFO, &record.access_token);
+        let (status, body) = self.userinfo(USERINFO, record.access_token.expose());
         assert_eq!(status, 200);
         assert_eq!(json_string(&body, b"sub").as_ref(), record.subject.as_deref().expect("subject"));
         assert_eq!(json_string(&claims, b"sub"), json_string(&body, b"sub"), "ID token and userinfo agree");
@@ -491,13 +491,13 @@ fn event_bytes(event: &oauth::Event) -> usize {
     match event {
         oauth::Event::SignIn { registration, state, verifier, nonce, .. } => {
             let mut count =
-                state.len() + verifier.as_ref().map_or(0, |v| v.len()) + nonce.as_ref().map_or(0, |v| v.len());
+                state.len() + verifier.as_ref().map_or(0, Secret::len) + nonce.as_ref().map_or(0, Secret::len);
             count += registration.authorization_url.len()
                 + registration.token_endpoint.len()
                 + registration.client_id.len()
                 + registration.redirect_uri.len()
                 + registration.scope.len()
-                + registration.client_secret.as_ref().map_or(0, |v| v.len());
+                + registration.client_secret.as_ref().map_or(0, skein_lib::Secret::len);
             if let Some(terms) = &registration.terms
                 && let Some(openid) = &terms.openid
             {
@@ -506,7 +506,7 @@ fn event_bytes(event: &oauth::Event) -> usize {
             count
         }
         oauth::Event::Redirected { uri, state, code, .. } => {
-            uri.len() + state.len() + code.as_ref().map_or(0, |v| v.len())
+            uri.len() + state.len() + code.as_ref().map_or(0, Secret::len)
         }
         oauth::Event::Http(answer) => answer.body.len(),
         oauth::Event::Tick { .. } | oauth::Event::Cancel | oauth::Event::Reset => 0,
@@ -522,7 +522,7 @@ fn request_bytes(request: Option<&oauth::Request>) -> usize {
         Some(oauth::Request::Tokens { record, missing }) => record
             .access_token
             .len()
-            .checked_add(record.id_token.as_ref().map_or(0, |value| value.len()))
+            .checked_add(record.id_token.as_ref().map_or(0, skein_lib::Secret::len))
             .expect("record bytes")
             .checked_add(record.subject.as_ref().map_or(0, |value| value.len()))
             .expect("record bytes")
@@ -542,9 +542,9 @@ pub fn run(seed: u64, story: Story) -> Outcome {
         registration: registration(),
         key: 7,
         generation: 0,
-        state: boxed(state.expose()),
-        verifier: Some(boxed(verifier.expose())),
-        nonce: Some(boxed(nonce.expose())),
+        state: Secret::new(boxed(state.expose())),
+        verifier: Some(Secret::new(boxed(verifier.expose()))),
+        nonce: Some(Secret::new(boxed(nonce.expose()))),
         port: None,
         issued_client_id: None,
         id_token: None,
@@ -574,7 +574,7 @@ pub fn run(seed: u64, story: Story) -> Outcome {
                 event = oauth::Event::Http(answer);
             }
             Some(oauth::Request::Visit { url }) => {
-                event = world.authorize(&url);
+                event = world.authorize(url.expose());
             }
             Some(oauth::Request::Tokens { record, missing }) => {
                 world.terminal += 1;
@@ -644,7 +644,7 @@ fn code_ledger_refuses_unknown_expired_and_failed_first_presentations() {
         let (status, body) = world.post(&request);
         assert_eq!((status, body.as_ref()), (400, b"{\"error\":\"invalid_grant\"}".as_slice()));
         assert!(world.code.is_some(), "unknown code does not spend a different code");
-        let value = std::str::from_utf8(&code).expect("drawn code");
+        let value = std::str::from_utf8(code.expose()).expect("drawn code");
         let body =
             String::from_utf8(request.body.into_vec()).expect("form").replace("code=unknown", &format!("code={value}"));
         if expired {

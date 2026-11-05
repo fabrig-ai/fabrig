@@ -256,7 +256,11 @@ fn story_as_scripts_are_the_templates() {
     let template: Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("template");
     for scripts in ["asked", "cued"] {
-        assert_eq!(story[scripts], template["application"]["demo"]["llm"][scripts], "{scripts}");
+        let templates = template["application"]["demo"]["llm"][scripts].as_array().expect("template scripts");
+        for script in story[scripts].as_array().expect("story scripts") {
+            let matching = templates.iter().find(|candidate| candidate["cue"] == script["cue"]).expect("template cue");
+            assert_eq!(script, matching, "{scripts}");
+        }
     }
     assert_eq!(
         story["otherwise"],

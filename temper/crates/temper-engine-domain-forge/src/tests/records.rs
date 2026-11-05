@@ -140,10 +140,12 @@ fn an_ended_record_is_out_of_every_list_and_refuses_calls() {
             token: request,
             retention: Duration::from_secs(60),
             ask: Ask::SetUp {
-                playground: false,
                 forge: Making::Kept(1),
-                org: b"org".as_slice().into(),
-                repository: b"repo".as_slice().into(),
+                first: SetUpFirst::Empty {
+                    playground: false,
+                    org: b"org".as_slice().into(),
+                    repository: b"repo".as_slice().into(),
+                },
             },
         },
     );
@@ -229,7 +231,7 @@ pub(super) fn setting_rule() -> setting::LandingRule {
 #[test]
 fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
     let limits = Limits { judge_projects: 2, landing_rules: 3, setting_proposals: 4, ..LIMITS };
-    assert_eq!(setting::rows(&limits), Some(110)); // 11 * (2 + 4 + 4).
+    assert_eq!(setting::rows(&limits), Some(150)); // (9 rules + 2 charters + 4 project values) * (2 + 4 + 4).
     assert_eq!(
         setting::rows(&Limits {
             judge_projects: 0,

@@ -61,7 +61,10 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_domain::pages::needs::Act::Open { object },
             ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
-                assert!(sample.name.starts_with("home-"));
+                assert!(
+                    matches!(sample.address, temper_client_domain::Address::Home { .. })
+                        || matches!(sample.name, "rail-away-on" | "rail-away-off")
+                );
                 assert!(
                     samples::domain(&sample)
                         .pages()
@@ -100,9 +103,304 @@ enum Part {
     Chats { live: u32, closed: u32 },
     Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
-    PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "rail-new-menu",
+        heading: "tally",
+        parts: &[
+            Part::Named { role: Role::Menu, name: "More ways to start work" },
+            Part::Described { role: Role::MenuItem, name: "Chat", description: "Ask a question or ask for a change." },
+            Part::Described {
+                role: Role::MenuItem,
+                name: "Goal",
+                description: "Agents plan a larger change and land it.",
+            },
+            Part::Named { role: Role::MenuItem, name: "All ways to start work" },
+        ],
+    },
+    Holds {
+        name: "home-away",
+        heading: "57 changes landed. Four things were decided for you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 4" },
+            Part::Named { role: Role::Button, name: "Limits" },
+        ],
+    },
+    Holds {
+        name: "home-away-overturned",
+        heading: "57 changes landed. Four things were decided for you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 4" },
+            Part::Named { role: Role::Button, name: "Overturn" },
+        ],
+    },
+    Holds {
+        name: "home-away-one",
+        heading: "57 changes landed. One thing was decided for you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 1" },
+            Part::Named { role: Role::Button, name: "Limits" },
+            Part::Named { role: Role::Button, name: "Away: off" },
+        ],
+    },
+    Holds {
+        name: "rail-away-off",
+        heading: "41 changes landed overnight. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Away: off" },
+            Part::Text { text: "Away is off: questions wait for you again." },
+        ],
+    },
+    Holds {
+        name: "rail-away-on",
+        heading: "41 changes landed overnight. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Away until 08:00" },
+            Part::Text { text: "Away until 08:00: agents decide within Hello’s limits." },
+            Part::Named { role: Role::Button, name: "Limits" },
+        ],
+    },
+    Holds { name: "start-goal", heading: "Talk to an agent", parts: &[Part::NoRole { role: Role::Dialog }] },
+    Holds {
+        name: "start-goal-draft",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Value { role: Role::TextField, name: "Name", value: "away-mode" },
+            Part::Named { role: Role::ChoiceGroup, name: "How it runs" },
+            Part::Named { role: Role::ChoiceGroup, name: "When it needs you" },
+            Part::Named { role: Role::Choice, name: "Follow the away switch" },
+            Part::Named { role: Role::Choice, name: "Always ask" },
+            Part::Named { role: Role::Button, name: "Start goal" },
+        ],
+    },
+    Holds {
+        name: "start-goal-refused",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Text { text: "This act is not offered" },
+        ],
+    },
+    Holds {
+        name: "goal-sending",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Text { text: "Keep the Ready page in this goal." },
+            Part::Named { role: Role::Status, name: "Being sent" },
+            Part::Named { role: Role::TextArea, name: "Tell first-run-projects something" },
+        ],
+    },
+    Holds {
+        name: "goal-amending",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Amend task 108" },
+            Part::Named { role: Role::TextArea, name: "Specification" },
+        ],
+    },
+    Holds {
+        name: "goal-stop-dialog",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Stop first-run-projects?" },
+            Part::Text { text: "What landed on its branch stays there." },
+        ],
+    },
+    Holds {
+        name: "goal-toast",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[Part::Text { text: "Paused: running tasks stop, nothing new starts." }],
+    },
+    Holds {
+        name: "goal-running",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Text { text: "Plan, tasks, land whole · follows the away switch" },
+            Part::Text { text: "31 of 40 spent" },
+            Part::Text { text: "since Mon 19:10" },
+            Part::Text { text: "waits on 2 tasks" },
+            Part::Text { text: "Left: " },
+            Part::Text { text: "Risk: " },
+            Part::Named { role: Role::Disclosure, name: "6 landed" },
+            Part::Named { role: Role::Figure, name: "6 landed of 9" },
+        ],
+    },
+    Holds {
+        name: "goal-needs-funds",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Text { text: "needs funds" },
+            Part::Text { text: "31 of 40 used." },
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+        ],
+    },
+    Holds {
+        name: "goal-needs-question",
+        heading: "Reproduced in a box test; the fault is in jig’s store. Waiting on where to fix it.",
+        parts: &[
+            Part::Text { text: "needs you" },
+            Part::Named { role: Role::Button, name: "In jig’s store" },
+            Part::Named { role: Role::Button, name: "In temper serve" },
+            Part::Named { role: Role::Link, name: "Chat T2" },
+            Part::Text { text: "waits on you" },
+            Part::Text { text: "waits on The fix" },
+        ],
+    },
+    Holds {
+        name: "goal-planning",
+        heading: "Planning from forge-cards.md: reading it and the designs it cites.",
+        parts: &[
+            Part::Text { text: "Proposing tasks from the draft…" },
+            Part::Named { role: Role::Figure, name: "Planning" },
+        ],
+    },
+    Holds {
+        name: "goal-paused",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[Part::Text { text: "paused by you" }],
+    },
+    Holds {
+        name: "goal-landed",
+        heading: "Landed whole at 01:12: two tasks and one journey print.",
+        parts: &[Part::Text { text: "Landed at 01:12." }, Part::Named { role: Role::Disclosure, name: "2 landed" }],
+    },
+    Holds {
+        name: "goal-landed-open",
+        heading: "Landed whole at 01:12: two tasks and one journey print.",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Journey print" },
+            Part::Named { role: Role::Link, name: "Pane chat line" },
+        ],
+    },
+    Holds {
+        name: "goal-stopped",
+        heading: "Stopped by you. What landed on the goal branch stays there.",
+        parts: &[Part::Text { text: "Stopped before it landed." }],
+    },
+    Holds {
+        name: "goal-failed",
+        heading: "Failed: The owned set up could not create work/hello.",
+        parts: &[Part::Text { text: "Failed before it landed." }],
+    },
+    Holds {
+        name: "goal-no-report",
+        heading: "6 of 9 tasks landed.",
+        parts: &[Part::Text { text: "running" }, Part::Named { role: Role::Figure, name: "6 landed of 9" }],
+    },
+    Holds {
+        name: "chat-draft-empty",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Region, name: "untitled.md" },
+            Part::Named { role: Role::Paragraph, name: "The draft appears here as you write it together." },
+            Part::Absent { role: Role::Button, name: "+ Draft" },
+        ],
+    },
+    Holds {
+        name: "chat-new-draft",
+        heading: "New chat",
+        parts: &[
+            Part::Named { role: Role::Region, name: "untitled.md" },
+            Part::Named { role: Role::TextArea, name: "What should this draft hold?" },
+        ],
+    },
+    Holds {
+        name: "builders",
+        heading: "Where agents work.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Builders · 3" },
+            Part::Text { text: "Workshop" },
+            Part::Text { text: "Finishing" },
+            Part::Text { text: "Away" },
+            Part::Text { text: "2 slots · 1 in use" },
+            Part::Text { text: "Connected" },
+            Part::Text { text: "Draining" },
+            Part::Text { text: "Not connected" },
+        ],
+    },
+    Holds {
+        name: "builders-none",
+        heading: "Where agents work.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Builders · 0" },
+            Part::Text { text: "No builder is connected." },
+        ],
+    },
+    Holds {
+        name: "builders-not-owner",
+        heading: "Where agents work.",
+        parts: &[Part::Text { text: "Builders are seen by the deployment’s owners." }],
+    },
+    Holds {
+        name: "forges-empty",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "No forge yet" },
+            Part::Named { role: Role::Link, name: "Connect a forge" },
+            Part::Text { text: "No forge of yours yet." },
+        ],
+    },
+    Holds {
+        name: "forges-setting-up",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Forgejo on this machine",
+                description: "Forge 3 · Forgejo · Setting up: preparing\nwork/hello",
+            },
+            Part::Named { role: Role::Link, name: "Open its set-up ›" },
+        ],
+    },
+    Holds {
+        name: "forges-fetching",
+        heading: "Where your code lives.",
+        parts: &[Part::Described {
+            role: Role::Disclosure,
+            name: "Forgejo on this machine",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 42%\nwork/hello",
+        }],
+    },
+    Holds {
+        name: "forges-fetching-bytes",
+        heading: "Where your code lives.",
+        parts: &[Part::Described {
+            role: Role::Disclosure,
+            name: "Forgejo on this machine",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 41 MB\nwork/hello",
+        }],
+    },
+    Holds {
+        name: "forges-failed",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Set up again" },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Forgejo on this machine",
+                description: "Forge 3 · Forgejo · Set up failed: its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest.",
+            },
+        ],
+    },
+    Holds {
+        name: "forges-replacing",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "Private key" },
+            Part::Named { role: Role::Button, name: "Replace the key" },
+        ],
+    },
+    Holds {
+        name: "forges-removing",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Remove this forge?" },
+            Part::Named { role: Role::Button, name: "Remove" },
+        ],
+    },
     Holds {
         name: "needs-one",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
@@ -225,6 +523,65 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-morning",
+        heading: "41 changes landed overnight. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Tuesday, 08:04 · you last looked 9 hours ago" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "first-run-projects is six of nine tasks in. Its store task hit the wasm size limit twice and was split in two.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Written by the status agent at 07:42" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Chats" },
+            Part::Text { text: "Landing: " },
+            Part::Text { text: "3 queued" },
+            Part::Text { text: "last landed 6 min ago" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
+        name: "home-computed",
+        heading: "2 changes landed since you last looked. Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Thursday, 21:19 · you last looked 9 hours ago" },
+            Part::Text { text: "3 queued" },
+            Part::Text { text: "last landed 6 min ago" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
+        name: "home-last-looked-none",
+        heading: "2 changes landed since you last looked. Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Thursday, 21:19" },
+            Part::Text { text: "3 queued" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
+        name: "home-landing-none",
+        heading: "Nothing needs you.",
+        parts: &[Part::Text { text: "nothing has landed yet" }, Part::Named { role: Role::Link, name: "Changes" }],
+    },
+    Holds {
+        name: "home-landing-red",
+        heading: "2 changes landed since you last looked. Nothing needs you.",
+        parts: &[
+            Part::Text { text: "main last moved 1 h ago" },
+            Part::Text { text: "nothing queued" },
+            Part::Text { text: "main red" },
+        ],
+    },
+    Holds {
+        name: "home-chats-sentence",
+        heading: "Nothing needs you.",
+        parts: &[Part::Named {
+            role: Role::Paragraph,
+            name: "A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing.",
+        }],
+    },
+    Holds {
         name: "home-three-left",
         heading: "Hello is ready.",
         parts: &[
@@ -286,6 +643,19 @@ const HOLDS: [Holds; samples::N] = [
         heading: "One thing needs you.",
         parts: &[
             Part::Named { role: Role::Link, name: "Goals" },
+            Part::Named { role: Role::Region, name: "Goals" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Goals" },
+            Part::Named { role: Role::Link, name: "All 8" },
+            Part::Goals {
+                rows: &[
+                    "CSV import · 1 / 3 · needs funds",
+                    "JSON output for tally report · 0 / 2 · needs you",
+                    "Make tally sum stream its input · 1 / 2 · running",
+                    "CSV export · planning",
+                    "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
+                ],
+            },
+            Part::Absent { role: Role::Region, name: "Chats" },
             Part::Named { role: Role::Link, name: "Needs you 1" },
             Part::Named { role: Role::Button, name: "Reply" },
             Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
@@ -348,6 +718,86 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "Adopting work/hello into Hello…" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-copying",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "Copying acme/widget from github.com…" },
+            Part::Text { text: "Waiting to copy" },
+            Part::Absent { role: Role::Button, name: "Copy again" },
+        ],
+    },
+    Holds {
+        name: "home-copy-failed",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "acme/widget is in Widget" },
+            Part::Text { text: "acme/other failed at repository: name taken" },
+            Part::Named { role: Role::Button, name: "Copy again" },
+        ],
+    },
+    Holds {
+        name: "home-copied",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "acme/widget, acme/other are in Widget" },
+            Part::Text {
+                text: "Chats can change their code now, on your Forgejo; nothing goes back where they were copied from.",
+            },
+            Part::Absent { role: Role::Button, name: "Copy" },
+        ],
+    },
+    Holds {
+        name: "home-copy-one",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "acme/widget is in Widget" },
+            Part::Text {
+                text: "Chats can change its code now, on your Forgejo; nothing goes back where it was copied from.",
+            },
+        ],
+    },
+    Holds {
+        name: "home-copy-offer",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "Copy https://github.com/acme/widget" },
+            Part::Text { text: "https://github.com/acme/other" },
+            Part::Named { role: Role::Button, name: "Copy" },
+        ],
+    },
+    Holds {
+        name: "home-add-repository",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Make an empty one" },
+            Part::Named { role: Role::Button, name: "Copy a public one" },
+            Part::Named { role: Role::Link, name: "Adopt another…" },
+            Part::NoRole { role: Role::Dialog },
+        ],
+    },
+    Holds {
+        name: "home-add-repository-sheet",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add a repository to Hello" },
+            Part::Named { role: Role::ChoiceGroup, name: "A repository" },
+            Part::Value { role: Role::TextField, name: "Organization", value: "work" },
+            Part::Value { role: Role::TextField, name: "Name", value: "hello" },
+            Part::Named { role: Role::Button, name: "Cancel" },
+            Part::Named { role: Role::Button, name: "Add it" },
+        ],
+    },
+    Holds {
+        name: "home-add-repository-copies",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add a repository to Hello" },
+            Part::Value { role: Role::TextArea, name: "Their addresses, one per line", value: "" },
+            Part::Absent { role: Role::TextField, name: "Organization" },
+            Part::Named { role: Role::Button, name: "Add it" },
         ],
     },
     Holds {
@@ -629,47 +1079,47 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-expired",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT from another computer",
         parts: &[
             Part::Named { role: Role::Status, name: "This sign-in has ended." },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
-            Part::Absent { role: Role::TextField, name: "Address of the page that couldn't be reached" },
+            Part::Absent { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
         ],
     },
     Holds {
         name: "welcome-model-declined",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-model-renewed",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+        parts: &[Part::Named { role: Role::Link, name: "Continue" }],
     },
     Holds {
         name: "welcome-model-refused",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-waiting",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-written",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-long",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-sending",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-finishing",
@@ -678,37 +1128,37 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-address",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-state",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-many",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT from another computer",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-ended",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT from another computer",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-lost",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-unsent",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "forges-github-install",
-        heading: "Forges",
+        heading: "Where your code lives.",
         parts: &[Part::Named { role: Role::Button, name: "Install on GitHub" }],
     },
     Holds {
@@ -739,22 +1189,67 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-model-claude",
+        heading: "Your Claude subscription",
+        parts: &[
+            Part::Text { text: "temper program-login claude-pat" },
+            Part::Named { role: Role::Button, name: "I’ve signed in" },
+            Part::Absent { role: Role::TextField, name: "Name" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-checking",
+        heading: "Your Claude subscription",
+        parts: &[
+            Part::Named { role: Role::Status, name: "Checking Claude Code’s sign-in on this machine…" },
+            Part::Absent { role: Role::Button, name: "I’ve signed in" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-not-yet",
+        heading: "Your Claude subscription",
+        parts: &[
+            Part::Text { text: "temper program-login claude-pat" },
+            Part::Named {
+                role: Role::Alert,
+                name: "Claude Code isn’t signed in here yet. Run the command above, then press I’ve signed in.",
+            },
+            Part::Named { role: Role::Button, name: "I’ve signed in" },
+        ],
+    },
+    Holds {
         name: "welcome-model-key-details",
+        heading: "An OpenAI API key",
+        parts: &[Part::Named { role: Role::TextField, name: "Key, pasted once" }],
+    },
+    Holds {
+        name: "welcome-model-connected",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Key (pasted once)" }],
+        parts: &[
+            Part::Named { role: Role::Status, name: "ChatGPT plan · sam@example.com" },
+            Part::Named { role: Role::Link, name: "Continue" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-away",
+        heading: "Connect a model",
+        parts: &[
+            Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" },
+            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn't be reached?" },
+        ],
     },
     Holds {
         name: "welcome-model-signing-in",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Heading { level: 2 }, name: "Signing in to ChatGPT" }],
+        parts: &[Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" }],
     },
     Holds {
         name: "welcome-model-signin-ready",
         heading: "Connect a model",
-        parts: &[Part::Named {
-            role: Role::Slot,
-            name: "ChatGPT · pat@example.com is on the Accounts page, with its details.",
-        }],
+        parts: &[
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Button, name: "Continue with ChatGPT" },
+        ],
     },
     Holds {
         name: "github-app-details",
@@ -801,9 +1296,76 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-sheet-copies",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "Copies of public repositories" },
+            Part::Named { role: Role::TextArea, name: "Their addresses, one per line" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+        ],
+    },
+    Holds {
+        name: "welcome-sheet-copies-refused",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "Copies of public repositories" },
+            Part::Named {
+                role: Role::Alert,
+                name: "Not an address: not an address. Write it as github.com/owner/name.",
+            },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+        ],
+    },
+    Holds {
+        name: "welcome-sheet-nothing",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "Nothing for now" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+        ],
+    },
+    Holds {
+        name: "welcome-forge-under-way",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Forgejo on this machine · Setting up: preparing" },
+            Part::Named { role: Role::Disclosure, name: "Each step" },
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
+        name: "welcome-forge-connected",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Disclosure, name: "Each step" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
+        name: "welcome-forge-github",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "GitHub · temper’s App on sam" },
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Disclosure, name: "Each step" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
         name: "welcome-model-choose",
         heading: "Connect a model",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "ChatGPT" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Claude" },
             Part::Named { role: Role::Paragraph, name: "Sign in, in this tab · about a minute" },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
         ],
@@ -826,9 +1388,52 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-ready-copies",
+        heading: "Ready",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Everything is connected. Create your first project, with 2 repositories in it, and start working.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · connected as temper" },
+            Part::Named { role: Role::TextField, name: "Your first project" },
+            Part::Named { role: Role::Button, name: "Create your project" },
+        ],
+    },
+    Holds {
+        name: "welcome-ready-none",
+        heading: "Almost ready",
+        parts: &[
+            Part::Named { role: Role::Slot, name: "Forge none yet" },
+            Part::Named { role: Role::Link, name: "Connect a forge" },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Named { role: Role::Link, name: "Connect a model" },
+            Part::Named { role: Role::TextField, name: "Your first project" },
+            Part::Named { role: Role::Button, name: "Create your project" },
+            Part::Named { role: Role::Link, name: "‹ Back" },
+            Part::Named { role: Role::Button, name: "Try the playground instead" },
+        ],
+    },
+    Holds {
+        name: "welcome-ready-signing",
+        heading: "Almost ready",
+        parts: &[
+            Part::Named { role: Role::Slot, name: "Forge none yet" },
+            Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · signing in…" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
+            Part::Named { role: Role::TextField, name: "Your first project" },
+            Part::Named { role: Role::Link, name: "‹ Back" },
+        ],
+    },
+    Holds {
         name: "welcome-ready-under-way",
         heading: "Almost ready",
         parts: &[
+            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · Setting up: preparing" },
+            Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · sam@example.com" },
+            Part::Named { role: Role::Paragraph, name: "Forgejo is still setting up; this page moves on by itself." },
+            Part::Named { role: Role::Link, name: "‹ Back" },
+            Part::Absent { role: Role::Button, name: "Try the playground instead" },
             Part::Named {
                 role: Role::Paragraph,
                 name: "Your first project can be created once your forge and model are ready.",
@@ -847,11 +1452,18 @@ const HOLDS: [Holds; samples::N] = [
                 role: Role::Paragraph,
                 name: "Everything is connected. Create your first project and start working.",
             },
-            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · connected as temper" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forge Forgejo on this machine · connected as temper · work/hello made",
+            },
             Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · sam@example.com" },
             Part::Named { role: Role::TextField, name: "Your first project" },
             Part::Named { role: Role::Button, name: "Create your project" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
+            Part::Named { role: Role::Link, name: "‹ Back" },
+            Part::Named { role: Role::Link, name: "Open Forgejo ↗" },
+            Part::Absent { role: Role::Button, name: "Try the playground instead" },
+            Part::Absent { role: Role::Paragraph, name: "Forgejo is still setting up; this page moves on by itself." },
         ],
     },
     Holds {
@@ -865,13 +1477,13 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "forges-first-run-7",
-        heading: "Forges",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges 1" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges · 1" },
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
-                description: "forge 3 · Forgejo · Connected as temper\nwork/hello",
+                description: "Forge 3 · Forgejo · Connected as temper\nwork/hello",
             },
             Part::Absent { role: Role::Heading { level: 2 }, name: "The playground" },
         ],
@@ -883,6 +1495,20 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Region, name: "GitHub" },
             Part::Named { role: Role::Region, name: "Forgejo on this machine" },
             Part::Named { role: Role::Region, name: "Your Forgejo" },
+        ],
+    },
+    Holds {
+        name: "welcome-go-on",
+        heading: "Welcome to temper",
+        parts: &[
+            Part::Named { role: Role::List, name: "Steps" },
+            Part::Named { role: Role::Region, name: "Set up temper" },
+            Part::Named { role: Role::Link, name: "Go on setting up" },
+            Part::Absent { role: Role::Region, name: "Try the playground" },
+            Part::Absent {
+                role: Role::Paragraph,
+                name: "Tried the playground first? Set up whenever you like; the playground then steps aside.",
+            },
         ],
     },
     Holds {
@@ -941,6 +1567,97 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure-chat-document",
+        heading: "T10 · Configure temper",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "T10 · Claude subscription · Opus" },
+            Part::Named { role: Role::Button, name: "Start over" },
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Absent { role: Role::Region, name: "How Hello works" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-document-split",
+        heading: "T10 · Configure temper",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Start over" },
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Region, name: "How Hello works" },
+        ],
+    },
+    Holds {
+        name: "chat-draft-chat",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Away mode" },
+        ],
+    },
+    Holds {
+        name: "chat-start-goal",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Start goal…" },
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Value { role: Role::TextField, name: "Name", value: "away-mode" },
+            Part::Named { role: Role::Button, name: "Start goal" },
+        ],
+    },
+    Holds {
+        name: "chat-start-goal-refused",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Text { text: "This act is not offered" },
+            Part::Named { role: Role::Button, name: "Start goal" },
+        ],
+    },
+    Holds {
+        name: "chat-goal-linked",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Goal Away mode →" },
+            Part::Named { role: Role::Paragraph, name: "Started goal" },
+            Part::Named { role: Role::Link, name: "Open" },
+            Part::Absent { role: Role::Button, name: "Start goal…" },
+        ],
+    },
+    Holds {
+        name: "chat-draft-split",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Named { role: Role::Region, name: "Away mode" },
+        ],
+    },
+    Holds {
+        name: "chat-draft-draft",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Named { role: Role::Region, name: "Away mode" },
+        ],
+    },
+    Holds {
         name: "configure-chat",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
@@ -948,6 +1665,42 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::TextArea, name: "Message" },
             Part::Named { role: Role::Button, name: "Close" },
             Part::Absent { role: Role::Disclosure, name: "Change model" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-proposal",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Button, name: "Accept" },
+            Part::Named { role: Role::Button, name: "Change something" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-accepted",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Paragraph, name: "✓ Accepted · new work follows it" },
+            Part::Absent { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-replaced",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Paragraph, name: "Replaced by the proposal below" },
             Part::Named { role: Role::Button, name: "Accept" },
         ],
     },
@@ -985,6 +1738,16 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Link, name: "Adopt a repository" },
         ],
     },
+    Holds {
+        name: "chats-drafts",
+        heading: "Talk to an agent",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Drafts" },
+            Part::Text { text: "writes away-mode.md" },
+            Part::Named { role: Role::Link, name: "Away mode" },
+            Part::Chats { live: 1, closed: 1 },
+        ],
+    },
     Holds { name: "chats-live", heading: "Talk to an agent", parts: &[Part::Chats { live: SOLO_LIVE, closed: 0 }] },
     Holds { name: "chats-closed", heading: "Talk to an agent", parts: &[Part::Chats { live: 0, closed: SOLO_CLOSED }] },
     Holds {
@@ -1010,32 +1773,140 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Button, name: "Open" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
-        name: "settings",
-        heading: "Settings for tally",
+        name: "repositories",
+        heading: "What tally works on.",
         parts: &[
-            Part::Named { role: Role::Link, name: "Configure temper" },
-            Part::Named { role: Role::Link, name: "Forges" },
-            Part::Named { role: Role::Link, name: "Accounts" },
+            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Repositories · 1" },
+            Part::Named { role: Role::Text, name: "robin/tally" },
             Part::Named { role: Role::Link, name: "Adopt a repository" },
+        ],
+    },
+    Holds {
+        name: "repositories-none",
+        heading: "What gallery works on.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "No repository yet" },
+            Part::Text { text: "Chats in gallery talk and plan, but change no code until a repository is in." },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
+        ],
+    },
+    Holds {
+        name: "forges-in-settings",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges · 1" },
+        ],
+    },
+    Holds {
+        name: "accounts-in-settings",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
+            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Text, name: "Signed in as Robin" },
             Part::Named { role: Role::Button, name: "Sign out" },
         ],
     },
     Holds {
-        name: "task-solo-T3",
-        heading: "CSV import",
+        name: "settings-away",
+        heading: "How work runs in tally.",
         parts: &[
-            Part::Named { role: Role::Status, name: "waiting on an answer from you" },
-            Part::Plan { live: SOLO_PLAN_LIVE, title: "CSV import: the quoted-field parser" },
-            Part::Named { role: Role::Region, name: "Budget and authority" },
-            Part::Named { role: Role::Paragraph, name: "5 spent · 15 left of 20" },
-            Part::Named { role: Role::Term, name: "Funded by" },
-            Part::Named { role: Role::Description, name: "Your pool" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "While you’re away, agents may decide" },
+            Part::Named { role: Role::Check, name: "Implementation choices within a task" },
+            Part::Named { role: Role::Select, name: "Away until" },
+        ],
+    },
+    Holds {
+        name: "settings",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
+            Part::Named { role: Role::Check, name: "Away switch" },
+            Part::Named { role: Role::Link, name: "Builders" },
+            Part::Named { role: Role::Text, name: "Configure temper" },
+            Part::Named { role: Role::Link, name: "Forges" },
+            Part::Named { role: Role::Link, name: "Accounts" },
+            Part::Named { role: Role::Link, name: "Start" },
+            Part::Named { role: Role::Navigation, name: "Settings" },
+        ],
+    },
+    Holds {
+        name: "settings-drafts-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Chats can write drafts" }],
+    },
+    Holds {
+        name: "settings-goals-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Goals" }],
+    },
+    Holds {
+        name: "settings-changes-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Changes" }],
+    },
+    Holds {
+        name: "settings-away-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Away switch" }],
+    },
+    Holds {
+        name: "settings-all-hidden",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Ways of working" },
+        ],
+    },
+    Holds {
+        name: "settings-goals",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
+            Part::Named { role: Role::Choice, name: "The default" },
+        ],
+    },
+    Holds {
+        name: "settings-chat-open",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Named { role: Role::Link, name: "Go on" },
+            Part::Absent { role: Role::Link, name: "Start" },
+        ],
+    },
+    Holds {
+        name: "settings-refused",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Named { role: Role::Status, name: "This act is not offered" },
+        ],
+    },
+    Holds {
+        name: "task-solo-T3",
+        heading: "0 of 2 tasks landed.",
+        parts: &[
+            Part::Text { text: "CSV import" },
+            Part::Text { text: "needs you" },
+            Part::Text {
+                text: "The old parser accepts a trailing comma as an empty last field. RFC 4180 does not. Keep it, or drop it in 0.5?",
+            },
+            Part::Named { role: Role::Figure, name: "0 landed of 2" },
         ],
     },
     Holds {
         name: "accounts-solo",
-        heading: "Accounts",
+        heading: "What agents run on.",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
             Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
             Part::Named { role: Role::Item, name: "Claude Code login claude-robin · Ready" },
             Part::Named { role: Role::Item, name: "API key · Ready" },
@@ -1182,14 +2053,79 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
+        name: "accounts-states",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 11" },
+            Part::Text { text: "Ready" },
+            Part::Text { text: "Checking" },
+            Part::Text { text: "Granted" },
+            Part::Text { text: "Limited by " },
+            Part::Text { text: "temper reached its usage limit on your ChatGPT plan. Tasks on it wait." },
+            Part::Text { text: "Signed out of ChatGPT." },
+            Part::Text { text: "OpenAI refused temper’s sign-in. Check the configuration’s registration." },
+            Part::Text { text: "Cannot load " },
+            Part::Text { text: "Cancelled" },
+            Part::Text { text: "Closing" },
+            Part::Text { text: "Moving to another deployment" },
+        ],
+    },
+    Holds {
+        name: "accounts-key",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "Key (pasted once)" },
+            Part::Named { role: Role::Button, name: "Add key" },
+        ],
+    },
+    Holds {
+        name: "accounts-removing",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Text { text: "Remove this account and all its sources?" },
+            Part::Named { role: Role::Button, name: "Confirm" },
+        ],
+    },
+    Holds {
+        name: "accounts-signing-in",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" },
+            Part::Named { role: Role::Button, name: "Finish connecting" },
+        ],
+    },
+    Holds {
+        name: "accounts-program-needs-sign-in",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Text { text: "Claude Code isn't signed in for 'claude-robin' on " },
+            Part::Named { role: Role::Button, name: "Check again" },
+        ],
+    },
+    Holds {
+        name: "accounts-empty",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 0" },
+            Part::Named { role: Role::Text, name: "No account yet" },
+            Part::Named { role: Role::Link, name: "Connect a model" },
+        ],
+    },
+    Holds {
         name: "accounts-reference",
-        heading: "Accounts",
-        parts: &[Part::Named { role: Role::Heading { level: 3 }, name: "Claude" }],
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 2" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
+        ],
     },
     Holds {
         name: "accounts-first-run-1",
-        heading: "Accounts",
-        parts: &[Part::Named { role: Role::Disclosure, name: "Scripted model · the playground’s" }],
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 0" },
+            Part::Named { role: Role::Disclosure, name: "Scripted model · the playground’s" },
+        ],
     },
     Holds {
         name: "google-sign-in",
@@ -1239,10 +2175,17 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Accept" },
         ],
     },
-    Holds { name: "task-held", heading: "CSV import", parts: &[Part::Named { role: Role::Button, name: "Release" }] },
+    Holds {
+        name: "task-held",
+        heading: "T3 · CSV import",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Plan { live: SOLO_PLAN_LIVE, title: "CSV import: the quoted-field parser" },
+        ],
+    },
     Holds {
         name: "task-releasing",
-        heading: "CSV import",
+        heading: "T3 · CSV import",
         parts: &[Part::Named { role: Role::Dialog, name: "Release" }],
     },
     Holds {
@@ -1336,18 +2279,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "task-reference-T12",
-        heading: "Harness",
-        parts: &[
-            Part::Named { role: Role::Paragraph, name: "Its delegates: 6 live, 3 ended." },
-            Part::Named { role: Role::Button, name: "All" },
-            Part::Named { role: Role::Button, name: "Live only" },
-            Part::PlanWithEnded {
-                live: 6,
-                ended: 3,
-                before: "Advise: the fake server's API",
-                after: "Fake server: typed errors",
-            },
-        ],
+        heading: "3 of 9 tasks landed.",
+        parts: &[Part::Text { text: "Harness" }, Part::Named { role: Role::Disclosure, name: "3 landed" }],
     },
     Holds {
         name: "task-solo-T9",
@@ -1360,12 +2293,19 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 18] = [
+const SPENDS: [(&str, Role, &str); 25] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
     ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-chat", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-empty", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-split", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-draft", Role::Paragraph, "1 spent · of 40"),
+    ("chat-start-goal", Role::Paragraph, "1 spent · of 40"),
+    ("chat-start-goal-refused", Role::Paragraph, "1 spent · of 40"),
+    ("chat-goal-linked", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
     ("chat-working", Role::Paragraph, "1 spent · of 40"),
     ("chat-change-running", Role::Paragraph, "0 spent · of 20"),
@@ -1384,7 +2324,7 @@ const SPENDS: [(&str, Role, &str); 18] = [
 fn each_chat_reads_its_allotment() {
     for sample in samples::samples() {
         if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
-            && sample.address != temper_client_domain::Address::NewChat
+            && !matches!(sample.address, temper_client_domain::Address::NewChat { .. })
         {
             let (_, role, spend) = SPENDS.iter().find(|row| row.0 == sample.name).expect("sample's spend row");
             let view = view(&sample);
@@ -1426,30 +2366,6 @@ fn find(tree: &skein_ui::Tree, role: Role, name: &str, sample: &str) -> skein_ui
         Found::Node(node) => node,
         Found::Absent | Found::Pending => panic!("{sample}: missing {role:?} {name:?}"),
     }
-}
-fn plan_with_ended(tree: &skein_ui::Tree, live: u32, ended: u32, before: &str, after: &str, sample: &str) {
-    let plan = find(tree, Role::Tree, "Plan", sample);
-    let nodes = tree.nodes();
-    let start = nodes.iter().position(|node| node.id == plan).expect("plan node");
-    let end = start + usize::try_from(nodes[start].size).expect("plan subtree");
-    let rows: Vec<_> = (start..end).filter(|index| nodes[*index].role == Role::TreeItem).collect();
-    let window = driver::limits().client.domain.rows;
-    assert_eq!(
-        rows.len(),
-        usize::try_from(live.min(window) + ended.min(window)).expect("row count"),
-        "{sample}: live and ended plan rows"
-    );
-    let [before, after] = [before, after].map(|title| {
-        rows.iter()
-            .position(|start| {
-                let end = *start + usize::try_from(nodes[*start].size).expect("row subtree");
-                nodes[*start..end]
-                    .iter()
-                    .any(|node| node.role == Role::Paragraph && node.name.as_deref() == Some(title.as_bytes()))
-            })
-            .unwrap_or_else(|| panic!("{sample}: missing plan row {title:?}"))
-    });
-    assert!(before < after, "{sample}: lower-numbered ended row before live row");
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
@@ -1545,9 +2461,6 @@ fn each_state_holds_what_its_name_says() {
                     }
                     assert_eq!(count, available, "{}: windowed chat rows", sample.name);
                 }
-                Part::PlanWithEnded { live, ended, before, after } => {
-                    plan_with_ended(tree, *live, *ended, before, after, sample.name);
-                }
                 Part::Plan { live, title } => {
                     let plan = find(tree, Role::Tree, "Plan", sample.name);
                     let row = Find::named(Role::Paragraph, title.as_bytes()).within(Box::new([
@@ -1567,6 +2480,64 @@ fn each_state_holds_what_its_name_says() {
                     );
                 }
             }
+        }
+    }
+}
+#[test]
+fn goal_pages_hold_reports_counts_and_only_their_needs() {
+    use temper_client_domain::pages::goals::State;
+    for (name, number, done, total, state, report) in [
+        ("goal-running", 108, 6, 9, State::Running, true),
+        ("goal-needs-funds", 108, 6, 9, State::Needs { funds: true }, true),
+        ("goal-needs-question", 118, 1, 3, State::Needs { funds: false }, true),
+        ("goal-planning", 122, 0, 0, State::Planning, false),
+        ("goal-paused", 108, 6, 9, State::Paused, true),
+        ("goal-landed", 123, 2, 2, State::Landed, true),
+        ("goal-landed-open", 123, 2, 2, State::Landed, true),
+        ("goal-stopped", 118, 1, 3, State::Stopped, false),
+        ("goal-failed", 122, 0, 0, State::Failed, false),
+        ("goal-no-report", 108, 6, 9, State::Running, false),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("goal sample");
+        let root = samples::domain(&sample);
+        let page = root.pages().task().expect("task page");
+        let task = page.document(root.client()).expect("goal document");
+        let goal = page.goal.as_ref().expect("goal page reads");
+        assert_eq!(task.chip.task, number, "{name}");
+        assert_eq!(goal.line.as_ref().expect("own line read").chip.task, number, "{name}");
+        assert_eq!(goal.counts(task, None), temper_client_domain::pages::goal::Counts { done, total }, "{name}");
+        assert_eq!(goal.report.is_some(), report, "{name}");
+        assert!(page.cards.is_empty(), "{name}: needs belong to the filtered inbox");
+        let inbox = root.pages().inbox().expect("goal inbox");
+        let open = root.pages().needs().open(inbox);
+        assert_eq!(open.len(), usize::from(matches!(state, State::Needs { .. })), "{name}");
+        assert_eq!(goal.state(task, None, !open.is_empty()), state, "{name}");
+        for card in &open {
+            assert!(card.page.is_some(), "{name}: need document delivered");
+        }
+        let view = view(&sample);
+        let bylines = view
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| node.styles.as_slice().contains(&temper_client_view::look::GOAL_BYLINE));
+        assert_eq!(bylines, report, "{name}: only a report has a byline");
+        if name == "goal-needs-question" {
+            let choice = find(view.tree(), Role::Button, "In jig’s store", name);
+            assert!(
+                view.tree()
+                    .find(choice)
+                    .expect("recommended choice")
+                    .styles
+                    .as_slice()
+                    .contains(&temper_client_view::look::GOAL_PRIMARY)
+            );
+        }
+        if matches!(state, State::Landed | State::Stopped | State::Failed) {
+            assert!(
+                !view.tree().nodes().iter().any(|node| node.role == Role::TextArea),
+                "{name}: ended page has no composer"
+            );
         }
     }
 }
@@ -1602,6 +2573,7 @@ fn print_writes_every_page_and_the_bundle() {
         let page = fs::read_to_string(out.join(format!("{}.html", sample.name))).expect("sample page");
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
             assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
+            assert!(page.contains("<title>Welcome · first run · temper</title>"), "{}: welcome title", sample.name);
         } else if page.contains("class=\"temper-rail\"") {
             assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
         } else {
@@ -1616,12 +2588,16 @@ fn print_writes_every_page_and_the_bundle() {
             position = at + link.len();
         }
     }
+    for name in ["goal-landed", "goal-landed-open"] {
+        let page = fs::read_to_string(out.join(format!("{name}.html"))).expect("landed goal print");
+        assert_eq!(page.contains("open class=\"temper-goal-landed-fold\""), name == "goal-landed-open");
+    }
     let signin = fs::read_to_string(out.join("connect-model-signing-in.html")).expect("sign-in page");
     assert!(signin.contains("href=\"https://issuer.example/visit/gallery-sign-in\""), "external sign-in href");
     let closing = fs::read_to_string(out.join("chat-closing.html")).expect("confirmation page");
     assert!(closing.contains("<dialog open "), "static confirmation opens");
     let chats = fs::read_to_string(out.join("chats-solo.html")).expect("chats page");
-    assert!(chats.contains("<title>Talk to an agent. · temper</title>"), "shell heading title");
+    assert!(chats.contains("<title>Talk to an agent about robin/tally. · temper</title>"), "shell heading title");
     let signed_out = fs::read_to_string(out.join("signed-out.html")).expect("signed-out page");
     assert!(signed_out.contains("<title>temper</title>"), "shell title without heading");
     // Reprinting replaces the whole owned directory, including stale files.
@@ -1705,7 +2681,7 @@ fn gallery_chat_clocks_are_separate_leaves_under_the_speakers() {
 
 #[test]
 fn model_samples_link_the_mockup_state_that_draws_them() {
-    let rows = [
+    let mut rows = [
         ("connect-model-choose", Some("connect-model.html?world=reference&bare")),
         ("connect-model-key-details", Some("connect-model.html?world=reference&way=key&bare")),
         ("connect-model-program-details", Some("connect-model.html?world=reference&way=program&bare")),
@@ -1726,6 +2702,7 @@ fn model_samples_link_the_mockup_state_that_draws_them() {
         ),
         ("connect-model-key-lost", None),
     ];
+    rows.sort_by_key(|row| row.0);
     let models: Vec<_> =
         samples::samples().into_iter().filter(|sample| sample.name.starts_with("connect-model-")).collect();
     assert_eq!(models.len(), rows.len(), "every model sample has a row");
@@ -1741,6 +2718,9 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     for (name, expected) in [
         ("welcome-forge-choose", vec!["Run on this machine"]),
         ("welcome-forge-details", vec!["Run on this machine", "Run on this machine"]),
+        ("welcome-forge-under-way", vec!["Continue"]),
+        ("welcome-forge-connected", vec!["Continue"]),
+        ("welcome-forge-github", vec!["Continue"]),
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
         ("github-app-details", vec!["GitHub"]),
         ("github-install", vec!["Install on GitHub"]),
@@ -1903,6 +2883,57 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
 }
 
 #[test]
+fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
+    for (name, off) in [
+        ("settings-drafts-off", "Chats can write drafts"),
+        ("settings-goals-off", "Goals"),
+        ("settings-changes-off", "Changes"),
+        ("settings-away-off", "Away switch"),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("switch-off sample");
+        let view = view(&sample);
+        let tree = view.tree();
+        for label in ["Chats can write drafts", "Goals", "Changes", "Away switch"] {
+            let id = find(tree, Role::Check, label, name);
+            let check = tree.nodes().iter().find(|node| node.id == id).expect("switch node");
+            assert_eq!(check.states.as_slice().contains(&skein_ui::State::Pressed), label != off, "{name}: {label}");
+        }
+        for label in ["Goals", "Changes"] {
+            let present = tree
+                .nodes()
+                .iter()
+                .any(|node| node.role == Role::Link && node.name.as_deref() == Some(label.as_bytes()));
+            assert_eq!(present, label != off, "{name}: {label} navigation");
+        }
+        let ways = tree
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"Ways of working"));
+        assert_eq!(ways, off != "Goals", "{name}: ways");
+    }
+}
+
+#[test]
+fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
+    for (name, role, label) in [
+        ("goal-amending", Role::Region, "Amend task 108"),
+        ("goal-stop-dialog", Role::Dialog, "Stop first-run-projects?"),
+        ("goal-toast", Role::Status, ""),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
+        let root = samples::domain(&sample);
+        let view = view(&sample);
+        if name == "goal-toast" {
+            assert_eq!(root.pages().needs().toast(), Some(&temper_client_domain::pages::needs::Toasted::Paused));
+            assert!(root.pages().task().unwrap().pending.is_empty());
+            assert!(view.tree().nodes().iter().any(|node| node.role == role));
+        } else {
+            find(view.tree(), role, label, name);
+        }
+    }
+}
+
+#[test]
 fn the_byline_sample_opens_only_the_model_disclosure() {
     let sample = samples::samples().into_iter().find(|s| s.name == "chat-byline-open").unwrap();
     let view = view(&sample);
@@ -1915,6 +2946,17 @@ fn the_byline_sample_opens_only_the_model_disclosure() {
     let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
     assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)));
     assert_eq!(html.matches(" open").count(), 1);
+}
+
+#[test]
+fn the_rail_menu_sample_opens_the_menu() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "rail-new-menu").unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains("aria-expanded=\"true\""));
+    let menu = html.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
+    assert!(!menu.contains("hidden"), "{menu}");
+    assert!(html.contains("Ask a question or ask for a change."));
+    assert!(html.contains("Agents plan a larger change and land it."));
 }
 
 #[test]
@@ -1960,5 +3002,81 @@ fn the_chat_log_follows_its_end_until_the_person_scrolls_away() {
         assert!(!patches.is_empty(), "the chat changes");
         page.apply(&patches, &mut ops);
         assert_eq!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), follow);
+    }
+}
+
+#[test]
+fn home_away_deliveries_draw_the_mock_words_and_off_span() {
+    use temper_client_view::look;
+    for (name, count, headline) in [
+        ("home-away", 4, "57 changes landed. Four things were decided for you."),
+        ("home-away-one", 1, "57 changes landed. One thing was decided for you."),
+        ("home-away-overturned", 4, "57 changes landed. Four things were decided for you."),
+    ] {
+        let sample = samples::samples().into_iter().find(|s| s.name == name).expect("Home away sample");
+        let view = view(&sample);
+        let tree = view.tree();
+        assert!(
+            tree.nodes()
+                .iter()
+                .any(|n| n.role == (Role::Heading { level: 1 }) && n.name.as_deref() == Some(headline.as_bytes()))
+        );
+        assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::DECISION)).count(), count);
+        assert!(
+            tree.nodes().iter().any(|n| n.name.as_deref() == Some("welcome-stall · 01:05".as_bytes())),
+            "the decision task read supplies its title"
+        );
+        if count == 1 {
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
+                && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
+        }
+        let kicker =
+            tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::HOME_KICKER)).expect("away kicker");
+        assert_eq!(
+            kicker.name.as_deref(),
+            Some(if count == 4 {
+                "While you were away · Mon 23:10 to now".as_bytes()
+            } else {
+                "While you were away · Mon 23:10 to 08:03".as_bytes()
+            })
+        );
+        assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_TOOK)
+            && n.name.as_deref() == Some(b"In temper serve".as_slice())));
+        assert_eq!(
+            tree.nodes()
+                .iter()
+                .filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Overturn".as_slice()))
+                .count(),
+            match name {
+                "home-away" => 4,
+                "home-away-overturned" => 2,
+                _ => 0,
+            }
+        );
+        if name == "home-away-overturned" {
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
+                && n.name.as_deref() == Some(b"Overturned: it asks you again".as_slice())));
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_OVERTURNED)));
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
+                && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
+        }
+    }
+}
+
+#[test]
+fn settings_away_draws_the_default_choices() {
+    let sample = samples::samples().into_iter().find(|sample| sample.name == "settings-away").expect("Away settings");
+    assert_eq!(samples::mockup(&sample).as_deref(), Some("../greenfield/settings.html#away"));
+    let view = view(&sample);
+    for (role, name, state, expected) in [
+        (Role::Check, "Implementation choices within a task", skein_ui::State::Pressed, true),
+        (Role::Check, "Retries and splitting a failing task", skein_ui::State::Pressed, true),
+        (Role::Check, "A design document’s wording", skein_ui::State::Pressed, true),
+        (Role::Check, "Adding a dependency", skein_ui::State::Pressed, false),
+        (Role::Option, "08:00, the end of quiet hours", skein_ui::State::Selected, true),
+    ] {
+        let id = find(view.tree(), role, name, sample.name);
+        let node = view.tree().nodes().iter().find(|node| node.id == id).expect("Away control");
+        assert_eq!(node.states.as_slice().contains(&state), expected, "{name}");
     }
 }

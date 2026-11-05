@@ -30,6 +30,13 @@
   waiting for a key in progress; different keys cannot stage together.
   `hearth-domain-store` holds one staged layer for a build that makes
   its layers in order; concurrent builds need a table of staged layers.
+- **Departs:** 4, 8.2: `skein/docs/foundation/programming-model.md`, 5.4 asks for one explicit
+  state enum per lifecycle, each state holding exactly its data, no lifecycle
+  in flags or `Option`s beside it; `hearth-domain-store`'s
+  `Scan` keeps `loading`, `layer`, `last`, `removing` and `after` beside its
+  `Pass`, and `staging.rs`'s `Working` `parent`, `parent_uuid`, `walk`, `then`
+  and `tmp` beside its `Next`, because the request of 2026-11-05 that gave
+  `Store` its states paid a debt item that did not name these two.
 - **Not yet:** 5.1, 5.2, 5.3, 5.5, 5.6, 5.8: the helper process and
   service, namespace and id maps, pipe protocol with its message bounds,
   apply and empty, and the subvolume and sync operations. The typed

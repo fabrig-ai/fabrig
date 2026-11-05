@@ -307,13 +307,14 @@ fn person_facts_sort_by_party_then_kind_and_fields() {
     use temper_engine_domain_forge::PersonFact;
     let mut previous = None;
     for (party, what) in [
-        (0, PersonFact::GoalFrom { project: u32::MAX, chat: u64::MAX, goal: u64::MAX }),
+        (0, PersonFact::GoalFrom { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX }),
         (7, PersonFact::ToBegin { project: 0 }),
         (7, PersonFact::ToBegin { project: u32::MAX }),
-        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: 0 }),
-        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: u64::MAX }),
-        (7, PersonFact::GoalFrom { project: 0, chat: 1, goal: 0 }),
-        (7, PersonFact::GoalFrom { project: 1, chat: 0, goal: 0 }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: 0, at: 0 }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: 0, at: u64::MAX }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: u64::MAX, at: u64::MAX }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 1, goal: 0, at: 0 }),
+        (7, PersonFact::GoalFrom { project: 1, chat: 0, goal: 0, at: 0 }),
         (u64::MAX, PersonFact::ToBegin { project: 0 }),
     ] {
         let key = Key::Dismissed { party, what };
@@ -324,5 +325,97 @@ fn person_facts_sort_by_party_then_kind_and_fields() {
             assert!(bytes > prior_bytes);
         }
         previous = Some((key, bytes));
+    }
+}
+
+#[test]
+fn status_keys_use_families_thirty_six_and_thirty_seven_in_order() {
+    for (party, project) in [(0, 0), (7, 3), (u64::MAX, u32::MAX)] {
+        let facts = Key::ProjectFacts { project };
+        let looked = Key::Looked { party, project };
+        let mut expected_facts = skein_kv::KeyWriter::new(u32::MAX);
+        expected_facts.tag(36).u64(u64::from(project));
+        let mut expected_looked = skein_kv::KeyWriter::new(u32::MAX);
+        expected_looked.tag(37).u64(party).u64(u64::from(project));
+        for (key, expected) in [(facts.clone(), expected_facts), (looked.clone(), expected_looked)] {
+            let bytes = keys::encode(&key, u32::MAX).unwrap();
+            assert_eq!(bytes, expected.finish().unwrap());
+            assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+        }
+        assert!(
+            Key::Making(temper_engine_domain_forge::MakingKey {
+                forge: u16::MAX,
+                org: Box::new([]),
+                name: Box::new([])
+            }) < facts
+        );
+        assert!(facts < looked);
+    }
+    let earlier = Key::Looked { party: 1, project: u32::MAX };
+    let later = Key::Looked { party: 2, project: 0 };
+    assert!(earlier < later);
+    assert!(keys::encode(&earlier, u32::MAX) < keys::encode(&later, u32::MAX));
+}
+
+#[test]
+fn status_keys_refuse_project_width_truncation_and_trailing_bytes() {
+    for family in [36, 37] {
+        for (project, trailing) in [(4_294_967_296, false), (0, true)] {
+            let mut writer = skein_kv::KeyWriter::new(u32::MAX);
+            writer.tag(family);
+            if family == 37 {
+                writer.u64(7);
+            }
+            writer.u64(project);
+            if trailing {
+                writer.tag(0);
+            }
+            assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
+        }
+        assert_eq!(keys::decode(&[family], &fixtures::LIMITS), None);
+    }
+}
+
+#[test]
+fn away_and_decided_keys_keep_their_family_and_field_order() {
+    for (party, project, number) in [(0, 0, 0), (7, 3, 2), (u64::MAX, u32::MAX, u32::MAX)] {
+        let mut away = skein_kv::KeyWriter::new(u32::MAX);
+        away.tag(38).u64(party).u64(u64::from(project));
+        let mut decided = skein_kv::KeyWriter::new(u32::MAX);
+        decided.tag(39).u64(u64::from(project)).u64(u64::from(number));
+        for (key, expected) in [(Key::Away { party, project }, away), (Key::Decided { project, number }, decided)] {
+            let bytes = keys::encode(&key, u32::MAX).unwrap();
+            assert_eq!(bytes, expected.finish().unwrap());
+            assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
+            assert_eq!(keys::encode(&key, u32::try_from(bytes.len() - 1).unwrap()), None);
+        }
+    }
+    for (earlier, later) in [
+        (Key::Looked { party: u64::MAX, project: u32::MAX }, Key::Away { party: 0, project: 0 }),
+        (Key::Away { party: u64::MAX, project: u32::MAX }, Key::Decided { project: 0, number: 0 }),
+        (Key::Away { party: 1, project: u32::MAX }, Key::Away { party: 2, project: 0 }),
+        (Key::Decided { project: 1, number: u32::MAX }, Key::Decided { project: 2, number: 0 }),
+    ] {
+        assert!(earlier < later);
+        assert!(keys::encode(&earlier, u32::MAX) < keys::encode(&later, u32::MAX));
+    }
+}
+#[test]
+fn away_and_decided_keys_refuse_truncation_widths_and_trailing_bytes() {
+    for (family, first, second) in [(38, 7, 4_294_967_296), (39, 4_294_967_296, 0), (39, 0, 4_294_967_296)] {
+        let mut writer = skein_kv::KeyWriter::new(u32::MAX);
+        writer.tag(family).u64(first).u64(second);
+        assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
+    }
+    for family in [38, 39] {
+        let mut writer = skein_kv::KeyWriter::new(u32::MAX);
+        writer.tag(family).u64(7).u64(3);
+        let bytes = writer.finish().unwrap();
+        for len in 0..bytes.len() {
+            assert_eq!(keys::decode(&bytes[..len], &fixtures::LIMITS), None);
+        }
+        let mut trailing = skein_kv::KeyWriter::new(u32::MAX);
+        trailing.tag(family).u64(7).u64(3).tag(0);
+        assert_eq!(keys::decode(&trailing.finish().unwrap(), &fixtures::LIMITS), None);
     }
 }

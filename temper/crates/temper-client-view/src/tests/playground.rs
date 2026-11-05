@@ -11,10 +11,13 @@ fn suggestions_show_only_in_the_playground_project() {
         ("no playground", f::PROJECT, true, false, false),
     ] {
         let root = if playground {
-            f::playground_root(Address::NewChat, project, model)
+            f::playground_root(Address::NewChat { draft: false }, project, model)
         } else {
             let mut root = f::chats_root();
-            f::root_event(&mut root, Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) });
+            f::root_event(
+                &mut root,
+                Event::Went { place: temper_client_domain::Place::Address(Address::NewChat { draft: false }) },
+            );
             root
         };
         let view = f::page_view(&root);
@@ -38,7 +41,7 @@ fn suggestions_show_only_in_the_playground_project() {
 #[test]
 fn suggestion_buttons_wait_for_a_start_and_press_their_own_cue() {
     for (row, pending) in [("ready", false), ("start pending", true)] {
-        let mut root = f::playground_root(Address::NewChat, f::PROJECT, true);
+        let mut root = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
         if pending {
             for act in [Act::ChatWords { words: b"My draft".as_slice().into() }, Act::StartChat] {
                 f::root_event(&mut root, Event::Act { action: Action::Pages(act) });
@@ -146,7 +149,7 @@ fn the_playground_account_always_names_default_whatever_the_model_or_project() {
         let root = f::playground_choice_root(Address::Chat { task: 1 }, project, model, choice);
         assert_eq!(super::choice::using_text(&root), expected, "{row}");
     }
-    let root = f::playground_root(Address::NewChat, f::PROJECT, true);
+    let root = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
     assert!(super::choice::using_text(&root) == "Scripted model · Default");
 }
 
@@ -236,7 +239,7 @@ fn the_hidden_deployment_playground_account_needs_only_its_public_provider() {
 
 #[test]
 fn the_playground_chooser_names_the_provider_and_model_but_keeps_the_configured_choice() {
-    let mut root = f::playground_root(Address::NewChat, f::PROJECT, true);
+    let mut root = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
     let mut view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"Playground").is_some());
     assert!(f::find(view.tree(), Role::Button, crate::words::SCRIPTED_MODEL).is_none());
@@ -254,16 +257,13 @@ fn the_playground_account_is_in_its_own_folded_section() {
     let root = f::playground_root(Address::Accounts, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
-    let mut count = None;
-    for (index, node) in nodes.iter().enumerate() {
-        if node.role == (Role::Heading { level: 2 })
-            && node.name.as_deref() == Some(b"Your accounts")
-            && let Some(node) = nodes.get(index + usize::try_from(node.size).unwrap())
-        {
-            count = node.name.as_deref();
+    let mut counted = false;
+    for node in nodes {
+        if node.role == (Role::Heading { level: 2 }) && node.name.as_deref() == Some("Your accounts · 0".as_bytes()) {
+            counted = true;
         }
     }
-    assert_eq!(count, Some(b"0".as_slice()));
+    assert!(counted);
     assert!(f::find(view.tree(), Role::Paragraph, b"No model of yours yet.").is_some());
     assert!(
         f::find(view.tree(), Role::Disclosure, "Scripted model · the playground’s · held by the deployment".as_bytes())
@@ -343,7 +343,7 @@ fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_proje
 fn the_frame_banner_follows_the_page_and_leaving_rules() {
     for (address, leaving, shown) in [
         (Address::Chats { filter: ChatsFilter::All }, false, true),
-        (Address::NewChat, false, true),
+        (Address::NewChat { draft: false }, false, true),
         (Address::Chat { task: 1 }, false, false),
         (Address::Chat { task: 1 }, true, true),
     ] {

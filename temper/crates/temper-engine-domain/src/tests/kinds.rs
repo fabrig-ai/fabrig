@@ -634,6 +634,9 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
 const READ_SIGN_IN: u64 = 10;
 const READ_REPLY: skein_lib::ReplyTo = skein_lib::ReplyTo::new(Token::new(93));
 fn reader(role: Option<jig_domain_people::Role>) -> (Domain, Env<RootLimits>) {
+    reader_in(role, jig_domain_people::DEPLOYMENT)
+}
+fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, Env<RootLimits>) {
     use jig_domain_people as people;
     let (mut domain, env) = root();
     domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
@@ -651,7 +654,7 @@ fn reader(role: Option<jig_domain_people::Role>) -> (Domain, Env<RootLimits>) {
         },
         people::Stored::SignIn { number: READ_SIGN_IN, person: 1, expires: Wall::from_nanos(100) },
         people::Stored::Roles {
-            project: people::DEPLOYMENT,
+            project,
             holdings: match role {
                 Some(role) => Box::new([people::Holding { person: 1, role }]),
                 None => Box::new([]),
@@ -842,4 +845,177 @@ fn forge_reads_wait_for_the_preceding_settings_commit() {
         })))
     );
     assert!(out.is_empty());
+}
+
+fn ways(way: u32) -> settings::SizedValue {
+    settings::SizedValue {
+        size: 8,
+        value: settings::Value::Ways(settings::ProjectWays {
+            drafts: true,
+            goals: false,
+            changes: true,
+            away: false,
+            way,
+        }),
+    }
+}
+
+fn root_with_way() -> (Domain, Env<RootLimits>) {
+    use jig_domain_people as people;
+    use jig_domain_tasks as tasks;
+    let mut config = resume_fixture::config(7);
+    config.core.defaults.templates = Box::new([jig_domain_core::Template {
+        number: 1,
+        name: b"way".as_slice().into(),
+        executor: people::TemplateExecutor::Chosen,
+        contract: tasks::Contract::Report { words: 32 },
+        shallower: 1,
+        budget: people::TemplateBudget::Given,
+        deadline: people::TemplateDeadline::Given,
+        tracked: None,
+        flags: tasks::Flags {
+            ended_by: tasks::EndedBy::Result,
+            conversation: false,
+            listed: true,
+            retention: tasks::Retention::Kept,
+        },
+        label: 1,
+        grace: None,
+        llm: None,
+        resources: Box::new([]),
+    }]);
+    resume_fixture::root_with_config_and_limits(config, &resume_fixture::limits())
+}
+
+#[test]
+fn a_way_the_project_does_not_offer_is_refused() {
+    for proposal in [None, Some(PROPOSAL)] {
+        for way in [0, 1, 2] {
+            let (mut domain, env) = root_with_way();
+            let value = ways(way);
+            domain.kinds = Box::new([KindValue { kind: 7, scope: PROJECT, number: 1, value: value.clone() }]);
+            if let Some(proposal) = proposal {
+                domain.forge.keep_proposal_settings(
+                    proposal,
+                    &[settings::Asked { kind: 7, scope: PROJECT, number: 1, edit: settings::Edit::Set(value) }],
+                    &mut Queue::uncapped(),
+                );
+                domain.kinds = Box::new([]);
+            }
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            judge(
+                &mut domain,
+                &env,
+                &mut decision,
+                proposal,
+                Box::new([application::Item {
+                    kind: 7,
+                    scope: PROJECT,
+                    number: 1,
+                    edit: application::Edit::Set(Box::new([])),
+                }]),
+            );
+            let expected = if way == 2 {
+                connector::Judged::Refuse { why: settings::Refusal::Way.words().into() }
+            } else {
+                connector::Judged::Accept { size: 8, charters: Box::new([]) }
+            };
+            assert_eq!(answer(&mut domain).as_ref(), &[expected], "way {way}, proposal {proposal:?}");
+            crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+        }
+    }
+    let (mut domain, env) = root_with_way();
+    let mut out = Queue::uncapped();
+    domain.forge.keep_settings(
+        &crate::translate::environment_forge(&env),
+        2,
+        None,
+        &[settings::Asked { kind: 7, scope: PROJECT, number: 1, edit: settings::Edit::Set(ways(2)) }],
+        &mut out,
+    );
+    domain.forge.keep_settings(
+        &crate::translate::environment_forge(&env),
+        3,
+        None,
+        &[settings::Asked { kind: 7, scope: PROJECT, number: 1, edit: settings::Edit::Remove }],
+        &mut out,
+    );
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector::Ask::RestoreSettings {
+            owner: RESTORE_OWNER,
+            proposal: PROPOSAL,
+            items: Box::new([restored(7, PROJECT, 1, application::RestoredEdit::Set { revision: 3 })]),
+        },
+    );
+    assert_eq!(
+        restored_answer(&mut domain, RESTORE_OWNER).as_ref(),
+        &[connector::Judged::Refuse { why: settings::Refusal::Way.words().into() }]
+    );
+    assert!(domain.forge.proposal_settings(PROPOSAL).is_empty());
+    crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+}
+
+#[test]
+fn a_project_reads_its_own_kinds_with_a_role_there() {
+    use jig_domain_core::reads::{Answer, Why};
+    use jig_domain_people::{ApplicationScope, DEPLOYMENT, Role};
+    for kind in [2, 6, 7] {
+        for (role, membership, scope, query_scope, good) in [
+            (Some(Role::Member), PROJECT, ApplicationScope::Project(PROJECT), PROJECT, true),
+            (None, PROJECT, ApplicationScope::Project(PROJECT), PROJECT, false),
+            (Some(Role::Member), PROJECT, ApplicationScope::Project(PROJECT + 1), PROJECT + 1, false),
+            (Some(Role::Member), PROJECT, ApplicationScope::Project(PROJECT), PROJECT + 1, false),
+            (Some(Role::Member), DEPLOYMENT, ApplicationScope::Project(PROJECT), PROJECT, false),
+            (Some(Role::Observer), DEPLOYMENT, ApplicationScope::Deployment, PROJECT, true),
+        ] {
+            let (mut domain, env) = reader_in(role, membership);
+            let value = match kind {
+                2 => rule(false),
+                6 => settings::SizedValue {
+                    value: settings::Value::Questions(temper_engine_domain_forge_change::Route::Up),
+                    size: 1,
+                },
+                7 => ways(0),
+                _ => unreachable!("table kind"),
+            };
+            domain.forge.keep_settings(
+                &crate::translate::environment_forge(&env),
+                2,
+                None,
+                &[settings::Asked { kind, scope: query_scope, number: 1, edit: settings::Edit::Set(value.clone()) }],
+                &mut Queue::uncapped(),
+            );
+            let answer = read_forge(
+                &mut domain,
+                &env,
+                READ_SIGN_IN,
+                scope,
+                crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 },
+            );
+            let expected = if good {
+                Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(Some(value)) }
+            } else {
+                Delivery::Read { reply: READ_REPLY, answer: Answer::None(Why::Unknown) }
+            };
+            assert_eq!(answer, expected, "kind {kind}, membership {membership}, scope {scope:?}");
+        }
+    }
+    for query in [
+        crate::ForgeRead::Setting { kind: 1, scope: PROJECT, number: 1 },
+        crate::ForgeRead::Setting { kind: 3, scope: PROJECT, number: 1 },
+        crate::ForgeRead::RevisionSetting { kind: 1, scope: PROJECT, number: 1, revision: 1 },
+        crate::ForgeRead::RevisionSetting { kind: 3, scope: PROJECT, number: 1, revision: 1 },
+        crate::ForgeRead::RevisionSetting { kind: 6, scope: PROJECT + 1, number: 1, revision: 1 },
+        crate::ForgeRead::ProposalItems { key: PROPOSAL },
+    ] {
+        let (mut domain, env) = reader_in(Some(Role::Owner), PROJECT);
+        assert_eq!(
+            read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Project(PROJECT), query),
+            Delivery::Read { reply: READ_REPLY, answer: Answer::None(Why::Unknown) }
+        );
+    }
 }

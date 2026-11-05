@@ -188,7 +188,7 @@ fn fixture_owned(m: Mode) -> Option<forge::forges::Owned> {
         None
     }
 }
-fn wire_connection_row(
+pub(super) fn wire_connection_row(
     number: u16,
     kind: w::Kind,
     mode: w::Mode,
@@ -209,6 +209,7 @@ fn wire_connection_row(
     w::ForgeRow::new(
         &limits(),
         w::ForgeRowParts {
+            starts_with: w::StartsWith::Repository,
             host: b"git.example:3000".as_slice().into(),
             makings: List::with_capacity(0),
             number,
@@ -258,6 +259,7 @@ fn every_connection_decodes_into_the_forges_words() {
         let number = u16::try_from(index + 1).unwrap();
         records.push(wire_connection_row(number, kind, mode, connection, offer, fixture_wire_owned(m))).unwrap();
         let row = Row {
+            starts_with: forge::forges::StartsWith::Repository,
             makings: Box::new([]),
             host: b"git.example:3000".as_slice().into(),
             number,
@@ -299,6 +301,7 @@ fn every_connection_decodes_into_the_forges_words() {
 #[test]
 fn the_offer_drives_the_manual_words_and_setup_actions() {
     let mut row = Row {
+        starts_with: forge::forges::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
         number: 3,
@@ -491,6 +494,7 @@ fn an_out_of_order_document_is_refused() {
                 w::ForgeRow::new(
                     &limits(),
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         makings: List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number,
@@ -535,9 +539,9 @@ fn setup_carries_each_field_without_semantic_form_checks() {
     };
     let w::Making::Kept(kept) = request.forge() else { panic!("kept forge") };
     assert_eq!(kept.forge(), 3);
-    assert_eq!(request.org(), b"");
-    assert_eq!(request.repository(), b"widget");
-    assert!(!request.playground());
+    assert_eq!(empty_setup(request.first()).org(), b"");
+    assert_eq!(empty_setup(request.first()).repository(), b"widget");
+    assert!(!empty_setup(request.first()).playground());
 }
 #[test]
 fn first_repository_decodes_each_state_and_creation_step() {
@@ -581,6 +585,7 @@ fn first_repository_decodes_each_state_and_creation_step() {
                 w::ForgeRow::new(
                     &limits(),
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         makings: List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number: 3,
@@ -665,6 +670,7 @@ fn installation_accounts_flags_and_connect_ends_survive_client_decode() {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 1,
@@ -734,6 +740,7 @@ fn admin_form_and_typed_stops_survive_client_decode() {
                     w::ForgeRow::new(
                         &limits,
                         w::ForgeRowParts {
+                            starts_with: w::StartsWith::Repository,
                             makings: List::with_capacity(0),
                             host: b"git.example:3000".as_slice().into(),
                             number: 1,
@@ -761,5 +768,40 @@ fn admin_form_and_typed_stops_survive_client_decode() {
             assert_eq!(rows[0].admin, admin);
             assert_eq!(rows[0].ended_stop, expected);
         }
+    }
+}
+
+fn empty_setup(first: &w::SetUpFirst) -> &w::FirstEmpty {
+    let w::SetUpFirst::Empty(first) = first else { panic!("empty setup fixture") };
+    first
+}
+
+#[test]
+fn the_first_choice_survives_forge_row_decode() {
+    let addresses: Box<[Box<[u8]>]> = Box::new([Box::from(b"https://source.example/owner/repo".as_slice())]);
+    let mut copies = List::with_capacity(1);
+    copies.push(addresses[0].clone()).unwrap();
+    let copies = w::CopyAddresses::new(&limits(), w::CopyAddressesParts { addresses: copies }).unwrap();
+    for (starts_with, expected) in [
+        (w::StartsWith::Repository, forge::forges::StartsWith::Repository),
+        (w::StartsWith::Nothing, forge::forges::StartsWith::Nothing),
+        (w::StartsWith::Copies(copies), forge::forges::StartsWith::Copies { addresses }),
+    ] {
+        let mut parts = wire_connection_row(
+            3,
+            w::Kind::Forgejo,
+            w::Mode::Owned,
+            w::Connection::Connecting,
+            w::Offer::Offered,
+            None,
+        )
+        .into_parts();
+        parts.starts_with = starts_with;
+        let mut forges = List::with_capacity(1);
+        forges.push(w::ForgeRow::new(&limits(), parts).unwrap()).unwrap();
+        let record = w::Forges::new(&limits(), w::ForgesParts { forges }).unwrap();
+        let decoded = family::forges(&wire::forges(&record), &limits()).unwrap();
+        assert_eq!(decoded[0].starts_with, expected);
+        assert_eq!(decoded[0].first, None);
     }
 }

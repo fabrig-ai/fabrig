@@ -415,14 +415,15 @@ and `connect-forge.html`.
 - **The Forges page** lists the person's forges: each forge the store
   keeps (`../protocol/forge.md`, 2.1), fakes aside, in number order,
   whatever its connection; a fresh deployment lists none until one is
-  set up or connected. After the page's level-1 heading
-  "Forges", the level-2 heading "Your forges", with their count, the
-  line "Each forge temper is connected to, or setting up. Add one to
-  bring its repositories to temper." and "+ Add a forge", a link to
-  `ConnectForge`; with none, "No forge of yours yet." and "Connect a
-  forge", the same link. While the playground runs, neither link is
-  drawn: there is nothing to add (`README.md`, 4.8). Each row is a disclosure, folded to its
-  summary: its name, "forge N · KIND · WEB" (its number, its kind and
+  set up or connected. It is Settings' `Forges` tab (`README.md`, 3.5,
+  *The `Forges` tab*), whose lede says "Each forge temper is connected to,
+  or setting up. Add one to bring its repositories to temper.": the
+  level-2 heading "Your forges · N", with "+ Add a forge", a link to
+  `ConnectForge`, in its head; with none, a quiet band: the tag "No forge
+  yet", "No forge of yours yet." and "Connect a forge", the same link. With
+  no project its level-1 heading is "Forges", and the lede follows it. While the playground runs, neither link is
+  drawn: there is nothing to add (`README.md`, 4.8). Each row is a disclosure, in the rows' look
+  (`README.md`, 3.5, *The rows*), folded to its summary: its name, "Forge N · KIND · WEB" (its number, its kind and
   its `web` address), its connection's words (below) and its line:
   connected, its repositories, "OWNER/NAME · project PROJECT" each;
   setting up, its set up's first repository, "ORG/NAME";
@@ -504,8 +505,10 @@ and `connect-forge.html`.
   the playground's forge, is Choose; at Choose, a forge of the
   person's cut short is shown in the choices' place, "FORGE · not
   finished", with "Start over" and, on GitHub, "Go on", as the
-  welcome's Forge step shows it (`README.md`, 3.5, The welcome). The page's level-1 heading is "Connect a
-  forge", above the steps, and each step's content is in one card,
+  welcome's Forge step shows it (`README.md`, 3.5, The welcome); once
+  removed, "Start over" returns to `Forges`. The page's level-1 heading is
+  "Connect a forge", under its path (`README.md`, 3.5, *The flows' paths*)
+  and above the steps, and each step's content is in one card,
   under its level-2 heading.
   Leaving the flow leaves what runs running; the Forges entry's dot
   then says it (Elsewhere, below).
@@ -729,7 +732,9 @@ and `connect-forge.html`.
   names the one under way (fetch, prepare or run); none named yet, no
   individual step is marked. Connecting is the fourth, making the
   fifth, done once the first repository is made, unadopted. Before the
-  target is known, the fifth reads "Making the first repository".
+  target is known, the fifth reads "Making the first repository". A set up
+  asked with copies or nothing has four steps, the row's `starts_with`
+  saying so (`../protocol/setup.md`, 6.7).
   GitHub rows never list Forgejo's steps. The first and the Details
   name the versions the row's `owned` pins, "Fetching Forgejo 17.0.1
   and its runner 13.2.1"; the person's login stays off until the row
@@ -808,7 +813,7 @@ says:
   | not connected | "Not connected", with Connect; where its records say why, "Not connected: its records are unreadable" or "Not connected: its records were made for KIND at ADDRESS", and connecting again overwrites them (`../protocol/forge.md`, at start) |
   | not set up | an owned forge not prepared yet (`../protocol/setup.md`, 6.5): under the box, "Not set up", with "Set up a Forgejo here"; without it, "Not set up: start temper with temper box", with no action, since its group is the box's (`../protocol/setup.md`, 7.4) |
   | setting up | the box runs its steps, asked: "Setting up: fetching", "Setting up: preparing" or "Setting up: starting", by the box's last word of the step it runs, else "Setting up" (`../protocol/setup.md`, 7.1); while it fetches, how far the row says, "Setting up: fetching Forgejo · 42%", then "Setting up: fetching its runner · 80%", the percentage `done × 100 / total` rounded down, or with no size its bytes, "Setting up: fetching Forgejo · 41 MB", `done / 1000000` rounded down, each binary's own (`../protocol/setup.md`, 6.6); then "Connecting", as its handover is taken and reconciled (`../protocol/setup.md`, 5.1) |
-  | set up failed | "Set up failed: STEP", naming the box's step, or, after the box's `started`, the engine's step that stopped (taking the handover, reconciling, removing the handover file; `../protocol/setup.md`, 6.5), with `temper box`'s output for the rest until its `failed` line carries a reason; with "Set up again"; the engine and every other forge run on |
+  | set up failed | "Set up failed: STEP", naming the box's step, or, after the box's `started`, the engine's step that stopped (taking the handover, reconciling, removing the handover file; `../protocol/setup.md`, 6.5), with `temper box`'s output for the rest until its `failed` line carries a reason; with "Set up again"; on a managed Forgejo, the plan's step and why its start stopped at (`../protocol/setup.md`, 5.1), with Connect in its place; the engine and every other forge run on |
   | connecting | "Connecting": a run holds the forge, and what it waits for: a managed or owned Forgejo's reconcile, the forge's answers to a check, or GitHub's conversion of its App; on GitHub, also connected with no accepted installation, "Connecting: installed nowhere yet" with none, or "Connecting: no installation accepted yet" with strays alone, with "Install on GitHub". The person's browser on GitHub is no run, and shows nowhere |
   | connected | "Connected as LOGIN", the user the records hold: the bot's on Forgejo, the App's on GitHub; its id on an Account line |
   | stopped | "Stopped: WHY", the component's reason in words (its key or token refused, a user other than its own, an access it finds invalid, a refusal that asking again would not mend), with Replace where offered; an owned forge says "Restart temper box: its preparation mends it"; the engine and every other forge run on |
@@ -1104,10 +1109,10 @@ and its hold (2.5) follow.
 | each forge's connection, its mode, installations and actions (5.4, 5.5) | temper's `Forges` page; the deployment's part | `../protocol/forge.md`, at start, connecting at runtime, a forge stopped, GitHub's installations and the setup's host; `../protocol/credentials.md`, the forges' records |
 | the browser's steps of a connect (9.1) | none of jig's: temper's routes on the clients' listener | `../protocol/forge.md`, the setup's host |
 | a public project's changes and landings, for a visitor (section 11) | jig's public reads, `PublicRead`, of the forge's public kinds | `../domain/forge.md`, sections 8 and 9; `../domain/landing.md`, section 14 |
-| the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
+| the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages, `Chats` and `NewChat`; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
 | a person's facts: what they dismissed, the goals they started from a chat | the project's request `Dismiss` and the subject `dismissed`, of the party's own scope (`README.md`, 4.6): the forge side's facts, which no page reads (`README.md`, section 11) | `../domain/forge.md`, 5.5 |
-| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+| temper's settings: a landing rule's value, the forge's charter, a project's questions and ways, and a pending proposal's items of temper's kinds | the deployment's reads, and a project's reads of its own kinds (`../protocol/configuration.md`, 13.2, *Read from the forge*), `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
 
 The revision-qualified setting read serves an explicit set item from a
 retained revision. It uses jig's authenticated revision read to confirm

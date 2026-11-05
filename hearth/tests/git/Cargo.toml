@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 hearth-recordings.workspace = true
 skein-lib.workspace = true
-skein-world.workspace = true
+hearth-test-git.workspace = true
 hearth-protocol-git.workspace = true
 
 [dev-dependencies]

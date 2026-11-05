@@ -418,7 +418,7 @@ fn invalid_or_unoffered_cards_cannot_be_chosen() {
     pending.inbox.as_mut().unwrap().cards.get_mut(0).unwrap().key =
         Some(Key { asker: crate::owner::Owner::Pages.asker(), number: 1 });
     let mut task_page = fixture();
-    went(&mut task_page, Address::Task { task: f::TASK, filter: crate::PlanFilter::All });
+    went(&mut task_page, Address::Task { task: f::TASK });
     task_page.cards_mut().unwrap().push(fixture().inbox().unwrap().cards.get(0).unwrap().clone()).unwrap();
     let mut refused = fixture();
     let mut question = f::question();

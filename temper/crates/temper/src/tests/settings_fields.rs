@@ -187,8 +187,8 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // Stock has five charters, three templates, one policy and the rules.
-    const STOCK_VALUES: usize = 10;
+    // Stock has six charters, three templates, one policy and the rules.
+    const STOCK_VALUES: usize = 11;
     let llm = llm();
     let models = models(&llm);
     let stock = temper_service::stock::defaults(

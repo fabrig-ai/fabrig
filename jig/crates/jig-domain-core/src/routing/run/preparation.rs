@@ -12,21 +12,31 @@ use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
-pub(crate) fn brief_assembled(core: &mut Core, work: &mut Queue<Work>, task: u64, ready: bool) -> Queue<Request> {
+pub(crate) fn brief_assembled(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    task: u64,
+    failure: Option<brief::GatherFailure>,
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    if !ready {
-        work.push(Work::PreparationFailed { task });
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        return out;
+    if let Some(failure) = failure {
+        return route_preparation_failed(core, work, task, failure);
     }
     let Some(context) = core.contexts.get(&task).cloned() else {
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
     };
     let Some(attempt) = crate::fresh(&mut core.counters, crate::Family::Run) else {
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        return out;
+        return route_preparation_failed(
+            core,
+            work,
+            task,
+            brief::GatherFailure {
+                fate: brief::GatherFate::Permanent,
+                section: b"run",
+                words: b"no attempt number is left",
+            },
+        );
     };
     assert!(core.workspace_flight(task).is_none(), "one workspace flight per task");
     core.fly(crate::routing::flight::Flight::Workspace { task, attempt });
@@ -34,22 +44,26 @@ pub(crate) fn brief_assembled(core: &mut Core, work: &mut Queue<Work>, task: u64
     out
 }
 
+pub(crate) struct Prepared {
+    pub writes: Option<Box<[authority::Write]>>,
+    pub holds: Box<[tasks::Name]>,
+    pub credentials: Box<[u32]>,
+    pub workspace: Option<Box<[u8]>>,
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one fenced preparation builds the exact allowance, grants and claim together"
 )]
-#[expect(clippy::too_many_arguments, reason = "workspace preparation retains its fenced event fields")]
 pub(crate) fn workspace_prepared(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     task: u64,
     attempt: u64,
-    writes: Option<Box<[authority::Write]>>,
-    holds: Box<[tasks::Name]>,
-    credentials: Box<[u32]>,
-    workspace: Option<Box<[u8]>>,
+    prepared: Prepared,
 ) -> Queue<Request> {
+    let Prepared { writes, holds, credentials, workspace } = prepared;
     let mut out = Queue::uncapped();
     let Some((token, issued)) = core.workspace_flight(task) else { return out };
     if issued != attempt {
@@ -86,7 +100,15 @@ pub(crate) fn workspace_prepared(
                 out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
                 return out;
             }
-            return super::jobs::prepared(core, env, work, context, attempt, writes, holds, workspace);
+            return super::jobs::prepared(
+                core,
+                env,
+                work,
+                context,
+                attempt,
+                writes,
+                super::jobs::JobItems { holds, workspace },
+            );
         }
         tasks::Executor::Agent { .. } => {}
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("workspace executor"),
@@ -126,9 +148,16 @@ pub(crate) fn workspace_prepared(
         }
     }
     if !core.proofs.contains_key(&task) && core.proofs.len() == core.proofs.capacity() {
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        return out;
+        return route_preparation_failed(
+            core,
+            work,
+            task,
+            brief::GatherFailure {
+                fate: brief::GatherFate::Capacity,
+                section: b"run",
+                words: b"no room for its proof",
+            },
+        );
     }
     let resume = !transcript.closed
         && core.charter_of(task).policy.resume
@@ -362,7 +391,14 @@ pub(crate) fn plan_brief(
     };
     let mut wanted = List::with_capacity(env.limits.brief.sections);
     let Some(task_text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::Spec) else {
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+        work.push(Work::PreparationFailed {
+            task,
+            failure: brief::GatherFailure {
+                fate: brief::GatherFate::Permanent,
+                section: b"task",
+                words: b"could not be read within its bounds",
+            },
+        });
         return out;
     };
     wanted
@@ -376,7 +412,14 @@ pub(crate) fn plan_brief(
         .expect("task brief room");
     if !context.dependencies.is_empty() || !context.spec.inputs.is_empty() {
         let Some(text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::Dependencies) else {
-            work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+            work.push(Work::PreparationFailed {
+                task,
+                failure: brief::GatherFailure {
+                    fate: brief::GatherFate::Permanent,
+                    section: b"results",
+                    words: b"could not be read within its bounds",
+                },
+            });
             return out;
         };
         wanted
@@ -391,7 +434,14 @@ pub(crate) fn plan_brief(
     }
     if tail_wanted(core, task, context.tries.transient != 0) {
         let Some(text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::TranscriptTail) else {
-            work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+            work.push(Work::PreparationFailed {
+                task,
+                failure: brief::GatherFailure {
+                    fate: brief::GatherFate::Permanent,
+                    section: b"transcript",
+                    words: b"could not be read within its bounds",
+                },
+            });
             return out;
         };
         wanted
@@ -442,6 +492,7 @@ pub(crate) fn plan_brief(
         let token = Token::new(u64::try_from(index).expect("document index").checked_add(1).expect("document token"));
         wanted
             .push(brief::Planned::Connector {
+                name: b"document",
                 connector: document.connector,
                 kind: crate::DOCUMENT_KIND,
                 token,
@@ -497,15 +548,11 @@ pub(crate) fn plan_note_index(
     }
 }
 
-/// The window a preparation loads: the proof's, unless a fresh retry starts an open one over.
+/// Load the saved window for its tail even when a transient retry cannot resume it.
 fn transcript_from(core: &Core, context: &tasks::RunContext) -> Option<(u64, u32)> {
     let proof = core.proofs.get(&context.task)?;
     let window = proof.window?;
-    if context.tries.transient == 0 || proof.crossed || window.closed {
-        Some((window.attempt, window.turn))
-    } else {
-        None
-    }
+    Some((window.attempt, window.turn))
 }
 
 fn prepare_agent(
@@ -593,14 +640,37 @@ pub(crate) fn route_activate(
     out
 }
 
-pub(crate) fn route_preparation_failed(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
+pub(crate) fn route_preparation_failed(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    task: u64,
+    failure: brief::GatherFailure,
+) -> Queue<Request> {
     drop(core.job_workspaces.remove(&task));
     super::results::clear(core, task);
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
     drop(core.transcripts.remove(&task));
-    work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
-    Queue::uncapped()
+    let mut out = Queue::uncapped();
+    let event = preparation_failure(task, failure, &mut out);
+    work.push(Work::Event(Event::Tasks(event)));
+    out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
+    out
+}
+
+/// One classification and log route for every brief failure (engine.md, 9.1).
+pub(crate) fn preparation_failure(task: u64, failure: brief::GatherFailure, out: &mut Queue<Request>) -> tasks::Event {
+    out.push(Request::Now(Box::new(Now::BriefFailed { task, failure })));
+    let reason = failure.reason();
+    match failure.fate {
+        brief::GatherFate::Capacity => tasks::Event::PreparationPaused { task, reason },
+        brief::GatherFate::Transient => {
+            tasks::Event::PreparationCounted { task, class: tasks::Class::Transient, reason }
+        }
+        brief::GatherFate::Permanent => {
+            tasks::Event::PreparationCounted { task, class: tasks::Class::Permanent, reason }
+        }
+    }
 }
 
 pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
@@ -609,7 +679,12 @@ pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task:
         drop(core.job_workspaces.remove(&task));
         core.restore_replaced_proof(task);
         out.push(Request::Now(Box::new(Now::DropAssignment { task })));
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+        let event = preparation_failure(
+            task,
+            brief::GatherFailure { fate: brief::GatherFate::Capacity, section: b"claim", words: b"refused" },
+            &mut out,
+        );
+        work.push(Work::Event(Event::Tasks(event)));
     }
     out
 }
@@ -686,12 +761,30 @@ pub(crate) fn transcript_loaded(
         return Queue::uncapped();
     }
     match load {
-        crate::routing::TranscriptLoad::Failed => route_preparation_failed(core, work, task),
+        crate::routing::TranscriptLoad::Failed => route_preparation_failed(
+            core,
+            work,
+            task,
+            brief::GatherFailure {
+                fate: brief::GatherFate::Transient,
+                section: b"transcript",
+                words: b"its window could not be loaded",
+            },
+        ),
         crate::routing::TranscriptLoad::Unread => transcript_unread(core, work, task),
         crate::routing::TranscriptLoad::Page { rows, done } => {
             for (row, text) in rows {
                 if !core.append_transcript(task, row, text) {
-                    return route_preparation_failed(core, work, task);
+                    return route_preparation_failed(
+                        core,
+                        work,
+                        task,
+                        brief::GatherFailure {
+                            fate: brief::GatherFate::Transient,
+                            section: b"transcript",
+                            words: b"its window could not be loaded",
+                        },
+                    );
                 }
             }
             if done {
@@ -706,18 +799,28 @@ pub(crate) fn transcript_loaded(
 }
 
 pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
+    let retry = match core.contexts.get(&task) {
+        Some(context) => context.tries.transient > 0,
+        None => false,
+    };
     if let Some(transcript) = core.transcripts.get(&task)
-        && transcript.closed
+        && (transcript.closed || retry)
     {
         let previous_attempt = transcript.previous_attempt;
         drop(core.transcripts.remove(&task));
         core.begin_transcript(task, previous_attempt, None);
         work.push(Work::StartBrief { task });
     } else if core.transcripts.remove(&task).is_some() {
-        super::results::clear(core, task);
-        drop(core.contexts.remove(&task));
-        drop(core.dependency_results.remove(&task));
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationUnread { task })));
+        return route_preparation_failed(
+            core,
+            work,
+            task,
+            brief::GatherFailure {
+                fate: brief::GatherFate::Transient,
+                section: b"transcript",
+                words: b"its window could not be read",
+            },
+        );
     }
     Queue::uncapped()
 }
