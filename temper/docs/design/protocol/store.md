@@ -121,8 +121,10 @@ section 7).
   goal branch it follows with its last run's tip, failures and start;
   29 `Verification`, keyed by repository and landing
   commit, a landing's tier verdicts, the failures blamed on it and what
-  repaired it, the run and the landing; 30 `LandingLog`, keyed by repository, its last landings
-  with their times, changes, trailers and verdicts; 31 `Finding`, 32
+  repaired it, the run and the landing; 30 `LandingLog`, keyed by repository, one row, a ring of its last
+  `landings_kept` landings, each its commit, branch and time, its changes,
+  each with its task, pull request and title (at most 256 bytes), its
+  trailers and its verdicts, erased with its repository; 31 `Finding`, 32
   `Mark` and 33 `QaPass`. A
   receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
   section 2), and the `Change` family's `Landed` state means verifying,

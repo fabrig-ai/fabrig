@@ -39,6 +39,7 @@ pub const fn open(address: &Address) -> bool {
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
@@ -69,6 +70,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => Address::ConnectModel { way },
@@ -87,6 +89,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => return None,

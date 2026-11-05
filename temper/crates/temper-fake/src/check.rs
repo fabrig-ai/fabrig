@@ -163,6 +163,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::ForgeNumber { .. }
             | d::Stored::Playground(_)
             | d::Stored::Tier(_)
+            | d::Stored::LandingLog(_)
             | d::Stored::Verification(_) => {}
         }
     }
