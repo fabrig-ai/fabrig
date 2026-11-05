@@ -2,7 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, 4.6, 8: *Home on any project*'s kicker, headline, lede, byline, Goals and foot, the request `Looked` and the subject `status`: plan `ui-home-status`, so Home still draws the day and time and the needs alone. 3.4, 5.5: the composer's
+- **Not yet:** 3.5: *Home on any project*'s kicker, headline, lede, byline, Goals and foot: plan `ui-home-status`, so Home still draws the day and time and the needs alone. 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries.
   5.3: the banner's "Board" and "Changes", on a page that is no project's:
