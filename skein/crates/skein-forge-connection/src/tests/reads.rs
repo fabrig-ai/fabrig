@@ -709,7 +709,7 @@ fn json_body_demands_are_batched_across_bounded_pumps() {
     let body = joined(&[br#"{"id":2,"login":"writer","ignored":["#, &fixtures::filled(180, b' '), b"]}"]);
     let response = fixtures::ok(&body);
     let mut h = fixtures::ConnectionHarness::new();
-    h.start(fixtures::forgejo_exchange(request::Request::User, None)).expect("user request");
+    h.start_forgejo(request::Request::User, None).expect("user request");
     let heard = h.buffered_answer(&response, response.len(), false);
     user_decoded(&heard);
     assert_eq!(h.connection.phase, Phase::Idle);
@@ -734,7 +734,7 @@ fn user_decoded(heard: &skein_lib::List<skein_forge::forgejo::plans::Heard>) {
 }
 
 fn user_request(h: &mut fixtures::ConnectionHarness) {
-    h.start(fixtures::forgejo_exchange(skein_forge::forgejo::request::Request::User, None)).expect("user request");
+    h.start_forgejo(skein_forge::forgejo::request::Request::User, None).expect("user request");
 }
 
 #[test]

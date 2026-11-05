@@ -43,7 +43,7 @@ fn handshake_bytes_do_not_write_an_exchange() {
 #[test]
 fn a_connected_notice_keeps_the_in_flight_exchange() {
     let mut h = f::ConnectionHarness::new();
-    h.start(f::forgejo_exchange(skein_forge::forgejo::request::Request::User, None)).expect("user request");
+    h.start_forgejo(skein_forge::forgejo::request::Request::User, None).expect("user request");
     h.pump();
     h.connection.connect(&h.env);
     assert!(h.connection.in_flight(), "the exchange still belongs to its holder");

@@ -1,6 +1,5 @@
 //! The complete GitHub handoff, held at simultaneous peak and released at its terminals.
 use super::*;
-use crate::tests::fixtures::Exchange as Pending;
 use crate::tests::fixtures::{self as f, ConnectionHarness};
 use crate::{connection::Failure, settings::Transport};
 use github::plans::plan::{Comparison, Exchange as GitHubExchange, Retention};
@@ -13,14 +12,14 @@ fn peak(h: &mut ConnectionHarness) {
         path: f::filled(size, b'p'),
         commit: [0; 32],
     };
-    h.start(Pending::GitHub {
-        exchange: GitHubExchange {
+    h.start_github(
+        GitHubExchange {
             request,
             retention: Some(Retention::Whole { bytes: f::shared().answer_bytes }),
             comparison: Comparison::MergeBase,
         },
-        authorization: Some(Secret::new(Box::from(b"Bearer test-token".as_slice()))),
-    })
+        Some(Secret::new(Box::from(b"Bearer test-token".as_slice()))),
+    )
     .expect("maximum exchange encodes");
 }
 fn retained(h: &ConnectionHarness) -> &GitHubExchange {
@@ -57,8 +56,8 @@ fn github_exchange_handoff_is_dropped_at_its_answer_and_replaced() {
     peak(&mut h);
     h.github_answer(&f::ok(b""));
     assert!(h.github.request.is_none(), "answer releases the handoff");
-    h.start(Pending::GitHub {
-        exchange: GitHubExchange {
+    h.start_github(
+        GitHubExchange {
             request: github::request::Request::Raw {
                 owner: Box::from(b"a".as_slice()),
                 name: Box::from(b"b".as_slice()),
@@ -68,8 +67,8 @@ fn github_exchange_handoff_is_dropped_at_its_answer_and_replaced() {
             retention: Some(Retention::Head { bytes: 1 }),
             comparison: Comparison::Full,
         },
-        authorization: Some(Secret::new(Box::from(b"Bearer test-token".as_slice()))),
-    })
+        Some(Secret::new(Box::from(b"Bearer test-token".as_slice()))),
+    )
     .expect("replacement request");
     let exchange = retained(&h);
     assert_eq!(exchange.retention, Some(Retention::Head { bytes: 1 }));
@@ -83,14 +82,14 @@ fn github_followed_request_sends_exact_bytes_without_authorization_or_range() {
     let mut h = ConnectionHarness::github();
     h.forge.transport = Transport::Plaintext { name: Some(redirect.origin.host.clone()) };
     h.forge.address = skein_io::Addr::Ip(([127, 0, 0, 1], redirect.origin.port).into());
-    h.start(Pending::GitHub {
-        exchange: GitHubExchange {
+    h.start_github(
+        GitHubExchange {
             request: github::redirect::request(&redirect),
             retention: Some(Retention::Tail { bytes: 8 }),
             comparison: Comparison::Full,
         },
-        authorization: None,
-    })
+        None,
+    )
     .expect("followed request encodes");
     h.github_answer(&f::ok(b"log"));
     assert_eq!(h.sent.as_ref(), b"GET /job%2Fpart?signature=invented HTTP/1.1\r\nHost: logs.example.test\r\nUser-Agent: kit/0.0.0\r\nAccept: application/vnd.github+json\r\nX-GitHub-Api-Version: 2026-03-10\r\n\r\n");

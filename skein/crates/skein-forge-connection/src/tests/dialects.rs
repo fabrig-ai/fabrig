@@ -1,5 +1,4 @@
 //! Both dialects over one bounded HTTP connection, with no socket or held credential.
-use super::fixtures::Exchange;
 use super::fixtures::{self, ConnectionHarness};
 use crate::connection::Phase;
 use alloc::boxed::Box;
@@ -47,14 +46,14 @@ fn start(h: &mut ConnectionHarness, request: Request, token: Option<&[u8]>) {
         Some(token) => Some(credential::bearer(&Secret::new(Box::from(token))).expect("artificial token")),
         None => None,
     };
-    h.start(Exchange::GitHub {
-        exchange: skein_forge::github::plans::plan::Exchange {
+    h.start_github(
+        skein_forge::github::plans::plan::Exchange {
             request,
             retention: None,
             comparison: skein_forge::github::plans::plan::Comparison::Full,
         },
         authorization,
-    })
+    )
     .expect("valid GitHub request");
 }
 fn begun(request: Request) -> ConnectionHarness {
