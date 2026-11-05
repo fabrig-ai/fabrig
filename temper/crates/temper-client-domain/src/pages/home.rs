@@ -192,7 +192,8 @@ pub fn facts(root: &Domain, project: u32) -> Facts {
     };
     Facts { configured, repository, chat_asked, needs, delivered, skip, skip_refused }
 }
-fn repository(root: &Domain, project: u32) -> Repository {
+#[must_use]
+pub fn repository(root: &Domain, project: u32) -> Repository {
     use forge::listed::Held;
     match forge::listed::held(root.forges(), root.forge().playground(), project) {
         Held::One { owner, name } | Held::Several { owner, name, .. } => {

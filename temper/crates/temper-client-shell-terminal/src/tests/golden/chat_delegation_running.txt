@@ -38,5 +38,5 @@ Conversation:
     wait
 Using the default model
 [12] Message: (empty) (enter sends)
-Enter to send · Shift+Enter for newline
+Enter sends · Shift+Enter for a new line
 [13] Send

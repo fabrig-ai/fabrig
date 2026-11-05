@@ -906,7 +906,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             chat.see(&mut pages.serial, out);
         }
     } else if let Some(chats) = &mut pages.chats {
-        if !chats.told(told.clone(), out) {
+        if !chats.told(told.clone(), &pages.address, out) {
             return match &mut pages.inbox {
                 Some(inbox) => inbox.told(client, told, out),
                 None => false,

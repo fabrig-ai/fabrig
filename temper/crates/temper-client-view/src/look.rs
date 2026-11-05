@@ -1,29 +1,31 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
-/// A configuring chat's status, spend and controls (client/README.md, 3.5).
-pub const SESSION_ACTIONS: Style = Style { owner: owner(), token: 246 };
+/// A session's byline, status, spend and controls (client/README.md, 3.5).
+pub const SESSION_RIGHT: Style = Style { owner: owner(), token: 246 };
+/// A new chat's centred repository context (client/README.md, 3.5).
+pub const META_LINE: Style = Style { owner: owner(), token: 248 };
 /// A configuring chat's tag in Chats (client/README.md, 3.5).
 pub const CONFIGURING_TAG: Style = Style { owner: owner(), token: 247 };
-/// A configuring session’s main. (client/README.md, 3.5).
+/// A session’s main. (client/README.md, 3.5).
 pub const SESSION: Style = Style { owner: owner(), token: 234 };
-/// The configuring layout’s path and runs’ line. (client/README.md, 3.5).
+/// The session’s path and runs’ line. (client/README.md, 3.5).
 pub const SESSION_TOP: Style = Style { owner: owner(), token: 235 };
-/// The configuring session’s composer form. (client/README.md, 3.5).
+/// The session’s composer form. (client/README.md, 3.5).
 pub const SESSION_FOOT: Style = Style { owner: owner(), token: 236 };
-/// The configuring session’s text area and Send. (client/README.md, 3.5).
+/// The session’s text area and Send. (client/README.md, 3.5).
 pub const SESSION_COMPOSER: Style = Style { owner: owner(), token: 237 };
-/// The configuring session’s keyboard hint. (client/README.md, 3.5).
+/// The session’s keyboard hint. (client/README.md, 3.5).
 pub const SESSION_HINT: Style = Style { owner: owner(), token: 238 };
-/// The configuring session’s conversation region. (client/README.md, 3.5).
+/// The session’s conversation region. (client/README.md, 3.5).
 pub const CONVO: Style = Style { owner: owner(), token: 239 };
-/// The configuring layout’s Where navigation. (client/README.md, 3.5).
+/// The session’s Where navigation. (client/README.md, 3.5).
 pub const CRUMBS: Style = Style { owner: owner(), token: 240 };
-/// The phone’s link back to Settings. (client/README.md, 3.5).
+/// The phone’s link back to Chats or Settings. (client/README.md, 3.5).
 pub const BACK: Style = Style { owner: owner(), token: 241 };
-/// The wide page’s path through Home and Settings. (client/README.md, 3.5).
+/// The wide page’s path through Home and Chats or Settings. (client/README.md, 3.5).
 pub const TRAIL: Style = Style { owner: owner(), token: 242 };
-/// The configuring layout’s account and model line. (client/README.md, 3.5).
+/// The session’s account and model line. (client/README.md, 3.5).
 pub const BYLINE: Style = Style { owner: owner(), token: 243 };
 /// The configuring agent’s introduction and starters. (client/README.md, 3.5).
 pub const STARTER: Style = Style { owner: owner(), token: 244 };
@@ -725,8 +727,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-byline",
         b"temper-starter",
         b"temper-starters",
-        b"temper-session-actions",
+        b"temper-session-right",
         b"temper-configuring-tag",
+        b"temper-meta-line",
     ],
     regions: &[b"temper-link"],
 };

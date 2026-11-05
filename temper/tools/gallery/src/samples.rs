@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 111;
+pub const N: usize = 113;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -203,6 +203,8 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
+        Sample { name: "chat-new", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample { name: "chat-new-no-repository", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
@@ -404,6 +406,7 @@ fn special_mockup(name: &str) -> Option<String> {
     None
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one match keeps gallery addresses and mock states together")]
 pub fn mockup(sample: &Sample) -> Option<String> {
     if let Then::Paste(frame) = sample.then {
         return Some(format!(
@@ -452,7 +455,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         World::Bare => return None,
     };
     let (page, task) = match sample.address {
-        Address::Chats { .. } | Address::NewChat => ("chats", None),
+        Address::NewChat => return Some("chat.html?id=new".to_owned()),
+        Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::Inbox { .. } => ("inbox", None),
         Address::Accounts => ("accounts", None),
@@ -510,6 +514,15 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("chat-new") {
+        let mut root = home_domain(if sample.name == "chat-new" { "home-ready" } else { "home-no-repository" });
+        step(
+            &mut root,
+            Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+            &mut Queue::uncapped(),
+        );
+        return root;
+    }
     if sample.name.starts_with("configure") {
         return configure_domain(sample);
     }

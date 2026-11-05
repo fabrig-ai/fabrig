@@ -65,7 +65,7 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
         assert_eq!(styled(tree, look::SESSION)[0].styles.as_slice(), [look::MAIN, look::SESSION]);
         for (style, expected) in [
             (look::SESSION, vec![(Role::Slot, vec![look::SESSION_TOP]), (Role::Region, vec![look::CONVO])]),
-            (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Paragraph, vec![look::BYLINE])]),
+            (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Slot, vec![look::SESSION_RIGHT])]),
             (
                 look::CRUMBS,
                 vec![
@@ -112,7 +112,7 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
         assert_eq!(styled(tree, look::STARTER)[1].name.as_deref(), Some(AGENT.as_bytes()));
         assert_eq!(
             styled(tree, look::SESSION_HINT)[0].name.as_deref(),
-            Some(b"Enter to send \xc2\xb7 Shift+Enter for newline".as_slice())
+            Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line".as_slice())
         );
         let starters: Vec<_> = styled(tree, look::STARTERS)
             .iter()

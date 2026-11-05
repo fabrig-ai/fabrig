@@ -24,15 +24,6 @@ fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], ac
     }
     b.close();
 }
-/// Enter and Start share the composer's send readiness (client/README.md, 3.5 and 5.6):
-/// the model is usable, no playground start is pending or failed, and no chat start is in flight.
-fn ready_to_start(root: &Domain) -> bool {
-    let Some(chats) = root.pages().chats() else { return false };
-    crate::choice::can_send(root)
-        && chats.start.is_none()
-        && !root.forge().playground_starting()
-        && root.forge().playground_failure().is_none()
-}
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -79,7 +70,7 @@ pub(crate) fn main(
             }
             b.close();
         }
-        let ready = ready_to_start(root);
+        let ready = super::new_chat::ready_to_start(root);
         if !ready {
             bindings.block_submissions();
         }
@@ -88,9 +79,6 @@ pub(crate) fn main(
         b.open(Role::TextArea);
         b.name(&words.say(Word::StartChat, &[]));
         b.placeholder(&words.say(Word::DescribeChange, &[]));
-        if *root.pages().address() == Address::NewChat && root.pages().switcher().renaming().is_none() {
-            b.focus(0);
-        }
         if ready {
             b.state(State::SubmitsOnEnter);
         }
@@ -272,7 +260,7 @@ fn start(b: &mut Builder, root: &Domain, words: &Words) {
         Some(Word::PlaygroundNotStarted)
     } else if root.forge().playground_starting() {
         Some(Word::PlaygroundStarting)
-    } else if playground_start(root).is_some() || ready_to_start(root) {
+    } else if playground_start(root).is_some() || super::new_chat::ready_to_start(root) {
         Some(Word::Ready)
     } else {
         None
