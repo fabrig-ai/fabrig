@@ -106,6 +106,50 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-computed",
+        heading: "2 changes landed since you last looked. Nothing needs you.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Today · Thursday 22 October · 21:19 · you last looked 9 hours ago",
+            },
+            Part::Text { text: "3 queued" },
+            Part::Text { text: "last landed 6 min ago" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
+        name: "home-last-looked-none",
+        heading: "2 changes landed since you last looked. Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Today · Thursday 22 October · 21:19" },
+            Part::Text { text: "3 queued" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
+        name: "home-landing-none",
+        heading: "Nothing needs you.",
+        parts: &[Part::Text { text: "nothing has landed yet" }, Part::Named { role: Role::Link, name: "Changes" }],
+    },
+    Holds {
+        name: "home-landing-red",
+        heading: "2 changes landed since you last looked. Nothing needs you.",
+        parts: &[
+            Part::Text { text: "main last moved 1 h ago" },
+            Part::Text { text: "nothing queued" },
+            Part::Text { text: "main red" },
+        ],
+    },
+    Holds {
+        name: "home-chats-sentence",
+        heading: "Nothing needs you.",
+        parts: &[Part::Named {
+            role: Role::Paragraph,
+            name: "A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing.",
+        }],
+    },
+    Holds {
         name: "home-three-left",
         heading: "Hello is ready.",
         parts: &[

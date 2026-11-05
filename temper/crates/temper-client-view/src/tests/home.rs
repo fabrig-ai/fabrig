@@ -219,14 +219,16 @@ use jig_client::contract as c;
 use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
+fn home_limits() -> d::Limits {
+    let mut limits = f::domain_limits();
+    // Home's nine handles plus the goal-presence watch and ended read (README.md, 3.5).
+    limits.client.domain.handles = 11;
+    limits.client.domain.watches = 11;
+    limits
+}
 fn drive(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
     let mut out = Queue::uncapped();
-    d::step(
-        root,
-        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
-        event,
-        &mut out,
-    );
+    d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: home_limits() }, event, &mut out);
     out
 }
 fn deliver(root: &mut d::Domain, watch: Token, value: c::Delivery) {
@@ -268,7 +270,6 @@ fn home_documents(
 ) -> (d::Domain, Token) {
     home_documents_with_reads(rows, configured, chat, needs, chats, Some(&[]), true)
 }
-#[expect(clippy::disallowed_methods, reason = "test fixtures deliver Home documents through public events")]
 fn home_documents_with_reads(
     rows: List<w::ForgeRow>,
     configured: bool,
@@ -278,9 +279,32 @@ fn home_documents_with_reads(
     dismissed: Option<&[u32]>,
     settings_delivered: bool,
 ) -> (d::Domain, Token) {
+    home_documents_with_status(rows, configured, chat, needs, chats, dismissed, settings_delivered, None)
+}
+struct StatusFixture {
+    document: w::ProjectStatus,
+    answered: bool,
+    goals: bool,
+}
+#[expect(
+    clippy::disallowed_methods,
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "one fixture delivers Home documents and their public replies together"
+)]
+fn home_documents_with_status(
+    rows: List<w::ForgeRow>,
+    configured: bool,
+    chat: bool,
+    needs: Option<NeedsFixture<'_>>,
+    chats: Option<ChatFixture>,
+    dismissed: Option<&[u32]>,
+    settings_delivered: bool,
+    status: Option<&StatusFixture>,
+) -> (d::Domain, Token) {
     let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_dismissals(
         Address::Settings { project: f::PROJECT },
-        &f::domain_limits(),
+        &home_limits(),
         b"Shop",
         None,
         None,
@@ -293,6 +317,17 @@ fn home_documents_with_reads(
     let member = me.projects.get_mut(0).unwrap();
     member.role = c::HeldRole::Owner;
     member.templates = template_me.projects.get(0).unwrap().templates.clone();
+    if status.is_some_and(|fixture| fixture.goals) {
+        let mut goal = member.templates.get(0).unwrap().clone();
+        goal.number = jig_client::shapes::GOAL;
+        goal.tracked = Some(1);
+        let mut templates = List::uncapped();
+        for template in &member.templates {
+            templates.push(template.clone()).unwrap();
+        }
+        templates.push(goal).unwrap();
+        member.templates = templates;
+    }
     member.models = List::with_capacity(1);
     member
         .models
@@ -306,8 +341,22 @@ fn home_documents_with_reads(
             efforts: List::with_capacity(0),
         })
         .unwrap();
-    f::deliver_me(&mut root, me_watch, me);
-    let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
+    let mut out = drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+    );
+    let mut entered =
+        drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
+    while let Some(request) = entered.pop() {
+        out.push(request);
+    }
     let mut settings = None;
     let mut live = None;
     for request in &out {
@@ -320,8 +369,9 @@ fn home_documents_with_reads(
         {
             match subject {
                 c::Subject::Settings => settings = Some(*watch),
-                c::Subject::Tasks { .. } => live = Some(*watch),
-                c::Subject::Me
+                c::Subject::Tasks { query, .. } if query.tracked != Some(true) => live = Some(*watch),
+                c::Subject::Tasks { .. }
+                | c::Subject::Me
                 | c::Subject::Task { .. }
                 | c::Subject::Tree { .. }
                 | c::Subject::Chips { .. }
@@ -374,7 +424,7 @@ fn home_documents_with_reads(
     while let Some(request) = refreshed.pop() {
         out.push(request);
     }
-    settle_home(&mut root, &mut out, needs.as_ref(), chats.as_ref());
+    settle_home(&mut root, &mut out, needs.as_ref(), chats.as_ref(), status);
     (root, accounts.unwrap())
 }
 fn read_done(root: &mut d::Domain, read: Token, value: c::ReadValue) -> Queue<d::Request> {
@@ -432,6 +482,7 @@ fn home_need_page(object: c::ObjectKey) -> c::ReadValue {
 }
 #[expect(
     clippy::disallowed_methods,
+    clippy::too_many_lines,
     reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
 )]
 fn settle_home(
@@ -439,10 +490,82 @@ fn settle_home(
     out: &mut Queue<d::Request>,
     needs: Option<&NeedsFixture<'_>>,
     chats: Option<&ChatFixture>,
+    status: Option<&StatusFixture>,
 ) {
     while let Some(request) = out.pop() {
         let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let mut more = match down {
+            jig_client::Down::Open { watch, subject }
+                if Some(&subject) == d::forge::status::watch(f::PROJECT, &home_limits().forge).as_ref()
+                    && status.is_some() =>
+            {
+                let status = status.unwrap();
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::project_status(&status.document),
+                                },
+                            },
+                        },
+                    },
+                )
+            }
+            jig_client::Down::Send { attempt, request, .. }
+                if Some(&request) == d::forge::status::ask(f::PROJECT, &home_limits().forge).as_ref()
+                    && status.is_some_and(|status| status.answered) =>
+            {
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                why: None,
+                                answer: Some(jig_client::Answered::Family(jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::answer(
+                                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked })
+                                            .unwrap(),
+                                    ),
+                                })),
+                            },
+                        },
+                    },
+                )
+            }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) }
+                if query.tracked == Some(true) =>
+            {
+                let mut rows = List::uncapped();
+                if status.is_some_and(|fixture| fixture.goals) {
+                    let mut goal = super::chats::line();
+                    goal.tracked = Some(1);
+                    rows.push(goal).unwrap();
+                }
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Watched {
+                                watch,
+                                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                                    rows,
+                                    more: false,
+                                }))),
+                            },
+                        },
+                    },
+                )
+            }
+
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) }
                 if needs.is_some() =>
             {
@@ -1251,7 +1374,7 @@ fn chats_keep_live_then_ended_status_age_names_and_events() {
             assert_eq!(region.role, Role::Region);
             assert_eq!(region.name.as_deref(), Some(b"Chats".as_slice()));
             let parts = children(subtree(view.tree(), region.id));
-            assert_eq!(parts.len(), 2);
+            assert_eq!(parts.len(), 3);
             assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
             assert_eq!(parts[1].styles.as_slice(), &[crate::look::HOME_ROWS]);
             let heading = children(subtree(view.tree(), parts[0].id));
@@ -1684,5 +1807,213 @@ fn settings_configure_link_opens_the_delivered_configuring_chat_in_both_shells()
         );
         let text = f::main_text(view.tree());
         assert!(skein_lib::bytes::find(&text, b"Hello").is_none(), "the watched row is not drawn on Settings");
+    }
+}
+
+// Four epoch days leave room for the table's three-day previous sitting.
+const STATUS_NOW: u64 = 345_600_000_000_000;
+const STATUS_MINUTE: u64 = 60_000_000_000;
+const CHAT_SENTENCE: &str = "A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing.";
+fn status_parts() -> w::ProjectStatusParts {
+    w::ProjectStatusParts {
+        project: f::PROJECT,
+        landed: 3,
+        last_landed: Some(STATUS_NOW - 6 * STATUS_MINUTE),
+        brief: None,
+        previous: Some(STATUS_NOW - 9 * 60 * STATUS_MINUTE),
+        seen: 1,
+        queued: 3,
+        red: false,
+        branch: b"main".as_slice().into(),
+    }
+}
+fn status_home(parts: w::ProjectStatusParts, answered: bool, beginning: bool, goals: bool) -> d::Domain {
+    let fixture = StatusFixture { document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(), answered, goals };
+    home_documents_with_status(
+        forge_rows(true),
+        !beginning,
+        !beginning,
+        Some(NeedsFixture { objects: &[], cut: false, read: true }),
+        None,
+        Some(&[]),
+        true,
+        Some(&fixture),
+    )
+    .0
+}
+fn status_view(root: &d::Domain, browser: bool) -> crate::View {
+    let mut view = f::view_of(if browser { f::browser_words() } else { f::words() });
+    crate::build(&mut view, root, skein_lib::Wall::from_nanos(STATUS_NOW), &mut Queue::uncapped());
+    view
+}
+fn kicker(root: &d::Domain, browser: bool) -> Box<[u8]> {
+    let view = status_view(root, browser);
+    styled(view.tree(), crate::look::HOME_KICKER).name.clone().unwrap()
+}
+#[test]
+fn the_kicker_says_when_you_last_looked() {
+    // The fractional spans prove the displayed unit is rounded down.
+    for (seconds, expected) in [
+        (61, "Today · Monday 5 January · 00:00 · you last looked a minute ago"),
+        (179, "Today · Monday 5 January · 00:00 · you last looked 2 minutes ago"),
+        (3601, "Today · Monday 5 January · 00:00 · you last looked an hour ago"),
+        (35_999, "Today · Monday 5 January · 00:00 · you last looked 9 hours ago"),
+        (86_401, "Today · Monday 5 January · 00:00 · you last looked a day ago"),
+        (259_201, "Today · Monday 5 January · 00:00 · you last looked 3 days ago"),
+    ] {
+        let mut parts = status_parts();
+        parts.previous = Some(STATUS_NOW - seconds * 1_000_000_000);
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            assert_eq!(kicker(&root, browser).as_ref(), expected.as_bytes());
+            contains(&printed(&status_view(&root, browser)), expected);
+        }
+    }
+}
+#[test]
+fn no_previous_says_nothing() {
+    let mut parts = status_parts();
+    parts.previous = None;
+    let root = status_home(parts, true, false, false);
+    for browser in [false, true] {
+        assert_eq!(kicker(&root, browser).as_ref(), "Today · Monday 5 January · 00:00".as_bytes());
+    }
+}
+#[test]
+fn under_a_minute_says_nothing() {
+    for seconds in [0, 59, 60] {
+        let mut parts = status_parts();
+        parts.previous = Some(STATUS_NOW - seconds * 1_000_000_000);
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            absent(&kicker(&root, browser), "you last looked");
+        }
+    }
+}
+#[test]
+fn the_headline_counts_what_landed() {
+    for (landed, seen, headline) in [
+        (0, 0, "Nothing needs you."),
+        (3, 3, "Nothing needs you."),
+        (3, 2, "One change landed since you last looked. Nothing needs you."),
+        (5, 2, "3 changes landed since you last looked. Nothing needs you."),
+    ] {
+        let mut parts = status_parts();
+        parts.landed = landed;
+        parts.seen = seen;
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
+            contains(&printed(&view), headline);
+        }
+    }
+}
+#[test]
+fn the_headline_is_as_now_until_status_is_shown() {
+    for root in
+        [Box::new(everyday(false, &[], false, true)), Box::new(status_home(status_parts(), false, false, false))]
+    {
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            main_find(view.tree(), Role::Heading { level: 1 }, b"Nothing needs you.");
+            let text = f::main_text(view.tree());
+            absent(&text, "you last looked");
+            absent(&text, "Landing:");
+        }
+    }
+}
+#[test]
+fn the_foot_says_what_is_queued() {
+    for (queued, last, red, branch, expected) in [
+        (
+            3,
+            Some(STATUS_NOW - 6 * STATUS_MINUTE),
+            false,
+            b"main".as_slice(),
+            "Landing: 3 queued · last landed 6 min ago · Changes",
+        ),
+        (
+            0,
+            Some(STATUS_NOW - 60 * STATUS_MINUTE),
+            false,
+            b"main".as_slice(),
+            "Landing: main last moved 1 h ago · nothing queued · Changes",
+        ),
+        (0, None, false, b"main".as_slice(), "Landing: nothing has landed yet · Changes"),
+        (0, None, true, b"main".as_slice(), "Landing: nothing has landed yet · main red · Changes"),
+        (0, None, true, b"".as_slice(), "Landing: nothing has landed yet · landing red · Changes"),
+    ] {
+        let mut parts = status_parts();
+        parts.queued = queued;
+        parts.last_landed = last;
+        parts.red = red;
+        parts.branch = branch.into();
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            let foot = children(main_nodes(view.tree())).last().copied().unwrap();
+            assert_eq!(foot.role, Role::Paragraph);
+            assert_eq!(foot.styles.as_slice(), &[crate::look::HOME_FACTS]);
+            let nodes = subtree(view.tree(), foot.id);
+            assert_eq!(f::nodes_text(nodes).as_ref(), expected.as_bytes());
+            if red {
+                let signal = styled(view.tree(), crate::look::CHANGES_RED);
+                assert!(f::nodes_text(subtree(view.tree(), signal.id)).starts_with(" · ".as_bytes()));
+            }
+            contains(&printed(&view), "Landing:");
+        }
+    }
+}
+#[test]
+fn the_foot_links_to_changes() {
+    let root = status_home(status_parts(), true, false, false);
+    for browser in [false, true] {
+        let mut view = status_view(&root, browser);
+        let foot = children(main_nodes(view.tree())).last().copied().unwrap();
+        let mut link = None;
+        for node in subtree(view.tree(), foot.id) {
+            if node.role == Role::Link {
+                link = Some(node.id);
+            }
+        }
+        let link = link.unwrap();
+        assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/projects/1/changes".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Changes { project: f::PROJECT } }))
+        );
+    }
+}
+#[test]
+fn no_foot_while_to_begin_shows() {
+    let root = status_home(status_parts(), true, true, false);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        main_find(view.tree(), Role::Heading { level: 1 }, b"Shop is ready.");
+        absent(&f::main_text(view.tree()), "Landing:");
+    }
+}
+#[test]
+fn chats_says_its_sentence_with_no_goal() {
+    for mut root in
+        [Box::new(home_chats(chat_fixture(1, 1, false, false))), Box::new(home_chats(chat_fixture(0, 0, false, false)))]
+    {
+        drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SkipToBegin) });
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            main_find(view.tree(), Role::Paragraph, CHAT_SENTENCE.as_bytes());
+            let region = styled(view.tree(), crate::look::HOME_CHATS);
+            let last = children(subtree(view.tree(), region.id)).last().copied().unwrap();
+            assert_eq!(last.name.as_deref(), Some(CHAT_SENTENCE.as_bytes()));
+            assert_eq!(last.styles.as_slice(), &[crate::look::HOME_FACTS]);
+        }
+    }
+}
+#[test]
+fn chats_has_no_sentence_with_a_goal() {
+    let root = status_home(status_parts(), true, false, true);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        absent(&f::main_text(view.tree()), CHAT_SENTENCE);
     }
 }
