@@ -41,7 +41,7 @@ fn live(client: &NativeClient) -> bool {
     named(client, Role::Status, b"Live").is_some() && named(client, Role::Status, b"Behind").is_none()
 }
 fn chats() -> Address {
-    Address::Chats { filter: ChatsFilter::All, start: false }
+    Address::Chats { filter: ChatsFilter::All }
 }
 impl Referee<NativeClient> for Judge {
     fn act(&mut self, now: Time, clients: &mut [NativeClient]) {

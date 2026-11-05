@@ -11,7 +11,7 @@ fn suggestions_show_only_in_the_playground_project() {
         ("no playground", f::PROJECT, true, false, false),
     ] {
         let root = if playground {
-            f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
+            f::playground_root(Address::Chats { filter: ChatsFilter::All }, project, model)
         } else {
             f::chats_root()
         };
@@ -40,7 +40,7 @@ fn suggestions_show_only_in_the_playground_project() {
 #[test]
 fn suggestion_buttons_wait_for_a_start_and_press_their_own_cue() {
     for (row, pending) in [("ready", false), ("start pending", true)] {
-        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
         if pending {
             for act in [Act::ChatWords { words: b"My draft".as_slice().into() }, Act::StartChat] {
                 f::root_event(&mut root, Event::Act { action: Action::Pages(act) });
@@ -87,7 +87,7 @@ fn the_playground_banner_is_absent_when_the_link_is_unavailable() {
         ("signed out", jig_client::Up::SignedOut),
         ("out of date", jig_client::Up::Served { served: false, versions: None }),
     ] {
-        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
         f::root_event(&mut root, Event::Client { event: jig_client::Event::Up { up } });
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Region, b"Playground").is_none(), "{row}");
@@ -163,7 +163,7 @@ fn the_playground_account_always_names_default_whatever_the_model_or_project() {
         let view = f::page_view(&root);
         assert!(skein_lib::bytes::find(&f::text(view.tree()), expected.as_bytes()).is_some(), "{row}");
     }
-    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
     assert!(
         f::find(f::page_view(&root).tree(), Role::Paragraph, "Using Scripted model · Default".as_bytes()).is_some()
     );
@@ -257,7 +257,7 @@ fn the_hidden_deployment_playground_account_needs_only_its_public_provider() {
 
 #[test]
 fn the_playground_chooser_names_the_provider_and_model_but_keeps_the_configured_choice() {
-    let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
     let mut view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"Playground").is_some());
     assert!(f::find(view.tree(), Role::Button, crate::words::SCRIPTED_MODEL).is_none());
@@ -295,11 +295,11 @@ fn the_playground_account_is_in_its_own_folded_section() {
 #[test]
 fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_project() {
     for (address, project, leaving, chats) in [
-        (Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, false, true),
+        (Address::Chats { filter: ChatsFilter::All }, f::PROJECT, false, true),
         (Address::Chat { task: 1 }, f::PROJECT, false, false),
-        (Address::Chats { filter: ChatsFilter::All, start: false }, f::SECOND_PROJECT, false, true),
+        (Address::Chats { filter: ChatsFilter::All }, f::SECOND_PROJECT, false, true),
         (Address::Chat { task: 1 }, f::SECOND_PROJECT, false, false),
-        (Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true, true),
+        (Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true, true),
         (Address::Chat { task: 1 }, f::PROJECT, true, false),
     ] {
         let (mut root, _, _, _, watch) =

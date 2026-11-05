@@ -307,9 +307,7 @@ fn unlisted_project_says_what_home_says_in_both_shells() {
         let node = named(view.tree(), Role::Link, b"Chats").id;
         assert_eq!(
             crate::act(&mut view, node, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go {
-                address: Address::Chats { filter: d::ChatsFilter::All, start: false }
-            }))
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Chats { filter: d::ChatsFilter::All } }))
         );
         assert!(f::find(view.tree(), Role::TextArea, ENTRY).is_none());
         assert!(f::find(view.tree(), Role::Button, STARTERS[0]).is_none());

@@ -49,6 +49,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::ConnectForge { .. }
             | Address::Inbox { .. }
             | Address::Chats { .. }
+            | Address::NewChat
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Home { .. }

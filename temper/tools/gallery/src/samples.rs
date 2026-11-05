@@ -62,7 +62,7 @@ pub struct Sample {
     pub then: Then,
 }
 pub const N: usize = 111;
-const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
+const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
 fn task(task: u64) -> Address {
@@ -452,7 +452,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         World::Bare => return None,
     };
     let (page, task) = match sample.address {
-        Address::Chats { .. } => ("chats", None),
+        Address::Chats { .. } | Address::NewChat => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::Inbox { .. } => ("inbox", None),
         Address::Accounts => ("accounts", None),
@@ -475,6 +475,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         }
         Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::NewChat
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges

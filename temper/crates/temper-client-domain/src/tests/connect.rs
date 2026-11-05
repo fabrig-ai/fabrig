@@ -635,7 +635,7 @@ fn the_client_that_set_up_leaves_the_made_repository_unadopted() {
     let (mut root, _, watch) = opened(true);
     let (attempt, _, _) = sent(setup(&mut root));
     reply(&mut root, attempt, w::Outcome::SettingUp);
-    event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) });
+    event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All }) });
     assert!(deliver_first(&mut root, watch, connected(), made()).is_empty());
     assert!(deliver_first(&mut root, watch, connected(), made()).is_empty());
 }

@@ -2,8 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.3: `NewChat`, `/chats/new`; `Chats` still has its
-  `?at=start`. 2.5: the Chats page and every chat in the greenfield mock's
+- **Not yet:** 2.5: the Chats page and every chat in the greenfield mock's
   rules. 7.2: the `chats-live`, `chats-closed`, `chats-no-repository`,
   `chat-new*`, `chat-working`, `chat-change-*`, `chat-goal` and
   `chat-byline-open` states. 7.1: a `home-*` state's title is its headline, then

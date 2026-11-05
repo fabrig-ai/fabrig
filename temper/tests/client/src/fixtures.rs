@@ -167,7 +167,7 @@ pub fn codec() -> jig_protocol_transcript::Limits {
 
 #[must_use]
 pub fn chats_page() -> temper_client_domain::Address {
-    temper_client_domain::Address::Chats { filter: temper_client_domain::ChatsFilter::All, start: false }
+    temper_client_domain::Address::Chats { filter: temper_client_domain::ChatsFilter::All }
 }
 #[must_use]
 pub fn chats(driver: &Driver) -> u32 {

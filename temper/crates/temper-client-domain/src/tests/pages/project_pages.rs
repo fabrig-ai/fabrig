@@ -106,7 +106,8 @@ fn switching_projects_keeps_home_settings_configure_or_chats() {
         (Address::Home { project: fixtures::PROJECT }, Some(Address::Home { project: OTHER })),
         (Address::Settings { project: fixtures::PROJECT }, Some(Address::Settings { project: OTHER })),
         (Address::Configure { project: fixtures::PROJECT }, Some(Address::Configure { project: OTHER })),
-        (Address::Chats { filter: ChatsFilter::All, start: false }, None),
+        (Address::Chats { filter: ChatsFilter::All }, None),
+        (Address::NewChat, None),
     ] {
         let mut f = fixture();
         deliver(&mut f, two_projects());

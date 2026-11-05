@@ -37,7 +37,7 @@ pub(crate) fn person() -> (Vec<Step<Address>>, Vec<u32>) {
     ];
     for (index, script) in scripts["asked"].as_array().expect("three suggested requests").iter().enumerate() {
         if index > 0 {
-            steps.push(Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } });
+            steps.push(Step::Go { address: Address::Chats { filter: ChatsFilter::All } });
             steps.push(see(Find::named(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes())));
         }
         steps.push(press(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes()));

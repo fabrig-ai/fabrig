@@ -88,9 +88,7 @@ pub(crate) fn main(
         b.open(Role::TextArea);
         b.name(&words.say(Word::StartChat, &[]));
         b.placeholder(&words.say(Word::DescribeChange, &[]));
-        if let Address::Chats { start: true, .. } = root.pages().address()
-            && root.pages().switcher().renaming().is_none()
-        {
+        if *root.pages().address() == Address::NewChat && root.pages().switcher().renaming().is_none() {
             b.focus(0);
         }
         if ready {
@@ -536,7 +534,7 @@ fn status_words(
 
 /// The playground whose start the Chats page shows (temper/docs/design/client/README.md, 4.8).
 pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::forge::Playground> {
-    let Address::Chats { .. } = root.pages().address() else { return None };
+    let (Address::Chats { .. } | Address::NewChat) = root.pages().address() else { return None };
     let playground = root.forge().playground()?;
     let selected = match playground.project {
         Some(project) => root.pages().project() == Some(project),

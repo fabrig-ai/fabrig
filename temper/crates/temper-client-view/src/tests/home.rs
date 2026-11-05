@@ -61,9 +61,7 @@ fn unlisted_projects_explain_and_link_to_chats() {
             let link = main_find(view.tree(), Role::Link, b"Chats");
             assert_eq!(
                 crate::act(&mut view, link, Act::Press),
-                Some(d::Action::Pages(d::pages::Act::Go {
-                    address: Address::Chats { filter: ChatsFilter::All, start: false },
-                }))
+                Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All } }))
             );
         }
         let view = f::page_view(&root);
@@ -773,12 +771,7 @@ fn home_repository_states_keep_their_words_and_events() {
                 b"Start",
                 d::pages::Act::Go { address: Address::Configure { project: f::PROJECT } },
             );
-            assert_action(
-                &mut view,
-                Role::Link,
-                b"New chat",
-                d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: true } },
-            );
+            assert_action(&mut view, Role::Link, b"New chat", d::pages::Act::Go { address: Address::NewChat });
         }
         let terminal = printed(&f::page_view(&root));
         contains(&terminal, if state == "adopting" { "Adopting work/hello into Shop" } else { "Adopt a repository" });
@@ -1070,7 +1063,7 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
                 &mut view,
                 Role::Link,
                 b"All 1 chats",
-                d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+                d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All } },
             );
         }
         let print = printed(&f::page_view(&root));
@@ -1274,7 +1267,7 @@ fn chats_keep_live_then_ended_status_age_names_and_events() {
                 &mut view,
                 Role::Link,
                 name.as_bytes(),
-                d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+                d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All } },
             );
             if !browser {
                 let print = printed(&view);

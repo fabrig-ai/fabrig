@@ -70,7 +70,7 @@ pub fn answered_chat(words: &[u8], answer: &[u8]) -> Script {
     Script {
         begin: Begin::LinkWithKey,
         steps: Box::new([
-            Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+            Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
             Step::See { find: Find::named(skein_ui::Role::TextArea, b"Start a chat"), within: START_WITHIN },
             Step::Type { find: Find::named(skein_ui::Role::TextArea, b"Start a chat"), words: words.into() },
             Step::Gone { find: Find::text(b"No model yet"), within: START_WITHIN },
@@ -167,7 +167,7 @@ pub fn demo_chat(task: u64, cue: &[u8], text: &[u8]) -> Script {
         steps: Box::new([
             Step::See { find: Find::exactly_named(Role::Button, b"Demo"), within: START_WITHIN },
             Step::Press { find: Find::exactly_named(Role::Button, b"Demo") },
-            Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+            Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
             Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: START_WITHIN },
             Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },
             Step::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: START_WITHIN },
@@ -257,7 +257,7 @@ fn playground_opening(conversation: impl Fn() -> Box<[Target; 1]>) -> [Step<Addr
         Step::Press { find: Find::exactly_named(Role::Button, b"Try the playground") },
         Step::See { find: Find::exactly_named(Role::Status, b"Starting"), within: START_WITHIN },
         Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },
-        Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+        Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
         Step::Press { find: Find::exactly_named(Role::Button, b"Scripted model") },
         // client/README.md, 4.8: a suggested request starts and opens its chat.
         Step::See { find: Find::named(Role::Button, b"Add CSV export to widget"), within: START_WITHIN },
@@ -841,7 +841,7 @@ pub fn adopt_and_change(_forgejo: &super::forgejo::Throwaway) -> Script {
         Step::See { find: Find::text(b"Adopted acme/widget on forge 1 as owned."), within: super::WITHIN },
     ]);
     steps.extend([
-        Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+        Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
         Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: super::WITHIN },
         Step::Type {
             find: Find::named(Role::TextArea, b"Start a chat"),

@@ -14,7 +14,7 @@ pub(super) fn steps() -> Box<[Step<Address>]> {
         Address::Forges,
         Address::Accounts,
         Address::Inbox { filter: Filter::ALL },
-        Address::Chats { filter: ChatsFilter::All, start: false },
+        Address::Chats { filter: ChatsFilter::All },
         Address::Adopt { project: 1 },
         Address::ConnectForge { forge: Some(Choice::Forge(1)) },
         Address::ConnectModel { way: None },
