@@ -22,6 +22,7 @@ The `project-home` look request draws Home in Hello, with `work/hello`
 adopted. It cannot equal this Welcome print while the walk is blocked.
 `temper-client-gallery` draws the Home implementation through its
 `home-three-left`, `home-two-left`, `home-one-left`, `home-ready`,
-`home-adopting`, `home-refused`, `home-no-repository` and `home-github`
-states. They are hand-made deliveries to the client, not a recording
-of the box. The recording gap is `../../journeys.status.md`, 9.
+`home-adopting`, `home-refused`, `home-no-repository`, `home-github`,
+`home-after-skip`, `home-skip-refused`, `home-needs-under-begin`,
+`home-begin-settings-left` and `home-begin-one-chats` states. They are
+hand-made deliveries to the client, not a recording of the box. The recording gap is `../../journeys.status.md`, 9.

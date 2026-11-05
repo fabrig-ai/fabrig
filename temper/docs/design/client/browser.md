@@ -1128,6 +1128,11 @@ from the engine's own answers, is where the look is tuned.
 | `home-adopting` | hand-made Home deliveries: first adoption in flight; no repository acts |
 | `home-refused` | hand-made Home deliveries: first adoption refused; its words and retry acts |
 | `home-no-repository` | hand-made Home deliveries: no repository or first offer |
+| `home-after-skip` | hand-made Home deliveries: To begin skipped with steps left; plain Home with empty Needs you and Chats |
+| `home-skip-refused` | hand-made Home deliveries: Skip refused; the alert under the note and Skip offered again |
+| `home-needs-under-begin` | hand-made Home deliveries: To begin showing above one question and one chat |
+| `home-begin-settings-left` | hand-made Home deliveries: the first and second steps left; their acts stay in Settings |
+| `home-begin-one-chats` | hand-made Home deliveries: the third step alone left; its act stays in Chats |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
 | `chats-solo` | the solo world's chats |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |

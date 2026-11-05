@@ -1527,13 +1527,12 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home > section > h2, #app > .temper-home > section > .temper-home-head > h2 { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
 /* To begin: numbered steps, each ticked once done. */
 #app > .temper-home .temper-home-steps { display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 1px solid var(--gf-line); list-style: none; counter-reset: temper-home-step; }
-#app > .temper-home .temper-home-steps > li { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 12px; padding: 18px 4px; border-bottom: 1px solid var(--gf-line); counter-increment: temper-home-step; }
-#app > .temper-home .temper-home-steps > li::before { content: counter(temper-home-step); grid-column: 1; grid-row: 1 / span 3; box-sizing: border-box; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 12.5px; color: var(--gf-muted); }
+#app > .temper-home .temper-home-steps > li { display: grid; column-gap: 12px; border-bottom: 1px solid var(--gf-line); counter-increment: temper-home-step; }
+#app > .temper-home .temper-home-steps > li::before { content: counter(temper-home-step); grid-column: 1; box-sizing: border-box; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 12.5px; color: var(--gf-muted); }
 #app > .temper-home .temper-home-steps > li.temper-home-done::before { content: '✓'; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
-#app > .temper-home .temper-home-steps > li > * { grid-column: 2; }
-#app > .temper-home .temper-home-steps h3 { margin: 0; font: 500 16px/1.6 var(--gf-sans); color: var(--gf-ink); }
+#app > .temper-home .temper-home-steps h3 { margin: 0; font-family: var(--gf-sans); font-weight: 500; color: var(--gf-ink); }
 #app > .temper-home .temper-home-steps > li.temper-home-done h3 { color: var(--gf-muted); font-weight: 400; }
-#app > .temper-home .temper-home-steps > li > p { margin: 2px 0 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-home .temper-home-steps > li > p { color: var(--gf-muted); }
 #app > .temper-home .temper-home-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 #app > .temper-home .temper-home-acts > :is(a, button) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); text-decoration: none; }
 #app > .temper-home .temper-home-acts > :is(a, button):hover { border-color: #b4b4ae; }
@@ -1594,3 +1593,21 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-home .temper-home-cta { display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 14px; background: var(--gf-signal-pale); color: var(--gf-ink); }
   #app > .temper-home .temper-home-cta-go { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 10px; background: var(--gf-ink); color: #fff; font-weight: 500; }
 }
+
+/* project-home-onboarding: To begin as a card of its own, marked "Optional", with "Skip" a button at its top right; one line a step, its act at the right. */
+#app > .temper-home > .temper-home-begin { gap: 6px; padding: 20px 24px 6px; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .03); }
+#app > .temper-home > .temper-home-begin > .temper-home-head { justify-content: flex-start; align-items: center; gap: 10px; }
+#app > .temper-home > .temper-home-begin > .temper-home-head > h2 { font: 600 16px/1.5 var(--gf-sans); letter-spacing: normal; text-transform: none; color: var(--gf-ink); }
+#app > .temper-home .temper-home-tag { padding: 1px 8px; border: 1px solid var(--gf-line-2); border-radius: 999px; font-size: 12px; line-height: 1.5; color: var(--gf-muted); }
+#app > .temper-home .temper-home-skip { margin-left: auto; min-height: 34px; padding: 5px 14px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); cursor: pointer; }
+#app > .temper-home .temper-home-skip:hover { border-color: #b4b4ae; }
+#app > .temper-home .temper-home-note { margin: 0 0 10px; font-size: 14px; line-height: 1.55; color: var(--gf-muted); }
+#app > .temper-home > .temper-home-begin .temper-home-steps > li:last-child { border-bottom: 0; }
+#app > .temper-home .temper-home-steps > li { grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; padding: 14px 0; }
+#app > .temper-home .temper-home-steps > li::before { grid-row: 1; align-self: center; }
+#app > .temper-home .temper-home-steps > li > :is(h3, p) { grid-column: 2; }
+#app > .temper-home .temper-home-steps > li > .temper-home-acts { grid-column: 3; grid-row: 1 / span 2; margin: 0 0 0 16px; }
+#app > .temper-home .temper-home-steps h3 { font-size: 15px; line-height: 1.6; }
+#app > .temper-home .temper-home-steps > li > p { margin: 0; font-size: 14px; line-height: 1.55; }
+/* A refused adoption keeps its outcome under the repository's line. */
+#app > .temper-home .temper-home-steps > li > [role=alert] { grid-column: 2 / -1; }
