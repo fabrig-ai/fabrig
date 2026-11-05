@@ -46,7 +46,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(role, name) });
     let pressed = |position| Step::Keep {
-        selector: format!("main [aria-label='Chats'] + * > button[aria-pressed='true']:nth-child({position})")
+        selector: format!("main .temper-filters > button[aria-pressed='true']:nth-child({position})")
             .into_bytes()
             .into_boxed_slice(),
         attribute: Some(b"aria-pressed".as_slice().into()),
@@ -55,12 +55,12 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     let mut steps = temper_client_browser_world::start_chat(b"Hello");
     steps.extend([
         press(Role::Link, b"Chats"),
-        see(Find::exactly_named(Role::Heading { level: 1 }, b"Chats")),
+        see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
         press(Role::Link, FIRST_CHAT),
         see(first_chat(b"Hello")),
         Step::Address(FIRST_CHAT_ADDRESS.into()),
         Step::Back,
-        see(Find::exactly_named(Role::Heading { level: 1 }, b"Chats")),
+        see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
         Step::Forward,
         see(first_chat(b"Hello")),
         Step::Person(PersonStep::Go { address: b"/".as_slice().into() }),

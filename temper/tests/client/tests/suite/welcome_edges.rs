@@ -32,7 +32,7 @@ fn follow(world: &mut Pages, client: ClientId, steps: Vec<PersonStep<Address>>) 
 // Establish the world's visible Online expectation at Chats before navigating.
 fn open_from_chats(world: &mut Pages, step: Step) -> ClientId {
     let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All });
-    follow(world, client, vec![see(Role::Heading { level: 1 }, b"Chats")]);
+    follow(world, client, vec![see(Role::Heading { level: 1 }, b"Talk to an agent.")]);
     follow(world, client, vec![PersonStep::Go { address: welcome(step) }]);
     client
 }
@@ -140,7 +140,7 @@ fn later_welcome_steps_do_not_redirect_on_their_own() {
 fn non_deployment_owner_with_account_ignores_forge_requirement() {
     let mut world = f::world(f::SEED);
     let client = open_from_chats(&mut world, Step::Welcome);
-    follow(&mut world, client, vec![see(Role::Heading { level: 1 }, b"Chats")]);
+    follow(&mut world, client, vec![see(Role::Heading { level: 1 }, b"Talk to an agent.")]);
 }
 
 #[test]

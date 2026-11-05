@@ -116,7 +116,7 @@ fn your_forgejo_connects_with_bot_tokens_retries_a_stop_and_is_ready() {
         &mut world,
         client,
         vec![
-            see(Role::Heading { level: 1 }, b"Chats"),
+            see(Role::Heading { level: 1 }, b"Talk to an agent."),
             PersonStep::Go { address: Address::ConnectForge { forge: None } },
             see(Role::Link, b"Your Forgejo"),
         ],

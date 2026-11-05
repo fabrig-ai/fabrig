@@ -25,6 +25,9 @@ configure-chat
 configure-chats-tag
 chat-new
 chat-new-no-repository
+chats-no-repository
+chats-live
+chats-closed
 chats-solo
 chat-solo-T10
 inbox-solo

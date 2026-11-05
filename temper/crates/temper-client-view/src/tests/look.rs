@@ -168,7 +168,25 @@ fn each_style_or_region_is_named_under_temper() {
         (ENDED, b"temper-ended"),
         (MENU, b"temper-menu"),
     ];
-    for (style, name) in named.into_iter().chain(FLOW_NAMES).chain(RAIL_NAMES).chain(HOME_NAMES) {
+    let chats = [
+        (CHATS_PAGE, b"temper-chats-page".as_slice()),
+        (CHATS_INTRO, b"temper-chats-intro".as_slice()),
+        (CHATS_KICKER, b"temper-chats-kicker".as_slice()),
+        (CHATS_LEDE, b"temper-chats-lede".as_slice()),
+        (CHATS_BAND, b"temper-chats-band".as_slice()),
+        (CHATS_TAG, b"temper-chats-tag".as_slice()),
+        (CHATS_SECTION, b"temper-chats-section".as_slice()),
+        (CHATS_SECTION_HEAD, b"temper-chats-section-head".as_slice()),
+        (CHATS_ACT, b"temper-chats-act".as_slice()),
+        (CHATS_MORE, b"temper-chats-more".as_slice()),
+        (CHATS_ROWS, b"temper-chats-rows".as_slice()),
+        (CHATS_ROW, b"temper-chats-row".as_slice()),
+        (CHATS_ROW_ENDED, b"temper-chats-row-ended".as_slice()),
+        (CHATS_TOP, b"temper-chats-top".as_slice()),
+        (CHATS_LINE, b"temper-chats-line".as_slice()),
+        (STATE_NEEDS, b"temper-state-needs".as_slice()),
+    ];
+    for (style, name) in named.into_iter().chain(FLOW_NAMES).chain(RAIL_NAMES).chain(HOME_NAMES).chain(chats) {
         assert_eq!(NAMES.style(style), Some(name));
     }
     assert_eq!(NAMES.region(crate::frame::link_region()), Some(&b"temper-link"[..]));
@@ -181,8 +199,7 @@ fn each_pages_main_carries_the_main_token() {
         assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN])]);
     }
     let view = fixtures::page_view(&fixtures::chats_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN])]);
-    assert_eq!(NAMES.style(SIDEBAR), Some(b"temper-sidebar".as_slice()));
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, CHATS_PAGE])]);
     let view = fixtures::page_view(&fixtures::task::held_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
     let view = fixtures::page_view(&fixtures::inbox_root());
@@ -206,10 +223,10 @@ fn the_chat_structure_tokens_stay_on_their_roles() {
     for (token, role) in [
         (BRAND, Role::Link),
         (LIVE, Role::Status),
-        (ROWS, Role::List),
-        (ROW, Role::Item),
+        (CHATS_ROWS, Role::List),
+        (CHATS_ROW, Role::Item),
         (RAIL_FOOT, Role::Slot),
-        (TIME, Role::Paragraph),
+        (TIME, Role::Text),
     ] {
         let mut found = false;
         for node in view.tree().nodes() {
@@ -222,7 +239,7 @@ fn the_chat_structure_tokens_stay_on_their_roles() {
     }
     for (line, token) in super::chats::status_rows() {
         let (tree, _) = super::chats::tree(&line);
-        assert_eq!(fixtures::styles(&tree, Role::Status).as_ref(), [Box::from([token])]);
+        assert_eq!(fixtures::styles(&tree, Role::Status).as_ref(), [super::chats::row_status_styles(token)]);
     }
 }
 #[test]
