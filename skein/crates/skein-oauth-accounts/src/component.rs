@@ -220,6 +220,7 @@ impl Component {
         Ok(Self::configure(accounts, limits, Some(crypto))?.expect("a generator makes the component"))
     }
 
+    #[expect(clippy::manual_map, reason = "explicit generator presence keeps step code free of closures")]
     fn configure(
         mut accounts: List<Account>,
         limits: &Limits,
