@@ -3,9 +3,12 @@
 //! commands run.
 
 use skein_fake_checkout::{Checkout, Exit, Program};
-use smith_domain_tools::{Authority, Directory, Grants};
+use smith_domain_tools::{self as tools, Authority, Directory, Grants, Outcome};
 
 use crate::{authority, repo};
+
+/// Grants for fixtures that inspect, modify and run commands.
+pub const ALL: Grants = Grants { inspect: true, modify: true, shell: true };
 
 /// Initial library bytes in the contained checkout fixture.
 pub const LIB: &[u8] = b"pub fn one() {}\npub fn two() {}\npub fn three() {}\n";
@@ -128,5 +131,18 @@ pub fn directory(mount: &[u8], root: skein_lib::Token, writable: bool) -> smith_
         mount: crate::translate::names(mount),
         root,
         writable,
+    }
+}
+
+/// An exited command with output kept within the configured bounds.
+#[must_use]
+pub fn exited(exit: tools::Exit, head: &[u8], tail: &[u8], dropped: u64) -> Outcome {
+    Outcome::Exited {
+        exit,
+        head: head.into(),
+        tail: tail.into(),
+        dropped,
+        timeout: tools::TimeoutClamp::Within,
+        output: tools::BytesClamp::Within,
     }
 }

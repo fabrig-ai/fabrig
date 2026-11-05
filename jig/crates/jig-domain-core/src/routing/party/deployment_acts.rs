@@ -148,11 +148,16 @@ fn close(
     );
     for delegate in &row.delegates {
         operations
-            .push(tasks::Operation::Cancel { task: *delegate, grace: None, message: None, reason: reason.clone() })
+            .push(tasks::Operation::Cancel(tasks::Cancel {
+                task: *delegate,
+                grace: None,
+                message: None,
+                reason: reason.clone(),
+            }))
             .expect("one per delegate");
     }
     operations
-        .push(tasks::Operation::Cancel { task, grace, message: None, reason })
+        .push(tasks::Operation::Cancel(tasks::Cancel { task, grace, message: None, reason }))
         .expect("conversation after delegates");
     let mut first_message = 0;
     for at in 0..operations.len() {
@@ -162,7 +167,7 @@ fn close(
         if first_message == 0 {
             first_message = number;
         }
-        if let tasks::Operation::Cancel { grace: Some(_), message, .. } = operation {
+        if let tasks::Operation::Cancel(tasks::Cancel { grace: Some(_), message, .. }) = operation {
             *message = Some(number);
         }
     }

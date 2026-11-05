@@ -1258,7 +1258,8 @@ missing sends the task back to due after a backoff, no attempt spent
 
 Its sections come from two places:
 
-- **The core's,** which it holds typed: the task (its spec and, unless
+- **The core's,** which it holds typed: the task (its number and project,
+  which a run names in a note's scope, its spec and, unless
   its requester ends it (tasks.md, 5.8), its contract,
   and its lineage: its requesters' specs, cut); its dependencies' and
   inputs' results in jig's terms, and, for a run after its task was kept

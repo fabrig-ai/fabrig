@@ -243,6 +243,8 @@ fn reply_preview_preserves_task_title_activity_and_read_position() {
             failed: 0,
             cancelled: 0,
         },
+        delegates_done: 0,
+        delegates_total: 0,
         held_below: 0,
         conversation: Some(ConversationRead { seen: 4, unread: Count { value: 5, limited: false } }),
     };

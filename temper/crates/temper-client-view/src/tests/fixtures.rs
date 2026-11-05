@@ -329,6 +329,7 @@ pub(super) fn root_at_with_dismissals(
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Repositories { .. }
+        | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. }
         | temper_client_domain::Address::Chat { .. }

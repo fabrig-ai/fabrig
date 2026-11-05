@@ -9,9 +9,8 @@
 //! outcome, each way the streams end or fail, a close while the client
 //! waited for each thing, and each neighbour's oddity.
 
-use std::collections::BTreeMap;
-
 use skein_lib::Rng;
+use skein_protocol_kit::seen::Seen;
 use skein_tls::client::{Error, Version};
 use skein_tls_world::pki::{self, Chain, Versions};
 use skein_tls_world::world::{self, Ending, Run, Scenario, Settings};
@@ -51,66 +50,50 @@ fn scenario(rng: &mut Rng) -> Scenario {
     scenario
 }
 
-/// How often each thing a sweep injects or reaches fell.
-#[derive(Default)]
-struct Seen(BTreeMap<String, u32>);
-
-impl Seen {
-    fn note(&mut self, what: String) {
-        *self.0.entry(what).or_default() += 1;
+fn record(tally: &mut Seen, scenario: &Scenario, run: &Run) {
+    match run.failed {
+        Some(Error::Stream(_)) => tally.note("failed Stream".into()),
+        Some(Error::Certificate(certificate)) => tally.note(format!("refused {certificate:?}")),
+        Some(error) => tally.note(format!("failed {error:?}")),
+        None => tally.note("no failure".into()),
     }
-
-    fn record(&mut self, scenario: &Scenario, run: &Run) {
-        match run.failed {
-            Some(Error::Stream(_)) => self.note("failed Stream".into()),
-            Some(Error::Certificate(certificate)) => self.note(format!("refused {certificate:?}")),
-            Some(error) => self.note(format!("failed {error:?}")),
-            None => self.note("no failure".into()),
+    if run.ended.is_some() {
+        tally.note("ended".into());
+    }
+    if let Some(agreed) = &run.agreed {
+        tally.note(format!("agreed {:?}", agreed.version));
+        if agreed.alpn.is_some() {
+            tally.note("agreed a protocol".into());
         }
-        if run.ended.is_some() {
-            self.note("ended".into());
-        }
-        if let Some(agreed) = &run.agreed {
-            self.note(format!("agreed {:?}", agreed.version));
-            if agreed.alpn.is_some() {
-                self.note("agreed a protocol".into());
-            }
-            // The server offers no group the client sent a share for.
-            if scenario.server.retry && agreed.version == Version::Tls13 {
-                self.note("agreed after a retry".into());
-            }
-        }
-        // rustls had sent close_notify when it read the corrupted record.
-        if run.notified && run.failed == Some(Error::Decrypt) {
-            self.note("a corrupted record read after close_notify went".into());
-        }
-        self.note(format!("closed while waiting for {:?}", run.closed_while));
-        let fell = run.fell;
-        for (flag, what) in [
-            (fell.room_first, "room granted while bytes waited"),
-            (fell.stalled_below, "the stream below held all it could"),
-            (fell.early_demand, "a demand waited for the handshake"),
-            (fell.withdrew, "a demand withdrawn at the close"),
-            (fell.late_answer, "an answer after the withdrawal"),
-            (fell.idle_end, "an end with nothing demanded"),
-            (fell.early_response, "a response before the request was sent"),
-            (fell.withdrew_after_end, "the read that crossed the end withdrawn"),
-            (fell.withdrew_room_after_end, "a demand of room withdrawn after the end"),
-            (fell.updated_keys, "records read past the server's key update"),
-        ] {
-            if flag {
-                self.note(what.into());
-            }
-        }
-        if run.notified {
-            self.note("close_notify read by the server".into());
+        // The server offers no group the client sent a share for.
+        if scenario.server.retry && agreed.version == Version::Tls13 {
+            tally.note("agreed after a retry".into());
         }
     }
-
-    fn assert_fell(&self, expected: &[&str]) {
-        for what in expected {
-            assert!(self.0.contains_key(*what), "{what} fell: {:#?}", self.0);
+    // rustls had sent close_notify when it read the corrupted record.
+    if run.notified && run.failed == Some(Error::Decrypt) {
+        tally.note("a corrupted record read after close_notify went".into());
+    }
+    tally.note(format!("closed while waiting for {:?}", run.closed_while));
+    let fell = run.fell;
+    for (flag, what) in [
+        (fell.room_first, "room granted while bytes waited"),
+        (fell.stalled_below, "the stream below held all it could"),
+        (fell.early_demand, "a demand waited for the handshake"),
+        (fell.withdrew, "a demand withdrawn at the close"),
+        (fell.late_answer, "an answer after the withdrawal"),
+        (fell.idle_end, "an end with nothing demanded"),
+        (fell.early_response, "a response before the request was sent"),
+        (fell.withdrew_after_end, "the read that crossed the end withdrawn"),
+        (fell.withdrew_room_after_end, "a demand of room withdrawn after the end"),
+        (fell.updated_keys, "records read past the server's key update"),
+    ] {
+        if flag {
+            tally.note(what.into());
         }
+    }
+    if run.notified {
+        tally.note("close_notify read by the server".into());
     }
 }
 
@@ -123,7 +106,7 @@ fn exchanges_swept() {
         let limits = world::limits(&mut rng);
         let settings = Settings::chaotic(&mut rng, limits);
         let run = world::check(&scenario, &settings, seed);
-        seen.record(&scenario, &run);
+        record(&mut seen, &scenario, &run);
     }
     seen.assert_fell(&[
         "no failure",

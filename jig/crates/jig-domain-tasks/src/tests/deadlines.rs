@@ -332,14 +332,16 @@ fn a_zero_pace_amendment_is_refused_without_changing_the_task() {
         h.make(vec![task(1, &[])]);
         let before = h.domain.task(1).unwrap().clone();
         let out = h.send(Event::Amend {
+            operation: crate::Amend {
+                task: 1,
+                message: 1,
+                stop_run: false,
+                amendment: Box::new(crate::Amendment { wake: Some(policy), ..super::revisions::amendment() }),
+            },
             reply_to: super::revisions::to(),
             by: Party::Person(9),
-            task: 1,
-            message: 1,
             places: Box::new([]),
             funder: None,
-            stop_run: false,
-            amendment: crate::Amendment { wake: Some(policy), ..super::revisions::amendment() },
         });
         assert!(out.iter().any(|request| match request {
             Request::Refused { problem, .. } => problem.why == crate::Refusal::Spec,

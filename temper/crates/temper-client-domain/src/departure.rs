@@ -55,6 +55,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut 
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => return false,
     };

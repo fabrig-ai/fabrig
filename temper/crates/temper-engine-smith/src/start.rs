@@ -162,7 +162,10 @@ fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::
 /// bounds and schema costs (temper/docs/design/domain/agent.md, 4.3).
 pub fn fit_brief(charter: &mut run::Charter, workspace: Option<&run::Workspace>, limits: &run::Limits) {
     let Some(room) = run::brief_room(charter, workspace, limits) else { return };
-    let owned = charter.owned_bytes().expect("bounded charter ownership");
+    let owned = charter
+        .owned_bytes()
+        .expect("bounded charter ownership")
+        .min(run::charter_room(workspace, limits).unwrap_or(0));
     fit(charter, u64::from(room), owned);
 }
 

@@ -430,6 +430,8 @@ impl Task {
             | Act::Close
             | Act::DelegateFate { .. }
             | Act::ClosedChats
+            | Act::MoreGoals
+            | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
             | Act::PlanFilter { .. }
             | Act::Filter { .. }
@@ -535,6 +537,8 @@ impl Task {
             | Act::DelegateFate { .. }
             | Act::Older
             | Act::ClosedChats
+            | Act::MoreGoals
+            | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
             | Act::PlanFilter { .. }
             | Act::Filter { .. }
