@@ -39,9 +39,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Return { .. } => people::ApplicationScope::Own,
-        Application::Dismiss { what: forge::Dismissal::ToBegin { project } } => {
-            people::ApplicationScope::Project(*project)
-        }
+        Application::Dismiss {
+            what: forge::PersonFact::ToBegin { project } | forge::PersonFact::GoalFrom { project, .. },
+        } => people::ApplicationScope::Project(*project),
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });

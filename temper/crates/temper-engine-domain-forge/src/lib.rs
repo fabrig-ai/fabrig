@@ -30,7 +30,7 @@ mod ci;
 mod commit;
 mod connect;
 mod dismissed;
-pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, Dismissal};
+pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
 mod domain;
 mod effect_words;
 mod forges;

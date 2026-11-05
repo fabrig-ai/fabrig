@@ -1021,7 +1021,7 @@ fn home_domain(name: &str) -> Domain {
                         let mut dismissed = List::with_capacity(1);
                         if name == "home-after-skip" {
                             dismissed
-                                .push(w::Dismissal::ToBegin(
+                                .push(w::PersonFact::ToBegin(
                                     w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: 1 }).expect("Home skip"),
                                 ))
                                 .expect("one skip");

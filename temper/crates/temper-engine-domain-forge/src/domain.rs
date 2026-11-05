@@ -148,7 +148,7 @@ pub struct Domain {
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
-    pub(crate) dismissed: Map<(u64, crate::Dismissal), ()>,
+    pub(crate) dismissed: Map<(u64, crate::PersonFact), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
     /// One setup runs at a time (temper/docs/design/protocol/forge.md, 2.8).
     pub(crate) fetched: Option<(u16, crate::SetUpFetched)>,
@@ -234,9 +234,9 @@ pub struct Domain {
 impl Domain {
     /// The party's rows in key order (temper/docs/design/domain/forge.md, 5.5).
     #[must_use]
-    pub fn dismissals(&self, party: u64) -> Box<[crate::Dismissal]> {
+    pub fn dismissals(&self, party: u64) -> Box<[crate::PersonFact]> {
         let mut rows = List::with_capacity(self.dismissed.len());
-        for ((owner, what), ()) in self.dismissed.range((party, crate::Dismissal::ToBegin { project: 0 })..) {
+        for ((owner, what), ()) in self.dismissed.range((party, crate::PersonFact::ToBegin { project: 0 })..) {
             if *owner != party {
                 break;
             }

@@ -425,7 +425,7 @@ pub(super) fn root_at_with_dismissals(
         let mut dismissed = List::with_capacity(wire::DISMISSED);
         for project in projects {
             dismissed
-                .push(w::Dismissal::ToBegin(
+                .push(w::PersonFact::ToBegin(
                     w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap(),
                 ))
                 .unwrap();
