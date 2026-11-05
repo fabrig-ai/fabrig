@@ -1,5 +1,4 @@
 //! HTTP framing over seeded streams (skein/docs/design/fake-forge.md, 10.6).
-use std::collections::BTreeMap;
 use crate::{fixtures, github_fixture as fixture, referee::Accounting};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_fake_forge_github::{
@@ -9,14 +8,17 @@ use skein_fake_forge_github::{
 };
 use skein_forge_connection::{Component, Event, Limits, Request};
 use skein_forge_kit::{
-    fixtures as machine, sockets::Sockets,
+    fixtures as machine,
     joint::REPO,
     pipe::{Cut, Pipe},
+    sockets::{Peer as SocketPeer, Sockets},
 };
+use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::{
     Duration, Env, Queue, ReplyTo, Rng, Secret, Time, Token, Wall,
     stream::{Down, Up},
 };
+use std::collections::BTreeMap;
 
 // Recovery listing timestamps must be above the observed issues-since cutoff.
 const WALL_BASE: Wall = Wall::from_nanos(31_536_000_000_000_000);
@@ -125,7 +127,7 @@ pub(crate) struct Github {
     pub component: Component,
     pub env: Env<Limits>,
     pub above: Queue<Event>,
-    pub below: Queue<skein_io::Request>,
+    pub below: Queue<IoRequest>,
     pub fake_env: Env<fake::Config>,
     pub domain: fake::Domain,
     pub answers: BTreeMap<u64, skein_forge_connection::Answered>,
@@ -289,7 +291,7 @@ impl Github {
             let up = peer.pipe.client_up();
             self.peers.insert(owner, peer);
             if let Some(up) = up {
-                self.up(skein_io::Event::Stream { owner, up });
+                self.up(IoEvent::Stream { owner, up });
             }
         }
         if self.component.next_deadline().is_some_and(|at| at <= self.env.now) {
@@ -326,22 +328,25 @@ impl Github {
         inline::call(&mut self.domain, &self.fake_env, event)
     }
 
-    fn up(&mut self, event: skein_io::Event) {
+    fn up(&mut self, event: IoEvent) {
         self.component.up(&self.env, event, &mut self.above, &mut self.below);
     }
-    fn io(&mut self, request: skein_io::Request) {
-        if let skein_io::Request::Abort { entity } | skein_io::Request::Close { entity } = request {
+    fn io(&mut self, request: IoRequest) {
+        if let IoRequest::Abort { entity } | IoRequest::Close { entity } = request {
             self.end(entity);
             return;
         }
-        if let skein_io::Request::Stream { stream, down: Down::Send(bytes) } = &request
-            && let Some(peer) = self.peers.get_mut(stream) {
+        if let IoRequest::Stream { stream, down: Down::Send(bytes) } = &request
+            && let Some(peer) = self.peers.get_mut(stream)
+        {
             peer.sent(bytes, &mut self.secrets);
         }
-        let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { Token::new(0) };
+        let owner = if let IoRequest::Connect { owner, .. } = request { owner } else { Token::new(0) };
         let env = self.server_env();
         let mut events = Queue::with_capacity(3);
-        let _ = self.peers.request(request, |_| {
+        let _ = self.peers.request(
+            request,
+            |_| {
                 let cut =
                     if self.rng.chance(self.cut_chance) { Cut::At(self.rng.between(0, 2048)) } else { Cut::Never };
                 let mut peer = Peer {
@@ -361,9 +366,13 @@ impl Github {
                     delivered_heads: 0,
                 };
                 server::start(&mut peer.server, &mut self.service, &env, &mut peer.above, &mut peer.below);
-            Some(peer)
-        }, &mut events);
-        while let Some(event) = events.pop() { self.up(event); }
+                Some(peer)
+            },
+            &mut events,
+        );
+        while let Some(event) = events.pop() {
+            self.up(event);
+        }
     }
     fn end(&mut self, owner: Token) {
         let mut events = Queue::with_capacity(1);
@@ -378,7 +387,9 @@ impl Github {
                     self.totals.cut_in_head += u64::from(index >= peer.delivered_heads);
                 }
             }
-            while let Some(event) = events.pop() { self.up(event); }
+            while let Some(event) = events.pop() {
+                self.up(event);
+            }
         }
     }
     pub fn accounting(&self) -> Accounting {
@@ -433,7 +444,11 @@ impl Github {
     }
 }
 
-impl skein_forge_kit::sockets::Peer for Peer {
-    fn take(&mut self, down: Down) { self.pipe.client_down(down); }
-    fn answer(&mut self) -> Option<Up> { self.pipe.client_up() }
+impl SocketPeer for Peer {
+    fn take(&mut self, down: Down) {
+        self.pipe.client_down(down);
+    }
+    fn answer(&mut self) -> Option<Up> {
+        self.pipe.client_up()
+    }
 }

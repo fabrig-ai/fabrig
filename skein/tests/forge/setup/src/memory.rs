@@ -4,13 +4,14 @@ use super::{
     Time, Up, fixtures, github,
 };
 use skein_heap::{Measured, Span};
+use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_tls_kit::{meter::Steps, pki};
 
 pub(crate) struct Metered {
     host: Host,
     measurement: Option<Measurement>,
     above: Queue<Event>,
-    below: Queue<skein_io::Request>,
+    below: Queue<IoRequest>,
 }
 struct Measurement {
     steps: Steps,
@@ -27,7 +28,7 @@ impl Metered {
             m.steps.start();
         }
     }
-    fn finish(&mut self, above: &mut Queue<Event>, below: &mut Queue<skein_io::Request>) {
+    fn finish(&mut self, above: &mut Queue<Event>, below: &mut Queue<IoRequest>) {
         let Some(m) = &mut self.measurement else {
             while let Some(event) = self.above.pop() {
                 above.push(event);
@@ -49,9 +50,9 @@ impl Metered {
         while let Some(request) = self.below.pop() {
             let span = Span::start();
             let (copy, original) = match request {
-                skein_io::Request::Stream { stream, down: Down::Send(bytes) } => (
-                    skein_io::Request::Stream { stream, down: Down::Send(bytes.clone()) }, Some(bytes)
-                ),
+                IoRequest::Stream { stream, down: Down::Send(bytes) } => {
+                    (IoRequest::Stream { stream, down: Down::Send(bytes.clone()) }, Some(bytes))
+                }
                 request => (request, None),
             };
             below.push(copy);
@@ -67,42 +68,36 @@ impl Metered {
         env: &Env<Limits>,
         request: Request,
         above: &mut Queue<Event>,
-        below: &mut Queue<skein_io::Request>,
+        below: &mut Queue<IoRequest>,
     ) {
         let input = if self.measurement.is_some() { request_bytes(&request) } else { 0 };
         self.start(input);
         self.host.down(env, request, &mut self.above, &mut self.below);
         self.finish(above, below);
     }
-    pub fn up(
-        &mut self,
-        env: &Env<Limits>,
-        event: skein_io::Event,
-        above: &mut Queue<Event>,
-        below: &mut Queue<skein_io::Request>,
-    ) {
+    pub fn up(&mut self, env: &Env<Limits>, event: IoEvent, above: &mut Queue<Event>, below: &mut Queue<IoRequest>) {
         let input = match &event {
-            skein_io::Event::Stream { up: Up::Bytes(bytes), .. } => bytes.len(),
-            skein_io::Event::Stream { up: Up::End | Up::Room | Up::Failed(_), .. }
-            | skein_io::Event::Listening { .. }
-            | skein_io::Event::Accepted { .. }
-            | skein_io::Event::Connecting { .. }
-            | skein_io::Event::Connected { .. }
-            | skein_io::Event::Output { .. }
-            | skein_io::Event::Spawned { .. }
-            | skein_io::Event::Exited { .. }
-            | skein_io::Event::Usage { .. }
-            | skein_io::Event::Resized
-            | skein_io::Event::Window { .. }
-            | skein_io::Event::Shutdown { .. }
-            | skein_io::Event::Failed { .. }
-            | skein_io::Event::Closed { .. } => 0,
+            IoEvent::Stream { up: Up::Bytes(bytes), .. } => bytes.len(),
+            IoEvent::Stream { up: Up::End | Up::Room | Up::Failed(_), .. }
+            | IoEvent::Listening { .. }
+            | IoEvent::Accepted { .. }
+            | IoEvent::Connecting { .. }
+            | IoEvent::Connected { .. }
+            | IoEvent::Output { .. }
+            | IoEvent::Spawned { .. }
+            | IoEvent::Exited { .. }
+            | IoEvent::Usage { .. }
+            | IoEvent::Resized
+            | IoEvent::Window { .. }
+            | IoEvent::Shutdown { .. }
+            | IoEvent::Failed { .. }
+            | IoEvent::Closed { .. } => 0,
         };
         self.start(input);
         self.host.up(env, event, &mut self.above, &mut self.below);
         self.finish(above, below);
     }
-    pub fn fire(&mut self, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<skein_io::Request>) {
+    pub fn fire(&mut self, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<IoRequest>) {
         self.start(0);
         self.host.fire(env, &mut self.above, &mut self.below);
         self.finish(above, below);

@@ -1,7 +1,12 @@
 //! Scripted HTTP responses, seeded streams and the forge component's io.
-use crate::{fixtures, github, peer::Peer, sockets::Sockets};
+use crate::{
+    fixtures, github,
+    peer::Peer,
+    sockets::{Peer as SocketPeer, Sockets},
+};
 use skein_forge::api;
 use skein_forge_connection::{Answered, Component, Event, Limits, Request, Settings, Stopped};
+use skein_io::{Addr, Event as IoEvent, Request as IoRequest};
 use skein_lib::{
     Duration, Env, Queue, Time, Token, Wall,
     stream::{Down, Fault, Up},
@@ -86,7 +91,7 @@ pub struct Machine {
     component: Component,
     env: Env<Limits>,
     above: Queue<Event>,
-    below: Queue<skein_io::Request>,
+    below: Queue<IoRequest>,
     peers: Sockets<Peer>,
     script: VecDeque<Answer>,
     connects: VecDeque<Connect>,
@@ -100,7 +105,7 @@ pub struct Machine {
     hints: Vec<skein_forge_connection::hooks::Hinted>,
     log_script: VecDeque<String>,
     access_generations: BTreeMap<u16, Option<AccessGeneration>>,
-    forge_addresses: Vec<(skein_io::Addr, u16)>,
+    forge_addresses: Vec<(Addr, u16)>,
     connection_generations: BTreeMap<Token, (u16, u64)>,
     event_source: Option<(u16, u64)>,
     opened: u32,
@@ -118,7 +123,7 @@ pub struct Machine {
     hold_settlement: bool,
     settling: Vec<Token>,
     event_order: Vec<&'static str>,
-    tls_addresses: Vec<skein_io::Addr>,
+    tls_addresses: Vec<Addr>,
     fake: Option<github::Fake>,
     wall_base: Option<Wall>,
     hold_output: bool,
@@ -377,7 +382,7 @@ impl Machine {
     }
     /// Live socket destinations observed from io requests.
     #[must_use]
-    pub fn addresses(&self) -> Vec<skein_io::Addr> {
+    pub fn addresses(&self) -> Vec<Addr> {
         self.peers.values().map(|peer| peer.address).collect()
     }
     /// Component Closed events observed so far.
@@ -415,7 +420,7 @@ impl Machine {
         self.hold_settlement = false;
         for owner in std::mem::take(&mut self.settling) {
             self.peers.remove(&owner).expect("closing socket remains owned");
-            self.up(skein_io::Event::Closed { owner });
+            self.up(IoEvent::Closed { owner });
         }
         self.settle();
     }
@@ -441,7 +446,7 @@ impl Machine {
         peer.write(&bytes);
         self.pause = None;
     }
-    fn up(&mut self, event: skein_io::Event) {
+    fn up(&mut self, event: IoEvent) {
         self.events();
         let owner = event.owner();
         self.event_source = owner.and_then(|owner| self.connection_generations.get(&owner).copied());
@@ -521,7 +526,7 @@ impl Machine {
                     {
                         self.cut = None;
                         peer.terminate();
-                        self.up(skein_io::Event::Stream { owner, up: cut.end() });
+                        self.up(IoEvent::Stream { owner, up: cut.end() });
                         continue;
                     }
                 }
@@ -529,7 +534,7 @@ impl Machine {
                 if let Up::Bytes(bytes) = &up {
                     peer.remaining = peer.remaining.saturating_sub(bytes.len());
                 }
-                self.up(skein_io::Event::Stream { owner, up });
+                self.up(IoEvent::Stream { owner, up });
             }
         }
         if self.component.next_deadline().is_some_and(|deadline| deadline <= self.env.now) {
@@ -613,23 +618,25 @@ impl Machine {
             }
         }
     }
-    fn remember_connection_generation(&mut self, owner: Token, addr: skein_io::Addr) {
+    fn remember_connection_generation(&mut self, owner: Token, addr: Addr) {
         if let Some((_, forge)) = self.forge_addresses.iter().find(|(address, _)| *address == addr)
             && let Some(Some(generation)) = self.access_generations.get(forge)
         {
             self.connection_generations.insert(owner, (*forge, generation.number));
         }
     }
-    fn io(&mut self, request: skein_io::Request) {
+    fn io(&mut self, request: IoRequest) {
         match request {
-            skein_io::Request::Connect { owner, addr } => {
+            IoRequest::Connect { owner, addr } => {
                 self.opened += 1;
                 self.remember_connection_generation(owner, addr);
                 let mut peer = Peer::new(
-                    self.seed.wrapping_add(owner.raw()), addr,
-                    self.tls_addresses.contains(&addr), self.handshake_cut,
+                    self.seed.wrapping_add(owner.raw()),
+                    addr,
+                    self.tls_addresses.contains(&addr),
+                    self.handshake_cut,
                 );
-                let made = match self.connects.pop_front().unwrap_or(Connect::Made) {
+                let mut made = match self.connects.pop_front().unwrap_or(Connect::Made) {
                     Connect::Made => {
                         if self.pause.is_some_and(|(_, pause)| matches!(pause, Pause::Connecting)) {
                             self.paused = Some(owner);
@@ -640,12 +647,13 @@ impl Machine {
                     }
                     Connect::Refused => None,
                 };
-                let mut made = made;
                 let mut events = Queue::with_capacity(3);
                 let _ = self.peers.request(request, |_| made.take(), &mut events);
-                while let Some(event) = events.pop() { self.up(event); }
+                while let Some(event) = events.pop() {
+                    self.up(event);
+                }
             }
-            skein_io::Request::Stream { stream, down } => {
+            IoRequest::Stream { stream, down } => {
                 let peer = self.peers.get_mut(&stream).expect("stream peer");
                 let sent = match &down {
                     Down::Send(bytes) => bytes.len(),
@@ -655,13 +663,13 @@ impl Machine {
                 let writing = matches!(&down, Down::Demand { room, .. } if *room > 0);
                 let before = peer.pending_bytes();
                 let mut events = Queue::with_capacity(0);
-                let _ = self.peers.request(skein_io::Request::Stream { stream, down }, |_| unreachable!("stream"), &mut events);
+                let _ = self.peers.request(IoRequest::Stream { stream, down }, |_| unreachable!("stream"), &mut events);
                 let peer = self.peers.get_mut(&stream).expect("stream peer");
                 let plain = peer.pending_bytes() - before;
                 self.flight_length = peer.flight_length.or(self.flight_length);
                 self.flight_status = peer.flight_status.or(self.flight_status);
                 if let Some(reset) = peer.failure.take() {
-                    self.up(skein_io::Event::Stream {
+                    self.up(IoEvent::Stream {
                         owner: stream,
                         up: if reset { Up::Failed(Fault::Reset) } else { Up::End },
                     });
@@ -677,7 +685,7 @@ impl Machine {
                 {
                     self.cut = None;
                     peer.terminate();
-                    self.up(skein_io::Event::Stream { owner: stream, up: cut.end() });
+                    self.up(IoEvent::Stream { owner: stream, up: cut.end() });
                     return;
                 }
                 if sending && plain > 0 {
@@ -700,23 +708,23 @@ impl Machine {
                         self.written[ordinal] = self.written[ordinal].min(cut.at);
                         self.cut = None;
                         peer.terminate();
-                        self.up(skein_io::Event::Stream { owner: stream, up: cut.end() });
+                        self.up(IoEvent::Stream { owner: stream, up: cut.end() });
                     }
                 }
             }
-            skein_io::Request::Abort { entity } => {
+            IoRequest::Abort { entity } => {
                 self.aborts += 1;
                 self.end(entity);
             }
-            skein_io::Request::Close { entity } => self.end(entity),
-            other @ (skein_io::Request::Listen { .. }
-            | skein_io::Request::Bind { .. }
-            | skein_io::Request::Reject { .. }
-            | skein_io::Request::Output { .. }
-            | skein_io::Request::Spawn { .. }
-            | skein_io::Request::Signal { .. }
-            | skein_io::Request::Usage { .. }
-            | skein_io::Request::Window { .. }) => panic!("unexpected io {other:?}"),
+            IoRequest::Close { entity } => self.end(entity),
+            other @ (IoRequest::Listen { .. }
+            | IoRequest::Bind { .. }
+            | IoRequest::Reject { .. }
+            | IoRequest::Output { .. }
+            | IoRequest::Spawn { .. }
+            | IoRequest::Signal { .. }
+            | IoRequest::Usage { .. }
+            | IoRequest::Window { .. }) => panic!("unexpected io {other:?}"),
         }
     }
     fn end(&mut self, owner: Token) {
@@ -727,8 +735,12 @@ impl Machine {
             return;
         }
         let mut events = Queue::with_capacity(1);
-        if self.peers.close(owner, &mut events).is_some() { self.closes += 1; }
-        while let Some(event) = events.pop() { self.up(event); }
+        if self.peers.close(owner, &mut events).is_some() {
+            self.closes += 1;
+        }
+        while let Some(event) = events.pop() {
+            self.up(event);
+        }
     }
     fn respond(&mut self, owner: Token, request: Vec<u8>) {
         let taken = self.installation_events.len() + self.facts.len() + self.git_tokens.len();
@@ -743,8 +755,8 @@ impl Machine {
         };
         let line = request.split(|byte| *byte == b'\r').next().expect("request line");
         let asked = line.strip_suffix(b" HTTP/1.1").expect("HTTP version");
-        let blob = self.fake.is_some()
-            && self.peers.get(&owner).expect("peer").address == skein_io::Addr::Ip(github::BLOB_ADDRESS);
+        let blob =
+            self.fake.is_some() && self.peers.get(&owner).expect("peer").address == Addr::Ip(github::BLOB_ADDRESS);
         // The fake checks the signed query; the script names the stable log path.
         let script_path = if blob { asked.split(|byte| *byte == b'?').next().expect("blob path") } else { asked };
         assert_eq!(script_path, expected.as_bytes(), "script request");
@@ -797,7 +809,7 @@ impl Machine {
             }
             Response::Reset => {
                 peer.terminate();
-                self.up(skein_io::Event::Stream { owner, up: Up::Failed(Fault::Reset) });
+                self.up(IoEvent::Stream { owner, up: Up::Failed(Fault::Reset) });
             }
             Response::Silent => {}
         }
@@ -877,8 +889,14 @@ impl Cut {
     }
 }
 
-impl crate::sockets::Peer for Peer {
-    fn take(&mut self, down: Down) { self.take(down); }
-    fn answer(&mut self) -> Option<Up> { self.answer() }
-    fn connected(&self) -> bool { self.connected }
+impl SocketPeer for Peer {
+    fn take(&mut self, down: Down) {
+        self.take(down);
+    }
+    fn answer(&mut self) -> Option<Up> {
+        self.answer()
+    }
+    fn connected(&self) -> bool {
+        self.connected
+    }
 }

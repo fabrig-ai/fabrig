@@ -3,12 +3,16 @@
 use crate::{fixtures, host::plans::seeded_config, tls::Carrier};
 use skein_fake_forge_domain as domain;
 use skein_fake_forge_forgejo::{self as fake, Service};
-use skein_forge_kit::{github::{self, Fake}, sockets::Sockets};
+use skein_forge_kit::{
+    github::{self, Fake},
+    sockets::{Peer as SocketPeer, Sockets},
+};
 use skein_forge_setup::{
     host::{Answer, Event, Host, Limits, Need, Plan, Request, Settings},
     item::Item,
     reconcile::{Failure, Outcome},
 };
+use skein_io::{Addr, Event as IoEvent, Request as IoRequest};
 use skein_lib::{
     Duration, Env, Queue, Secret, Time, Token, Wall,
     stream::{Down, Read, Up},
@@ -42,7 +46,7 @@ enum PeerEnd {
 }
 struct Peer {
     pipe: Carrier,
-    connected: bool,
+    connect: Connect,
     server: Option<fake::Server>,
     github: bool,
     api: Api,
@@ -71,7 +75,7 @@ pub struct HostWorld {
     requests: Vec<skein_forge::forgejo::request::Request>,
     secrets: Vec<Secret>,
     host: memory::Metered,
-    tls_addresses: Vec<skein_io::Addr>,
+    tls_addresses: Vec<Addr>,
     env: Env<Limits>,
     service: Service,
     domain: Option<domain::Domain>,
@@ -84,13 +88,13 @@ pub struct HostWorld {
     wall_base: Option<Wall>,
     fake_env: Env<fake::Limits>,
     above: Queue<Event>,
-    below: Queue<skein_io::Request>,
+    below: Queue<IoRequest>,
     peers: Sockets<Peer>,
     script: VecDeque<Connect>,
     files: Vec<(Item, Secret)>,
     heard: Vec<Heard>,
     connects: Vec<Duration>,
-    connection_addresses: Vec<skein_io::Addr>,
+    connection_addresses: Vec<Addr>,
     aborts: u32,
     seed: u64,
     needs: Vec<Need>,
@@ -312,7 +316,7 @@ impl HostWorld {
         }
     }
     #[must_use]
-    pub fn connection_addresses(&self) -> &[skein_io::Addr] {
+    pub fn connection_addresses(&self) -> &[Addr] {
         &self.connection_addresses
     }
     pub fn run(&mut self, run: u64) {
@@ -415,7 +419,7 @@ impl HostWorld {
     fn action(&mut self, request: Request) {
         self.host.down(&self.env, request, &mut self.above, &mut self.below);
     }
-    fn up(&mut self, event: skein_io::Event) {
+    fn up(&mut self, event: IoEvent) {
         self.host.up(&self.env, event, &mut self.above, &mut self.below);
     }
     #[must_use]
@@ -568,7 +572,7 @@ impl HostWorld {
                 }
             }
             if let Some(up) = peer.pipe.client_up() {
-                self.up(skein_io::Event::Stream { owner, up });
+                self.up(IoEvent::Stream { owner, up });
             }
             let peer = self.peers.get_mut(&owner).expect("peer");
             while let Some(event) = peer.above.pop() {
@@ -695,13 +699,13 @@ impl HostWorld {
             }
         }
     }
-    fn io(&mut self, request: skein_io::Request) {
+    fn io(&mut self, request: IoRequest) {
         match request {
-            skein_io::Request::Abort { entity } => {
+            IoRequest::Abort { entity } => {
                 self.aborts += 1;
                 self.end(entity);
             }
-            skein_io::Request::Close { entity } => {
+            IoRequest::Close { entity } => {
                 if let Some(peer) = self.peers.get_mut(&entity)
                     && matches!(peer.end, PeerEnd::Open)
                 {
@@ -711,52 +715,70 @@ impl HostWorld {
                 }
             }
             request => {
-                let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { Token::new(0) };
+                let owner = if let IoRequest::Connect { owner, .. } = request { owner } else { Token::new(0) };
                 let mut events = Queue::with_capacity(3);
-                let _ = self.peers.request(request, |addr| {
-                self.connection_addresses.push(addr);
-                self.connects.push(self.env.now.saturating_since(Time::ZERO));
-                let connect = self.script.pop_front().unwrap_or(Connect::Made);
-                if matches!(connect, Connect::Refused) {
-                    return None;
-                }
-                let mut peer = Peer {
-                    connected: !matches!(connect, Connect::Silent),
-                    pipe: Carrier::new(self.seed ^ owner.raw(), self.tls_addresses.contains(&addr)),
-                    server: None,
-                    api: if self.github.is_some() && addr == fixtures::github_forge().address {
-                        Api::GitHub
-                    } else {
-                        Api::Forgejo
+                let _ = self.peers.request(
+                    request,
+                    |addr| {
+                        self.connection_addresses.push(addr);
+                        self.connects.push(self.env.now.saturating_since(Time::ZERO));
+                        let connect = self.script.pop_front().unwrap_or(Connect::Made);
+                        if matches!(connect, Connect::Refused) {
+                            return None;
+                        }
+                        let mut peer = Peer {
+                            connect,
+                            pipe: Carrier::new(self.seed ^ owner.raw(), self.tls_addresses.contains(&addr)),
+                            server: None,
+                            api: if self.github.is_some() && addr == fixtures::github_forge().address {
+                                Api::GitHub
+                            } else {
+                                Api::Forgejo
+                            },
+                            github: matches!(connect, Connect::Made | Connect::LostGitHubReply)
+                                && self.github.is_some()
+                                && addr == fixtures::github_forge().address,
+                            above: Queue::with_capacity(16),
+                            below: Queue::with_capacity(16),
+                            answer: match connect {
+                                Connect::Unavailable => Some((503, b"")),
+                                Connect::Answers(status, body) | Connect::AnswersOpen(status, body) => {
+                                    Some((status, body))
+                                }
+                                Connect::Made | Connect::Refused | Connect::Silent | Connect::LostGitHubReply => None,
+                            },
+                            head: Vec::new(),
+                            responded: false,
+                            lose_reply: matches!(connect, Connect::LostGitHubReply),
+                            end: if matches!(connect, Connect::AnswersOpen(..)) {
+                                PeerEnd::Open
+                            } else {
+                                PeerEnd::Ends
+                            },
+                            closing: None,
+                        };
+                        if peer.github {
+                            peer.below.push(Down::Demand { read: Read::Arrived { max: 4096 }, room: 0 });
+                        } else if matches!(connect, Connect::Made) {
+                            let mut server = fake::Server::new(owner, &self.fake_env.limits).expect("server");
+                            fake::start(
+                                &mut server,
+                                &mut self.service,
+                                &self.fake_env,
+                                &mut peer.above,
+                                &mut peer.below,
+                            );
+                            peer.server = Some(server);
+                        } else if peer.answer.is_some() {
+                            peer.below.push(Down::Demand { read: Read::Arrived { max: 4096 }, room: 0 });
+                        }
+                        Some(peer)
                     },
-                    github: matches!(connect, Connect::Made | Connect::LostGitHubReply)
-                        && self.github.is_some()
-                        && addr == fixtures::github_forge().address,
-                    above: Queue::with_capacity(16),
-                    below: Queue::with_capacity(16),
-                    answer: match connect {
-                        Connect::Unavailable => Some((503, b"")),
-                        Connect::Answers(status, body) | Connect::AnswersOpen(status, body) => Some((status, body)),
-                        Connect::Made | Connect::Refused | Connect::Silent | Connect::LostGitHubReply => None,
-                    },
-                    head: Vec::new(),
-                    responded: false,
-                    lose_reply: matches!(connect, Connect::LostGitHubReply),
-                    end: if matches!(connect, Connect::AnswersOpen(..)) { PeerEnd::Open } else { PeerEnd::Ends },
-                    closing: None,
-                };
-                if peer.github {
-                    peer.below.push(Down::Demand { read: Read::Arrived { max: 4096 }, room: 0 });
-                } else if matches!(connect, Connect::Made) {
-                    let mut server = fake::Server::new(owner, &self.fake_env.limits).expect("server");
-                    fake::start(&mut server, &mut self.service, &self.fake_env, &mut peer.above, &mut peer.below);
-                    peer.server = Some(server);
-                } else if peer.answer.is_some() {
-                    peer.below.push(Down::Demand { read: Read::Arrived { max: 4096 }, room: 0 });
+                    &mut events,
+                );
+                while let Some(event) = events.pop() {
+                    self.up(event);
                 }
-                    Some(peer)
-                }, &mut events);
-                while let Some(event) = events.pop() { self.up(event); }
             }
         }
     }
@@ -767,8 +789,12 @@ impl HostWorld {
         {
             fake::closed(server, &mut self.service, &self.fake_env, &mut peer.above, &mut peer.below);
         }
-        if events.is_empty() { events.push(skein_io::Event::Closed { owner }); }
-        while let Some(event) = events.pop() { self.up(event); }
+        if events.is_empty() {
+            events.push(IoEvent::Closed { owner });
+        }
+        while let Some(event) = events.pop() {
+            self.up(event);
+        }
     }
 }
 fn answer(peer: &mut Peer, event: Up, records: &mut Vec<GitHubRequest>) {
@@ -836,6 +862,18 @@ fn complete_request(bytes: &[u8]) -> bool {
         }
     }
     bytes.len() >= end + 4 + length
+}
+
+impl SocketPeer for Peer {
+    fn take(&mut self, down: Down) {
+        self.pipe.client_down(down);
+    }
+    fn answer(&mut self) -> Option<Up> {
+        self.pipe.client_up()
+    }
+    fn connected(&self) -> bool {
+        !matches!(self.connect, Connect::Silent)
+    }
 }
 
 #[cfg(test)]
@@ -940,10 +978,4 @@ mod tests {
             assert!(matches!(world.heard().last(), Some(Heard::Closed { .. })));
         }
     }
-}
-
-impl skein_forge_kit::sockets::Peer for Peer {
-    fn take(&mut self, down: Down) { self.pipe.client_down(down); }
-    fn answer(&mut self) -> Option<Up> { self.pipe.client_up() }
-    fn connected(&self) -> bool { self.connected }
 }

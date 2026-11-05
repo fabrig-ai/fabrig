@@ -1,5 +1,7 @@
 //! Hand-steered component exchanges (skein/docs/design/forge-connection.md, 10).
 use skein_forge_connection::Limits;
+use skein_forge_kit::sockets::{Peer as SocketPeer, Sockets};
+use skein_io::{Addr, Event as IoEvent, Request as IoRequest};
 use skein_lib::Duration;
 pub const WORD: &[u8] = b"kit";
 pub const USER_AGENT: &[u8] = b"kit/0.0.0";
@@ -53,7 +55,7 @@ use skein_forge_connection::{
     settings::{Forge, Kind, Transport},
     start::Start,
 };
-use skein_lib::{Env, List, Queue, Secret, Time, Wall};
+use skein_lib::{Env, List, Queue, Secret, Time, Token, Wall};
 use std::boxed::Box;
 pub const FORGE: u16 = 1;
 pub const REPO: api::Repository = api::Repository { forge: 1, repository: 1 };
@@ -91,7 +93,7 @@ pub fn settings() -> Settings {
             number: FORGE,
             kind: Kind::Forgejo,
             log_origins: List::with_capacity(0),
-            address: skein_io::Addr::Ip(SocketAddr::from((Ipv4Addr::LOCALHOST, 3000))),
+            address: Addr::Ip(SocketAddr::from((Ipv4Addr::LOCALHOST, 3000))),
             transport: Transport::Plaintext { name: None },
             access: Some(skein_forge_connection::Access {
                 credential: skein_forge::credential::Credential::Token(Secret::new(Box::from(TOKEN))),
@@ -107,10 +109,10 @@ pub struct Harness {
     pub component: Component,
     pub env: Env<Limits>,
     pub up: Queue<Event>,
-    pub io: Queue<skein_io::Request>,
+    pub io: Queue<IoRequest>,
     pub answers: skein_lib::Map<u64, Answered>,
-    pub peers: skein_forge_kit::sockets::Sockets<Peer>,
-    pub endpoints: List<(skein_io::Addr, u16)>,
+    pub peers: Sockets<Peer>,
+    pub endpoints: List<(Addr, u16)>,
     pub opened: u32,
     pub archive: List<(u16, Secret)>,
     pub stopped: Option<(u16, skein_forge_connection::Stopped)>,
@@ -125,7 +127,7 @@ pub struct Harness {
 #[derive(Debug)]
 pub struct Peer {
     forge: u16,
-    socket: skein_lib::Token,
+    socket: Token,
     wire: skein_world::stream::Wire,
     connected: bool,
 }
@@ -153,7 +155,7 @@ impl Harness {
             up: Queue::with_capacity(32),
             io: Queue::with_capacity(32),
             answers: skein_lib::Map::with_capacity(32),
-            peers: skein_forge_kit::sockets::Sockets::default(),
+            peers: Sockets::default(),
             endpoints,
             opened: 0,
             archive: List::with_capacity(32),
@@ -171,7 +173,7 @@ impl Harness {
         h
     }
     pub fn call(&mut self, call: u64, repository: api::Repository, op: api::Op) {
-        self.send(skein_forge_connection::Request::Call { call: skein_lib::Token::new(call), repository, op });
+        self.send(skein_forge_connection::Request::Call { call: Token::new(call), repository, op });
     }
     pub fn known(&mut self, repository: api::Repository, row: skein_forge::forgejo::plans::tables::Repository) {
         self.component.forgejo_tables().keep_repository(repository, row);
@@ -233,7 +235,7 @@ impl Harness {
     pub fn start(&self, forge: u16) -> Start {
         self.component.start(forge).expect("fixture forge configured")
     }
-    fn newest(&self, forge: u16) -> skein_lib::Token {
+    fn newest(&self, forge: u16) -> Token {
         let mut found = None;
         for (owner, peer) in self.peers.iter() {
             if peer.forge == forge {
@@ -241,13 +243,6 @@ impl Harness {
             }
         }
         found.expect("forge has a connection")
-    }
-    fn owners(&self) -> List<skein_lib::Token> {
-        let mut owners = List::with_capacity(32);
-        for (owner, _) in self.peers.iter() {
-            owners.push(*owner).expect("fixture peers fit");
-        }
-        owners
     }
     #[expect(clippy::manual_map, reason = "the workspace uses exhaustive matches instead of closures")]
     fn start_component(&self) -> Option<skein_heap::Span> {
@@ -261,9 +256,9 @@ impl Harness {
             self.component_heap.as_mut().expect("component metering").count(span.end());
         }
     }
-    fn event(&mut self, event: skein_io::Event) {
+    fn event(&mut self, event: IoEvent) {
         if let Some(heap) = &mut self.component_heap
-            && let skein_io::Event::Stream { up: skein_lib::stream::Up::Bytes(bytes), .. } = &event
+            && let IoEvent::Stream { up: skein_lib::stream::Up::Bytes(bytes), .. } = &event
         {
             // Incoming bytes become the component's at this boundary.
             heap.held = heap.held.checked_add(i64::try_from(bytes.len()).expect("input bytes")).expect("held input");
@@ -277,14 +272,14 @@ impl Harness {
         let peer = self.peers.get_mut(&owner).expect("registered connect");
         // A connect completes once (skein/docs/design/io.md's stream table); a step over a reused socket hears nothing.
         if !core::mem::replace(&mut peer.connected, true) {
-            self.event(skein_io::Event::Connected { owner });
+            self.event(IoEvent::Connected { owner });
         }
         self.drain();
     }
     pub fn refuse(&mut self, forge: u16) {
         let owner = self.newest(forge);
-        self.event(skein_io::Event::Failed { owner, error: skein_io::Error::Refused });
-        self.event(skein_io::Event::Closed { owner });
+        self.event(IoEvent::Failed { owner, error: skein_io::Error::Refused });
+        self.event(IoEvent::Closed { owner });
         drop(self.peers.remove(&owner));
         self.drain();
     }
@@ -295,10 +290,7 @@ impl Harness {
     }
     pub fn reset(&mut self, forge: u16) {
         let owner = self.newest(forge);
-        self.event(skein_io::Event::Stream {
-            owner,
-            up: skein_lib::stream::Up::Failed(skein_lib::stream::Fault::Reset),
-        });
+        self.event(IoEvent::Stream { owner, up: skein_lib::stream::Up::Failed(skein_lib::stream::Fault::Reset) });
         self.drain();
     }
     #[must_use]
@@ -376,30 +368,47 @@ impl Harness {
         for _ in 0..1024_u32 {
             for _ in 0..self.io.len() {
                 let request = self.io.pop().expect("queued request");
-                let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { skein_lib::Token::new(0) };
+                let owner = if let IoRequest::Connect { owner, .. } = request { owner } else { Token::new(0) };
                 let mut events = Queue::with_capacity(3);
-                let closed = self.peers.request(request, |addr| {
-                    let forge = self.endpoints.iter().find_map(|(address, number)| (*address == addr).then_some(*number))
-                        .expect("connect names a configured endpoint");
-                    self.opened = self.opened.saturating_add(1);
-                    Some(Peer { forge, socket: skein_lib::Token::new(owner.raw().saturating_add(100)),
-                        wire: skein_world::stream::Wire::new(owner.raw()), connected: false })
-                }, &mut events);
-                while let Some(event) = events.pop() { self.event(event); }
+                let closed = self.peers.request(
+                    request,
+                    |addr| {
+                        let forge = self
+                            .endpoints
+                            .iter()
+                            .find_map(|(address, number)| (*address == addr).then_some(*number))
+                            .expect("connect names a configured endpoint");
+                        self.opened = self.opened.saturating_add(1);
+                        Some(Peer {
+                            forge,
+                            socket: Token::new(owner.raw().saturating_add(100)),
+                            wire: skein_world::stream::Wire::new(owner.raw()),
+                            connected: false,
+                        })
+                    },
+                    &mut events,
+                );
+                while let Some(event) = events.pop() {
+                    self.event(event);
+                }
                 if let Some(peer) = closed {
-                    self.archive.push((peer.forge, Secret::new(Box::from(peer.wire.received.as_slice())))).expect("fixture history");
+                    self.archive
+                        .push((peer.forge, Secret::new(Box::from(peer.wire.received.as_slice()))))
+                        .expect("fixture history");
                 }
             }
             let mut events = Queue::with_capacity(32);
+            let trace: usize = self.peers.values().map(|peer| peer.wire.trace.len()).sum();
             self.peers.pump(&mut events);
-            let mut moved = !events.is_empty();
+            let moved = !events.is_empty() || trace != self.peers.values().map(|peer| peer.wire.trace.len()).sum();
             for peer in self.peers.values_mut() {
-                moved |= !peer.wire.trace.is_empty();
                 // Retaining the trace would charge the scripted peer's
                 // transcript to component heap measurements.
                 peer.wire.trace.clear();
             }
-            while let Some(event) = events.pop() { self.event(event); }
+            while let Some(event) = events.pop() {
+                self.event(event);
+            }
             if !moved && self.io.is_empty() {
                 quiet = quiet.saturating_add(1);
                 if quiet == 32 {
@@ -525,7 +534,7 @@ pub fn two_forges() -> Settings {
     let mut settings = settings();
     let mut other = self::settings().forges.into_boxed().into_iter().next().expect("forge");
     other.number = OTHER_FORGE;
-    other.address = skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into());
+    other.address = Addr::Ip(([127, 0, 0, 1], 3001).into());
     settings.forges.push(other).expect("two forges fit");
     settings
 }
@@ -821,9 +830,17 @@ pub fn github_calls() -> Harness {
     h
 }
 
-impl skein_forge_kit::sockets::Peer for Peer {
-    fn take(&mut self, down: skein_lib::stream::Down) { self.wire.take(down); }
-    fn answer(&mut self) -> Option<skein_lib::stream::Up> { self.wire.answer() }
-    fn connected(&self) -> bool { self.connected }
-    fn socket(&self, _owner: skein_lib::Token) -> skein_lib::Token { self.socket }
+impl SocketPeer for Peer {
+    fn take(&mut self, down: skein_lib::stream::Down) {
+        self.wire.take(down);
+    }
+    fn answer(&mut self) -> Option<skein_lib::stream::Up> {
+        self.wire.answer()
+    }
+    fn connected(&self) -> bool {
+        self.connected
+    }
+    fn socket(&self, _owner: Token) -> Token {
+        self.socket
+    }
 }

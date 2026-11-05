@@ -1,12 +1,14 @@
 //! The forge component and fake HTTP service, observing starts, events and request lines.
 use crate::{
-    fixtures, sockets::Sockets,
+    fixtures,
     pipe::{Cut, Pipe, RequestCounts},
+    sockets::{Peer as SocketPeer, Sockets},
 };
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_fake_forge_forgejo::{self as protocol, Faults, Server, Service, Tally};
 use skein_forge::api;
 use skein_forge_connection::{Component, Event, Limits, Request, Settings, Shared};
+use skein_io::{Addr, Event as IoEvent, Request as IoRequest};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
 use std::collections::BTreeMap;
 mod github;
@@ -34,7 +36,7 @@ pub struct Joint {
     pub component: Component,
     pub env: Env<Limits>,
     pub above: Queue<Event>,
-    pub below: Queue<skein_io::Request>,
+    pub below: Queue<IoRequest>,
     peers: Sockets<Peer<Server, protocol::Event>>,
     service: Option<Service>,
     github: Option<github::Github>,
@@ -263,7 +265,7 @@ impl Joint {
         self.protocol_env.now = fake::time(&self.fake_env.limits, now);
         self.protocol_env.wall = Wall::from_nanos(self.protocol_env.now.as_nanos());
     }
-    fn up(&mut self, event: skein_io::Event) {
+    fn up(&mut self, event: IoEvent) {
         self.component.up(&self.env, event, &mut self.above, &mut self.below);
     }
     pub fn tick(&mut self) {
@@ -305,7 +307,7 @@ impl Joint {
             }
             let client_up = peer.pipe.client_up();
             if let Some(up) = client_up {
-                self.up(skein_io::Event::Stream { owner, up });
+                self.up(IoEvent::Stream { owner, up });
             }
             self.server_events(owner);
         }
@@ -315,7 +317,7 @@ impl Joint {
             if let Some(owner) = peer.owner
                 && let Some(up) = peer.wire.answer()
             {
-                self.up(skein_io::Event::Stream { owner, up });
+                self.up(IoEvent::Stream { owner, up });
             }
         }
         fake::fire(&mut self.domain, &self.fake_env, &mut self.fake_out);
@@ -409,10 +411,10 @@ impl Joint {
             wire.write(&post.head);
             wire.write(&post.body);
             self.hook_peers.insert(socket, crate::hooks::Peer { wire, owner: None, closed: false });
-            self.up(skein_io::Event::Accepted {
+            self.up(IoEvent::Accepted {
                 owner: self.hook_listener.expect("hook listener"),
                 socket,
-                peer: skein_io::Addr::Ip(([127, 0, 0, 1], 9000).into()),
+                peer: Addr::Ip(([127, 0, 0, 1], 9000).into()),
             });
         }
     }
@@ -430,19 +432,23 @@ impl Joint {
             }
         }
     }
-    fn io(&mut self, request: skein_io::Request) {
+    fn io(&mut self, request: IoRequest) {
         if let Some(mut github) = self.github.take() {
             github.io(self, request);
             self.github = Some(github);
             return;
         }
         match request {
-            skein_io::Request::Stream { stream, down } => {
+            IoRequest::Stream { stream, down } => {
                 if let Some(peer) = self.hook_peers.get_mut(&stream) {
                     peer.wire.take(down);
                 } else if let Some(peer) = self.peers.get_mut(&stream) {
                     let before = peer.pipe.request_counts().written;
-                    let _ = self.peers.request(skein_io::Request::Stream { stream, down }, |_| unreachable!("stream"), &mut Queue::with_capacity(0));
+                    let _ = self.peers.request(
+                        IoRequest::Stream { stream, down },
+                        |_| unreachable!("stream"),
+                        &mut Queue::with_capacity(0),
+                    );
                     let peer = self.peers.get_mut(&stream).expect("peer");
                     let written = peer.pipe.request_counts().written.checked_sub(before).expect("monotonic writes");
                     let startup = self.forges.iter().any(|forge| {
@@ -458,39 +464,48 @@ impl Joint {
                     peer.observe(written, startup, &mut self.starts, &mut self.lines);
                 }
             }
-            skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => self.end(entity),
-            skein_io::Request::Listen { owner, addr } => {
+            IoRequest::Close { entity } | IoRequest::Abort { entity } => self.end(entity),
+            IoRequest::Listen { owner, addr } => {
                 self.hook_listener = Some(owner);
-                self.up(skein_io::Event::Listening { owner, listener: LISTENER, addr });
+                self.up(IoEvent::Listening { owner, listener: LISTENER, addr });
             }
-            skein_io::Request::Bind { owner, socket } => {
+            IoRequest::Bind { owner, socket } => {
                 self.hook_waiting = false;
                 self.hook_peers.get_mut(&socket).expect("accepted hook").owner = Some(owner);
             }
             request => {
-                let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { Token::new(0) };
+                let owner = if let IoRequest::Connect { owner, .. } = request { owner } else { Token::new(0) };
                 let mut events = Queue::with_capacity(3);
-                let _ = self.peers.request(request, |_| {
-                let cut =
-                    if self.rng.chance(self.cut_chance) { Cut::At(self.rng.between(0, 2048)) } else { Cut::Never };
-                let mut peer = Peer {
-                    heads: std::collections::VecDeque::new(),
-                    line_indices: Vec::new(),
-                    pipe: Pipe::new(self.rng.next_u64(), cut),
-                    server: Server::new(owner, &self.protocol_env.limits).expect("server"),
-                    above: Queue::with_capacity(64),
-                    below: Queue::with_capacity(64),
-                };
-                protocol::start(
-                    &mut peer.server,
-                    self.service.as_mut().expect("Forgejo service"),
-                    &self.protocol_env,
-                    &mut peer.above,
-                    &mut peer.below,
+                let _ = self.peers.request(
+                    request,
+                    |_| {
+                        let cut = if self.rng.chance(self.cut_chance) {
+                            Cut::At(self.rng.between(0, 2048))
+                        } else {
+                            Cut::Never
+                        };
+                        let mut peer = Peer {
+                            heads: std::collections::VecDeque::new(),
+                            line_indices: Vec::new(),
+                            pipe: Pipe::new(self.rng.next_u64(), cut),
+                            server: Server::new(owner, &self.protocol_env.limits).expect("server"),
+                            above: Queue::with_capacity(64),
+                            below: Queue::with_capacity(64),
+                        };
+                        protocol::start(
+                            &mut peer.server,
+                            self.service.as_mut().expect("Forgejo service"),
+                            &self.protocol_env,
+                            &mut peer.above,
+                            &mut peer.below,
+                        );
+                        Some(peer)
+                    },
+                    &mut events,
                 );
-                    Some(peer)
-                }, &mut events);
-                while let Some(event) = events.pop() { self.up(event); }
+                while let Some(event) = events.pop() {
+                    self.up(event);
+                }
             }
         }
     }
@@ -503,10 +518,10 @@ impl Joint {
         if owner == LISTENER
             && let Some(owner) = self.hook_listener.take()
         {
-            self.up(skein_io::Event::Closed { owner });
+            self.up(IoEvent::Closed { owner });
         }
         if let Some(peer) = self.hook_peers.remove(&owner) {
-            self.up(skein_io::Event::Closed { owner: peer.owner.expect("bound hook") });
+            self.up(IoEvent::Closed { owner: peer.owner.expect("bound hook") });
         }
         let mut events = Queue::with_capacity(1);
         if let Some(mut peer) = self.peers.close(owner, &mut events) {
@@ -518,7 +533,9 @@ impl Joint {
                 &mut peer.above,
                 &mut peer.below,
             );
-            while let Some(event) = events.pop() { self.up(event); }
+            while let Some(event) = events.pop() {
+                self.up(event);
+            }
         }
     }
     #[must_use]
@@ -682,9 +699,13 @@ pub fn checks(passes: u32) -> raw::Checks {
     }
 }
 
-impl<S, E> crate::sockets::Peer for Peer<S, E> {
-    fn take(&mut self, down: skein_lib::stream::Down) { self.pipe.client_down(down); }
-    fn answer(&mut self) -> Option<skein_lib::stream::Up> { self.pipe.client_up() }
+impl<S, E> SocketPeer for Peer<S, E> {
+    fn take(&mut self, down: skein_lib::stream::Down) {
+        self.pipe.client_down(down);
+    }
+    fn answer(&mut self) -> Option<skein_lib::stream::Up> {
+        self.pipe.client_up()
+    }
 }
 
 impl<S, E> Peer<S, E> {
@@ -695,7 +716,9 @@ impl<S, E> Peer<S, E> {
         }
         // Earlier lines are complete; only the last observed line can gain bytes.
         let mut first = self.line_indices.len();
-        if self.line_indices.last().is_some_and(|index| !lines[*index].ends_with(b"\r\n")) { first -= 1; }
+        if self.line_indices.last().is_some_and(|index| !lines[*index].ends_with(b"\r\n")) {
+            first -= 1;
+        }
         for (at, line) in self.pipe.request_lines().iter().enumerate().skip(first) {
             if let Some(index) = self.line_indices.get(at) {
                 let saved = &mut lines[*index];
@@ -713,7 +736,9 @@ impl<S, E> Peer<S, E> {
         closed.cut_in_head += counts.cut_in_head;
         if counts.cut_in_head > 0 {
             assert_eq!(counts.cut_in_head, 1, "one head in flight per pipe");
-            if self.heads.pop_front().expect("cut follows first byte") { starts.cut_in_head += 1; }
+            if self.heads.pop_front().expect("cut follows first byte") {
+                starts.cut_in_head += 1;
+            }
         }
     }
 }

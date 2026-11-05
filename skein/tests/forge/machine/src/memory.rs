@@ -7,8 +7,9 @@ use skein_forge_connection::{
     limits::Forges,
     settings::{Forge, Kind, Transport},
 };
+use skein_forge_kit::sockets::{Peer as SocketPeer, Sockets};
 use skein_heap::{Measured, Span};
-use skein_forge_kit::sockets::Sockets;
+use skein_io::{Addr, Event as IoEvent, Request as IoRequest};
 use skein_lib::{
     Env, Intake, List, Queue, Secret, Time, Token,
     stream::{Down, Read, Up},
@@ -171,8 +172,8 @@ struct World {
     env: Env<Limits>,
     steps: Steps,
     above: Queue<Event>,
-    below: Queue<skein_io::Request>,
-    ios: VecDeque<skein_io::Request>,
+    below: Queue<IoRequest>,
+    ios: VecDeque<IoRequest>,
     saved: VecDeque<Saved>,
     peers: Sockets<Peer>,
     kinds: Vec<Kind>,
@@ -209,7 +210,7 @@ impl World {
                     number: u16::try_from(at + 1).expect("forge"),
                     kind,
                     log_origins: List::with_capacity(0),
-                    address: skein_io::Addr::Ip(([127, 0, 0, 1], 3000 + u16::try_from(at).expect("port")).into()),
+                    address: Addr::Ip(([127, 0, 0, 1], 3000 + u16::try_from(at).expect("port")).into()),
                     transport: Transport::Tls { server_name: pki::name(), trust: trust.clone() },
                     access: None,
                 })
@@ -218,7 +219,7 @@ impl World {
         let settings = Settings {
             forges: configured,
             webhooks: Some(skein_forge_connection::hooks::Webhooks {
-                listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7200).into()),
+                listener: Addr::Ip(([127, 0, 0, 1], 7200).into()),
             }),
             word: Box::from(b"kit".as_slice()),
             user_agent: vec![b'a'; 128].into_boxed_slice(),
@@ -298,8 +299,8 @@ impl World {
         self.component.down(&self.env, request, &mut self.above, &mut self.below);
         self.finish(self.steps.end());
     }
-    fn up(&mut self, event: skein_io::Event) {
-        if let skein_io::Event::Stream { up: Up::Bytes(bytes), .. } = &event {
+    fn up(&mut self, event: IoEvent) {
+        if let IoEvent::Stream { up: Up::Bytes(bytes), .. } = &event {
             self.steps.outside(-i64::try_from(bytes.len()).expect("input bytes"));
         }
         self.steps.start();
@@ -313,9 +314,9 @@ impl World {
         while let Some(request) = self.below.pop() {
             let span = Span::start();
             let (copy, original) = match request {
-                skein_io::Request::Stream { stream, down: Down::Send(bytes) } => (
-                    skein_io::Request::Stream { stream, down: Down::Send(bytes.clone()) }, Some(bytes)
-                ),
+                IoRequest::Stream { stream, down: Down::Send(bytes) } => {
+                    (IoRequest::Stream { stream, down: Down::Send(bytes.clone()) }, Some(bytes))
+                }
                 request => (request, None),
             };
             self.ios.push_back(copy);
@@ -395,7 +396,7 @@ impl World {
                         return Some(None);
                     }
                     if let Some(up) = peer.answer() {
-                        return Some(Some(skein_io::Event::Stream { owner: peer.owner.expect("bound peer"), up }));
+                        return Some(Some(IoEvent::Stream { owner: peer.owner.expect("bound peer"), up }));
                     }
                 }
                 None
@@ -416,37 +417,45 @@ impl World {
         }
         panic!("full holder run failed to settle");
     }
-    fn io(&mut self, request: skein_io::Request) {
+    fn io(&mut self, request: IoRequest) {
         match request {
-            skein_io::Request::Listen { owner, addr } => {
+            IoRequest::Listen { owner, addr } => {
                 self.listener = Some(owner);
-                self.up(skein_io::Event::Listening { owner, listener: owner, addr });
+                self.up(IoEvent::Listening { owner, listener: owner, addr });
             }
-            skein_io::Request::Bind { owner, socket } => {
+            IoRequest::Bind { owner, socket } => {
                 self.peers.get_mut(&socket).expect("accepted").owner = Some(owner);
             }
-            skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => {
+            IoRequest::Close { entity } | IoRequest::Abort { entity } => {
                 let owner = self.outside(|w| {
                     let mut events = Queue::with_capacity(1);
                     w.peers.close(entity, &mut events).and_then(|p| p.owner).unwrap_or(entity)
                 });
-                self.up(skein_io::Event::Closed { owner });
+                self.up(IoEvent::Closed { owner });
             }
             request => {
-                let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { Token::new(0) };
+                let owner = if let IoRequest::Connect { owner, .. } = request { owner } else { Token::new(0) };
                 let mut events = self.outside(|w| {
                     let mut events = Queue::with_capacity(3);
-                    let _ = w.peers.request(request, |addr| {
-                        let skein_io::Addr::Ip(addr) = addr else { panic!("IP fixture") };
-                        let mut peer = Peer::new(addr.port() - 2999, true);
-                        peer.owner = Some(owner);
-                        Some(peer)
-                    }, &mut events);
+                    let _ = w.peers.request(
+                        request,
+                        |addr| {
+                            let Addr::Ip(addr) = addr else { panic!("IP fixture") };
+                            let mut peer = Peer::new(addr.port() - 2999, true);
+                            peer.owner = Some(owner);
+                            Some(peer)
+                        },
+                        &mut events,
+                    );
                     events
                 });
-                self.seen.connections = self.seen.connections.max(
-                    u32::try_from(self.peers.values().filter(|p| p.tls.is_some()).count()).expect("connections"));
-                while let Some(event) = events.pop() { self.up(event); }
+                self.seen.connections = self
+                    .seen
+                    .connections
+                    .max(u32::try_from(self.peers.values().filter(|p| p.tls.is_some()).count()).expect("connections"));
+                while let Some(event) = events.pop() {
+                    self.up(event);
+                }
                 self.outside(|_| drop(events));
             }
         }
@@ -787,10 +796,10 @@ impl World {
                 w.outside(|w| {
                     w.peers.insert(socket, Peer::new(forge, false));
                 });
-                w.up(skein_io::Event::Accepted {
+                w.up(IoEvent::Accepted {
                     owner: w.listener.expect("listener"),
                     socket,
-                    peer: skein_io::Addr::Ip(([127, 0, 0, 1], 9000).into()),
+                    peer: Addr::Ip(([127, 0, 0, 1], 9000).into()),
                 });
                 w.settle();
                 w.seen.hooks += 1;
@@ -877,7 +886,11 @@ fn comparison_response(kind: Kind, target: &str) -> Vec<u8> {
     fixtures::response(200, body.as_bytes())
 }
 
-impl skein_forge_kit::sockets::Peer for Peer {
-    fn take(&mut self, down: Down) { self.take(down); }
-    fn answer(&mut self) -> Option<Up> { self.answer() }
+impl SocketPeer for Peer {
+    fn take(&mut self, down: Down) {
+        self.take(down);
+    }
+    fn answer(&mut self) -> Option<Up> {
+        self.answer()
+    }
 }

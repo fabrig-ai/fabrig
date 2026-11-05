@@ -1,6 +1,9 @@
 //! GitHub HTTP peers sharing the joint's domain and cutting pipes (skein/docs/design/fake-forge.md, 10.6).
-use super::{Joint, StartCounts, Peer};
-use crate::{pipe::{Cut, Pipe, RequestCounts}, sockets::Sockets};
+use super::{Joint, Peer, StartCounts};
+use crate::{
+    pipe::{Cut, Pipe, RequestCounts},
+    sockets::Sockets,
+};
 use skein_fake_forge_forgejo::{Route, Tally};
 use skein_fake_forge_github::{
     fixture,
@@ -10,7 +13,8 @@ use skein_fake_forge_github::{
 };
 use skein_forge::github::request::Method;
 use skein_http::server as http;
-use skein_lib::{Env, Queue, Token, stream::Down};
+use skein_io::{Event as IoEvent, Request as IoRequest};
+use skein_lib::{Env, Queue, Token};
 use std::collections::VecDeque;
 
 // More heads than a tick can receive through the fixture's bounded read.
@@ -78,19 +82,24 @@ impl Github {
             }
             let up = peer.pipe.client_up();
             if let Some(up) = up {
-                world.up(skein_io::Event::Stream { owner, up });
+                world.up(IoEvent::Stream { owner, up });
             }
         }
     }
-    pub fn io(&mut self, world: &mut Joint, request: skein_io::Request) {
+    pub fn io(&mut self, world: &mut Joint, request: IoRequest) {
         let owner = match &request {
-            skein_io::Request::Connect { owner, .. } | skein_io::Request::Stream { stream: owner, .. } => *owner,
-            skein_io::Request::Abort { entity } | skein_io::Request::Close { entity } => { self.end(world, *entity); return; }
+            IoRequest::Connect { owner, .. } | IoRequest::Stream { stream: owner, .. } => *owner,
+            IoRequest::Abort { entity } | IoRequest::Close { entity } => {
+                self.end(world, *entity);
+                return;
+            }
             _ => Token::new(0),
         };
         let before = self.peers.get(&owner).map_or(0, |peer| peer.pipe.request_counts().written);
         let mut events = Queue::with_capacity(3);
-        let _ = self.peers.request(request, |_| {
+        let _ = self.peers.request(
+            request,
+            |_| {
                 let cut =
                     if world.rng.chance(world.cut_chance) { Cut::At(world.rng.between(0, 2048)) } else { Cut::Never };
                 let env = Self::env(world);
@@ -103,30 +112,36 @@ impl Github {
                     line_indices: Vec::new(),
                 };
                 server::start(&mut peer.server, &mut self.service, &env, &mut peer.above, &mut peer.below);
-            Some(peer)
-        }, &mut events);
+                Some(peer)
+            },
+            &mut events,
+        );
         if let Some(peer) = self.peers.get_mut(&owner) {
-                    let written = peer.pipe.request_counts().written - before;
-                    let startup = world.forges.iter().any(|forge| {
-                        matches!(
-                            world.component.start(*forge),
-                            Some(
-                                skein_forge_connection::start::Start::Listing { .. }
-                                    | skein_forge_connection::start::Start::Minting { .. }
-                                    | skein_forge_connection::start::Start::Identity { .. }
-                                    | skein_forge_connection::start::Start::Waiting { .. }
-                            )
-                        )
-                    });
-                    peer.observe(written, startup, &mut world.starts, &mut world.lines);
+            let written = peer.pipe.request_counts().written - before;
+            let startup = world.forges.iter().any(|forge| {
+                matches!(
+                    world.component.start(*forge),
+                    Some(
+                        skein_forge_connection::start::Start::Listing { .. }
+                            | skein_forge_connection::start::Start::Minting { .. }
+                            | skein_forge_connection::start::Start::Identity { .. }
+                            | skein_forge_connection::start::Start::Waiting { .. }
+                    )
+                )
+            });
+            peer.observe(written, startup, &mut world.starts, &mut world.lines);
         }
-        while let Some(event) = events.pop() { world.up(event); }
+        while let Some(event) = events.pop() {
+            world.up(event);
+        }
     }
     pub fn end(&mut self, world: &mut Joint, owner: Token) {
         let mut events = Queue::with_capacity(1);
         if let Some(mut peer) = self.peers.close(owner, &mut events) {
             peer.freeze(&mut world.starts, &mut world.closed_counts);
-            while let Some(event) = events.pop() { world.up(event); }
+            while let Some(event) = events.pop() {
+                world.up(event);
+            }
         }
     }
     pub fn start_counts(&self, counts: &mut StartCounts) {
@@ -223,4 +238,3 @@ fn route(call: &http::Call) -> Option<Route> {
         | R::Followed { .. } => return None,
     })
 }
-
