@@ -44,6 +44,7 @@ pub(crate) fn main(
                     let shown = Page {
                         task,
                         report: goal.report.as_ref(),
+                        draft: &goal.draft,
                         counts: goal.counts(task, ended),
                         state: goal.state(task, ended, !bands.is_empty()),
                     };
@@ -182,6 +183,7 @@ fn funds_offered(asked: &ask::Asked<'_>) -> bool {
 struct Page<'a> {
     task: &'a c::Task,
     report: Option<&'a Report>,
+    draft: &'a (Option<Box<[u8]>>, Option<u64>),
     counts: Counts,
     state: State,
 }
@@ -198,11 +200,11 @@ impl Page<'_> {
         byline(b, self.report, Word::GoalWrittenAt, words, times);
         b.open(Role::Slot);
         b.style(look::GOAL_ACTS);
-        let (draft, chat) = goal::draft_of(self.task.spec.specification.words.bytes.bytes());
+        let (draft, chat) = self.draft;
         if draft.is_some()
             && let Some(task) = chat
         {
-            chat_link(b, task, &words.say(Word::GoalDraft, &[]), bindings);
+            chat_link(b, *task, &words.say(Word::GoalDraft, &[]), bindings);
         }
         if let c::Requester::Task(task) = self.task.requester {
             chat_link(b, task, &words.say(Word::GoalChat, &[Hole::Number(task)]), bindings);
