@@ -1237,7 +1237,8 @@ The fleet child domain knows the hosts and the runs they host:
   and 6.3), ends a run the host never hosted. The fleet closes the
   attempt as it hears it, and never acknowledges it: one refused as busy
   is placed again, as no failure; one refused as invalid ends its start,
-  refused. One lost with its channel leaves its attempt unlisted at the
+  refused. The task's class comes from the answer's payload: a refused
+  transcript is transient (hosts.md, 6.3). One lost with its channel leaves its attempt unlisted at the
   next hello, and the start ends lost; the next attempt is refused again,
   or placed.
 - **Restarting** (section 6): the fleet adopts the claims the store

@@ -519,18 +519,24 @@ fn core_now_translates_the_links_six_outputs_without_changing_fields() {
 #[test]
 fn unusable_transcripts_are_transient_at_admission_and_at_the_terminal() {
     let endings = [
-        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Transcript)),
-        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
-            cause: host::StartCause::Transcript,
-            why: b"saved history".as_slice().into(),
-        })),
-        host::Ending::Failed {
-            failure: host::Failure::Run(host::RunFailure::Transcript),
-            detail: Box::new([]),
-            work: host::Work { left: None, saved: None },
-        },
+        (host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Transcript)), fleet::Answer::Invalid),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                cause: host::StartCause::Transcript,
+                why: b"saved history".as_slice().into(),
+            })),
+            fleet::Answer::Invalid,
+        ),
+        (
+            host::Ending::Failed {
+                failure: host::Failure::Run(host::RunFailure::Transcript),
+                detail: Box::new([]),
+                work: host::Work { left: None, saved: None },
+            },
+            fleet::Answer::Failed { turned: None },
+        ),
     ];
-    for ending in endings {
+    for (ending, expected) in endings {
         assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Transient));
         let mut link = link();
         let event = up(
@@ -543,9 +549,9 @@ fn unusable_transcripts_are_transient_at_admission_and_at_the_terminal() {
             },
         )
         .expect("terminal reaches fleet");
-        let core::Event::Fleet(fleet::Event::Answer { answer: fleet::Answer::Failed { turned: None }, .. }) = event
-        else {
-            panic!("the fleet must retain a retryable terminal instead of rejecting the claim");
+        let core::Event::Fleet(fleet::Event::Answer { answer, .. }) = event else {
+            panic!("terminal reaches the fleet as an answer");
         };
+        assert_eq!(answer, expected, "a refused start closes without an acknowledgement");
     }
 }

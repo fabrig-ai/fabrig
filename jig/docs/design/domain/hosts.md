@@ -515,8 +515,9 @@ Each carries bounded detail for operators; none of it is shown to an LLM.
 **Unusable resume history** retains its own typed reason. A transcript
 that cannot be decoded, a start Smith refuses for its transcript, and a
 run reporting a transcript failure all end as a transient task failure.
-The fleet accepts these refusals as failed attempts, without dropping the
-claim. The next preparation starts fresh with the transcript tail when
+The fleet closes these as any refused start (6.2; `engine.md`, section 8),
+never acknowledging them; the task's terminal is the transient failure.
+The next preparation starts fresh with the transcript tail when
 readable and keeps unread inbox messages (`engine.md`, 7.2 and 9);
 an unread tail does not spend another transient try. It does not retry the same
 history as an invalid start or a model failure.

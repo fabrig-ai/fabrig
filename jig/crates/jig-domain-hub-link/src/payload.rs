@@ -82,9 +82,6 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
                 host::Ending::Parked { .. } => fleet::Answer::Parked,
                 host::Ending::Failed { failure, .. } => fleet::Answer::Failed { turned: turned(failure) },
                 host::Ending::Refused(host::Refusal::Busy) => fleet::Answer::Busy,
-                host::Ending::Refused(host::Refusal::Invalid(
-                    host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
-                )) => fleet::Answer::Failed { turned: None },
                 host::Ending::Refused(host::Refusal::Invalid(_)) => fleet::Answer::Invalid,
             };
             let payload = domain.retain(Payload::Answer {
