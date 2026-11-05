@@ -69,6 +69,7 @@ pub struct BrowserFace<'a> {
     acting: Option<Token>,
     now: Time,
     last_find: Option<(NodeId, Find)>,
+    look_again: Option<(Find, Time)>,
     press: Option<Press>,
     expected_path: Option<Box<[u8]>>,
     failure: Option<String>,
@@ -108,6 +109,7 @@ impl<'a> BrowserFace<'a> {
             acting: None,
             now: Time::ZERO,
             last_find: None,
+            look_again: None,
             press: None,
             expected_path: None,
             failure: None,
@@ -130,16 +132,12 @@ impl<'a> BrowserFace<'a> {
         if let Some(answer) = self.answer.take() {
             return answer;
         }
+        let find = Find::exactly_named(Role::Page, words);
+        if !self.look_due(&find) {
+            return Found::Pending;
+        }
         if self.search.is_none() {
-            self.ask(Search {
-                title: true,
-                boxes: false,
-                find: Find::exactly_named(Role::Page, words),
-                depth: 0,
-                role: 0,
-                within: None,
-                op: Token::new(0),
-            });
+            self.ask(Search { title: true, boxes: false, find, depth: 0, role: 0, within: None, op: Token::new(0) });
         }
         self.answer.take().unwrap_or(Found::Pending)
     }
@@ -195,13 +193,17 @@ impl<'a> BrowserFace<'a> {
             again: None,
         });
     }
-    fn absent(&mut self) {
+    fn absent(&mut self, find: Find) {
         let again = self.now.saturating_add(skein_browser::Limits::default().poll);
+        self.look_again = Some((find, again));
         if let Some(press) = &mut self.press {
             press.again = Some(again);
         } else {
             self.answer = Some(Found::Absent);
         }
+    }
+    fn look_due(&self, find: &Find) -> bool {
+        self.look_again.as_ref().is_none_or(|(looked, again)| looked != find || self.now >= *again)
     }
     pub(crate) fn command(&mut self, action: crate::harness::CommandAction) {
         self.command = Some(action);
@@ -387,7 +389,7 @@ impl<'a> BrowserFace<'a> {
             roles = &[b"RootWebArea"];
         }
         let Some(role) = roles.get(search.role) else {
-            self.absent();
+            self.absent(search.find);
             return;
         };
         search.op = self.token();
@@ -432,6 +434,8 @@ impl<'a> BrowserFace<'a> {
             } else {
                 let role = target_role(&search.find.target);
                 let node = self.remember(seen, role);
+                self.look_again =
+                    Some((search.find.clone(), self.now.saturating_add(skein_browser::Limits::default().poll)));
                 self.last_find = Some((node, search.find));
                 if let Some(press) = &self.press {
                     let at = press.at;
@@ -454,7 +458,7 @@ impl<'a> BrowserFace<'a> {
             search.role += 1;
             self.ask(search);
         } else {
-            self.absent();
+            self.absent(search.find);
         }
     }
     /// Deliver operation events and downloads routed by the harness to this person.
@@ -513,7 +517,7 @@ impl<'a> BrowserFace<'a> {
                 }
                 if self.search.as_ref().map(|s| s.op) == Some(*op) {
                     let search = self.search.take().expect("matching search");
-                    self.absent();
+                    self.absent(search.find);
                 }
                 if self.acting == Some(*op) {
                     self.acting = None;
@@ -703,6 +707,9 @@ impl Face for BrowserFace<'_> {
     fn find(&mut self, find: &Find) -> Found {
         if let Some(answer) = self.answer.take() {
             return answer;
+        }
+        if !self.look_due(find) {
+            return Found::Pending;
         }
         if self.search.is_none() {
             self.ask(Search {

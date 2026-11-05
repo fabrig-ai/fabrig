@@ -731,6 +731,32 @@ fn face_found(face: &mut skein_fake_person_browser::BrowserFace<'_>, node: Optio
     query
 }
 
+#[test]
+fn repeated_finds_wait_for_the_poll_whether_the_target_is_present_or_absent() {
+    use skein_fake_person_browser::{
+        BrowserFace,
+        person::{Face, Find, Found},
+    };
+    for node in [None, Some(7)] {
+        let mut face = BrowserFace::new(Token::new(3), "");
+        let find = Find::exactly_named(skein_ui::Role::Button, b"Save");
+        assert_eq!(face.find(&find), Found::Pending);
+        face_found(&mut face, node);
+        let expected = match node {
+            Some(_) => Found::Node(skein_ui::NodeId(0)),
+            None => Found::Absent,
+        };
+        assert_eq!(face.find(&find), expected);
+        let poll = skein_browser::Limits::default().poll;
+        face.tick(Time::from_nanos(poll.as_nanos().checked_sub(1).expect("positive poll")));
+        assert_eq!(face.find(&find), Found::Pending);
+        assert_eq!(face.requests().count(), 0, "no busy polling before the interval: {node:?}");
+        face.tick(Time::ZERO.saturating_add(poll));
+        assert_eq!(face.find(&find), Found::Pending);
+        assert!(matches!(face.requests().next(), Some(Request::Find { .. })));
+    }
+}
+
 fn pending_press() -> (skein_fake_person_browser::BrowserFace<'static>, Token) {
     use skein_fake_person_browser::{
         BrowserFace,
