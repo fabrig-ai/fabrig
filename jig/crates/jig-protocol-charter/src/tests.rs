@@ -669,24 +669,6 @@ fn hosted_fixture() -> jig_domain_hub_link::Assignment {
     }
 }
 
-fn hosted_with_bounds(
-    value: &jig_domain_hub_link::Assignment,
-    answered: u32,
-    messages: u32,
-) -> Option<jig_domain_host::Assignment> {
-    crate::hosted(
-        value,
-        crate::Given {
-            tools: Box::new([]),
-            endpoints: &[EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }],
-            deployment: &[3; 16],
-            limits: &wire::CEILINGS,
-            answered,
-            messages,
-        },
-    )
-}
-
 #[test]
 #[expect(clippy::too_many_lines, reason = "one hand-over pins its ordered sections, messages and settled calls")]
 fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
@@ -741,7 +723,15 @@ fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
             .unwrap();
     }
     value.answered = calls.into_boxed();
-    let result = hosted_with_bounds(&value, 7, 2).expect("hosted assignment");
+    let result = crate::hosted(
+        &value,
+        crate::RootParts {
+            tools: Box::new([]),
+            endpoints: &[EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }],
+            deployment: &[3; 16],
+            limits: &wire::CEILINGS,
+        },
+    ).expect("hosted assignment");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&result.assignment.charter)).unwrap();
     assert_eq!(decoded.brief().len(), 19);
     for ((_, title), pair) in titles.iter().zip(decoded.brief().as_slice().chunks_exact(2)) {
@@ -824,13 +814,14 @@ fn hosted_refuses_a_connector_section_without_its_bytes() {
         token: skein_lib::Token::new(3),
         size: 4,
     }]);
-    assert!(hosted_with_bounds(&value, 1, 2).is_none());
+    assert!(crate::hosted(
+        &value,
+        crate::RootParts {
+            tools: Box::new([]),
+            endpoints: &[EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }],
+            deployment: &[3; 16],
+            limits: &wire::CEILINGS,
+        },
+    ).is_none());
 }
 
-#[test]
-fn hosted_refuses_calls_or_messages_past_the_roots_bounds() {
-    let value = hosted_fixture();
-    assert!(hosted_with_bounds(&value, 1, 2).is_some());
-    assert!(hosted_with_bounds(&value, 0, 2).is_none());
-    assert!(hosted_with_bounds(&value, 1, 1).is_none());
-}

@@ -17,13 +17,11 @@ pub(crate) fn assignment(
 ) -> Option<host::Assignment> {
     charter::hosted(
         assignment,
-        charter::Given {
+        charter::RootParts {
             tools: domain.tools.clone(),
             endpoints: &domain.charter_endpoints,
             deployment: &domain.deployment,
             limits: &env.limits.charter,
-            answered: env.limits.core.call_records,
-            messages: env.limits.core.tasks.run_inbox,
         },
     )
 }
