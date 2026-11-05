@@ -8,7 +8,7 @@
 - **Size:** M
 - **Status:** open
 - **Paid when:** skein's step crates widen a `u32` with `skein_lib::usize_of` and measure a native length with `skein_lib::len_u64`, never with `usize::try_from(..).expect(..)` or `u64::try_from(x.len())`, outside lib's own two helpers.
-- **Measure:** `rg -o 'usize::try_from\(.*\)\.expect\(|u64::try_from\([^)]*\.len\(\)\)' skein/crates skein/examples -g '!**/tests/**' -g '!**/tests.rs' -g '!*_tests.rs' | wc -l`: 603 at base
+- **Measure:** `rg -o 'usize::try_from\(.*\)\.expect\(|u64::try_from\([^)]*\.len\(\)\)' skein/crates skein/examples -g '!**/tests/**' -g '!**/tests.rs' -g '!*_tests.rs' | wc -l`: 57 (ratchet floor 29, generated sites 27, and `length.rs`'s one)
 
 ## What
 
