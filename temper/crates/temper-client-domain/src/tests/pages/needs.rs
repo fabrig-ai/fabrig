@@ -603,7 +603,7 @@ fn standing_watch_opens_once_for_project_closes_on_welcome_and_signout_and_reope
     let client = root.client();
     let project = pages::Act::Project { project: fixtures::PROJECT };
     let welcome = Address::Welcome { step: crate::Step::Ready };
-    assert_eq!(needs::handle().number, u64::MAX - 1);
+    assert_eq!(needs::handle().number, u64::MAX - 3);
     assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Link { link: jig_client::Link::Live }), true), 0);
     assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Act { act: project.clone() }), true), 1);
     assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Act { act: project.clone() }), true), 0);
