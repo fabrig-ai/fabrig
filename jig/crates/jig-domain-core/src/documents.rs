@@ -211,6 +211,69 @@ pub enum Subject {
     },
 }
 
+/// Watch routing categories (`client/domain/contract.md`, section 7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum SubjectShape {
+    Application { scope: ApplicationScope, connector: u16, subject: skein_lib::Token },
+    Run(u64),
+    Retained(u64),
+    Chips,
+    Other,
+}
+
+impl Subject {
+    /// Select the watch route without exposing unrelated document subjects.
+    #[must_use]
+    pub fn shape(&self) -> SubjectShape {
+        match self {
+            Self::Application { scope, connector, subject } => SubjectShape::Application {
+                scope: *scope, connector: *connector, subject: *subject,
+            },
+            Self::Run { task } => SubjectShape::Run(*task),
+            Self::Task { task } | Self::Tree { task } => SubjectShape::Retained(*task),
+            Self::Chips { .. } => SubjectShape::Chips,
+            Self::Frame { .. }
+            | Self::Inbox { .. }
+            | Self::Accounts { .. }
+            | Self::Query { .. }
+            | Self::Settings
+            | Self::Deployment
+            | Self::Proposal { .. }
+            | Self::Escalation { .. }
+            | Self::Question { .. }
+            | Self::PersonTask { .. }
+            | Self::Result { .. }
+            | Self::Project { .. }
+            | Self::Note { .. } => SubjectShape::Other,
+        }
+    }
+
+    /// Borrow the bounded task names of a chips watch.
+    #[must_use]
+    pub fn chips(&self) -> Option<&List<u64>> {
+        match self {
+            Self::Chips { tasks } => Some(tasks),
+            Self::Application { .. }
+            | Self::Task { .. }
+            | Self::Tree { .. }
+            | Self::Run { .. }
+            | Self::Frame { .. }
+            | Self::Inbox { .. }
+            | Self::Accounts { .. }
+            | Self::Query { .. }
+            | Self::Settings
+            | Self::Deployment
+            | Self::Proposal { .. }
+            | Self::Escalation { .. }
+            | Self::Question { .. }
+            | Self::PersonTask { .. }
+            | Self::Result { .. }
+            | Self::Project { .. }
+            | Self::Note { .. } => None,
+        }
+    }
+}
+
 /// The subjects a watch may name (`protocol/client.md`, section 7).
 /// Own subjects take their party from the authenticated sign-in in the core.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

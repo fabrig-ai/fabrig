@@ -9,15 +9,7 @@ const TASK: u64 = 7;
 const CONNECTOR: u16 = 1;
 const SUBJECT: Token = Token::new(50);
 
-#[expect(dead_code, reason = "expected shape records document the watch partition")]
-#[derive(Debug)]
-enum Shape {
-    Application { scope: ApplicationScope, connector: u16, subject: Token },
-    Run(u64),
-    Retained(u64),
-    Chips,
-    Other,
-}
+use crate::documents::SubjectShape as Shape;
 
 struct Row {
     subject: Subject,
@@ -25,6 +17,7 @@ struct Row {
     retained: Option<u64>,
     application: Option<(u16, Token, ApplicationScope, u64, Window)>,
     // Party, other party, frames, settings, deployment, all accounts, own accounts, other accounts.
+    chips: Option<[u64; 2]>,
     marks: [bool; 8],
 }
 
@@ -40,26 +33,27 @@ fn rows() -> Vec<Row> {
             shape: Shape::Application { scope: ApplicationScope::Project(1), connector: CONNECTOR, subject: SUBJECT },
             retained: None,
             application: Some((CONNECTOR, SUBJECT, ApplicationScope::Project(1), PARTY, window())),
+            chips: None,
             marks: no,
         },
-        Row { subject: Subject::Frame { party: PARTY }, shape: Shape::Other, retained: None, application: None, marks: own },
-        Row { subject: Subject::Task { task: TASK }, shape: Shape::Retained(TASK), retained: Some(TASK), application: None, marks: no },
-        Row { subject: Subject::Tree { task: TASK }, shape: Shape::Retained(TASK), retained: Some(TASK), application: None, marks: no },
-        Row { subject: Subject::Chips { tasks: chips }, shape: Shape::Chips, retained: None, application: None, marks: no },
-        Row { subject: Subject::Inbox { party: PARTY }, shape: Shape::Other, retained: None, application: None, marks: [true, false, false, false, false, false, false, false] },
-        Row { subject: Subject::Accounts { party: PARTY }, shape: Shape::Other, retained: None, application: None, marks: [false, false, false, false, false, true, true, false] },
-        Row { subject: Subject::Query { query: TaskQuery { project: None, requester: None, root: None, parent: None, label: None, phase: None, executor: None, tracked: None, order: QueryOrder::Number } }, shape: Shape::Other, retained: None, application: None, marks: no },
-        Row { subject: Subject::Run { task: TASK }, shape: Shape::Run(TASK), retained: None, application: None, marks: no },
-        Row { subject: Subject::Deployment, shape: Shape::Other, retained: None, application: None, marks: [false, false, false, false, true, false, false, false] },
-        Row { subject: Subject::Settings, shape: Shape::Other, retained: None, application: None, marks: [false, false, false, true, false, false, false, false] },
-        Row { subject: Subject::Proposal { proposer: Proposer::Task(TASK), number: 3 }, shape: Shape::Other, retained: None, application: None, marks: no },
-        Row { subject: Subject::Proposal { proposer: Proposer::Party(PARTY), number: 3 }, shape: Shape::Other, retained: None, application: None, marks: no },
-        Row { subject: Subject::Escalation { task: TASK }, shape: Shape::Other, retained: None, application: None, marks: no },
-        Row { subject: Subject::Question { task: TASK, message: 3 }, shape: Shape::Other, retained: None, application: None, marks: no },
-        Row { subject: Subject::PersonTask { task: TASK }, shape: Shape::Other, retained: None, application: None, marks: no },
-        Row { subject: Subject::Result { task: TASK }, shape: Shape::Other, retained: None, application: None, marks: no },
-        Row { subject: Subject::Project { project: 1 }, shape: Shape::Other, retained: None, application: None, marks: no },
-        Row { subject: Subject::Note { note: 3 }, shape: Shape::Other, retained: None, application: None, marks: no },
+        Row { subject: Subject::Frame { party: PARTY }, shape: Shape::Other, retained: None, application: None, chips: None, marks: own },
+        Row { subject: Subject::Task { task: TASK }, shape: Shape::Retained(TASK), retained: Some(TASK), application: None, chips: None, marks: no },
+        Row { subject: Subject::Tree { task: TASK }, shape: Shape::Retained(TASK), retained: Some(TASK), application: None, chips: None, marks: no },
+        Row { subject: Subject::Chips { tasks: chips }, shape: Shape::Chips, retained: None, application: None, chips: Some([TASK, TASK + 1]), marks: no },
+        Row { subject: Subject::Inbox { party: PARTY }, shape: Shape::Other, retained: None, application: None, chips: None, marks: [true, false, false, false, false, false, false, false] },
+        Row { subject: Subject::Accounts { party: PARTY }, shape: Shape::Other, retained: None, application: None, chips: None, marks: [false, false, false, false, false, true, true, false] },
+        Row { subject: Subject::Query { query: TaskQuery { project: None, requester: None, root: None, parent: None, label: None, phase: None, executor: None, tracked: None, order: QueryOrder::Number } }, shape: Shape::Other, retained: None, application: None, chips: None, marks: no },
+        Row { subject: Subject::Run { task: TASK }, shape: Shape::Run(TASK), retained: None, application: None, chips: None, marks: no },
+        Row { subject: Subject::Deployment, shape: Shape::Other, retained: None, application: None, chips: None, marks: [false, false, false, false, true, false, false, false] },
+        Row { subject: Subject::Settings, shape: Shape::Other, retained: None, application: None, chips: None, marks: [false, false, false, true, false, false, false, false] },
+        Row { subject: Subject::Proposal { proposer: Proposer::Task(TASK), number: 3 }, shape: Shape::Other, retained: None, application: None, chips: None, marks: no },
+        Row { subject: Subject::Proposal { proposer: Proposer::Party(PARTY), number: 3 }, shape: Shape::Other, retained: None, application: None, chips: None, marks: no },
+        Row { subject: Subject::Escalation { task: TASK }, shape: Shape::Other, retained: None, application: None, chips: None, marks: no },
+        Row { subject: Subject::Question { task: TASK, message: 3 }, shape: Shape::Other, retained: None, application: None, chips: None, marks: no },
+        Row { subject: Subject::PersonTask { task: TASK }, shape: Shape::Other, retained: None, application: None, chips: None, marks: no },
+        Row { subject: Subject::Result { task: TASK }, shape: Shape::Other, retained: None, application: None, chips: None, marks: no },
+        Row { subject: Subject::Project { project: 1 }, shape: Shape::Other, retained: None, application: None, chips: None, marks: no },
+        Row { subject: Subject::Note { note: 3 }, shape: Shape::Other, retained: None, application: None, chips: None, marks: no },
     ]
 }
 
@@ -80,6 +74,8 @@ fn watched(subject: Subject) -> (Core, Token) {
 #[test]
 fn subject_partitions_preserve_watch_routing() {
     for row in rows() {
+        assert_eq!(row.subject.chips().map(List::as_slice), row.chips.as_ref().map(|numbers| numbers.as_slice()), "{:?}", row.subject);
+        assert_eq!(row.subject.shape(), row.shape, "{:?}", row.subject);
         let (mut core, watcher) = watched(row.subject.clone());
         assert_eq!(retained_subject(&row.subject), row.retained, "{:?}", row.subject);
         assert_eq!(application_subject(&core, watcher), row.application, "{:?}", row.subject);
