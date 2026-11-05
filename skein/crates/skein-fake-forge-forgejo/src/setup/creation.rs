@@ -11,7 +11,7 @@ use skein_forge::forgejo::{
     request::{Repo, Request},
     server::Answer,
 };
-use skein_lib::Env;
+use skein_lib::{Env, usize_of};
 
 impl Store {
     pub(super) fn creation(
@@ -41,7 +41,7 @@ impl Store {
             if hosted.domain.metadata(&full_name).is_ok() {
                 return Some(refusal(409, b"repository already exists", limits));
             }
-            if full_name.len() > usize::try_from(limits.documents.target_bytes).expect("u32 fits")
+            if full_name.len() > usize_of(limits.documents.target_bytes)
                 || config.repositories.room() == 0
                 || (*private && self.private.room() == 0)
             {

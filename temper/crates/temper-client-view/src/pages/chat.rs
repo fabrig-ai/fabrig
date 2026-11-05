@@ -39,7 +39,7 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     let configuring = configuring(root);
-    b.style(if configuring { look::SESSION } else { look::CHAT });
+    b.style(look::SESSION);
     if let Some(chat) = root.pages().chat()
         && let Some(task) = chat.task(root.client())
     {
@@ -47,36 +47,30 @@ pub(crate) fn main(
             Word::ChatTitle,
             &[Hole::Number(chat.task), Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],
         );
+        super::session::top(
+            b,
+            root,
+            words,
+            bindings,
+            Some(task.project),
+            if configuring { super::session::Path::Settings } else { super::session::Path::Chats },
+            super::session::Heading::Chat { whole: &title, title: task.chip.title.bytes() },
+        );
+        super::session::right(b);
         if configuring {
-            super::configure::top(b, root, words, bindings, task.project, &title);
-            b.open(Role::Slot);
-            b.style(look::SESSION_ACTIONS);
-            bar_status(b, root, task, words, times);
-            bar_actions(b, task, words, bindings);
-            b.close();
-            b.close();
-            b.open(Role::Region);
-            b.name(&words.say_card(P::ConversationLog, &[]));
-            b.style(look::CONVO);
+            super::configure::byline(b, root, words, task.project);
         } else {
-            b.open(Role::Region);
-            b.name(&title);
-            b.style(look::CHATBAR);
-            b.open(Role::Slot);
-            heading(b, &title, task.chip.title.bytes());
-            bar_status(b, root, task, words, times);
-            b.close();
-            b.open(Role::Slot);
-            bar_actions(b, task, words, bindings);
-            b.close();
-            b.close();
-            context(b, root, task.project, words);
+            crate::choice::byline(b, root, Some(task), words, bindings);
         }
+        bar_status(b, root, task, words, times);
+        bar_actions(b, task, words, bindings);
+        b.close();
+        b.close();
+        b.open(Role::Region);
+        b.name(&words.say_card(P::ConversationLog, &[]));
+        b.style(look::CONVO);
         b.open(Role::Slot);
         b.style(look::THREAD);
-        if chat.offers_older() {
-            control(b, bindings, Role::Button, &words.say(Word::Older, &[]), Act::Older);
-        }
         let person = speakers(task, root.pages().me(root.client()));
         conversation_with_times(
             b,
@@ -87,48 +81,70 @@ pub(crate) fn main(
             (Drawn::ChatPage { request: Some(&task.spec), root }, Some(times)),
             bindings,
         );
-        let mut unanchored = false;
-        for card in &chat.cards {
-            if proposal_anchor(chat, card.object, rows).is_none() {
-                unanchored = true;
-            }
-        }
-        if unanchored || !chat.departures().is_empty() {
-            b.open(Role::List);
-            b.style(look::CARDS);
-        }
-        for card in &chat.cards {
-            if proposal_anchor(chat, card.object, rows).is_none() {
-                proposal_card(b, root, card, words, bindings, (rows, Some(times)), Role::Item);
-            }
-        }
-        for object in chat.departures() {
-            b.open(Role::Item);
-            b.style(look::CARD);
-            b.key(super::inbox::card_key(*object));
-            words.status(b, P::CardLeft, &[]);
-            b.close();
-        }
-        if unanchored || !chat.departures().is_empty() {
-            b.close();
-        }
-        if let Some(result) = &task.result {
-            let clock = end_clock(task, words, times);
-            result_text(b, result, task.requester, words, clock.as_deref());
-        }
-        act_status(b, root, chat, words);
         b.close();
-        if configuring {
-            session_composer(b, root, chat, task, words, bindings);
-            b.close();
-        } else {
-            composer(b, root, chat, task, words, bindings, times);
+        if task.result.is_none() && !super::chats::ended(&task.chip) && !configuring {
+            crate::choice::above_composer(b, root, Some(task), words, bindings, times);
         }
+        session_composer(b, root, chat, task, words, bindings);
+        b.close();
     }
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();
 }
-/// The delivered chat's chip decides its layout and current navigation entry (client/README.md, 3.5).
+fn conversation_head(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
+    let chat = root.pages().chat().expect("chat page");
+    let task = chat.task(root.client()).expect("chat task");
+    context(b, root, task.project, words);
+    if chat.offers_older() {
+        b.open(Role::Button);
+        b.style(look::CHATS_MORE);
+        b.name(&words.say(Word::Older, &[]));
+        b.bind(bindings.insert(Act::Older));
+        b.close();
+    }
+}
+fn conversation_tail(
+    b: &mut Builder,
+    root: &Domain,
+    words: &Words,
+    bindings: &mut Bindings,
+    rows: u32,
+    times: &mut Times,
+) {
+    let chat = root.pages().chat().expect("chat page");
+    let task = chat.task(root.client()).expect("chat task");
+    let mut unanchored = false;
+    for card in &chat.cards {
+        if proposal_anchor(chat, card.object, rows).is_none() {
+            unanchored = true;
+        }
+    }
+    if unanchored || !chat.departures().is_empty() {
+        b.open(Role::List);
+        b.style(look::CARDS);
+    }
+    for card in &chat.cards {
+        if proposal_anchor(chat, card.object, rows).is_none() {
+            proposal_card(b, root, card, words, bindings, (rows, Some(times)), Role::Item);
+        }
+    }
+    for object in chat.departures() {
+        b.open(Role::Item);
+        b.style(look::CARD);
+        b.key(super::inbox::card_key(*object));
+        words.status(b, P::CardLeft, &[]);
+        b.close();
+    }
+    if unanchored || !chat.departures().is_empty() {
+        b.close();
+    }
+    if let Some(result) = &task.result {
+        let clock = end_clock(task, words, times);
+        result_text(b, result, task.requester, words, clock.as_deref());
+    }
+    act_status(b, root, chat, words);
+}
+/// The delivered chat's chip decides its path and current navigation entry (client/README.md, 3.5).
 pub(crate) fn configuring(root: &Domain) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };
@@ -139,8 +155,7 @@ fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, tim
     if task.result.is_some() || super::chats::ended(&task.chip) {
         closed_status(b, task, words, times);
     } else if let Some(me) = root.pages().me(root.client()) {
-        super::chats::status(
-            b,
+        let (token, name) = super::chats::status_words(
             &task.chip,
             (
                 &task.waits_on,
@@ -152,16 +167,24 @@ fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, tim
             me,
             words,
         );
+        b.open(Role::Status);
+        b.style(token);
+        if token == look::STATUS_YOURS || token == look::STATUS_WAITING {
+            b.style(look::STATE_NEEDS);
+        }
+        b.name(&name);
+        b.text(Run::Plain, &name);
+        b.close();
     }
 }
 fn bar_actions(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
-    spend(b, task, words);
     if temper_client_domain::pages::chat::allowed(task, c::ActKind::Stop) {
         control(b, bindings, Role::Button, &words.say(Word::Stop, &[]), Act::Stop);
     }
     if temper_client_domain::pages::chat::allowed(task, c::ActKind::Cancel) {
         control(b, bindings, Role::Button, &words.say(Word::Close, &[]), Act::Close);
     }
+    spend(b, task, words);
 }
 fn session_composer(
     b: &mut Builder,
@@ -177,7 +200,7 @@ fn session_composer(
     {
         return;
     }
-    super::configure::foot(b, &words.say(Word::Message, &[]));
+    super::session::foot(b, &words.say(Word::Message, &[]));
     b.open(Role::TextArea);
     b.name(&words.say(Word::Message, &[]));
     b.placeholder(&words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]));
@@ -189,12 +212,12 @@ fn session_composer(
     b.close();
     b.open(Role::Button);
     b.name(&words.say(Word::Send, &[]));
-    if !crate::choice::can_send(root) {
+    if chat.words.is_empty() || !crate::choice::can_send(root) {
         b.state(State::Disabled);
     }
     b.bind(bindings.insert(Act::Send));
     b.close();
-    super::configure::hint(b, words);
+    super::session::hint(b, words);
     if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome
         && !super::chats::accepted(outcome)
@@ -215,25 +238,6 @@ fn closed_status(b: &mut Builder, task: &c::Task, words: &Words, times: &mut Tim
     b.text(Run::Plain, &name);
     b.close();
 }
-fn heading(b: &mut Builder, title: &[u8], suffix: &[u8]) {
-    b.open(Role::Heading { level: 1 });
-    b.name(title);
-    let title_at = title.len().checked_sub(suffix.len()).expect("title hole is a suffix");
-    let prefix = title.get(..title_at).expect("title suffix is within the phrase");
-    let separator_at = skein_lib::bytes::find(prefix, b" ").expect("chat heading separates number and title");
-    for part in [
-        prefix.get(..separator_at).expect("number precedes the separator"),
-        prefix.get(separator_at..).expect("separator is within the prefix"),
-        title.get(title_at..).expect("title suffix is within the phrase"),
-    ] {
-        b.open(Role::Text);
-        b.name(part);
-        b.run(Run::Plain, part);
-        b.close();
-    }
-    b.close();
-}
-
 fn act_status(b: &mut Builder, root: &Domain, chat: &Chat, words: &Words) {
     for (key, kind) in &chat.pending {
         match kind {
@@ -282,6 +286,7 @@ pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Word
     };
     b.open(Role::Slot);
     b.style(look::CONTEXT);
+    b.style(look::META_LINE);
     let repository = words
         .say(Word::PlaygroundRepository, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]);
     b.open(Role::Paragraph);
@@ -483,60 +488,6 @@ fn spend(b: &mut Builder, task: &c::Task, words: &Words) {
         ),
     );
 }
-fn composer(
-    b: &mut Builder,
-    root: &Domain,
-    chat: &Chat,
-    task: &c::Task,
-    words: &Words,
-    bindings: &mut Bindings,
-    times: &mut Times,
-) {
-    if task.result.is_some() {
-        return;
-    }
-    if let c::ChipPhaseFacts { phase: c::ChipPhase::Ended, .. } = task.chip.details.as_ref() {
-        return;
-    }
-    if temper_client_domain::pages::chat::allowed(task, c::ActKind::Message) {
-        b.open(Role::Slot);
-        b.style(look::COMPOSER_AREA);
-        crate::choice::composer(b, root, Some(task), words, bindings, times);
-        b.open(Role::Slot);
-        b.style(look::ENTRY);
-        b.open(Role::TextArea);
-        b.name(&words.say(Word::Message, &[]));
-        b.placeholder(&words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]));
-        if crate::choice::can_send(root) {
-            b.state(State::SubmitsOnEnter);
-        }
-        b.style(look::COMPOSER);
-        b.value(&chat.words, temper_client_domain::pages::shown(root.pages()));
-        b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
-        b.close();
-        b.open(Role::Paragraph);
-        b.style(look::HINT);
-        words.text(b, Word::ChatSendHint, &[]);
-        b.close();
-        b.open(Role::Button);
-        b.name(&words.say(Word::Send, &[]));
-        if !crate::choice::can_send(root) {
-            b.state(State::Disabled);
-        }
-        b.bind(bindings.insert(Act::Send));
-        b.close();
-        if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
-            && let Some(outcome) = &chat.outcome
-            && !super::chats::accepted(outcome)
-        {
-            super::chats::outcome_text(b, words, outcome, 0);
-        }
-        b.close();
-        b.close();
-    } else {
-        crate::choice::composer(b, root, Some(task), words, bindings, times);
-    }
-}
 /// The chat projects a request and assistant messages; an agent keeps every work line.
 pub(crate) enum Drawn<'a> {
     ChatPage {
@@ -603,6 +554,11 @@ pub(crate) fn conversation_with_times(
     let mut shown = List::with_capacity(bound);
     b.open(Role::Log);
     b.name(&words.say_card(P::ConversationLog, &[]));
+    if let Some(root) = proposals {
+        b.open(Role::Slot);
+        b.style(look::THREAD_INNER);
+        conversation_head(b, root, words, bindings);
+    }
     let lines = thread.lines().into_boxed();
     let mut day = None;
     // A chat started with no words opens on its first words line (3.5).
@@ -674,6 +630,20 @@ pub(crate) fn conversation_with_times(
     }
     // The live delegates anchor follows the window's last line (client/README.md, 5.7).
     live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings);
+    if let Some(root) = proposals {
+        conversation_tail(b, root, words, bindings, rows, times.expect("chat page times"));
+        if words.shell == crate::words::Shell::Browser && super::chats::working(root, words, thread) {
+            b.open(Role::Slot);
+            b.style(look::TYPING);
+            b.name(&words.say(Word::ChatWorking, &[]));
+            for _ in 0_u32..3 {
+                b.open(Role::Slot);
+                b.close();
+            }
+            b.close();
+        }
+        b.close();
+    }
     b.close();
 }
 fn undecoded(b: &mut Builder, why: c::TurnProblem, words: &Words, clock: Option<&[u8]>) {
@@ -815,7 +785,10 @@ fn owner_line(
                 if Some(*by) == person { words.say_card(P::You, &[]) } else { words.say_card(P::Person, &[]) },
                 look::BY_PERSON,
             ),
-            c::Requester::Task(task) => (words.say(Word::TaskWho, &[Hole::Number(*task)]), look::BY_AGENT),
+            c::Requester::Task(task) => (
+                words.say(Word::TaskWho, &[Hole::Number(*task)]),
+                if projected { look::BY_DELEGATE } else { look::BY_AGENT },
+            ),
             c::Requester::Deployment { .. } => {
                 super::task::owner_activity(b, line, words);
                 return;
@@ -1233,6 +1206,7 @@ fn folded_calls(
     }
     b.open(Role::Disclosure);
     b.style(look::WORK);
+    b.style(look::TURN_TOOL);
     b.name(&count);
     b.description(&description.finish());
     for block in blocks {

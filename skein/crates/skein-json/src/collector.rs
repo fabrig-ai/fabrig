@@ -17,7 +17,7 @@ use crate::document::{self, Builder};
 use crate::tokenizer::{self as json, Tokenizer};
 use crate::{Document, Kind, Token};
 use skein_lib::stream::{Down, Up};
-use skein_lib::{Env, List, Queue, Stack};
+use skein_lib::{Env, List, Queue, Stack, len_u64};
 
 mod tagged;
 use tagged::Pending;
@@ -294,7 +294,7 @@ pub fn collector_bound(limits: &Limits, caps: &[u32], filter: &Filter) -> Option
     if caps.len() > 256 {
         return None;
     }
-    let cap_bytes = u64::try_from(caps.len()).ok()?.checked_mul(u64::try_from(size_of::<u32>()).ok()?)?;
+    let cap_bytes = len_u64(caps.len()).checked_mul(u64::try_from(size_of::<u32>()).ok()?)?;
     let delivery = u64::from(json::largest_demand(&limits.tokenizer));
     let tokenizer = json::tokenizer_bound(&limits.tokenizer)?.checked_sub(delivery)?;
     let walk = Stack::<Frame>::price(limits.tokenizer.depth)?;
@@ -612,7 +612,7 @@ fn token(collector: &mut Collector, token: &Token) -> Result<(), Error> {
                     Keep::Text(cap)
                         if u32::try_from(value.len()).expect("bounded string") > cap_value(collector, cap) =>
                     {
-                        push_long(collector, skein_lib::len_u64(value.len()))?;
+                        push_long(collector, len_u64(value.len()))?;
                     }
                     Keep::Text(_) | Keep::Value | Keep::Into(_) | Keep::Tagged(_) => {
                         push(collector, token)?;

@@ -49,6 +49,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::ConnectForge { .. }
             | Address::Inbox { .. }
             | Address::Chats { .. }
+            | Address::NewChat
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Home { .. }
@@ -113,7 +114,6 @@ pub(crate) fn composer(
             | c::ChipExecutor::Role { .. } => return,
         }
     }
-    let draft = root.pages().choice();
     b.open(Role::Slot);
     b.style(crate::look::CHOICE);
     if !can_send(root) {
@@ -136,68 +136,140 @@ pub(crate) fn composer(
         return;
     }
     using(b, root, task, w);
-    if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client())
-        && let Some(project) = draft.project()
-        && let Some(models) = choice::models(me, project)
-        && !models.is_empty()
-        && draft.pending.is_none()
-        && match task {
-            Some(task) => editable(task),
-            None => true,
-        }
-    {
+    if offered(root, task) {
         b.open(Role::Disclosure);
         b.name(&w.say(W::ChangeModel, &[]));
-        b.open(Role::List);
-        b.style(crate::look::ROWS);
-        let selected_model = draft.selected(me);
-        for (model, index) in models.iter().zip(0u32..) {
-            b.open(Role::Item);
-            b.style(crate::look::ROW);
-            provider(b, root, task, model.provider, w);
-            let selected = selected_model == Some(index);
-            control(
-                b,
-                bindings,
-                Role::Button,
-                &model_shown(model.name.bytes(), w),
-                Act::Choice(C::Model { index }),
-                selected,
-            );
-            if selected {
-                for (effort, index) in model.efforts.iter().zip(0u32..) {
-                    let selected = match &draft.requested {
-                        Some(choice) => choice.main.effort.as_ref() == Some(effort),
-                        None => false,
-                    };
-                    control(
-                        b,
-                        bindings,
-                        Role::Button,
-                        &shown(effort.bytes(), w),
-                        Act::Choice(C::Effort { index }),
-                        selected,
-                    );
-                }
-            }
-            b.close();
-        }
-        b.close();
-        control(b, bindings, Role::Button, &w.say(W::ChoiceReset, &[]), Act::Choice(C::Default), false);
-        if task.is_some() && draft.requested != draft.original {
-            match &draft.requested {
-                Some(choice) => line(b, w, W::ChoiceDraft, &[Hole::Name(model_shown(choice.main.model.bytes(), w))]),
-                None => line(b, w, W::ChoiceDraftDefault, &[]),
-            }
-            if draft.valid(me) {
-                control(b, bindings, Role::Button, &w.say(W::ChoiceApply, &[]), Act::Choice(C::Apply), false);
-            }
-        }
+        panel(b, root, task, w, bindings);
         b.close();
     }
     feedback(b, root, task, w, bindings, times);
     b.close();
 }
+fn offered(root: &Domain, task: Option<&c::Task>) -> bool {
+    let draft = root.pages().choice();
+    can_send(root)
+        && draft.pending.is_none()
+        && match task {
+            Some(task) => task.result.is_none() && !crate::pages::chats::ended(&task.chip) && editable(task),
+            None => true,
+        }
+        && match (temper_client_domain::pages::accounts::current_me(root.client()), draft.project()) {
+            (Some(me), Some(project)) => match choice::models(me, project) {
+                Some(models) => !models.is_empty(),
+                None => false,
+            },
+            (Some(_), None) | (None, _) => false,
+        }
+}
+fn panel(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindings: &mut Bindings) {
+    let draft = root.pages().choice();
+    let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
+    let Some(project) = draft.project() else { return };
+    let Some(models) = choice::models(me, project) else { return };
+    b.open(Role::List);
+    b.style(crate::look::ROWS);
+    let selected_model = draft.selected(me);
+    for (model, index) in models.iter().zip(0u32..) {
+        b.open(Role::Item);
+        b.style(crate::look::ROW);
+        provider(b, root, task, model.provider, w);
+        let selected = selected_model == Some(index);
+        control(
+            b,
+            bindings,
+            Role::Button,
+            &model_shown(model.name.bytes(), w),
+            Act::Choice(C::Model { index }),
+            selected,
+        );
+        if selected {
+            for (effort, index) in model.efforts.iter().zip(0u32..) {
+                let selected = match &draft.requested {
+                    Some(choice) => choice.main.effort.as_ref() == Some(effort),
+                    None => false,
+                };
+                control(
+                    b,
+                    bindings,
+                    Role::Button,
+                    &shown(effort.bytes(), w),
+                    Act::Choice(C::Effort { index }),
+                    selected,
+                );
+            }
+        }
+        b.close();
+    }
+    b.close();
+    control(b, bindings, Role::Button, &w.say(W::ChoiceReset, &[]), Act::Choice(C::Default), false);
+    if task.is_some() && draft.requested != draft.original {
+        match &draft.requested {
+            Some(choice) => line(b, w, W::ChoiceDraft, &[Hole::Name(model_shown(choice.main.model.bytes(), w))]),
+            None => line(b, w, W::ChoiceDraftDefault, &[]),
+        }
+        if draft.valid(me) {
+            control(b, bindings, Role::Button, &w.say(W::ChoiceApply, &[]), Act::Choice(C::Apply), false);
+        }
+    }
+}
+
+/// The chat bar's account and model, with the chooser behind it (client/README.md, 3.5).
+pub(crate) fn byline(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindings: &mut Bindings) {
+    let line = using_words(root, task, w, LineForm::Byline);
+    let text = match task {
+        Some(task) => w.say(W::BylineTask, &[Hole::Number(task.chip.task), Hole::Name(line.text)]),
+        None => line.text,
+    };
+    if offered(root, task) {
+        b.open(Role::Disclosure);
+        b.style(crate::look::BYLINE);
+        b.name(&w.say(W::ChangeModel, &[]));
+        b.description(&text);
+        b.state(State::FoldsAway);
+        b.open(Role::Slot);
+        b.style(crate::look::CHOICE);
+        panel(b, root, task, w, bindings);
+        usage_link(b, w, line.usage.as_deref());
+        b.close();
+    } else {
+        b.open(Role::Paragraph);
+        b.style(crate::look::BYLINE);
+        b.name(&text);
+        b.text(skein_ui::Run::Plain, &text);
+    }
+    b.close();
+}
+
+/// Feedback and the no-model offer stay above the composer (client/README.md, 5.5).
+pub(crate) fn above_composer(
+    b: &mut Builder,
+    root: &Domain,
+    task: Option<&c::Task>,
+    w: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+) {
+    b.open(Role::Slot);
+    b.style(crate::look::CHOICE);
+    if !can_send(root) {
+        bindings.block_submissions();
+        b.open(Role::Slot);
+        b.style(crate::look::ACCOUNT_LINE);
+        w.text(b, W::ComposerNoModel, &[]);
+        control(
+            b,
+            bindings,
+            Role::Link,
+            &w.say(W::ConnectModel, &[]),
+            Act::Go { address: Address::ConnectModel { way: None } },
+            false,
+        );
+        b.close();
+    }
+    feedback(b, root, task, w, bindings, times);
+    b.close();
+}
+
 fn feedback(
     b: &mut Builder,
     root: &Domain,
@@ -385,16 +457,67 @@ fn selected_account(doc: &c::Accounts, viewer: u64, provider: Option<u32>, progr
     }
     None
 }
-fn using(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words) {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LineForm {
+    Composer,
+    Byline,
+}
+struct UsingLine {
+    text: Box<[u8]>,
+    usage: Option<Box<[u8]>>,
+}
+fn selected_line(w: &Words, word: W, holes: &[Hole], form: LineForm) -> UsingLine {
+    let word = if form == LineForm::Composer {
+        word
+    } else if word == W::UsingModel {
+        W::BylineModel
+    } else if word == W::UsingKey {
+        W::BylineKey
+    } else if word == W::UsingPlan {
+        W::BylinePlan
+    } else if word == W::UsingProgram {
+        W::BylineProgram
+    } else if word == W::PlaygroundUsing {
+        W::BylinePlayground
+    } else {
+        word
+    };
+    UsingLine { text: w.say(word, holes), usage: None }
+}
+pub(crate) fn using(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words) {
+    let line = using_words(root, task, w, LineForm::Composer);
+    b.open(Role::Paragraph);
+    b.style(crate::look::ACCOUNT_LINE);
+    b.name(&line.text);
+    b.text(skein_ui::Run::Plain, &line.text);
+    if line.usage.is_some() {
+        b.text(skein_ui::Run::Plain, &w.say(W::ToolSeparator, &[]));
+    }
+    usage_link(b, w, line.usage.as_deref());
+    b.close();
+}
+fn usage_link(b: &mut Builder, w: &Words, address: Option<&[u8]>) {
+    if let Some(address) = address {
+        b.open(Role::Link);
+        let text = w.say(W::Usage, &[]);
+        b.name(&text);
+        b.text(skein_ui::Run::Plain, &text);
+        b.external(address);
+        b.close();
+    }
+}
+fn using_words(root: &Domain, task: Option<&c::Task>, w: &Words, form: LineForm) -> UsingLine {
     let draft = root.pages().choice();
     let choice = match task {
         Some(_) => draft.original.as_ref(),
         None => draft.requested.as_ref(),
     };
-    if let Some((name, provider)) = model_words(root, task, choice, draft.project(), w) {
-        using_line(b, root, task, choice, provider, name, w);
-    } else {
-        line(b, w, W::UsingDefault, &[]);
+    match model_words(root, task, choice, draft.project(), w) {
+        Some((name, provider)) => {
+            let name = if task.is_none() && form == LineForm::Byline { new_chat_model(root, w) } else { name };
+            using_line(root, task, choice, provider, name, w, form)
+        }
+        None => selected_line(w, W::UsingDefault, &[], form),
     }
 }
 
@@ -407,6 +530,11 @@ pub(crate) fn new_chat_model(root: &Domain, w: &Words) -> Box<[u8]> {
             None => None,
         },
         _ => None,
+    };
+    let choice = if root.pages().address() == &Address::NewChat && root.pages().choice().project() == project {
+        root.pages().choice().requested.as_ref().or(choice)
+    } else {
+        choice
     };
     match model_words(root, None, choice, project, w) {
         Some((name, _)) => name,
@@ -466,14 +594,14 @@ fn model_words(
     Some((name, provider))
 }
 fn using_line(
-    b: &mut Builder,
     root: &Domain,
     task: Option<&c::Task>,
     choice: Option<&c::LlmChoice>,
     provider: Option<u32>,
     name: Box<[u8]>,
     w: &Words,
-) {
+    form: LineForm,
+) -> UsingLine {
     let me = temper_client_domain::pages::accounts::current_me(root.client());
     let doc = temper_client_domain::pages::accounts::document(root.client());
     let payer = match me {
@@ -502,16 +630,14 @@ fn using_line(
     };
     // The playground provider is public even when its deployment-held account is outside this slice.
     if pin.is_none() && provider.is_some() && provider == root.forge().playground_provider() {
-        if ready == c::Readiness::Unavailable {
-            line(b, w, W::ModelNeedsAccount, &[Hole::Name(name)]);
+        return if ready == c::Readiness::Unavailable {
+            selected_line(w, W::ModelNeedsAccount, &[Hole::Name(name)], form)
         } else {
-            line(b, w, W::PlaygroundUsing, &[Hole::Name(w.say(W::Default, &[]))]);
-        }
-        return;
+            selected_line(w, W::PlaygroundUsing, &[Hole::Name(w.say(W::Default, &[]))], form)
+        };
     }
     let (Some(me), Some(doc)) = (me, doc) else {
-        line(b, w, W::UsingModel, &[Hole::Name(name)]);
-        return;
+        return selected_line(w, W::UsingModel, &[Hole::Name(name)], form);
     };
     let program = program_endpoint(me, provider);
     let account = if own
@@ -532,23 +658,23 @@ fn using_line(
             SourceChoice::Chosen(_) | SourceChoice::Wait => false,
         };
         if account.cut || (ready != c::Readiness::Usable && !undecidable) {
-            line(b, w, W::UsingModel, &[Hole::Name(name)]);
+            selected_line(w, W::UsingModel, &[Hole::Name(name)], form)
         } else {
             match source {
                 SourceChoice::Chosen(index) => {
                     let source = account.sources.get(index).expect("chosen source exists");
-                    using_account(b, root, account, source, name, w);
+                    using_account(root, account, source, name, w, form)
                 }
-                SourceChoice::Wait => line(b, w, W::ModelNeedsAccount, &[Hole::Name(name)]),
+                SourceChoice::Wait => selected_line(w, W::ModelNeedsAccount, &[Hole::Name(name)], form),
                 SourceChoice::Undecidable => {
                     let word = if ready == c::Readiness::Unavailable { W::ModelNeedsAccount } else { W::UsingModel };
-                    line(b, w, word, &[Hole::Name(name)]);
+                    selected_line(w, word, &[Hole::Name(name)], form)
                 }
             }
         }
     } else {
         let word = if ready == c::Readiness::Unavailable { W::ModelNeedsAccount } else { W::UsingModel };
-        line(b, w, word, &[Hole::Name(name)]);
+        selected_line(w, word, &[Hole::Name(name)], form)
     }
 }
 fn program_name(root: &Domain, provider: Option<u32>, w: &Words) -> Box<[u8]> {
@@ -564,13 +690,13 @@ fn program_name(root: &Domain, provider: Option<u32>, w: &Words) -> Box<[u8]> {
     Box::default()
 }
 fn using_account(
-    b: &mut Builder,
     root: &Domain,
     account: &c::AccountLine,
     source: &c::AccountSource,
     name: Box<[u8]>,
     w: &Words,
-) {
+    form: LineForm,
+) -> UsingLine {
     let mut provider_name = None;
     if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) {
         for offer in &me.providers {
@@ -581,44 +707,41 @@ fn using_account(
         }
     }
     let Some(provider_name) = provider_name else {
-        line(b, w, W::UsingModel, &[Hole::Name(name)]);
-        return;
+        return selected_line(w, W::UsingModel, &[Hole::Name(name)], form);
     };
-    let text = match source.kind {
-        c::AccountKind::Key => {
-            w.say(W::UsingKey, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.0)), Hole::Name(name)])
-        }
-        c::AccountKind::SignIn => {
-            w.say(W::UsingPlan, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.1)), Hole::Name(name)])
-        }
-        c::AccountKind::Program => w.say(
+    let mut line = match source.kind {
+        c::AccountKind::Key => selected_line(
+            w,
+            W::UsingKey,
+            &[Hole::Name(skein_lib::bytes::copy_of(provider_name.0)), Hole::Name(name)],
+            form,
+        ),
+        c::AccountKind::SignIn => selected_line(
+            w,
+            W::UsingPlan,
+            &[Hole::Name(skein_lib::bytes::copy_of(provider_name.1)), Hole::Name(name)],
+            form,
+        ),
+        c::AccountKind::Program => selected_line(
+            w,
             W::UsingProgram,
             &[
                 Hole::Name(skein_lib::bytes::copy_of(provider_name.1)),
                 Hole::Name(program_name(root, account.provider, w)),
                 Hole::Name(name),
             ],
+            form,
         ),
-        c::AccountKind::None => w.say(W::UsingModel, &[Hole::Name(name)]),
+        c::AccountKind::None => selected_line(w, W::UsingModel, &[Hole::Name(name)], form),
     };
-    b.open(Role::Paragraph);
-    b.style(crate::look::ACCOUNT_LINE);
-    b.name(&text);
-    b.text(skein_ui::Run::Plain, &text);
     if source.kind == c::AccountKind::SignIn
         && let Some(address) = &account.manage_usage
         && skein_ui::markdown::safe_url(address)
         && c::valid_manage_usage(address)
     {
-        b.text(skein_ui::Run::Plain, &w.say(W::ToolSeparator, &[]));
-        b.open(Role::Link);
-        let text = w.say(W::Usage, &[]);
-        b.name(&text);
-        b.text(skein_ui::Run::Plain, &text);
-        b.external(address);
-        b.close();
+        line.usage = Some(skein_lib::bytes::copy_of(address));
     }
-    b.close();
+    line
 }
 #[expect(clippy::manual_find, reason = "the programming model uses bounded loops, not closures")]
 fn account_row(root: &Domain, account: u32) -> Option<&c::AccountLine> {

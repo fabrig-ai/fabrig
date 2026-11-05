@@ -47,6 +47,11 @@ configure-sending
 configure-refused
 configure-chat
 configure-chats-tag
+chat-new
+chat-new-no-repository
+chats-no-repository
+chats-live
+chats-closed
 chats-solo
 chat-solo-T10
 inbox-solo
@@ -66,6 +71,7 @@ task-solo-T3
 accounts-solo
 welcome-first-run-0
 welcome-go-on
+chat-new-first-run-1
 chats-first-run-1
 connect-forge-first-run-6
 forges-first-run-7
@@ -125,7 +131,15 @@ adoption-filled
 adoption-refused
 chats-reference
 chat-reference-T1
+chat-solo-T1
+chat-byline-open
+chat-working
 chat-solo-T6
+chat-held-task
+chat-change-running
+chat-change-landed
+chat-change-held
+chat-goal
 chat-first-run-2-T1
 chat-first-run-3-T1
 chat-first-run-4-T4

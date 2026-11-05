@@ -10,7 +10,6 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
-use temper_client_domain::ChatsFilter;
 use temper_client_domain::{
     Address, Domain, WayKind,
     pages::{
@@ -296,6 +295,26 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     body(b, root, w, bindings, text_per_node);
     b.close();
 }
+fn welcome(root: &Domain) -> bool {
+    match root.pages().address() {
+        Address::Welcome { .. } => true,
+        Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::NewChat
+        | Address::Accounts
+        | Address::ConnectModel { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Changes { .. }
+        | Address::Settings { .. }
+        | Address::Goals { .. }
+        | Address::Configure { .. }
+        | Address::Adopt { .. } => false,
+    }
+}
 fn muted(b: &mut Builder, words: &[u8]) {
     b.open(Role::Paragraph);
     b.style(crate::look::FLOW_MUTED);
@@ -563,7 +582,17 @@ pub(super) fn ready_body(
     }
     b.open(Role::Slot);
     b.style(crate::look::MODEL_ACTIONS);
-    go(b, bindings, &say(w, W::StartChat), Address::Chats { filter: ChatsFilter::All, start: false }, true);
+    if welcome(root) {
+        go(
+            b,
+            bindings,
+            &w.say(Word::WelcomeContinue, &[]),
+            Address::Welcome { step: temper_client_domain::Step::Ready },
+            true,
+        );
+    } else {
+        go(b, bindings, &say(w, W::StartChat), Address::NewChat, true);
+    }
     manage_usage(b, root, w, way);
     if model::model_way(way).kind == WayKind::SignIn {
         button(

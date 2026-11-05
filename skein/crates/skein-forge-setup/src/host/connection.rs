@@ -24,6 +24,7 @@ use skein_json::tokenizer;
 use skein_lib::{
     Duration, Env, List, Queue, Secret, Token, Wall, bytes,
     stream::{Down, Read, Up},
+    usize_of,
 };
 
 pub(crate) struct Connection {
@@ -433,7 +434,7 @@ impl Connection {
                     }
                     Step::Done(Document::Error(error)) if self.refusal.is_some() => match error.message {
                         skein_forge::text::Body::Kept(message) => {
-                            let cap = usize::try_from(env.limits.string_bytes).expect("string bound fits");
+                            let cap = usize_of(env.limits.string_bytes);
                             let words = bytes::utf8_prefix(&message, cap);
                             if !words.is_empty() {
                                 self.words = Some(bytes::copy_of(words));

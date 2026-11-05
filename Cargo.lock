@@ -4761,6 +4761,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-ui",
+ "skein-ui-text",
  "skein-world",
  "smith-domain-session",
  "smith-protocol-channel",

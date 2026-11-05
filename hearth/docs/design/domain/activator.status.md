@@ -1,6 +1,6 @@
 # activator: status
 
-2026-11-04. Where hearth's code lags or departs from [activator.md](activator.md).
+2026-11-05. Where hearth's code lags or departs from [activator.md](activator.md).
 
 - **Not yet:** 2 to 7: the activator, its privilege boundary and process pair,
   the link, slot and live operations, verification, state and recovery (M3).

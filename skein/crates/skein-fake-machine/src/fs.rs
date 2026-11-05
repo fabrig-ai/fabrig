@@ -378,7 +378,7 @@ impl Machine {
             Body::Link(_) | Body::Special(_) => fail("a handle is never to a link, a FIFO or a device"),
         };
         let start = usize::try_from(at).unwrap_or(usize::MAX).min(bytes.len());
-        let end = start.saturating_add(usize::try_from(len).expect("a u32 fits a usize")).min(bytes.len());
+        let end = start.saturating_add(skein_lib::usize_of(len)).min(bytes.len());
         Ok(bytes.get(start..end).expect("within the file").to_vec())
     }
 
@@ -630,8 +630,8 @@ impl Machine {
             Body::Link(_) | Body::Special(_) => fail("a handle is never to a link, a FIFO or a device"),
         };
         let mut listed = Vec::new();
-        let mut left = usize::try_from(room).expect("a u32 fits a usize");
-        let most = usize::try_from(most).expect("a u32 fits a usize");
+        let mut left = skein_lib::usize_of(room);
+        let most = skein_lib::usize_of(most);
         for (name, &child) in entries {
             if after.as_ref().is_some_and(|after| name <= after) {
                 continue;

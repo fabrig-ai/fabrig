@@ -10,16 +10,25 @@ fn a_model_choice_reaches_the_next_run_document() {
     world.person(
         person,
         vec![
+            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
             Step::See { find: Find::exactly_named(Role::Button, b"scripted"), within: fixtures::WITHIN },
             Step::Press { find: Find::exactly_named(Role::Button, b"scripted") },
-            Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: Box::from(*b"Hello") },
-            Step::Send { find: Find::named(Role::TextArea, b"Start a chat") },
-            Step::See { find: Find::exactly_named(Role::Paragraph, b"Using scripted"), within: fixtures::WITHIN },
+            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: Box::from(*b"Hello") },
+            Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
+            Step::See { find: Find::exactly_named(Role::Disclosure, b"Change model"), within: fixtures::WITHIN },
             Step::See { find: Find::named(Role::Heading { level: 1 }, " · ".as_bytes()), within: fixtures::WITHIN },
         ],
     );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let byline = world
+        .tree(person)
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Disclosure && node.name.as_deref() == Some(b"Change model"))
+        .expect("the chat's byline");
+    assert_eq!(byline.description.as_deref(), Some("T1 · scripted".as_bytes()));
     let root = world.root(person).person();
     let task = root.pages().chat().expect("created chat").task(root.client()).expect("next-run document");
     assert_eq!(task.llm.as_ref().expect("explicit chosen model").main.model.bytes(), b"scripted");

@@ -16,6 +16,9 @@ use skein_ui_web::{
 };
 use std::{cell::RefCell, rc::Rc};
 
+#[cfg(debug_assertions)]
+#[path = "../../../../tests/browser/tests/suite/folds_fixture.rs"]
+mod folds_fixture;
 mod grow;
 #[cfg(debug_assertions)]
 mod tree;
@@ -67,6 +70,11 @@ pub fn start() {
     let facts = platform::facts();
     let location = window.location();
     let path = location.pathname().expect("page path") + &location.search().expect("page query");
+    #[cfg(debug_assertions)]
+    if path == "/test/folds-away" {
+        folds_fixture::start(mount, facts.primary);
+        return;
+    }
     #[cfg(debug_assertions)]
     if path.starts_with("/test/tree/") {
         tree::start(mount, &path, facts.primary);
