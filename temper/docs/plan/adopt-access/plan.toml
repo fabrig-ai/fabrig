@@ -1,3 +1,20 @@
 draft = "adopt-access"
 repo = "fabrig"
 sources = ["temper/docs/plan/adopt-access/inputs/request.md", "skein/docs/design/forge-setup.md", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "adopt-plan"
+title = "skein: Adopt given a repository's path"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-setup.md, 4.5"
+
+[[slice]]
+id = 1
+story = "A repository adopted on a Forgejo connected as its admin gives the bot write, at once and again after a restart, and a stop reaches the person"
+parts = ["adopt-plan"]
+walk = false
