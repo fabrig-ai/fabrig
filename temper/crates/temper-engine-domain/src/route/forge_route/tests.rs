@@ -1592,6 +1592,75 @@ fn a_ci_repairs_words_open_with_its_head_and_two_failed_contexts() {
 }
 
 #[test]
+fn a_ci_repair_with_no_failed_check_known_says_so() {
+    for (observed, failed) in
+        [(None, b"stale check".as_slice()), (Some(SHA256), b"stale check".as_slice()), (Some(SHA1), b"".as_slice())]
+    {
+        let mut row = change_row(Some(42));
+        row.change.last_head = Some(SHA1);
+        row.result.head = observed;
+        row.result.failed.bytes = failed.into();
+        let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
+        assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
+        for bound in 0..512 {
+            if let Some(words) = super::repair_words(&row, super::forge_change::Repair::Ci, &[], bound) {
+                assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
+            }
+        }
+    }
+}
+
+#[test]
+fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
+    use super::{forge, forge_change, tasks};
+    let long = "é".repeat(256);
+    for (kind, name) in [
+        (forge_change::Delegate::Resolve { base: SHA1 }, "resolution"),
+        (forge_change::Delegate::Merge { base: SHA1, from: Some(SHA256) }, "merge job"),
+    ] {
+        for reason in [b"another approach".as_slice(), b"".as_slice(), long.as_bytes()] {
+            let mut row = change_row(Some(42));
+            row.change.state = forge_change::State::Held {
+                was: Box::new(forge_change::State::Resolving { requested: true, base: SHA1 }),
+                why: forge_change::Hold::Failed,
+            };
+            row.delegate = Some((9, kind));
+            let (mut domain, env, mut out) = restored_change([forge::Stored::Change(row)]);
+            forge::step(
+                &mut domain.forge,
+                &env.with(env.limits.forge),
+                forge::Event::DelegateResult {
+                    task: 7,
+                    child: 9,
+                    status: forge_change::Status::Failed,
+                    no_change: false,
+                    failed: false,
+                    cancelled: true,
+                    words: reason.into(),
+                },
+                &mut out,
+            );
+            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Failed);
+            let super::StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = decision.end else {
+                panic!("cancelled {name} needs a procedure hold with its account")
+            };
+            let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("delegate account") };
+            let opening = skein_lib::bytes::concat(&[b"its ", name.as_bytes(), b", task 9, was cancelled"]);
+            if reason.is_empty() {
+                assert_eq!(words.as_ref(), opening.as_ref());
+            } else if reason.len() < 512 {
+                assert_eq!(words.as_ref(), skein_lib::bytes::concat(&[&opening, b": ", reason]).as_ref());
+            } else {
+                assert!(words.starts_with(&skein_lib::bytes::concat(&[&opening, ": é".as_bytes()])));
+                assert!(words.ends_with(b"..."));
+                assert!(words.len() <= usize::try_from(tasks::HOLD_ACCOUNT_BYTES).unwrap());
+                assert!(skein_lib::bytes::is_utf8(words));
+            }
+        }
+    }
+}
+
+#[test]
 fn a_base_break_repairs_words_open_with_its_head_and_base() {
     let mut row = change_row(Some(42));
     row.change.last_head = Some(SHA1);

@@ -14,7 +14,7 @@ A change is a task that writes one repository's branch and lands it: its pull re
   model and effort names; default: its charter's) and `questions` (`foreman`, `up`, or `none`, the default: how its
   producer's questions go).
   Answered producers retain delivered work and merge the moved goal tip.
-- **Its title:** the coder's, punctuation kept, cut at a UTF-8 boundary with “…”.
+- **Its title:** the coder's, punctuation kept, cut on UTF-8 with “…”.
 - **Its panel:** task, repository, branch, base, pull URL, step, CI, gates, repair/update/resolution limits;
   `way: turn · landing task N`; questions' route, count, words and standing. `read_task` gives its answer number.
   `CI not required` means its repository or rules ask for none. JSON separates `ci_required` from `ci`, the head observation retained once ended.
@@ -56,8 +56,8 @@ As `step:` prints it:
   changes, or the base broke it. Its brief names the pull request
   (number, branch, base, head and address), the failed check and log end,
   or the gate's remarks (cut from their end, marked). It finishes with
-  the change's new head; its words open with what it repairs
-  (`Repair CI at HEAD: CONTEXT`, `Repair gate N (KIND) at HEAD: changes requested`, `Repair the base's break at HEAD: BASE`),
+  a new head; its words open with the repair
+  (`Repair CI at HEAD: CONTEXT` (`no failed check named` if unknown), `Repair gate N (KIND) at HEAD: changes requested`, `Repair the base's break at HEAD: BASE`),
   so `task show` names it; the change is checked again;
 - `landing`, then `landed`: merged; `change show` names its commit;
   without tiers, it ends;
@@ -85,11 +85,10 @@ stalled`, `its repairs are spent`, `its resolutions are spent`, `its
 updates are spent`, `its branch was moved on the forge`, `its branch
 is missing on the forge`, `its pull request was closed on the forge`,
 `its pull request was retargeted on the forge`, `a delegate or a write
-failed for good`, or `a person rejected a gate`. Release resets its
-counts and resumes the held step. Failed coders and repairs get fresh
-delegates for the same reason,
-spending a task; repairs count against the reset repair limit.
-It holds again if authority cannot cover one.
+failed for good`, or `a person rejected a gate`. Release resets counts
+and resumes the held step. Failed coders and repairs get fresh delegates for that reason, spending a task;
+repairs use the reset limit. Without authority for one, it holds.
+Cancelled delegates hold likewise; their tasks say so.
 Held at `producing`, the hold and chat carry the coder's words whole
 within 512 bytes: cancel if they hold, or release if the coder was wrong. Its
 panel names any held task (the change, writer or reviewer),
@@ -98,7 +97,7 @@ refused, naming what it lacks or the forge's answer.
 
 ## What temper guarantees
 
-- **Landed as checked:** temper merges the exact head after its required CI and gates pass; it rechecks a moved head or base.
+- **Landed as checked:** temper merges the exact head after required CI and gates pass; it rechecks a moved head or base.
 - **Nothing overwritten:** a branch or pull request changed by someone
   else on the forge holds the change.
 - **Gates decide:** a blocking gate that asks for changes starts a
@@ -107,14 +106,14 @@ refused, naming what it lacks or the forge's answer.
   A reviewer unable to read fails saying why. `temper serve`'s
   unkept stderr names each refusal's task, tool and reason; Claude's
   Read denials are in the task's tool results.
-- **Gates are temper's:** a change's gates run in temper, and `change show` prints each, `gate 1 · review · blocking · approved`; temper posts none to the forge as a review or a status; the pull's reviews may be empty.
+- **Gates are temper's:** they run in temper; `change show` prints each, `gate 1 · review · blocking · approved`. Temper posts none as forge reviews or statuses; the pull's reviews may be empty.
 - **The parent hears its result,** and whether tiers cleared it.
 
 ## Acting on it
 
 - **ctl:** `change show` reads its panel and waits for its pull request,
   CI, a hold or landing (temper help ctl); landing waits end at a hold:
-  `not met: held` (exit 3). `task show` reads its task and acts, including
+  `not met: held` (exit 3). `task show` reads and acts on its task, including
   `task release`; `task tree` shows delegates; `landing show` reads a
   project's landing by turn.
 - **Runs** ask with `change`, and hear branch landings with `subscribe_forge`.
@@ -127,7 +126,7 @@ refused, naming what it lacks or the forge's answer.
 
 - A change writes one repository, and lands on its landing branch.
 - Batches share task room within policy caps; minimum two tasks per change.
-  Refusals give capacity and say whether fewer changes fit. Profiles,
+  Refusals give capacity and whether fewer changes fit. Profiles,
   overrides and lifetime counts: temper help limits-engine.
 - Only runs start changes, as chats do when asked (temper help chat).
 - `no change panel for task N` (exit 2): task N is no change.
