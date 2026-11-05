@@ -856,6 +856,23 @@ fn an_empty_deployment_leaves_out_its_section() {
     let text = String::from_utf8(fixtures::text(fixtures::build(&mut view, &root)).into_vec()).unwrap();
     assert!(!text.contains("Deployment accounts"));
 }
+
+#[test]
+fn sign_out_keeps_its_element_when_deployment_accounts_arrive() {
+    let (mut root, watch) = owner_root();
+    let deployment = root.pages().accounts().unwrap().deployment(root.client()).unwrap().clone();
+    let mut empty = deployment.clone();
+    empty.accounts.clear();
+    deliver_deployment(&mut root, watch, empty.clone());
+    let mut view = fixtures::browser_page_view(&root);
+    let sign_out = fixtures::find(view.tree(), Role::Button, b"Sign out").unwrap();
+    for document in [deployment, empty] {
+        deliver_deployment(&mut root, watch, document);
+        fixtures::build(&mut view, &root);
+        assert_eq!(fixtures::find(view.tree(), Role::Button, b"Sign out"), Some(sign_out));
+        assert_eq!(crate::act(&mut view, sign_out, Act::Press), Some(d::Action::Pages(d::pages::Act::SignOut)));
+    }
+}
 #[test]
 fn accounts_past_the_count_are_named() {
     let mut counts = fixtures::limits().client.domain.accounts;

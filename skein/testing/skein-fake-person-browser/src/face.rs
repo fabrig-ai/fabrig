@@ -1,7 +1,7 @@
 //! Queries and acts translated without executing script in the page.
 use skein_browser::boundary::{Event, Go, Key, Match, Query, Read, Refusal, Request, Seen};
 use skein_fake_person::{Doing, Face, Find, Found, Target};
-use skein_lib::Token;
+use skein_lib::{Time, Token};
 use skein_ui::{Act, NodeId, Role};
 use skein_ui_web::mapping::accessible;
 use std::{os::unix::ffi::OsStrExt, path::PathBuf};
@@ -42,6 +42,12 @@ struct Keeping {
     attribute: Box<[u8]>,
     name: Box<[u8]>,
 }
+struct Press {
+    find: Find,
+    at: Option<skein_browser::boundary::Point>,
+    until: Time,
+    again: Option<Time>,
+}
 enum CommandState {
     Idle,
     Pending,
@@ -61,6 +67,10 @@ pub struct BrowserFace<'a> {
     answer: Option<Found>,
     seen: Vec<(Seen, Option<Role>)>,
     acting: Option<Token>,
+    now: Time,
+    last_find: Option<(NodeId, Find)>,
+    look_again: Option<(Find, Time)>,
+    press: Option<Press>,
     expected_path: Option<Box<[u8]>>,
     failure: Option<String>,
     refusal: Option<Refusal>,
@@ -97,6 +107,10 @@ impl<'a> BrowserFace<'a> {
             answer: None,
             seen: Vec::new(),
             acting: None,
+            now: Time::ZERO,
+            last_find: None,
+            look_again: None,
+            press: None,
             expected_path: None,
             failure: None,
             refusal: None,
@@ -118,16 +132,12 @@ impl<'a> BrowserFace<'a> {
         if let Some(answer) = self.answer.take() {
             return answer;
         }
+        let find = Find::exactly_named(Role::Page, words);
+        if !self.look_due(&find) {
+            return Found::Pending;
+        }
         if self.search.is_none() {
-            self.ask(Search {
-                title: true,
-                boxes: false,
-                find: Find::exactly_named(Role::Page, words),
-                depth: 0,
-                role: 0,
-                within: None,
-                op: Token::new(0),
-            });
+            self.ask(Search { title: true, boxes: false, find, depth: 0, role: 0, within: None, op: Token::new(0) });
         }
         self.answer.take().unwrap_or(Found::Pending)
     }
@@ -156,8 +166,44 @@ impl<'a> BrowserFace<'a> {
     pub fn pending(&self) -> bool {
         self.search.is_some()
             || self.acting.is_some()
+            || self.press.is_some()
             || self.keep.is_some()
             || matches!(self.command_state, CommandState::Pending)
+    }
+    /// Advance bounded re-finds with the loop's clock (skein/docs/design/browser.md, 6).
+    pub fn tick(&mut self, now: Time) {
+        self.now = now;
+        let Some(press) = &self.press else { return };
+        if now >= press.until {
+            self.press = None;
+            self.search = None;
+            self.acting = None;
+            self.fail("browser refused act: Gone (press deadline passed)".into());
+        } else if press.again.is_some_and(|again| now >= again) {
+            let find = press.find.clone();
+            self.press.as_mut().expect("pending press").again = None;
+            self.ask(Search { title: false, boxes: false, find, depth: 0, role: 0, within: None, op: Token::new(0) });
+        }
+    }
+    fn keep_press(&mut self, node: NodeId, at: Option<skein_browser::boundary::Point>) {
+        self.press = self.last_find.as_ref().filter(|(found, _)| *found == node).map(|(_, find)| Press {
+            find: find.clone(),
+            at,
+            until: self.now.saturating_add(skein_browser::Limits::default().answer),
+            again: None,
+        });
+    }
+    fn absent(&mut self, find: Find) {
+        let again = self.now.saturating_add(skein_browser::Limits::default().poll);
+        self.look_again = Some((find, again));
+        if let Some(press) = &mut self.press {
+            press.again = Some(again);
+        } else {
+            self.answer = Some(Found::Absent);
+        }
+    }
+    fn look_due(&self, find: &Find) -> bool {
+        self.look_again.as_ref().is_none_or(|(looked, again)| looked != find || self.now >= *again)
     }
     pub(crate) fn command(&mut self, action: crate::harness::CommandAction) {
         self.command = Some(action);
@@ -267,11 +313,12 @@ impl<'a> BrowserFace<'a> {
     }
     pub(crate) fn press_at(&mut self, node: NodeId, at: skein_browser::boundary::Point) -> Result<(), String> {
         let seen = &self.seen.get(usize::try_from(node.0).expect("node fits")).ok_or("unknown drawing")?.0;
-        let node = seen.node;
+        let backend = seen.node;
+        self.keep_press(node, Some(at));
         self.refusal = None;
         let op = self.token();
         self.acting = Some(op);
-        self.requests.push(Request::Press { page: self.page, op, node, at: Some(at) });
+        self.requests.push(Request::Press { page: self.page, op, node: backend, at: Some(at) });
         Ok(())
     }
     /// Press a key into the focused control, optionally with Shift held.
@@ -342,7 +389,7 @@ impl<'a> BrowserFace<'a> {
             roles = &[b"RootWebArea"];
         }
         let Some(role) = roles.get(search.role) else {
-            self.answer = Some(Found::Absent);
+            self.absent(search.find);
             return;
         };
         search.op = self.token();
@@ -386,7 +433,19 @@ impl<'a> BrowserFace<'a> {
                 self.ask(search);
             } else {
                 let role = target_role(&search.find.target);
-                self.answer = Some(Found::Node(self.remember(seen, role)));
+                let node = self.remember(seen, role);
+                self.look_again =
+                    Some((search.find.clone(), self.now.saturating_add(skein_browser::Limits::default().poll)));
+                self.last_find = Some((node, search.find));
+                if let Some(press) = &self.press {
+                    let at = press.at;
+                    let op = self.token();
+                    self.refusal = None;
+                    self.acting = Some(op);
+                    self.requests.push(Request::Press { page: self.page, op, node: seen.node, at });
+                } else {
+                    self.answer = Some(Found::Node(node));
+                }
             }
         } else if more > 0 {
             self.fail(format!(
@@ -399,7 +458,7 @@ impl<'a> BrowserFace<'a> {
             search.role += 1;
             self.ask(search);
         } else {
-            self.answer = Some(Found::Absent);
+            self.absent(search.find);
         }
     }
     /// Deliver operation events and downloads routed by the harness to this person.
@@ -417,6 +476,7 @@ impl<'a> BrowserFace<'a> {
             Event::Done { op } => {
                 if self.acting == Some(*op) {
                     self.acting = None;
+                    self.press = None;
                     self.input_next();
                     self.choice_check();
                 }
@@ -456,15 +516,20 @@ impl<'a> BrowserFace<'a> {
                     self.keep_failed(&format!("browser refused read: {why:?}{detail}"));
                 }
                 if self.search.as_ref().map(|s| s.op) == Some(*op) {
-                    self.search = None;
-                    self.answer = Some(Found::Absent);
+                    let search = self.search.take().expect("matching search");
+                    self.absent(search.find);
                 }
                 if self.acting == Some(*op) {
                     self.acting = None;
                     self.choice = None;
                     self.input = None;
                     self.refusal = Some(*why);
-                    self.failure = Some(format!("browser refused act: {why:?}{detail}"));
+                    if let Some(press) = self.press.as_mut().filter(|_| *why == Refusal::Gone) {
+                        press.again = Some(self.now.saturating_add(skein_browser::Limits::default().poll));
+                    } else {
+                        self.press = None;
+                        self.failure = Some(format!("browser refused act: {why:?}{detail}"));
+                    }
                 }
             }
             Event::Trouble { page, text, .. } => {
@@ -523,7 +588,11 @@ impl<'a> BrowserFace<'a> {
                     return Ok(());
                 }
                 match act {
-                    Act::Press | Act::Toggle => Request::Press { page: self.page, op, node: seen.node, at: None },
+                    Act::Press | Act::Toggle => {
+                        let backend = seen.node;
+                        self.keep_press(node, None);
+                        Request::Press { page: self.page, op, node: backend, at: None }
+                    }
                     Act::Input { value } => {
                         let keys = match seen.role.as_ref() {
                             b"Date" => Some(crate::keys::date(&value)),
@@ -638,6 +707,9 @@ impl Face for BrowserFace<'_> {
     fn find(&mut self, find: &Find) -> Found {
         if let Some(answer) = self.answer.take() {
             return answer;
+        }
+        if !self.look_due(find) {
+            return Found::Pending;
         }
         if self.search.is_none() {
             self.ask(Search {

@@ -692,3 +692,135 @@ fn other_refusals_carry_no_detail() {
     assert_eq!(why, Refusal::Gone);
     assert!(detail.is_empty());
 }
+
+#[test]
+fn a_detached_node_is_gone_when_a_press_scrolls_it() {
+    let mut world = World::new();
+    world.start();
+    world.open();
+    world.fault(b"DOM.scrollIntoViewIfNeeded", Fault::Drop);
+    world.ask(Request::Press { page: Token::new(3), op: Token::new(4), node: 7, at: None });
+    answer_last_command(&mut world, "error", r#"{"code":-32000,"message":"Node is detached from document"}"#);
+    let Some(Event::Refused { op, why, detail }) = world.above.pop() else { panic!("refused press") };
+    assert_eq!(op, Token::new(4));
+    assert_eq!(why, Refusal::Gone);
+    assert!(detail.is_empty());
+}
+
+fn face_found(face: &mut skein_fake_person_browser::BrowserFace<'_>, node: Option<u64>) -> Query {
+    let Some(Request::Find { op, query, .. }) = face.requests().next() else { panic!("fresh find") };
+    let mut seen = skein_lib::List::with_capacity(1);
+    if let Some(node) = node {
+        seen.push(skein_browser::boundary::Seen {
+            node,
+            role: b"button".as_slice().into(),
+            name: b"Save".as_slice().into(),
+            value: Box::default(),
+            states: skein_browser::boundary::States {
+                focused: false,
+                disabled: false,
+                checked: false,
+                expanded: false,
+                selected: false,
+            },
+            rect: None,
+        })
+        .expect("one match");
+    }
+    face.event(&Event::Found { op, seen, more: 0 });
+    query
+}
+
+#[test]
+fn repeated_finds_wait_for_the_poll_whether_the_target_is_present_or_absent() {
+    use skein_fake_person_browser::{
+        BrowserFace,
+        person::{Face, Find, Found},
+    };
+    for node in [None, Some(7)] {
+        let mut face = BrowserFace::new(Token::new(3), "");
+        let find = Find::exactly_named(skein_ui::Role::Button, b"Save");
+        assert_eq!(face.find(&find), Found::Pending);
+        face_found(&mut face, node);
+        let expected = match node {
+            Some(_) => Found::Node(skein_ui::NodeId(0)),
+            None => Found::Absent,
+        };
+        assert_eq!(face.find(&find), expected);
+        let poll = skein_browser::Limits::default().poll;
+        face.tick(Time::from_nanos(poll.as_nanos().checked_sub(1).expect("positive poll")));
+        assert_eq!(face.find(&find), Found::Pending);
+        assert_eq!(face.requests().count(), 0, "no busy polling before the interval: {node:?}");
+        face.tick(Time::ZERO.saturating_add(poll));
+        assert_eq!(face.find(&find), Found::Pending);
+        assert!(matches!(face.requests().next(), Some(Request::Find { .. })));
+    }
+}
+
+fn pending_press() -> (skein_fake_person_browser::BrowserFace<'static>, Token) {
+    use skein_fake_person_browser::{
+        BrowserFace,
+        person::{Doing, Face, Find, Found, Target},
+    };
+    let mut face = BrowserFace::new(Token::new(3), "");
+    let find = Find::exactly_named(skein_ui::Role::Button, b"Save")
+        .within(Box::new([Target::ExactRole { role: skein_ui::Role::Region, name: b"Panel".as_slice().into() }]));
+    assert_eq!(face.find(&find), Found::Pending);
+    face_found(&mut face, Some(6));
+    face_found(&mut face, Some(7));
+    let Found::Node(node) = face.find(&find) else { panic!("found Save") };
+    face.perform(Doing::Act { node, act: skein_ui::Act::Press }).expect("press");
+    let Some(Request::Press { op, .. }) = face.requests().next() else { panic!("press") };
+    (face, op)
+}
+
+#[test]
+fn a_gone_press_finds_the_target_again_and_presses_its_new_node() {
+    let (mut face, first) = pending_press();
+    face.event(&Event::Refused { op: first, why: Refusal::Gone, detail: Box::default() });
+    assert!(face.failure().is_none());
+    assert!(face.pending());
+    assert_eq!(face.requests().count(), 0, "wait until the next poll");
+    face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
+    let scope = face_found(&mut face, Some(9));
+    assert_eq!(scope.within, None, "start again from the document");
+    assert_eq!(scope.name.as_ref(), b"Panel");
+    let target = face_found(&mut face, Some(8));
+    assert_eq!(target.within, Some(9), "use the new scope's node");
+    assert_eq!(target.name.as_ref(), b"Save");
+    let Some(Request::Press { op, node, at, .. }) = face.requests().next() else { panic!("press found again") };
+    assert_ne!(op, first);
+    assert_eq!(node, 8);
+    assert_eq!(at, None);
+    face.event(&Event::Done { op });
+    assert!(!face.pending());
+    assert!(face.failure().is_none());
+}
+
+#[test]
+fn a_gone_press_keeps_its_first_deadline_when_the_target_stays_absent() {
+    let (mut face, op) = pending_press();
+    face.event(&Event::Refused { op, why: Refusal::Gone, detail: Box::default() });
+    let limits = skein_browser::Limits::default();
+    face.tick(Time::ZERO.saturating_add(limits.poll));
+    face_found(&mut face, Some(9));
+    face_found(&mut face, Some(8));
+    let Some(Request::Press { op, .. }) = face.requests().next() else { panic!("second press") };
+    face.event(&Event::Refused { op, why: Refusal::Gone, detail: Box::default() });
+    face.tick(Time::ZERO.saturating_add(limits.poll.saturating_mul(2)));
+    face_found(&mut face, None);
+    face.tick(Time::ZERO.saturating_add(limits.answer));
+    assert_eq!(face.failure().as_deref(), Some("browser refused act: Gone (press deadline passed)"));
+    assert!(!face.pending());
+    assert_eq!(face.requests().count(), 0);
+}
+
+#[test]
+fn a_press_refused_for_another_reason_fails_without_repeating() {
+    let (mut face, op) = pending_press();
+    face.event(&Event::Refused { op, why: Refusal::Covered, detail: Box::default() });
+    assert_eq!(face.failure().as_deref(), Some("browser refused act: Covered"));
+    assert!(!face.pending());
+    face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
+    assert_eq!(face.requests().count(), 0);
+}
