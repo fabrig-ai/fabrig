@@ -60,13 +60,13 @@ pub const UP_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
 pub fn largest_demand(limits: &Limits) -> u32 {
     limits.line.max(1)
 }
-/// A scan delivery together with the triple decoded from it.
+/// The pipe decoder's scan delivery, decoded triple and retained failure tail.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn decoder_bound(limits: &Limits) -> Option<u64> {
     u64::from(largest_demand(limits))
         .checked_mul(3)?
         .checked_add(u64::from(limits.name).checked_mul(3)?)?
-        .checked_add(Tail::worst_case(limits)?)
+        .checked_add(Tail::decoder_bound(limits)?)
 }
 fn demand(reader: &mut Reader, limits: &Limits, below: &mut Queue<Down>) {
     reader.waiting = true;

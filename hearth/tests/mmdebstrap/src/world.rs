@@ -74,7 +74,7 @@ pub fn read_output(bytes: &[u8], seed: u64, limits: &Limits, end: End) -> Run {
 }
 /// Check each entry point under a heap meter, handing emitted payloads out.
 #[must_use]
-pub fn read_output_metered(bytes: &[u8], limits: &Limits) -> u64 {
+pub fn read_output_metered(bytes: &[u8], limits: &Limits, ceiling: u64) -> u64 {
     use skein_lib::{
         Intake,
         stream::{Down, Read},
@@ -86,14 +86,13 @@ pub fn read_output_metered(bytes: &[u8], limits: &Limits) -> u64 {
         u32::try_from(bytes.len()).expect("bounded fixture value").max(output::largest_demand(limits)),
     );
     intake.append(bytes).expect("bounded fixture value");
-    let bound = output::worst_case(limits).expect("bounded fixture value");
     let meter = Meter::new();
     meter.start();
     let mut reader = Reader::new(limits);
-    let mut most = meter.check(meter.end(), bound, &"new");
+    let mut most = meter.check(meter.end(), ceiling, &"new");
     meter.start();
     output::open(&mut reader, &env, &mut below);
-    most = most.max(meter.check(meter.end(), bound, &"open"));
+    most = most.max(meter.check(meter.end(), ceiling, &"open"));
     while let Some(down) = below.pop() {
         let read = match down {
             Down::Demand { read: Read::Nothing, .. } => break,
@@ -105,11 +104,11 @@ pub fn read_output_metered(bytes: &[u8], limits: &Limits) -> u64 {
         output::up(&mut reader, &env, event, &mut above, &mut below);
         let step = meter.end();
         drop(above.pop());
-        most = most.max(meter.check(step, bound, &"up"));
+        most = most.max(meter.check(step, ceiling, &"up"));
     }
     meter.start();
     output::close(&mut reader, &mut below);
-    most.max(meter.check(meter.end(), bound, &"close"))
+    most.max(meter.check(meter.end(), ceiling, &"close"))
 }
 
 fn finish(reader: &Reader, decoded: &mut Decoded) {
@@ -160,7 +159,7 @@ pub fn read_index(bytes: &[u8], seed: u64, limits: &Limits, end: End) -> crate::
 }
 /// Meter each list entry point while excluding the world's input and queues.
 #[must_use]
-pub fn read_index_metered(bytes: &[u8], limits: &Limits) -> u64 {
+pub fn read_index_metered(bytes: &[u8], limits: &Limits, ceiling: u64) -> u64 {
     use hearth_protocol_mmdebstrap::packages::{self, Stanzas};
     use skein_lib::{
         Intake,
@@ -171,14 +170,13 @@ pub fn read_index_metered(bytes: &[u8], limits: &Limits) -> u64 {
     let mut below = Queue::with_capacity(packages::UP_MAX_OUT.below);
     let mut intake = Intake::with_capacity(u32::try_from(bytes.len()).expect("fixture fits"));
     intake.append(bytes).expect("fixture fits");
-    let bound = packages::worst_case(limits).expect("bounded limits");
     let meter = Meter::new();
     meter.start();
     let mut reader = Stanzas::new(limits);
-    let mut most = meter.check(meter.end(), bound, &"new");
+    let mut most = meter.check(meter.end(), ceiling, &"new");
     meter.start();
     packages::open(&mut reader, &env, &mut below);
-    most = most.max(meter.check(meter.end(), bound, &"open"));
+    most = most.max(meter.check(meter.end(), ceiling, &"open"));
     while let Some(down) = below.pop() {
         let read = match down {
             Down::Demand { read: Read::Nothing, .. } => break,
@@ -192,11 +190,11 @@ pub fn read_index_metered(bytes: &[u8], limits: &Limits) -> u64 {
         while let Some(found) = above.pop() {
             drop(found);
         }
-        most = most.max(meter.check(step, bound, &"up"));
+        most = most.max(meter.check(step, ceiling, &"up"));
     }
     meter.start();
     packages::close(&mut reader, &mut below);
-    most.max(meter.check(meter.end(), bound, &"close"))
+    most.max(meter.check(meter.end(), ceiling, &"close"))
 }
 
 /// Observe both pipes, preferring stderr's failure tail as the real owner does.
