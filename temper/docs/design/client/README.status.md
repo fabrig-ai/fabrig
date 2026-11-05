@@ -53,8 +53,8 @@
   stops at "landed work.", which the section has no words for.
   3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
-  or in `temper-service`'s routing. 3.5: Ready's model line names no
-  email for a ChatGPT sign-in, whose account's display is empty, since
+  or in `temper-service`'s routing. 3.5: Ready's model line and the Model step's
+  status name no email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
   3.5, *Ready*: two endings leave nothing under "Model none yet"
@@ -187,3 +187,12 @@
   no role in the deployment, where the request has their values for everyone: a
   proposal's items span scopes, so their read keeps that role
   (`../protocol/configuration.md`, 13.2).
+- **Design departs:** 3.5, *The welcome* and *Home*, from the request `ui-welcome`
+  of 2026-11-05, decided by its plan's cut. A plan's way at its address, with no
+  sign-in asked, keeps its card in the panel, where the request draws a way's page
+  for the key, the paste and Claude alone: that card is how the welcome reaches
+  the paste. A repository Home's sheet asked leaves the step's lines once in and
+  reads as any in the project, "ORG/NAME is in PROJECT" and the merge queue's
+  line, where the request has each copy ticked and then "Chats can change its code
+  now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
+  names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).
