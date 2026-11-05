@@ -8,6 +8,10 @@ and which pages are under the rules below yet.
 
 ## 1. In one page
 
+- **The greenfield mock leads.** `../greenfield/` is the target for
+  the client's look, flow and mechanics (the user, 2026-11-05); where
+  it differs from a page here, it is the design, and this page is
+  reconciled to it as the client lands.
 - **Binding for what is not built yet.** temper is the source of truth
   for what it draws (the user, 10-26): where a mockup differs from what
   temper draws, the mockup is reconciled to temper, gradually, and a
