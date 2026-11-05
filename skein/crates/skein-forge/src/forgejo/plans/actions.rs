@@ -9,48 +9,45 @@ use crate::forgejo::plans::{
 use crate::forgejo::{document as d, header, id::ObjectId, request as r};
 use alloc::boxed::Box;
 use skein_lib::List;
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Mode {
-    Checks(api::Commit),
-    Statuses { head: api::Commit, ci: api::Ci, more: bool },
-    Job { attempt: api::JobAttempt, max: u32 },
+#[derive(Debug)]
+struct Checks {
+    head: api::Commit,
+    shape: Shape,
+    statuses: List<api::Status>,
+    position: u32,
+    size: u64,
+    resolve_jobs: bool,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Stage {
+#[derive(Debug)]
+enum Shape {
     Checks,
-    RunLookup,
-    JobsLookup,
-    Run,
-    Job,
-    Log,
+    Statuses { ci: api::Ci, more: bool },
+}
+#[derive(Debug)]
+enum State {
+    Listing { checks: Checks, page: u32 },
+    RunLookup { checks: Checks, run_number: u64, job_index: u32, run: Option<u64>, missing: bool },
+    JobsLookup { checks: Checks, job_index: u32, run: u64, missing: bool },
+    Run { attempt: api::JobAttempt, max: u32 },
+    Job { attempt: api::JobAttempt, max: u32, step: Option<api::Step> },
+    Log { attempt: api::JobAttempt, step: Option<api::Step>, truncated: bool },
+    Ended,
 }
 #[derive(Debug)]
 pub struct Plan {
-    mode: Mode,
-    stage: Stage,
+    state: State,
     row: Repository,
-    statuses: List<api::Status>,
-    count: u32,
-    page: u32,
     limit: u32,
-    position: u32,
-    run_number: u64,
-    job_index: u32,
-    run: Option<u64>,
-    step: Option<api::Step>,
-    missing: bool,
-    truncated: bool,
-    resolve_jobs: bool,
-    size: u64,
+    count: u32,
 }
 impl Plan {
     pub fn new(read: api::Read, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
-        let (mode, stage, page) = match read {
-            api::Read::Checks { commit } => (Mode::Checks(commit), Stage::Checks, 1),
+        let state = match read {
+            api::Read::Checks { commit } => Self::listing(commit, Shape::Checks, 1, bounds, true),
             api::Read::Statuses { commit, page } => {
-                (Mode::Statuses { head: commit, ci: api::Ci::None, more: false }, Stage::Checks, page)
+                Self::listing(commit, Shape::Statuses { ci: api::Ci::None, more: false }, page, bounds, true)
             }
-            api::Read::Job { attempt, max_bytes } => (Mode::Job { attempt, max: max_bytes }, Stage::Run, 1),
+            api::Read::Job { attempt, max_bytes } => State::Run { attempt, max: max_bytes },
             api::Read::Runs { .. }
             | api::Read::Run { .. }
             | api::Read::Tree { .. }
@@ -73,38 +70,28 @@ impl Plan {
             | api::Read::Compare { .. }
             | api::Read::File { .. } => return Err(api::Error::InvalidAnswer),
         };
+        Ok(Self { state, row, limit: bounds.page_size, count: 0 })
+    }
+    fn listing(head: api::Commit, shape: Shape, page: u32, bounds: Bounds, resolve_jobs: bool) -> State {
         let room = bounds
             .answer_bytes
             .checked_div(u32::try_from(crate::measure::STATUS_BYTES).expect("status width"))
             .expect("nonzero width");
-        let capacity = match mode {
-            Mode::Checks(_) => bounds.rows.min(room),
-            Mode::Statuses { .. } => bounds.page_size.min(bounds.rows).min(room),
-            Mode::Job { .. } => 0,
+        let capacity = match shape {
+            Shape::Checks => bounds.rows.min(room),
+            Shape::Statuses { .. } => bounds.page_size.min(bounds.rows).min(room),
         };
-        Ok(Self {
-            mode,
-            stage,
-            row,
-            statuses: List::with_capacity(capacity),
-            count: 0,
-            page,
-            limit: bounds.page_size,
-            position: 0,
-            run_number: 0,
-            job_index: 0,
-            run: None,
-            step: None,
-            missing: false,
-            truncated: false,
-            resolve_jobs: true,
-            size: 0,
-        })
+        let checks =
+            Checks { head, shape, statuses: List::with_capacity(capacity), position: 0, size: 0, resolve_jobs };
+        State::Listing { checks, page }
     }
     pub fn statuses(commit: api::Commit, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
-        let mut plan = Self::new(api::Read::Checks { commit }, row, bounds)?;
-        plan.resolve_jobs = false;
-        Ok(plan)
+        Ok(Self {
+            state: Self::listing(commit, Shape::Checks, 1, bounds, false),
+            row,
+            limit: bounds.page_size,
+            count: 0,
+        })
     }
     fn at(&self) -> r::Repo {
         r::Repo { owner: self.row.owner.clone(), name: self.row.name.clone() }
@@ -113,18 +100,23 @@ impl Plan {
         ObjectId { bytes, format: self.row.object_format }
     }
     pub fn begin(&mut self) -> Step {
-        match self.mode {
-            Mode::Checks(commit) | Mode::Statuses { head: commit, .. } => self.send(r::Request::CombinedStatus {
+        let request = match &self.state {
+            State::Listing { checks, page } => r::Request::CombinedStatus {
                 at: self.at(),
-                commit: self.id(commit),
-                page: r::Page { page: Some(self.page), limit: Some(self.limit) },
-            }),
-            Mode::Job { attempt, .. } => self.send(r::Request::Run { at: self.at(), run: attempt.run }),
-        }
+                commit: self.id(checks.head),
+                page: r::Page { page: Some(*page), limit: Some(self.limit) },
+            },
+            State::Run { attempt, .. } => r::Request::Run { at: self.at(), run: attempt.run },
+            State::RunLookup { .. }
+            | State::JobsLookup { .. }
+            | State::Job { .. }
+            | State::Log { .. }
+            | State::Ended => unreachable!("actions begins with statuses or a run"),
+        };
+        self.send(request)
     }
     fn send(&mut self, request: r::Request) -> Step {
         self.count = 0;
-        self.missing = false;
         Step::send(request)
     }
     pub fn heard(
@@ -134,121 +126,152 @@ impl Plan {
         repository: api::Repository,
         tables: &mut Tables,
     ) -> Result<Option<Step>, api::Error> {
-        match heard {
-            Heard::Head { status, fields } => {
-                self.missing = status == 404 && (self.stage == Stage::RunLookup || self.stage == Stage::JobsLookup);
-                if self.missing {
-                    return Ok(None);
-                }
-                if status == 404 || (300..400).contains(&status) {
-                    tables.drop_repository(repository);
-                }
-                if status == 404 {
-                    match self.mode {
-                        Mode::Job { .. } => return Err(api::Error::MissingJob),
-                        Mode::Checks(_) | Mode::Statuses { .. } => {}
-                    }
-                }
-                if status != 200 && !(self.stage == Stage::Log && status == 206) {
-                    return Err(crate::forgejo::plans::failure::read(status, &fields));
-                }
-                if self.stage == Stage::Log
-                    && let Some(range) = fields.content_range
-                {
-                    self.truncated = range.first > 0;
-                }
-                Ok(None)
-            }
-            Heard::Row(row) => {
-                self.row(row, bounds, repository.forge, tables)?;
-                Ok(None)
-            }
-            Heard::Done(body) => {
-                if self.missing {
-                    return self.next_check();
-                }
-                match body {
-                    Body::Document(document) => self.done(document),
-                    Body::Raw { bytes, more } => self.log(bytes, more),
-                    Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
-                        Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge })
-                    }
-                    Body::Empty | Body::Malformed(_) => Err(api::Error::InvalidAnswer),
-                }
-            }
-            Heard::Failed(failure) => Err(crate::forgejo::plans::failure::transport(failure)),
-        }
+        let state = core::mem::replace(&mut self.state, State::Ended);
+        let (state, step) = match heard {
+            Heard::Head { status, fields } => (Self::head(state, status, fields, repository, tables)?, None),
+            Heard::Row(row) => (self.row(state, row, bounds, repository.forge, tables)?, None),
+            Heard::Done(body) => self.done(state, body)?,
+            Heard::Failed(failure) => return Err(crate::forgejo::plans::failure::transport(failure)),
+        };
+        self.state = state;
+        Ok(step)
     }
-    fn row(&mut self, row: d::Row, bounds: Bounds, forge: u16, tables: &mut Tables) -> Result<(), api::Error> {
+    fn head(
+        mut state: State,
+        status: u16,
+        fields: super::Fields,
+        repository: api::Repository,
+        tables: &mut Tables,
+    ) -> Result<State, api::Error> {
+        match &mut state {
+            State::RunLookup { missing, .. } | State::JobsLookup { missing, .. } => {
+                *missing = status == 404;
+                if *missing {
+                    return Ok(state);
+                }
+            }
+            State::Run { .. } | State::Job { .. } => {
+                if status == 404 {
+                    tables.drop_repository(repository);
+                    return Err(api::Error::MissingJob);
+                }
+            }
+            State::Log { truncated, .. } => {
+                if status == 404 {
+                    tables.drop_repository(repository);
+                    return Err(api::Error::MissingJob);
+                }
+                if let Some(range) = fields.content_range {
+                    *truncated = range.first > 0;
+                }
+                if status == 206 {
+                    return Ok(state);
+                }
+            }
+            State::Listing { .. } => {}
+            State::Ended => unreachable!("owner stops feeding an ended actions plan"),
+        }
+        if status == 404 || (300..400).contains(&status) {
+            tables.drop_repository(repository);
+        }
+        if status != 200 {
+            return Err(crate::forgejo::plans::failure::read(status, &fields));
+        }
+        Ok(state)
+    }
+    #[expect(clippy::too_many_lines, reason = "row dispatch names every decoded row and receiving state")]
+    fn row(
+        &mut self,
+        state: State,
+        row: d::Row,
+        bounds: Bounds,
+        forge: u16,
+        tables: &mut Tables,
+    ) -> Result<State, api::Error> {
         self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;
         match row {
-            d::Row::Status(status) => {
-                if self.stage != Stage::Checks {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                if self.count > self.limit {
-                    return Err(api::Error::TooLarge);
-                }
-                if let Some(user) = &status.creator {
-                    tables.keep_user(forge, user.id, user.login.clone());
-                }
-                let value = reading::status(status, &self.row.html_url)?;
-                let answer = api::Answer::Checks(Box::new([value.clone()]));
-                self.size = self
-                    .size
-                    .checked_add(crate::forgejo::plans::reads::size::answer(&answer, bounds.rows)?)
-                    .ok_or(api::Error::TooLarge)?;
-                if self.size > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge);
-                }
-                match self.statuses.push(value) {
-                    Ok(()) => Ok(()),
-                    Err(_) => Err(api::Error::TooLarge),
-                }
-            }
-            d::Row::Run(run) => {
-                if self.stage != Stage::RunLookup {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                if self.count > 1 {
-                    return Err(api::Error::TooLarge);
-                }
-                let commit =
-                    reading::commit(run.commit_sha, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
-                match self.mode {
-                    Mode::Checks(head) | Mode::Statuses { head, .. } => {
-                        if commit == head && run.index_in_repo == self.run_number {
-                            self.run = Some(run.id);
-                        }
+            d::Row::Status(status) => match state {
+                State::Listing { mut checks, page } => {
+                    if self.count > self.limit {
+                        return Err(api::Error::TooLarge);
                     }
-                    Mode::Job { .. } => return Err(api::Error::InvalidAnswer),
-                }
-                Ok(())
-            }
-            d::Row::Job(job) => {
-                match self.mode {
-                    Mode::Checks(head) | Mode::Statuses { head, .. } => {
-                        if self.stage != Stage::JobsLookup {
-                            return Err(api::Error::InvalidAnswer);
-                        }
-                        if self.count.saturating_sub(1) == self.job_index && Some(job.run_id) == self.run {
-                            self.statuses.get_mut(self.position.saturating_sub(1)).expect("lookup status").job =
-                                Some(api::JobAttempt { head, run: job.run_id, job: job.id, attempt: job.attempt });
-                        }
+                    if let Some(user) = &status.creator {
+                        tables.keep_user(forge, user.id, user.login.clone());
                     }
-                    Mode::Job { .. } => return Err(api::Error::InvalidAnswer),
+                    let value = reading::status(status, &self.row.html_url)?;
+                    let answer = api::Answer::Checks(Box::new([value.clone()]));
+                    checks.size = checks
+                        .size
+                        .checked_add(crate::forgejo::plans::reads::size::answer(&answer, bounds.rows)?)
+                        .ok_or(api::Error::TooLarge)?;
+                    if checks.size > u64::from(bounds.answer_bytes) {
+                        return Err(api::Error::TooLarge);
+                    }
+                    match checks.statuses.push(value) {
+                        Ok(()) => Ok(State::Listing { checks, page }),
+                        Err(_) => Err(api::Error::TooLarge),
+                    }
                 }
-                Ok(())
-            }
-            d::Row::Step(step) => {
-                if self.stage != Stage::Job {
-                    return Err(api::Error::InvalidAnswer);
+                State::RunLookup { .. }
+                | State::JobsLookup { .. }
+                | State::Run { .. }
+                | State::Job { .. }
+                | State::Log { .. } => Err(api::Error::InvalidAnswer),
+                State::Ended => unreachable!("owner stops feeding an ended actions plan"),
+            },
+            d::Row::Run(value) => match state {
+                State::RunLookup { checks, run_number, job_index, mut run, missing } => {
+                    if self.count > 1 {
+                        return Err(api::Error::TooLarge);
+                    }
+                    let commit =
+                        reading::commit(value.commit_sha, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
+                    if commit == checks.head && value.index_in_repo == run_number {
+                        run = Some(value.id);
+                    }
+                    Ok(State::RunLookup { checks, run_number, job_index, run, missing })
                 }
-                if self.step.is_none() && step.status == d::StepStatus::Failure {
-                    self.step = Some(api::Step { number: step.number, name: step.name });
+                State::Listing { .. }
+                | State::JobsLookup { .. }
+                | State::Run { .. }
+                | State::Job { .. }
+                | State::Log { .. } => Err(api::Error::InvalidAnswer),
+                State::Ended => unreachable!("owner stops feeding an ended actions plan"),
+            },
+            d::Row::Job(job) => match state {
+                State::JobsLookup { mut checks, job_index, run, missing } => {
+                    if self.count.saturating_sub(1) == job_index && job.run_id == run {
+                        checks.statuses.get_mut(checks.position.saturating_sub(1)).expect("lookup status").job =
+                            Some(api::JobAttempt {
+                                head: checks.head,
+                                run: job.run_id,
+                                job: job.id,
+                                attempt: job.attempt,
+                            });
+                    }
+                    Ok(State::JobsLookup { checks, job_index, run, missing })
                 }
-                Ok(())
-            }
+                State::Listing { .. }
+                | State::RunLookup { .. }
+                | State::Run { .. }
+                | State::Job { .. }
+                | State::Log { .. } => Err(api::Error::InvalidAnswer),
+                State::Ended => unreachable!("owner stops feeding an ended actions plan"),
+            },
+            d::Row::Step(value) => match state {
+                State::Job { attempt, max, mut step } => {
+                    if step.is_none() && value.status == d::StepStatus::Failure {
+                        step = Some(api::Step { number: value.number, name: value.name });
+                    }
+                    Ok(State::Job { attempt, max, step })
+                }
+                State::Listing { .. }
+                | State::RunLookup { .. }
+                | State::JobsLookup { .. }
+                | State::Run { .. }
+                | State::Log { .. } => Err(api::Error::InvalidAnswer),
+                State::Ended => unreachable!("owner stops feeding an ended actions plan"),
+            },
             d::Row::TreeEntry(_)
             | d::Row::Found(_)
             | d::Row::Reachable(_)
@@ -270,164 +293,177 @@ impl Plan {
             | d::Row::CommitMessage(_) => Err(api::Error::InvalidAnswer),
         }
     }
-    #[expect(clippy::manual_map, reason = "Step functions use explicit matches without closures")]
-    fn done(&mut self, document: d::Document) -> Result<Option<Step>, api::Error> {
-        match document {
-            d::Document::CombinedStatus(combined) => {
-                if self.stage != Stage::Checks {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                if let Mode::Statuses { head, .. } = self.mode {
-                    let read = u64::from(self.page.saturating_sub(1))
-                        .saturating_mul(u64::from(self.limit))
-                        .saturating_add(u64::from(self.count));
-                    self.mode = Mode::Statuses {
-                        head,
-                        ci: reading::ci(combined.state, combined.total_count),
-                        more: read < combined.total_count,
-                    };
-                } else if self.count == self.limit {
-                    self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge)?;
-                    return Ok(Some(self.begin()));
-                }
-                self.next_check()
+    #[expect(
+        clippy::too_many_lines,
+        clippy::manual_let_else,
+        clippy::manual_map,
+        reason = "exchange dispatch keeps explicit matches for document kinds and optional step numbers"
+    )]
+    fn done(&mut self, state: State, body: Body) -> Result<(State, Option<Step>), api::Error> {
+        let state = match state {
+            State::RunLookup { checks, missing: true, .. } | State::JobsLookup { checks, missing: true, .. } => {
+                return self.next_check(checks);
             }
-            d::Document::Tree { .. } | d::Document::Runs { .. } => {
-                if self.stage != Stage::RunLookup {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                match self.run {
-                    Some(run) => {
-                        self.stage = Stage::JobsLookup;
-                        Ok(Some(self.send(r::Request::Jobs { at: self.at(), run })))
-                    }
-                    None => self.next_check(),
-                }
-            }
-            d::Document::Run(run) => {
-                let attempt = match self.mode {
-                    Mode::Job { attempt, .. } => attempt,
-                    Mode::Checks(_) | Mode::Statuses { .. } => return Err(api::Error::InvalidAnswer),
+            state @ (State::Listing { .. }
+            | State::RunLookup { .. }
+            | State::JobsLookup { .. }
+            | State::Run { .. }
+            | State::Job { .. }
+            | State::Log { .. }) => state,
+            State::Ended => unreachable!("owner stops feeding an ended actions plan"),
+        };
+        let document = match body {
+            Body::Document(document) => Some(document),
+            Body::Raw { bytes, more } => {
+                return match state {
+                    State::Log { attempt, step, truncated } => Ok((
+                        State::Ended,
+                        Some(Step::Done(Ok(api::Answer::Job {
+                            attempt,
+                            step,
+                            log: bytes,
+                            truncated: more || truncated,
+                        }))),
+                    )),
+                    State::Listing { .. }
+                    | State::RunLookup { .. }
+                    | State::JobsLookup { .. }
+                    | State::Run { .. }
+                    | State::Job { .. } => Err(api::Error::InvalidAnswer),
+                    State::Ended => unreachable!("owner stops feeding an ended actions plan"),
                 };
-                if self.stage != Stage::Run {
-                    return Err(api::Error::InvalidAnswer);
+            }
+            Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
+                return Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge });
+            }
+            Body::Empty | Body::Malformed(_) => None,
+        };
+        match state {
+            State::Listing { mut checks, mut page } => {
+                let combined = match document {
+                    Some(d::Document::CombinedStatus(combined)) => combined,
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                };
+                checks.shape = match checks.shape {
+                    Shape::Statuses { .. } => {
+                        let read = u64::from(page.saturating_sub(1))
+                            .saturating_mul(u64::from(self.limit))
+                            .saturating_add(u64::from(self.count));
+                        Shape::Statuses {
+                            ci: reading::ci(combined.state, combined.total_count),
+                            more: read < combined.total_count,
+                        }
+                    }
+                    Shape::Checks => {
+                        if self.count == self.limit {
+                            page = page.checked_add(1).ok_or(api::Error::TooLarge)?;
+                            let step = self.send(r::Request::CombinedStatus {
+                                at: self.at(),
+                                commit: self.id(checks.head),
+                                page: r::Page { page: Some(page), limit: Some(self.limit) },
+                            });
+                            return Ok((State::Listing { checks, page }, Some(step)));
+                        }
+                        Shape::Checks
+                    }
+                };
+                self.next_check(checks)
+            }
+            State::RunLookup { checks, job_index, run, .. } => {
+                match document {
+                    Some(d::Document::Tree { .. } | d::Document::Runs { .. }) => {}
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
                 }
+                match run {
+                    Some(run) => {
+                        let step = self.send(r::Request::Jobs { at: self.at(), run });
+                        Ok((State::JobsLookup { checks, job_index, run, missing: false }, Some(step)))
+                    }
+                    None => self.next_check(checks),
+                }
+            }
+            State::JobsLookup { checks, .. } => {
+                match document {
+                    Some(d::Document::Listed { .. }) => {}
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                }
+                self.next_check(checks)
+            }
+            State::Run { attempt, max } => {
+                let run = match document {
+                    Some(d::Document::Run(run)) => run,
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                };
                 let head = reading::commit(run.commit_sha, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
                 if head != attempt.head || run.id != attempt.run {
                     return Err(api::Error::MissingJob);
                 }
-                self.stage = Stage::Job;
-                Ok(Some(self.send(r::Request::Job { at: self.at(), job: attempt.job })))
+                let sent = self.send(r::Request::Job { at: self.at(), job: attempt.job });
+                Ok((State::Job { attempt, max, step: None }, Some(sent)))
             }
-            d::Document::Listed { .. } => {
-                if self.stage != Stage::JobsLookup {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                self.next_check()
-            }
-            d::Document::Job(job) => {
-                if self.stage != Stage::Job {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                let (attempt, max) = match self.mode {
-                    Mode::Job { attempt, max } => (attempt, max),
-                    Mode::Checks(_) | Mode::Statuses { .. } => return Err(api::Error::InvalidAnswer),
+            State::Job { attempt, max, step } => {
+                let job = match document {
+                    Some(d::Document::Job(job)) => job,
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
                 };
                 if job.id != attempt.job || job.run_id != attempt.run || job.attempt != attempt.attempt {
                     return Err(api::Error::MissingJob);
                 }
-                self.stage = Stage::Log;
-                Ok(Some(Step::Send(Exchange {
+                let sent = Step::Send(Exchange {
                     request: r::Request::JobLog {
                         at: self.at(),
                         job: attempt.job,
                         attempt: attempt.attempt,
-                        step: match &self.step {
+                        step: match &step {
                             Some(step) => Some(step.number),
                             None => None,
                         },
                     },
                     range: Some(crate::forgejo::plans::plan::Range::Tail(max)),
-                })))
+                });
+                Ok((State::Log { attempt, step, truncated: false }, Some(sent)))
             }
-            d::Document::Token(_)
-            | d::Document::User(_)
-            | d::Document::Org(_)
-            | d::Document::CreatedFile { .. }
-            | d::Document::CreatedRepository(_)
-            | d::Document::Hook(_)
-            | d::Document::Team(_)
-            | d::Document::ApiSettings(_)
-            | d::Document::Repository(_)
-            | d::Document::RepoSearch { .. }
-            | d::Document::Search { .. }
-            | d::Document::Issue(_)
-            | d::Document::Comment(_)
-            | d::Document::Status(_)
-            | d::Document::Review(_)
-            | d::Document::Pull(_)
-            | d::Document::Branch(_)
-            | d::Document::Protection(_)
-            | d::Document::Permission(_)
-            | d::Document::Compare(_)
-            | d::Document::Error(_) => Err(api::Error::InvalidAnswer),
+            State::Log { .. } => Err(api::Error::InvalidAnswer),
+            State::Ended => unreachable!("owner stops feeding an ended actions plan"),
         }
     }
-    fn next_check(&mut self) -> Result<Option<Step>, api::Error> {
-        if !self.resolve_jobs {
-            let statuses = core::mem::replace(&mut self.statuses, List::with_capacity(0)).into_boxed();
-            return Ok(Some(Step::Done(Ok(self.answer(statuses)?))));
-        }
-        for _ in 0..self.statuses.len().saturating_add(1) {
-            if self.position == self.statuses.len() {
-                let statuses = core::mem::replace(&mut self.statuses, List::with_capacity(0)).into_boxed();
-                return Ok(Some(Step::Done(Ok(self.answer(statuses)?))));
-            }
-            let status = self.statuses.get(self.position).expect("check position");
-            self.position = self.position.saturating_add(1);
-            if let Some((run_number, job_index)) = header::job_link(&status.url, &self.row.html_url) {
-                self.run_number = run_number;
-                self.job_index = job_index;
-                self.run = None;
-                self.stage = Stage::RunLookup;
-                let head = match self.mode {
-                    Mode::Checks(head) | Mode::Statuses { head, .. } => head,
-                    Mode::Job { .. } => return Err(api::Error::InvalidAnswer),
+    fn next_check(&mut self, mut checks: Checks) -> Result<(State, Option<Step>), api::Error> {
+        for _ in 0..checks.statuses.len().saturating_add(1) {
+            if !checks.resolve_jobs || checks.position == checks.statuses.len() {
+                let statuses = checks.statuses.into_boxed();
+                let answer = match checks.shape {
+                    Shape::Checks => api::Answer::Checks(statuses),
+                    Shape::Statuses { ci, more } => api::Answer::Statuses { ci, statuses, more },
                 };
-                return Ok(Some(self.send(r::Request::Runs {
+                return Ok((State::Ended, Some(Step::Done(Ok(answer)))));
+            }
+            let status = checks.statuses.get(checks.position).expect("check position");
+            checks.position = checks.position.saturating_add(1);
+            if let Some((run_number, job_index)) = header::job_link(&status.url, &self.row.html_url) {
+                let step = self.send(r::Request::Runs {
                     at: self.at(),
-                    head_sha: self.id(head),
+                    head_sha: self.id(checks.head),
                     run_number,
                     page: r::Page { page: Some(1), limit: Some(1) },
-                })));
+                });
+                return Ok((State::RunLookup { checks, run_number, job_index, run: None, missing: false }, Some(step)));
             }
         }
         Err(api::Error::InvalidAnswer)
     }
-    fn answer(&self, statuses: Box<[api::Status]>) -> Result<api::Answer, api::Error> {
-        match self.mode {
-            Mode::Checks(_) => Ok(api::Answer::Checks(statuses)),
-            Mode::Statuses { ci, more, .. } => Ok(api::Answer::Statuses { ci, statuses, more }),
-            Mode::Job { .. } => Err(api::Error::InvalidAnswer),
-        }
-    }
     #[must_use]
     pub fn raw_room(&self, answer_bytes: u32) -> u32 {
-        let name = match &self.step {
-            Some(step) => step.name.len(),
-            None => 0,
+        let name = match &self.state {
+            State::Job { step, .. } | State::Log { step, .. } => match step {
+                Some(step) => step.name.len(),
+                None => 0,
+            },
+            State::Listing { .. }
+            | State::RunLookup { .. }
+            | State::JobsLookup { .. }
+            | State::Run { .. }
+            | State::Ended => 0,
         };
         answer_bytes.saturating_sub(u32::try_from(name).expect("Bounded step name"))
-    }
-    fn log(&mut self, log: Box<[u8]>, more: bool) -> Result<Option<Step>, api::Error> {
-        if self.stage != Stage::Log {
-            return Err(api::Error::InvalidAnswer);
-        }
-        let attempt = match self.mode {
-            Mode::Job { attempt, .. } => attempt,
-            Mode::Checks(_) | Mode::Statuses { .. } => return Err(api::Error::InvalidAnswer),
-        };
-        let truncated = more || self.truncated;
-        Ok(Some(Step::Done(Ok(api::Answer::Job { attempt, step: self.step.take(), log, truncated }))))
     }
 }
