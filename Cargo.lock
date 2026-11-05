@@ -4284,11 +4284,9 @@ name = "smith-tools-world"
 version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
- "skein-io",
  "skein-lib",
  "skein-world",
  "smith-domain-tools",
- "smith-protocol-machine",
 ]
 
 [[package]]
