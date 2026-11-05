@@ -527,3 +527,130 @@ fn a_read_started_before_the_set_cannot_replace_its_answer() {
         assert_eq!(reads(&out, kind).len(), 1, "the answer starts one fresh read");
     }
 }
+
+const PROPOSAL: u64 = 91;
+fn proposal_cards(key: u64) -> List<crate::pages::inbox::Card> {
+    let mut items = List::with_capacity(1);
+    items
+        .push(c::RevisionItemHead {
+            setting: c::Setting::Application { kind: 7, scope: f::PROJECT, number: 1 },
+            edit: c::RevisionItemEdit::Set,
+        })
+        .unwrap();
+    let key = c::ProposalKey { proposer: c::Proposer::Task(12), number: key };
+    let mut cards = List::with_capacity(1);
+    cards
+        .push(crate::pages::inbox::Card {
+            object: c::ObjectKey::Proposal(key),
+            group: c::InboxGroup::Proposals,
+            project: Some(f::PROJECT),
+            position: None,
+            unread: None,
+            handle: jig_client::Handle { asker: f::FORGE_ASKER, number: 0 },
+            page: Some(c::ReadValue::Proposal(Box::new(c::Proposal {
+                key,
+                project: f::PROJECT,
+                reason: c::DocumentText::complete(c::Text::new(Box::from(*b"How I work"), 32).unwrap()),
+                action: c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+                    against: 0,
+                    items,
+                    review: None,
+                    made: None,
+                })),
+                as_holder: true,
+                waiting: c::ProposalWaiting { holder: c::HistoryHolder::Person(73), since: skein_lib::Wall::EPOCH },
+                funding: List::with_capacity(0),
+                acts: List::with_capacity(0),
+            }))),
+            words: None,
+            key: None,
+            outcome: None,
+        })
+        .unwrap();
+    cards
+}
+fn proposal_read(root: &mut Domain, key: u64) -> Queue<forge::Request> {
+    let mut out = Queue::uncapped();
+    ways::proposals(&mut root.forge, Some(&proposal_cards(key)), f::limits().forge, &mut out);
+    out
+}
+fn proposal_handle(out: &Queue<forge::Request>, key: u64) -> jig_client::Handle {
+    let mut found = List::with_capacity(1);
+    for request in out {
+        if let forge::Request::Client {
+            asked: jig_client::Event::Read { handle, read: Readable::Family { scope, window, record } },
+        } = request
+        {
+            assert_eq!(*scope, c::Scope::Deployment);
+            assert_eq!(*window, c::Window { rows: 1, after: None });
+            assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
+            let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
+            let w::Read::ProposalItems(read) = reading.read() else { panic!("proposal items") };
+            assert_eq!(read.key(), key);
+            found.push(*handle).unwrap();
+        }
+    }
+    assert_eq!(found.len(), 1);
+    *found.get(0).unwrap()
+}
+fn proposed_page(asked: Asked) -> Readout {
+    let value = wire::decode_setting_answer(&value(asked), &w::CEILINGS).unwrap().into_parts().value.unwrap();
+    let mut items = List::with_capacity(1);
+    items
+        .push(
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts {
+                    kind: 7,
+                    scope: f::PROJECT,
+                    number: 1,
+                    edit: w::SettingEdit::Set(
+                        w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value }).unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let answer = w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items }).unwrap();
+    Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&answer)) }
+}
+fn proposal_told(root: &mut Domain, told: Told) {
+    let mut out = Queue::uncapped();
+    ways::told(&mut root.forge, &root.client, &told, f::limits().forge, &mut out);
+}
+#[test]
+fn a_proposals_items_are_read_once_and_bounded() {
+    let mut f = fixture();
+    let handle = proposal_handle(&proposal_read(&mut f.root, PROPOSAL), PROPOSAL);
+    assert!(proposal_read(&mut f.root, PROPOSAL).is_empty());
+    proposal_told(&mut f.root, Told::Page { handle, page: proposed_page(Asked::Ways(SHOWN)) });
+    assert_eq!(
+        f.root.forge.proposed(PROPOSAL),
+        Some([ways::Proposed::Ways { project: f::PROJECT, ways: SHOWN }].as_slice())
+    );
+    assert!(proposal_read(&mut f.root, PROPOSAL).is_empty());
+    proposal_told(&mut f.root, Told::Link { link: Link::Offline });
+    proposal_told(&mut f.root, Told::Link { link: Link::Live });
+    proposal_handle(&proposal_read(&mut f.root, PROPOSAL), PROPOSAL);
+    // Fill the bound, then admit one beyond it: the oldest is evicted.
+    for offset in 1..forge::forges::ROWS {
+        let key = PROPOSAL.checked_add(u64::from(offset)).unwrap();
+        let handle = proposal_handle(&proposal_read(&mut f.root, key), key);
+        proposal_told(&mut f.root, Told::Page { handle, page: proposed_page(Asked::Ways(SHOWN)) });
+    }
+    assert!(proposal_read(&mut f.root, PROPOSAL).is_empty(), "oldest remains at the bound");
+    let beyond = PROPOSAL.checked_add(u64::from(forge::forges::ROWS)).unwrap();
+    proposal_handle(&proposal_read(&mut f.root, beyond), beyond);
+    proposal_handle(&proposal_read(&mut f.root, PROPOSAL), PROPOSAL);
+    proposal_told(&mut f.root, Told::Page { handle, page: proposed_page(Asked::Ways(SHOWN)) });
+    assert_eq!(f.root.forge.proposed(PROPOSAL), None, "an evicted read cannot publish into its replacement");
+}
+#[test]
+fn a_refused_read_leaves_the_names() {
+    let mut f = fixture();
+    let handle = proposal_handle(&proposal_read(&mut f.root, PROPOSAL), PROPOSAL);
+    proposal_told(&mut f.root, Told::Page { handle, page: Readout::Limit });
+    assert_eq!(f.root.forge.proposed(PROPOSAL), None);
+    assert!(proposal_read(&mut f.root, PROPOSAL).is_empty(), "a refusal is not retried each draw");
+}

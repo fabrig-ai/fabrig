@@ -468,6 +468,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::Welcome { .. } => false,
     };
     forge::ways::progress(&mut root.forge, root.pages.project(), on_tab, env.limits.forge, &mut child);
+    forge::ways::proposals(&mut root.forge, root.pages.cards(), env.limits.forge, &mut child);
     route_forge(root, env, &mut child, out);
 }
 fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
