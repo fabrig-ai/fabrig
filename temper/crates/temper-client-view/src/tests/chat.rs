@@ -510,7 +510,7 @@ fn the_chat_bar_contains_identity_spend_and_acts() {
         },
     );
     let view = fixtures::page_view(&fresh);
-    let bar = styled(view.tree(), crate::look::CHATBAR);
+    let bar = styled(view.tree(), crate::look::TASKBAR);
     assert_eq!(view.tree().nodes()[bar].role, Role::Region);
     let nodes = subtree(view.tree(), bar);
     let heading = fixtures::words().say(
@@ -1911,7 +1911,7 @@ fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
 fn the_playground_chats_bar_has_no_model_word() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
     let view = fixtures::page_view(&root);
-    let bar = styled(view.tree(), crate::look::CHATBAR);
+    let bar = styled(view.tree(), crate::look::TASKBAR);
     for node in subtree(view.tree(), bar) {
         assert_ne!(node.name.as_deref(), Some(b"Scripted model".as_slice()));
     }
@@ -1966,7 +1966,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         let tree = view.tree();
         let main = styled(tree, look::SESSION);
         assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MAIN, look::SESSION]);
-        assert_eq!(style_position(tree.nodes(), look::CHAT), None);
+        assert_eq!(style_position(tree.nodes(), look::AGENT_PAGE), None);
         let top = styled(tree, look::SESSION_TOP);
         let bar = styled(tree, look::SESSION_RIGHT);
         assert!(top < bar && bar < top + usize::try_from(tree.nodes()[top].size).unwrap());
@@ -2052,7 +2052,7 @@ fn only_a_delivered_template_three_executor_changes_chat_layout_and_navigation()
         for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
             let tree = view.tree();
             assert_eq!(style_position(tree.nodes(), look::SESSION).is_some(), configuring);
-            assert_eq!(style_position(tree.nodes(), look::CHAT).is_some(), !configuring);
+            assert_eq!(style_position(tree.nodes(), look::AGENT_PAGE).is_some(), !configuring);
             for style in [look::RAIL, look::TABBAR] {
                 if let Some(at) = style_position(tree.nodes(), style) {
                     for name in [b"Settings".as_slice(), b"Chats"] {
@@ -2072,7 +2072,7 @@ fn only_a_delivered_template_three_executor_changes_chat_layout_and_navigation()
         fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &fixtures::domain_limits());
     let view = fixtures::browser_page_view(&root);
     assert!(style_position(view.tree().nodes(), look::SESSION).is_none(), "no delivered task");
-    assert!(style_position(view.tree().nodes(), look::CHAT).is_some());
+    assert!(style_position(view.tree().nodes(), look::AGENT_PAGE).is_some());
 }
 
 #[test]
@@ -2177,7 +2177,7 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
         let plain_tree = fixtures::build(&mut plain_view, &plain);
         let configuring_tree = fixtures::build(&mut configuring_view, &configuring);
         assert!(style_position(configuring_tree.nodes(), crate::look::SESSION).is_some());
-        assert!(style_position(plain_tree.nodes(), crate::look::CHAT).is_some());
+        assert!(style_position(plain_tree.nodes(), crate::look::AGENT_PAGE).is_some());
         let original = subtree(plain_tree, styled(plain_tree, crate::look::THREAD));
         let session = subtree(configuring_tree, styled(configuring_tree, crate::look::THREAD));
         assert_eq!(original.len(), session.len());

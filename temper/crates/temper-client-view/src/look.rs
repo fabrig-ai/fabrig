@@ -185,10 +185,10 @@ pub const CORNER: Style = Style { owner: owner(), token: 21 };
 pub const ACCOUNTS: Style = Style { owner: owner(), token: 22 };
 /// The composer's account and model line.
 pub const ACCOUNT_LINE: Style = Style { owner: owner(), token: 23 };
-/// The conversation page main.
-pub const CHAT: Style = Style { owner: owner(), token: 24 };
-/// The chat identity and controls.
-pub const CHATBAR: Style = Style { owner: owner(), token: 25 };
+/// The agent task page main.
+pub const AGENT_PAGE: Style = Style { owner: owner(), token: 24 };
+/// The agent task identity and controls.
+pub const TASKBAR: Style = Style { owner: owner(), token: 25 };
 /// The conversation and its tail.
 pub const THREAD: Style = Style { owner: owner(), token: 26 };
 /// One message in a conversation turn.
@@ -538,8 +538,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-corner",
         b"temper-accounts",
         b"temper-account-line",
-        b"temper-chat",
-        b"temper-chatbar",
+        b"temper-agent-page",
+        b"temper-taskbar",
         b"temper-thread",
         b"temper-message",
         b"temper-by-person",
