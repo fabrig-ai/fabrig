@@ -1,5 +1,5 @@
 //! Terminal documents and the next exchange of a JSON read.
-use super::{Bounds, Plan, Request, Rows, Stage, Step, Tables, api, bytes, d, keep_document, reading};
+use super::{Bounds, Delegate, Plan, Request, Rows, Stage, Step, Tables, api, bytes, d, keep_document, reading};
 impl Plan {
     pub(super) fn done(
         &mut self,
@@ -340,7 +340,7 @@ impl Plan {
             self.row.as_ref().expect("format").object_format,
             ci,
         )?);
-        self.actions = None;
+        self.delegate = None;
         self.terminal(answer, bounds)
     }
     fn pull_status(&mut self, bounds: Bounds) -> Result<Step, api::Error> {
@@ -355,7 +355,7 @@ impl Plan {
             bounds,
         )?;
         let step = plan.begin();
-        self.actions = Some(plan);
+        self.delegate = Some(Delegate::Actions(plan));
         Ok(step)
     }
 
