@@ -138,12 +138,7 @@ fn up_inner(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    if !connection::up(
-        &mut server.connection,
-        &env.with(env.limits.http),
-        event,
-        below,
-    ) {
+    if !connection::up(&mut server.connection, &env.with(env.limits.http), event, below) {
         return;
     }
     resume_inner(server, service, env, hosted, above, below);
@@ -263,11 +258,7 @@ fn resume_inner(
             if server.head_pending() {
                 break;
             }
-        } else if !connection::request(
-            &mut server.connection,
-            &env.with(env.limits.http),
-            below,
-        ) {
+        } else if !connection::request(&mut server.connection, &env.with(env.limits.http), below) {
             break;
         }
     }

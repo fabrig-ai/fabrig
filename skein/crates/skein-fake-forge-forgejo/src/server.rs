@@ -138,12 +138,7 @@ fn up_on(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    if !connection::up(
-        &mut server.connection,
-        &env.with(env.limits.http),
-        event,
-        below,
-    ) {
+    if !connection::up(&mut server.connection, &env.with(env.limits.http), event, below) {
         return;
     }
     resume_on(server, service, domain, env, above, below);
@@ -394,13 +389,7 @@ fn next(
 }
 fn json_down(server: &mut Server, env: &Env<Limits>, request: json::Request) {
     let limits = git::json_limits(server, &env.limits);
-    json::down(
-        &mut server.json,
-        &env.with(limits),
-        request,
-        &mut server.json_events,
-        &mut server.json_down,
-    );
+    json::down(&mut server.json, &env.with(limits), request, &mut server.json_events, &mut server.json_down);
 }
 fn http_event(
     server: &mut Server,
@@ -416,13 +405,7 @@ fn http_event(
         Turn::Body(up) => {
             if server.connection.state == State::Body {
                 let limits = git::json_limits(server, &env.limits);
-                json::up(
-                    &mut server.json,
-                    &env.with(limits),
-                    up,
-                    &mut server.json_events,
-                    &mut server.json_down,
-                );
+                json::up(&mut server.json, &env.with(limits), up, &mut server.json_events, &mut server.json_down);
             }
         }
         Turn::Failed => close(server, service, env, above, below),

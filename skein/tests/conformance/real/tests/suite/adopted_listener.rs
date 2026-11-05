@@ -4,7 +4,7 @@ use std::net::{Ipv4Addr, TcpListener, TcpStream};
 use std::os::fd::IntoRawFd;
 
 use skein_io::{self as io, Addr, Event, Request, kernel::Fd};
-use skein_lib::{Duration, Env, Token};
+use skein_lib::{Duration, Token};
 use skein_shell::{Backend, Clock, Config, Kernel, Wait};
 use skein_world::Expired;
 
@@ -54,7 +54,7 @@ fn queued_before_claim(backend: Backend) {
     let now = clock.now();
     io::down(
         &mut state,
-        &Env { now: now.now, wall: now.wall, limits },
+        &now.with(limits),
         Request::Listen { owner: Token::new(100), addr: Addr::Ip(address) },
         &mut submissions,
     );
@@ -65,7 +65,7 @@ fn queued_before_claim(backend: Backend) {
     loop {
         state.reclaim();
         let now = clock.now();
-        let env = Env { now: now.now, wall: now.wall, limits };
+        let env = now.with(limits);
         kernel.reap(&mut completions);
         io::stage::up(&mut state, &env, &mut completions, &mut events, &mut submissions, now.now);
         while let Some(event) = events.pop() {
@@ -157,7 +157,7 @@ fn cleanup_cancels_an_adopted_listeners_pending_accept() {
             Kernel::open_on(Config { operations: io::operations(&limits).expect("operation bound") }, backend)
                 .expect("real backend");
         let now = Clock::new().now();
-        let env = Env { now: now.now, wall: now.wall, limits };
+        let env = now.with(limits);
         let (mut submissions, mut completions, mut events) = deadlines::records(16);
         io::down(
             &mut state,
