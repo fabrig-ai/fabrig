@@ -71,7 +71,7 @@ Opened again once spent, it prints a fresh one here.
 - **jig's sign-in component takes a given secret.** At start, where it
   draws the first link's secret (jig's `protocol/client.md`, section 8),
   it takes the given one instead, if any. Its expiry runs from when the
-  component takes it. All else is section 8's: one link live at a time;
+  component takes it. All else stays as jig's client protocol has it: one link live at a time;
   a spent, expired or unknown secret draws a fresh one; not ready, busy
   and full spend nothing.
 - **A restarted serve** draws its own first secret, as today, and the box
