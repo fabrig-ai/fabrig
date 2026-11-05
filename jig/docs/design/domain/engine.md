@@ -1052,7 +1052,8 @@ call writes over a change its run was not shown.
   with no try spent, and a line in its task's activity naming the
   dependencies it waits for. Woken once they are done, its next run goes
   on from what it left, its brief or its start saying what it waited
-  for (section 9), and finishes again. The tasks child decides it, as it
+  for (section 9), and finishes again. Kept by its own question, a run
+  that finishes with a failure parks the same way (tasks.md, 5.7). The tasks child decides it, as it
   decides every reason a task may not go on, so the run and its host
   know nothing of it.
 - **Waiting holds the slot; parking frees it.** A run that calls `wait`
