@@ -165,6 +165,7 @@ impl Driver {
         self.root.reclaim();
     }
 
+    #[expect(clippy::too_many_lines, reason = "the world routes each root request in its collection pass")]
     pub fn collect(&mut self) {
         for _ in 0..self.out.len() {
             let request = self.out.pop().expect("output count");
@@ -246,6 +247,7 @@ impl Driver {
                 | engine::Request::Connect { .. }
                 | engine::Request::Replace { .. }
                 | engine::Request::Manifest { .. }
+                | engine::Request::AdoptAccess { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }
                 | engine::Request::Accept { .. }

@@ -763,6 +763,7 @@ impl World {
             | engine::Request::Connect { .. }
             | engine::Request::Replace { .. }
             | engine::Request::Manifest { .. }
+            | engine::Request::AdoptAccess { .. }
             | engine::Request::Reachable { .. }
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
@@ -838,6 +839,7 @@ impl World {
             | engine::Request::Connect { .. }
             | engine::Request::Replace { .. }
             | engine::Request::Manifest { .. }
+            | engine::Request::AdoptAccess { .. }
             | engine::Request::Reachable { .. }
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }

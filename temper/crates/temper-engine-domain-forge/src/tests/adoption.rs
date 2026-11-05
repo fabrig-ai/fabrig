@@ -99,6 +99,7 @@ fn an_adoption_accepts_a_prefix_whose_branches_fit_authority_segments() {
 #[test]
 fn an_adoption_locates_its_repository_before_any_other_read() {
     let mut d = domain();
+    d.configured.get_mut(&1).unwrap().mode = Mode::Connected;
     outputs(
         &mut d,
         Event::Application {
@@ -266,6 +267,7 @@ fn an_outcome_past_its_retention_is_erased_at_the_next_application() {
 #[test]
 fn not_installed_is_a_terminal_application_refusal_rather_than_a_retry() {
     let mut d = domain();
+    d.configured.get_mut(&1).unwrap().mode = Mode::Connected;
     outputs(
         &mut d,
         Event::Application {
@@ -464,4 +466,93 @@ fn thirty_two_adoptions_are_answered_during_retention() {
     );
     assert_eq!(out.pop(), Some(Request::ApplicationAgain { request, why: people::Again::Busy }));
     assert!(out.is_empty());
+}
+
+fn start_access(d: &mut Domain) -> Box<[Request]> {
+    outputs(
+        d,
+        Event::Application {
+            role: None,
+            carried: None,
+            request: Token::new(4),
+            token: Token::new(9),
+            retention: Duration::from_secs(60),
+            ask: Ask::Adopt(fixtures::adoption()),
+        },
+    )
+}
+fn asks_access(mode: Mode) {
+    let mut d = domain();
+    d.configured.get_mut(&1).unwrap().mode = mode;
+    let requests = start_access(&mut d);
+    assert_eq!(
+        requests.as_ref(),
+        &[Request::AdoptAccess {
+            forge: 1,
+            request: Token::new(4),
+            owner: b"org".as_slice().into(),
+            name: b"repo".as_slice().into()
+        }]
+    );
+    assert!(ready(&mut d).is_empty(), "no bot read before access");
+    outputs(&mut d, Event::AccessAnswered { forge: 1, request: Token::new(4), answer: Ok(()) });
+    let sent = ready(&mut d);
+    let [Request::Call { op, .. }] = sent.as_ref() else { panic!("one Locate after access") };
+    assert_eq!(
+        *op,
+        skein_forge::api::Op::Read(skein_forge::api::Read::Locate {
+            owner: b"org".as_slice().into(),
+            name: b"repo".as_slice().into()
+        })
+    );
+    assert!(
+        outputs(&mut d, Event::AccessAnswered { forge: 1, request: Token::new(4), answer: Ok(()) }).is_empty(),
+        "a duplicate cannot start another read"
+    );
+}
+#[test]
+fn an_adoption_on_a_managed_forge_asks_access_before_any_read() {
+    asks_access(Mode::Managed);
+}
+#[test]
+fn an_adoption_on_an_owned_forge_asks_access_before_any_read() {
+    asks_access(Mode::Owned);
+}
+#[test]
+fn a_refused_access_refuses_the_adoption_with_no_read() {
+    for why in [
+        AdoptionRefusal::NoAccess,
+        AdoptionRefusal::NotFound,
+        AdoptionRefusal::Unreachable,
+        AdoptionRefusal::InFlight,
+        AdoptionRefusal::InvalidAnswer,
+    ] {
+        let mut d = domain();
+        start_access(&mut d);
+        let requests = outputs(&mut d, Event::AccessAnswered { forge: 1, request: Token::new(4), answer: Err(why) });
+        assert!(requests.contains(&Request::ApplicationDone { request: Token::new(4), token: Token::new(9) }));
+        assert_eq!(d.application_outcome(Token::new(9)), Some(&ApplicationOutcome::ForgeRefused(why)));
+        assert!(ready(&mut d).is_empty(), "no read after {why:?}");
+        assert!(d.adoptions.is_empty());
+        assert!(outputs(&mut d, Event::AccessAnswered { forge: 1, request: Token::new(4), answer: Ok(()) }).is_empty());
+    }
+}
+#[test]
+fn a_connected_forge_asks_no_access() {
+    for (mode, kind) in [(Mode::Connected, Kind::Forgejo), (Mode::Fake, Kind::Forgejo), (Mode::Managed, Kind::GitHub)] {
+        let mut d = domain();
+        let config = d.configured.get_mut(&1).unwrap();
+        config.mode = mode;
+        config.kind = kind;
+        assert!(start_access(&mut d).is_empty());
+        let sent = ready(&mut d);
+        let [Request::Call { op, .. }] = sent.as_ref() else { panic!("one Locate without setup") };
+        assert_eq!(
+            *op,
+            skein_forge::api::Op::Read(skein_forge::api::Read::Locate {
+                owner: b"org".as_slice().into(),
+                name: b"repo".as_slice().into(),
+            })
+        );
+    }
 }

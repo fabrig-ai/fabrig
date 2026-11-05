@@ -1407,6 +1407,11 @@ pub enum Event {
         request: Token,
         answer: ConnectAnswer,
     },
+    AccessAnswered {
+        forge: u16,
+        request: Token,
+        answer: Result<(), AdoptionRefusal>,
+    },
     ReachableAnswered {
         forge: u16,
         request: Token,
@@ -1868,6 +1873,12 @@ pub enum Request {
         forge: u16,
         request: Token,
         back: Option<Box<[u8]>>,
+    },
+    AdoptAccess {
+        forge: u16,
+        request: Token,
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
     },
     Reachable {
         forge: u16,

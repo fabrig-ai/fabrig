@@ -390,6 +390,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Connect { .. }
         | Request::Replace { .. }
         | Request::Manifest { .. }
+        | Request::AdoptAccess { .. }
         | Request::Reachable { .. }
         | Request::Install { .. }
         | Request::Accept { .. }
@@ -473,6 +474,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Connect { .. }
         | Request::Replace { .. }
         | Request::Manifest { .. }
+        | Request::AdoptAccess { .. }
         | Request::Reachable { .. }
         | Request::Install { .. }
         | Request::Accept { .. }
@@ -553,6 +555,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Connect { .. }
         | Request::Replace { .. }
         | Request::Manifest { .. }
+        | Request::AdoptAccess { .. }
         | Request::Reachable { .. }
         | Request::Install { .. }
         | Request::Accept { .. }

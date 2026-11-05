@@ -110,18 +110,60 @@ pub(crate) fn start(
         return finish(d, env, request, pending, ApplicationOutcome::ForgeRefused(AdoptionRefusal::TooLarge), out);
     }
     let repository = api::Repository { forge: adoption.forge, repository: 0 };
-    let read = api::Read::Locate { owner: adoption.owner.clone(), name: adoption.name.clone() };
+    let access = match d.configured.get(&adoption.forge) {
+        Some(config) => match config.kind {
+            crate::Kind::Forgejo => match config.mode {
+                crate::Mode::Managed | crate::Mode::Owned => true,
+                crate::Mode::Connected | crate::Mode::Fake => false,
+            },
+            crate::Kind::GitHub => false,
+        },
+        None => false,
+    };
+    let owner = adoption.owner.clone();
+    let name = adoption.name.clone();
     let pending = PendingAdoption {
         request: adoption,
         repository,
-        stage: AdoptionStage::Locate,
+        stage: if access { AdoptionStage::Access } else { AdoptionStage::Locate },
         permission: None,
         settings: None,
         protection: Protection::Unknown,
         collaborators: List::with_capacity(env.limits.collaborators),
     };
     assert!(d.adoptions.insert(request, pending).is_ok(), "reserved adoption flight");
-    child(d, env, skein_forge_client::Event::Read { owner: request, repository, read }, out);
+    if access {
+        out.push(Request::AdoptAccess { forge: repository.forge, request, owner, name });
+    } else {
+        let read = api::Read::Locate { owner, name };
+        child(d, env, skein_forge_client::Event::Read { owner: request, repository, read }, out);
+    }
+}
+
+/// Access precedes the bot's first read (temper/docs/design/domain/forge.md, 4.2).
+pub(crate) fn accessed(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    request: Token,
+    answer: Result<(), AdoptionRefusal>,
+    out: &mut Queue<Request>,
+) {
+    let Some(pending) = d.adoptions.get_mut(&request) else { return };
+    if pending.stage != AdoptionStage::Access {
+        return;
+    }
+    match answer {
+        Ok(()) => {
+            pending.stage = AdoptionStage::Locate;
+            let repository = pending.repository;
+            let read = api::Read::Locate { owner: pending.request.owner.clone(), name: pending.request.name.clone() };
+            child(d, env, skein_forge_client::Event::Read { owner: request, repository, read }, out);
+        }
+        Err(why) => {
+            d.adoptions.remove(&request);
+            locate_refused(d, env, request, why, out);
+        }
+    }
 }
 
 /// Record exactly what the adoption reads decided before forwarding to the core.
@@ -201,6 +243,7 @@ fn again(request: Token, why: people::Again, out: &mut Queue<Request>) {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum AdoptionStage {
+    Access,
     Locate,
     Part,
     Permission,
@@ -322,7 +365,9 @@ pub(crate) fn adoption_read(
             Err(error) => locate_refused(d, env, owner, reason(error), out),
             Ok(_) => locate_refused(d, env, owner, AdoptionRefusal::InvalidAnswer, out),
         },
-        AdoptionStage::Part => unreachable!("no read while the application waits for the core"),
+        AdoptionStage::Access | AdoptionStage::Part => {
+            unreachable!("no read while the adoption waits for access or the core")
+        }
         AdoptionStage::Permission => match result {
             Ok(api::Answer::Permission(permission)) => {
                 if permission == api::Permission::None {
