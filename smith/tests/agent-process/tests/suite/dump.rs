@@ -106,7 +106,7 @@ fn a_request_s_file_holds_the_bytes_the_provider_read() {
             assert_eq!(bytes.as_slice(), body.as_ref(), "{}", path.display());
         }
         for (path, bytes) in files {
-            assert!(!bytes.windows(PRIVATE_GRANT.len()).any(|part| part == PRIVATE_GRANT));
+            assert!(skein_lib::bytes::find(&bytes, PRIVATE_GRANT).is_none());
             assert_eq!(fs::metadata(&path).expect("dump file metadata").permissions().mode() & 0o777, 0o600);
             assert!(!path.file_name().expect("dump filename").to_str().expect("UTF-8 dump path").starts_with(".dump-"));
         }
@@ -276,8 +276,9 @@ fn a_claude_code_run_keeps_what_it_was_given() {
         .expect("valid dump fixture");
     let argv: Vec<_> = std::str::from_utf8(arguments).expect("valid dump fixture").lines().collect();
     assert_eq!(argv, invocation.arguments);
-    assert!(argv.windows(2).any(|pair| pair == ["--effort", "high"]));
-    assert!(argv.windows(2).any(|pair| pair == ["--model", "fake"]));
+    for (flag, value) in [("--effort", "high"), ("--model", "fake")] {
+        assert_eq!(argv.iter().copied().skip_while(|argument| *argument != flag).nth(1), Some(value));
+    }
     assert!(
         std::str::from_utf8(named(&files, "-claude-code-instructions.md"))
             .expect("valid dump fixture")
@@ -294,6 +295,6 @@ fn a_claude_code_run_keeps_what_it_was_given() {
     assert_eq!(init["subtype"], "init");
     for (path, bytes) in files {
         assert_ne!(path.file_name().expect("dump filename"), "mcp.json");
-        assert!(!bytes.windows(b"SMITH_MCP_SECRET".len()).any(|part| part == b"SMITH_MCP_SECRET"));
+        assert!(skein_lib::bytes::find(&bytes, b"SMITH_MCP_SECRET").is_none());
     }
 }
