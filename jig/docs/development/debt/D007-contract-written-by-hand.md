@@ -20,7 +20,9 @@ One record family is described in its schema, then again by hand:
 - the link's translation, `jig-client-protocol-link/src/translate`: 11,010 lines;
 - the client domain's mirror, `jig-client-domain/src/contract`: 6,477 lines;
 - the store codec, `jig-protocol-store/src/codec`: 15,316 lines, mostly structural;
-- the scripted engine's codec values, and `ops`'s `infrastructure_values.rs` and `observability_values.rs`.
+- the scripted engine's codec values, and `ops`'s `infrastructure_values.rs` and `observability_values.rs`;
+- the link's `jig-client-protocol-link/src/limits.rs` lists each bound class's members by hand, once per class; bound classes in the schema would generate these lists;
+- `temper-settings-form/src/{lib,fields,kinds}.rs` holds its own limits map with 36 `.min(…CEILINGS` calls, and `jig-protocol-engine-clients/src/translate` narrows with 22 more at encoding.
 
 ## Why it matters
 
@@ -32,4 +34,4 @@ disagree; most of jig's growth since 10-18 is here.
 A skein job first (`AGENTS.md`: a missing generic mechanism goes into skein before its
 jig consumer): skein-codegen "mirror" declarations that emit the owned domain-side types,
 both translations, typed piece helpers and the limits mapping from bound classes in the
-schema. D008 and D009 are the short-term steps inside jig and shrink with it.
+schema. D008 is the short-term step inside jig and shrinks with it.
