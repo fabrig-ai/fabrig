@@ -25,7 +25,7 @@ skein-fake-oauth.workspace = true
 skein-codegen.workspace = true
 skein-codec.workspace = true
 skein-llm.workspace = true
-skein-llm-world = { path = "../llm" }
+skein-llm-kit.workspace = true
 skein-heap.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

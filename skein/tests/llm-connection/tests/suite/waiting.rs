@@ -134,25 +134,21 @@ fn two_endpoints_with_different_client_limits_each_complete_and_replay() {
 }
 
 fn memory_request(token: u64) -> skein_llm::Call {
-    let mut call = skein_llm_world::call(token);
+    let mut call = skein_llm_kit::call(token);
     call.endpoint = skein_llm::Endpoint::openai();
     call.prompt.instructions = b"close-world".as_slice().into();
     call
 }
 
 fn request_reservation() -> u64 {
-    let mut bounds = skein_llm_world::limits();
+    let mut bounds = skein_llm_kit::limits();
     let input = memory_request(7);
     bounds.http.request =
         skein_llm::client::request_head(&input.endpoint, &skein_llm::client::CredentialLimits { value: 2048 }, &bounds)
             .expect("the world request fits its declared endpoint");
-    let measured = skein_llm::client::measure(
-        &input.prompt,
-        Some(skein_llm_world::credential_of(&input)),
-        &input.endpoint,
-        &bounds,
-    )
-    .expect("the world request fits its declared endpoint");
+    let measured =
+        skein_llm::client::measure(&input.prompt, Some(skein_llm_kit::credential_of(&input)), &input.endpoint, &bounds)
+            .expect("the world request fits its declared endpoint");
     skein_llm::client::reservation(measured, &bounds).expect("the world request fits its declared endpoint")
 }
 

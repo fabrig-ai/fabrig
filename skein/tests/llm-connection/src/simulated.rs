@@ -41,7 +41,7 @@ fn limits(calls: u32) -> Limits {
         },
         // HTTP may demand one whole head line; TLS must admit that derived read.
         tls: skein_tls::client::Limits {
-            read: skein_llm::client::largest_read(&skein_llm_world::limits()),
+            read: skein_llm::client::largest_read(&skein_llm_kit::limits()),
             send: 4096,
             records: skein_tls::client::MAX_RECORD,
         },
@@ -94,7 +94,7 @@ impl Client {
     }
 
     fn start(&mut self, now: Time, wall: Wall) {
-        let call = skein_llm_world::call(7);
+        let call = skein_llm_kit::call(7);
         let mut endpoints = List::with_capacity(1);
         endpoints
             .push(Endpoint {
@@ -107,7 +107,7 @@ impl Client {
                     },
                 },
                 llm: call.endpoint,
-                limits: skein_llm_world::limits(),
+                limits: skein_llm_kit::limits(),
                 credential: skein_llm::client::CredentialLimits { value: 2048 },
             })
             .expect("one endpoint");
@@ -115,7 +115,7 @@ impl Client {
         let env = Env { now, wall, limits: self.limits };
         for index in 0..self.calls {
             let token = Token::new(u64::from(index).checked_add(7).expect("bounded calls"));
-            let call = skein_llm_world::call(token.raw());
+            let call = skein_llm_kit::call(token.raw());
             let mut prompt = call.prompt;
             prompt.instructions = CUE.into();
             if self.input > 0 {
@@ -509,7 +509,7 @@ pub fn run_held(seed: u64) -> Outcome<Process> {
 }
 
 fn fill_credentials(peer: &mut llm::Peer, protocol_limits: &provider::Limits) {
-    let first = skein_llm_world::call(7).credential.expect("fixture credential");
+    let first = skein_llm_kit::call(7).credential.expect("fixture credential");
     let available = usize::try_from(protocol_limits.http.head).expect("u32 fits") - first.value.len();
     let count = usize::try_from(provider::MAX_CREDENTIALS - 1).expect("u32 fits");
     for index in 0..count {
@@ -551,8 +551,8 @@ fn run_configured(
     let mut world = World::new(seed, config, judge, memory);
     world.spawn(|| {
         let client_limits = limits(calls);
-        let protocol_limits = skein_llm_world::fake::limits(&skein_llm_world::limits());
-        let mut domain_limits = skein_llm_world::fake::config();
+        let protocol_limits = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
+        let mut domain_limits = skein_llm_kit::fake::config();
         domain_limits.calls = calls;
         domain_limits.answer_bytes =
             u32::try_from(answer.len() + std::mem::size_of::<api::Part>()).expect("exact answer cap");
@@ -608,7 +608,7 @@ fn run_configured(
                 path: skein_llm::Endpoint::openai().target,
                 headers: Box::new([]),
             },
-            skein_llm_world::call(7).credential.expect("fixture credential"),
+            skein_llm_kit::call(7).credential.expect("fixture credential"),
             protocol_limits,
             domain,
             domain_limits,
