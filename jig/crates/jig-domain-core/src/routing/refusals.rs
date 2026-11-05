@@ -197,7 +197,9 @@ pub(crate) fn pool_again(work: &mut Queue<Work>, request: Token, why: people::Ag
 pub(crate) fn note_person_refusal(why: notes::Refusal) -> people::Outcome {
     let refusal = match why {
         notes::Refusal::Busy => return people::Outcome::Again(people::Again::Busy),
-        notes::Refusal::Oversized => people::Refusal::Limit { which: people::LimitKind::Words },
+        notes::Refusal::Oversized | notes::Refusal::PastEnd { .. } | notes::Refusal::PastBound { .. } => {
+            people::Refusal::Limit { which: people::LimitKind::Words }
+        }
         notes::Refusal::Full => people::Refusal::Limit { which: people::LimitKind::Notes },
         notes::Refusal::RevisionExhausted => people::Refusal::Limit { which: people::LimitKind::Revision },
         notes::Refusal::Missing => people::Refusal::Ended { how: people::Ending::Deleted },

@@ -24,7 +24,7 @@ mod tests;
 pub use boundary::{
     Author, Change, Entry, Event, Key, Last, Line, New, Pattern, Range, Recall, Record, Refusal, Request, Rows, Scope,
 };
-pub use domain::{Domain, step, valid_entry, valid_line, valid_new, valid_scope};
+pub use domain::{Domain, new_refusal, step, valid_entry, valid_line, valid_new, valid_scope};
 pub use limits::{Limits, valid};
-pub use lines::{LineChange, line_change};
+pub use lines::{LineChange, LineRange, line_change, splice};
 pub use read::valid_recall;

@@ -67,7 +67,9 @@ record CallPartDelegated { value: list 1024 Made }
 record NoteBytes { value: bytes 2097152 holds jig-store-notes Row }
 record CallPartNoteRecalled { entries: list 16 NoteBytes more: bool }
 record NoteRefusalMoved { revision: u32 }
-enum NoteRefusal { busy, oversized, full, exists, missing, moved: NoteRefusalMoved, revision_exhausted }
+record NoteRefusalPastEnd { lines: u32 }
+record NoteRefusalPastBound { bytes: u32 bound: u32 }
+enum NoteRefusal { busy, oversized, full, exists, missing, moved: NoteRefusalMoved, revision_exhausted, past_end: NoteRefusalPastEnd, past_bound: NoteRefusalPastBound }
 record CallPartNoteRefused { value: NoteRefusal }
 record CallPartRevised { task: u64 revision: u64 }
 

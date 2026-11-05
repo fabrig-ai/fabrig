@@ -106,10 +106,7 @@ fn read(tool: &[u8], input: &[u8], limits: &Limits) -> Result<Decoded, Problem> 
             core::NamedAction::Subscribe { kind }
         }
         b"propose" => propose(value, limits)?,
-        b"note" => {
-            let (entry, recalled) = notes::new(value)?;
-            core::NamedAction::Note { entry, recalled }
-        }
+        b"note" => notes::new(value)?,
         b"recall" => {
             let (by, page) = notes::recall(value)?;
             core::NamedAction::Recall { by, page }
