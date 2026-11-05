@@ -175,7 +175,7 @@ pub(crate) const SPECS: [Spec; 40] = [
     Spec { name: b"effect_forge", description: b"Make one write on an adopted repository through the forge's connector: an issue, a comment or a status, among the forge's writes.", schema: br#"{"type":"object","properties":{"repository":{"type":"object","description":"The repository, as {forge, repository}: the forge's number and the repository's."},"resource":{"type":"object","description":"What it writes on: {kind: repository}, {kind: pull, number}, {kind: issue, number} or {kind: branch, segments}."},"write":{"type":"object","description":"{kind: create_issue, key, title, body}, {kind: post, number, key, body} or {kind: status, commit, context, check}."}},"required":["repository","resource","write"]}"#, effect: run::HostEffect::Write },
     Spec {
         name: b"read_task",
-        description: b"Read related task specs or retained descendant reports (field=result); from=next continues.",
+        description: b"Specs/results, from=next. Durable question numbers/answerers: message form=answer, question",
         schema: br#"{"type":"object","additionalProperties":false,"properties":{"task":{"type":"integer","minimum":1},"field":{"enum":["specification","result"]},"from":{"type":"integer","minimum":0,"default":0}},"required":["task"]}"#,
         effect: run::HostEffect::Read,
     },

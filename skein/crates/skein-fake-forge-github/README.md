@@ -53,7 +53,7 @@ are refused before domain dispatch beyond contents, including GraphQL.
 `DELETE /installation/token` revokes the presented token with `204`.
 Person-authenticated installation repository edits require domain admin access.
 
-`Config::faults` reuses `skein_fake_forge_protocol::Faults`. Reset closes before
+`Config::faults` reuses `skein_fake_forge_http::Faults`. Reset closes before
 the next request is read. Drop loses the final domain answer; server-error
 replaces it with `500`. Writes remain applied in both cases. The scenario seed
 and clock make faults, expiry and generated identities replayable.

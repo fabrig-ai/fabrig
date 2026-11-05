@@ -1,4 +1,4 @@
-use skein_fake_forge_protocol::Faults;
+use skein_fake_forge_forgejo::Faults;
 use skein_forge_machine_world::joint::REPO;
 use temper_engine_domain_forge as top;
 use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};

@@ -1641,8 +1641,13 @@ fn text_questions(questions: &w::Questions, out: &mut Text) {
         out.put(b" taken");
     }
     out.put(b"\n");
+    if !questions.open().is_empty() {
+        out.put(
+            b"  Answer numbers: use read_task on this change; producer numbers identify the questions relayed below.\n",
+        );
+    }
     for question in questions.open() {
-        out.put(b"  question ");
+        out.put(b"  producer question ");
         out.number(question.number());
         out.put(b" of task ");
         out.number(question.asker());

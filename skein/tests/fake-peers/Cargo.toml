@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-fake-forge-http.workspace = true
 skein-io.workspace = true
 skein-lib.workspace = true
 skein-sim.workspace = true
@@ -20,7 +21,7 @@ skein-heap.workspace = true
 skein-fake-peers.workspace = true
 skein-fake-forge-domain.workspace = true
 skein-fake-forge-github.workspace = true
-skein-fake-forge-protocol.workspace = true
+skein-fake-forge-forgejo.workspace = true
 skein-fake-llm-domain.workspace = true
 skein-fake-llm-protocol.workspace = true
 skein-fake-oauth.workspace = true

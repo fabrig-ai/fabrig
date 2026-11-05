@@ -1,8 +1,5 @@
-use hearth_protocol_accounts::{
-    File,
-    limits::{self, Limits},
-};
-pub const LIMITS: Limits = limits::SHIPPED;
+use hearth_protocol_accounts::{File, limits::Limits};
+pub const LIMITS: Limits = Limits { file: 16_384, lines: 64, name: 32 };
 pub const FILES: [File; 4] = [File::Passwd, File::Group, File::Shadow, File::Gshadow];
 fn line(file: File, name: &str) -> String {
     match file {

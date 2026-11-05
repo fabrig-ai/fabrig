@@ -170,3 +170,32 @@ fn a_bad_escape_in_a_string_or_a_key_fails_at_its_backslash() {
         assert_eq!(error.fault, Fault::Json(skein_json::tokenizer::Error::Escape));
     }
 }
+
+#[test]
+fn the_json_bounds_cover_flat_values_and_refuse_unrepresentable_limits() {
+    use crate::json::{self, Entry};
+    use core::mem::size_of;
+
+    const DELIVERY: u64 = 4_096;
+    const TEXT: u64 = 64;
+    const EMPTY: Limits = Limits { document: 0, depth: 0, keys: 0, settings: 0 };
+    const FLAT: Limits = Limits { document: 64, ..EMPTY };
+    const OVERFLOW: Limits = Limits { depth: u32::MAX, keys: u32::MAX, ..EMPTY };
+    const TOO_LONG: Limits = Limits { document: u32::MAX, ..EMPTY };
+    let record = u64::try_from(size_of::<Value>().max(size_of::<Entry>())).expect("record fits");
+    let event = u64::try_from(size_of::<skein_json::tokenizer::Event>()).expect("event fits");
+    let cases = [
+        (EMPTY, Some(record * 3 + event + DELIVERY), Some(record + event + DELIVERY)),
+        (
+            FLAT,
+            Some(33 * record * 3 + TEXT * 4 + TEXT + DELIVERY + event),
+            Some(33 * record + TEXT + TEXT + DELIVERY + event),
+        ),
+        (TOO_LONG, None, None),
+    ];
+    assert_eq!(json::decoder_bound(&OVERFLOW), None);
+    for (limits, decoder, decoded) in cases {
+        assert_eq!(json::decoder_bound(&limits), decoder, "{limits:?}");
+        assert_eq!(json::decoded_bound(&limits), decoded, "{limits:?}");
+    }
+}

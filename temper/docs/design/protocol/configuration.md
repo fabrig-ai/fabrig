@@ -658,7 +658,7 @@ have one, an engine alone none. Each:
   call, its run's `outcome_bytes`, follows from its agent configuration.
   The owned example's agent is `standard`'s (setup.md, 8.1): its 48
   calls pass `small`'s `hub.run_calls`, 8. Every constant passes the
-  checks below with an agent of `small`'s size: a task's resources and the checkout's
+  checks below with an agent of `small`'s size: the checkout's
   repositories within the agent's directories, the checkout's names
   within theirs, and a run's push message, which smith bounds as a call,
   within the checkout's commit message. So `small` takes a forge's `git`
@@ -698,6 +698,14 @@ have one, an engine alone none. Each:
   repositories being made or failed, at most 64, the `forges` document's
   bound (`../client/README.md`, 4.6). Memory is metered as any held bytes
   are.
+- **Watched names and checkout repositories have separate capacities.**
+  `forge.resources_per_task` bounds distinct forge names watched by one
+  task, including held resources and subscribed branches. Both profiles
+  give a goal room for its g and r branches and landings on main.
+  `checkout.repositories` bounds repositories in one checkout specification;
+  watching more branches in a repository needs no more directories. Forge
+  subscription admission and the connector both enforce the watched-name
+  bound.
 - **The webhooks', the keep's settling, the records', the forges', the
   GitHub App's, the setup's, the routes', the picker's, the box's and
   the bundle's limits,** whose numbers are `small`'s constants, as every
@@ -798,9 +806,8 @@ have one, an engine alone none. Each:
   - the channel's (channel.md, section 8): each of temper's largest
     parts within the ceiling jig's schema gives its field; the largest
     part the engine can send within what the worker's limits take; the
-    forge's `resources_per_task` equal to the checkout's `repositories`,
-    since the engine's terms take the smaller and a worker's parts past
-    them never open the link; the longest remote the routing can make
+    checkout's `repositories` used by both sides, independently of the
+    forge's watched-name bound; the longest remote the routing can make
     on the machine's places (the longest of `machine`'s remotes' bases
     and github.com's, an owner and a name of the forge's `name_bytes`,
     two `/` and `.git`), and the forge's names and branches, within the
@@ -1277,13 +1284,6 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   Default: so, until it is removed and connected again (forge.md,
   2.3); a patch of the record or a trimmed base would repair it in
   place.
-- **A clients' listener off loopback.** Section 3 admits one outside
-  standalone with the printed link off, and jig's `address_text`, which
-  each service reads at `Listening`, gives no text for an IPv6 address
-  off loopback. Default: the start refuses it in every engine shape.
-  The user's to choose, with no answer yet: that default, and section
-  3's table moves to it; or section 3 stands, the check relaxes and
-  `address_text` prints any IPv6 address.
 - **A repository renamed or moved after adoption.** Default: its
   resource path, which landing patterns match, and its remote keep the
   owner and name of its adoption; Forgejo redirects the old path, and

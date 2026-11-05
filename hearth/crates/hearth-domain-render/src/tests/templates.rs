@@ -420,8 +420,45 @@ fn a_target_past_its_rendered_bytes_is_left_out_and_fails_the_call() {
 const OVERFLOWING_RUN_LIMITS: &[Limits] =
     &[Limits { made: u64::MAX, ..SHIPPED }, Limits { statements: u32::MAX, ..SHIPPED }];
 #[test]
-fn a_run_whose_worst_case_cannot_fit_returns_none() {
+fn a_run_whose_bound_cannot_fit_returns_none() {
     for (row, limits) in OVERFLOWING_RUN_LIMITS.iter().enumerate() {
-        assert_eq!(crate::evaluate::template::worst_case(limits), None, "row {row}");
+        assert_eq!(crate::evaluate::template::run_bound(limits), None, "row {row}");
     }
+}
+
+#[test]
+fn the_run_bound_covers_bindings_and_output_regrowth() {
+    // No loop frames or traversal scratch: isolate bindings and output growth.
+    const OPERANDS: u32 = 2;
+    const MADE_BYTES: u64 = 17;
+    const TEMPLATE_BYTES: u32 = 33;
+    const BINDINGS: u64 = 5; // Three shortest assignments plus the two initial slots.
+    const OUTPUT_BYTES: u32 = 13;
+    const REGROWTH_BYTES: u64 = 21; // Thirteen output bytes beside the preceding eight.
+    let limits = Limits {
+        expression: OPERANDS,
+        depth: 0,
+        nesting: 0,
+        statements: 0,
+        made: MADE_BYTES,
+        template: TEMPLATE_BYTES,
+        rendered_file: OUTPUT_BYTES,
+        ..SHIPPED
+    };
+    let operands = u64::from(OPERANDS)
+        .checked_mul(u64::try_from(size_of::<crate::evaluate::Operand<'_>>()).expect("operand size"))
+        .expect("operand slots");
+    let bindings = BINDINGS
+        .checked_mul(u64::try_from(size_of::<crate::evaluate::Binding<'_>>()).expect("binding size"))
+        .expect("binding slots");
+    let expected = operands
+        .checked_add(MADE_BYTES.checked_mul(2).expect("evaluation values"))
+        .expect("evaluation fits")
+        .checked_add(bindings)
+        .expect("bindings fit")
+        .checked_add(REGROWTH_BYTES)
+        .expect("output regrowth fits")
+        .checked_add(MADE_BYTES)
+        .expect("made bytes fit");
+    assert_eq!(crate::evaluate::template::run_bound(&limits), Some(expected));
 }

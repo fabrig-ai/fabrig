@@ -87,8 +87,8 @@ pub const SHIPPED: Limits = Limits {
 /// partial record (skein/docs/foundation/programming-model.md, 6.3). Returns `None` past the
 /// encoder's depth, or past a u64 for a resolution.
 #[must_use]
-pub fn worst_case(kind: Kind, limits: &Limits) -> Option<u64> {
-    let own = decode::worst_case(&Limits { key: key(kind, limits), ..*limits })?;
+pub fn decoder_bound(kind: Kind, limits: &Limits) -> Option<u64> {
+    let own = decode::decoder_bound(&Limits { key: key(kind, limits), ..*limits })?;
     let inputs = match kind {
         Kind::Resolution => List::<Item>::price(limits.resolution.inputs)?,
         Kind::Store | Kind::Layer | Kind::Tree | Kind::CacheFile => 0,
@@ -98,7 +98,7 @@ pub fn worst_case(kind: Kind, limits: &Limits) -> Option<u64> {
         Kind::Tree => u64::from(hearth_lib::path::PATH),
         Kind::Store | Kind::Layer | Kind::Resolution | Kind::CacheFile => u64::from(kind.bound(limits)),
     };
-    own.checked_add(inputs)?.checked_add(held(kind, limits)?)?.checked_add(buffer)
+    own.checked_add(inputs)?.checked_add(decoded_bound(kind, limits)?)?.checked_add(buffer)
 }
 
 /// The longest map key a kind's decoder takes.
@@ -109,12 +109,11 @@ const fn key(kind: Kind, limits: &Limits) -> u32 {
     }
 }
 
-/// The most heap a decoded record holds (hearth/docs/design/domain/store.md, 6.1), for its owner's
-/// worst case. Returns `None` past the encoder's depth, or past a u64 for
-/// a resolution. Boxed bytes together fit within the body's bound; a tree
-/// file's, within an item's.
+/// The heap bound of a decoded record (hearth/docs/design/domain/store.md, 6.1).
+/// Returns `None` past the encoder's depth, or past a u64 for a resolution.
+/// Boxed bytes together fit within the body's bound; a tree file's, within an item's.
 #[must_use]
-pub fn held(kind: Kind, limits: &Limits) -> Option<u64> {
+pub fn decoded_bound(kind: Kind, limits: &Limits) -> Option<u64> {
     if limits.depth > encode::DEPTH {
         return None;
     }

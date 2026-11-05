@@ -2635,7 +2635,7 @@ scripts/proof-live.sh               the live tier
   the fake issuer. temper's fakes sit on them.
 - **The fake forge is skein's** (skein's `fake-forge.md`): its domain
   (`crates/skein-fake-forge-domain`), its protocol layer
-  (`crates/skein-fake-forge-protocol`), its forge peer (in
+  (`crates/skein-fake-forge-forgejo`), its forge peer (in
   `crates/skein-fake-peers`), the throwaway Forgejo
   (`testing/skein-throwaway-forgejo`), its tests in ordinary Rust, and
   the conformance (`testing/skein-forge-conformance`). Reconcile's world is

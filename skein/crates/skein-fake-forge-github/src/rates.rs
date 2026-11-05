@@ -207,7 +207,7 @@ pub(crate) fn attach(outcome: Outcome, rate: Option<Heads>) -> Outcome {
 /// Appends core rate fields, optional person-token expiry and Retry-After; reserve seven slots.
 pub fn headers(heads: Heads, refused: bool, headers: &mut skein_lib::List<skein_http::Header>) {
     if let Some(expires) = heads.expires {
-        let date = skein_forge::forgejo::time::write(expires);
+        let date = skein_forge::time::write(expires);
         let mut out = skein_lib::Writer::new(23);
         out.put(date.get(..10).expect("date prefix")).expect("expiry width");
         out.put(b" ").expect("expiry width");

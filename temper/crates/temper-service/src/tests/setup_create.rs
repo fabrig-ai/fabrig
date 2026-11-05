@@ -1,7 +1,7 @@
 //! The service's local setup sequence against the shared fake forge's records.
 use super::*;
 use skein_fake_forge_domain as git;
-use skein_fake_forge_protocol as fake;
+use skein_fake_forge_forgejo as fake;
 use skein_forge_machine_world::{
     fixtures as forge_fixtures,
     pipe::{Cut, Pipe},

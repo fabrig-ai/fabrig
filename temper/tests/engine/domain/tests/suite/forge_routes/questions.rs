@@ -424,7 +424,7 @@ fn released_it_passes_the_question_up() {
 }
 
 #[test]
-fn a_question_from_another_task_is_answered_as_before() {
+fn a_question_from_another_task_names_the_enabled_route() {
     let (mut world, requester, change, _) = up_world(None);
     call(
         &mut world,
@@ -444,7 +444,7 @@ fn a_question_from_another_task_is_answered_as_before() {
     assert_eq!(words[0].kind, tasks::MessageKind::Answer { question });
     assert_eq!(
         words[0].words.as_ref(),
-        format!("A change takes no questions, answers or words; its requester is task {}.", requester.task).as_bytes()
+        b"Relays questions. Use read_task on this change; message target=this change, form=answer, question=number. Words do not answer."
     );
     assert!(row(&world, change).questions.open.is_empty());
 }

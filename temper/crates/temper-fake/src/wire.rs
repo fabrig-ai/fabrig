@@ -1,7 +1,7 @@
 //! Typed wire limits for the configurations owned by temper-fake (protocol/setup.md, 8.4).
 use crate::{limits as l, llm};
 use alloc::boxed::Box;
-use skein_fake_forge_protocol as forgejo;
+use skein_fake_forge_forgejo as forgejo;
 use skein_fake_llm_protocol::{documents, provider};
 use skein_llm::Credential;
 

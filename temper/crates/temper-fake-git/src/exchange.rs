@@ -4,10 +4,7 @@ use crate::{
     connection::{Failed, Reply},
 };
 use skein_fake_forge_domain::api;
-use skein_fake_forge_protocol::{
-    Limits,
-    git::{self, Call, Name, client},
-};
+use skein_fake_forge_http::git::{self, Call, Limits, Name, client};
 use skein_http::{Header, Method, client as http};
 use skein_json::tokenizer;
 use skein_lib::{

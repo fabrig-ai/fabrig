@@ -1,6 +1,6 @@
 use core::num::NonZeroU64;
 use skein_fake_forge_domain::{self as domain, api};
-use skein_fake_forge_protocol::Route;
+use skein_fake_forge_forgejo::Route;
 use skein_forge::forgejo::request::{Grant, Request};
 use skein_forge_setup::{
     host::File,

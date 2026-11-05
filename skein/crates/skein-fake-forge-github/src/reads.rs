@@ -9,11 +9,7 @@ use skein_fake_forge_domain::{
     self as fake,
     api::{self as a, Answer, Error, Op},
 };
-use skein_forge::{
-    api,
-    forgejo::id::{ObjectFormat, ObjectId},
-    github::document as d,
-};
+use skein_forge::{api, github::document as d};
 use skein_lib::{List, ReplyTo, Wall, bytes};
 
 mod checks;
@@ -300,12 +296,8 @@ pub(crate) fn full(row: &Row) -> Option<Box<[u8]>> {
     let owner = service::joined(&row.owner, b"/")?;
     service::joined(&owner, &row.name)
 }
-// fake-forge.md, 4: both faces share the domain's SHA-1 spelling.
-fn object(commit: u64) -> ObjectId {
-    skein_fake_forge_protocol::routes::object(commit)
-}
 pub(crate) fn commit(count: u64) -> api::Commit {
-    object(count).bytes
+    fake::commit_bytes(count)
 }
 
 // Reject a non-domain SHA rather than silently folding it onto a stored count.
@@ -317,7 +309,7 @@ fn optional_commit(value: Option<u64>) -> Option<api::Commit> {
     }
 }
 pub(crate) fn count(value: &api::Commit) -> Option<u64> {
-    skein_fake_forge_protocol::routes::commit(&ObjectId { format: ObjectFormat::Sha1, bytes: *value })
+    fake::commit_count(value)
 }
 
 pub(crate) fn finish(
@@ -529,8 +521,8 @@ pub(crate) fn enqueue_finish(
 fn node(id: &[u8]) -> Option<(u32, u64)> {
     let suffix = id.strip_prefix(b"PR_")?;
     let at = bytes::find(suffix, b"_")?;
-    let repository = skein_forge::forgejo::id::unsigned(suffix.get(..at)?)?;
-    let number = skein_forge::forgejo::id::unsigned(suffix.get(at.checked_add(1)?..)?)?;
+    let repository = bytes::decimal(suffix.get(..at)?)?;
+    let number = bytes::decimal(suffix.get(at.checked_add(1)?..)?)?;
     Some((u32::try_from(repository).ok()?, number))
 }
 

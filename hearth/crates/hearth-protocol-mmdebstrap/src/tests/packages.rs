@@ -192,3 +192,35 @@ fn a_compressed_list_is_named_compressed_never_an_index() {
         assert_eq!(lists::listed(name, &indices), *expected, "{name:?}");
     }
 }
+
+#[test]
+fn the_stanza_decoder_bound_covers_scratch_fields_and_delivery() {
+    const NAME: u32 = 32;
+    const FILENAME: u32 = 128;
+    const CHUNK: u32 = 16;
+    const SIZE_TEXT: u64 = 20;
+    const SHA256_TEXT: u64 = 64;
+    const MINIMUM_SCRATCH: u64 = 64;
+    let byte = u64::try_from(size_of::<u8>()).unwrap();
+    let expected = u64::from(FILENAME) * byte
+        + u64::from(NAME) * 5
+        + u64::from(FILENAME)
+        + SIZE_TEXT
+        + SHA256_TEXT
+        + u64::from(CHUNK);
+    // Every term is linear in a u32 limit, so even all maxima fit a u64.
+    let maximum = u64::from(u32::MAX);
+    for (limits, expected) in [
+        (Limits { name: NAME, filename: FILENAME, chunk: CHUNK, ..limits::SHIPPED }, expected),
+        (
+            Limits { name: 0, filename: 0, chunk: 0, ..limits::SHIPPED },
+            MINIMUM_SCRATCH * byte + SIZE_TEXT + SHA256_TEXT + 1,
+        ),
+        (
+            Limits { name: u32::MAX, filename: u32::MAX, chunk: u32::MAX, ..limits::SHIPPED },
+            maximum * byte + maximum * 7 + SIZE_TEXT + SHA256_TEXT,
+        ),
+    ] {
+        assert_eq!(packages::decoder_bound(&limits), Some(expected), "{limits:?}");
+    }
+}

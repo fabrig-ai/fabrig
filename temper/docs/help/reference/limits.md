@@ -64,7 +64,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.named_calls`: count, 32. Bounds retained named calls and their connector payloads, independently of outbox entries.
 - `forge.changes`: count, 8. Bounds live changes retained by the forge connector.
 - `forge.issues`: count, 8. Bounds live issue projections retained by the forge connector.
-- `forge.resources_per_task`: count, 2. Bounds repositories in one task's resources, equal to the checkout's repository count.
+- `forge.resources_per_task`: count, 3. Bounds distinct forge names watched by one task, including held resources and subscribed branches.
 - `forge.paths_per_subscription`: count, 4. Bounds paths retained by one forge subscription.
 - `forge.name_bytes`: bytes, 64. Bounds names retained by the forge connector.
 - `forge.output`: count, 80. Bounds output records reserved for one forge step.

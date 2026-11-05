@@ -137,8 +137,8 @@ pub fn branch() -> skein_forge::api::Op {
 
 /// The fake's HTTP and document bounds, used by the kit worlds.
 #[must_use]
-pub fn fake_limits() -> skein_fake_forge_protocol::Limits {
-    skein_fake_forge_protocol::Limits {
+pub fn fake_limits() -> skein_fake_forge_forgejo::Limits {
+    skein_fake_forge_forgejo::Limits {
         calls: 4,
         connections: 4,
         raw_bytes: 4096,
@@ -162,8 +162,8 @@ pub fn fake_limits() -> skein_fake_forge_protocol::Limits {
 }
 /// The token's writer is user 1; the scenario's repository is id 2.
 #[must_use]
-pub fn protocol_config() -> skein_fake_forge_protocol::Config {
-    use skein_fake_forge_protocol::{Config, Faults, Repository};
+pub fn protocol_config() -> skein_fake_forge_forgejo::Config {
+    use skein_fake_forge_forgejo::{Config, Faults, Repository};
     let mut tokens = List::with_capacity(1);
     tokens.push((Secret::new(Box::from(TOKEN)), 1)).expect("one token");
     let mut users = List::with_capacity(2);
@@ -208,9 +208,9 @@ pub fn hook_settings() -> Settings {
     settings
 }
 #[must_use]
-pub fn hooked_protocol_config() -> skein_fake_forge_protocol::Config {
+pub fn hooked_protocol_config() -> skein_fake_forge_forgejo::Config {
     let mut config = protocol_config();
-    config.hooks = Some(skein_fake_forge_protocol::delivery::Endpoint {
+    config.hooks = Some(skein_fake_forge_forgejo::delivery::Endpoint {
         forge: FORGE,
         host: Box::from(b"127.0.0.1:7200".as_slice()),
         secret: Secret::new(Box::from(HOOK_SECRET)),

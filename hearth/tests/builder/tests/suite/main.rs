@@ -14,6 +14,7 @@ mod store;
 
 mod fuzzy {
     mod inputs;
+    mod memory;
     mod protocol;
     mod simulation;
 }

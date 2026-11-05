@@ -1,4 +1,4 @@
-//! The walk's bounds (hearth/docs/design/domain/store.md, 5.6) and its worst case.
+//! The walk's bounds (hearth/docs/design/domain/store.md, 5.6) and its storage bound.
 use crate::{
     Level,
     links::Link,
@@ -99,7 +99,7 @@ fn parent(limits: &Limits) -> Option<u64> {
 /// flushed one is in the step that starts the next; the parent's stream, one entry at a time; and
 /// a page.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn walk_bound(limits: &Limits) -> Option<u64> {
     let levels = limits.depth.checked_add(1)?;
     let paths = path(limits)?;
     let maps = u64::from(levels.checked_add(2)?);

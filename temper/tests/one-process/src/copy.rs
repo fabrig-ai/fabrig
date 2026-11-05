@@ -93,11 +93,11 @@ fn peer(transport: &temper_fake_git_hosted::Typed, fill: Fill, partial: bool) ->
     }
     if partial {
         repositories
-            .push(skein_fake_forge_protocol::Repository { id: 3, full: DESTINATION.into(), protected: None })
+            .push(skein_fake_forge_forgejo::Repository { id: 3, full: DESTINATION.into(), protected: None })
             .expect("partial copy");
     }
     table.repositories = repositories;
-    table.sources = Box::new([skein_fake_forge_protocol::Source {
+    table.sources = Box::new([skein_fake_forge_forgejo::Source {
         address: SOURCE.into(),
         repository: b"acme/app".as_slice().into(),
         private: false,

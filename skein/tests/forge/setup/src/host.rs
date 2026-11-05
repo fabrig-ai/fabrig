@@ -2,7 +2,7 @@
 //! (skein/docs/design/forge-setup.md, 6.3).
 use crate::{fixtures, tls::Carrier, world::seeded_config};
 use skein_fake_forge_domain as domain;
-use skein_fake_forge_protocol::{self as fake, Service};
+use skein_fake_forge_forgejo::{self as fake, Service};
 use skein_forge_machine_world::github::{self, Fake};
 use skein_forge_setup::{
     host::{Answer, Event, Host, Limits, Need, Plan, Request, Settings},
