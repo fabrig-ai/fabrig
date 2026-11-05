@@ -17,6 +17,7 @@ pub(crate) mod inbox;
 pub(crate) mod needs;
 pub(crate) mod new_chat;
 pub(crate) mod session;
+pub(crate) mod start_goal;
 pub(crate) mod task;
 pub(crate) mod welcome;
 

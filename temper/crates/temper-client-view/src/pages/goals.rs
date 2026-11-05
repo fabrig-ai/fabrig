@@ -29,7 +29,7 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::GOALS);
     intro(b, root, words, project);
-    list(b, root, words, bindings, times);
+    list(b, root, words, bindings, project, times);
     b.close();
 }
 
@@ -108,7 +108,7 @@ fn lowercase(name: &[u8]) -> Box<[u8]> {
     String::from_utf8_lossy(name).to_lowercase().into_bytes().into_boxed_slice()
 }
 
-fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times) {
+fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
     let me = root.pages().me(root.client());
     let page = root.pages().goals();
     if me.is_some()
@@ -136,6 +136,21 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             b.close();
         }
         b.close();
+        if let Some(me) = me
+            && !ways(me, project, words).is_empty()
+        {
+            let name = words.say(Word::GoalsStartDraft, &[]);
+            crate::link(
+                b,
+                &name,
+                bindings.insert(Act::Go {
+                    address: Address::Chats { filter: temper_client_domain::ChatsFilter::All },
+                }),
+            );
+            b.style(look::SHEET_LINK);
+            b.text(Run::Plain, &name);
+            b.close();
+        }
         b.close();
         let mut any = false;
         for line in live.rows.iter().chain(page.ended()) {
@@ -177,6 +192,7 @@ fn text(b: &mut Builder, role: Role, style: skein_ui::Style, value: &[u8]) {
 /// A project's named way of carrying out a goal (client/README.md, 3.5).
 #[derive(Debug)]
 pub struct Way {
+    pub number: u32,
     pub name: Box<[u8]>,
     pub line: Option<Box<[u8]>>,
 }
@@ -203,14 +219,16 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
             let template = member.templates.get(*index).expect("ordered template");
             let way = match template.name.bytes() {
                 b"goal" => Way {
+                    number: template.number,
                     name: words.say(Word::GoalTaskByTask, &[]),
                     line: Some(words.say(Word::GoalTaskByTaskLine, &[])),
                 },
                 b"goal for a draft" => Way {
+                    number: template.number,
                     name: words.say(Word::GoalLandWhole, &[]),
                     line: Some(words.say(Word::GoalLandWholeLine, &[])),
                 },
-                name => Way { name: name.into(), line: None },
+                name => Way { number: template.number, name: name.into(), line: None },
             };
             result.push(way).expect("ways grow with templates");
         }
