@@ -26,7 +26,7 @@ const WIRE_BYTES: u32 = 32_768;
 
 // A whole bounded tree, git's JSON/base64 framing and the App's documents
 // fit 32 KiB. State::new checks this against the domain's file bounds.
-pub(crate) fn protocol_limits() -> skein_fake_forge_protocol::Limits {
+pub(crate) fn protocol_limits() -> skein_fake_forge_forgejo::Limits {
     let mut limits = forge::protocol_limits();
     limits.http.body = u64::from(WIRE_BYTES);
     limits.documents.json.string = WIRE_BYTES;
@@ -289,10 +289,7 @@ impl State {
         config.limits.title_bytes = 512;
         config.limits.body_bytes = 2048;
         (fixture.configure_domain)(&mut config);
-        assert!(
-            skein_fake_forge_protocol::git::fits(&protocol_limits().git(), &config.limits),
-            "bounded git trees fit"
-        );
+        assert!(skein_fake_forge_http::git::fits(&protocol_limits().git(), &config.limits), "bounded git trees fit");
         let clock = skein_shell::Clock::new().now();
         config.skew = domain::Skew::Ahead(Duration::from_nanos(
             clock.wall.as_nanos().checked_sub(clock.now.as_nanos()).expect("wall after monotonic"),

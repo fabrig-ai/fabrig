@@ -26,7 +26,7 @@ fn the_host_reconciles_an_empty_forge_through_http() {
 }
 #[test]
 fn the_host_runs_a_plan_that_names_adopted_repositories() {
-    use skein_fake_forge_protocol::Route;
+    use skein_fake_forge_forgejo::Route;
     let mut without = HostWorld::new(7, &[]);
     without.run(1);
     without.finish();
@@ -164,7 +164,7 @@ fn a_check_waits_for_the_forge_as_a_reconcile_does() {
 }
 #[test]
 fn the_host_takes_over_the_handed_token_and_deletes_the_older_ones() {
-    use skein_fake_forge_protocol::Route;
+    use skein_fake_forge_forgejo::Route;
     let mut world = HostWorld::new(7, &[]);
     let admin = fixtures::seed_admin_handover(world.store_mut(), 1);
     let older: Vec<_> = world.store().issued().iter().take(2).map(|token| token.secret.clone()).collect();
@@ -274,7 +274,7 @@ fn the_host_pages_through_the_repositories_with_the_admins_token() {
         picker_page(heard, run, ids, more);
     }
     assert_eq!(world.needs(), &[ADMIN_READ; 3]);
-    assert_eq!(world.requests().routes.get(&skein_fake_forge_protocol::Route::RepoSearch), Some(&3));
+    assert_eq!(world.requests().routes.get(&skein_fake_forge_forgejo::Route::RepoSearch), Some(&3));
 }
 #[test]
 fn a_repository_search_that_answered_ok_reaches_the_plan_as_its_rows() {
@@ -287,7 +287,7 @@ fn a_repository_search_that_answered_ok_reaches_the_plan_as_its_rows() {
 }
 #[test]
 fn a_repository_search_that_answered_not_ok_reaches_the_plan_as_a_document() {
-    use skein_fake_forge_protocol::Route;
+    use skein_fake_forge_forgejo::Route;
     let mut world = picker_world(&[Connect::Made, Connect::Made, Connect::Answers(200, br#"{"ok":false,"data":[]}"#)]);
     world.run_plan(1, reachable(1));
     world.finish();

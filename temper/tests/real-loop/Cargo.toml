@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-fake-forge-http.workspace = true
 temper-playground.workspace = true
 temper-fixtures.workspace = true
 temper-fake.workspace = true
@@ -46,7 +47,7 @@ skein-fake-peers.workspace = true
 skein-fake-oauth.workspace = true
 skein-oauth.workspace = true
 skein-fake-forge-domain.workspace = true
-skein-fake-forge-protocol.workspace = true
+skein-fake-forge-forgejo.workspace = true
 skein-http.workspace = true
 skein-forge.workspace = true
 skein-forge-connection.workspace = true

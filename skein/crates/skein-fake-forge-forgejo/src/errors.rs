@@ -24,9 +24,9 @@ pub fn answer(error: Error, route: Route, now: Time) -> Failure {
         Error::Refused if route.is_git() => 403,
         Error::Refused if route == Route::Rerun => 400,
         Error::Full
-            if route == Route::Git(crate::git::Name::Commit)
-                || route == Route::Git(crate::git::Name::Merge)
-                || route == Route::Git(crate::git::Name::CommitTree) =>
+            if route == Route::Git(skein_fake_forge_http::git::Name::Commit)
+                || route == Route::Git(skein_fake_forge_http::git::Name::Merge)
+                || route == Route::Git(skein_fake_forge_http::git::Name::CommitTree) =>
         {
             507
         }

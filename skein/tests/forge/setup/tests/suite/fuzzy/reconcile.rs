@@ -58,7 +58,7 @@ fn random_initial_forges_converge_and_a_second_run_writes_only_hook_patches() {
         assert_eq!(world.reconcile(), Ended::Done, "seed {seed}, second run");
         assert_eq!(
             fixtures::write_routes(&world, since),
-            vec![skein_fake_forge_protocol::Route::EditRepoHook; expected.len()],
+            vec![skein_fake_forge_forgejo::Route::EditRepoHook; expected.len()],
             "seed {seed}"
         );
         let patched: Vec<_> = world.requests()[since..]

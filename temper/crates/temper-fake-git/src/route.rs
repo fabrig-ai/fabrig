@@ -2,7 +2,7 @@
 use crate::{Transport, check::Credential, connection::Connection};
 use skein_fake_checkout::git::{Created, Fault, Pushed, Remote, Tree, Want};
 use skein_fake_forge_domain::api;
-use skein_fake_forge_protocol::git::{self, Answer, Call, Limits, client};
+use skein_fake_forge_http::git::{self, Answer, Call, Limits, client};
 use skein_lib::Time;
 use std::{cell::RefCell, collections::BTreeMap};
 

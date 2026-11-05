@@ -37,8 +37,8 @@ pub struct Server {
     json_events: Queue<json::Event>,
     json_down: Queue<Down>,
     decoder: Option<documents::BodyDecoder>,
-    git: Option<crate::git::Name>,
-    git_decoder: Option<crate::git::server::BodyDecoder>,
+    git: Option<skein_fake_forge_http::git::Name>,
+    git_decoder: Option<skein_fake_forge_http::git::server::BodyDecoder>,
     user: u64,
     scopes: Scopes,
     request: Option<Request>,
@@ -298,13 +298,13 @@ fn resume_on(
             }
         } else if let Some(event) = server.json_events.pop() {
             if let Some(decoder) = &mut server.git_decoder {
-                match crate::git::server::body(decoder, &env.limits.git(), &event) {
-                    crate::git::server::BodyStep::Demand(request) => json_down(server, env, request),
-                    crate::git::server::BodyStep::Decoded(call) => {
+                match skein_fake_forge_http::git::server::body(decoder, &env.limits.git(), &event) {
+                    skein_fake_forge_http::git::server::BodyStep::Demand(request) => json_down(server, env, request),
+                    skein_fake_forge_http::git::server::BodyStep::Decoded(call) => {
                         server.git_decoder = None;
                         git::decoded(server, service, domain.as_mut(), env, call, above, below);
                     }
-                    crate::git::server::BodyStep::Malformed => {
+                    skein_fake_forge_http::git::server::BodyStep::Malformed => {
                         server.git_decoder = None;
                         malformed(server, env);
                     }
@@ -448,7 +448,7 @@ fn entrance(
     call: http::Call,
     above: &mut Queue<Event>,
 ) {
-    if let Some(name) = crate::git::name(&call.target) {
+    if let Some(name) = skein_fake_forge_http::git::name(&call.target) {
         git::entrance(server, service, env, &call, name);
         return;
     }

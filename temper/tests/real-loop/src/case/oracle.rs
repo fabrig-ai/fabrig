@@ -4579,7 +4579,7 @@ fn direction_closing_comment(observed: &Observed, misses: &mut Vec<Miss>) {
 fn direction_commit(commit: u64) -> String {
     use std::fmt::Write;
     let mut hex = String::new();
-    for byte in &skein_fake_forge_protocol::routes::object(commit).bytes[..20] {
+    for byte in &skein_fake_forge_forgejo::routes::object(commit).bytes[..20] {
         write!(hex, "{byte:02x}").expect("commit hex");
     }
     hex
@@ -10677,7 +10677,7 @@ fn waiting_checkpoint(observed: &Observed, misses: &mut Vec<Miss>) {
 fn waiting_head(head: u64) -> String {
     use std::fmt::Write;
     let mut hex = String::new();
-    for byte in &skein_fake_forge_protocol::routes::object(head).bytes[..20] {
+    for byte in &skein_fake_forge_forgejo::routes::object(head).bytes[..20] {
         write!(hex, "{byte:02x}").expect("head hex");
     }
     hex

@@ -1,5 +1,5 @@
 //! Configuration and credentials shared by the world's stories.
-use skein_fake_forge_protocol::{Config, Faults};
+use skein_fake_forge_forgejo::{Config, Faults};
 use skein_forge_setup::{given::Given, limits::Limits};
 use skein_lib::Duration;
 use skein_lib::{List, Secret};
@@ -65,7 +65,7 @@ pub fn bot_tokens(world: &mut crate::World) -> u64 {
     id
 }
 /// Seeds the bot in either the plan world or the host's HTTP world.
-pub fn seed_bot_tokens(store: &mut skein_fake_forge_protocol::setup::Store) -> u64 {
+pub fn seed_bot_tokens(store: &mut skein_fake_forge_forgejo::setup::Store) -> u64 {
     let id = store.account(b"kit", false, b"kit:bot");
     store.token(id, b"kit-api", &[b"read:user", b"write:issue", b"write:repository"], secret(API));
     store.token(id, b"kit-git", &[b"write:repository", b"read:user"], secret(GIT));
@@ -80,14 +80,14 @@ pub fn converged(seed: u64) -> crate::World {
 }
 /// The HTTP mutations since a given request, including any unintended route.
 #[must_use]
-pub fn write_routes(world: &crate::World, since: usize) -> Vec<skein_fake_forge_protocol::Route> {
+pub fn write_routes(world: &crate::World, since: usize) -> Vec<skein_fake_forge_forgejo::Route> {
     use skein_forge::forgejo::{client, request::Method};
     let limits = skein_forge_machine_world::fixtures::fake_limits();
     let mut routes = Vec::new();
     for request in &world.requests()[since..] {
         let encoded = client::encode(request, &limits.documents).expect("world request");
         if encoded.method != Method::Get {
-            routes.push(skein_fake_forge_protocol::route(request));
+            routes.push(skein_fake_forge_forgejo::route(request));
         }
     }
     routes
@@ -287,7 +287,7 @@ pub fn connected_tokens(world: &mut crate::World) -> u64 {
 }
 
 /// Seeds the person's tokens independently of the owner's item store.
-pub fn seed_connected_tokens(store: &mut skein_fake_forge_protocol::setup::Store) -> u64 {
+pub fn seed_connected_tokens(store: &mut skein_fake_forge_forgejo::setup::Store) -> u64 {
     let id = store.account(b"alice", false, b"A person");
     store.token(id, b"connected-api", &[b"read:user", b"write:issue", b"write:repository"], secret(API));
     store.token(id, b"connected-git", &[b"write:repository", b"read:user"], secret(GIT));
@@ -299,7 +299,7 @@ pub fn admin_handover(world: &mut crate::World) -> u64 {
     seed_admin_handover(world.store_mut(), 4)
 }
 /// The default admin token and the chosen older tokens precede the handed one.
-pub fn seed_admin_handover(store: &mut skein_fake_forge_protocol::setup::Store, older: usize) -> u64 {
+pub fn seed_admin_handover(store: &mut skein_fake_forge_forgejo::setup::Store, older: usize) -> u64 {
     let id = store.find(b"kit-admin").expect("admin fixture").id;
     for (name, value) in [
         (b"old-1".as_slice(), b"older-admin-token-1".as_slice()),
@@ -328,7 +328,7 @@ pub fn picker_repositories(config: &mut Config) {
         };
         config
             .repositories
-            .push(skein_fake_forge_protocol::Repository {
+            .push(skein_fake_forge_forgejo::Repository {
                 id,
                 full: format!("{owner}/repo-{id}").into_bytes().into_boxed_slice(),
                 protected: None,
@@ -337,7 +337,7 @@ pub fn picker_repositories(config: &mut Config) {
     }
 }
 /// The configured owners and scenario privacy share the fake's setup store.
-pub fn picker_owners(store: &mut skein_fake_forge_protocol::setup::Store) {
+pub fn picker_owners(store: &mut skein_fake_forge_forgejo::setup::Store) {
     store.account(b"ada", false, b"Ada");
     store.account(b"kit", false, b"kit:bot");
     store.account(b"grace", false, b"Grace");
@@ -365,7 +365,7 @@ fn repository_config_with_cap(paths: &[&[u8]], cap: u32) -> Config {
     for (index, path) in paths.iter().enumerate() {
         config
             .repositories
-            .push(skein_fake_forge_protocol::Repository {
+            .push(skein_fake_forge_forgejo::Repository {
                 id: u32::try_from(index + 1).expect("scenario id"),
                 full: (*path).into(),
                 protected: None,
@@ -399,7 +399,7 @@ pub fn connected_picker(seed: u64) -> crate::World {
     ] {
         config
             .repositories
-            .push(skein_fake_forge_protocol::Repository {
+            .push(skein_fake_forge_forgejo::Repository {
                 id,
                 full: format!("{owner}/repo-{id}").into_bytes().into_boxed_slice(),
                 protected: None,
@@ -695,7 +695,7 @@ pub mod github_stories {
 pub mod copy_stories {
     use super::{Duration, config, host_settings};
     use skein_fake_forge_domain::{self as domain, api};
-    use skein_fake_forge_protocol::{Config, Source};
+    use skein_fake_forge_forgejo::{Config, Source};
     use skein_forge_setup::host::{Kind, Settings};
 
     pub const ADDRESS: &[u8] = b"https://source.invalid/upstream/starter";
