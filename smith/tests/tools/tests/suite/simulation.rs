@@ -1175,7 +1175,7 @@ fn mounted_authority(fixture: &Fixture, mounts: &[(&[u8], usize, bool)], grants:
         .iter()
         .map(|(name, root, writable)| smith_tools_world::fixture::directory(name, fixture.repos[*root].root, *writable))
         .collect();
-    tools::Authority { cwd: repos[0].mount.clone(), repos: repos.into(), grants }
+    tools::Authority { cwd: Some(repos[0].mount.clone()), repos: repos.into(), grants }
 }
 
 #[test]

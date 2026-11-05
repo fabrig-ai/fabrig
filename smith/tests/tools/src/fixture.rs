@@ -123,7 +123,7 @@ pub fn long() -> Vec<u8> {
 pub fn directory(mount: &[u8], root: skein_lib::Token, writable: bool) -> smith_domain_tools::Directory {
     smith_domain_tools::Directory {
         host: crate::translate::names(b"/host"),
-        mount: crate::translate::names(mount),
+        mount: crate::translate::names(mount).into_vec().pop().expect("mount name"),
         root,
         writable,
     }
