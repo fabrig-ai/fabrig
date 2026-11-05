@@ -23,11 +23,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   writes no web wire and no web protocol of its own: the client's
   records cross as jig's wire carries them, binary records from a schema
   per owner, never JSON (jig's `protocol/client.md`, section 3).
-- **The pages temper has,** in both shells: the inbox, the chats, a
-  chat, a task's page and the adoption form (`README.md`, 3.5). A page a
-  later plan adds to the view (the goals, the changes, the accounts) is
-  in the browser once it is in the view, with its look and, where it
-  has one, its browser-only story (4.2).
+- **The pages temper has,** in both shells: the client's (`README.md`,
+  3.5). A page added to the view is in the browser once it is in the
+  view, with its look and, where it has one, its browser-only story
+  (4.2).
 - **No framework.** The client and its view are step code under the
   subset in a browser too (skein's `ui.md`, section 1).
 - **The view tree is the fake DOM.** Below the browser, every world
@@ -322,7 +321,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **A filter chosen is a move** (below), with its history entry: a
   link's, at the page's top with the focus on its heading, and back
   returns to the filter before. Like any move it folds the open
-  disclosures (2.5), so the Kind menu closes on its choice. A move
+  disclosures (2.5). Needs you has no filter menus; its filters remain
+  address fields (`README.md`, 3.5). A move
   that stays on the chats list, or on one goal's page, changing its
   filter or its start alone, keeps the page: its composers' words, the
   closed chats and ended delegates it read, which it reads not again;
@@ -1151,6 +1151,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-accounts-both` | hand-made Home deliveries: ChatGPT plan and Claude subscription; link offers another account |
 | `home-accounts-key` | hand-made Home deliveries: an API key; link offers another account |
 | `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
+| `home-with-goals` | `home-at-work`'s deliveries with a goal in the project, so that the rail shows Goals |
 | `home-at-work` | hand-made Home deliveries: one question and three chats, the everyday request's words where the client holds its facts |
 | `home-needs-several` | hand-made Home deliveries: three needs, the first as a card and the others as rows |
 | `home-nothing-needs` | hand-made Home deliveries: all steps done, no needs and one chat |

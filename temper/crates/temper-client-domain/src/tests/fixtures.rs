@@ -27,6 +27,7 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
+                // Page handles, the project-needs watch and the goals fact.
                 handles: 12,
                 watches: 11,
                 turn_bytes: 65536,
