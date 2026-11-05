@@ -34,12 +34,11 @@ impl AgentPhrase {
     }
     pub(super) const fn hole(self) -> Option<HoleKind> {
         match self {
-            Self::Model | Self::Window | Self::Output | Self::ModelPosition => Some(HoleKind::Number),
+            Self::Model | Self::Window | Self::Output | Self::Checks | Self::ModelPosition => Some(HoleKind::Number),
             Self::Turns
             | Self::Spend
             | Self::Time
             | Self::Waiting
-            | Self::Checks
             | Self::Message
             | Self::Inbox
             | Self::Unacknowledged => None,
@@ -54,7 +53,7 @@ impl AgentPhrase {
             Self::Spend => b"Agent spend too small",
             Self::Time => b"Agent time too short",
             Self::Waiting => b"Agent waiting too short",
-            Self::Checks => b"Agent checks exceed the change reserve",
+            Self::Checks => b"Agent check timeout exceeds reserve_time for charter ",
             Self::Message => b"Agent message bound too small",
             Self::Inbox => b"Agent inbox too small",
             Self::Unacknowledged => b"Agent unacknowledged turns too few",

@@ -46,17 +46,18 @@ fn agent(b: &mut Builder, words: &Words, why: jig_client::contract::AgentShortfa
         S::Spend => A::Spend,
         S::Time => A::Time,
         S::Waiting => A::Waiting,
-        S::Checks => A::Checks,
+        S::Checks { .. } => A::Checks,
         S::Message => A::Message,
         S::Inbox => A::Inbox,
         S::Unacknowledged => A::Unacknowledged,
     };
     match why {
+        S::Checks { charter } => text(b, words, P::Agent(phrase), &[Hole::Number(u64::from(charter))]),
         S::Model { charter, model } | S::Window { charter, model } | S::Output { charter, model } => {
             text(b, words, P::Agent(phrase), &[Hole::Number(u64::from(charter))]);
             text(b, words, P::Agent(A::ModelPosition), &[Hole::Number(u64::from(model))]);
         }
-        S::Turns | S::Spend | S::Time | S::Waiting | S::Checks | S::Message | S::Inbox | S::Unacknowledged => {
+        S::Turns | S::Spend | S::Time | S::Waiting | S::Message | S::Inbox | S::Unacknowledged => {
             text(b, words, P::Agent(phrase), &[]);
         }
     }
