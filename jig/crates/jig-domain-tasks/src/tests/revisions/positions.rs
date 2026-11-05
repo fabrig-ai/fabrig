@@ -1,5 +1,6 @@
 //! Single-read positions remain bounded through lifecycle and restart.
 use super::*;
+use crate::Release;
 
 #[test]
 fn a_held_task_names_the_milestone_of_its_hold() {
@@ -11,11 +12,10 @@ fn a_held_task_names_the_milestone_of_its_hold() {
     h.route(1, EscalationHolder::Person(9), 1);
     h.restart();
     assert_eq!(live(&h, 1).hold, 3);
-    h.send(Event::Control {
+    h.send(Event::Release {
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: 1, again: None, message: None },
     });
     assert_eq!(live(&h, 1).hold, 3);
     h.send(Event::Hold { task: 1, why: Hold::Budget });
@@ -133,8 +133,10 @@ fn word(h: &mut Harness, task: u64, from: Party, number: u64, kind: MessageKind)
     h.send(Event::Message {
         reply_to: to(),
         project: 1,
-        task,
-        word: crate::Word { number, from, kind, words: Box::new([1]), at: Wall::EPOCH, hits: 1, eligible: true },
+        operation: crate::Message {
+            task,
+            word: crate::Word { number, from, kind, words: Box::new([1]), at: Wall::EPOCH, hits: 1, eligible: true },
+        },
     })
 }
 
@@ -326,17 +328,19 @@ fn two_person_answers_in_one_compound_are_refused_whole() {
     let _question = word(&mut h, 1, Party::Task(2), 1, MessageKind::Question);
     let before = h.stored.clone();
     let operations = (2..=3)
-        .map(|number| crate::Operation::Message {
-            task: 1,
-            word: crate::Word {
-                number,
-                from: Party::Person(9),
-                kind: MessageKind::Answer { question: 1 },
-                words: Box::new([1]),
-                at: Wall::EPOCH,
-                hits: 1,
-                eligible: true,
-            },
+        .map(|number| {
+            crate::Operation::Message(crate::Message {
+                task: 1,
+                word: crate::Word {
+                    number,
+                    from: Party::Person(9),
+                    kind: MessageKind::Answer { question: 1 },
+                    words: Box::new([1]),
+                    at: Wall::EPOCH,
+                    hits: 1,
+                    eligible: true,
+                },
+            })
         })
         .collect::<Vec<_>>();
     let out = compound::compound(&mut h, operations, 1000);

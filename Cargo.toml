@@ -63,6 +63,7 @@ members = [
     "skein/testing/skein-echo-client",
     "skein/crates/skein-fake-machine",
     "skein/testing/skein-fake-channel",
+    "skein/testing/skein-protocol-kit",
     "skein/testing/skein-fake-person",
     "skein/testing/skein-fake-person-browser",
     "skein/crates/skein-fake-oauth",
@@ -396,6 +397,7 @@ skein-echo-client = { path = "skein/testing/skein-echo-client" }
 skein-browser-world = { path = "skein/tests/browser" }
 skein-fake-machine = { path = "skein/crates/skein-fake-machine" }
 skein-fake-channel = { path = "skein/testing/skein-fake-channel" }
+skein-protocol-kit = { path = "skein/testing/skein-protocol-kit" }
 skein-fake-checkout = { path = "skein/crates/skein-fake-checkout" }
 skein-sim-world = { path = "skein/crates/skein-sim-world" }
 skein-playground = { path = "skein/crates/skein-playground" }

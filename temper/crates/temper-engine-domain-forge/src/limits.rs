@@ -43,6 +43,11 @@ pub struct Limits {
     /// Live landing procedure rows (domain/landing.md, 12).
     pub landings: u32,
     pub landing_members: u32,
+    /// Retained landings per repository (domain/after-landing.md, 10).
+    pub landings_kept: u32,
+    /// Queued rows and recent landed changes in the changes document (client/README.md, 4.6).
+    pub changes_rows: u32,
+    pub changes_landed: u32,
     pub gates: u32,
     pub receipts_per_gate: u32,
     pub ignored_paths: u32,
@@ -118,6 +123,12 @@ pub fn valid(l: &Limits) -> bool {
         || l.adoptions == 0
         || l.applications == 0
         || l.collaborators == 0
+        || l.landings_kept == 0
+        || l.landings_kept > 256
+        || l.changes_rows == 0
+        || l.changes_rows > 32
+        || l.changes_landed == 0
+        || l.changes_landed > 32
         || l.landings == 0
         || l.landing_rules == 0
         || l.landing_rules.saturating_mul(l.roles).saturating_mul(2) > 8192

@@ -3,13 +3,20 @@
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.5, 3.6, 5.8, 5.11, 5.14, 10: a goal's page, its acts and Start goal as these sections say them: plan `ui-goal-page`; a tracked task still draws the old page (`temper-client-view`'s `pages/task.rs`).
-- **Not yet:** 3.4, 5.5: the composer's
+- **Not yet:** 3.5, *Needs you*, *By its kind*: proposal, held, funds and
+  person-task card bodies and decisions; these draw their question, mono line
+  and pair alone.
+  3.5, *Home*: its card, lines, answered lines, number words and phone
+  block by the line form.
+  3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
-  `Changes { project }`: no address in `temper-client-domain`'s
-  `address.rs`. 3.5: *Goals*, *A goal's report*: plan `ui-goals`. 3.5, 5.13, 10:
+  *Goals*, *A goal's report*: plan `ui-goals`. 3.5:
+  `Board { project }` with its reordering, no address in
+  `temper-client-domain`'s `address.rs`. 5.3: the banner's "Board" and "Changes", on a page that is no project's:
+  the request of 2026-11-05 asked for the rail, and its mock has no banner. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
-  with their tests, and with them How work runs' offer of `Configure` and
+  with their tests, and with them How work runs' "Configure temper" entry and
   a review's "Change something"; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
@@ -48,7 +55,13 @@
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
-- **Departs:** 3.5, With no project yet, and 5.3: where the document
+- **Departs:** 3.5, Settings: "Configure temper" chooses among the rows
+  `temper-client-domain`'s `Chats::open_configuring` is delivered, whose
+  live watch holds a window of `limits.client.domain.rows` by latest
+  activity, so a configuring chat not closed but past that window isn't
+  seen and the link opens `Configure { project }`; `configure-temper-name`'s
+  landing accepted it, raising no bound for one link.
+  3.5, With no project yet, and 5.3: where the document
   shows the welcome, with no project, the banner's place for it reads "No project yet" followed by the new
   project's form, "New project" and "Create" (`temper-client-view`'s
   `frame.rs`, `switcher`), where 5.3 ends the switcher's list with that
@@ -56,3 +69,11 @@
   the welcome's Ready. The code records no reason; it lets a person make
   the project Ready would offer before Ready, the case of the draft's open question
   (`../draft/first-run-projects.status.md`).
+  3.5, 4.6, Changes: the queue's first says "checking" at whichever step of
+  its turn, and "checks started" gives when that step began
+  (`temper-engine-domain-forge`'s `views/changes.rs`, `Change.since`), where
+  the request of 2026-11-05 has when its checks began: nothing keeps that time.
+  4.6: `changes_view` reads every `ChangeRow`'s repository with `?`, and no
+  step erases a closed change's row (`../domain/after-landing.status.md`), so
+  once a forge's removal erases a repository with a closed change, no project
+  has the document; seen by reading, no test holds it and no reason is recorded.

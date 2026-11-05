@@ -24,6 +24,10 @@ fn a_start_at_a_stale_filter_shows_its_printed_address() {
     let mut host = started(b"/?kind=reply&project=3");
     let duties = host.report(Report::Start);
     assert_eq!(duties.show, Some((Box::from(b"/?project=3".as_slice()), true)));
+    let mut page = host::page(&host.bounds.tree, Primary::Control);
+    host.draw(&mut page, &mut Vec::new());
+    assert!(page.html().contains("temper-needs"));
+    assert!(!page.html().contains("temper-filters"));
 }
 
 #[test]

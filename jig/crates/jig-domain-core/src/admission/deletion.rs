@@ -224,12 +224,12 @@ fn cancel(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project:
             if conversation {
                 for &delegate in &row.delegates {
                     operations
-                        .push(tasks::Operation::Cancel {
+                        .push(tasks::Operation::Cancel(tasks::Cancel {
                             task: delegate,
                             grace: None,
                             message: None,
                             reason: Box::new([]),
-                        })
+                        }))
                         .expect("conversation group fits");
                 }
             }
@@ -239,7 +239,7 @@ fn cancel(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project:
         let message = if conversation { crate::fresh(&mut core.counters, crate::Family::Message) } else { None };
         let grace = if message.is_some() { grace } else { None };
         operations
-            .push(tasks::Operation::Cancel { task: task.number, grace, message, reason: Box::new([]) })
+            .push(tasks::Operation::Cancel(tasks::Cancel { task: task.number, grace, message, reason: Box::new([]) }))
             .expect("operation bound");
         if group > operations.capacity() {
             break;

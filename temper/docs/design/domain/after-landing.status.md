@@ -1,6 +1,6 @@
 # after-landing: status
 
-2026-11-04. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-05. Where temper's code lags or departs from [after-landing.md](after-landing.md).
 
 - **Not yet:** 3: the pending verdict status a run posts on its tip
   before it is held (section 9's). 5.2, 11: the suspects' rule and a
@@ -14,8 +14,9 @@
   of no goal's is not kept on the tier's record, nor counted when
   dropped. 8: no trailers in landing news; no `landing list
   --newer-than`. 9: no `temper/verdict/<tier>` status or comment;
-  purpose tag 8's operations 6 and 7 are unused. 10: no `LandingLog`
-  family, and no `landings_kept`, `trailers` or `trailer_bytes` limit.
+  purpose tag 8's operations 6 and 7 are unused. 10: no `trailers` or `trailer_bytes` limit;
+  a push from outside temper, trailers and verdicts stay out of the log
+  until sections 6, 8 and 9 need them.
   12: the stories of a documentation landing cleared at once by its
   receipt and of the late red kept for findings; by turn, only a change
   waiting for main's tier and its cleared result naming its run, the
@@ -26,6 +27,11 @@
   section 11), because jig gives a procedure the deployment starts its
   project's ceiling (`jig-domain-core/src/effects/connector.rs`,
   `procedure_seed`).
+- **Departs:** 10: a change's close does not take its row, as this section
+  and the request of 2026-11-05 say it does: no step erases a `ChangeRow`,
+  because the answer of 2026-11-05 kept it for a closed change's panel. The log
+  holds its titles without it: `a_landed_change_keeps_its_title_after_its_close`
+  reads them after a restoration of the log and its repository alone.
 - **Departs:** 5.2: probes visit changed-key landings linearly, oldest
   first, rather than bisecting the range. The first candidate whose commit
   fails a test owns it; the last candidate owns what remains without a

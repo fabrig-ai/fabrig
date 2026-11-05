@@ -29,8 +29,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                handles: 9,
-                watches: 9,
+                // The page handles plus the standing project-needs watch.
+                handles: 10,
+                watches: 10,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -68,9 +69,8 @@ fn english(shell: crate::words::Shell) -> crate::words::Words {
 
 pub fn tree_limits() -> skein_ui::Limits {
     skein_ui::Limits {
-        // Two time nodes for each of the six inbox cards, and a goal's page
-        // with nine plan rows, live and ended (181 nodes).
-        nodes: 192,
+        // The largest goal plan and its frame, including Changes' link and text.
+        nodes: 194,
         depth: 32,
         text_per_node: 512,
         text_bytes: 98304,
@@ -297,7 +297,14 @@ pub(super) fn root_at_with_forges(
     root_at_with_dismissals(address, limits, project_name, playground, activity, forge_rows, Some(&[]))
 }
 
-#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
+pub(super) fn root_at_with_needs(
+    address: temper_client_domain::Address,
+    limits: &Limits,
+) -> (temper_client_domain::Domain, Token, Option<Token>, Token) {
+    let (root, me, page, _, _, _, needs) =
+        root_at_with_dismissals_and_needs(address, limits, b"Shop", None, None, None, Some(&[]));
+    (root, me, page, needs.expect("standing needs watch"))
+}
 pub(super) fn root_at_with_dismissals(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -307,6 +314,24 @@ pub(super) fn root_at_with_dismissals(
     forge_rows: Option<List<w::ForgeRow>>,
     dismissed: Option<&[u32]>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
+    let (root, me, page, tree, accounts, forges, _) =
+        root_at_with_dismissals_and_needs(address, limits, project_name, playground, activity, forge_rows, dismissed);
+    (root, me, page, tree, accounts, forges)
+}
+#[expect(
+    clippy::too_many_lines,
+    clippy::type_complexity,
+    reason = "one fixture delivers the page and session documents and returns their transport tokens"
+)]
+pub(super) fn root_at_with_dismissals_and_needs(
+    address: temper_client_domain::Address,
+    limits: &Limits,
+    project_name: &[u8],
+    playground: Option<(u32, bool, w::PlaygroundState)>,
+    activity: Option<c::ActivityPage>,
+    forge_rows: Option<List<w::ForgeRow>>,
+    dismissed: Option<&[u32]>,
+) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
     use jig_client::contract::{Delivery, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
     let forge_rows_answered = forge_rows.is_some();
@@ -327,6 +352,7 @@ pub(super) fn root_at_with_dismissals(
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }
+        | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
@@ -403,8 +429,18 @@ pub(super) fn root_at_with_dismissals(
     );
     answer_activity(&mut root, &env, activity_read, activity, &mut out);
     let mut forges = None;
+    let mut needs_watch = inbox_watch;
     for _ in 0..out.len() {
         let request = out.pop().expect("counted request");
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Inbox { .. }) },
+                },
+        } = &request
+        {
+            needs_watch = Some(*watch);
+        }
         if let Request::Unlinked {
             request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
         } = &request
@@ -505,7 +541,7 @@ pub(super) fn root_at_with_dismissals(
             empty_session(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
         }
     }
-    (root, watch.expect("me opened"), inbox_watch, tree_watch, account_watch, forges)
+    (root, watch.expect("me opened"), inbox_watch, tree_watch, account_watch, forges, needs_watch)
 }
 fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
     deliver_no_playground(root, read);

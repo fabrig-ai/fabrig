@@ -6,7 +6,7 @@ use skein_forge_setup::{
     host::File,
     reconcile::{Failure, Outcome, Stage, Why},
 };
-use skein_forge_setup_world::{Ended, World, fixtures};
+use skein_forge_setup_world::{Ended, HostWorld, fixtures};
 use skein_lib::{Env, Time, Wall};
 
 // The empty domain allocates repository one, README one and the first file commit two.
@@ -19,14 +19,14 @@ const FULL: &[u8] = b"first/starter";
 fn files() -> Box<[File]> {
     Box::new([File { path: PATH.into(), content: CONTENT.into() }])
 }
-fn world() -> World {
-    let mut world = World::owned(7);
+fn world() -> HostWorld {
+    let mut world = HostWorld::owned(7);
     fixtures::bot_tokens(&mut world);
     world.creation_domain();
     world.listening("127.0.0.1:7200".parse().expect("listener"));
     world
 }
-fn run(world: &mut World) -> Ended {
+fn run(world: &mut HostWorld) -> Ended {
     world.create(b"first", b"starter", files())
 }
 fn created() -> Outcome {

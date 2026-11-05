@@ -4,22 +4,22 @@
 
 use crate::{Declaration, analysis::Context};
 
-pub(crate) fn snake(name: &str) -> String {
+/// Lowers capitals into words separated by underscores, mapping dots and hyphens to underscores.
+#[must_use]
+pub fn snake(name: &str) -> String {
     let mut out = String::new();
     for character in name.chars() {
-        if character.is_ascii_uppercase() {
-            if !out.is_empty() {
-                out.push('_');
-            }
-            out.push(character.to_ascii_lowercase());
-        } else {
-            out.push(character);
+        if character.is_ascii_uppercase() && !out.is_empty() {
+            out.push('_');
         }
+        out.push(if character == '.' || character == '-' { '_' } else { character.to_ascii_lowercase() });
     }
     out
 }
 
-pub(crate) fn pascal(name: &str) -> String {
+/// Uppercases the first character and each character after an underscore, removing underscores.
+#[must_use]
+pub fn pascal(name: &str) -> String {
     let mut out = String::new();
     let mut upper = true;
     for character in name.chars() {

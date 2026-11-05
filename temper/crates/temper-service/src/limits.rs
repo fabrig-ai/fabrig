@@ -191,6 +191,9 @@ const FORGE: forge::Limits = forge::Limits {
     // Live landing tasks (domain/landing.md, 12).
     landings: 2,
     landing_members: 2,
+    landings_kept: 16,
+    changes_rows: 32,
+    changes_landed: 8,
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
@@ -389,9 +392,9 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
         reviews: 131_584,
         ..ROOT.brief.budgets
     },
-    // tests/stock_brief.rs derives charter 1's room (361,474) less 1,472
+    // tests/stock_brief.rs derives charter 1's room (361,244) less 1,472
     // bytes for 64 titles and framing and 567 margin; below 395,520.
-    brief_bytes: 359_435,
+    brief_bytes: 359_205,
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {

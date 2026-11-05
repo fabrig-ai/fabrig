@@ -3,7 +3,9 @@ use alloc::boxed::Box;
 mod account_programs;
 pub(crate) mod accounts;
 pub(crate) mod agent;
+pub(crate) mod ask;
 pub(crate) mod change;
+pub(crate) mod changes;
 pub(crate) mod chat;
 pub(crate) mod chats;
 pub(crate) mod configure;
@@ -11,6 +13,7 @@ pub(crate) mod connect_model;
 pub mod goals;
 pub mod home;
 pub(crate) mod inbox;
+pub(crate) mod needs;
 pub(crate) mod task;
 pub(crate) mod welcome;
 

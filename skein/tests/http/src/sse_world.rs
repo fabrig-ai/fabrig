@@ -24,6 +24,8 @@ use skein_http::sse::{self, Error, Event, Limits, Reader, Request, Waiting};
 use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Env, Intake, Queue, Rng, Time, Wall};
 
+use skein_protocol_kit::random::{draw, fault};
+
 use crate::reference::{self, Ending};
 
 /// How a world runs: the reader's limits, and how its neighbours behave.
@@ -111,14 +113,6 @@ pub fn limits(rng: &mut Rng) -> Limits {
         };
     }
     Limits { line: draw(rng, 64, 512), event: draw(rng, 256, 4096), field: draw(rng, 8, 64), chunk: draw(rng, 1, 64) }
-}
-
-fn fault(rng: &mut Rng) -> Fault {
-    [Fault::Reset, Fault::Invalid, Fault::Other][usize::try_from(rng.below(3)).expect("fits a usize")]
-}
-
-fn draw(rng: &mut Rng, low: u32, high: u32) -> u32 {
-    u32::try_from(rng.between(u64::from(low), u64::from(high))).expect("fits a u32")
 }
 
 /// What a run came to.
