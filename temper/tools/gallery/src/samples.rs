@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 119;
+pub const N: usize = 120;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -109,6 +109,7 @@ pub fn samples() -> [Sample; N] {
             address: Address::Home { project: 1 },
             then: Shown,
         },
+        Sample { name: "home-with-goals", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample {
             name: "home-at-work",
             world: FirstRun { step: 7 },
@@ -923,6 +924,8 @@ fn home_domain(name: &str) -> Domain {
     use jig_client::{Down, Latest, Up, Watchable};
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
+    let with_goals = name == "home-with-goals";
+    let name = if with_goals { "home-at-work" } else { name };
     let (source, _) = crate::worlds::world(FirstRun { step: 7 }, Address::Settings { project: 1 }, Shown);
     let mut me = source.pages().me(source.client()).expect("sample me").clone();
     let mut projects = List::with_capacity(1);
@@ -939,6 +942,17 @@ fn home_domain(name: &str) -> Domain {
         temper_client_domain::pages::accounts::document(source.client()).expect("sample accounts").clone(),
     );
     let (chats, _) = crate::worlds::world(Solo, CHATS, Shown);
+    if with_goals {
+        me.projects.get_mut(0).expect("Home project").templates = chats
+            .pages()
+            .me(chats.client())
+            .expect("Solo frame")
+            .projects
+            .get(0)
+            .expect("Solo project")
+            .templates
+            .clone();
+    }
     let Some(Latest::Jig(c::Delivery::Tasks(chat_rows))) =
         chats.client().document(chats.pages().chats().expect("chats").live).expect("chats watch").latest
     else {
@@ -1006,7 +1020,16 @@ fn home_domain(name: &str) -> Domain {
                         }))
                     }
                     c::Subject::Tasks { query, .. } if query.tracked == Some(true) => {
-                        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false }))
+                        let mut rows = List::with_capacity(1);
+                        if with_goals {
+                            let mut goal = chat_rows.rows.get(0).expect("sample row").clone();
+                            goal.project = 1;
+                            goal.tracked = Some(1);
+                            goal.flags.conversation = false;
+                            goal.flags.listed = true;
+                            rows.push(goal).expect("one goal");
+                        }
+                        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
                     }
                     c::Subject::Tasks { .. } => {
                         let mut rows = List::with_capacity(1);
