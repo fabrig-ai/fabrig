@@ -454,7 +454,7 @@ pub const OTHER_PROJECT: u32 = 2;
 pub const OWNER_ROLE: u32 = 0;
 pub const MEMBER_ROLE: u32 = 2;
 pub const RETRY_NOTICE: contract::RetryNotice =
-    contract::RetryNotice::OwnerFailed { class: contract::HoldFailure::Lost, count: 2, allowance: 3 };
+    contract::RetryNotice::OwnerFailed { class: contract::HoldFailure::Lost, count: 2, allowance: 3, reason: None };
 
 /// Five seconds distinguishes a duration from the fixture wall in nanoseconds.
 pub const SHAPE_GRACE: Duration = Duration::from_secs(5);

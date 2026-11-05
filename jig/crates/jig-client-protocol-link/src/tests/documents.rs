@@ -358,7 +358,8 @@ fn chip_phases_refuse_missing_end_time_and_retry_notice() {
             if present {
                 fields.ended_at = Some(0);
                 fields.retry = Some(w::RetryNotice::Refused(
-                    w::RetryNoticeRefused::new(limits.wire(), w::RetryNoticeRefusedParts { count: 0 }).unwrap(),
+                    w::RetryNoticeRefused::new(limits.wire(), w::RetryNoticeRefusedParts { count: 0, reason: None })
+                        .unwrap(),
                 ));
             }
             details.value = w::ChipDetailsFields::new(limits.wire(), fields).unwrap();

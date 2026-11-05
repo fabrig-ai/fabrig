@@ -26,25 +26,28 @@ pub(crate) fn active(b: &mut Builder, value: &ActiveRun, words: &Words) {
     if let Some(at) = value.placement {
         words.text(b, JigPhrase::RunPlacement, &[Hole::Wall(words.adjusted_wall(at))]);
     }
-    match value.retry {
-        Some(RetryNotice::Failed { class, count, allowance }) => {
-            crate::tree::cards::chip::failure(b, class, words);
+    match &value.retry {
+        Some(RetryNotice::Failed { class, count, allowance, reason }) => {
+            crate::tree::cards::chip::failure(b, *class, words);
             words.text(
                 b,
                 JigPhrase::RunRetryFailed,
-                &[Hole::Number(u64::from(count)), Hole::Number(u64::from(allowance))],
+                &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
             );
+            crate::tree::fragments::chip::retry_reason(b, reason.as_ref(), words);
         }
-        Some(RetryNotice::OwnerFailed { class, count, allowance }) => {
-            crate::tree::fragments::chip::hold_failure(b, class, words);
+        Some(RetryNotice::OwnerFailed { class, count, allowance, reason }) => {
+            crate::tree::fragments::chip::hold_failure(b, *class, words);
             words.text(
                 b,
                 JigPhrase::RunRetryFailed,
-                &[Hole::Number(u64::from(count)), Hole::Number(u64::from(allowance))],
+                &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
             );
+            crate::tree::fragments::chip::retry_reason(b, reason.as_ref(), words);
         }
-        Some(RetryNotice::Refused { count }) => {
-            words.text(b, JigPhrase::RunRetryRefused, &[Hole::Number(u64::from(count))]);
+        Some(RetryNotice::Refused { count, reason }) => {
+            words.text(b, JigPhrase::RunRetryRefused, &[Hole::Number(u64::from(*count))]);
+            crate::tree::fragments::chip::retry_reason(b, reason.as_ref(), words);
         }
         None => {}
     }

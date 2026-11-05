@@ -63,18 +63,37 @@ pub(crate) fn failure_class(value: &w::FailureClass) -> c::FailureClass {
     }
 }
 
-pub(crate) fn retry_notice(value: &w::RetryNotice) -> c::RetryNotice {
-    match value {
+pub(crate) fn retry_notice(value: &w::RetryNotice) -> Result<c::RetryNotice, w::Problem> {
+    let reason = match value {
+        w::RetryNotice::OwnerFailed(row) => row.reason(),
+        w::RetryNotice::Failed(row) => row.reason(),
+        w::RetryNotice::Refused(row) => row.reason(),
+    };
+    let reason = match reason {
+        Some(reason) => Some(c::DocumentText {
+            bytes: match c::Text::new(bytes::copy_of(reason), 128) {
+                Ok(bytes) => bytes,
+                Err(_) => return Err(text_problem()),
+            },
+            cut: false,
+        }),
+        None => None,
+    };
+    Ok(match value {
         w::RetryNotice::OwnerFailed(row) => c::RetryNotice::OwnerFailed {
             class: hold_failure(row.class()),
             count: row.count(),
             allowance: row.allowance(),
+            reason,
         },
-        w::RetryNotice::Failed(row) => {
-            c::RetryNotice::Failed { class: failure_class(row.class()), count: row.count(), allowance: row.allowance() }
-        }
-        w::RetryNotice::Refused(row) => c::RetryNotice::Refused { count: row.count() },
-    }
+        w::RetryNotice::Failed(row) => c::RetryNotice::Failed {
+            class: failure_class(row.class()),
+            count: row.count(),
+            allowance: row.allowance(),
+            reason,
+        },
+        w::RetryNotice::Refused(row) => c::RetryNotice::Refused { count: row.count(), reason },
+    })
 }
 
 pub(crate) fn held_runtime_fields(
@@ -201,4 +220,75 @@ pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipH
         tries: failure_tries(value.tries()),
         hold_wait_since: opt3,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skein_lib::{Reader, Writer};
+
+    #[test]
+    fn retry_reasons_round_trip_through_wire_and_client_facts() {
+        const REASON_BYTES: usize = 128; // client-v19's retry reason bound (domain/engine.md, 9.1).
+        let limits = &w::CEILINGS;
+        let reason = Some(bytes::copy_of(&[b'x'; REASON_BYTES]));
+        let expected = Some(c::DocumentText::complete(
+            c::Text::new(bytes::copy_of(&[b'x'; REASON_BYTES]), 128).expect("reason at its wire bound"),
+        ));
+        for (wire, expected) in [
+            (
+                w::RetryNotice::OwnerFailed(
+                    w::RetryNoticeOwnerFailed::new(
+                        limits,
+                        w::RetryNoticeOwnerFailedParts {
+                            class: w::HoldFailure::Permanent,
+                            count: 2,
+                            allowance: 3,
+                            reason: reason.clone(),
+                        },
+                    )
+                    .expect("bounded reason"),
+                ),
+                c::RetryNotice::OwnerFailed {
+                    class: c::HoldFailure::Permanent,
+                    count: 2,
+                    allowance: 3,
+                    reason: expected.clone(),
+                },
+            ),
+            (
+                w::RetryNotice::Failed(
+                    w::RetryNoticeFailed::new(
+                        limits,
+                        w::RetryNoticeFailedParts {
+                            class: w::FailureClass::Temporary,
+                            count: 2,
+                            allowance: 3,
+                            reason: reason.clone(),
+                        },
+                    )
+                    .expect("bounded reason"),
+                ),
+                c::RetryNotice::Failed {
+                    class: c::FailureClass::Temporary,
+                    count: 2,
+                    allowance: 3,
+                    reason: expected.clone(),
+                },
+            ),
+            (
+                w::RetryNotice::Refused(
+                    w::RetryNoticeRefused::new(limits, w::RetryNoticeRefusedParts { count: 2, reason })
+                        .expect("bounded reason"),
+                ),
+                c::RetryNotice::Refused { count: 2, reason: expected },
+            ),
+        ] {
+            let mut writer = Writer::new(skein_lib::length::usize_of(wire.measure()));
+            wire.encode(&mut writer).expect("measured room");
+            let encoded = writer.finish();
+            let decoded = w::RetryNotice::decode(limits, &mut Reader::new(&encoded)).expect("wire round trip");
+            assert_eq!(retry_notice(&decoded), Ok(expected));
+        }
+    }
 }

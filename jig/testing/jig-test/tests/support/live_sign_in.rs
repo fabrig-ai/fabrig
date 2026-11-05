@@ -638,7 +638,8 @@ mod tests {
         let c::ChipPhaseFacts { phase, details } = task.chip.details.as_mut();
         *phase = c::ChipPhase::Active(c::RunStage::BackingOff { until: skein_lib::Wall::from_nanos(17) });
         details.attempt = Some(1);
-        details.retry = Some(c::RetryNotice::OwnerFailed { class: c::HoldFailure::Run, count: 1, allowance: 3 });
+        details.retry =
+            Some(c::RetryNotice::OwnerFailed { class: c::HoldFailure::Run, count: 1, allowance: 3, reason: None });
         details.hold = None;
         details.ending = None;
         details.observation = None;
@@ -646,7 +647,7 @@ mod tests {
         assert!(failed(&task));
         assert_eq!(
             run_line(&task),
-            "phase=Active(BackingOff { until: Wall(17) }); attempt=Some(1); retry=Some(OwnerFailed { class: Run, count: 1, allowance: 3 }); work=None; hold=None; ending=none; wait=None"
+            "phase=Active(BackingOff { until: Wall(17) }); attempt=Some(1); retry=Some(OwnerFailed { class: Run, count: 1, allowance: 3, reason: None }); work=None; hold=None; ending=none; wait=None"
         );
     }
 }

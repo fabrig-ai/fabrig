@@ -71,7 +71,7 @@ pub(crate) fn active_run(value: &w::ActiveRun, limits: &Limits) -> Result<c::Act
         None => None,
     };
     let opt2 = match &value.retry() {
-        Some(item) => Some(retry_notice(item)),
+        Some(item) => Some(retry_notice(item)?),
         None => None,
     };
     let opt3 = match &value.observation() {

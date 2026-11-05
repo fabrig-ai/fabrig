@@ -254,7 +254,7 @@ pub(crate) fn chip_details_fields(
         None => None,
     };
     let opt2 = match &value.retry() {
-        Some(item) => Some(retry_notice(item)),
+        Some(item) => Some(retry_notice(item)?),
         None => None,
     };
     let opt3 = match &value.person_wait() {

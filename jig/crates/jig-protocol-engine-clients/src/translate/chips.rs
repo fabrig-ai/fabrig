@@ -17,15 +17,21 @@ pub fn class(value: t::Class) -> Result<w::HoldFailure, w::Problem> {
 }
 pub fn retry(value: &t::RetryNotice, limits: &w::Limits) -> Result<w::RetryNotice, w::Problem> {
     Ok(match value {
-        t::RetryNotice::Failed { class: value, count, allowance, .. } => {
+        t::RetryNotice::Failed { class: value, count, allowance, reason } => {
             w::RetryNotice::OwnerFailed(w::RetryNoticeOwnerFailed::new(
                 limits,
-                w::RetryNoticeOwnerFailedParts { class: class(*value)?, count: *count, allowance: *allowance },
+                w::RetryNoticeOwnerFailedParts {
+                    class: class(*value)?,
+                    count: *count,
+                    allowance: *allowance,
+                    reason: reason.clone(),
+                },
             )?)
         }
-        t::RetryNotice::Refused { count, .. } => {
-            w::RetryNotice::Refused(w::RetryNoticeRefused::new(limits, w::RetryNoticeRefusedParts { count: *count })?)
-        }
+        t::RetryNotice::Refused { count, reason } => w::RetryNotice::Refused(w::RetryNoticeRefused::new(
+            limits,
+            w::RetryNoticeRefusedParts { count: *count, reason: reason.clone() },
+        )?),
     })
 }
 pub fn hold(value: t::Hold, limits: &w::Limits) -> Result<w::HoldCategory, w::Problem> {

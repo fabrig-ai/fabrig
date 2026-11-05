@@ -35,7 +35,7 @@ pub(crate) fn chat_at(task: u64, stage: c::RunStage, work: Option<c::ChipWork>) 
             phase_since: Wall::EPOCH,
             run_since: None,
             attempt: Some(ATTEMPT),
-            retry: Some(c::RetryNotice::Refused { count: ONE_NEED }),
+            retry: Some(c::RetryNotice::Refused { count: ONE_NEED, reason: None }),
             wake: task.wake,
             person_wait: None,
             hold: None,
