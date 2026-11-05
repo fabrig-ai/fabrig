@@ -977,6 +977,7 @@ fn forge_row(
     offer: forge::Offer,
 ) -> forge::Row {
     forge::Row {
+        makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
         number,
         kind,
@@ -1001,6 +1002,7 @@ fn configured_forge_rows() -> forge::Forges {
     forge::Forges {
         rows: Box::new([
             forge::Row {
+                makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
                 number: 1,
                 kind: forge::Kind::Forgejo,
@@ -1131,6 +1133,7 @@ fn expected_forge_row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
             number,
             kind,
@@ -1490,6 +1493,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
     let bytes = family::forges(
         forge::Forges {
             rows: Box::new([forge::Row {
+                makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
                 number: 1,
                 kind: forge::Kind::GitHub,
@@ -1565,6 +1569,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
     ] {
         let value = forge::Forges {
             rows: Box::new([forge::Row {
+                makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
                 number: 1,
                 kind: forge::Kind::Forgejo,
@@ -2415,6 +2420,238 @@ fn playground_config_needs_the_welcome() {
             assert_eq!(config.provider, demo.unwrap().provider);
             assert_eq!(config.deadline, deadline);
         }
+    }
+}
+
+fn make_request(from: w::MakeFrom, into: bool) -> w::Requesting {
+    w::Requesting::new(
+        &w::CEILINGS,
+        w::RequestingParts {
+            request: w::Request::MakeRepository(
+                w::MakeRepository::new(
+                    &w::CEILINGS,
+                    w::MakeRepositoryParts {
+                        forge: 1,
+                        org: b"work".as_slice().into(),
+                        name: b"copied".as_slice().into(),
+                        from,
+                        into: if into {
+                            Some(w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: 7, home: true }).unwrap())
+                        } else {
+                            None
+                        },
+                    },
+                )
+                .unwrap(),
+            ),
+        },
+    )
+    .unwrap()
+}
+#[test]
+fn make_repository_reaches_the_root_with_its_host_and_kept_source() {
+    let forges = configured(b"https://forge.invalid:3000/git");
+    for (from, expected, into) in [
+        (w::MakeFrom::Empty, forge::MakeFrom::Empty, false),
+        (
+            w::MakeFrom::Copy(
+                w::MakeCopy::new(
+                    &w::CEILINGS,
+                    w::MakeCopyParts { address: b"source.invalid/upstream/starter.git".as_slice().into() },
+                )
+                .unwrap(),
+            ),
+            forge::MakeFrom::Copy { address: b"https://source.invalid/upstream/starter".as_slice().into() },
+            true,
+        ),
+    ] {
+        let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&make_request(from, into))),
+            &fixtures::forge_table(&forges),
+            None,
+            family::Deployment { welcome: false, owned: false },
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Application {
+            reply_to, sign_in, key, digest, scope, request, ..
+        }) = event
+        else {
+            panic!("application request")
+        };
+        assert_eq!(
+            (reply_to, sign_in, key, digest, scope),
+            (REPLY, 3, REQUEST_KEY, [7; 32], people::ApplicationScope::Project(7))
+        );
+        assert_eq!(
+            request,
+            root::Application::Forge(forge::Ask::MakeRepository {
+                forge: 1,
+                org: b"work".as_slice().into(),
+                name: b"copied".as_slice().into(),
+                from: expected,
+                into: if into {
+                    Some(forge::MakeInto { project: 7, home: true, host: b"forge.invalid:3000".as_slice().into() })
+                } else {
+                    None
+                },
+            })
+        );
+    }
+}
+#[test]
+fn make_repository_without_a_configured_forge_has_no_host() {
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&make_request(w::MakeFrom::Empty, true))),
+        &fixtures::forge_table(&[]),
+        None,
+        family::Deployment { welcome: false, owned: false },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::Application {
+        request: root::Application::Forge(forge::Ask::MakeRepository { into: Some(into), .. }),
+        ..
+    }) = event
+    else {
+        panic!("making request")
+    };
+    assert!(into.host.is_empty());
+}
+#[test]
+fn make_repository_refuses_a_source_the_parser_rejects() {
+    for address in [b"ssh://source.invalid/upstream/starter".as_slice(), b"source.invalid/too/many/segments"] {
+        let request = make_request(
+            w::MakeFrom::Copy(w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: address.into() }).unwrap()),
+            false,
+        );
+        let answer = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
+            &fixtures::forge_table(&[]),
+            None,
+            family::Deployment { welcome: false, owned: false },
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap_err();
+        let kit::Event::Application(kit::FromApplication::Undecodable { to }) = *answer else {
+            panic!("bad source is undecodable")
+        };
+        assert_eq!(to, REPLY);
+    }
+}
+#[test]
+fn make_repository_answers_encode_every_outcome() {
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    for (answer, expected) in [
+        (forge::MakeAnswer::Kept, w::Outcome::MakeKept),
+        (forge::MakeAnswer::Refused(forge::MakeRefusal::NoSuchForge), make_refused(w::MakeRefusal::NoSuchForge)),
+        (forge::MakeAnswer::Refused(forge::MakeRefusal::NotOffered), make_refused(w::MakeRefusal::NotOffered)),
+        (forge::MakeAnswer::Refused(forge::MakeRefusal::NotOwner), make_refused(w::MakeRefusal::NotOwner)),
+        (forge::MakeAnswer::Refused(forge::MakeRefusal::Invalid), make_refused(w::MakeRefusal::Invalid)),
+        (forge::MakeAnswer::Refused(forge::MakeRefusal::HomeHeld), make_refused(w::MakeRefusal::HomeHeld)),
+        (forge::MakeAnswer::Refused(forge::MakeRefusal::Full), make_refused(w::MakeRefusal::Full)),
+    ] {
+        let bytes = family::answer(Some(root::ApplicationAnswer::Make(answer)), &w::CEILINGS, &jig).unwrap();
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+    }
+}
+fn make_refused(why: w::MakeRefusal) -> w::Outcome {
+    w::Outcome::MakeRefused(w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why }).unwrap())
+}
+#[test]
+fn forge_rows_encode_the_makings_and_all_their_states() {
+    // Four live states and five steps with six failure reasons.
+    const STATES: u32 = 34;
+    let made =
+        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 23, branch: b"trunk".as_slice().into() }).unwrap();
+    let mut states = List::with_capacity(STATES);
+    for state in [
+        (forge::MakingState::Waiting, w::MakingState::Waiting),
+        (forge::MakingState::Making, w::MakingState::Making),
+        (forge::MakingState::Made { id: 23, branch: b"trunk".as_slice().into() }, w::MakingState::Made(made.clone())),
+        (forge::MakingState::Adopting { id: 23, branch: b"trunk".as_slice().into() }, w::MakingState::Adopting(made)),
+    ] {
+        states.push(state).unwrap();
+    }
+    for (step, expected_step) in [
+        (forge::MakeStep::Admin, w::MakeStep::Admin),
+        (forge::MakeStep::Org, w::MakeStep::Org),
+        (forge::MakeStep::Repository, w::MakeStep::Repository),
+        (forge::MakeStep::File, w::MakeStep::File),
+        (forge::MakeStep::Adoption, w::MakeStep::Adoption),
+    ] {
+        for (reason, expected_reason) in [
+            (forge::MakeFailure::Taken, w::MakeFailure::Taken),
+            (forge::MakeFailure::Empty, w::MakeFailure::Empty),
+            (forge::MakeFailure::TimedOut, w::MakeFailure::TimedOut),
+            (
+                forge::MakeFailure::Refused { status: 422 },
+                w::MakeFailure::Refused(w::Refused::new(&w::CEILINGS, w::RefusedParts { status: 422 }).unwrap()),
+            ),
+            (forge::MakeFailure::NotAllowed, w::MakeFailure::NotAllowed),
+            (forge::MakeFailure::Other, w::MakeFailure::Other),
+        ] {
+            states
+                .push((
+                    forge::MakingState::Failed(forge::MakingFailed {
+                        step,
+                        reason,
+                        words: b"stopped".as_slice().into(),
+                    }),
+                    w::MakingState::Failed(
+                        w::MakingFailed::new(
+                            &w::CEILINGS,
+                            w::MakingFailedParts {
+                                step: expected_step.clone(),
+                                reason: expected_reason,
+                                words: b"stopped".as_slice().into(),
+                            },
+                        )
+                        .unwrap(),
+                    ),
+                ))
+                .unwrap();
+        }
+    }
+    for (state, expected) in states.into_boxed() {
+        let mut row = forge_row(
+            1,
+            forge::Kind::Forgejo,
+            forge::Mode::Owned,
+            forge::Connection::Connecting,
+            forge::Offer::NotOffered,
+        );
+        row.makings = Box::new([forge::RepositoryMaking {
+            key: forge::MakingKey { forge: 1, org: b"work".as_slice().into(), name: b"copied".as_slice().into() },
+            from: forge::MakeFrom::Copy { address: b"https://source.invalid/upstream/starter".as_slice().into() },
+            into: Some(forge::MakeInto { project: 7, home: true, host: b"forge.invalid".as_slice().into() }),
+            asked: skein_lib::Wall::EPOCH,
+            copying: true,
+            state,
+        }]);
+        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, &w::CEILINGS).unwrap();
+        let forges = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
+        let making = forges.forges().get(0).unwrap().makings().get(0).unwrap();
+        assert_eq!((making.org(), making.name()), (b"work".as_slice(), b"copied".as_slice()));
+        assert_eq!(
+            making.from(),
+            &w::MakeFrom::Copy(
+                w::MakeCopy::new(
+                    &w::CEILINGS,
+                    w::MakeCopyParts { address: b"https://source.invalid/upstream/starter".as_slice().into() }
+                )
+                .unwrap()
+            )
+        );
+        let into = making.into().as_ref().unwrap();
+        assert_eq!((into.project(), into.home()), (7, true));
+        assert_eq!(making.state(), &expected);
     }
 }
 

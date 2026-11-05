@@ -48,6 +48,11 @@ impl Runtime {
             initial,
         }
     }
+    pub(super) fn making_limits(&self) -> skein_forge_setup::limits::Limits {
+        let mut limits = self.limits.setup.plan();
+        limits.repositories = self.limits.forge.client.repositories;
+        limits
+    }
     pub(super) fn git_program(&self, mode: domain::Mode) -> Option<Box<[u8]>> {
         match mode {
             domain::Mode::Fake => match &self.machine.fake {

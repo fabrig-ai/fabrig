@@ -22,6 +22,9 @@ pub(super) struct Forge {
 }
 impl Forge {
     pub(super) fn new(refuse_file: bool) -> Self {
+        Self::with_sources(refuse_file, Box::new([]))
+    }
+    pub(super) fn with_sources(refuse_file: bool, sources: Box<[fake::Source]>) -> Self {
         let limits = forge_fixtures::fake_limits();
         let config = fake::Config {
             hooks: None,
@@ -31,6 +34,7 @@ impl Forge {
             repositories: List::with_capacity(0),
             max_response_items: 32,
             default_paging_num: 30,
+            sources,
             faults: fake::Faults { reset: 0, drop: 0, server_error: 0 },
         };
         let mut service = fake::Service::new(config, &limits, 7).unwrap();
@@ -446,3 +450,6 @@ fn playground_create_copies_the_fake_source_beside_the_starter_and_keeps_forgejo
     );
     assert!(object.tree.get(b".forgejo/workflows/check.yml".as_slice()).is_none());
 }
+
+#[path = "setup_making.rs"]
+mod making_tests;

@@ -1028,9 +1028,9 @@ pub const PROJECT_AMEND: Tool = Tool {
 };
 
 /// Appended host position for claiming role-addressed person work.
-pub const TAKE_AT: u8 = 65;
+pub const TAKE_AT: u8 = 67;
 /// Appended host position for returning person work to its role.
-pub const HAND_BACK_AT: u8 = 66;
+pub const HAND_BACK_AT: u8 = 68;
 /// Claim a role-addressed person task before answering its contract.
 pub const TAKE: Tool = Tool {
     name: b"task take",

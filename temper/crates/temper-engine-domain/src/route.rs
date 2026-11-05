@@ -7,6 +7,7 @@ pub(crate) mod escalation;
 pub(crate) mod forge_route;
 pub(crate) mod held;
 pub(crate) mod host_route;
+mod making;
 pub(crate) mod playground;
 pub use host_route::{HostDelivery, HostRequest};
 mod goal;
@@ -361,10 +362,11 @@ pub(crate) fn route_core_requests(
             }
             core::Request::Ask { connector, ask } => asks::ask(domain, env, decision, connector, ask),
             core::Request::Held(output) => {
-                if let core::Held::PublicRead { reply, answer } = *output {
+                let Some(output) = making::held(domain, *output) else { continue };
+                if let core::Held::PublicRead { reply, answer } = output {
                     emit(decision, &env.limits, Delivery::Public { reply, answer, admitted: true });
                 } else {
-                    held::held(domain, env, decision, *output);
+                    held::held(domain, env, decision, output);
                 }
             }
             core::Request::Now(output) => now::now(domain, env, decision, *output),

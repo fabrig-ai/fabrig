@@ -45,6 +45,7 @@ pub const LIMITS: top::Limits = top::Limits {
     output: 80,
     facts: 16,
     adoptions: 2,
+    makings: 2,
     applications: 4,
     bindings: 4,
     collaborators: 8,
@@ -156,7 +157,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(28) {
+    match random.below(29) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -196,6 +197,11 @@ pub fn key(random: &mut Rng) -> top::Key {
         22 => top::Key::ForgeNumber,
         23 => top::Key::Playground,
         24 => top::Key::Tier { repository: repository(random), tier: Box::from(b"tier".as_slice()) },
+        27 => top::Key::Making(top::MakingKey {
+            forge: repository(random).forge,
+            org: random_bytes(random),
+            name: random_bytes(random),
+        }),
         25 => top::Key::Verification { repository: repository(random), commit: commit(random) },
         26 => top::Key::Setting(top::settings::SettingKey {
             kind: u32::try_from(random.below(3).checked_add(1).expect("kind")).expect("kind"),

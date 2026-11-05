@@ -54,6 +54,7 @@ impl Tokens {
             | Item::AppSlug
             | Item::AppKey
             | Item::Accepted
+            | Item::Copying
             | Item::Pasted => unreachable!("two token items"),
         }
     }

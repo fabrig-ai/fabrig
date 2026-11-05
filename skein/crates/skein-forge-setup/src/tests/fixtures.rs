@@ -101,6 +101,7 @@ pub fn limits() -> crate::limits::Limits {
         files: 1,
         file_bytes: 4096,
         deadline: Duration::from_secs(120),
+        copy_deadline: Duration::from_secs(1800),
         backoff: Duration::from_millis(100),
         backoff_max: Duration::from_secs(5),
     }
@@ -169,6 +170,7 @@ pub fn token_read(item: crate::item::Item) -> Run {
         | Item::AppSlug
         | Item::AppKey
         | Item::Accepted
+        | Item::Copying
         | Item::Pasted => panic!("token fixture"),
     }
     run
@@ -205,6 +207,7 @@ pub fn token_name(item: crate::item::Item) -> &'static [u8] {
         | Item::AppSlug
         | Item::AppKey
         | Item::Accepted
+        | Item::Copying
         | Item::Pasted => panic!("token name"),
     }
 }
@@ -224,6 +227,7 @@ pub fn create_token(item: crate::item::Item) -> skein_forge::forgejo::request::R
         | Item::AppSlug
         | Item::AppKey
         | Item::Accepted
+        | Item::Copying
         | Item::Pasted => panic!("token scopes"),
     };
     skein_forge::forgejo::request::Request::CreateToken {

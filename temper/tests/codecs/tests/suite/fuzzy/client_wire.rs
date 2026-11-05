@@ -48,8 +48,8 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
     let mut rng = Rng::new(0x7e3d_0302);
     let goldens = temper_codecs_world::goldens("crates/temper-client-protocol-wire/golden");
     for _ in 0..2_000 {
-        let request = v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: v1::Request::StartPlayground })
-            .expect("start request");
+        let request = v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: drawn_request(&mut rng) })
+            .expect("bounded request");
         requesting(&temper_client_protocol_wire::requesting(&request));
         let why = match rng.below(4) {
             0 => v1::StartFailure::Group(
@@ -66,15 +66,38 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         let record = v1::Answer::new(
             &v1::CEILINGS,
             v1::AnswerParts {
-                outcome: v1::Outcome::StartFailed(
-                    v1::StartFailed::new(&v1::CEILINGS, v1::StartFailedParts { why }).expect("failure"),
-                ),
+                outcome: match rng.below(3) {
+                    0 => v1::Outcome::StartFailed(
+                        v1::StartFailed::new(&v1::CEILINGS, v1::StartFailedParts { why }).expect("failure"),
+                    ),
+                    1 => v1::Outcome::MakeKept,
+                    _ => v1::Outcome::MakeRefused(
+                        v1::MakeRefused::new(
+                            &v1::CEILINGS,
+                            v1::MakeRefusedParts {
+                                why: match rng.below(6) {
+                                    0 => v1::MakeRefusal::NoSuchForge,
+                                    1 => v1::MakeRefusal::NotOffered,
+                                    2 => v1::MakeRefusal::NotOwner,
+                                    3 => v1::MakeRefusal::Invalid,
+                                    4 => v1::MakeRefusal::HomeHeld,
+                                    _ => v1::MakeRefusal::Full,
+                                },
+                            },
+                        )
+                        .expect("drawn fields fit the schema ceilings"),
+                    ),
+                },
             },
         )
         .expect("answer");
         let encoded = temper_client_protocol_wire::answer(&record);
         answer(&encoded);
         answer(&temper_codecs_world::mutated(&mut rng, &encoded));
+        let record = drawn_makings(&mut rng);
+        let encoded = temper_client_protocol_wire::forges(&record);
+        forges(&encoded);
+        forges(&temper_codecs_world::mutated(&mut rng, &encoded));
         let rule = drawn_rule(&mut rng);
         let mut writer = Writer::new(usize::try_from(rule.measure()).expect("measured length"));
         rule.encode(&mut writer).expect("measured room");
@@ -220,5 +243,133 @@ fn setting_answer(bytes: &[u8]) {
 fn proposal_items_answer(bytes: &[u8]) {
     if let Some(record) = temper_client_protocol_wire::decode_proposal_items_answer(bytes, &v1::CEILINGS) {
         assert_eq!(temper_client_protocol_wire::proposal_items_answer(&record).as_ref(), bytes, "ProposalItemsAnswer");
+    }
+}
+
+fn drawn_make_from(rng: &mut Rng) -> v1::MakeFrom {
+    if rng.chance(500) {
+        v1::MakeFrom::Empty
+    } else {
+        v1::MakeFrom::Copy(
+            v1::MakeCopy::new(
+                &v1::CEILINGS,
+                v1::MakeCopyParts { address: temper_codecs_world::drawn(rng, 512).into_boxed_slice() },
+            )
+            .expect("drawn fields fit the schema ceilings"),
+        )
+    }
+}
+fn drawn_make_into(rng: &mut Rng) -> Option<v1::MakeInto> {
+    if rng.chance(500) {
+        None
+    } else {
+        Some(
+            v1::MakeInto::new(
+                &v1::CEILINGS,
+                v1::MakeIntoParts {
+                    project: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
+                    home: rng.chance(500),
+                },
+            )
+            .expect("drawn fields fit the schema ceilings"),
+        )
+    }
+}
+fn drawn_making_state(rng: &mut Rng) -> v1::MakingState {
+    match rng.below(5) {
+        0 => v1::MakingState::Waiting,
+        1 => v1::MakingState::Making,
+        2 => v1::MakingState::Made(drawn_made(rng)),
+        3 => v1::MakingState::Adopting(drawn_made(rng)),
+        _ => v1::MakingState::Failed(
+            v1::MakingFailed::new(
+                &v1::CEILINGS,
+                v1::MakingFailedParts {
+                    step: match rng.below(5) {
+                        0 => v1::MakeStep::Admin,
+                        1 => v1::MakeStep::Org,
+                        2 => v1::MakeStep::Repository,
+                        3 => v1::MakeStep::File,
+                        _ => v1::MakeStep::Adoption,
+                    },
+                    reason: match rng.below(6) {
+                        0 => v1::MakeFailure::Taken,
+                        1 => v1::MakeFailure::Empty,
+                        2 => v1::MakeFailure::TimedOut,
+                        3 => v1::MakeFailure::Refused(
+                            v1::Refused::new(
+                                &v1::CEILINGS,
+                                v1::RefusedParts { status: u16::try_from(rng.below(65_536)).expect("u16 draw") },
+                            )
+                            .expect("drawn fields fit the schema ceilings"),
+                        ),
+                        4 => v1::MakeFailure::NotAllowed,
+                        _ => v1::MakeFailure::Other,
+                    },
+                    words: temper_codecs_world::drawn(rng, 256).into_boxed_slice(),
+                },
+            )
+            .expect("drawn fields fit the schema ceilings"),
+        ),
+    }
+}
+fn drawn_made(rng: &mut Rng) -> v1::MakingMade {
+    v1::MakingMade::new(
+        &v1::CEILINGS,
+        v1::MakingMadeParts { id: rng.next_u64(), branch: temper_codecs_world::drawn(rng, 1024).into_boxed_slice() },
+    )
+    .expect("drawn fields fit the schema ceilings")
+}
+fn drawn_makings(rng: &mut Rng) -> v1::Forges {
+    // All unrelated fields stay at the generated smallest row's values.
+    let mut parts = v1::ForgeRow::decode(
+        &v1::CEILINGS,
+        &mut Reader::new(include_bytes!(
+            "../../../../../crates/temper-client-protocol-wire/golden/record_forge_row_smallest.bin"
+        )),
+    )
+    .expect("drawn fields fit the schema ceilings")
+    .into_parts();
+    parts.makings = List::with_capacity(1);
+    parts
+        .makings
+        .push(
+            v1::RepositoryMaking::new(
+                &v1::CEILINGS,
+                v1::RepositoryMakingParts {
+                    org: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
+                    name: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
+                    from: drawn_make_from(rng),
+                    into: drawn_make_into(rng),
+                    state: drawn_making_state(rng),
+                },
+            )
+            .expect("drawn fields fit the schema ceilings"),
+        )
+        .expect("drawn fields fit the schema ceilings");
+    let mut forges = List::with_capacity(1);
+    forges
+        .push(v1::ForgeRow::new(&v1::CEILINGS, parts).expect("drawn fields fit the schema ceilings"))
+        .expect("drawn fields fit the schema ceilings");
+    v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges }).expect("drawn fields fit the schema ceilings")
+}
+
+fn drawn_request(rng: &mut Rng) -> v1::Request {
+    if rng.chance(500) {
+        v1::Request::StartPlayground
+    } else {
+        v1::Request::MakeRepository(
+            v1::MakeRepository::new(
+                &v1::CEILINGS,
+                v1::MakeRepositoryParts {
+                    forge: u16::try_from(rng.below(65_536)).expect("u16 draw"),
+                    org: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
+                    name: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
+                    from: drawn_make_from(rng),
+                    into: drawn_make_into(rng),
+                },
+            )
+            .expect("bounded make request"),
+        )
     }
 }

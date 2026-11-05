@@ -1151,6 +1151,35 @@ Then `temper serve`, and the printed command, once, on Forgejo's host.
 
 ## 7. The box: wiring only
 
+### 6.9 A repository made or copied
+
+- **The service runs what the connector holds**
+  (`../domain/forge.md`, 4.5), in the setup's one pull
+  (`temper-service`'s `lifecycle::advance`): on a forge connected with no
+  writing run live, the connector's oldest `Waiting` row starts, the
+  connector told so before the run's first event. A forge whose setup is
+  excluded, ended or not connected keeps its rows waiting.
+- **`Empty` runs `Create`** and **`Copy` runs `Copy`** (skein's
+  `forge-setup.md`, 4.9 and 4.10), each with the starter workflow alone
+  in `files`, on the forge's label: the record's `first.label` when it
+  has one, or else `temper-host` on an owned forge and `docker` on a
+  managed one. The plan's limits are 6.7's; `copy_deadline` is 30
+  minutes, a constant of `small`'s.
+- **`Copying`** is no credential record: the host's `Read` of it is
+  answered from the row, and its `Write` becomes the connector's event,
+  answered `Written` once that decision is kept.
+- **Its end** goes to the connector: `Done` as made, with the id and the
+  branch; `Stop` as failed, with its step, its why and what
+  `Event::Said` said. An event the root is too busy to take is held and
+  given again, since a row, unlike a view, is kept.
+- **The other writing runs wait for it:** the service starts no
+  reconcile, adoption's access or `Create` beside a run of a row, and
+  one that finds it `Busy` waits as a held `Install` does. A copy may
+  last 30 minutes, so a forge's restart and its reconcile wait as long.
+- **Adopting** (`../domain/forge.md`, 4.5) is asked by the same pull: a
+  row `Made` or `Adopting` with no act in flight, on a connected forge,
+  is given to the connector to act.
+
 ### 7.1 What it runs
 
 `temper box [DIRECTORIES] [--echo none|steps]` runs its steps, which
@@ -1690,6 +1719,12 @@ ordinary supervisor. The playground's reset ends no peer of these, so a
 person's newly connected model or issuer runs on. Peer memory lasts one launch: a restarted peer
 uses the same seed and output files, but does not recover in-memory Apps or
 other changes. Effective configuration and temper's data remain retained.
+
+**Sources to copy** (`../draft/repository-copies.md`, 6): the `fake forgejo`
+peer's document names two, and `box: copy source ADDRESS` prints each
+(configuration.md, 12.1). They serve a Forgejo elsewhere, the peer the
+walk connects as its admin: an owned Forgejo is real, and reaches no
+`.invalid` host.
 
 Forgejo here remains owned and real. The machine's part points GitHub
 at its fake (section 8), and names no forge: each is made by the walk's
@@ -2249,8 +2284,9 @@ override.
   writes no `engine.policies`, `engine.rules` or `application.landing`.
 - **Its acts:** `engine.acts` (jig's `protocol/configuration.md`,
   section 3) grants the forge connector, 1, the playground's reset's
-  acts (8.4), `{"connector": 1, "may": ["remove_project",
-  "remove_account"]}`, and no other connector any. The
+  acts (8.4) and a made repository's adoption
+  (`../domain/forge.md`, 4.5), `{"connector": 1, "may": ["remove_project",
+  "remove_account", "adopt"]}`, and no other connector any. The
   document's first owner, whom the grant needs, is its `owners`' first.
   A document without the grant still serves: `temper serve` starts on
   it, and only the reset's acts are refused, *not offered*: each is

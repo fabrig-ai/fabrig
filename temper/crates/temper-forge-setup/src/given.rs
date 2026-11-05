@@ -18,6 +18,7 @@ pub fn refusal(index: u32, why: Refused) -> Problems {
         Place::FilesLimit
         | Place::FileBytesLimit
         | Place::CreateOrg
+        | Place::CopyFrom
         | Place::CreateRepository
         | Place::Files
         | Place::FilePath(_)
@@ -26,7 +27,7 @@ pub fn refusal(index: u32, why: Refused) -> Problems {
         Place::BotLogin => entry.member(b"bot").member(b"login"),
         Place::BotEmail => entry.member(b"bot").member(b"email"),
         Place::OrgOwner => entry.member(b"mode").member(b"owned").member(b"person").member(b"login"),
-        Place::Deadline => {
+        Place::Deadline | Place::CopyDeadline => {
             what = What::Reason(b"outside its type");
             limits.member(b"setup.deadline_ms")
         }
@@ -63,12 +64,13 @@ pub fn refusal(index: u32, why: Refused) -> Problems {
     if let Some(other) = why.other {
         what = What::Against(match other {
             Place::BackoffMax => b"setup.backoff_max_ms",
-            Place::Deadline => b"setup.deadline_ms",
+            Place::Deadline | Place::CopyDeadline => b"setup.deadline_ms",
             Place::ReachableLimit | Place::Page => b"picker.page",
             Place::Repositories | Place::Repository(_) | Place::RepositoriesLimit => b"forge.client.repositories",
             Place::FilesLimit
             | Place::FileBytesLimit
             | Place::CreateOrg
+            | Place::CopyFrom
             | Place::CreateRepository
             | Place::Files
             | Place::FilePath(_)

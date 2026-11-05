@@ -35,6 +35,7 @@ struct OneShot<'a> {
     starved: Option<Starved>,
     closing: bool,
     connected: bool,
+    patience: Duration,
 }
 impl OneShot<'_> {
     fn new(exchange: Option<&mut ExchangeHost>, deadline: Time) -> OneShot<'_> {
@@ -52,6 +53,7 @@ impl OneShot<'_> {
             starved: None,
             closing: false,
             connected: false,
+            patience: Duration::from_secs(10),
         }
     }
     fn arm(&mut self, what: &'static str, patience: Duration) {
@@ -91,9 +93,9 @@ impl Host for OneShot<'_> {
                 io::Event::Connected { .. } => {
                     self.connected = true;
                     if self.real_deadline.is_some() {
-                        self.arm("the throwaway HTTP answer", Duration::from_secs(10));
+                        self.arm("the throwaway HTTP answer", self.patience);
                     } else {
-                        self.deadline = now.saturating_add(Duration::from_secs(10));
+                        self.deadline = now.saturating_add(self.patience);
                     }
                 }
                 io::Event::Stream { up, .. } => {
@@ -194,14 +196,22 @@ fn drive(mut host: OneShot<'_>, clock: &Clock) -> Result<(), Attempt> {
         None => Ok(()),
     }
 }
-pub(super) fn exchange(port: u16, exchange: &mut ExchangeHost, process: Option<u32>) -> Result<(), Attempt> {
-    let clock = Clock::new();
+fn connect(port: u16, exchange: &mut ExchangeHost, process: Option<u32>, patience: Duration) -> OneShot<'_> {
     let mut host = OneShot::new(Some(exchange), Time::ZERO);
     host.process = process;
+    host.patience = patience;
     host.arm("the throwaway HTTP connection", Duration::from_millis(100));
     host.requests
         .push(io::Request::Connect { owner: Token::new(0), addr: io::Addr::Ip(([127, 0, 0, 1], port).into()) });
-    drive(host, &clock)
+    host
+}
+pub(super) fn exchange(
+    port: u16,
+    exchange: &mut ExchangeHost,
+    process: Option<u32>,
+    patience: Duration,
+) -> Result<(), Attempt> {
+    drive(connect(port, exchange, process, patience), &Clock::new())
 }
 pub(crate) fn wait(duration: Duration) -> Result<(), Failure> {
     let clock = Clock::new();
@@ -214,3 +224,37 @@ pub(crate) fn wait(duration: Duration) -> Result<(), Failure> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod patience_tests {
+    use super::*;
+    use crate::Outgoing;
+
+    #[test]
+    fn the_answer_uses_the_callers_patience_after_the_connection() {
+        let patience = Duration::from_secs(180);
+        for real in [false, true] {
+            let mut exchange = ExchangeHost::new(3000, &Outgoing::get("/api/v1/version", None), None, 1024);
+            let clock = Clock::new();
+            let before = clock.now().now;
+            let mut host = connect(3000, &mut exchange, None, patience);
+            let connection = host.real_deadline.as_ref().expect("connection deadline").until();
+            assert!(connection >= before.saturating_add(Duration::from_millis(100)));
+            assert!(connection <= clock.now().now.saturating_add(Duration::from_millis(100)));
+            host.requests.clear();
+            if !real {
+                host.real_deadline = None;
+            }
+            host.events.push(io::Event::Connected { owner: Token::new(0) });
+            let before = clock.now().now;
+            host.iterate(Time::ZERO, Wall::EPOCH);
+            if real {
+                let answer = host.real_deadline.as_ref().expect("answer deadline").until();
+                assert!(answer >= before.saturating_add(patience));
+                assert!(answer <= clock.now().now.saturating_add(patience));
+            } else {
+                assert_eq!(host.next_policy_deadline(), Some(Time::ZERO.saturating_add(patience)));
+            }
+        }
+    }
+}

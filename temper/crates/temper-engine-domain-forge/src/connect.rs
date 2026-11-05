@@ -64,6 +64,7 @@ pub(crate) fn start(
         Ask::EndPlayground => Some(Answered::EndPlayground(crate::EndAnswer::NotOffered)),
         Ask::Connect { .. }
         | Ask::Replace { .. }
+        | Ask::MakeRepository { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::Install { .. }
@@ -102,6 +103,7 @@ pub(crate) fn start(
         Ask::Connect { forge: crate::Making::New(_), .. }
         | Ask::Connect { how: crate::How::ForgejoAdmin { .. }, .. }
         | Ask::Reachable { .. }
+        | Ask::MakeRepository { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::RemoveForge { .. }
@@ -188,6 +190,7 @@ fn resolve(
         | Ask::RemoveForge { .. }
         | Ask::StartPlayground
         | Ask::EndPlayground
+        | Ask::MakeRepository { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::Install { .. }
@@ -337,6 +340,7 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
         }
         Ask::Connect { how: crate::How::ForgejoAdmin { .. }, .. }
         | Ask::Reachable { .. }
+        | Ask::MakeRepository { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::RemoveForge { .. }

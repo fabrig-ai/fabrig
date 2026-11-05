@@ -63,7 +63,7 @@ Shape: `identity-provider`. Paths: `engine.providers[]`. An identity provider nu
 Shape: `act`. Paths: `engine.acts[]`. A connector's permitted deployment acts.
 
 - `connector`: integer, 0 to 65535; required; init writes 1. Names the configured connector granted these acts.
-- `may`: list of text, close, add_key, remove_account, adopt, make_project, remove_project; required; init writes ["remove_project","remove_account"]. Lists the deployment acts the connector may make, each at most once.
+- `may`: list of text, close, add_key, remove_account, adopt, make_project, remove_project; required; init writes ["remove_project","remove_account","adopt"]. Lists the deployment acts the connector may make, each at most once.
 
 ## engine.llm
 

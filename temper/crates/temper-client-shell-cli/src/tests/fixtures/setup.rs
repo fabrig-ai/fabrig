@@ -51,6 +51,7 @@ impl Frame {
             | f::Request::Replace(_)
             | f::Request::Connect(_)
             | f::Request::Accept(_)
+            | f::Request::MakeRepository(_)
             | f::Request::Reachable(_) => return false,
         };
         let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome }).expect("valid setup fixture");
@@ -84,6 +85,7 @@ impl Frame {
                 f::ForgeRow::new(
                     &f::CEILINGS,
                     f::ForgeRowParts {
+                        makings: skein_lib::List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number: FORGE,
                         kind: f::Kind::Forgejo,

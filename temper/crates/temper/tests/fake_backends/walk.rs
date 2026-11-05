@@ -60,7 +60,6 @@ impl Walk {
         }))
     }
 
-    #[expect(dead_code, reason = "the walk retains its no-check entry point beside run_then")]
     fn run(&self, acts: Vec<Act>) -> Seen {
         self.run_then(acts, |_, _| ())
     }
@@ -155,6 +154,7 @@ struct Seen {
     answers: Vec<Ended>,
 }
 
+mod copy;
 mod here_key;
 mod open_default;
 mod program_here;
