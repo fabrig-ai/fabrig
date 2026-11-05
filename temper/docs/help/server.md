@@ -25,7 +25,7 @@ Run a long-lived deployment on a server: the engine behind a TLS proxy with Goog
 
 ## 1. Write the engine's configuration
 
-At `CONFIG/temper.json`, keep `owned.json` but change:
+In `CONFIG/temper.json`, change these from `owned.json`:
 
 - `engine.hosts`: `{"workers": [{"name": "w1", "digest":
   "secrets/w1.digest"}], "listener": [{"socket": "127.0.0.1:8369"}]}`;
@@ -47,38 +47,43 @@ At `CONFIG/temper.json`, keep `owned.json` but change:
   "CLIENT_ID", "secret": "secrets/google-client.secret", "endpoints":
   null}, "members": [{"address": "sam@example.com", "login": "sam"}]}`.
 
-Every owner of provider 3 is a member. To add one, edit this file and restart.
+Every provider 3 owner is a member; edit this file and restart to add one.
 
-To sign your people in to Forgejo through temper too, add
+For Forgejo sign-in through temper, add
 `engine.clients.provider`: `{"key": "provider.key", "clients": [{"id":
 "forgejo", "secret": "forgejo-client.secret", "redirect_uri":
 "https://git.example.com/user/oauth2/temper/callback"}], "addresses":
 [3]}`, and in `application.sign_in`, `"forges": [{"forge": 1, "client":
-"forgejo"}]`. Before step 3, this makes the key and the client's secret
-and prints the Forgejo command to run once, after step 4:
+"forgejo"}]`. Before step 3, this creates both key and secret and prints the
+command to run once after step 4:
 
 ```
 temper forge sign-in --config CONFIG --data DATA --cache CACHE 1
 ```
 
 `engine.memory_bytes`, 1 GiB (`1073741824`) in `owned.json`, budgets
-held transcripts and turns. At or past it, due tasks wait to start runs
-until earlier runs reach a worker and their turns are saved; due tasks
-do the same after restart. People's reads, calls starting no run and
-started runs' turns never wait. It never caps process memory; a start
-refuses only `0`, as `engine.memory_bytes: past its bound`. Far above
-what is held, it rarely binds; a small budget starts runs one at a time.
-Older documents keep their figure; workers' `memory_bytes` are read
-and unused.
+held transcripts and turns, never process memory. At or past it, due tasks
+wait to start runs until earlier runs reach a worker and their turns are
+saved, also after restart. People's reads, calls starting no run and
+started runs' turns never wait. A start refuses only `0`:
+`engine.memory_bytes: past its bound`. Far above held bytes it rarely
+binds; small budgets start runs one at a time. Older documents keep their
+figure; workers' `memory_bytes` are read and unused.
 
-Expect: the file, valid JSON; nothing runs yet.
+To run more at once, raise `workers[0].slots` with the worker's `hub.slots`,
+the engine's `fleet.slots`, and `checkout.workspaces` and
+`git_component.operations`: a start names any that is short
+(`temper help configuration`). Each slot is an agent process, up to
+`agent.json`'s `declared.memory`.
 
-If not: the start in step 3 names the member it refuses.
+Expect: valid JSON; nothing runs yet.
+
+If not: step 3 names the refused member.
 
 ## 2. Keep the secrets
 
-Google's client secret, typed by you as `temper` with nothing echoed,
-never through a chat or a copied file:
+As `temper`, type Google's client secret without echo, never through
+chat or a copied file:
 
 ```
 sudo -u temper bash -c 'umask 077; mkdir -p DATA/secrets; IFS= read -rsp "Google client secret: " s; echo; printf %s "$s" > DATA/secrets/google-client.secret; unset s'
@@ -94,8 +99,8 @@ umask 077; s=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n'); printf '%s\n' "$s" 
 
 Expect: `stat -c '%U %a' FILE` prints `temper 600` for each.
 
-If not: temper refuses to start on a secret's file that another user
-may read, or that is a link: give it to `temper`, mode 0600.
+If not: temper refuses a secret readable by another user or a link:
+give it to `temper`, mode 0600.
 
 ## 3. Start Forgejo, then the engine
 
@@ -109,8 +114,8 @@ temper forge prepare --config CONFIG --data DATA --cache CACHE 1
 temper forge run --config CONFIG --data DATA --cache CACHE 1 forgejo
 ```
 
-The engine's, after Forgejo's `http://127.0.0.1:3000/api/v1/version`
-answers, since it connects a forge it keeps at its start:
+The engine connects kept forges at start; wait for Forgejo's
+`http://127.0.0.1:3000/api/v1/version` to answer:
 
 ```
 temper serve --config CONFIG --data DATA --cache CACHE
@@ -126,8 +131,8 @@ With `application.sign_in.forges` on a new store, `serve`'s stderr says
 `temper serve: forge 1: no sign-in through temper: no such forge is kept`
 until step 6 connects it.
 
-If not: a refused start names its member, file or address, or what
-reading `DATA` back refused (`temper serve: restore KIND: REASON`,
+If not: a refused start names its member, file, address, or refusal
+reading `DATA` back (`temper serve: restore KIND: REASON`,
 `temper serve: restart refused during PHASE: REASON`, the reason naming
 the store's cause and the record's family and key when it has one): keep
 `DATA` as it is and
@@ -153,15 +158,14 @@ temper.example.com {
 }
 ```
 
-Keep the `Host` header as it comes: temper sets `Secure` on its
-cookies by it. Add no retry.
+Keep the `Host` header: temper sets `Secure` on its cookies by it.
+Add no retry.
 
 Expect: `https://temper.example.com/` answers 200; a `POST` to
 `/jig/v1/sign-in/link` answers 403; `/sign-in/google` answers 303 to
 `accounts.google.com` with your redirect URI.
 
-If not: a 502 is the engine down or its listener elsewhere: read its
-unit's journal.
+If not: 502 means the engine is down or listening elsewhere; read its journal.
 
 ## 5. The workers' host
 
@@ -189,9 +193,8 @@ unit's journal.
 temper serve --config CONFIG --data DATA --cache CACHE
 ```
 
-Expect: on `worker`, the worker's stderr says `linked w1` and the
-engine's address; Forgejo's site administration lists the runner
-online.
+Expect: `worker`'s stderr says `linked w1` and the engine's address;
+Forgejo's site administration lists the runner online.
 
 If not: a limit below what the stock's settings need is refused
 before any listener opens, naming the limit, the setting and the size
@@ -199,8 +202,8 @@ it needs: `engine.limits.overrides.core.policy_bytes:
 core.policy_bytes is 100; the stock's policy 1 needs 2390 bytes; raise
 it in engine.limits.overrides`; raise that override and start again.
 
-A task held `out of tries: run failures`: its runs failed, each for the
-reason the engine's journal names,
+For a task held `out of tries: run failures`, the engine's journal names
+each run's failure,
 `temper serve: task TASK run RUN attempt ATTEMPT failed CLASS: DETAIL`:
 
 ```
@@ -209,27 +212,25 @@ journalctl -u temper -o cat | grep 'task TASK run'
 
 ## 6. Sign in, through a tunnel, and connect the forge
 
-The link names the public origin, whose route the proxy refuses: give
-it to ctl with the listener's origin in its place, on `engine`, as
-`temper`:
+The proxy refuses the link's public route: give ctl the listener's
+origin instead, on `engine` as `temper`:
 
 ```
 journalctl -u temper -o cat | grep -o 'https://temper.example.com/jig/v1/sign-in/link?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -
 ```
 
-A person's browser opens the same link through `ssh -L
+In a browser, open the same link through `ssh -L
 8367:127.0.0.1:8367 engine`.
 
-Then connect the Forgejo of step 3. Without a box temper keeps no record
-of it until this, so `forge list` is empty and `forge setup` is refused;
-on a new store it is forge 1:
+Connect step 3's Forgejo. Without a box it has no record yet:
+`forge list` is empty and `forge setup` refuses. On a new store it is forge 1:
 
 ```
 temper ctl DIR forge connect forgejo-admin DATA/forge-1/admin_token --api 127.0.0.1:3000 --git http://127.0.0.1:3000 --web https://git.example.com --key KEY
 temper ctl DIR forge list --until connected:1
 ```
 
-Keep `DATA/forge-1/admin_token`: the next redeploy's connect reads it.
+Keep `DATA/forge-1/admin_token` for the next redeploy's connect.
 
 Expect: `party 1 · sam · ` and the party's name: the first of
 `engine.owners`. `connecting`; then the wait prints the forges, forge
@@ -245,8 +246,8 @@ nothing to do. Other refusals: as temper help forgejo says in its step 2.
 
 ## 7. Redeploy from main
 
-A redeploy starts the store afresh; Forgejo, the secrets and the
-members stay. Before the stop, export each account whose source is
+A redeploy resets the store, keeping Forgejo, secrets and members.
+Before stopping, export each account whose source is
 `sign_in` and `granted` to a file the reset keeps:
 
 ```

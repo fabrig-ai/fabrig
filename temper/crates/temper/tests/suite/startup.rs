@@ -721,6 +721,30 @@ fn serve_prepares_eight_slots_and_ten_workspaces_on_the_owned_example() {
 }
 
 #[test]
+fn serve_names_what_to_raise_for_eight_slots() {
+    for (name, line) in [
+        (
+            "hub.slots",
+            "workers[0].slots: past this worker's limits.overrides.hub.slots, which must be at least its slots",
+        ),
+        ("fleet.slots", "workers[0].slots: must agree with engine.limits.overrides.fleet.slots, at least the slots"),
+        (
+            "checkout.workspaces",
+            "workers[0].slots: must agree with application.limits.overrides.checkout.workspaces, at least the slots",
+        ),
+        (
+            "git_component.operations",
+            "application.limits.overrides.git_component.operations: must agree with checkout.workspaces",
+        ),
+    ] {
+        let scratch = eight_slots(&format!("eight-slots-{name}"), Some(name));
+        let prepared = temper::prepare_in(&support::configuration::directories(scratch.path()));
+        assert_eq!(prepared.err().expect("short limit refuses"), format!("temper serve: {line}\n"), "{name}");
+        scratch.remove();
+    }
+}
+
+#[test]
 fn serve_prepares_once_on_a_bare_init() {
     let scratch = support::Scratch::startup("bare-init-prepared");
     let output = std::process::Command::new(skein_scratch::paths::binary("temper"))

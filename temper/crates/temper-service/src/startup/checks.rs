@@ -158,6 +158,12 @@ pub fn standalone(
     }
     for (index, worker) in workers.iter().enumerate() {
         let path = at(index, root.member(b"workers"));
+        if worker.slots > engine.limits.core.fleet.slots {
+            problems.push(
+                path.member(b"slots"),
+                What::Against { other: b"engine.limits.overrides.fleet.slots, at least the slots" },
+            );
+        }
         if !in_process(&worker.engine) {
             problems.push(path.member(b"engine"), What::Standalone);
         }
@@ -634,7 +640,6 @@ fn worker_payload(limits: &worker_domain::Limits, unfit: worker_domain::Unfit, p
         | Unfit::Key
         | Unfit::Accounts
         | Unfit::Workspaces
-        | Unfit::Agents
         | Unfit::Turns
         | Unfit::Calls
         | Unfit::Held
@@ -664,8 +669,9 @@ pub fn worker(limits: &worker_domain::Limits, problems: &mut Problems) {
             Unfit::Names => (own(b"checkout.name_bytes"), b"the agent's name_bytes"),
             Unfit::Key => (own(b"checkout.name_bytes"), b"a workstream's 8-byte key"),
             Unfit::Accounts => (worker_limit(b"hub.accounts"), b"the agent's accounts"),
-            Unfit::Workspaces => (worker.member(b"slots"), b"checkout.workspaces"),
-            Unfit::Agents => (worker.member(b"slots"), b"the agent's agents"),
+            Unfit::Workspaces => {
+                (worker.member(b"slots"), b"application.limits.overrides.checkout.workspaces, at least the slots")
+            }
             Unfit::Turns => (worker_limit(b"hub.turns"), b"the agent's turns"),
             Unfit::Calls => (worker_limit(b"hub.run_calls"), b"the agent's calls"),
             Unfit::Held => (worker_limit(b"hub.held"), b"the agent's messages"),

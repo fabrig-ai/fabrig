@@ -306,9 +306,7 @@ pub fn forges() -> List<temper_service::ForgeRuntime> {
 #[must_use]
 pub fn agent() -> temper_service::settings::Agent {
     let limits = agent_limits();
-    let mut host_limits =
-        smith_local_service::profile::host_limits(&agent_profile(), &limits).expect("agent host limits");
-    host_limits.agents = AGENTS;
+    let host_limits = smith_local_service::profile::host_limits(&agent_profile(), &limits).expect("agent host limits");
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,

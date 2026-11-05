@@ -72,7 +72,7 @@ pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result
     if let Some(slots) = slots
         && slots > limits.hub.slots
     {
-        problems.push(path.member(b"slots"), What::Bound);
+        problems.push(path.member(b"slots"), What::SlotsPastHub);
     }
     let mut graces = None;
     if let Some(at) = object.required(document, b"graces", &path, &mut problems) {
