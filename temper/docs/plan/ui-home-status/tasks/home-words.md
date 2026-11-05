@@ -72,3 +72,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report, with which goldens moved.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling (rulings.md, 9): Home's Changes link follows the project's Changes setting; hidden means hidden on Home too. Merge ui-settings's facts when on main; until then leave one function for it.
