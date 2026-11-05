@@ -41,3 +41,15 @@ A one-shot untracked `sed` per world over `rg -l`; manifests; `cargo metadata --
 ## Report
 
 The common note's items; the packages and file counts. A rename: no rule to break by hand.
+
+## Rebase (2026-11-05, step merge, foreman debt-24/skein-world-readers/foreman-1)
+
+preserve trunk’s forge connection seam while retaining the kit migration
+The merge conflicts in `skein/tests/forge/machine/Cargo.toml` and `skein/tests/forge/machine/src/lib.rs`.
+The branch carries forge-kit commit `88a4b1e711`; trunk carries its rebased counterpart `7c2a927c25`, preserving the seam added by `38d49979da` (“Expose forge connection state only to the machine world”).
+Resolve these two paths to trunk’s versions:
+- In `Cargo.toml`, retain `skein-forge-connection = { workspace = true, features = ["seam"] }`, together with the kit dependency and migrated dependency placement.
+- In `src/lib.rs`, retain `pub mod hand;`, `pub mod memory;`, `pub use skein_forge_connection::seam::GitHub;` and `pub use skein_forge_kit::*;`.
+Keep the task’s smith, temper and jig reader renames; do not replay the older forge-kit extraction over trunk’s landed extraction.
+Regenerate `Cargo.lock` through `cargo metadata --offline --format-version 1 >/dev/null` if the combined manifests make it stale.
+Repeat the spec’s acceptance searches and required checks after rebasing.
