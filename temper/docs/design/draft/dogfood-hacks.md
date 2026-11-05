@@ -15,7 +15,7 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 
 ### 2.1 A workspace kept between workstreams
 
-- **What:** `TEMPER_WORKSPACE_REUSE` on the worker, unset by default. A new workstream that takes an idle workspace with the same repositories keeps the clone, and fetches and checks out in place. After a worker's restart, a workspace whose directory already holds those repositories is reused too. Any value counts as set; it's read once, at the worker's start. On main (`../domain/worker.status.md`).
+- **What:** `TEMPER_WORKSPACE_REUSE` on the worker, unset by default, with `workers[0].slots` and `checkout.workspaces` raised together to the runs wanted at once. A new workstream that takes an idle workspace with the same repositories keeps the clone, and fetches and checks out in place. After a worker's restart, a workspace whose directory already holds those repositories is reused too. Any value counts as set; it's read once, at the worker's start. On main (`../domain/worker.status.md`).
 - **Why:** a checkout otherwise starts empty for each workstream (`../domain/worker.md`, section 5), so every file is new to cargo, and each crate recompiles. Kept, a new piece of work rebuilds only what changed.
 - **Cost and risk:** a run can write its `.git`. With no contained trees (`../domain/worker.md`, section 9), its hooks reach later workstreams, and the worker's own git runs them, with push credentials in reach. Acceptable for one trusted person only. Old objects also pile up in a clone.
 - **The pipeline:** a fixed set of long-lived checkouts, each claimed by one run, fetched and reset in place.

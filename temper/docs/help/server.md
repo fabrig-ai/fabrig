@@ -180,7 +180,9 @@ unit's journal.
   run fails `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
   `agent.json`'s `environment` is a list of entries,
   `[{"name": "PATH", "value": "/usr/bin:/bin"}]`, not a map
-  (temper help box).
+  (temper help box). `workers[0].slots` is 1 in the example, one run
+  at a time; to run more, raise it and the override
+  `checkout.workspaces` together (temper help limits).
 - The runner, Forgejo runner 13.2.1 under a user of its own, its
   `url` `http://127.0.0.1:3000`, its `uuid` and secret those of
   `DATA/forge-1/runner/`; its jobs in rootless podman.
