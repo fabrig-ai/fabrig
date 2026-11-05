@@ -350,6 +350,8 @@ to the next command, never a closure waiting on a reply:
 - **A press is done when the browser has taken it,** not when its
   effects show. What follows a press (a request, a page redrawn) the test
   awaits.
+  A node detached before mouse input is `Gone`. Errors from dispatching
+  mouse input are `Protocol`, since a partial press cannot safely be repeated.
 - **The fake person's press re-finds a node gone before the mouse acts.**
   It repeats the whole semantic find, including its scopes, after the
   poll interval, until the original answer deadline. Other refusals
