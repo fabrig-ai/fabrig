@@ -171,6 +171,7 @@ needs-saw-open
 needs-second-answered
 out-of-date
 playground-resetting
+rail-new-menu
 repositories
 repositories-none
 settings

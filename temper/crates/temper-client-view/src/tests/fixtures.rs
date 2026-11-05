@@ -70,8 +70,9 @@ fn english(shell: crate::words::Shell) -> crate::words::Words {
 
 pub fn tree_limits() -> skein_ui::Limits {
     skein_ui::Limits {
-        // The largest goal plan and its frame, including Changes' link and text.
-        nodes: 194,
+        // The largest goal plan and its frame, including Changes' link and text,
+        // and five nodes for the rail menu wrapper, menu and three items.
+        nodes: 199,
         depth: 32,
         text_per_node: 512,
         text_bytes: 98304,

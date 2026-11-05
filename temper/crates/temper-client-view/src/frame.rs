@@ -525,9 +525,32 @@ pub(crate) fn rail(
     b.style(crate::look::RAIL_NAV);
     entries(b, root, w, bindings, project, shown(root, project));
     b.close();
-    crate::link(b, &w.say(Word::NewChat, &[]), bindings.insert(Act::Go { address: Address::NewChat { draft: false } }));
+    b.open(Role::Slot);
     b.style(crate::look::RAIL_NEW);
+    crate::link(b, &w.say(Word::NewChat, &[]), bindings.insert(Act::Go { address: Address::NewChat { draft: false } }));
     w.text(b, Word::NewChatLink, &[]);
+    b.close();
+    b.open(Role::Menu);
+    b.name(&w.say(Word::RailNewMenu, &[]));
+    for (name, description, draft) in [
+        (Word::RailNewChat, Word::RailNewChatDescription, false),
+        (Word::RailNewGoal, Word::RailNewGoalDescription, true),
+    ] {
+        if draft && !temper_client_domain::pages::drafts_offered(root, project) {
+            continue;
+        }
+        b.open(Role::MenuItem);
+        b.name(&w.say(name, &[]));
+        b.description(&w.say(description, &[]));
+        b.bind(bindings.insert(Act::Go { address: Address::NewChat { draft } }));
+        b.close();
+    }
+    b.open(Role::MenuItem);
+    b.style(crate::look::RAIL_NEW_ALL);
+    b.name(&w.say(Word::RailNewAll, &[]));
+    b.bind(bindings.insert(Act::Go { address: Address::Settings { project } }));
+    b.close();
+    b.close();
     b.close();
     b.open(Role::Slot);
     b.style(crate::look::RAIL_FOOT);

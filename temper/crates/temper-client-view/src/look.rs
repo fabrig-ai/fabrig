@@ -640,8 +640,10 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
 pub const RAIL: Style = Style { owner: owner(), token: 175 };
 /// The rail's three page entries.
 pub const RAIL_NAV: Style = Style { owner: owner(), token: 176 };
-/// The rail's new chat link.
+/// The rail's new chat link and menu.
 pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
+/// All ways to start work in the rail menu (client/README.md, 5.3).
+pub const RAIL_NEW_ALL: Style = Style { owner: owner(), token: 437 };
 /// The rail's status, settings and person.
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
 /// The browser's phone navigation.
@@ -1110,6 +1112,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-facts",
         b"temper-home-byline",
         b"temper-chat-goal",
+        b"temper-rail-new-all",
     ],
     regions: &[b"temper-link"],
 };
