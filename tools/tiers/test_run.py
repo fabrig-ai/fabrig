@@ -495,6 +495,16 @@ class RunnerTests(unittest.TestCase):
         self.assertIn('failed step CPU wrapper: exit 19', result.stderr)
         self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'wrap', 'df', 'wrap'])
 
+    def test_verify_all_accepts_gate_budget(self):
+        path = self.root / 'tools/tiers/budgets.toml'
+        path.write_text('[gate.hearth.default]\ncpu_suite_s=30')
+        result, calls = self.invoke('--verify-all')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        commands = [call for call in calls if call['name'] == 'wrap']
+        self.assertTrue(commands)
+        self.assertTrue(all(call['args'][:3] == ['cargo', 'nextest', 'list']
+                            for call in commands))
+
     def test_verify_all_validates_budgets_before_any_command(self):
         path = self.root / 'tools/tiers/budgets.toml'
         for content in ('[unknown]\ncpu_suite_s=1', '[qa-smith]\nwall_hard_s=0',
