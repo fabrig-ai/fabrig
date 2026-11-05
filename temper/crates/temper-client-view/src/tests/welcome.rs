@@ -2596,3 +2596,45 @@ fn welcome_sheet_alerts_are_above_the_foot_in_both_shells() {
         }
     }
 }
+
+#[test]
+fn ready_copies_name_the_project_and_lead_in_both_shells() {
+    for (addresses, lead) in [
+        (
+            [b"https://github.com/acme/widget".as_slice()].as_slice(),
+            "Everything is connected. Create your first project, with acme/widget in it, and start working.",
+        ),
+        (
+            [b"https://github.com/acme/widget".as_slice(), b"https://source.invalid/team/tool".as_slice()].as_slice(),
+            "Everything is connected. Create your first project, with 2 repositories in it, and start working.",
+        ),
+    ] {
+        let mut rows = owned_adopted_rows();
+        let mut parts = rows.get(0).unwrap().clone().into_parts();
+        parts.first = None;
+        parts.repositories.clear();
+        let mut copies = skein_lib::List::with_capacity(temper_client_protocol_wire::FIRST_COPIES);
+        for address in addresses {
+            copies.push((*address).into()).unwrap();
+        }
+        parts.starts_with = w::StartsWith::Copies(
+            w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: copies }).unwrap(),
+        );
+        *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+        let root = ready_root(rows);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            node(view.tree(), Role::Paragraph, lead);
+            node(view.tree(), Role::Paragraph, "Forge Forgejo on this machine · connected as temper");
+            let field = view
+                .tree()
+                .nodes()
+                .iter()
+                .find(|node| node.role == Role::TextField && node.name.as_deref() == Some(b"Your first project"))
+                .unwrap();
+            assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"Widget");
+            let text = String::from_utf8_lossy(&f::text(view.tree())).into_owned();
+            assert!(!text.contains(" made"));
+            assert!(!text.contains("Copying"));
+        }
+    }
+}

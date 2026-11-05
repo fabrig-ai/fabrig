@@ -45,6 +45,12 @@ pub fn request(a: &forge::Adoption, limits: &w::Limits) -> Option<jig_client::Fa
     })
 }
 #[must_use]
+pub fn make_repository(request: &w::MakeRepository, limits: &w::Limits) -> Option<jig_client::Family> {
+    let record =
+        w::Requesting::new(limits, w::RequestingParts { request: w::Request::MakeRepository(request.clone()) }).ok()?;
+    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
+}
+#[must_use]
 pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limits) -> Option<forge::Answer> {
     if record.family != wire::number(wire::Owner::Forge) {
         return None;

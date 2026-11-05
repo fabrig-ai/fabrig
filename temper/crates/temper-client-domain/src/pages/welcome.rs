@@ -186,12 +186,20 @@ pub struct First {
 }
 /// The offered name (temper/docs/design/client/README.md, 3.5).
 #[must_use]
-pub fn offered(first: Option<&First>) -> Box<[u8]> {
-    let Some(first) = first else { return OFFERED_NAME.into() };
-    if first.name.is_empty() || first.name.len() > usize::try_from(NAME_BYTES).expect("name bound fits") {
+pub fn offered(first: Option<&First>, copies: Option<&forge::making::Copies>) -> Box<[u8]> {
+    let name = match first {
+        Some(first) => first.name.clone(),
+        None => {
+            let Some(copies) = copies else { return OFFERED_NAME.into() };
+            let Some(address) = copies.addresses.first() else { return OFFERED_NAME.into() };
+            let Some((_, name)) = forge::making::target(address) else { return OFFERED_NAME.into() };
+            name
+        }
+    };
+    if name.is_empty() || name.len() > usize::try_from(NAME_BYTES).expect("name bound fits") {
         return OFFERED_NAME.into();
     }
-    let mut name = first.name.clone();
+    let mut name = name;
     if let Some(byte) = name.first_mut() {
         byte.make_ascii_uppercase();
     }

@@ -403,6 +403,11 @@ fn playground_facts(root: &mut Domain) {
         Some((forge, org, name)) => Some(crate::pages::welcome::First { forge, org: org.into(), name: name.into() }),
         None => None,
     };
+    let playground = match root.forge.playground() {
+        Some(playground) => Some(playground.forge),
+        None => None,
+    };
+    root.pages.welcome_copies = forge::making::copies(root.forges(), playground);
     root.pages.welcome_decision = crate::pages::welcome::decision(root);
     root.pages.playground_provider = root.forge.playground_provider();
     crate::pages::project_changed(&mut root.pages, &root.client);

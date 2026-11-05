@@ -771,6 +771,19 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-ready-copies",
+        heading: "Ready",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Everything is connected. Create your first project, with 2 repositories in it, and start working.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · connected as temper" },
+            Part::Named { role: Role::TextField, name: "Your first project" },
+            Part::Named { role: Role::Button, name: "Create your project" },
+        ],
+    },
+    Holds {
         name: "welcome-ready-none",
         heading: "Almost ready",
         parts: &[
