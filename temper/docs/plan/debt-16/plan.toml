@@ -54,3 +54,64 @@ id = 2
 story = "skein-forge-connection asks no dialect twice and holds no credential past its connection"
 parts = ["side-out", "own-exchange", "test-layout"]
 walk = false
+
+[[part]]
+id = "now-link"
+title = "the six link outputs nest in Now::Link"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 5"
+
+[[part]]
+id = "leaves-back"
+title = "no_workspace and complete_brief go back to the roots"
+mode = "direct"
+needs = ["now-link"]
+design = "jig/docs/design/domain/root.md, 14"
+
+[[part]]
+id = "charter-parts"
+title = "hosted takes a root's own parts, and the charter leaves the hub link"
+mode = "direct"
+needs = ["leaves-back"]
+design = "jig/docs/design/domain/hosts.md, 8"
+
+[[slice]]
+id = 3
+story = "the link's outputs and hand-over say what they carry, and helpers that don't pay go"
+parts = ["now-link", "leaves-back", "charter-parts"]
+walk = false
+
+[[part]]
+id = "temper-shared"
+title = "temper's consumers use jig's shared parts"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 5"
+
+[[part]]
+id = "job-refused"
+title = "the fixed answers to a job leave the root's template"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/hosts.md, 6.9"
+
+[[part]]
+id = "ops-protocol"
+title = "ops's delegate decoding and alert words move to its protocol layer"
+mode = "direct"
+needs = []
+design = "jig/docs/design/examples.md, 2"
+
+[[part]]
+id = "d004-rewrite"
+title = "D004 says what is left, and the status files follow"
+mode = "direct"
+needs = ["temper-shared", "job-refused", "ops-protocol", "charter-parts"]
+design = "jig/docs/design/domain/root.md, 14"
+
+[[slice]]
+id = 4
+story = "D004's parts that need no decision land, and the item stays open for the test root"
+parts = ["temper-shared", "job-refused", "ops-protocol", "d004-rewrite"]
+walk = false
