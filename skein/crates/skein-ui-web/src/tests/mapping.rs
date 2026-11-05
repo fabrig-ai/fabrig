@@ -469,3 +469,30 @@ fn a_disclosures_description_follows_its_name_in_the_summary() {
         r#"<details data-node="1"><summary>3 tool calls<span id="skein-ui-description-1"> read · grep · edit</span></summary></details>"#
     );
 }
+
+#[test]
+fn a_menu_item_shows_its_description_in_a_span_of_its_own() {
+    let mut made = fixtures::made(Role::MenuItem);
+    made.attribute.name = Some(b"Chat & <b>".as_slice().into());
+    made.attribute.description = Some(b"Ask & <b>".as_slice().into());
+    assert_eq!(
+        dom::print(&mapping::element(&made, &fixtures::look(), b"/", Primary::Control, &Words::ENGLISH)),
+        concat!(
+            "<div data-node=\"1\" role=\"menuitem\" aria-label=\"Chat &amp; &lt;b&gt;\" ",
+            "aria-describedby=\"skein-ui-description-1\"><span>Chat &amp; &lt;b&gt;</span>",
+            "<span id=\"skein-ui-description-1\">Ask &amp; &lt;b&gt;</span></div>"
+        )
+    );
+}
+
+#[test]
+fn a_primary_backslash_names_the_platform_modifier() {
+    let mut made = fixtures::made(Role::Button);
+    made.attribute.shortcut = Some(Shortcut { key: b'\\', modifier: Modifier::Primary });
+    for (primary, expected) in [
+        (Primary::Control, r#"<button data-node="1" type="button" aria-keyshortcuts="Control+\"></button>"#),
+        (Primary::Meta, r#"<button data-node="1" type="button" aria-keyshortcuts="Meta+\"></button>"#),
+    ] {
+        assert_eq!(dom::print(&mapping::element(&made, &fixtures::look(), b"/", primary, &Words::ENGLISH)), expected);
+    }
+}

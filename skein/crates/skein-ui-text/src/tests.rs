@@ -267,3 +267,17 @@ fn a_markdown_table_prints_each_row_with_its_cells() {
     render(&tree, b"ops", None, &mut print);
     assert_eq!(print.text.as_slice(), include_bytes!("tests/golden/markdown-table.txt"));
 }
+
+#[test]
+fn a_menu_item_prints_its_description_on_its_own_line() {
+    let tree = fixtures::page(|b| {
+        b.open(Role::MenuItem);
+        b.name(b"Chat");
+        b.description(b"Ask a question.");
+        b.bind(fixtures::binding());
+        b.close();
+    });
+    let mut print = Print::new(&fixtures::LIMITS).unwrap();
+    render(&tree, b"ops", None, &mut print);
+    assert_eq!(print.text.as_slice(), b"== ops == \n[1] Chat\n  Ask a question.\n");
+}
