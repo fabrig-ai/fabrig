@@ -45,7 +45,7 @@ pub struct Reconcile {
     tokens: Option<tokens::Tokens>,
     orgs: Option<orgs::Orgs>,
     access: Option<walk::Walk>,
-    shared: crate::access::Shared,
+    shared: crate::forgejo::access::Shared,
     url: Option<Box<[u8]>>,
 }
 impl Reconcile {
@@ -69,7 +69,7 @@ impl Reconcile {
             tokens: None,
             orgs: orgs::Orgs::new(given),
             access: walk::Walk::new(given, url.clone()),
-            shared: crate::access::Shared { cap: None, secret: None },
+            shared: crate::forgejo::access::Shared { cap: None, secret: None },
             url,
         })
     }

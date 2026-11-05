@@ -2,7 +2,7 @@
 use super::{Reconcile, State};
 use crate::plan::{Event, Need, Stage};
 use crate::{
-    access::{Access, Fail, Move},
+    forgejo::access::{Access, Fail, Move},
     given::Given,
 };
 use alloc::boxed::Box;

@@ -26,7 +26,7 @@
   and `skein_channel::Machine` are structs, and tests alias them.
 - The forge family checks limits with `check(limits) -> Result`
   (`skein-forge/src/forgejo/limits.rs`, `skein-forge/src/github/limits.rs`,
-  `skein-forge-setup/src/limits.rs`, `skein-forge-connection/src/limits.rs`),
+  `skein-forge-setup/src/forgejo/limits.rs`, `skein-forge-connection/src/limits.rs`),
   where `skein/docs/foundation/programming-model.md`, 6.3, names the
   check `valid(limits) -> bool`, as 23 files elsewhere in skein do.
 
