@@ -315,6 +315,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn turn_caps_keep_whole_characters_and_allow_later_segments() {
+        for (blocks, cap, expected) in [
+            (vec![session::llm::Block::Text { text: "aé".as_bytes().into(), replay: None }], 2, b"a".as_slice()),
+            (vec![
+                session::llm::Block::Text { text: "aé".as_bytes().into(), replay: None },
+                session::llm::Block::Text { text: b"b".as_slice().into(), replay: None },
+            ], 2, b"ab".as_slice()),
+            (vec![session::llm::Block::ToolCall(session::llm::ToolCall {
+                id: b"call".as_slice().into(), name: b"inspect".as_slice().into(),
+                input: b"{}".as_slice().into(), call: session::llm::Decoded::Historical, replay: None,
+            })], 4, b"\nToo".as_slice()),
+        ] {
+            let mut turn = crate::fixture::turn();
+            turn.messages = Box::new([session::llm::Message {
+                role: session::llm::Role::Assistant, content: blocks.into_boxed_slice(),
+            }]);
+            assert_eq!(turn_text(&turn, cap).as_ref(), expected);
+        }
+    }
+
+    #[test]
+    fn tool_terminals_keep_their_verdict_words() {
+        for (error, expected) in [(false, b"Tool finished\n".as_slice()), (true, b"Tool failed\n".as_slice())] {
+            let result = session::llm::Returned::Text { text: Box::new([]), error, replay: None };
+            assert_eq!(tool_end(&result), expected);
+        }
+    }
+
+    #[test]
     fn a_turn_shows_the_tool_name_and_its_terminal() {
         let turn = agent::Turn {
             kind: session::record::Kind::First(Box::new(session::record::Opener {
