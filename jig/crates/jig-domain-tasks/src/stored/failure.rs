@@ -56,6 +56,7 @@ pub enum RestoreBound {
     HoldPathCapacity,
     HoldBytes,
     AccountOriginBytes,
+    PreparationReasonBytes,
     Circle,
     Dependencies,
     Holdings,
