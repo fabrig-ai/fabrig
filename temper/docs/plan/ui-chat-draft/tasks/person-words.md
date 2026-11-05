@@ -79,3 +79,13 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: every bound that moved, with its arithmetic.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/person-words/foreman-1)
+
+rebase person-words, preserve both sets of shape tests, and regenerate combined store layouts.
+The merge failed on three paths; resolve each without dropping either feature.
+- `jig/crates/jig-client/src/tests/shapes.rs`: retain `set_agreed_goal_from_asks` alongside `me_with_note_scopes`, `a_goal_keeps_its_note_scopes`, and `a_chat_keeps_its_note_scopes` from integration commits `b9af910908` and `9fe211b11b`.
+- Preserve integration’s final note-scope behavior in `shapes.rs`, including `9fe211b11b`’s removal of note-scope clearing, together with this task’s `asks` plumbing.
+- `jig/crates/jig-protocol-store/src/generated/layouts.rs`: combine main commit `9ef746a800`’s tasks fingerprint with this branch’s people fingerprint. Regenerate from the combined schemas using `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-store-codecs-world --test drift`; retain and report generated changes.
+- `jig/docs/design/client/domain/client.status.md`: remove both the `long_text` entry and the entire section-19 gap line. Integration supplies note scopes; this branch supplies `set_agreed_goal_from`. Preserve unrelated gaps.
+Run the focused `jig-client` shape tests and store drift verification, then the spec’s required checks against the rebased result. Regenerate and report any fixtures or goldens made stale by the combined code using their owning tools.
