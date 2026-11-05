@@ -2,7 +2,8 @@
 
 2026-11-05. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
 
-- **Not yet:** 8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
+- **Not yet:** 4.5: `Adopt` given a repository's path: `skein-forge-setup/src/host/boundary.rs`, `Plan::Adopt`, takes its id alone.
+  8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
   stands `unchecked` in `skein/tests/forge/conformance/facts.txt`: the
   recording ran `--migrate` without `--runner`, so no run shows Actions
   reading `.forgejo/workflows` alone, which a copy's starter workflow
