@@ -1,6 +1,6 @@
 //! The forge component and fake HTTP service, observing starts, events and request lines.
 use crate::{
-    fixtures,
+    fixtures, sockets::Sockets,
     pipe::{Cut, Pipe, RequestCounts},
 };
 use skein_fake_forge_domain::{self as fake, api as raw};
@@ -35,7 +35,7 @@ pub struct Joint {
     pub env: Env<Limits>,
     pub above: Queue<Event>,
     pub below: Queue<skein_io::Request>,
-    peers: BTreeMap<Token, Peer>,
+    peers: Sockets<Peer>,
     service: Option<Service>,
     github: Option<github::Github>,
     hook_listener: Option<Token>,
@@ -171,7 +171,7 @@ impl Joint {
             env: Env { now, wall, limits },
             above: Queue::with_capacity(128),
             below: Queue::with_capacity(128),
-            peers: BTreeMap::new(),
+            peers: Sockets::default(),
             hook_listener: None,
             hook_peers: BTreeMap::new(),
             hints: Vec::new(),
@@ -437,34 +437,13 @@ impl Joint {
             return;
         }
         match request {
-            skein_io::Request::Connect { owner, .. } => {
-                let cut =
-                    if self.rng.chance(self.cut_chance) { Cut::At(self.rng.between(0, 2048)) } else { Cut::Never };
-                let mut peer = Peer {
-                    heads: std::collections::VecDeque::new(),
-                    line_indices: Vec::new(),
-                    pipe: Pipe::new(self.rng.next_u64(), cut),
-                    server: Server::new(owner, &self.protocol_env.limits).expect("server"),
-                    above: Queue::with_capacity(64),
-                    below: Queue::with_capacity(64),
-                };
-                protocol::start(
-                    &mut peer.server,
-                    self.service.as_mut().expect("Forgejo service"),
-                    &self.protocol_env,
-                    &mut peer.above,
-                    &mut peer.below,
-                );
-                assert!(self.peers.insert(owner, peer).is_none(), "fresh connection");
-                self.up(skein_io::Event::Connecting { owner, socket: owner });
-                self.up(skein_io::Event::Connected { owner });
-            }
             skein_io::Request::Stream { stream, down } => {
                 if let Some(peer) = self.hook_peers.get_mut(&stream) {
                     peer.wire.take(down);
                 } else if let Some(peer) = self.peers.get_mut(&stream) {
                     let before = peer.pipe.request_counts().written;
-                    peer.pipe.client_down(down);
+                    self.peers.request(skein_io::Request::Stream { stream, down }, |_| unreachable!("stream"), &mut Queue::with_capacity(0));
+                    let peer = self.peers.get_mut(&stream).expect("peer");
                     let written = peer.pipe.request_counts().written.checked_sub(before).expect("monotonic writes");
                     let startup = self.forges.iter().any(|forge| {
                         matches!(
@@ -492,7 +471,7 @@ impl Joint {
                     }
                 }
             }
-            skein_io::Request::Abort { entity } | skein_io::Request::Close { entity } => self.end(entity),
+            skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => self.end(entity),
             skein_io::Request::Listen { owner, addr } => {
                 self.hook_listener = Some(owner);
                 self.up(skein_io::Event::Listening { owner, listener: LISTENER, addr });
@@ -501,12 +480,31 @@ impl Joint {
                 self.hook_waiting = false;
                 self.hook_peers.get_mut(&socket).expect("accepted hook").owner = Some(owner);
             }
-            other @ (skein_io::Request::Reject { .. }
-            | skein_io::Request::Output { .. }
-            | skein_io::Request::Spawn { .. }
-            | skein_io::Request::Signal { .. }
-            | skein_io::Request::Usage { .. }
-            | skein_io::Request::Window { .. }) => panic!("unexpected io {other:?}"),
+            request => {
+                let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { Token::new(0) };
+                let mut events = Queue::with_capacity(3);
+                self.peers.request(request, |_| {
+                let cut =
+                    if self.rng.chance(self.cut_chance) { Cut::At(self.rng.between(0, 2048)) } else { Cut::Never };
+                let mut peer = Peer {
+                    heads: std::collections::VecDeque::new(),
+                    line_indices: Vec::new(),
+                    pipe: Pipe::new(self.rng.next_u64(), cut),
+                    server: Server::new(owner, &self.protocol_env.limits).expect("server"),
+                    above: Queue::with_capacity(64),
+                    below: Queue::with_capacity(64),
+                };
+                protocol::start(
+                    &mut peer.server,
+                    self.service.as_mut().expect("Forgejo service"),
+                    &self.protocol_env,
+                    &mut peer.above,
+                    &mut peer.below,
+                );
+                    Some(peer)
+                }, &mut events);
+                while let Some(event) = events.pop() { self.up(event); }
+            }
         }
     }
     pub(crate) fn end(&mut self, owner: Token) {
@@ -523,7 +521,8 @@ impl Joint {
         if let Some(peer) = self.hook_peers.remove(&owner) {
             self.up(skein_io::Event::Closed { owner: peer.owner.expect("bound hook") });
         }
-        if let Some(mut peer) = self.peers.remove(&owner) {
+        let mut events = Queue::with_capacity(1);
+        if let Some(mut peer) = self.peers.close(owner, &mut events) {
             peer.pipe.freeze();
             let counts = peer.pipe.request_counts();
             self.closed_counts.written += counts.written;
@@ -541,7 +540,7 @@ impl Joint {
                 &mut peer.above,
                 &mut peer.below,
             );
-            self.up(skein_io::Event::Closed { owner });
+            while let Some(event) = events.pop() { self.up(event); }
         }
     }
     #[must_use]
@@ -703,4 +702,9 @@ pub fn checks(passes: u32) -> raw::Checks {
         reruns: 0,
         cue: None,
     }
+}
+
+impl crate::sockets::Peer for Peer {
+    fn take(&mut self, down: skein_lib::stream::Down) { self.pipe.client_down(down); }
+    fn answer(&mut self) -> Option<skein_lib::stream::Up> { self.pipe.client_up() }
 }
