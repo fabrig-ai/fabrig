@@ -52,10 +52,14 @@ impl Source {
         let claude = if agent.at("programs/claude_code").is_ok() {
             let name = agent.string("programs/claude_code/path")?;
             let path = crate::path(name);
-            if !path.is_absolute() || name.len() > 4096 || name.contains(&0) {
-                return Err("agent.json/programs/claude_code/path: expected a bounded absolute adapter path".into());
+            if name == temper_init::FETCHED {
+                None
+            } else {
+                if !path.is_absolute() || name.len() > 4096 || name.contains(&0) {
+                    return Err("agent.json/programs/claude_code/path: expected a bounded absolute adapter path".into());
+                }
+                Some(path.to_path_buf())
             }
-            Some(path.to_path_buf())
         } else {
             None
         };
@@ -93,7 +97,7 @@ impl Source {
                 name,
             )?;
         }
-        if claude.is_some() {
+        if agent.at("programs/claude_code").is_ok() {
             equivalent(
                 &mut agent,
                 &expected_agent,

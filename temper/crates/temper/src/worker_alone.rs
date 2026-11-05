@@ -9,7 +9,7 @@ pub(super) fn prepare(
     let mut part = service::startup::worker_part(bytes, &directories.jig())
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let agent = crate::agent::preflight_worker(&part.named)?;
-    let configuration = smith_agent_shell::config::read(crate::path(&part.named.agent))?;
+    let configuration = crate::agent::configuration(crate::path(&part.named.agent))?;
     let user = skein_shell::effective_user();
     let files = crate::read_files(core::mem::replace(&mut part.files, Box::new([])), user)?;
     let root_path = crate::path(&part.named.root);
@@ -25,6 +25,13 @@ pub(super) fn prepare(
     let mut service = service::startup::worker_alone(part, &files, &agent, runtime, seed)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if let Some(program) = agent.programs.first() {
+        if crate::agent::launcher(crate::path(&program.directory)).as_deref() == Some(crate::path(&program.path)) {
+            crate::claude_code::place(
+                crate::path(&program.path).parent().expect("launcher parent"),
+                crate::path(&directories.cache),
+            )
+            .map_err(|why| format!("programs.claude_code: {why}"))?;
+        }
         let resources =
             service::program_sources::configured(program, configuration.service.environment.command_entries())
                 .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
