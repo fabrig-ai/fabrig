@@ -140,8 +140,8 @@ impl ExecFixture {
 fn an_exec_arm_refused_by_check_is_a_setup_refusal() {
     let fixture = ExecFixture::new("exec-check-refused", 2);
     let refusal = smith_bench::agent::smith::prepare(&fixture.context()).expect_err("check refuses");
-    assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration);
-    assert!(refusal.reason.contains("Code(2)"));
+    assert_eq!(refusal.kind, smith_bench::FaultKind::Setup(smith_bench::isolate::SetupStep::Configuration));
+    assert!(refusal.detail.contains("Code(2)"));
     assert!(!fixture.private.root.join("smith/tokens").exists());
 }
 

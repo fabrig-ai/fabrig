@@ -74,6 +74,9 @@ pub(crate) fn world_document() -> serde_json::Value {
             documents::chat_policy(value);
         }
     });
+    // The native client admits eight exchanges beside its event stream.
+    value["engine"]["limits"]["overrides"]["clients_http.calls"] = 9.into();
+    value["engine"]["limits"]["overrides"]["clients.exchanges"] = 9.into();
     crate::lower::configure(&mut value);
     crate::lower::github::configure(&mut value);
     crate::m15::configure(&mut value);

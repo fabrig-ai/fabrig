@@ -1,5 +1,6 @@
 #![expect(clippy::disallowed_macros, reason = "unit tests read the committed settings golden fixtures")]
 //! Settings translation is reversible for every record and populated whole values.
+use super::encoders as e;
 use super::*;
 use crate::translate::settings as t;
 use jig_client_test_records::settings as values;
@@ -160,85 +161,85 @@ fn every_new_record_translates_in_both_directions() {
             include_bytes!("../../../jig-client-protocol-wire/golden/record_outcome_settings_changed_smallest.bin");
         let wire = w::OutcomeSettingsChanged::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_outcome_settings_changed(&wire).unwrap();
-        assert_eq!(t::wire_outcome_settings_changed(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_outcome_settings_changed(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_refusal_stale_smallest.bin");
         let wire = w::RefusalStale::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_refusal_stale(&wire).unwrap();
-        assert_eq!(t::wire_refusal_stale(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_refusal_stale(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_refusal_full_smallest.bin");
         let wire = w::RefusalFull::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_refusal_full(&wire).unwrap();
-        assert_eq!(t::wire_refusal_full(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_refusal_full(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_fault_shape_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(t::wire_setting_fault(&client), Ok(wire));
+        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_fault_count_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(t::wire_setting_fault(&client), Ok(wire));
+        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_fault_reference_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(t::wire_setting_fault(&client), Ok(wire));
+        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_fault_rules_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(t::wire_setting_fault(&client), Ok(wire));
+        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_fault_budget_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(t::wire_setting_fault(&client), Ok(wire));
+        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_fault_grace_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(t::wire_setting_fault(&client), Ok(wire));
+        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_fault_owner_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(t::wire_setting_fault(&client), Ok(wire));
+        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_malformed_settings_smallest.bin");
         let wire = w::MalformedSettings::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_malformed_settings(&wire).unwrap();
-        assert_eq!(t::wire_malformed_settings(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_malformed_settings(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_read_setting_smallest.bin");
         let wire = w::ReadSetting::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_read_setting(&wire).unwrap();
+        let client = e::restore_read_setting(&wire).unwrap();
         assert_eq!(t::wire_read_setting(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_read_revision_smallest.bin");
         let wire = w::ReadRevision::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_read_revision(&wire).unwrap();
+        let client = e::restore_read_revision(&wire).unwrap();
         assert_eq!(t::wire_read_revision(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_read_revisions_smallest.bin");
         let wire = w::ReadRevisions::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_read_revisions(&wire).unwrap();
+        let client = e::restore_read_revisions(&wire).unwrap();
         assert_eq!(t::wire_read_revisions(&client, limits.wire()), Ok(wire));
     }
     {
@@ -246,189 +247,189 @@ fn every_new_record_translates_in_both_directions() {
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_follows_default_smallest.bin");
         let wire = w::SettingFollows::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_follows(&wire).unwrap();
-        assert_eq!(t::wire_setting_follows(&client), Ok(wire));
+        assert_eq!(e::wire_setting_follows(&client), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_follows_change_smallest.bin");
         let wire = w::SettingFollows::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_follows(&wire).unwrap();
-        assert_eq!(t::wire_setting_follows(&client), Ok(wire));
+        assert_eq!(e::wire_setting_follows(&client), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_setting_line_smallest.bin");
         let wire = w::SettingLine::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_line(&wire, &limits).unwrap();
-        assert_eq!(t::wire_setting_line(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_setting_line(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_revision_party_smallest.bin");
         let wire = w::RevisionParty::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_party(&wire).unwrap();
-        assert_eq!(t::wire_revision_party(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_party(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_decider_first_start_smallest.bin");
         let wire = w::RevisionDecider::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_decider(&wire).unwrap();
-        assert_eq!(t::wire_revision_decider(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_decider(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_decider_release_smallest.bin");
         let wire = w::RevisionDecider::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_decider(&wire).unwrap();
-        assert_eq!(t::wire_revision_decider(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_decider(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_decider_party_smallest.bin");
         let wire = w::RevisionDecider::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_decider(&wire).unwrap();
-        assert_eq!(t::wire_revision_decider(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_decider(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_revision_head_smallest.bin");
         let wire = w::RevisionHead::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_head(&wire).unwrap();
-        assert_eq!(t::wire_revision_head(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_head(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_held_revision_smallest.bin");
         let wire = w::HeldRevision::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_held_revision(&wire).unwrap();
-        assert_eq!(t::wire_held_revision(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_held_revision(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_settings_proposal_smallest.bin");
         let wire = w::SettingsProposal::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_settings_proposal(&wire).unwrap();
-        assert_eq!(t::wire_settings_proposal(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_settings_proposal(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_settings_document_smallest.bin");
         let wire = w::SettingsDocument::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_settings_document(&wire, &limits).unwrap();
-        assert_eq!(t::wire_settings_document(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_settings_document(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_setting_document_smallest.bin");
         let wire = w::SettingDocument::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_document(&wire, &limits).unwrap();
-        assert_eq!(t::wire_setting_document(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_setting_document(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_size_smallest.bin");
         let wire = w::Size::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_size(&wire).unwrap();
-        assert_eq!(t::wire_size(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_size(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_edit_set_smallest.bin");
         let wire = w::RevisionEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_edit(&wire, &limits).unwrap();
-        assert_eq!(t::wire_revision_edit(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_edit(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_edit_too_large_smallest.bin");
         let wire = w::RevisionEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_edit(&wire, &limits).unwrap();
-        assert_eq!(t::wire_revision_edit(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_edit(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_edit_removed_smallest.bin");
         let wire = w::RevisionEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_edit(&wire, &limits).unwrap();
-        assert_eq!(t::wire_revision_edit(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_edit(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_edit_reset_smallest.bin");
         let wire = w::RevisionEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_edit(&wire, &limits).unwrap();
-        assert_eq!(t::wire_revision_edit(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_edit(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_revision_item_smallest.bin");
         let wire = w::RevisionItem::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_item(&wire, &limits).unwrap();
-        assert_eq!(t::wire_revision_item(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_item(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_revision_document_smallest.bin");
         let wire = w::RevisionDocument::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_document(&wire, &limits).unwrap();
-        assert_eq!(t::wire_revision_document(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_document(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_revision_forgotten_smallest.bin");
         let wire = w::RevisionForgotten::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_forgotten(&wire).unwrap();
-        assert_eq!(t::wire_revision_forgotten(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_forgotten(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_answer_revision_smallest.bin");
         let wire = w::RevisionAnswer::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_answer(&wire, &limits).unwrap();
-        assert_eq!(t::wire_revision_answer(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_answer(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_answer_forgotten_smallest.bin");
         let wire = w::RevisionAnswer::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_answer(&wire, &limits).unwrap();
-        assert_eq!(t::wire_revision_answer(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_answer(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_answer_unknown_smallest.bin");
         let wire = w::RevisionAnswer::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_answer(&wire, &limits).unwrap();
-        assert_eq!(t::wire_revision_answer(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_answer(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_read_revision_answer_smallest.bin");
         let wire = w::ReadRevisionAnswer::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_read_revision_answer(&wire, &limits).unwrap();
-        assert_eq!(t::wire_read_revision_answer(&client, limits.wire()), Ok(wire));
+        let client = e::restore_read_revision_answer(&wire, &limits).unwrap();
+        assert_eq!(e::wire_read_revision_answer(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_item_edit_set_smallest.bin");
         let wire = w::RevisionItemEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_item_edit(&wire).unwrap();
-        assert_eq!(t::wire_revision_item_edit(&client), Ok(wire));
+        assert_eq!(e::wire_revision_item_edit(&client), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_item_edit_removed_smallest.bin");
         let wire = w::RevisionItemEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_item_edit(&wire).unwrap();
-        assert_eq!(t::wire_revision_item_edit(&client), Ok(wire));
+        assert_eq!(e::wire_revision_item_edit(&client), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_revision_item_edit_reset_smallest.bin");
         let wire = w::RevisionItemEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_item_edit(&wire).unwrap();
-        assert_eq!(t::wire_revision_item_edit(&client), Ok(wire));
+        assert_eq!(e::wire_revision_item_edit(&client), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_revision_item_head_smallest.bin");
         let wire = w::RevisionItemHead::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_item_head(&wire).unwrap();
-        assert_eq!(t::wire_revision_item_head(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_item_head(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_revision_row_smallest.bin");
         let wire = w::RevisionRow::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_row(&wire).unwrap();
-        assert_eq!(t::wire_revision_row(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revision_row(&client, limits.wire()), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_revisions_page_smallest.bin");
         let wire = w::RevisionsPage::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revisions_page(&wire).unwrap();
-        assert_eq!(t::wire_revisions_page(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_revisions_page(&client, limits.wire()), Ok(wire));
     }
 }
 
@@ -443,13 +444,13 @@ fn whole_values_changes_and_history_keep_every_nonempty_field() {
     let wire = t::wire_change_settings(&change, limits.wire()).unwrap();
     assert_eq!(t::restore_change_settings(&wire, &limits), Ok(change.clone()));
     let document = values::settings_document();
-    let wire = t::wire_settings_document(&document, limits.wire()).unwrap();
+    let wire = e::wire_settings_document(&document, limits.wire()).unwrap();
     assert_eq!(t::restore_settings_document(&wire, &limits), Ok(document));
     let revision = values::settings_revision();
-    let wire = t::wire_revision_document(&revision, limits.wire()).unwrap();
+    let wire = e::wire_revision_document(&revision, limits.wire()).unwrap();
     assert_eq!(t::restore_revision_document(&wire, &limits), Ok(revision));
     let page = values::settings_page();
-    let wire = t::wire_revisions_page(&page, limits.wire()).unwrap();
+    let wire = e::wire_revisions_page(&page, limits.wire()).unwrap();
     assert_eq!(t::restore_revisions_page(&wire), Ok(page));
     for running in [c::Running::Moves, c::Running::Stays] {
         for edit in [c::SettingEdit::Removed, c::SettingEdit::Reset] {
@@ -561,7 +562,7 @@ fn settings_inventory_round_trips_beyond_a_page_and_at_its_ceiling() {
     let limits = fixtures::limits();
     for count in [STANDARD_SETTINGS, MAX_SETTINGS] {
         let document = settings_inventory(count);
-        let wire = t::wire_settings_document(&document, limits.wire()).unwrap();
+        let wire = e::wire_settings_document(&document, limits.wire()).unwrap();
         let mut encoded = Writer::new(usize::try_from(wire.measure()).unwrap());
         wire.encode(&mut encoded).unwrap();
         let decoded = w::SettingsDocument::decode(limits.wire(), &mut Reader::new(&encoded.finish())).unwrap();
@@ -573,10 +574,10 @@ fn settings_inventory_round_trips_beyond_a_page_and_at_its_ceiling() {
 fn settings_inventory_refuses_one_line_past_the_wire_and_receiving_limits() {
     let limits = fixtures::limits();
     let problem = w::Problem { path: w::Path::SettingsDocumentSettings, reason: skein_codec::Reason::Bound };
-    assert_eq!(t::wire_settings_document(&settings_inventory(MAX_SETTINGS + 1), limits.wire()), Err(problem));
+    assert_eq!(e::wire_settings_document(&settings_inventory(MAX_SETTINGS + 1), limits.wire()), Err(problem));
     let mut narrow = *limits.wire();
     narrow.settings_document_settings = STANDARD_SETTINGS - 1;
-    let wire = t::wire_settings_document(&settings_inventory(STANDARD_SETTINGS), limits.wire()).unwrap();
+    let wire = e::wire_settings_document(&settings_inventory(STANDARD_SETTINGS), limits.wire()).unwrap();
     let mut encoded = Writer::new(usize::try_from(wire.measure()).unwrap());
     wire.encode(&mut encoded).unwrap();
     assert_eq!(w::SettingsDocument::decode(&narrow, &mut Reader::new(&encoded.finish())), Err(problem));
@@ -614,7 +615,7 @@ fn proposed_setting_read_round_trips_its_exact_proposal_key() {
         proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
     };
     let wire = t::wire_read_setting(&client, limits.wire()).unwrap();
-    assert_eq!(t::restore_read_setting(&wire), Ok(client));
+    assert_eq!(e::restore_read_setting(&wire), Ok(client));
 }
 
 #[test]
@@ -683,7 +684,7 @@ fn application_items_and_states_round_trip_without_treating_bytes_as_text() {
             last: Some(4),
             application: Some(state),
         };
-        let wire = t::wire_setting_line(&source, limits.wire()).unwrap();
+        let wire = e::wire_setting_line(&source, limits.wire()).unwrap();
         assert_eq!(t::restore_setting_line(&wire, &limits), Ok(source));
     }
 }
