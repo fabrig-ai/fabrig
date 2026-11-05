@@ -140,7 +140,7 @@ fn up_inner(
 ) {
     if !connection::up(
         &mut server.connection,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.http },
+        &env.with(env.limits.http),
         event,
         below,
     ) {
@@ -265,7 +265,7 @@ fn resume_inner(
             }
         } else if !connection::request(
             &mut server.connection,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.http },
+            &env.with(env.limits.http),
             below,
         ) {
             break;
@@ -286,7 +286,7 @@ pub fn close(
     server.admission = None;
     server.call = None;
     server.body.clear();
-    connection::close(&mut server.connection, &Env { now: env.now, wall: env.wall, limits: env.limits.http }, below);
+    connection::close(&mut server.connection, &env.with(env.limits.http), below);
     above.push(Event::Close);
 }
 pub fn closed(
@@ -665,7 +665,7 @@ mod git_tests {
         server.pending =
             Some(Pending { rate: None, kind: PendingKind::Git(crate::git::Pending { name: git::Name::Push, minted }) });
         let env = Env { now: h.env.now, wall: h.now, limits: h.limits };
-        let http_env = Env { now: env.now, wall: env.wall, limits: env.limits.http };
+        let http_env = env.with(env.limits.http);
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
         http::down(

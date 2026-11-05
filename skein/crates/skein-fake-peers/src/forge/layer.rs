@@ -150,12 +150,12 @@ macro_rules! entry {
             match (server, service, &env.limits) {
                 (Server::Forgejo(server), Service::Forgejo(service), Limits::Forgejo(limits)) => {
                     let mut events=Queue::uncapped();
-                    forgejo::$forgejo(server, service, $($domain,)? &Env { now: env.now, wall: env.wall, limits: *limits }, $($arg,)* &mut events, below);
+                    forgejo::$forgejo(server, service, $($domain,)? &env.with(*limits), $($arg,)* &mut events, below);
                     translate_forgejo(&mut events,above);
                 },
                 (Server::Github(server), Service::Github(service), Limits::Github(limits)) => {
                     let mut events = Queue::uncapped();
-                    github::$github(server, service, $($domain,)? &Env { now: env.now, wall: env.wall, limits: *limits }, $($arg,)* &mut events, below);
+                    github::$github(server, service, $($domain,)? &env.with(*limits), $($arg,)* &mut events, below);
                     translate(&mut events, above);
                 }
                 (Server::Forgejo(_), Service::Forgejo(_) | Service::Github(_), Limits::Github(_))
@@ -186,7 +186,7 @@ pub(super) fn down(
             forgejo::down(
                 server,
                 service,
-                &Env { now: env.now, wall: env.wall, limits: *limits },
+                &env.with(*limits),
                 reply,
                 &mut events,
                 below,
@@ -198,7 +198,7 @@ pub(super) fn down(
             github::down(
                 server,
                 service,
-                &Env { now: env.now, wall: env.wall, limits: *limits },
+                &env.with(*limits),
                 reply,
                 domain,
                 &mut events,
@@ -248,7 +248,7 @@ pub(super) fn admitted(
     github::server::admitted(
         server,
         service,
-        &Env { now: env.now, wall: env.wall, limits },
+        &env.with(limits),
         result,
         &mut events,
         below,
