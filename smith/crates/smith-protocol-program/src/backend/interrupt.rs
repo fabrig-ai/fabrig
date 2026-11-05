@@ -3,7 +3,7 @@
 //! A result may precede the acknowledgement; neither consumes the other's data.
 //! `prepare`, `offer`, `send` and `acknowledge` own the wire transitions.
 
-use crate::backend::Below;
+use crate::backend::{Below, Given};
 use alloc::boxed::Box;
 use core::mem;
 use skein_io as io;
@@ -107,12 +107,14 @@ impl Interrupt {
         follow(self, below);
     }
 
-    pub fn send(&mut self, pipe: Token, below: &mut Queue<Below>) {
+    pub fn send(&mut self, pipe: Token, below: &mut Queue<Below>, given: &mut Option<Queue<Given>>) {
         let state = mem::replace(&mut self.state, State::Idle { sequence: 0 });
         self.state = match state {
-            State::Prepared { sequence, line } | State::Offered { sequence, line } => sent(sequence, line, pipe, below),
+            State::Prepared { sequence, line } | State::Offered { sequence, line } => {
+                sent(sequence, line, pipe, below, given)
+            }
             State::PreparedAcknowledged { sequence, line } | State::OfferedAcknowledged { sequence, line } => {
-                send(line, pipe, below);
+                send(line, pipe, below, given);
                 State::Idle { sequence }
             }
             state @ (State::Idle { .. } | State::Sent { .. }) => state,
@@ -156,12 +158,21 @@ fn prepared(sequence: u64, line: Box<[u8]>) -> State {
     State::Prepared { sequence, line }
 }
 
-fn sent(sequence: u64, line: Box<[u8]>, pipe: Token, below: &mut Queue<Below>) -> State {
-    send(line, pipe, below);
+fn sent(
+    sequence: u64,
+    line: Box<[u8]>,
+    pipe: Token,
+    below: &mut Queue<Below>,
+    given: &mut Option<Queue<Given>>,
+) -> State {
+    send(line, pipe, below, given);
     State::Sent { sequence }
 }
 
-fn send(bytes: Box<[u8]>, pipe: Token, below: &mut Queue<Below>) {
+fn send(bytes: Box<[u8]>, pipe: Token, below: &mut Queue<Below>, given: &mut Option<Queue<Given>>) {
+    if let Some(given) = given {
+        given.push(Given::Input(bytes.clone()));
+    }
     below.push(Below::Io(io::Request::Output {
         stream: pipe,
         down: stream::OutputDown::Send { right: INTERRUPT_RIGHT, bytes },
