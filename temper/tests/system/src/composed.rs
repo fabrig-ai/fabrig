@@ -37,6 +37,7 @@ mod agreement;
 #[cfg(test)]
 mod chat;
 mod link;
+mod long_chat;
 mod process;
 mod review;
 
@@ -651,6 +652,19 @@ impl World {
                         say(project, task, words, release)
                     }
                     parties::Ask::Stop { task: parties::Task::Number(task) } => people::Ask::Stop { project, task },
+                    parties::Ask::Decision { proposer: parties::Proposer::Task(task), proposal, accept } => {
+                        people::Ask::DecideProposal {
+                            project: people::DEPLOYMENT,
+                            proposer: people::Proposer::Task(task),
+                            proposal,
+                            decision: if accept {
+                                people::ProposalDecision::Accept
+                            } else {
+                                people::ProposalDecision::Reject { reason: Box::default() }
+                            },
+                            running: Some(people::Running::Stays),
+                        }
+                    }
                     other @ (parties::Ask::Close { .. }
                     | parties::Ask::Cancel { .. }
                     | parties::Ask::SeeResults { .. }
@@ -697,12 +711,12 @@ impl World {
                 self.store.submit(number, writes, delay);
             }
             engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
-                let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                let (rows, next, texts) = self.store.page_with_texts(&range, after.as_ref(), most);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
                     owner,
                     rows,
                     next,
-                    texts: None,
+                    texts,
                 }));
             }
             engine::Request::Forge { call, repository, op } => self.forge(call, repository, &op),
@@ -778,7 +792,21 @@ impl World {
                 engine::HostDelivery::Render { to, answer, .. } => {
                     engine::WorkerInput::RenderedHostCall { to, answer: link::render(&answer) }
                 }
-                other @ (engine::HostDelivery::Settings { .. } | engine::HostDelivery::Answer { .. }) => {
+                engine::HostDelivery::Settings { to, answer, application, from, requested } => {
+                    let (body, error) = temper_engine_smith::settings_answer(
+                        &answer,
+                        from,
+                        requested,
+                        self.root.models(),
+                        application.as_ref(),
+                    )
+                    .into_parts();
+                    engine::WorkerInput::RenderedHostCall {
+                        to,
+                        answer: jig_domain_core::SettledAnswer::Host { body, error },
+                    }
+                }
+                other @ engine::HostDelivery::Answer { .. } => {
                     panic!("unscripted delivery answer: {other:?}")
                 }
             },
@@ -952,6 +980,26 @@ impl World {
             }
             people::Reply::Outcome(people::Outcome::Said { task, message }) => parties::Reply::Said { task, message },
             people::Reply::Outcome(people::Outcome::Stopped { task }) => parties::Reply::Changed { task },
+            people::Reply::Outcome(people::Outcome::ProposalDecided {
+                proposer: people::Proposer::Task(task),
+                proposal,
+                by,
+                at,
+                choice,
+                ..
+            }) => parties::Reply::ProposalDecided {
+                proposer: parties::Proposer::Task(task),
+                proposal,
+                by,
+                at,
+                choice: match choice {
+                    people::ProposalChoice::Accepted => parties::Choice::Accepted,
+                    people::ProposalChoice::Rejected => parties::Choice::Rejected,
+                    people::ProposalChoice::Withdrawn => parties::Choice::Withdrawn,
+                    people::ProposalChoice::Passed => parties::Choice::Passed,
+                    people::ProposalChoice::Stale => parties::Choice::Stale,
+                },
+            },
             other @ (people::Reply::Outcome(_)
             | people::Reply::SignedOut
             | people::Reply::Again(_)
@@ -984,16 +1032,20 @@ impl World {
         preparation: Option<worker::wire::Preparation>,
     ) {
         self.observed.answers += 1;
-        let (turns, spent) = self.process.answered.expect("Smith ended before the worker answered");
+        let (turns, spent) = self.process.answered.unwrap_or((0, 0));
         assert_eq!((answer.turns, answer.spent), (turns, spent));
-        match (&answer.ending, self.agent().answer()) {
-            (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
-                let decoded = smith_protocol_channel::decode_declared(outcome, &smith_charter::CEILINGS);
-                assert_eq!(decoded.as_ref(), Ok(declared), "the answer carries smith's own result");
+        if let host::Ending::Refused(_) = &answer.ending {
+            assert!(self.process.prepared(), "refusal precedes a process");
+        } else {
+            match (&answer.ending, self.agent().answer()) {
+                (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
+                    let decoded = smith_protocol_channel::decode_declared(outcome, &smith_charter::CEILINGS);
+                    assert_eq!(decoded.as_ref(), Ok(declared), "the answer carries smith's own result");
+                }
+                (host::Ending::Parked { .. }, run::Answer::Parked { .. })
+                | (host::Ending::Failed { .. }, run::Answer::Failed { .. }) => {}
+                (ending, settled) => panic!("the worker's answer {ending:?} follows smith's {settled:?}"),
             }
-            (host::Ending::Parked { .. }, run::Answer::Parked { .. })
-            | (host::Ending::Failed { .. }, run::Answer::Failed { .. }) => {}
-            (ending, settled) => panic!("the worker's answer {ending:?} follows smith's {settled:?}"),
         }
         if self.assignment().workspace.repositories.iter().all(|repository| repository.push.is_none()) {
             assert!(work.landed.is_empty(), "an inspecting run lands nothing");
