@@ -114,6 +114,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
         let record = engine.forge_records.pending.pop().expect("kept forge awaiting durable wires");
         crate::forges::record(engine, record);
     }
+    let mut finished = false;
     match engine.forge_records.phase {
         Phase::Load { after } => {
             if !engine.store.opened {
@@ -136,18 +137,22 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             }
         }
         Phase::Connect { index } => {
-            let Some(forge) = engine.workers.forges.nth(index) else {
+            if let Some(forge) = engine.workers.forges.nth(index) {
+                if engine.notes.room() == 0 || engine.events.room() < engine.forge_records.bounds.installations {
+                    return;
+                }
+                let number = forge.number;
+                connect(engine, number);
+                engine.forge_records.phase = Phase::Connect { index: index.checked_add(1).expect("configured forges") };
+            } else {
                 engine.forge_records.phase = Phase::Done;
-                return;
-            };
-            if engine.notes.room() == 0 || engine.events.room() < engine.forge_records.bounds.installations {
-                return;
+                finished = true;
             }
-            let number = forge.number;
-            connect(engine, number);
-            engine.forge_records.phase = Phase::Connect { index: index.checked_add(1).expect("configured forges") };
         }
         Phase::Done => {}
+    }
+    if finished || engine.forge_records.done() && engine.clients.forge_sign_in.waiting() {
+        crate::clients::forge_sign_in::refresh(engine);
     }
 }
 

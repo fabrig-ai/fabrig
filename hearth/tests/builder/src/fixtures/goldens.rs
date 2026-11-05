@@ -60,7 +60,7 @@ pub fn golden_repository(name: &str) -> Repository {
 /// A production-only hostname edit, leaving the shared carbon base intact.
 pub const CARBON_PRODUCTION_EDIT: File = File {
     path: "hosts/carbon/carbon-prod.json",
-    body: br#"{"placement":{"kind":"metal","firmware":"efi","hardware":"serverhino"},"core":{"hostname":"carbon-production"}}"#,
+    body: br#"{"placement":{"kind":"metal","firmware":"efi","hardware":"provider-a"},"core":{"hostname":"carbon-production"}}"#,
     mode: 0o644,
 };
 

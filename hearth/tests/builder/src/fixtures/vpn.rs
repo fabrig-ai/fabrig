@@ -4,17 +4,17 @@ pub const VPN: &[File] = &[
     File { path: "tasks/vpn/task.json", mode: 0o644, body: br#"{"settings":{"address":{"type":"string","doc":"Address."},"endpoint":{"type":"string","optional":true,"doc":"Endpoint."},"mtu":{"type":"int","default":1420,"doc":"MTU."}},"reads":{"vpn":{"exports":true}},"exports":{"address":{"type":"string","value":"{{ settings.address }}","doc":"Address."},"endpoint":{"type":"string","optional":true,"value":"{{ settings.endpoint }}","doc":"Endpoint."}}}"# },
     File { path: "tasks/vpn/tree/etc/vpn/peers.j2", mode: 0o644, body: b"{% for name, peer in exports.vpn | items %}{% if name != target.name %}{{ name }}={{ peer.address }}{% if peer.endpoint is defined %}@{{ peer.endpoint }}{% endif %};{% endif %}{% endfor +%}\n" },
     File { path: "tasks/vpn/tree/etc/vpn/mtu.j2", mode: 0o644, body: b"{{ settings.mtu }}\n" },
-    File { path: "hosts/ion/ion.json", mode: 0o644, body: br#"{"vpn":{"address":"10.0.0.1"}}"# },
-    File { path: "hosts/ion/ion-prod.json", mode: 0o644, body: br#"{"placement": {"kind": "vm", "firmware": "bios", "hardware": "ionos"}, "vpn": {"endpoint": "203.0.113.157"}}"# },
-    File { path: "hosts/ion/ion-lab.json", mode: 0o644, body: br#"{"placement":{"kind":"vm","firmware":"efi","hardware":"incus"},"vpn":{"address":"10.1.0.1"}}"# },
+    File { path: "hosts/west/west.json", mode: 0o644, body: br#"{"vpn":{"address":"10.0.0.1"}}"# },
+    File { path: "hosts/west/west-prod.json", mode: 0o644, body: br#"{"placement": {"kind": "vm", "firmware": "bios", "hardware": "provider-b"}, "vpn": {"endpoint": "203.0.113.157"}}"# },
+    File { path: "hosts/west/west-lab.json", mode: 0o644, body: br#"{"placement":{"kind":"vm","firmware":"efi","hardware":"incus"},"vpn":{"address":"10.1.0.1"}}"# },
     File { path: "hosts/carbon/carbon.json", mode: 0o644, body: br#"{"vpn":{"address":"10.0.0.2"}}"# },
     File { path: "hosts/carbon/carbon-prod.json", mode: 0o644, body: br#"{"placement":{"kind":"metal","firmware":"efi","hardware":"7th-gen"}}"# },
     File { path: "hosts/carbon/carbon-lab.json", mode: 0o644, body: br#"{"placement":{"kind":"vm","firmware":"efi","hardware":"incus"}}"# },
 ];
 pub const VPN_BAD: File = File {
-    path: "hosts/ion/ion-prod.json",
+    path: "hosts/west/west-prod.json",
     mode: 0o644,
-    body: br#"{"placement": {"kind": "vm", "firmware": "bios", "hardware": "ionos"}, "vpn": {"endpoint": 7}}"#,
+    body: br#"{"placement": {"kind": "vm", "firmware": "bios", "hardware": "provider-b"}, "vpn": {"endpoint": 7}}"#,
 };
 #[must_use]
 pub fn vpn(broken: bool) -> Rendered {
@@ -23,7 +23,7 @@ pub fn vpn(broken: bool) -> Rendered {
         drop(repository.next(&[VPN_BAD], &[]));
     }
     let names: &[&[u8]] = if broken {
-        &[b"carbon-lab", b"carbon-prod", b"ion-lab", b"ion-prod"]
+        &[b"carbon-lab", b"carbon-prod", b"west-lab", b"west-prod"]
     } else {
         &[b"carbon-lab", b"carbon-prod"]
     };
@@ -31,18 +31,19 @@ pub fn vpn(broken: bool) -> Rendered {
 }
 
 pub const VPN_MOVED: File = File {
-    path: "hosts/ion/ion-prod.json",
+    path: "hosts/west/west-prod.json",
     mode: 0o644,
-    body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos"},"vpn":{"endpoint":"203.0.113.158"}}"#,
+    body:
+        br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-b"},"vpn":{"endpoint":"203.0.113.158"}}"#,
 };
 pub const VPN_MTU: File = File {
-    path: "hosts/ion/ion-prod.json", mode: 0o644,
-    body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos"},"vpn":{"endpoint":"203.0.113.157","mtu":1280}}"#,
+    path: "hosts/west/west-prod.json", mode: 0o644,
+    body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-b"},"vpn":{"endpoint":"203.0.113.157","mtu":1280}}"#,
 };
 pub const VPN_NO_ENDPOINT: File = File {
-    path: "hosts/ion/ion-prod.json",
+    path: "hosts/west/west-prod.json",
     mode: 0o644,
-    body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos"}}"#,
+    body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-b"}}"#,
 };
 #[must_use]
 pub fn vpn_diff(file: File, form: Form) -> Rendered {

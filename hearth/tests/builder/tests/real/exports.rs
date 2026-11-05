@@ -76,8 +76,8 @@ fn a_reader_sees_the_exports_of_its_own_environment_alone() {
     assert_eq!(
         fixtures::lines_starting(&fixtures::vpn(false).stdout, &["  /etc/vpn/peers"]),
         concat!(
-            "  /etc/vpn/peers           file 0644 root:root afd16377136a\n",
-            "  /etc/vpn/peers           file 0644 root:root 77e74254f422\n",
+            "  /etc/vpn/peers           file 0644 root:root ce8ea3ad3272\n",
+            "  /etc/vpn/peers           file 0644 root:root 46c9fc904003\n",
         )
     );
 }
@@ -88,10 +88,10 @@ fn environment_exports_leave_the_render_successful() {
 #[test]
 fn an_exporters_fault_prints_for_it_and_for_its_reader() {
     assert_eq!(
-        fixtures::lines_starting(&fixtures::vpn(true).stdout, &["hosts/ion/ion-prod.json:"]),
+        fixtures::lines_starting(&fixtures::vpn(true).stdout, &["hosts/west/west-prod.json:"]),
         concat!(
-            "hosts/ion/ion-prod.json:1:92: carbon-prod: vpn: exports.vpn of ion-prod: not a string\n",
-            "hosts/ion/ion-prod.json:1:92: ion-prod: vpn: not a string\n",
+            "hosts/west/west-prod.json:1:97: carbon-prod: vpn: exports.vpn of west-prod: not a string\n",
+            "hosts/west/west-prod.json:1:97: west-prod: vpn: not a string\n",
         )
     );
 }
@@ -101,7 +101,7 @@ fn an_exporters_fault_leaves_the_other_environment_rendering() {
         fixtures::lines_starting(&fixtures::vpn(true).stdout, &["target       "]),
         concat!(
             "target       carbon-lab   base carbon   environment lab\n",
-            "target       ion-lab   base ion   environment lab\n",
+            "target       west-lab   base west   environment lab\n",
         )
     );
 }
@@ -115,11 +115,11 @@ fn a_changed_export_rebuilds_its_readers_and_builds_nothing_where_it_is_made() {
     assert_eq!(
         fixtures::lines_starting(
             &fixtures::vpn_diff(fixtures::VPN_MOVED, Form::Text).stdout,
-            &["carbon-prod", "ion-prod", "  exports "]
+            &["carbon-prod", "west-prod", "  exports "]
         ),
         concat!(
             "carbon-prod                                         rebuild from config\n",
-            "ion-prod                                            nothing to build\n",
+            "west-prod                                           nothing to build\n",
             "  exports  ~ vpn.endpoint   \"203.0.113.157\" → \"203.0.113.158\"\n",
         )
     );
@@ -129,7 +129,7 @@ fn a_changed_export_leaves_the_other_environment_unchanged() {
     assert_eq!(
         fixtures::lines_starting(
             &fixtures::vpn_diff(fixtures::VPN_MOVED, Form::Text).stdout,
-            &["carbon-lab", "ion-lab"]
+            &["carbon-lab", "west-lab"]
         ),
         ""
     );
@@ -143,9 +143,9 @@ fn a_setting_no_export_reads_changes_its_target_alone() {
     assert_eq!(
         fixtures::lines_starting(
             &fixtures::vpn_diff(fixtures::VPN_MTU, Form::Text).stdout,
-            &["carbon-prod", "ion-prod", "carbon-lab", "ion-lab"]
+            &["carbon-prod", "west-prod", "carbon-lab", "west-lab"]
         ),
-        "ion-prod                                            rebuild from config\n"
+        "west-prod                                           rebuild from config\n"
     );
 }
 #[test]

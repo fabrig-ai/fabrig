@@ -279,7 +279,7 @@ fn a_template_that_does_not_compile_leaves_its_target_out() {
 fn the_diffs_errors_follow_its_changes_and_precede_the_outcome() {
     let repository = Repository::make("diff-error-order", fixtures::MOTD);
     let from = repository.head();
-    let to = repository.next(&[fixtures::MOTD_KIND, fixtures::BAD_ION_LAB], &[]);
+    let to = repository.next(&[fixtures::MOTD_KIND, fixtures::BAD_WEST_LAB], &[]);
     let asked = fixtures::Asked { form: Form::JsonLines, ..fixtures::Asked::new(&from, &to) };
     let rendered = fixtures::diff(&repository, &asked);
     let stdout = std::str::from_utf8(&rendered.stdout).expect("JSON text");
@@ -288,7 +288,7 @@ fn the_diffs_errors_follow_its_changes_and_precede_the_outcome() {
     assert_eq!(
         lines.next_back(),
         Some(
-            "{\"record\":\"error\",\"side\":\"to\",\"kind\":\"decode\",\"decode\":\"unexpected\",\"class\":\"configuration\",\"at\":{\"column\":2,\"line\":1,\"path\":\"hosts/ion/ion-lab.json\"}}"
+            "{\"record\":\"error\",\"side\":\"to\",\"kind\":\"decode\",\"decode\":\"unexpected\",\"class\":\"configuration\",\"at\":{\"column\":2,\"line\":1,\"path\":\"hosts/west/west-lab.json\"}}"
         )
     );
     assert_eq!(lines.filter(|line| line.starts_with("{\"record\":\"change\"")).count(), 4);
@@ -335,9 +335,9 @@ fn a_container_on_another_environment_s_target_prints_its_error() {
     assert_eq!(
         fixtures::lines_starting(&rendered.stdout, &["target ", "hosts/"]),
         concat!(
-            "target       rhi-lab   base rhi   environment lab\n",
-            "target       rhi-prod   base rhi   environment prod\n",
-            "hosts/chat/chat-prod.json:1:43: chat-prod: placement's on names rhi-lab, a target of lab\n",
+            "target       east-lab   base east   environment lab\n",
+            "target       east-prod   base east   environment prod\n",
+            "hosts/chat/chat-prod.json:1:43: chat-prod: placement's on names east-lab, a target of lab\n",
         )
     );
 }
@@ -569,8 +569,8 @@ fn a_hosts_template_lists_the_containers_placed_on_it() {
         fixtures::lines_starting(&rendered.stdout, &["  /etc/containers"]),
         concat!(
             "  /etc/containers          file 0644 root:root 01ba4719c80b\n",
-            "  /etc/containers          file 0644 root:root 9e40aaeae922\n",
-            "  /etc/containers          file 0644 root:root 755c9769e418\n",
+            "  /etc/containers          file 0644 root:root 81d31332747e\n",
+            "  /etc/containers          file 0644 root:root 2e41c4778818\n",
         ),
         "hearth/docs/design/protocol/format.md, 3.5: chat none, lab mail, prod chat and mail"
     );

@@ -57,6 +57,9 @@ impl Ctl {
     }
 }
 fn delegate(ctl: &mut Ctl, goal: u64, completion: u32) -> u64 {
+    delegate_choices(ctl, goal, completion, &[BLUE])
+}
+fn delegate_choices(ctl: &mut Ctl, goal: u64, completion: u32, codes: &[u32]) -> u64 {
     let driver = &mut ctl.front.engine;
     let attempt = driver.task(goal).expect("running goal").attempt;
     let mut child = temper_engine_domain_world::fixtures::report_delegate(b"Choose a colour: blue", Box::new([]));
@@ -64,7 +67,10 @@ fn delegate(ctl: &mut Ctl, goal: u64, completion: u32) -> u64 {
     child.authority.tools = tasks::Tools(0);
     child.authority.budget.spend = 0;
     child.contract = tasks::Contract::Verdict {
-        choices: Box::new([tasks::Verdict { code: BLUE, words: RESULT_WORDS, followups: 0, fields: Box::new([]) }]),
+        choices: codes
+            .iter()
+            .map(|code| tasks::Verdict { code: *code, words: RESULT_WORDS, followups: 0, fields: Box::new([]) })
+            .collect(),
     };
     driver.call(
         WORKER,
@@ -204,19 +210,72 @@ fn numbered_question() {
                 && entry.words.as_ref() == b"blue")
     );
 }
-#[test]
-fn a_person_answers_a_delegated_choice_and_wakes_its_goal() {
+fn start_goal(spec: &[u8]) -> (Ctl, u64) {
     let (front, root) = fixtures::person_task_tools(fixtures::SEED);
     let mut ctl = Ctl::new(front, root);
-    let started = ctl.call(
-        &[b"goal", b"start", b"--project", b"1", b"--template", b"4", b"Ask me a colour", b"--key", b"goal"],
-        None,
-    );
+    let started =
+        ctl.call(&[b"goal", b"start", b"--project", b"1", b"--template", b"4", spec, b"--key", b"goal"], None);
     assert_eq!(started.status, 0, "{started:?}");
     let goal = fixtures::done_task(&started);
+    (ctl, goal)
+}
+#[test]
+fn a_person_answers_a_delegated_choice_and_wakes_its_goal() {
+    let (mut ctl, goal) = start_goal(b"Ask me a colour");
     for (completion, key) in [(28, b"colour-28".as_slice()), (37, b"colour-37".as_slice())] {
         let child = delegate(&mut ctl, goal, completion);
         answer_choice(&mut ctl, child, key);
     }
     numbered_question();
+}
+
+fn result_projections(ctl: &mut Ctl, goal: u64, child: u64) {
+    let assignment = ctl.front.assignments.last().expect("goal resumed");
+    let word = assignment.messages.iter().find(|word| word.from == tasks::Party::Task(child)).expect("result wake");
+    let wake = String::from_utf8(engine::inbox_words(goal, word).into_vec()).expect("wake UTF-8");
+    assert!(wake.contains("verdict 2") && wake.contains("bold"), "rendered wake: {wake}");
+    let attempt = ctl.front.engine.task(goal).expect("resumed goal").attempt;
+    let completion = 39;
+    ctl.front.engine.call(
+        WORKER,
+        goal,
+        attempt,
+        u64::from(completion),
+        engine::Call {
+            completion,
+            position: 1,
+            tool: engine::Tool::ReadTask { task: child, field: jig_domain_core::reads::TaskTextField::Result, from: 0 },
+        },
+    );
+    ctl.front.engine.settle();
+    let read = ctl.front.engine.answered(u64::from(completion)).expect("retained result read");
+    let answer = temper_engine_smith::answer(read);
+    let text = String::from_utf8_lossy(answer.text());
+    assert!(text.contains("Verdict: 2") && text.contains("Result from 0:\nbold"), "host read: {text}");
+    let activity = ctl.text(&[b"task", b"activity", goal.to_string().as_bytes()]);
+    assert!(activity.contains("verdict 2") && activity.contains("bold"), "activity: {activity}");
+    let shown = ctl.text(&[b"task", b"show", child.to_string().as_bytes()]);
+    assert!(shown.contains("verdict 2") && shown.contains("bold"), "completed task: {shown}");
+}
+#[test]
+fn a_person_choice_code_reaches_the_asker_and_ctl() {
+    let (mut ctl, goal) = start_goal(b"Choose a style");
+    let child = delegate_choices(&mut ctl, goal, 28, &[2, 3]);
+    let number = child.to_string();
+    ctl.text(&[b"task", b"take", number.as_bytes(), b"--key", b"take-style"]);
+    let words: &[&[u8]] = &[b"task", b"answer", number.as_bytes(), b"--rev", b"0", b"2", b"bold", b"--key", b"style"];
+    ctl.text(words);
+    let assignments = ctl.front.assignments.len();
+    ctl.text(words);
+    assert_eq!(ctl.front.assignments.len(), assignments, "keyed replay starts no new goal run");
+    let stored =
+        ctl.front.engine.store.rows.get(&engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(child))));
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = stored else {
+        panic!("completed person task: {stored:?}");
+    };
+    assert!(
+        matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Verdict { code: 2, words, .. })) if words.as_ref() == b"bold")
+    );
+    assert!(ctl.front.engine.task(child).is_none(), "result read uses retained row");
+    result_projections(&mut ctl, goal, child);
 }

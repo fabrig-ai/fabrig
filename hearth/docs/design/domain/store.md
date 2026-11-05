@@ -1301,8 +1301,8 @@ What the steward must keep across restarts and reboots lives in
   than one entry, and a store made with another (6.6); a host's
   activator refuses a container whose range overlaps it [M5]. The
   fleet's containers clear it today: carbon-forge's base is 65536,
-  rhi-chat's 327680, the first id past the builder's range, and
-  vul-agent-control has no user namespace.
+  east-chat's 327680, the first id past the builder's range, and
+  south-agent-control has no user namespace.
 - **Aligned where there is an activator.** Only the shift needs the
   alignment, so a machine with an activator refuses an unaligned range,
   while a builder alone (a developer's machine, a lab builder, the real
