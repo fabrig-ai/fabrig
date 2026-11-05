@@ -288,7 +288,7 @@ What is not built here, though the main drawings show it:
 - A proposal's template and charter names (`me` has no charter names,
   and a proposed task names no template); a card's lineage beyond
   its own task (the inbox's `Card` carries no ancestry).
-- **Board and Changes** in the navigation are not built.
+- **Board** in the navigation is not built.
 
 Other facts the comparison found absent:
 

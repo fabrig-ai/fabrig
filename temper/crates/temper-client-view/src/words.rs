@@ -11,6 +11,42 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    Changes,
+    ChangesKicker,
+    ChangesNone,
+    ChangesOne,
+    ChangesMany,
+    ChangesLanding,
+    ChangesItsBranch,
+    ChangesLede,
+    ChangesQueued,
+    ChangesLast,
+    ChangesMoved,
+    ChangesNothingQueued,
+    ChangesNothingLanded,
+    ChangesRed,
+    ChangesQueue,
+    ChangesQueueNamed,
+    ChangesLanded,
+    ChangesEmpty,
+    ChangesMore,
+    ChangesChecking,
+    ChangesChecks,
+    ChangesPlace,
+    ChangesOrdinalSt,
+    ChangesOrdinalNd,
+    ChangesOrdinalRd,
+    ChangesOrdinalTh,
+    ChangesChat,
+    ChangesTwo,
+    ChangesThree,
+    ChangesFour,
+    ChangesFive,
+    ChangesSix,
+    ChangesSeven,
+    ChangesEight,
+    ChangesNine,
+
     ConfigureAgent,
     ConfigureWays,
     ConfigureAlone,
@@ -845,7 +881,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
-const PHRASES: u32 = 1346;
+const PHRASES: u32 = 1381;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -857,8 +893,43 @@ const PHRASES: u32 = 1346;
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
-const SEGMENTS: u32 = 2325;
-const ALL: [Word; 750] = [
+const SEGMENTS: u32 = 2402;
+const ALL: [Word; 785] = [
+    Word::Changes,
+    Word::ChangesKicker,
+    Word::ChangesNone,
+    Word::ChangesOne,
+    Word::ChangesMany,
+    Word::ChangesLanding,
+    Word::ChangesItsBranch,
+    Word::ChangesLede,
+    Word::ChangesQueued,
+    Word::ChangesLast,
+    Word::ChangesMoved,
+    Word::ChangesNothingQueued,
+    Word::ChangesNothingLanded,
+    Word::ChangesRed,
+    Word::ChangesQueue,
+    Word::ChangesQueueNamed,
+    Word::ChangesLanded,
+    Word::ChangesEmpty,
+    Word::ChangesMore,
+    Word::ChangesChecking,
+    Word::ChangesChecks,
+    Word::ChangesPlace,
+    Word::ChangesOrdinalSt,
+    Word::ChangesOrdinalNd,
+    Word::ChangesOrdinalRd,
+    Word::ChangesOrdinalTh,
+    Word::ChangesChat,
+    Word::ChangesTwo,
+    Word::ChangesThree,
+    Word::ChangesFour,
+    Word::ChangesFive,
+    Word::ChangesSix,
+    Word::ChangesSeven,
+    Word::ChangesEight,
+    Word::ChangesNine,
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1614,6 +1685,42 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::Changes => 3190,
+            Self::ChangesKicker => 3191,
+            Self::ChangesNone => 3192,
+            Self::ChangesOne => 3193,
+            Self::ChangesMany => 3194,
+            Self::ChangesLanding => 3195,
+            Self::ChangesItsBranch => 3196,
+            Self::ChangesLede => 3197,
+            Self::ChangesQueued => 3198,
+            Self::ChangesLast => 3199,
+            Self::ChangesMoved => 3200,
+            Self::ChangesNothingQueued => 3201,
+            Self::ChangesNothingLanded => 3202,
+            Self::ChangesRed => 3203,
+            Self::ChangesQueue => 3204,
+            Self::ChangesQueueNamed => 3205,
+            Self::ChangesLanded => 3206,
+            Self::ChangesEmpty => 3207,
+            Self::ChangesMore => 3208,
+            Self::ChangesChecking => 3209,
+            Self::ChangesChecks => 3210,
+            Self::ChangesPlace => 3211,
+            Self::ChangesOrdinalSt => 3212,
+            Self::ChangesOrdinalNd => 3213,
+            Self::ChangesOrdinalRd => 3214,
+            Self::ChangesOrdinalTh => 3215,
+            Self::ChangesChat => 3216,
+            Self::ChangesTwo => 3217,
+            Self::ChangesThree => 3218,
+            Self::ChangesFour => 3219,
+            Self::ChangesFive => 3220,
+            Self::ChangesSix => 3221,
+            Self::ChangesSeven => 3222,
+            Self::ChangesEight => 3223,
+            Self::ChangesNine => 3224,
+
             Self::ConfigureAgent => 3181,
             Self::ConfigureWays => 3182,
             Self::ConfigureAlone => 3183,
@@ -2414,6 +2521,21 @@ fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // Changes names the wire's complete repository and branch (client/README.md, 4.6).
+    if word == Word::ChangesQueueNamed {
+        return Ok(if last {
+            temper_client_protocol_wire::v1::CEILINGS.changes_queue_branch
+        } else {
+            temper_client_protocol_wire::v1::CEILINGS.changes_queue_repository
+        });
+    }
+    if [Word::ChangesNone, Word::ChangesOne, Word::ChangesMany].contains(&word) && last
+        || [Word::ChangesLede, Word::ChangesRed].contains(&word)
+        || word == Word::ChangesMoved && !last
+    {
+        return Ok(temper_client_protocol_wire::v1::CEILINGS.changes_panel_landing);
+    }
+
     // The phone link names the joined title, question and its colon (3.5).
     if word == Word::HomeAnswerName {
         return home_answer_bytes(joined);
@@ -2582,7 +2704,7 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2649,6 +2771,42 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::Changes => (&[b"Changes"], &[]),
+        Word::ChangesKicker => (&[b"", b" \xc2\xb7 landing"], &[Name]),
+        Word::ChangesNone => (&[b"Nothing is on the way to ", b"."], &[Name]),
+        Word::ChangesOne => (&[b"One change is on the way to ", b"."], &[Name]),
+        Word::ChangesMany => (&[b"", b" changes are on the way to ", b"."], &[Name, Name]),
+        Word::ChangesLanding => (&[b"landing"], &[]),
+        Word::ChangesItsBranch => (&[b"its branch"], &[]),
+        Word::ChangesLede => (&[b". Each change is checked on top of ", b" before it lands."], &[Name]),
+        Word::ChangesQueued => (&[b"", b" queued"], &[Number]),
+        Word::ChangesLast => (&[b"last landed ", b""], &[Name]),
+        Word::ChangesMoved => (&[b"", b" last moved ", b""], &[Name, Name]),
+        Word::ChangesNothingQueued => (&[b"nothing queued"], &[]),
+        Word::ChangesNothingLanded => (&[b"nothing has landed yet"], &[]),
+        Word::ChangesRed => (&[b"", b" red"], &[Name]),
+        Word::ChangesQueue => (&[b"Queue"], &[]),
+        Word::ChangesQueueNamed => (&[b"Queue \xc2\xb7 ", b" ", b""], &[Name, Name]),
+        Word::ChangesLanded => (&[b"Landed recently"], &[]),
+        Word::ChangesEmpty => (&[b"Empty."], &[]),
+        Word::ChangesMore => (&[b"and ", b" more"], &[Number]),
+        Word::ChangesChecking => (&[b"checking"], &[]),
+        Word::ChangesChecks => (&[b" \xc2\xb7 checks started ", b""], &[Name]),
+        Word::ChangesPlace => (&[b"queued ", b""], &[Name]),
+        Word::ChangesOrdinalSt => (&[b"", b"st"], &[Number]),
+        Word::ChangesOrdinalNd => (&[b"", b"nd"], &[Number]),
+        Word::ChangesOrdinalRd => (&[b"", b"rd"], &[Number]),
+        Word::ChangesOrdinalTh => (&[b"", b"th"], &[Number]),
+        Word::ChangesChat => (&[b"chat T", b""], &[Number]),
+        Word::ChangesTwo => (&[b"Two"], &[]),
+        Word::ChangesThree => (&[b"Three"], &[]),
+        Word::ChangesFour => (&[b"Four"], &[]),
+        Word::ChangesFive => (&[b"Five"], &[]),
+        Word::ChangesSix => (&[b"Six"], &[]),
+        Word::ChangesSeven => (&[b"Seven"], &[]),
+        Word::ChangesEight => (&[b"Eight"], &[]),
+        Word::ChangesNine => (&[b"Nine"], &[]),
+
         Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
         Word::BannerSetUp => (&[b"Set up temper"], &[]),
