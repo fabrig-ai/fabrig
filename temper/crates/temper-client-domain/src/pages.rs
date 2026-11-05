@@ -11,6 +11,7 @@ pub mod accounts;
 mod activity;
 pub mod changes;
 pub mod chat;
+pub use chat::document::drafts_offered;
 pub mod chats;
 pub mod choice;
 pub mod connect_model;
@@ -101,6 +102,12 @@ pub enum Act {
     },
     MessageWords {
         words: Box<[u8]>,
+    },
+    Mode {
+        mode: chat::document::Mode,
+    },
+    ShowSection {
+        line: u32,
     },
     Send,
     /// Open the task page's amendment editor (client/README.md, 5.11).
@@ -493,6 +500,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
         Event::Act { act: Act::PlanFilter { filter } } => plan_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
+        Event::Act { act: act @ (Act::Mode { .. } | Act::ShowSection { .. }) } => {
+            if let Some(chat) = &mut pages.chat {
+                chat.act(env, client, act, &mut pages.serial, out);
+            }
+        }
         Event::Act { act: act @ (Act::MessageWords { .. } | Act::Send | Act::Older) } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
@@ -828,7 +840,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.task = Some(page);
         }
         if let Address::Chat { task } = address {
-            pages.chat = Some(chat::Chat::new(task, pages.next, &env.limits, out));
+            pages.chat = Some(chat::Chat::new(task, chat::document::Mode::Chat, pages.next, &env.limits, out));
         }
         if let Address::Changes { project } = address {
             pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
@@ -1090,6 +1102,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Playground
         | Act::RetryPlayground
         | Act::Suggest { .. }
+        | Act::Mode { .. }
+        | Act::ShowSection { .. }
         | Act::MessageWords { .. }
         | Act::Send
         | Act::Older

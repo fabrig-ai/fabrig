@@ -2,6 +2,7 @@ use crate::ChatsFilter;
 mod accounts;
 mod changes;
 mod chat;
+mod chat_document;
 mod chats;
 mod choice;
 mod connect_model;
