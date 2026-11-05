@@ -375,6 +375,16 @@ pub enum Path {
     NoteRefusalMovedRevision,
     /// Bytes after `NoteRefusalMoved`.
     NoteRefusalMovedTail,
+    /// The `lines` field of `NoteRefusalPastEnd`.
+    NoteRefusalPastEndLines,
+    /// Bytes after `NoteRefusalPastEnd`.
+    NoteRefusalPastEndTail,
+    /// The `bytes` field of `NoteRefusalPastBound`.
+    NoteRefusalPastBoundBytes,
+    /// The `bound` field of `NoteRefusalPastBound`.
+    NoteRefusalPastBoundBound,
+    /// Bytes after `NoteRefusalPastBound`.
+    NoteRefusalPastBoundTail,
     /// The tag of `NoteRefusal`.
     NoteRefusalTag,
     /// The `value` field of `CallPartNoteRefused`.
@@ -3082,6 +3092,75 @@ impl NoteRefusalMoved {
 
 }
 
+/// Movable fields of `NoteRefusalPastEnd`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NoteRefusalPastEndParts {
+    /// The `lines` field.
+    pub lines: u32,
+}
+
+/// `NoteRefusalPastEnd` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NoteRefusalPastEnd {
+    lines: u32,
+}
+
+impl NoteRefusalPastEnd {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: NoteRefusalPastEndParts) -> Result<Self, Problem> {
+        let NoteRefusalPastEndParts { lines } = parts;
+        let value = Self { lines };
+        Ok(value)
+    }
+
+    /// Reads the `lines` field.
+    #[must_use]
+    pub fn lines(&self) -> u32 { self.lines }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> NoteRefusalPastEndParts { NoteRefusalPastEndParts { lines: self.lines } }
+
+}
+
+/// Movable fields of `NoteRefusalPastBound`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NoteRefusalPastBoundParts {
+    /// The `bytes` field.
+    pub bytes: u32,
+    /// The `bound` field.
+    pub bound: u32,
+}
+
+/// `NoteRefusalPastBound` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NoteRefusalPastBound {
+    bytes: u32,
+    bound: u32,
+}
+
+impl NoteRefusalPastBound {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: NoteRefusalPastBoundParts) -> Result<Self, Problem> {
+        let NoteRefusalPastBoundParts { bytes, bound } = parts;
+        let value = Self { bytes, bound };
+        Ok(value)
+    }
+
+    /// Reads the `bytes` field.
+    #[must_use]
+    pub fn bytes(&self) -> u32 { self.bytes }
+
+    /// Reads the `bound` field.
+    #[must_use]
+    pub fn bound(&self) -> u32 { self.bound }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> NoteRefusalPastBoundParts { NoteRefusalPastBoundParts { bytes: self.bytes, bound: self.bound } }
+
+}
+
 /// `NoteRefusal` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NoteRefusal {
@@ -3099,6 +3178,10 @@ pub enum NoteRefusal {
     Moved(NoteRefusalMoved),
     /// `revision_exhausted` without a payload.
     RevisionExhausted,
+    /// `past_end` carrying `NoteRefusalPastEnd`.
+    PastEnd(NoteRefusalPastEnd),
+    /// `past_bound` carrying `NoteRefusalPastBound`.
+    PastBound(NoteRefusalPastBound),
 }
 
 impl NoteRefusal {
@@ -7920,12 +8003,76 @@ impl NoteRefusalMoved {
     }
 }
 
+impl NoteRefusalPastEnd {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_lines = &self.lines;
+        writer.put(&field_lines.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::NoteRefusalPastEndTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_lines = reader.u32().ok_or(Problem { path: Path::NoteRefusalPastEndLines, reason: skein_codec::Reason::Short })?;
+        Ok(Self { lines: decoded_lines })
+    }
+}
+
+impl NoteRefusalPastBound {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_bytes = &self.bytes;
+        writer.put(&field_bytes.to_be_bytes())?;
+        let field_bound = &self.bound;
+        writer.put(&field_bound.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::NoteRefusalPastBoundTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_bytes = reader.u32().ok_or(Problem { path: Path::NoteRefusalPastBoundBytes, reason: skein_codec::Reason::Short })?;
+        let decoded_bound = reader.u32().ok_or(Problem { path: Path::NoteRefusalPastBoundBound, reason: skein_codec::Reason::Short })?;
+        Ok(Self { bytes: decoded_bytes, bound: decoded_bound })
+    }
+}
+
 impl NoteRefusal {
     /// Measures this variant's wire encoding.
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
             Self::Moved(record) => 1_u32.checked_add(NoteRefusalMoved::measure(record)).expect("schema ceilings fit u32"),
+            Self::PastEnd(record) => 1_u32.checked_add(NoteRefusalPastEnd::measure(record)).expect("schema ceilings fit u32"),
+            Self::PastBound(record) => 1_u32.checked_add(NoteRefusalPastBound::measure(record)).expect("schema ceilings fit u32"),
             Self::Busy | Self::Oversized | Self::Full | Self::Exists | Self::Missing | Self::RevisionExhausted => 1,
         }
     }
@@ -7940,6 +8087,8 @@ impl NoteRefusal {
             Self::Missing => writer.put(&[4_u8])?,
             Self::Moved(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
             Self::RevisionExhausted => writer.put(&[6_u8])?,
+            Self::PastEnd(record) => { writer.put(&[7_u8])?; record.encode(writer)?; }
+            Self::PastBound(record) => { writer.put(&[8_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -7961,6 +8110,8 @@ impl NoteRefusal {
             4 => Self::Missing,
             5 => Self::Moved(NoteRefusalMoved::decode_from(limits, reader)?),
             6 => Self::RevisionExhausted,
+            7 => Self::PastEnd(NoteRefusalPastEnd::decode_from(limits, reader)?),
+            8 => Self::PastBound(NoteRefusalPastBound::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::NoteRefusalTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -12206,6 +12357,62 @@ impl NoteRefusalMoved {
     }
 }
 
+impl NoteRefusalPastEnd {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl NoteRefusalPastBound {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl NoteRefusal {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -12216,7 +12423,8 @@ impl NoteRefusal {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
-        biggest = biggest.max(NoteRefusalMoved::encoded_bound_within(limits)?);
+        biggest = biggest.max(NoteRefusalMoved::encoded_bound_within(limits)?).max(NoteRefusalPastEnd::encoded_bound_within(limits)?);
+        biggest = biggest.max(NoteRefusalPastBound::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -12229,7 +12437,8 @@ impl NoteRefusal {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
-        biggest = biggest.max(NoteRefusalMoved::decoded_bound_within(limits)?);
+        biggest = biggest.max(NoteRefusalMoved::decoded_bound_within(limits)?).max(NoteRefusalPastEnd::decoded_bound_within(limits)?);
+        biggest = biggest.max(NoteRefusalPastBound::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -13953,6 +14162,8 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(NoteBytes::encoded_bound_within(limits)?);
     biggest = biggest.max(CallPartNoteRecalled::encoded_bound_within(limits)?);
     biggest = biggest.max(NoteRefusalMoved::encoded_bound_within(limits)?);
+    biggest = biggest.max(NoteRefusalPastEnd::encoded_bound_within(limits)?);
+    biggest = biggest.max(NoteRefusalPastBound::encoded_bound_within(limits)?);
     biggest = biggest.max(NoteRefusal::encoded_bound_within(limits)?);
     biggest = biggest.max(CallPartNoteRefused::encoded_bound_within(limits)?);
     biggest = biggest.max(CallPartRevised::encoded_bound_within(limits)?);
@@ -13975,12 +14186,12 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(CallPartPassedUp::encoded_bound_within(limits)?);
     biggest = biggest.max(CallPartEffectRefused::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingsRefusal::encoded_bound_within(limits)?);
-    biggest = biggest.max(CallPart::encoded_bound_within(limits)?);
-    biggest = biggest.max(CallRecord::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(CallPart::encoded_bound_within(limits)?);
+    biggest = biggest.max(CallRecord::encoded_bound_within(limits)?);
     biggest = biggest.max(Deployment::encoded_bound_within(limits)?);
     biggest = biggest.max(PhaseBytes::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangeBytes::encoded_bound_within(limits)?);
@@ -14093,6 +14304,8 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(NoteBytes::decoded_bound_within(limits)?);
     biggest = biggest.max(CallPartNoteRecalled::decoded_bound_within(limits)?);
     biggest = biggest.max(NoteRefusalMoved::decoded_bound_within(limits)?);
+    biggest = biggest.max(NoteRefusalPastEnd::decoded_bound_within(limits)?);
+    biggest = biggest.max(NoteRefusalPastBound::decoded_bound_within(limits)?);
     biggest = biggest.max(NoteRefusal::decoded_bound_within(limits)?);
     biggest = biggest.max(CallPartNoteRefused::decoded_bound_within(limits)?);
     biggest = biggest.max(CallPartRevised::decoded_bound_within(limits)?);
@@ -14115,12 +14328,12 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(CallPartPassedUp::decoded_bound_within(limits)?);
     biggest = biggest.max(CallPartEffectRefused::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingsRefusal::decoded_bound_within(limits)?);
-    biggest = biggest.max(CallPart::decoded_bound_within(limits)?);
-    biggest = biggest.max(CallRecord::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(CallPart::decoded_bound_within(limits)?);
+    biggest = biggest.max(CallRecord::decoded_bound_within(limits)?);
     biggest = biggest.max(Deployment::decoded_bound_within(limits)?);
     biggest = biggest.max(PhaseBytes::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangeBytes::decoded_bound_within(limits)?);
@@ -14158,7 +14371,7 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, MovedPlacedHold, MovedPlacedHoldParts, HoldOwnerParty, HoldOwnerPartyParts, HoldOwnerTask, HoldOwnerTaskParts, HoldOwner, CallPartHoldOwner, CallPartHoldOwnerParts, ProposerTask, ProposerTaskParts, ProposerParty, ProposerPartyParts, Proposer, ProposalChoice, EscalationDecisionReject, EscalationDecisionRejectParts, EscalationDecision, ProposalKind, EscalationOutcomePassed, EscalationOutcomePassedParts, EscalationOutcome, ProposalOutcome, Source, Lacks, LacksParts, Judge, JudgeParts, Answer, FindingAuthority, FindingAuthorityParts, FindingExecutor, FindingExecutorParts, FindingTasks, FindingTasksParts, FindingSpend, FindingSpendParts, FindingGrant, FindingGrantParts, FindingPrice, FindingPriceParts, FindingScope, FindingScopeParts, FindingRequired, FindingRequiredParts, FindingFailed, FindingFailedParts, FindingUnguarded, FindingUnguardedParts, Finding, HostKind, OutboxOutcomeHeld, OutboxOutcomeHeldParts, OutboxOutcome, DeliveryOutcome, SettledAnswerHost, SettledAnswerHostParts, SettledAnswerDelivery, SettledAnswerDeliveryParts, SettledAnswer, SettledCall, SettledCallParts, CallKey, CallKeyParts, CallPartEffect, CallPartEffectParts, CallPartConnector, CallPartConnectorParts, CallPartEffectDenied, CallPartEffectDeniedParts, CallPartToolDenied, CallPartToolDeniedParts, CallPartEscalationDecided, CallPartEscalationDecidedParts, Number, NumberParts, PolicyHolder, PolicyHolderParts, ProposalHolder, CallPartProposed, CallPartProposedParts, CallPartProposalDecided, CallPartProposalDecidedParts, CallPartControlDenied, CallPartControlDeniedParts, CallPartSent, CallPartSentParts, CallPartSubscribed, CallPartSubscribedParts, CallPartDelegationDenied, CallPartDelegationDeniedParts, CallPartNoteWritten, CallPartNoteWrittenParts, TaskBytes, TaskBytesParts, CallPartEscalationRefused, CallPartEscalationRefusedParts, CallPartProposalRefused, CallPartProposalRefusedParts, CallPartControlRefused, CallPartControlRefusedParts, CallPartMessageRefused, CallPartMessageRefusedParts, CallPartSubscriptionRefused, CallPartSubscriptionRefusedParts, CallPartDelegationRefused, CallPartDelegationRefusedParts, Made, MadeParts, CallPartDelegated, CallPartDelegatedParts, NoteBytes, NoteBytesParts, CallPartNoteRecalled, CallPartNoteRecalledParts, NoteRefusalMoved, NoteRefusalMovedParts, NoteRefusal, CallPartNoteRefused, CallPartNoteRefusedParts, CallPartRevised, CallPartRevisedParts, FailureClass, HoldReasonFailures, HoldReasonFailuresParts, HoldReasonDependency, HoldReasonDependencyParts, HoldReasonPlaced, HoldReasonPlacedParts, HoldReasonUncertain, HoldReasonUncertainParts, HoldReasonPoolLost, HoldReasonPoolLostParts, Bound, Exceeded, ExceededParts, HoldReason, MovedHold, MovedHoldParts, MovedSpec, MovedSpecParts, MovedPerson, MovedPersonParts, MovedNote, MovedNoteParts, Moved, CallPartMoved, CallPartMovedParts, CallPartAgain, CallPartAgainParts, CallPartPassedUp, CallPartPassedUpParts, CallPartEffectRefused, CallPartEffectRefusedParts, SettingsRefusal, SettingsRefusalParts, CallPart, CallRecord, CallRecordParts, Deployment, DeploymentParts, PhaseBytes, PhaseBytesParts, ChangeBytes, ChangeBytesParts, EndBytes, EndBytesParts, PartyTask, PartyTaskParts, PartyPerson, PartyPersonParts, PartyDeployment, PartyDeploymentParts, Party, ProjectionGoal, ProjectionGoalParts, ProjectionTask, ProjectionTaskParts, MilestoneLifecycle, MilestoneLifecycleParts, MilestoneRevision, MilestoneRevisionParts, MilestoneId, ProjectionMilestone, ProjectionMilestoneParts, Connector, ConnectorParts, ProjectionGoalRow, ProjectionGoalRowParts, ProjectionTaskRow, ProjectionTaskRowParts, ProjectionMilestoneRow, ProjectionMilestoneRowParts, ProjectionRecord, TerminalRecord, TerminalRecordParts, TurnProof, TurnProofParts, Window, WindowParts, Credential, CredentialParts, AccountBinding, AccountBindingParts, RunProof, RunProofParts, TurnRecord, TurnRecordParts, Created, CreatedParts, ProposalDecisionRecord, ProposalDecisionRecordParts, EscalationDecisionRecord, EscalationDecisionRecordParts, ProjectionValue, ProjectionValueParts, Value, Row, RowParts, Path};
+    use super::{CEILINGS, MovedPlacedHold, MovedPlacedHoldParts, HoldOwnerParty, HoldOwnerPartyParts, HoldOwnerTask, HoldOwnerTaskParts, HoldOwner, CallPartHoldOwner, CallPartHoldOwnerParts, ProposerTask, ProposerTaskParts, ProposerParty, ProposerPartyParts, Proposer, ProposalChoice, EscalationDecisionReject, EscalationDecisionRejectParts, EscalationDecision, ProposalKind, EscalationOutcomePassed, EscalationOutcomePassedParts, EscalationOutcome, ProposalOutcome, Source, Lacks, LacksParts, Judge, JudgeParts, Answer, FindingAuthority, FindingAuthorityParts, FindingExecutor, FindingExecutorParts, FindingTasks, FindingTasksParts, FindingSpend, FindingSpendParts, FindingGrant, FindingGrantParts, FindingPrice, FindingPriceParts, FindingScope, FindingScopeParts, FindingRequired, FindingRequiredParts, FindingFailed, FindingFailedParts, FindingUnguarded, FindingUnguardedParts, Finding, HostKind, OutboxOutcomeHeld, OutboxOutcomeHeldParts, OutboxOutcome, DeliveryOutcome, SettledAnswerHost, SettledAnswerHostParts, SettledAnswerDelivery, SettledAnswerDeliveryParts, SettledAnswer, SettledCall, SettledCallParts, CallKey, CallKeyParts, CallPartEffect, CallPartEffectParts, CallPartConnector, CallPartConnectorParts, CallPartEffectDenied, CallPartEffectDeniedParts, CallPartToolDenied, CallPartToolDeniedParts, CallPartEscalationDecided, CallPartEscalationDecidedParts, Number, NumberParts, PolicyHolder, PolicyHolderParts, ProposalHolder, CallPartProposed, CallPartProposedParts, CallPartProposalDecided, CallPartProposalDecidedParts, CallPartControlDenied, CallPartControlDeniedParts, CallPartSent, CallPartSentParts, CallPartSubscribed, CallPartSubscribedParts, CallPartDelegationDenied, CallPartDelegationDeniedParts, CallPartNoteWritten, CallPartNoteWrittenParts, TaskBytes, TaskBytesParts, CallPartEscalationRefused, CallPartEscalationRefusedParts, CallPartProposalRefused, CallPartProposalRefusedParts, CallPartControlRefused, CallPartControlRefusedParts, CallPartMessageRefused, CallPartMessageRefusedParts, CallPartSubscriptionRefused, CallPartSubscriptionRefusedParts, CallPartDelegationRefused, CallPartDelegationRefusedParts, Made, MadeParts, CallPartDelegated, CallPartDelegatedParts, NoteBytes, NoteBytesParts, CallPartNoteRecalled, CallPartNoteRecalledParts, NoteRefusalMoved, NoteRefusalMovedParts, NoteRefusalPastEnd, NoteRefusalPastEndParts, NoteRefusalPastBound, NoteRefusalPastBoundParts, NoteRefusal, CallPartNoteRefused, CallPartNoteRefusedParts, CallPartRevised, CallPartRevisedParts, FailureClass, HoldReasonFailures, HoldReasonFailuresParts, HoldReasonDependency, HoldReasonDependencyParts, HoldReasonPlaced, HoldReasonPlacedParts, HoldReasonUncertain, HoldReasonUncertainParts, HoldReasonPoolLost, HoldReasonPoolLostParts, Bound, Exceeded, ExceededParts, HoldReason, MovedHold, MovedHoldParts, MovedSpec, MovedSpecParts, MovedPerson, MovedPersonParts, MovedNote, MovedNoteParts, Moved, CallPartMoved, CallPartMovedParts, CallPartAgain, CallPartAgainParts, CallPartPassedUp, CallPartPassedUpParts, CallPartEffectRefused, CallPartEffectRefusedParts, SettingsRefusal, SettingsRefusalParts, CallPart, CallRecord, CallRecordParts, Deployment, DeploymentParts, PhaseBytes, PhaseBytesParts, ChangeBytes, ChangeBytesParts, EndBytes, EndBytesParts, PartyTask, PartyTaskParts, PartyPerson, PartyPersonParts, PartyDeployment, PartyDeploymentParts, Party, ProjectionGoal, ProjectionGoalParts, ProjectionTask, ProjectionTaskParts, MilestoneLifecycle, MilestoneLifecycleParts, MilestoneRevision, MilestoneRevisionParts, MilestoneId, ProjectionMilestone, ProjectionMilestoneParts, Connector, ConnectorParts, ProjectionGoalRow, ProjectionGoalRowParts, ProjectionTaskRow, ProjectionTaskRowParts, ProjectionMilestoneRow, ProjectionMilestoneRowParts, ProjectionRecord, TerminalRecord, TerminalRecordParts, TurnProof, TurnProofParts, Window, WindowParts, Credential, CredentialParts, AccountBinding, AccountBindingParts, RunProof, RunProofParts, TurnRecord, TurnRecordParts, Created, CreatedParts, ProposalDecisionRecord, ProposalDecisionRecordParts, EscalationDecisionRecord, EscalationDecisionRecordParts, ProjectionValue, ProjectionValueParts, Value, Row, RowParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -14211,7 +14424,7 @@ mod golden_tests {
         };
         at && past
     }
-    static GOLDEN_0: [Case; 544] = [
+    static GOLDEN_0: [Case; 552] = [
         ("record_moved_placed_hold_smallest", || { let value = MovedPlacedHold::new(&CEILINGS, MovedPlacedHoldParts { revision: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MovedPlacedHold::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_moved_placed_hold_full", || { let value = MovedPlacedHold::new(&CEILINGS, MovedPlacedHoldParts { revision: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MovedPlacedHold::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_hold_owner_party_smallest", || { let value = HoldOwnerParty::new(&CEILINGS, HoldOwnerPartyParts { person: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, HoldOwnerParty::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -14478,6 +14691,10 @@ mod golden_tests {
         ("record_call_part_note_recalled_full", || { let value = CallPartNoteRecalled::new(&CEILINGS, CallPartNoteRecalledParts { entries: { let mut items = skein_lib::List::with_capacity(1); items.push(NoteBytes::new(&CEILINGS, NoteBytesParts { value: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items }, more: true }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CallPartNoteRecalled::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_note_refusal_moved_smallest", || { let value = NoteRefusalMoved::new(&CEILINGS, NoteRefusalMovedParts { revision: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusalMoved::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_note_refusal_moved_full", || { let value = NoteRefusalMoved::new(&CEILINGS, NoteRefusalMovedParts { revision: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusalMoved::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_note_refusal_past_end_smallest", || { let value = NoteRefusalPastEnd::new(&CEILINGS, NoteRefusalPastEndParts { lines: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusalPastEnd::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_note_refusal_past_end_full", || { let value = NoteRefusalPastEnd::new(&CEILINGS, NoteRefusalPastEndParts { lines: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusalPastEnd::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_note_refusal_past_bound_smallest", || { let value = NoteRefusalPastBound::new(&CEILINGS, NoteRefusalPastBoundParts { bytes: 0_u32, bound: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusalPastBound::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_note_refusal_past_bound_full", || { let value = NoteRefusalPastBound::new(&CEILINGS, NoteRefusalPastBoundParts { bytes: u32::MAX, bound: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusalPastBound::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_refusal_busy_smallest", || { let value = NoteRefusal::Busy; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_refusal_busy_full", || { let value = NoteRefusal::Busy; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_refusal_oversized_smallest", || { let value = NoteRefusal::Oversized; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -14492,6 +14709,10 @@ mod golden_tests {
         ("enum_note_refusal_moved_full", || { let value = NoteRefusal::Moved(NoteRefusalMoved::new(&CEILINGS, NoteRefusalMovedParts { revision: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[5, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_refusal_revision_exhausted_smallest", || { let value = NoteRefusal::RevisionExhausted; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_refusal_revision_exhausted_full", || { let value = NoteRefusal::RevisionExhausted; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_note_refusal_past_end_smallest", || { let value = NoteRefusal::PastEnd(NoteRefusalPastEnd::new(&CEILINGS, NoteRefusalPastEndParts { lines: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_note_refusal_past_end_full", || { let value = NoteRefusal::PastEnd(NoteRefusalPastEnd::new(&CEILINGS, NoteRefusalPastEndParts { lines: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_note_refusal_past_bound_smallest", || { let value = NoteRefusal::PastBound(NoteRefusalPastBound::new(&CEILINGS, NoteRefusalPastBoundParts { bytes: 0_u32, bound: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[8, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_note_refusal_past_bound_full", || { let value = NoteRefusal::PastBound(NoteRefusalPastBound::new(&CEILINGS, NoteRefusalPastBoundParts { bytes: u32::MAX, bound: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[8, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_call_part_note_refused_smallest", || { let value = CallPartNoteRefused::new(&CEILINGS, CallPartNoteRefusedParts { value: NoteRefusal::Busy }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CallPartNoteRefused::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_call_part_note_refused_full", || { let value = CallPartNoteRefused::new(&CEILINGS, CallPartNoteRefusedParts { value: NoteRefusal::Busy }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CallPartNoteRefused::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_call_part_revised_smallest", || { let value = CallPartRevised::new(&CEILINGS, CallPartRevisedParts { task: 0_u64, revision: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CallPartRevised::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),

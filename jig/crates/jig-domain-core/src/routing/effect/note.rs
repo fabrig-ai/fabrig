@@ -146,6 +146,8 @@ pub(crate) fn tag_notes(
                     | notes::Refusal::Exists
                     | notes::Refusal::Missing
                     | notes::Refusal::Moved { .. }
+                    | notes::Refusal::PastEnd { .. }
+                    | notes::Refusal::PastBound { .. }
                     | notes::Refusal::RevisionExhausted => {
                         call_decision(core, &mut out, to, key, CallPart::NoteRefused(why));
                     }
@@ -171,6 +173,8 @@ pub(crate) fn tag_notes(
                     | notes::Refusal::Exists
                     | notes::Refusal::Missing
                     | notes::Refusal::Moved { .. }
+                    | notes::Refusal::PastEnd { .. }
+                    | notes::Refusal::PastBound { .. }
                     | notes::Refusal::RevisionExhausted => {
                         work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
                     }
