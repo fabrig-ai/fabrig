@@ -2,5 +2,5 @@
 
 2026-11-05. Where jig's code lags or departs from [authority.md](authority.md).
 
-- **Not yet:** 3: a root conversation's note scope, its own. 7: a widening funded by whoever gives it
+- **Not yet:** 7: a widening funded by whoever gives it
   (the task's existing funder is charged).
