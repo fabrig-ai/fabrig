@@ -1,7 +1,7 @@
 #![expect(clippy::disallowed_macros, reason = "unit tests read committed golden records")]
 //! New settings records translate in both directions, including framed reviews.
-use super::*;
 use super::encoders as e;
+use super::*;
 use crate::translate::settings_proposals as t;
 use jig_client_test_records::settings_proposals as values;
 #[test]

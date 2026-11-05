@@ -1,22 +1,28 @@
+#![expect(clippy::unnecessary_wraps, reason = "fixture translations preserve their fallible production signatures")]
+#![expect(clippy::trivially_copy_pass_by_ref, reason = "fixture translations borrow source facts uniformly")]
 //! Wire fixtures for link translation tests (protocol/client.md, 3).
 use crate::Limits;
 use crate::translate::settings::*;
+use crate::translate::too_large;
+use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use alloc::boxed::Box;
 use skein_lib::{List, Writer};
 
-pub fn encode_revision_item_pieces(values: &List<c::RevisionItem>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
+pub fn encode_revision_item_pieces(
+    values: &List<c::RevisionItem>,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     if values.len() > 1024 {
-        return Err(crate::translate::too_large());
+        return Err(too_large());
     }
     let mut rows = List::with_capacity(values.len());
     let mut size = 0_u32;
     for value in values {
         let row = wire_revision_item(value, limits)?;
-        size = size.checked_add(row.measure()).ok_or(crate::translate::too_large())?.checked_add(4).ok_or(crate::translate::too_large())?;
+        size = size.checked_add(row.measure()).ok_or(too_large())?.checked_add(4).ok_or(too_large())?;
         if size > limits.revision_document_items {
-            return Err(crate::translate::too_large());
+            return Err(too_large());
         }
         rows.push(row).expect("same capacity");
     }
@@ -318,10 +324,7 @@ pub fn wire_revision_item_edit(value: &c::RevisionItemEdit) -> Result<w::Revisio
         c::RevisionItemEdit::Reset => w::RevisionItemEdit::Reset,
     })
 }
-pub fn wire_application_state(
-    v: &c::ApplicationState,
-    limits: &w::Limits,
-) -> Result<w::ApplicationState, w::Problem> {
+pub fn wire_application_state(v: &c::ApplicationState, limits: &w::Limits) -> Result<w::ApplicationState, w::Problem> {
     let follows = match v.follows {
         c::ApplicationFollows::Default => w::ApplicationFollows::Default,
         c::ApplicationFollows::Changed { revision } => w::ApplicationFollows::Changed(w::ApplicationRevision::new(
@@ -350,7 +353,7 @@ pub fn encode_heads(
     bound: u32,
 ) -> Result<List<w::RevisionItemHead>, w::Problem> {
     if values.len() > bound {
-        return Err(crate::translate::too_large());
+        return Err(too_large());
     }
     let mut rows = List::with_capacity(values.len());
     for value in values {
@@ -360,15 +363,15 @@ pub fn encode_heads(
 }
 pub fn encode_review_pieces(values: &List<c::ReviewItem>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     if values.len() > 128 {
-        return Err(crate::translate::too_large());
+        return Err(too_large());
     }
     let mut rows = List::with_capacity(values.len());
     let mut size = 0_u32;
     for value in values {
         let row = wire_review_item(value, limits)?;
-        size = size.checked_add(row.measure()).ok_or(crate::translate::too_large())?.checked_add(4).ok_or(crate::translate::too_large())?;
+        size = size.checked_add(row.measure()).ok_or(too_large())?.checked_add(4).ok_or(too_large())?;
         if size > limits.settings_review_items {
-            return Err(crate::translate::too_large());
+            return Err(too_large());
         }
         rows.push(row).expect("same capacity");
     }

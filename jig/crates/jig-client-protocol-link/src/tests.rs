@@ -112,5 +112,5 @@ fn job_kinds_hello_refusal_round_trips() {
     assert_eq!(translate::documents::hello_refusal_fields(&decoded), c::HelloRefusal::JobKinds);
 }
 
-mod encoders;
 mod answers;
+mod encoders;

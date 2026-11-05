@@ -1,7 +1,7 @@
 #![expect(clippy::disallowed_macros, reason = "unit tests read the committed settings golden fixtures")]
 //! Settings translation is reversible for every record and populated whole values.
-use super::*;
 use super::encoders as e;
+use super::*;
 use crate::translate::settings as t;
 use jig_client_test_records::settings as values;
 use skein_lib::{List, Writer};

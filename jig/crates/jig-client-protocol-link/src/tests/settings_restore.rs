@@ -1,6 +1,6 @@
 //! Restore facts survive the wire and the kept request table (engine.md, 17.10).
-use super::*;
 use super::encoders as e;
+use super::*;
 use crate::translate::{answers, asks, settings as t, settings_proposals};
 use jig_client_test_records::settings as values;
 use skein_lib::{List, Writer};
@@ -30,11 +30,8 @@ fn a_project_policy_setting_round_trips_in_items_reviews_and_refusals() {
         application: None,
     };
     assert_eq!(
-        settings_proposals::restore_review_item(
-            &e::wire_review_item(&review, limits.wire()).unwrap(),
-            &limits
-        )
-        .unwrap(),
+        settings_proposals::restore_review_item(&e::wire_review_item(&review, limits.wire()).unwrap(), &limits)
+            .unwrap(),
         review
     );
     let refusal = w::Refusal::Malformed(
