@@ -3456,6 +3456,7 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-world",
+ "skein-protocol-kit",
  "skein-scratch",
  "skein-shell",
  "skein-sim",
