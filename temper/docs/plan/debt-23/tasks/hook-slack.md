@@ -17,7 +17,7 @@ Findings 2 and 5 of `temper/docs/plan/debt-23/inputs/debt21-review.md`, checked 
 Acceptance, the pin first:
 
 - A test in `skein/tests/forge/machine/tests/suite/hooks.rs`, beside `a_body_keeps_the_deadline_that_started_at_accept`. Its shape, with `hook_deadline` 10 s: a delivery sent at t=9, answered `204` and refused by the root; open at t=10 (so `Done` restarted the deadline); `Request::Offer` at t=18, the hint goes up; still open just before t=19; closed at t=19 (so a late offer didn't restart it). The world's calls: `run_for`, `send`, `refuse`, `advance_to`, `request(Request::Offer)`, `peer(..).closed`, `hints()`.
-- **It bites both ways, before any slack goes:** in `event`'s `http::Event::Done` arm, keep the old `until`: the test goes red at t=10. In `pump`'s `State::Answering { .. NextOwed::Keep }` arm, write `until: env.now.saturating_add(env.limits.hook_deadline)`: red at t=19. The report quotes both.
+- **It bites both ways, before any slack goes:** in `event`'s `http::Event::Done` arm, keep the old `until`: the test goes red at t=10. In `pump`'s hint arm, before its `follow()`, restart a `Head`'s `until`: `if let State::Head { until, .. } = &mut self.state { *until = env.now.saturating_add(env.limits.hook_deadline); }`: red at t=19. The report quotes both.
 
 Then in `hooks/connection.rs`:
 
@@ -50,3 +50,9 @@ Then in `hooks/connection.rs`:
 ## Report
 
 The common note's items; each mutant and what failed; what of the slack didn't go, and why.
+
+## Answers
+
+2026-11-05. **Accept the second mutant surviving, or change the test's shape?** Neither: the test stands as pushed (`done_restarts_the_deadline_and_a_late_offer_keeps_it`, keep the commit) and the second mutant changes, as the acceptance above now says. The first spelling can't bite in any scenario: `Done` sets the offer `Ready`, so one `pump` at one `env.now` offers the hint and passes from `Answering` to `Head`; recomputing `until` in that arm gives the same time. No test shape delays that step, so don't look for one. The rule is that a late offer doesn't restart the deadline, and a late offer meets `Head`, which is where the new mutant breaks it: at t=18 `until` becomes t=28, and the test goes red at t=19. The report quotes this mutant and says the first one is equivalent, and why. If this mutant passes too, stop and ask.
+
+2026-11-05. **`pump`'s `if self.sent()` guard.** It stays, under this spec's own exception: `HookHarness::pump` and `removal_discards_queued_notifications_and_listener_hints` call `pump` directly, and no test changes for slack. Say so in the report. The rest of the slack goes as listed.
