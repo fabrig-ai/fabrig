@@ -148,6 +148,20 @@ fn assert_no_application_writes(output: &[Request]) {
 }
 
 #[test]
+#[should_panic(expected = "checked application value")]
+fn application_proposal_value_mismatch_breaks_the_checked_promise() {
+    let (core, _) = application_core();
+    let charter = core.current.charter(1).unwrap().clone();
+    let mut proposal = s::Proposal {
+        key: None,
+        against: 1,
+        items: Box::new([item(1, 1, s::Edit::Set(s::Value::Charter(Box::new(charter))))]),
+        applications: Box::default(),
+    };
+    s::application::keep_proposal(&core, &mut proposal, 1, &mut Queue::uncapped());
+}
+
+#[test]
 fn application_only_proposal_keeps_its_sized_set() {
     let (mut core, limits) = application_core();
     let output =

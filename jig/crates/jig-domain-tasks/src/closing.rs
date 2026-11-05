@@ -229,26 +229,19 @@ fn ready_waiter(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Q
     true
 }
 
-fn begin_effects(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    number: u64,
-    ending: Ending,
-    out: &mut Queue<Request>,
-) -> bool {
+fn effects_ready(domain: &Domain, number: u64) -> bool {
     let task = record(domain, number).expect("closing task live");
-    if !task.delegates.is_empty()
-        || task.result_proposal
-        || crate::funders::funded_live(domain, number)
-        || crate::writers::closing_blocked(domain, number)
-    {
-        return false;
-    }
+    task.delegates.is_empty()
+        && !task.result_proposal
+        && !crate::funders::funded_live(domain, number)
+        && !crate::writers::closing_blocked(domain, number)
+}
+
+fn begin_effects(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending, out: &mut Queue<Request>) {
     let task = task_mut(domain, number).expect("closing task live");
     task.record.phase = Phase::Closing(Closing { stage: Stage::Effects, ending: ending.clone() });
     publish(domain, env, number, out);
     out.push(Request::Close { task: number, ending });
-    true
 }
 
 pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
@@ -267,7 +260,11 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
                 }
                 Phase::Closing(closing) => match closing.stage {
                     Stage::Delegates => {
-                        changed |= begin_effects(domain, env, number, closing.ending.clone(), out);
+                        let ready = effects_ready(domain, number);
+                        if ready {
+                            begin_effects(domain, env, number, closing.ending.clone(), out);
+                        }
+                        changed |= ready;
                     }
                     Stage::Run { .. } | Stage::Effects | Stage::Releases => {}
                     Stage::Settled => {
