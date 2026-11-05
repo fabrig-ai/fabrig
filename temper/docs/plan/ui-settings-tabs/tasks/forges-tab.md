@@ -97,3 +97,14 @@ Pre-approved:
 ## Report
 
 As the implementer's text says: which builder; each screenshot, by name, beside the mock's; each difference and why it stays; the rules removed from `temper.css`; each reader you changed.
+
+## Rebase (2026-11-05, step merge, foreman ui-settings-tabs/forges-tab/foreman-1)
+
+resolve the duplicate citation correction using the integration version
+The merge conflicts only in `temper/docs/design/client/README.md`, section 3.5, *The rows*.
+Task commit `2efb9c7a03` and integration commit `931d44c2af` independently correct the same citation.
+Resolve that line to integration’s wording:
+`act, form and state of 4.8, 5.5 and `forge.md`, 5.4 stays, and only its`
+This preserves local sections 4.8 and 5.5 and the external forge section 5.4.
+Keep the Forges implementation and status changes; no implementation repair is indicated by this refusal.
+Run `python3 -I -B tools/citations/citations.py --base origin/main` after resolving.
