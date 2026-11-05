@@ -15,6 +15,9 @@ use crate::{
 };
 use crate::{adoption, brief, held, topics};
 
+/// The title for an empty explicit pull title (domain/forge.md, 8.1).
+pub const DEFAULT_CHANGE_TITLE: &[u8] = b"Update repository";
+
 mod admission;
 #[path = "goal_branch.rs"]
 mod goal_branch;
@@ -2691,7 +2694,7 @@ fn produced_title(d: &mut Domain, task: u64, child: u64, title: &[u8], report: B
     }
     if row.pull.is_none() && row.title.is_empty() {
         row.title = if title.is_empty() {
-            Box::from(b"Update repository".as_slice())
+            Box::from(DEFAULT_CHANGE_TITLE)
         } else {
             crate::text::fit(title, 256, "…".as_bytes())
         };
@@ -3794,6 +3797,7 @@ fn change_facts(
         verification_bound,
         ask: crate::landing::ask_for(d, row),
         branch: pending.branch,
+        titled: !row.title.is_empty() || row.pull.is_some(),
         expected_base: base_tip,
         pull,
         ci: change::Ci {
@@ -3950,6 +3954,7 @@ fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Opt
             let marker = "…\nThe change's full words are on its task in temper.".as_bytes();
             let title_room = room.saturating_sub(marker.len().min(row.body.len()));
             let title = crate::text::fit(&row.title, title_room.min(256), "…".as_bytes());
+            let title = if title.is_empty() { Box::from(DEFAULT_CHANGE_TITLE) } else { title };
             let body = crate::text::fit(&row.body, room.saturating_sub(title.len()), marker);
             Some(skein_forge::api::Write::OpenPull { title, body, head: row.branch.clone(), base: row.base.clone() })
         }

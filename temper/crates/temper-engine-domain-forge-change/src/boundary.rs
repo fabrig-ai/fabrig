@@ -305,6 +305,8 @@ pub struct Facts {
     /// Its landing's current request; absent under queue.
     pub ask: Option<Ask>,
     pub branch: Option<Commit>,
+    /// The change has a title or an existing pull request (domain/forge.md, 8.1).
+    pub titled: bool,
     pub expected_base: Commit,
     pub pull: Pull,
     pub ci: Ci,
