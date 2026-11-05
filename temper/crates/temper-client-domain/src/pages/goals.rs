@@ -4,6 +4,98 @@ use crate::{GoalsFilter, Limits, owner::Owner};
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
 
+/// The open project's goal fact across pages (temper/docs/design/client/README.md, 5.3).
+#[derive(Debug)]
+pub(super) struct HasGoals {
+    query: Option<c::TaskQuery>,
+    ended: bool,
+}
+
+impl HasGoals {
+    pub(super) fn new() -> Self {
+        Self { query: None, ended: false }
+    }
+    fn live() -> Handle {
+        handle(u64::MAX.checked_sub(1).expect("reserved goal watch handle"))
+    }
+    fn read_handle() -> Handle {
+        handle(u64::MAX.checked_sub(2).expect("reserved goal read handle"))
+    }
+    pub(super) fn leave(&mut self, out: &mut Queue<Request>) {
+        if self.query.take().is_some() {
+            for handle in [Self::live(), Self::read_handle()] {
+                out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+            }
+        }
+        self.ended = false;
+    }
+    pub(super) fn configure(&mut self, me: Option<&c::Me>, project: Option<u32>, out: &mut Queue<Request>) {
+        let next = if let (Some(me), Some(project)) = (me, project) { query(me, project) } else { None };
+        if self.query == next {
+            return;
+        }
+        self.leave(out);
+        self.query = next;
+        if let Some(query) = next {
+            out.push(Request::Client(jig_client::Event::Watch {
+                handle: Self::live(),
+                subject: Watchable::Jig(c::Subject::Tasks { query, window: 1 }),
+            }));
+            out.push(Request::Client(jig_client::Event::Read {
+                handle: Self::read_handle(),
+                read: Readable::Jig(c::Read::Tasks {
+                    query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                    live: None,
+                    ended: None,
+                }),
+            }));
+        }
+    }
+    pub(super) fn told(&mut self, told: &Told) -> bool {
+        match told {
+            Told::Page { handle, page } if *handle == Self::read_handle() => {
+                if self.query.is_some() {
+                    self.ended = match page {
+                        Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => match &page.ended {
+                            c::EndedGroup::Rows { rows, .. } => !rows.is_empty(),
+                            c::EndedGroup::None => false,
+                        },
+                        Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
+                        | Readout::Family { .. }
+                        | Readout::NotServed { .. }
+                        | Readout::Limit => false,
+                    };
+                }
+                true
+            }
+            Told::Changed { handle } | Told::Ended { handle, .. } => *handle == Self::live(),
+            Told::Link { .. }
+            | Told::Pending { .. }
+            | Told::Answered { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. }
+            | Told::Text { .. }
+            | Told::Page { .. } => false,
+        }
+    }
+    pub(super) fn has(&self, client: &Client, project: u32) -> bool {
+        let Some(query) = self.query else { return false };
+        if query.project != Some(project) {
+            return false;
+        }
+        if self.ended {
+            return true;
+        }
+        if let Some(document) = client.document(Self::live())
+            && document.state != jig_client::State::Ended
+            && let Some(Latest::Jig(c::Delivery::Tasks(tasks))) = document.latest
+        {
+            return !tasks.rows.is_empty();
+        }
+        false
+    }
+}
+
 #[derive(Debug)]
 struct Row {
     task: u64,

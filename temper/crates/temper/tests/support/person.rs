@@ -322,6 +322,7 @@ pub struct Person {
     pub failed: Option<String>,
     adopting: bool,
     begin: Begin,
+    key_send: Option<u32>,
     directory: Box<[u8]>,
     seed: u64,
     departure: Departure,
@@ -462,6 +463,11 @@ impl Person {
             failed: None,
             adopting: false,
             begin: script.begin,
+            key_send: if matches!(script.begin, Begin::LinkWithKey | Begin::LinkWithOpenAiKey) {
+                Some(6)
+            } else {
+                None
+            },
             directory: b"private".as_slice().into(),
             // Fresh demo clients must not reuse the same request names when
             // signing the same owner in again on the same deployment.
@@ -627,11 +633,21 @@ impl Person {
         {
             client.go(address);
         }
+        // The goal fact's Watch and Read finish before the setup carries its key.
+        let key_waits = self.key_send == Some(self.actor.at()) && {
+            let pending = client.pending();
+            pending.shell.active > 1
+                || pending.shell.queued != 0
+                || pending.shell.held != 0
+                || pending.admission.attempts != 0
+                || pending.admission.deferred_reads != 0
+        };
         if client.started()
             && self.departure != Departure::Left
             && self.project == ProjectSelection::Selected
             && !self.finished
             && self.failed.is_none()
+            && !key_waits
         {
             let before = self.actor.at();
             match self.actor.next(&mut ReplyFace::new(client.tree()), now) {
