@@ -12,7 +12,7 @@ pub enum Lending {
 }
 
 pub(crate) fn login_token(expired: bool) -> Box<[u8]> {
-    login_at(skein_tls_world::pki::VALID, expired)
+    login_at(skein_tls_kit::pki::VALID, expired)
 }
 
 /// Access-only synthetic login for a real-loop story's clock.

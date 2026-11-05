@@ -397,7 +397,7 @@ fn two_calls(
     configuration: &Configuration,
     bounds: &Limits,
     receiving: Receiving,
-) -> (codec::Context, skein_llm_world::fake::Exchange) {
+) -> (codec::Context, skein_llm_kit::fake::Exchange) {
     let mut input = prompt();
     input.served = Box::new([input.served[0].clone(), llm::Served::Finish]);
     let endpoint = configuration.endpoint.clone();
@@ -435,11 +435,11 @@ fn two_calls(
             8,
         )]),
     }]);
-    let peer = skein_llm_world::fake::Exchange::prepared(client, endpoint, Some(credential), bounds.client, scripts);
+    let peer = skein_llm_kit::fake::Exchange::prepared(client, endpoint, Some(credential), bounds.client, scripts);
     (context, peer)
 }
 
-fn owned_completion(peer: &mut skein_llm_world::fake::Exchange) -> (Token, skein_llm::Completion) {
+fn owned_completion(peer: &mut skein_llm_kit::fake::Exchange) -> (Token, skein_llm::Completion) {
     peer.start();
     peer.run();
     let mut observed: Vec<_> = core::mem::take(&mut peer.seen)
@@ -630,7 +630,7 @@ fn only_uses_automatic_wire_choice_and_keeps_all_definitions_and_not_run_feedbac
         let narrowed = smith_protocol_llm_world::referee::NativeRequest::from_http(&only.peer.requests);
         assert_eq!(ordinary.tools, narrowed.tools, "narrowing never changes observed native definitions");
         let choice = |wire: &ClientPeer| {
-            let requests = skein_llm_world::identity(&wire.peer.requests);
+            let requests = skein_llm_kit::identity(&wire.peer.requests);
             let body = requests.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP body");
             let body: serde_json::Value = serde_json::from_slice(&requests[body + 4..]).expect("JSON");
             body.get("tool_choice").cloned()
@@ -655,7 +655,7 @@ fn only_uses_automatic_wire_choice_and_keeps_all_definitions_and_not_run_feedbac
 }
 
 fn native_choice(wire: &ClientPeer) -> Option<serde_json::Value> {
-    let requests = skein_llm_world::identity(&wire.peer.requests);
+    let requests = skein_llm_kit::identity(&wire.peer.requests);
     let body = requests.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP body");
     let body: serde_json::Value = serde_json::from_slice(&requests[body + 4..]).expect("JSON");
     body.get("tool_choice").cloned()

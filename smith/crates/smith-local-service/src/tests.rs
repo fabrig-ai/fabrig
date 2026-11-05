@@ -562,7 +562,7 @@ fn colocated_chat(
     config: Config,
 ) -> (Service, skein_sim::Sim, skein_sim::Pid, skein_fake_peers::llm::Peer, skein_sim::Pid) {
     let mut sim_config = skein_sim::Config::calm();
-    sim_config.wall = skein_tls_world::pki::VALID;
+    sim_config.wall = skein_tls_kit::pki::VALID;
     let mut sim = skein_sim::Sim::new(8, sim_config);
     let pid = sim.spawn_process();
     let peer_pid = sim.spawn_process();

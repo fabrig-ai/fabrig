@@ -25,7 +25,7 @@ fn world(configuration: client_peer::Configuration, job_input: &[u8]) -> World {
         network: Span::millis(0, 0),
         ..smith_protocol_llm_world::fixture::settings(1102)
     };
-    let mut client = skein_llm_world::limits();
+    let mut client = skein_llm_kit::limits();
     client.request = 32768;
     client.http.request = 32768;
     settings.limits.session.completion_bytes =
@@ -122,7 +122,7 @@ fn a_job_call_with_stop_is_rendered_stopped() {
 }
 
 fn decoded(name: &[u8], input: &[u8]) -> llm::Decoded {
-    let client = skein_llm_world::limits();
+    let client = skein_llm_kit::limits();
     codec::decode(
         name,
         input,

@@ -323,7 +323,7 @@ fn unreadable_store(path: &Path, errno: u8) -> Outcome {
 }
 fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
     let (agent, _) = crate::tests::configuration::documents(root, "/fixture/temper");
-    fs::write(root.join("root.der"), skein_tls_world::pki::ROOT).expect("fixture trust");
+    fs::write(root.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");
     fs::write(root.join("agent.json"), agent).expect("checked agent metadata fixture");
     crate::agent::read(&root.join("agent.json")).expect("agent metadata")
 }

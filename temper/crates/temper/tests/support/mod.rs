@@ -152,7 +152,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
     write_private(&directory.join("secrets/forge-1.user"), b"42\n");
     write_private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
     write_private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
-    write_private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
+    write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     let (agent, value) =
         configuration::documents(directory, skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"));
     write_private(&directory.join("agent.json"), &agent);

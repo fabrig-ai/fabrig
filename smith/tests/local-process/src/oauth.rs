@@ -6,7 +6,7 @@ use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_tls::client as tls;
-use skein_tls_world::pki;
+use skein_tls_kit::pki;
 use skein_world::Host;
 
 /// Outside token POST count, with no issuer state access.

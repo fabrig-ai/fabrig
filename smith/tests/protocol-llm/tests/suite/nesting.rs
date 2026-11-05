@@ -30,7 +30,7 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
         turns.extend(std::mem::take(&mut main.turns).into_vec());
         main.turns = turns.into_boxed_slice();
         let mut bounds =
-            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated());
+            smith_protocol_llm::fixture::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         // The byte peer decodes the same complete native documents the client renders.
@@ -93,13 +93,13 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
 fn check_document_bound(world: &World, bounds: &codec::Limits, error_flag: bool) -> bool {
     use skein_fake_llm_protocol::documents::{self, Provider};
 
-    let tape = skein_llm_world::identity(
+    let tape = skein_llm_kit::identity(
         &world.protocol_calls().iter().max_by_key(|binding| binding.request.len()).expect("observed requests").request,
     );
     let head = tape.windows(4).position(|part| part == b"\r\n\r\n").expect("HTTP head");
     let body = &tape[head + 4..];
     let dialect = if error_flag { Provider::Anthropic } else { Provider::OpenAi };
-    let peer = skein_llm_world::fake::limits(&bounds.client);
+    let peer = skein_llm_kit::fake::limits(&bounds.client);
     assert!(
         documents::request(dialect, body, &peer.documents).is_ok(),
         "the observed complete request fits its configured document bound"

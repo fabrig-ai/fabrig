@@ -225,7 +225,7 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
     if !TOOLS.iter().any(|(tool, _, _)| *tool == name) {
         return Err(Problem::UnknownTool);
     }
-    let client = skein_llm_world::limits();
+    let client = skein_llm_kit::limits();
     let bytes = u32::try_from(arguments.len()).unwrap_or(u32::MAX).min(client.input);
     let limits = skein_llm::DocumentLimits { bytes, strings: bytes, tokens: bytes, depth: client.depth };
     let json = skein_llm::Json::from_bytes(arguments, &limits).map_err(|error| match error {

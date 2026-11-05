@@ -897,11 +897,7 @@ fn paste_connects(pem: Secret, bundle: Secret) {
 }
 // Use the fake's HTTP face, preserving its installation table across paste,
 // reconcile and accept; every request still crosses the real setup codecs.
-pub(super) fn github_reply(
-    service: &mut crate::Service,
-    face: &mut Face,
-    github: &mut skein_forge_machine_world::github::Fake,
-) {
+pub(super) fn github_reply(service: &mut crate::Service, face: &mut Face, github: &mut skein_forge_kit::github::Fake) {
     face.sent(service);
     let wall = service.engine.as_ref().unwrap().env.wall;
     let reply = github.serve(&face.wire.received, wall);
@@ -916,7 +912,7 @@ fn connecting_keeps_preexisting_installations_and_accept_can_take_one_after_reco
     let mut service = service(8, Duration::from_secs(3600));
     // The fake's installations were made near the epoch, weeks before connect.
     service.engine.as_mut().unwrap().env.wall = Wall::from_nanos(2_419_200_000_000_000);
-    let mut github = skein_forge_machine_world::github::Fake::new(7);
+    let mut github = skein_forge_kit::github::Fake::new(7);
     let ids = github.installation_ids();
     let (pem, bundle) = carried_pem();
     let digest = skein_lib::sha256::digest(bundle.expose());

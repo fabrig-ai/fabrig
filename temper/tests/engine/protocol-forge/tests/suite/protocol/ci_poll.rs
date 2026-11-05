@@ -11,7 +11,7 @@ pub(super) fn pending_github_change(passes: u32) -> (Protocol, Wall, Wall, u64) 
     limits.client = shipped.client;
     limits.change_policy.stall = shipped.change_policy.stall;
     limits.resources_per_task = shipped.resources_per_task;
-    let mut checks = skein_forge_machine_world::joint::checks(passes);
+    let mut checks = skein_forge_kit::joint::checks(passes);
     checks.latency_min = Duration::from_secs(90);
     checks.latency_max = Duration::from_secs(90);
     let mut world = Protocol::github_with_limits(71, checks, &limits);

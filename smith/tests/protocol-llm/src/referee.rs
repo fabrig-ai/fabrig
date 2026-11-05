@@ -16,7 +16,7 @@ impl NativeRequest {
     /// bytes, inflated when the endpoint sends gzip.
     #[must_use]
     pub fn from_http(bytes: &[u8]) -> Self {
-        let bytes = &skein_llm_world::identity(bytes)[..];
+        let bytes = &skein_llm_kit::identity(bytes)[..];
         let head = skein_lib::bytes::find(bytes, b"\r\n\r\n").expect("observed HTTP request head");
         let fields: std::collections::BTreeMap<String, Box<serde_json::value::RawValue>> =
             serde_json::from_slice(&bytes[head + 4..]).expect("observed native JSON request");

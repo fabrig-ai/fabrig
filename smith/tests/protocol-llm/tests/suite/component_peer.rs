@@ -11,7 +11,7 @@ use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Intake, Queue, Rng, Time, Token};
 use skein_llm::{Credential, Provider};
-use skein_tls_world::{drive::Wire, pki, server::Server};
+use skein_tls_kit::{drive::Wire, pki, server::Server};
 use smith_domain::{GrantName, llm, run, tools};
 use smith_protocol_llm_world::codec::{
     Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, ToDomain,
@@ -208,7 +208,7 @@ fn run_story(
     pressure: Pressure,
     seed: u64,
 ) -> Story {
-    let mut call = skein_llm_world::public_call(7);
+    let mut call = skein_llm_kit::public_call(7);
     match dialect {
         Provider::OpenAi => {}
         Provider::Anthropic => {
@@ -224,7 +224,7 @@ fn run_story(
         skein_llm::Scheme::Bearer => Credential::bearer(credential.value.clone()),
         skein_llm::Scheme::Key => Credential::key(credential.value.clone()),
     };
-    let peer_limits = skein_llm_world::fake::limits(&skein_llm_world::limits());
+    let peer_limits = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     let provider_kind = match dialect {
         Provider::OpenAi => documents::Provider::OpenAi,
         Provider::Anthropic => documents::Provider::Anthropic,
@@ -242,7 +242,7 @@ fn run_story(
     )
     .expect("fake service");
     let mut peer = provider::Server::new(Token::new(2), &peer_limits).expect("fake server");
-    let fake_limits = skein_llm_world::fake::config();
+    let fake_limits = skein_llm_kit::fake::config();
     let lines = if calls {
         Box::new([api::Line::Call {
             name: b"read".as_slice().into(),

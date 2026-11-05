@@ -30,7 +30,7 @@ impl Invocation {
         let scratch = skein_scratch::Scratch::new(name);
         let directory = scratch.path();
         let mut config = skein_sim::Config::calm();
-        config.wall = skein_tls_world::pki::VALID;
+        config.wall = skein_tls_kit::pki::VALID;
         let mut sim = skein_sim::Sim::new(seed, config);
         let pid = sim.spawn_process();
         let peer_pid = sim.spawn_process();

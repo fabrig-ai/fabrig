@@ -1,7 +1,7 @@
 mod ci_poll;
 use skein_fake_forge_domain::{Observation, api::Kind};
 use skein_fake_forge_forgejo::Route;
-use skein_forge_machine_world::joint::REPO;
+use skein_forge_kit::joint::REPO;
 use skein_lib::Wall;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
@@ -183,7 +183,7 @@ fn github_head_checks(world: &mut Protocol, expected: skein_forge::api::Check) {
 #[test]
 fn a_github_change_is_checked_by_its_check_runs_and_lands() {
     use skein_fake_forge_domain::api::Check;
-    use skein_forge_machine_world::joint;
+    use skein_forge_kit::joint;
     use skein_lib::Duration;
 
     let mut checks = joint::checks(1000);
@@ -231,7 +231,7 @@ fn a_github_change_is_checked_by_its_check_runs_and_lands() {
 #[test]
 fn a_github_change_whose_check_run_fails_is_repaired() {
     use skein_fake_forge_domain::api::Check;
-    use skein_forge_machine_world::joint;
+    use skein_forge_kit::joint;
 
     let mut world = opened_change_in(Protocol::github_with_checks(73, joint::checks(0)));
     let head = world.branch(b"temper/51");
@@ -671,9 +671,9 @@ fn held_branch(world: &mut Protocol) -> (top::Name, skein_forge::api::Commit) {
     (name, pushed)
 }
 
-fn connected_github_with_two_installations() -> skein_forge_machine_world::joint::Joint {
+fn connected_github_with_two_installations() -> skein_forge_kit::joint::Joint {
     use skein_forge_connection::Request;
-    use skein_forge_machine_world::joint::{self, Joint};
+    use skein_forge_kit::joint::{self, Joint};
     use skein_lib::Duration;
 
     let mut world = Joint::github(
@@ -775,7 +775,7 @@ fn github_git_tokens_renew_before_they_expire() {
 
 #[test]
 fn github_reaches_ready_through_its_accepted_installations() {
-    use skein_forge_machine_world::machine::{Answer, Machine};
+    use skein_forge_kit::machine::{Answer, Machine};
     let mut world = Machine::github(
         7,
         fixtures::limits(),
@@ -1096,7 +1096,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
     // temper/docs/design/domain/forge.md, 5.2: procedure progress uses news and fresh reads.
     use skein_fake_forge_domain::api::Check;
     use skein_forge::api::{Change, Hint};
-    use skein_forge_machine_world::joint;
+    use skein_forge_kit::joint;
     use skein_lib::Duration;
     const RESOURCE_POLL: Duration = Duration::from_secs(3600);
     const HORIZON: Duration = Duration::from_secs(60);
