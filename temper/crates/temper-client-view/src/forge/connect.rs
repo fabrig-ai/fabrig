@@ -363,8 +363,7 @@ fn welcome_choices(
 }
 /// The welcome's sheet over the Forge step: what Forgejo on this machine
 /// starts with, the chosen one's own fields under it, then Cancel and Run.
-/// Only an empty repository is made yet; the others say so on Run
-/// (`temper/docs/design/client/README.md`, 3.5).
+/// Run sends its choice; copies wait for Ready (`temper/docs/design/client/README.md`, 3.5).
 fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings) {
     let draft = root.forge().setup_form();
     b.open(Role::Dialog);
@@ -411,7 +410,7 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
                     (SetupField::Organization, Word::SetupOrganization),
                     (SetupField::Repository, Word::WelcomeForgejoName),
                 ] {
-                    setup_field(b, root, w, forge, field, word, 0, None);
+                    setup_field(b, root, w, forge, field, word, 0, None, Place::Welcome);
                 }
                 b.close();
             }
@@ -432,9 +431,7 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
         }
     }
     b.close();
-    if draft.not_yet {
-        text(b, w, Role::Alert, Word::WelcomeForgejoNotYet);
-    }
+    sheet_alerts(b, w, draft);
     // A new forge's refusal has no record to name.
     setup_refusal(b, root, w, None);
     b.open(Role::Slot);
@@ -456,6 +453,28 @@ fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, for
     );
     b.close();
     b.close();
+}
+fn sheet_alerts(b: &mut Builder, w: &Words, draft: &forge::forges::Draft) {
+    if draft.blank {
+        text(b, w, Role::Alert, Word::WelcomeSheetBlank);
+    }
+    if let Some(refused) = &draft.copies_refused {
+        use forge::making::CopiesRefused;
+        let words = match refused {
+            CopiesRefused::NoAddress => w.say(Word::WelcomeCopiesNone, &[]),
+            CopiesRefused::TooMany => w.say(Word::WelcomeCopiesTooMany, &[]),
+            CopiesRefused::NotAnAddress(line) => {
+                let line = forge::words::lossy(line);
+                let bound = usize::try_from(w.name_bytes).expect("word bound fits usize");
+                let mut chunks = line.utf8_chunks();
+                let line = chunks.next().expect("refused line has words").valid();
+                let end = line.floor_char_boundary(line.len().min(bound));
+                let line = line.get(..end).expect("bounded character prefix");
+                w.say(Word::WelcomeCopiesNotAnAddress, &[Hole::Name(copy_of(line.as_bytes()))])
+            }
+        };
+        crate::cards::text(b, Role::Alert, &words);
+    }
 }
 pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
     flow::card(b, &w.say(Word::ForgeNotFinished, &[]));
@@ -1150,7 +1169,7 @@ fn setup_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeB
     for (field, word) in
         [(SetupField::Organization, Word::SetupOrganization), (SetupField::Repository, Word::SetupRepository)]
     {
-        setup_field(b, root, w, bindings, field, word, number, Some(look::FLOW_FIELD));
+        setup_field(b, root, w, bindings, field, word, number, Some(look::FLOW_FIELD), Place::Connect);
     }
     b.close();
 }
@@ -1164,6 +1183,7 @@ fn setup_field(
     word: Word,
     number: u16,
     style: Option<skein_ui::Style>,
+    place: Place,
 ) {
     let draft = root.forge().setup_form();
     let invalid = match root.forge().set_up() {
@@ -1184,8 +1204,13 @@ fn setup_field(
         b.state(State::Invalid);
     }
     b.close();
-    if draft.required(field) {
-        text(b, w, Role::Alert, Word::SetupRequired);
+    match place {
+        Place::Connect => {
+            if draft.required(field) {
+                text(b, w, Role::Alert, Word::SetupRequired);
+            }
+        }
+        Place::Welcome => {}
     }
     b.close();
 }

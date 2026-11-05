@@ -1396,7 +1396,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-welcome .temper-welcome-option-more :is(input, textarea) { box-sizing: border-box; width: 100%; min-height: 38px; margin: 0; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 15px/1.6 var(--gf-sans); }
 #app > .temper-welcome .temper-welcome-option-more textarea { display: block; min-height: 76px; padding: 8px 12px; resize: vertical; font: 13px/1.5 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace; }
 #app > .temper-welcome .temper-welcome-option-more [role=alert] { margin-top: 4px; color: #b42318; font-size: 13px; }
-#app > .temper-welcome .temper-welcome-sheet > [role=alert] { margin: -8px 0 0; color: #b42318; font-size: 14px; }
+#app > .temper-welcome dialog.temper-welcome-sheet[open] > [role=alert] { margin: -8px 0 0; color: #b42318; font-size: 14px; }
 #app > .temper-welcome .temper-welcome-sheet-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--gf-line); }
 #app > .temper-welcome .temper-welcome-sheet-foot > button { display: inline-flex; align-items: center; min-height: 40px; margin: 0; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 400 14.5px/1.6 var(--gf-sans); cursor: pointer; }
 #app > .temper-welcome .temper-welcome-sheet-foot > button:hover { background: #ececea; color: var(--gf-ink); }
