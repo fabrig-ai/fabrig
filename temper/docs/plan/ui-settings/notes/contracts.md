@@ -141,3 +141,29 @@ pub fn drafts_offered(root: &Domain, project: u32) -> bool;
 
 If `drafts_offered` is on the trunk under another signature, keep that signature; it reads `drafts`, and with
 none read answers false.
+
+## How work runs' rows (`how-work-runs`)
+
+A row is one function in `pages/settings.rs`, `.setting`: the label in a `span`, `small` under it, the control at its right, its refusal under it. The toggle's value is computed where
+the row is drawn, from what the row shows: `Asked::Ways(Ways { goals: !shown.goals, ..shown })`, so a press sends the whole record.
+
+```rust
+// temper-client-view/src/forge/bindings.rs
+Meaning::Ways(temper_client_domain::forge::ways::Act)
+```
+
+A select's options carry their route in the option's value, as `Act::Filter`'s carry theirs (`frame.rs`, `decode`).
+
+## A proposal's values (`settings-proposal`)
+
+```rust
+// temper-client-domain/src/forge/ways.rs
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Proposed { Ways { project: u32, ways: Ways }, Questions { project: u32, route: Route } }
+
+impl Side {
+    /// The values of kinds 6 and 7 proposal `key` sets, from the forge's `ProposalItems`. `None` until
+    /// delivered, or if refused.
+    pub fn proposed(&self, key: u64) -> Option<&[Proposed]>;
+}
+```

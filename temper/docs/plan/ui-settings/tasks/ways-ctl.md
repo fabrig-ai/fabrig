@@ -5,6 +5,7 @@ kind = "feature"
 needs = ["ways-kind"]
 files = [
   "temper/crates/temper-settings-form/src/**",
+  "temper/crates/temper-client-protocol-wire/src/lib.rs",
   "temper/crates/temper-client-tools/src/settings.rs",
   "temper/crates/temper-client-tools/src/settings/value.rs",
   "temper/crates/temper-client-tools/src/jig/rows.rs",
@@ -35,8 +36,8 @@ file sets them; the configuring agent knows them; the reference's project shows 
 Acceptance:
 
 - **The entrances:** `notes/contracts.md`, *The entrances*: all three take 6 and 7. One function says which kinds
-  are temper's, `temper_engine_smith::kinds::typed(kind: u32) -> bool`, and the ranges call it; so a next kind
-  has one place.
+  are temper's, `temper_client_protocol_wire::settings_kind(kind: u32) -> bool`, beside the kinds' records, and the three
+  ranges call it; so a next kind has one place.
 - **ctl:** `settings show project-ways PROJECT` and `settings show project-questions PROJECT`, a project by its
   number or name as `landing-rule`'s `--project` resolves it, with `--revision` and `--json` as `forge-charter`'s; the
   value is the stored one, or the stock's with none, and says "the stock" so (`temper/docs/design/client/tools.md`, 4).
@@ -85,7 +86,7 @@ Pre-approved:
 
 ## Steps
 
-1. `kinds::typed` and the three call sites. A step test in `temper-service`'s clients' translation: a change with an item of kind 7
+1. `settings_kind` and the three call sites. A step test in `temper-service`'s clients' translation: a change with an item of kind 7
    from a client reaches the root typed; and in `temper-engine-smith`'s: an agent's proposal of kind 6.
 2. The form: `kinds.rs` (`setting`, `value`, `render`), `file.rs`, `render.rs` (`setting_text`, `encode_setting`), `fields/*` and `fields/tests.rs`.
    `settings_file_tests.rs`: both good and bad shapes, `project_ways_is_read_and_printed_whole`.
