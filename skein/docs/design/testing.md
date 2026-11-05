@@ -308,6 +308,7 @@ crates/skein-ui-web             the browser parts (ui-web.md): each part's pure 
 crates/skein-ui-bundle          the bundler, a tool built optimized (ui-web.md, 4.2)
 crates/skein-fake-llm-*         the scripted LLM peer: its domain and its byte peer (fake-llm.md), a product the worlds and the real loop use
 crates/skein-fake-forge-domain  the fake forge's domain (fake-forge.md, 2 and 3)
+crates/skein-fake-forge-http    what its two layers share (fake-forge.md, 12)
 crates/skein-fake-forge-protocol its Forgejo protocol layer (fake-forge.md, 4)
 crates/skein-fake-oauth         an independent rotating OAuth issuer (oauth.md, 5)
 crates/skein-fake-peers         the LLM, OAuth and forge peers hosted on loopback io, in a world or as an application's own process (fake-forge.md, 5); links skein-fake-forge-github for GitHub's API/browser and blob faces

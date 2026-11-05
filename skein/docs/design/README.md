@@ -60,7 +60,7 @@ this design.
 | the forge component | `skein-forge-connection` | a protocol layer's component that runs a forge's calls end to end: connecting, TLS, credentials, deliveries | [forge-connection.md](forge-connection.md) |
 | the forge client | `skein-forge-client` | a bounded view of a forge for its owner's domain, and each write made at most once | [forge-client.md](forge-client.md) |
 | the forge setup | `skein-forge-setup` | makes a forge ready for a service: the identity, credentials, repositories and hooks it acts with | [forge-setup.md](forge-setup.md) |
-| the fake forge | `skein-fake-forge-domain`, `skein-fake-forge-protocol`, `skein-fake-forge-github`, `skein-fake-peers`, `skein-throwaway-forgejo` | for tests: a forge's state and git, Forgejo's API over it, GitHub's API and blob layer, a forge peer on loopback beside the LLM's and OAuth's, the pinned Forgejo run in a scratch, and the conformance that holds the dialect to it | [fake-forge.md](fake-forge.md) |
+| the fake forge | `skein-fake-forge-domain`, `skein-fake-forge-http`, `skein-fake-forge-protocol`, `skein-fake-forge-github`, `skein-fake-peers`, `skein-throwaway-forgejo` | for tests: a forge's state and git, Forgejo's API over it, GitHub's API and blob layer, a forge peer on loopback beside the LLM's and OAuth's, the pinned Forgejo run in a scratch, and the conformance that holds the dialect to it | [fake-forge.md](fake-forge.md) |
 | the browser kit | `skein-browser` | for tests: a headless Chromium driven over the DevTools protocol on a pipe, by role and name, from the loop | [browser.md](browser.md) |
 | the UI kit | `skein-ui` | a semantic tree of an application's state, by accessibility roles, built, diffed into patches, its acts bound to their owners; words, Markdown, scenes | [ui.md](ui.md) |
 | the text shell | `skein-ui-text` | the tree printed as lines, a typed line read as an act, for a terminal or a pipe | [ui-text.md](ui-text.md) |
@@ -92,8 +92,9 @@ skein-forge-client lib, forge
 skein-forge-connection lib, io, http, tls, json, forge
 skein-forge-setup lib, io, http, tls, json, forge
 skein-fake-forge-domain lib
-skein-fake-forge-protocol lib, http, json, forge, fake-forge-domain
-skein-fake-forge-github lib, http, tls, json, forge, fake-forge-domain, fake-forge-protocol
+skein-fake-forge-http lib, http, json, forge, fake-forge-domain
+skein-fake-forge-protocol lib, http, json, forge, fake-forge-domain, fake-forge-http
+skein-fake-forge-github lib, http, tls, json, forge, fake-forge-domain, fake-forge-http
 skein-fake-llm-domain lib
 skein-fake-llm-protocol lib, http, json, llm, fake-llm-domain
 skein-fake-peers lib, io, http, llm, oauth, shell, fake-llm-*, fake-oauth, fake-forge-*; rustls

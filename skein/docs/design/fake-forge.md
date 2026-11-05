@@ -14,7 +14,7 @@ The dialect is forge.md's; the parts under test are the kit's others.
   better (section 2).
 - **Its git** lives in the same store, so a branch pushed is the head the API
   reads. It is reached through a typed transport: a shared handle within a
-  process, and the protocol layer's private git route from another one.
+  process, and a private git route from another one.
   Git's own protocol is never served (section 3).
 - **The protocol layer** (`crates/skein-fake-forge-protocol`) serves
   Forgejo's API over the domain on skein's HTTP server, with its quirks, the
@@ -32,6 +32,9 @@ The dialect is forge.md's; the parts under test are the kit's others.
   and tokens, the browser's pages as plain redirects, the merge queue,
   rulesets, the delivery log and the job log's blob host. Where it differs
   from github.com is written down as contracts (section 10).
+- **What the two layers share** (`crates/skein-fake-forge-http`): one
+  connection's core and the private git route, on neutral types, so
+  neither layer stands on the other (section 12).
 - **GitHub's conformance** (`tests/forge/github`) runs the same cases on
   that layer, in the focused suite, and, opt-in and from the owner alone,
   on github.com with the probe App's fixtures (section 11).
@@ -321,8 +324,8 @@ against.
 - **Within a process,** a working tree reaches the store through
   `git::Remote`, answered on the shared forge (section 5) without the
   network.
-- **From another process,** the same calls travel the protocol layer's
-  private git route (section 4) on the forge peer's listener, with the
+- **From another process,** the same calls travel the private git route
+  (section 4) on the forge peer's listener, with the
   store's reads and commits beside them. So a fake of the service's git
   can run as a program of its own, as temper's `temper fake git` does
   beside a demo's forge. The domain stays the only store: such a program
@@ -335,8 +338,8 @@ against.
 
 ## 4. The protocol layer
 
-It depends on skein-lib, skein-http, skein-json, `skein-forge` and the
-domain, and holds no clock of its own.
+It depends on skein-lib, skein-http, skein-json, `skein-forge`, the domain
+and what the two layers share (section 12), and holds no clock of its own.
 
 - **A forge it is handed.** It serves a fake forge its owner hands it and
   builds none (section 5). The forge peer hosts it.
@@ -1338,3 +1341,38 @@ masking and refusal of leaked secrets are section 7's.
   or writing its value.
 - **Calls are few.** A full live run stays under 400 requests and about
   ten minutes, most of it waiting for the probe workflow's 45 seconds.
+
+## 12. What the two layers share
+
+Forgejo's layer (section 4) and GitHub's (section 10) serve different
+APIs from one domain, and speak HTTP the same way. What they have in
+common sits in `skein-fake-forge-http`, which depends on skein-lib,
+skein-http, skein-json, `skein-forge`'s neutral root (forge.md, 4.4) and
+the domain. It names no item of either dialect, and neither layer names
+the other's crate: a change to one fake reaches the other only through
+this one. Forgejo's layer is the crate `skein-fake-forge-forgejo`, which
+says what it is.
+
+- **One connection's core.** `connection::Connection` holds what a
+  connection is whatever it serves: its state, skein's HTTP server, the
+  queues between them, the captured head and the reply in hand. The core
+  admits an event by the state, captures a head with its `Authorization`
+  blanked, streams a reply within the send limit, and closes. It decides
+  nothing about a request.
+- **A server keeps its pass.** Each layer's `Server` holds a `Connection`
+  and runs its own bounded pass: it asks the core for a `Turn`, one
+  event at a time, and answers it by its own routing. So a layer keeps
+  its events, its body's reading, its headers, its fault draws and its
+  order of work, and the core draws no chance and calls no one.
+- **The git route** (section 4) is typed here: `git::Limits` holds the
+  HTTP server's limits and the documents' (`skein_forge::limits::Limits`),
+  all the route reads. `git::status` answers a domain error's status
+  on the route. Each layer serves the route through its own entrance,
+  with its own credential rule (section 4 and 10.1).
+- **`Hosted` and `Faults`,** the forge lent for one pass and the byte
+  faults' chances, are the layers' alike, so they sit here and each
+  layer's `Config` names `Faults`.
+- **What stays apart.** Each layer's own: its `Service`, its routes, its
+  answers, the spelling of a reply's head, and whether a status carries a
+  body. A commit's 32 bytes are the domain's (`commit_bytes`,
+  `commit_count`, beside `object_bytes`), which both layers read.
