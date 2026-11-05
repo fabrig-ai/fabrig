@@ -271,7 +271,3 @@ fn a_refused_stage_fails_the_build_at_once_with_no_discard() {
     assert_eq!((step, why), (Step::Fetch(Layer::Software), Why::Stage), "the layer's first step");
     assert!(build.is_empty(), "the build ends with its terminal");
 }
-#[test]
-fn the_plan_fits_its_worst_case() {
-    assert!(crate::limits::worst_case(&SHIPPED).is_some(), "the shipped plan's bound is finite");
-}

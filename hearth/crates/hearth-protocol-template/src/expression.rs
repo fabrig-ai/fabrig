@@ -82,7 +82,8 @@ fn parse(text: &[u8], limits: &Limits, conditional: bool) -> Result<Expression, 
     }
     unreachable!("every token consumes at least one byte, then an end token")
 }
-pub(crate) fn worst_case(length: u32) -> Option<u64> {
+/// The expression decoder's workspace and returned operations, or `None` on overflow.
+pub(crate) fn decoder_bound(length: u32) -> Option<u64> {
     // Shrinking the output to the returned box can hold both allocations.
     // All capacities are text-sized: binary operators do not count as nesting.
     List::<Operation>::price(length)?
@@ -634,5 +635,22 @@ fn word_start(byte: Option<&u8>) -> bool {
     match byte {
         Some(b'a'..=b'z' | b'A'..=b'Z' | b'_') => true,
         Some(_) | None => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Operation, Pending, decoder_bound};
+
+    #[test]
+    fn the_decoder_bound_covers_the_expression_workspace_and_result() {
+        const BYTES_PER_BYTE: usize = 2 * size_of::<Operation>() + size_of::<Pending>() + size_of::<u32>() + 3;
+        for length in [0, 17, u32::MAX] {
+            // Every u32 length is representable, including the largest one.
+            let expected = u64::from(length)
+                .checked_mul(u64::try_from(BYTES_PER_BYTE).expect("item sizes fit u64"))
+                .expect("u32-sized expression workspace fits u64");
+            assert_eq!(decoder_bound(length), Some(expected), "length {length}");
+        }
     }
 }

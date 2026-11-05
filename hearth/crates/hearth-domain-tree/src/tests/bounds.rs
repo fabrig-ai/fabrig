@@ -1,6 +1,6 @@
 use super::fake::{Node, dir, file, link, root, run};
 use crate::{
-    limits::{Limits, SHIPPED, worst_case},
+    limits::{Limits, SHIPPED, walk_bound},
     vocabulary::{Bound, Cause},
 };
 
@@ -95,9 +95,9 @@ fn a_page_past_the_one_asked_for_is_not_an_answer() {
 }
 
 #[test]
-fn the_worst_case_is_a_sum_that_fits_or_nothing() {
-    let shipped = worst_case(&SHIPPED).expect("the shipped limits fit a u64");
+fn the_walk_bound_is_a_sum_that_fits_or_nothing() {
+    let shipped = walk_bound(&SHIPPED).expect("the shipped limits fit a u64");
     assert!(shipped > 1_048_576, "{shipped}");
-    assert_eq!(worst_case(&Limits { held: u32::MAX, name: u32::MAX, ..SHIPPED }), None);
-    assert_eq!(worst_case(&Limits { depth: u32::MAX, ..SHIPPED }), None);
+    assert_eq!(walk_bound(&Limits { held: u32::MAX, name: u32::MAX, ..SHIPPED }), None);
+    assert_eq!(walk_bound(&Limits { depth: u32::MAX, ..SHIPPED }), None);
 }

@@ -307,8 +307,8 @@ fn read_type(value: Value, types: &mut List<Type>, stack: &mut Stack<Frame>, exp
     Ok(())
 }
 
-/// Additional peak heap while decoded values and all new schema lists coexist.
-pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
+/// Bounds the schema decoder's additional heap while decoded values and new lists coexist.
+pub(crate) fn decoder_bound(limits: &Limits) -> Option<u64> {
     use core::mem::size_of;
     let entries = u64::from(limits.document / 2).checked_add(1)?;
     let largest = size_of::<Type>().max(size_of::<Spec>()).max(size_of::<Export>());

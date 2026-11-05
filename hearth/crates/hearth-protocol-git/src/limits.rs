@@ -32,7 +32,7 @@ pub enum Decoder {
 }
 /// Decoder-owned heap, including one delivery; emitted payloads are the receiver's.
 #[must_use]
-pub fn worst_case(decoder: Decoder, limits: &Limits) -> Option<u64> {
+pub fn decoder_bound(decoder: Decoder, limits: &Limits) -> Option<u64> {
     match decoder {
         Decoder::Tail => skein_lib::Queue::<Box<[u8]>>::price(limits.tail_lines)?
             .checked_add(u64::from(limits.tail_lines).checked_mul(u64::from(limits.tail_line))?)?

@@ -34,3 +34,30 @@ id = 1
 story = "the builder's process-wide sum is gone, and a large render shows by measurement that the defaults fit a modest machine"
 parts = ["sums", "large", "budget"]
 walk = false
+
+[[part]]
+id = "ceilings"
+title = "Every world's memory tests hold fixed scenarios under named ceilings, and what stays of the formulas is named for what it bounds"
+mode = "direct"
+needs = ["sums"]
+design = "hearth/docs/design/domain/testing.md, 8.4"
+
+[[part]]
+id = "startup"
+title = "valid(limits) is startup's check, from the bounds left at the edges"
+mode = "direct"
+needs = ["ceilings"]
+design = "hearth/docs/design/domain/render.md, 8.4"
+
+[[part]]
+id = "close"
+title = "D002 and D003 are paid and deleted, and the status files are up to the code"
+mode = "direct"
+needs = ["startup", "large", "budget"]
+design = "hearth/docs/design/domain/testing.md, 8.4"
+
+[[slice]]
+id = 2
+story = "no memory test reads a formula, no worst_case is left in hearth, and limits are checked once at startup"
+parts = ["ceilings", "startup", "close"]
+walk = false

@@ -469,22 +469,3 @@ fn configured_proxy(configuration: &Configuration) -> Option<protocol::Proxy> {
             .expect("validated proxy"),
     )
 }
-
-/// Sum hearth's domain and protocol layers and its queue storage.
-/// Returns `None` if the bound overflows (skein/docs/foundation/programming-model.md, 6.3).
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let domain = domain::worst_case(&limits.domain)?;
-    let protocol = protocol::limits::worst_case(&limits.protocol)?;
-    let queues = Queue::<file::Event>::price(limits.queue)?
-        .checked_add(Queue::<Submit>::price(limits.queue)?.checked_mul(3)?)?
-        .checked_add(Queue::<Complete>::price(limits.queue)?)?
-        .checked_add(Queue::<io::Event>::price(limits.queue)?)?
-        .checked_add(Queue::<Asked>::price(limits.queue)?)?
-        .checked_add(Queue::<Event>::price(limits.queue)?)?
-        .checked_add(Queue::<Request>::price(limits.queue)?)?;
-    // The layers price their returned records and forwarding payloads. Moving
-    // those allocations through a queue does not make another owned copy.
-    // Queue capacity reserves cells, not another complete layer per cell.
-    domain.checked_add(protocol)?.checked_add(queues)
-}

@@ -359,12 +359,6 @@ pub struct Present {
 }
 mod tasks;
 pub(crate) use tasks::{Index, bounded, indexes, task};
-/// One target's composed records and a merge's old, patch and rebuilt values.
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let node = u64::try_from(size_of::<Pair>().max(size_of::<Composed>())).ok()?;
-    limits.composed.max(limits.decoded).checked_mul(node.div_ceil(crate::evaluate::ELEMENT))?.checked_mul(3)
-}
 /// Presence uses host layers alone; settings include fleet and environment.
 pub fn compose(
     target: &Target,

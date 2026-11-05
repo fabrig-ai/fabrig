@@ -343,3 +343,43 @@ fn a_200_byte_package_name_is_named_whole_though_its_line_is_cut() {
     assert_eq!(tail.cause(), &Cause::Unknown(fixtures::name(&[b'a'; 200])));
     assert_eq!(tail.lines().iter().next().unwrap().len(), 160);
 }
+
+#[test]
+fn the_output_decoder_bound_covers_the_scan_triple_and_tail() {
+    const LINE: u32 = 128;
+    const NAME: u32 = 32;
+    const TAIL_LINES: u32 = 3;
+    const TAIL_LINE: u32 = 24;
+    let tail = u64::from(TAIL_LINES) * (u64::try_from(size_of::<Box<[u8]>>()).unwrap() + u64::from(TAIL_LINE))
+        + u64::from(NAME);
+    let expected = u64::from(LINE) * 3 + u64::from(NAME) * 3 + tail;
+    for (limits, expected) in [
+        (
+            limits::Limits { line: LINE, name: NAME, tail_lines: TAIL_LINES, tail_line: TAIL_LINE, ..limits::SHIPPED },
+            Some(expected),
+        ),
+        (limits::Limits { line: 0, name: 0, tail_lines: 0, tail_line: 0, ..limits::SHIPPED }, Some(3)),
+        (limits::Limits { tail_lines: u32::MAX, tail_line: u32::MAX, ..limits::SHIPPED }, None),
+    ] {
+        assert_eq!(output::decoder_bound(&limits), expected, "{limits:?}");
+    }
+}
+
+#[test]
+fn the_tail_decoder_bound_covers_the_queue_text_and_named_cause() {
+    const TAIL_LINES: u32 = 3;
+    const TAIL_LINE: u32 = 24;
+    const NAME: u32 = 32;
+    let expected = u64::from(TAIL_LINES) * (u64::try_from(size_of::<Box<[u8]>>()).unwrap() + u64::from(TAIL_LINE))
+        + u64::from(NAME);
+    for (limits, expected) in [
+        (
+            limits::Limits { tail_lines: TAIL_LINES, tail_line: TAIL_LINE, name: NAME, ..limits::SHIPPED },
+            Some(expected),
+        ),
+        (limits::Limits { tail_lines: 0, tail_line: 0, name: 0, ..limits::SHIPPED }, Some(0)),
+        (limits::Limits { tail_lines: u32::MAX, tail_line: u32::MAX, ..limits::SHIPPED }, None),
+    ] {
+        assert_eq!(Tail::decoder_bound(&limits), expected, "{limits:?}");
+    }
+}

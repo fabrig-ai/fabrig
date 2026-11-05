@@ -8,7 +8,3 @@ pub const MEMORY_SEED: u64 = 0x28_54;
 pub fn repository() -> Repository {
     settings::every_target()
 }
-#[must_use]
-pub fn bound() -> u64 {
-    hearth_domain_render::limits::worst_case(&LIMITS).expect("specs bound")
-}

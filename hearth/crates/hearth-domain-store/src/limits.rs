@@ -17,16 +17,3 @@ pub const SHIPPED: Limits = Limits {
     retry: Duration::from_millis(200),
     said: Duration::from_secs(1),
 };
-/// The indices, one page of names, and both lock deadlines.
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    use crate::vocabulary::Entry;
-    let index = crate::index::Index::price(limits.cache_files.checked_mul(2)?)?;
-    let page = u64::from(limits.page).checked_mul(u64::try_from(size_of::<Entry>()).ok()?.checked_add(255)?)?;
-    index
-        .checked_add(skein_lib::Map::<hearth_lib::encode::Digest, ()>::price(limits.resolutions)?)?
-        .checked_add(skein_lib::Map::<hearth_lib::encode::Digest, crate::vocabulary::Layer>::price(limits.layers)?)?
-        .checked_add(page)?
-        .checked_add(255)?
-        .checked_add(skein_lib::Deadlines::<crate::Timer>::price(2)?)
-}
