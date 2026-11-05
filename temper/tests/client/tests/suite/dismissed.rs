@@ -62,6 +62,21 @@ impl Story {
         }
         let mut story = Self { front, probes, env };
         story.pump();
+        // Reserve the fixed engine watch table for a third device's dismissal facts.
+        // These observers use neither accounts nor settings.
+        for probe in &mut story.probes {
+            for handle in
+                [temper_client_domain::pages::accounts::handle(), probe.root.person().forge().settings_handle()]
+            {
+                Temper::step(
+                    &mut probe.root,
+                    &story.env,
+                    Event::Client { event: jig_client::Event::Unwatch { handle } }.into(),
+                    &mut probe.out,
+                );
+            }
+        }
+        story.pump();
         story
     }
     fn other_person(&mut self, member: bool) {
