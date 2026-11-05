@@ -467,5 +467,4 @@ mod tests {
 }
 
 #[cfg(test)]
-#[path = "prepare/lower_tests.rs"]
 mod lower_tests;

@@ -4,13 +4,10 @@ use smith_events::{Event, Limits, Record};
 
 use crate::common;
 
-#[path = "events/delegation.rs"]
 mod delegation;
 
-#[path = "events/compaction_choice.rs"]
 mod compaction_choice;
 
-#[path = "events/carried.rs"]
 mod carried;
 
 use crate::common::events::{LIMITS, balanced, bytes, record};

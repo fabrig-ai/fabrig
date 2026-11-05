@@ -11,7 +11,6 @@ use smith_bench::agent::smith::{FaceSince, Observing, Prepared};
 use smith_bench::process::{Bounds, Capture, execute};
 use smith_bench::{End, Forced, Measure};
 
-#[path = "smith_adapter/retried.rs"]
 mod retried;
 
 #[test]
@@ -348,7 +347,6 @@ fn authored_task(name: &str) -> smith_bench::Task {
         .expect("authored task")
 }
 
-#[path = "smith_adapter/exec.rs"]
 mod exec;
 
 #[test]

@@ -260,12 +260,9 @@ impl Observing {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/common/events.rs"]
-pub(crate) mod test_events;
-
-#[cfg(test)]
 pub(crate) mod tests {
-    use super::{rejected_responses, test_events};
+    use super::rejected_responses;
+    use crate::fixture::events;
     use smith_events::{CompletionFailure, Event, Evidence, FailureClass, Outcome, Usage};
 
     pub(crate) fn program() -> super::Observing {
@@ -327,8 +324,8 @@ pub(crate) mod tests {
     }
 
     fn rejection() -> super::super::events::Session {
-        let mut observer = super::super::events::Observer::new(&test_events::LIMITS).expect("limits");
-        observer.feed(&test_events::bytes(&test_events::balanced())).expect("records");
+        let mut observer = super::super::events::Observer::new(&events::LIMITS).expect("limits");
+        observer.feed(&events::bytes(&events::balanced())).expect("records");
         observer.finish().expect("complete");
         let mut session = observer.sessions()[0].clone();
         let Event::ResponseCompleted(value) = &mut session.records[4].event else { panic!("response terminal") };
@@ -385,7 +382,7 @@ pub(crate) mod tests {
         value.blocks = 1;
         assert!(!rejected_responses(std::slice::from_ref(&session), 1));
         let mut session = rejection();
-        session.records.push(test_events::record(include_str!(
+        session.records.push(events::record(include_str!(
             "../../../../crates/smith-events/golden/v4/text_delta_everything.jsonl"
         )));
         assert!(!rejected_responses(std::slice::from_ref(&session), 1));

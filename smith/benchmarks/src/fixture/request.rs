@@ -1,6 +1,6 @@
 //! Prepared replay requests retain explicit task and identity inputs.
 
-use super::bench::{Identity, run};
+use crate::{Identity, run};
 use std::path::PathBuf;
 
 #[must_use]
