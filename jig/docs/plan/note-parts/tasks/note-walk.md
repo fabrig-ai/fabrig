@@ -80,3 +80,7 @@ Other options:
 As `notes/common.md`, Your report, and: the sizes of each call and of the body; the walk's CPU and wall seconds; and, in a section of its own, what
 this doesn't prove on a real model: whether it counts lines right, appends rather than rewrites, and recovers from a refusal; and the pane's own
 drawing, which is `ui-chat-draft`'s, since this reads what the pane reads and draws nothing.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Additions to the proof (inputs/request.md): the 30 KB note has one line longer than a call, built with join: true; and a later fresh run on the same chat finds the note from its brief and changes it by lines (finding-314 saw a goal's notes not reach its later runs). If a fresh run can't find it, that's a finding to fix here, not to work round.
