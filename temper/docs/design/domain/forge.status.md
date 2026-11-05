@@ -35,12 +35,6 @@
   - 8.4: widening exhausted spend with ctl before release: `task amend`'s
     `--budget` is not implemented (`../client/tools.md`, 5.5). A spend
     hold offers cancellation or asking afresh instead.
-  - 8.4: a cancelled delegate's hold has no words of its own, so a
-    cancelled repair reads "An effect failed permanently" and a cancelled
-    producer "producer failed for good without an account"
-    (`temper-engine-domain/src/route/forge_route.rs`,
-    `hold_change_decision`, `producer_failure_words`); and a CI repair
-    with no failed check known opens with an empty name (`repair_words`).
   - 8.4: `change show`'s `held:` line for a cancelled delegate reads `a
     delegate or a write failed for good`: the panel's hold is the client
     wire's `failed` (`temper-client-protocol-wire/schema/client-wire-v1.schema`,
