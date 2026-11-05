@@ -294,9 +294,7 @@ impl Patcher {
 
     /// Parses and keeps one version of the machine's family.
     pub fn keep(&mut self, text: &[u8]) -> Result<u16, KeepError> {
-        if text.len() > usize_of(self.build.tables.capacity.text)
-            || self.build.tables.schemas.room() == 0
-        {
+        if text.len() > usize_of(self.build.tables.capacity.text) || self.build.tables.schemas.room() == 0 {
             return Err(KeepError::Room);
         }
         let schema = match schema::parse(text) {

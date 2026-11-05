@@ -401,8 +401,7 @@ impl Store {
             if at == bytes.len() {
                 break;
             }
-            let Some(head_end) = at.checked_add(usize_of(frame::HEADER))
-            else {
+            let Some(head_end) = at.checked_add(usize_of(frame::HEADER)) else {
                 return Ok(false);
             };
             let Some(head) = bytes.get(at..head_end) else {
@@ -659,10 +658,7 @@ fn load(store: &Store, owner: Token, range: Range, max: Page, available: bool, s
     }
     if range.start.len() > usize_of(env.limits.key)
         || match &range.end {
-            Some(end) => {
-                end.len() > usize_of(env.limits.key)
-                    || end.as_ref() < range.start.as_ref()
-            }
+            Some(end) => end.len() > usize_of(env.limits.key) || end.as_ref() < range.start.as_ref(),
             None => false,
         }
     {

@@ -232,10 +232,7 @@ impl<P: Host> PipeHost<P> {
                             captured.pending = captured.pending.checked_sub(count).expect("written bytes were pending");
                         }
                         let end = from.checked_add(count).expect("bounded pipe progress");
-                        assert!(
-                            count > 0 && usize_of(end) <= bytes.len(),
-                            "pipe write makes bounded progress"
-                        );
+                        assert!(count > 0 && usize_of(end) <= bytes.len(), "pipe write makes bounded progress");
                         if usize_of(end) < bytes.len() {
                             self.writing = true;
                             self.submit(Op::PipeWrite { fd, bytes, from: end }, Binding::Write);

@@ -121,9 +121,7 @@ impl Cursor {
             } else {
                 let kind = if word_byte(byte) {
                     for _ in self.offset..length {
-                        let byte = *text
-                            .get(usize_of(self.offset))
-                            .expect("offset before end");
+                        let byte = *text.get(usize_of(self.offset)).expect("offset before end");
                         if !word_byte(byte) {
                             break;
                         }
@@ -133,9 +131,7 @@ impl Cursor {
                 } else if byte == b'"' {
                     let mut closed = false;
                     for _ in self.offset..length {
-                        let byte = *text
-                            .get(usize_of(self.offset))
-                            .expect("offset before end");
+                        let byte = *text.get(usize_of(self.offset)).expect("offset before end");
                         let at = self.offset;
                         self.offset = add(self.offset, 1);
                         if byte == b'"' {
@@ -417,9 +413,7 @@ pub(crate) fn after(text: &[u8], range: Span, upstream: &[u8]) -> Option<u32> {
     None
 }
 pub(crate) fn marked(text: &[u8], range: Span, mark: &[u8]) -> bool {
-    let Some(bytes) = text.get(
-        usize_of(range.start)..usize_of(range.end),
-    ) else {
+    let Some(bytes) = text.get(usize_of(range.start)..usize_of(range.end)) else {
         return false;
     };
     let mut cursor = Cursor::new();

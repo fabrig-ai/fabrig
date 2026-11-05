@@ -168,10 +168,7 @@ impl Pending {
         match self.current {
             None => false,
             Some(key) if key == self.filter.tag => true,
-            Some(key) => {
-                field(self.filter.known.get(usize_of(index)).expect("variant").children, key)
-                    .is_some()
-            }
+            Some(key) => field(self.filter.known.get(usize_of(index)).expect("variant").children, key).is_some(),
         }
     }
 

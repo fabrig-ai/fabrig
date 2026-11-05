@@ -256,10 +256,7 @@ pub fn up(reader: &mut Reader, env: &Env<Limits>, event: Up, above: &mut Queue<E
     match event {
         Up::Bytes(piece) => {
             assert!(reader.body_wait && reader.piece.is_empty(), "a delivery meets the body's one demand");
-            assert!(
-                piece.len() <= usize_of(env.limits.chunk),
-                "a line scan fits its chunk"
-            );
+            assert!(piece.len() <= usize_of(env.limits.chunk), "a line scan fits its chunk");
             for byte in piece.get(..piece.len().saturating_sub(1)).expect("a delivery prefix") {
                 assert!(*byte != b'\r' && *byte != b'\n', "a delivery stops at its first line ending");
             }
@@ -452,8 +449,7 @@ fn pump(reader: &mut Reader, env: &Env<Limits>, above: &mut Queue<Event>) {
         .checked_sub(reader.at)
         .expect("inside the line piece");
     for _ in 0..remaining {
-        let byte =
-            *reader.piece.get(usize_of(reader.at)).expect("inside the line piece");
+        let byte = *reader.piece.get(usize_of(reader.at)).expect("inside the line piece");
         reader.at = reader.at.checked_add(1).expect("bounded by the delivery");
         let action = reader.lines.byte(&env.limits, byte);
         match action {
@@ -472,10 +468,7 @@ fn pump(reader: &mut Reader, env: &Env<Limits>, above: &mut Queue<Event>) {
                 }
             },
             Step::Dispatched(dispatch) => {
-                assert!(
-                    usize_of(reader.at) == reader.piece.len(),
-                    "a blank line ends the delivery"
-                );
+                assert!(usize_of(reader.at) == reader.piece.len(), "a blank line ends the delivery");
                 reader.intake.clear();
                 reader.state = State::Idle(Below::Open);
                 above.push(Event::Data(Up::End));

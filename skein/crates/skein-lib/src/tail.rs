@@ -129,10 +129,7 @@ mod tests {
                 tail.clear();
                 assert!(tail.is_empty());
                 tail.put(b"xy");
-                assert_eq!(
-                    tail.to_boxed().as_ref(),
-                    &b"xy"[2_usize.saturating_sub(crate::usize_of(capacity))..]
-                );
+                assert_eq!(tail.to_boxed().as_ref(), &b"xy"[2_usize.saturating_sub(crate::usize_of(capacity))..]);
             }
         }
     }

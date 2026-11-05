@@ -1,8 +1,8 @@
 //! A whole body within each room grant (skein/docs/design/link.md, 3.4).
 use alloc::boxed::Box;
 use core::fmt;
-use skein_lib::{bytes, usize_of};
 use skein_lib::stream::{Down, Read};
+use skein_lib::{bytes, usize_of};
 
 pub struct Upload {
     body: Box<[u8]>,

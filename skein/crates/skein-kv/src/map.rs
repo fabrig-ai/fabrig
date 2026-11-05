@@ -236,9 +236,7 @@ impl KvMap {
         };
         for (key, value) in self.entries.range::<[u8], _>((Bound::Included(range.start.as_ref()), end)) {
             let size = u32::try_from(key.len().saturating_add(value.len())).unwrap_or(u32::MAX);
-            if rows.len() >= usize_of(max.rows)
-                || bytes.checked_add(size).is_none_or(|total| total > max.bytes)
-            {
+            if rows.len() >= usize_of(max.rows) || bytes.checked_add(size).is_none_or(|total| total > max.bytes) {
                 if rows.is_empty() {
                     return Err(Refusal::TooLarge);
                 }

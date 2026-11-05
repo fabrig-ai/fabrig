@@ -665,9 +665,7 @@ fn fork_terminal(
             Ok(0) if used == 0 => break Ok(pid),
             Ok(0) => break Err(libc::EIO),
             Ok(count) => {
-                used = used
-                    .checked_add(skein_lib::usize_of(count))
-                    .expect("read fits the remaining buffer");
+                used = used.checked_add(skein_lib::usize_of(count)).expect("read fits the remaining buffer");
                 if used == bytes.len() {
                     break Err(i32::from_ne_bytes(bytes));
                 }

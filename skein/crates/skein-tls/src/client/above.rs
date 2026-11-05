@@ -118,10 +118,7 @@ pub(super) fn sent(
     let room = mem::replace(&mut open.below.granted, 0);
     match session::encrypt(&mut open.tls, &mut buffers.records, bytes, &mut buffers.owed) {
         Ok(Some(sealed)) => {
-            assert!(
-                sealed.len() <= usize_of(room),
-                "the records within the room granted below: OVERHEAD and SLACK"
-            );
+            assert!(sealed.len() <= usize_of(room), "the records within the room granted below: OVERHEAD and SLACK");
             below.push(Down::Send(sealed));
         }
         Ok(None) => {}

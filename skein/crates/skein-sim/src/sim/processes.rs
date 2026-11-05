@@ -861,8 +861,7 @@ impl Sim {
                 };
                 let target = &child.pipes[index];
                 if target.open {
-                    let room =
-                        usize_of(self.config.buffer).saturating_sub(target.bytes.len());
+                    let room = usize_of(self.config.buffer).saturating_sub(target.bytes.len());
                     (left.len().min(room), Some(index))
                 } else {
                     (left.len().min(usize_of(self.config.buffer)), None)
@@ -1055,8 +1054,7 @@ impl Sim {
         let (input, output) = match child.program {
             Program::Echo { input, output } => (input, Some(output)),
             Program::Service => {
-                return child.pipes[input_index].bytes.len()
-                    < usize_of(self.config.buffer);
+                return child.pipes[input_index].bytes.len() < usize_of(self.config.buffer);
             }
             Program::Exit(_) | Program::Never | Program::Fork { .. } => return true,
         };
