@@ -91,3 +91,70 @@ id = 2
 story = "a goal asks decided, the forge judges by the person's switch, and the person can turn it on"
 parts = ["client-base", "away-wire", "away-forge", "client-zone", "away-route", "decided-tool", "decided-charter", "away-client", "away-switch"]
 walk = false
+
+[[part]]
+id = "home-decided"
+title = "Home watches what was decided and reads its tasks"
+mode = "direct"
+needs = ["away-client"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "home-away"
+title = "Home's away form, its section and Needs' head"
+mode = "direct"
+needs = ["away-switch", "home-decided"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "away-walk"
+title = "the meeting point: the switch and a decision cross the real roots"
+mode = "direct"
+needs = ["away-route", "decided-tool", "home-decided"]
+design = "temper/docs/design/domain/forge.md, 5.9"
+
+[[slice]]
+id = 3
+story = "with a decision showing, Home says what was decided while the person was away"
+parts = ["home-decided", "home-away", "away-walk"]
+walk = false
+
+[[part]]
+id = "overturn"
+title = "Overturn: the request, then the client's message"
+mode = "direct"
+needs = ["home-away"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "settings-away"
+title = "Settings' section, the kinds and the hour"
+mode = "direct"
+needs = ["overturn"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "goal-asks"
+title = "When it needs you on Start goal, and How it runs on a goal's page"
+mode = "direct"
+needs = ["settings-away", "decided-charter"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 4
+story = "the person overturns a decision, sets the limits, and starts a goal that always asks"
+parts = ["overturn", "settings-away", "goal-asks"]
+walk = false
+
+[[part]]
+id = "away-proof"
+title = "the mock beside it at three widths, a real walk on the fake box, the statuses closed"
+mode = "direct"
+needs = ["goal-asks", "away-walk"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 5
+story = "Away on, a scripted goal decides and carries on, Home shows it, Overturn, the goal asks, it is answered on Home; Away off, the question waits"
+parts = ["away-proof"]
+walk = true

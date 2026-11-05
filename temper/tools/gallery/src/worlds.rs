@@ -418,6 +418,8 @@ fn world_in_layout(
                         w::Watch::Change(subject) => subject,
                         w::Watch::Landing(_)
                         | w::Watch::Landings(_)
+                        | w::Watch::Away
+                        | w::Watch::Decided(_)
                         | w::Watch::Status(_)
                         | w::Watch::Changes(_)
                         | w::Watch::Dismissed => {

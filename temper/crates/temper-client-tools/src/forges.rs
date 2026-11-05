@@ -634,6 +634,8 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
         }
         temper_client_protocol_wire::v1::Request::StartPlayground => None,
         temper_client_protocol_wire::v1::Request::RemoveForge(_)
+        | temper_client_protocol_wire::v1::Request::SetAway(_)
+        | temper_client_protocol_wire::v1::Request::Overturn(_)
         | temper_client_protocol_wire::v1::Request::Looked(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
         | temper_client_protocol_wire::v1::Request::MakeRepository(_)

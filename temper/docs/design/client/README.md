@@ -1833,8 +1833,8 @@ keeps (`../protocol/configuration.md`, section 2).
     (`Domain::has_goals`), the party's row there is on, or the project's
     `Ways.away` (5.13). A fresh project has no switch, as the mock's first
     run.
-  - *The control,* in the rail's foot above Settings, a button, `State::
-    Pressed` while on, in `temper-away`, the mock's `.away`: 8 below it, full
+  - *The control,* in the rail's foot above Settings, a button, `State::Pressed` while on,
+    in `temper-away`, the mock's `.away`: 8 below it, full
     width, 8 10 padding, 1px `--gf-line`, radius 8, `--gf-surface`, 13.5 px
     muted, a 30 by 18 track holding a 14 px knob, by style; on, the ink ground,
     white words, the knob at the right. Its words: "Away" off; "Away until
@@ -1856,9 +1856,9 @@ keeps (`../protocol/configuration.md`, section 2).
     `until`. `Domain::away_on` holds the rule, the row and the wall.
   - *Its toasts,* Needs' toast slot (*What the client keeps,* below), on
     the request's answer: on, "Away until 08:00: agents decide within
-    PROJECT's limits." with the act "Limits", to Settings; "Away: agents
-    decide within PROJECT's limits." with `until` none; off, "Away is off:
-    questions wait for you again."; refused, "Away didn't change. Try again."
+    PROJECT’s limits." with the act "Limits", to Settings; "Away: agents
+    decide within PROJECT’s limits." with `until` none; off, "Away is off:
+    questions wait for you again."; refused, "Away didn’t change. Try again."
   - *Home, while a decision shows.* A row (`decided`, 4.6) shows for 24
     hours from its `at`. With any showing and To begin gone, *Home on any
     project* takes this form, in the intro's one function; the build asks to
@@ -1904,13 +1904,13 @@ keeps (`../protocol/configuration.md`, section 2).
     toast "It has ended; a new goal can undo it." `Overturn` refused,
     overturned or unknown: no message, the toast "That was overturned already."
   - *Settings' section,* `#away`, on *How work runs* after *What needs you*
-    (5.13), while the switch is shown: `section-title` "While you're away,
+    (5.13), while the switch is shown: `section-title` "While you’re away,
     agents may decide"; a `.setting` "Kinds of decision", small "Each shows
     afterwards as decided for you, with Overturn.", `.checks`:
     "Implementation choices within a task", "Retries and splitting a failing
-    task", "A design document's wording", "Adding a dependency", and locked and
+    task", "A design document’s wording", "Adding a dependency", and locked and
     unticked "Budgets, sign-ins, machines, what is hard to reverse: always
-    wait"; a `.setting` select "Away until", small "When it isn't turned off by
+    wait"; a `.setting` select "Away until", small "When it isn’t turned off by
     hand.", options "08:00, the end of quiet hours", "I turn it off". Each writes
     through `SetAway`, `on` as the row stands, the select's first choice sending
     the next 08:00 and its second none. They work while off: the row keeps them.

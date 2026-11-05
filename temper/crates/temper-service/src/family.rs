@@ -167,6 +167,8 @@ pub fn to_root(
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
                         | w::Request::Dismiss(_)
+                        | w::Request::SetAway(_)
+                        | w::Request::Overturn(_)
                         | w::Request::Looked(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
@@ -302,6 +304,10 @@ pub fn to_root(
                         request: root::Application::Looked { project: value.project() },
                     }));
                 }
+                // away-route fills these requests.
+                w::Request::SetAway(_) | w::Request::Overturn(_) => {
+                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable { to: reply_to })));
+                }
                 w::Request::Adopt(value) => value,
             };
             let a = request.into_parts();
@@ -403,7 +409,8 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::status_subject(subject.project())),
                     },
-                    w::Watch::Change(_) | w::Watch::Landing(_) => {
+                    // away-route fills these subjects.
+                    w::Watch::Away | w::Watch::Decided(_) | w::Watch::Change(_) | w::Watch::Landing(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
                             why: jig_domain_core::WatchRefusal::Unknown,

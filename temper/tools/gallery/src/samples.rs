@@ -1804,7 +1804,12 @@ fn home_domain(name: &str) -> Domain {
                         Some(status) => wire::project_status(&status),
                         None => continue,
                     },
-                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Changes(_) => {
+                    w::Watch::Away
+                    | w::Watch::Decided(_)
+                    | w::Watch::Change(_)
+                    | w::Watch::Landing(_)
+                    | w::Watch::Landings(_)
+                    | w::Watch::Changes(_) => {
                         continue;
                     }
                 };
