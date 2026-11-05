@@ -22,8 +22,9 @@ be built (2026-11-05).
 - **A last scan refuses** a redacted recording that still holds a
   secret's shape (section 4). Nothing is written then.
 - **A real journey is recorded by a person:** `again` walks fake boxes
-  alone. A stale real journey is recorded again by hand, and section 9's
-  table says which journeys are real (section 5).
+  alone. A stale real journey is recorded again by hand, and the
+  journeys' table (`../client/journeys.md`, 9) says which are real
+  (section 5).
 
 ## 2. The real box's bundle
 
@@ -84,7 +85,8 @@ the bytes. The person adds a `--redact` and runs `add` again.
   the model's words are kept as they were given.
 - **Not walked by `again`** (`../client/journeys.md`, 8.1), which starts
   fake boxes alone. A stale real journey is recorded again by its person.
-- **Named in section 9's table** as real, beside the fake journeys.
+- **Named as real** in the journeys' table (`../client/journeys.md`,
+  9), beside the fake journeys.
 - **Section 3.5's rule** becomes: fake backends, or real ones redacted
   by `add`.
 
