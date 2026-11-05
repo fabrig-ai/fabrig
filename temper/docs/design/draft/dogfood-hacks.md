@@ -90,6 +90,14 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **The pipeline:** has no such sign-in: its forge is a public one, whose accounts are its own.
 - **A real design:** a setting on the owned forge, beside `application.sign_in.forges`, with this as its value: whether a first sign-in makes an account or only links one.
 
+### 2.9 CI that runs our gate on a build machine
+
+- **What:** a script outside this repository, on the build machine, that a forge's workflow calls with its head and base. It runs the pipeline's selection of checks through the build admission of 2.2, in one fixed clone, swept as a target of 2.2 is: incremental output, and test executables a day old. A commit in the walk's copy of the repository takes its workflow file out of the index, so that the check of what this repository may name still passes, since a workflow naming a machine fails it.
+- **Why:** temper has no gate of its own, by design, and CI on a forge needs a job that does what the pipeline's does, for a fair comparison.
+- **Cost and risk:** about 35 GB, one job at a time, outside the pipeline's disk pool, so the machine's budget counts it by hand. The workflow file is out of step with the repository's index, which the next base stops needing.
+- **The pipeline:** its merge queue runs this gate on a machine of its own, with its checks in order.
+- **A real design:** a question: what a deployment's CI on a build machine looks like, and how it keeps a warm build of its own.
+
 ## 3. Left out, with its gap
 
 For the user to weigh; each can become an entry.
