@@ -143,9 +143,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             crate::link(
                 b,
                 &name,
-                bindings.insert(Act::Go {
-                    address: Address::Chats { filter: temper_client_domain::ChatsFilter::All },
-                }),
+                bindings.insert(Act::Go { address: Address::Chats { filter: temper_client_domain::ChatsFilter::All } }),
             );
             b.style(look::SHEET_LINK);
             b.text(Run::Plain, &name);

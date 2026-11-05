@@ -799,6 +799,7 @@ fn start_domain(sample: &Sample) -> Domain {
     root
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
     if sample.name == "chats-no-repository" {
         let mut root = home_domain("home-no-repository");
