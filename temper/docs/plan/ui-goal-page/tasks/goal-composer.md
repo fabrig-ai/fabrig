@@ -70,3 +70,20 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-goal-page/goal-composer/foreman-1)
+
+merge both vocabularies in words.rs and assign unique phrase IDs
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Integration commit `f7f5cbfe4e` adds `ToastProposed` and `ToastProposedEnd`; this branch adds `GoalTell` and `GoalHint`.
+Both changes allocate phrase IDs 3438–3439 and independently update vocabulary counts.
+
+Preserve all four variants, their `ALL` entries and English phrases.
+Keep integration’s toast IDs 3438–3439; assign `GoalTell` and `GoalHint` unused IDs 3440–3441.
+For these combined changes, set `PHRASES = 1496`, `SEGMENTS = 2599`, and `ALL: [Word; 900]`.
+Retain the composer’s additional 100 literal bytes in `Words::english`.
+
+Review the automatic merge of `temper/crates/temper-client-domain/src/pages/task.rs`: retain integration’s exhaustive Start-goal act arms and this branch’s tracked-message routing and pending-message cleanup.
+
+Verify `english_phrase_declarations_match_the_vocabulary`, then run the spec’s domain, view and gallery checks through heavy with `TEMPER_BUNDLE=none`.
+The refusal occurred during merge; it provides no build or test results.
