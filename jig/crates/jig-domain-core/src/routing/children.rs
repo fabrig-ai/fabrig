@@ -26,11 +26,33 @@ pub(crate) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
 pub(crate) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     super::step::step_tasks(core, env, event, &mut child);
+    if core.start_phase() == Some(crate::start::Phase::Link) {
+        child = release_outputs(child);
+    }
     let mut routed = tag_task_outputs(core, env, child);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("task route count");
         out.push(request);
     }
+}
+
+/// The release's withdrawals keep their records in its decision. A run's activation or
+/// relay is the start's to make from those records, after the durable Wires
+/// (jig/docs/design/domain/engine.md, 17.7).
+fn release_outputs(mut child: Queue<tasks::Request>) -> Queue<tasks::Request> {
+    let mut out = Queue::uncapped();
+    for _ in 0..child.len() {
+        let request = child.pop().expect("release withdrawal output count");
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "only activation and relay act on the release's records before durable Wires"
+        )]
+        match request {
+            tasks::Request::Activate { .. } | tasks::Request::Relay { .. } => {}
+            request => out.push(request),
+        }
+    }
+    out
 }
 
 pub(crate) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<brief::GatherRequest>) -> Queue<Request> {
@@ -776,5 +798,78 @@ fn append_fleet(
     for _ in 0..routed.len() {
         let request = routed.pop().expect("fleet output count");
         out.push(request);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skein_lib::Wall;
+
+    #[test]
+    fn release_withdrawal_keeps_records_without_activation_or_relay() {
+        let (mut core, limits) = crate::tests::core();
+        crate::tests::make_task(&mut core, &limits, 1);
+        let record = tasks::Stored::Live(Box::new(core.tasks.task(1).expect("proposer").clone()));
+        let word = tasks::Word {
+            number: 1,
+            from: tasks::Party::Deployment { project: people::DEPLOYMENT },
+            kind: tasks::MessageKind::SettingsDecision {
+                proposal: 1,
+                outcome: tasks::SettingsOutcome::Stale { newest: 2 },
+            },
+            words: Box::new([]),
+            at: Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        };
+        let mut child = Queue::uncapped();
+        child.push(tasks::Request::Activate { context: core.tasks.run_context(1).expect("due proposer") });
+        child.push(tasks::Request::Save { record: record.clone() });
+        child.push(tasks::Request::Relay { task: 1, attempt: 1, previous: None, word });
+        let mut out = release_outputs(child);
+        assert_eq!(out.len(), 1, "the release retains records and drops activation and relay");
+        let Some(tasks::Request::Save { record: saved }) = out.pop() else { panic!("withdrawal record retained") };
+        assert_eq!(saved, record);
+    }
+
+    #[test]
+    fn task_activation_after_wires_survives_the_start_phase() {
+        let (mut source, limits) = crate::tests::core();
+        crate::tests::make_task(&mut source, &limits, 1);
+        let (mut core, _) = crate::tests::core();
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        let mut child = Queue::uncapped();
+        for (_, ledger) in source.tasks.funding_records() {
+            super::super::step::step_tasks(
+                &mut core,
+                &env,
+                tasks::Event::Restore { record: tasks::Stored::Ledger(*ledger) },
+                &mut child,
+            );
+        }
+        super::super::step::step_tasks(
+            &mut core,
+            &env,
+            tasks::Event::Restore {
+                record: tasks::Stored::Live(Box::new(source.tasks.task(1).expect("due proposer").clone())),
+            },
+            &mut child,
+        );
+        super::super::step::step_tasks(&mut core, &env, tasks::Event::Check, &mut child);
+        assert!(child.is_empty(), "the due task links without writes");
+        core.start.phase = Some(crate::start::Phase::AdoptRuns);
+        let mut out = Queue::uncapped();
+        append_tasks(&mut core, &env, tasks::Event::Restored, &mut out);
+        let mut activated = false;
+        while let Some(request) = out.pop() {
+            if let Request::Now(now) = request
+                && let Now::Activate { context } = *now
+            {
+                assert_eq!(context.task, 1);
+                activated = true;
+            }
+        }
+        assert!(activated, "activation after durable Wires survives while the start is adopting runs");
     }
 }
