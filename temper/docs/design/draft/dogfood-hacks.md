@@ -76,6 +76,19 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **The pipeline:** a shelf of logins lent per run, a status page of its own, the repositories on a public forge.
 - **A real design:** each a question for after v0.1.0.
 
+### 2.8 An owned forge that registers no one through temper
+
+- **What:** `TEMPER_FORGE_NO_REGISTRATION`, read where `temper forge prepare` and `temper forge sign-in` run, unset by default; an empty value counts as unset. Set, a forge `application.sign_in.forges` names gets `[oauth2_client] ENABLE_AUTO_REGISTRATION = false` in its `app.ini`, with `USERNAME` and `ACCOUNT_LINKING = login` as ever, and no `[service] ALLOW_ONLY_EXTERNAL_REGISTRATION = true`, so that `DISABLE_REGISTRATION` also closes the form Forgejo's link page would offer. `temper forge sign-in` prints the same settings. Unset, both give the bytes of `../protocol/setup.md`, 6.2 and 6.8.
+- **Why:** the user wants registration off on the deployment's forge (2026-11-05). `DISABLE_REGISTRATION` is already true, but a member's first sign-in through temper makes their account (`../protocol/sign-in.md`, 9.4). temper mints for a member alone, so a stranger makes none today (`../protocol/sign-in.md`, section 3); making one stays the default, since a deployment's other people need it.
+- **Cost and risk:**
+  - a member with no account gets no further on the forge than its link page until the forge's admin makes one, and then needs its password once, to link it;
+  - every preparation writes `app.ini` whole and reads the variable anew, so one run without it turns auto-registration back on at Forgejo's next start, with no word of it. Whatever prepares the forge sets it every time; a `temper box` hands its own environment to its prepare step;
+  - a managed Forgejo's settings are pasted by hand from what `temper forge sign-in` prints: the variable changes the print, not the forge;
+  - whether `ENABLE_INTERNAL_SIGNIN = false` also closes the link page's password form hasn't been run, so internal sign-in stays on until every account is linked;
+  - what these settings do is shown at Forgejo 17.0.1 alone, by the process tier's Forgejo sign-in story; a new pin runs it again.
+- **The pipeline:** has no such sign-in: its forge is a public one, whose accounts are its own.
+- **A real design:** a setting on the owned forge, beside `application.sign_in.forges`, with this as its value: whether a first sign-in makes an account or only links one.
+
 ## 3. Left out, with its gap
 
 For the user to weigh; each can become an entry.
