@@ -420,3 +420,8 @@ spawns one (hosts.md, section 5.2).
   it.
 - **A build profile:** cache directories writable in the view, tool roots
   read-only, and resource limits per tree, once contained trees exist.
+- **A completion's route:** the service finds each completion's machine in its
+  `operations` table, where the local host reads the token's lane (skein's
+  `io.md`, 5). It goes with the hand-set token tags, keeping the randomness
+  `next_operation` seeds
+  (`smith/docs/development/debt/D020-hand-set-token-tags.md`).
