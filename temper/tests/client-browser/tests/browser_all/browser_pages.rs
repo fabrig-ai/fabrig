@@ -89,3 +89,31 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     let mut script = Script::new(steps.into_boxed_slice());
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }
+
+#[test]
+fn the_byline_panel_folds_on_an_outside_press_and_escape() {
+    let tier = Tier::new("chat-byline").with_model();
+    let mut steps = temper_client_browser_world::start_chat(b"Hello");
+    let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::named(role, name) });
+    let folded = |open| Step::Keep {
+        selector: Box::from(if open {
+            b"details.temper-byline[open]".as_slice()
+        } else {
+            b"details.temper-byline:not([open])".as_slice()
+        }),
+        attribute: Some(Box::from(b"data-node".as_slice())),
+        name: Box::from(b"model-panel".as_slice()),
+    };
+    steps.extend([
+        press(Role::Disclosure, b"Change model"),
+        folded(true),
+        press(Role::TextArea, b"Message"),
+        folded(false),
+        press(Role::Disclosure, b"Change model"),
+        folded(true),
+        Step::Key(Key::Escape),
+        folded(false),
+    ]);
+    let mut script = Script::new(steps.into_boxed_slice());
+    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
+}
