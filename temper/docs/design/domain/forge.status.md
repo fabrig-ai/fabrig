@@ -140,6 +140,12 @@
   (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`,
   `repairing` and `repair_due`, none reading CI), which opens `Repair CI at HEAD:
   no failed check named`. No such test exists, and the empty name alone is gone.
+- **Design departs:** 8.11, from the request `report-in-finish` of 2026-11-05,
+  decided by its plan's cut, for the user to see: the call's refusal and the
+  words at a step take a change's repair and resolution beside its producing
+  task, where the request names the producing task alone, because all three run
+  under the one charter and each would pay the same turn
+  (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
 - **Departs:** 9: the first keeps its turn only until the next ready change
   steps: `queue_first` (`temper-engine-domain-forge/src/domain.rs`) chooses
   among `queue_ready`'s changes, which leave out one at `Updating`, `Checking`,
