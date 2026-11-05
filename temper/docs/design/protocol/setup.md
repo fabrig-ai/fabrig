@@ -253,7 +253,8 @@ connected  the forge component       ◄── its access, built from the record
   again overwrites them (credentials.md, the records).
 - **Nothing passes between the layers** in an argument or the
   environment but the directories' flags and the forge's number; the
-  commands read the forge's setup from its group's file (7.1).
+  commands read the forge's setup from its group's file (7.1), and with
+  none as 7.4 says.
 
 ## 4. Connected
 
@@ -1733,7 +1734,7 @@ asks.
   connect on a store started afresh, where the forge is numbered 1
   again;
 - **the process tier** (section 13.4), which runs the commands itself,
-  writing a group's file as serve does under the box;
+  with no group's file, as a host's own units do;
 - **a container image** whose entry point is `temper box`, every process
   of its tree ending with the container.
 
@@ -3530,9 +3531,9 @@ it checks of this document:
   directories' flags, each a scratch directory of the test's own; the
   owned example is copied as a configuration directory (8.1). No test
   resolves a default under `$HOME`.
-- **Owned in place of the test's support:** the test writes the
-  forge's group's file as serve does under the box (7.1), runs `temper
-  forge prepare`, `run forgejo` and `run runner` itself, then `temper serve`,
+- **Owned in place of the test's support:** the test runs `temper forge
+  prepare`, `run forgejo` and `run runner` itself, with no group's file
+  (7.4), then `temper serve`,
   whose setup host takes the handover and reconciles (6.5), with the
   binaries `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER` name, and
   webhooks on. Its repository runs Actions, so its landing rule asks for
@@ -3729,6 +3730,14 @@ Each is intended; what it needs is named with it.
   OAuth peer's count; `fake github`, `fake forgejo` and `fake model` turn
   theirs away silently, and skein's forge and LLM peers count none. Each
   takes the same count and line when a walk meets its cap.
+- **A Forgejo's own links at its `web`** (7.4; `sign-in.md`, 9.7): a
+  Forgejo connected with a `web` apart from its `git`, as a host's own
+  units' is, takes its browser origin from it for sign-in alone. Its pull
+  links, the public page's repository address and a brief's `Address:`
+  are made from `git` (`../client/forge.md`, 9.2), so on that walk they
+  name its loopback address. Taking `web` when it has one changes those
+  three and that section, whose "its `web` is always null" goes with
+  them; the request of 2026-11-05 left `docs/design/client/` alone.
 
 ## 16. Open questions
 

@@ -983,8 +983,10 @@ reduce task record capacities; that ceiling has no scalar override.
   members, the limits and `machine`, and none of the checks that need
   a private file read, since a set-up forge's files do not exist before
   its commands make them (setup.md, section 8). A `temper forge`
-  command finds its forge's kind in the box's group file, and its setup
-  entry in `machine` (README.md, section 4; setup.md, 7.1). Each reads
+  command finds its forge's kind in the box's group file, `fetch`,
+  `prepare` and `run` taking an owned forge with none (setup.md, 7.4),
+  and its setup entry in `machine` (README.md, section 4; setup.md, 7.1).
+  Each reads
   the private files its own part needs alone: a `temper forge` command
   its forge's, by setup.md, section 6; `temper box` and `temper
   program-login` none, the latter reading the agent's configuration
