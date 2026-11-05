@@ -327,7 +327,7 @@ impl Process {
         if let Some(cap) = self.history_messages {
             settings.limits.session.history_messages = cap;
             settings.limits.session.answer_bytes = 65536;
-            settings.limits.session.completion_bytes = 131072;
+            settings.limits.session.completion_bytes = 131_072;
             settings.limits.session.history_bytes = 4 * 1_048_576;
             settings.provider.script_bytes = 4 * 1_048_576;
             settings.provider.query_bytes = 4 * 1_048_576;

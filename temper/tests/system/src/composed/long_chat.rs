@@ -35,9 +35,9 @@ fn limits(limits: &mut engine::Limits) {
     limits.journal.transcript_bytes = HISTORY_BYTES;
     limits.journal.run_bytes = 8192;
     limits.loads.transcript_bytes = 65536;
-    limits.loads.bytes = 262144;
-    limits.loads.read_bytes = 262144;
-    limits.loads.reply_bytes = 262144;
+    limits.loads.bytes = 262_144;
+    limits.loads.read_bytes = 262_144;
+    limits.loads.reply_bytes = 262_144;
     limits.people.requests = 64;
     limits.people.initial_owners = 2;
 }
@@ -84,8 +84,8 @@ impl World {
         bounds.checkout.message_bytes = 8192;
         bounds.host.turn_bytes = 65536;
         bounds.agent.turn_bytes = 65536;
-        bounds.host.turn_queue_bytes = 131072;
-        bounds.agent.unacknowledged_bytes = 131072;
+        bounds.host.turn_queue_bytes = 131_072;
+        bounds.agent.unacknowledged_bytes = 131_072;
         world.worker = worker::Domain::new(bounds, Box::new([]));
         world.process.history_messages = Some(257);
         world

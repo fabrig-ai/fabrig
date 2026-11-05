@@ -518,17 +518,18 @@ fn core_now_translates_the_links_six_outputs_without_changing_fields() {
 
 #[test]
 fn unusable_transcripts_are_transient_at_admission_and_at_the_terminal() {
-    let refusals = [
-        host::Invalid::Transcript,
-        host::Invalid::Start { cause: host::StartCause::Transcript, why: b"saved history".as_slice().into() },
+    let endings = [
+        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Transcript)),
+        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+            cause: host::StartCause::Transcript,
+            why: b"saved history".as_slice().into(),
+        })),
+        host::Ending::Failed {
+            failure: host::Failure::Run(host::RunFailure::Transcript),
+            detail: Box::new([]),
+            work: host::Work { left: None, saved: None },
+        },
     ];
-    let mut endings =
-        refusals.into_iter().map(|why| host::Ending::Refused(host::Refusal::Invalid(why))).collect::<Vec<_>>();
-    endings.push(host::Ending::Failed {
-        failure: host::Failure::Run(host::RunFailure::Transcript),
-        detail: Box::new([]),
-        work: host::Work { left: None, saved: None },
-    });
     for ending in endings {
         assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Transient));
         let mut link = link();
@@ -542,12 +543,9 @@ fn unusable_transcripts_are_transient_at_admission_and_at_the_terminal() {
             },
         )
         .expect("terminal reaches fleet");
-        assert!(
-            matches!(
-                event,
-                core::Event::Fleet(fleet::Event::Answer { answer: fleet::Answer::Failed { turned: None }, .. })
-            ),
-            "the fleet must retain a retryable terminal instead of rejecting the claim"
-        );
+        let core::Event::Fleet(fleet::Event::Answer { answer: fleet::Answer::Failed { turned: None }, .. }) = event
+        else {
+            panic!("the fleet must retain a retryable terminal instead of rejecting the claim");
+        };
     }
 }
