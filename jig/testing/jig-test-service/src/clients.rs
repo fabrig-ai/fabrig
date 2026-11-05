@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use jig_client_test_protocol_wire::VERSION;
 use jig_domain_core as core;
 use jig_domain_people as people;
-use jig_protocol_config::{self as config, Path, Problems, What};
+use jig_protocol_config::{self as config, Problems, What};
 use jig_protocol_engine_clients as kit;
 use jig_protocol_engine_clients_http as http;
 use jig_test_domain as root;
@@ -97,11 +97,6 @@ pub(super) fn to_root(request: kit::Request) -> Routed {
         kit::Request::Closed => Routed::Closed,
     }
 }
-fn invalid(what: What) -> Problems {
-    let mut problems = Problems::empty();
-    problems.push(Path::root().member(b"engine").member(b"clients"), what);
-    problems
-}
 impl Clients {
     pub fn new(
         config: &config::Engine,
@@ -112,23 +107,17 @@ impl Clients {
         if jig_protocol_accounts::moved::bound(&config.limits.driver.client.document)
             > u64::from(config.limits.clients.wire.keyed_value_some)
         {
-            return Err(invalid(What::Bound));
+            return Err(config::clients::invalid(What::Bound));
         }
         let link_provider = config::clients::link_provider(config);
         let link = if config.clients.link {
-            let provider = link_provider.ok_or(invalid(What::Refers))?;
-            let mut identity = None;
-            for owner in &config.owners {
-                if owner.identity.provider == provider {
-                    identity = Some(people::Identity {
-                        key: owner.identity.clone(),
-                        login: Box::from(b"owner".as_slice()),
-                        name: Box::from(b"Owner".as_slice()),
-                    });
-                    break;
-                }
-            }
-            Some(identity.ok_or(invalid(What::Refers))?)
+            let provider = link_provider.ok_or(config::clients::invalid(What::Refers))?;
+            let owner = config::clients::link_owner(config, provider).ok_or(config::clients::invalid(What::Refers))?;
+            Some(people::Identity {
+                key: owner.identity.clone(),
+                login: Box::from(b"owner".as_slice()),
+                name: Box::from(b"Owner".as_slice()),
+            })
         } else {
             None
         };
@@ -174,8 +163,10 @@ impl Clients {
         self.env.now = now;
         self.env.wall = wall;
         if let Some(settings) = self.settings.take() {
-            self.component =
-                Some(kit::Component::new(settings, &self.env, &mut self.out).or(Err(invalid(What::Bound)))?);
+            self.component = Some(
+                kit::Component::new(settings, &self.env, &mut self.out)
+                    .or(Err(config::clients::invalid(What::Bound)))?,
+            );
         }
         Ok(())
     }
