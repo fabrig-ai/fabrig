@@ -1,5 +1,7 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
-use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, What};
+use crate::{
+    Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, Topic, What,
+};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_forge::api::{self, Commit, Repository, Write};
@@ -91,8 +93,9 @@ fn name(repository: Repository, branch: &[u8]) -> Name {
     Name { forge: repository.forge, repository: repository.repository, what: What::Branch(path_parts(branch)) }
 }
 pub(crate) fn watched(d: &Domain) -> List<Name> {
+    let capacity = d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches");
     let mut names =
-        List::with_capacity(d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches"));
+        List::with_capacity(capacity.checked_add(d.subscriptions.capacity()).expect("subscription watches"));
     for (repository, _) in &d.repositories {
         if d.forge_ended(repository.forge) {
             continue;
@@ -106,6 +109,17 @@ pub(crate) fn watched(d: &Domain) -> List<Name> {
                     names.push(name).expect("one watch per tier");
                 }
             }
+        }
+    }
+    for (_, subscription) in &d.subscriptions {
+        match &subscription.topic {
+            Topic::Landings { repository, branch } if !d.forge_ended(repository.forge) => {
+                let name = name(*repository, branch);
+                if !names.as_slice().contains(&name) {
+                    names.push(name).expect("one watch per subscription");
+                }
+            }
+            Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
         }
     }
     names

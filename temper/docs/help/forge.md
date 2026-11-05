@@ -92,10 +92,10 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
   installation made already; `forge repositories` lists what a forge
   reaches; `forge remove` removes one. Each verb's arguments are its
   help: `temper ctl help forge`.
-- **temper's runs** read an adopted repository's issues, pull
-  requests, reviews, checks, branches, files and CI logs with the forge
-  reads (`read_items`, `read_pull`, `read_job`...), write with
-  `effect_forge`, and hear its news with `subscribe_forge`.
+- **temper's runs** read adopted repositories with the forge reads,
+  write with `effect_forge`, and hear news with `subscribe_forge`.
+  A landing subscription watches its branch through restarts, even
+  when no task or tier names it.
 - **Yourself:** read diffs, reviews, CI runs and logs on the forge,
   at the numbers and links ctl prints (temper help ctl).
 
