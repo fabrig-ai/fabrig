@@ -2575,16 +2575,7 @@ pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeClass, ActStatus, Option
     ]
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AskClass {
-    Project(u32),
-    Application(ApplicationScope),
-    Restore,
-    Deployment,
-    Account,
-    Lift,
-    Seen,
-}
+pub(crate) use crate::AskFamily as AskClass;
 
 pub(crate) fn ask_classes() -> Vec<(Ask, AskClass)> {
     use AskClass as F;

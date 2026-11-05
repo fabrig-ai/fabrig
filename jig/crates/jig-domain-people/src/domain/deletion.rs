@@ -110,44 +110,11 @@ pub(super) fn act_project(act: &Act) -> Option<u32> {
 }
 
 pub(super) fn ask_project(ask: &Ask) -> Option<u32> {
-    match ask {
-        Ask::Application { scope, .. } => match scope {
-            crate::ApplicationScope::Project(project) => Some(*project),
-            crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => None,
-        },
-        Ask::Restore { .. }
-        | Ask::Lift { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. }
-        | Ask::MakeProject { .. }
-        | Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. } => None,
-        Ask::RemoveProject { .. }
-        | Ask::SetVisibility { .. }
-        | Ask::Rename { .. }
-        | Ask::Compound { .. }
-        | Ask::EditNote { .. }
-        | Ask::MakeService { .. }
-        | Ask::Adopt { .. }
-        | Ask::SetRoles { .. }
-        | Ask::ChangePolicy { .. }
-        | Ask::SetPool { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::Amend { .. }
-        | Ask::Move { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Release { .. }
-        | Ask::Create { .. }
-        | Ask::Propose { .. }
-        | Ask::Withdraw { .. } => Some(super::project(ask)),
+    match ask.family() {
+        crate::AskFamily::Project(project)
+        | crate::AskFamily::Application(crate::ApplicationScope::Project(project)) => Some(project),
+        crate::AskFamily::Application(crate::ApplicationScope::Own | crate::ApplicationScope::Deployment)
+        | crate::AskFamily::Restore | crate::AskFamily::Deployment | crate::AskFamily::Account
+        | crate::AskFamily::Lift | crate::AskFamily::Seen => None,
     }
 }

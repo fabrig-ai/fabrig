@@ -3,45 +3,12 @@ use crate::{Ask, LimitKind, Limits, Refusal, Seen};
 use alloc::boxed::Box;
 
 pub(super) fn project(ask: &Ask) -> u32 {
-    match ask {
-        Ask::Application { scope, .. } => match scope {
-            crate::ApplicationScope::Project(project) => *project,
-            crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => 0,
-        },
-        // An account request names no project; its check is its holder (domain/authority.md, 8.4).
-        Ask::Lift { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => 0,
-        Ask::Restore { .. } | Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
-            crate::DEPLOYMENT
-        }
-        Ask::RemoveProject { project, .. }
-        | Ask::SetVisibility { project, .. }
-        | Ask::Rename { project, .. }
-        | Ask::Compound { project, .. }
-        | Ask::EditNote { project, .. }
-        | Ask::MakeService { project, .. }
-        | Ask::Adopt { project, .. }
-        | Ask::SetRoles { project, .. }
-        | Ask::ChangePolicy { project, .. }
-        | Ask::SetPool { project, .. }
-        | Ask::DecideEscalation { project, .. }
-        | Ask::DecideProposal { project, .. }
-        | Ask::Say { project, .. }
-        | Ask::AnswerQuestion { project, .. }
-        | Ask::Amend { project, .. }
-        | Ask::Move { project, .. }
-        | Ask::TakePerson { project, .. }
-        | Ask::HandBackPerson { project, .. }
-        | Ask::AnswerPerson { project, .. }
-        | Ask::Stop { project, .. }
-        | Ask::Cancel { project, .. }
-        | Ask::Release { project, .. }
-        | Ask::Create { project, .. }
-        | Ask::Propose { project, .. }
-        | Ask::Withdraw { project, .. } => *project,
+    match ask.family() {
+        crate::AskFamily::Project(project)
+        | crate::AskFamily::Application(crate::ApplicationScope::Project(project)) => project,
+        crate::AskFamily::Application(crate::ApplicationScope::Own | crate::ApplicationScope::Deployment)
+        | crate::AskFamily::Restore | crate::AskFamily::Deployment | crate::AskFamily::Account
+        | crate::AskFamily::Lift | crate::AskFamily::Seen => crate::DEPLOYMENT,
     }
 }
 
@@ -333,6 +300,7 @@ mod classifications {
     #[test]
     fn ask_classes_keep_all_three_scopes_and_answer_reservations() {
         for (ask, family) in ask_classes() {
+            assert_eq!(ask.family(), family, "{ask:?}");
             let (scope, capacity, deletion, reserved) = match family {
                 AskClass::Project(project) | AskClass::Application(crate::ApplicationScope::Project(project)) => (project, Some(project), Some(project), true),
                 AskClass::Restore | AskClass::Deployment | AskClass::Application(crate::ApplicationScope::Deployment) => (crate::DEPLOYMENT, Some(crate::DEPLOYMENT), None, true),

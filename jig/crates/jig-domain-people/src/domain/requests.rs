@@ -179,15 +179,11 @@ pub(super) fn admit_ask(
     }
     let project = project(&ask);
     // An account request's check is its holder, never a role (domain/authority.md, 8.4).
-    let role = if let Ask::Application { scope: crate::ApplicationScope::Own, .. }
-    | Ask::Lift { .. }
-    | Ask::AccountSignIn { .. }
-    | Ask::AccountSignOut { .. }
-    | Ask::AccountChange { .. } = &ask
-    {
-        None
-    } else {
-        role(domain, key.person, project)
+    let role = match ask.family() {
+        crate::AskFamily::Application(crate::ApplicationScope::Own)
+        | crate::AskFamily::Lift | crate::AskFamily::Account => None,
+        crate::AskFamily::Project(_) | crate::AskFamily::Application(crate::ApplicationScope::Project(_) | crate::ApplicationScope::Deployment)
+        | crate::AskFamily::Restore | crate::AskFamily::Deployment | crate::AskFamily::Seen => role(domain, key.person, project),
     };
     let refusal = admission(domain, key.person, project, role, &ask);
     if let Some(refusal) = refusal {
@@ -327,42 +323,10 @@ fn written_place(domain: &Domain, person: u64, ask: &Ask) -> Option<(RequestKey,
 }
 
 pub(super) fn reserves_answer(ask: &Ask) -> bool {
-    match ask {
-        Ask::MarkSeen { .. } => false,
-        Ask::Restore { .. }
-        | Ask::Application { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. }
-        | Ask::Compound { .. }
-        | Ask::EditNote { .. }
-        | Ask::MakeService { .. }
-        | Ask::Adopt { .. }
-        | Ask::SetRoles { .. }
-        | Ask::ChangePolicy { .. }
-        | Ask::RemoveProject { .. }
-        | Ask::SetVisibility { .. }
-        | Ask::Rename { .. }
-        | Ask::MakeProject { .. }
-        | Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. }
-        | Ask::SetPool { .. }
-        | Ask::Create { .. }
-        | Ask::Propose { .. }
-        | Ask::Withdraw { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::Amend { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Move { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Lift { .. }
-        | Ask::Release { .. } => true,
+    match ask.family() {
+        crate::AskFamily::Seen => false,
+        crate::AskFamily::Project(_) | crate::AskFamily::Application(_) | crate::AskFamily::Restore
+        | crate::AskFamily::Deployment | crate::AskFamily::Account | crate::AskFamily::Lift => true,
     }
 }
 

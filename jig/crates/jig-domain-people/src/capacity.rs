@@ -101,45 +101,13 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
 }
 
 pub(crate) fn project(ask: &Ask) -> Option<u32> {
-    match ask {
-        Ask::Compound { project, .. }
-        | Ask::EditNote { project, .. }
-        | Ask::MakeService { project, .. }
-        | Ask::Adopt { project, .. }
-        | Ask::SetRoles { project, .. }
-        | Ask::RemoveProject { project, .. }
-        | Ask::SetVisibility { project, .. }
-        | Ask::Rename { project, .. }
-        | Ask::ChangePolicy { project, .. }
-        | Ask::SetPool { project, .. }
-        | Ask::DecideEscalation { project, .. }
-        | Ask::DecideProposal { project, .. }
-        | Ask::Say { project, .. }
-        | Ask::AnswerQuestion { project, .. }
-        | Ask::Amend { project, .. }
-        | Ask::Move { project, .. }
-        | Ask::TakePerson { project, .. }
-        | Ask::HandBackPerson { project, .. }
-        | Ask::AnswerPerson { project, .. }
-        | Ask::Stop { project, .. }
-        | Ask::Cancel { project, .. }
-        | Ask::Release { project, .. }
-        | Ask::Create { project, .. }
-        | Ask::Propose { project, .. }
-        | Ask::Withdraw { project, .. } => Some(*project),
-        Ask::Restore { .. } | Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
-            Some(crate::DEPLOYMENT)
-        }
-        Ask::Application { scope, .. } => match scope {
-            crate::ApplicationScope::Own => None,
-            crate::ApplicationScope::Project(project) => Some(*project),
-            crate::ApplicationScope::Deployment => Some(0),
-        },
-        Ask::Lift { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => None,
+    match ask.family() {
+        crate::AskFamily::Project(project)
+        | crate::AskFamily::Application(crate::ApplicationScope::Project(project)) => Some(project),
+        crate::AskFamily::Restore | crate::AskFamily::Deployment
+        | crate::AskFamily::Application(crate::ApplicationScope::Deployment) => Some(crate::DEPLOYMENT),
+        crate::AskFamily::Application(crate::ApplicationScope::Own) | crate::AskFamily::Account
+        | crate::AskFamily::Lift | crate::AskFamily::Seen => None,
     }
 }
 

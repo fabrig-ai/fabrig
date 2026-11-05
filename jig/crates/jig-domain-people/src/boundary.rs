@@ -326,6 +326,58 @@ pub enum Ask {
     SetVisibility { project: u32, public: bool },
 }
 
+/// The scope and admission family of a keyed request (domain/people.md, 5.1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum AskFamily {
+    Project(u32),
+    Application(crate::ApplicationScope),
+    Restore,
+    Deployment,
+    Account,
+    Lift,
+    Seen,
+}
+
+impl Ask {
+    /// Keep the request's project distinct from deployment and party-only admission.
+    #[must_use]
+    pub const fn family(&self) -> AskFamily {
+        match self {
+        Self::Compound { project, .. }
+        | Self::EditNote { project, .. }
+        | Self::MakeService { project, .. }
+        | Self::Adopt { project, .. }
+        | Self::SetRoles { project, .. }
+        | Self::RemoveProject { project, .. }
+        | Self::SetVisibility { project, .. }
+        | Self::Rename { project, .. }
+        | Self::ChangePolicy { project, .. }
+        | Self::SetPool { project, .. }
+        | Self::DecideEscalation { project, .. }
+        | Self::DecideProposal { project, .. }
+        | Self::Say { project, .. }
+        | Self::AnswerQuestion { project, .. }
+        | Self::Amend { project, .. }
+        | Self::Move { project, .. }
+        | Self::TakePerson { project, .. }
+        | Self::HandBackPerson { project, .. }
+        | Self::AnswerPerson { project, .. }
+        | Self::Stop { project, .. }
+        | Self::Cancel { project, .. }
+        | Self::Release { project, .. }
+        | Self::Create { project, .. }
+        | Self::Propose { project, .. }
+        | Self::Withdraw { project, .. } => AskFamily::Project(*project),
+            Self::Application { scope, .. } => AskFamily::Application(*scope),
+            Self::Restore { .. } => AskFamily::Restore,
+            Self::MakeProject { .. } | Self::ChangeSettings { .. } | Self::MoveToNewest { .. } => AskFamily::Deployment,
+            Self::AccountSignIn { .. } | Self::AccountSignOut { .. } | Self::AccountChange { .. } => AskFamily::Account,
+            Self::Lift { .. } => AskFamily::Lift,
+            Self::MarkSeen { .. } => AskFamily::Seen,
+        }
+    }
+}
+
 /// A person's answer to a report, choice or failure contract; root translates it for tasks.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PersonResult {
