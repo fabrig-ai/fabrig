@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-11-04. How far temper's client is from its mockups
+Revised 2026-11-05. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -54,11 +54,29 @@ Where the client does otherwise:
   user's greenfield mock's `home.html`, which `chats.html`, `chat.html`,
   `inbox.html`, `accounts.html`, `forges.html` and the first run's pages
   do not draw, under their top bar; the project's first page is Home.
-  Home's numbered steps become ticks when done; its headline counts
-  what is left. Its kicker shows the current day and time, and an
-  adopted repository's line describes checked changes landing through
-  the merge queue, without claiming a creation age or a first CI
-  result (`../README.md`, 11). The switcher shows repository names and
+  While a step is left, Home's To begin has numbered steps, ticks when
+  done, and a headline counting what is left. With every step done,
+  Home's headline counts the project's needs, its first need is a card
+  and the others are rows, and Chats has at most five rows with each
+  chat's state and age. "All N" reads "All N+" where the read is cut;
+  empty sections say "Nothing needs you. Work carries on, and this
+  page tells you what changed when you come back." and "No chats
+  yet.", with no "All 0". The phone replaces the card with a pale
+  signal line and "Answer"; that link, "Reply" and the wide "Answer
+  in a row" open the project's inbox. The rail and phone tabs colour
+  the person's needs count across projects, supplied by `me`, while
+  Home's section counts this project's needs. The kicker shows the
+  current day and time; "you last looked", what landed in the
+  headline, the lede and byline wait on `../README.md`, 11, *What
+  changed since the person last looked*. Context, choices,
+  "recommended", "Later", the answer's green line and "Undo" wait on
+  section 11's *A question answered on Home*; Goals and "No goals
+  yet…" on *Goals on Home*; "Landing: …" on *The landing's line on
+  Home*. A chat's "landed" waits on a read per row
+  (`../README.status.md`, 3.5). Connected stays below Chats. An adopted
+  repository's To begin line describes checked changes landing through
+  the merge queue, without claiming a creation age or first CI result
+  (`../README.md`, 11). The switcher shows repository names and
   counts, the first listed standing in for the home; "3 repositories"
   without that stand-in is unreached (`../README.md`, 5.3). Home's
   GitHub picker and reached count and the model account's email wait
