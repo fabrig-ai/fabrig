@@ -1,8 +1,8 @@
 //! Forge-making acts and kept first intent (temper/docs/design/protocol/forge.md, 2.2; temper/docs/design/protocol/setup.md, 6.7).
 use super::{Domain, setup_login, setup_repository};
 use crate::{
-    Ask, Bot, Connection, First, FirstIntent, FirstState, ForgeAsk, ForgeRecord, ForgeState, Kind, Limits, Making,
-    Mode, Offer, Request, SetUpAnswer, SetUpRefusal,
+    Ask, Bot, Connection, EmptyIntent, First, FirstIntent, FirstState, ForgeAsk, ForgeRecord, ForgeState, Kind, Limits,
+    Making, Mode, Offer, Request, SetUpAnswer, SetUpFirst, SetUpRefusal,
 };
 use alloc::boxed::Box;
 use jig_domain_core::Carried;
@@ -17,11 +17,14 @@ pub(crate) fn bot() -> Bot {
 }
 
 pub(crate) fn restore_first(d: &mut Domain, record: &ForgeRecord) {
-    d.first.remove(&record.number);
-    if let Some(intent) = &record.first {
+    set_first(d, record.number, record.first.as_ref());
+}
+fn set_first(d: &mut Domain, forge: u16, first: Option<&FirstIntent>) {
+    d.first.remove(&forge);
+    if let Some(FirstIntent::Empty(intent)) = first {
         d.first
             .insert(
-                record.number,
+                forge,
                 First {
                     playground: intent.playground,
                     org: intent.org.clone(),
@@ -45,8 +48,8 @@ pub(crate) fn setup(
     carried: Option<Carried>,
     out: &mut Queue<Request>,
 ) {
-    let (forge, org, repository, playground) = match ask {
-        Ask::SetUp { forge, org, repository, playground } => (forge, org, repository, playground),
+    let (forge, first) = match ask {
+        Ask::SetUp { forge, first } => (forge, first),
         Ask::Connect { .. }
         | Ask::Replace { .. }
         | Ask::RemoveForge { .. }
@@ -76,20 +79,12 @@ pub(crate) fn setup(
         return;
     }
     d.setup_pending.insert(request, (token, retention)).expect("setup answer room checked");
-    if !setup_login(&org)
-        || !setup_repository(&repository)
-        || org.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
-        || repository.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
-        || (playground && (org.as_ref() != b"playground" || repository.as_ref() != b"widget"))
-    {
-        d.setup_answer(env, request, SetUpAnswer::Refused(SetUpRefusal::Invalid), out);
-        return;
-    }
-    let intent = FirstIntent {
-        playground,
-        org: org.clone(),
-        repository: repository.clone(),
-        label: Box::from(b"temper-host".as_slice()),
+    let intent = match intent(&first, env.limits.name_bytes) {
+        Ok(intent) => intent,
+        Err(why) => {
+            d.setup_answer(env, request, SetUpAnswer::Refused(why), out);
+            return;
+        }
     };
     let admitted = match forge {
         Making::New(ForgeAsk::Owned) => owned(d, intent.clone(), out),
@@ -122,20 +117,44 @@ pub(crate) fn setup(
         record.first = Some(intent.clone());
         crate::forges::save(d, record, out);
     }
-    d.first
-        .insert(
-            forge,
-            First {
-                playground,
+    set_first(d, forge, Some(&intent));
+    out.push(Request::MarkedForges);
+    out.push(Request::SetUp { forge, request, first });
+}
+
+fn intent(first: &SetUpFirst, name_bytes: u32) -> Result<FirstIntent, SetUpRefusal> {
+    match first {
+        SetUpFirst::Empty { org, repository, playground } => {
+            if !setup_login(org)
+                || !setup_repository(repository)
+                || org.len() > skein_lib::usize_of(name_bytes)
+                || repository.len() > skein_lib::usize_of(name_bytes)
+                || (*playground && (org.as_ref() != b"playground" || repository.as_ref() != b"widget"))
+            {
+                return Err(SetUpRefusal::Invalid);
+            }
+            Ok(FirstIntent::Empty(EmptyIntent {
+                playground: *playground,
                 org: org.clone(),
                 repository: repository.clone(),
-                label: intent.label,
-                state: FirstState::Making,
-            },
-        )
-        .expect("configured forges bound first repositories");
-    out.push(Request::MarkedForges);
-    out.push(Request::SetUp { forge, request, org, repository, playground });
+                label: Box::from(b"temper-host".as_slice()),
+            }))
+        }
+        SetUpFirst::Copies { addresses } => {
+            if addresses.len() > skein_lib::usize_of(temper_client_protocol_wire::FIRST_COPIES) {
+                return Err(SetUpRefusal::Invalid);
+            }
+            for address in addresses {
+                if address.len() > temper_client_protocol_wire::source::ADDRESS_BYTES
+                    || temper_client_protocol_wire::source::parse(address).is_err()
+                {
+                    return Err(SetUpRefusal::Invalid);
+                }
+            }
+            Ok(FirstIntent::Copies { addresses: addresses.clone() })
+        }
+        SetUpFirst::Nothing => Ok(FirstIntent::Nothing),
+    }
 }
 
 fn setup_busy(d: &Domain) -> bool {

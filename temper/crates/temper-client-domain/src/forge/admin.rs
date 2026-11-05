@@ -292,10 +292,18 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
         &crate::key::Name::new(skein_lib::Decimal::of(side.serial).as_bytes()).expect("serial fits"),
     );
     side.set_up = Some(Box::new(forges::SetUp {
-        playground: false,
+        first: w::SetUpFirst::Empty(
+            w::FirstEmpty::new(
+                &bounds,
+                w::FirstEmptyParts {
+                    playground: false,
+                    org: draft.fields[0].clone(),
+                    repository: draft.fields[1].clone(),
+                },
+            )
+            .expect("validated first repository"),
+        ),
         forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
-        org: draft.fields[0].clone(),
-        repository: draft.fields[1].clone(),
         request: skein_lib::Token::new(side.serial),
         progress: None,
         answer: None,

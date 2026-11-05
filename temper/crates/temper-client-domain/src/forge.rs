@@ -468,6 +468,26 @@ pub fn ask(adoption: &Adoption, limits: &Limits) -> Option<jig_client::Ask> {
         record: family::request(adoption, &wire_limits(limits)?)?,
     })
 }
+/// Encode a checked making request in its destination's scope (client/README.md, 4.6).
+#[must_use]
+pub fn make_repository(
+    request: &temper_client_protocol_wire::v1::MakeRepository,
+    limits: &Limits,
+) -> Option<jig_client::Ask> {
+    let scope = match request.into() {
+        Some(into) => jig_client::contract::Scope::Project(into.project()),
+        None => jig_client::contract::Scope::Deployment,
+    };
+    Some(jig_client::Ask::Family { scope, record: family::make_repository(request, &wire_limits(limits)?)? })
+}
+/// Ready's copies are named in address order, starting at one (client/README.md, 3.5).
+#[must_use]
+pub fn copy_key(number: u64) -> skein_lib::RequestKey {
+    let number = skein_lib::Decimal::of(number);
+    let text = skein_lib::bytes::concat(&[b"welcome-copy-", number.as_bytes()]);
+    crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&text).expect("copy key fits"))
+}
+
 /// Decode the same terminal answers the adoption side receives.
 #[must_use]
 pub fn answer(limits: &crate::Limits, answered: &jig_client::Answered) -> Option<Answer> {

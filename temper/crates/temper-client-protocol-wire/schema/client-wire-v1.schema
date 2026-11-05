@@ -15,7 +15,10 @@ record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes
 enum ForgeAsk { github, owned, managed: ManagedForge, connected: ManagedForge }
 record NewForge { forge: ForgeAsk }
 enum Making { kept: Kept, new: NewForge }
-record SetUp { forge: Making org: bytes 1024 repository: bytes 1024 playground: bool }
+record FirstEmpty { org: bytes 1024 repository: bytes 1024 playground: bool }
+record CopyAddresses { addresses: list 16 bytes 512 }
+enum SetUpFirst { empty: FirstEmpty, copies: CopyAddresses, nothing }
+record SetUp { forge: Making first: SetUpFirst }
 record Return { source: u32 path: bytes 512 }
 record GitHubApp { id: u64 read_only: option bool }
 record GitHubManifest { back: option bytes 512 }
@@ -89,7 +92,8 @@ enum MakeFailure { taken, empty, timed_out, refused: Refused, not_allowed, other
 record MakingFailed { step: MakeStep reason: MakeFailure words: bytes 256 }
 enum MakingState { waiting, making, made: MakingMade, adopting: MakingMade, failed: MakingFailed }
 record RepositoryMaking { org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto state: MakingState }
-record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking }
+enum StartsWith { repository, copies: CopyAddresses, nothing }
+record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository starts_with: StartsWith installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking }
 versioned record Forges { forges: list 16 ForgeRow }
 
 # The forge's reads (temper/docs/design/client/forge.md, 9).

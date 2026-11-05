@@ -874,10 +874,18 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                 w::SetUp::new(
                     &w::CEILINGS,
                     w::SetUpParts {
-                        playground: false,
                         forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                        org: b"work".as_slice().into(),
-                        repository: b"hello".as_slice().into(),
+                        first: w::SetUpFirst::Empty(
+                            w::FirstEmpty::new(
+                                &w::CEILINGS,
+                                w::FirstEmptyParts {
+                                    playground: false,
+                                    org: b"work".as_slice().into(),
+                                    repository: b"hello".as_slice().into(),
+                                },
+                            )
+                            .expect("setup names fit wire ceilings"),
+                        ),
                     },
                 )
                 .unwrap(),
@@ -907,10 +915,12 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
             [5; 16],
             [7; 32],
             root::Application::Forge(forge::Ask::SetUp {
-                playground: false,
                 forge: forge::Making::Kept(3),
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into(),
+                first: forge::SetUpFirst::Empty {
+                    playground: false,
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into()
+                }
             })
         )
     );
@@ -985,6 +995,7 @@ fn forge_row(
     offer: forge::Offer,
 ) -> forge::Row {
     forge::Row {
+        starts_with: forge::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
         number,
@@ -1010,6 +1021,7 @@ fn configured_forge_rows() -> forge::Forges {
     forge::Forges {
         rows: Box::new([
             forge::Row {
+                starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
                 number: 1,
@@ -1141,6 +1153,7 @@ fn expected_forge_row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
             number,
@@ -1220,10 +1233,18 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
                 w::SetUp::new(
                     &w::CEILINGS,
                     w::SetUpParts {
-                        playground: false,
                         forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                        org: b"team".as_slice().into(),
-                        repository: b"widget".as_slice().into(),
+                        first: w::SetUpFirst::Empty(
+                            w::FirstEmpty::new(
+                                &w::CEILINGS,
+                                w::FirstEmptyParts {
+                                    playground: false,
+                                    org: b"team".as_slice().into(),
+                                    repository: b"widget".as_slice().into(),
+                                },
+                            )
+                            .expect("setup names fit wire ceilings"),
+                        ),
                     },
                 )
                 .unwrap(),
@@ -1245,10 +1266,12 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
     assert_eq!(
         request,
         root::Application::Forge(forge::Ask::SetUp {
-            playground: false,
             forge: forge::Making::Kept(3),
-            org: b"team".as_slice().into(),
-            repository: b"widget".as_slice().into(),
+            first: forge::SetUpFirst::Empty {
+                playground: false,
+                org: b"team".as_slice().into(),
+                repository: b"widget".as_slice().into()
+            }
         })
     );
     for state in [
@@ -1503,6 +1526,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
     let bytes = family::forges(
         forge::Forges {
             rows: Box::new([forge::Row {
+                starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
                 number: 1,
@@ -1579,6 +1603,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
     ] {
         let value = forge::Forges {
             rows: Box::new([forge::Row {
+                starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
                 number: 1,
@@ -1935,6 +1960,7 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks both public acts across every forge place")]
 fn new_forge_places_reach_both_setup_and_connect_whole() {
     let managed = w::ForgeAsk::Managed(
         w::ManagedForge::new(
@@ -1979,18 +2005,28 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                         &w::CEILINGS,
                         w::SetUpParts {
                             forge: making.clone(),
-                            org: b"work".as_slice().into(),
-                            repository: b"hello".as_slice().into(),
-                            playground: false,
+                            first: w::SetUpFirst::Empty(
+                                w::FirstEmpty::new(
+                                    &w::CEILINGS,
+                                    w::FirstEmptyParts {
+                                        org: b"work".as_slice().into(),
+                                        repository: b"hello".as_slice().into(),
+                                        playground: false,
+                                    },
+                                )
+                                .expect("setup names fit wire ceilings"),
+                            ),
                         },
                     )
                     .unwrap(),
                 ),
                 forge::Ask::SetUp {
                     forge: forge::Making::New(expected.clone()),
-                    org: b"work".as_slice().into(),
-                    repository: b"hello".as_slice().into(),
-                    playground: false,
+                    first: forge::SetUpFirst::Empty {
+                        org: b"work".as_slice().into(),
+                        repository: b"hello".as_slice().into(),
+                        playground: false,
+                    },
                 },
             ),
             (
@@ -2713,6 +2749,51 @@ fn dismissals_encode_the_partys_rows() {
         }
         assert_eq!(got, w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: expected }).unwrap());
     }
+}
+
+#[test]
+fn setup_copy_addresses_are_canonicalised_before_admission() {
+    let mut addresses = List::with_capacity(1);
+    addresses.push(Box::from(b"source.example/owner/repo.git".as_slice())).unwrap();
+    let first =
+        w::SetUpFirst::Copies(w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).unwrap());
+    let request = w::Requesting::new(
+        &w::CEILINGS,
+        w::RequestingParts {
+            request: w::Request::SetUp(
+                w::SetUp::new(
+                    &w::CEILINGS,
+                    w::SetUpParts {
+                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
+                        first,
+                    },
+                )
+                .unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
+        &fixtures::forge_table(&[]),
+        None,
+        family::Deployment { welcome: false, owned: false },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::Application {
+        request: root::Application::Forge(forge::Ask::SetUp { first, .. }),
+        ..
+    }) = event
+    else {
+        panic!("setup admission")
+    };
+    assert_eq!(
+        first,
+        forge::SetUpFirst::Copies { addresses: Box::new([Box::from(b"https://source.example/owner/repo".as_slice())]) }
+    );
 }
 
 #[test]

@@ -1559,6 +1559,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
 
 fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> Row {
     Row {
+        starts_with: StartsWith::Repository,
         host: Box::new([]),
         number,
         kind,
@@ -1613,11 +1614,13 @@ fn setup_rows_and_answers_agree_in_every_connection_state() {
                         [
                             Request::MarkedForges,
                             Request::SetUp {
-                                playground: false,
                                 forge: 1,
                                 request,
-                                org: b"work".as_slice().into(),
-                                repository: b"hello".as_slice().into()
+                                first: SetUpFirst::Empty {
+                                    playground: false,
+                                    org: b"work".as_slice().into(),
+                                    repository: b"hello".as_slice().into()
+                                }
                             }
                         ]
                     );
@@ -1676,6 +1679,7 @@ fn closing_the_box_fails_setup_and_marks_every_offer_unavailable() {
         d.forges().rows.as_ref(),
         [
             Row {
+                starts_with: StartsWith::Repository,
                 host: Box::new([]),
                 failed: Some(FailedStep::Run),
                 ..setup_row(
@@ -1775,10 +1779,12 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
         token,
         retention: Duration::from_secs(60),
         ask: Ask::SetUp {
-            playground: false,
             forge: Making::Kept(forge),
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
+            first: SetUpFirst::Empty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            },
         },
     }
 }
@@ -1847,11 +1853,13 @@ fn setup_answers_reserve_room_until_retention_ends() {
     assert_eq!(
         out.pop(),
         Some(Request::SetUp {
-            playground: false,
             forge: 1,
             request,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
+            first: SetUpFirst::Empty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into()
+            }
         })
     );
     assert!(out.is_empty());
@@ -1950,10 +1958,12 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
             token,
             retention: Duration::from_secs(60),
             ask: Ask::SetUp {
-                playground: false,
                 forge: Making::Kept(1),
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into(),
+                first: SetUpFirst::Empty {
+                    playground: false,
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into(),
+                },
             },
         },
     );
@@ -1962,11 +1972,13 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
         [
             Request::MarkedForges,
             Request::SetUp {
-                playground: false,
                 forge: 1,
                 request,
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into()
+                first: SetUpFirst::Empty {
+                    playground: false,
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into()
+                }
             }
         ]
     );
@@ -2018,10 +2030,12 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                 };
                 let accepted = given::check_create(&kit_limits, domain_bound, &plan).is_ok();
                 let ask = Ask::SetUp {
-                    playground: false,
                     forge: Making::Kept(1),
-                    org: org_name.clone(),
-                    repository: repository.clone(),
+                    first: SetUpFirst::Empty {
+                        playground: false,
+                        org: org_name.clone(),
+                        repository: repository.clone(),
+                    },
                 };
                 let mut emitted = Queue::uncapped();
                 step(
@@ -2041,7 +2055,11 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     assert_eq!(emitted.pop(), Some(Request::MarkedForges));
                     assert_eq!(
                         emitted.pop(),
-                        Some(Request::SetUp { playground: false, forge: 1, request, org: org_name, repository })
+                        Some(Request::SetUp {
+                            forge: 1,
+                            request,
+                            first: SetUpFirst::Empty { playground: false, org: org_name, repository }
+                        })
                     );
                     assert_eq!(d.forges().rows[0].first.as_ref().unwrap().state, FirstState::Making);
                 } else {
@@ -2075,10 +2093,12 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             label: Box::from(b"temper-host".as_slice()),
         };
         let ask = Ask::SetUp {
-            playground: false,
             forge: Making::Kept(1),
-            org: first.org.clone(),
-            repository: first.repository.clone(),
+            first: SetUpFirst::Empty {
+                playground: false,
+                org: first.org.clone(),
+                repository: first.repository.clone(),
+            },
         };
         assert_eq!(
             outputs(
@@ -2095,7 +2115,11 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             .as_ref(),
             [
                 Request::MarkedForges,
-                Request::SetUp { playground: false, forge: 1, request, org: org.into(), repository: repository.into() }
+                Request::SetUp {
+                    forge: 1,
+                    request,
+                    first: SetUpFirst::Empty { playground: false, org: org.into(), repository: repository.into() }
+                }
             ]
         );
         assert_eq!(d.forges().rows[0].first, Some(first));

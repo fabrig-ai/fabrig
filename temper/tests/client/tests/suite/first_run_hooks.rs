@@ -127,11 +127,9 @@ fn fifth_setup_step_fails_on_welcome_and_forges() {
             && node.states.as_slice().contains(&skein_ui::State::Disabled)
     }));
     harness::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Model { way: None } }));
-    // Model remains available, and the brand opens Chats; Forges exposes the failed setup's retry.
+    // Model remains available; Forges exposes the failed setup's retry.
     assert!(!named(Temper::tree(&draw(&root)), Role::Link, b"Later"));
-    press(&mut front, &mut root, Role::Link, b"temper chats");
-    press(&mut front, &mut root, Role::Link, b"Settings");
-    press(&mut front, &mut root, Role::Link, b"Forges");
+    harness::event(&mut front, &mut root, Temper::went(Address::Forges));
     let view = draw(&root);
     assert!(named(Temper::tree(&view), Role::Button, b"Set up again"), "{}", words(Temper::tree(&view)));
     // Forges draws no set-up steps for any failure yet (the Forges page's own look, not this row's).

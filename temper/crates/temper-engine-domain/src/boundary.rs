@@ -757,9 +757,7 @@ pub enum Request {
     SetUp {
         forge: u16,
         request: Token,
-        org: Box<[u8]>,
-        repository: Box<[u8]>,
-        playground: bool,
+        first: forge::SetUpFirst,
     },
     Connect {
         forge: u16,

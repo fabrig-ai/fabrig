@@ -157,7 +157,7 @@ fn the_owned_slot_names_its_forge_by_the_argument() {
         let group = &steps.asked[0];
         assert_eq!(group.kind, Some(BoxKind::Owned));
         assert_eq!((group.forge, group.before), (0, 0));
-        assert_eq!(group.label.as_ref(), b"Forgejo");
+        assert_eq!(group.label.as_ref(), b"Forge $forge (Forgejo)");
         assert!(group.recorded);
         assert_eq!(group.steps.len(), 4);
         for ((stage, step), (expected_stage, name, action, run)) in group.steps.iter().zip([

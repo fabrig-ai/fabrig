@@ -1,5 +1,8 @@
 //! First-run facts (temper/docs/design/client/README.md, 3.5).
-use super::accounts;
+use super::{
+    accounts::{self, PasteState, SignInState, Way},
+    connect_model,
+};
 use crate::{
     Domain,
     forge::{
@@ -17,6 +20,105 @@ impl Welcome {
     pub(crate) const fn new() -> Self {
         Self { decided: false }
     }
+}
+/// What the welcome's Model step draws (client/README.md, 3.5, Model).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModelStep {
+    /// A model usable, at any way or none.
+    Usable,
+    /// No way: the plans' cards.
+    Choose,
+    /// A sign-in's way, not yet asked or ended with no model.
+    SignIn {
+        way: Way,
+    },
+    /// A sign-in asked, its tab not gone yet.
+    Away {
+        way: Way,
+    },
+    /// A paste accepted.
+    Finishing {
+        way: Way,
+    },
+    /// A sign-in `elsewhere`.
+    Paste {
+        way: Way,
+    },
+    Key {
+        way: Way,
+    },
+    Program {
+        way: Way,
+    },
+}
+/// None until the page and `me` are in.
+#[must_use]
+pub fn model_step(root: &Domain) -> Option<ModelStep> {
+    let page = root.pages().connect_model()?;
+    accounts::current_me(root.client())?;
+    if model_usable(root) == Some(true) {
+        return Some(ModelStep::Usable);
+    }
+    let Some(way) = connect_model::way(root.pages(), root.client()) else {
+        return Some(ModelStep::Choose);
+    };
+    Some(match way {
+        Way::Key { .. } => ModelStep::Key { way },
+        Way::Program { .. } => ModelStep::Program { way },
+        Way::SignIn { .. } => {
+            if page.request.paste_state(root.client()) == PasteState::Finishing {
+                ModelStep::Finishing { way }
+            } else if page.elsewhere() {
+                ModelStep::Paste { way }
+            } else {
+                match page.request.sign_in_state(root.client()) {
+                    SignInState::Started { .. } | SignInState::Signing { .. } => ModelStep::Away { way },
+                    SignInState::Unknown | SignInState::Ended { .. } => ModelStep::SignIn { way },
+                }
+            }
+        }
+    })
+}
+/// A step's facts: the address is current, and only another done step is ticked (3.5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StepMark {
+    pub current: bool,
+    pub ticked: bool,
+}
+/// Welcome, Forge, Model, Ready, in order (client/README.md, 3.5, Its steps).
+#[must_use]
+pub fn step_marks(at: crate::Step, forge_kept: bool, model_usable: bool) -> [StepMark; 4] {
+    let current: u8 = match at {
+        crate::Step::Welcome | crate::Step::WelcomeAsked => 0,
+        crate::Step::Forge { .. } => 1,
+        crate::Step::Model { .. } => 2,
+        crate::Step::Ready => 3,
+    };
+    [
+        StepMark { current: current == 0, ticked: current != 0 },
+        StepMark { current: current == 1, ticked: forge_kept && current != 1 },
+        StepMark { current: current == 2, ticked: model_usable && current != 2 },
+        StepMark { current: current == 3, ticked: false },
+    ]
+}
+/// A real forge is kept, even under way or cut short: what `decision` calls kept.
+#[must_use]
+pub fn forge_kept(root: &Domain) -> bool {
+    let rows = match root.forges() {
+        Forges::Rows(rows) => rows,
+        Forges::Unknown | Forges::Ended => return false,
+    };
+    for row in rows {
+        if row.mode != forges::Mode::Fake {
+            return true;
+        }
+    }
+    false
+}
+/// Where "Go on setting up" and Forge's and Model's "Continue" go: Ready with a usable model, else Model.
+#[must_use]
+pub fn go_on(root: &Domain) -> crate::Step {
+    if model_usable(root) == Some(true) { crate::Step::Ready } else { crate::Step::Model { way: None } }
 }
 /// The store's first-run state (temper/docs/design/client/README.md, 3.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -84,12 +186,20 @@ pub struct First {
 }
 /// The offered name (temper/docs/design/client/README.md, 3.5).
 #[must_use]
-pub fn offered(first: Option<&First>) -> Box<[u8]> {
-    let Some(first) = first else { return OFFERED_NAME.into() };
-    if first.name.is_empty() || first.name.len() > usize::try_from(NAME_BYTES).expect("name bound fits") {
+pub fn offered(first: Option<&First>, copies: Option<&forge::making::Copies>) -> Box<[u8]> {
+    let name = match first {
+        Some(first) => first.name.clone(),
+        None => {
+            let Some(copies) = copies else { return OFFERED_NAME.into() };
+            let Some(address) = copies.addresses.first() else { return OFFERED_NAME.into() };
+            let Some((_, name)) = forge::making::target(address) else { return OFFERED_NAME.into() };
+            name
+        }
+    };
+    if name.is_empty() || name.len() > usize::try_from(NAME_BYTES).expect("name bound fits") {
         return OFFERED_NAME.into();
     }
-    let mut name = first.name.clone();
+    let mut name = name;
     if let Some(byte) = name.first_mut() {
         byte.make_ascii_uppercase();
     }
