@@ -453,6 +453,7 @@ name = "hearth-domain-render"
 version = "0.0.0"
 dependencies = [
  "hearth-lib",
+ "hearth-test-fixtures",
  "skein-lib",
 ]
 
@@ -513,6 +514,7 @@ dependencies = [
 name = "hearth-lib"
 version = "0.0.0"
 dependencies = [
+ "hearth-test-fixtures",
  "skein-lib",
 ]
 
@@ -587,6 +589,7 @@ name = "hearth-protocol-tree"
 version = "0.0.0"
 dependencies = [
  "hearth-lib",
+ "hearth-test-fixtures",
  "skein-lib",
 ]
 
@@ -639,6 +642,7 @@ dependencies = [
 name = "hearth-test-fixtures"
 version = "0.0.0"
 dependencies = [
+ "skein-lib",
  "skein-scratch",
 ]
 

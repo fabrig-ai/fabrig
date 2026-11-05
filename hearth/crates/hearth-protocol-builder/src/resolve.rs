@@ -66,7 +66,7 @@ impl Resolve {
         };
         let mut name = Writer::new(64);
         for byte in key.0 {
-            crate::cache::hex(&mut name, byte);
+            crate::cache::hex_pair(&mut name, byte);
         }
         let name = name.finish();
         let mut scratch = Writer::new(store.len().saturating_add(73));
