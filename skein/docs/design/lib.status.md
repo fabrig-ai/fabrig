@@ -1,6 +1,6 @@
 # lib: status
 
-2026-11-04. Where skein's code lags or departs from [lib.md](lib.md).
+2026-11-05. Where skein's code lags or departs from [lib.md](lib.md).
 
 - **Not yet:** 3: `Slab::get2_mut`.
 - **Departs:** 12: `skein/docs/foundation/programming-model.md`, 5.4

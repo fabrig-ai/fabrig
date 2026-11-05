@@ -102,7 +102,8 @@ exactly and never past the cap. A B-tree allocates as it fills, so its
 `List`, `Queue`, `Intake`, `Map`, `Set`, `Stack` and `Buffer` give this
 allocation price through `price(capacity)`.
 
-`List::from_boxed` makes a list of owned items, its capacity their count.
+`List::from_boxed` makes a list of owned items, its capacity their count,
+and `List::into_boxed` moves them into a box of exactly their number.
 `List::swap_remove` takes one item out, the last taking its place, and
 `List::iter_mut` hands each item to change in place.
 
@@ -196,6 +197,11 @@ where it holds it.
   copies the bytes out at their exact length, the buffer kept. Its
   `Debug` shows its length and capacity, never its bytes. A patch builds
   each record in one, a secret's bytes among them (codec.md, section 11).
+- **`Tail`** keeps a stream's newest bytes in a ring: `Tail::with_capacity(n)`
+  holds at most n, `push` and `put` drop the oldest once it is full, and a
+  capacity of zero keeps nothing. `get` reads a byte in arrival order,
+  `to_boxed` copies them out at their exact length, `into_boxed` hands them
+  over in the ring's own buffer, and `clear` keeps the capacity.
 - **`Decimal`** holds the decimal digits of a count, for a step that
   writes a number as text without formatting: measure it, then put it.
 - **`Secret`** holds a secret's owned bytes: a credential, a token, a

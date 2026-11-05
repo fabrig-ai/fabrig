@@ -1,13 +1,14 @@
 # forge-connection: status
 
-2026-11-04. Where skein's code lags or departs from [forge-connection.md](forge-connection.md).
+2026-11-05. Where skein's code lags or departs from [forge-connection.md](forge-connection.md).
 
 - **Departs:** 8: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive
   matches and one handler per cell;
   `skein-forge-connection/src/connection.rs`'s `Connection` keeps
-  `draining`, `closing` and `written` beside a thin `Phase`,
+  `draining`, `closing`, `written`, `exchanging` and `ended` beside a
+  thin `Phase`,
   `hooks/connection.rs`'s `Hooked` keeps flags and `Option`s, and
   `installations.rs`'s `GitHub` keeps mint, read and identity flags and
   `Option`s beside its state enums; no reason is recorded (the code's

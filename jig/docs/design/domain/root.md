@@ -1,6 +1,6 @@
 # The application's root
 
-Provisional, 2026-10-07, revised 2026-11-04. What an application's
+Provisional, 2026-10-07, revised 2026-11-05. What an application's
 engine root is and does: the top-level domain every application on jig
 writes, which composes jig's core with the application's connectors and
 its own child domains. It says what the root carries, the one shape
@@ -136,11 +136,13 @@ iterate, after the step:
   No route reserves room. Synchronous hand-offs finish within their
   decision, store answers keep arrival order, and a kept turn precedes
   its terminal acknowledgement (sections 4 and 5;
-  programming-model.md, 7.2). Every root sorts its events into the same
-  three classes, `jig-domain-link`'s `Class` (`Admitted`, `New` and
-  `Mixed`); `Class::of` reads a child's `new_work`, and `LinkUp` answers
-  `new_work` as the core and the host do. What is left in a root's
-  `class` is its own connectors' vocabulary.
+  programming-model.md, 7.2). A root reads its classes from
+  `jig-domain-link`'s `Class` (`Admitted`, `New` and `Mixed`); one none
+  of whose events is split needs the first two alone, and may keep them
+  as a yes or a no, as temper's does
+  (`temper/docs/design/domain/root.md`, 4). `Class::of` reads a child's
+  `new_work`, and `LinkUp` answers `new_work` as the core and the host
+  do. What is left in a root's `class` is its own connectors' vocabulary.
 - **Public reads come behind.** A public read, the public party's
   (people.md, section 13), is new work admitted only while the backlog
   is under the public watermark, below the one every other new work
@@ -524,3 +526,24 @@ application's.
   sections and a gather timeout in the core. Default: the steps stay in
   the roots, and `jig-domain-hub-link`'s `brief_plan`, which takes the
   deadline, and `no_workspace` spell them once.
+- **What a root keeps beside the journal.** Section 11 leaves a root
+  nothing between steps but its children and the journal, and `ops`,
+  with no store answers to queue and no public reads, keeps nothing
+  more. The test root keeps both, with its immediate requests and its
+  busy deliveries, and from them follow its order of release and
+  backlog, where restart's loads wait (section 8), and when
+  `Now::RunPrepared`, `Now::RelayBusy`, `Now::DropCall` and the fleet's
+  held events run. Whether the one shape gains a place for them is the
+  user's, and aligning the two roots follows it
+  (`jig/docs/development/debt/D004-ops-root-jig-wiring.md`). Default: the
+  test root keeps its own order.
+- **The `document` loop.** Each root's `client_documents.rs` takes the
+  core's requests in order, puts `ApplicationDelivery` together in place
+  and forwards the rest as they come. Sharing the loop must keep that
+  delivery's place among the held outputs. Default: it stays in each
+  root.
+- **`ops`'s fixed host answers.** `link.rs`'s `host_out` answers the job
+  starts, preparation, stops and deliveries `ops` does not offer with
+  fixed refusals. They are its capability choices, not copies, and
+  weigh on a template. Default: they stay in `ops`; a smaller template
+  moves no capability choice into jig.
