@@ -393,7 +393,7 @@ patch and drift tests check the generated `encoded_bound` and
 ### 2.5 Which tier a test belongs to
 
 Local chat layout admission is proven with one crate-local real-directory
-Store/FileIo adapter under `smith-local-protocol/tests/support/disk.rs`:
+Store/FileIo adapter under `smith-local-protocol/tests/suite/disk.rs`:
 Scratch, real FileIo, Kernel and Clock, bounded queues and explicit close.
 Its `suite` integration binary holds the layout cases over the same public
 test surface. Refusal snapshots compare

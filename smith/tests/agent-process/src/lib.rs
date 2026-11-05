@@ -11,7 +11,7 @@ use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 
 pub mod fake;
-#[path = "program.rs"]
+pub mod probe;
 pub mod program_world;
 pub mod wire;
 

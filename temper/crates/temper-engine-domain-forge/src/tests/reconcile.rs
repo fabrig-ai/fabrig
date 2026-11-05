@@ -402,8 +402,6 @@ pub(super) fn empty_tasks() -> jig_domain_tasks::Domain {
         contract_choices: 1,
         charters: 1,
         charter_documents: 2,
-        revisions: 4,
-        versions: 8,
         authority_grants: 1,
         authority_segments: 1,
         authority_bytes: 32,
@@ -419,7 +417,7 @@ pub(super) fn empty_tasks() -> jig_domain_tasks::Domain {
         facts: 2,
         room_refusals: 2,
     };
-    tasks::Domain::new(&limits, 1, 1, Box::new([]), Box::new([]))
+    tasks::Domain::new(&limits, tasks::Kept { revisions: 4, versions: 8 }, 1, 1, Box::new([]), Box::new([]))
 }
 
 #[test]

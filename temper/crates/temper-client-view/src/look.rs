@@ -1,56 +1,58 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+/// The session toast (client/README.md, 3.5).
+pub const TOAST: Style = Style { owner: owner(), token: 248 };
 /// The Goals column (client/README.md, 3.5).
-pub const GOALS: Style = Style { owner: owner(), token: 270 };
+pub const GOALS: Style = Style { owner: owner(), token: 274 };
 /// Goals’ intro (client/README.md, 3.5).
-pub const GOALS_INTRO: Style = Style { owner: owner(), token: 271 };
+pub const GOALS_INTRO: Style = Style { owner: owner(), token: 275 };
 /// Goals’ project and page name (client/README.md, 3.5).
-pub const GOALS_KICKER: Style = Style { owner: owner(), token: 272 };
+pub const GOALS_KICKER: Style = Style { owner: owner(), token: 276 };
 /// Goals’ count headline (client/README.md, 3.5).
-pub const GOALS_HEADLINE: Style = Style { owner: owner(), token: 273 };
+pub const GOALS_HEADLINE: Style = Style { owner: owner(), token: 277 };
 /// Goals’ ways of working (client/README.md, 3.5).
-pub const GOALS_LEDE: Style = Style { owner: owner(), token: 274 };
+pub const GOALS_LEDE: Style = Style { owner: owner(), token: 278 };
 /// Goals’ byline (client/README.md, 3.5).
-pub const GOALS_BYLINE: Style = Style { owner: owner(), token: 275 };
+pub const GOALS_BYLINE: Style = Style { owner: owner(), token: 279 };
 /// A Goals section (client/README.md, 3.5).
-pub const GOALS_SECTION: Style = Style { owner: owner(), token: 276 };
+pub const GOALS_SECTION: Style = Style { owner: owner(), token: 280 };
 /// A Goals section’s heading and actions (client/README.md, 3.5).
-pub const GOALS_SECTION_HEAD: Style = Style { owner: owner(), token: 277 };
+pub const GOALS_SECTION_HEAD: Style = Style { owner: owner(), token: 281 };
 /// A Goals section’s title (client/README.md, 3.5).
-pub const GOALS_SECTION_TITLE: Style = Style { owner: owner(), token: 278 };
+pub const GOALS_SECTION_TITLE: Style = Style { owner: owner(), token: 282 };
 /// A Goals section’s signal colour (client/README.md, 3.5).
-pub const GOALS_SIGNAL: Style = Style { owner: owner(), token: 279 };
+pub const GOALS_SIGNAL: Style = Style { owner: owner(), token: 283 };
 /// An empty Goals list (client/README.md, 3.5).
-pub const GOALS_EMPTY: Style = Style { owner: owner(), token: 280 };
+pub const GOALS_EMPTY: Style = Style { owner: owner(), token: 284 };
 /// Goals’ facts (client/README.md, 3.5).
-pub const GOALS_FACTS: Style = Style { owner: owner(), token: 281 };
+pub const GOALS_FACTS: Style = Style { owner: owner(), token: 285 };
 /// The Goals rows (client/README.md, 3.5).
-pub const GOALS_ROWS: Style = Style { owner: owner(), token: 282 };
+pub const GOALS_ROWS: Style = Style { owner: owner(), token: 286 };
 /// A goal’s row link (client/README.md, 3.5).
-pub const GOALS_ROW: Style = Style { owner: owner(), token: 283 };
+pub const GOALS_ROW: Style = Style { owner: owner(), token: 287 };
 /// An ended goal’s row (client/README.md, 3.5).
-pub const GOALS_ROW_ENDED: Style = Style { owner: owner(), token: 284 };
+pub const GOALS_ROW_ENDED: Style = Style { owner: owner(), token: 288 };
 /// A goal’s title, counts and state (client/README.md, 3.5).
-pub const GOALS_TOP: Style = Style { owner: owner(), token: 285 };
+pub const GOALS_TOP: Style = Style { owner: owner(), token: 289 };
 /// A goal’s report headline (client/README.md, 3.5).
-pub const GOALS_LINE: Style = Style { owner: owner(), token: 286 };
+pub const GOALS_LINE: Style = Style { owner: owner(), token: 290 };
 /// Goals’ filter buttons (client/README.md, 3.5).
-pub const GOALS_FILTERS: Style = Style { owner: owner(), token: 287 };
+pub const GOALS_FILTERS: Style = Style { owner: owner(), token: 291 };
 /// The button to read more goals (client/README.md, 3.5).
-pub const GOALS_MORE: Style = Style { owner: owner(), token: 288 };
+pub const GOALS_MORE: Style = Style { owner: owner(), token: 292 };
 /// A goal needing the person (client/README.md, 3.5).
-pub const GOALS_STATE_NEEDS: Style = Style { owner: owner(), token: 289 };
+pub const GOALS_STATE_NEEDS: Style = Style { owner: owner(), token: 293 };
 /// A running goal (client/README.md, 3.5).
-pub const GOALS_STATE_RUNNING: Style = Style { owner: owner(), token: 290 };
+pub const GOALS_STATE_RUNNING: Style = Style { owner: owner(), token: 294 };
 /// A planning goal (client/README.md, 3.5).
-pub const GOALS_STATE_PLANNING: Style = Style { owner: owner(), token: 291 };
+pub const GOALS_STATE_PLANNING: Style = Style { owner: owner(), token: 295 };
 /// A goal paused by the person (client/README.md, 3.5).
-pub const GOALS_STATE_PAUSED: Style = Style { owner: owner(), token: 292 };
+pub const GOALS_STATE_PAUSED: Style = Style { owner: owner(), token: 296 };
 /// A landed goal (client/README.md, 3.5).
-pub const GOALS_STATE_LANDED: Style = Style { owner: owner(), token: 293 };
+pub const GOALS_STATE_LANDED: Style = Style { owner: owner(), token: 297 };
 /// A stopped or failed goal (client/README.md, 3.5).
-pub const GOALS_STATE_STOPPED: Style = Style { owner: owner(), token: 294 };
+pub const GOALS_STATE_STOPPED: Style = Style { owner: owner(), token: 298 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
 pub const CHANGES: Style = Style { owner: owner(), token: 180 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
@@ -63,26 +65,26 @@ pub const CHANGES_RUNNING: Style = Style { owner: owner(), token: 183 };
 pub const CHANGES_RED: Style = Style { owner: owner(), token: 184 };
 
 /// The Chats page and its parts (client/README.md, 3.5).
-pub const CHATS_PAGE: Style = Style { owner: owner(), token: 254 };
-pub const CHATS_INTRO: Style = Style { owner: owner(), token: 255 };
-pub const CHATS_KICKER: Style = Style { owner: owner(), token: 256 };
-pub const CHATS_LEDE: Style = Style { owner: owner(), token: 257 };
-pub const CHATS_BAND: Style = Style { owner: owner(), token: 258 };
-pub const CHATS_TAG: Style = Style { owner: owner(), token: 259 };
-pub const CHATS_SECTION: Style = Style { owner: owner(), token: 260 };
-pub const CHATS_SECTION_HEAD: Style = Style { owner: owner(), token: 261 };
-pub const CHATS_ACT: Style = Style { owner: owner(), token: 262 };
-pub const CHATS_MORE: Style = Style { owner: owner(), token: 263 };
-pub const CHATS_ROWS: Style = Style { owner: owner(), token: 264 };
-pub const CHATS_ROW: Style = Style { owner: owner(), token: 265 };
-pub const CHATS_ROW_ENDED: Style = Style { owner: owner(), token: 266 };
-pub const CHATS_TOP: Style = Style { owner: owner(), token: 267 };
-pub const CHATS_LINE: Style = Style { owner: owner(), token: 268 };
-pub const STATE_NEEDS: Style = Style { owner: owner(), token: 269 };
+pub const CHATS_PAGE: Style = Style { owner: owner(), token: 303 };
+pub const CHATS_INTRO: Style = Style { owner: owner(), token: 304 };
+pub const CHATS_KICKER: Style = Style { owner: owner(), token: 305 };
+pub const CHATS_LEDE: Style = Style { owner: owner(), token: 306 };
+pub const CHATS_BAND: Style = Style { owner: owner(), token: 307 };
+pub const CHATS_TAG: Style = Style { owner: owner(), token: 308 };
+pub const CHATS_SECTION: Style = Style { owner: owner(), token: 309 };
+pub const CHATS_SECTION_HEAD: Style = Style { owner: owner(), token: 310 };
+pub const CHATS_ACT: Style = Style { owner: owner(), token: 311 };
+pub const CHATS_MORE: Style = Style { owner: owner(), token: 312 };
+pub const CHATS_ROWS: Style = Style { owner: owner(), token: 313 };
+pub const CHATS_ROW: Style = Style { owner: owner(), token: 314 };
+pub const CHATS_ROW_ENDED: Style = Style { owner: owner(), token: 315 };
+pub const CHATS_TOP: Style = Style { owner: owner(), token: 316 };
+pub const CHATS_LINE: Style = Style { owner: owner(), token: 317 };
+pub const STATE_NEEDS: Style = Style { owner: owner(), token: 318 };
 /// A session's byline, status, spend and controls (client/README.md, 3.5).
-pub const SESSION_RIGHT: Style = Style { owner: owner(), token: 246 };
+pub const SESSION_RIGHT: Style = Style { owner: owner(), token: 301 };
 /// A new chat's centred repository context (client/README.md, 3.5).
-pub const META_LINE: Style = Style { owner: owner(), token: 253 };
+pub const META_LINE: Style = Style { owner: owner(), token: 302 };
 /// A session’s main. (client/README.md, 3.5).
 pub const SESSION: Style = Style { owner: owner(), token: 234 };
 /// The session’s path and runs’ line. (client/README.md, 3.5).
@@ -108,15 +110,15 @@ pub const STARTER: Style = Style { owner: owner(), token: 244 };
 /// The configuring session’s suggested first messages. (client/README.md, 3.5).
 pub const STARTERS: Style = Style { owner: owner(), token: 245 };
 /// The configuring opening’s lede (client/README.md, 3.5).
-pub const STARTER_LEDE: Style = Style { owner: owner(), token: 248 };
+pub const STARTER_LEDE: Style = Style { owner: owner(), token: 269 };
 /// The configuring opening’s sets (client/README.md, 3.5).
-pub const STARTER_SETS: Style = Style { owner: owner(), token: 249 };
+pub const STARTER_SETS: Style = Style { owner: owner(), token: 270 };
 /// The configuring opening’s note (client/README.md, 3.5).
-pub const STARTER_NOTE: Style = Style { owner: owner(), token: 250 };
+pub const STARTER_NOTE: Style = Style { owner: owner(), token: 271 };
 /// The configuring opening’s ways (client/README.md, 3.5).
-pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
+pub const STARTER_WAYS: Style = Style { owner: owner(), token: 272 };
 /// The configuring opening’s unsure (client/README.md, 3.5).
-pub const STARTER_UNSURE: Style = Style { owner: owner(), token: 252 };
+pub const STARTER_UNSURE: Style = Style { owner: owner(), token: 273 };
 /// A folded account.
 pub const ACCOUNT_ROW: Style = Style { owner: owner(), token: 124 };
 /// The rail switcher's panel.
@@ -236,9 +238,9 @@ pub const ACCOUNTS: Style = Style { owner: owner(), token: 22 };
 /// The composer's account and model line.
 pub const ACCOUNT_LINE: Style = Style { owner: owner(), token: 23 };
 /// The agent task page main.
-pub const AGENT_PAGE: Style = Style { owner: owner(), token: 24 };
+pub const AGENT_PAGE: Style = Style { owner: owner(), token: 299 };
 /// The agent task identity and controls.
-pub const TASKBAR: Style = Style { owner: owner(), token: 25 };
+pub const TASKBAR: Style = Style { owner: owner(), token: 300 };
 /// The conversation and its tail.
 pub const THREAD: Style = Style { owner: owner(), token: 26 };
 /// One message in a conversation turn.
@@ -588,8 +590,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-corner",
         b"temper-accounts",
         b"temper-account-line",
-        b"temper-agent-page",
-        b"temper-taskbar",
+        b"temper-chat",
+        b"temper-chatbar",
         b"temper-thread",
         b"temper-message",
         b"temper-by-person",
@@ -722,7 +724,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-repository-selected",
         b"temper-welcome-setup-description",
         b"temper-welcome-tagline",
-        b"temper-reserved-158",
+        b"temper-sidebar",
         b"temper-projects",
         b"temper-leave-playground",
         b"temper-project-rename",
@@ -739,7 +741,6 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-project",
         b"temper-flow-busy",
         b"temper-flow-meter",
-        // Reserved for the other look-round-3 token ranges.
         b"temper-rail",
         b"temper-rail-nav",
         b"temper-rail-new",
@@ -811,30 +812,34 @@ pub const NAMES: Names<'static> = Names {
         b"temper-byline",
         b"temper-starter",
         b"temper-starters",
-        b"temper-session-right",
-        b"temper-reserved-247",
+        b"temper-session-actions",
+        b"temper-configuring-tag",
+        b"temper-toast",
+        b"temper-needs",
+        b"temper-flow-head",
+        b"temper-dots",
+        b"temper-dot",
+        b"temper-dot-done",
+        b"temper-flow-q",
+        b"temper-ask-context",
+        b"temper-ask-saw",
+        b"temper-recommended",
+        b"temper-rec",
+        b"temper-pair",
+        b"temper-ask-reply",
+        b"temper-ask-reply-acts",
+        b"temper-answered",
+        b"temper-answered-label",
+        b"temper-answered-undo",
+        b"temper-next-up",
+        b"temper-answered-section",
+        b"temper-needs-home",
+        b"temper-needs-intro",
         b"temper-starter-lede",
         b"temper-starter-sets",
         b"temper-starter-note",
         b"temper-starter-ways",
         b"temper-starter-unsure",
-        b"temper-meta-line",
-        b"temper-chats-page",
-        b"temper-chats-intro",
-        b"temper-chats-kicker",
-        b"temper-chats-lede",
-        b"temper-chats-band",
-        b"temper-chats-tag",
-        b"temper-chats-section",
-        b"temper-chats-section-head",
-        b"temper-chats-act",
-        b"temper-chats-more",
-        b"temper-chats-rows",
-        b"temper-chats-row",
-        b"temper-chats-row-ended",
-        b"temper-chats-top",
-        b"temper-chats-line",
-        b"temper-state-needs",
         b"temper-goals",
         b"temper-goals-intro",
         b"temper-goals-kicker",
@@ -860,6 +865,86 @@ pub const NAMES: Names<'static> = Names {
         b"temper-goals-state-paused",
         b"temper-goals-state-landed",
         b"temper-goals-state-stopped",
+        b"temper-agent-page",
+        b"temper-taskbar",
+        b"temper-session-right",
+        b"temper-meta-line",
+        b"temper-chats-page",
+        b"temper-chats-intro",
+        b"temper-chats-kicker",
+        b"temper-chats-lede",
+        b"temper-chats-band",
+        b"temper-chats-tag",
+        b"temper-chats-section",
+        b"temper-chats-section-head",
+        b"temper-chats-act",
+        b"temper-chats-more",
+        b"temper-chats-rows",
+        b"temper-chats-row",
+        b"temper-chats-row-ended",
+        b"temper-chats-top",
+        b"temper-chats-line",
+        b"temper-state-needs",
     ],
     regions: &[b"temper-link"],
 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const NEEDS: Style = Style { owner: owner(), token: 249 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const FLOW_HEAD: Style = Style { owner: owner(), token: 250 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const DOTS: Style = Style { owner: owner(), token: 251 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const DOT: Style = Style { owner: owner(), token: 252 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const DOT_DONE: Style = Style { owner: owner(), token: 253 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const FLOW_Q: Style = Style { owner: owner(), token: 254 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const ASK_CONTEXT: Style = Style { owner: owner(), token: 255 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const ASK_SAW: Style = Style { owner: owner(), token: 256 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const RECOMMENDED: Style = Style { owner: owner(), token: 257 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const REC: Style = Style { owner: owner(), token: 258 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const PAIR: Style = Style { owner: owner(), token: 259 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const ASK_REPLY: Style = Style { owner: owner(), token: 260 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const ASK_REPLY_ACTS: Style = Style { owner: owner(), token: 261 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const ANSWERED: Style = Style { owner: owner(), token: 262 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const ANSWERED_LABEL: Style = Style { owner: owner(), token: 263 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const ANSWERED_UNDO: Style = Style { owner: owner(), token: 264 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const NEXT_UP: Style = Style { owner: owner(), token: 265 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const ANSWERED_SECTION: Style = Style { owner: owner(), token: 266 };
+
+/// Needs you (temper/docs/design/client/README.md, 3.5).
+pub const NEEDS_HOME: Style = Style { owner: owner(), token: 267 };
+
+/// Done’s intro (temper/docs/design/client/README.md, 3.5).
+pub const NEEDS_INTRO: Style = Style { owner: owner(), token: 268 };

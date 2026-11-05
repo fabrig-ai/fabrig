@@ -419,7 +419,7 @@ fn a_task_document_distinguishes_an_application_credential_wait() {
 fn a_progress_count_leaves_due_task_watches_unmarked() {
     let (mut core, mut limits) = ready(false);
     limits.fleet.engine_slots = 1;
-    core.fleet = fleet::Domain::new(&limits.fleet, fixtures::needs(), Box::new([]));
+    core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fixtures::needs(), Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
     let mut out = Queue::uncapped();
     fleet::step(
@@ -489,7 +489,12 @@ pub(in crate::tests) fn placement_fleet(core: &Core, limits: &Limits) -> fleet::
     config.defaults.charters[0].hosts = core.charter(1).unwrap().hosts;
     config.defaults.charters[0].policy = core.charter(1).unwrap().policy.clone();
     config.defaults.charters[0].policy.alternatives = core.settings.models[1..].into();
-    let mut fleet = fleet::Domain::new(&limits.fleet, fleet_needs::configured(&config, limits), Box::new([]));
+    let mut fleet = fleet::Domain::new(
+        &limits.fleet,
+        limits.settings.versions,
+        fleet_needs::configured(&config, limits),
+        Box::new([]),
+    );
     fleet.configure_workers(
         fleet::Membership::new(config.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
             .unwrap(),
@@ -890,7 +895,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
         let mut configuration = config(41);
         configuration.defaults.charters[0].hosts = fleet::Kinds::Both;
         let needs = fleet_needs::configured(&configuration, &limits);
-        core.fleet = fleet::Domain::new(&limits.fleet, needs.clone(), Box::new([]));
+        core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, needs.clone(), Box::new([]));
         assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Host));
         let channel = if kind == fleet::HostKind::Engine { Token::new(0) } else { FIRST };
         let at = Wall::from_nanos(1234);
@@ -932,7 +937,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
         send_task(&mut core, &limits, tasks::Event::Hold { task: TASK, why: tasks::Hold::Uncertain { entry: 1 } });
         assert_eq!(document_wait(&core, &limits), None);
         // A new fleet has no durable refusal; observing it again reconstructs the explanation.
-        core.fleet = fleet::Domain::new(&limits.fleet, needs, Box::new([]));
+        core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, needs, Box::new([]));
         let mut row = core.tasks.task(TASK).unwrap().clone();
         row.phase = tasks::Phase::Active(tasks::Active::Due);
         assert_eq!(task_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap().run_wait, Some(TaskRunWait::Host));

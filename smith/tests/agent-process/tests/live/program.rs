@@ -7,9 +7,7 @@ use std::{
     sync::mpsc,
 };
 
-#[path = "probe.rs"]
-mod probe;
-use probe::Probe;
+use smith_agent_process_world::probe::Probe;
 
 struct Live {
     child: Child,

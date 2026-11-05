@@ -237,7 +237,7 @@ fn unsent_result(retried: bool) -> crate::AttemptResult {
         fixture_limits
     };
     let mut observer = crate::agent::smith::events::Observer::with_ceiling(&limits, 16_384).expect("response bounds");
-    let records = crate::json_fixture::edit_lines(
+    let records = crate::fixture::json::edit_lines(
         include_str!("../../tests/recorded/retried-failure-17d63afd-02.jsonl"),
         "/failure/evidence",
         &serde_json::json!("response"),

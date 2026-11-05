@@ -1,7 +1,7 @@
 //! The four durable identity items shared by conversion and paste (forge-setup.md, 5.2, 5.8, 6.4).
 use crate::{
     item::Item,
-    reconcile::{Event, Need, Why},
+    plan::{Event, Need, Why},
 };
 use alloc::boxed::Box;
 use skein_lib::{Secret, bytes};
@@ -31,14 +31,8 @@ impl Write {
     pub(super) fn advance(&mut self, event: Event) -> Result<Option<Need>, Why> {
         let state = core::mem::replace(&mut self.state, State::Ended);
         match state {
-            State::Begin => match event {
-                Event::Begin => (),
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => return Err(Why::Unexpected),
-            },
-            State::AppId | State::AppSlug | State::AppKey | State::User => match event {
-                Event::Written => (),
-                Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => return Err(Why::Unexpected),
-            },
+            State::Begin => event.begin()?,
+            State::AppId | State::AppSlug | State::AppKey | State::User => event.written()?,
             State::Ended => return Err(Why::Unexpected),
         }
         let (item, bytes, next) = match state {

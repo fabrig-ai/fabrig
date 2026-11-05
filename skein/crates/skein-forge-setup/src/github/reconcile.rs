@@ -1,14 +1,15 @@
 //! Prove the kept App, repair its hook and sweep installations (forge-setup.md, 5.6).
 use super::{
-    app::{self, Kept},
+    app::Kept,
     checks::{self, Lacking},
     given::{self, Given, Refused},
     hook::{self, Hook},
     installations::{self, Sweep},
 };
+use crate::github::{Reply, reply};
 use crate::{
     item::{self, Item},
-    reconcile::{self, Event, Need, Outcome, Reply, Stage, Why},
+    plan::{self, Event, Need, Outcome, Stage, Why},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -52,7 +53,7 @@ impl Reconcile {
         Ok(Self { given: given.clone(), wall, state: State::Begin })
     }
     fn stop(&self, subject: &[u8], why: Why) -> Need {
-        app::stop(self.given.forge, Stage::App, subject, why)
+        plan::stop(self.given.forge, Stage::App, subject, why)
     }
     fn hook(&mut self, mut child: Hook, checked: Checked, event: Event) -> Need {
         let mut out = Queue::uncapped();
@@ -108,39 +109,37 @@ impl Reconcile {
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {
-            State::Begin => match event {
-                Event::Begin => {
+            State::Begin => match event.begin() {
+                Ok(()) => {
                     self.state = State::Id;
                     Need::Read(Item::AppId)
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(b"id", Why::Unexpected)
-                }
+                Err(why) => self.stop(b"id", why),
             },
-            State::Id => match event {
-                Event::Read(None) => self.stop(b"id", Why::Missing),
-                Event::Read(Some(value)) => match item::app_id(value.expose()) {
+            State::Id => match event.read() {
+                Ok(None) => self.stop(b"id", Why::Missing),
+                Ok(Some(value)) => match item::app_id(value.expose()) {
                     Some(id) => {
                         self.state = State::Key(id);
                         Need::Read(Item::AppKey)
                     }
                     None => self.stop(b"id", Why::Unexpected),
                 },
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => self.stop(b"id", Why::Unexpected),
+                Err(why) => self.stop(b"id", why),
             },
-            State::Key(id) => match event {
-                Event::Read(None) => self.stop(b"key", Why::Missing),
-                Event::Read(Some(key)) => {
+            State::Key(id) => match event.read() {
+                Ok(None) => self.stop(b"key", Why::Missing),
+                Ok(Some(key)) => {
                     if item::app_key(key.expose(), self.given.limits.key_bytes).is_none() {
                         return self.stop(b"key", Why::Unexpected);
                     }
                     self.state = State::Accepted(Kept::new(id, key));
                     Need::Read(Item::Accepted)
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => self.stop(b"key", Why::Unexpected),
+                Err(why) => self.stop(b"key", why),
             },
-            State::Accepted(kept) => match event {
-                Event::Read(read) => {
+            State::Accepted(kept) => match event.read() {
+                Ok(read) => {
                     let accepted = match read {
                         Some(value) => item::accepted(value.expose(), self.given.limits.installations),
                         None => Some(Box::<[u64]>::default()),
@@ -152,9 +151,7 @@ impl Reconcile {
                     self.state = State::App { kept, accepted };
                     Need::Send { request: Request::App.into(), auth }
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(b"accepted", Why::Unexpected)
-                }
+                Err(why) => self.stop(b"accepted", why),
             },
             State::App { kept, accepted } => self.proved(kept, accepted, event),
             State::Hook { child, checked } => self.hook(child, checked, event),
@@ -164,14 +161,12 @@ impl Reconcile {
     }
 }
 fn document(event: Event) -> Result<App, Why> {
-    match reconcile::reply(event)? {
-        Reply::GithubDocument(Document::App(app)) => Ok(app),
+    match reply(event)? {
+        Reply::Document(Document::App(app)) => Ok(app),
         Reply::Unsigned => Err(Why::KeyForm),
         Reply::Status(status) => Err(Why::Refused(status)),
         Reply::Down => Err(Why::Down),
-        Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::GithubDocument(_) | Reply::GithubRows(_) => {
-            Err(Why::Unexpected)
-        }
+        Reply::Empty | Reply::Document(_) | Reply::Rows(_) => Err(Why::Unexpected),
     }
 }
 
@@ -201,7 +196,7 @@ pub(crate) fn halt(machine: &mut Reconcile, why: Why, out: &mut Queue<Need>) {
         State::Accepted(_) => machine.stop(b"accepted", why),
         State::App { kept, .. } => machine.stop(Decimal::of(kept.id()).as_bytes(), why),
         State::Hook { checked, .. } => machine.stop(&checked.slug, why),
-        State::Sweep { .. } => app::stop(machine.given.forge, Stage::Installation, b"installations", why),
+        State::Sweep { .. } => plan::stop(machine.given.forge, Stage::Installation, b"installations", why),
         State::Ended => return,
     };
     out.push(need);

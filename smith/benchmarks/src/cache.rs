@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AttemptResult, Judgment, Measure};
+use crate::{AttemptResult, Fault, Input, Judgment, Measure, bound, input, refuse_if};
 
 /// One measured repetition supplied by the adapter, never a triplet verdict.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -55,14 +55,14 @@ pub(crate) fn repetition(result: &AttemptResult) -> Judgment {
     crate::judge(&value)
 }
 
-fn numeric(results: &[&AttemptResult]) -> Result<(Vec<f64>, u64, u64, f64, u32), String> {
+fn numeric(results: &[&AttemptResult]) -> Result<(Vec<f64>, u64, u64, f64, u32), Fault> {
     let mut reuse = Vec::new();
     let mut eligible = 0_u64;
     let mut misses = 0_u64;
     let mut thresholds = None;
     for result in results {
         let Some(Measure::Observed { value }) = &result.cache else {
-            return Err("a repetition has no exact cache measurement".into());
+            return Err(input("a repetition has no exact cache measurement"));
         };
         if value.predecessor_prompt == 0
             || value.eligible == 0
@@ -70,18 +70,16 @@ fn numeric(results: &[&AttemptResult]) -> Result<(Vec<f64>, u64, u64, f64, u32),
             || !value.median_at_least.is_finite()
             || !(0.0..=1.0).contains(&value.median_at_least)
         {
-            return Err("invalid cache observation".into());
+            return Err(input("invalid cache observation"));
         }
         let current = (value.median_at_least, value.full_misses_per_ten_at_most);
-        if thresholds.is_some_and(|prior| prior != current) {
-            return Err("triplet thresholds differ".into());
-        }
+        refuse_if(thresholds.is_some_and(|prior| prior != current), Input, "triplet thresholds differ")?;
         thresholds = Some(current);
         reuse.push(value.reuse());
-        eligible = eligible.checked_add(value.eligible).ok_or("cache eligible sum overflow")?;
-        misses = misses.checked_add(value.full_misses).ok_or("cache full-miss sum overflow")?;
+        eligible = eligible.checked_add(value.eligible).ok_or_else(|| bound("cache eligible sum overflow"))?;
+        misses = misses.checked_add(value.full_misses).ok_or_else(|| bound("cache full-miss sum overflow"))?;
     }
-    let (threshold, miss_limit) = thresholds.ok_or("no cache observations")?;
+    let (threshold, miss_limit) = thresholds.ok_or_else(|| input("no cache observations"))?;
     Ok((reuse, eligible, misses, threshold, miss_limit))
 }
 

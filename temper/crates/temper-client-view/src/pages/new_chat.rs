@@ -36,7 +36,7 @@ pub(crate) fn main(
         && root.pages().me(root.client()).is_some()
         && super::project_name(root.pages().me(root.client()), project).is_none()
     {
-        super::home::main(b, root, w, bindings, project, times);
+        super::home::main(b, root, w, bindings, project, times, 0);
         return;
     }
     b.open(Role::Main);

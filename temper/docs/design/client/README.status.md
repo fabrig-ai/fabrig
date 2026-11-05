@@ -11,9 +11,13 @@
   conversation's old look; no three dots, no pen. 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries.
-  5.3: the banner's "Board" and "Changes", on a page that is no project's:
+  5.3: the banner's "Changes", on a page that is no project's:
   the request of 2026-11-05 asked for the rail, and its mock has no banner.
-  3.5: *Goals*, *A goal's report*: plan `ui-goals`. 3.5, 5.13, 10:
+  3.5, *Goals*: a project whose `me` lists no goal template opens no watch
+  (`temper-client-domain`'s `pages/goals.rs`, `query`), so its page draws the
+  kicker and the lede alone, with no heading and no filters, where the section
+  says "No goals yet."; a project with no tracked template has a lede that
+  stops at "landed work.", which the section has no words for. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
   with their tests, and with them How work runs' "Configure temper" entry and
   a review's "Change something"; ctl supplies the review groups and running-work effect
@@ -23,6 +27,12 @@
   email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
+  3.5, *Ready*: two endings leave nothing under "Model none yet"
+  (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no
+  test holds either: a sign-in `Made` or `Renewed`, not declined, with no
+  account usable, since 5.5 has no words for it and no walk has ended so
+  (section 11); and any ending where `me` offers no ChatGPT plan's sign-in,
+  since the function finds that way before it draws the ending's words.
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`), so Home's GitHub step's
   "Adopt" opens the form with no picker, and its line counts no
@@ -76,3 +86,34 @@
   step erases a closed change's row (`../domain/after-landing.status.md`), so
   once a forge's removal erases a repository with a closed change, no project
   has the document; seen by reading, no test holds it and no reason is recorded.
+  3.5, *Goals*: `goals::row` is `pub(crate)` (`temper-client-view`'s
+  `pages/goals.rs`), where this section has it public, because its `Bindings`
+  is the view's own and Home, its next reader, is in the same crate.
+  3.5, *Needs you*: a filter's `kind` and `goal` narrow the open cards alone:
+  `temper-client-view`'s `pages/needs.rs`, `main`, asks `Session::answered` by
+  project, and an `Answered` keeps neither, so under such a filter the answered
+  lines and the head's count hold answers the filter leaves out; no reason is
+  recorded.
+- **Design departs:** 3.5, *Needs you*, *What the client keeps*, and 5.3, from
+  the request of 2026-11-05 for them, decided by its plan's cut, the request
+  leaving that judgement to it. The rail's watch opens while a project's frame shows, not once signed
+  in: the rail alone reads it, and opened at sign-in it would stale all three
+  journeys' recordings. Bare `/inbox` is `/`, the Inbox's unfiltered address
+  (`browser.md`, 2.3). The dots are a figure, not `role=img`: skein-ui's
+  `Role::Image` is an image, with no children. Money reads "S of L used", not "$S
+  of $L": the contract's units aren't dollars, and the request also asks the task
+  page's form, which has none. Leave held takes its reason in a disclosure, as
+  Reject does, where the request names no text area: `Decision::LeftHeld` needs
+  one. A `Choice:` line past `CUE_BYTES` is no choice (`../domain/agent.md`, 8.2),
+  where the request counts every such line, since its button could send nothing.
+  And " · later" shows on *Needs you*'s mono line as on Home's, where the request
+  and the mock have it on Home's card alone: the one function draws both, and no
+  reason is recorded.
+- **Design departs:** 3.5, *Goals*, from the request of 2026-11-05: "6 / 9" is
+  on the task line (jig's `client/domain/contract.md`, 5.1), where the request
+  offered the goal's document or the tree's read, and a row reads its report
+  alone, not also its tasks by `parent`: each place needed the same stored
+  counter, and the line needs no read per row. The lede's ways run in template
+  number order, as the request's words have it, so the reference's read "task
+  by task, plan, tasks, land whole", where its mock, the target, draws them the
+  other way round: number order is what a project's settings decide.
