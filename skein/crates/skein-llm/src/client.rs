@@ -280,6 +280,7 @@ pub struct Client {
     content_bytes: u64,
     call: Option<http::Call>,
     upload: Option<Box<[u8]>>,
+    kept_body: Option<Box<[u8]>>,
     upload_offset: usize,
     /// The end of the bytes sent within `upload`: the compressed member
     /// fills the front of the room its bound set aside.
@@ -328,9 +329,15 @@ pub struct MeasuredRequest {
     limits: Limits,
     drop_reasoning: bool,
     measured: Measured,
+    keep_body: bool,
 }
 
 impl MeasuredRequest {
+    /// Keeps the rendered body until taken (skein/docs/design/llm.status.md).
+    pub fn keep_body(&mut self) {
+        self.keep_body = true;
+    }
+
     /// The lengths reserved before the body is encoded.
     #[must_use]
     pub const fn measured(&self) -> Measured {
@@ -341,7 +348,7 @@ impl MeasuredRequest {
 /// Checks and measures an owned request once, retaining its admission inputs.
 pub fn measure_request(input: Call, limits: &Limits, drop_reasoning: bool) -> Result<MeasuredRequest, Error> {
     let measured = measure(&input.prompt, input.credential.as_ref(), &input.endpoint, limits)?;
-    Ok(MeasuredRequest { input, limits: *limits, drop_reasoning, measured })
+    Ok(MeasuredRequest { input, limits: *limits, drop_reasoning, measured, keep_body: false })
 }
 
 /// Validate exactly the preparation entrance, without allocating its body.
@@ -440,6 +447,11 @@ fn check_preparation(limits: &Limits) -> Result<(), Error> {
 }
 
 impl Client {
+    /// Takes the body before compression, once (skein/docs/design/llm.status.md).
+    pub fn take_kept_body(&mut self) -> Option<Box<[u8]>> {
+        self.kept_body.take()
+    }
+
     /// Validates and measures before touching a connection or holding the
     /// final encoded body. The caller binds its transport to this endpoint.
     pub fn prepare(input: Call, limits: &Limits) -> Result<Client, Error> {
@@ -458,7 +470,7 @@ impl Client {
     /// The encoder finishes only when its writer filled exactly the measured
     /// body; the resulting lengths come from those bytes and a fresh head check.
     pub fn prepare_measured(request: MeasuredRequest) -> Result<Client, Error> {
-        let MeasuredRequest { input, limits, drop_reasoning: enabled, measured } = request;
+        let MeasuredRequest { input, limits, drop_reasoning: enabled, measured, keep_body } = request;
         let limits = &limits;
         let provider = input.endpoint.provider;
         let rendered = match provider {
@@ -470,6 +482,7 @@ impl Client {
                 measured.body,
             )?,
         };
+        let kept_body = if keep_body { Some(rendered.clone()) } else { None };
         let length = u32::try_from(rendered.len()).expect("an encoded request fits its measured bound");
         let compressed = compressed(&input.endpoint, length, limits);
         let head = measure_headers(
@@ -522,6 +535,7 @@ impl Client {
             content_bytes: 0,
             call: Some(call),
             upload: Some(body),
+            kept_body,
             upload_offset: 0,
             upload_end: end,
             http_events: Queue::uncapped(),
