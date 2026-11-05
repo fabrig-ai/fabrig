@@ -1181,6 +1181,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
 | `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
 | `home-away-overturned` | hand-made Home deliveries: a row overturned, its task live, and one ended, "landed 03:12" |
+| `rail-away-off` | a project’s page after turning the switch off, with its toast open |
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
 | `settings-away` | *How work runs* with the section `#away`, the defaults ticked |
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |

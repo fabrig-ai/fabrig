@@ -61,7 +61,7 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_domain::pages::needs::Act::Open { object },
             ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
-                assert!(sample.name.starts_with("home-") || sample.name == "rail-away-on");
+                assert!(sample.name.starts_with("home-") || matches!(sample.name, "rail-away-on" | "rail-away-off"));
                 assert!(
                     samples::domain(&sample)
                         .pages()
@@ -124,6 +124,15 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Region, name: "Decided for you · 1" },
             Part::Named { role: Role::Button, name: "Limits" },
+            Part::Named { role: Role::Button, name: "Away: off" },
+        ],
+    },
+    Holds {
+        name: "rail-away-off",
+        heading: "41 changes landed overnight. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Away: off" },
+            Part::Text { text: "Away is off: questions wait for you again." },
         ],
     },
     Holds {

@@ -73,7 +73,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 234;
+pub const N: usize = 235;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -107,6 +107,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "changes-empty", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-one", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-landed-only", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
+        Sample {
+            name: "rail-away-off",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
         Sample {
             name: "rail-away-on",
             world: FirstRun { step: 7 },
@@ -1044,7 +1050,7 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name.starts_with("configure") {
         return configure_domain(sample);
     }
-    if sample.name.starts_with("home-") || sample.name == "rail-away-on" {
+    if sample.name.starts_with("home-") || matches!(sample.name, "rail-away-on" | "rail-away-off") {
         return home_domain(sample.name);
     }
     if sample.name.starts_with("goals-") || sample.name.starts_with("goal-") {
@@ -1639,12 +1645,12 @@ fn home_domain(name: &str) -> Domain {
     use jig_client::{Down, Latest, Up, Watchable};
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let away_sample = name == "rail-away-on";
+    let away_sample = matches!(name, "rail-away-on" | "rail-away-off");
     let home_away = matches!(name, "home-away" | "home-away-one" | "home-away-overturned");
     let away_name = name;
     let status_name = if away_sample { "home-morning" } else { name };
     let name = match name {
-        "rail-away-on" => "home-morning",
+        "rail-away-on" | "rail-away-off" => "home-morning",
         "home-away"
         | "home-away-one"
         | "home-away-overturned"
@@ -1848,7 +1854,7 @@ fn home_domain(name: &str) -> Domain {
                     }
                     w::Watch::Away if away_sample => {
                         away_watch = Some(watch);
-                        crate::worlds::away_record(false)
+                        crate::worlds::away_record(away_name == "rail-away-off")
                     }
                     w::Watch::Away
                     | w::Watch::Decided(_)
@@ -2038,7 +2044,14 @@ fn home_domain(name: &str) -> Domain {
             Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                 let value = match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("Home read").read() {
                     w::Read::Setting(setting) if setting.kind() == 7 => {
-                        crate::worlds::project_ways(&mut root, read, with_goals, false, &mut out);
+                        crate::worlds::project_ways(
+                            &mut root,
+                            read,
+                            with_goals || home_away,
+                            home_away,
+                            home_away || away_sample,
+                            &mut out,
+                        );
                         continue;
                     }
                     w::Read::Deployment => Some(wire::deployment_answer(
@@ -2138,7 +2151,7 @@ fn home_domain(name: &str) -> Domain {
         crate::worlds::home_away_deliveries(&mut root, decided_watch.expect("Decided watch"), away_name);
     }
     if away_sample {
-        crate::worlds::rail_away_on(&mut root, away_watch.expect("Away watch"));
+        crate::worlds::rail_away_toggle(&mut root, away_watch.expect("Away watch"), away_name == "rail-away-on");
     }
     root
 }
