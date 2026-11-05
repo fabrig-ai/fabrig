@@ -639,6 +639,24 @@ fn gone_after_a_late_turn_save_shows_the_answer_once() {
     assert_eq!(shown_requests(&mut out), 1);
 }
 
+#[test]
+fn a_run_refused_for_its_effort_shows_the_effort_and_the_choices() {
+    use crate::ChoiceNotice;
+    let effort = b"high".as_slice();
+    let mut config = crate::tests::config();
+    config.models[0].effort = Some(effort.into());
+    config.efforts[0] = Box::new([effort.into()]);
+    let (mut domain, env, mut out) = running(config);
+    let result = host::RunResult::Refused { refusal: host::Refusal::Invalid(host::RunInvalid::Effort) };
+    let answer = host::Answer { read: None, turns: 0, spent: 0, result };
+    let request = parent::Request::Answered { client: Token::new(1), answer, detail: Box::default() };
+    parent_request(&mut domain, &env, request, &mut out);
+    parent_request(&mut domain, &env, crate::fixture::gone(host::End::Settled, Box::default()), &mut out);
+    let Some(Request::Notice { notice }) = out.pop() else { panic!("effort refusal notice") };
+    let choice = ChoiceNotice::Effort { effort: effort.into(), choices: Box::new([effort.into()]), dropped: false };
+    assert_eq!(notice, Notice::Failure(Failure::EffortRefused(choice)));
+}
+
 fn shown_requests(out: &mut Queue<Request>) -> u32 {
     let mut shown = 0_u32;
     for _ in 0..out.len() {

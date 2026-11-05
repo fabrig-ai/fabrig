@@ -912,11 +912,6 @@ impl Service {
         self.io.store_request(protocol::StoreRequest::SaveTurn { number, read, opens_window, turn });
     }
 
-    #[cfg(test)]
-    pub(crate) fn render_notice(&mut self, notice: local::Notice) {
-        self.notice(Time::ZERO, notice);
-    }
-
     fn notice(&mut self, now: Time, notice: local::Notice) {
         if self.line_mode == Some(false) && notice == local::Notice::Waiting {
             self.terminal.show(b"> ".as_slice().into(), &mut self.terminal_events);
