@@ -315,6 +315,19 @@ const HOLDS: [Holds; samples::N] = [
         heading: "One thing needs you.",
         parts: &[
             Part::Named { role: Role::Link, name: "Goals" },
+            Part::Named { role: Role::Region, name: "Goals" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Goals" },
+            Part::Named { role: Role::Link, name: "All 8" },
+            Part::Goals {
+                rows: &[
+                    "CSV import · 1 / 3 · needs funds",
+                    "JSON output for tally report · 0 / 2 · needs you",
+                    "Make tally sum stream its input · 1 / 2 · running",
+                    "CSV export · planning",
+                    "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
+                ],
+            },
+            Part::Absent { role: Role::Region, name: "Chats" },
             Part::Named { role: Role::Link, name: "Needs you 1" },
             Part::Named { role: Role::Button, name: "Reply" },
             Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },

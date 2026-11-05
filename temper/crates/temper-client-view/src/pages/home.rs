@@ -8,7 +8,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
-    Address, ChatsFilter, Domain,
+    Address, ChatsFilter, Domain, GoalsFilter,
     forge::{
         self,
         forges::{Connection, Kind, Mode},
@@ -47,7 +47,11 @@ pub(crate) fn main(
         to_begin(b, w, bindings, project, name, &facts);
     }
     needs(b, root, w, bindings, project, &facts, times, rows);
-    chats(b, root, w, bindings, project, facts.to_begin(), times);
+    if !facts.to_begin() && root.has_goals(project) {
+        goals(b, root, w, bindings, project, times);
+    } else {
+        chats(b, root, w, bindings, project, facts.to_begin(), times);
+    }
     foot(b, w, bindings, project, &facts, times);
     crate::confirm::main(b, root, w, bindings, rows);
     b.close();
@@ -332,6 +336,37 @@ fn row_words(b: &mut Builder, w: &Words, title: &[u8], when: &[u8]) {
     b.run(Run::Plain, when);
     b.close();
 }
+fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
+    let Some(goals) = root.pages().goals() else { return };
+    b.open(Role::Region);
+    b.style(look::GOALS_SECTION);
+    b.name(&w.say(Word::Goals, &[]));
+    b.open(Role::Slot);
+    b.style(look::HOME_HEAD);
+    text(b, Role::Heading { level: 2 }, &w.say(Word::Goals, &[]), None);
+    let label = w.say(Word::HomeAllChats, &[Hole::Number(u64::from(goals.count(root.client())))]);
+    go(b, bindings, &label, Address::Goals { project, filter: GoalsFilter::All }, None);
+    b.close();
+    let live = match goals.live(root.client()) {
+        Some(live) => live.rows.as_slice(),
+        None => &[],
+    };
+    b.open(Role::Slot);
+    b.style(look::GOALS_ROWS);
+    for line in live.iter().chain(goals.ended()).take(ROWS.max(live.len())) {
+        let report = goals.report(line.chip.task);
+        let state = temper_client_domain::pages::goals::state(
+            &line.chip,
+            goals.needs_person(line.chip.task),
+            report.is_some(),
+            line.delegates_total,
+        );
+        super::goals::row(b, w, bindings, times, line, state, report);
+    }
+    b.close();
+    b.close();
+}
+
 fn chats(
     b: &mut Builder,
     root: &Domain,
