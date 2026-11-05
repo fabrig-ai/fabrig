@@ -184,6 +184,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             task,
             entry,
             heard: change::Heard {
+                delegate_running: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,

@@ -52,10 +52,6 @@
     its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
     `brief_answer`), but those stories run a CI repair's pair alone and no test
     holds its words.
-  - 8.4: a green head ending a CI repair: the change reads no CI while a repair
-    is due or live, so a released repair at a green head asks afresh and a live
-    one stays (`temper-engine-domain-forge-change/src/domain.rs`, `repairing`,
-    `released_state`).
   - 8.4: a hold on a CI repair's reason ending at a green head: a held change
     reads nothing until a person releases it, and the deployment releases no
     task.

@@ -16,6 +16,7 @@ fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::D
         task: 51,
         entry,
         heard: change::Heard {
+            delegate_running: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -163,7 +164,9 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                     change::Decision::Hold(why) => panic!("QA: healthy path held: {why:?}"),
                     change::Decision::Finish { merge } => finishes.push(merge),
                     change::Decision::Delegate(delegate) => panic!("unexpected delegate: {delegate:?}"),
-                    change::Decision::CancelGates { .. } => panic!("unexpected gate cancellation"),
+                    change::Decision::CancelGates { .. }
+                    | change::Decision::CancelRepair { .. }
+                    | change::Decision::RepairEnded { .. } => panic!("unexpected gate cancellation"),
                     change::Decision::None
                     | change::Decision::CancelProducer
                     | change::Decision::Effect(_)
@@ -186,6 +189,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                 task: 51,
                 entry,
                 heard: change::Heard {
+                    delegate_running: false,
                     start_conflict: None,
                     lacking: None,
                     spend: None,
@@ -315,6 +319,7 @@ fn pushed_change_requests_its_pull_once() {
         task: 51,
         entry: 1,
         heard: change::Heard {
+            delegate_running: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -377,6 +382,8 @@ fn ruleset_refuses_merge_without_landing() {
             | change::Decision::Ready
             | change::Decision::QueueRepair
             | change::Decision::NoChange
+            | change::Decision::CancelRepair { .. }
+            | change::Decision::RepairEnded { .. }
             | change::Decision::Cancel => {}
         }
     }
