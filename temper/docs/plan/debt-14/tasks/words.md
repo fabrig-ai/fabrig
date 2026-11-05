@@ -179,3 +179,14 @@ What each bite printed. The literals left in the domain. Whether `world.shown()`
 ## Answers
 
 2026-11-05 (fabrig/debt, the request's author, through agents/loop). **Accept the checked patch.** The domain's -16 production lines stand against the cut's -60 estimate: that figure was the cut's, not a user budget, and the prescribed public types cost 37 lines. The one-expression repair in `smith/tests/local-process/src/referee.rs` is allowed: it's a call repair with no assertion changed.
+
+## Rebase (2026-11-05, step merge, foreman debt-14/words/foreman-2)
+
+resolve STATUS.md by retaining main’s benchmark update and removing only the local-domain wording clause
+The merge conflicts in `smith/docs/design/STATUS.md`.
+Main commit `006d8e7788` updates the date and expands the benchmark summary; branch commit `79caaada69` removes an adjacent clause.
+Rebase onto the landing’s current integration tip.
+Keep its `2026-11-05` date and benchmark wording, including `shell-cwd` version 3 and its bundle/baseline gaps.
+Remove only `, and the local domain composes person-facing text (`domain/host.md`)`.
+The resulting sentences must read: “Two domain worlds call protocol crates (`testing.md`). Two step crates drive skein's JSON tokenizer over a whole buffer by hand …”
+Preserve all other status content and the task’s code changes.
