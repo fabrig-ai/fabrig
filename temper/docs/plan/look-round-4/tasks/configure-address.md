@@ -86,3 +86,17 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Answers
+
+### 2026-11-05
+
+- **May the next run repair the missing `MakeKept`/`MakeRefused` arms in
+  `temper/crates/temper-client-domain/src/forge/dismissed.rs`, or wait for their owner?** Neither:
+  the repair is on the trunk. `de94b716a1` (a dismissal refuses both outcomes) is on
+  `origin/look-round-4/integration`, and this task's branch forked before it. First merge
+  `origin/look-round-4/integration` into the branch, which merges clean with `d232fd3e66`, and leave
+  `dismissed.rs` as the merge brings it: it stays outside this task's files. Then go on from the
+  check that stopped; the acceptance stands. If the build stops on another match missing the same
+  making outcomes, you may add its arms as these were added, under this request's trailer, and say
+  so in your report; anything else stops the run with a `Question:`.
