@@ -443,7 +443,7 @@ fn a_chat_writes_its_own_scope_and_a_party_reads_it() {
             },
         );
     }
-    let core::CallPart::NoteWritten { name, revision: 1 } = world.answers.last().expect("written answer").2 else {
+    let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2 else {
         panic!("chat note admitted")
     };
     let owner = world.sign_in;
