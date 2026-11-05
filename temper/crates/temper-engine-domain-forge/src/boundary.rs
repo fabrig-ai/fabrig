@@ -248,6 +248,7 @@ pub enum Answered {
     Accept(AcceptAnswer),
     Reachable(ReachableAnswer),
     Dismiss(crate::DismissAnswer),
+    Looked(crate::LookedAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge.md, 4.5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1135,6 +1136,8 @@ pub enum Stored {
         party: u64,
         what: crate::Dismissal,
     },
+    ProjectFacts(crate::ProjectFacts),
+    Looked(crate::Looked),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1178,6 +1181,8 @@ pub enum Key {
     LandingLog { repository: skein_forge::api::Repository },
     Dismissed { party: u64, what: crate::Dismissal },
     Making(crate::MakingKey),
+    ProjectFacts { project: u32 },
+    Looked { party: u64, project: u32 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1446,6 +1451,12 @@ pub enum Event {
         ask: Ask,
         role: Option<jig_domain_people::Role>,
         carried: Option<jig_domain_core::Carried>,
+    },
+    Looked {
+        request: Token,
+        token: Token,
+        party: u64,
+        project: u32,
     },
     /// A core-admitted dismissal (temper/docs/design/domain/forge.md, 5.5).
     Dismiss {

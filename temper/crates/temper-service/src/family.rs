@@ -1295,6 +1295,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
+        forge::Document::Status(_) => None,
         forge::Document::Changes(value) => changes_panel(value, limits),
         forge::Document::Landings(value) => {
             let mut landings = List::with_capacity(u32::try_from(value.landings.len()).ok()?);

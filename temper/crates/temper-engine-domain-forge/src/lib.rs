@@ -29,6 +29,11 @@ mod capabilities;
 mod ci;
 mod commit;
 mod connect;
+mod status;
+pub use status::{
+    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
+    StatusView, status_subject,
+};
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, Dismissal};
 mod domain;
@@ -264,6 +269,8 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
+        Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::Looked(row) => Key::Looked { party: row.party, project: row.project },
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -405,6 +412,12 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::ProjectFacts(row) => Some(match &row.brief {
+            Some(brief) => {
+                skein_lib::len_u64(brief.sentence.len()).checked_add(skein_lib::len_u64(brief.lede.len()))?
+            }
+            None => 0,
+        }),
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
@@ -493,7 +506,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::Dismissed { .. }
+        Stored::Looked(_)
+        | Stored::Dismissed { .. }
         | Stored::ForgeNumber { .. }
         | Stored::Playground(_)
         | Stored::Ci(_)

@@ -29,6 +29,7 @@ pub enum Document {
     Landing(LandingView),
     Landings(LandingsView),
     Changes(ChangesView),
+    Status(crate::StatusView),
     Dismissals(Box<[Dismissal]>),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
@@ -113,6 +114,9 @@ impl Domain {
             if subject == landings_subject(project, ended) {
                 return Some(Document::Landings(self.landings_view(project, ended)?));
             }
+        }
+        if subject == crate::status_subject(project) {
+            return Some(Document::Status(self.status_view(project, party, now, limits)?));
         }
         if subject == changes_subject(project) {
             return Some(Document::Changes(self.changes_view(project, now, limits)?));
@@ -338,6 +342,12 @@ impl Document {
                     size = size.saturating_add(change.title.len());
                 }
             }
+            Self::Status(view) => {
+                size = size.saturating_add(view.branch.len());
+                if let Some(brief) = &view.brief {
+                    size = size.saturating_add(brief.sentence.len()).saturating_add(brief.lede.len());
+                }
+            }
             Self::Dismissals(rows) => {
                 size = size.saturating_add(size_of_val(rows.as_ref()));
             }
@@ -401,6 +411,7 @@ fn phase_bytes(phase: &policy::Phase) -> usize {
 }
 
 /// The adopted repository's project owns its changes document (domain/forge.md, 9).
-pub(crate) fn changes_mark(d: &Domain, repository: skein_forge::api::Repository) -> Option<u64> {
-    Some(changes_subject(d.repositories.get(&repository)?.project))
+pub(crate) fn changes_mark(d: &Domain, repository: skein_forge::api::Repository) -> Option<[u64; 2]> {
+    let project = d.repositories.get(&repository)?.project;
+    Some([changes_subject(project), crate::status_subject(project)])
 }
