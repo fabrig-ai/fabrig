@@ -91,14 +91,17 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
         }
         out.push_str("    }\n");
     }
-    out.push_str("}\n\npub mod refusal {\n");
+    out.push_str("}\n\npub mod refusal {");
     let mut refusals = false;
     for (number, source) in &krate.patches {
         let patch = read_patch(source, *number)?;
         if patch.refusals().next().is_none() {
             continue;
         }
-        refusals = true;
+        if !refusals {
+            out.push('\n');
+            refusals = true;
+        }
         writeln!(out, "    pub mod p{number:04} {{\n        use skein_codec::patch::RefusalIx;").expect("String write");
         let mut names = BTreeMap::new();
         for (index, name) in patch.refusals().enumerate() {
@@ -108,9 +111,6 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
         out.push_str("    }\n");
     }
     out.push_str("}\n\n");
-    if !refusals {
-        out = out.replace("pub mod refusal {\n}\n", "pub mod refusal {}\n");
-    }
     dispatch(krate, &mut out)?;
     tests(krate, &mut out);
     Ok(out)
