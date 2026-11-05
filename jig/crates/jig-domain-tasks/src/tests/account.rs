@@ -84,25 +84,27 @@ fn amend_choice(h: &mut Harness, account: Option<u32>) {
     let mut choice = row.llm.clone().unwrap();
     choice.account = account;
     h.send(Event::Amend {
+        operation: crate::Amend {
+            task: TASK,
+            message,
+            stop_run: false,
+            amendment: Box::new(crate::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: None,
+                llm: Some(choice),
+                release: None,
+                reason: Box::new([]),
+            }),
+        },
         places: Box::new([]),
         funder: None,
         reply_to: to(),
         by: crate::Party::Person(9),
-        task: TASK,
-        message,
-        stop_run: false,
-        amendment: crate::Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            spec: None,
-            wake: None,
-            dependencies: None,
-            authority: None,
-            llm: Some(choice),
-            release: None,
-            reason: Box::new([]),
-        },
     });
 }
 

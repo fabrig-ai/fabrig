@@ -259,7 +259,7 @@ fn amendments(
     env: &Env<Limits>,
     task: u64,
     parts: &[crate::StepAmendment],
-) -> Result<Box<[tasks::ProcedureAmendment]>, StepRefusal> {
+) -> Result<Box<[tasks::Amend]>, StepRefusal> {
     let mut amendments = List::with_capacity(env.limits.tasks.batch);
     for part in parts {
         let mut amendment = part.amendment.clone();
@@ -280,7 +280,8 @@ fn amendments(
         let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
             return Err(problem(task, tasks::Refusal::Busy));
         };
-        if amendments.push(tasks::ProcedureAmendment { task: part.task, message, stop_run, amendment }).is_err() {
+        if amendments.push(tasks::Amend { task: part.task, message, stop_run, amendment: Box::new(amendment) }).is_err()
+        {
             return Err(problem(task, tasks::Refusal::Batch));
         }
     }

@@ -1,4 +1,4 @@
-use jig_domain_tasks::{Cancel, Event, Operation, Party, Release};
+use jig_domain_tasks::{self as tasks, Cancel, Event, Operation, Party, Release};
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, List};
 const ROOT: u64 = 1;
@@ -23,7 +23,9 @@ fn a_compound_closing_a_task_and_moving_its_delegate_survives_a_restart() {
             message: Some(FINISH),
         }))
         .expect("compound fixture");
-    operations.push(Operation::Move { task: CHILD, reason: b"keep".as_slice().into() }).expect("compound fixture");
+    operations
+        .push(Operation::Move(tasks::Move { task: CHILD, reason: b"keep".as_slice().into() }))
+        .expect("compound fixture");
     let reply_to = world.to();
     world.send(Event::Compound {
         reply_to,
@@ -120,14 +122,14 @@ fn the_deployments_compound_refuses_any_other_operation_or_project_whole() {
         (
             "amend",
             Party::Deployment { project: PROJECT },
-            Operation::Amend { task: CHILD, message: 1, stop_run: false, amendment: Box::new(amendment) },
+            Operation::Amend(tasks::Amend { task: CHILD, message: 1, stop_run: false, amendment: Box::new(amendment) }),
             PROJECT,
         ),
         ("stop", Party::Deployment { project: PROJECT }, Operation::Stop { task: CHILD, hold: 100 + CHILD }, PROJECT),
         (
             "move",
             Party::Deployment { project: PROJECT },
-            Operation::Move { task: CHILD, reason: Box::new([]) },
+            Operation::Move(tasks::Move { task: CHILD, reason: Box::new([]) }),
             PROJECT,
         ),
         (

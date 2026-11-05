@@ -24,14 +24,16 @@ fn refuse_amendment(spec: Spec) {
     let mut test = Harness::new();
     test.make(vec![task(TASK, &[])]);
     let out = test.send(Event::Amend {
+        operation: crate::Amend {
+            task: TASK,
+            message: MESSAGE,
+            stop_run: false,
+            amendment: Box::new(Amendment { spec: Some(spec), ..amendment() }),
+        },
         places: Box::new([]),
         funder: None,
         reply_to: to(),
         by: Party::Person(REQUESTER),
-        task: TASK,
-        message: MESSAGE,
-        stop_run: false,
-        amendment: Amendment { spec: Some(spec), ..amendment() },
     });
     assert_eq!(out, vec![Request::Refused { reply_to: to(), problem: Problem::new(Some(TASK), Refusal::Spec) }]);
 }

@@ -244,11 +244,11 @@ fn words_questions_and_amendments_to_a_job_are_refused_as_its_executor() {
                 &mut world,
                 2,
                 ProcedureDecision {
-                    amendments: Box::new([tasks::ProcedureAmendment {
+                    amendments: Box::new([tasks::Amend {
                         task: JOB,
                         message: 10,
                         stop_run: false,
-                        amendment: change,
+                        amendment: Box::new(change),
                     }]),
                     ..ProcedureDecision::new(ProcedureEnd::Wait)
                 },

@@ -60,14 +60,11 @@ fn amend_with_places(
 ) -> Reply {
     let message = world.record(task).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        operation: tasks::Amend { task, message, stop_run: false, amendment: Box::new(amendment(dependencies)) },
         places,
         reply_to,
         by,
-        task,
-        message,
-        stop_run: false,
         funder: None,
-        amendment: amendment(dependencies),
     })
 }
 
@@ -802,14 +799,11 @@ fn remove_and_release(world: &mut World, number: u64) -> Reply {
     amendment.release = Some(world.record(number).revisions.hold);
     let message = world.record(number).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        operation: tasks::Amend { task: number, message, stop_run: false, amendment: Box::new(amendment) },
         places: Box::new([]),
         reply_to,
         by: Party::Person(9),
-        task: number,
-        message,
-        stop_run: false,
         funder: None,
-        amendment,
     })
 }
 
@@ -903,12 +897,12 @@ fn release_operation() -> tasks::Operation {
 fn removing_operation(world: &World, release: Option<u64>) -> tasks::Operation {
     let mut amendment = amendment(&[]);
     amendment.release = release;
-    tasks::Operation::Amend {
+    tasks::Operation::Amend(tasks::Amend {
         task: 1,
         message: world.record(1).last_message + 1,
         stop_run: false,
         amendment: Box::new(amendment),
-    }
+    })
 }
 
 fn failed_waiter() -> World {
@@ -956,13 +950,18 @@ fn a_compounds_amendment_release_projects_the_new_hold_revision_for_its_next_ame
         dependency_compound(
             &mut world,
             vec![
-                tasks::Operation::Amend { task: 1, message, stop_run: false, amendment: Box::new(retained) },
-                tasks::Operation::Amend {
+                tasks::Operation::Amend(tasks::Amend {
+                    task: 1,
+                    message,
+                    stop_run: false,
+                    amendment: Box::new(retained)
+                }),
+                tasks::Operation::Amend(tasks::Amend {
                     task: 1,
                     message: message + 1,
                     stop_run: false,
                     amendment: Box::new(removed)
-                },
+                }),
             ]
         ),
         Reply::Done

@@ -89,12 +89,12 @@ fn procedure_with_child() -> World {
     world
 }
 
-fn amendment() -> tasks::ProcedureAmendment {
-    tasks::ProcedureAmendment {
+fn amendment() -> tasks::Amend {
+    tasks::Amend {
         task: CHILD,
         message: AMENDMENT,
         stop_run: false,
-        amendment: tasks::Amendment {
+        amendment: Box::new(tasks::Amendment {
             tracked: None,
             addressed: None,
             instructions: None,
@@ -111,7 +111,7 @@ fn amendment() -> tasks::ProcedureAmendment {
             authority: None,
             llm: None,
             reason: b"evidence".as_slice().into(),
-        },
+        }),
     }
 }
 
