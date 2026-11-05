@@ -1,4 +1,4 @@
-//! Runner connection configuration; the token stays in its private file.
+//! Runner connection configuration (protocol/setup.md, 6.3); the token stays in its private file.
 use crate::{
     check::joined,
     ini::{flatten, socket},
@@ -7,7 +7,8 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits};
-use skein_lib::{Decimal, List};
+use skein_lib::{Decimal, List, Secret, bytes};
+const UUID_LINE: &[u8] = b"\n      uuid: ";
 fn quoted(bytes: &[u8]) -> Box<[u8]> {
     let limits = Limits { depth: 1, length: 32_768 };
     let mut measure = Encoder::measure(&limits);
@@ -36,7 +37,7 @@ pub fn configuration(runner: &Runner, owned: &Owned, place: &Place, uuid: &[u8])
         &quoted(&joined(&[&place.directory, b"/runner/jobs"])),
         b"\nserver:\n  connections:\n    forgejo:\n      url: ",
         &quoted(&joined(&[b"http://", &socket(owned.listen)])),
-        b"\n      uuid: ",
+        UUID_LINE,
         &quoted(uuid),
         b"\n      token_url: ",
         &quoted(&joined(&[b"file:", &place.path(File::RunnerSecret)])),
@@ -44,4 +45,19 @@ pub fn configuration(runner: &Runner, owned: &Owned, place: &Place, uuid: &[u8])
         &flatten(labels.as_slice()),
         b"]\n",
     ])
+}
+/// The `uuid` a configuration of `configuration` names, as `register` printed it;
+/// `None` for any other text, which the preparation registers again.
+#[must_use]
+pub fn registered(configuration: &[u8]) -> Option<Secret> {
+    let at = bytes::find(configuration, UUID_LINE)?.checked_add(UUID_LINE.len())?;
+    let rest = configuration.get(at..)?;
+    let line = rest.get(..bytes::find(rest, b"\n")?)?;
+    let document = jig_protocol_config::document(
+        line,
+        &jig_protocol_config::DocumentLimits { bytes: 32_768, tokens: 1, depth: 1 },
+    )
+    .ok()?;
+    let uuid = jig_protocol_config::read::text(&document, 0, 32_768).ok()?;
+    if uuid.is_empty() { None } else { Some(Secret::new(uuid)) }
 }

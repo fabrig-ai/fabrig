@@ -30,8 +30,18 @@ fn found(place: &Place) -> Result<Found, Failed> {
         Err(skein_shell::Unread::Absent) => None,
         Err(_) => return Err(Failed::Io("state", io::ErrorKind::PermissionDenied)),
     };
+    let runner_configuration = match skein_shell::read_private_file(
+        crate::path(&place.path(File::RunnerConfiguration)),
+        1 << 20,
+        skein_shell::effective_user(),
+    ) {
+        Ok(bytes) => Some(bytes),
+        Err(skein_shell::Unread::Absent) => None,
+        Err(_) => return Err(Failed::Io("runner configuration", io::ErrorKind::PermissionDenied)),
+    };
     Ok(Found {
         state,
+        runner_configuration,
         runner_secret: crate::path(&place.path(File::RunnerSecret)).exists(),
         admin_token: crate::path(&place.path(File::AdminToken)).exists(),
         person_headers: [

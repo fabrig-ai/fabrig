@@ -53,8 +53,10 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
-(`domain/forge.md`); so do How work runs' controls for a person with a
-project's role alone, its stored way, which a goal's start does not read,
+(`domain/forge.md`); so do Start goal's sheet, which no page opens, a live
+goal's walk, which the fake box's model cannot script, How work runs'
+controls for a person with a project's role alone, its stored way, which
+a goal's start does not read,
 and its drafts, which no chat offers yet, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
@@ -72,15 +74,21 @@ no engine (`protocol/credentials.md`), and a closed change whose
 repository a removal erased leaves no project the Changes document
 (`client/README.md`);
 public reading still lacks a deployment's proxy configuration and
-figures, and its negative walk plays the proxy's own rules against
-scripted upstreams rather than temper's service
+figures, its negative walk plays the proxy's own rules against
+scripted upstreams rather than temper's service, and the server walk
+gives a forge's sign-in meta at `forge connect` where the user's
+request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
 managed (`protocol/setup.md`); `temper forge sign-in` prints an owned
 Forgejo's command without its binary and paths
 (`protocol/setup.md`), and a held task names no run's failure, which
-is the user's to decide (`domain/worker.md`); a kept GitHub forge whose base ends
+is the user's to decide (`domain/worker.md`); with
+`TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
+workspaces stay as they are between workstreams and across a restart,
+for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
+a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
@@ -124,7 +132,10 @@ its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration, and its sheet, "Add repositories", is unbuilt;
 `draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a
-repository" where they have "Adopt a repository"; the others
+repository" where they have "Adopt a repository";
+`draft/dogfood-hacks.md`'s holds one a plan's requester decided, with no
+record of the user weighing it, Forgejo's link page keeping an empty signup
+form; the others
 record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap.
@@ -169,6 +180,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
+- [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
