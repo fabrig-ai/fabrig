@@ -50,7 +50,7 @@ pub(super) fn limits() -> engine::Limits {
     let mut limits = walking::limits();
     limits.authority.grants = GRANTS;
     limits.authority.executors = EXECUTORS;
-    limits.authority.roles = 2; // Stock owner and the member story's requesting role.
+    limits.authority.roles = 4; // Owner, maintainer, member and observer.
     limits.documents.grants = GRANTS;
     limits.documents.executors = EXECUTORS;
     limits.notes.scopes = 32; // Three scalar scopes and the stock's fourteen grants.
@@ -74,22 +74,16 @@ pub(super) fn limits() -> engine::Limits {
     limits.fleet.attempts = SLOTS;
     limits.journal.run_bytes = RUN_BYTES;
     limits.journal.transcript_bytes = TRANSCRIPT_BYTES;
+    // Two four-role policy settings share a decoded page.
+    limits.loads.bytes = 65_536;
     limits.loads.transcript_bytes = TRANSCRIPT_BYTES;
-    limits.loads.reply_bytes = TRANSCRIPT_BYTES;
+    limits.loads.reply_bytes = 65_536;
     limits.journal.writes = temper_engine_domain_world::journal_limits::TREE_WRITES;
     limits
 }
 
 pub(super) fn member_config() -> engine::Config {
-    let mut config = config();
-    let mut policy = config.core.seed_projects[0].policy.clone();
-    let mut member = policy.policy.roles[0].clone();
-    member.number = people::Role::Member.number();
-    member.decides = jig_domain_authority::Proposals(0);
-    policy.policy.roles = Box::new([policy.policy.roles[0].clone(), member]);
-    config.core.seed_projects[0].policy = policy.clone();
-    config.core.defaults.policies.insert(1, policy).expect("world's policy 1");
-    config
+    config()
 }
 
 pub(super) fn moving_config() -> engine::Config {
@@ -132,6 +126,9 @@ pub(super) fn moving_config() -> engine::Config {
     config
 }
 fn offer_removable(authority: &mut jig_domain_authority::Authority) {
+    if authority.delegation.tasks == 0 {
+        return;
+    }
     let mut kinds = authority.delegation.kinds.clone().into_vec();
     kinds.push(jig_domain_authority::Executor::Charter(REMOVED));
     authority.delegation.kinds = kinds.into_boxed_slice();
@@ -415,6 +412,9 @@ pub(super) fn read_value(driver: &mut Driver, run: &engine::Assignment, completi
 }
 pub(super) fn omit_removable(authority: &mut Value) {
     let kinds = authority["delegation"]["kinds"].as_array_mut().expect("delegation kinds");
+    if kinds.is_empty() {
+        return;
+    }
     let before = kinds.len();
     kinds.retain(|kind| kind != &json!({"charter":REMOVED}));
     assert_eq!(kinds.len() + 1, before, "one charter reference removed");

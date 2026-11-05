@@ -69,7 +69,7 @@ fn a_repository_adopted_seeds_its_collaborators_into_roles() {
     adopt(&mut driver, fixtures::adoption(1), 95);
     let (roles, people) = seeded_roles(&driver);
     assert!(roles.contains(&people::Holding { person: people[&7], role: people::Role::Owner }));
-    assert!(roles.contains(&people::Holding { person: people[&1], role: people::Role::Maintainer }));
+    assert!(!people.contains_key(&1), "temper is not seeded as a person");
     assert!(roles.contains(&people::Holding { person: people[&2], role: people::Role::Member }));
 }
 
@@ -106,7 +106,7 @@ fn policy_maps_connector_permissions_to_seeded_roles_after_restart() {
     adopt(&mut driver, fixtures::adoption(1), 95);
     let (roles, people) = seeded_roles(&driver);
     assert!(roles.contains(&people::Holding { person: people[&7], role: people::Role::Owner }));
-    assert!(roles.contains(&people::Holding { person: people[&1], role: people::Role::Observer }));
+    assert!(!people.contains_key(&1), "temper is not seeded after restart");
     assert!(roles.contains(&people::Holding { person: people[&2], role: people::Role::Maintainer }));
 }
 

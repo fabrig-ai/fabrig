@@ -374,3 +374,24 @@ fn box_help_locates_forgejo_notices_on_the_box_output() {
     assert!(text.contains("`temper box`'s stdout"), "name the notices' output stream");
     assert!(text.contains("redirected log"), "locate notices for background boxes");
 }
+
+#[test]
+fn approval_help_names_the_forge_and_project_policy_route() {
+    for name in [b"landing-rule".as_slice(), b"party", b"configure"] {
+        let text = find(name).expect("approval setup help").text;
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for words in [
+            "collaborator",
+            "project-policy",
+            "repository adopt",
+            "project show",
+            "newest revision",
+            "maintainer",
+            "member",
+            "observer",
+        ] {
+            assert!(text.contains(words), "{name:?} must explain {words:?}: {text}");
+        }
+        assert!(text.contains("writer") && text.contains("counts") || text.contains("writer is excluded"));
+    }
+}

@@ -88,7 +88,7 @@ pub fn fixture() -> forge::Fixture {
                 rule["pattern"]["segments"][3] = "widget".into();
             }
             for (name, size) in [
-                ("core.policy_bytes", 5120),
+                ("core.policy_bytes", 8192),
                 ("tasks.inbox_bytes", 16384),
                 ("tasks.spec_bytes", 4096),
                 ("tasks.result_bytes", 512),
