@@ -6,10 +6,10 @@
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive
   matches and one handler per cell; `skein-llm-connection/src/call.rs`
-  keeps `Connection`'s data-less `Phase` beside `call`, `idle_at` and
-  `waiting` rather than in its states; no reason is recorded (the code's
-  side is
-  `skein/docs/development/debt/D023-llm-client-states.md`).
+  keeps `waiting` beside `Phase`, because the component recomputes it for
+  every connection in every phase, and `reservation`, because it outlives
+  the call's token until the pool's pass; neither file keeps one handler
+  per cell, for which no reason is recorded.
   4: beside its table, an owner may ask for every call's rendered body
   (`Component::keep_bodies`) and take each one (`Component::pop_body`), never
   an event, because a development deployment must read what left
