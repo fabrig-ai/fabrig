@@ -1,0 +1,27 @@
+draft = "producer-failure"
+repo = "fabrig"
+sources = ["temper/docs/plan/producer-failure/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "failed-producer"
+title = "a failed producer holds at producing, whatever it delivered; no empty title reaches a forge"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[part]]
+id = "stock-words"
+title = "the stock coding words say to wait after asking"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.11"
+
+[[slice]]
+id = 1
+story = "a producer that delivers then fails holds at producing, and a coding run is told how to end after asking"
+parts = ["failed-producer", "stock-words"]
+walk = false
