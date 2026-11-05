@@ -139,6 +139,7 @@ pub use boundary::{
     RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind,
     Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
 };
+pub use boundary::{Hint, MessageFamily, Slot, Spoken};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
