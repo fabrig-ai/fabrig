@@ -1,12 +1,11 @@
 use jig_domain_tasks::{self as tasks, Event, Executor, Party, PersonAddress, Stored};
-use jig_tasks_world::{LIMITS, World, task};
+use jig_tasks_world::{LIMITS, PROJECT, World, task};
 use skein_lib::Queue;
 
 const PERSON: u64 = 9;
 const OWNER: u64 = 1;
 const MEMBER: u64 = 2;
 const PROPOSAL: u64 = 100;
-const PROJECT: u32 = 1;
 const SEED: u64 = 860;
 
 fn proposals() -> [(Stored, Vec<Stored>); 2] {

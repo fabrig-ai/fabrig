@@ -1,10 +1,12 @@
 use jig_client::{Answered, Ask, Asker, Key, Outcome, contract as c, shapes};
-use jig_client_protocol_world::{client::Story, fixtures};
+use jig_client_protocol_world::{
+    client::Story,
+    fixtures::{self, PROJECT},
+};
 use skein_lib::{Duration, RequestKey, Time, Wall};
 // Five seconds exceeds the finite first bound while remaining inside the policy ceiling.
 const SPAN: Duration = Duration::from_secs(5);
 const WAIT: Duration = Duration::from_secs(1);
-const PROJECT: u32 = 1;
 const FIRST_TASK: u64 = 1;
 // The owner fixture starts with no proposals; the first explicit batch is proposal one.
 const FIRST_PROPOSAL: u64 = 1;

@@ -2,8 +2,6 @@ use super::*;
 use jig_client_domain::contract::{Answer, Made, Outcome};
 use skein_lib::{Time, Token, Wall};
 const SEED: u64 = 503;
-const PARTY: u64 = 7;
-const PROJECT: u32 = 1;
 const CHAT: u64 = 9;
 const ATTEMPT: Token = Token::new(1);
 const KEY: [u8; 16] = [1; 16];

@@ -1,10 +1,9 @@
 use super::*;
+use crate::fixtures::{PROJECT, WIRE_TASK};
 use jig_client::contract as c;
 use jig_client_kit::harness::Receipt;
 use skein_lib::{List, Overflow, Writer};
 const ATTEMPT: Token = Token::new(7);
-const TASK: u64 = 8;
-const PROJECT: u32 = 1;
 const FIRST_MESSAGE: u64 = 19;
 const KEY: [u8; 16] = [3; 16];
 fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
@@ -17,11 +16,11 @@ fn request() -> Request {
     operations
         .push(c::Operation::Message {
             project: PROJECT,
-            task: TASK,
+            task: WIRE_TASK,
             words: c::Text::new(b"continue".as_slice().into(), 64).expect("bounded wire fixture"),
         })
         .expect("bounded wire fixture");
-    operations.push(c::Operation::Stop { project: PROJECT, task: TASK }).expect("bounded wire fixture");
+    operations.push(c::Operation::Stop { project: PROJECT, task: WIRE_TASK }).expect("bounded wire fixture");
     let ask = translate::asks::ask(&c::Ask::Compound { project: PROJECT, operations }, &w::CEILINGS)
         .expect("bounded wire fixture");
     let keyed = w::Keyed::new(
@@ -73,5 +72,5 @@ fn a_compound_word_receipt_joins_its_observed_target_and_answered_message() {
     let [Receipt::Answer { attempt, final_answer, words }] = receipts.as_slice() else {
         panic!("compound words receipt: {receipts:?}");
     };
-    assert_eq!((*attempt, *final_answer, *words), (ATTEMPT, true, Some((TASK, FIRST_MESSAGE))));
+    assert_eq!((*attempt, *final_answer, *words), (ATTEMPT, true, Some((WIRE_TASK, FIRST_MESSAGE))));
 }

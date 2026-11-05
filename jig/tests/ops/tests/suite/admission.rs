@@ -11,7 +11,7 @@ use skein_lib::{Duration, ReplyTo, Token};
 use std::collections::BTreeSet;
 
 const SEED: u64 = 9205;
-const TASK: u64 = 7;
+const ADMITTED_TASK: u64 = 7;
 const FIRST: Token = Token::new(960);
 const SECOND: Token = Token::new(961);
 const THIRD: Token = Token::new(962);
@@ -26,7 +26,7 @@ const CHAT: u64 = 1;
 
 fn new_work() -> root::Event {
     root::Event::Observability(obs::Event::Subscribe {
-        task: TASK,
+        task: ADMITTED_TASK,
         topic: obs::Topic::Alerts(jig_ops_world::service()),
         wake_at: 5,
         keep_at: 1,
@@ -108,13 +108,13 @@ fn scale_driver() -> Driver {
     let mut driver = Driver::started(SEED);
     driver.send(service_fact(1));
     driver.send(root::Event::Infrastructure(infra::Event::Names {
-        task: TASK,
+        task: ADMITTED_TASK,
         project: 1,
         resources: Box::new([infra::Resource::Service(jig_ops_world::infra_service())]),
     }));
     driver.send(root::Event::Infrastructure(infra::Event::Restore {
         record: infra::Record::Procedure(infra::ProcedureState {
-            task: TASK,
+            task: ADMITTED_TASK,
             chat: None,
             phase: infra::ProcedurePhase::ReadingFacts,
             procedure: infra::Procedure::Scale { service: jig_ops_world::infra_service(), replicas: 3, deadline: 100 },
@@ -271,12 +271,12 @@ fn an_environment_absence_settles_under_load_and_its_drift_waits() {
     driver.send(root::Event::Infrastructure(infra::Event::Restore {
         record: infra::Record::Made {
             environment: jig_ops_world::infra_environment(),
-            key: infra::Key::procedure([1; 16], TASK, 3),
+            key: infra::Key::procedure([1; 16], ADMITTED_TASK, 3),
             project: Some(1),
         },
     }));
     driver.send(root::Event::Infrastructure(infra::Event::Names {
-        task: TASK,
+        task: ADMITTED_TASK,
         project: 1,
         resources: Box::new([infra::Resource::Environment(jig_ops_world::infra_environment())]),
     }));
@@ -284,7 +284,7 @@ fn an_environment_absence_settles_under_load_and_its_drift_waits() {
         environment: jig_ops_world::infra_environment(),
         other_hand: false,
         fact: Some(infra::EnvironmentFact {
-            created_by: infra::Key::procedure([1; 16], TASK, 3),
+            created_by: infra::Key::procedure([1; 16], ADMITTED_TASK, 3),
             ready_at: 0,
             until: 100,
             price: 20,
@@ -436,7 +436,7 @@ fn a_call_answer_and_its_released_callback_enter_under_pressure() {
 fn an_applied_effect_settles_once_at_the_watermark() {
     const ENTRY: u64 = 3;
     const COPIES: usize = 2; // The same terminal twice.
-    let key = obs::Key::procedure([1; 16], TASK, ENTRY);
+    let key = obs::Key::procedure([1; 16], ADMITTED_TASK, ENTRY);
     let mut driver = Driver::started(SEED);
     driver.send(root::Event::Observability(obs::Event::Restore {
         record: obs::Record::Outbox(obs::Entry {

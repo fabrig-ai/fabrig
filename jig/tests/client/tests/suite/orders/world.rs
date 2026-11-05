@@ -4,12 +4,12 @@
 use jig_client::{self as client, Down, Event, Message, Told, Up, contract as c};
 use jig_client_protocol_wire::v19 as w;
 use jig_client_test_domain::{self as root, first};
+pub use jig_client_world::PARTY;
 use jig_client_world::test;
 use skein_lib::{Env, List, Queue, Reader, RequestEnvelope, RequestRecord, Secret, Time, Token, Wall, Writer};
 use skein_world::domain::{Ledger, Schedule};
 use std::collections::{BTreeMap, VecDeque};
 
-pub const PARTY: u64 = 7;
 const SEED: u64 = 8601;
 const STREAM: [u8; 16] = [7; 16];
 // The story holds three successive family pages, each with a read and watch,

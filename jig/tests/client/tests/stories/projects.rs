@@ -2,11 +2,9 @@
 use jig_client::{Asker, Event, Key, contract as c};
 use jig_client_scripted_engine::Change;
 use jig_client_test_domain::store::Record;
-use jig_client_world::{ClientId, FrontFault, Scripted, Test, Until, World, stories};
+use jig_client_world::{ClientId, FrontFault, PARTY, PROJECT, Scripted, Test, Until, World, stories};
 use skein_lib::{Duration, Time, Wall};
 type ProjectWorld = World<Test, Scripted>;
-const PARTY: u64 = 7;
-const PROJECT: u32 = 1;
 const POLICY: u32 = 1;
 
 fn text(value: &[u8]) -> c::Text {

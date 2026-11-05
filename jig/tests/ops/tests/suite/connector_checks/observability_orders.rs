@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use jig_ops_domain_observability as obs;
 use jig_ops_fake_production as production;
-use jig_ops_world::{World, limits};
+use jig_ops_world::{PROJECT, World, limits};
 use skein_lib::Token;
 
 use super::obs_key;
@@ -16,7 +16,6 @@ const HEALTHY_REPLICAS: u32 = 3; // The fake services start with three healthy r
 const FIRST_SUBSCRIBER: u64 = 100;
 const EFFECT_OWNER: u64 = 7; // The owner in obs_key().
 const EFFECT_ENTRY: u64 = 3; // The outbox number used by the connector stories.
-const PROJECT: u32 = 1;
 
 fn service(number: u32) -> obs::Service {
     obs::Service::new(Box::from(*b"production"), format!("service-{number}").into_bytes().into_boxed_slice())

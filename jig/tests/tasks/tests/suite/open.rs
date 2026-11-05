@@ -19,7 +19,7 @@ fn claimed(flags: Flags) -> World {
 fn claimed_task(chat: New) -> World {
     let mut w = World::new(327, LIMITS);
     assert_eq!(w.make(Party::Person(1), vec![chat]), Reply::Made(vec![1]));
-    w.claim(1, 1);
+    w.claim_task(1);
     w
 }
 

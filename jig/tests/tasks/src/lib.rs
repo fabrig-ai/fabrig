@@ -10,3 +10,7 @@ pub use world::{
     EFFORTS, Frozen, LIMITS, RETRY, Reply, World, authority, charters, domain, run_story, run_story_choices,
     run_story_facts, run_story_traced, task,
 };
+
+/// The tasks world's project and first task.
+pub const PROJECT: u32 = 1;
+pub const TASK: u64 = 1;

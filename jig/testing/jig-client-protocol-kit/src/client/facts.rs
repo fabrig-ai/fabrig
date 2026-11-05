@@ -5,12 +5,11 @@ use super::{
 use jig_client::contract as c;
 use jig_fake_workers::{Call, Script, Worker};
 const ME: Handle = Handle { asker: client::Asker::JIG, number: 20 };
-const TASK: Handle = Handle { asker: client::Asker::JIG, number: 21 };
+const TASK_WATCH: Handle = Handle { asker: client::Asker::JIG, number: 21 };
 const LINES: Handle = Handle { asker: client::Asker::JIG, number: 22 };
 const READY: Duration = Duration::from_secs(1);
 const WRITING: Duration = Duration::from_millis(100);
 const WORKER: u64 = 1;
-const PROJECT: u32 = 1;
 const TURN: u32 = 1;
 const CHAT: u64 = 1;
 impl Story {
@@ -56,8 +55,8 @@ impl Story {
         story
     }
     pub fn watch_chat_facts(&mut self, task: u64) {
-        self.watch(TASK, Watchable::Jig(c::Subject::Task { task }));
-        let query = c::TaskQuery { tracked: None, ..fixtures::task_query(PROJECT) };
+        self.watch(TASK_WATCH, Watchable::Jig(c::Subject::Task { task }));
+        let query = c::TaskQuery { tracked: None, ..fixtures::task_query(fixtures::PROJECT) };
         self.watch(LINES, Watchable::Jig(c::Subject::Tasks { query, window: 2 }));
     }
     #[must_use]
@@ -73,7 +72,7 @@ impl Story {
     }
     #[must_use]
     pub fn chat_document(&self) -> Option<&c::Task> {
-        match self.client.document(TASK)?.latest {
+        match self.client.document(TASK_WATCH)?.latest {
             Some(Latest::Jig(c::Delivery::Task(task))) => Some(task),
             _ => None,
         }
