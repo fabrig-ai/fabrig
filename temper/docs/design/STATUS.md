@@ -148,7 +148,11 @@ from the epoch (`client/README.md`,
 switch still offers its act with its watch refused or ended, an Overturn or its
 message gone astray reads as overturned already or as ended, where a live task
 then hears nothing, no page starts a goal that always asks (`client/README.md`),
-and `decided` is declared past charter 1 (`domain/agent.md`). The
+and `decided` is declared past charter 1 (`domain/agent.md`). A document
+built in parts is proved on a script alone, no real model having built one
+and no walk drawing a long one in its pane, and a later note write's words
+close with its lines where the `note-parts` request of 2026-11-05 keeps the
+answer as it stood (`domain/agent.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither

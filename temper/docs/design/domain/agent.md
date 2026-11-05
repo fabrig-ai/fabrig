@@ -1073,9 +1073,9 @@ the same mechanism.
   line "Draft, DATE, with the user.", one `##` section per topic, open questions
   under "## Open questions". It writes a first version whole, then changes it by
   lines (jig's `domain/engine.md`, section 10), naming the note and the revision
-  it read; it never rewrites it whole past a few KB, and builds a long document
-  in parts. It says in a sentence what changed and doesn't repeat it. Mermaid
-  isn't drawn, so it doesn't draw.
+  it read; it never rewrites it whole past a few KB, builds a long document in
+  parts, and continues a line past one call with `join`. It says in a sentence
+  what changed and doesn't repeat it. Mermaid isn't drawn, so it doesn't draw.
 - **The configuring agent's,** `configuring.txt` (8.1): the same, its title "How
   PROJECT works", written once the person's way is understood, kept current as
   the conversation changes it.
@@ -1090,7 +1090,8 @@ the same mechanism.
 - **Its stories:** a scripted turn of the fake model that writes a document
   (`testing.md`, 2.4), proved through ctl and walked in the journey `chat-draft`
   (`../client/journeys.md`, 9); and a walk's own script, which builds a 30 KB note
-  in calls of under 10 KB each.
+  in calls of under 10 KB each, one line longer than a call among it, then has a
+  fresh run find the note in its brief and change it by lines.
 
 #### A goal's report
 
@@ -1168,6 +1169,12 @@ host:
   for your setup": `../draft/configuring.md`, section 6). Default: a
   person starts it (8.1); a landed document reaches the next runs of the
   charters that name it (`../protocol/configuration.md`, 13.7).
+- **A settings value past one call** (8.1): `propose_settings` carries each
+  item's value in its call, so a value past what one call holds
+  (`../protocol/configuration.md`, 13.8), as a 23 KB one is, can't be proposed,
+  though a note now holds it, built by line ranges (jig's `domain/engine.md`,
+  section 10). Naming a note there is left to a plan of its own (the request
+  `note-parts` of 2026-11-05). Default: a value fits one call.
 - **Who may name a plan's members of `change`:** the control family
   says it (4.3.1), since a plan's maker amends, cancels and releases what
   it makes. A family of its own would let a policy grant control without

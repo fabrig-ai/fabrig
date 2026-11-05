@@ -62,6 +62,10 @@ and unread-tail retry guard in 7.1 and 7.2.
   `root.loads.loads` is 2 (`temper-service/src/limits.rs`); the two stories that
   met it set 3 in their fixtures (`temper/tests/system/src/composed/agreement.rs`,
   `temper/tests/real-loop/src/green_light.rs`). No reason is recorded.
+- **Design departs:** 10, from the request `note-parts` of 2026-11-05, decided
+  by its plan's cut: a range names the revision it read in `recalled`, the tool's
+  member that already says it, where the request has `revision`, so that one fact
+  keeps one name and a call without `first` stays as it is.
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a
