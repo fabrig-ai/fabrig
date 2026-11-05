@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 124;
+pub const N: usize = 129;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -77,6 +77,36 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "changes-empty", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-one", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-landed-only", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
+        Sample {
+            name: "home-computed",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-last-looked-none",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-landing-none",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-landing-red",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-chats-sentence",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
         Sample {
             name: "home-three-left",
             world: FirstRun { step: 7 },
@@ -935,6 +965,15 @@ fn home_domain(name: &str) -> Domain {
     use jig_client::{Down, Latest, Up, Watchable};
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
+    let status_name = name;
+    let name = match name {
+        "home-computed"
+        | "home-last-looked-none"
+        | "home-landing-none"
+        | "home-landing-red"
+        | "home-chats-sentence" => "home-nothing-needs",
+        name => name,
+    };
     let with_goals = name == "home-with-goals";
     let name = if with_goals { "home-at-work" } else { name };
     let (source, _) = crate::worlds::world(FirstRun { step: 7 }, Address::Settings { project: 1 }, Shown);
@@ -1085,11 +1124,11 @@ fn home_domain(name: &str) -> Domain {
                     w::Watch::Forges => wire::forges(
                         &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Home forges"),
                     ),
-                    w::Watch::Change(_)
-                    | w::Watch::Landing(_)
-                    | w::Watch::Landings(_)
-                    | w::Watch::Status(_)
-                    | w::Watch::Changes(_) => {
+                    w::Watch::Status(_) => match crate::worlds::home_status(status_name) {
+                        Some(status) => wire::project_status(&status),
+                        None => continue,
+                    },
+                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Changes(_) => {
                         continue;
                     }
                 };
@@ -1178,6 +1217,32 @@ fn home_domain(name: &str) -> Domain {
                         acts: List::with_capacity(0),
                         ending: None,
                     })),
+                    &mut out,
+                );
+            }
+            Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. }
+                if wire::decode_requesting(&record.bytes, &w::CEILINGS)
+                    .is_some_and(|request| matches!(request.request(), w::Request::Looked(_))) =>
+            {
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                why: None,
+                                answer: Some(jig_client::Answered::Family(jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::answer(
+                                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked })
+                                            .expect("Home look"),
+                                    ),
+                                })),
+                            },
+                        },
+                    },
                     &mut out,
                 );
             }
