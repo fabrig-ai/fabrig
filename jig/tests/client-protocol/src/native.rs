@@ -124,6 +124,7 @@ impl NativeClient {
         shell.adopt(root, user, seed);
         let mut limits = jig_client_world::test::limits();
         limits.client.domain.text = 512;
+        limits.client.domain.long_text = 512;
         limits.client.domain.turn_text = 512;
         limits.client.domain.turn_bytes = 512;
         let (root, view) = jig_client_world::test::linked_with(&limits, seed);

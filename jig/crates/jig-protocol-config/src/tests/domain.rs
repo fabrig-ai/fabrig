@@ -498,7 +498,7 @@ fn a_seed_policy_whose_whole_value_exceeds_its_byte_limit_refuses_start() {
 
 // Current people-v13 envelope, configuration.md, section 6.
 const POLICY_MAX: u64 = 43_695;
-const AMENDMENT_MAX: u32 = 8_192;
+const AMENDMENT_MAX: u32 = 135_168;
 const LARGE_POLICY: u64 = 65_536;
 
 #[test]
@@ -573,12 +573,12 @@ fn the_next_amendment_byte_is_refused_with_the_agreed_words() {
         What::AmendmentEnvelope {
             value: AMENDMENT_MAX + 1,
             maximum: AMENDMENT_MAX,
-            bound: Some(crate::CodecBound { field: b"Segment.bytes", needed: 8_193, ceiling: 8_192 }),
+            bound: Some(crate::CodecBound { field: b"Segment.bytes", needed: 135_169, ceiling: 135_168 }),
         }
     );
     assert_eq!(
         problem.codec_message().unwrap().as_ref(),
-        b"limits.people.amendment_bytes: 8193 exceeds the people-v13 codec envelope of 8192 bytes."
+        b"limits.people.amendment_bytes: 135169 exceeds the people-v13 codec envelope of 135168 bytes."
     );
 }
 

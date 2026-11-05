@@ -98,7 +98,8 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     let document_bytes = u32::try_from(client.document_bytes).ok()?;
     let ask_bytes = u32::try_from(client.ask_bytes).ok()?;
     wire.owned_record = document_bytes;
-    wire.document_text_bytes = client.text.max(HOLD_ACCOUNT_BYTES);
+    // Note text keeps DocumentText's schema ceiling; goal words have their own.
+    wire.document_text_bytes = client.long_text.clamp(HOLD_ACCOUNT_BYTES, w::CEILINGS.document_text_bytes);
     wire.task_text_words = client.text;
     wire.placed_line_reason = client.text;
     wire.me_providers = wire.owned_record;
@@ -158,7 +159,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.new_task_named = document_bytes;
     wire.new_task_dependencies = client.rows;
     wire.contract_verdict_choices = client.rows;
-    wire.specification_words = client.text;
+    wire.specification_words = client.long_text;
     wire.specification_parameters = client.rows;
     wire.specification_inputs = client.rows;
     wire.pattern_end_exact_value = client.text;
@@ -180,7 +181,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.cancel_reason = client.text;
     wire.move_reason = client.text;
     wire.edit_note_description = client.text;
-    wire.edit_note_body = client.text;
+    wire.edit_note_body = client.long_text.min(w::CEILINGS.edit_note_body);
     wire.edit_note_references = client.rows;
     wire.set_roles_holdings = client.rows;
     wire.make_service_name = client.text;

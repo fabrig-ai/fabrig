@@ -400,3 +400,22 @@ fn set_goal_from_keeps_named_template_defaults_and_judges_its_executor() {
     let Judged::NotOffered(why) = set_goal_from(&me, PROJECT, 9, draft(), words()) else { panic!("template refused") };
     assert_eq!(why, NotOffered::Template);
 }
+
+#[test]
+fn set_agreed_goal_from_asks() {
+    for budget in [creating().within.budget, draft().budget] {
+        let draft = GoalDraft { budget, ..draft() };
+        let judged = set_agreed_goal_from(&me(), PROJECT, GOAL, draft, words());
+        let task = match judged {
+            Judged::Create(Ask::Create { tasks, .. })
+            | Judged::Propose { ask: Ask::Propose { action: ProposeAction::Batch { tasks }, .. }, .. } => {
+                tasks.get(0).unwrap().clone()
+            }
+            other @ (Judged::Create(_) | Judged::Propose { .. } | Judged::Refused(_) | Judged::NotOffered(_)) => {
+                panic!("offered agreed goal: {other:?}")
+            }
+        };
+        assert!(task.spec.asks, "budget={budget}");
+        assert_eq!(task.spec.words, words());
+    }
+}

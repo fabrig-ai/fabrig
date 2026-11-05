@@ -695,7 +695,7 @@ fn people_bound(
         P::FieldRuleName => b!(b"people.amendment_bytes", b"FieldRule.name", field_rule_name),
         P::VerdictFields => b!(b"people.amendment_bytes", b"Verdict.fields", verdict_fields),
         P::ContractVerdictChoices => b!(b"people.amendment_bytes", b"ContractVerdict.choices", contract_verdict_choices),
-        P::MemberWords => b!(b"people.words", b"Member.words", member_words),
+        P::MemberWords => b!(b"tasks.spec_bytes", b"Member.words", member_words),
         P::MemberParameters => b!(b"people.amendment_bytes", b"Member.parameters", member_parameters),
         P::MemberInputs => b!(b"people.amendment_bytes", b"Member.inputs", member_inputs),
         P::MemberDependencies => b!(b"people.amendment_bytes", b"Member.dependencies", member_dependencies),

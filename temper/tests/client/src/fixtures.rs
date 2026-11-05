@@ -79,6 +79,7 @@ pub fn domain_limits() -> Limits {
                 kept: 4,
                 projects: 4,
                 text: 64,
+                long_text: 64,
                 turn_text: 64,
                 rows: 4,
                 fields: 4,
@@ -1339,6 +1340,7 @@ pub fn configuring_world(seed: u64, member: bool) -> World<Temper, Joint> {
     let mut limits = domain_limits();
     // The proposal's whole reason and charter remain visible in its review.
     limits.client.domain.text = 4096;
+    limits.client.domain.long_text = 4096;
     world_with(seed, Joint::with_configuring(seed, limits, member))
 }
 

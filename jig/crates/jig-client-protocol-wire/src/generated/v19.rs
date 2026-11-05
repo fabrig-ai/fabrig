@@ -365,7 +365,7 @@ pub const CEILINGS: Limits = Limits {
     person_answer_words_value: 65_536,
     person_answer_cannot_reason: 65_536,
     parameter_bytes_value: 65_536,
-    specification_words: 65_536,
+    specification_words: 131_072,
     specification_parameters: 32,
     specification_inputs: 32,
     model_effort_model: 4_096,

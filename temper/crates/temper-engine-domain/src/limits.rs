@@ -147,7 +147,7 @@ pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
         load_slots: limits.loads.loads,
         call_records: limits.call_records,
         call_answer_bytes: limits.call_answer_bytes,
-        people: limits.people,
+        people: people::Limits { spec_bytes: limits.tasks.spec_bytes, ..limits.people },
         fleet: limits.fleet,
         brief: brief_limits(&limits.brief),
         brief_parts: limits.brief.parts,
