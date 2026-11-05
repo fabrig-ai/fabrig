@@ -51,6 +51,8 @@ pub enum What {
     Duplicate,
     Kind,
     Bound,
+    /// The worker's slots exceed its hub capacity.
+    SlotsPastHub,
     Form,
     Unique,
     Refers,
@@ -159,6 +161,7 @@ impl Problem {
             | What::Duplicate
             | What::Kind
             | What::Bound
+            | What::SlotsPastHub
             | What::Form
             | What::Unique
             | What::Refers
