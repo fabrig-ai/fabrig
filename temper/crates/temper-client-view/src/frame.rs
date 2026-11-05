@@ -943,8 +943,7 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
     b.style(crate::look::TOAST);
     match toast {
         Toasted::Proposed { to } => {
-            w.card_text(b, crate::cards::P::ProposeInstead, &[]);
-            crate::cards::recipient(b, w, to);
+            proposed(b, w, to);
         }
         Toasted::Refused { outcome } => {
             crate::confirm::outcome_words(b, w, outcome);
@@ -964,4 +963,61 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
         action(b, Role::Button, &w.say(Word::ToastUndo, &[]), Act::Needs(needs::Act::Undo { object }), false, bindings);
     }
     b.close();
+}
+
+fn proposed(b: &mut Builder, w: &crate::words::Words, to: &jig_client::contract::Recipient) {
+    use crate::{
+        cards::{P, words::say},
+        words::Word,
+    };
+    use jig_client::contract::Recipient;
+    use skein_ui::phrases::Hole;
+    w.text(b, Word::ToastProposed, &[]);
+    match to {
+        Recipient::Party(number) => b.text(Run::Plain, &say(w, P::ToPerson, &[Hole::Number(*number)])),
+        Recipient::Task(number) => b.text(Run::Plain, &say(w, P::ToTask, &[Hole::Number(*number)])),
+        Recipient::Role { project, role } => {
+            b.text(
+                Run::Plain,
+                &say(w, P::ToRole, &[Hole::Number(u64::from(*role)), Hole::Number(u64::from(*project))]),
+            );
+        }
+        Recipient::Roles { project, roles } => {
+            for role in roles {
+                b.text(
+                    Run::Plain,
+                    &say(w, P::ToRole, &[Hole::Number(u64::from(*role)), Hole::Number(u64::from(*project))]),
+                );
+            }
+        }
+    }
+    w.text(b, Word::ToastProposedEnd, &[]);
+}
+
+#[cfg(test)]
+mod start_goal_tests {
+    use super::*;
+    use crate::tests::fixtures as f;
+    use jig_client::contract::Recipient;
+    #[test]
+    fn proposed_toast_names_the_recipient_and_waits_for_acceptance() {
+        for w in [f::words(), f::browser_words()] {
+            for (to, expected) in [
+                (Recipient::Party(4), "Proposed to Person 4: it starts once accepted."),
+                (Recipient::Task(4), "Proposed to Task 4: it starts once accepted."),
+                (Recipient::Role { project: 1, role: 2 }, "Proposed to Role 2 in project 1: it starts once accepted."),
+                (
+                    Recipient::Roles { project: 1, roles: List::from_boxed(Box::new([2])) },
+                    "Proposed to Role 2 in project 1: it starts once accepted.",
+                ),
+            ] {
+                let mut b = Builder::new(&f::tree_limits());
+                b.open(Role::Status);
+                proposed(&mut b, &w, &to);
+                b.close();
+                let tree = b.finish();
+                assert_eq!(f::text(&tree).as_ref(), expected.as_bytes());
+            }
+        }
+    }
 }

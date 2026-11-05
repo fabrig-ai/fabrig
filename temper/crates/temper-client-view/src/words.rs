@@ -15,6 +15,8 @@ pub enum Word {
     GoalResume,
     ToastPaused,
     ToastResumed,
+    ToastProposed,
+    ToastProposedEnd,
     GoalStopTitle,
     GoalStopStays,
     GoalSideTasks,
@@ -999,7 +1001,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // The goal header and report use eighteen phrases; its side uses thirty-two (client/README.md, 5.8).
-const PHRASES: u32 = 1492;
+const PHRASES: u32 = 1494;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1015,12 +1017,14 @@ const PHRASES: u32 = 1492;
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // The goal header and report use forty literal and hole segments; its side uses fifty-two (5.8).
-const SEGMENTS: u32 = 2593;
-const ALL: [Word; 896] = [
+const SEGMENTS: u32 = 2595;
+const ALL: [Word; 898] = [
     Word::GoalPause,
     Word::GoalResume,
     Word::ToastPaused,
     Word::ToastResumed,
+    Word::ToastProposed,
+    Word::ToastProposedEnd,
     Word::GoalStopTitle,
     Word::GoalStopStays,
     Word::GoalSideTasks,
@@ -1922,6 +1926,8 @@ impl Word {
             Self::GoalResume => 3433,
             Self::ToastPaused => 3434,
             Self::ToastResumed => 3435,
+            Self::ToastProposed => 3438,
+            Self::ToastProposedEnd => 3439,
             Self::GoalStopTitle => 3436,
             Self::GoalStopStays => 3437,
             Self::GoalSideTasks => 3400,
@@ -3131,6 +3137,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalResume => (&[b"Resume"], &[]),
         Word::ToastPaused => (&[b"Paused: running tasks stop, nothing new starts."], &[]),
         Word::ToastResumed => (&[b"Resumed."], &[]),
+        Word::ToastProposed => (&[b"Proposed to "], &[]),
+        Word::ToastProposedEnd => (&[b": it starts once accepted."], &[]),
         Word::GoalStopTitle => (&[b"Stop ", b"?"], &[Name]),
         Word::GoalStopStays => (&[b"What landed on its branch stays there."], &[]),
         Word::GoalSideTasks => (&[b"Tasks"], &[]),

@@ -15,6 +15,7 @@ mod paste;
 mod project_pages;
 mod ready_adoption;
 mod report;
+mod start_goal;
 mod switcher;
 mod task;
 mod welcome;
