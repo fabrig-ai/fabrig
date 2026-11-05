@@ -56,6 +56,8 @@ impl Bounds {
 #[must_use]
 pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> Option<Bounds> {
     let limits = v11::Limits {
+        status_brief_sentence: 200,
+        status_brief_lede: 600,
         effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
         // Explicit titles fit the forge; the body retains the task words.
         change_row_title: 256,
