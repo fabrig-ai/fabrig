@@ -126,3 +126,60 @@ impl Session {
   to when the oldest shown line goes, as Home's kicker does for its minute.
 - **The domain's clock:** `HOLD` and `TOAST` are deadlines on `env.now`, through `pages::fire` and
   `pages::next_deadline`; `Answered::at` is `env.wall`.
+
+## The standing count
+
+Added to `pages::needs` by `needs-frame`:
+
+```rust
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Count {
+    pub count: u32,
+    /// The document was cut: the view says "N+".
+    pub cut: bool,
+}
+
+/// The standing watch, of the same asker as `me_handle` and `accounts::handle`.
+#[must_use]
+pub fn handle() -> Handle; // number u64::MAX - 1
+
+impl Session {
+    /// The needs' rows of `project` in the standing document, less the answered; zero before it is
+    /// delivered or once its watch ended.
+    #[must_use]
+    pub fn count(&self, client: &Client, project: u32) -> Count;
+}
+```
+
+## A card, as the view reads it
+
+`temper-client-view`'s module `pages::ask` (created by `needs-page`, grown by `needs-kinds`, used by
+`home-card`). It holds what Home and Needs you share, Home's `need_title`, `need_when` and `need_kind`
+moved in:
+
+```rust
+pub(crate) enum Kind { Question, Proposal, Held, Funds { spent: u64, limit: u64 }, PersonTask }
+
+pub(crate) struct Asked<'a> {
+    pub card: &'a Card,
+    pub kind: Kind,
+    /// The task's title, or "Task N" where it is empty, or the kind's words with no task.
+    pub title: Box<[u8]>,
+    /// A question's words as read; `None` on the other kinds.
+    pub parsed: Option<temper_client_domain::question::Parsed>,
+    /// The design's SHORT.
+    pub short: Box<[u8]>,
+}
+
+pub(crate) fn read(card: &Card, w: &Words) -> Asked<'_>;
+/// The mono line: TITLE (a link), kind, age, " · later" where `later` asks, and the project's name
+/// first where `project` names one.
+pub(crate) fn meta(b: &mut Builder, asked: &Asked<'_>, project: Option<&[u8]>, later: bool, w: &Words, bindings: &mut Bindings, times: &mut Times);
+/// The `.answered` lines: a tick by style, "TITLE:" a link, the label, "Undo" while held.
+pub(crate) fn answered_lines(b: &mut Builder, root: &Domain, lines: &[&needs::Answered], w: &Words, bindings: &mut Bindings);
+/// The reply form, drawn only while `Session::replying`.
+pub(crate) fn reply_form(b: &mut Builder, root: &Domain, asked: &Asked<'_>, w: &Words, bindings: &mut Bindings);
+```
+
+The label's words, `Replied: “…”` around `Label::Reply`, are one function of `pages::ask`, which the
+toast (`frame.rs`) calls too; `needs-frame` makes it in `frame.rs`, and `needs-page` may move it.

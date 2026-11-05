@@ -500,7 +500,8 @@ keeps (`../protocol/configuration.md`, section 2).
   ended or was last active, as 5.12's ago ("1 h 28 min ago"). An ended line
   whose retention is Kept adds “Closed. Its transcript is kept.”; no
   other line claims that its transcript stays.
-- **The inbox** (`inbox.html`) shows what needs the person, then the
+- **The inbox in the terminal** (`inbox.html`; the browser's is *Needs
+  you,* below) shows what needs the person, then the
   updates, each entry its card (section 1), under two headings, each
   with how many entries it lists beside it, the updates' as new ones
   since what is read leaves them (below): "Needs you 2", "Updates 2
@@ -538,7 +539,8 @@ keeps (`../protocol/configuration.md`, section 2).
   holding "Answer words" and "Answer"; "Open TN ↗" opens the asked task.
   The answer goes to that task, which relays it to its delegate. "Pending"
   and "Answered" keep today's request outcomes, and a refusal stays under
-  its card. Choices remain future work (section 11).
+  its card. This is the terminal's card; the browser's reads the
+  question's words as *Needs you* (below) says.
 - **Seen** is how far the person has read: jig's read positions (jig's
   `client/domain/pages.md`, section 3), one over their results and one
   over each chat's turns. An update is seen when it is opened, and no
@@ -1310,13 +1312,15 @@ keeps (`../protocol/configuration.md`, section 2).
   each line one readable run of words, and a question's choices print
   as buttons.
 - **Needs you** (the user's greenfield mock's `needs.html`; `needsPage`):
-  `Inbox { filter }` in the browser, its path and its filters as they
-  were. It draws one card at a time: no level-1 "Inbox", no sections, no
-  filter menus and no "+ New chat". Updates leave the browser's page and
-  no page replaces them; `Seen` marking stays as it is. Bare `/inbox`
-  works across projects, the project's name before the owner on the mono
-  line. One card is shown of the open ones (*What the client keeps,*
-  below): the one a Home row asked for, else the first.
+  `Inbox { filter }` in the browser, its address and its filters as they
+  were (`browser.md`, 2.3). It draws one card at a time: no level-1
+  "Inbox", no sections, no filter menus and no "+ New chat". Updates
+  leave the browser's page and no page replaces them; `Seen` marking
+  stays as it is. Its unfiltered address, `/`, works across projects,
+  the project's name before the owner on the mono line. One card is
+  shown of the open ones (*What the client keeps,* below): the one a Home
+  row asked for, else the first; until the inbox is delivered, the column
+  is empty, so that "Nothing needs you." never flashes.
   - *The column,* as the mock's `.col.narrow.flow`: 600 wide, centred,
     gap 32.
   - *Its head,* `.flow-head`: `.dots`, a figure named "2 of 3", a pip per
@@ -1400,10 +1404,12 @@ keeps (`../protocol/configuration.md`, section 2).
   - *The toast,* one at a time, 4.5 seconds, with one optional act; drawn
     with the status role at the end of the frame, in the mock's `.toast`:
     fixed, centred, bottom 28 (88 on a phone), an ink ground.
-  - *The rail's count:* one standing `inbox` watch once signed in, its
-    needs' rows counted by the open project, less those answered; "N+"
-    where its document is cut. A card marked later still counts. `me`'s
-    `needs_total` stays the terminal's navigation's.
+  - *The rail's count:* one standing `inbox` watch while a project's
+    frame shows, the rail being what reads it, so that a client on no
+    project's page asks nothing more; its needs' rows counted by the open
+    project, less those answered; "N+" where its document is cut, and no
+    count before it is delivered. A card marked later still counts. `me`'s
+    `needs_total` stays the banner's navigation's.
 - **Settings:** `Settings { project }`, at `/projects/<project>/settings`,
   has the level-1 heading "Settings for PROJECT"; a list of links, "Forges",
   "Accounts" and "Adopt a repository", each with the marks 5.3 gives it;

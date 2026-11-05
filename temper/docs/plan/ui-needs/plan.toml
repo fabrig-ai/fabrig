@@ -40,3 +40,49 @@ id = 2
 story = "An answer is held for five seconds, and Undo takes it back, with no page drawing it yet"
 parts = ["needs-state"]
 walk = false
+
+[[part]]
+id = "needs-frame"
+title = "The rail's count and link, the toast, and the journey they stale"
+mode = "direct"
+needs = ["needs-state"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "needs-page"
+title = "Needs you, the browser's page, every kind and state"
+mode = "direct"
+needs = ["question-words", "needs-frame"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "home-card"
+title = "Home's card, lines, answered lines, headline words and phone block"
+mode = "direct"
+needs = ["needs-page"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "needs-proof"
+title = "Rendered against the mock, one live walk, the status closed"
+mode = "direct"
+needs = ["home-card", "needs-frame", "stock-words"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "A person sees what needs them in a project's frame, and a toast with its act"
+parts = ["needs-frame"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A person answers one card at a time, by a choice, a reply or Later"
+parts = ["needs-page"]
+walk = false
+
+[[slice]]
+id = 5
+story = "A person answers on Home, in place, and the goal hears the words of the choice"
+parts = ["home-card", "needs-proof"]
+walk = false
