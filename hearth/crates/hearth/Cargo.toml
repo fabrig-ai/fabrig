@@ -15,7 +15,7 @@ hearth-service-builder.workspace = true
 hearth-client-protocol-records.workspace = true
 hearth-protocol-git.workspace = true
 [dev-dependencies]
-hearth-builder-world = { path = "../../tests/builder" }
+hearth-test-repository.workspace = true
 skein-scratch.workspace = true
 [lints.rust] # ring: tools/lints/design.md, 2.4
 unsafe_code = "deny"
