@@ -130,8 +130,8 @@ fn public_sign_in_admission_respects_listener_and_account_bounds() {
     profile.listeners = 0;
     let address = core::net::SocketAddr::new(core::net::IpAddr::V4(core::net::Ipv4Addr::LOCALHOST), 31000);
     let mut configured = List::with_capacity(2);
-    assert!(configured.push(refresh_account(0, address)).is_ok());
-    assert!(configured.push(refresh_account(1, address)).is_ok());
+    configured.push(refresh_account(0, address)).expect("configured account room");
+    configured.push(refresh_account(1, address)).expect("configured account room");
     let mut component = Component::new(configured, &profile, crypto(17)).expect("component");
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile };
     let mut above = Queue::uncapped();
@@ -141,8 +141,8 @@ fn public_sign_in_admission_respects_listener_and_account_bounds() {
     assert!(below.is_empty());
     env.limits.listeners = 1;
     let mut configured = List::with_capacity(2);
-    assert!(configured.push(refresh_account(0, address)).is_ok());
-    assert!(configured.push(refresh_account(1, address)).is_ok());
+    configured.push(refresh_account(0, address)).expect("configured account room");
+    configured.push(refresh_account(1, address)).expect("configured account room");
     component = Component::new(configured, &env.limits, crypto(17)).expect("one listener component");
     component.down(&env, Request::SignIn { account: 0, subject: None }, &mut above, &mut below, &mut Queue::uncapped());
     assert!(above.is_empty());

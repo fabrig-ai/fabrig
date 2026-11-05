@@ -18,7 +18,7 @@ impl Owner {
     pub(super) fn configured(accounts: impl IntoIterator<Item = Account>, profile: &Limits) -> Owner {
         let mut configured = List::with_capacity(profile.accounts);
         for account in accounts {
-            configured.push(account).ok().expect("configured account room");
+            configured.push(account).expect("configured account room");
         }
         let mut owner = Owner::new();
         owner.component = Component::new(configured, profile, crypto(17)).expect("valid registrations");

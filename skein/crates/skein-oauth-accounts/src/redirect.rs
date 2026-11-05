@@ -6,7 +6,6 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Secret, Writer, bytes};
 use skein_oauth::{ClientLimits, Redirect};
 
-#[expect(clippy::manual_map, reason = "step code uses exhaustive matches without closures")]
 pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits) -> Option<Redirect> {
     if uri.len() > usize::try_from(limits.url_bytes).ok()? || uri.contains(&b'#') {
         return None;
@@ -33,19 +32,16 @@ pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits) -> Opt
     field(query.get(start..)?, limits, &mut fields)?;
     Some(Redirect {
         uri: bytes::copy_of(registered),
-        state: Secret::new(fields.state?),
-        code: match fields.code {
-            Some(code) => Some(Secret::new(code)),
-            None => None,
-        },
+        state: fields.state?,
+        code: fields.code,
         error: fields.error,
         client_id: fields.client_id,
     })
 }
 
 struct Fields {
-    state: Option<Box<[u8]>>,
-    code: Option<Box<[u8]>>,
+    state: Option<Secret>,
+    code: Option<Secret>,
     error: Option<Box<[u8]>>,
     client_id: Option<Box<[u8]>>,
 }
@@ -59,13 +55,13 @@ fn field(pair: &[u8], limits: &ClientLimits, fields: &mut Fields) -> Option<()> 
             if fields.state.is_some() {
                 return None;
             }
-            fields.state = Some(decode(value, limits.state_bytes)?);
+            fields.state = Some(Secret::new(decode(value, limits.state_bytes)?));
         }
         b"code" => {
             if fields.code.is_some() {
                 return None;
             }
-            fields.code = Some(decode(value, limits.code_bytes)?);
+            fields.code = Some(Secret::new(decode(value, limits.code_bytes)?));
         }
         b"client_id" => {
             if fields.client_id.is_some() {

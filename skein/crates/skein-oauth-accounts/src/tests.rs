@@ -88,8 +88,8 @@ fn setup() -> (Component, Env<Limits>, Queue<Event>) {
 #[test]
 fn check_accepts_what_new_accepts() {
     let mut accounts = List::with_capacity(2);
-    assert!(accounts.push(Account::HandedIn).is_ok());
-    assert!(accounts.push(Account::HandedIn).is_ok());
+    accounts.push(Account::HandedIn).expect("configured account room");
+    accounts.push(Account::HandedIn).expect("configured account room");
     assert_eq!(Component::check(accounts, &limits()), Ok(()));
 }
 
@@ -97,12 +97,12 @@ fn check_accepts_what_new_accepts() {
 fn check_refuses_more_accounts_than_the_bound() {
     let mut accounts = List::with_capacity(3);
     for _ in 0..3_u32 {
-        assert!(accounts.push(Account::HandedIn).is_ok());
+        accounts.push(Account::HandedIn).expect("configured account room");
     }
     assert_eq!(Component::check(accounts, &limits()), Err(Unusable::Accounts { bound: 2 }));
     let mut accounts = List::with_capacity(3);
     for _ in 0..3_u32 {
-        assert!(accounts.push(Account::HandedIn).is_ok());
+        accounts.push(Account::HandedIn).expect("configured account room");
     }
     assert_eq!(Component::new(accounts, &limits(), crypto(1)).err(), Some(Unusable::Accounts { bound: 2 }));
 }
@@ -139,7 +139,7 @@ fn assert_granted(event: Option<Event>, generation: u64, seconds: u64) {
         event,
         Event::Granted {
             account: 0,
-            token: bytes::copy_of(b"access"),
+            token: skein_lib::Secret::new(bytes::copy_of(b"access")),
             generation,
             valid: Duration::from_secs(seconds),
         },
@@ -346,7 +346,7 @@ pub(crate) fn refresh_account(account: u32, address: core::net::SocketAddr) -> A
 fn a_refresh_refused_as_sign_in_again_drops_an_owner_kept_record() {
     let profile = limits();
     let mut configured = List::with_capacity(1);
-    assert!(configured.push(refresh_account(0, ([127, 0, 0, 1], 31000).into())).is_ok());
+    configured.push(refresh_account(0, ([127, 0, 0, 1], 31000).into())).expect("configured account room");
     let mut component = Component::new(configured, &profile, crypto(1)).expect("owner-kept account");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile };
     let mut above = Queue::uncapped();
@@ -530,7 +530,7 @@ fn an_owner_record_without_an_issued_id_is_held_as_none() {
         Account::HandedIn => unreachable!("refresh fixture"),
     }
     let mut configured = List::with_capacity(1);
-    assert!(configured.push(account).is_ok());
+    configured.push(account).expect("configured account room");
     let mut component = Component::new(configured, &profile, crypto(1)).expect("issued registration");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile };
     let mut above = Queue::uncapped();

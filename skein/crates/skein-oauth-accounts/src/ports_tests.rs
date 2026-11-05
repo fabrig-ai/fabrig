@@ -47,7 +47,7 @@ fn fixed_zero() -> Account {
 }
 fn new_refuses(account: Account) -> Option<Unusable> {
     let mut configured = List::with_capacity(1);
-    configured.push(account).ok().expect("one account");
+    configured.push(account).expect("one account");
     Component::new(configured, &limits(), crypto(17)).err()
 }
 fn add_refuses(account: Account) -> Option<Unusable> {
@@ -306,7 +306,7 @@ fn restart_owner(accounts: u32, varying_port: bool, listeners: u32) -> Owner {
     let mut configured = List::with_capacity(accounts);
     for number in 0..accounts {
         let account = refresh_account(number, ADDRESS);
-        configured.push(if varying_port { varying(account, PREFERRED) } else { account }).ok().expect("account room");
+        configured.push(if varying_port { varying(account, PREFERRED) } else { account }).expect("account room");
     }
     Owner::configured(configured.into_boxed(), &profile)
 }

@@ -507,7 +507,7 @@ impl Client {
                 accounts::Event::Granted { generation, token, valid, .. } => {
                     self.contracts.granted(generation);
                     assert!(valid > Duration::ZERO);
-                    assert_eq!(token.as_ref(), if generation == 0 { b"old" } else { b"new" });
+                    assert_eq!(token.expose(), if generation == 0 { b"old" } else { b"new" });
                     self.facts.push(Fact::Granted(generation));
                     if generation == 0 && matches!(self.story, Story::Rejected | Story::Repeated) && !self.rejected {
                         self.rejected = true;
