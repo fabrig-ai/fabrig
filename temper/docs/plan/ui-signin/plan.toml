@@ -3,3 +3,22 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-signin/inputs/request.md", "temper/crates/temper-fake/src/oauth.rs", "temper/crates/temper/tests/fake_backends/walk/sign_in.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# Two tasks, in order: the peer's count in skein, then the cap, the line and the browser's proof in temper. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "peer-rejected"
+title = "The OAuth peer counts the connections it turns away at its cap"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth.md, 5"
+
+[[slice]]
+id = 1
+story = "A connection past the OAuth peer's cap is turned away and counted, with no records kept"
+parts = ["peer-rejected"]
+walk = false
