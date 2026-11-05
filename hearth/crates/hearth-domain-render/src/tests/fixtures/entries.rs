@@ -138,7 +138,7 @@ pub fn peers_with_absent() -> super::Roots {
         Some(super::map(&[
             (b"a", Some(crate::evaluate::Value::Int(1))),
             (b"absent", None),
-            (b"b", Some(crate::evaluate::Value::Int(RANGE_COUNT))),
+            (b"b", Some(crate::evaluate::Value::Int(ENTRY_RANGE_COUNT))),
         ])),
     )]);
     roots
@@ -193,8 +193,8 @@ pub fn range_roots() -> super::Roots {
     roots.settings = super::map(&[(
         b"range",
         Some(super::map(&[
-            (b"base", Some(crate::evaluate::Value::Int(RANGE_BASE))),
-            (b"count", Some(crate::evaluate::Value::Int(RANGE_COUNT))),
+            (b"base", Some(crate::evaluate::Value::Int(ENTRY_RANGE_BASE))),
+            (b"count", Some(crate::evaluate::Value::Int(ENTRY_RANGE_COUNT))),
         ])),
     )]);
     roots
@@ -207,7 +207,7 @@ pub fn range_field(count: Literal) -> Field {
             fields: Box::new([
                 field(
                     Name::Base,
-                    Literal::Int(crate::revision::declaration::Number { at: FIELD_AT, value: RANGE_BASE }),
+                    Literal::Int(crate::revision::declaration::Number { at: FIELD_AT, value: ENTRY_RANGE_BASE }),
                 ),
                 field(Name::Count, count),
             ]),
@@ -297,8 +297,8 @@ pub fn absent_fields() -> Declaration {
     ])
 }
 
-pub const RANGE_BASE: i64 = 42;
-pub const RANGE_COUNT: i64 = 2;
+pub const ENTRY_RANGE_BASE: i64 = 42;
+pub const ENTRY_RANGE_COUNT: i64 = 2;
 // The entry (35), subordinate field (32 + 11), and nested fields (36 + 37).
 pub const RANGE_BYTES: u64 = 151;
 #[derive(Clone, Copy)]
@@ -309,7 +309,7 @@ pub enum RangeSource {
 fn range_budget(source: RangeSource, left: u64) -> ExpansionBudget {
     let field = match source {
         RangeSource::Literal => {
-            range_field(Literal::Int(crate::revision::declaration::Number { at: FIELD_AT, value: RANGE_COUNT }))
+            range_field(Literal::Int(crate::revision::declaration::Number { at: FIELD_AT, value: ENTRY_RANGE_COUNT }))
         }
         RangeSource::Typed => field(Name::Subordinate, Literal::Typed(setting_tag(b"range"))),
     };

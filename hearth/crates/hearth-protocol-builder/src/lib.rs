@@ -326,8 +326,8 @@ pub fn down(
                         below,
                     );
                     let mut machine = hunks::Diff::new(&env.limits.git);
-                    let mut events = Queue::with_capacity(1);
-                    let mut requests = Queue::with_capacity(1);
+                    let mut events = Queue::uncapped();
+                    let mut requests = Queue::uncapped();
                     hunks::down(
                         &mut machine,
                         &Env { now: env.now, wall: env.wall, limits: env.limits.git },
@@ -674,8 +674,8 @@ fn finish(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, 
                     rev_parse::decode(stdout.as_slice(), child.exit.expect("exit observed"))
                 {
                     let mut machine = listing::Listing::new(&env.limits.git);
-                    let mut events = Queue::with_capacity(1);
-                    let mut requests = Queue::with_capacity(1);
+                    let mut events = Queue::uncapped();
+                    let mut requests = Queue::uncapped();
                     let git_env = Env { now: env.now, wall: env.wall, limits: env.limits.git };
                     listing::down(&mut machine, &git_env, listing::Request::List, &mut events, &mut requests);
                     protocol.spawn(

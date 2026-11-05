@@ -79,7 +79,7 @@ pub struct Script {
 
 use crate::form::{
     json::{digest, field},
-    text::Lines,
+    text::{Lines, octal},
 };
 use skein_json::writer::Encoder;
 impl Action {
@@ -120,7 +120,7 @@ impl Line {
         optional(json, b"group", self.group.as_deref());
         if let Some(mode) = self.mode {
             json.key(b"mode");
-            json.string(&super::octal(mode));
+            json.string(&octal(mode));
         }
         optional(json, b"owner", self.owner.as_deref());
         field(json, b"type", self.kind.name());

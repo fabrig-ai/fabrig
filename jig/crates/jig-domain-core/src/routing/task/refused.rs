@@ -2,7 +2,7 @@
 //! (jig/docs/design/domain/engine.md, 4.4).
 
 use crate::{
-    Ask, CallPart, Core, Limits, Now, PersonProposalRoute, PersonTaskRoute, Request, RoutedCall,
+    Ask, CallPart, Core, Limits, LinkNow, Now, PersonProposalRoute, PersonTaskRoute, Request, RoutedCall,
     routing::{
         children::append_people,
         flight::{Flight, Internal},
@@ -75,7 +75,7 @@ pub(crate) fn refused(
         }
         return;
     }
-    out.push(Request::Now(Box::new(Now::RefusedPayload { request: token, problem })));
+    out.push(Request::Now(Box::new(Now::Link(LinkNow::RefusedPayload { request: token, problem }))));
 }
 
 fn refuse_flight(
@@ -132,7 +132,7 @@ fn refuse_flight(
             }
         }
         Flight::Internal(Internal::Admission) => {
-            out.push(Request::Now(Box::new(Now::RefusedPayload { request: token, problem })));
+            out.push(Request::Now(Box::new(Now::Link(LinkNow::RefusedPayload { request: token, problem }))));
         }
         Flight::Party { .. }
         | Flight::PartyPart { .. }

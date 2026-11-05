@@ -313,27 +313,6 @@ impl Service {
         self.local.chat_name()
     }
 
-    /// Words for an entrance refusal, from the sent charter and startup declarations.
-    #[must_use]
-    pub fn effort_notice(&self, notice: &local::Notice) -> Option<Box<[u8]>> {
-        match notice {
-            local::Notice::Failure(local::Failure::Refused(host::Refusal::Invalid(host::RunInvalid::Effort))) => {
-                Some(protocol::choice_text(
-                    &self.local.refused_effort(),
-                    self.local.chat_name(),
-                    self.limits.local.show_bytes,
-                ))
-            }
-            local::Notice::Failure(_)
-            | local::Notice::Warning(_)
-            | local::Notice::Waiting
-            | local::Notice::Checking(_)
-            | local::Notice::NotDelivered { .. }
-            | local::Notice::Choice(_)
-            | local::Notice::ChatRefused { .. } => None,
-        }
-    }
-
     /// Feed one standard-input byte to the bounded line translator.
     pub fn feed(&mut self, byte: u8) {
         self.terminal.feed(byte, &mut self.terminal_events);
@@ -847,11 +826,6 @@ impl Service {
             }
             local::Request::Input { reading } => self.io.input(reading),
             local::Request::Notice { notice } => self.notice(now, notice),
-            local::Request::Show { text } => {
-                if !self.local.headless() {
-                    self.terminal.show(text, &mut self.terminal_events);
-                }
-            }
             local::Request::Load => {
                 self.lower_agent = None;
                 self.capture_activation = None;
@@ -938,6 +912,11 @@ impl Service {
         self.io.store_request(protocol::StoreRequest::SaveTurn { number, read, opens_window, turn });
     }
 
+    #[cfg(test)]
+    pub(crate) fn render_notice(&mut self, notice: local::Notice) {
+        self.notice(Time::ZERO, notice);
+    }
+
     fn notice(&mut self, now: Time, notice: local::Notice) {
         if self.line_mode == Some(false) && notice == local::Notice::Waiting {
             self.terminal.show(b"> ".as_slice().into(), &mut self.terminal_events);
@@ -956,6 +935,8 @@ impl Service {
                 },
             },
             local::Notice::Failure(_)
+            | local::Notice::Turn { .. }
+            | local::Notice::Answer(_)
             | local::Notice::Warning(_)
             | local::Notice::Waiting
             | local::Notice::Checking(_)
@@ -964,15 +945,7 @@ impl Service {
             | local::Notice::ChatRefused { .. } => false,
         };
         if !handed && !self.local.headless() {
-            match self.effort_notice(&notice) {
-                Some(text) => self.terminal.show(text, &mut self.terminal_events),
-                None => self.terminal.notice(
-                    &notice,
-                    self.local.chat_name(),
-                    self.local.models(),
-                    &mut self.terminal_events,
-                ),
-            }
+            self.terminal.notice(&notice, self.local.chat_name(), self.local.models(), &mut self.terminal_events);
         }
         match notice {
             local::Notice::Warning(local::Warning::ForcedExit { exit, forced }) => {
@@ -980,7 +953,9 @@ impl Service {
                 self.shell.push(local::Request::Notice { notice });
             }
             local::Notice::Failure(_) => self.shell.push(local::Request::Notice { notice }),
-            local::Notice::Waiting
+            local::Notice::Turn { .. }
+            | local::Notice::Answer(_)
+            | local::Notice::Waiting
             | local::Notice::Checking(_)
             | local::Notice::NotDelivered { .. }
             | local::Notice::Choice(_)

@@ -85,12 +85,12 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 37_684, 362_451),
-        (1, true, 35_594, 364_541),
-        (2, false, 33_218, 366_917),
-        (3, false, 37_368, 362_767),
-        (4, false, 30_977, 369_158),
-        (6, false, 31_808, 368_327),
+        (1, false, 37_821, 362_314),
+        (1, true, 35_731, 364_404),
+        (2, false, 33_355, 366_780),
+        (3, false, 37_505, 362_630),
+        (4, false, 31_114, 369_021),
+        (6, false, 31_945, 368_190),
     ] {
         let assignment = assignment(number, open, 14_592);
         let mut charter = temper_engine_smith::charter(&assignment);
@@ -145,14 +145,14 @@ fn the_stock_brief_with_a_whole_spec_fits_every_charter_whole() {
     use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
     const FRAMING: u32 = 64 * (16 + 7);
     // Three model declarations leave this margin beyond the framed brief.
-    const MARGIN: u32 = 704;
+    const MARGIN: u32 = 567;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
     let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
     let largest = temper_engine_smith::charter(&assignment(1, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 362_451);
+    assert_eq!(room, 362_314);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));

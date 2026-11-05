@@ -398,18 +398,11 @@ fn route_now(
     now: core::Now,
     work: &mut Queue<Work>,
 ) {
-    let now = match jig_domain_hub_link::now(now) {
-        Ok(jig_domain_hub_link::Event::AnswerPayload { run, attempt, payload }) => {
-            crate::link::answer(domain, run, attempt, payload, work);
-            return;
-        }
-        Ok(event) => {
-            crate::link::route(domain, env.now, event, work);
-            return;
-        }
-        Err(value) => value,
-    };
     match now {
+        core::Now::Link(core::LinkNow::AnswerPayload { run, attempt, payload }) => {
+            crate::link::answer(domain, run, attempt, payload, work);
+        }
+        core::Now::Link(value) => crate::link::route(domain, env.now, jig_domain_hub_link::now(value), work),
         core::Now::RelayBusy { channel, run, attempt, call } => {
             domain.hub_link.forget_call(&call);
             let delivery = crate::link::down(
@@ -442,7 +435,8 @@ fn route_now(
             )));
         }
         core::Now::CompleteBrief { brief, order } => {
-            work.push(Work::Core(domain.hub_link.complete_brief(brief, order)));
+            domain.hub_link.keep_brief(brief.raw(), order);
+            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), ready: true }));
         }
         core::Now::WorkspaceRequest { task, attempt, context } => {
             prepare_workspace(domain, env, work, task, attempt, &context);
@@ -492,13 +486,7 @@ fn route_now(
             assert!(domain.start_stopped(), "a refused restore has stopped the core");
         }
 
-        other @ (core::Now::Relayed { .. }
-        | core::Now::DropPayload { .. }
-        | core::Now::TurnPayload { .. }
-        | core::Now::AnswerPayload { .. }
-        | core::Now::AcceptedTurn { .. }
-        | core::Now::RefusedPayload { .. }
-        | core::Now::SeenConversation { .. }
+        other @ (core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }
         | core::Now::EndedPersonTask { .. }
         | core::Now::EndedTask { .. }

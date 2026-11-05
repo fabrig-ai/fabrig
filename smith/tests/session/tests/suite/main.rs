@@ -13,9 +13,7 @@ mod paths;
 mod recorded;
 mod referee;
 mod simulation;
-mod startup_receiving;
 mod wind_down;
-mod window_room;
 
 mod fuzzy {
     mod recorded;

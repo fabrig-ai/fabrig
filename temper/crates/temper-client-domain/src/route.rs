@@ -174,6 +174,7 @@ pub(crate) fn route_forge(
                     | Address::Task { .. }
                     | Address::Home { .. }
                     | Address::Settings { .. }
+                    | Address::Configure { .. }
                     | Address::Adopt { .. } => continue,
                 };
                 out.push(Request::Show { address, replace: true });

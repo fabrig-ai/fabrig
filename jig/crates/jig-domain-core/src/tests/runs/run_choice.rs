@@ -1122,7 +1122,7 @@ fn a_stale_grants_refusal_drops_its_payload_without_rechecking() {
     let mut out = out;
     assert_eq!(out.len(), 1);
     let Some(Request::Now(now)) = out.pop() else { panic!("drop the stale payload") };
-    let Now::DropPayload { payload } = *now else { panic!("drop the stale payload") };
+    let Now::Link(LinkNow::DropPayload { payload }) = *now else { panic!("drop the stale payload") };
     assert_eq!(payload, Token::new(99));
     assert!(out.is_empty());
 }

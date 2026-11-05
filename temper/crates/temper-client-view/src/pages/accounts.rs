@@ -698,6 +698,46 @@ pub(crate) fn first_usable_short(root: &Domain, w: &Words) -> Option<Box<[u8]>> 
 pub(crate) fn first_usable_kind(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     first_usable(root, w, false)
 }
+/// Home's first usable source and the kinds of accounts the person holds (3.5, More accounts).
+pub(crate) fn home_accounts(root: &Domain) -> (bool, crate::words::Word) {
+    use crate::words::Word;
+    let mut first_key = None;
+    let mut chatgpt = false;
+    let mut claude = false;
+    let mut other = false;
+    if let Some(document) = accounts::document(root.client()) {
+        for row in &document.accounts {
+            if rows::playground(root, row.provider) {
+                continue;
+            }
+            for source in &row.sources {
+                if !source.usable {
+                    continue;
+                }
+                if first_key.is_none() {
+                    first_key = Some(source.kind == c::AccountKind::Key);
+                }
+                let provider = provider_name(row.provider_name.as_ref()).unwrap_or(b"");
+                match source.kind {
+                    c::AccountKind::SignIn if row.plan && provider == b"openai" => chatgpt = true,
+                    c::AccountKind::Program if provider == b"anthropic" => claude = true,
+                    c::AccountKind::SignIn | c::AccountKind::Program | c::AccountKind::Key | c::AccountKind::None => {
+                        other = true;
+                    }
+                }
+            }
+        }
+    }
+    let more = if chatgpt && !claude && !other {
+        Word::HomeAddClaude
+    } else if claude && !chatgpt && !other {
+        Word::HomeAddChatGpt
+    } else {
+        Word::HomeAddAccount
+    };
+    (first_key.unwrap_or(false), more)
+}
+
 fn first_usable(root: &Domain, w: &Words, with_display: bool) -> Option<Box<[u8]>> {
     let document = accounts::document(root.client())?;
     for row in &document.accounts {

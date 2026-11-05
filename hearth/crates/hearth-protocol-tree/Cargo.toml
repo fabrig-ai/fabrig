@@ -10,5 +10,8 @@ publish.workspace = true
 skein-lib.workspace = true
 hearth-lib.workspace = true
 
+[dev-dependencies]
+hearth-test-fixtures.workspace = true
+
 [lints]
 workspace = true

@@ -1,5 +1,5 @@
 //! Secret names and places (hearth/docs/design/protocol/format.md, 9.4).
-use crate::form::text::Lines;
+use crate::form::text::{Lines, octal};
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Secrets {
@@ -137,11 +137,7 @@ fn owned(lines: &mut Lines, mode: u16, owner: &[u8], group: &[u8]) {
 }
 fn json_place(json: &mut skein_json::writer::Encoder, path: &[u8], mode: u16, owner: &[u8]) {
     json.key(b"mode");
-    let mut digits = [b'0'; 4];
-    for (digit, shift) in digits.iter_mut().zip([9_u32, 6, 3, 0]) {
-        *digit = b'0'.saturating_add(u8::try_from((mode >> shift) & 7).expect("octal digit"));
-    }
-    json.string(&digits);
+    json.string(&octal(mode));
     json.key(b"owner");
     json.string(owner);
     json.key(b"path");

@@ -658,5 +658,4 @@ impl core::fmt::Debug for Connection {
 }
 
 #[cfg(test)]
-#[path = "connection/tests/transport.rs"]
 mod tests;

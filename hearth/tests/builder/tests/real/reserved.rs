@@ -73,5 +73,4 @@ fn reserved_secrets_and_live_entries_exit_2() {
     }
 }
 
-#[path = "reserved/hearth.rs"]
 mod hearth;

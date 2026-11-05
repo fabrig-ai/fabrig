@@ -6,12 +6,11 @@ use smith_host_domain::{ModelFault, RunFailure};
 
 impl Local {
     pub(super) fn run_notice(&self, notice: &domain::Notice) -> Option<Box<[u8]>> {
-        if let Some(text) = self.service.effort_notice(notice) {
-            return Some(text);
-        }
         let (failure, detail) = match notice {
             domain::Notice::Failure(domain::Failure::Run { failure, detail }) => (failure, detail),
             domain::Notice::Failure(_)
+            | domain::Notice::Turn { .. }
+            | domain::Notice::Answer(_)
             | domain::Notice::Warning(_)
             | domain::Notice::Waiting
             | domain::Notice::Checking(_)

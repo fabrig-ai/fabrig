@@ -50,7 +50,7 @@ pub(super) fn reply() -> ReplyTo {
 
 pub(super) fn send(core: &mut Core, limits: &Limits, event: tasks::Event) {
     let _out = crate::step(core, &environment(limits), Event::Tasks(event));
-    let _header = core.commit_header();
+    let _header = core.counters.commit_header();
     settle(core, limits);
     core.reclaim();
 }
@@ -137,7 +137,7 @@ pub(super) fn visibility(core: &mut Core, limits: &Limits, public: bool) {
         panic!("visibility decision");
     };
     assert_eq!(outcome, people::Outcome::VisibilitySet { project: 1, public });
-    let _header = core.commit_header();
+    let _header = core.counters.commit_header();
     settle(core, limits);
 }
 
@@ -188,7 +188,7 @@ pub(super) fn amend_at(
     let mut env = environment(limits);
     env.wall = wall;
     let _out = crate::step(core, &env, Event::Tasks(event));
-    let _header = core.commit_header();
+    let _header = core.counters.commit_header();
     settle(core, limits);
     core.reclaim();
 }
@@ -220,7 +220,7 @@ pub(super) fn deleting(core: &mut Core, limits: &Limits) {
         None,
     )
     .unwrap();
-    let _header = core.commit_header();
+    let _header = core.counters.commit_header();
     settle(core, limits);
 }
 
@@ -238,7 +238,7 @@ fn settle(core: &mut Core, limits: &Limits) {
         let mut out = crate::finish_decision(core, &environment(limits));
         if out.is_empty() {
             if core.counters.dirty() {
-                let _header = core.commit_header();
+                let _header = core.counters.commit_header();
             }
             return;
         }
@@ -253,7 +253,7 @@ fn settle(core: &mut Core, limits: &Limits) {
                 );
             }
         }
-        let _header = core.commit_header();
+        let _header = core.counters.commit_header();
     }
     panic!("fixture decisions did not finish");
 }

@@ -219,26 +219,62 @@ pub fn decode(name: &[u8], arguments: &[u8]) -> agent::Decoded {
 }
 
 fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
-    let client = skein_llm_world::limits();
-    let limits = smith_protocol_llm::fixture::small(
-        client,
-        smith_protocol_llm::Stated::from_tools(&smith_tools_world::Settings::calm(0).tools, client.input)
-            .expect("fixture numbers"),
-    );
-    match smith_protocol_llm::decode(
-        name,
-        arguments,
-        Grants { inspect: true, modify: true, shell: true },
-        &[],
-        smith_domain::llm::Asker::Main,
-        &limits,
-    ) {
-        smith_domain::llm::Decoded::Owned { call } => Ok(call),
-        smith_domain::llm::Decoded::Invalid { problem } => Err(problem),
-        smith_domain::llm::Decoded::Builtin { .. } | smith_domain::llm::Decoded::Served { .. } => {
-            unreachable!("the finite fixture offers only owned tools")
-        }
+    use agent::Problem;
+    use skein_json::Kind;
+    use smith_tools_world::calls;
+    if !TOOLS.iter().any(|(tool, _, _)| *tool == name) {
+        return Err(Problem::UnknownTool);
     }
+    let client = skein_llm_world::limits();
+    let bytes = u32::try_from(arguments.len()).unwrap_or(u32::MAX).min(client.input);
+    let limits = skein_llm::DocumentLimits { bytes, strings: bytes, tokens: bytes, depth: client.depth };
+    let json = skein_llm::Json::from_bytes(arguments, &limits).map_err(|error| match error {
+        skein_llm::DocumentError::TooLarge { .. } => Problem::TooLarge,
+        skein_llm::DocumentError::Malformed
+        | skein_llm::DocumentError::Missing
+        | skein_llm::DocumentError::WrongType => Problem::NotAnObject,
+    })?;
+    let document = json.document();
+    if document.token(0).map(|token| token.kind) != Some(Kind::ObjectStart) {
+        return Err(Problem::NotAnObject);
+    }
+    let member =
+        |start, field: &[u8]| document.member(start, field).ok_or_else(|| Problem::Missing { field: field.into() });
+    let string = |start, field: &[u8]| {
+        let token = document.token(member(start, field)?).expect("admitted member");
+        if token.kind != Kind::String {
+            return Err(Problem::WrongType { field: field.into() });
+        }
+        Ok(document.text(token).expect("admitted string"))
+    };
+    Ok(match name {
+        b"read" => calls::read(string(0, b"path")?),
+        b"list" => calls::list(string(0, b"path")?),
+        b"search" => calls::search(
+            if document.member(0, b"path").is_some() { string(0, b"path")? } else { b"." },
+            string(0, b"pattern")?,
+            None,
+        ),
+        b"write" => calls::write(string(0, b"path")?, string(0, b"content")?),
+        b"shell" => calls::shell(string(0, b"command")?, None),
+        b"edit" => {
+            let path = string(0, b"path")?;
+            let start = member(0, b"edits")?;
+            let mut edits = Vec::new();
+            let end = document.value_end(start).expect("admitted array");
+            for index in start + 1..end - 1 {
+                if document.token(index).expect("admitted token").kind == Kind::ObjectStart {
+                    let all = document
+                        .member(index, b"all")
+                        .and_then(|at| document.token(at))
+                        .is_some_and(|token| token.kind == Kind::True);
+                    edits.push((string(index, b"old")?, string(index, b"new")?, all));
+                }
+            }
+            calls::edits(path, &edits)
+        }
+        _ => unreachable!("the finite fixture offers six tools"),
+    })
 }
 
 /// The text the LLM reads for what came of a call, and whether it failed.
@@ -247,19 +283,14 @@ pub fn render(result: &agent::Returned) -> (Box<[u8]>, bool) {
     render_with_namespace(result, &Namespace::One)
 }
 
-fn render_with_namespace(result: &agent::Returned, namespace: &Namespace) -> (Box<[u8]>, bool) {
+/// Render a tool result in the conversation's fixed namespace.
+#[must_use]
+pub fn render_with_namespace(result: &agent::Returned, namespace: &Namespace) -> (Box<[u8]>, bool) {
     match result {
         agent::Returned::Text { text, error, replay: _ } => (text.clone(), *error),
         agent::Returned::Owned { outcome } => {
-            if matches!(
-                outcome,
-                Outcome::NotFound { .. }
-                    | Outcome::NotDirectory { .. }
-                    | Outcome::Outside { .. }
-                    | Outcome::ReadOnly { .. }
-            ) {
-                return smith_protocol_llm::render_outcome(outcome, namespace, 16_384)
-                    .expect("bounded path feedback from admitted tools");
+            if let Some(feedback) = path_feedback(outcome, namespace) {
+                return feedback;
             }
             let failed = !matches!(
                 outcome,
@@ -288,6 +319,55 @@ fn render_with_namespace(result: &agent::Returned, namespace: &Namespace) -> (Bo
         }
         agent::Returned::NotRun { why: agent::NotRun::Stopped } => {
             (b"not run: the answer stopped first".as_slice().into(), true)
+        }
+    }
+}
+
+/// The words `render_outcome` gives a path the tool refused, and that they're a failure.
+fn path_feedback(outcome: &Outcome, namespace: &Namespace) -> Option<(Box<[u8]>, bool)> {
+    use smith_domain_tools::Resolved;
+    let (prefix, path): (&[u8], _) = match outcome {
+        Outcome::NotFound { path } => (b"path not found: ", path),
+        Outcome::NotDirectory { path } => (b"path is not a directory: ", path),
+        Outcome::Outside { path } => (b"path is outside the workspace: ", path),
+        Outcome::ReadOnly { path } => (b"path is read-only: ", path),
+        _ => return None,
+    };
+    let (directory, path) = match path {
+        Resolved::Working { path } => match namespace {
+            Namespace::NoWorkspace | Namespace::One => (None, if path.is_empty() { b"." } else { path.as_ref() }),
+            Namespace::Several { working } => (Some(working.as_bytes()), path.as_ref()),
+        },
+        Resolved::Other { directory, path } => (Some(directory.as_bytes()), path.as_ref()),
+        Resolved::Outside { path } => (Some(b"".as_slice()), path.as_ref()),
+    };
+    let mut text = prefix.to_vec();
+    if let Some(directory) = directory {
+        text.push(b'/');
+        feedback_text(&mut text, directory);
+        if !directory.is_empty() && !path.is_empty() {
+            text.push(b'/');
+        }
+    }
+    feedback_text(&mut text, path);
+    Some((text.into(), true))
+}
+
+fn feedback_text(output: &mut Vec<u8>, text: &[u8]) {
+    for chunk in text.utf8_chunks() {
+        for scalar in chunk.valid().chars() {
+            let mut buffer = [0; 4];
+            let bytes = scalar.encode_utf8(&mut buffer).as_bytes();
+            if scalar.is_control() && scalar != '\n' && scalar != '\t' {
+                for byte in bytes {
+                    output.extend_from_slice(format!("\\x{byte:02x}").as_bytes());
+                }
+            } else {
+                output.extend_from_slice(bytes);
+            }
+        }
+        for byte in chunk.invalid() {
+            output.extend_from_slice(format!("\\x{byte:02x}").as_bytes());
         }
     }
 }

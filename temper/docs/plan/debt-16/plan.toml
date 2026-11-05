@@ -1,0 +1,117 @@
+draft = "debt-16"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-16/inputs/request.md", "temper/docs/plan/debt-16/inputs/debt13-review.md", "jig/docs/development/debt/D004-ops-root-jig-wiring.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "wall-due"
+title = "Env::wall_due goes for a plain comparison"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 9"
+
+[[part]]
+id = "core-small"
+title = "two unused Core headers and a mid-file test module go"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 5.4"
+
+[[slice]]
+id = 1
+story = "the review's small independent findings land"
+parts = ["wall-due", "core-small"]
+walk = false
+
+[[part]]
+id = "side-out"
+title = "a call's dialect isn't asked again: Side comes out of Waiting in drive_calls"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 7.1"
+
+[[part]]
+id = "own-exchange"
+title = "an own exchange goes where own clears, and its test stands on production"
+mode = "direct"
+needs = ["side-out"]
+design = "skein/docs/design/forge-connection.md, 7.1"
+
+[[part]]
+id = "test-layout"
+title = "the forge connection's tests lose their dialect mismatch and layout tricks"
+mode = "direct"
+needs = ["own-exchange"]
+design = "skein/docs/design/forge-connection.md, 7.1"
+
+[[slice]]
+id = 2
+story = "skein-forge-connection asks no dialect twice and holds no credential past its connection"
+parts = ["side-out", "own-exchange", "test-layout"]
+walk = false
+
+[[part]]
+id = "now-link"
+title = "the six link outputs nest in Now::Link"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 5"
+
+[[part]]
+id = "leaves-back"
+title = "no_workspace and complete_brief go back to the roots"
+mode = "direct"
+needs = ["now-link"]
+design = "jig/docs/design/domain/root.md, 14"
+
+[[part]]
+id = "charter-parts"
+title = "hosted takes a root's own parts, and the charter leaves the hub link"
+mode = "direct"
+needs = ["leaves-back"]
+design = "jig/docs/design/domain/hosts.md, 8"
+
+[[slice]]
+id = 3
+story = "the link's outputs and hand-over say what they carry, and helpers that don't pay go"
+parts = ["now-link", "leaves-back", "charter-parts"]
+walk = false
+
+[[part]]
+id = "temper-shared"
+title = "temper's consumers use jig's shared parts"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 5"
+
+[[part]]
+id = "job-refused"
+title = "the fixed answers to a job leave the root's template"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/hosts.md, 6.9"
+
+[[part]]
+id = "ops-protocol"
+title = "ops's delegate decoding and alert words move to its protocol layer"
+mode = "direct"
+needs = []
+design = "jig/docs/design/examples.md, 2"
+
+[[part]]
+id = "d004-rewrite"
+title = "D004 says what is left, and the status files follow"
+mode = "direct"
+needs = ["temper-shared", "job-refused", "ops-protocol", "charter-parts"]
+design = "jig/docs/design/domain/root.md, 14"
+
+[[slice]]
+id = 4
+story = "D004's parts that need no decision land, and the item stays open for the test root"
+parts = ["temper-shared", "job-refused", "ops-protocol", "d004-rewrite"]
+walk = false

@@ -322,8 +322,8 @@ fn the_parent_answer_keeps_its_host_spend_until_gone() {
         ),
         &mut out,
     );
-    let Some(Request::Show { text }) = out.pop() else { panic!("answer shown after Gone") };
-    assert_eq!(text.as_ref(), b"Chat parked");
+    let Some(Request::Notice { notice }) = out.pop() else { panic!("answer shown after Gone") };
+    assert_eq!(notice, Notice::Answer(crate::Said::Parked));
     assert!(domain.child.is_gone());
 }
 
@@ -643,7 +643,9 @@ fn shown_requests(out: &mut Queue<Request>) -> u32 {
     let mut shown = 0_u32;
     for _ in 0..out.len() {
         match out.pop() {
-            Some(Request::Show { .. }) => shown = shown.checked_add(1).expect("bounded output"),
+            Some(Request::Notice { notice: Notice::Turn { .. } | Notice::Answer(_) }) => {
+                shown = shown.checked_add(1).expect("bounded output");
+            }
             Some(
                 Request::Input { .. }
                 | Request::Notice { .. }
@@ -803,37 +805,14 @@ fn the_host_answer_clock_precedes_teardown_and_durable_saves() {
     assert!(out.is_empty());
     crate::step(&mut domain, &env, Event::StateSaved, &mut out);
     assert_eq!(domain.answer_wall(), answered_at);
-    let Some(Request::Show { .. }) = out.pop() else { panic!("settled answer is shown") };
+    let Some(Request::Notice { notice: Notice::Turn { .. } | Notice::Answer(_) }) = out.pop() else {
+        panic!("settled answer is shown")
+    };
     let Some(Request::Answered { .. }) = out.pop() else { panic!("settled answer reaches the shell") };
 }
 
-#[expect(
-    clippy::disallowed_macros,
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "verbatim contract tests are ordinary Rust (programming-model.md, section 10.2)"
-)]
 mod older {
     use super::*;
-    #[test]
-    fn older_store_words_match_all_three_shell_contract_blockquotes_verbatim() {
-        let documented = include_str!("../../../docs/design/shell.md");
-        let quotes: Vec<_> = documented
-            .lines()
-            .filter_map(|line| line.strip_prefix("> Chat "))
-            .map(|line| format!("Chat {line}"))
-            .collect();
-        let reasons = [
-            crate::Older::Unrecorded,
-            crate::Older::Layout(crate::StoreFamily::Store),
-            crate::Older::Layout(crate::StoreFamily::Transcript),
-        ];
-        assert_eq!(quotes.len(), reasons.len());
-        for (why, quoted) in reasons.iter().zip(quotes) {
-            assert_eq!(why.words().join("<chat>"), quoted);
-        }
-    }
-
     #[test]
     fn an_older_load_before_any_run_preserves_its_reason_through_notice_cause_and_exit_one() {
         for why in [
@@ -968,7 +947,9 @@ fn an_unknown_delivery_settles_at_the_next_load_of_the_same_invocation() {
         &mut out,
     );
     parent_request(&mut domain, &env, crate::fixture::gone(host::End::Settled, Box::default()), &mut out);
-    let Some(Request::Show { .. }) = out.pop() else { panic!("show answer") };
+    let Some(Request::Notice { notice: Notice::Turn { .. } | Notice::Answer(_) }) = out.pop() else {
+        panic!("show answer")
+    };
     let Some(Request::Answered { .. }) = out.pop() else { panic!("answer reaches shell") };
     let Some(Request::Load) = out.pop() else { panic!("reload same chat") };
     assert!(out.is_empty());

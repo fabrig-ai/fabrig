@@ -53,6 +53,7 @@ examples/ops/domain                   jig-ops-domain                   the engin
 examples/ops/domain-observability     jig-ops-domain-observability     the observability connector
 examples/ops/domain-infrastructure    jig-ops-domain-infrastructure    the infrastructure connector
 examples/ops/domain-connectors        jig-ops-domain-connectors        its connectors' numbers, which the engine's root and its client share
+examples/ops/protocol-observability   jig-ops-protocol-observability   the words of its alerts and its services' health, and its delegates' JSON
 examples/ops/client-domain            jig-ops-client-domain            its client's domain: jig-client held, with incidents and environments on it
 examples/ops/client-protocol-wire     jig-ops-client-protocol-wire     its families' wire records, for both ends, from schemas
 examples/ops/client-view              jig-ops-client-view              its presentation: the reference UI, with incidents' and environments' views
@@ -60,7 +61,7 @@ testing/jig-ops-fake-production       jig-ops-fake-production          the fake 
 tests/ops                             jig-ops-world                    its worlds, on jig's conformance world
 ```
 
-`ops` standalone (9.1) adds its connectors' protocols,
+`ops` standalone (9.1) adds the rest of its connectors' protocols, in
 `jig-ops-protocol-observability` and `jig-ops-protocol-infrastructure`;
 its service, `jig-ops-service`, with its server; its binary, `jig-ops`;
 its browser shell, `jig-ops-client-shell-web`; and the fake
@@ -177,7 +178,10 @@ jig-ops-domain                    the engine's root
     domain;
   - the verdicts the core asks of observability on infrastructure's
     effects (3.3);
-  - between the calendar and the core: each period it says.
+  - between the calendar and the core: each period it says;
+  - through `jig-ops-protocol-observability`, whose functions it calls
+    in the step: what it carries from observability to the core commits
+    with the connector's rows, as one decision.
 - **Its periods** are its calendar's, a child that keeps the
   deployment's calendar from its configuration: a monthly period from a
   day, at a fixed offset from UTC, a day past a short month's end being
