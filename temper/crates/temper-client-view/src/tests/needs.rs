@@ -186,6 +186,13 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
         styled(&view, look::ASK_META).name.as_deref(),
         Some(b"welcome-stall \xc2\xb7 a question \xc2\xb7 under 1 min".as_slice())
     );
+    let title = f::find(view.tree(), Role::Link, b"welcome-stall").unwrap();
+    assert_eq!(
+        crate::act(&mut view, title, Act::Press),
+        Some(d::Action::Pages(pages::Act::Go {
+            address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All }
+        }))
+    );
     assert_eq!(styled(&view, look::ASK_SAW).role, Role::Disclosure);
     assert_eq!(styled(&view, look::ASK_SAW).name.as_deref(), Some(b"What the agent saw".as_slice()));
     assert!(!styled(&view, look::ASK_SAW).states.as_slice().contains(&skein_ui::State::Expanded));
@@ -308,23 +315,47 @@ fn next_line_last_at_and_later_order() {
 }
 #[test]
 fn answered_lines_have_links_labels_and_undo_only_during_hold() {
-    let mut root = root();
-    choose(&mut root, 1);
-    let mut view = f::browser_page_view(&root);
-    assert!(has(&view, b"Answered"));
-    assert!(has(&view, b"welcome-stall:"));
-    assert!(has(&view, b"In the store"));
-    assert!(main(&view).iter().any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Undo")));
-    assert_eq!(press(&mut view, b"Undo"), expected(needs::Act::Undo { object: object(1) }));
-    d::fire(
-        &mut root,
-        &Env { now: Time::ZERO.saturating_add(needs::HOLD), wall: f::NOW, limits: f::domain_limits() },
-        &mut Queue::uncapped(),
-    );
-    let view = f::browser_page_view(&root);
-    assert!(has(&view, b"In the store"));
-    assert!(f::find(view.tree(), Role::Button, b"Undo").is_none());
+    for (reply, label) in [(false, "In the store"), (true, "Replied: “My words”")] {
+        let mut root = root();
+        if reply {
+            act(&mut root, needs::Act::OpenReply { object: object(1) });
+            f::root_event(
+                &mut root,
+                Event::Act {
+                    action: d::Action::Pages(pages::Act::CardWords {
+                        object: object(1),
+                        words: b"My words".as_slice().into(),
+                    }),
+                },
+            );
+            act(&mut root, needs::Act::SendReply { object: object(1) });
+        } else {
+            choose(&mut root, 1);
+        }
+        let mut view = f::browser_page_view(&root);
+        assert!(has(&view, b"Answered"));
+        assert!(has(&view, b"welcome-stall:"));
+        assert!(has(&view, label.as_bytes()));
+        let title = f::find(view.tree(), Role::Link, b"welcome-stall").unwrap();
+        assert_eq!(
+            crate::act(&mut view, title, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go {
+                address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All }
+            }))
+        );
+        assert!(main(&view).iter().any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Undo")));
+        assert_eq!(press(&mut view, b"Undo"), expected(needs::Act::Undo { object: object(1) }));
+        d::fire(
+            &mut root,
+            &Env { now: Time::ZERO.saturating_add(needs::HOLD), wall: f::NOW, limits: f::domain_limits() },
+            &mut Queue::uncapped(),
+        );
+        let view = f::browser_page_view(&root);
+        assert!(has(&view, label.as_bytes()));
+        assert!(f::find(view.tree(), Role::Button, b"Undo").is_none());
+    }
 }
+
 #[test]
 fn done_with_and_without_lines_and_home_project() {
     for answered in [false, true] {
