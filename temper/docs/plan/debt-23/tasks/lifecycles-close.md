@@ -44,3 +44,14 @@ Acceptance:
 ## Report
 
 The common note's items; each search's count; what the read of the six types found.
+
+## Answers
+
+### 2026-11-05: Exempt the state-local `Phase::Locking { said: bool }` from the Store acceptance search (recommended), or require store-states to remove that flag before D006 can close? (debt-23/lifecycles-close-1, foreman debt-23/lifecycles-close/foreman-1)
+
+Exempt the state-local `Phase::Locking { said: bool }` from the Store acceptance search; report the exemption and resume the closure review.
+`temper/docs/plan/debt-23/notes/common.md`: “Acceptance searches are narrow: code that legitimately uses the same word for something else is exempted, not changed; your report names any exemption the spec does not.”
+`skein/docs/foundation/programming-model.md`, 5.4: “each variant holding exactly what that state holds”.
+In `hearth/crates/hearth-domain-store/src/lib.rs:27`, `said` belongs to `Phase::Locking`, rather than sitting beside the state.
+`start.rs` uses it to arm the waiting-notice timer only on the first Busy event.
+The next run records this exemption, completes the six-type review, and, if acceptance otherwise holds, deletes D006, runs the required checks, commits and pushes.
