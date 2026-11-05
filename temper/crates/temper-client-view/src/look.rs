@@ -24,6 +24,8 @@ pub const SETTINGS_SMALL: Style = Style { owner: owner(), token: 317 };
 pub const SETTINGS_DETAIL: Style = Style { owner: owner(), token: 318 };
 pub const SETTINGS_END: Style = Style { owner: owner(), token: 319 };
 pub const SETTINGS_ROW: Style = Style { owner: owner(), token: 320 };
+pub const SETTINGS_PATH: Style = Style { owner: owner(), token: 321 };
+pub const SETTINGS_TEXT: Style = Style { owner: owner(), token: 322 };
 /// The session toast (client/README.md, 3.5).
 pub const TOAST: Style = Style { owner: owner(), token: 248 };
 /// The Goals column (client/README.md, 3.5).
@@ -315,8 +317,6 @@ pub const STATUS_DONE: Style = Style { owner: owner(), token: 58 };
 pub const CHOICE: Style = Style { owner: owner(), token: 59 };
 /// The accounts page body, separate from the banner notice.
 pub const ACCOUNTS_PAGE: Style = Style { owner: owner(), token: 60 };
-/// The repository adoption page body.
-pub const ADOPTION_PAGE: Style = Style { owner: owner(), token: 61 };
 /// The playground heading, request, suggestions and script note.
 pub const INVITATION: Style = Style { owner: owner(), token: 62 };
 /// A supplied refusal, still announced as a status.
@@ -631,7 +631,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-status-done",
         b"temper-choice",
         b"temper-accounts-page",
-        b"temper-adoption-page",
+        b"temper-reserved-61",
         b"temper-invitation",
         b"temper-refusal",
         b"temper-steps",
@@ -892,6 +892,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-settings-detail",
         b"temper-settings-end",
         b"temper-settings-row",
+        b"temper-settings-path",
+        b"temper-settings-text",
     ],
     regions: &[b"temper-link"],
 };

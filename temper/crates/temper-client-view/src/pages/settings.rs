@@ -20,6 +20,59 @@ pub(crate) enum Tab {
     Accounts,
 }
 
+/// A flow's return tab (temper/docs/design/client/README.md, 3.5, The flows' paths).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum FlowTab {
+    Forges,
+    Accounts,
+    Repositories,
+}
+
+/// A flow's path at its head (README.md, 3.5, The flows' paths): nothing with no project, or in the terminal.
+pub(crate) fn path(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: Option<u32>,
+    tab: FlowTab,
+    here: Word,
+) {
+    if w.shell == crate::words::Shell::Terminal {
+        return;
+    }
+    let Some(project) = project else { return };
+    let (word, address) = match tab {
+        FlowTab::Forges => (Word::ForgesTitle, Address::Forges),
+        FlowTab::Accounts => (Word::SettingsAccountsTab, Address::Accounts),
+        FlowTab::Repositories => (Word::SettingsRepositoriesTab, Address::Repositories { project }),
+    };
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_PATH);
+    b.open(Role::Navigation);
+    b.name(&w.say(Word::ConfigureWhere, &[]));
+    b.style(look::CRUMBS);
+    crate::link(b, &w.say(word, &[]), bindings.insert(Act::Go { address: address.clone() }));
+    b.style(look::BACK);
+    b.text(Run::Plain, &w.say(word, &[]));
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::TRAIL);
+    for (name, address) in [
+        (project_name(root, w, project), Address::Home { project }),
+        (w.say(Word::RailSettings, &[]), Address::Settings { project }),
+        (w.say(word, &[]), address),
+    ] {
+        crate::link(b, &name, bindings.insert(Act::Go { address }));
+        b.text(Run::Plain, &name);
+        b.close();
+    }
+    text(b, Role::Text, &w.say(here, &[]), look::SETTINGS_DETAIL);
+    b.close();
+    b.close();
+    b.close();
+}
+
 /// Opens the tab's column; the caller draws its body and closes it (README.md, 3.5, Settings).
 pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, tab: Tab) {
     b.open(Role::Slot);
