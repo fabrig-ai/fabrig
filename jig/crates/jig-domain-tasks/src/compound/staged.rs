@@ -88,6 +88,7 @@ impl CompoundTask<'_> {
                 MessageFamily::Spoken(Spoken::Words)
                 | MessageFamily::Hint(_)
                 | MessageFamily::Slot(_)
+                | MessageFamily::Separate(_)
                 | MessageFamily::Result
                 | MessageFamily::Virtual => true,
             },

@@ -253,8 +253,8 @@ fn job_spec_and_result_heap_bytes_include_their_allocations() {
 mod classifiers {
     use super::revisions::{Harness, task};
     use crate::{
-        Hint, Hold, MessageFamily, MessageKind, NewsClass, NoticeState, Party, Phase, ResultKind, Slot, Spoken, Stored,
-        Word,
+        Hint, Hold, MessageFamily, MessageKind, NewsClass, NoticeState, Party, Phase, ResultKind, Separate, Slot,
+        Spoken, Stored, Word,
     };
     use skein_lib::{Queue, Wall};
 
@@ -301,8 +301,8 @@ mod classifiers {
             (M::SettingsDecision { proposal: 5, outcome: Rejected }, F::Slot(Slot::SettingsDecision), 7),
             (M::Words, F::Spoken(Spoken::Words), 0),
             (M::EffectNotMade { entry: 3 }, F::Slot(Slot::EffectNotMade), 7),
-            (M::Amendment { revision: 3 }, F::Slot(Slot::Amendment), 7),
-            (M::FinishRequested { revision: 3 }, F::Slot(Slot::FinishRequested), 7),
+            (M::Amendment { revision: 3 }, F::Separate(Separate::Amendment), 7),
+            (M::FinishRequested { revision: 3 }, F::Separate(Separate::FinishRequested), 7),
             (M::Question, F::Spoken(Spoken::Question), 1),
             (M::Answer { question: QUESTION }, F::Spoken(Spoken::Answer { question: QUESTION }), 2),
             (M::Notice { subscription, target, state: held }, notice(held), 4),
@@ -314,21 +314,23 @@ mod classifiers {
             (M::News { subscription, class: Kept }, F::Hint(H::News { subscription, class: Kept }), 6),
             (M::News { subscription, class: Dropped }, F::Hint(H::News { subscription, class: Dropped }), 6),
             (M::Result(ResultKind::Report), F::Result, 3),
-            (M::Met { dependency: SOURCE, removed: true }, F::Slot(Slot::Met), 7),
+            (M::Met { dependency: SOURCE, removed: true }, F::Separate(Separate::Met), 7),
             (M::QuestionEnded { question: QUESTION }, F::Slot(Slot::QuestionEnded), 7),
             (M::QuestionAnswered { question: QUESTION }, F::Slot(Slot::QuestionAnswered), 7),
             (M::QuestionOwed, F::Slot(Slot::QuestionOwed), 7),
-            (M::NothingAwaited, F::Slot(Slot::NothingAwaited), 7),
+            (M::NothingAwaited, F::Separate(Separate::NothingAwaited), 7),
         ] {
             #[expect(clippy::match_same_arms, reason = "one arm per family keeps its caller behaviour explicit")]
             let (spoken, hint, separate, finish) = match family {
                 F::Spoken(_) => (true, false, false, false),
                 F::Hint(_) => (false, true, false, false),
-                F::Slot(slot) => (
+                F::Slot(_) => (false, false, false, false),
+                F::Separate(slot) => (
                     false,
                     false,
-                    [Slot::Amendment, Slot::FinishRequested, Slot::Met, Slot::NothingAwaited].contains(&slot),
-                    slot == Slot::FinishRequested,
+                    [Separate::Amendment, Separate::FinishRequested, Separate::Met, Separate::NothingAwaited]
+                        .contains(&slot),
+                    slot == Separate::FinishRequested,
                 ),
                 F::Result => (false, false, false, false),
                 F::Virtual => (false, false, false, false),
