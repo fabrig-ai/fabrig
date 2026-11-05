@@ -1,8 +1,9 @@
 //! A connected Forgejo's tokens must belong to one user (forge-setup.md, 4.6).
-use crate::call::Auth;
 use crate::{
+    call::Auth,
     item::{self, Item},
-    reconcile::{self, Event, Failure, Need, Outcome, Stage, Why},
+    plan::{self, Event, Need, Outcome, Stage, Why},
+    reconcile,
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::request::Request;
@@ -38,7 +39,7 @@ impl Check {
     fn stop(&mut self, subject: &[u8], why: Why) -> Need {
         self.state = State::Ended;
         self.user = None;
-        Need::Stop(Failure { forge: self.forge, step: Stage::Token, subject: bytes::copy_of(subject), why })
+        plan::stop(self.forge, Stage::Token, subject, why)
     }
 
     fn done(&mut self) -> Need {

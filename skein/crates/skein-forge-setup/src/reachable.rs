@@ -1,10 +1,11 @@
 //! One page of a forge's repositories for the picker (forge-setup.md, 4.8).
-use crate::call::Auth;
 use crate::github::{self, app};
 use crate::{
+    call::Auth,
     given::{self, Given, Place, Refused},
     item::Item,
-    reconcile::{self, Event, Failure, Need, Outcome, Reply, Stage, Why, reply, unexpected},
+    plan::{self, Event, Need, Outcome, Reply, Stage, Why},
+    reconcile::{self, reply, unexpected},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -108,9 +109,7 @@ impl Reachable {
     }
 
     fn stop(&mut self, step: Stage, subject: Box<[u8]>, why: Why) -> Need {
-        self.state = State::Ended;
-        self.token = None;
-        Need::Stop(Failure { forge: self.forge, step, subject, why })
+        self.github_stop(step, &subject, why)
     }
 
     fn advance(&mut self, state: State, event: Event) -> Need {
@@ -310,7 +309,7 @@ impl Reachable {
     fn github_stop(&mut self, stage: Stage, subject: &[u8], why: Why) -> Need {
         self.state = State::Ended;
         self.token = None;
-        app::stop(self.forge, stage, subject, why)
+        plan::stop(self.forge, stage, subject, why)
     }
 
     fn github_installation_stop(&mut self, why: Why) -> Need {

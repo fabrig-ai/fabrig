@@ -1,6 +1,6 @@
 //! Read and repair the App's URL-only hook (forge-setup.md, 5.5, 5.6 and 5.8).
-use super::app::{self, Kept};
-use crate::reconcile::{self, Event, Need, Reply, Stage, Why};
+use super::app::Kept;
+use crate::plan::{self, Event, Need, Reply, Stage, Why, reply};
 use alloc::boxed::Box;
 use skein_forge::github::{
     document::{Document, Hook as Config},
@@ -41,7 +41,7 @@ impl Hook {
     }
     fn stop(&self, why: Why) -> Progress {
         let subject = if why == Why::KeyForm { b"key" } else { self.slug.as_ref() };
-        Progress::Pending(app::stop(self.forge, Stage::App, subject, why))
+        Progress::Pending(plan::stop(self.forge, Stage::App, subject, why))
     }
 }
 
@@ -55,7 +55,7 @@ fn url(slug: &[u8]) -> Option<Box<[u8]>> {
 }
 
 fn config(event: Event) -> Result<Config, Why> {
-    match reconcile::reply(event)? {
+    match reply(event)? {
         Reply::GithubDocument(Document::HookConfig(config)) => Ok(config),
         Reply::Unsigned => Err(Why::KeyForm),
         Reply::Down => Err(Why::Down),

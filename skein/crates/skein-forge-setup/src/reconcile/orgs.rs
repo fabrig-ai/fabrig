@@ -1,9 +1,10 @@
 //! The organization step: each given org made when absent (forge-setup.md, 4.3, step 5).
 use super::{
-    Event, Need, Reconcile, Reply, Stage, State, Why,
+    Reconcile, State,
     tokens::{reply, unexpected},
 };
 use crate::given::Given;
+use crate::plan::{Event, Need, Reply, Stage, Why};
 use alloc::boxed::Box;
 use skein_forge::forgejo::{document::Document, request::Request};
 #[derive(PartialEq, Eq, Debug)]

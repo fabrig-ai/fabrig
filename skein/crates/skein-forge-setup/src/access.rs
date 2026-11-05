@@ -1,7 +1,8 @@
 //! One repository's access for the bot (forge-setup.md, 4.5, steps 2 to 4).
 use crate::{
     item::Item,
-    reconcile::{Event, Reply, Why, reply, unexpected},
+    plan::{Event, Reply, Why},
+    reconcile::{reply, unexpected},
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::{

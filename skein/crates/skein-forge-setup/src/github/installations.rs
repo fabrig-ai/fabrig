@@ -1,11 +1,8 @@
 //! Prune complete listings and uninstall strays when permitted (forge-setup.md, 5.6, step 4).
-use super::{
-    app::{self, Kept},
-    given::Given,
-};
+use super::{app::Kept, given::Given};
 use crate::{
     item::{self, Item},
-    reconcile::{self, Event, Need, Reply, Stage, Why},
+    plan::{self, Event, Need, Reply, Stage, Why, reply},
 };
 use alloc::boxed::Box;
 use skein_forge::github::{document::Row, pin::PAGE_CAP, request::Request};
@@ -70,9 +67,9 @@ impl Sweep {
     }
     fn stop(&self, subject: &[u8], why: Why) -> Progress {
         let need = if why == Why::KeyForm {
-            app::stop(self.forge, Stage::App, b"key", why)
+            plan::stop(self.forge, Stage::App, b"key", why)
         } else {
-            app::stop(self.forge, Stage::Installation, subject, why)
+            plan::stop(self.forge, Stage::Installation, subject, why)
         };
         Progress::Pending(need)
     }
@@ -169,7 +166,7 @@ impl Sweep {
 }
 
 fn rows(event: Event) -> Result<Box<[Row]>, Why> {
-    match reconcile::reply(event)? {
+    match reply(event)? {
         Reply::GithubRows(rows) => {
             if rows.len() > usize::try_from(PAGE_CAP).expect("page cap fits usize") {
                 return Err(Why::Unexpected);
@@ -183,7 +180,7 @@ fn rows(event: Event) -> Result<Box<[Row]>, Why> {
     }
 }
 fn deleted(event: Event) -> Result<(), Why> {
-    match reconcile::reply(event)? {
+    match reply(event)? {
         Reply::Empty | Reply::Status(404) => Ok(()),
         Reply::Unsigned => Err(Why::KeyForm),
         Reply::Down => Err(Why::Down),
