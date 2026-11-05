@@ -182,6 +182,8 @@ impl NativeClient {
             view_revision: self.view.revision(),
             builds: self.seen.builds,
             patches: self.seen.patches,
+            address: self.root.pages().address().clone(),
+            model: self.root.pages().connect_model().map(crate::diagnostics::model),
         }
     }
     /// Apply an offered act; false means no binding or an already closing client.

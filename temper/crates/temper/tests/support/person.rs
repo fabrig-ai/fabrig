@@ -651,7 +651,7 @@ impl Person {
                     client.close();
                 }
                 Next::Failed { step, why } => {
-                    self.failed = Some(format!("native person step {step}: {why:?}"));
+                    self.failed = Some(format!("native person step {step}: {why:?}; client: {:?}", client.pending()));
                 }
             }
             if self.actor.at() != before {
