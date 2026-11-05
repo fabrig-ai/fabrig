@@ -2,6 +2,7 @@
 //! `read_task` refuses unknown keys with a file and key path; task checks are
 //! closed enums, following benchmarks.md, sections 3.2 and 5.2.
 
+use crate::{Fault, input};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -375,7 +376,7 @@ pub struct Task {
 
 impl Task {
     /// Digest effective checks and deciding names in their authored order.
-    pub fn checks_sha256(&self) -> Result<String, String> {
+    pub fn checks_sha256(&self) -> Result<String, Fault> {
         #[derive(Serialize)]
         struct Checks<'a> {
             outcome: &'a [OutcomeCheck],
@@ -385,11 +386,11 @@ impl Task {
         }
         let checks =
             Checks { outcome: &self.outcome, event: &self.event, grade: &self.grade, deciding: &self.deciding };
-        Ok(format!("{:x}", Sha256::digest(toml::to_string(&checks).map_err(|error| error.to_string())?)))
+        Ok(format!("{:x}", Sha256::digest(toml::to_string(&checks)?)))
     }
 
     /// A block gates only the effective prompt, seed and checks it calibrated.
-    pub fn calibrated(&self) -> Result<bool, String> {
+    pub fn calibrated(&self) -> Result<bool, Fault> {
         let Some(block) = &self.calibration else { return Ok(false) };
         Ok(block.prompt_sha256 == format!("{:x}", Sha256::digest(self.prompt.as_bytes()))
             && block.seed_sha256 == self.seed_sha256
@@ -397,21 +398,22 @@ impl Task {
     }
 
     /// Keep a Smith task's deliberate model override in its frozen identity.
-    pub(crate) fn requested_model<'a>(&'a self, agent: crate::Agent, default: &'a str) -> Result<&'a str, String> {
+    pub(crate) fn requested_model<'a>(&'a self, agent: crate::Agent, default: &'a str) -> Result<&'a str, Fault> {
         if agent == crate::Agent::Smith
             && let Some(value) = self.smith.get("model")
         {
             return value
                 .as_str()
                 .filter(|model| !model.is_empty())
-                .ok_or_else(|| "Smith model override must be a nonempty string".into());
+                .ok_or_else(|| input("Smith model override must be a nonempty string"));
         }
         Ok(default)
     }
 
     /// Apply one named authored change, retaining additive checks unless replacement is explicit.
-    pub fn with_variant(&self, name: &str) -> Result<Self, String> {
-        let variant = self.variant.iter().find(|variant| variant.name == name).ok_or("unknown task variant")?;
+    pub fn with_variant(&self, name: &str) -> Result<Self, Fault> {
+        let variant =
+            self.variant.iter().find(|variant| variant.name == name).ok_or_else(|| input("unknown task variant"))?;
         let mut task = self.clone();
         task.calibration.clone_from(&variant.calibration);
         if let Some(prompt) = &variant.prompt {

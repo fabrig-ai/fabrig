@@ -12,20 +12,21 @@
 //! - **replay:** a run returns its trace, the simulator's records and io's
 //!   events, for a test to compare with the same seed's.
 
-use std::collections::VecDeque;
-use std::fmt::Write;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use skein_io::kernel::{Complete, Op, Submit};
-use skein_io::{Event, Io, Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, Request};
+use skein_io::{Event, Io, Limits, Request, stage};
 use skein_lib::{Env, Queue, Time, Wall};
 use skein_sim::{Config, Entry, Pid, Sim};
+use skein_world::{Host, Memory};
 
 use crate::ledger::Ledger;
 use crate::owner::{Directory, Owner};
 use crate::referee::Referee;
 
 /// The most iterations a world runs before it is declared stuck.
-const STEPS: u32 = 200_000;
+const STEPS: usize = 200_000;
 
 /// Room for what a process's loop holds between its stages.
 const ROOM: u32 = 64;
@@ -40,7 +41,7 @@ pub struct Proc {
     pub completions: Queue<Complete>,
     pub subs: Queue<Submit>,
     events: Queue<Event>,
-    requests: VecDeque<Request>,
+    requests: Queue<Request>,
     /// What io told, in order, for replay.
     pub log: Vec<String>,
     /// Iterations whose down stage stopped with requests waiting, as io
@@ -59,11 +60,14 @@ impl Proc {
             completions: Queue::with_capacity(ROOM),
             subs: Queue::with_capacity(ROOM),
             events: Queue::uncapped(),
-            requests: VecDeque::new(),
+            requests: Queue::with_capacity(ROOM),
             log: Vec::new(),
             held_back: 0,
         };
         proc.owner.start(&mut proc.requests);
+        for request in &proc.requests {
+            proc.ledger.asked(request);
+        }
         proc
     }
 
@@ -72,42 +76,22 @@ impl Proc {
     pub fn iterate(&mut self, now: Time, wall: Wall, directory: &mut Directory) {
         self.env.now = now;
         self.env.wall = wall;
-        // io's stage: the ready list first, then completions, then deadlines.
-        while self.io.is_ready() && self.room(MAX_OUT_RESUME) {
-            let mark = self.marks();
-            skein_io::resume(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-            self.within(mark, MAX_OUT_RESUME, "resume");
-        }
-        if !self.io.is_ready() {
-            while !self.completions.is_empty() && self.room(MAX_OUT_UP) {
-                let complete = self.completions.pop().expect("not empty");
-                let mark = self.marks();
-                skein_io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.subs);
-                self.within(mark, MAX_OUT_UP, "up");
-            }
-        }
-        while self.io.is_due(now) && self.room(MAX_OUT_FIRE) {
-            let mark = self.marks();
-            skein_io::fire(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-            self.within(mark, MAX_OUT_FIRE, "fire");
-        }
+        stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.subs, now);
         // The owner's stage.
+        let queued = self.requests.len();
         while let Some(event) = self.events.pop() {
             self.ledger.event(&event);
             self.log.push(format!("{} {event:?}", now.as_nanos()));
             self.owner.on(now, event, directory, &mut self.requests);
         }
         self.owner.tick(now, directory, &mut self.requests);
-        // io's down stage.
-        while self.io.takes() && self.room(MAX_OUT_DOWN) {
-            let Some(request) = self.requests.pop_front() else {
-                break;
-            };
-            self.ledger.request(&request);
-            let mark = self.marks();
-            skein_io::down(&mut self.io, &self.env, request, &mut self.subs);
-            self.within(mark, MAX_OUT_DOWN, "down");
+        for request in self.requests.iter().skip(usize::try_from(queued).expect("small request queue")) {
+            self.ledger.asked(request);
         }
+        // io's down stage.
+        let before = self.requests.len();
+        stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.subs);
+        self.ledger.taken(before - self.requests.len());
         if !self.io.takes() && !self.requests.is_empty() {
             self.held_back += 1;
         }
@@ -123,19 +107,6 @@ impl Proc {
         self.io.reclaim();
     }
 
-    fn room(&self, max: MaxOut) -> bool {
-        self.subs.room() >= max.submissions
-    }
-
-    fn marks(&self) -> u32 {
-        self.subs.len()
-    }
-
-    /// An entry point emitted no more than it declared.
-    fn within(&self, subs: u32, max: MaxOut, entry: &str) {
-        assert!(self.subs.len() - subs <= max.submissions, "{entry} submitted no more than its submission bound");
-    }
-
     /// Whether the loop has work now, without the kernel or time.
     #[must_use]
     pub fn busy(&self, now: Time) -> bool {
@@ -144,6 +115,39 @@ impl Proc {
             || !self.completions.is_empty()
             || !self.subs.is_empty()
             || !self.requests.is_empty()
+    }
+}
+
+/// A process with the world's directory visible within each turn (io.md, 8).
+pub(crate) struct Hosted {
+    pub proc: Proc,
+    pub directory: Rc<RefCell<Directory>>,
+}
+
+impl Host for Hosted {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        self.proc.iterate(now, wall, &mut self.directory.borrow_mut());
+    }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.proc.completions
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.proc.subs
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        self.proc.busy(now)
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.proc.io.next_deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.proc.owner.next_deadline(self.proc.env.now)
+    }
+    fn is_empty(&self) -> bool {
+        self.proc.owner.done() && self.proc.io.is_empty()
+    }
+    fn operations(&self) -> u32 {
+        skein_io::operations(&self.proc.env.limits).expect("small io limits")
     }
 }
 
@@ -186,103 +190,36 @@ impl World {
     /// Runs the world until the referee passed and everything settled, then
     /// checks the invariants of a settled world.
     #[must_use]
-    pub fn run(mut self) -> Outcome {
-        let mut iterations = 0;
-        let mut marks = Vec::new();
-        loop {
-            iterations += 1;
-            assert!(iterations < STEPS, "the world settles\n{}", self.trace());
-            marks.push(self.sim.trace().len());
-            let now = self.sim.now();
-            let wall = self.sim.wall();
-            for (at, (proc, pid)) in self.procs.iter_mut().zip(&self.pids).enumerate() {
-                self.sim.reap(*pid, &mut proc.completions);
-                proc.iterate(now, wall, &mut self.directory);
-                self.sim.submit(*pid, &mut proc.subs);
-                self.referee.observe(now, at, &proc.owner);
-            }
-            if self.busy(now) {
-                continue;
-            }
-            let owners: Vec<&Owner> = self.procs.iter().map(|proc| &proc.owner).collect();
-            let settled = self.settled();
-            if settled {
-                self.referee.settled(&owners);
-            }
-            let (sim, procs) = (&self.sim, &self.procs);
-            self.referee.overdue(now, &owners, &|| render(sim, procs));
-            if self.referee.passed() && settled {
-                break;
-            }
-            match self.next() {
-                Some(at) => self.sim.advance_to(at),
-                None => panic!("the world is idle, unsettled, with nothing due\n{}", self.trace()),
-            }
+    pub fn run(self) -> Outcome {
+        let directory = Rc::new(RefCell::new(self.directory));
+        let mut world = skein_world::World::new(
+            self.sim.seed(),
+            *self.sim.config(),
+            crate::referee::Judge(self.referee),
+            Memory::Unchecked,
+        );
+        for proc in self.procs {
+            world.spawn(|| Hosted { proc, directory: directory.clone() });
         }
-        for (proc, pid) in self.procs.iter().zip(&self.pids) {
-            assert!(proc.io.is_empty(), "io holds nothing once settled: {:?}", proc.io);
-            self.sim.assert_quiescent(*pid);
-            self.sim.assert_no_open_fds(*pid);
-            proc.ledger.settled();
+        let mut sim = Some(self.sim);
+        let mut marks = Vec::new();
+        let mut outcome = world.run_with_inputs(|current, pids, _| {
+            if let Some(sim) = sim.take() {
+                *current = sim;
+                assert_eq!(pids, self.pids, "the world's process identities stay in admission order");
+            }
+            assert!(marks.len() + 1 < STEPS, "the world settles\n{}", current.render_trace());
+            marks.push(current.trace().len());
+        });
+        for host in &outcome.procs {
+            host.proc.ledger.settled();
         }
         Outcome {
-            trace: self.sim.trace().to_vec(),
-            held_back: self.procs.iter().map(|proc| proc.held_back).collect(),
-            logs: self.procs.into_iter().map(|proc| proc.log).collect(),
-            iterations,
+            trace: std::mem::take(&mut outcome.trace),
+            held_back: outcome.procs.iter().map(|host| host.proc.held_back).collect(),
+            logs: outcome.procs.iter_mut().map(|host| std::mem::take(&mut host.proc.log)).collect(),
+            iterations: outcome.iterations,
             marks,
         }
     }
-
-    /// Whether any process has work now: its loop's, or the kernel's deferred
-    /// to its next entry, or completions delivered and not reaped.
-    fn busy(&self, now: Time) -> bool {
-        self.procs
-            .iter()
-            .zip(&self.pids)
-            .any(|(proc, pid)| proc.busy(now) || self.sim.deferred(*pid) || self.sim.ready(*pid) > 0)
-    }
-
-    fn settled(&self) -> bool {
-        self.procs
-            .iter()
-            .zip(&self.pids)
-            .all(|(proc, pid)| proc.owner.done() && proc.io.is_empty() && self.sim.in_flight(*pid) == 0)
-    }
-
-    /// The earliest of what the simulator has due and every deadline in the
-    /// world: io's, the owners', the referee's (simulator.md, 3).
-    fn next(&self) -> Option<Time> {
-        let now = self.sim.now();
-        let mut next = self.sim.next_due();
-        let mut at = |time: Option<Time>| {
-            if let Some(time) = time {
-                next = Some(next.map_or(time, |next| next.min(time)));
-            }
-        };
-        for proc in &self.procs {
-            at(proc.io.next_deadline());
-            at(proc.owner.next_deadline(now));
-        }
-        at(self.referee.next_deadline());
-        next
-    }
-
-    fn trace(&self) -> String {
-        render(&self.sim, &self.procs)
-    }
-}
-
-/// The run so far, for a failure: the simulator's trace under its seed, and
-/// the last of what io told each process.
-fn render(sim: &Sim, procs: &[Proc]) -> String {
-    let mut text = sim.render_trace();
-    for (at, proc) in procs.iter().enumerate() {
-        let from = proc.log.len().saturating_sub(12);
-        writeln!(text, "process {at}, io told, last:").expect("writing to a String");
-        for line in &proc.log[from..] {
-            writeln!(text, "  {line}").expect("writing to a String");
-        }
-    }
-    text
 }

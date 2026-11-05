@@ -159,7 +159,14 @@ fn a_choice_checked_alone_uses_the_newest_charter_including_its_removal() {
     let mut charters = jig_tasks_world::charters().into_vec();
     charters.push(CharterModels { number: 1, revision: 2, models: Some(Box::new([1])) });
     charters.push(CharterModels { number: 2, revision: 2, models: None });
-    let domain = Domain::new(&LIMITS, 77, 2, charters.into_boxed_slice(), Box::new(jig_tasks_world::EFFORTS));
+    let domain = Domain::new(
+        &LIMITS,
+        jig_domain_tasks::Kept { revisions: 4, versions: 8 },
+        77,
+        2,
+        charters.into_boxed_slice(),
+        Box::new(jig_tasks_world::EFFORTS),
+    );
     assert_eq!(domain.check_llm(1, Models::ALL, &choice(effort(1, None), &[])), Ok(()));
     assert_eq!(
         domain.check_llm(1, Models::ALL, &choice(effort(0, Some(0)), &[])),

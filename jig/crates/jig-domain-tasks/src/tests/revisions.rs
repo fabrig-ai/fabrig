@@ -64,8 +64,6 @@ pub(super) const LIMITS: Limits = Limits {
     contract_choices: 4,
     charters: 2,
     charter_documents: 2,
-    versions: 8,
-    revisions: 4,
     authority_grants: 4,
     authority_segments: 4,
     authority_bytes: 64,
@@ -124,7 +122,7 @@ pub(super) fn to() -> ReplyTo {
 impl Harness {
     pub(super) fn new() -> Self {
         let mut test = Self {
-            domain: Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0])),
+            domain: Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0])),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS },
             stored: BTreeMap::new(),
         };
@@ -192,8 +190,14 @@ impl Harness {
     }
 
     pub(super) fn restart(&mut self) {
-        self.domain =
-            Domain::new(&LIMITS, 91, self.domain.newest(), self.domain.charters().into(), self.domain.efforts.clone());
+        self.domain = Domain::new(
+            &LIMITS,
+            crate::tests::KEPT,
+            91,
+            self.domain.newest(),
+            self.domain.charters().into(),
+            self.domain.efforts.clone(),
+        );
         let rows: Vec<_> = self
             .stored
             .values()
@@ -762,7 +766,7 @@ fn capacity_history_distinguishes_project_shape_from_room_and_survives_diagnosti
     assert_eq!(h.domain.capacity_refusals(), rows);
     assert!(h.domain.task(4).is_none());
     let mut cold = Harness::new();
-    cold.domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+    cold.domain = Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
     for row in h.stored.values() {
         match row {
             Stored::Live(_) | Stored::Ledger(_) => {
@@ -846,7 +850,7 @@ fn pending_task_proposal_room_keeps_original_action_and_excludes_wrong_project()
 fn zero_capacity_history_counts_real_source_room_without_retaining_payloads() {
     let limits = Limits { funders: 0, room_refusals: 0, ..LIMITS };
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(21), limits };
-    let mut domain = Domain::new(&limits, 1, 1, crate::tests::charters(), Box::new([0]));
+    let mut domain = Domain::new(&limits, crate::tests::KEPT, 1, 1, crate::tests::charters(), Box::new([0]));
     let mut out = Queue::uncapped();
     step(&mut domain, &env, Event::Check, &mut out);
     step(&mut domain, &env, Event::Restored, &mut out);
@@ -1354,7 +1358,7 @@ fn a_move_sets_the_newest_for_those_that_may_and_counts_those_that_stay() {
     assert!(!h.domain.may_move(2));
     assert!(!h.domain.may_move(3));
     assert!(!h.domain.may_move(5));
-    let mut held = skein_lib::Map::with_capacity(LIMITS.revisions + 1);
+    let mut held = skein_lib::Map::with_capacity(crate::tests::KEPT.revisions + 1);
     h.domain.held_after_moves(None, 3, h.domain.charters(), &mut held);
     assert_eq!(held.len(), 1);
     assert!(held.contains_key(&1));

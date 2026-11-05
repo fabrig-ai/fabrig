@@ -198,5 +198,4 @@ pub(super) fn init(bytes: &[u8], tools: &[mcp::Tool], depth: u32, tokens: u32) -
 }
 
 #[cfg(test)]
-#[path = "stream_tests.rs"]
 pub(super) mod tests;

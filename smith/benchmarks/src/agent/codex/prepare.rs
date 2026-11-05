@@ -6,9 +6,9 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use crate::agent::{Context, HarnessFault, Invocation, Seen};
-use crate::isolate::{Setup, SetupStep};
-use crate::{Agent, ModelChoice, Provider};
+use crate::agent::{Context, Invocation, Seen};
+use crate::isolate::SetupStep;
+use crate::{Agent, Fault, FaultKind, Input, Mismatch, ModelChoice, Provider, input, mismatch, refuse_if, stream};
 
 use super::{Item, Observation, Observer};
 
@@ -38,106 +38,99 @@ pub struct Observing {
 }
 
 /// Prepare a version-matched Codex command without touching its existing login.
-pub fn prepare(context: &Context<'_>) -> Result<PreparedCodex, Setup> {
-    let configuration = (|| {
-        if !context.task.person.is_empty() {
-            return Err("Codex does not accept later person lines".into());
-        }
-        if context.pin.pin.agent != Agent::Codex || context.pin.pin.provider != Provider::Codex {
-            return Err("Codex requires its own codex configuration pin".into());
-        }
-        let installed =
-            context.installed_version.trim().strip_prefix("codex-cli ").unwrap_or(context.installed_version.trim());
-        if installed != context.pin.pin.version {
-            return Err(format!("installed Codex {installed} differs from pinned {}", context.pin.pin.version));
-        }
-        if context.model.model.as_ref().is_none_or(String::is_empty)
-            || context.model.effort.as_ref().is_none_or(String::is_empty)
-        {
-            return Err("Codex model and effort must be explicitly selected".into());
-        }
-        let program = match context.arm {
-            crate::arm::ArmRef::Installed { program } => program.clone(),
-            crate::arm::ArmRef::Built(_) => {
-                return Err("Codex requires its installed executable, not a smith build".into());
-            }
-        };
-        let reread = crate::read_configuration(context.pin_file).map_err(|error| error.to_string())?;
-        if reread != *context.pin {
-            return Err("Codex configuration changed since the attempt was planned".into());
-        }
-        let digest = crate::arm::binary_digest(&program)?;
-        if Some(digest.as_str()) != context.pin.pin.sha256.as_deref() {
-            return Err(format!("Codex executable digest {digest} differs from its pin"));
-        }
-        let overrides_path = context
-            .pin_file
-            .parent()
-            .ok_or("configuration pin needs a directory")?
-            .join(&context.pin.pin.configuration);
-        let bytes = std::fs::read(&overrides_path).map_err(|error| error.to_string())?;
-        let text = std::str::from_utf8(&bytes).map_err(|error| error.to_string())?;
-        let document: std::collections::BTreeMap<String, toml::Value> =
-            toml::from_str(text).map_err(|error| error.to_string())?;
-        let milliseconds = document
-            .get("harness")
-            .and_then(|value| value.get("teardown_ms"))
-            .and_then(toml::Value::as_integer)
-            .ok_or("Codex pin requires harness.teardown_ms")?;
-        let nanos = u64::try_from(milliseconds)
-            .ok()
-            .and_then(|value| value.checked_mul(1_000_000))
-            .filter(|value| *value > 0)
-            .ok_or("Codex teardown must fit a positive duration")?;
-        let teardown = skein_lib::Duration::from_nanos(nanos);
-        let mut overrides: Vec<_> = document
-            .into_iter()
-            .filter(|(key, _)| key != "harness")
-            .map(|(key, value)| (key, value.to_string()))
-            .collect();
-        let workspace = crate::isolate::working_directory(context.guard, context.private, context.task)?;
-        // Codex splits dotted override paths literally; quote the dynamic path
-        // within a top-level TOML table value, including dots in the workspace.
-        let project = toml::Table::from_iter([("trust_level".into(), toml::Value::String("trusted".into()))]);
-        let projects = toml::Table::from_iter([(workspace.display().to_string(), toml::Value::Table(project))]);
-        overrides.push(("projects".into(), toml::Value::Table(projects).to_string()));
-        let writable = [&context.private.cargo_home, &context.private.target, &context.private.temporary]
-            .into_iter()
-            .map(|path| toml::Value::String(path.display().to_string()))
-            .collect();
-        overrides.push(("sandbox_workspace_write.writable_roots".into(), toml::Value::Array(writable).to_string()));
-        overrides.push((
-            "model_reasoning_effort".into(),
-            toml::Value::String(context.model.effort.clone().expect("validated effort")).to_string(),
-        ));
-        Ok(PreparedCodex {
-            overrides,
-            credential: PathBuf::new(),
-            expires: skein_lib::Wall::EPOCH,
-            borrowed: None,
-            home: context.private.root.join("codex"),
-            final_message: context.private.root.join("final.txt"),
-            model: context.model.clone(),
-            program,
-            workspace,
-            teardown,
-        })
-    })();
-    let mut prepared = configuration.map_err(|reason| Setup { step: SetupStep::Configuration, reason })?;
+pub fn prepare(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
+    let mut prepared = configure(context).map_err(Fault::at(SetupStep::Configuration))?;
     let borrowed = crate::credential::codex(
         context.guard,
         context.home,
         &prepared.home,
         context.wall,
-        context.lifetime.checked_add(prepared.teardown).ok_or_else(|| Setup {
-            step: SetupStep::Configuration,
-            reason: "credential teardown lifetime overflow".into(),
+        context.lifetime.checked_add(prepared.teardown).ok_or_else(|| Fault {
+            kind: FaultKind::Setup(SetupStep::Configuration),
+            detail: "credential teardown lifetime overflow".into(),
         })?,
     )?;
     prepared.credential.clone_from(&borrowed.credential);
     prepared.expires = borrowed.expires;
     prepared.borrowed = Some(borrowed);
     Ok(prepared)
+}
+
+fn configure(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
+    refuse_if(!context.task.person.is_empty(), Input, "Codex does not accept later person lines")?;
+    if context.pin.pin.agent != Agent::Codex || context.pin.pin.provider != Provider::Codex {
+        return Err(input("Codex requires its own codex configuration pin"));
+    }
+    let installed =
+        context.installed_version.trim().strip_prefix("codex-cli ").unwrap_or(context.installed_version.trim());
+    if installed != context.pin.pin.version {
+        return Err(mismatch(format!("installed Codex {installed} differs from pinned {}", context.pin.pin.version)));
+    }
+    if context.model.model.as_ref().is_none_or(String::is_empty)
+        || context.model.effort.as_ref().is_none_or(String::is_empty)
+    {
+        return Err(input("Codex model and effort must be explicitly selected"));
+    }
+    let program = match context.arm {
+        crate::arm::ArmRef::Installed { program } => program.clone(),
+        crate::arm::ArmRef::Built(_) => {
+            return Err(input("Codex requires its installed executable, not a smith build"));
+        }
+    };
+    let reread = crate::read_configuration(context.pin_file)?;
+    refuse_if(reread != *context.pin, Mismatch, "Codex configuration changed since the attempt was planned")?;
+    let digest = crate::arm::binary_digest(&program)?;
+    if Some(digest.as_str()) != context.pin.pin.sha256.as_deref() {
+        return Err(mismatch(format!("Codex executable digest {digest} differs from its pin")));
+    }
+    let overrides_path = context
+        .pin_file
+        .parent()
+        .ok_or_else(|| input("configuration pin needs a directory"))?
+        .join(&context.pin.pin.configuration);
+    let bytes = std::fs::read(&overrides_path)?;
+    let text = std::str::from_utf8(&bytes)?;
+    let document: std::collections::BTreeMap<String, toml::Value> = toml::from_str(text)?;
+    let milliseconds = document
+        .get("harness")
+        .and_then(|value| value.get("teardown_ms"))
+        .and_then(toml::Value::as_integer)
+        .ok_or_else(|| input("Codex pin requires harness.teardown_ms"))?;
+    let nanos = u64::try_from(milliseconds)
+        .ok()
+        .and_then(|value| value.checked_mul(1_000_000))
+        .filter(|value| *value > 0)
+        .ok_or_else(|| input("Codex teardown must fit a positive duration"))?;
+    let teardown = skein_lib::Duration::from_nanos(nanos);
+    let mut overrides: Vec<_> =
+        document.into_iter().filter(|(key, _)| key != "harness").map(|(key, value)| (key, value.to_string())).collect();
+    let workspace = crate::isolate::working_directory(context.guard, context.private, context.task)?;
+    // Codex splits dotted override paths literally; quote the dynamic path
+    // within a top-level TOML table value, including dots in the workspace.
+    let project = toml::Table::from_iter([("trust_level".into(), toml::Value::String("trusted".into()))]);
+    let projects = toml::Table::from_iter([(workspace.display().to_string(), toml::Value::Table(project))]);
+    overrides.push(("projects".into(), toml::Value::Table(projects).to_string()));
+    let writable = [&context.private.cargo_home, &context.private.target, &context.private.temporary]
+        .into_iter()
+        .map(|path| toml::Value::String(path.display().to_string()))
+        .collect();
+    overrides.push(("sandbox_workspace_write.writable_roots".into(), toml::Value::Array(writable).to_string()));
+    overrides.push((
+        "model_reasoning_effort".into(),
+        toml::Value::String(context.model.effort.clone().expect("validated effort")).to_string(),
+    ));
+    Ok(PreparedCodex {
+        overrides,
+        credential: PathBuf::new(),
+        expires: skein_lib::Wall::EPOCH,
+        borrowed: None,
+        home: context.private.root.join("codex"),
+        final_message: context.private.root.join("final.txt"),
+        model: context.model.clone(),
+        program,
+        workspace,
+        teardown,
+    })
 }
 
 impl PreparedCodex {
@@ -169,10 +162,10 @@ impl PreparedCodex {
 
 impl Observing {
     /// Observe known root records once, returning neutral timing cues.
-    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, HarnessFault> {
+    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, Fault> {
         let answered = self.observer.answer().is_some();
         let turns = self.observer.usages.len();
-        let record = self.observer.observe_line(line).map_err(|error| HarnessFault { what: error.to_string() })?;
+        let record = self.observer.observe_line(line).map_err(|error| stream(error.to_string()))?;
         let mut seen = Vec::new();
         match record {
             Some(Observation::TurnCompleted { .. }) => {
@@ -236,17 +229,14 @@ impl Observing {
     }
 
     /// Read only this completed attempt's native root and child records.
-    pub fn collect(&mut self) -> Result<&super::Rollouts, HarnessFault> {
-        let prepared = self
-            .prepared
-            .as_ref()
-            .ok_or_else(|| HarnessFault { what: "offline Codex replay has no preparation to collect".into() })?;
+    pub fn collect(&mut self) -> Result<&super::Rollouts, Fault> {
+        let prepared =
+            self.prepared.as_ref().ok_or_else(|| stream("offline Codex replay has no preparation to collect"))?;
         if let Some(what) = &self.collection_error {
-            return Err(HarnessFault { what: what.clone() });
+            return Err(stream(what.clone()));
         }
         if self.collected.is_none() {
-            let thread =
-                self.observer.thread().ok_or_else(|| HarnessFault { what: "Codex stream has no named root".into() })?;
+            let thread = self.observer.thread().ok_or_else(|| stream("Codex stream has no named root"))?;
             let mut children = Vec::new();
             for item in self.observer.completed_items() {
                 if let Item::CollabToolCall { tool, receiver_thread_ids, .. } = item
@@ -266,7 +256,7 @@ impl Observing {
             ) {
                 let what = error.to_string();
                 self.collection_error = Some(what.clone());
-                return Err(HarnessFault { what });
+                return Err(stream(what));
             }
         }
         Ok(self.collected.as_ref().expect("collected above"))

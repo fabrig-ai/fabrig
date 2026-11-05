@@ -851,6 +851,30 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
 }
 
 #[test]
+fn reference_coding_run_matches_stock() {
+    let engine = engine(&generated());
+    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let coding = &stock.charters.iter().find(|charter| charter.number == 2).expect("coding charter 2").policy;
+    let reference = include_str!("../../../../docs/design/draft/reference-code-production.md");
+    let configuration = reference.split_once("## 14. Configuration\n").expect("reference configuration").1;
+    let row = configuration
+        .split("\n## ")
+        .next()
+        .unwrap()
+        .lines()
+        .find(|line| line.starts_with("| the coding agent's charter |"))
+        .expect("reference coding-charter row");
+    let run = format!(
+        "retain the stock run: {} turns and {} s, with a reserve of {} turn and {} s",
+        coding.turns,
+        coding.time.as_nanos() / 1_000_000_000,
+        coding.reserve_turns,
+        coding.reserve_time.as_nanos() / 1_000_000_000,
+    );
+    assert!(row.replace(',', "").contains(&run.replace(',', "")), "coding charter must {run}; documented row: {row}");
+}
+
+#[test]
 fn the_stock_funds_eighty_chats_in_one_period() {
     let mut engine = engine(&generated());
     let init = engine.llm.models[0].clone();

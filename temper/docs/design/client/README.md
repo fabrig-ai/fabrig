@@ -1305,7 +1305,7 @@ keeps (`../protocol/configuration.md`, section 2).
       acts, quiet "Open" and quiet "Later".
     - *The others,* a line each under it, the whole a link that opens
       *Needs you* at that card, at most five: its SHORT at the left
-      (*Needs you,* below; a funds row "TITLE: $S of $L used"), at the
+      (*Needs you,* below; a funds row "TITLE: S of L used"), at the
       right its kind and age.
     - *On a phone* the card and the lines give way to one block on a pale
       signal ground, "TITLE: SHORT", the whole a link to *Needs you*,
@@ -1368,9 +1368,10 @@ keeps (`../protocol/configuration.md`, section 2).
     this session's page plus the open; where the read is cut, "2 of 3+".
   - *The card,* on no ground (`.ask`, no background, no shadow, padding
     0), gap 16:
-    - a `.mono` line: TITLE, a link to the task, · kind · age, as Home's;
-      the kind "a question", "a proposal", "held", "a person task", or
-      "funds" for a held task whose reason is `HoldReason::Budget`;
+    - a `.mono` line: TITLE, a link to the task, · kind · age, as Home's,
+      " · later" with it; the kind "a question", "a proposal", "held", "a
+      person task", or "funds" for a held task whose reason is
+      `HoldReason::Budget`;
     - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 23px on a
       phone;
     - `.ctx`, `--gf-ink-2`, if it has a context;
@@ -1397,13 +1398,13 @@ keeps (`../protocol/configuration.md`, section 2).
     the terminal's card), through the confirmation they have (3.6). A
     held task: its title and its words, its facts as the terminal's card
     has them, then Release (primary) and Leave held (plain, its reason's
-    textarea as Reject's). A funds card: "$S of $L used." as the
-    question, in the task page's money form, its title as owner, then
-    Release and Leave held; there is no "Add $10". A person task: its
+    textarea as Reject's). A funds card: "S of L used." as the
+    question, in the task page's money form, plain numbers, its title as
+    owner, then Release and Leave held; there is no "Add $10". A person task: its
     title, its spec, its acts as plain buttons.
   - *SHORT,* what a next-up line or a Home line says of a card: a
     question's line; a proposal's reason's first sentence; a held task's
-    or a person task's title, a funds card's "$S of $L used".
+    or a person task's title, a funds card's "S of L used".
   - *`.next-up`,* centred, 13px, `--gf-faint`: "Next: TITLE · SHORT", or
     "The last one".
   - *Answered,* under it when any: the section title "Answered", then
@@ -1418,7 +1419,9 @@ keeps (`../protocol/configuration.md`, section 2).
     "Later: it stays in Needs you, after the others."
 - **What the client keeps** of what needs the person: in `Pages`, not on
   a page, for this session, gone on reload or on sign-out, none of it a
-  stored record:
+  stored record, and at most 64 each of the cards marked later, the answered
+  lines and the refused answers, the oldest going first, a line still held
+  never:
   - *Later,* the cards marked later. *The open cards* are the needs'
     groups as `Inbox` reads them, less those answered, in the inbox's
     order, those marked later last.
@@ -1432,8 +1435,9 @@ keeps (`../protocol/configuration.md`, section 2).
   - *The held send.* jig has no retraction, so a choice or a reply is
     held in the client for 5 seconds, a deadline of the domain's as
     `next_deadline` has. The card moves to answered at once, with the
-    toast "Answered: LABEL" and its "Undo". Undo restores the card and
-    sends nothing. At 5 seconds the `Answer` goes, its words the choice's
+    toast "Answered: LABEL" and its "Undo". Undo restores the card, a
+    reply's words with it, unseen until the form opens, and sends
+    nothing. At 5 seconds the `Answer` goes, its words the choice's
     or the reply's; after that its line shows no "Undo". A refused answer
     puts the card back with the refusal's words on it, as does an answer
     the engine did not keep. A tab closed inside the 5 seconds sends
@@ -2800,15 +2804,8 @@ page (5.1): a navigation named by the open project, in this order:
 - the switcher (*Projects in the rail,* below);
 - "Home", to the open project's `Home`; "Needs you", to *Needs you*
   filtered by the open project, with the count of what needs the person
-  there (*What the client keeps,* 3.5), omitted when zero; and "Chats",
-  to `Chats`; current on
-  `Home`, on `Inbox`, and on `Chats` and `Chat`, but a configuring
-  chat's, whose current entry is "Settings". The entries the
-  banner's navigation offers for a project, "Board" and "Changes",
-  follow "Chats" when they are built;
-- "Home", to the open project's `Home`; "Needs you", to the inbox,
-  with the count of what needs the person from `me`, omitted when
-  zero, its page still the inbox; "Goals", to the project's `Goals`
+  there (*What the client keeps,* 3.5), omitted when zero; "Goals", to
+  the project's `Goals`
   with the filter All, shown only where the project has a goal or the
   page is `Goals`, so that a fresh project keeps the rail the mock's
   Default project does; "Chats", to `Chats`; and "Changes", to
@@ -5241,6 +5238,35 @@ own tests:
   task's link (3.5). A question's choices are its words' (`../domain/agent.md`,
   8.2), and a retraction of a sent answer is jig's, which has none: the
   client holds an answer before it goes (3.5).
+- **Later and the answered lines, kept** (3.5, *What the client keeps*; the
+  request of 2026-11-05 for *Needs you* decides session order and no store
+  record): a card marked later, or a line answered, surviving a reload or
+  reaching another device, which takes a stored record. Default: this
+  session's alone.
+- **The browser's updates** (3.5, *Needs you*; that request): they leave the
+  browser's page and no page replaces them, `Seen` marking staying as it is.
+  Default: the terminal's list alone draws them.
+- **"Add $10" on a funds card** (the greenfield mock's `needs.html`; that
+  request puts budgets last): an act that widens the budget in place. Default:
+  Release and Leave held, the hold's own acts.
+- **A chat's own question, as a card** (the mock's `n-license`; that request):
+  a chat's question in its words stays in its conversation, with no inbox
+  entry. Default: as it is.
+- **The rail's "N+"** (3.5, *What the client keeps*): the standing document's
+  `next` says more follows of needs or of updates alike, since a page holds
+  every need and then the updates (`../../help/inbox.md`), so that a long list
+  of updates, which no page of the browser's reads, says "N+" of a whole list of
+  needs. It never says less than there is. Default: "N+", as that request has it.
+- **"Inbox" on the banner** (5.3): a page that is no project's keeps the
+  banner's "Inbox", with `me`'s count, to the unfiltered *Needs you*, where the
+  rail says "Needs you"; that request names the rail and the tab bar alone.
+  Default: "Inbox".
+- **A goal hearing a choice, as a story** (3.5, *What the client keeps*;
+  `../domain/agent.md`, 8.2): that request asks one live walk of a scripted goal
+  asking in the line form, a person pressing its recommended choice on Home and
+  the goal hearing those words, whose scripts are throwaway. No world keeps it:
+  the parser, the stock sentence, the session and the view each hold their own
+  side. Default: those tests.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
@@ -5493,6 +5519,11 @@ own tests:
   the providers' facts, jig's `domain/providers.md`, 2.5); until then,
   each reads as the ending jig gives, in its words. Default: none drawn
   before jig's fact.
+- **A sign-in made with no model usable** (3.5, *Ready*; 5.5, A sign-in):
+  a sign-in that ends `Made` or `Renewed`, not declined, while no account
+  is usable has no words: 5.5's "temper’s agents now run on your ChatGPT
+  plan." would be false there. Ready's rule stands, that such an ending is
+  never silent; the words are the user's.
 - **A sign-in started from another client** (3.5, `ConnectModel`): a
   page opened at a sign-in's way, by a reload or a link, knows no
   sign-in of its own, and offers the way's button again; the accounts

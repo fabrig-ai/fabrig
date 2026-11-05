@@ -985,7 +985,7 @@ Each is configured and bounds what enters or is retained:
 - rows: the most items of a page, a window and lists without a bound
   of their own, at most 32, the ceiling of the wire's lists
   (`../../protocol/client.md`, section 3); a document past it is refused at decoding (section 16),
-  and limits above it at construction;
+  and limits above it at construction (below, on a knob and its class);
 - a path's segments: the most segments of a resource's path or a
   pattern a document may carry, a bound of its own, never a window's
   rows; the application sets it at least the most its engine admits in
@@ -1045,6 +1045,13 @@ bytes holds 512 decoded bytes, so a document limit of 169 gives only
 charge passes its room (section 16).
 Each helper's limits are its own (section 19); the reference UI's derive
 from the client's and its own (view.md, 18.9).
+
+**A knob sizes a class of the wire's bounds.** Rows, a path's segments, an
+authority's entries, text and a document's bytes each set every wire bound
+of their class at once, in one derivation by class. A knob past its class's
+ceiling is refused at construction. A member the schema bounds below its
+class keeps its own ceiling: that ceiling is the schema's, not a limit of
+the client's, and no configuration is refused for it.
 
 ## 15. What it never knows
 
@@ -1150,6 +1157,12 @@ with a person in front of a tree, are view.md's, 18.10.
   variant, as a cell it never reaches. Whether each root splits by mode,
   so that such a host is never handed that variant, is a change to every
   application root and its hosts.
+- **A class's members in the schema:** the derivation by class lists each
+  class's members by hand, once per class (section 14). Bound classes in the
+  schema would generate the lists. Default: by hand until the schema has them.
+- **A stream record's bound:** its body's bound plus 512, written at each
+  shell, in `jig-client-shell-native` and in an application's. Default: each
+  keeps its expression; one helper once those shells hold still.
 
 ## 19. Helpers
 
