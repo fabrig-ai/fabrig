@@ -1318,6 +1318,19 @@ room check that remains, and what it keeps.
 - **An outcome answers a request.** A stream's end or fault that comes
   before a request, or while a piece is still being taken, overtakes
   nothing: the machine holds it and gives it to the next request.
+- **Resumed work goes before the next event.** While the protocol layer
+  has work to resume, no io or file event enters it (`work_pending`).
+- **One record at a time.** The client's printer takes the next record
+  once the last has gone out, on standard output and standard error alike
+  (`takes`), so answers print in the order render gave them.
+- **An answer follows its resources' close.** Render hears from a git
+  child once the process and its pipes are closed, so its next request
+  finds none open.
+- **A build's report comes whole.** Its layers print first, then the step
+  it failed on, if it failed, and its reply last: the builder's root holds
+  render's reply until the report is out (`holds`, `reporting`).
+- **The domain takes a store step's answer before the store's next
+  step,** so nothing waits in the queue above a step of the store.
 
 ## 9. Its world
 
