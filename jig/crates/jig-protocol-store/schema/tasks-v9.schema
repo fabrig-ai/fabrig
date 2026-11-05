@@ -125,7 +125,8 @@ enum Was { waiting, active: Activation, closing: Closing }
 record HoldEffect { connector: u16 entry: u64 }
 record Circle { tasks: list 32 Number cut: bool }
 record HoldAccount { connector: u16 entry: option u64 words: bytes 512 }
-enum HoldSource { resource: Name, effect: HoldEffect, circle: Circle, account: HoldAccount }
+record HoldPreparation { words: bytes 128 }
+enum HoldSource { resource: Name, effect: HoldEffect, circle: Circle, account: HoldAccount, preparation: HoldPreparation }
 record Held { was: Was why: Hold source: option HoldSource }
 record Final { ending: Ending }
 enum Phase { waiting, active: Activation, closing: Closing, held: Held, ended: Final }
@@ -173,8 +174,8 @@ record Milestone { task: u64 position: u64 phase: Phase at: u64 }
 record Grace { by: Party until: u64 reason: bytes 524288 message: u64 }
 record SettingsRevision { task: u32 run: option u32 }
 record Revisions { hold: u64 spec: u64 person: u64 }
-record FailedRetry { class: Class count: u32 allowance: u32 }
-record RefusedRetry { count: u32 }
+record FailedRetry { class: Class count: u32 allowance: u32 reason: option bytes 128 }
+record RefusedRetry { count: u32 reason: option bytes 128 }
 enum RetryNotice { failed: FailedRetry, refused: RefusedRetry }
 
 

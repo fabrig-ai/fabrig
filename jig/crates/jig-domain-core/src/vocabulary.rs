@@ -1083,6 +1083,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Started { .. }
         | tasks::Event::Activation { .. }
         | tasks::Event::PreparationWaiting { .. }
+        | tasks::Event::PreparationPaused { .. }
+        | tasks::Event::PreparationCounted { .. }
         | tasks::Event::PreparationFailed { .. }
         | tasks::Event::PreparationUnread { .. }
         | tasks::Event::EffectsSettled { .. }
