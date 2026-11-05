@@ -56,3 +56,12 @@ Acceptance:
 ## Report
 
 The common note's items. The moved tests' names and how many stayed. No break applies to a move.
+
+## Answers
+
+2026-11-05. May this task change the qualified lookup `skein_fake_forge_protocol::git::name` in GitHub's
+`service.rs`, which is not a `use` line? Yes: replace that one path with `skein_fake_forge_http::git::name`, the same
+function at its new home, and change nothing else on that line. The acceptance (`rg -n 'fake.forge.protocol'
+skein/crates/skein-fake-forge-github` finds nothing) can't hold without it. "`use` lines alone" stands for the rest of
+`G/**`. Then drop `skein-fake-forge-protocol` from GitHub's `Cargo.toml`, update `Cargo.lock`, and run all of step 4,
+whose five-package run and `cargo check --tests` the first run left unrun.
