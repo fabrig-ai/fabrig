@@ -7,7 +7,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::{ServerConfig, ServerConnection};
 use skein_io as io;
 use skein_lib::stream::{Down, Fault, OutputDown, OutputOutcome, OutputUp, Read, Up};
-use skein_lib::{Intake, Queue, Token};
+use skein_lib::{usize_of, Intake, Queue, Token};
 
 use super::Transport;
 use crate::Limits;
@@ -41,7 +41,7 @@ impl Wire {
             Transport::Plaintext => None,
             Transport::Tls => {
                 let mut connection = ServerConnection::new(config()).expect("the fixed test chain");
-                connection.set_buffer_limit(Some(usize::try_from(limits.ciphertext).expect("u32 fits")));
+                connection.set_buffer_limit(Some(usize_of(limits.ciphertext)));
                 Some(connection)
             }
         };
@@ -54,7 +54,7 @@ impl Wire {
             granted: 0,
             header: None,
             reading: false,
-            output: Vec::with_capacity(usize::try_from(limits.ciphertext).expect("u32 fits")),
+            output: Vec::with_capacity(usize_of(limits.ciphertext)),
             output_room: false,
             right: None,
             next_right: 1,
@@ -122,7 +122,7 @@ impl Wire {
             }
             let state = tls.process_new_packets().map_err(|_| Fault::Invalid)?;
             let size = state.plaintext_bytes_to_read();
-            if size > usize::try_from(self.input.room()).expect("u32 fits") {
+            if size > usize_of(self.input.room()) {
                 return Err(Fault::Invalid);
             }
             let mut plain = vec![0; size];
@@ -163,7 +163,7 @@ impl Wire {
             }
             Down::Send(bytes) => {
                 assert!(
-                    bytes.len() <= usize::try_from(self.granted).expect("u32 fits"),
+                    bytes.len() <= usize_of(self.granted),
                     "plaintext within granted room"
                 );
                 self.granted = 0;
@@ -184,7 +184,7 @@ impl Wire {
         let tls = self.tls.as_mut().expect("TLS face");
         if !self.output_room && tls.wants_write() {
             // A fixed slice writer refuses before a ciphertext buffer can grow.
-            let cap = usize::try_from(self.limits.ciphertext).expect("u32 fits");
+            let cap = usize_of(self.limits.ciphertext);
             let mut scratch = vec![0; cap];
             let mut writer = scratch.as_mut_slice();
             if tls.write_tls(&mut writer).is_err() {

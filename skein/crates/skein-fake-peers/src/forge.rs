@@ -6,7 +6,7 @@ use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_forge_forgejo as forgejo;
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Up};
-use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+use skein_lib::{usize_of, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_shell::Host;
 
 use crate::face::{Face, LISTENER};
@@ -208,14 +208,14 @@ impl Peer {
             forge,
             service,
             protocol,
-            connections: Vec::with_capacity(usize::try_from(limits.connections).expect("u32 fits")),
-            calls: Vec::with_capacity(usize::try_from(call_capacity).expect("u32 fits")),
-            deliveries: Vec::with_capacity(usize::try_from(forgejo_capacity).expect("u32 fits")),
+            connections: Vec::with_capacity(usize_of(limits.connections)),
+            calls: Vec::with_capacity(usize_of(call_capacity)),
+            deliveries: Vec::with_capacity(usize_of(forgejo_capacity)),
             endpoint: None,
-            github_deliveries: Vec::with_capacity(usize::try_from(github_capacity).expect("u32 fits")),
+            github_deliveries: Vec::with_capacity(usize_of(github_capacity)),
             clock: (Time::ZERO, Wall::EPOCH),
             next: 1,
-            observations: Vec::with_capacity(usize::try_from(limits.observations).expect("u32 fits")),
+            observations: Vec::with_capacity(usize_of(limits.observations)),
             observed_bytes: 0,
             kept: Kept::EVERY,
         })
@@ -356,7 +356,7 @@ impl Peer {
                 assert!(owner == LISTENER || owner == BLOB_LISTENER);
                 let blob = owner == BLOB_LISTENER;
                 if self.face.stopping
-                    || self.connections.len() == usize::try_from(self.face.limits.connections).expect("u32 fits")
+                    || self.connections.len() == usize_of(self.face.limits.connections)
                 {
                     self.face.requests.push(io::Request::Reject { socket });
                     return;

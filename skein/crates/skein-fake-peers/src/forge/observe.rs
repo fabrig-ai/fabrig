@@ -2,7 +2,7 @@
 use super::layer as protocol;
 use super::{Connection, Forge, Observation, Peer};
 use skein_fake_forge_domain::{self as domain, api};
-use skein_lib::{Env, ReplyTo};
+use skein_lib::{usize_of, Env, ReplyTo};
 use std::mem::size_of_val;
 
 impl Peer {
@@ -13,7 +13,7 @@ impl Peer {
     }
     fn reserve(&self, bytes: u64) {
         assert!(
-            self.observations.len() < usize::try_from(self.face.limits.observations).expect("u32 fits"),
+            self.observations.len() < usize_of(self.face.limits.observations),
             "frozen record count fits"
         );
         assert!(
