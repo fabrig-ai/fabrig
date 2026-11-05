@@ -221,11 +221,13 @@ fn walking_referee_rejects_wrong_task_or_uncommitted_or_duplicate_assignment() {
             kind: Kind::Core(brief::Core::Task),
             body: Body::Text(
                 format!(
-                    "say hello\n[Report: at most 128 bytes]\n[Requested by person {}]\n",
+                    "say hello\n[Report: at most 128 bytes]\n[Requested by person {}]\n[You are task {} in project {}]\n",
                     match task.requester {
                         tasks::Party::Person(person) => person,
                         tasks::Party::Task(_) | tasks::Party::Deployment { .. } => panic!("person requester"),
-                    }
+                    },
+                    task.number,
+                    task.project
                 )
                 .into_bytes()
                 .into_boxed_slice(),

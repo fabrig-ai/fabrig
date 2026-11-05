@@ -193,7 +193,7 @@ pub fn limits() -> engine::Limits {
         brief: engine::BriefLimits {
             briefs: 2,
             sections: 3,
-            parts: 2,
+            parts: 3,
             read_bytes: 256,
             budgets: engine::BriefBudgets {
                 document: 4096,
