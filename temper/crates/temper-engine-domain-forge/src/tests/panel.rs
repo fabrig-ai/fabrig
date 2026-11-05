@@ -172,14 +172,14 @@ fn queue_entry_and_departure_mark_the_nearest_followers_within_the_subject_bound
         got.as_ref(),
         &[
             Request::Save { record: Stored::Change(expected), release: None, read_afresh: None },
-            Request::Marked { tasks: Box::new([51, 52]) },
+            Request::Marked { tasks: Box::new([51, changes_subject(5), 52]) },
         ]
     );
     // Refusing an outstanding delegate holds the queued change, taking it out.
     outputs(&mut d, Event::Delegated { task: 51, child: 90, kind: change::Delegate::Produce });
     let got = outputs(&mut d, Event::DelegateRefused { task: 51, child: 90 });
     let [Request::Save { .. }, Request::Marked { tasks }] = got.as_ref() else { panic!("save and mark: {got:?}") };
-    assert_eq!(tasks.as_ref(), &[51, 52]);
+    assert_eq!(tasks.as_ref(), &[51, changes_subject(5), 52]);
 }
 #[test]
 fn gates_are_judged_at_the_head_with_failed_and_pending_verdicts_taking_precedence() {
@@ -312,7 +312,8 @@ fn priority_moves_mark_the_nearest_followers_and_stop_at_the_mark_bound() {
     let Some(Request::Marked { tasks }) = out.pop() else { panic!("priority marked") };
     let mut expected = skein_lib::List::with_capacity(MARKED);
     expected.push(u64::from(CHANGES)).expect("own task");
-    for task in 1..u64::from(MARKED) {
+    expected.push(changes_subject(5)).expect("project changes");
+    for task in 1..u64::from(MARKED - 1) {
         expected.push(task).expect("nearest followers");
     }
     assert_eq!(tasks, expected.into_boxed());

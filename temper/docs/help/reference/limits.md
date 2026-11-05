@@ -73,6 +73,8 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.adoptions`: count, 2. Bounds repository adoptions in flight.
 - `forge.applications`: count, 32. Bounds keyed adoption answers retained for request retention.
 - `forge.collaborators`: count, 8. Bounds collaborators retained by the forge connector.
+- `forge.changes_rows`: count, 32. Bounds queued rows across the changes document's queues.
+- `forge.changes_landed`: count, 8. Bounds recent landed changes in the changes document.
 - `forge.landings_kept`: count, 16. Bounds retained landings per repository.
 - `forge.landings`: count, 2. Bounds live landing procedure rows.
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
