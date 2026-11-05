@@ -1223,6 +1223,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::ConnectAnswered { forge, request, answer } => crate::connect::connected(d, forge, request, answer, out),
+        Event::AccessAnswered { forge: _, request, answer } => adoption::accessed(d, env, request, answer, out),
         Event::ReachableAnswered { forge, request, answer } => crate::connect::reached(d, forge, request, answer, out),
         Event::AcceptAnswered { forge, request, answer, stopped } => {
             crate::connect::accepted(d, forge, request, answer, stopped, out);

@@ -93,6 +93,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 | Request::Connect { .. }
                 | Request::Replace { .. }
                 | Request::Manifest { .. }
+                | Request::AdoptAccess { .. }
                 | Request::Reachable { .. }
                 | Request::Install { .. }
                 | Request::Accept { .. }

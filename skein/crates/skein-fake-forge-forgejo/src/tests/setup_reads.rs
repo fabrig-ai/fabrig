@@ -146,6 +146,29 @@ fn admin_reads_another_owners_private_repository() {
     assert_eq!(h.calls, 0);
 }
 #[test]
+fn admin_reads_another_owners_private_repository_by_path_without_a_domain_grant() {
+    let mut h = harness();
+    h.service.setup_mut().private(u64::from(OTHER)).unwrap();
+    let request = Request::Repository { at: other() };
+    h.send(&request);
+    assert_eq!(h.status(), 200);
+    assert_eq!(h.decoded(&request).document, expected_repository(3, b"bob", b"http://127.0.0.1:3000/bob/widgets"));
+    assert_eq!(h.calls, 0);
+}
+#[test]
+fn non_admin_repository_path_read_reaches_the_domain() {
+    let mut h = plain(&[b"all"]);
+    ask_plain(&mut h, b"/api/v1/repos/acme/widgets");
+    assert_eq!(h.calls, 1);
+}
+#[test]
+fn admin_unknown_repository_path_read_reaches_the_domain() {
+    let mut h = harness();
+    h.send(&Request::Repository { at: skein_forge::forgejo::request::Repo { owner: boxed(b"missing"), ..repo() } });
+    assert_eq!(h.status(), 404);
+    assert_eq!(h.calls, 1);
+}
+#[test]
 fn unknown_or_wider_repository_ids_answer_not_found() {
     for id in [99, u64::from(u32::MAX).saturating_add(1)] {
         let mut h = harness();

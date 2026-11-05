@@ -355,7 +355,10 @@ runs it or writes what it makes.
   leaves the forge as it was. A start's reconcile that stops leaves that
   forge not connected, named, until the next start, a managed connect or
   an owned forge's next set up ask (6.5); the engine and every other
-  forge run on.
+  forge run on. A managed forge's row names it too: its plan's stop
+  shows as `SetUpFailed`, with the plan, the step and the why, and Connect
+  stays offered, so a repository whose access a start could not repair
+  is said where the person looks.
 
 - **Closing progresses without diagnostic consumption.** The service's
   setup adapter tracks closing requested separately from host `Close`
@@ -460,11 +463,25 @@ runs it or writes what it makes.
 - **`Adopt { forge, repository }`** runs before an adoption's reads on a
   managed, owned or fake Forgejo (skein's `forge-setup.md`, 4.5): the bot made
   a collaborator with write, and the repository's hook made when the
-  listener is configured, with the forge's secret. Stopped, the adoption
+  listener is configured, with the forge's secret; a managed forge is
+  served none (5.5). A person's adoption gives the plan the path its
+  request carries, since the bot may not see the repository yet; the
+  fake's start-time plans give ids. Stopped, the adoption
   is refused, named (`../domain/forge.md`, access at adoption). A
   `403` here, at reconcile's step 6 or at the picker's read, is the
   admin's token without `write:repository` (skein's 4.3, step 1): it
   is shown as that scope missing, named with its step.
+- **A stop reads as one of the adoption's refusals**
+  (`../client/README.md`, 4.7), and the log names the plan, its step and
+  its why:
+
+  | The plan's stop | The adoption's refusal |
+  |---|---|
+  | `Repository`, `Missing` | not found |
+  | `Admin`, whatever its why; `Refused(_)` at `Repository` | no access |
+  | `Down` or `TimedOut`, or the run ended by the forge's end | unreachable |
+  | the host busy (5.1) | in flight |
+  | any other | invalid answer |
 - **At each start,** reconcile's step 6 checks each adopted
   repository's access, and repairs what changed.
 - **A fake forge:** its repositories are
@@ -3813,6 +3830,11 @@ Each is intended; what it needs is named with it.
   written in the merge's `Entry`'s commit, is the route when a run
   needs either, a store schema change in place until the first release
   (store.md, section 4; skein's `codec.md`, section 5).
+- **A managed Forgejo's listener.** 5.5 serves a forge connected as its
+  admin none, so it polls, while 5.3, 5.4 and skein's `forge-setup.md`,
+  4.5, make each hook when one is configured. A forge on another host
+  can't reach a loopback listener; one on this host could. The user's.
+  Default: 5.5's.
 - **Demo after a reset** (8.4; `../draft/first-run-projects.md`, 9):
   a second playground run makes "Demo" again, the first having been
   deleted by the reset, and reuses nothing but the name. The user's to
