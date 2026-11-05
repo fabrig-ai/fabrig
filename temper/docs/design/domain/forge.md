@@ -2705,6 +2705,15 @@ whole.
 
 ## 20. Open questions
 
+- **A failed row, dismissed** (4.5; `../draft/repository-copies.md`,
+  5.2): no request dismisses one yet; that comes with the sheet that
+  shows it. Default: asking for the name again replaces it, and failed
+  rows count against `forge.makings`.
+- **What a refused copy leaves** (4.5; skein's `forge-setup.md`,
+  section 9): Forgejo keeps an empty repository at the name of a source
+  it could not clone, and only the same address asked again takes it
+  away: asked from another, the row holds no `copying` and stops at
+  `Taken`. Default: so, and the person deletes it on the forge.
 - **A queue's throughput:** landings into one branch wait on CI one after
   another. If that binds, landings are batched: tested together, and
   bisected when they fail.
