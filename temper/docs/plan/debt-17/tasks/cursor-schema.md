@@ -3,7 +3,7 @@ id = "cursor-schema"
 part = "cursor-schema"
 kind = "feature"
 needs = []
-files = ["jig/crates/jig-protocol-engine-clients/schema/**", "jig/crates/jig-protocol-engine-clients/golden/**", "jig/crates/jig-protocol-engine-clients/src/generated/**", "jig/crates/jig-protocol-engine-clients/src/lib.rs", "jig/crates/jig-protocol-engine-clients/src/translate/cursor.rs", "jig/crates/jig-protocol-engine-clients/src/tests/reads.rs", "jig/tests/codec-families.rs", "jig/tests/engine-clients/tests/suite/**", "jig/docs/design/protocol/client.status.md", "jig/docs/development/debt/D027-engine-clients-cursor-format.md"]
+files = ["jig/crates/jig-protocol-engine-clients/schema/**", "jig/crates/jig-protocol-engine-clients/golden/**", "jig/crates/jig-protocol-engine-clients/src/generated/**", "jig/crates/jig-protocol-engine-clients/src/lib.rs", "jig/crates/jig-protocol-engine-clients/src/translate/cursor.rs", "jig/crates/jig-protocol-engine-clients/src/tests/reads.rs", "jig/tests/codec-families.rs", "jig/tests/engine-clients/tests/suite/**", "jig/tests/engine-clients/Cargo.toml", "Cargo.lock", "jig/testing/jig-client-test-records/src/pages.rs", "jig/docs/design/protocol/client.status.md", "jig/docs/development/debt/D027-engine-clients-cursor-format.md"]
 effort = "high"
 minutes = 120
 +++
@@ -132,3 +132,25 @@ Acceptance:
 
 The common note's items, `cursor.rs`'s lines, the schema's and the generated file's, what you broke by hand and what failed, the
 fuzzy test's seeds and time, and the tree's cursor under `## Left`.
+
+## Answers
+
+- 2026-11-05. May this task update the old-layout cursor literal in `jig/testing/jig-client-test-records/src/pages.rs`
+  (`carried_activity_page`'s `before`)? **Yes; the header now lists the file.** The bytes change on purpose (`plan.md`,
+  Decisions), and this literal holds them as a fixture, so the same decision covers it; the assertion in
+  `an_activity_page_carries_each_turn_s_bytes` and the page's facts stay. Change that one `value` and nothing else in the file.
+  Spell it by hand from `skein/docs/design/codec.md`, 3, not by pasting the failure's output, so the test still checks the
+  encoder: it holds the same cursor, `Store { scope: Activity { task: 7 }, after: Some(Owner(key)) }`, with the same 19 key bytes:
+
+  ```
+  0, 1, 0, 1, 10, 0, 0, 0, 0, 0, 0, 0, 7, 1, 0, 0, 0, 0, 19,
+  1, 1, 11, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 7
+  ```
+
+  (version `u16`; `Form::Owner` 0; `Cursor::Store` 1; `Scope::Activity` 10; task `u64`; some; `Position::Owner` 0; key's `u32`
+  length; the key.) 38 bytes, within the fixture's `cursor_value` of 64. If the encoder disagrees with this literal, or any other
+  test's outcome changes, stop and ask. Only this crate's tests call `carried_activity_page`, so step 5's run covers the change;
+  no other direct dependent of the fixture package needs a check for it.
+- 2026-11-05. The header also lists `jig/tests/engine-clients/Cargo.toml` and `Cargo.lock`, for the `skein-scratch`
+  dev-dependency the first run added for the fuzzy test. The acceptance's `test(drift::)` filter selects only the client-wire
+  check: use `test(codec_families_match_their_schemas_and_goldens)`, which selects both.
