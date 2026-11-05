@@ -197,7 +197,18 @@ impl Meeting {
             "provider work matches account availability",
         );
         let start = b"smith: local host started\n";
-        let older = format!("smith: {}\n", smith_local_domain::Older::Unrecorded.words().join("main"));
+        let older = format!(
+            "smith: {}",
+            String::from_utf8_lossy(&smith_local_protocol::notice_text(
+                &smith_local_domain::Notice::Failure(smith_local_domain::Failure::Store {
+                    turn: None,
+                    reason: smith_local_domain::StoreFailure::OlderBuild { why: smith_local_domain::Older::Unrecorded },
+                }),
+                b"main",
+                &[],
+                2048,
+            ))
+        );
         let diagnostic = if matches!(self.ending, Ending::OlderStore) {
             errors.strip_suffix(older.as_bytes())
         } else if matches!(self.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {

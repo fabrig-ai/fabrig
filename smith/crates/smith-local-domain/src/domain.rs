@@ -52,7 +52,6 @@ pub struct Domain {
     held: Queue<Held>,
     told: crate::end::Told,
     answer_wall: Option<Wall>,
-    pub(crate) show_bytes: u32,
     long: crate::long::Long,
     facts: Queue<Fact>,
     facts_lost: u64,
@@ -85,16 +84,16 @@ impl Domain {
         self.chat.request_load();
         self.config.chat.clone()
     }
-    /// The existing terminal's verdict for one told tool result.
+    /// The typed verdict for one told tool result.
     #[must_use]
-    pub fn tool_verdict(result: &smith_domain::session::llm::Returned) -> &'static [u8] {
-        crate::person::tool_end(result)
+    pub fn tool_verdict(result: &smith_domain::session::llm::Returned) -> crate::ToolVerdict {
+        crate::person::tool_verdict(result)
     }
 
-    /// The existing local result renderer for a typed accepted answer.
+    /// What an accepted or parked answer said.
     #[must_use]
-    pub fn result_text(answer: &smith_host_domain::Answer) -> Box<[u8]> {
-        crate::agent::answer_text(answer)
+    pub fn said(answer: &smith_host_domain::Answer) -> crate::Said {
+        crate::agent::said(answer)
     }
 
     /// Validate local choices and build the agent with the configured endpoints.
@@ -163,7 +162,6 @@ impl Domain {
             held: Queue::with_capacity(1),
             told: crate::end::Told::new(),
             answer_wall: None,
-            show_bytes: limits.show_bytes,
             long: crate::long::Long::new(),
             facts: Queue::with_capacity(limits.facts),
             facts_lost: 0,
@@ -190,7 +188,7 @@ impl Domain {
 
     /// The sent charter's refused effort and its startup model declaration.
     #[must_use]
-    pub fn refused_effort(&self) -> crate::ChoiceNotice {
+    pub(crate) fn refused_effort(&self) -> crate::ChoiceNotice {
         crate::ChoiceNotice::Effort {
             effort: self.effort.as_deref().unwrap_or_default().into(),
             choices: self.config.efforts.get(self.main_model).expect("selected startup efforts").clone(),
@@ -448,14 +446,14 @@ fn accept_turn(
         return;
     }
     assert!(domain.turns.unsaved.room() > 0, "store backpressure bounds unsaved turns");
-    let shown = crate::person::turn_text(&turn, env.limits.show_bytes);
+    let lines = crate::person::turn_lines(&turn, env.limits.show_bytes);
     domain.turns.unsaved.push((number, turn.sequence));
     domain.lines.fence(read);
     domain.chat.state.read = read;
     observe(domain, Fact::Turn { number });
     out.push(Request::SaveTurn { number, read, opens_window, turn });
-    if !domain.config.live_text && !shown.is_empty() {
-        out.push(Request::Show { text: shown });
+    if !domain.config.live_text && !lines.is_empty() {
+        out.push(Request::Notice { notice: Notice::Turn { lines } });
     }
 }
 
