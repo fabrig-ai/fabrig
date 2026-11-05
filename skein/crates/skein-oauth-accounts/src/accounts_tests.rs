@@ -39,14 +39,20 @@ fn an_added_name_is_refused_while_a_live_account_holds_it() {
 }
 
 #[test]
-fn an_add_past_the_accounts_limit_is_refused_as_full() {
-    let (mut component, env) = roomy();
-    let mut up = Queue::uncapped();
-    for account in [ADDED, ADDED.saturating_add(1)] {
-        component.add(&env, account, Account::HandedIn, &mut up);
+fn a_full_component_refuses_add_before_validating_configuration() {
+    for (name, configuration) in [("valid", Account::HandedIn), ("unusable", bad_plaintext())] {
+        let (mut component, env) = roomy();
+        let mut up = Queue::uncapped();
+        for account in [ADDED, ADDED.saturating_add(1)] {
+            component.add(&env, account, Account::HandedIn, &mut up);
+        }
+        component.add(&env, ADDED.saturating_add(2), configuration, &mut up);
+        assert_eq!(
+            refusal_of(up.pop()),
+            Some((ADDED.saturating_add(2), Asked::Add, Refusal::Full { bound: ROOMY_ACCOUNTS })),
+            "{name}"
+        );
     }
-    component.add(&env, ADDED.saturating_add(2), Account::HandedIn, &mut up);
-    assert_refused(up.pop(), ADDED.saturating_add(2), Asked::Add, Refusal::Full { bound: ROOMY_ACCOUNTS });
 }
 
 fn bad_plaintext() -> Account {
