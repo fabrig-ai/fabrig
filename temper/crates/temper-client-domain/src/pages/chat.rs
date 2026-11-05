@@ -662,6 +662,7 @@ impl Chat {
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
+            | Act::StartAsks { .. }
             | Act::StartCancel
             | Act::StartGoal
             | Act::Switcher(_)

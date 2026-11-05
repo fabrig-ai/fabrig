@@ -1307,8 +1307,8 @@ from the engine's own answers, is where the look is tuned.
 | `goal-toast` | `goal-running` paused, its toast showing |
 | `goal-sending` | `goal-running` with the person's words sent and one being sent, the composer holding its next words |
 | `start-goal` | Goals with "Start one from a draft" pressed: the sheet with no draft, its Draft field and two ways |
-| `start-goal-draft` | the sheet opened with first-run-projects.md, its name and its default way |
-| `start-goal-refused` | `start-goal-draft` after a refused start: `.sheet-error` in jig's words |
+| `start-goal-draft` | the sheet opened with first-run-projects.md, its name, its default way and "When it needs you", following the away switch |
+| `start-goal-refused` | `start-goal-draft` after a refused start: "Always ask" chosen, `.sheet-error` in jig's words |
 | `task-solo-T3` | the solo world's goal T3, on `goal.html`'s page |
 | `accounts-solo` | the solo world's accounts |
 | `chats-first-run-1` | the first run's Chats at step 1: an empty list |

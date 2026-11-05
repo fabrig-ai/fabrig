@@ -3998,7 +3998,10 @@ an open need on it, whether it has a report, and its direct delegates' total.
     whose path ends in the name `temper/<root>/g<root>`, `../domain/forge.md`,
     11.1's. The mock's "last updated from main" is not drawn: no read says it.
   - **How it runs,** `p.facts`: the way, "Plan, tasks, land whole" with a goal
-    branch, "Task by task" without, then " · always asks you".
+    branch, "Task by task" without, then " · always asks you" when the
+    goal’s words hold the exact line `Asks: always`, otherwise " · follows the
+    away switch". One pure domain function, `goal::always_asks(words) -> bool`,
+    reads that line; a phrase inside a sentence does not count.
   - **Decided by the goal,** only with a report's `Decided:` line: `p.facts`,
     its items as written, joined by " · ".
 - **`.sent`,** when the person has sent words: each of the goal's
@@ -4804,10 +4807,16 @@ can open it. `draft` is the draft's path in the repository
     `<b>WAY</b><small>TEXT</small>`. The default adds " PROJECT’s default." to
     its text and is chosen: the way kind 7 names (5.13). After them, `.link` 13px muted
     "The project’s ways of working", to `Settings { project }`;
+  - `fieldset`, legend "When it needs you": a `ChoiceGroup`, drawn as the ways:
+    "Follow the away switch", chosen by default, small "Asks while you’re here;
+    while you’re away, decides within the project's limits and tells you.";
+    "Always ask", small "Waits for you on every question it can’t answer from
+    the plan." `Act::StartAsks { always: bool }` changes this choice, as
+    `Act::StartWay` changes the way. Both choices are disabled while a request
+    is out.
   - `.foot`: `.btn.quiet` "Cancel", `.btn.primary` "Start goal", disabled while
     Name or Draft is empty or a request is out.
-- **Not drawn:** "Budget" and "When it needs you": nothing stands behind either
-  yet (section 11).
+- **Not drawn:** "Budget": nothing stands behind it yet (section 11).
 - **Start** calls `shapes::set_goal_from(me, project, number, GoalDraft { words,
   executor, budget, deadline: None, priority: None, llm: None }, "Started from
   its draft")`: `executor` the template's charter, else `Agent { charter: 1 }`;
@@ -4823,7 +4832,9 @@ can open it. `draft` is the draft's path in the repository
   ```
 
   The first line is the task's title, as jig takes it. `Chat:` only when a chat
-  opened the sheet.
+  opened the sheet. "Always ask" appends the exact line `Asks: always`;
+  "Follow the away switch" adds no asking line. Nothing stores the choice
+  apart from these words.
 - **Its ends:** `Judged::Create`: sent, and on its answer to the goal's page, which
   shows planning. `Judged::Propose`: sent, the sheet closes, toast "Proposed to
   WHOM: it starts once accepted." `Judged::Refused`, `NotOffered` or a refused
@@ -6075,12 +6086,8 @@ own tests:
   with its draft and its chat, and Chats' Drafts filter, where Goals' link then
   goes, as the mock's, wait for the Chats area's drafts (*The draft beside a
   chat,* above). So do the walk from a chat's draft to a goal's page, and any
-  "Started goal X" that area draws from `draft_of`. "When it needs you", the
-  `Asks: always` line it adds to the goal's words, the goal's paragraph in
-  `stock/chat.txt` that reads that line, and "follows the away switch" wait for
-  the away switch.
-  Each is drawn when what stands behind it is; until then the sheet opens with no
-  draft from Goals, and a goal always asks you.
+  "Started goal X" that area draws from `draft_of`. Each is drawn when what
+  stands behind it is; until then Goals links to Chats.
 - **An agent's task's page against its mockup** (5.9), each a default
   the user may change:
   - its dependencies, which the mockup draws on no agent's page: the

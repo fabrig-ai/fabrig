@@ -92,6 +92,9 @@ pub enum Act {
     StartWay {
         template: u32,
     },
+    StartAsks {
+        always: bool,
+    },
     StartCancel,
     StartGoal,
     /// Ready's Create, or its name field's Enter.
@@ -465,6 +468,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             let me = pages.me(client);
             if let Some(start) = &mut pages.start {
                 start.way(me, template);
+            }
+        }
+        Event::Act { act: Act::StartAsks { always } } => {
+            if let Some(start) = &mut pages.start {
+                start.asks(always);
             }
         }
         Event::Act { act: Act::StartCancel } => pages.start = None,
@@ -1380,6 +1388,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::StartDraft { .. }
         | Act::StartName { .. }
         | Act::StartWay { .. }
+        | Act::StartAsks { .. }
         | Act::StartCancel
         | Act::StartGoal
         | Act::Pause

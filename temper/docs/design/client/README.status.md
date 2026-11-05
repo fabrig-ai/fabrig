@@ -42,7 +42,8 @@
   a draft" is a link to `Chats { filter: All }`, `/chats`
   (`temper-client-view`'s `pages/goals.rs`), where those sections have it open
   the sheet with its Draft field, and nothing the view draws sends
-  `Act::OpenStart`: the sheet shows in the gallery and the tests alone.
+  `Act::OpenStart`: the sheet, including its "When it needs you" choice, shows
+  in the gallery and the tests alone.
   `temper-client-domain`'s `pages/start_goal.rs`, `open`, ignores one without
   both a draft and a chat, so "Start a goal" and the Draft field are drawn by
   nothing. The rulings of 2026-11-05 on that request (the answers to its tasks
