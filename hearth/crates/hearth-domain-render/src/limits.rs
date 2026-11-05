@@ -57,3 +57,10 @@ pub const SHIPPED: Limits = Limits {
 
 /// A literal that is five bytes cannot fit, for budget refusal tests.
 pub const FOUR_MADE: Limits = Limits { made: 4, ..SHIPPED };
+
+/// Whether these limits are representable: every edge bound they size is
+/// finite (skein/docs/foundation/programming-model.md, 6.3).
+#[must_use]
+pub fn valid(limits: &Limits) -> bool {
+    crate::evaluate::template::run_bound(limits).is_some()
+}
