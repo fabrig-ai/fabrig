@@ -20,11 +20,16 @@ pub(super) fn call(task: u64, value: c::TaskTextField, from: u64, out: &mut Text
     out.number(from);
 }
 
-fn end(page: &c::TaskText, limits: &Limits) -> usize {
+/// Source bytes admitted after reserving the text and JSON envelopes.
+pub(crate) fn capacity(limits: &Limits) -> usize {
     // JSON can require six bytes for one source byte; reserve room for its envelope.
     let room = limits.result_bytes.saturating_sub(512).checked_div(6).expect("nonzero divisor");
     let room = u64::from(limits.part.min(limits.text.saturating_sub(512))).min(room);
-    skein_lib::bytes::utf8_prefix(page.text.bytes(), usize::try_from(room).expect("text bound fits")).len()
+    usize::try_from(room).expect("text bound fits")
+}
+
+fn end(page: &c::TaskText, limits: &Limits) -> usize {
+    skein_lib::bytes::utf8_prefix(page.text.bytes(), capacity(limits)).len()
 }
 
 pub(super) fn fits(page: &c::TaskText, limits: &Limits) -> bool {

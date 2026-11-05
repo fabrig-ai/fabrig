@@ -3,7 +3,7 @@ use super::{Out, Runner, reads};
 use crate::jig::rows;
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Event, Readout, contract as c};
-use skein_lib::{List, Queue};
+use skein_lib::{List, Map, Queue};
 
 pub(super) const SLOT: u32 = 7;
 /// A host builds and decodes its own family records for these reads.
@@ -29,10 +29,14 @@ pub(crate) struct Reading {
     pub items: Option<List<c::SettingItem>>,
     pub current: BTreeMap<(u32, u32, u32), Readout>,
     pub query: Option<Query>,
+    /// The preceding explicit set revision, or unavailable history, per setting.
+    pub previous: Map<(u32, u32, u32), Option<u32>>,
+    /// The setting and earlier revision being inspected.
+    pub seeking: Option<(c::Setting, u32)>,
 }
 impl Reading {
     pub(super) fn new() -> Self {
-        Self { items: None, current: BTreeMap::new(), query: None }
+        Self { items: None, current: BTreeMap::new(), query: None, previous: Map::uncapped(), seeking: None }
     }
 }
 pub(super) fn read(runner: &Runner, reading: &mut reads::Reading, query: Query, out: &mut Queue<Out>) {
@@ -72,8 +76,69 @@ fn next_revision(reading: &reads::Reading) -> Option<Query> {
         {
             return Some(Query::RevisionSetting { setting: item.setting, revision: document.head.number });
         }
+        if let c::RevisionReplaced::Application { .. } = item.replaced
+            && let Some(Some(revision)) = reading.application.previous.get(&key(item.setting))
+        {
+            return Some(Query::RevisionSetting { setting: item.setting, revision: *revision });
+        }
     }
     None
+}
+
+/// Find the preceding explicit set through retained records, without reading today's value.
+pub(super) fn next_history(reading: &mut reads::Reading) -> Option<c::Read> {
+    if reading.called.call.tool != rows::REVISION_AT {
+        return None;
+    }
+    if reading.application.seeking.is_none() {
+        let Readout::Jig(c::ReadResult::Value(c::ReadValue::Revision(answer))) = reading.pages.get(&1)? else {
+            return None;
+        };
+        let c::RevisionAnswer::Revision(document) = answer.as_ref() else { return None };
+        for item in &document.items {
+            if let c::RevisionReplaced::Application { .. } = item.replaced
+                && !reading.application.previous.contains_key(&key(item.setting))
+            {
+                if let Some(number) = document.head.number.checked_sub(1) {
+                    reading.application.seeking = Some((item.setting, number));
+                    break;
+                }
+                reading
+                    .application
+                    .previous
+                    .insert(key(item.setting), None)
+                    .expect("one correlation per revision item");
+            }
+        }
+    }
+    let (_, number) = reading.application.seeking?;
+    Some(c::Read::Revision(c::ReadRevision { number }))
+}
+
+/// Advance a history search only through matching retained revision records.
+pub(super) fn history_received(reading: &mut reads::Reading, page: &Readout) {
+    let (setting, number) = reading.application.seeking.take().expect("history read in flight");
+    reading.application.previous.insert(key(setting), None).expect("one correlation per revision item");
+    let Readout::Jig(c::ReadResult::Value(c::ReadValue::Revision(answer))) = page else { return };
+    let c::RevisionAnswer::Revision(document) = answer.as_ref() else { return };
+    if document.head.number != number {
+        return;
+    }
+    for item in &document.items {
+        if item.setting == setting {
+            if let c::RevisionEdit::Application(c::SizedEdit::Set { .. }) = item.edit {
+                reading
+                    .application
+                    .previous
+                    .insert(key(setting), Some(number))
+                    .expect("one correlation per revision item");
+            }
+            return;
+        }
+    }
+    if let Some(before) = number.checked_sub(1) {
+        reading.application.seeking = Some((setting, before));
+    }
 }
 fn revision_received(
     reading: &mut reads::Reading,
@@ -81,7 +146,7 @@ fn revision_received(
     page: Readout,
     limits: &crate::jig::Limits,
 ) -> Result<(), Readout> {
-    let Query::RevisionSetting { setting, .. } = query else { unreachable!("revision query") };
+    let Query::RevisionSetting { setting, revision } = query else { unreachable!("revision query") };
     let value = match reading.parts.application_answer(query, &page) {
         Some(Answer::Setting(Some(value))) => value,
         Some(Answer::Setting(None)) => return Err(Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown))),
@@ -95,12 +160,13 @@ fn revision_received(
         document.value = Some(value);
         return Ok(());
     }
-    join_revision(reading, setting, value, limits);
+    join_revision(reading, setting, revision, value, limits);
     Ok(())
 }
 fn join_revision(
     reading: &mut reads::Reading,
     setting: c::Setting,
+    revision: u32,
     value: c::SettingValue,
     limits: &crate::jig::Limits,
 ) {
@@ -118,7 +184,17 @@ fn join_revision(
     for index in 0..document.items.len() {
         let item = document.items.get_mut(index).expect("counted revision item");
         if item.setting == setting {
-            item.edit = edit;
+            if revision == document.head.number {
+                item.edit = edit;
+            } else {
+                item.replaced = match edit {
+                    c::RevisionEdit::Set(value) => c::RevisionReplaced::Value(value),
+                    c::RevisionEdit::TooLarge(size) => c::RevisionReplaced::TooLarge(size),
+                    c::RevisionEdit::Application(_) | c::RevisionEdit::Removed | c::RevisionEdit::Reset => {
+                        unreachable!("measured set")
+                    }
+                };
+            }
             break;
         }
     }
@@ -152,8 +228,13 @@ pub(super) fn received(
     limits: &crate::jig::Limits,
 ) -> Result<(), Readout> {
     let query = reading.application.query.take().expect("one application read in flight");
-    if let Query::RevisionSetting { .. } = query {
-        return revision_received(reading, query, page, limits);
+    if let Query::RevisionSetting { setting, revision } = query {
+        let result = revision_received(reading, query, page, limits);
+        if result.is_err() && reading.application.previous.get(&key(setting)) == Some(&Some(revision)) {
+            reading.application.previous.insert(key(setting), None).expect("one correlation per revision item");
+            return Ok(());
+        }
+        return result;
     }
     match query {
         Query::RevisionSetting { .. } => unreachable!("revision delivered separately"),

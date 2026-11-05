@@ -610,6 +610,45 @@ impl Throwaway {
         serde_json::from_slice(&response.body).expect("elsewhere JSON")
     }
 
+    /// Keeps the forge's pull, branch and comparison evidence when an update stalls.
+    pub fn pull_update_failure(&self, base: Option<&str>) {
+        eprintln!("stalled update: style=rebase, requested base={base:?}");
+        match self.instance.server_log() {
+            Ok(log) => eprintln!("stalled forge server log:\n{log}"),
+            Err(error) => eprintln!("stalled forge server log: {error:?}"),
+        }
+        let mut heads = Vec::new();
+        for suffix in ["pulls/1", "branches/temper/2/c3", "branches/main"] {
+            let response = self.get(suffix);
+            eprintln!(
+                "stalled forge {suffix}: status={}, {}",
+                response.status,
+                String::from_utf8_lossy(&response.body)
+            );
+            if let Ok(value) = serde_json::from_slice::<Value>(&response.body) {
+                let head = match suffix {
+                    "pulls/1" => value["head"]["sha"].as_str(),
+                    "branches/temper/2/c3" => value["commit"]["id"].as_str(),
+                    _ => None,
+                };
+                if let Some(head) = head {
+                    heads.push((suffix, head.to_owned()));
+                }
+            }
+        }
+        if let Some(base) = base {
+            for (source, head) in heads {
+                // The client proves an update by comparing its head against the requested base.
+                let response = self.get(&format!("compare/{head}...{base}"));
+                eprintln!(
+                    "stalled forge comparison ({source}, {head}...{base}): status={}, {}",
+                    response.status,
+                    String::from_utf8_lossy(&response.body)
+                );
+            }
+        }
+    }
+
     #[must_use]
     pub fn merged_pull_in(&self, org: &str, name: &str) -> Option<u64> {
         self.repository_observation(org, name, "pulls?state=closed&limit=50")

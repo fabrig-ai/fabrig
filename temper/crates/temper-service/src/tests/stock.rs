@@ -147,7 +147,7 @@ fn assert_reference_authority(old: &jig_domain_authority::Authority, new: &jig_d
     restored.notes = old.notes;
     restored.delegation.kinds = old.delegation.kinds.clone();
     assert_eq!(&restored, old, "budgets, grants and other authority fields survive");
-    for executor in [Executor::Charter(5), Executor::Charter(7)] {
+    for executor in [Executor::Charter(5), Executor::Charter(7), Executor::Role(0)] {
         assert!(new.delegation.kinds.contains(&executor));
     }
 }

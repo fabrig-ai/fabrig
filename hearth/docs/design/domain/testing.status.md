@@ -1,6 +1,6 @@
 # Testing hearth: status
 
-2026-11-04. Where hearth's code lags or departs from [testing.md](testing.md).
+2026-11-05. Where hearth's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 2.3: the M2 system world joining the builder and the real tree
   helper on one fake machine. 2.5, 2.6: the tree helper's protocol and simulated
@@ -47,9 +47,6 @@
 - **Departs:** 5.5, 9.2: the `conformance` profile is `conformance-hearth` and
   also runs `recorded_*`, and there is no `measure` profile, because the
   root's tier profiles are `<tier>-<tree>` (`tools/tiers/design.md`, 1).
-- **Departs:** 3.1: `hearth/testing/hearth-fake-machine/Cargo.toml` takes
-  workspace lints and its `clippy.toml` takes the `ring` profile, rather
-  than the step crates' strict subset; the reason is unknown.
 - **Departs:** 8.4: unsettled: `hearth/docs/design/domain/testing.md`, 8.4
   requires a domain's worst case, while the rule it cites,
   `skein/docs/foundation/programming-model.md`, 6.3, requires measured

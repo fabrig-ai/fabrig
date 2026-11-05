@@ -1,6 +1,6 @@
 # hearth's design: status
 
-2026-11-04. Where hearth's code lags or departs from [README.md](README.md).
+2026-11-05. Where hearth's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 4.1: the activator, steward and their link and jobs; the
   delegated cgroup subtrees; bootstrap. The binary hosts the builder
@@ -30,6 +30,10 @@
   same form. A printed error and a digest's input are hearth's behaviour,
   so these strings keep their bytes rather than follow the citation
   convention.
+- **Departs:** 6: the `reason` strings of hearth's `clippy.toml` files cite
+  `io.md, 6` and "skein's programming-model.md, 10.2" without the
+  repository-root prefix, because each file is a copy of
+  `tools/lints/clippy/*.toml`, which `tools/lints/lints.py` holds equal.
 - **Not yet:** 8.1: a full stat by name without following links, readlink
   and extended attributes; metadata writes for symlinks, hard links,
   chmod, chown and extended attributes. Skein's stat reports only kind,
