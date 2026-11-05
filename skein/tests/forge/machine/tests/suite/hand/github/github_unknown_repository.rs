@@ -1,9 +1,9 @@
 //! A finite search belongs to its original call, credential selection and deadline.
-use super::fixtures::{self as f, FORGE, Harness, REPO};
-use crate::{Request, installations::Tokens};
-use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Error, Op, Read};
+use skein_forge_connection::{Request, seam::Tokens};
+use skein_forge_machine_world::hand::{self as f, FORGE, Harness, REPO};
 use skein_lib::{Duration, Secret, Time};
+use std::boxed::Box;
 
 const ONE: &[u8] = b"Bearer artificial-full-one";
 const TWO: &[u8] = b"Bearer artificial-full-two";
@@ -26,6 +26,7 @@ fn next(h: &mut Harness) {
     h.run(Duration::ZERO);
     h.connected(FORGE);
 }
+#[expect(clippy::needless_pass_by_value, reason = "the scripted scenario consumes its expected answer")]
 fn answered(h: &mut Harness, cost: u32, result: Result<Answer, Error>) {
     h.run(Duration::ZERO);
     let answer = h.answered(1).expect("one terminal");
@@ -399,7 +400,7 @@ fn no_eligible_candidate_preserves_landed_admission_failure() {
 
 #[test]
 fn released_renewal_requests_add_no_call_cost() {
-    let mut h = super::github_renewal::renewing();
+    let mut h = f::renewing();
     f::github_account(&mut h, 2, 23, b"other", b"artificial-full-two");
     h.component.test_github_mut().recent = Some(2);
     h.component.test_github_mut().rows.get_mut(&1).expect("row").full.expiry = Time::ZERO;
@@ -407,7 +408,7 @@ fn released_renewal_requests_add_no_call_cost() {
     h.answer(FORGE, &f::status(404));
     h.run(Duration::ZERO);
     assert!(h.answered(1).is_none());
-    super::github_renewal::renewed_full(&mut h);
+    f::renewed_full(&mut h);
     h.connected(FORGE);
     found(&mut h, 3);
     assert_eq!(count(&h, b"POST /app/installations/1/access_tokens "), 3);
@@ -461,11 +462,11 @@ fn repository_id_above_the_vocabulary_bound_is_too_large() {
 
 #[test]
 fn discovery_waits_for_installation_changes_and_git_tokens() {
-    use super::github_installation_loss::{commit, row};
-    use crate::{
+    use skein_forge_connection::{
         Event,
-        installations::{HeldToken, Selected},
+        seam::{HeldToken, Selected},
     };
+    use skein_forge_machine_world::hand::{commit, row};
     use skein_lib::Queue;
     let mut h = waiting_on_second();
     let mut renamed = row(1, false);
@@ -485,7 +486,7 @@ fn discovery_waits_for_installation_changes_and_git_tokens() {
     assert_eq!(up.len(), 1);
     assert!(h.component.test_github().held.is_some());
     match up.pop().expect("first lifecycle change") {
-        Event::Installation { change, .. } => assert_eq!(change, crate::Change::Renamed),
+        Event::Installation { change, .. } => assert_eq!(change, skein_forge_connection::Change::Renamed),
         Event::GitToken { .. }
         | Event::Fact { .. }
         | Event::Answered(_)
@@ -520,15 +521,14 @@ fn discovery_waits_for_installation_changes_and_git_tokens() {
     found(&mut h, 3);
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "inspect discovery snapshot Secret redaction")]
 fn discovery_snapshots_keep_credentials_out_of_debug_and_request_lines() {
     let mut h = candidates();
     begin(&mut h, branch());
     let debug = std::format!("{:?} {:?}", h.component, h.up);
     for secret in [b"artificial-full-one".as_slice(), b"artificial-full-two"] {
-        assert!(!super::github_start::contains(debug.as_bytes(), secret));
+        assert!(!f::contains(debug.as_bytes(), secret));
         for line in h.request_lines(FORGE).into_boxed() {
-            assert!(!super::github_start::contains(&line, secret));
+            assert!(!f::contains(&line, secret));
         }
     }
 }

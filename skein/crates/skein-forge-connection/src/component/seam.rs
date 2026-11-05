@@ -5,6 +5,15 @@ use crate::{Shared, limits};
 use skein_lib::{Env, Queue};
 
 impl Component {
+    pub fn test_github_bearer(
+        &mut self,
+        app: u64,
+        key: &skein_lib::Secret,
+        wall: skein_lib::Wall,
+        deadline: skein_lib::Duration,
+    ) -> Option<&skein_lib::Secret> {
+        self.test_github_mut().jwt.bearer(app, key, wall, deadline)
+    }
     pub fn test_calls_ready(&mut self, access: crate::Access) {
         self.forges.get_mut(0).expect("forge").base.start = Start::Ready { cap: skein_forge::github::pin::PAGE_CAP };
         self.forges.get_mut(0).expect("forge").base.forge.access = Some(access);
