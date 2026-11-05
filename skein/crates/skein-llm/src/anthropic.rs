@@ -4,6 +4,7 @@ mod peer;
 mod request;
 mod response;
 
+pub use crate::dialect::anthropic_decoded_bound as decoded_bound;
 pub use crate::wire::{DecodeError, Json, Limits, ProviderError, RateLimit, classify};
 pub use crate::{Failure, Stop, Usage};
 pub use peer::{Mark, Request, decode_request, encode_event};
@@ -19,12 +20,3 @@ mod tests;
 #[cfg(test)]
 mod request_tests;
 
-/// Bounds whole-value admission and decoded output.
-/// A conservative per-exchange heap bound, including common JSON processing
-/// and provider request/response ownership.
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    crate::openai::decoded_bound(limits)?
-        .checked_add(decoder_bound(limits)?)?
-        .checked_add(skein_lib::List::<Mark>::price(4)?.checked_mul(2)?)
-}
