@@ -469,7 +469,7 @@ fn completed_results_print_each_values_words() {
                 words: f::document_text(b"sound"),
                 fields: List::with_capacity(0),
             }),
-            b"result: Completed \xc2\xb7 sound\n",
+            b"result: Completed \xc2\xb7 verdict 1 \xc2\xb7 sound\n",
         ),
         (
             Some(c::ResultValue::Verdict {
@@ -479,7 +479,7 @@ fn completed_results_print_each_values_words() {
                 tasks: List::with_capacity(0),
                 proposal: None,
             }),
-            b"result: Completed \xc2\xb7 sound\n",
+            b"result: Completed \xc2\xb7 verdict 1 \xc2\xb7 sound\n",
         ),
         (
             Some(c::ResultValue::Approved { state: Box::from(*b"ready"), words: Some(f::document_text(b"checked")) }),
@@ -982,4 +982,33 @@ fn report_chunks(
         }
     }
     whole.finish()
+}
+
+#[test]
+fn activity_verdicts_name_the_code_with_the_reason() {
+    let word = c::Word {
+        number: 1,
+        from: c::Requester::Task(DELEGATE),
+        kind: c::MessageKind::Result(c::WordResult::Verdict { code: 2, fields: List::with_capacity(0) }),
+        words: f::document_text(b"bold").bytes,
+        at: Wall::EPOCH,
+        hits: 1,
+        eligible: true,
+    };
+    for line in [c::Activity::Heard(word.clone()), c::Activity::Notified { recipient: c::Requester::Task(1), word }] {
+        let mut rows = List::with_capacity(1);
+        rows.push(c::DecodedActivityLine {
+            source: Box::new(c::ActivityLine { task: DELEGATE, position: 1, at: Wall::EPOCH, line }),
+            decoded: None,
+        })
+        .expect("one result line");
+        let result = c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+            rows,
+            cut: false,
+            before: None,
+            after: None,
+        })));
+        let printed = f::read_answer(&["task", "activity", "2"], result);
+        assert!(skein_lib::bytes::find(&printed.stdout, "1 · verdict 2 · bold\n".as_bytes()).is_some(), "{printed:?}");
+    }
 }

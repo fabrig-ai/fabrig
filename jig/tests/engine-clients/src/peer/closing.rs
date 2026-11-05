@@ -107,7 +107,9 @@ impl Peer {
         };
         let secret = link.split(|byte| *byte == b'=').next_back().expect("link secret");
         let secret = base64::decode(Alphabet::Url, secret, 32).expect("secret");
-        let record = w::LinkSignIn::new(&self.env.limits.wire, w::LinkSignInParts { secret }).expect("link");
+        let record =
+            w::LinkSignIn::new(&self.env.limits.wire, w::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
+                .expect("link");
         let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut bytes).expect("link bytes");
         self.accepted_post(b"/jig/v1/sign-in/link", bytes.finish())

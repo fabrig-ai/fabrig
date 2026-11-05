@@ -28,11 +28,18 @@ pub enum FrameError {
 }
 
 /// An encoded frame whose header and measured body occupy one box.
-#[derive(Debug)]
 pub struct Frame {
     kind: u16,
     body_len: u32,
     bytes: Box<[u8]>,
+}
+
+// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 3: a frame prints its lengths.
+#[expect(clippy::missing_fields_in_debug, reason = "frame bytes may carry credentials")]
+impl core::fmt::Debug for Frame {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Frame").field("kind", &self.kind).field("body_len", &self.body_len).finish()
+    }
 }
 
 impl Frame {

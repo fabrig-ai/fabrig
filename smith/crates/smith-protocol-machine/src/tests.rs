@@ -2,6 +2,7 @@
 
 mod admission;
 mod deadlines;
+mod debug;
 mod routing;
 
 use alloc::boxed::Box;

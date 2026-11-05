@@ -12,17 +12,46 @@ use crate::limits::Limits;
 use crate::process::Purpose;
 
 /// One variable supplied by the agent configuration to the machine encoder.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Variable {
     pub name: Box<[u8]>,
     pub value: Box<[u8]>,
 }
 
+// smith/docs/design/domain/tools.md, section 5: a variable prints its name alone.
+#[expect(clippy::missing_fields_in_debug, reason = "a variable prints its name alone, never its value")]
+impl core::fmt::Debug for Variable {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Variable").field("name", &self.name).finish()
+    }
+}
+
 /// The machine's complete configured environment, encoded once at startup.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Environment {
     entries: Box<[Box<[u8]>]>,
     bytes: u32,
+}
+
+// smith/docs/design/domain/tools.md, section 5: a variable prints its name alone.
+impl core::fmt::Debug for Environment {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Environment").field("names", &EnvNames(&self.entries)).field("bytes", &self.bytes).finish()
+    }
+}
+
+pub(crate) struct EnvNames<'a>(pub(crate) &'a [Box<[u8]>]);
+
+impl core::fmt::Debug for EnvNames<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut list = f.debug_list();
+        for entry in self.0 {
+            let end = skein_lib::bytes::find(entry, b"=").unwrap_or(entry.len());
+            let name = entry.get(..end).expect("name ends within entry");
+            list.entry(&name);
+        }
+        list.finish()
+    }
 }
 
 /// Why a configured environment cannot be encoded for startup.
