@@ -96,6 +96,9 @@ fn the_reference_settings_file_decodes() {
     assert!(instructions.contains("a live repair owning its failing tests"));
     assert!(instructions.contains("then the draft it was built from, by path,"));
     assert!(instructions.contains("with `note`"));
+    for phrase in ["report: ", "Left: ", "Risk: ", "Decided: ", "your goal's scope", "Revise it in place"] {
+        assert!(instructions.contains(phrase), "{phrase}");
+    }
     assert!(coordinator.instructions.bytes().ends_with(
         b"If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
     ));

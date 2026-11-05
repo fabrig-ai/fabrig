@@ -269,3 +269,125 @@ fn a_query_naming_no_index_says_it_has_no_ended_part() {
     let unindexed = core::documents::TaskQuery { requester: None, phase: None, ..query };
     assert_eq!(core::reads::ended::ended_part(&unindexed), core::reads::ended::EndedPart::None);
 }
+
+// Nine successful endings exceed the standard document page of eight rows.
+const DONE_DELEGATES: u32 = 9;
+const DOCUMENT_ROWS: u32 = 8;
+const FIRST_COMPLETION: u32 = 1;
+// The parent plus nine done, one failed, one cancelled and one live delegate.
+const COUNTED_TASKS: u32 = 13;
+// Retain all twelve delegates' result words while the parent keeps running.
+const COUNTED_INBOX_BYTES: u32 = 2048;
+
+fn counts_world(seed: u64) -> jig_core_world::world::World {
+    let (mut configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
+    limits.core.documents.rows = DOCUMENT_ROWS;
+    limits.core.tasks.tree_tasks = COUNTED_TASKS;
+    limits.core.tasks.inbox_messages = COUNTED_TASKS;
+    limits.core.tasks.inbox_bytes = COUNTED_INBOX_BYTES;
+    limits.core.call_records = COUNTED_TASKS;
+    configuration.core.defaults.rules.ceiling.delegation.tasks = COUNTED_TASKS;
+    let policy = &mut configuration.core.seed_projects[0].policy.policy;
+    policy.ceiling.delegation.tasks = COUNTED_TASKS;
+    policy.roles[0].authority.delegation.tasks = COUNTED_TASKS;
+    let mut world = jig_core_world::world::World::new(jig_core_world::world::Setup {
+        seed,
+        configuration: Some(configuration),
+        limits,
+        ..jig_core_world::world::Setup::default()
+    });
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    world
+}
+
+fn count_delegate(world: &mut jig_core_world::world::World, run: (u64, u64), completion: u32) -> u64 {
+    let mut member = jig_core_world::fixtures::member(world, tasks::Executor::Agent { charter: 1 }, b"counted");
+    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    jig_core_world::fixtures::delegate(world, run, completion, member)
+}
+
+fn finish_counted(world: &mut jig_core_world::world::World, result: tasks::TaskResult) {
+    world.end(tasks::End::Finished { result, cancel_delegates: false }, 0);
+}
+
+fn done_counted(world: &mut jig_core_world::world::World) {
+    finish_counted(world, tasks::TaskResult::Report { words: b"done".as_slice().into() });
+}
+
+fn live_count_line(world: &mut jig_core_world::world::World, task: u64) -> core::documents::TaskLine {
+    let query =
+        core::documents::TaskQuery { project: Some(1), requester: None, ..jig_test_profile::fixtures::OWN_TASKS };
+    jig_core_world::reads::ask(world, 901, core::reads::Read::Tasks { query, live: None, ended: None });
+    let core::reads::Answer::Tasks(page) = jig_core_world::reads::latest(world) else { panic!("task page") };
+    page.live.iter().find(|line| line.chip.number == task).expect("live task line").clone()
+}
+
+#[test]
+fn a_line_counts_its_direct_delegates_past_a_page() {
+    let mut world = counts_world(835);
+    let parent = world.assignments[0];
+    for completion in FIRST_COMPLETION..=DONE_DELEGATES {
+        count_delegate(&mut world, parent, completion);
+        done_counted(&mut world);
+    }
+    count_delegate(&mut world, parent, DONE_DELEGATES + 1);
+    finish_counted(&mut world, tasks::TaskResult::Failure { reason: b"failed".as_slice().into() });
+    let cancelled = count_delegate(&mut world, parent, DONE_DELEGATES + 2);
+    crate::read_support::request(
+        &mut world,
+        101,
+        jig_domain_people::Ask::Cancel {
+            project: 1,
+            task: cancelled,
+            reason: b"cancelled".as_slice().into(),
+            grace: None,
+        },
+    );
+    world.end(tasks::End::Parked, 0);
+    count_delegate(&mut world, parent, DONE_DELEGATES + 3);
+    let line = live_count_line(&mut world, parent.0);
+    // Nine done, one failed and one live; the cancelled delegate is excluded.
+    assert_eq!((line.delegates_done, line.delegates_total), (9, 11));
+}
+
+#[test]
+fn a_grandchild_is_not_a_delegates_count() {
+    let mut world = counts_world(836);
+    let parent = world.assignments[0];
+    let member = jig_core_world::fixtures::member(&world, tasks::Executor::Agent { charter: 1 }, b"child");
+    let child = jig_core_world::fixtures::delegate(&mut world, parent, FIRST_COMPLETION, member);
+    let run = *world.assignments.last().expect("child assigned");
+    let mut grandchild = jig_core_world::fixtures::member(&world, tasks::Executor::Agent { charter: 1 }, b"leaf");
+    grandchild.authority.budget.spend = 5;
+    grandchild.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    jig_core_world::fixtures::delegate(&mut world, run, FIRST_COMPLETION, grandchild);
+    done_counted(&mut world);
+    let child_line = live_count_line(&mut world, child);
+    let parent_line = live_count_line(&mut world, parent.0);
+    assert_eq!((child_line.delegates_done, child_line.delegates_total), (1, 1));
+    assert_eq!((parent_line.delegates_done, parent_line.delegates_total), (0, 1));
+    // End the child as well: its own ending alone reaches the parent's direct count.
+    let assignment = world.assigned.as_mut().expect("last assignment");
+    assignment.task = run.0;
+    assignment.attempt = run.1;
+    done_counted(&mut world);
+    let line = live_count_line(&mut world, parent.0);
+    assert_eq!((line.delegates_done, line.delegates_total), (1, 1));
+}
+
+#[test]
+fn an_ended_parents_line_keeps_its_counts() {
+    let mut world = counts_world(837);
+    let parent = world.assignments[0];
+    count_delegate(&mut world, parent, FIRST_COMPLETION);
+    done_counted(&mut world);
+    count_delegate(&mut world, parent, FIRST_COMPLETION + 1);
+    finish_counted(&mut world, tasks::TaskResult::Failure { reason: b"failed".as_slice().into() });
+    let assignment = world.assigned.as_mut().expect("last assignment");
+    assignment.task = parent.0;
+    assignment.attempt = parent.1;
+    done_counted(&mut world);
+    let lines = query_ended(&mut world, jig_test_profile::fixtures::OWN_TASKS);
+    let line = lines.iter().find(|line| line.chip.number == parent.0).expect("ended parent line");
+    assert_eq!((line.delegates_done, line.delegates_total), (1, 2));
+}

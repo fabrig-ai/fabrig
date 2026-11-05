@@ -81,9 +81,10 @@ pub(crate) fn goal(
     authority.delegation.tasks = context.tasks_left.saturating_sub(1);
     authority.delegation.depth = authority.delegation.depth.saturating_sub(1);
     authority.budget.spend = spend;
-    authority.notes = tasks::Scopes(0);
+    authority.notes = tasks::Scopes(authority.notes.0 & tasks::Scopes::GOAL.0);
     authority.note_resources = Box::new([]);
     if advisor {
+        authority.notes = tasks::Scopes(0);
         authority.tools.0 &= domain.core.settings.tools.read.0;
         authority.delegation.kinds = Box::new([]);
         authority.delegation.tasks = 0;

@@ -175,6 +175,7 @@ pub(crate) fn route_forge(
                     | Address::Home { .. }
                     | Address::Changes { .. }
                     | Address::Settings { .. }
+                    | Address::Goals { .. }
                     | Address::Configure { .. }
                     | Address::Adopt { .. } => continue,
                 };
