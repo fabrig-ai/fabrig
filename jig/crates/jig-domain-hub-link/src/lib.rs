@@ -14,7 +14,7 @@ mod grants;
 mod leaves;
 mod payload;
 pub use down::{down, now};
-pub use leaves::{brief_plan, job_assignment, no_workspace, settled_answer};
+pub use leaves::{brief_plan, job_assignment, settled_answer};
 pub use payload::{Ending, Payload, up};
 /// The root's assembled, worker assignment.
 #[derive(Debug)]
