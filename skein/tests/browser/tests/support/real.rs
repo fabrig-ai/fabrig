@@ -142,6 +142,7 @@ enum Stage {
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
     Button,
+    MouseDown { replace: bool },
     Form,
     Covered,
     Scroll,
@@ -177,6 +178,7 @@ impl Scenario {
             Scenario::Words => "/words",
             Scenario::Figure => "/figure",
             Scenario::Facts
+            | Scenario::MouseDown { .. }
             | Scenario::Choose { .. }
             | Scenario::Select
             | Scenario::Dates
@@ -691,7 +693,7 @@ impl Rig {
                     Scenario::Select => {
                         self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"combobox", b"Pick") });
                     }
-                    Scenario::Button => {
+                    Scenario::Button | Scenario::MouseDown { .. } => {
                         self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Press") });
                     }
                     Scenario::Form => {
@@ -795,7 +797,12 @@ impl Rig {
                         self.stage = Stage::Pressing;
                         self.ask(Request::Press { page: PAGE, op: PRESS, node, at: Some(Point { x: 30, y: 25 }) });
                     }
-                    Scenario::Select | Scenario::Button | Scenario::Covered | Scenario::Scroll | Scenario::Throw => {
+                    Scenario::Select
+                    | Scenario::Button
+                    | Scenario::MouseDown { .. }
+                    | Scenario::Covered
+                    | Scenario::Scroll
+                    | Scenario::Throw => {
                         self.stage = Stage::Pressing;
                         self.ask(Request::Press { page: PAGE, op: PRESS, node, at: None });
                     }
@@ -858,10 +865,10 @@ impl Rig {
                     assert_eq!(op, if self.stage == Stage::Keying { KEY } else { PRESS });
                     self.stage = Stage::Expecting;
                     let heading = match self.scenario {
-                        Scenario::Button => b"Done".as_slice(),
+                        Scenario::Button | Scenario::MouseDown { replace: false } => b"Done".as_slice(),
+                        Scenario::MouseDown { replace: true } | Scenario::Throw => b"Before".as_slice(),
                         Scenario::Form => b"Hello Ada".as_slice(),
                         Scenario::Scroll => b"Scrolled".as_slice(),
-                        Scenario::Throw => b"Before".as_slice(),
                         Scenario::Figure => b"Pressed shape".as_slice(),
                         Scenario::Leave
                         | Scenario::Confirm

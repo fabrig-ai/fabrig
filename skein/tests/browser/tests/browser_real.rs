@@ -16,6 +16,21 @@ fn chromium_opens_finds_and_presses_a_button() {
 }
 
 #[test]
+fn a_render_between_mouse_down_and_up_keeps_the_click_only_on_the_held_element() {
+    for replace in [true, false] {
+        let update =
+            if replace { "button.replaceWith(button.cloneNode(true))" } else { "button.dataset.updated='yes'" };
+        let page = format!(
+            r#"<!doctype html><button onmousedown="const button=this; {update}" onclick="document.querySelector('h1').textContent='Done'">Press</button><h1>Before</h1>"#
+        );
+        let profile = Profile::fresh();
+        let mut rig = Rig::new(&chromium(), &profile.0, Scenario::MouseDown { replace });
+        rig.fixed_page(page.into_bytes());
+        rig.run();
+    }
+}
+
+#[test]
 fn chromium_selects_all_replaces_and_submits_a_form() {
     let chromium = chromium();
     let profile = Profile::fresh();
