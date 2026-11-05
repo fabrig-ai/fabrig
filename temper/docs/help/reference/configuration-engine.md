@@ -70,7 +70,7 @@ Shape: `act`. Paths: `engine.acts[]`. A connector's permitted deployment acts.
 Shape: `llm`. Paths: `engine.llm`. The endpoints, models and providers available for runs.
 
 - `endpoints`: list of endpoint; required; init writes list (3 entries). Declares the endpoints serving the configured models.
-- `models`: list of model, 64 models; required; init writes list (3 entries). Declares models in the order used by authority's model bits.
+- `models`: list of model, 64 models; required; init writes list (4 entries). Declares models in the order used by authority's model bits.
 - `providers`: list of llm-provider; optional; init writes list (3 entries). Assigns each configured model to exactly one LLM provider.
 
 ## engine.llm.endpoints[]
@@ -110,7 +110,7 @@ Shape: `header`. Paths: `engine.llm.endpoints[].headers[]`. One header added to 
 
 Shape: `model`. Paths: `engine.llm.models[]`. A model, its context bounds, efforts and prices.
 
-- `name`: text, 4096 bytes; required; init writes "gpt-6-luna" | "claude-opus-5-5" | "demo". Names the model for charters, templates and authorities.
+- `name`: text, 4096 bytes; required; init writes "gpt-6.1-sol" | "gpt-6-luna" | "claude-opus-5-5" | "demo". Names the model for charters, templates and authorities.
 - `endpoint`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the configured endpoint serving this model.
 - `window`: integer, 0 to 4294967295 tokens; required; init writes 1048576. Gives the model's context window.
 - `output`: integer, 0 to 4294967295 tokens; required; init writes 8192. Gives the model's maximum output.
@@ -134,7 +134,7 @@ Shape: `llm-provider`. Paths: `engine.llm.providers[]`. An LLM provider, the mod
 
 - `name`: text, 1 to 256 bytes; public text; required; init writes "openai" | "anthropic" | "demo". Gives the provider's name for showing.
 - `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the provider's number, unique among LLM providers.
-- `models`: list of text, 4096 bytes per name; required; init writes ["gpt-6-luna"] | ["claude-opus-5-5"] | ["demo"]. Names configured models served by this provider alone.
+- `models`: list of text, 4096 bytes per name; required; init writes ["gpt-6.1-sol","gpt-6-luna"] | ["claude-opus-5-5"] | ["demo"]. Names configured models served by this provider alone.
 - `sources`: sources; required; init writes object. Declares the sign-in, key and program sources the provider offers.
 - `signed_in_plan`: true or false, required with sign_in; optional; init writes true | false. Says whether the provider's signed-in source is a plan.
 - `manage_usage`: text, 2048 ASCII bytes; public HTTPS address; required for plans and programs; optional; init writes "https://chatgpt.com/settings/usage" | "https://claude.ai/settings/usage". Gives the public address where a holder manages usage.
