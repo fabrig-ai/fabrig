@@ -10,46 +10,36 @@
 //! room after it, a failure idle and while writing, and a close in each
 //! state.
 
-use std::collections::BTreeMap;
-
 use skein_http_world::writer_world::{self, Run, Settings};
 use skein_lib::Rng;
+use skein_protocol_kit::seen::Seen;
 
 const ROUNDS: u64 = 5_000;
 
-#[derive(Default)]
-struct Seen(BTreeMap<String, u32>);
-
-impl Seen {
-    fn note(&mut self, what: String) {
-        *self.0.entry(what).or_default() += 1;
+fn record(tally: &mut Seen, run: &Run) {
+    for (_, answer) in &run.answered {
+        match answer {
+            Some(answer) => tally.note(format!("{answer:?}")),
+            None => tally.note("closed before the answer".into()),
+        }
     }
-
-    fn record(&mut self, run: &Run) {
-        for (_, answer) in &run.answered {
-            match answer {
-                Some(answer) => self.note(format!("{answer:?}")),
-                None => self.note("closed before the answer".into()),
-            }
+    if run.finished {
+        tally.note("finished".into());
+    }
+    tally.note(format!("closed while waiting for {:?}", run.closed_while));
+    let fell = run.fell;
+    for (flag, what) in [
+        (fell.pieces, "an event in pieces"),
+        (fell.ended, "the stream ended"),
+        (fell.room_after_end, "room after the end"),
+        (fell.failed_idle, "a failure while idle"),
+    ] {
+        if flag {
+            tally.note(what.into());
         }
-        if run.finished {
-            self.note("finished".into());
-        }
-        self.note(format!("closed while waiting for {:?}", run.closed_while));
-        let fell = run.fell;
-        for (flag, what) in [
-            (fell.pieces, "an event in pieces"),
-            (fell.ended, "the stream ended"),
-            (fell.room_after_end, "room after the end"),
-            (fell.failed_idle, "a failure while idle"),
-        ] {
-            if flag {
-                self.note(what.into());
-            }
-        }
-        if let Some(waiting) = fell.failed_while {
-            self.note(format!("failed while waiting for {waiting:?}"));
-        }
+    }
+    if let Some(waiting) = fell.failed_while {
+        tally.note(format!("failed while waiting for {waiting:?}"));
     }
 }
 
@@ -63,7 +53,7 @@ fn generated_events_are_written_and_read_back_as_written_whatever_the_neighbours
         let limits = writer_world::limits(&mut rng);
         let settings = Settings::chaotic(&mut rng, limits, 400);
         let run = writer_world::check(&items, &settings, seed);
-        tally.record(&run);
+        record(&mut tally, &run);
     }
     for what in [
         "Sent",
