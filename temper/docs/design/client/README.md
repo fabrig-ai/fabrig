@@ -935,7 +935,7 @@ keeps (`../protocol/configuration.md`, section 2).
     - an empty repository, with the names written, the repository made
       unadopted; with either blank, one alert, "Both an organization and a
       name.", and nothing sent;
-    - copies, each non-empty line read as an address (5.4): `http://` or
+    - copies, each non-empty line read as an address: `http://` or
       `https://`, `.git` and trailing `/` stripped; `HOST/OWNER/NAME`, or
       `OWNER/NAME` meaning `github.com`; then the source's own check
       (`../draft/repository-copies.md`, 5.4). A line that does not read
