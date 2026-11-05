@@ -3,3 +3,22 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-goals/inputs/request.md", "temper/docs/design/client/browser.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/template-places.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# See plan.md: the report's two halves go side by side, then one chain for what conflicts across plans.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "report-parse"
+title = "a goal's report read from its note: report::parse, read and newest"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "a goal's report note reads as its headline, paragraphs and lines"
+parts = ["report-parse"]
+walk = false

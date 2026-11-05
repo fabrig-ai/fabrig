@@ -5,8 +5,9 @@
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
-  `Board { project }` with its reordering, and `Changes { project }`: no
-  address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
+  `Changes { project }`: no address in `temper-client-domain`'s
+  `address.rs`. 3.5, 5.3: *Goals*, *A goal's report*, the rail's "Goals"
+  and the tab bar with it: plan `ui-goals`. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
   with their tests; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
