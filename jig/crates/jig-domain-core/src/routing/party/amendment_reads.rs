@@ -176,11 +176,7 @@ pub(crate) fn resume(
             core,
             env,
             work,
-            token,
-            key,
-            target,
-            revision,
-            amendment,
+            crate::routing::run::calls::AgentAmend { token, key, target, revision, amendment },
             read.evidence,
         ),
         Replay::Person { request, person, project, task, revision, amendment, release } => {
