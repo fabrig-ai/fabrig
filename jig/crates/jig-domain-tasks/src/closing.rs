@@ -448,6 +448,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
             }
             task.record.delegates = remaining.into_boxed();
             task.record.ended_below.add(endings);
+            task.record.ended_delegates = task.record.ended_delegates.ended(status);
             task.record.last_activity = env.wall;
             publish(domain, env, parent, out);
         }

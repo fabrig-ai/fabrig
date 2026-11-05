@@ -134,6 +134,8 @@ fn reply(task: c::Task) -> TaskLine {
             failed: 0,
             cancelled: 0,
         },
+        delegates_done: 0,
+        delegates_total: 0,
         held_below: 0,
         conversation: Some(jig_client_domain::contract::ConversationRead {
             seen: 0,
