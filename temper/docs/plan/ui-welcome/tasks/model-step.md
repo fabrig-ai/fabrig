@@ -143,3 +143,17 @@ Not this task's: Claude's page (`claude-way`), Ready's words (`ready-step`).
 ## Report
 
 For each state the words and where; what the terminal prints for the notes; the builder and directory of the screenshots.
+
+## Rebase (2026-11-05, step merge, foreman ui-welcome/model-step/foreman-1)
+
+resolve README.status.md by preserving both Model-step and setup-intent gap removals.
+The merge conflict is in `temper/docs/design/client/README.status.md`’s opening **Not yet** paragraph.
+Branch commit `13d9ec7522` removes the completed Model-state gap; integration commit `3a79dbb22c` removes the adjacent `SetUp` org/name gap.
+Rebase onto the landing’s current integration tip and combine these edits:
+- Remove the opening “3.5, *A model usable*…” sentence through “Pending”.
+- Keep the Claude and Ready gaps.
+- Keep “copies and nothing say ‘Not available yet’”, but remove the following `SetUp` org/name clause.
+- Preserve the branch’s deletion of “The Model step showing an account added before as ready…”.
+- Preserve all other integration status updates, including those from main commit `88c30d6ecc`.
+
+The log reports no other conflicting paths; retain the automatically merged code and tests.
