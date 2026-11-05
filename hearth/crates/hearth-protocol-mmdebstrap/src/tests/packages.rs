@@ -23,7 +23,7 @@ fn read(input: &[u8], limits: &Limits) -> List<Found> {
             packages::up(&mut reader, &env, Up::Bytes(bytes::copy_of(&input[start..=at])), &mut above, &mut below);
             start = end;
             drop(below.pop());
-            for _ in 0..packages::UP_MAX_OUT.above {
+            for _ in 0..above.len() {
                 if let Some(event) = above.pop() {
                     found.push(event).unwrap();
                 }
@@ -31,7 +31,7 @@ fn read(input: &[u8], limits: &Limits) -> List<Found> {
         }
     }
     packages::up(&mut reader, &env, Up::End, &mut above, &mut below);
-    for _ in 0..packages::UP_MAX_OUT.above {
+    for _ in 0..above.len() {
         if let Some(event) = above.pop() {
             found.push(event).unwrap();
         }

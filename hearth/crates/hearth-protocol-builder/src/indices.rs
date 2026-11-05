@@ -230,7 +230,7 @@ impl Indices {
                 self.eof = false;
                 self.intake.clear();
                 self.decoder = packages::Stanzas::new(&env.limits.mmdebstrap);
-                let mut demands = Queue::with_capacity(1);
+                let mut demands = Queue::uncapped();
                 packages::open(&mut self.decoder, &Self::decoder_env(env), &mut demands);
                 self.demand = Self::demand(&mut demands);
                 file::Request::OpenReadNoFollow { owner: OWNER, root: self.root, name: path.finish() }
@@ -301,11 +301,11 @@ impl Indices {
             None if self.eof => Up::End,
             None => return false,
         };
-        let mut found = Queue::with_capacity(2);
-        let mut demands = Queue::with_capacity(1);
+        let mut found = Queue::uncapped();
+        let mut demands = Queue::uncapped();
         packages::up(&mut self.decoder, &Self::decoder_env(env), up, &mut found, &mut demands);
         self.demand = Self::demand(&mut demands);
-        for _ in 0..packages::UP_MAX_OUT.above {
+        for _ in 0..found.len() {
             match found.pop() {
                 Some(packages::Found::Stanza(stanza)) => above.push(Event::Render(render::vocabulary::Event::Stanza {
                     request: self.request,
