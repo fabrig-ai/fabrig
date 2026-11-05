@@ -86,7 +86,7 @@ fn a_key_is_kept_before_its_value_is_lent() {
 fn only_the_component_refreshes_after_the_durable_start_and_restore() {
     let mut component = machine();
     let mut out = Queue::uncapped();
-    component.providers.insert(1, template()).ok().expect("provider");
+    component.providers.insert(1, template()).expect("provider");
     request(&mut component, domain::Signing::Restore { source: 0, provider: 1, kind: domain::Kind::SignIn }, &mut out);
     component.step(
         &env(),
@@ -214,7 +214,7 @@ fn a_move_finishes_its_remove_read_and_notification_before_forget() {
     let mut component = machine();
     let mut out = Queue::uncapped();
     open(&mut component, &mut out);
-    component.providers.insert(1, template()).ok().expect("provider");
+    component.providers.insert(1, template()).expect("provider");
     component.source_providers.insert(0, 1).unwrap();
     component.moves.stage(0, template());
     request(&mut component, domain::Signing::Withdraw { source: 0, display: bytes::copy_of(b"Moved") }, &mut out);
@@ -312,7 +312,7 @@ fn abort_consumes_a_restore_answer_without_restoring_the_source() {
 fn a_wanted_source_refreshes_at_its_deadline_without_an_owner_request() {
     let mut component = machine();
     let mut out = Queue::uncapped();
-    component.providers.insert(1, template()).ok().expect("provider");
+    component.providers.insert(1, template()).expect("provider");
     open(&mut component, &mut out);
     request(&mut component, domain::Signing::Restore { source: 0, provider: 1, kind: domain::Kind::SignIn }, &mut out);
     component.step(
@@ -358,7 +358,7 @@ fn the_owners_return_location_reaches_the_sign_in_listener() {
         stream::{Down, Up},
     };
     let mut component = machine();
-    component.providers.insert(1, template()).ok().expect("provider");
+    component.providers.insert(1, template()).expect("provider");
     let mut out = Queue::uncapped();
     open(&mut component, &mut out);
     request(&mut component, domain::Signing::SignIn { source: 7, provider: 1 }, &mut out);

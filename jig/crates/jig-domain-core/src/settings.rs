@@ -37,6 +37,32 @@ pub enum Value {
     Rules(Box<authority::Rules>),
     Application(Box<[u8]>),
 }
+impl Value {
+    pub(crate) fn as_charter(&self) -> Option<&Charter> {
+        match self {
+            Self::Charter(value) => Some(value),
+            Self::Template(_) | Self::Policy(_) | Self::Rules(_) | Self::Application(_) => None,
+        }
+    }
+    pub(crate) fn as_template(&self) -> Option<&Template> {
+        match self {
+            Self::Template(value) => Some(value),
+            Self::Charter(_) | Self::Policy(_) | Self::Rules(_) | Self::Application(_) => None,
+        }
+    }
+    pub(crate) fn as_policy(&self) -> Option<&ConfiguredPolicy> {
+        match self {
+            Self::Policy(value) => Some(value),
+            Self::Charter(_) | Self::Template(_) | Self::Rules(_) | Self::Application(_) => None,
+        }
+    }
+    pub(crate) fn as_rules(&self) -> Option<&authority::Rules> {
+        match self {
+            Self::Rules(value) => Some(value),
+            Self::Charter(_) | Self::Template(_) | Self::Policy(_) | Self::Application(_) => None,
+        }
+    }
+}
 #[derive(Debug)]
 pub struct Defaults {
     pub charters: Box<[Charter]>,
@@ -264,36 +290,23 @@ impl Current {
     }
     #[must_use]
     pub fn charter(&self, number: u32) -> Option<&Charter> {
-        match self.value(Setting::Charter(number)) {
-            Some(Value::Charter(value)) => Some(value),
-            Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
-            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
-        }
+        self.value(Setting::Charter(number))?.as_charter()
     }
     #[must_use]
     pub fn template(&self, number: u32) -> Option<&Template> {
-        match self.value(Setting::Template(number)) {
-            Some(Value::Template(value)) => Some(value),
-            Some(Value::Charter(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
-            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
-        }
+        self.value(Setting::Template(number))?.as_template()
     }
     #[must_use]
     pub fn policy(&self, number: u32) -> Option<&ConfiguredPolicy> {
-        match self.value(Setting::Policy(number)) {
-            Some(Value::Policy(value)) => Some(value),
-            Some(Value::Charter(_) | Value::Template(_) | Value::Rules(_)) | None => None,
-            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
-        }
+        self.value(Setting::Policy(number))?.as_policy()
     }
     #[must_use]
     pub fn rules(&self) -> &authority::Rules {
         match self.value(Setting::Rules) {
             Some(Value::Rules(value)) => value,
-            Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_)) | None => {
+            Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Application(_)) | None => {
                 unreachable!("checked settings always offer rules")
             }
-            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -316,6 +329,36 @@ impl Current {
     #[must_use]
     pub fn offered(&self) -> List<Setting> {
         offered(&self.defaults, &self.changes)
+    }
+    pub(crate) fn offered_charters(&self) -> Box<[u32]> {
+        let names = self.offered();
+        let mut numbers = List::with_capacity(names.len());
+        for &setting in &names {
+            match setting {
+                Setting::Charter(number) => numbers.push(number).expect("offered charter count"),
+                Setting::Template(_)
+                | Setting::Policy(_)
+                | Setting::Rules
+                | Setting::ProjectPolicy { .. }
+                | Setting::Application { .. } => {}
+            }
+        }
+        numbers.into_boxed()
+    }
+    pub(crate) fn offered_templates(&self) -> Box<[u32]> {
+        let names = self.offered();
+        let mut numbers = List::with_capacity(names.len());
+        for &setting in &names {
+            match setting {
+                Setting::Template(number) => numbers.push(number).expect("offered template count"),
+                Setting::Charter(_)
+                | Setting::Policy(_)
+                | Setting::Rules
+                | Setting::ProjectPolicy { .. }
+                | Setting::Application { .. } => {}
+            }
+        }
+        numbers.into_boxed()
     }
 }
 #[must_use]
@@ -419,8 +462,9 @@ impl Current {
     pub(crate) fn test_charter_mut(&mut self, number: u32) -> &mut Charter {
         match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
             Value::Charter(value) => value,
-            Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!("fixture charter value"),
-            Value::Application(_) => unreachable!("an application's setting: apps-core"),
+            Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Application(_) => {
+                panic!("fixture charter value")
+            }
         }
     }
     pub(crate) fn test_templates(&mut self, templates: Box<[Template]>) {
@@ -429,7 +473,7 @@ impl Current {
             match setting {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
                 Setting::Charter(_) | Setting::Policy(_) | Setting::Rules | Setting::ProjectPolicy { .. } => {}
-                Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+                Setting::Application { .. } => panic!("fixture defaults contain only jig settings"),
             }
         }
         for setting in old.into_boxed() {
@@ -473,9 +517,6 @@ pub fn withdrawal_writes(limits: &crate::Limits) -> Option<u32> {
 pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
     let mut heads = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for item in items {
-        if application::is_application(item.setting) || is_project_policy(item.setting) {
-            continue;
-        }
         heads
             .push(jig_domain_tasks::SettingHead {
                 setting: match item.setting {
@@ -483,8 +524,7 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Template(n) => jig_domain_tasks::Setting::Template(n),
                     Setting::Policy(n) => jig_domain_tasks::Setting::Policy(n),
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
-                    Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-                    Setting::ProjectPolicy { .. } => continue,
+                    Setting::Application { .. } | Setting::ProjectPolicy { .. } => continue,
                 },
                 edit: match item.edit {
                     Edit::Set(_) => jig_domain_tasks::SettingEdit::Set,
@@ -546,7 +586,7 @@ pub(crate) struct Restoration {
 #[derive(Debug)]
 pub(crate) enum RestoreEdit {
     Core(Edit),
-    Application(application::RestoredEdit),
+    Application(application::Restored),
 }
 #[derive(Debug)]
 pub(crate) struct RestoreGroup {

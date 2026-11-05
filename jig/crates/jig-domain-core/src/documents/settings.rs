@@ -2,7 +2,7 @@
 use crate::{
     Core, Limits,
     documents::{Missing, Text},
-    settings::{Head, Setting, Value},
+    settings::{Head, Setting},
 };
 use jig_domain_people as people;
 use skein_lib::{List, Map};
@@ -72,9 +72,11 @@ pub(crate) fn build(core: &Core) -> Settings {
             None => (Follows::Default, current.defaults.get(&setting).expect("named default").revision),
         };
         let name = match current.value(setting) {
-            Some(Value::Template(value)) => Some(Text { bytes: value.name.clone(), cut: false }),
-            Some(Value::Charter(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
-            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
+            Some(value) => match value.as_template() {
+                Some(template) => Some(Text { bytes: template.name.clone(), cut: false }),
+                None => None,
+            },
+            None => None,
         };
         settings
             .push(SettingLine { setting, name, follows, last: Some(last), application: None })

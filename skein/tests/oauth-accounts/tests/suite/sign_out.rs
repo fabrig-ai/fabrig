@@ -68,8 +68,8 @@ impl ExchangeOwner {
                     kept: Some(oauth::SavedToken {
                         key: ACCOUNT,
                         generation: 0,
-                        access_token: bytes::copy_of(b"old"),
-                        refresh_token: Some(bytes::copy_of(b"seed")),
+                        access_token: skein_lib::Secret::new(bytes::copy_of(b"old")),
+                        refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"seed"))),
                         metadata: None,
                         expires_at: Wall::from_nanos(Duration::from_secs(5).as_nanos()),
                         issued_client_id: None,
@@ -82,7 +82,6 @@ impl ExchangeOwner {
                 shared: false,
                 origins: List::with_capacity(0),
             })
-            .ok()
             .expect("one signed-in account");
         Self {
             component: accounts::Component::new(
