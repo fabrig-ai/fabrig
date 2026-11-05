@@ -4655,6 +4655,11 @@ own tests:
 
 ## 11. Open questions
 
+- **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
+  sections 7, 9 and 10): the forges' rows carry `makings` and `temper ctl
+  forge list` says them. Home's line for a copy, the sheet "Add
+  repositories" and a failed row's dismissal wait for their look.
+  Default: no page shows a row.
 - **A project's age and a first CI run on Home** (*Home,* 3.5; the
   user's, each a new fact of a protocol): the user's greenfield mock's
   kicker says "PROJECT · made just now" and its repository's step "its
