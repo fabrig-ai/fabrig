@@ -54,9 +54,10 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a spec
-reads in pieces of it (`protocol/setup.md`). A repair goes on at a head CI has
-since passed, and a release there makes a fresh one, where the design ends it
-(`domain/forge.md`), and `change show`'s
+reads in pieces of it (`protocol/setup.md`). A green head ends a CI repair and a
+hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
+starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
+and `change show`'s
 `held:` line calls a cancelled delegate failed (`domain/forge.md`). A repair
 whose brief can't be read ends held naming why on the fake forge alone: the walk
 on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not

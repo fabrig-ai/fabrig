@@ -1799,12 +1799,12 @@ delegate's terminal wakes it to offer the landed result.
     goes on from that head, checked as after a push (8.2, step 3), as if no
     repair were needed. Not running is a repair due and not yet made; one
     made whose task is due, preparing, waiting between its tries or for an
-    answer; one whose task is held; and one that ended failed, cancelled or
-    finding nothing to do. A task still live is cancelled, its reason `CI
+    answer; one whose task is held with no attempt running under the hold;
+    and one that ended failed, cancelled or finding nothing to do. A task still live is cancelled, its reason `CI
     passed at head H`, so that its end says that and not a failure. No fresh
     repair is made for a green head, on a release or otherwise.
   - **A run in progress finishes as a run does:** its attempt claimed or
-    running, or its task closing, is left alone. What it delivers is taken as
+    running, or its task closing, held or not, is left alone. What it delivers is taken as
     any repair's. Its failing, or its finding nothing to do, is read as ever
     and, the head still green, holds nothing: the rule above ends it. Its brief
     takes no word for this: it says what CI read when it was gathered, and one
@@ -1823,8 +1823,10 @@ delegate's terminal wakes it to offer the landed result.
     this reason: at its repair, failed for good, cancelled or stalled; or at
     its repair or its checking, past the bound or short of authority for the
     next. While so held each wake a hint or a poll gives it reads as a step
-    does and makes no effect, and a read of CI passed ends the hold: the
-    deployment releases its task (jig's `domain/tasks.md`, section 7). Its
+    does and makes no effect, and a read of CI passed ends the hold, with no
+    run of its repair in progress, its branch's writer slot free and its pull
+    request not closed: the deployment releases its task (jig's
+    `domain/tasks.md`, section 7). Its
     repairs, resolutions and updates count on, since only a person's release
     lifts them. A hold at gating is not ended, being a gate's as much as CI's:
     its release decides afresh. Nor is a hold for drift (8.5), nor a task a
@@ -1957,8 +1959,9 @@ delegate's terminal wakes it to offer the landed result.
   while a question of that agent's is open (8.11): the stall counts
   again from the step that relays its last answer down.
 - **A release** lifts what it releases: repairs, resolutions and updates
-  count again from it, its stall is counted from it, and the change
-  decides afresh. A producer that fails for good holds the change at
+  count again from it (not from the deployment's, ending a hold at a green
+  head, above), its stall is counted from it, and the change decides
+  afresh. A producer that fails for good holds the change at
   producing, the hold carrying its words whole within the hold's bytes,
   so its requester hears why (its notice fitted to the requester's
   message bytes on its own, marked when cut) and its person decides:
@@ -3139,6 +3142,24 @@ whole.
   the client should also be posted on the forge as the person, so that
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people.md`, section 12).
+- **A green head no wake reaches** (8.4, 5.2): a held change reads on a wake,
+  and a poll wakes it only when what it read of the pull request moved. Under
+  a rule's required contexts, a check they do not name can keep the pull
+  request's CI as it was while theirs pass, so the hold waits for a hint or a
+  person's release, which makes no fresh repair. Default: so; it costs time,
+  not a repair.
+- **A retry before the read** (8.4): a run ending into a retry wakes no change,
+  so a backoff shorter than `poll_ms` can start another run at a green head,
+  left to finish as any run is. Whether jig tells a procedure of its delegate's
+  retry, so that none starts. Default: as it stands.
+- **A hold at gating at a green head** (8.4): past the bound or short of
+  authority there, a hold can be a gate's or CI's, and its state does not say
+  which. Saying so changes what a hold stores. Default: it waits for a person's
+  release, which decides afresh.
+- **A repair of the branch's own CI at a tip since passed** (section 9): the
+  rule of 8.4 asks of a change's own head. That repair is a change of its own,
+  made for a failed tip: CI passing on the tip ends the queue's pause, and that
+  change goes on. Whether the rule reaches it. Default: as it stands.
 - **A repair held for its brief** (8.4): the repair's task is held, naming
   its reason, while the change stays `Repairing` and its panel shows no hold:
   a person reads why on the task, and releases it there. Default: so; whether
