@@ -785,3 +785,73 @@ impl CallHeap {
         self.held = self.held.checked_add(growth.net).expect("retained growth");
     }
 }
+
+pub const LIVE: &[u8] = br#"[{"id":1,"account":{"id":22,"login":"acme","type":"Organization"},"created_at":"1970-01-01T00:00:01Z","suspended_at":null}]"#;
+
+pub const SUSPENDED: &[u8] = br#"[{"id":1,"account":{"id":22,"login":"acme","type":"Organization"},"created_at":"1970-01-01T00:00:01Z","suspended_at":"1970-01-01T00:00:02Z"}]"#;
+
+pub const FULL: &[u8] = b"artificial-full-api-secret";
+
+pub const CONTENTS: &[u8] = b"artificial-contents-git-secret";
+
+pub const EXPIRES: &[u8] = b"1970-01-01T01:00:00Z";
+
+pub const EXPIRY: Wall = Wall::from_nanos(3_600_000_000_000);
+
+pub const VIEWER: &[u8] = br#"{"data":{"viewer":{"databaseId":9,"login":"test-app[bot]"}}}"#;
+
+pub const NEXT_PAGE: &[u8] = b"Link: <https://api.github.test/app/installations?per_page=100&page=2>; rel=\"next\"\r\n";
+
+pub fn accepted(h: &mut Harness, ids: &[u64]) {
+    h.send(skein_forge_connection::Request::Installations { forge: FORGE, accepted: Box::from(ids) });
+}
+
+#[must_use]
+pub fn mint(token: &[u8], expires: &[u8]) -> Box<[u8]> {
+    let mut body = skein_lib::Writer::new(
+        token.len().checked_add(expires.len()).expect("fixture fields").checked_add(28).expect("JSON framing"),
+    );
+    body.put(b"{\"token\":\"").expect("measured token");
+    body.put(token).expect("measured token");
+    body.put(b"\",\"expires_at\":\"").expect("measured expiry");
+    body.put(expires).expect("measured expiry");
+    body.put(b"\"}").expect("measured mint");
+    response(201, &body.finish())
+}
+
+pub fn full(h: &mut Harness) {
+    h.answer(FORGE, &mint(FULL, EXPIRES));
+}
+
+pub fn contents(h: &mut Harness) {
+    h.answer(FORGE, &mint(CONTENTS, EXPIRES));
+}
+
+#[must_use]
+pub fn contains(bytes: &[u8], needle: &[u8]) -> bool {
+    for piece in bytes.windows(needle.len()) {
+        if piece == needle {
+            return true;
+        }
+    }
+    false
+}
+
+#[must_use]
+pub fn tokens(h: &Harness) -> &[Event] {
+    h.git_tokens.as_ref().expect("GitHub harness").as_slice()
+}
+
+pub fn github_repository(h: &mut Harness, repository: api::Repository, account: u64) {
+    h.component.github_tables().keep_repository(
+        repository,
+        skein_forge::github::plans::tables::Repository {
+            owner: Box::from(b"acme".as_slice()),
+            name: Box::from(b"widgets".as_slice()),
+            owner_id: account,
+            organization: true,
+            merge: Some(skein_forge::github::plans::tables::Method::Merge),
+            html_url: Box::from(b"https://github.com/acme/widgets".as_slice()),
+        },
+    );
+}
