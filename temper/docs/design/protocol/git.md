@@ -314,9 +314,10 @@ git checkout --force --detach <commit>
 git clean -ffdxq
 ```
 
-- **The first** detaches HEAD at the commit, overwrites what is in the
-  way, tracked or not, and clears a merge's state (`MERGE_HEAD` and the
-  rest). **The second** removes every untracked and ignored file and
+- **The first** detaches HEAD at the commit, sets the index to its tree,
+  so that nothing stays staged and a file staged new goes with it,
+  overwrites what is in the way, tracked or not, and clears a merge's
+  state (`MERGE_HEAD` and the rest). **The second** removes every untracked and ignored file and
   directory, nested repositories included.
 - **Exit 0 from both:** `Succeeded`; any other exit is `Broken`.
 
