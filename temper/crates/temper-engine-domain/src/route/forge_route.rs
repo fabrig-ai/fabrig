@@ -2917,7 +2917,13 @@ fn chat_change(
     if producer_charter != review_charter {
         kinds.push(tasks::AuthorityExecutor::Charter(review_charter)).expect("review kind");
     }
-    let foreman = change.questions == Some(crate::ChangeQuestions::Foreman);
+    let questions = match change.questions {
+        Some(crate::ChangeQuestions::None) => forge_change::Route::None,
+        Some(crate::ChangeQuestions::Foreman) => forge_change::Route::Foreman,
+        Some(crate::ChangeQuestions::Up) => forge_change::Route::Up,
+        None => domain.forge.project_questions(repository.project),
+    };
+    let foreman = questions == forge_change::Route::Foreman;
     if foreman && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)) {
         kinds.push(tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)).expect("foreman kind");
     }
@@ -2973,10 +2979,10 @@ fn chat_change(
     {
         return Err(tasks::Refusal::Spec);
     }
-    let route = match change.questions {
-        Some(crate::ChangeQuestions::Foreman) => Some(1),
-        Some(crate::ChangeQuestions::Up) => Some(2),
-        None | Some(crate::ChangeQuestions::None) => None,
+    let route = match questions {
+        forge_change::Route::Foreman => Some(1),
+        forge_change::Route::Up => Some(2),
+        forge_change::Route::None => None,
     };
     if let Some(value) = route
         && parameters.push(tasks::Parameter::Number { name: 14, value }).is_err()

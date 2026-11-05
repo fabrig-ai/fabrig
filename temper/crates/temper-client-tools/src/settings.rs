@@ -75,6 +75,8 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
     let decoded = match kind {
         1 | 2 => w::LandingRule::decode(&w::CEILINGS, &mut reader).is_ok(),
         3 => w::ForgeCharter::decode(&w::CEILINGS, &mut reader).is_ok(),
+        6 => w::ProjectQuestions::decode(&w::CEILINGS, &mut reader).is_ok(),
+        7 => w::ProjectWays::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
     };
     decoded && reader.is_empty()
