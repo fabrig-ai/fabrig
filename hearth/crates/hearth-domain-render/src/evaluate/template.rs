@@ -201,13 +201,13 @@ fn located<T>(result: Result<T, FaultKind>, at: u32) -> Result<T, Fault> {
 /// The most heap held by one run, including regrowth of its output.
 /// Returns `None` when the bound does not fit a `u64`.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn run_bound(limits: &Limits) -> Option<u64> {
     let bindings = limits.template.checked_div(11)?.checked_add(limits.statements.checked_mul(3)?)?.checked_add(2)?;
     let output = u64::from(limits.rendered_file);
     // The preceding doubling allocation is half the next power of two.
     // This is 1.5 times the shipped file cap, including its replacement.
     let regrowth = output.checked_add(output.saturating_sub(1).checked_next_power_of_two()?.checked_div(2)?)?;
-    super::worst_case(limits)?
+    super::evaluation_bound(limits)?
         .checked_add(skein_lib::Stack::<frame::Frame<'_>>::price(limits.statements)?)?
         .checked_add(List::<super::Binding<'_>>::price(bindings)?)?
         .checked_add(regrowth)?

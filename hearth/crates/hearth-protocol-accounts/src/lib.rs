@@ -132,10 +132,10 @@ fn take(file: File, text: Option<&[u8]>, limits: &Limits, lines: &mut List<Line>
         Err(_) => Err(Refused::Lines),
     }
 }
-/// The heap a read holds, its result included: the list of lines, and the names, which are the
-/// file's bytes at most.
+/// The decoder's retained heap bound, its result included: the list of lines and the names,
+/// which are the file's bytes at most. Returns `None` on overflow.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn decoder_bound(limits: &Limits) -> Option<u64> {
     let names = u64::from(limits.lines).checked_mul(u64::from(limits.name))?.min(u64::from(limits.file));
     List::<Line>::price(limits.lines)?.checked_add(names)
 }

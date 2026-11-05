@@ -1,5 +1,5 @@
 mod fixtures;
-mod memory;
+mod valid;
 #[test]
 fn a_second_output_is_refused_and_stays_with_its_caller() {
     let mut service = fixtures::service();

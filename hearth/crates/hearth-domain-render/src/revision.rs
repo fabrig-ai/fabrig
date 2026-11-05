@@ -390,29 +390,6 @@ pub fn base(path: &[u8]) -> Option<&[u8]> {
     Some(split(path.strip_prefix(b"hosts/")?)?.0)
 }
 
-/// Retained decoded storage, including template line offsets (hearth/docs/design/domain/render.md, 2.3).
-/// Each newline holds one text byte and a four-byte line offset; other decoded
-/// records fit within the largest record's ratio to a charged 32-byte element.
-#[must_use]
-pub fn decoded_worst_case(limits: &crate::limits::Limits) -> Option<u64> {
-    use crate::evaluate::{ELEMENT, Operation, template::Instruction};
-    let record = size_of::<Pair>()
-        .max(size_of::<Task>())
-        .max(size_of::<Member>())
-        .max(size_of::<declaration::Entry>())
-        .max(size_of::<declaration::Field>())
-        .max(size_of::<declaration::Type>())
-        .max(size_of::<declaration::Spec>())
-        .max(size_of::<declaration::Read>())
-        .max(size_of::<declaration::Guard>())
-        .max(size_of::<declaration::Export>())
-        .max(size_of::<declaration::Entries>())
-        .max(size_of::<Instruction>())
-        .max(size_of::<Operation>());
-    let ratio = u64::try_from(record).ok()?.div_ceil(ELEMENT).max(5);
-    limits.decoded.checked_mul(ratio)
-}
-
 /// The logical bytes retained from one decoded input (hearth/docs/design/domain/render.md, 2.3).
 #[must_use]
 pub fn decoded_size(read: &crate::vocabulary::Decoded, limits: &crate::limits::Limits) -> u64 {

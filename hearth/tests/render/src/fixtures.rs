@@ -233,6 +233,16 @@ pub fn wide_roots() -> Roots {
         bindings: Vec::new(),
         settings: Value::Map(Box::new([
             ValueEntry {
+                key: Box::from(b"expansion_entries".as_slice()),
+                value: Some(Value::List(
+                    (0..EXPANSION_ENTRIES).rev().map(|value| Value::Int(i64::from(value))).collect(),
+                )),
+            },
+            ValueEntry {
+                key: Box::from(b"expansion_text".as_slice()),
+                value: Some(Value::String(vec![b'a'; EXPANSION_TEXT_BYTES].into_boxed_slice())),
+            },
+            ValueEntry {
                 key: Box::from(b"large".as_slice()),
                 value: Some(Value::List((0..4096).rev().map(Value::Int).collect())),
             },
@@ -464,18 +474,22 @@ pub fn with_peer_targets(peer: &[u8]) -> Repository {
 
 pub use memory::templates_at_the_limits;
 
-pub const EXPANSION_LIMITS: Limits = Limits { expansion: 4096, ..SHIPPED };
+// Scale both admission points and their inputs for the two expansion rows.
+pub const EXPANSION_ENTRIES: u32 = 256;
+pub const EXPANSION_LIMITS: Limits = Limits { expansion: EXPANSION_ENTRIES, expanded: 1_048_576, ..SHIPPED };
+pub const EXPANSION_TEXT_BYTES: usize = 65_536;
 #[must_use]
-pub fn entries_at_the_limits() -> [(hearth_domain_render::revision::declaration::Declaration, &'static str); 2] {
+pub fn entries_at_the_limits()
+-> [((hearth_domain_render::revision::declaration::Declaration, Option<usize>), &'static str); 2] {
     [
         (
-            crate::declarations::decode(br#"{"groups":{"{{ key }}":{"for_each":"settings.large","from":"x"}}}"#),
+            (crate::declarations::decode(br#"{"groups":{"{{ key }}":{"for_each":"settings.expansion_entries","from":"x"}}}"#), Some(EXPANSION_ENTRIES as usize)),
             "entry count",
         ),
         (
-            crate::declarations::decode(
-                br#"{"groups":{"{{ key }}":{"for_each":"settings.large","from":"{{ settings.text }}"}}}"#,
-            ),
+            (crate::declarations::decode(
+                br#"{"groups":{"{{ key }}":{"for_each":"settings.expansion_entries","from":"{{ settings.expansion_text }}"}}}"#,
+            ), None),
             "expanded bytes",
         ),
     ]

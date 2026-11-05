@@ -47,30 +47,21 @@
 - **Departs:** 5.5, 9.2: the `conformance` profile is `conformance-hearth` and
   also runs `recorded_*`, and there is no `measure` profile, because the
   root's tier profiles are `<tier>-<tree>` (`tools/tiers/design.md`, 1).
-- **Departs:** 8.4: unsettled: `hearth/docs/design/domain/testing.md`, 8.4
-  requires a domain's worst case, while the rule it cites,
-  `skein/docs/foundation/programming-model.md`, 6.3, requires measured
-  scenario ceilings and forbids a process-wide worst case. Section 11
-  leaves the move to the newer model open.
+- **Departs:** 3.1: `hearth/testing/hearth-fake-machine/Cargo.toml` takes
+  workspace lints and its `clippy.toml` takes the `ring` profile, rather
+  than the step crates' strict subset; the reason is unknown.
 - **Departs:** 8.4: a world's memory tests are modules of its suite, not a
   binary of their own, because a suite has one counting allocator
-  (`skein/docs/design/testing.md`, 6). The builder world's four scenarios
-  and git's step peak are checked under ceilings, with no worst case of
-  the whole, because the root's rules are skein's
-  (`skein/docs/foundation/programming-model.md`, 6.3). The other worlds'
-  peaks are still held to formulas, and the render world keeps
-  `Memory::Checked` as a flag beside its own meter, where the user's request
-  of 2026-11-04 asks for `Memory::Within`, because that meter still enforces
-  its bound (`hearth/docs/development/debt/D003-memory-tests-on-formulas.md`).
+  (`skein/docs/design/testing.md`, 6).
 - **Departs:** 9.1: no global timeout holds hearth's suites alone, because
   the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
   sum each tree's figures, hearth's 30 s and 120 s among them. Measured on
-  2026-11-04 on a shared machine: focused, 35 to 36 CPU s and 6 to 7 s of
-  wall; fuzzy, 68 CPU s and 16 to 21 s of wall. On a full gate hearth adds
+  2026-11-05 by focused-budget: focused, 44.886618 CPU s, still 14.886618
+  CPU s over its 30 CPU s budget. Fuzzy measured on 2026-11-04 on a shared
+  machine: 68 CPU s and 16 to 21 s of wall. On a full gate hearth adds
   27 s to the test build and 9 s to clippy. A change to `skein-lib` reaches
   28 of hearth's 30 packages and rebuilds them in 3 s of wall, with its
   compiler caches warm. `hearth-render-world`, in `.config/gate/always.txt`,
   costs every hearth change 3.4 CPU s focused and 29 CPU s fuzzy. The
-  figures await the user (`hearth/docs/design/domain/testing.md`, 11);
-  they are idle-machine figures until the user sets CPU budgets
-  (`skein/docs/foundation/testing-strategy.md`, 8.1).
+  focused overrun remains open (`hearth/docs/design/domain/testing.md`, 11;
+  `skein/docs/foundation/testing-strategy.md`, 8.1).

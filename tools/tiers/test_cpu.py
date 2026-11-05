@@ -219,6 +219,26 @@ class CollectorTests(unittest.TestCase):
         path.write_text('')
         self.assertEqual(CPU['budgets'](path, {'qa-jig'}), {})
 
+    def test_gate_budget_validation(self):
+        path = self.root / 'budgets.toml'
+        for pairs in (None, {'qa-jig'}):
+            for tree, profile in (('hearth', 'default'), ('new-tree', 'new-profile')):
+                with self.subTest(pairs=pairs, tree=tree, profile=profile):
+                    path.write_text(f'[gate.{tree}.{profile}]\ncpu_suite_s=30')
+                    self.assertEqual(CPU['budgets'](path, pairs),
+                                     {'gate': {tree: {profile: {'cpu_suite_s': 30}}}})
+            for content in ('gate=1', '[gate]\ncpu_suite_s=1',
+                            '[gate.hearth]\ncpu_suite_s=1',
+                            '[gate.hearth.default]\nunknown=1',
+                            '[gate.hearth.default]\ncpu_suite_s=nan',
+                            '[gate.hearth.default]\nauto_reap=[]',
+                            '[gate."".default]\ncpu_suite_s=30',
+                            '[gate.hearth.""]\ncpu_suite_s=30'):
+                with self.subTest(pairs=pairs, content=content):
+                    path.write_text(content)
+                    with self.assertRaises(ValueError):
+                        CPU['budgets'](path, pairs)
+
     def test_auto_reap_budget_declaration_warns_without_refusal(self):
         path = self.root / 'budgets.toml'
         self.record()
