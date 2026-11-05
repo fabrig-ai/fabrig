@@ -51,3 +51,15 @@ The common note's items; the break's failure on each front. The story is newly h
 `protocol-parties`: it's that task's acceptance, and its spec now holds fabrig/debt's answer (either winner, both clients naming the same one, in `confirm_two_parties`). Don't change that body here, though `stories/shared/**` is in this header. This task's own work stands on the pushed branch (`bdd54520d0`), with its break already reported.
 
 The next run merges `origin/debt-24/protocol-parties` first, keeping the `#[ignore]` removals where both branches made them, and runs what the last one didn't: both packages' whole suites and the checks after them. If that branch doesn't yet hold the repair, this one failure is known and not this task's: don't change it or ask about it again; report it under `## Left`, naming `protocol-parties`, with every other test passing.
+
+## Rebase (2026-11-05, step merge, foreman debt-24/seed-projects/foreman-2)
+
+Rebase onto the landing trunk, preserving both seed paths and adopting jig-core-kit.
+The merge refused content conflicts in `jig/tests/client-protocol/src/front.rs` and `jig/tests/client/src/joint/role_fixture.rs`.
+The overlapping landing changes are `397ff41ae4` (shared role setup and protocol identities) and `91cdbfa3f4` (core harness moved into jig-core-kit).
+In protocol `Front::seed`, retain both `TwoProjects` and `Roles` branches, including their returns; preserve role-specific construction and identity minting.
+In `role_fixture.rs`, retain the shared `setup`/`install` refactor while using `jig_core_kit` for `Peers`, `peers::fixture`, `peers::journal`, and `fixtures::ask_as`.
+Carry the kit migration into this task's new code: change `a_projects::setup` in `jig/tests/client/src/stories/shared/a_projects.rs` to call `jig_core_kit::fixtures::two_projects`.
+Also update the new `jig_core_world::peers::Peers::new` call in `jig/tests/client/src/joint/front.rs` to `jig_core_kit`; retain the landing's other migrated references and dependencies.
+Keep the ignore removals, D029 deletion, project story registrations, and protocol-parties' either-winner assertions.
+After resolution, run the spec's focused project story on all three fronts, both complete package suites, and the remaining prescribed checks through the required tools.
