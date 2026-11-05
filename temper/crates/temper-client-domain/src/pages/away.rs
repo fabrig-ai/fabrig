@@ -51,9 +51,10 @@ impl Pages {
     pub const fn overturn_busy(&self) -> bool {
         self.overturns.pending.is_some()
     }
-    /// Consume the section's one-shot focus request.
-    pub fn away_focus(&mut self) -> bool {
-        core::mem::replace(&mut self.away_focus, false)
+    /// The section’s focus count, raised by each Limits act.
+    #[must_use]
+    pub const fn away_focus(&self) -> u64 {
+        self.away_focus
     }
     #[must_use]
     pub const fn away_busy(&self) -> bool {
@@ -67,7 +68,7 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
             return;
         }
         Act::Limits { project } => {
-            root.pages.away_focus = true;
+            root.pages.away_focus = root.pages.away_focus.checked_add(1).expect("focus count fits");
             out.push(Request::Show { address: Address::Settings { project }, replace: false });
             return;
         }

@@ -73,7 +73,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 233;
+pub const N: usize = 234;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -497,6 +497,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "start-goal", world: Reference, address: CHATS, then: Shown },
         Sample { name: "start-goal-draft", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "start-goal-refused", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "settings-away", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-drafts-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-goals-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
@@ -741,6 +742,7 @@ fn special_mockup(name: &str) -> Option<String> {
         return Some("../greenfield/needs.html".to_owned());
     }
     match name {
+        "settings-away" => return Some("../greenfield/settings.html#away".to_owned()),
         "home-away" | "home-away-one" | "home-away-overturned" => return Some("../greenfield/home.html".to_owned()),
         "changes" | "changes-one" | "changes-empty" => return Some("changes.html".to_owned()),
         "changes-landed-only" => return Some("changes.html?project=hello".to_owned()),

@@ -415,10 +415,36 @@ fn world_in_layout(
                             }
                             continue;
                         }
+                        w::Watch::Away => {
+                            if settings == Some("settings-away") {
+                                step(
+                                    &mut root,
+                                    Event::Client {
+                                        event: jig_client::Event::Up {
+                                            up: jig_client::Up::FamilyDelivered {
+                                                watch,
+                                                record: jig_client::Family {
+                                                    family: FORGE,
+                                                    version: wire::CLIENT_VERSION,
+                                                    bytes: wire::aways(
+                                                        &w::Aways::new(
+                                                            &w::CEILINGS,
+                                                            w::AwaysParts { rows: List::with_capacity(0) },
+                                                        )
+                                                        .expect("empty Away rows"),
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    &mut out,
+                                );
+                            }
+                            continue;
+                        }
                         w::Watch::Change(subject) => subject,
                         w::Watch::Landing(_)
                         | w::Watch::Landings(_)
-                        | w::Watch::Away
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
                         | w::Watch::Changes(_)

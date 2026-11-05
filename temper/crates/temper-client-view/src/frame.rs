@@ -57,6 +57,10 @@ impl Bindings {
                         Act::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }
                     }
                     (Act::AmendTracked, skein_ui::Act::Toggle) => Act::AmendTracked,
+                    (
+                        Act::Away(choice @ temper_client_domain::pages::away::Act::Kinds { .. }),
+                        skein_ui::Act::Toggle,
+                    ) => Act::Away(*choice),
                     (Act::ChatWords { .. }, skein_ui::Act::Input { value }) => Act::ChatWords { words: value },
                     (Act::MessageWords { .. }, skein_ui::Act::Input { value }) => Act::MessageWords { words: value },
                     (Act::CardWords { object, .. }, skein_ui::Act::Input { value }) => {

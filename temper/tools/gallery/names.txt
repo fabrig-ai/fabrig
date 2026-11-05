@@ -168,6 +168,7 @@ repositories
 repositories-none
 settings
 settings-all-hidden
+settings-away
 settings-away-off
 settings-changes-off
 settings-chat-open

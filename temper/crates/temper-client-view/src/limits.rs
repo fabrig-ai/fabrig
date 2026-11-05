@@ -141,6 +141,8 @@ impl Limits {
             // the fixed step card also holds fields, snippets or progress.
             .max(temper_client_domain::forge::forges::ROWS.checked_mul(16)?.checked_add(152)?)
             .checked_add(choices)?
+            // Away’s Settings heading (3), kinds row (6), checks (11), until row and select (9).
+            .checked_add(29)?
             // Each of Home's seven live decision rows can offer Overturn (3.5).
             .checked_add(7)?
             // Owned rows add Runs and First password: a slot, term and description each.
