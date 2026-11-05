@@ -14,8 +14,7 @@
   of no goal's is not kept on the tier's record, nor counted when
   dropped. 8: no trailers in landing news; no `landing list
   --newer-than`. 9: no `temper/verdict/<tier>` status or comment;
-  purpose tag 8's operations 6 and 7 are unused. 10: no `LandingLog`
-  family, and no `landings_kept`, `trailers` or `trailer_bytes` limit;
+  purpose tag 8's operations 6 and 7 are unused. 10: no `trailers` or `trailer_bytes` limit;
   a push from outside temper, trailers and verdicts stay out of the log
   until sections 6, 8 and 9 need them.
   12: the stories of a documentation landing cleared at once by its

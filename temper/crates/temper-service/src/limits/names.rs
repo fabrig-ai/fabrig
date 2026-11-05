@@ -101,6 +101,7 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.adoptions" => limits.forge.adoptions = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.applications" => limits.forge.applications = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.collaborators" => limits.forge.collaborators = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.landings_kept" => limits.forge.landings_kept = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.landings" => limits.forge.landings = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.judge_projects" => limits.forge.judge_projects = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.judge_criteria" => limits.forge.judge_criteria = u32::try_from(value).or(Err(Refused::Range))?,
@@ -316,7 +317,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 163] = [
+pub static NAMES: [Name; 164] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -646,6 +647,12 @@ pub static NAMES: [Name; 163] = [
         unit: Unit::Count,
         line: "Bounds collaborators retained by the forge connector.",
         value: |limits| u64::from(limits.forge.collaborators),
+    },
+    Name {
+        name: "forge.landings_kept",
+        unit: Unit::Count,
+        line: "Bounds retained landings per repository.",
+        value: |limits| u64::from(limits.forge.landings_kept),
     },
     Name {
         name: "forge.landings",

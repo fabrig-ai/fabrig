@@ -191,6 +191,7 @@ const FORGE: forge::Limits = forge::Limits {
     // Live landing tasks (domain/landing.md, 12).
     landings: 2,
     landing_members: 2,
+    landings_kept: 16,
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
