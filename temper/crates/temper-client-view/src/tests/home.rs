@@ -95,7 +95,7 @@ fn settings_lists_links_then_sign_out_in_both_shells() {
         assert_eq!(at, nodes.len());
         let list = list.unwrap();
         let mut at = 1;
-        for name in [b"Forges".as_slice(), b"Accounts", b"Adopt a repository"] {
+        for name in [b"Configure temper".as_slice(), b"Forges", b"Accounts", b"Adopt a repository"] {
             assert_eq!(list[at].role, Role::Item);
             assert_eq!(list[at + 1].role, Role::Link);
             assert_eq!(list[at + 1].name.as_deref(), Some(name));
@@ -103,6 +103,11 @@ fn settings_lists_links_then_sign_out_in_both_shells() {
         }
         assert_eq!(at, list.len());
         for (name, address, href) in [
+            (
+                b"Configure temper".as_slice(),
+                Address::Configure { project: f::PROJECT },
+                b"/projects/1/settings/configure".as_slice(),
+            ),
             (b"Forges".as_slice(), Address::Forges, b"/forges".as_slice()),
             (b"Accounts", Address::Accounts, b"/accounts"),
             (b"Adopt a repository", Address::Adopt { project: f::PROJECT }, b"/projects/1/adopt"),
@@ -171,6 +176,11 @@ fn settings_terminal_numbers_each_link_and_sign_out() {
     let root = settings_root();
     let mut view = f::page_view(&root);
     for (role, name, action) in [
+        (
+            Role::Link,
+            b"Configure temper".as_slice(),
+            d::pages::Act::Go { address: Address::Configure { project: f::PROJECT } },
+        ),
         (Role::Link, b"Forges".as_slice(), d::pages::Act::Go { address: Address::Forges }),
         (Role::Link, b"Accounts", d::pages::Act::Go { address: Address::Accounts }),
         (Role::Link, b"Adopt a repository", d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } }),
@@ -1630,5 +1640,49 @@ fn home_accounts_follow_the_lede_in_the_tree_and_terminal() {
             assert!(!node.styles.as_slice().contains(&crate::look::HOME_LEDES));
         }
         absent(&f::main_text(view.tree()), "Add Claude or another plan");
+    }
+}
+
+#[test]
+fn settings_configure_link_opens_the_delivered_configuring_chat_in_both_shells() {
+    let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
+    let template = f::chat::messaging_root();
+    let me = f::configuring_me(template.pages().me(template.client()).expect("me").clone());
+    f::deliver_me(&mut root, me_watch, me);
+    // Leave and return so the test observes the watch that Settings itself owns.
+    drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
+    let out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
+    let mut live = None;
+    for request in &out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) },
+                },
+        } = request
+        {
+            live = Some(*watch);
+        }
+    }
+    let mut row = super::chats::line();
+    row.chip.executor = c::ChipExecutor::Agent { charter: 37 };
+    let task = row.chip.task;
+    let mut rows = List::with_capacity(1);
+    rows.push(row).expect("one configuring chat");
+    deliver(
+        &mut root,
+        live.expect("Settings watches chats"),
+        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })),
+    );
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let link = main_find(view.tree(), Role::Link, b"Configure temper");
+        assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/chats/9".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chat { task } }))
+        );
+        let text = f::main_text(view.tree());
+        assert!(skein_lib::bytes::find(&text, b"Hello").is_none(), "the watched row is not drawn on Settings");
     }
 }
