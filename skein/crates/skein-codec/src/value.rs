@@ -1,7 +1,7 @@
 //! An index over canonical bytes at a schema's ceilings (codec.md, section 8).
 
 use alloc::boxed::Box;
-use skein_lib::{List, Reader, Secret};
+use skein_lib::{List, Reader, Secret, usize_of};
 
 use crate::schema::{DeclIx, FieldIx, Schema, Shape, Span, Type, TypeIx, VariantIx};
 use crate::{Reason, read_count, read_len, text_is_valid};
@@ -414,8 +414,8 @@ impl Value {
 
     fn range(&self, node: Node, start: u32) -> Result<&[u8], Misread> {
         let entry = self.entry(node)?;
-        let start = usize::try_from(start).expect("byte offset fits usize");
-        let end = usize::try_from(entry.span.end).expect("byte offset fits usize");
+        let start = usize_of(start);
+        let end = usize_of(entry.span.end);
         self.bytes.expose().get(start..end).ok_or(Misread { node })
     }
 }
