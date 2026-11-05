@@ -60,6 +60,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     let resolved = application::resolve(&parsed.application, &files, &mut problems).expect("generated file values");
     assert!(problems.is_empty());
     let mut settings = settings::Engine {
+        host_reply_bytes: None,
         machine: parsed.application.machine,
         directories: directories.clone(),
         jig: parsed.engine,

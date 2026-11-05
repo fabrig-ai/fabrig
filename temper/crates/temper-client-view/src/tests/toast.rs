@@ -99,3 +99,50 @@ fn toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held() {
         }
     }
 }
+
+#[test]
+fn paused() {
+    let root = super::goal::with_goal_answer(
+        pages::Act::Pause,
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Stopped { task: 9 })),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(
+            skein_lib::bytes::find(
+                &f::node_text(view.tree(), toast_at(view.tree()).unwrap()),
+                b"Paused: running tasks stop, nothing new starts."
+            )
+            .is_some()
+        );
+    }
+}
+#[test]
+fn resumed() {
+    let root = super::goal::with_goal_answer(
+        pages::Act::Resume,
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Released { task: 9 })),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(
+            skein_lib::bytes::find(&f::node_text(view.tree(), toast_at(view.tree()).unwrap()), b"Resumed.").is_some()
+        );
+    }
+}
+#[test]
+fn a_moved_refusal_says_look_again_and_dismisses() {
+    let refusal = c::Refusal::Moved { now: c::Revision { value: 18 }, what: c::Moved::Spec };
+    let mut root =
+        super::goal::with_goal_answer(pages::Act::Pause, c::Answer::Refused { refusal: refusal.clone(), at: None });
+    let expected = f::words().say_word(jig_client::words::Word::refusal(&refusal), &[]);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let at = toast_at(view.tree()).unwrap();
+        assert!(skein_lib::bytes::find(&f::node_text(view.tree(), at), &expected).is_some());
+        let again = f::find(view.tree(), Role::Button, b"Look again").unwrap();
+        assert_eq!(
+            crate::act(&mut view, again, Act::Press),
+            Some(d::Action::Pages(pages::Act::Needs(needs::Act::Dismiss)))
+        );
+    }
+    act(&mut root, pages::Act::Needs(needs::Act::Dismiss));
+    assert!(toast_at(f::browser_page_view(&root).tree()).is_none());
+}

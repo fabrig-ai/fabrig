@@ -8,7 +8,6 @@ use alloc::boxed::Box;
 use jig_client::contract::{EndedValue, InboxGroup, ObjectKey, Proposer, ReadValue, ResultValue};
 use skein_lib::Decimal;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
-use temper_client_domain::PlanFilter;
 use temper_client_domain::{
     Address, Domain,
     address::{Filter, Kind},
@@ -290,7 +289,7 @@ fn entry(
                 bindings,
                 Role::Link,
                 &words.say(Word::TaskWho, &[Hole::Number(task)]),
-                Act::Go { address: Address::Task { task, filter: PlanFilter::All } },
+                Act::Go { address: Address::Task { task } },
             );
         }
         if let Some(page) = &card.page
@@ -334,13 +333,7 @@ fn entry(
             && let Some(task) = source_task(card.object)
         {
             let name = open_task_name(words, task);
-            control(
-                b,
-                bindings,
-                Role::Link,
-                &name,
-                Act::Go { address: Address::Task { task, filter: PlanFilter::All } },
-            );
+            control(b, bindings, Role::Link, &name, Act::Go { address: Address::Task { task } });
         }
     } else if update && let Some(task) = source_task(card.object) {
         b.open(Role::Heading { level: 3 });
@@ -358,7 +351,7 @@ fn update_act(card: &Card, task: u64) -> Act {
     {
         Act::OpenResult { task, through }
     } else {
-        Act::Go { address: Address::Task { task, filter: PlanFilter::All } }
+        Act::Go { address: Address::Task { task } }
     }
 }
 fn open_task_name(words: &Words, task: u64) -> Box<[u8]> {

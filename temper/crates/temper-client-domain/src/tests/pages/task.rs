@@ -685,7 +685,7 @@ fn task_pages(mut task: c::Task) -> (Pages, jig_client::Client) {
         &mut pages,
         &env,
         &fixture.client,
-        pages::Event::Went { address: crate::Address::Task { task: f::TASK, filter: crate::PlanFilter::All } },
+        pages::Event::Went { address: crate::Address::Task { task: f::TASK } },
         &mut out,
     );
     let handle = pages.task().expect("task page").document;
@@ -746,13 +746,10 @@ fn an_agents_send_is_one_message_only_when_allowed() {
     }
 }
 #[test]
-fn a_goals_page_has_no_message_composer_or_older_read() {
+fn a_goals_page_has_no_older_read() {
     let mut task = offered_task(c::ActKind::Message, Some(c::Admission::Allowed));
     task.priority = Some(PRIORITY);
     let (mut pages, client) = task_pages(task);
-    page_act(&mut pages, &client, Act::MessageWords { words: Box::from(WORDS) });
-    assert!(pages.task().expect("page").words.is_empty());
-    assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Send)).is_empty());
     assert!(page_act(&mut pages, &client, Act::Older).is_empty());
 }
 #[test]
@@ -1245,12 +1242,21 @@ fn goal() -> (Task, f::Fixture) {
     page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut fixture.out);
     (page, fixture)
 }
+fn opening_goal_reads(out: &mut Queue<Request>) {
+    let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Notes { .. }), .. })) = out.pop() else {
+        panic!("the goal's report read");
+    };
+    let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Tasks { .. }), .. })) = out.pop() else {
+        panic!("the goal's own line read");
+    };
+}
 #[test]
 fn a_goal_reads_its_ended_delegates_on_its_own_handle() {
     let (page, mut fixture) = goal();
     let ended = page.ended.as_ref().unwrap();
     assert_eq!(page.shape, Shape::Tracked);
-    assert_eq!(page.next, ended.handle.number + 1);
+    // The ended page is followed by the report and own-line handles.
+    assert_eq!(page.next, ended.handle.number + 3);
     assert_ne!(ended.handle, page.document);
     assert_ne!(ended.handle, page.tree);
     assert_ne!(ended.handle, page.activity);
@@ -1258,12 +1264,14 @@ fn a_goal_reads_its_ended_delegates_on_its_own_handle() {
     assert!(ended.reading);
     assert!(!ended.stale);
     assert_eq!(fixture.out.pop(), Some(ended_read(&page)));
+    opening_goal_reads(&mut fixture.out);
     assert!(fixture.out.is_empty());
 }
 #[test]
 fn a_goals_tree_and_document_changes_reread_one_page_at_a_time() {
     let (mut page, mut fixture) = goal();
     assert_eq!(fixture.out.pop(), Some(ended_read(&page)));
+    opening_goal_reads(&mut fixture.out);
     for handle in [page.tree, page.document] {
         let kept = ended_page(false);
         answer_ended(&mut page, &mut fixture, kept.clone());
@@ -1287,45 +1295,6 @@ fn a_goals_tree_and_document_changes_reread_one_page_at_a_time() {
     assert!(!page.ended.as_ref().unwrap().reading);
     assert!(fixture.out.is_empty());
 }
-#[test]
-fn plan_filter_moves_keep_the_ended_page_and_drafts_without_reading_again() {
-    use crate::PlanFilter as Filter;
-    let (mut pages, client) = amend_pages(true);
-    let env = fixtures::env(&fixtures::limits());
-    let mut out = Queue::with_capacity(OUTPUTS);
-    let handle = pages.task().unwrap().ended.as_ref().unwrap().handle;
-    let closed = ended_page(false);
-    pages::step(
-        &mut pages,
-        &env,
-        &client,
-        pages::Event::Told {
-            told: Told::Page {
-                handle,
-                page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(closed.clone())))),
-            },
-        },
-        &mut out,
-    );
-    assert!(out.is_empty());
-    page_act(&mut pages, &client, Act::Amend);
-    page_act(&mut pages, &client, Act::AmendWords { words: Box::from(WORDS) });
-    let document = pages.task().unwrap().document;
-    for filter in [Filter::Live, Filter::All] {
-        let address = crate::Address::Task { task: f::TASK, filter };
-        let mut chosen = page_act(&mut pages, &client, Act::PlanFilter { filter });
-        assert_eq!(chosen.pop(), Some(Request::Show { address: address.clone() }));
-        assert!(chosen.is_empty());
-        pages::step(&mut pages, &env, &client, pages::Event::Went { address }, &mut out);
-        let page = pages.task().unwrap();
-        assert_eq!(page.filter, filter);
-        assert_eq!(page.document, document);
-        assert_eq!(page.ended.as_ref().unwrap().page.as_deref(), Some(&closed));
-        assert_eq!(page.amending.as_ref().unwrap().words.as_ref(), WORDS);
-        assert!(out.is_empty(), "the ended delegates stay read under either filter");
-    }
-}
-
 #[test]
 fn an_agents_task_busy_activity_read_is_asked_again() {
     // The task announces the fourth activity before its first activity page.

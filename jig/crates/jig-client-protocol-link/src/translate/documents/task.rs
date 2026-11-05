@@ -197,6 +197,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         label: value.label(),
         flags: crate::translate::queries::flags(value.flags()),
         last_activity: Wall::from_nanos(value.last_activity()),
+        made: Wall::from_nanos(value.made()),
         waits_on: crate::translate::queries::waits(value.waits_on()),
         chip: chip_fields(value.chip(), limits)?,
         goal: opt0,

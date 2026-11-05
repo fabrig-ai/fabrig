@@ -111,7 +111,7 @@ pub(crate) fn main(
                     words,
                     bindings,
                     rows,
-                    super::task::Plan { word: Word::Plan, ended: None, goal: None },
+                    super::task::Plan { word: Word::Plan, ended: None },
                 );
             }
         }

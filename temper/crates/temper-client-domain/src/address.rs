@@ -12,7 +12,7 @@ pub enum Address {
     ConnectModel { way: Option<ModelWay> },
     Welcome { step: Step },
     Chat { task: u64 },
-    Task { task: u64, filter: PlanFilter },
+    Task { task: u64 },
     Home { project: u32 },
     Goals { project: u32, filter: GoalsFilter },
     Changes { project: u32 },
@@ -73,11 +73,6 @@ pub enum GoalsFilter {
     Ended,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlanFilter {
-    All,
-    Live,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Filter {
     pub project: Option<u32>,
     pub kind: Option<Kind>,
@@ -136,7 +131,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
             return if *draft { b"/chats/new?draft=1".as_slice().into() } else { b"/chats/new".as_slice().into() };
         }
         Address::Chat { task } => (b"chats".as_slice(), Some(*task), b"".as_slice()),
-        Address::Task { task, .. } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
+        Address::Task { task } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
         Address::Home { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"".as_slice()),
         Address::Goals { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"goals".as_slice()),
         Address::Changes { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"changes".as_slice()),
@@ -162,9 +157,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
             size = size.checked_add(1).expect("path fits usize");
         }
     }
-    let query = if let Address::Task { filter: PlanFilter::Live, .. } = address {
-        b"?state=live".as_slice()
-    } else if let Address::Goals { filter, .. } = address {
+    let query = if let Address::Goals { filter, .. } = address {
         match filter {
             GoalsFilter::All => b"".as_slice(),
             GoalsFilter::Needs => b"?state=needs".as_slice(),
@@ -235,7 +228,7 @@ pub fn parse(path: &[u8]) -> Place {
             let Some(task) = decimal(number) else {
                 return Place::Missing;
             };
-            Address::Task { task, filter: parse_plan(fields) }
+            Address::Task { task }
         }
         (b"projects", _, b"") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
@@ -317,22 +310,6 @@ fn parse_goals(query: &[u8]) -> GoalsFilter {
         }
     }
     GoalsFilter::All
-}
-
-fn parse_plan(query: &[u8]) -> PlanFilter {
-    let mut rest = query;
-    for _ in 0..query.len() {
-        if rest.is_empty() {
-            break;
-        }
-        let end = skein_lib::bytes::find(rest, b"&").unwrap_or(rest.len());
-        let field = rest.get(..end).expect("separator in query");
-        rest = rest.get(end..).expect("separator in query").strip_prefix(b"&").unwrap_or(b"");
-        if field == b"state=live" {
-            return PlanFilter::Live;
-        }
-    }
-    PlanFilter::All
 }
 
 fn print_filter(filter: Filter) -> Box<[u8]> {

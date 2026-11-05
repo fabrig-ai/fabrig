@@ -28,7 +28,7 @@ fn roadmap_b2_through_the_task_pages() {
     let report = b2::goal_reported(world.front(), &planned);
     let budget = fixtures::task_budget(world.front(), planned.goal);
     assert!(budget.numbers.spent_below > 0, "the engine settled the delegates' spend");
-    world.person(person, see_the_goals_report_and_settled_budget(&planned, &report, budget));
+    world.person(person, see_the_goals_report_and_settled_budget(&report, budget));
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
 
@@ -46,11 +46,11 @@ fn roadmap_b2_through_the_task_pages() {
 }
 
 fn open_advisors_result_and_return(advised: &b2::Advised) -> Vec<Step<Address>> {
-    let link = in_region(task_link(advised.advisor), b"Latest activity");
+    let link = goal_link(b2::ADVISOR_BRIEF);
     let mut steps = vec![
-        see(link.clone()),
-        see(fixtures::plan_item(advised.advisor, b"Completed")),
-        see(in_region(Find::text(b"Its delegates: 0 live, 1 ended."), b"Plan")),
+        see(Find::exactly_named(Role::Disclosure, b"1 landed")),
+        see(Find::exactly_named(Role::Image, b"1 landed of 1")),
+        see(landed(b"1 landed", b2::ADVISOR_BRIEF)),
         Step::Press { find: link },
         see(task_heading(advised.advisor, b2::ADVISOR_BRIEF)),
         see(in_region(Find::exactly_named(Role::Status, b"Completed"), b"Result")),
@@ -62,14 +62,13 @@ fn open_advisors_result_and_return(advised: &b2::Advised) -> Vec<Step<Address>> 
 
 fn follow_the_plan_and_each_delegates_lineage(planned: &b2::Planned, attempt: u64) -> Vec<Step<Address>> {
     let mut steps = vec![
-        see(fixtures::plan_item(planned.second, format!("waiting on task {}", planned.first).as_bytes())),
-        see(fixtures::dependency_item(planned.second, task_link(planned.first))),
-        see(fixtures::dependency_item(planned.second, Find::exactly_named(Role::Status, b"running"))),
-        see(fixtures::plan_item(planned.advisor, b"Completed")),
-        see(in_region(Find::text(b"Its delegates: 2 live, 1 ended."), b"Plan")),
-        Step::Press { find: plan_link(planned.second) },
+        see(goal_line(b2::SECOND_BRIEF, Find::text(b"waits on Implement the export"))),
+        see(Find::exactly_named(Role::Disclosure, b"1 landed")),
+        see(Find::text(b"1 of 3 tasks")),
+        Step::Press { find: goal_link(b2::SECOND_BRIEF) },
         see(task_heading(planned.second, b2::SECOND_BRIEF)),
         see(Find::exactly_named(Role::Status, format!("waiting on task {}", planned.first).as_bytes())),
+        see(dependency(planned.second, Find::exactly_named(Role::Status, b"running"))),
         see(task_link(planned.first).within(Box::new([
             Target::ExactRole { role: Role::Region, name: b"Task brief".as_slice().into() },
             Target::ExactRole {
@@ -80,8 +79,8 @@ fn follow_the_plan_and_each_delegates_lineage(planned: &b2::Planned, attempt: u6
     ];
     steps.extend(return_to_goal(planned.goal));
     steps.extend([
-        see(plan_link(planned.first)),
-        Step::Press { find: plan_link(planned.first) },
+        see(goal_link(b2::FIRST_BRIEF)),
+        Step::Press { find: goal_link(b2::FIRST_BRIEF) },
         see(task_heading(planned.first, b2::FIRST_BRIEF)),
         see(Find::exactly_named(Role::Heading { level: 2 }, format!("Run {attempt} · live now").as_bytes())),
     ]);
@@ -90,43 +89,36 @@ fn follow_the_plan_and_each_delegates_lineage(planned: &b2::Planned, attempt: u6
 }
 
 fn see_the_dependency_completed_and_second_running(planned: &b2::Planned) -> Vec<Step<Address>> {
-    vec![
-        see(fixtures::dependency_item(planned.second, Find::exactly_named(Role::Status, b"Completed"))),
-        see(fixtures::plan_item(planned.second, b"running")),
-        see(fixtures::plan_item(planned.first, b"Completed")),
-        see(in_region(Find::text(b"Its delegates: 1 live, 2 ended."), b"Plan")),
-    ]
+    let mut steps = vec![
+        see(goal_line(b2::SECOND_BRIEF, Find::text(b"running"))),
+        see(Find::exactly_named(Role::Disclosure, b"2 landed")),
+        see(Find::text(b"2 of 3 tasks")),
+        see(landed(b"2 landed", b2::ADVISOR_BRIEF)),
+        see(landed(b"2 landed", b2::FIRST_BRIEF)),
+        Step::Press { find: goal_link(b2::SECOND_BRIEF) },
+        see(dependency(planned.second, Find::exactly_named(Role::Status, b"Completed"))),
+        see(Find::exactly_named(Role::Status, b"running")),
+    ];
+    steps.extend(return_to_goal(planned.goal));
+    steps
 }
 
 fn see_the_goals_report_and_settled_budget(
-    planned: &b2::Planned,
     report: &[u8],
     budget: jig_domain_core::documents::BudgetLine,
 ) -> Vec<Step<Address>> {
     vec![
-        see(in_region(Find::exactly_named(Role::Status, b"Completed"), b"Result")),
-        see(in_region(Find::text(report), b"Result")),
+        see(Find::exactly_named(Role::Heading { level: 1 }, report)),
+        see(in_region(Find::text(report), b"Report")),
+        see(Find::text(b"3 of 3 tasks")),
         // The world's engine answers the ended read two rows a page: the third is past it.
-        see(in_region(Find::text(b"Its delegates: 0 live, more than 2 ended."), b"Plan")),
-        see(in_region(Find::text(b"More of its ended tasks are not shown."), b"Plan")),
-        see(fixtures::plan_item(planned.advisor, b"Completed")),
-        see(fixtures::plan_item(planned.first, b"Completed")),
-        gone(Find::exactly_named(Role::TreeItem, format!("Task {}", planned.second).as_bytes())),
-        Step::Press { find: in_region(Find::exactly_named(Role::Button, b"Live only"), b"Plan") },
-        see(in_region(Find::text(b"No live tasks."), b"Plan")),
-        gone(Find::exactly_named(Role::TreeItem, format!("Task {}", planned.first).as_bytes())),
-        see(in_region(
-            Find::text(
-                format!("{} spent · {} left of {}", budget.numbers.spent, budget.left, budget.numbers.budget)
-                    .as_bytes(),
-            ),
-            b"Budget and authority",
-        )),
-        see(in_region(Find::exactly_named(Role::Term, b"Delegates spent"), b"Budget and authority")),
-        see(in_region(
-            Find::exactly_named(Role::Description, budget.numbers.spent_below.to_string().as_bytes()),
-            b"Budget and authority",
-        )),
+        see(Find::exactly_named(Role::Image, b"2 landed of 2")),
+        see(in_region(Find::text(b"More of its tasks are not shown."), b"Tasks")),
+        see(Find::exactly_named(Role::Disclosure, b"2 landed")),
+        see(landed(b"2 landed", b2::ADVISOR_BRIEF)),
+        see(landed(b"2 landed", b2::FIRST_BRIEF)),
+        gone(goal_link(b2::SECOND_BRIEF)),
+        see(Find::text(format!("{} of {} spent", budget.numbers.spent, budget.numbers.budget).as_bytes())),
     ]
 }
 
@@ -142,10 +134,13 @@ fn in_region(find: Find, name: &[u8]) -> Find {
 fn task_link(task: u64) -> Find {
     Find::exactly_named(Role::Link, format!("Task {task}").as_bytes())
 }
-fn plan_link(task: u64) -> Find {
-    task_link(task).within(Box::new([Target::ExactRole {
-        role: Role::TreeItem,
-        name: format!("Task {task}").into_bytes().into(),
+fn goal_link(title: &[u8]) -> Find {
+    in_region(Find::exactly_named(Role::Link, title), b"Tasks")
+}
+fn dependency(task: u64, find: Find) -> Find {
+    find.within(Box::new([Target::ExactRole {
+        role: Role::List,
+        name: format!("Dependencies of task {task}").into_bytes().into(),
     }]))
 }
 fn task_heading(task: u64, brief: &[u8]) -> Find {
@@ -155,8 +150,19 @@ fn task_heading(task: u64, brief: &[u8]) -> Find {
     )
 }
 fn return_to_goal(goal: u64) -> Vec<Step<Address>> {
-    vec![
-        Step::Press { find: task_link(goal) },
-        see(Find::exactly_named(Role::Heading { level: 1 }, fixtures::GOAL_BRIEF)),
-    ]
+    vec![Step::Press { find: task_link(goal) }, see(Find::exactly_named(Role::Heading { level: 2 }, b"Tasks"))]
+}
+
+fn goal_line(title: &[u8], find: Find) -> Find {
+    find.within(Box::new([
+        Target::ExactRole { role: Role::Region, name: b"Tasks".as_slice().into() },
+        Target::Role { role: Role::Paragraph, name: title.into() },
+    ]))
+}
+fn landed(fold: &[u8], title: &[u8]) -> Find {
+    // The joint's scripted reports fall within the epoch's first minute.
+    Find::text(b"00:00").within(Box::new([
+        Target::ExactRole { role: Role::Disclosure, name: fold.into() },
+        Target::Role { role: Role::Paragraph, name: title.into() },
+    ]))
 }

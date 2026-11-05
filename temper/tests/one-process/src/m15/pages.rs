@@ -30,11 +30,7 @@ pub(super) fn steps() -> Box<[Step<Address>]> {
 
 pub(super) fn task_steps() -> Box<[Step<Address>]> {
     let mut pages = steps().into_vec();
-    for address in [
-        Address::Chat { task: 1 },
-        Address::Task { task: 2, filter: temper_client_domain::address::PlanFilter::All },
-        Address::Task { task: 3, filter: temper_client_domain::address::PlanFilter::All },
-    ] {
+    for address in [Address::Chat { task: 1 }, Address::Task { task: 2 }, Address::Task { task: 3 }] {
         pages.push(Step::Go { address });
         pages.push(Step::Pause { span: SETTLE });
     }

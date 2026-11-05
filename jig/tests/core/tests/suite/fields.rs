@@ -41,6 +41,29 @@ fn a_chats_flags_and_last_activity_survive_a_cold_restart() {
     assert_eq!(row.last_activity, Wall::from_nanos(9_000_000_000));
 }
 
+#[test]
+fn a_tasks_document_says_when_it_was_made() {
+    let made = Wall::from_nanos(3_000_000_000);
+    let last_activity = Wall::from_nanos(9_000_000_000);
+    let mut world =
+        World::new(Setup { seed: 171, clock: Some((Time::from_nanos(3_000_000_000), made)), ..Setup::default() });
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    world.set_clock(Time::from_nanos(9_000_000_000), last_activity);
+    let signed = world.sign_in.expect("signed-in caller");
+    ask_as(&mut world, signed, 2, people::Ask::Say { project: 1, task: 1, words: b"heard at nine".as_slice().into() });
+    assert_task_times(&mut world, made, last_activity);
+    world.restart(171, false);
+    assert_task_times(&mut world, made, last_activity);
+}
+
+fn assert_task_times(world: &mut World, made: Wall, last_activity: Wall) {
+    jig_core_world::reads::ask(world, 8002, core::reads::Read::Task { task: 1 });
+    let core::reads::Answer::Document(document) = jig_core_world::reads::latest(world) else { panic!("a live task") };
+    let core::documents::Document::Task(value) = document.as_ref() else { panic!("the task's document") };
+    assert_eq!(value.made, made);
+    assert_eq!(value.last_activity, last_activity);
+}
+
 const PROJECT: u32 = 1;
 const OWNER: u64 = 1;
 const MEMBER: u64 = 3;

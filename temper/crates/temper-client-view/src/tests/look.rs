@@ -60,7 +60,7 @@ const HOME_NAMES: [(skein_ui::Style, &[u8]); 18] = [
     (ASK_CHOICES, b"temper-ask-choices"),
     (ASK_QUIET, b"temper-ask-quiet"),
 ];
-const GOALS_NAMES: [(skein_ui::Style, &[u8]); 25] = [
+const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (GOALS, b"temper-goals"),
     (GOALS_INTRO, b"temper-goals-intro"),
     (GOALS_KICKER, b"temper-goals-kicker"),
@@ -86,6 +86,46 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 25] = [
     (GOALS_STATE_PAUSED, b"temper-goals-state-paused"),
     (GOALS_STATE_LANDED, b"temper-goals-state-landed"),
     (GOALS_STATE_STOPPED, b"temper-goals-state-stopped"),
+    (GOAL, b"temper-goal"),
+    (GOAL_HEAD, b"temper-goal-head"),
+    (GOAL_META, b"temper-goal-meta"),
+    (GOAL_BYLINE, b"temper-goal-byline"),
+    (GOAL_ACTS, b"temper-goal-acts"),
+    (GOAL_BTN, b"temper-goal-btn"),
+    (GOAL_SMALL, b"temper-goal-small"),
+    (GOAL_QUIET, b"temper-goal-quiet"),
+    (GOAL_PRIMARY, b"temper-goal-primary"),
+    (GOAL_BAND, b"temper-goal-band"),
+    (GOAL_BAND_TAG, b"temper-goal-band-tag"),
+    (GOAL_CHOICES, b"temper-goal-choices"),
+    (GOAL_TWO, b"temper-goal-two"),
+    (GOAL_REPORT, b"temper-goal-report"),
+    (GOAL_TITLE, b"temper-goal-title"),
+    (GOAL_TYPING, b"temper-goal-typing"),
+    (GOAL_SIDE, b"temper-goal-side"),
+    (GOAL_SECTION, b"temper-goal-section"),
+    (GOAL_FACTS, b"temper-goal-facts"),
+    (GOAL_BAR, b"temper-goal-bar"),
+    (GOAL_BAR_LANDED, b"temper-goal-bar-landed"),
+    (GOAL_BAR_RUNNING, b"temper-goal-bar-running"),
+    (GOAL_LINE, b"temper-goal-line"),
+    (GOAL_LINE_RUNNING, b"temper-goal-line-running"),
+    (GOAL_LINE_NEEDS, b"temper-goal-line-needs"),
+    (GOAL_LANDED_FOLD, b"temper-goal-landed-fold"),
+    (GOAL_SENT, b"temper-goal-sent"),
+    (GOAL_YOU, b"temper-goal-you"),
+    (GOAL_COMPOSER_BOX, b"temper-goal-composer-box"),
+    (GOAL_COMPOSER, b"temper-goal-composer"),
+    (GOAL_HINT, b"temper-goal-hint"),
+    (GOAL_FIELD, b"temper-goal-field"),
+    (GOAL_TEXT, b"temper-goal-text"),
+    (SHEET, b"temper-sheet"),
+    (SHEET_MUTED, b"temper-sheet-muted"),
+    (SHEET_FIELDSET, b"temper-sheet-fieldset"),
+    (SHEET_OPTION, b"temper-sheet-option"),
+    (SHEET_LINK, b"temper-sheet-link"),
+    (SHEET_FOOT, b"temper-sheet-foot"),
+    (SHEET_ERROR, b"temper-sheet-error"),
 ];
 const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
     (RAIL, b"temper-rail"),
@@ -97,7 +137,7 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 118] = [
+    let named: [(skein_ui::Style, &[u8]); 114] = [
         (MODE_CHAT, b"temper-mode-chat"),
         (MODE_SPLIT, b"temper-mode-split"),
         (MODE_DRAFT, b"temper-mode-draft"),
@@ -182,7 +222,6 @@ fn each_style_or_region_is_named_under_temper() {
         (PLAN, b"temper-plan"),
         (PLAN_ROW, b"temper-plan-row"),
         (PLAN_HOLD, b"temper-plan-hold"),
-        (EVENTS, b"temper-events"),
         (STATUS_DONE, b"temper-status-done"),
         (CHOICE, b"temper-choice"),
         (ACCOUNTS_PAGE, b"temper-accounts-page"),
@@ -193,8 +232,6 @@ fn each_style_or_region_is_named_under_temper() {
         (STEP, b"temper-step"),
         (STEP_DONE, b"temper-step-done"),
         (UNAVAILABLE, b"temper-unavailable"),
-        (TASK_CONTRACT, b"temper-task-contract"),
-        (TASK_BUDGET, b"temper-task-budget"),
         (PLAN_SPEND, b"temper-plan-spend"),
         (DEPENDENCIES, b"temper-dependencies"),
         (STATUS_WAITING, b"temper-status-waiting"),
@@ -205,7 +242,6 @@ fn each_style_or_region_is_named_under_temper() {
         (REPOSITORY, b"temper-repository"),
         (TASK_ACTS, b"temper-task-acts"),
         (AGENT_STEER, b"temper-agent-steer"),
-        (TASK_DANGER, b"temper-task-danger"),
         (TASK_AMEND, b"temper-task-amend"),
         (DAY, b"temper-day"),
         (CHANGE, b"temper-change"),
@@ -252,7 +288,7 @@ fn each_pages_main_carries_the_main_token() {
     let view = fixtures::page_view(&fixtures::chats_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, CHATS_PAGE])]);
     let view = fixtures::page_view(&fixtures::task::held_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, GOAL])]);
     let view = fixtures::page_view(&fixtures::inbox_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
     let view = fixtures::page_view(&fixtures::account_root().0);
@@ -409,7 +445,7 @@ fn the_inbox_tokens_stay_on_their_roles() {
 
 #[test]
 fn the_task_tokens_stay_on_their_roles() {
-    let view = fixtures::page_view(&fixtures::task::held_root());
+    let view = fixtures::page_view(&super::task::held_agent_root());
     let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
     let mut task = fixtures::task::document();
     task.chip.phase = jig_client::contract::Phase::Done;
@@ -422,24 +458,20 @@ fn the_task_tokens_stay_on_their_roles() {
         None,
     );
     let done = builder.finish();
-    let activity = super::task::activity_tree(&[super::task::activity_news()]);
     let plan = super::task::dependency_plan();
     for (token, role) in [
         (TASK_HEADING, Role::Region),
-        (TASK_CONTRACT, Role::Paragraph),
-        (TASK_BUDGET, Role::Region),
         (TASK_CARD, Role::Region),
         (PLAN, Role::Tree),
         (PLAN_ROW, Role::Slot),
         (PLAN_SPEND, Role::Paragraph),
         (DEPENDENCIES, Role::List),
         (PLAN_HOLD, Role::List),
-        (EVENTS, Role::List),
         (STATUS_DONE, Role::Status),
         (STATUS_WAITING, Role::Status),
     ] {
         let mut found = false;
-        for tree in [view.tree(), &done, &activity, &plan] {
+        for tree in [view.tree(), &done, &plan] {
             for node in tree.nodes() {
                 if node.styles.as_slice().contains(&token) {
                     assert_eq!(node.role, role);
@@ -462,7 +494,7 @@ fn the_choice_token_stays_on_the_composer_slot() {
         ))
         .expect("new chat");
     roots.push(fixtures::chat::messaging_root()).expect("chat");
-    roots.push(fixtures::task::root(jig_client::contract::ChipExecutor::Agent { charter: 1 }, Some(1))).expect("task");
+    roots.push(fixtures::task::root(jig_client::contract::ChipExecutor::Agent { charter: 1 }, None)).expect("task");
     for root in &roots {
         let view = fixtures::page_view(root);
         let mut found = false;

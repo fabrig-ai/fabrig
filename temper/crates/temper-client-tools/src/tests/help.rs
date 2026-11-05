@@ -578,3 +578,17 @@ fn settings_help_explains_check_reserve_recovery_through_held_revisions() {
     let fields = temper_docs::find(b"settings-fields").expect("settings fields help");
     assert!(fields.text.contains("current or held charter"));
 }
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the help test collapses whitespace to check the person's words"
+)]
+fn task_answer_help_says_a_person_task_may_ask_for_less() {
+    let page = temper_docs::find(b"ctl-task").expect("task reference");
+    let text: String = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(text.contains("a person task may ask for less"));
+    let help = fixtures::help(Some(jig::rows::ANSWER_AT));
+    assert!(skein_lib::bytes::find(&help, b"a person task may ask for less").is_some());
+}
