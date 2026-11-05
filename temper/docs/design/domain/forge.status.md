@@ -52,6 +52,13 @@
     its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
     `brief_answer`), but those stories run a CI repair's pair alone and no test
     holds its words.
+  - 8.4: a green head ending a CI repair: the change reads no CI while a repair
+    is due or live, so a released repair at a green head asks afresh and a live
+    one stays (`temper-engine-domain-forge-change/src/domain.rs`, `repairing`,
+    `released_state`).
+  - 8.4: a hold on a CI repair's reason ending at a green head: a held change
+    reads nothing until a person releases it, and the deployment releases no
+    task.
   - 8.4, 8.5: a goal's landing held past its repairs, then released after
     a change into its goal branch (`../draft/reference-landing.md`,
     section 9's second story), is built, but its story is ignored: after
@@ -139,17 +146,6 @@
   - 5.7: a live goal's "landed and total changes" are its delegates done and
     total, because the forge keeps no count a goal, and "failures the forge holds
     since" are what each tier holds now, because it keeps no times on them.
-- **Design departs:** 8.4, from the request `first-goal-fixes` of 2026-11-05,
-  item 1, not cut by its plan and the user's to answer (section 20): the request
-  reads 8.4 as ending a repair whose reason no longer holds at the head without
-  an agent's work, the change going on, with no repair task for a green head, and
-  asks for a failing test first in the forge world. 8.4 has no such rule: a
-  released failed repair asks afresh "with the same reason and current forge
-  facts". So a change stays `repairing` under a running repair with CI passed at
-  its head, and a release at that head makes a fresh repair, spending one
-  (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`,
-  `repairing` and `repair_due`, none reading CI), which opens `Repair CI at HEAD:
-  no failed check named`. No such test exists, and the empty name alone is gone.
 - **Design departs:** 8.4, from the request `brief-failure` of 2026-11-05, each
   decided by its plan's cut, for the user to see:
   - The request's true capacity is a place, an account or a brief slot. 8.4 also

@@ -55,8 +55,8 @@ with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a spec
 reads in pieces of it (`protocol/setup.md`). A repair goes on at a head CI has
-since passed, and a release there makes a fresh one, where that request reads
-the design otherwise, which the user has not answered, and `change show`'s
+since passed, and a release there makes a fresh one, where the design ends it
+(`domain/forge.md`), and `change show`'s
 `held:` line calls a cancelled delegate failed (`domain/forge.md`). A repair
 whose brief can't be read ends held naming why on the fake forge alone: the walk
 on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not

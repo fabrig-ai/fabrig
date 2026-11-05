@@ -555,7 +555,10 @@ One decision, committed with its new state:
   (tasks.md, 8.5), and an answer to a delegate's question; and up, a
   question, an escalation, news its requester should have;
 - marks on pending dependencies of its task, started from (6.1);
-- a hold, when it needs a decision it cannot make;
+- a hold, when it needs a decision it cannot make. Its connector, finding
+  the hold's cause gone while the task is held, may ask the root to release
+  the task as the deployment's (tasks.md, section 7): the procedure then steps
+  as after any release, and no person is asked;
 - its result, which ends its task: in jig's terms (a report, a verdict),
   or a connector's result it keeps, with words summarising it (tasks.md,
   section 3).
