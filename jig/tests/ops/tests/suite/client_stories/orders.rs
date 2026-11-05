@@ -2,8 +2,8 @@
 use jig_client::{Event as ClientEvent, Message, Streamed};
 use jig_client_protocol_wire::v19 as w;
 use jig_client_view::address::Address as JigAddress;
-use jig_ops_world::{PARTY, PROJECT};
 use jig_ops_client_domain::{self as root, Address, Event, Place, Request, infrastructure, observability};
+use jig_ops_world::{PARTY, PROJECT};
 use skein_lib::{Duration, Env, List, Queue, Reader, Time, Token, Wall, Writer};
 
 const SEED: u64 = 9211;

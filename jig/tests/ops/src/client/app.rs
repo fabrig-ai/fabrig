@@ -462,7 +462,9 @@ mod tests {
 
     #[test]
     fn both_ops_routes_exclude_top_level_seen() {
-        for through in [SeenThrough::Results { through: 1 }, SeenThrough::Conversation { task: OBSERVED_TASK, through: 1 }] {
+        for through in
+            [SeenThrough::Results { through: 1 }, SeenThrough::Conversation { task: OBSERVED_TASK, through: 1 }]
+        {
             for request in requests(jig_client::Ask::Jig(Box::new(Ask::Seen { through }))) {
                 assert!(Ops::sent(&request).is_none(), "{request:?}");
             }
