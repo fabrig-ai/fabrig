@@ -208,7 +208,8 @@ fn two_changes_in_one_call_are_one_batch_the_second_after_the_first() {
     let second = live(&world, made[1].task);
     assert_eq!(second.spec.words.as_ref(), b"Second fix");
     assert_eq!(second.dependencies.as_ref(), &[made[0].task]);
-    assert_eq!(second.authority.delegation.tasks, 3, "eleven left, less the first change and its six delegates");
+    assert_eq!(live(&world, made[0].task).authority.delegation.tasks, 5, "nine descendant slots shared equally");
+    assert_eq!(second.authority.delegation.tasks, 4, "one slot per change reserved before sharing descendants");
     assert_eq!(second.authority.budget.spend, 35, "half of the 140 left, shared equally");
     world.until(Until::SecondAssignment);
     world.until(Until::Ready);
@@ -515,9 +516,9 @@ fn change_with_one_task_left_is_refused_as_the_tree_limit() {
         Box::new([people::Executor::Charter(1), people::Executor::Charter(4), people::Executor::Procedure(2)]),
         1,
     );
-    assert!(
-        matches!(change(&mut world, &chat, 93, None, b"Small fix"), engine::CallAnswer::DelegationRefused(problem) if problem.why == tasks::Refusal::Tree)
-    );
+    plan_change(&mut world, &chat, br#"{"words":"Small fix"}"#);
+    assert_eq!(world.call_errors.len(), 1);
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change batch: task tree limit; available 1 tasks, required 2 (one change task and at least one descendant per member). Fewer changes per call cannot help: even one change needs two tasks of lifetime authority.");
     assert_eq!(world.assigned.len(), 1);
 }
 
