@@ -516,8 +516,9 @@ Each carries bounded detail for operators; none of it is shown to an LLM.
 that cannot be decoded, a start Smith refuses for its transcript, and a
 run reporting a transcript failure all end as a transient task failure.
 The fleet accepts these refusals as failed attempts, without dropping the
-claim. The next preparation starts fresh with the transcript tail and
-keeps unread inbox messages (`engine.md`, 9); it does not retry the same
+claim. The next preparation starts fresh with the transcript tail when
+readable and keeps unread inbox messages (`engine.md`, 7.2 and 9);
+an unread tail does not spend another transient try. It does not retry the same
 history as an invalid start or a model failure.
 
 **A configured bound** is `RunFailure::Exceeded(Exceeded)`, where
