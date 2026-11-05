@@ -6,7 +6,7 @@ use skein_json::{
     Token,
     tokenizer::{self, Event, Request},
 };
-use skein_lib::{Stack, bytes};
+use skein_lib::{Stack, bytes, usize_of};
 mod protection;
 use super::protection::Node as P;
 /// Container roles in the first GitHub documents.
@@ -896,7 +896,7 @@ impl Walk {
             Event::Token(Token::Key(key)) => {
                 let frame = self.open.top_mut().expect("object key");
                 if frame.node == Role::Document(Node::AppPermissions) {
-                    if key.len() > usize::try_from(self.limits.string_bytes).expect("u32 fits usize") {
+                    if key.len() > usize_of(self.limits.string_bytes) {
                         return Err(Malformed::Bound { field: b"permissions" });
                     }
                     frame.seen = frame.seen.checked_add(1).ok_or(Malformed::Bound { field: b"permissions" })?;
@@ -1018,7 +1018,7 @@ impl Walk {
                     && field.read != Read::Reason
                     && field.read != Read::Login
                     && field.read != Read::Name
-                    && text.len() > usize::try_from(self.limits.string_bytes).expect("u32 fits usize")
+                    && text.len() > usize_of(self.limits.string_bytes)
                 {
                     return Err(if field.read == Read::Secret {
                         Malformed::Bound { field: field.key }
@@ -1042,7 +1042,7 @@ impl Walk {
                     | Read::Container(_) => None,
                 };
                 if let Some(bound) = bound
-                    && text.len() > usize::try_from(bound).expect("path bound fits usize")
+                    && text.len() > usize_of(bound)
                 {
                     return Err(Malformed::TooLong { field: field.key });
                 }
@@ -1090,7 +1090,7 @@ impl Walk {
     fn app_text(&self, event: Event, field: &'static [u8]) -> Result<Token, Malformed> {
         match event {
             Event::Token(Token::String(text)) => {
-                if text.len() > usize::try_from(self.limits.string_bytes).expect("u32 fits usize") {
+                if text.len() > usize_of(self.limits.string_bytes) {
                     return Err(Malformed::Bound { field });
                 }
                 Ok(Token::String(text))

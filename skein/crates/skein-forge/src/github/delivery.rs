@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use skein_lib::{
     bytes,
     sha256::{self, Hmac},
+    usize_of,
 };
 
 pub const EVENT_HEADER: &[u8] = b"X-GitHub-Event";
@@ -209,5 +210,5 @@ pub(crate) fn pull_action(action: &[u8]) -> bool {
 }
 /// A retained string's bound, shared by the encoder.
 pub(crate) fn text_fits(text: &[u8], limits: &Limits) -> bool {
-    text.len() <= usize::try_from(limits.string_bytes.min(limits.json.string)).expect("u32 fits usize")
+    text.len() <= usize_of(limits.string_bytes.min(limits.json.string))
 }

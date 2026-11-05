@@ -6,7 +6,7 @@
 //! No domain vocabulary, platform language or application is known here.
 
 use alloc::boxed::Box;
-use skein_lib::{Decimal, Duration, List, Wall, Writer};
+use skein_lib::{Decimal, Duration, List, Wall, Writer, usize_of};
 
 /// A phrase in an owner's closed vocabulary.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -226,7 +226,7 @@ impl Phrasebook {
         mut languages: Box<[Language]>,
         limits: &PhraseLimits,
     ) -> Result<Phrasebook, Invalid> {
-        if shapes.len() > usize::try_from(limits.phrases).expect("u32 count fits usize")
+        if shapes.len() > usize_of(limits.phrases)
             || languages.is_empty()
             || languages.len() > usize::from(limits.languages)
         {
@@ -264,7 +264,7 @@ impl Phrasebook {
         let mut segments = 0_u32;
         let mut text = 0_u32;
         for language in &mut languages {
-            if language.phrases.len() > usize::try_from(limits.phrases).expect("phrase count fits usize") {
+            if language.phrases.len() > usize_of(limits.phrases) {
                 return Err(Invalid::Limit);
             }
             language.phrases.sort_unstable();
@@ -398,7 +398,7 @@ impl Phrasebook {
             size = size.checked_add(bytes).ok_or(Invalid::Overflow)?;
         }
         assert!(size <= self.capacity(id).expect("phrase capacity was checked"), "saying fits its loaded capacity");
-        let mut writer = Writer::new(usize::try_from(size).expect("saying bytes fit usize"));
+        let mut writer = Writer::new(usize_of(size));
         let mut references = List::with_capacity(u32::try_from(values.len()).expect("hole count fits u32"));
         for segment in &form.segments {
             match segment {

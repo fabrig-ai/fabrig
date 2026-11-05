@@ -140,7 +140,7 @@ fn no_project_reads_the_same_in_the_terminal() {
     for event in [
         Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
         Event::Start {
-            address: client::Address::Chats { filter: client::ChatsFilter::All, start: false },
+            address: client::Address::Chats { filter: client::ChatsFilter::All },
             kept: List::with_capacity(0),
             with: Some(jig_client::With::Transport),
         },

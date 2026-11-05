@@ -15,6 +15,21 @@ fn names_are_the_promised_ones() {
 }
 
 #[test]
+fn retired_chat_style_slots_stay_reserved() {
+    let names = &temper_client_view::look::NAMES;
+    for (token, expected) in [
+        (62, b"temper-reserved-62".as_slice()),
+        (295, b"temper-reserved-295"),
+        (296, b"temper-reserved-296"),
+        (297, b"temper-reserved-297"),
+        (298, b"temper-reserved-298"),
+        (299, b"temper-reserved-299"),
+    ] {
+        assert_eq!(names.style(skein_ui::Style { owner: names.owner, token }), Some(expected));
+    }
+}
+
+#[test]
 fn navigation_links_have_addresses_and_install_action_links_keep_their_binding() {
     for sample in samples::samples() {
         let mut view = view(&sample);
@@ -695,13 +710,15 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "playground-resetting", heading: "Chats", parts: &[Part::Text { text: "Leaving the playground…" }]
+        name: "playground-resetting",
+        heading: "Talk to an agent",
+        parts: &[Part::Text { text: "Leaving the playground…" }],
     },
     Holds {
         name: "chats-first-run-5",
-        heading: "Chats",
+        heading: "Talk to an agent",
         parts: &[
-            Part::Named { role: Role::List, name: "Suggested requests" },
+            Part::Absent { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Region, name: "Playground" },
             Part::Absent { role: Role::Link, name: "Manage usage" },
         ],
@@ -1032,15 +1049,43 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "configure-chats-tag",
-        heading: "Chats",
+        heading: "Talk to an agent",
+        parts: &[Part::Text { text: "Configuring" }, Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED }],
+    },
+    Holds {
+        name: "chat-new",
+        heading: "New chat",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "Configuring" },
-            Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED },
+            Part::Text { text: "Say what you want; the agent works in work/hello." },
+            Part::Named { role: Role::TextArea, name: "What do you want done?" },
+            Part::Named { role: Role::Button, name: "Send" },
+            Part::Absent { role: Role::Button, name: "Start chat" },
         ],
     },
     Holds {
+        name: "chat-new-no-repository",
+        heading: "New chat",
+        parts: &[
+            Part::Text {
+                text: "Say what you want. Hello has no repository yet, so the agent can talk and plan but not change code.",
+            },
+            Part::Named { role: Role::TextArea, name: "What do you want done?" },
+        ],
+    },
+    Holds {
+        name: "chats-no-repository",
+        heading: "Talk to an agent.",
+        parts: &[
+            Part::Text { text: "No repository yet" },
+            Part::Text { text: "Chats in Hello talk and plan, but change no code until a repository is in." },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
+        ],
+    },
+    Holds { name: "chats-live", heading: "Talk to an agent", parts: &[Part::Chats { live: SOLO_LIVE, closed: 0 }] },
+    Holds { name: "chats-closed", heading: "Talk to an agent", parts: &[Part::Chats { live: 0, closed: SOLO_CLOSED }] },
+    Holds {
         name: "chats-solo",
-        heading: "Chats",
+        heading: "Talk to an agent",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Why is tally sum slow on big files?" },
             Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED },
@@ -1095,7 +1140,16 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-1",
-        heading: "Chats",
+        heading: "Talk to an agent",
+        parts: &[
+            Part::Absent { role: Role::List, name: "Suggested requests" },
+            Part::Named { role: Role::Paragraph, name: "None." },
+            Part::Named { role: Role::Region, name: "Playground" },
+        ],
+    },
+    Holds {
+        name: "chat-new-first-run-1",
+        heading: "New chat",
         parts: &[
             Part::Named { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Button, name: "Add CSV export to widget" },
@@ -1123,7 +1177,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-reference",
-        heading: "Chats",
+        heading: "Talk to an agent",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Director" },
             Part::Chats { live: REFERENCE_LIVE, closed: REFERENCE_CLOSED },
@@ -1135,9 +1189,66 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Paragraph, name: "Check · two-hour timer" }],
     },
     Holds {
+        name: "chat-solo-T1",
+        heading: "T1 · Make tally sum stream its input",
+        parts: &[
+            Part::Named { role: Role::Status, name: "Closed" },
+            Part::Absent { role: Role::TextArea, name: "Message" },
+            Part::Absent { role: Role::Button, name: "Send" },
+            Part::Absent { role: Role::Disclosure, name: "Change model" },
+        ],
+    },
+    Holds {
+        name: "chat-byline-open",
+        heading: "New chat",
+        parts: &[
+            Part::Described { role: Role::Disclosure, name: "Change model", description: "ChatGPT plan · gpt-6-luna" },
+            Part::Named { role: Role::Button, name: "Reset choice" },
+        ],
+    },
+    Holds { name: "chat-working", heading: "T6", parts: &[Part::Named { role: Role::Slot, name: "Writing" }] },
+    Holds {
         name: "chat-solo-T6",
         heading: "T6 · Why is tally sum slow on big files?",
         parts: &[Part::Named { role: Role::Paragraph, name: "T7 found it" }],
+    },
+    Holds {
+        name: "chat-held-task",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "The CSV import task is held" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "chat-change-running",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Task 2" },
+            Part::Named { role: Role::Paragraph, name: "Change" },
+            Part::Named { role: Role::Status, name: "Running" },
+        ],
+    },
+    Holds {
+        name: "chat-change-landed",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "CI passed. Landed" },
+            Part::Named { role: Role::Status, name: "Landed" },
+        ],
+    },
+    Holds {
+        name: "chat-change-held",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[Part::Named { role: Role::Status, name: "Held" }],
+    },
+    Holds {
+        name: "chat-goal",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Started goal" },
+            Part::Named { role: Role::Link, name: "Task 2" },
+        ],
     },
     Holds {
         name: "chat-first-run-2-T1",
@@ -1199,8 +1310,11 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-empty",
-        heading: "Chats",
-        parts: &[Part::Named { role: Role::Heading { level: 1 }, name: "Chats" }, Part::Chats { live: 0, closed: 0 }],
+        heading: "Talk to an agent",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 1 }, name: "Talk to an agent" },
+            Part::Chats { live: 0, closed: 0 },
+        ],
     },
     Holds {
         name: "inbox-empty",
@@ -1339,11 +1453,18 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 11] = [
+const SPENDS: [(&str, Role, &str); 18] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
+    ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
+    ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
+    ("chat-working", Role::Paragraph, "1 spent · of 40"),
+    ("chat-change-running", Role::Paragraph, "0 spent · of 20"),
+    ("chat-change-landed", Role::Paragraph, "0 spent · of 20"),
+    ("chat-change-held", Role::Paragraph, "0 spent · of 20"),
+    ("chat-goal", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-2-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-3-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-4-T4", Role::Paragraph, "0 spent · of 20"),
@@ -1355,7 +1476,9 @@ const SPENDS: [(&str, Role, &str); 11] = [
 #[test]
 fn each_chat_reads_its_allotment() {
     for sample in samples::samples() {
-        if sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo") {
+        if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
+            && sample.address != temper_client_domain::Address::NewChat
+        {
             let (_, role, spend) = SPENDS.iter().find(|row| row.0 == sample.name).expect("sample's spend row");
             let view = view(&sample);
             find(view.tree(), *role, spend, sample.name);
@@ -1626,7 +1749,7 @@ fn print_writes_every_page_and_the_bundle() {
     let closing = fs::read_to_string(out.join("chat-closing.html")).expect("confirmation page");
     assert!(closing.contains("<dialog open "), "static confirmation opens");
     let chats = fs::read_to_string(out.join("chats-solo.html")).expect("chats page");
-    assert!(chats.contains("<title>Chats · temper</title>"), "shell heading title");
+    assert!(chats.contains("<title>Talk to an agent. · temper</title>"), "shell heading title");
     let signed_out = fs::read_to_string(out.join("signed-out.html")).expect("signed-out page");
     assert!(signed_out.contains("<title>temper</title>"), "shell title without heading");
     // Reprinting replaces the whole owned directory, including stale files.
@@ -1667,8 +1790,8 @@ fn print_refuses_a_directory_not_its_own() {
 #[test]
 fn times_read_against_each_mockup_worlds_fixed_now() {
     for (name, expected) in [
-        ("chats-solo", "1 h 28 min ago"),
-        ("chats-reference", "50 min ago"),
+        ("chats-solo", "1 h 28 min"),
+        ("chats-reference", "50 min"),
         ("inbox-solo", "a proposal"),
         ("inbox-solo", "12 min"),
         ("chat-solo-T10", "waiting 12 min"),
@@ -1830,11 +1953,26 @@ fn configuring_gallery_states_list_the_template_and_send_readiness() {
 }
 
 #[test]
+fn new_chat_focuses_the_composer_in_its_print() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-new").expect("new chat");
+    let view = view(&sample);
+    let entry = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::TextArea && n.name.as_deref() == Some(b"What do you want done?"))
+        .expect("composer");
+    assert_eq!(entry.focus, Some(0));
+    let page = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(page.contains(&format!("data-node=\"{}\" autofocus", entry.id.0)));
+}
+
+#[test]
 fn goal_and_chat_queries_keep_live_and_ended_rows_separate() {
     use samples::{Then, World};
     use temper_client_domain::{Address, ChatsFilter, GoalsFilter};
     for world in [World::Solo, World::Reference] {
-        let (chats, _) = worlds::world(world, Address::Chats { filter: ChatsFilter::All, start: false }, Then::Shown);
+        let (chats, _) = worlds::world(world, Address::Chats { filter: ChatsFilter::All }, Then::Shown);
         let page = chats.pages().chats().expect("chats page");
         let live = &page.live(chats.client()).expect("live chats").rows;
         let jig_client::contract::EndedGroup::Rows { rows: ended, .. } =
@@ -1909,5 +2047,66 @@ fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
         } else {
             find(view.tree(), role, label, name);
         }
+    }
+}
+
+#[test]
+fn the_byline_sample_opens_only_the_model_disclosure() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-byline-open").unwrap();
+    let view = view(&sample);
+    let node = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Change model"))
+        .unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)));
+    assert_eq!(html.matches(" open").count(), 1);
+}
+
+#[test]
+fn the_chat_log_follows_its_end_until_the_person_scrolls_away() {
+    use skein_ui_web::page::{Event as PageEvent, Op};
+    use temper_client_domain::{Action, Event, pages::Act};
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-solo-T6").expect("chat sample");
+    let mut root = samples::domain(&sample);
+    let (mut view, bounds, patches) = built(&sample);
+    let log = find(view.tree(), Role::Log, "Conversation", sample.name);
+    let mut page = Page::new(
+        Look {
+            names: &[temper_client_view::look::NAMES],
+            pictures: &[],
+            components: &[],
+            elements: temper_client_view::look::ELEMENTS,
+            draw,
+        },
+        &bounds.tree,
+        b"temper",
+        Primary::Control,
+    );
+    let mut ops = Vec::new();
+    page.apply(&patches, &mut ops);
+    assert!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), "initial chat follows its end");
+    for (top, follow, words) in
+        [(800, true, b"At the end".as_slice()), (100, false, b"Reading earlier turns"), (800, true, b"Back at the end")]
+    {
+        ops.clear();
+        assert!(page.act(PageEvent::Scrolled { node: log, top, height: 1000, viewport: 200 }, &mut ops).is_none());
+        let mut out = Queue::uncapped();
+        driver::step(
+            &mut root,
+            Event::Act { action: Action::Pages(Act::MessageWords { words: words.into() }) },
+            &mut out,
+        );
+        if words == b"At the end" {
+            driver::step(&mut root, Event::Act { action: Action::Pages(Act::Send) }, &mut out);
+        }
+        let mut patches = Queue::with_capacity(bounds.tree.patches);
+        temper_client_view::build(&mut view, &root, worlds::sample_now(sample.world, sample.name), &mut patches);
+        let patches: Vec<_> = (0..patches.len()).map(|_| patches.pop().expect("queued patch")).collect();
+        assert!(!patches.is_empty(), "the chat changes");
+        page.apply(&patches, &mut ops);
+        assert_eq!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), follow);
     }
 }

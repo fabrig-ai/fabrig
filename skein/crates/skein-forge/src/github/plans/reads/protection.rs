@@ -1,7 +1,7 @@
 //! Both GitHub protection sources are joined; neither absence hides the other.
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document, size};
 use alloc::boxed::Box;
-use skein_lib::List;
+use skein_lib::{List, len_u64};
 #[derive(Debug)]
 pub(super) struct State {
     ids: List<u64>,
@@ -39,7 +39,7 @@ impl Plan {
         self.protection.value.branch = branch.clone();
         self.protection.ids = List::with_capacity(bounds.inner);
         self.protection.contexts = List::with_capacity(size::capacity(bounds, crate::measure::STRING_BYTES)?);
-        self.size = u64::try_from(branch.len()).or(Err(api::Error::TooLarge))?;
+        self.size = len_u64(branch.len());
         if self.size > u64::from(bounds.answer_bytes) {
             return Err(api::Error::TooLarge);
         }

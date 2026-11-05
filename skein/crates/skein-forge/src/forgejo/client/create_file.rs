@@ -17,6 +17,7 @@ use skein_json::{
 use skein_lib::{
     Writer,
     base64::{self, Alphabet},
+    usize_of,
 };
 
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
@@ -25,7 +26,7 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
     measure.repo(at);
     measure.put(b"/contents/");
     measure.file(path);
-    if measure.length > usize::try_from(limits.target_bytes).expect("u32 fits") {
+    if measure.length > usize_of(limits.target_bytes) {
         return Err(Refusal::TooLong);
     }
     let length = base64::encoded_len(Alphabet::Standard, u32::try_from(content.len()).or(Err(Refusal::TooLong))?)
@@ -33,7 +34,7 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
     if length > limits.writer.length {
         return Err(Refusal::TooLong);
     }
-    let mut encoded = Writer::new(usize::try_from(length).expect("u32 fits"));
+    let mut encoded = Writer::new(usize_of(length));
     base64::encode(Alphabet::Standard, content, &mut encoded).expect("measured base64");
     let encoded = encoded.finish();
     let mut json = Encoder::measure(&limits.writer);

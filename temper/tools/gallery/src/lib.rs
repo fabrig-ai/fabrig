@@ -139,14 +139,28 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
         }
     }
     let title = escape(&skein_ui_web::title::text(&heading(view.tree()), b"temper"));
-    let html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
-    let html = if sample.name == "needs-saw-open" {
-        html.replace("class=\"temper-ask-saw\"", "open class=\"temper-ask-saw\"")
-    } else if sample.name == "goal-landed-open" {
-        html.replace("class=\"temper-goal-landed-fold\"", "open class=\"temper-goal-landed-fold\"")
-    } else {
-        html
-    };
+    let mut html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
+    if let Some(name) = sample.open_disclosure() {
+        for node in view.tree().nodes() {
+            if node.role == Role::Disclosure && node.name.as_deref() == Some(name) {
+                let attribute = format!("data-node=\"{}\"", node.id.0);
+                html = html.replacen(&attribute, &format!("{attribute} open"), 1);
+                break;
+            }
+        }
+    }
+    for op in &ops {
+        if let skein_ui_web::page::Op::Focus { node } = op {
+            let attribute = format!("data-node=\"{}\"", node.0);
+            html = html.replacen(&attribute, &format!("{attribute} autofocus"), 1);
+        }
+    }
+    if sample.name == "needs-saw-open" {
+        html = html.replace("class=\"temper-ask-saw\"", "open class=\"temper-ask-saw\"");
+    }
+    if sample.name == "goal-landed-open" {
+        html = html.replace("class=\"temper-goal-landed-fold\"", "open class=\"temper-goal-landed-fold\"");
+    }
     let mut styles = String::new();
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");

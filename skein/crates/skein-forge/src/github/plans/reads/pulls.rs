@@ -4,7 +4,7 @@ use crate::{
     github::{plans::reading, request::Request},
     measure,
 };
-use skein_lib::List;
+use skein_lib::{List, len_u64};
 
 // Check runs are folded without retaining rows, but at most 50 pages are read.
 pub(super) const RUN_PAGES: u32 = 50;
@@ -115,9 +115,7 @@ impl Plan {
                 let width = u64::try_from(measure::STATUS_BYTES).ok().ok_or(api::Error::TooLarge)?;
                 let mut total = self.size.checked_add(width).ok_or(api::Error::TooLarge)?;
                 for bytes in [&status.context, &status.description, &status.url] {
-                    total = total
-                        .checked_add(u64::try_from(bytes.len()).ok().ok_or(api::Error::TooLarge)?)
-                        .ok_or(api::Error::TooLarge)?;
+                    total = total.checked_add(len_u64(bytes.len())).ok_or(api::Error::TooLarge)?;
                 }
                 if total > u64::from(bounds.answer_bytes) {
                     return Err(api::Error::TooLarge);

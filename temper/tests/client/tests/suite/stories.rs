@@ -21,24 +21,26 @@ fn signing_in_shows_the_inbox_from_the_engine_root() {
 }
 
 #[test]
-fn a_double_press_of_start_makes_one_chat() {
+fn a_double_press_of_send_makes_one_chat() {
     let mut world = fixtures::world(fixtures::SEED);
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.person(
         person,
         vec![
-            Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: fixtures::WITHIN },
-            Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: Box::from(*b"Hello") },
+            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
+            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
+            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: Box::from(*b"Hello") },
         ],
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
-    // Both presses reach the domain before the disabled Start is drawn.
+    // Both presses reach the domain before the disabled Send is drawn.
     let node = world
         .tree(person)
         .nodes()
         .iter()
-        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Start chat"))
-        .expect("Start")
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Send"))
+        .expect("Send")
         .id;
     world.act(person, node, skein_ui::Act::Press);
     world.act(person, node, skein_ui::Act::Press);
@@ -53,8 +55,13 @@ fn enter_in_the_start_composer_starts_one_chat_titled_by_its_first_line() {
     world.person(
         person,
         vec![
-            Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: fixtures::WITHIN },
-            Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: Box::from(*b"Hello\nthere") },
+            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
+            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
+            Step::Type {
+                find: Find::named(Role::TextArea, b"What do you want done?"),
+                words: Box::from(*b"Hello\nthere"),
+            },
         ],
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
@@ -63,7 +70,7 @@ fn enter_in_the_start_composer_starts_one_chat_titled_by_its_first_line() {
         .tree(person)
         .nodes()
         .iter()
-        .find(|node| node.role == Role::TextArea && node.name.as_deref() == Some(b"Start a chat"))
+        .find(|node| node.role == Role::TextArea && node.name.as_deref() == Some(b"What do you want done?"))
         .expect("chat composer")
         .id;
     world.act(person, field, skein_ui::Act::Submit);
@@ -82,7 +89,7 @@ fn enter_in_the_start_composer_starts_one_chat_titled_by_its_first_line() {
     assert_eq!(fixtures::chats(&world.front().engine), 1, "one chat task for the two Enters");
 }
 #[test]
-fn a_chat_started_on_the_chats_page_is_answered_by_the_run() {
+fn a_chat_started_on_new_chat_is_answered_by_the_run() {
     let mut world = fixtures::world(fixtures::SEED);
     world.front().engine.hello(skein_lib::Token::new(7));
     world.front().answer_runs = true;
@@ -90,9 +97,11 @@ fn a_chat_started_on_the_chats_page_is_answered_by_the_run() {
     world.person(
         person,
         vec![
-            Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: fixtures::WITHIN },
-            Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: Box::from(*b"Hello") },
-            Step::Press { find: Find::named(Role::Button, b"Start chat") },
+            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
+            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
+            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: Box::from(*b"Hello") },
+            Step::Press { find: Find::named(Role::Button, b"Send") },
             Step::See { find: Find::text(b"Answered by the run"), within: fixtures::WITHIN },
         ],
     );
@@ -105,16 +114,20 @@ fn signed_out_mid_request_is_made_once_after_signing_in() {
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.person(
         person,
-        vec![Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: fixtures::WITHIN }],
+        vec![
+            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
+            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
+        ],
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     world.fault(jig_client_world::harness::FrontFault::SignedOut);
     world.person(
         person,
         vec![
-            Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: fixtures::WITHIN },
-            Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: Box::from(*b"Hello") },
-            Step::Press { find: Find::named(Role::Button, b"Start chat") },
+            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
+            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: Box::from(*b"Hello") },
+            Step::Press { find: Find::named(Role::Button, b"Send") },
             Step::See { find: Find::text(b"Signed out"), within: fixtures::WITHIN },
         ],
     );

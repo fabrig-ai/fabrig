@@ -1,6 +1,7 @@
 //! Window fetch carries exchanges; the pure half bounds and retires answers.
 use super::{Cache, Exchange, Report};
 use crate::inbox::Inbox;
+use skein_lib::usize_of;
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{
@@ -73,7 +74,7 @@ impl<R: 'static> Fetch<R> {
                 let mut headers = Vec::new();
                 for name in keep {
                     match response.headers().get(name) {
-                        Ok(Some(value)) if value.len() <= usize::try_from(bound).expect("bound fits") => {
+                        Ok(Some(value)) if value.len() <= usize_of(bound) => {
                             headers.push((name.to_ascii_lowercase(), value));
                         }
                         Ok(None) => {}

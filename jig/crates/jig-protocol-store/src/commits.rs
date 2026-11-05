@@ -94,7 +94,7 @@ pub(crate) fn operations(
                 | Record::Notes(_)
                 | Record::Accounts(_),
             )
-            | Write::CopySettingsRevision(_)
+            | Write::Copy { .. }
             | Write::Erase(_)
             | Write::Put { .. }
             | Write::Remove { .. }) => {
@@ -143,7 +143,7 @@ fn operation(store: &mut Store, write: Write) -> Option<skein_kv::Op> {
             key: keys::encode_own(&keys::Own::Wires, limit)?,
             value: codec::component::wires(store.wires),
         }),
-        Write::CopySettingsRevision(number) => copy_settings(store, number),
+        Write::Copy { from, to } => copy(store, from, to),
         Write::Save(record) => Some(skein_kv::Op::Put {
             key: keys::encode(&record.key(), limit)?,
             value: codec::encode(&record, &store.codec_limits, &store.names)?,
@@ -176,7 +176,7 @@ fn header_id(write: &Write) -> Option<[u8; 16]> {
             | Record::Notes(_)
             | Record::Accounts(_),
         )
-        | Write::CopySettingsRevision(_)
+        | Write::Copy { .. }
         | Write::Wires
         | Write::Erase(_)
         | Write::Put { .. }
@@ -222,20 +222,8 @@ pub(crate) fn most_ops(writes: u32, orphan_erases: u32) -> Option<u32> {
     writes.checked_mul(2)?.checked_add(3)?.checked_add(orphan_erases)
 }
 
-fn copy_settings(store: &mut Store, number: u32) -> Option<skein_kv::Op> {
-    use jig_domain_core::{CoreKey, Key, settings};
-    let held = Key::Core(CoreKey::Settings(settings::Key::Held(number)));
-    let history = Key::Core(CoreKey::Settings(settings::Key::History(number)));
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    skein_kv::down(
-        &mut store.stores.store,
-        &crate::memory_env(store.limits.store),
-        skein_kv::Request::Get { owner: Token::new(0), key: keys::encode(&held, store.limits.store.key)? },
-        &mut above,
-        &mut below,
-    );
-    assert!(below.is_empty(), "settings history copies read the in-memory map");
-    let Some(skein_kv::Event::Got { value: Some(value), .. }) = above.pop() else { return None };
-    Some(skein_kv::Op::Put { key: keys::encode(&history, store.limits.store.key)?, value })
+fn copy(store: &mut Store, from: jig_domain_core::Key, to: jig_domain_core::Key) -> Option<skein_kv::Op> {
+    let from = keys::encode(&from, store.limits.store.key)?;
+    let value = crate::open::get(store, Token::new(0), from).ok()??;
+    Some(skein_kv::Op::Put { key: keys::encode(&to, store.limits.store.key)?, value })
 }

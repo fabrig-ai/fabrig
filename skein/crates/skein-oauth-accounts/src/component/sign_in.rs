@@ -11,7 +11,7 @@ use crate::listener::Listener;
 use crate::redirect;
 use crate::{Asked, Ends, Event, Failure, Limits, Lower, Refusal};
 use alloc::boxed::Box;
-use skein_lib::{CryptoRng, Env, Queue, Time, Writer};
+use skein_lib::{CryptoRng, Env, Queue, Time, Writer, usize_of};
 use skein_oauth as oauth;
 use skein_oauth::Redirect;
 
@@ -63,7 +63,7 @@ impl Component {
             return;
         }
         if let Some(subject) = &subject
-            && subject.len() > usize::try_from(env.limits.client.document.subject_bytes).expect("u32 fits")
+            && subject.len() > usize_of(env.limits.client.document.subject_bytes)
         {
             up.push(Event::Failed {
                 account: number(&self.names, account),
@@ -429,11 +429,11 @@ pub(super) fn start(exchange: &mut Exchange, bound_port: Option<u16>) {
 
 pub(crate) fn draw(crypto: &mut CryptoRng, length: u32) -> Box<[u8]> {
     let mut bytes = [0_u8; 32];
-    let bytes = bytes.get_mut(..usize::try_from(length).expect("at most 32")).expect("bounded random bytes");
+    let bytes = bytes.get_mut(..usize_of(length)).expect("bounded random bytes");
     crypto.fill(bytes);
     let alphabet = skein_lib::base64::Alphabet::Url;
     let size = skein_lib::base64::encoded_len(alphabet, length).expect("at most 43 characters");
-    let mut writer = Writer::new(usize::try_from(size).expect("at most 43 characters"));
+    let mut writer = Writer::new(usize_of(size));
     skein_lib::base64::encode(alphabet, bytes, &mut writer).expect("measured room");
     writer.finish()
 }

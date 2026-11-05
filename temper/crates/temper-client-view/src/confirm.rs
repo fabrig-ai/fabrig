@@ -33,7 +33,14 @@ pub(crate) fn card(b: &mut Builder, root: &Domain, card: &Card, words: &Words, b
     let Some(page) = &card.page else { return };
     crate::cards::proposal_reason(b, page);
     facts(b, page, words, rows);
+    let conversation = root.pages().chat().is_some() && words.shell == crate::words::Shell::Browser;
+    if conversation {
+        b.open(Role::Slot);
+    }
     controls(b, root, card, words, bindings);
+    if conversation {
+        b.close();
+    }
 }
 pub(crate) fn facts(b: &mut Builder, page: &ReadValue, words: &Words, rows: u32) {
     facts_at(b, page, words, rows, crate::cards::Place::Chat);
@@ -85,6 +92,7 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
     if card.key.is_some() {
         return;
     }
+    let mut first = true;
     for (act, word) in ACTIONS {
         if root.pages().task().is_some() && root.pages().inbox().is_none() && act != ActKind::Release {
             continue;
@@ -139,9 +147,12 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
                 b.open(Role::Button);
                 b.name(&words.say(word, &[]));
                 b.bind(bindings.insert(Act::Decide { object: card.object, revision: acts::revision(page), act }));
-                if needs && (act == ActKind::Accept || act == ActKind::Release) {
+                if (needs && (act == ActKind::Accept || act == ActKind::Release))
+                    || (root.pages().chat().is_some() && first)
+                {
                     b.style(crate::look::RECOMMENDED);
                 }
+                first = false;
                 b.close();
                 if disclosure {
                     b.close();

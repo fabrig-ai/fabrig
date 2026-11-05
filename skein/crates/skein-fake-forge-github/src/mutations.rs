@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as fake, api as a};
 use skein_forge::github::request::Method;
 use skein_json::Token;
-use skein_lib::{List, ReplyTo, bytes};
+use skein_lib::{List, ReplyTo, bytes, usize_of};
 
 const PULL_REQUEST_FIELDS: u32 = 1 | 2 | 4 | 8 | 16;
 const STATUS_CONTEXTS: u32 = 32;
@@ -138,7 +138,7 @@ pub(crate) fn finish(
     let id = skein_lib::Decimal::of(service.ruleset_id);
     let Some(size) = response.body.len().checked_add(id.as_bytes().len()) else { return answers::failed() };
     let Some(size) = size.checked_add(6) else { return answers::failed() };
-    if size > usize::try_from(service.limits.response).expect("u32 fits") {
+    if size > usize_of(service.limits.response) {
         return answers::failed();
     }
     let Some(tail) = response.body.strip_prefix(b"{") else { return answers::failed() };

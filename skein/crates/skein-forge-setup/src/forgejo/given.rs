@@ -2,7 +2,7 @@
 use crate::limits::{self, Limits};
 use alloc::boxed::Box;
 use core::net::SocketAddr;
-use skein_lib::{List, Writer};
+use skein_lib::{List, Writer, usize_of};
 /// Owner's inputs; the checked machine copies these for one run.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Given {
@@ -85,7 +85,7 @@ pub fn check(given: &Given) -> Result<(), Refused> {
         return Err(Refused { place: Place::OrgOwner, other: None });
     }
     limits::check(&given.limits)?;
-    if given.orgs.len() > usize::try_from(given.limits.orgs).expect("u32 fits") {
+    if given.orgs.len() > usize_of(given.limits.orgs) {
         return Err(Refused { place: Place::Orgs, other: None });
     }
     if !given.orgs.is_empty() && given.org_owner.is_none() {
@@ -96,7 +96,7 @@ pub fn check(given: &Given) -> Result<(), Refused> {
 /// Checks a plan's adopted repositories before the owner sends a `Reconcile`.
 /// The host asserts this check: a refused plan is the owner's bug (forge-setup.md, 6.3).
 pub fn check_adopted(adopted: &[u64], limits: &Limits) -> Result<(), Refused> {
-    if adopted.len() > usize::try_from(limits.repositories).expect("u32 fits") {
+    if adopted.len() > usize_of(limits.repositories) {
         return Err(Refused { place: Place::Repositories, other: None });
     }
     for (at, id) in adopted.iter().enumerate() {
@@ -205,14 +205,14 @@ pub(crate) fn create_fields(
     repository: &[u8],
     files: &[crate::host::File],
 ) -> Result<(), Refused> {
-    let bound = usize::try_from(string_bytes).expect("u32 fits");
+    let bound = usize_of(string_bytes);
     if !login(org) || org.len() > bound {
         return Err(Refused { place: Place::CreateOrg, other: None });
     }
     if !repository_name(repository) || repository.len() > bound {
         return Err(Refused { place: Place::CreateRepository, other: None });
     }
-    if files.len() > usize::try_from(limits.files).expect("u32 fits") {
+    if files.len() > usize_of(limits.files) {
         return Err(Refused { place: Place::Files, other: None });
     }
     for (at, file) in files.iter().enumerate() {
@@ -223,7 +223,7 @@ pub(crate) fn create_fields(
         if !relative(&file.path) {
             return Err(Refused { place: Place::FilePath(at), other: None });
         }
-        if file.content.len() > usize::try_from(limits.file_bytes).expect("u32 fits") {
+        if file.content.len() > usize_of(limits.file_bytes) {
             return Err(Refused { place: Place::FileContent(at), other: None });
         }
     }

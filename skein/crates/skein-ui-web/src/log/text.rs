@@ -1,12 +1,12 @@
 //! Version 2's report and printed line texts (playground.md, 6.1).
 use crate::{bridge, fetch};
-use skein_lib::{Writer, base64};
+use skein_lib::{Writer, base64, usize_of};
 use std::fmt::Write;
 
 pub(super) fn bytes(bytes: &[u8]) -> String {
     let len = u32::try_from(bytes.len()).expect("a log byte field fits u32");
     let len = base64::encoded_len(base64::Alphabet::Standard, len).expect("a log's base64 field fits u32");
-    let mut out = Writer::new(usize::try_from(len).expect("encoded length fits usize"));
+    let mut out = Writer::new(usize_of(len));
     base64::encode(base64::Alphabet::Standard, bytes, &mut out).expect("room for the measured encoding");
     String::from_utf8(out.finish().into_vec()).expect("base64 is ASCII")
 }

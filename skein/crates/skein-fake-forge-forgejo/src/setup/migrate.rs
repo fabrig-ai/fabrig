@@ -4,7 +4,7 @@ use crate::{Config, Hosted, Limits, Repository, response::Reply};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api::{Answer, Error, Op, Write};
 use skein_forge::forgejo::{document::CreatedRepository, request::Request, server};
-use skein_lib::Time;
+use skein_lib::{Time, usize_of};
 
 // Missing-source refusal: copy-facts' setup-migrate-missing-source transcript.
 // The private-source fallback uses the same authentication refusal.
@@ -90,7 +90,7 @@ impl Store {
                 }
                 if config.repositories.room() == 0
                     || self.private.room() == 0
-                    || destination.len() > usize::try_from(limits.documents.target_bytes).expect("u32 fits")
+                    || destination.len() > usize_of(limits.documents.target_bytes)
                 {
                     return Err(full(limits));
                 }

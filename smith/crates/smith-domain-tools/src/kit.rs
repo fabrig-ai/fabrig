@@ -271,14 +271,11 @@ fn place(working: &Working, path: &Path, maximum: u32) -> Result<Located, Outcom
 }
 
 /// Directory names at the namespace root, in name order and within both
-/// listing caps. Nested mounts contribute their first name once.
+/// listing caps.
 fn directories(working: &Working, limits: &Limits) -> Outcome {
     let mut names = List::with_capacity(u32::try_from(working.mounts.len()).expect("admitted mounts"));
     for mount in &working.mounts {
-        let name = first_name(&mount.at);
-        if !name.is_empty() && !names.as_slice().contains(&name) {
-            names.push(name).expect("at most one name per mount");
-        }
+        names.push(mount.at.as_bytes()).expect("one name per admitted mount");
     }
     let mut names = names.into_boxed();
     names.sort_unstable();
@@ -301,15 +298,6 @@ fn directories(working: &Working, limits: &Limits) -> Outcome {
         names.len().checked_sub(usize::try_from(entries.len()).expect("entry count")).expect("kept prefix"),
     );
     Outcome::Listed { entries: entries.into_boxed(), more }
-}
-
-fn first_name(path: &[u8]) -> &[u8] {
-    for (index, byte) in path.iter().enumerate() {
-        if *byte == b'/' {
-            return path.get(..index).expect("slash index is in path");
-        }
-    }
-    path
 }
 
 /// What `call` does if it passes the entrance, or the outcome that refuses it.

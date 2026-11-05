@@ -2,7 +2,7 @@
 use crate::{DecodeError, Limits};
 use alloc::boxed::Box;
 use skein_json::{Token, tokenizer, writer};
-use skein_lib::{List, Stack};
+use skein_lib::{List, Stack, len_u64, usize_of};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Json {
@@ -20,7 +20,7 @@ impl Json {
     /// Parses a whole bounded document. The connection may instead collect
     /// tokenizer tokens with `Collector` to keep tokenization incremental.
     pub fn from_bytes(input: &[u8], limits: &Limits) -> Result<Json, DecodeError> {
-        if input.len() > usize::try_from(limits.document_bytes).expect("u32 fits usize") {
+        if input.len() > usize_of(limits.document_bytes) {
             return Err(DecodeError::TooLarge);
         }
         let mut feed = tokenizer::Feed::new(input, &limits.tokenizer_limits());
@@ -64,7 +64,7 @@ impl Json {
     }
 
     pub(crate) fn admit(&self, limits: &Limits) -> Result<(), DecodeError> {
-        if self.tokens.len() > usize::try_from(limits.tokens).expect("u32 fits usize") {
+        if self.tokens.len() > usize_of(limits.tokens) {
             return Err(DecodeError::TooLarge);
         }
         let mut retained: u64 = 0;
@@ -79,11 +79,10 @@ impl Json {
                 | Token::False
                 | Token::Null => 1,
             };
-            if size > usize::try_from(limits.string_bytes).expect("u32 fits usize") {
+            if size > usize_of(limits.string_bytes) {
                 return Err(DecodeError::TooLarge);
             }
-            retained =
-                retained.checked_add(u64::try_from(size).expect("usize fits u64")).ok_or(DecodeError::TooLarge)?;
+            retained = retained.checked_add(len_u64(size)).ok_or(DecodeError::TooLarge)?;
             if retained > u64::from(limits.document_bytes) {
                 return Err(DecodeError::TooLarge);
             }
@@ -132,11 +131,10 @@ impl Collector {
             | Token::False
             | Token::Null => 1,
         };
-        if size > usize::try_from(self.string_limit).expect("u32 fits usize") {
+        if size > usize_of(self.string_limit) {
             return Err(DecodeError::TooLarge);
         }
-        let bytes =
-            self.bytes.checked_add(u64::try_from(size).expect("usize fits u64")).ok_or(DecodeError::TooLarge)?;
+        let bytes = self.bytes.checked_add(len_u64(size)).ok_or(DecodeError::TooLarge)?;
         if bytes > u64::from(self.byte_limit) || self.tokens.room() == 0 {
             return Err(DecodeError::TooLarge);
         }
@@ -334,7 +332,7 @@ pub(crate) fn unsigned(tokens: &[Token]) -> Result<u64, DecodeError> {
     Ok(n)
 }
 pub(crate) fn value_at(tokens: &[Token], offset: u32) -> Result<&[Token], DecodeError> {
-    let start = usize::try_from(offset).expect("u32 fits usize");
+    let start = usize_of(offset);
     let end = span(tokens, start)?;
     tokens.get(start..end).ok_or(DecodeError::Malformed)
 }

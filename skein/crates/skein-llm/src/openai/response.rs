@@ -7,7 +7,7 @@ use crate::openai::{
 use alloc::boxed::Box;
 use core::mem;
 use skein_json::{Document, Kind, writer::Encoder};
-use skein_lib::{List, Queue, Wall, bytes};
+use skein_lib::{List, Queue, Wall, bytes, usize_of};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Item {
@@ -330,7 +330,7 @@ impl StreamDecoder {
                     return Err(DecodeError::Malformed);
                 }
                 for text in [&id, &call_id, &name] {
-                    if text.len() > usize::try_from(limits.strings).expect("u32 fits usize") {
+                    if text.len() > usize_of(limits.strings) {
                         return Err(DecodeError::limit(crate::Cap::Strings, limits.strings));
                     }
                 }
@@ -366,7 +366,7 @@ impl StreamDecoder {
                     Some((_, Opened::Tool { input, bytes, too_large, .. })) => {
                         *bytes = bytes.checked_add(length).ok_or(DecodeError::Malformed)?;
                         if !*too_large {
-                            if long.is_some() || delta.len() > usize::try_from(input.room()).expect("u32 fits usize") {
+                            if long.is_some() || delta.len() > usize_of(input.room()) {
                                 *too_large = true;
                                 input.clear();
                             } else {
@@ -401,7 +401,7 @@ impl StreamDecoder {
         limits: &Limits,
         out: &mut Queue<Output>,
     ) -> Result<(), DecodeError> {
-        let limit = usize::try_from(limits.strings).expect("u32 fits usize");
+        let limit = usize_of(limits.strings);
         if id.len() > limit || kind.len() > limit {
             return Err(DecodeError::limit(crate::Cap::Strings, limits.strings));
         }
@@ -605,7 +605,7 @@ impl StreamDecoder {
             | Failure::ContextTooLong
             | Failure::Invalid => detail,
         };
-        let detail = if detail.len() > usize::try_from(self.detail_bytes).expect("u32 fits usize") {
+        let detail = if detail.len() > usize_of(self.detail_bytes) {
             common::clipped(&detail, self.detail_bytes)
         } else {
             detail
@@ -654,7 +654,7 @@ fn prepare(
                 Item::CutCall { id, call_id, name, arguments } => (id, call_id, name, arguments, true),
                 Item::Message { .. } | Item::Opaque { .. } => unreachable!("a function-call item"),
             };
-            let cap = usize::try_from(limits.strings).expect("u32 fits usize");
+            let cap = usize_of(limits.strings);
             if id.len() > cap || call_id.len() > cap || name.len() > cap {
                 return Err(DecodeError::limit(crate::Cap::Strings, limits.strings));
             }
