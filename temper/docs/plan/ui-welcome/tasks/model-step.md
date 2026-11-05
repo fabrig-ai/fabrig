@@ -157,3 +157,21 @@ Rebase onto the landing’s current integration tip and combine these edits:
 - Preserve all other integration status updates, including those from main commit `88c30d6ecc`.
 
 The log reports no other conflicting paths; retain the automatically merged code and tests.
+
+## Rebase (2026-11-05, step merge, foreman ui-welcome/model-step/foreman-2)
+
+rebase and preserve both configuring and Model additions with distinct style tokens and phrase IDs.
+The merge conflicts are in `temper/crates/temper-client-view/src/look.rs` and `temper/crates/temper-client-view/src/words.rs`.
+Integration gained configuring changes from main commit `70e66541af`, through `a29b5534b0` and catch-up merge `00782c05e8`.
+Rebase onto the landing’s current integration tip and combine those changes with branch commit `5b4107c87a`.
+
+- In `look.rs`, retain integration’s `STARTER_*` tokens 253–257 and their matching `NAMES.styles` entries.
+- Append the four Model style names after those entries; assign `WELCOME_PANEL`, `WELCOME_AWAY`, `WELCOME_NUMBERED`, and `WELCOME_FIELD` tokens 258–261 respectively.
+- Preserve the branch’s `ELEMENTS` mapping of `WELCOME_NUMBERED` to `ol`.
+- In `words.rs`, preserve integration’s configuring variants, English text, and IDs, including the removal of `ConfigureAgent`.
+- Preserve integration’s forge phrase IDs 3208 and 3209.
+- Retain all fifteen Model words, their English text and `ALL` entries; assign them fresh IDs 3210–3224 in their existing order, `WelcomeKeyTitle` through `WelcomeFinishing`.
+- Combine the declarations: `PHRASES = 1381`, `SEGMENTS = 2374`, and `ALL: [Word; 785]`.
+- Keep both literal-byte capacity additions, `+ 476 + 659`, and both sets of explanatory comments.
+- Retain the automatically merged CSS and gallery tests, and the earlier status-file resolution.
+- Verify the combined word declarations and Model browser/terminal rendering, including standalone ConnectModel preservation, through the required focused checks.
