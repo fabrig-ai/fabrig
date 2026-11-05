@@ -493,8 +493,9 @@ have one, an engine alone none. Each:
 - **The worker's root takes the rest from jig's and smith's:** the hub's
   limits from jig's worker part; smith's host limits and the bounds its
   hello states from the agent's configuration (section 5), as jig's
-  reference binary derives them; its stop bound from jig's graces; the
-  checkout's limits from temper's profile (section 7).
+  reference binary derives them, but for the agents the host holds, which
+  are its slots (`../domain/worker.md`, section 6); its stop bound from
+  jig's graces; the checkout's limits from temper's profile (section 7).
 - **Workers are alike** (jig's `protocol/configuration.md`, section 4):
   no credential but the worker's secret, and no forge configuration.
   Remotes, git identities and a forge's git program come with each
