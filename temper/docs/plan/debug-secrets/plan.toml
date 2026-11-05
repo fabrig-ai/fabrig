@@ -1,0 +1,3 @@
+draft = "debug-secrets"
+repo = "fabrig"
+sources = ["temper/docs/plan/debug-secrets/inputs/debug-secrets.md", "AGENTS.md"]
