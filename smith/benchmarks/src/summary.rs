@@ -20,18 +20,14 @@ pub const SUMMARY_VERSION: u32 = 4;
 /// The one baseline format understood by this harness.
 pub const BASELINE_VERSION: u32 = 1;
 
-use crate::{Fault, FaultKind};
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Agent, AttemptResult, Comparison, Convention, Design, End, Identity, Interval, Measure, ModelIdentity, Provider,
+use crate::{Fault, Agent, AttemptResult, Comparison, Convention, Design, End, Identity, Interval, Measure, ModelIdentity, Provider,
     RESULT_VERSION, Refusal, ResourceScope, ScopeKind, SmithFace, SpendBasis, TokenRecord, audit_sample,
-    coefficient_of_variation, median, minimum_detectable_effect, pass_interval, read_result,
-};
+    coefficient_of_variation, median, minimum_detectable_effect, pass_interval, read_result, bound, input, mismatch};
 
 /// Observations of one metric across every end, supplied by the summary builder.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -353,8 +349,8 @@ fn observations(results: &[&AttemptResult], metric: &str) -> (Vec<f64>, Vec<Stri
 
 fn metric_summary(results: &[&AttemptResult], metric: &str) -> Result<MetricSummary, Fault> {
     let (values, missing) = observations(results, metric);
-    let n = u32::try_from(values.len()).map_err(|_| Fault::new(FaultKind::Bound, "too many observations"))?;
-    let total = u32::try_from(results.len()).map_err(|_| Fault::new(FaultKind::Bound, "too many attempts"))?;
+    let n = u32::try_from(values.len()).map_err(|_| bound("too many observations"))?;
+    let total = u32::try_from(results.len()).map_err(|_| bound("too many attempts"))?;
     let median = median(&values).map_or_else(|fault| Measure::unavailable(fault.detail), observed);
     let range = if values.is_empty() {
         Measure::unavailable("no observed values")
@@ -430,7 +426,7 @@ pub(crate) fn same_inputs(left: &Identity, right: &Identity) -> bool {
 fn group_summary(results: &[&AttemptResult]) -> Result<ArmSummary, Fault> {
     let first = &results[0].identity;
     if results.iter().any(|result| !same_inputs(first, &result.identity)) {
-        return Err(Fault::new(FaultKind::Format, format!("{} / {} mixes task versions or arm inputs", first.task, first.arm)));
+        return Err(mismatch(format!("{} / {} mixes task versions or arm inputs", first.task, first.arm)));
     }
     let mut counts = BTreeMap::new();
     let mut passes = PassCounts {
@@ -511,7 +507,7 @@ pub fn summarise(
     reference_arm: Option<&str>,
 ) -> Result<RunSummary, Fault> {
     if results.is_empty() || suite.is_empty() || tier.is_empty() || results.len() > u32::MAX as usize {
-        return Err(Fault::new(FaultKind::Input, "summary needs attempts, suite and tier"));
+        return Err(input("summary needs attempts, suite and tier"));
     }
     let run = &results[0].identity.run;
     let mut ordered: Vec<&AttemptResult> = results.iter().collect();
@@ -525,7 +521,7 @@ pub fn summarise(
             || result.identity.harness_commit != results[0].identity.harness_commit
             || !ids.insert(&result.identity.attempt)
         {
-            return Err(Fault::new(FaultKind::Input, "summary mixes runs/versions or duplicate attempts"));
+            return Err(input("summary mixes runs/versions or duplicate attempts"));
         }
         if let Some(Measure::Observed { value: grade }) = result.outcome.grade
             && let Some(checks) = checks_passed(result)
@@ -573,7 +569,7 @@ pub fn summarise(
             .groups
             .iter()
             .find(|group| Some(group.arm.as_str()) == reference_arm)
-            .ok_or(Fault::new(FaultKind::Input, "change needs its parent reference arm"))?
+            .ok_or_else(|| input("change needs its parent reference arm"))?
             .agent_version
             .clone();
         summary.change = Some(crate::parity::change::from_summary(&summary, &parent)?);
@@ -587,7 +583,7 @@ fn drift(groups: &[ArmSummary], suite: &str, tier: &str, reference: &Baseline) -
         || reference.suite != suite
         || reference.tier != tier
     {
-        return Err(Fault::new(FaultKind::Mismatch, "baseline version, suite or tier differs"));
+        return Err(mismatch("baseline version, suite or tier differs"));
     }
     let mut notices = Vec::new();
     for group in groups {
@@ -630,7 +626,7 @@ fn drift(groups: &[ArmSummary], suite: &str, tier: &str, reference: &Baseline) -
 
 /// Freeze a suite for one configuration and tier; comparisons use separate baselines.
 pub fn baseline(summary: &RunSummary) -> Result<Baseline, Fault> {
-    let first = summary.groups.first().ok_or(Fault::new(FaultKind::Input, "baseline needs a task"))?;
+    let first = summary.groups.first().ok_or_else(|| input("baseline needs a task"))?;
     if summary.version != SUMMARY_VERSION
         || summary.result_version != RESULT_VERSION
         || summary.groups.iter().any(|group| {
@@ -642,7 +638,7 @@ pub fn baseline(summary: &RunSummary) -> Result<Baseline, Fault> {
                 || group.binary_sha256 != first.binary_sha256
         })
     {
-        return Err(Fault::new(FaultKind::Input, "baseline needs one supported agent configuration, model tier and binary"));
+        return Err(input("baseline needs one supported agent configuration, model tier and binary"));
     }
     Ok(Baseline {
         version: BASELINE_VERSION,
@@ -675,7 +671,7 @@ pub fn baseline_group(
 
 /// Read raw result.json files recursively, without following links or other logs.
 pub fn read_results(path: &Path) -> Result<Vec<AttemptResult>, Fault> {
-    let metadata = std::fs::symlink_metadata(path).map_err(|error| Refusal::new(path, "results", error.to_string()))?;
+    let metadata = std::fs::symlink_metadata(path).map_err(|error| Fault::from(error).document(path, "results"))?;
     if metadata.is_symlink() {
         return Err(Refusal::new(path, "results", "result paths must not be symlinks").into());
     }
@@ -686,13 +682,13 @@ pub fn read_results(path: &Path) -> Result<Vec<AttemptResult>, Fault> {
         return Err(Refusal::new(path, "results", "expected a file or directory").into());
     }
     let mut entries = std::fs::read_dir(path)
-        .map_err(|error| Refusal::new(path, "results", error.to_string()))?
+        .map_err(|error| Fault::from(error).document(path, "results"))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| Refusal::new(path, "results", error.to_string()))?;
+        .map_err(|error| Fault::from(error).document(path, "results"))?;
     entries.sort_by_key(std::fs::DirEntry::path);
     let mut results = Vec::new();
     for entry in entries {
-        let kind = entry.file_type().map_err(|error| Refusal::new(&entry.path(), "results", error.to_string()))?;
+        let kind = entry.file_type().map_err(|error| Fault::from(error).document(&entry.path(), "results"))?;
         if kind.is_dir() || entry.file_name() == "result.json" {
             results.extend(read_results(&entry.path())?);
         }
@@ -823,7 +819,7 @@ pub fn committed_costs(
     let mut latest: BTreeMap<(String, String), (String, crate::Estimate)> = BTreeMap::new();
     for summary in summaries {
         if summary.version != SUMMARY_VERSION || summary.result_version != RESULT_VERSION {
-            return Err(Fault::new(FaultKind::Input, "committed summary has unsupported summary or result version"));
+            return Err(input("committed summary has unsupported summary or result version"));
         }
         if summary.tier != suite.tier {
             continue;

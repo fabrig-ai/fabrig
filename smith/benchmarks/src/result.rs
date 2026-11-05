@@ -3,14 +3,12 @@
 //! observed answer, deadline and exit (benchmarks.md, sections 8.1 and 8.3;
 //! shell.md, section 4.3). No measurement is borrowed from another scope.
 
-use crate::{Fault, FaultKind};
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, Provider, Refusal, TokenRecord};
+use crate::{Fault, Agent, Provider, Refusal, TokenRecord, format, input, refuse_if, Input};
 
 /// The one result format understood by this harness.
 pub const RESULT_VERSION: u32 = 4;
@@ -548,8 +546,8 @@ pub struct AttemptResult {
 /// Read a result with strict fields and the one supported format version.
 pub fn read_result(file: &Path) -> Result<AttemptResult, Fault> {
     let text = std::fs::read_to_string(file)
-        .map_err(|error| Fault::new(FaultKind::Io, Refusal::new(file, "document", error.to_string()).to_string()))?;
-    parse_result(file, &text).map_err(|error| Fault::new(FaultKind::Format, error.to_string()))
+        .map_err(|error| Fault::from(error).document(file, "document"))?;
+    parse_result(file, &text).map_err(|error| format(error.to_string()))
 }
 
 /// Parse one result without accepting a prefix or another version.
@@ -570,14 +568,12 @@ pub fn parse_result(file: &Path, text: &str) -> Result<AttemptResult, Refusal> {
 
 /// Render the supported result, refusing non-finite measurements rather than nulls.
 pub fn render_result(result: &AttemptResult) -> Result<String, Fault> {
-    if result.version != RESULT_VERSION {
-        return Err(Fault::new(FaultKind::Input, "unsupported result version"));
-    }
+    refuse_if(result.version != RESULT_VERSION, Input, "unsupported result version")?;
     if !finite(&result.spend.priced)
         || !finite(&result.spend.usd)
         || result.health.headroom.values().any(|entry| !finite(&entry.fraction_used))
     {
-        return Err(Fault::new(FaultKind::Input, "non-finite measurement"));
+        return Err(input("non-finite measurement"));
     }
     let text = serde_json::to_string_pretty(result)?;
     parse_result(Path::new("result.json"), &text)?;

@@ -22,6 +22,10 @@ pub mod fault;
 
 pub use fault::{Fault, FaultKind};
 
+pub(crate) use fault::FaultKind::{Bound, Credential, Input, Io, Mismatch, Stream};
+
+pub(crate) use fault::{bound, configuration, credential, format, input, io, mismatch, refuse_if, stream};
+
 pub mod agent;
 
 pub mod arm;

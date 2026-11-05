@@ -3,13 +3,11 @@
 //! join terminals. No provider text or remote inference state is known here.
 //! Contracts: benchmarks.md, section11.1; domain/tools.md, sections3/4.
 
-use crate::Fault;
-
 use std::path::{Component, Path, PathBuf};
 
 use smith_events::{Event, Verdict};
 
-use crate::{CheckVerdict, Measure};
+use crate::{Fault, CheckVerdict, Measure};
 
 use super::Observer;
 

@@ -4,8 +4,7 @@
 //! Ended terminal masters stay held until Binary settles the tree.
 //! Contract: benchmarks.md, sections 6, 8 and 10.
 
-use crate::{Fault, FaultKind};
-
+use crate::{Fault, bound, format, io};
 use std::os::fd::IntoRawFd;
 
 use skein_io::kernel::{Complete, Done, Fd, Op, Signal, Submit};
@@ -534,7 +533,7 @@ pub fn execute(
     } else {
         vec![crate::agent::Cue {
             when: crate::agent::Trigger::Start,
-            text: String::from_utf8(prompt.into_vec()).map_err(|_| Fault::new(FaultKind::Format, "prompt must be UTF-8"))?,
+            text: String::from_utf8(prompt.into_vec()).map_err(|_| format("prompt must be UTF-8"))?,
         }]
     };
     execute_script(clock, command, crate::agent::Script { cues, close }, capture, bounds)
@@ -550,22 +549,22 @@ pub fn execute_script(
 ) -> Result<ProcessResult, Fault> {
     let person = crate::agent::Person::new(script)?;
     if bounds.stdout == 0 || bounds.stderr == 0 || bounds.hard == Duration::ZERO {
-        return Err(Fault::new(FaultKind::Bound, "invalid attempt prompt, log bound or hard deadline"));
+        return Err(bound("invalid attempt prompt, log bound or hard deadline"));
     }
     let trace_file = trace_file(&capture)?;
     let started = clock.now();
     let start = started.now;
-    let deadline = start.checked_add(bounds.hard).ok_or(Fault::new(FaultKind::Bound, "hard deadline overflow"))?;
-    deadline.checked_add(bounds.teardown).and_then(|at| at.checked_add(bounds.grace)).ok_or(Fault::new(FaultKind::Bound, "teardown overflow"))?;
+    let deadline = start.checked_add(bounds.hard).ok_or_else(|| bound("hard deadline overflow"))?;
+    deadline.checked_add(bounds.teardown).and_then(|at| at.checked_add(bounds.grace)).ok_or_else(|| bound("teardown overflow"))?;
     let patience = bounds
         .hard
         .checked_add(bounds.teardown)
         .and_then(|span| span.checked_add(bounds.grace))
         .and_then(|span| span.checked_add(bounds.settlement))
-        .ok_or(Fault::new(FaultKind::Bound, "settlement patience overflow"))?;
+        .ok_or_else(|| bound("settlement patience overflow"))?;
     let mode = if trace_file.is_some() { Mode::Terminal } else { Mode::Pipes };
     let mut binary = Binary::start_with_tree(command, mode, bounds.stderr, Expectation::Supervise, bounds.force_walk)
-        .map_err(|error| Fault::new(FaultKind::Format, format!("binary start: {error:?}")))?;
+        .map_err(|error| io(format!("binary start: {error:?}")))?;
     let streams = binary.take_streams().expect("new binary retains its streams");
     let (input, output) = match streams {
         Streams::Pipes { input, output } => (input, output),

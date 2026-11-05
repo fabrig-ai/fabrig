@@ -1,8 +1,6 @@
 //! Validate hidden graders on private seeds and reference overlays, without an
 //! agent or credentials (benchmarks.md, sections 3.1, 5.2 and 10).
 
-use crate::{Fault, FaultKind};
-
 use std::fs;
 use std::os::unix::fs::DirBuilderExt;
 use std::path::Path;
@@ -10,7 +8,7 @@ use std::path::Path;
 use skein_lib::Duration;
 use skein_shell::Clock;
 
-use crate::CatalogueTask;
+use crate::{Fault, CatalogueTask, input, io};
 use crate::grade::{Entry, GradeEnd, Snapshot};
 use crate::guard::Guard;
 use crate::isolate::{Machine, Private};
@@ -69,7 +67,7 @@ fn validate_catalogue(
 ) -> Result<Vec<Validation>, Fault> {
     for name in names {
         if !tasks.iter().any(|entry| entry.name == *name && !entry.task.grade.is_empty()) {
-            return Err(Fault::new(FaultKind::Format, format!("unknown graded task {name}")));
+            return Err(input(format!("unknown graded task {name}")));
         }
     }
     let clock = Clock::new();
@@ -97,7 +95,7 @@ fn overlay(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault
             Entry::File { .. } => {
                 fs::copy(source.join(relative), target)?;
             }
-            Entry::Link { .. } | Entry::Special => return Err(Fault::new(FaultKind::Input, "reference contains a link or special node")),
+            Entry::Link { .. } | Entry::Special => return Err(input("reference contains a link or special node")),
         }
     }
     Ok(())
@@ -111,7 +109,7 @@ fn candidate(
     root: &Path,
     reference: bool,
 ) -> Result<GradeEnd, Fault> {
-    let task_root = entry.manifest.parent().ok_or(Fault::new(FaultKind::Input, "task has no directory"))?;
+    let task_root = entry.manifest.parent().ok_or_else(|| input("task has no directory"))?;
     let bundles = crate::arm::state_root(guard)?.join("bundles");
     let (seed, digest) = crate::seed_source(&entry.task, task_root, &bundles)?;
     let private: Private = crate::isolate::prepare(guard, &seed, &digest, root)?;
@@ -147,7 +145,7 @@ fn candidate(
         let environment = &entry.task.environment;
         let result = crate::grade::command(clock, machine, &private, &private.workspace, &setup, bounds, environment)?;
         if result.end != GradeEnd::Passed {
-            return Err(Fault::new(FaultKind::Io, format!(
+            return Err(io(format!(
                 "validation setup failed: {:?}: {}",
                 result.end,
                 String::from_utf8_lossy(&result.stderr)
@@ -242,7 +240,7 @@ fn apply_patch(clock: &Clock, guard: &Guard, machine: &Machine, private: &Privat
         &std::collections::BTreeMap::default(),
     )?;
     if result.end != GradeEnd::Passed {
-        return Err(Fault::new(FaultKind::Io, format!("reference patch failed: {}", String::from_utf8_lossy(&result.stderr))));
+        return Err(io(format!("reference patch failed: {}", String::from_utf8_lossy(&result.stderr))));
     }
     Ok(())
 }

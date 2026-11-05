@@ -3,13 +3,11 @@
 //! per scope and a total that names every gap (benchmarks.md, section 8.2).
 //! Root-only usage never stands in for child, compaction or helper usage.
 
-use crate::{Fault, FaultKind};
-
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::Measure;
+use crate::{Fault, Measure, bound, input, mismatch};
 
 /// The fixed normalisation selected by an adapter's recorded format.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -119,9 +117,9 @@ impl Usage {
     pub fn normalise(&self) -> Result<TokenCounts, Fault> {
         match *self {
             Self::Codex { input, cached_input, cache_write, output, reasoning } => {
-                let fresh = input.checked_sub(cached_input).ok_or(Fault::new(FaultKind::Bound, "cached input exceeds input"))?;
+                let fresh = input.checked_sub(cached_input).ok_or_else(|| bound("cached input exceeds input"))?;
                 if cache_write.is_some_and(|writes| writes > fresh) || reasoning.is_some_and(|tokens| tokens > output) {
-                    return Err(Fault::new(FaultKind::Bound, "Codex cache writes or reasoning exceed their containing total"));
+                    return Err(bound("Codex cache writes or reasoning exceed their containing total"));
                 }
                 Ok(TokenCounts {
                     fresh: observed(fresh),
@@ -134,7 +132,7 @@ impl Usage {
                 })
             }
             Self::ClaudeCode { input, cache_read, cache_write, output } => Ok(TokenCounts {
-                fresh: observed(input.checked_add(cache_write).ok_or(Fault::new(FaultKind::Bound, "fresh token overflow"))?),
+                fresh: observed(input.checked_add(cache_write).ok_or_else(|| bound("fresh token overflow"))?),
                 cache_read: observed(cache_read),
                 cache_write: observed(cache_write),
                 output: observed(output),
@@ -187,7 +185,7 @@ fn add_measure(left: &Measure<u64>, right: &Measure<u64>) -> Result<Measure<u64>
     missing.sort();
     missing.dedup();
     let value = match (left_value, right_value) {
-        (Some(left), Some(right)) => Some(left.checked_add(right).ok_or(Fault::new(FaultKind::Bound, "token sum overflow"))?),
+        (Some(left), Some(right)) => Some(left.checked_add(right).ok_or_else(|| bound("token sum overflow"))?),
         (Some(value), None) | (None, Some(value)) => Some(value),
         (None, None) => None,
     };
@@ -270,10 +268,10 @@ impl TokenLedger {
             || role == ScopeKind::Total
             || self.scopes.contains_key(id)
         {
-            return Err(Fault::new(FaultKind::Input, "scope needs a unique nonempty id, a non-total role and an unavailable reason"));
+            return Err(input("scope needs a unique nonempty id, a non-total role and an unavailable reason"));
         }
         if role == ScopeKind::Root && self.scopes.values().any(|scope| scope.role == ScopeKind::Root) {
-            return Err(Fault::new(FaultKind::Input, "attempt has more than one root scope"));
+            return Err(input("attempt has more than one root scope"));
         }
         self.scopes
             .insert(id.into(), Scope { role, convention, unavailable: unavailable.into(), responses: BTreeMap::new() });
@@ -305,15 +303,15 @@ impl TokenLedger {
         usage: Usage,
         reason: Option<&str>,
     ) -> Result<bool, Fault> {
-        let target = self.scopes.get_mut(scope).ok_or_else(|| Fault::new(FaultKind::Format, format!("unknown token scope {scope}")))?;
+        let target = self.scopes.get_mut(scope).ok_or_else(|| input(format!("unknown token scope {scope}")))?;
         if response.is_empty() || target.convention != usage.convention() {
-            return Err(Fault::new(FaultKind::Input, "response needs an id and its scope's convention"));
+            return Err(input("response needs an id and its scope's convention"));
         }
         if let Some(previous) = self.responses.get(response) {
             if previous != &usage
                 || self.priced_responses.iter().any(|record| record.scope == response && record.model != model)
             {
-                return Err(Fault::new(FaultKind::Mismatch, format!("conflicting repeated usage for response {response}")));
+                return Err(mismatch(format!("conflicting repeated usage for response {response}")));
             }
             return Ok(false);
         }
@@ -360,10 +358,10 @@ impl TokenLedger {
             });
         }
         let root =
-            records.iter().find(|record| record.role == ScopeKind::Root).ok_or(Fault::new(FaultKind::Input, "token total needs a root scope"))?;
+            records.iter().find(|record| record.role == ScopeKind::Root).ok_or_else(|| input("token total needs a root scope"))?;
         let convention = root.convention;
         if records.iter().any(|record| record.convention != convention) {
-            return Err(Fault::new(FaultKind::Input, "a token total cannot mix conventions"));
+            return Err(input("a token total cannot mix conventions"));
         }
         let mut total = scoped_counts(&root.usage, &root.scope);
         for record in &records {

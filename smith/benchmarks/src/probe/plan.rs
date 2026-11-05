@@ -2,12 +2,10 @@
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
 //! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
 
-use crate::{Fault, FaultKind};
-
 use super::{Order, Planned, ProbeAgent, Source, gating};
 use crate::arm::ArmRef;
 use crate::guard::Guard;
-use crate::{Agent, Identity, Measure, ModelIdentity, Suite};
+use crate::{Fault, Agent, Identity, Measure, ModelIdentity, Suite, input, refuse_if, Input};
 use sha2::{Digest, Sha256};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -21,7 +19,7 @@ fn write(guard: &Guard, path: &Path, bytes: &[u8]) -> Result<(), Fault> {
         .mode(0o600)
         .open(guard.write_path(path)?)
         ?;
-    file.write_all(bytes).map_err(Fault::from)
+    Ok(file.write_all(bytes)?)
 }
 
 fn utc() -> Result<(String, String), Fault> {
@@ -39,7 +37,7 @@ fn utc() -> Result<(String, String), Fault> {
 fn cpus() -> Result<Vec<u32>, Fault> {
     let status = fs::read_to_string("/proc/self/status")?;
     let affinity =
-        status.lines().find_map(|line| line.strip_prefix("Cpus_allowed_list:")).ok_or(Fault::new(FaultKind::Input, "missing CPU affinity"))?;
+        status.lines().find_map(|line| line.strip_prefix("Cpus_allowed_list:")).ok_or_else(|| input("missing CPU affinity"))?;
     let mut cpus = Vec::new();
     for range in affinity.trim().split(',') {
         let (first, last) = range.split_once('-').unwrap_or((range, range));
@@ -63,7 +61,7 @@ pub(super) fn task(entries: &[crate::CatalogueTask], name: &str) -> Result<crate
             return Ok(selected);
         }
     }
-    Err(Fault::new(FaultKind::Format, format!("unknown task: {name}")))
+    Err(input(format!("unknown task: {name}")))
 }
 
 // Fixed machine and directory observations supplied to request construction.
@@ -131,9 +129,9 @@ fn request(
             provider: agent.provider,
             model: ModelIdentity {
                 requested_model: task
-                    .requested_model(agent.agent, model.model.as_deref().ok_or(Fault::new(FaultKind::Input, "unresolved tier"))?)?
+                    .requested_model(agent.agent, model.model.as_deref().ok_or_else(|| input("unresolved tier"))?)?
                     .into(),
-                requested_effort: task.effort.clone().or_else(|| model.effort.clone()).ok_or(Fault::new(FaultKind::Input, "unresolved effort"))?,
+                requested_effort: task.effort.clone().or_else(|| model.effort.clone()).ok_or_else(|| input("unresolved effort"))?,
                 resolved_model: Measure::unavailable("not run"),
                 resolved_window: Measure::unavailable("not run"),
                 resolved_effort: Measure::unavailable("not run"),
@@ -205,7 +203,7 @@ fn task_requests_in(
                     let (_, binary) = binaries
                         .iter()
                         .find(|(built_name, _)| built_name == name)
-                        .ok_or(Fault::new(FaultKind::Input, "binary arm has no prepared build"))?;
+                        .ok_or_else(|| input("binary arm has no prepared build"))?;
                     executions.push((Some(name), binary, Vec::new()));
                 }
                 crate::Arm::Override { name, smith } => {
@@ -233,14 +231,14 @@ fn task_requests_in(
 
 fn narrowed(file: &Path, order: &Order) -> Result<toml::Value, Fault> {
     let mut value: toml::Value = crate::formats::read_document(file)?;
-    let fields = value.as_table_mut().ok_or(Fault::new(FaultKind::Input, "suite must be a TOML table"))?;
+    let fields = value.as_table_mut().ok_or_else(|| input("suite must be a TOML table"))?;
     fields.insert("tasks".into(), toml::Value::Array(vec![toml::Value::String(order.probe.clone())]));
     fields.insert("select".into(), toml::Value::Array(vec![]));
     fields.insert("arm".into(), toml::Value::Array(vec![]));
     fields.insert("repetitions".into(), toml::Value::Integer(i64::from(order.attempts)));
     fields.insert("rerun_failed".into(), toml::Value::Integer(i64::from(order.attempts == 1)));
     if order.probe == "probes/credentials" && order.agent != ProbeAgent::Smith {
-        return Err(Fault::new(FaultKind::Input, "the credentials probe requires smith's chatgpt account"));
+        return Err(input("the credentials probe requires smith's chatgpt account"));
     }
     if order.agent == ProbeAgent::SmithClaudeCode {
         let program = toml::from_str::<toml::Value>(
@@ -253,7 +251,7 @@ fn narrowed(file: &Path, order: &Order) -> Result<toml::Value, Fault> {
             ?;
         fields.insert("agents".into(), codex["agents"].clone());
     } else {
-        let agents = fields.get_mut("agents").and_then(toml::Value::as_array_mut).ok_or(Fault::new(FaultKind::Input, "suite agents"))?;
+        let agents = fields.get_mut("agents").and_then(toml::Value::as_array_mut).ok_or_else(|| input("suite agents"))?;
         agents.retain(|agent| {
             agent["agent"].as_str() == Some("smith")
                 && agent["tasks"].as_array().is_none_or(|tasks| {
@@ -269,9 +267,7 @@ fn narrowed(file: &Path, order: &Order) -> Result<toml::Value, Fault> {
 
 /// Prepare a probe's authored pin and tier, without invoking a compiler or agent.
 pub fn plan(repository: &Path, order: &Order, arm: &ArmRef) -> Result<Planned, Fault> {
-    if !order.probe.starts_with("probes/") || order.attempts == 0 {
-        return Err(Fault::new(FaultKind::Input, "invalid probe order"));
-    }
+    refuse_if(!order.probe.starts_with("probes/") || order.attempts == 0, Input, "invalid probe order")?;
     let value = narrowed(&repository.join("benchmarks/suites/probes.toml"), order)?;
     prepare(repository, &order.probe, &value, (arm, None), true, &[])
 }
@@ -302,9 +298,7 @@ pub(super) fn prepare(
         .create(guard.write_path(&parent)?)
         ?;
     let directory = parent.join(&run);
-    if directory.exists() {
-        return Err(Fault::new(FaultKind::Input, "run already exists; wait until the next UTC second"));
-    }
+    refuse_if(directory.exists(), Input, "run already exists; wait until the next UTC second")?;
     crate::isolate::create_directory(&guard, &directory)?;
     let suite_file = parent.join(format!("{run}.toml"));
     write(&guard, &suite_file, toml::to_string(value)?.as_bytes())?;
@@ -312,7 +306,7 @@ pub(super) fn prepare(
     let entries = if logical {
         let base = name.split('/').take(2).collect::<Vec<_>>().join("/");
         if base.split('/').any(|part| part.is_empty() || part == ".." || part == ".") {
-            return Err(Fault::new(FaultKind::Input, "invalid task name"));
+            return Err(input("invalid task name"));
         }
         let manifest = root.join("tasks").join(&base).join("task.toml");
         vec![crate::CatalogueTask {
@@ -380,7 +374,7 @@ pub(super) fn codex(repository: &Path, configuration: &str) -> Result<ArmRef, Fa
     ?;
     let guard = Guard::from_environment()?;
     let program = crate::arm::state_root(&guard)?
-        .join(pin.pin.package.ok_or(Fault::new(FaultKind::Input, "Codex requires a private package"))?)
+        .join(pin.pin.package.ok_or_else(|| input("Codex requires a private package"))?)
         .join("bin/codex");
     Ok(ArmRef::Installed { program })
 }
@@ -393,13 +387,13 @@ pub(super) fn archived(repository: &Path, source: &Source) -> Result<ArmRef, Fau
     let commit = crate::arm::resolve_commit(repository, reference)?;
     let guard = Guard::from_environment()?;
     let arms = crate::arm::state_root(&guard)?.join("arms");
-    for entry in fs::read_dir(arms).map_err(|_| Fault::new(FaultKind::Format, format!("no archived arm for {commit}; run build {reference} first")))? {
+    for entry in fs::read_dir(arms).map_err(|_| input(format!("no archived arm for {commit}; run build {reference} first")))? {
         let entry = entry?;
         if entry.file_name().to_string_lossy().starts_with(&format!("{commit}-")) {
             return crate::arm::read_build(&entry.path().join("smith")).map(ArmRef::Built);
         }
     }
-    Err(Fault::new(FaultKind::Format, format!("no archived arm for {commit}; run build {reference} first")))
+    Err(input(format!("no archived arm for {commit}; run build {reference} first")))
 }
 
 fn write_requests(guard: &Guard, directory: &Path, requests: &[crate::run::Request]) -> Result<(), Fault> {
@@ -415,7 +409,7 @@ fn write_requests(guard: &Guard, directory: &Path, requests: &[crate::run::Reque
 
 pub(super) fn check_parent(suite: &Suite, has_parent: bool) -> Result<(), Fault> {
     if suite.change != has_parent {
-        return Err(Fault::new(FaultKind::Input, if suite.change {
+        return Err(input(if suite.change {
             "change suite requires --parent or --parent-arm"
         } else {
             "only change suites accept a parent"

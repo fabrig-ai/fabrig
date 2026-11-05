@@ -1,10 +1,8 @@
 //! Comparisons pair only the cross-agent basis in benchmarks.md, section 9.
 
-use crate::{Fault, FaultKind};
-
 use std::collections::BTreeMap;
 
-use crate::{ArmSummary, AttemptResult, Convention, Measure, SummaryComparison, bootstrap_ratio};
+use crate::{Fault, ArmSummary, AttemptResult, Convention, Measure, SummaryComparison, bootstrap_ratio, input};
 
 pub(crate) fn comparisons(
     groups: &[ArmSummary],
@@ -28,7 +26,7 @@ pub(crate) fn comparisons(
             .iter()
             .find(|group| group.agent == crate::Agent::Codex)
             .or_else(|| arms.iter().find(|group| Some(group.arm.as_str()) == reference_arm))
-            .ok_or_else(|| Fault::new(FaultKind::Format, format!("{task}: comparison without Codex needs its named reference arm")))?;
+            .ok_or_else(|| input(format!("{task}: comparison without Codex needs its named reference arm")))?;
         for right in &arms {
             if right.arm == left.arm {
                 continue;
@@ -37,7 +35,7 @@ pub(crate) fn comparisons(
                 || left.seed_sha256 != right.seed_sha256
                 || left.prompt_sha256 != right.prompt_sha256
             {
-                return Err(Fault::new(FaultKind::Input, "comparison mixes task versions or frozen inputs"));
+                return Err(input("comparison mixes task versions or frozen inputs"));
             }
             for metric in left.metrics.keys() {
                 let Some((candidate_metric, conventions)) = counterpart(metric, left, right) else { continue };

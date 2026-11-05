@@ -2,13 +2,11 @@
 //! No skipped record, absent limit or unavailable field is proof of compliance.
 //! Contract: benchmarks.md, section11.2; protocol/events.md, sections3/5.2.
 
-use crate::{Fault, FaultKind};
-
 use std::collections::BTreeMap;
 
 use smith_events::{Delivery, Event, Status};
 
-use crate::{CheckVerdict, Exit, Forced, Health, Measure};
+use crate::{Fault, CheckVerdict, Exit, Forced, Health, Measure, bound, stream};
 
 use super::{Observer, Session};
 
@@ -59,17 +57,17 @@ fn spend_sums(session: &Session) -> Result<(bool, bool), Fault> {
                 let key = (value.run, value.response);
                 match responses.insert(key, value.spent) {
                     Some(previous) if previous != value.spent => {
-                        return Err(Fault::new(FaultKind::Stream, "response spent changed on repetition"));
+                        return Err(stream("response spent changed on repetition"));
                     }
                     Some(_) => {}
                     None => {
                         let sum = sums.entry(value.run).or_default();
-                        *sum = sum.checked_add(u128::from(value.spent)).ok_or(Fault::new(FaultKind::Bound, "response spent sum overflow"))?;
+                        *sum = sum.checked_add(u128::from(value.spent)).ok_or_else(|| bound("response spent sum overflow"))?;
                     }
                 }
             }
             Event::RunCompleted(value) if runs.insert(value.run, value.spent).is_some() => {
-                return Err(Fault::new(FaultKind::Stream, "duplicate run.completed"));
+                return Err(stream("duplicate run.completed"));
             }
             _ => {}
         }

@@ -2,18 +2,13 @@
 //! Only attempt-owned paths and the selected model are substituted. No preset
 //! value is derived here (benchmarks.md, sections 5.4, 6.1 and 10).
 
-use crate::{Fault, FaultKind};
-
+use crate::{Fault, configuration};
 use std::path::Path;
 
 use serde_json::Value;
 
 use crate::agent::Context;
 use crate::isolate::{SetupStep};
-
-fn configuration(reason: impl Into<String>) -> Fault {
-    Fault { kind: FaultKind::Setup(SetupStep::Configuration), detail: reason.into() }
-}
 
 /// Render the pin's trace and shared account declarations with its credentials directory.
 pub fn product(context: &Context<'_>, base: &Value, login: &Path) -> Result<Value, Fault> {
@@ -32,8 +27,8 @@ pub fn product(context: &Context<'_>, base: &Value, login: &Path) -> Result<Valu
 
 fn declarations() -> Result<Value, Fault> {
     let shared: toml::Value =
-        toml::from_str(crate::credential::logins::ACCOUNTS).map_err(|error| configuration(error.to_string()))?;
-    serde_json::to_value(shared).map_err(|error| configuration(error.to_string()))
+        toml::from_str(crate::credential::logins::ACCOUNTS).map_err(Fault::at(SetupStep::Configuration))?;
+    serde_json::to_value(shared).map_err(Fault::at(SetupStep::Configuration))
 }
 
 fn endpoint(provider: crate::Provider) -> &'static str {
@@ -103,7 +98,7 @@ pub fn arguments(context: &Context<'_>) -> Result<Vec<String>, Fault> {
             let key = key.replace("{model}", &selected);
             let value = if key == "workspace.directories" {
                 let directories = super::directories::render(context).map_err(Fault::at(SetupStep::Configuration))?;
-                serde_json::from_value(directories).map_err(|error| configuration(error.to_string()))?
+                serde_json::from_value(directories).map_err(Fault::at(SetupStep::Configuration))?
             } else {
                 value.clone()
             };

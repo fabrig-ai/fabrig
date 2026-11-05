@@ -3,12 +3,10 @@
 //! The shared kit owns all process discovery and settlement.
 //! Contract: benchmarks.md section11.2.
 
-use crate::Fault;
-
 use std::path::PathBuf;
 
 use crate::process::ProcessResult;
-use crate::{CheckVerdict, Measure, Passive};
+use crate::{Fault, CheckVerdict, Measure, Passive};
 
 #[cfg(test)]
 use crate::Forced;

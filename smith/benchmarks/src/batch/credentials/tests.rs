@@ -25,7 +25,7 @@ fn an_unreadable_generation_never_passes_the_pair() {
     assert!(matches!(
         proof(
             &[End::Completed, End::Completed],
-            &Err(Fault::new(FaultKind::Credential, "cannot inspect generation")),
+            &Err(Fault::new(crate::FaultKind::Credential, "cannot inspect generation")),
             &Ok(Some(5)),
             Path::new("synthetic-record")
         ),

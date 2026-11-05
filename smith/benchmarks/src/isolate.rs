@@ -4,8 +4,7 @@
 //! task variables (benchmarks.md, sections 6.1 and 10). Setup and measurement
 //! belong to the runner; this module reads no clock or agent configuration.
 
-use crate::{Fault, FaultKind};
-
+use crate::{Fault, FaultKind, input, io, refuse_if, Input};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
@@ -98,7 +97,7 @@ pub struct Machine {
 impl Machine {
     /// Read only the allow-listed directory choices, never an inherited login.
     pub fn from_environment() -> Result<Self, Fault> {
-        let path = std::env::var_os("PATH").filter(|value| !value.is_empty()).ok_or(Fault::new(FaultKind::Input, "PATH is required"))?;
+        let path = std::env::var_os("PATH").filter(|value| !value.is_empty()).ok_or_else(|| input("PATH is required"))?;
         let rustup_home = std::env::var_os("RUSTUP_HOME")
             .map(PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".rustup")));
@@ -120,7 +119,7 @@ pub fn program(machine: &Machine, working_directory: &Path, name: &Path) -> Resu
             return Ok(path);
         }
     }
-    Err(Fault::new(FaultKind::Format, format!("command not found in the exact PATH: {}", name.display())))
+    Err(input(format!("command not found in the exact PATH: {}", name.display())))
 }
 
 /// The writable paths supplied to one agent and its commands.
@@ -144,12 +143,12 @@ pub fn working_directory(guard: &Guard, private: &Private, task: &crate::Task) -
         return Ok(private.workspace.clone());
     };
     if path.as_os_str().is_empty() || path.components().any(|part| !matches!(part, Component::Normal(_))) {
-        return Err(Fault::new(FaultKind::Input, "task working_directory must be a seed-relative path without traversal"));
+        return Err(input("task working_directory must be a seed-relative path without traversal"));
     }
     let workspace = private.workspace.canonicalize()?;
     let directory = guard.write_path(&workspace.join(path))?.canonicalize()?;
     if !directory.is_dir() || !directory.starts_with(&workspace) {
-        return Err(Fault::new(FaultKind::Input, "task working_directory must be an existing directory inside the private seed"));
+        return Err(input("task working_directory must be an existing directory inside the private seed"));
     }
     Ok(directory)
 }
@@ -159,7 +158,7 @@ pub fn remove_owned_tree(guard: &Guard, root: &Path) -> Result<(), Fault> {
     fn writable(guard: &Guard, directory: &Path) -> Result<(), Fault> {
         let metadata = fs::symlink_metadata(directory)?;
         if !metadata.is_dir() || metadata.is_symlink() {
-            return Err(Fault::new(FaultKind::Input, "owned scratch root must be an ordinary directory"));
+            return Err(input("owned scratch root must be an ordinary directory"));
         }
         guard.write_path(directory)?;
         fs::set_permissions(directory, fs::Permissions::from_mode(metadata.permissions().mode() | 0o700))
@@ -174,7 +173,7 @@ pub fn remove_owned_tree(guard: &Guard, root: &Path) -> Result<(), Fault> {
     }
     writable(guard, root)?;
     guard.write_path(root)?;
-    fs::remove_dir_all(root).map_err(Fault::from)
+    Ok(fs::remove_dir_all(root)?)
 }
 
 impl Private {
@@ -196,7 +195,7 @@ impl Private {
 
 fn directory(guard: &Guard, path: &Path) -> Result<(), Fault> {
     let destination = guard.write_path(path)?;
-    fs::DirBuilder::new().mode(0o700).create(destination).map_err(|error| Fault::new(FaultKind::Format, format!("private directory: {error}")))
+    fs::DirBuilder::new().mode(0o700).create(destination).map_err(|error| io(format!("private directory: {error}")))
 }
 
 fn copy_seed(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault> {
@@ -219,7 +218,7 @@ fn copy_seed(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fau
             let mode = if metadata.permissions().mode() & 0o111 == 0 { 0o600 } else { 0o700 };
             fs::set_permissions(&destination, fs::Permissions::from_mode(mode))?;
         } else {
-            return Err(Fault::new(FaultKind::Input, "seed contains a link or special file"));
+            return Err(input("seed contains a link or special file"));
         }
     }
     Ok(())
@@ -228,12 +227,12 @@ fn copy_seed(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fau
 /// Materialise a fresh guarded attempt after verifying the frozen seed digest.
 /// The caller supplies an existing private scratch parent outside repositories.
 pub fn prepare(guard: &Guard, seed: &Path, sha256: &str, root: &Path) -> Result<Private, Fault> {
-    if crate::seed_digest(seed).map_err(Fault::from).map_err(Fault::at(SetupStep::Seed))? != sha256 {
+    if crate::seed_digest(seed).map_err(Fault::at(SetupStep::Seed))? != sha256 {
         return Err(Fault::new(FaultKind::Setup(SetupStep::Seed), "seed digest differs; setup refused before materialisation"));
     }
     let paths = empty(guard, root).map_err(Fault::at(SetupStep::Scratch))?;
     copy_seed(guard, seed, &paths.workspace).map_err(Fault::at(SetupStep::Seed))?;
-    if crate::seed_digest(&paths.workspace).map_err(Fault::from).map_err(Fault::at(SetupStep::Seed))? != sha256 {
+    if crate::seed_digest(&paths.workspace).map_err(Fault::at(SetupStep::Seed))? != sha256 {
         return Err(Fault::new(FaultKind::Setup(SetupStep::Seed), "materialised seed digest differs; setup refused"));
     }
     Ok(paths)
@@ -262,9 +261,7 @@ pub fn empty(guard: &Guard, root: &Path) -> Result<Private, Fault> {
 /// Populate a caller-created private workspace without following links.
 pub fn copy_into(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault> {
     guard.write_path(destination)?;
-    if fs::read_dir(destination)?.next().is_some() {
-        return Err(Fault::new(FaultKind::Input, "copy destination must be empty"));
-    }
+    refuse_if(fs::read_dir(destination)?.next().is_some(), Input, "copy destination must be empty")?;
     copy_seed(guard, source, destination)
 }
 
@@ -272,9 +269,7 @@ pub fn copy_into(guard: &Guard, source: &Path, destination: &Path) -> Result<(),
 /// No inherited profile or instruction file is copied (benchmarks.md, section 6.1).
 pub(crate) fn login_profile(guard: &Guard, machine: &Machine, private: &Private) -> Result<(), Fault> {
     let path = machine.path.as_bytes();
-    if path.contains(&0) {
-        return Err(Fault::new(FaultKind::Input, "machine PATH contains a NUL"));
-    }
+    refuse_if(path.contains(&0), Input, "machine PATH contains a NUL")?;
     let mut contents = b"export PATH='".to_vec();
     for byte in path {
         if *byte == b'\'' {
@@ -291,7 +286,7 @@ pub(crate) fn login_profile(guard: &Guard, machine: &Machine, private: &Private)
         .mode(0o600)
         .open(destination)
         .and_then(|mut file| file.write_all(&contents))
-        .map_err(|error| Fault::new(FaultKind::Credential, format!("private login profile: {error}")))
+        .map_err(|error| io(format!("private login profile: {error}")))
 }
 
 /// Construct an exact allow-listed environment, refusing private-path overrides.
@@ -319,13 +314,13 @@ pub fn environment(
     }
     for (name, value) in task {
         if name.is_empty() || name.contains(['=', '\0']) || value.contains('\0') {
-            return Err(Fault::new(FaultKind::Input, "task environment names/values must be valid process entries"));
+            return Err(input("task environment names/values must be valid process entries"));
         }
         if values.contains_key(&OsString::from(name))
             || matches!(name.as_str(), "CODEX_HOME" | "CLAUDE_CONFIG_DIR" | "RUSTUP_HOME")
             || name.starts_with("GIT_CONFIG_")
         {
-            return Err(Fault::new(FaultKind::Format, format!("task variable {name} would override harness isolation")));
+            return Err(input(format!("task variable {name} would override harness isolation")));
         }
         values.insert(name.into(), value.into());
     }
@@ -351,13 +346,13 @@ pub fn restrict_tree(guard: &Guard, path: &Path) -> Result<(), Fault> {
     let path = guard.write_path(path)?;
     let metadata = fs::symlink_metadata(&path)?;
     let mode = if metadata.is_symlink() {
-        return Err(Fault::new(FaultKind::Input, "private copy contains a link"));
+        return Err(input("private copy contains a link"));
     } else if metadata.is_dir() {
         0o700
     } else if metadata.is_file() {
         if metadata.permissions().mode() & 0o111 == 0 { 0o600 } else { 0o700 }
     } else {
-        return Err(Fault::new(FaultKind::Input, "private copy contains a special node"));
+        return Err(input("private copy contains a special node"));
     };
     fs::set_permissions(&path, fs::Permissions::from_mode(mode))?;
     if metadata.is_dir() {

@@ -2,10 +2,8 @@
 //! Receiving bounds follow the selected product writer;
 //! no running domain state is known (benchmarks.md, sections 6 and 8).
 
-use crate::Fault;
-
 use crate::agent::{Seen};
-use crate::{Counts, Spend, TokenRecord};
+use crate::{Fault, Counts, Spend, TokenRecord};
 
 use super::Prepared;
 
@@ -66,7 +64,7 @@ impl Observing {
     /// Retain an outside observer with no knowledge of the running domains.
     pub fn new(prepared: Prepared) -> Result<Self, Fault> {
         let receiving = prepared.registry.receiving;
-        let limits = receiving.limits()?;
+        let limits = receiving.limits().map_err(|error| crate::Fault::new(crate::FaultKind::Stream, error.detail))?;
         let observer = super::events::Observer::with_ceiling(&limits, receiving.encoded_line)?;
         let agent = prepared
             .program_source()

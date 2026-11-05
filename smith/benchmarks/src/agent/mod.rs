@@ -2,8 +2,6 @@
 //! `read_configuration` checks the pin and hashes its metadata and exact
 //! configuration bytes (benchmarks.md, sections 5.4, 6 and 10).
 
-use crate::{Fault, FaultKind};
-
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -13,7 +11,7 @@ use crate::Refusal;
 use crate::arm::ArmRef;
 use crate::process::ProcessResult;
 use crate::run::{Archive, Work};
-use crate::{AttemptResult, CacheObservation, CheckVerdict, End, Exit, Forced, Identity, Measure, Task};
+use crate::{Fault, FaultKind, AttemptResult, CacheObservation, CheckVerdict, End, Exit, Forced, Identity, Measure, Task, input, io};
 
 pub mod codex;
 
@@ -147,7 +145,7 @@ impl Agent {
         match self {
             Self::Codex => codex::source_arm(work, identity),
             Self::Smith => smith::source_arm(work, identity),
-            Self::ClaudeCode => Err(Fault::new(FaultKind::Input, self.refusal().expect("unsupported agent"))),
+            Self::ClaudeCode => Err(input(self.refusal().expect("unsupported agent"))),
         }
     }
 
@@ -339,8 +337,8 @@ impl Observing {
             Self::Smith(observing) => match observing.prepared.face {
                 smith::events::Shape::Exec => Ok(None),
                 smith::events::Shape::Chat => {
-                    let path = observing.prepared.trace.as_ref().ok_or(Fault::new(FaultKind::Input, "Smith Chat requires a trace path"))?;
-                    std::fs::File::open(path).map(Some).map_err(|error| Fault::new(FaultKind::Io, format!("trace open: {error}")))
+                    let path = observing.prepared.trace.as_ref().ok_or_else(|| input("Smith Chat requires a trace path"))?;
+                    std::fs::File::open(path).map(Some).map_err(|error| io(format!("trace open: {error}")))
                 }
             },
         }

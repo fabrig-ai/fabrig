@@ -11,13 +11,11 @@
 //! unavailable. Replay scratch is bounded by the task's unchanged file cap.
 //! Contracts: benchmarks.md, section11.1; domain/tools.md, sections3/4.
 
-use crate::Fault;
-
 use std::path::Path;
 
 use smith_events::{Block, Event, Verdict};
 
-use crate::{CheckVerdict, Measure};
+use crate::{Fault, CheckVerdict, Measure};
 
 use super::{Observer, Session};
 

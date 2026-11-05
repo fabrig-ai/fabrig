@@ -1,9 +1,7 @@
 //! Program accounts keep host answers separate from the spawned agent's facts.
 //! Both captures are bounded by the attempt log ceiling (benchmarks.md 6.2/8).
 
-use crate::{Fault, FaultKind};
-
-use crate::AttemptResult;
+use crate::{Fault, AttemptResult, bound, input, io};
 use crate::agent::Traces;
 use crate::run::Archive;
 
@@ -15,23 +13,15 @@ impl super::Observing {
         maximum: usize,
     ) -> Result<(), Fault> {
         if self.prepared.program_source() {
-            use std::io::Read;
             let mut path =
-                self.prepared.trace.as_ref().ok_or(Fault::new(FaultKind::Input, "program account requires a trace path"))?.as_os_str().to_os_string();
+                self.prepared.trace.as_ref().ok_or_else(|| input("program account requires a trace path"))?.as_os_str().to_os_string();
             path.push(".agent");
-            let captured = (|| {
-                let file = std::fs::File::open(path).map_err(|error| Fault::new(FaultKind::Io, format!("agent trace open: {error}")))?;
-                let mut bytes = Vec::new();
-                file.take(u64::try_from(maximum)?.saturating_add(1))
-                    .read_to_end(&mut bytes)
-                    .map_err(|error| Fault::new(FaultKind::Format, format!("agent trace read: {error}")))?;
-                Ok::<_, Fault>(bytes)
-            })();
+            let captured = capture(std::path::Path::new(&path), maximum);
             if let Ok(bytes) = &captured {
                 archive.put(result, "trace.jsonl.agent", &bytes[..bytes.len().min(maximum)])?;
             }
             self.agent_trace(captured.as_deref().map_err(Clone::clone).and_then(|bytes| {
-                if bytes.len() > maximum { Err(Fault::new(FaultKind::Bound, "agent trace exceeds the attempt log bound")) } else { Ok(bytes) }
+                if bytes.len() > maximum { Err(bound("agent trace exceeds the attempt log bound")) } else { Ok(bytes) }
             }));
         }
         Ok(())
@@ -50,4 +40,14 @@ impl super::Observing {
         }
         Ok(())
     }
+}
+
+fn capture(path: &std::path::Path, maximum: usize) -> Result<Vec<u8>, Fault> {
+    use std::io::Read;
+    let file = std::fs::File::open(path).map_err(|error| io(format!("agent trace open: {error}")))?;
+    let mut bytes = Vec::new();
+    file.take(u64::try_from(maximum)?.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|error| io(format!("agent trace read: {error}")))?;
+    Ok::<_, Fault>(bytes)
 }

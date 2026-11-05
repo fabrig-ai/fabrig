@@ -1,11 +1,9 @@
 //! Calibration gates smoke selection and probe regressions, keeping raw results.
 //! Contract: benchmarks.md, sections 3.1, 9 and 11.5.
 
-use crate::Fault;
-
 use std::collections::BTreeSet;
 
-use crate::{CatalogueTask, Judgment, batch::Batch, run::Request};
+use crate::{Fault, CatalogueTask, Judgment, batch::Batch, run::Request};
 
 /// Select smoke tasks whose effective calibration digests still match.
 pub fn smoke_tasks(entries: &[CatalogueTask], names: &[String]) -> Result<Vec<String>, Fault> {

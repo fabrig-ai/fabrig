@@ -1,14 +1,12 @@
 //! Adapter collection and archives retain the attempt's evidence in runner order.
 //! Source selection checks the planned identity (benchmarks.md, sections 6 and 10).
 
-use crate::{Fault, FaultKind};
-
 use crate::agent::Ended;
 use crate::run::{Archive, Work};
-use crate::{AttemptResult, Identity, Measure};
+use crate::{Fault, AttemptResult, Identity, Measure, credential, input, mismatch};
 
 pub(in crate::agent) fn home(source: &std::path::Path) -> Result<std::path::PathBuf, Fault> {
-    Ok(source.parent().ok_or(Fault::new(FaultKind::Credential, "source login needs its harness parent"))?.join("smith"))
+    Ok(source.parent().ok_or_else(|| credential("source login needs its harness parent"))?.join("smith"))
 }
 
 pub(in crate::agent) fn takes_arguments(arguments: &[String]) -> bool {
@@ -21,7 +19,7 @@ pub(in crate::agent) fn source_arm(
 ) -> Result<(crate::arm::ArmRef, String), Fault> {
     let build = crate::arm::read_build(&work.prepared.program)?;
     if build.arm.commit != identity.agent_version || !matches!(identity.smith_face, Some(crate::SmithFace::Events)) {
-        return Err(Fault::new(FaultKind::Mismatch, "Smith built arm differs from the planned full source version"));
+        return Err(mismatch("Smith built arm differs from the planned full source version"));
     }
     let version = build.arm.commit.clone();
     Ok((crate::arm::ArmRef::Built(build), version))
@@ -52,7 +50,7 @@ impl super::Prepared {
 
     pub(crate) fn check_identity(identity: &Identity) -> Result<(), Fault> {
         if identity.smith_face != Some(crate::SmithFace::Events) {
-            return Err(Fault::new(FaultKind::Input, "Smith identity names a different face than its source registry"));
+            return Err(input("Smith identity names a different face than its source registry"));
         }
         Ok(())
     }

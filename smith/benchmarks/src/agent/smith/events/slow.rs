@@ -4,10 +4,8 @@
 //! warnings never fail the task. Contracts: benchmarks.md 11.1; protocol/events.md
 //! 3.5/5.3; protocol/limits.md 2.1. No clock or provider is invoked here.
 
-use crate::{Fault, FaultKind};
-
 use super::Observer;
-use crate::{CheckVerdict, Measure};
+use crate::{Fault, CheckVerdict, Measure, stream};
 use smith_events::{Block, Event, NoticeKind, Outcome};
 
 fn verdict(passed: Measure<bool>, evidence: Vec<String>) -> CheckVerdict {
@@ -20,7 +18,7 @@ fn half(value: u64, bound: u64) -> bool {
 
 fn reasoning(response: &smith_events::ResponseCompleted) -> Result<(u64, u64), Fault> {
     let Some(completion) = &response.completion else {
-        return Err(Fault::new(FaultKind::Stream, "completion content was not captured; largest reasoning item is unavailable"));
+        return Err(stream("completion content was not captured; largest reasoning item is unavailable"));
     };
     let mut raw = 0;
     let mut encoded = 0;
@@ -29,13 +27,13 @@ fn reasoning(response: &smith_events::ResponseCompleted) -> Result<(u64, u64), F
             Block::Opaque { bytes } => {
                 // capture::blocks emits Replay::to_bytes for every retained item.
                 let Some(item) = bytes.checked_sub(u64::from(skein_llm::REPLAY_HEADER_BYTES)) else {
-                    return Err(Fault::new(FaultKind::Stream, "opaque size is smaller than its native durable envelope"));
+                    return Err(stream("opaque size is smaller than its native durable envelope"));
                 };
                 raw = raw.max(item);
                 encoded = encoded.max(*bytes);
             }
             Block::Unknown { .. } => {
-                return Err(Fault::new(FaultKind::Stream, "unknown captured block prevents measuring the largest reasoning item"));
+                return Err(stream("unknown captured block prevents measuring the largest reasoning item"));
             }
             Block::Text { .. }
             | Block::Refusal { .. }

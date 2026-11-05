@@ -1,34 +1,30 @@
 //! Adapter collection and archives retain the attempt's evidence in runner order.
 //! Source selection checks the planned identity (benchmarks.md, sections 6 and 10).
 
-use crate::{Fault, FaultKind};
-
 use crate::run::{Archive, Work};
-use crate::{AttemptResult, CacheObservation, CheckVerdict, Identity, Measure};
+use crate::{Fault, AttemptResult, CacheObservation, CheckVerdict, Identity, Measure, format, input, mismatch, refuse_if, Input};
 
 pub(in crate::agent) fn source_arm(
     work: Work<'_>,
     identity: &Identity,
 ) -> Result<(crate::arm::ArmRef, String), Fault> {
-    let pin = crate::read_configuration(work.prepared.configuration.as_ref().ok_or(Fault::new(FaultKind::Input, "Codex requires its pin"))?)
+    let pin = crate::read_configuration(work.prepared.configuration.as_ref().ok_or_else(|| input("Codex requires its pin"))?)
         ?;
     if pin.pin.sha256.as_deref() != Some(identity.binary_sha256.as_str()) {
-        return Err(Fault::new(FaultKind::Mismatch, "Codex executable digest differs from its pin"));
+        return Err(mismatch("Codex executable digest differs from its pin"));
     }
     let version = crate::run::raw(
         work.clock,
         work.machine,
         work.private,
-        &[work.prepared.program.to_str().ok_or(Fault::new(FaultKind::Format, "program path must be UTF-8"))?.into(), "--version".into()],
+        &[work.prepared.program.to_str().ok_or_else(|| format("program path must be UTF-8"))?.into(), "--version".into()],
         work.prepared.setup_deadline_seconds,
         work.prepared,
     )?;
-    if !crate::run::succeeded(&version) {
-        return Err(Fault::new(FaultKind::Input, "cannot verify the installed agent version"));
-    }
+    refuse_if(!crate::run::succeeded(&version), Input, "cannot verify the installed agent version")?;
     let version = std::str::from_utf8(&version.stdout)?.to_owned();
     if version.trim().strip_prefix("codex-cli ").unwrap_or(version.trim()) != identity.agent_version {
-        return Err(Fault::new(FaultKind::Mismatch, "installed version differs from the planned identity"));
+        return Err(mismatch("installed version differs from the planned identity"));
     }
     Ok((crate::arm::ArmRef::Installed { program: work.prepared.program.clone() }, version))
 }
@@ -85,7 +81,7 @@ impl super::Observing {
                 if let Some(rollouts) = &self.collected {
                     for file in &rollouts.files {
                         if !crate::run::valid_name(&file.thread) {
-                            return Err(Fault::new(FaultKind::Input, "rollout thread id cannot name an archive file"));
+                            return Err(input("rollout thread id cannot name an archive file"));
                         }
                         archive.put(result, &format!("rollout-{}.jsonl", file.thread), &file.bytes)?;
                     }

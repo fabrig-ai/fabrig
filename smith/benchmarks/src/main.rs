@@ -35,13 +35,13 @@ fn main() -> ExitCode {
         }
         [command, names @ ..] if command == "validate" => validate_command(names),
         [command, results, suite, tier, design, seed, options @ ..] if command == "summarise" => {
-            summarize_command(Path::new(results), suite, tier, design, seed, options)
+            report_output(summarize_command(Path::new(results), suite, tier, design, seed, options))
         }
-        [command, summary, name] if command == "baseline" => baseline_command(Path::new(summary), name, None),
+        [command, summary, name] if command == "baseline" => report_output(baseline_command(Path::new(summary), name, None)),
         [command, summary, name, flag, agent, configuration, model, effort]
             if command == "baseline" && flag == "--group" =>
         {
-            baseline_command(Path::new(summary), name, Some((agent, configuration, model, effort)))
+            report_output(baseline_command(Path::new(summary), name, Some((agent, configuration, model, effort))))
         }
         [command, flag, suite, tasks_flag, directory, sections @ ..]
             if command == "guards" && flag == "--suite" && tasks_flag == "--tasks" && !sections.is_empty() =>
@@ -144,18 +144,7 @@ fn report_output(result: Result<PathBuf, Fault>) -> ExitCode {
     }
 }
 
-fn summarize_command(
-    results: &Path,
-    suite: &str,
-    tier: &str,
-    design: &str,
-    seed: &str,
-    options: &[String],
-) -> ExitCode {
-    report_output(summarize(results, suite, tier, design, seed, options))
-}
-
-fn summarize(results: &Path, suite: &str, tier: &str, design: &str, seed: &str, options: &[String]) -> Result<PathBuf, Fault> {
+fn summarize_command(results: &Path, suite: &str, tier: &str, design: &str, seed: &str, options: &[String]) -> Result<PathBuf, Fault> {
     let design = match design {
         "single" => smith_bench::Design::Single,
         "interleaved" => smith_bench::Design::Interleaved,
@@ -188,11 +177,7 @@ fn summarize(results: &Path, suite: &str, tier: &str, design: &str, seed: &str, 
     Ok(output)
 }
 
-fn baseline_command(summary: &Path, name: &str, group: Option<(&str, &str, &str, &str)>) -> ExitCode {
-    report_output(write_baseline(summary, name, group))
-}
-
-fn write_baseline(summary: &Path, name: &str, group: Option<(&str, &str, &str, &str)>) -> Result<PathBuf, Fault> {
+fn baseline_command(summary: &Path, name: &str, group: Option<(&str, &str, &str, &str)>) -> Result<PathBuf, Fault> {
     let summary = smith_bench::read_summary(summary)?;
     let reference = match group {
         None => smith_bench::baseline(&summary)?,

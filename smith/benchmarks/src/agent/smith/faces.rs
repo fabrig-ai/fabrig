@@ -3,8 +3,7 @@
 //! `face` reads only Git's ancestry, not an agent's private state
 //! (benchmarks.md, section 6.2; reliability-plan 00, Interface sketches).
 
-use crate::{Fault, FaultKind};
-
+use crate::{Fault, format, input, refuse_if, Bound};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -29,7 +28,7 @@ impl Receiving {
     pub fn limits(self) -> Result<smith_events::Limits, Fault> {
         let limits = smith_events::Limits { string: self.string, content: self.content, items: self.items };
         if self.string == 0 || self.content == 0 || self.items == 0 || self.encoded_line == 0 {
-            return Err(Fault::new(FaultKind::Format, "event receiving semantic caps and encoded-line ceiling must be positive"));
+            return Err(format("event receiving semantic caps and encoded-line ceiling must be positive"));
         }
         Ok(limits)
     }
@@ -59,59 +58,59 @@ struct Registry {
 
 /// Read the bounded, closed registry beside the configuration pin.
 pub fn read(path: &Path) -> Result<Vec<FaceSince>, Fault> {
-    let load: Result<Vec<FaceSince>, Fault> = (|| {
-        let bytes = std::fs::read(path)?;
-        if bytes.len() > 65_536 {
-            return Err(Fault::new(FaultKind::Bound, "Smith face registry exceeds its bound"));
+    read_registry(path).map_err(Fault::at(SetupStep::Configuration))
+}
+
+fn read_registry(path: &Path) -> Result<Vec<FaceSince>, Fault> {
+    let bytes = std::fs::read(path)?;
+    refuse_if(bytes.len() > 65_536, Bound, "Smith face registry exceeds its bound")?;
+    let text = std::str::from_utf8(&bytes)?;
+    let registry: Registry = toml::from_str(text)?;
+    if registry.face.is_empty() || registry.face.len() > 64 {
+        return Err(input("Smith face registry has an invalid inventory"));
+    }
+    for entry in &registry.face {
+        if !crate::formats::lowercase_hex(&entry.commit, 40) {
+            return Err(input("Smith face registry requires full source commits"));
         }
-        let text = std::str::from_utf8(&bytes)?;
-        let registry: Registry = toml::from_str(text)?;
-        if registry.face.is_empty() || registry.face.len() > 64 {
-            return Err(Fault::new(FaultKind::Input, "Smith face registry has an invalid inventory"));
-        }
-        for entry in &registry.face {
-            if !crate::formats::lowercase_hex(&entry.commit, 40) {
-                return Err(Fault::new(FaultKind::Input, "Smith face registry requires full source commits"));
-            }
-        }
-        let mut faces = Vec::new();
-        for entry in registry.face {
-            entry.receiving.limits()?;
-            faces.push(FaceSince { commit: entry.commit, shape: entry.shape, receiving: entry.receiving });
-        }
-        Ok(faces)
-    })();
-    load.map_err(Fault::at(SetupStep::Configuration))
+    }
+    let mut faces = Vec::new();
+    for entry in registry.face {
+        entry.receiving.limits()?;
+        faces.push(FaceSince { commit: entry.commit, shape: entry.shape, receiving: entry.receiving });
+    }
+    Ok(faces)
 }
 
 /// Choose the newest entry that is an ancestor of this verified built arm.
 pub fn face(arm: &BuiltArm, faces: &[FaceSince], repository: &Path) -> Result<FaceSince, Fault> {
-    let selection: Result<FaceSince, Fault> = (|| {
-        let mut ancestry = Vec::new();
-        for entry in faces.iter().rev() {
-            let result = std::process::Command::new("git")
-                .args(["-c", "core.hooksPath=/dev/null", "-C"])
-                .arg(repository)
-                .args(["merge-base", "--is-ancestor", &entry.commit, &arm.commit])
-                .env("GIT_CONFIG_GLOBAL", "/dev/null")
-                .env("GIT_CONFIG_NOSYSTEM", "1")
-                .env_remove("GIT_DIR")
-                .env_remove("GIT_WORK_TREE")
-                .env_remove("GIT_INDEX_FILE")
-                .env_remove("GIT_OBJECT_DIRECTORY")
-                .env_remove("GIT_ALTERNATE_OBJECT_DIRECTORIES")
-                .stdin(std::process::Stdio::null())
-                .output()
-                ?;
-            let status = result.status.code();
-            ancestry.push(status);
-            if status != Some(1) {
-                break;
-            }
+    select_face(arm, faces, repository).map_err(Fault::at(SetupStep::Configuration))
+}
+
+fn select_face(arm: &BuiltArm, faces: &[FaceSince], repository: &Path) -> Result<FaceSince, Fault> {
+    let mut ancestry = Vec::new();
+    for entry in faces.iter().rev() {
+        let result = std::process::Command::new("git")
+            .args(["-c", "core.hooksPath=/dev/null", "-C"])
+            .arg(repository)
+            .args(["merge-base", "--is-ancestor", &entry.commit, &arm.commit])
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env_remove("GIT_DIR")
+            .env_remove("GIT_WORK_TREE")
+            .env_remove("GIT_INDEX_FILE")
+            .env_remove("GIT_OBJECT_DIRECTORY")
+            .env_remove("GIT_ALTERNATE_OBJECT_DIRECTORIES")
+            .stdin(std::process::Stdio::null())
+            .output()
+            ?;
+        let status = result.status.code();
+        ancestry.push(status);
+        if status != Some(1) {
+            break;
         }
-        select(arm, faces, &ancestry)
-    })();
-    selection.map_err(Fault::at(SetupStep::Configuration))
+    }
+    select(arm, faces, &ancestry)
 }
 
 // Git results arrive newest first; only a proved ancestor admits a product face.
@@ -120,10 +119,10 @@ fn select(arm: &BuiltArm, faces: &[FaceSince], ancestry: &[Option<i32>]) -> Resu
         match status {
             Some(0) => return Ok(entry.clone()),
             Some(1) => {}
-            Some(_) | None => return Err(Fault::new(FaultKind::Input, "cannot establish Smith arm source ancestry")),
+            Some(_) | None => return Err(input("cannot establish Smith arm source ancestry")),
         }
     }
-    Err(Fault::new(FaultKind::Format, format!("Smith arm {} predates the first supported product face", arm.commit)))
+    Err(input(format!("Smith arm {} predates the first supported product face", arm.commit)))
 }
 
 #[cfg(test)]

@@ -2,11 +2,9 @@
 //! One repetition keeps exact reported counts; only three repetitions decide
 //! the median and pooled miss rate (benchmarks.md, sections 11.1 and 11.5).
 
-use crate::{Fault, FaultKind};
-
 use serde::{Deserialize, Serialize};
 
-use crate::{AttemptResult, Judgment, Measure};
+use crate::{Fault, AttemptResult, Judgment, Measure, bound, input, refuse_if, Input};
 
 /// One measured repetition supplied by the adapter, never a triplet verdict.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -64,7 +62,7 @@ fn numeric(results: &[&AttemptResult]) -> Result<(Vec<f64>, u64, u64, f64, u32),
     let mut thresholds = None;
     for result in results {
         let Some(Measure::Observed { value }) = &result.cache else {
-            return Err(Fault::new(FaultKind::Input, "a repetition has no exact cache measurement"));
+            return Err(input("a repetition has no exact cache measurement"));
         };
         if value.predecessor_prompt == 0
             || value.eligible == 0
@@ -72,18 +70,16 @@ fn numeric(results: &[&AttemptResult]) -> Result<(Vec<f64>, u64, u64, f64, u32),
             || !value.median_at_least.is_finite()
             || !(0.0..=1.0).contains(&value.median_at_least)
         {
-            return Err(Fault::new(FaultKind::Input, "invalid cache observation"));
+            return Err(input("invalid cache observation"));
         }
         let current = (value.median_at_least, value.full_misses_per_ten_at_most);
-        if thresholds.is_some_and(|prior| prior != current) {
-            return Err(Fault::new(FaultKind::Input, "triplet thresholds differ"));
-        }
+        refuse_if(thresholds.is_some_and(|prior| prior != current), Input, "triplet thresholds differ")?;
         thresholds = Some(current);
         reuse.push(value.reuse());
-        eligible = eligible.checked_add(value.eligible).ok_or(Fault::new(FaultKind::Bound, "cache eligible sum overflow"))?;
-        misses = misses.checked_add(value.full_misses).ok_or(Fault::new(FaultKind::Bound, "cache full-miss sum overflow"))?;
+        eligible = eligible.checked_add(value.eligible).ok_or_else(|| bound("cache eligible sum overflow"))?;
+        misses = misses.checked_add(value.full_misses).ok_or_else(|| bound("cache full-miss sum overflow"))?;
     }
-    let (threshold, miss_limit) = thresholds.ok_or(Fault::new(FaultKind::Input, "no cache observations"))?;
+    let (threshold, miss_limit) = thresholds.ok_or_else(|| input("no cache observations"))?;
     Ok((reuse, eligible, misses, threshold, miss_limit))
 }
 

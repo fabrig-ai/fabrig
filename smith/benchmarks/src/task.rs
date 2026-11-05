@@ -2,8 +2,7 @@
 //! `read_task` refuses unknown keys with a file and key path; task checks are
 //! closed enums, following benchmarks.md, sections 3.2 and 5.2.
 
-use crate::{Fault, FaultKind};
-
+use crate::{Fault, input};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -406,14 +405,14 @@ impl Task {
             return value
                 .as_str()
                 .filter(|model| !model.is_empty())
-                .ok_or_else(|| Fault::new(FaultKind::Input, "Smith model override must be a nonempty string"));
+                .ok_or_else(|| input("Smith model override must be a nonempty string"));
         }
         Ok(default)
     }
 
     /// Apply one named authored change, retaining additive checks unless replacement is explicit.
     pub fn with_variant(&self, name: &str) -> Result<Self, Fault> {
-        let variant = self.variant.iter().find(|variant| variant.name == name).ok_or(Fault::new(FaultKind::Input, "unknown task variant"))?;
+        let variant = self.variant.iter().find(|variant| variant.name == name).ok_or_else(|| input("unknown task variant"))?;
         let mut task = self.clone();
         task.calibration.clone_from(&variant.calibration);
         if let Some(prompt) = &variant.prompt {

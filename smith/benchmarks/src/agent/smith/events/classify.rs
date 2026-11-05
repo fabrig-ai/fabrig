@@ -2,11 +2,9 @@
 //! Native failure metadata supplies budget and credential classes; codes alone
 //! never manufacture them (shell.md, section4.3; benchmarks.md, section8.3).
 
-use crate::{Fault, FaultKind};
-
 use smith_events::{AnswerClass, AnswerFailure, Event, FailureClass, Mode, Status};
 
-use crate::{BudgetLimit, Classification, End, Exit, FailureReason, Forced};
+use crate::{Fault, BudgetLimit, Classification, End, Exit, FailureReason, Forced, stream};
 
 use super::Observer;
 
@@ -30,7 +28,7 @@ fn failed(failure: &AnswerFailure) -> Result<(End, i32), Fault> {
                 Some(b"turns") => BudgetLimit::Turns,
                 Some(b"time") => BudgetLimit::Time,
                 Some(b"spend") => BudgetLimit::Spend,
-                Some(_) | None => return Err(Fault::new(FaultKind::Stream, "budget failure lacks a known which")),
+                Some(_) | None => return Err(stream("budget failure lacks a known which")),
             };
             (End::Budget { which }, 4)
         }
@@ -43,7 +41,7 @@ fn failed(failure: &AnswerFailure) -> Result<(End, i32), Fault> {
         AnswerClass::Busy => (End::Refused { setup: detail }, 1),
         AnswerClass::Invalid => (End::Refused { setup: detail }, 2),
         AnswerClass::Unknown(value) => {
-            return Err(Fault::new(FaultKind::Stream, format!("unknown answer failure class {}", String::from_utf8_lossy(value))));
+            return Err(stream(format!("unknown answer failure class {}", String::from_utf8_lossy(value))));
         }
     };
     Ok((end, exit))
@@ -99,9 +97,9 @@ pub(super) fn classify(observer: &Observer, exit: Exit, forced: Forced) -> Class
         }
         Status::Failed | Status::Refused => match &run.failure {
             Some(failure) => failed(failure),
-            None => Err(Fault::new(FaultKind::Stream, "failed or refused run has no typed answer failure")),
+            None => Err(stream("failed or refused run has no typed answer failure")),
         },
-        Status::Unknown(value) => Err(Fault::new(FaultKind::Stream, format!("unknown run status {}", String::from_utf8_lossy(value)))),
+        Status::Unknown(value) => Err(stream(format!("unknown run status {}", String::from_utf8_lossy(value)))),
     };
     let (end, mut expected) = match terminal {
         Ok(value) => value,

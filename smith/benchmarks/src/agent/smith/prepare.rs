@@ -2,11 +2,8 @@
 //! The arm and append-only face registry choose the codec; user login
 //! bytes are read only by credential.rs (benchmarks.md, sections 6.2 and 10).
 
-use crate::{Fault, FaultKind};
-
-use std::fs::{self, OpenOptions};
-use std::io::Write;
-use std::os::unix::fs::OpenOptionsExt;
+use crate::{Fault, configuration};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::agent::{Context, Invocation};
@@ -27,10 +24,6 @@ pub struct Prepared {
     pub teardown: skein_lib::Duration,
     /// Held through settlement for attempts sharing the Claude Code login.
     pub serial: Option<std::fs::File>,
-}
-
-fn configuration(reason: impl Into<String>) -> Fault {
-    Fault { kind: FaultKind::Setup(SetupStep::Configuration), detail: reason.into() }
 }
 
 /// Read check's version 1 or 2 teardown bound (benchmarks.md, section 10).
@@ -64,17 +57,7 @@ pub fn teardown_from_check(bytes: &[u8]) -> Result<skein_lib::Duration, Fault> {
 }
 
 fn write(context: &Context<'_>, path: &Path, bytes: &[u8]) -> Result<(), Fault> {
-    let result: Result<(), Fault> = (|| {
-        let path = context.guard.write_path(path)?;
-        let mut file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .mode(0o600)
-            .open(path)
-            ?;
-        file.write_all(bytes).and_then(|()| file.sync_all()).map_err(Fault::from)
-    })();
-    result.map_err(Fault::at(SetupStep::Configuration))
+    crate::arm::write_new(context.guard, path, bytes, 0o600).map_err(Fault::at(SetupStep::Configuration))
 }
 
 /// Prepare the selected arm, refusing a nonzero product startup check.
@@ -103,7 +86,7 @@ pub fn prepare_checked(
     if verified != *build || context.installed_version != build.arm.commit {
         return Err(configuration("Smith arm differs from its planned full source identity"));
     }
-    let pin = crate::read_configuration(context.pin_file).map_err(|error| configuration(error.to_string()))?;
+    let pin = crate::read_configuration(context.pin_file).map_err(Fault::at(SetupStep::Configuration))?;
     if pin != *context.pin {
         return Err(configuration("Smith configuration changed since planning"));
     }
@@ -130,13 +113,13 @@ pub fn prepare_checked(
     {
         registry.shape = super::events::Shape::Exec;
     }
-    let bytes = fs::read(directory.join(&pin.pin.configuration)).map_err(|error| configuration(error.to_string()))?;
+    let bytes = fs::read(directory.join(&pin.pin.configuration)).map_err(Fault::at(SetupStep::Configuration))?;
     if bytes.len() > 65_536 {
         return Err(configuration("Smith settings layer exceeds its bound"));
     }
-    let text = std::str::from_utf8(&bytes).map_err(|error| configuration(error.to_string()))?;
-    let base: toml::Value = toml::from_str(text).map_err(|error| configuration(error.to_string()))?;
-    let base = serde_json::to_value(base).map_err(|error| configuration(error.to_string()))?;
+    let text = std::str::from_utf8(&bytes).map_err(Fault::at(SetupStep::Configuration))?;
+    let base: toml::Value = toml::from_str(text).map_err(Fault::at(SetupStep::Configuration))?;
+    let base = serde_json::to_value(base).map_err(Fault::at(SetupStep::Configuration))?;
     let root = context.private.root.join("smith");
     crate::run::private_parent(context.guard, &root).map_err(Fault::at(SetupStep::Configuration))?;
     exec(context, &base, program, registry, overrides)
@@ -217,11 +200,11 @@ fn render(
     let settings = directory.join("config.toml");
     let mut layer = rendered.clone();
     layer.as_object_mut().expect("product layer").remove("invocation");
-    let document: toml::Value = serde_json::from_value(layer).map_err(|error| configuration(error.to_string()))?;
+    let document: toml::Value = serde_json::from_value(layer).map_err(Fault::at(SetupStep::Configuration))?;
     write(
         context,
         &settings,
-        toml::to_string(&document).map_err(|error| configuration(error.to_string()))?.as_bytes(),
+        toml::to_string(&document).map_err(Fault::at(SetupStep::Configuration))?.as_bytes(),
     )?;
     Ok(Prepared {
         face: registry.shape,

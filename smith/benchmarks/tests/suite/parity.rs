@@ -104,7 +104,7 @@ fn parity_refuses_a_summary_of_another_smith_commit() {
     let summary = common::parity_summary(Rows::equal());
     assert_eq!(
         parity::verify(&summary, &"1".repeat(40)),
-        Err(smith_bench::Fault::new(smith_bench::FaultKind::Input, "summary smith arm was built from another commit"))
+        Err(smith_bench::Fault::new(smith_bench::FaultKind::Mismatch, "summary smith arm was built from another commit"))
     );
 }
 

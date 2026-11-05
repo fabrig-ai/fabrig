@@ -1,13 +1,11 @@
 //! Named run inputs retain their path and content hash for offline recomputation.
 
-use crate::{Fault, FaultKind};
-
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use super::{ChangeSection, Stop};
-use crate::RunSummary;
+use crate::{Fault, RunSummary, input, mismatch, refuse_if, Mismatch};
 
 /// A named run file supplied to a change report; missing files have no digest.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -69,9 +67,9 @@ fn read(input: &Input) -> Result<RunSummary, Fault> {
     let path = repository().join(&input.path);
     let digest = crate::arm::binary_digest(&path)?;
     if input.sha256.as_ref() != Some(&digest) {
-        return Err(Fault::new(FaultKind::Mismatch, format!("input SHA-256 differs: {}", input.path.display())));
+        return Err(mismatch(format!("input SHA-256 differs: {}", input.path.display())));
     }
-    crate::read_summary(&path).map_err(Fault::from)
+    Ok(crate::read_summary(&path)?)
 }
 
 fn evaluate(
@@ -91,13 +89,13 @@ fn evaluate(
 
 /// Attach named inputs and retain an incomplete report when any input is refused.
 pub fn attach(summary: &mut RunSummary, inputs: &Inputs) -> Result<(), Fault> {
-    let parent = &summary.change.as_ref().ok_or(Fault::new(FaultKind::Input, "change section missing"))?.parent_commit;
+    let parent = &summary.change.as_ref().ok_or_else(|| input("change section missing"))?.parent_commit;
     let original = super::from_summary(summary, parent)?;
     let baseline_run = inputs.baseline_run.as_deref().map(record);
     let landed: Vec<_> = inputs.landed.iter().map(|path| record(path)).collect();
     let mut report = baseline_run
         .as_ref()
-        .ok_or_else(|| Fault::new(FaultKind::Input, "baseline run missing"))
+        .ok_or_else(|| input("baseline run missing"))
         .and_then(|baseline| evaluate(summary, &original, baseline, &landed))
         .unwrap_or_else(|why| {
             let mut report = original.clone();
@@ -112,15 +110,13 @@ pub fn attach(summary: &mut RunSummary, inputs: &Inputs) -> Result<(), Fault> {
 
 /// Refuse changed inputs or a stored section that disagrees with its rows and inputs.
 pub fn verify(summary: &RunSummary) -> Result<ChangeSection, Fault> {
-    let stored = summary.change.as_ref().ok_or(Fault::new(FaultKind::Input, "change section missing"))?;
-    let baseline = stored.baseline_run.as_ref().ok_or(Fault::new(FaultKind::Input, "baseline run missing"))?;
+    let stored = summary.change.as_ref().ok_or_else(|| input("change section missing"))?;
+    let baseline = stored.baseline_run.as_ref().ok_or_else(|| input("baseline run missing"))?;
     let original = super::from_summary(summary, &stored.parent_commit)?;
     let mut report = evaluate(summary, &original, baseline, &stored.landed)?;
     report.baseline_run.clone_from(&stored.baseline_run);
     report.landed.clone_from(&stored.landed);
-    if stored != &report {
-        return Err(Fault::new(FaultKind::Mismatch, "committed change section disagrees with rows or inputs"));
-    }
+    refuse_if(stored != &report, Mismatch, "committed change section disagrees with rows or inputs")?;
     Ok(report)
 }
 

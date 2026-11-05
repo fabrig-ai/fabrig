@@ -2,13 +2,11 @@
 //! Builds are an explicit build step; live dispatch never builds or
 //! reads agent credentials itself (benchmarks.md sections4.2/10).
 
-use crate::{Fault, FaultKind};
-
 use std::path::Path;
 
 use crate::arm::{ArmRef, Build};
 use crate::batch::Batch;
-use crate::{AttemptResult, End, Judgment, judge_suite};
+use crate::{Fault, AttemptResult, End, Judgment, judge_suite, mismatch, refuse_if, Input};
 
 mod prepare;
 
@@ -97,13 +95,11 @@ pub(crate) fn prepared(suite: &Path, requests: &Path, seed: u64, probe: &str, at
 }
 
 pub(crate) fn collected(build: &Build, results: &[AttemptResult], batch: &Batch) -> Result<ProbeRun, Fault> {
-    if results.is_empty() {
-        return Err(Fault::new(FaultKind::Input, "probe arm produced no results"));
-    }
+    refuse_if(results.is_empty(), Input, "probe arm produced no results")?;
     if results.iter().any(|result| {
         result.identity.agent_version != build.arm.commit || result.identity.binary_sha256 != build.arm.sha256
     }) {
-        return Err(Fault::new(FaultKind::Mismatch, "probe result differs from its verified binary"));
+        return Err(mismatch("probe result differs from its verified binary"));
     }
     let run = results
         .iter()

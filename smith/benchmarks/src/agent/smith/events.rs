@@ -3,13 +3,11 @@
 //! `feed` accepts chunks; `finish` checks framing, and measures retain loss gaps
 //! (protocol/events.md, sections2/6; benchmarks.md, sections6.2/8/11.2).
 
-use crate::{Fault, FaultKind};
-
 use serde::{Deserialize, Serialize};
 use smith_events::{Event, Reader, Record, SessionEnded, SessionStarted};
 
 use crate::agent::{Seen};
-use crate::{Classification, Counts, Exit, Forced, TokenRecord};
+use crate::{Fault, Classification, Counts, Exit, Forced, TokenRecord, bound, stream, refuse_if, Stream};
 
 mod delegation;
 mod time;
@@ -86,19 +84,15 @@ pub struct Observer {
     finished: bool,
 }
 
-fn fault(error: impl Into<String>) -> Fault {
-    Fault::new(FaultKind::Stream, error.into())
-}
-
 fn codec(error: smith_events::Error) -> Fault {
     match error {
         smith_events::Error::Version(version) => {
-            fault(format!("events version {version} is not {}", smith_events::VERSION))
+            stream(format!("events version {version} is not {}", smith_events::VERSION))
         }
-        smith_events::Error::Malformed => fault("events record is malformed or not newline-terminated"),
-        smith_events::Error::Shape => fault("events record has an invalid known field"),
-        smith_events::Error::Limits => fault("events record or receiving limits exceed the codec bound"),
-        smith_events::Error::Text => fault("events content is not UTF-8"),
+        smith_events::Error::Malformed => stream("events record is malformed or not newline-terminated"),
+        smith_events::Error::Shape => stream("events record has an invalid known field"),
+        smith_events::Error::Limits => stream("events record or receiving limits exceed the codec bound"),
+        smith_events::Error::Text => stream("events content is not UTF-8"),
     }
 }
 
@@ -151,7 +145,7 @@ impl Observer {
     pub fn feed(&mut self, mut bytes: &[u8]) -> Result<Vec<Seen>, Fault> {
         self.finished = false;
         if let Some(error) = &self.fault {
-            return Err(fault(error.clone()));
+            return Err(stream(error.clone()));
         }
         let mut seen = Vec::new();
         while !bytes.is_empty() {
@@ -183,7 +177,7 @@ impl Observer {
     /// End an append stream only after a complete newline-terminated line.
     pub fn finish(&mut self) -> Result<(), Fault> {
         if let Some(error) = &self.fault {
-            return Err(fault(error.clone()));
+            return Err(stream(error.clone()));
         }
         self.reader.finish().map_err(|error| {
             let error = codec(error);
@@ -216,12 +210,10 @@ impl Observer {
             });
             return Ok(Vec::new());
         }
-        let session = self.sessions.last_mut().ok_or_else(|| fault("event precedes session.started"))?;
-        if session.ended.is_some() {
-            return Err(fault("event follows session.ended without a new session.started"));
-        }
+        let session = self.sessions.last_mut().ok_or_else(|| stream("event precedes session.started"))?;
+        refuse_if(session.ended.is_some(), Stream, "event follows session.ended without a new session.started")?;
         if session.records.last().is_some_and(|previous| previous.t_ms > record.t_ms) {
-            return Err(fault("events timestamps moved backwards within a process stream"));
+            return Err(stream("events timestamps moved backwards within a process stream"));
         }
         let mut seen = Vec::new();
         match &record.event {
@@ -257,13 +249,13 @@ impl Observer {
 
     /// Count per-response usage once within each session and run's scope.
     pub fn tokens(&self) -> Result<Vec<TokenRecord>, Fault> {
-        usage::tokens(&self.sessions, &mut Vec::new())
+        usage::tokens(&self.sessions, &mut Vec::new()).map_err(|error| stream(error.detail))
     }
 
     /// Retain each complete response's usage and conversation model for pricing.
     pub fn response_tokens(&self) -> Result<Vec<crate::ResponseTokens>, Fault> {
         let mut responses = Vec::new();
-        usage::tokens(&self.sessions, &mut responses)?;
+        usage::tokens(&self.sessions, &mut responses).map_err(|error| stream(error.detail))?;
         Ok(responses)
     }
 
@@ -382,9 +374,7 @@ fn run(event: &Event) -> Option<u64> {
 }
 
 pub(super) fn reported_spend(observer: &Observer, currency: u64) -> Result<crate::Spend, Fault> {
-    if currency == 0 {
-        return Err(Fault::new(FaultKind::Stream, "notional currency unit must be positive"));
-    }
+    refuse_if(currency == 0, Stream, "notional currency unit must be positive")?;
     let mut total = 0_u128;
     let mut saw_spend = false;
     let mut missing = Vec::new();
@@ -392,11 +382,9 @@ pub(super) fn reported_spend(observer: &Observer, currency: u64) -> Result<crate
         let mut runs = std::collections::BTreeSet::new();
         for record in &session.records {
             if let Event::RunCompleted(value) = &record.event {
-                if !runs.insert(value.run) {
-                    return Err(Fault::new(FaultKind::Stream, "duplicate authoritative run spend"));
-                }
+                refuse_if(!runs.insert(value.run), Stream, "duplicate authoritative run spend")?;
                 saw_spend = true;
-                total = total.checked_add(u128::from(value.spent)).ok_or(Fault::new(FaultKind::Bound, "reported spend overflow"))?;
+                total = total.checked_add(u128::from(value.spent)).ok_or_else(|| bound("reported spend overflow"))?;
             }
         }
         if let Some(reason) = usage::incomplete(session) {

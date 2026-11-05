@@ -1,8 +1,7 @@
 //! Harness login layout and existence-only admission (benchmarks.md, section 10).
 //! The developer creates these paths; the harness never writes them.
 
-use crate::{Fault, FaultKind};
-
+use crate::{Fault, FaultKind, credential};
 use std::path::Path;
 
 use crate::isolate::{SetupStep};
@@ -50,24 +49,25 @@ pub fn codex(directory: &Path) -> Result<(), Fault> {
 
 /// Hold one program login until its process tree settles, including across suites.
 pub fn serial(guard: &crate::guard::Guard, directory: &Path) -> Result<std::fs::File, Fault> {
+    serial_lock(guard, directory).map_err(Fault::at(SetupStep::Credentials))
+}
+
+fn serial_lock(guard: &crate::guard::Guard, directory: &Path) -> Result<std::fs::File, Fault> {
     use std::os::unix::fs::OpenOptionsExt;
-    let lock = (|| {
-        let state = directory.parent().and_then(Path::parent).ok_or(Fault::new(FaultKind::Credential, "program login needs its harness state parent"))?;
-        let parent = state.join("locks");
-        crate::run::private_parent(guard, &parent)?;
-        let path = guard.write_path(&parent.join("claude.lock"))?;
-        let file = std::fs::OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .mode(0o600)
-            .open(path)
-            .map_err(|_| Fault::new(FaultKind::Credential, "cannot open the Claude login's serial lock"))?;
-        file.lock().map_err(|_| Fault::new(FaultKind::Credential, "cannot acquire the Claude login's serial lock"))?;
-        Ok::<_, Fault>(file)
-    })();
-    lock.map_err(Fault::at(SetupStep::Credentials))
+    let state = directory.parent().and_then(Path::parent).ok_or_else(|| credential("program login needs its harness state parent"))?;
+    let parent = state.join("locks");
+    crate::run::private_parent(guard, &parent)?;
+    let path = guard.write_path(&parent.join("claude.lock"))?;
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .mode(0o600)
+        .open(path)
+        .map_err(|_| credential("cannot open the Claude login's serial lock"))?;
+    file.lock().map_err(|_| credential("cannot acquire the Claude login's serial lock"))?;
+    Ok::<_, Fault>(file)
 }
 
 /// Find Claude Code on the exact attempt PATH, without running it during admission.

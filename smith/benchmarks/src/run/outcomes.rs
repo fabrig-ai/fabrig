@@ -1,13 +1,11 @@
 //! Neutral author checks run after final settlement, grading and scratch
 //! cleanup, so an eventual harness fault cannot retain a completed end check.
 
-use crate::Fault;
-
 use std::path::Path;
 
 use crate::grade::{Ended, Snapshot};
 use crate::process::ProcessResult;
-use crate::{AttemptResult, Measure, Outcome, OutcomeCheck, Task};
+use crate::{Fault, AttemptResult, Measure, Outcome, OutcomeCheck, Task};
 
 pub(super) const fn neutral(check: &OutcomeCheck) -> bool {
     match check {

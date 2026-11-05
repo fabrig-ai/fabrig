@@ -3,8 +3,6 @@
 //! that changed (benchmarks.md, sections 6, 8.2 and 14). Login and rollouts are
 //! outside this observer; its version is pinned by the adapter configuration.
 
-use crate::{Fault, FaultKind};
-
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -22,10 +20,8 @@ pub use prepare::{Observing, PreparedCodex, prepare};
 
 pub use rollouts::{ChildThread, Link, ResponseUsage, RolloutFile, Rollouts, collect_rollouts, parse_rollout};
 
-use crate::{
-    Classification, Convention, Counts, End, Exit, FailureReason, Forced, Measure, ScopeKind, TokenCounts, TokenRecord,
-    Usage,
-};
+use crate::{Fault, Classification, Convention, Counts, End, Exit, FailureReason, Forced, Measure, ScopeKind, TokenCounts, TokenRecord,
+    Usage, stream};
 
 /// A persisted record refused by the observer, naming the record and field path.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -423,7 +419,7 @@ impl Observer {
     /// Root aggregate evidence and a total naming the absent non-root scopes.
     /// An identical repeated terminal does not add its aggregate again.
     pub fn token_records(&self) -> Result<Vec<TokenRecord>, Fault> {
-        let scope = self.thread.as_ref().ok_or(Fault::new(FaultKind::Stream, "Codex stream has no root thread"))?;
+        let scope = self.thread.as_ref().ok_or_else(|| stream("Codex stream has no root thread"))?;
         let mut usages = self.usages.values();
         let mut root = usages
             .next()

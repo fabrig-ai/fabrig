@@ -2,34 +2,30 @@
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
 //! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
 
-use crate::{Fault, FaultKind};
-
 use super::{
     Order, ProbeAgent, Source, archived, check_parent, codex, finish_calibration, gating, judgment, plan, prepare,
     summary, verdict_name,
 };
 use crate::arm::ArmRef;
 use crate::guard::Guard;
-use crate::{Judgment, Suite};
+use crate::{Fault, Judgment, Suite, format, input, refuse_if, Input};
 use std::{fs, path::Path};
 
 /// Execute a parsed command with frozen arms, printing each settled attempt and summary.
 pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
-    let (name, flags) = arguments.split_first().ok_or(Fault::new(FaultKind::Input, "a task or suite name is required"))?;
+    let (name, flags) = arguments.split_first().ok_or_else(|| input("a task or suite name is required"))?;
     let (change_inputs, flags) = if command == "suite" {
-        crate::parity::change::Inputs::parse(flags).map_err(|detail| Fault::new(FaultKind::Input, detail))?
+        crate::parity::change::Inputs::parse(flags).map_err(|detail| input(detail))?
     } else {
         (crate::parity::change::Inputs::default(), flags.to_vec())
     };
-    if flags.len() % 2 != 0 {
-        return Err(Fault::new(FaultKind::Input, "options require values"));
-    }
+    refuse_if(flags.len() % 2 != 0, Input, "options require values")?;
     let allowed: &[&str] = match command {
         "probe" => &["--agent", "--attempts", "--commit", "--arm"],
         "calibrate" => &["--attempts", "--passes", "--control", "--commit", "--arm"],
         "fix" => &["--parent", "--commit"],
         "suite" => &["--attempts", "--seed", "--commit", "--arm", "--include", "--parent", "--parent-arm"],
-        _ => return Err(Fault::new(FaultKind::Input, "unknown probe command")),
+        _ => return Err(input("unknown probe command")),
     };
     let mut options = std::collections::BTreeMap::new();
     let mut asked = Vec::new();
@@ -39,23 +35,21 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
             continue;
         }
         if !allowed.contains(&pair[0].as_str()) || options.insert(pair[0].as_str(), pair[1].as_str()).is_some() {
-            return Err(Fault::new(FaultKind::Input, "unknown or repeated command option"));
+            return Err(input("unknown or repeated command option"));
         }
     }
-    if options.contains_key("--commit") && options.contains_key("--arm") {
-        return Err(Fault::new(FaultKind::Input, "choose commit or arm"));
-    }
+    refuse_if(options.contains_key("--commit") && options.contains_key("--arm"), Input, "choose commit or arm")?;
     if options.contains_key("--parent") && options.contains_key("--parent-arm") {
-        return Err(Fault::new(FaultKind::Input, "choose parent commit or parent arm"));
+        return Err(input("choose parent commit or parent arm"));
     }
     let agent = match options.get("--agent").copied().unwrap_or("smith") {
         "smith" => ProbeAgent::Smith,
         "codex" if command == "probe" => ProbeAgent::Codex,
         "smith-claude-code" if command == "probe" => ProbeAgent::SmithClaudeCode,
-        _ => return Err(Fault::new(FaultKind::Input, "this command requires smith (probe also accepts codex or smith-claude-code)")),
+        _ => return Err(input("this command requires smith (probe also accepts codex or smith-claude-code)")),
     };
     let source = options.get("--commit").map_or(Source::Head, |commit| Source::Commit((*commit).into()));
-    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).parent().ok_or(Fault::new(FaultKind::Input, "workspace missing"))?;
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).parent().ok_or_else(|| input("workspace missing"))?;
     if command == "suite" && name == "smoke" {
         let guard = Guard::from_environment()?;
         let directory = crate::arm::state_root(&guard)?.join("logins/smith");
@@ -65,11 +59,9 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
         let suite = crate::read_suite(&repository.join("benchmarks/suites").join(format!("{name}.toml")))
             ?;
         check_parent(&suite, options.contains_key("--parent") || options.contains_key("--parent-arm"))?;
-        if !suite.change && !change_inputs.is_empty() {
-            return Err(Fault::new(FaultKind::Input, "named run inputs require a change suite"));
-        }
+        refuse_if(!suite.change && !change_inputs.is_empty(), Input, "named run inputs require a change suite")?;
         if suite.change && !options.contains_key("--commit") && !options.contains_key("--arm") {
-            return Err(Fault::new(FaultKind::Input, "change suite requires --commit or --arm"));
+            return Err(input("change suite requires --commit or --arm"));
         }
     }
     if agent == ProbeAgent::Codex || !options.contains_key("--arm") {
@@ -90,9 +82,7 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
     let attempts = options.get("--attempts").map_or(Ok(if command == "calibrate" { 12 } else { 1 }), |value| {
         value.parse::<u32>().map_err(Fault::from)
     })?;
-    if attempts == 0 || attempts > 12 {
-        return Err(Fault::new(FaultKind::Input, "attempts must be between one and twelve"));
-    }
+    refuse_if(attempts == 0 || attempts > 12, Input, "attempts must be between one and twelve")?;
     let order = Order { probe: name.clone(), agent, attempts, source };
     match command {
         "probe" => {
@@ -102,14 +92,14 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
         }
         "suite" => suite_command(repository, name, &arm, &options, (&asked, &change_inputs), seed, attempts),
         "calibrate" | "fix" => comparison(command, repository, &order, &arm, &options, seed),
-        _ => Err(Fault::new(FaultKind::Input, "unknown probe command")),
+        _ => Err(input("unknown probe command")),
     }
 }
 
 pub(super) fn suite_attempts(value: &mut toml::Value, attempts: u32) -> Result<(), Fault> {
     value
         .as_table_mut()
-        .ok_or(Fault::new(FaultKind::Format, "suite must be a table"))?
+        .ok_or_else(|| format("suite must be a table"))?
         .insert("attempts".into(), toml::Value::Integer(i64::from(attempts)));
     Ok(())
 }
@@ -185,7 +175,7 @@ pub(super) fn small_summary(
     let summary =
         crate::summarise(&batch.results, &suite.name, &suite.tier, suite.design, seed, None, suite.reference_arm())?;
     let path = directory.join("summary.json");
-    fs::create_dir_all(path.parent().ok_or(Fault::new(FaultKind::Input, "run directory missing"))?)?;
+    fs::create_dir_all(path.parent().ok_or_else(|| input("run directory missing"))?)?;
     crate::write_summary(&path, &summary)?;
     println!("{}", path.display());
     println!("summary {} attempts={} verdict=incomplete", summary.run, batch.results.len());
@@ -256,12 +246,10 @@ fn comparison(
     let required =
         options.get("--passes").map_or(Ok(10), |passes| passes.parse::<u32>().map_err(Fault::from))?;
     if command == "calibrate" && (required != 10 || required > order.attempts) {
-        return Err(Fault::new(FaultKind::Input, "calibration requires ten passes within twelve attempts"));
+        return Err(input("calibration requires ten passes within twelve attempts"));
     }
     let control = options.get(if command == "fix" { "--parent" } else { "--control" });
-    if command == "fix" && control.is_none() {
-        return Err(Fault::new(FaultKind::Input, "fix requires --parent COMMIT"));
-    }
+    refuse_if(command == "fix" && control.is_none(), Input, "fix requires --parent COMMIT")?;
     let planned = plan(repository, order, arm)?;
     let after_build = crate::fix::prepared(&planned.suite, &planned.directory, seed, &order.probe, order.attempts)?;
     let before = control
@@ -270,7 +258,7 @@ fn comparison(
             if let (ArmRef::Built(before), ArmRef::Built(after)) = (&before_arm, arm)
                 && before.arm.commit == after.arm.commit
             {
-                return Err(Fault::new(FaultKind::Input, "control must differ from the changed arm"));
+                return Err(input("control must differ from the changed arm"));
             }
             let ceiling = if command == "calibrate" { 2 } else { 1 };
             let one =
@@ -287,7 +275,7 @@ fn comparison(
         .transpose()?;
     if command == "fix" {
         let batch = crate::batch::run_probe(&planned.suite, &planned.directory, seed, &order.probe, 1)?;
-        let (before_build, _, before_batch) = before.ok_or(Fault::new(FaultKind::Input, "fix lacks parent"))?;
+        let (before_build, _, before_batch) = before.ok_or_else(|| input("fix lacks parent"))?;
         let finding = crate::fix::report(
             order.probe.clone(),
             crate::fix::collected(&before_build, &before_batch.results, &before_batch)?,

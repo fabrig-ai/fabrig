@@ -3,14 +3,12 @@
 //! guarded tasks from estimates until summaries supply medians
 //! (benchmarks.md, sections 4.2 and 5.3).
 
-use crate::{Fault, FaultKind};
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, Kind, ModelTiers, Provider, Refusal, Task, check_task, read_configuration};
+use crate::{Fault, Agent, Kind, ModelTiers, Provider, Refusal, Task, check_task, read_configuration, bound};
 
 /// The attempt ordering requested by the suite author.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -111,7 +109,7 @@ impl Suite {
         }
         let repetitions = self.repetitions_by_task.get(name).copied().unwrap_or(self.repetitions);
         if logical {
-            repetitions.checked_mul(authored.unwrap_or(1)).ok_or_else(|| Fault::new(FaultKind::Bound, "probe repetition count overflow"))
+            repetitions.checked_mul(authored.unwrap_or(1)).ok_or_else(|| bound("probe repetition count overflow"))
         } else {
             Ok(self.repetitions_by_task.get(name).copied().or(authored).unwrap_or(repetitions))
         }

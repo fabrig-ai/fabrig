@@ -3,8 +3,6 @@
 //! unrelated sessions and credentials are never read. A missing parent remains
 //! an unavailable child scope (benchmarks.md, sections 6, 8.2, 10 and 14).
 
-use crate::{Fault, FaultKind};
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -12,7 +10,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use serde::Deserialize;
 
-use crate::{Convention, ScopeKind, TokenLedger, TokenRecord, Usage};
+use crate::{Fault, Convention, ScopeKind, TokenLedger, TokenRecord, Usage, mismatch};
 
 use super::ParseError;
 
@@ -77,7 +75,7 @@ struct NativeUsage {
 impl NativeUsage {
     fn usage(self) -> Result<Usage, Fault> {
         if self.input_tokens.checked_add(self.output_tokens) != Some(self.total_tokens) {
-            return Err(Fault::new(FaultKind::Mismatch, "total_tokens differs from input plus output"));
+            return Err(mismatch("total_tokens differs from input plus output"));
         }
         let usage = Usage::Codex {
             input: self.input_tokens,

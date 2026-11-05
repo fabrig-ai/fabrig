@@ -2,8 +2,7 @@
 //! Only generation numbers survive the product's bounded private-record reader
 //! and codec; no token value reaches a diagnostic or result (benchmarks.md, 11.1).
 
-use crate::{Fault, FaultKind};
-
+use crate::{Fault, bound, credential, refuse_if, Mismatch};
 use std::path::{Path, PathBuf};
 
 use smith_local_shell::credentials::record_generation;
@@ -16,13 +15,13 @@ pub(super) fn selected(request: &Request) -> bool {
 
 fn record_path(request: &Request) -> Result<PathBuf, Fault> {
     if request.identity.agent != crate::Agent::Smith || request.identity.provider != crate::Provider::Codex {
-        return Err(Fault::new(FaultKind::Credential, "the credentials pair requires smith's chatgpt account"));
+        return Err(credential("the credentials pair requires smith's chatgpt account"));
     }
     Ok(request
         .logins
         .as_ref()
         .and_then(|home| home.parent())
-        .ok_or(Fault::new(FaultKind::Credential, "credentials pair needs the harness login parent"))?
+        .ok_or_else(|| credential("credentials pair needs the harness login parent"))?
         .join("smith/tokens/chatgpt"))
 }
 
@@ -52,7 +51,7 @@ pub(super) fn run(
     remaining: u64,
 ) -> Result<Vec<AttemptResult>, Fault> {
     let path = record_path(request)?;
-    let before = record_generation(&path).map_err(|detail| Fault::new(FaultKind::Credential, detail));
+    let before = record_generation(&path).map_err(|detail| credential(detail));
     let mut peer = request.clone();
     peer.identity.attempt.push_str("-peer");
     let (left, left_existed) = dispatch_command(guard, machine, state, executable, request)?;
@@ -80,8 +79,8 @@ pub(super) fn run(
             teardown: skein_lib::Duration::ZERO,
             grace: skein_lib::Duration::from_millis(request.grace_ms),
             settlement: skein_lib::Duration::from_millis(request.settlement_ms),
-            stdout: request.max_stdout_bytes.checked_mul(2).ok_or(Fault::new(FaultKind::Bound, "pair stdout bound overflow"))?,
-            stderr: request.max_stderr_bytes.checked_mul(2).ok_or(Fault::new(FaultKind::Bound, "pair stderr bound overflow"))?,
+            stdout: request.max_stdout_bytes.checked_mul(2).ok_or_else(|| bound("pair stdout bound overflow"))?,
+            stderr: request.max_stderr_bytes.checked_mul(2).ok_or_else(|| bound("pair stderr bound overflow"))?,
             force_walk: request.force_walk,
         },
     )?;
@@ -89,7 +88,7 @@ pub(super) fn run(
         dispatch_result(guard, state, request, &process, left_existed)?,
         dispatch_result(guard, state, &peer, &process, right_existed)?,
     ];
-    let after = record_generation(&path).map_err(|detail| Fault::new(FaultKind::Credential, detail));
+    let after = record_generation(&path).map_err(|detail| credential(detail));
     let passed = proof(&[results[0].outcome.end.clone(), results[1].outcome.end.clone()], &before, &after, &path);
     for result in &mut results {
         let check = result
@@ -97,14 +96,14 @@ pub(super) fn run(
             .checks
             .iter_mut()
             .find(|check| check.check == "credential-refresh")
-            .ok_or(Fault::new(FaultKind::Credential, "credentials attempt omitted its deciding refresh check"))?;
+            .ok_or_else(|| credential("credentials attempt omitted its deciding refresh check"))?;
         check.passed = passed.clone();
         if let (Ok(Some(before)), Ok(Some(after))) = (&before, &after) {
             check.evidence = vec![format!("generation {before} -> {after}; two settled concurrent attempts")];
         }
         let directory = state.join("runs").join(&result.identity.run).join(&result.identity.attempt);
         let file = guard.write_path(&directory.join("result.json"))?;
-        std::fs::write(file, crate::render_result(result)?).map_err(|_| Fault::new(FaultKind::Credential, "cannot persist credentials pair verdict"))?;
+        std::fs::write(file, crate::render_result(result)?).map_err(|_| credential("cannot persist credentials pair verdict"))?;
     }
     Ok(results.into())
 }
@@ -127,7 +126,7 @@ pub(super) fn validate(task: &crate::Task) -> Result<(), Fault> {
     if task.smith.get("deployment.refresh_lead").and_then(toml::Value::as_integer) != Some(34_560_000)
         || !task.outcome.contains(&crate::OutcomeCheck::CredentialRefresh)
     {
-        return Err(Fault::new(FaultKind::Credential, "credentials probe must force refresh and decide on the pair"));
+        return Err(credential("credentials probe must force refresh and decide on the pair"));
     }
     for (ends, before, after, expected) in [
         ([End::Completed, End::Completed], 4, 4, false),
@@ -147,9 +146,7 @@ pub(super) fn validate(task: &crate::Task) -> Result<(), Fault> {
         let passed = task.deciding.iter().all(|name| {
             checks.iter().any(|check| check.check == *name && check.passed == (Measure::Observed { value: true }))
         });
-        if passed != expected {
-            return Err(Fault::new(FaultKind::Mismatch, "credentials probe's offline pair control differs"));
-        }
+        refuse_if(passed != expected, Mismatch, "credentials probe's offline pair control differs")?;
     }
     Ok(())
 }

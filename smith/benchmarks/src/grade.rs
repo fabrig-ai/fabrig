@@ -3,8 +3,6 @@
 //! evidence and are never followed. No provider or agent state is inspected.
 //! Contracts: benchmarks.md, sections 3.2, 9 and 10.
 
-use crate::{Fault, FaultKind};
-
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -17,7 +15,7 @@ use skein_world::end_to_end::Command;
 use crate::guard::Guard;
 use crate::isolate::{Machine, Private};
 use crate::process::{Bounds, Capture, execute};
-use crate::{CheckVerdict, Exit, Forced, Grade, Measure, OutcomeCheck};
+use crate::{Fault, CheckVerdict, Exit, Forced, Grade, Measure, OutcomeCheck, input, refuse_if, Input};
 
 /// Safe materialised file observations, supplied to outcome and scope checks.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -84,19 +82,15 @@ fn walk(root: &Path, directory: &Path, entries: &mut Snapshot, skip_git: bool) -
 
 pub(crate) fn file(root: &Path, relative: &Path) -> Result<PathBuf, Fault> {
     if relative.is_absolute() || relative.components().any(|part| !matches!(part, Component::Normal(_))) {
-        return Err(Fault::new(FaultKind::Input, "check path must be relative without traversal"));
+        return Err(input("check path must be relative without traversal"));
     }
     let mut path = root.to_path_buf();
     for part in relative.components() {
         path.push(part);
         let metadata = fs::symlink_metadata(&path)?;
-        if metadata.is_symlink() {
-            return Err(Fault::new(FaultKind::Input, "check path traverses a link"));
-        }
+        refuse_if(metadata.is_symlink(), Input, "check path traverses a link")?;
     }
-    if !fs::metadata(&path)?.is_file() {
-        return Err(Fault::new(FaultKind::Input, "check path is not a regular file"));
-    }
+    refuse_if(!fs::metadata(&path)?.is_file(), Input, "check path is not a regular file")?;
     Ok(path)
 }
 
@@ -161,7 +155,7 @@ pub fn checks(
                     Ok(!after.contains_key(path) && !after.keys().any(|item| item.starts_with(path)))
                 }
                 OutcomeCheck::Pattern { path, pattern } => {
-                    regex::Regex::new(pattern).map_err(|error| Fault::new(FaultKind::Input, error.to_string())).and_then(|pattern| {
+                    regex::Regex::new(pattern).map_err(|error| input(error.to_string())).and_then(|pattern| {
                         file(workspace, path)
                             .and_then(|path| fs::read_to_string(path).map_err(Fault::from))
                             .map(|text| pattern.is_match(&text))
@@ -217,7 +211,7 @@ pub fn command(
     bounds: Bounds,
     environment: &BTreeMap<String, String>,
 ) -> Result<GradeResult, Fault> {
-    let (program, arguments) = grade.command.split_first().ok_or(Fault::new(FaultKind::Input, "empty grading command"))?;
+    let (program, arguments) = grade.command.split_first().ok_or_else(|| input("empty grading command"))?;
     let maximum = usize::try_from(grade.max_output_bytes)?;
     let command = Command {
         program: crate::isolate::program(machine, directory, Path::new(program))?,
@@ -259,7 +253,7 @@ pub fn archive(guard: &Guard, directory: &Path, name: &str, bytes: &[u8]) -> Res
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     if Path::new(name).components().any(|part| !matches!(part, Component::Normal(_))) {
-        return Err(Fault::new(FaultKind::Input, "archive name must be a relative ordinary path"));
+        return Err(input("archive name must be a relative ordinary path"));
     }
     let path = guard.write_path(&directory.join(name))?;
     let mut file = fs::OpenOptions::new()

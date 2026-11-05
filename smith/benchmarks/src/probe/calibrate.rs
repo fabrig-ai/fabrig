@@ -2,10 +2,8 @@
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
 //! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
 
-use crate::{Fault, FaultKind};
-
 use super::{Order, Planned, calibration_attempts, count, judgment};
-use crate::{AttemptResult, Judgment};
+use crate::{Fault, AttemptResult, Judgment, input};
 use std::{fs, path::Path};
 
 pub(super) fn finish_calibration(
@@ -111,21 +109,21 @@ pub fn record_calibration(
             .get_mut("variant")
             .and_then(toml::Value::as_array_mut)
             .and_then(|variants| variants.iter_mut().find(|variant| variant["name"].as_str() == Some(name)))
-            .ok_or(Fault::new(FaultKind::Input, "missing calibration variant"))?
+            .ok_or_else(|| input("missing calibration variant"))?
     } else {
         &mut document
     };
     target
         .as_table_mut()
-        .ok_or(Fault::new(FaultKind::Input, "task table required"))?
+        .ok_or_else(|| input("task table required"))?
         .insert("calibration".into(), toml::Value::try_from(block)?);
     let text = toml::to_string(&document)?;
     let task = selected_task(file, name)?;
     let summary = crate::summarise(results, "calibrate", &task.tier, crate::Design::Single, seed, None, None)?;
     let path = repository.join("benchmarks").join(&block.summary);
-    fs::create_dir_all(path.parent().ok_or(Fault::new(FaultKind::Input, "summary directory required"))?)?;
+    fs::create_dir_all(path.parent().ok_or_else(|| input("summary directory required"))?)?;
     crate::write_summary(&path, &summary)?;
-    fs::write(file, text).map_err(Fault::from)
+    Ok(fs::write(file, text)?)
 }
 
 #[cfg(test)]

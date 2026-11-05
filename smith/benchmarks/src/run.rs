@@ -3,8 +3,6 @@
 //! owns every process tree; no process discovery or resource formula lives here.
 //! Entry point `attempt` follows benchmarks.md, sections 6, 8 and 10.
 
-use crate::{Fault, FaultKind};
-
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,11 +15,10 @@ use skein_world::end_to_end::{Command, Method, PeakScope};
 
 use crate::guard::Guard;
 use crate::isolate::{Machine, Private, SetupStep};
+use crate::isolate::SetupStep::{Configuration, Scratch, Seed, Space, Warm};
 use crate::process::{Bounds, Capture, ProcessResult, execute};
-use crate::{
-    Artifact, AttemptResult, End, Exit, Forced, Health, Identity, Measure, Outcome, ResourceScope, Resources, Spend,
-    SpendBasis, Task, Timing,
-};
+use crate::{Fault, FaultKind, Artifact, AttemptResult, End, Exit, Forced, Health, Identity, Measure, Outcome, ResourceScope, Resources, Spend,
+    SpendBasis, Task, Timing, bound, credential, format, input, io, mismatch, refuse_if, Bound, Input, Io};
 
 mod outcomes;
 
@@ -160,12 +157,10 @@ pub(crate) fn private_parent(guard: &Guard, directory: &Path) -> Result<(), Faul
     }
     let metadata = fs::symlink_metadata(&directory)?;
     if !metadata.is_dir() || metadata.is_symlink() || metadata.permissions().mode() & 0o077 != 0 {
-        return Err(Fault::new(FaultKind::Input, "attempt parents must be private directories"));
+        return Err(input("attempt parents must be private directories"));
     }
     for ancestor in directory.ancestors() {
-        if ancestor.join(".git").exists() {
-            return Err(Fault::new(FaultKind::Input, "attempt data must be outside repositories"));
-        }
+        refuse_if(ancestor.join(".git").exists(), Input, "attempt data must be outside repositories")?;
     }
     Ok(())
 }
@@ -177,7 +172,7 @@ pub(crate) fn valid_name(name: &str) -> bool {
 /// Resolve the planned scratch root without materialising it.
 pub fn scratch_root(state: &Path, prepared: &Request) -> Result<PathBuf, Fault> {
     if !valid_name(&prepared.identity.run) || !valid_name(&prepared.identity.attempt) {
-        return Err(Fault::new(FaultKind::Input, "run and attempt ids must be ordinary directory names"));
+        return Err(input("run and attempt ids must be ordinary directory names"));
     }
     Ok(state.join("scratch").join(format!("{}-{}", prepared.identity.run, prepared.identity.attempt)))
 }
@@ -215,7 +210,7 @@ fn raw_environment(
     policy: CommandPolicy<'_>,
 ) -> Result<ProcessResult, Fault> {
     let CommandPolicy { deadline_seconds, environment } = policy;
-    let (program, arguments) = arguments.split_first().ok_or(Fault::new(FaultKind::Input, "empty author command"))?;
+    let (program, arguments) = arguments.split_first().ok_or_else(|| input("empty author command"))?;
     let command = Command {
         program: crate::isolate::program(machine, &private.workspace, Path::new(program))?,
         arguments: arguments.iter().map(Into::into).collect(),
@@ -241,27 +236,23 @@ pub(crate) fn succeeded(result: &ProcessResult) -> bool {
 }
 
 fn free_space(clock: &Clock, machine: &Machine, private: &Private, prepared: &Request) -> Result<(), Fault> {
-    if prepared.disk_estimate_bytes == 0 {
-        return Err(Fault::new(FaultKind::Input, "a positive disk estimate is required"));
-    }
+    refuse_if(prepared.disk_estimate_bytes == 0, Input, "a positive disk estimate is required")?;
     let command =
-        vec!["df".into(), "-Pk".into(), "--".into(), private.root.to_str().ok_or(Fault::new(FaultKind::Format, "scratch path must be UTF-8"))?.into()];
+        vec!["df".into(), "-Pk".into(), "--".into(), private.root.to_str().ok_or_else(|| format("scratch path must be UTF-8"))?.into()];
     let result = raw(clock, machine, private, &command, prepared.setup_deadline_seconds, prepared)?;
-    if !succeeded(&result) {
-        return Err(Fault::new(FaultKind::Input, "free-space observation failed"));
-    }
+    refuse_if(!succeeded(&result), Input, "free-space observation failed")?;
     let output = std::str::from_utf8(&result.stdout)?;
     let bytes = output
         .lines()
         .last()
         .and_then(|line| line.split_whitespace().nth(3))
-        .ok_or(Fault::new(FaultKind::Input, "df did not report available space"))?
+        .ok_or_else(|| input("df did not report available space"))?
         .parse::<u64>()
         ?
         .checked_mul(1024)
-        .ok_or(Fault::new(FaultKind::Bound, "free space overflow"))?;
+        .ok_or_else(|| bound("free space overflow"))?;
     if bytes < prepared.disk_estimate_bytes {
-        return Err(Fault::new(FaultKind::Bound, format!(
+        return Err(bound(format!(
             "insufficient disk space: {bytes} bytes available, {} required",
             prepared.disk_estimate_bytes
         )));
@@ -270,7 +261,7 @@ fn free_space(clock: &Clock, machine: &Machine, private: &Private, prepared: &Re
 }
 
 fn resources(process: &ProcessResult) -> Result<Resources, Fault> {
-    let cpu = process.counts.user.checked_add(process.counts.system).ok_or(Fault::new(FaultKind::Bound, "tree CPU overflow"))?;
+    let cpu = process.counts.user.checked_add(process.counts.system).ok_or_else(|| bound("tree CPU overflow"))?;
     let cpu_scope = match process.counts.method {
         Method::Cgroup => ResourceScope::Cgroup,
         Method::Walk => ResourceScope::PidfdWalk,
@@ -338,9 +329,7 @@ fn seed_commit(
     prepared: &Request,
 ) -> Result<(), Fault> {
     let path = guard.write_path(&private.workspace.join(".git"))?;
-    if path.exists() {
-        return Err(Fault::new(FaultKind::Input, "seed must not contain git metadata"));
-    }
+    refuse_if(path.exists(), Input, "seed must not contain git metadata")?;
     for arguments in [
         vec!["init", "--quiet"],
         vec!["add", "--", "."],
@@ -366,9 +355,7 @@ fn seed_commit(
         .collect();
         command.extend(arguments.into_iter().map(String::from));
         let result = raw(clock, machine, private, &command, prepared.setup_deadline_seconds, prepared)?;
-        if !succeeded(&result) {
-            return Err(Fault::new(FaultKind::Bound, "bounded seed git setup failed"));
-        }
+        refuse_if(!succeeded(&result), Bound, "bounded seed git setup failed")?;
     }
     Ok(())
 }
@@ -388,7 +375,7 @@ fn copy_cache(
             .values()
             .any(|entry| !matches!(entry, crate::grade::Entry::File { .. } | crate::grade::Entry::Directory))
         {
-            return Err(Fault::new(FaultKind::Input, "warm caches contain a link or special node"));
+            return Err(input("warm caches contain a link or special node"));
         }
         guard.write_path(destination)?;
         let command = vec![
@@ -397,13 +384,11 @@ fn copy_cache(
             "--reflink=auto".into(),
             "--no-preserve=ownership".into(),
             "--".into(),
-            source.join(".").to_str().ok_or(Fault::new(FaultKind::Format, "cache path must be UTF-8"))?.into(),
-            destination.to_str().ok_or(Fault::new(FaultKind::Format, "cache path must be UTF-8"))?.into(),
+            source.join(".").to_str().ok_or_else(|| format("cache path must be UTF-8"))?.into(),
+            destination.to_str().ok_or_else(|| format("cache path must be UTF-8"))?.into(),
         ];
         let result = raw(clock, machine, private, &command, prepared.setup_deadline_seconds, prepared)?;
-        if !succeeded(&result) {
-            return Err(Fault::new(FaultKind::Input, "private writable cache copy failed"));
-        }
+        refuse_if(!succeeded(&result), Input, "private writable cache copy failed")?;
         crate::isolate::restrict_tree(guard, destination)?;
     }
     Ok(())
@@ -419,7 +404,7 @@ fn task_for(prepared: &Request) -> Result<Task, Fault> {
     };
     let base = format!("{kind}/{}", task.id);
     if prepared.identity.task != base {
-        let name = prepared.identity.task.strip_prefix(&format!("{base}/")).ok_or(Fault::new(FaultKind::Mismatch, "prepared task identity differs"))?;
+        let name = prepared.identity.task.strip_prefix(&format!("{base}/")).ok_or_else(|| mismatch("prepared task identity differs"))?;
         task = task.with_variant(name)?;
     }
     Ok(task)
@@ -432,7 +417,7 @@ fn copy_seed(
     root: &Path,
 ) -> Result<(Private, crate::grade::Snapshot), Fault> {
     let private = crate::isolate::prepare(guard, source, digest, root)?;
-    let seed = crate::grade::snapshot(&private.workspace).map_err(Fault::at(SetupStep::Seed))?;
+    let seed = crate::grade::snapshot(&private.workspace).map_err(Fault::at(Seed))?;
     Ok((private, seed))
 }
 
@@ -445,27 +430,27 @@ fn prepare(
     root: &Path,
     prepared: &Request,
 ) -> Result<(Private, String, crate::grade::Snapshot), Fault> {
-    validate_prepared(task, prepared).map_err(Fault::at(SetupStep::Configuration))?;
-    let bundles = crate::arm::state_root(guard).map_err(Fault::at(SetupStep::Seed))?.join("bundles");
+    validate_prepared(task, prepared).map_err(Fault::at(Configuration))?;
+    let bundles = crate::arm::state_root(guard).map_err(Fault::at(Seed))?.join("bundles");
     let (seed, digest) = crate::seed_source(task, task_directory, &bundles)?;
     let (private, snapshot) = copy_seed(guard, &seed, &digest, root)?;
-    free_space(clock, machine, &private, prepared).map_err(Fault::at(SetupStep::Space))?;
-    crate::isolate::environment(machine, &private, &task.environment).map_err(Fault::at(SetupStep::Configuration))?;
-    crate::isolate::login_profile(guard, machine, &private).map_err(Fault::at(SetupStep::Configuration))?;
-    seed_commit(clock, guard, machine, &private, prepared).map_err(Fault::at(SetupStep::Seed))?;
-    let revision = seed_revision(clock, machine, &private, prepared).map_err(Fault::at(SetupStep::Seed))?;
-    warm(clock, guard, machine, &private, task, prepared).map_err(Fault::at(SetupStep::Warm))?;
+    free_space(clock, machine, &private, prepared).map_err(Fault::at(Space))?;
+    crate::isolate::environment(machine, &private, &task.environment).map_err(Fault::at(Configuration))?;
+    crate::isolate::login_profile(guard, machine, &private).map_err(Fault::at(Configuration))?;
+    seed_commit(clock, guard, machine, &private, prepared).map_err(Fault::at(Seed))?;
+    let revision = seed_revision(clock, machine, &private, prepared).map_err(Fault::at(Seed))?;
+    warm(clock, guard, machine, &private, task, prepared).map_err(Fault::at(Warm))?;
     Ok((private, revision, snapshot))
 }
 
 fn validate_prepared(task: &Task, prepared: &Request) -> Result<(), Fault> {
     if task.version != prepared.identity.task_version || task.seed_sha256 != prepared.identity.seed_sha256 {
-        return Err(Fault::new(FaultKind::Mismatch, "prepared identity differs from the frozen task"));
+        return Err(mismatch("prepared identity differs from the frozen task"));
     }
     if task.requested_model(prepared.identity.agent, &prepared.identity.model.requested_model)?
         != prepared.identity.model.requested_model
     {
-        return Err(Fault::new(FaultKind::Mismatch, "prepared model differs from the authored model override"));
+        return Err(mismatch("prepared model differs from the authored model override"));
     }
     let prompt = task.prompt.as_bytes().to_vec();
     if prompt.is_empty()
@@ -473,31 +458,31 @@ fn validate_prepared(task: &Task, prepared: &Request) -> Result<(), Fault> {
         || !prompt.ends_with(b"\n")
         || prompt[..prompt.len() - 1].contains(&b'\n')
     {
-        return Err(Fault::new(FaultKind::Input, "prompt must be one paragraph ending in a newline, under 4088 bytes"));
+        return Err(input("prompt must be one paragraph ending in a newline, under 4088 bytes"));
     }
     if format!("{:x}", Sha256::digest(&prompt)) != prepared.identity.prompt_sha256 {
-        return Err(Fault::new(FaultKind::Mismatch, "prompt digest differs"));
+        return Err(mismatch("prompt digest differs"));
     }
     if crate::arm::binary_digest(&prepared.program)? != prepared.identity.binary_sha256 {
-        return Err(Fault::new(FaultKind::Mismatch, "prepared binary digest differs"));
+        return Err(mismatch("prepared binary digest differs"));
     }
     if let Some(reason) = prepared.identity.agent.refusal() {
-        return Err(Fault::new(FaultKind::Input, reason));
+        return Err(input(reason));
     }
     if prepared.setup_deadline_seconds == 0 || task.deadline_seconds == 0 {
-        return Err(Fault::new(FaultKind::Input, "setup and task require positive author deadlines"));
+        return Err(input("setup and task require positive author deadlines"));
     }
     for seconds in std::iter::once(prepared.setup_deadline_seconds)
         .chain(std::iter::once(task.deadline_seconds))
         .chain(task.grade.iter().map(|grade| grade.deadline_seconds))
     {
         if seconds == 0 || seconds.checked_mul(1_000_000_000).is_none() {
-            return Err(Fault::new(FaultKind::Bound, "author deadline is outside the clock's range"));
+            return Err(bound("author deadline is outside the clock's range"));
         }
     }
     for milliseconds in [prepared.teardown_ms, prepared.grace_ms, prepared.settlement_ms] {
         if milliseconds.checked_mul(1_000_000).is_none() {
-            return Err(Fault::new(FaultKind::Bound, "supervision policy is outside the clock's range"));
+            return Err(bound("supervision policy is outside the clock's range"));
         }
     }
     Ok(())
@@ -505,9 +490,7 @@ fn validate_prepared(task: &Task, prepared: &Request) -> Result<(), Fault> {
 
 fn seed_revision(clock: &Clock, machine: &Machine, private: &Private, prepared: &Request) -> Result<String, Fault> {
     let commit = raw(clock, machine, private, &["git".into(), "rev-parse".into(), "HEAD".into()], prepared.setup_deadline_seconds, prepared)?;
-    if !succeeded(&commit) {
-        return Err(Fault::new(FaultKind::Io, "cannot retain frozen seed commit"));
-    }
+    refuse_if(!succeeded(&commit), Io, "cannot retain frozen seed commit")?;
     Ok(String::from_utf8(commit.stdout)?.trim().to_owned())
 }
 
@@ -525,7 +508,7 @@ fn warm(clock: &Clock, guard: &Guard, machine: &Machine, private: &Private, task
             CommandPolicy { deadline_seconds: prepared.setup_deadline_seconds, environment: &task.environment },
         )?;
         if !succeeded(&result) {
-            return Err(Fault::new(FaultKind::Io, format!("setup command failed: {:?}, {:?}", result.exit, result.error)));
+            return Err(io(format!("setup command failed: {:?}, {:?}", result.exit, result.error)));
         }
     }
     copy_cache(clock, guard, machine, &private, prepared)?;
@@ -548,7 +531,7 @@ fn observe(
     task: &Task,
     maximum: usize,
 ) -> Result<crate::grade::Ended, Fault> {
-    process.observing.as_ref().ok_or(Fault::new(FaultKind::Input, "an attempt has its observer"))?;
+    process.observing.as_ref().ok_or_else(|| input("an attempt has its observer"))?;
     result.identity.started_utc =
         time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(process.start_wall.as_nanos()))
             ?
@@ -636,21 +619,16 @@ fn credential_lifetime(work: Work<'_>) -> Result<Duration, Fault> {
     Duration::from_secs(work.task.deadline_seconds)
         .checked_add(Duration::from_millis(work.prepared.grace_ms))
         .and_then(|span| span.checked_add(Duration::from_millis(work.prepared.settlement_ms)))
-        .ok_or_else(|| Fault::new(FaultKind::Bound, "credential lifetime overflow"))
+        .ok_or_else(|| bound("credential lifetime overflow"))
 }
 
-fn invocation(
-    work: Work<'_>,
-    result: &mut AttemptResult,
-) -> Result<(Command, Capture, Duration, Option<crate::process::ProcessResult>), Fault> {
-    prepare_invocation(work, result).map_err(Fault::at(SetupStep::Configuration))
-}
+type Invocation = (Command, Capture, Duration, Option<ProcessResult>);
 
-fn prepare_invocation(work: Work<'_>, result: &mut AttemptResult) -> Result<(Command, Capture, Duration, Option<ProcessResult>), Fault> {
+fn invocation(work: Work<'_>, result: &mut AttemptResult) -> Result<Invocation, Fault> {
     let mut environment = crate::isolate::environment(work.machine, work.private, &work.task.environment)?;
     let Some(pin_file) = &work.prepared.configuration else {
         if work.prepared.logins.is_some() {
-            return Err(Fault::new(FaultKind::Input, "credentialed attempts require a committed adapter configuration"));
+            return Err(input("credentialed attempts require a committed adapter configuration"));
         }
         return Ok((
             Command {
@@ -665,18 +643,18 @@ fn prepare_invocation(work: Work<'_>, result: &mut AttemptResult) -> Result<(Com
         ));
     };
     if !work.prepared.arguments.is_empty() && !result.identity.agent.takes_arguments(&work.prepared.arguments) {
-        return Err(Fault::new(FaultKind::Input, "pinned adapters render their own arguments"));
+        return Err(input("pinned adapters render their own arguments"));
     }
     if crate::arm::binary_digest(&work.prepared.program)? != result.identity.binary_sha256 {
-        return Err(Fault::new(FaultKind::Mismatch, "installed executable changed since the attempt was planned"));
+        return Err(mismatch("installed executable changed since the attempt was planned"));
     }
     let pin = crate::read_configuration(pin_file)?;
     if pin.sha256 != result.identity.configuration_sha256 || pin.pin.agent != result.identity.agent {
-        return Err(Fault::new(FaultKind::Mismatch, "adapter configuration differs from the planned identity"));
+        return Err(mismatch("adapter configuration differs from the planned identity"));
     }
     let (arm, version) = result.identity.agent.source_arm(work, &result.identity)?;
     let source =
-        work.prepared.logins.as_deref().ok_or(Fault::new(FaultKind::Credential, "the adapter requires its read-only source login directory"))?;
+        work.prepared.logins.as_deref().ok_or_else(|| credential("the adapter requires its read-only source login directory"))?;
     let home = result.identity.agent.home(source)?;
     let model = crate::ModelChoice {
         model: Some(result.identity.model.requested_model.clone()),
@@ -704,7 +682,7 @@ fn prepare_invocation(work: Work<'_>, result: &mut AttemptResult) -> Result<(Com
     if let Some(receipt) = &receipt
         && !work.task.event.contains(&crate::EventCheck::NoRun)
     {
-        return Err(Fault::new(FaultKind::Format, format!("the adapter's check refused setup with {:?}", receipt.exit)));
+        return Err(input(format!("the adapter's check refused setup with {:?}", receipt.exit)));
     }
     let mut invocation = prepared.command();
     crate::batch::settings_arguments(&mut invocation.arguments, &work.prepared.arguments);
@@ -741,7 +719,7 @@ fn afterwards(
         .values()
         .any(|entry| !matches!(entry, crate::grade::Entry::File { .. } | crate::grade::Entry::Directory))
     {
-        return Err(Fault::new(FaultKind::Input, "agent replaced git metadata with a link or special file"));
+        return Err(input("agent replaced git metadata with a link or special file"));
     }
     let include = raw(
         clock,
@@ -759,9 +737,7 @@ fn afterwards(
         prepared.setup_deadline_seconds,
         prepared,
     )?;
-    if !succeeded(&include) {
-        return Err(Fault::new(FaultKind::Input, "cannot include untracked files in seed diff"));
-    }
+    refuse_if(!succeeded(&include), Input, "cannot include untracked files in seed diff")?;
     let diff = raw(
         clock,
         machine,
@@ -780,16 +756,14 @@ fn afterwards(
         prepared.setup_deadline_seconds,
         prepared,
     )?;
-    if !succeeded(&diff) {
-        return Err(Fault::new(FaultKind::Input, "seed diff collection failed"));
-    }
+    refuse_if(!succeeded(&diff), Input, "seed diff collection failed")?;
     archive(guard, directory, result, "diff.patch", &diff.stdout)?;
     if !task.grade.is_empty() {
         let grading_private = Private::paths(&private.root.join("grading"));
         let grading_root = &grading_private.root;
         let grading = &grading_private.workspace;
         crate::isolate::copy_into(guard, &private.workspace, grading)?;
-        let grader = prepared.task.parent().ok_or(Fault::new(FaultKind::Input, "task needs a directory"))?.join("grader");
+        let grader = prepared.task.parent().ok_or_else(|| input("task needs a directory"))?.join("grader");
         if grader.exists() {
             crate::isolate::copy_directory(guard, &grader, &grading_root.join("grader"))?;
         }
@@ -813,7 +787,7 @@ fn afterwards(
                 crate::grade::GradeEnd::Fault { reason } => {
                     result.outcome.grade = Some(Measure::unavailable(reason.clone()));
                     result.timing.grading_wall_ms = Measure::Observed { value: elapsed(grade_start, clock.now().now) };
-                    return Err(Fault::new(FaultKind::Io, reason));
+                    return Err(io(reason));
                 }
             }
         }
@@ -838,7 +812,7 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
     let mut inference = false;
     let mut neutral = outcomes::Neutral::default();
     let work = if existed {
-        Err(Fault::new(FaultKind::Setup(SetupStep::Scratch), "attempt scratch root already exists; setup refused"))
+        Err(Fault::new(FaultKind::Setup(Scratch), "attempt scratch root already exists; setup refused"))
     } else {
         attempt_work(Archive { guard, directory: &directory }, machine, (&clock, &root), prepared, &mut result, &mut inference, &mut neutral)
     };
@@ -880,24 +854,24 @@ fn attempt_work(
 ) -> Result<(), Fault> {
     let Archive { guard, directory } = archive;
     let (clock, root) = scratch;
-    let task = task_for(prepared).map_err(Fault::at(SetupStep::Seed))?;
+    let task = task_for(prepared).map_err(Fault::at(Seed))?;
     neutral.task(&task, prepared.identity.agent);
-    archive_task(archive, result, prepared, &task).map_err(Fault::at(SetupStep::Seed))?;
-    let task_directory = prepared.task.parent().ok_or_else(|| Fault::new(FaultKind::Setup(SetupStep::Seed), "task needs a directory"))?;
+    archive_task(archive, result, prepared, &task).map_err(Fault::at(Seed))?;
+    let task_directory = prepared.task.parent().ok_or_else(|| Fault::new(FaultKind::Setup(Seed), "task needs a directory"))?;
     let (private, revision, seed) = prepare(clock, guard, machine, &task, task_directory, root, prepared)?;
     let work = Work { clock, guard, machine, private: &private, task: &task, prepared, directory };
-    let (command, capture, teardown, receipt) = invocation(work, result)?;
+    let (command, capture, teardown, receipt) = invocation(work, result).map_err(Fault::at(Configuration))?;
     let script = script(&task, &capture);
     let mut process = if let Some(mut receipt) = receipt {
         let Capture::Agent(observing) = capture else {
-            return Err(Fault::new(FaultKind::Setup(SetupStep::Configuration), "a checked adapter needs its observer"));
+            return Err(Fault::new(FaultKind::Setup(Configuration), "a checked adapter needs its observer"));
         };
         receipt.observing = Some(observing);
         receipt
     } else {
         crate::process::execute_script(clock, command, script, capture,
             prepared.bounds(Duration::from_secs(task.deadline_seconds), teardown))
-            .map_err(Fault::at(SetupStep::Configuration))?
+            .map_err(Fault::at(Configuration))?
     };
     *inference = true;
     let observed = observe(guard, directory, &private.workspace, result, &mut process, &task, prepared.max_stdout_bytes);
@@ -937,7 +911,7 @@ pub(crate) fn recover(
             crate::grade::Entry::File { sha256, .. } => result.artifacts.push(Artifact { path, sha256 }),
             crate::grade::Entry::Directory => {}
             crate::grade::Entry::Link { .. } | crate::grade::Entry::Special => {
-                return Err(Fault::new(FaultKind::Input, "interrupted attempt archive contains a link or special node"));
+                return Err(input("interrupted attempt archive contains a link or special node"));
             }
         }
     }
@@ -958,7 +932,7 @@ pub fn read_prepared(path: &Path) -> Result<Request, Fault> {
     let text = fs::read_to_string(path)?;
     let mut decoder = serde_json::Deserializer::from_str(&text);
     let request =
-        serde_path_to_error::deserialize(&mut decoder).map_err(|error| Fault::new(FaultKind::Format, format!("{}: {error}", path.display())))?;
+        serde_path_to_error::deserialize(&mut decoder).map_err(|error| format(format!("{}: {error}", path.display())))?;
     decoder.end()?;
     Ok(request)
 }
