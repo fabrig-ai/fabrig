@@ -29,8 +29,8 @@ impl Decode {
             kind,
             held: Held::new(bytes),
             machine: config::json::Decoder::new(&env.limits.config),
-            above: Queue::with_capacity(1),
-            below: Queue::with_capacity(1),
+            above: Queue::uncapped(),
+            below: Queue::uncapped(),
         };
         let env = Env { now: env.now, wall: env.wall, limits: env.limits.config };
         config::json::down(

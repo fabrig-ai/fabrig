@@ -103,8 +103,8 @@ fn observed_work_preserves_actual_optional_start_and_whole_tool_call_identity() 
 fn retry_notices_keep_refusal_and_failure_counters_without_fabricated_reasons() {
     let mut goldens = Goldens::new("tree/fragments/runtime_facts/retry_notices_keep");
     for retry in [
-        RetryNotice::Refused { count: u32::MAX },
-        RetryNotice::Failed { class: FailureClass::Stall, count: 7, allowance: 9 },
+        RetryNotice::Refused { count: u32::MAX, reason: None },
+        RetryNotice::Failed { class: FailureClass::Stall, count: 7, allowance: 9, reason: None },
     ] {
         let mut value = active(RunStage::BackingOff { until: Wall::from_nanos(29) });
         value.retry = Some(retry);
@@ -124,4 +124,24 @@ fn shown(value: ActiveRun) -> Tree {
         Phase::Running,
     );
     build(&d, 3, words()).0
+}
+
+#[test]
+fn retry_facts_show_the_preparation_reason_after_the_count() {
+    let mut goldens = Goldens::new("tree/fragments/runtime_facts/retry_facts_show");
+    let reason = Some(DocumentText::complete(text(b"brief: no brief slot is free")));
+    for retry in [
+        RetryNotice::OwnerFailed { class: HoldFailure::Transient, count: 2, allowance: 3, reason: reason.clone() },
+        RetryNotice::Failed { class: FailureClass::Temporary, count: 2, allowance: 3, reason: reason.clone() },
+        RetryNotice::Refused { count: 2, reason },
+    ] {
+        let mut value = active(RunStage::BackingOff { until: Wall::from_nanos(29) });
+        value.retry = Some(retry);
+        let tree = shown(value);
+        let text: Box<[_]> =
+            tree.nodes().iter().flat_map(|node| node.text.iter()).map(|run| run.text.as_ref()).collect();
+        let why = text.iter().position(|text| *text == b"Why: brief: no brief slot is free").expect("supplied reason");
+        assert!(text[..why].iter().any(|text| skein_lib::bytes::find(text, b"count 2").is_some()));
+        goldens.check(&tree);
+    }
 }

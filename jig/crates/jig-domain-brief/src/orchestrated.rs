@@ -1,6 +1,6 @@
 //! Brief gathering across owners (domain/engine.md, section 9). The brief
 //! keeps the core's text, but a connector's section is only its number,
-//! kind, token and size. Its owner keeps the bytes through assignment.
+//! kind, fixed name, token and size. Its owner keeps the bytes through assignment.
 //!
 //! One deadline covers gathering and cuts. A required section that does not
 //! arrive fails the brief; an optional one leaves a missing marker. Abandoning
@@ -12,6 +12,39 @@ use skein_lib::{Deadlines, Decimal, Env, List, Map, Queue, Time, Token, Writer};
 
 use crate::limits::Limits;
 use crate::planned::{self, ConnectorAction, Core, Planned};
+
+/// How a brief's failure counts (domain/engine.md, 9.1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Fate {
+    /// Nothing is wrong but room: the task pauses, no try spent.
+    Capacity,
+    /// Counted in the tasks child's transient class.
+    Transient,
+    /// Counted in the tasks child's permanent class.
+    Permanent,
+}
+
+/// Why a section or a brief could not be prepared, in fixed words (domain/engine.md, 9.1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Failure {
+    pub fate: Fate,
+    /// The section's name, or `b"brief"`.
+    pub section: &'static [u8],
+    pub words: &'static [u8],
+}
+
+impl Failure {
+    /// `SECTION: WORDS`; whoever keeps it holds it to its own bound.
+    #[must_use]
+    pub fn reason(&self) -> Box<[u8]> {
+        let size = self.section.len().saturating_add(b": ".len()).saturating_add(self.words.len());
+        let mut writer = Writer::new(size);
+        writer.put(self.section).expect("measured section name");
+        writer.put(b": ").expect("measured separator");
+        writer.put(self.words).expect("measured failure words");
+        writer.finish()
+    }
+}
 
 /// Why a section is absent from a completed brief.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -45,7 +78,7 @@ pub enum Event {
     /// A connector gathered a section and retains its bytes.
     Ready { brief: Token, section: Token, size: u32 },
     /// A connector could not gather a section.
-    Missing { brief: Token, section: Token },
+    Missing { brief: Token, section: Token, why: Failure },
     /// A connector cut a section by its own rules and retains the result.
     Cut { brief: Token, section: Token, size: u32 },
     /// An amendment or cancellation withdrew this brief.
@@ -64,9 +97,9 @@ pub enum Request {
     /// Take sections in order from their owners for the assignment.
     Complete { brief: Token, order: Box<[Placed]> },
     /// A required section could not be prepared.
-    Failed { brief: Token, why: Missing },
-    /// Admission refused an oversized or duplicate brief.
-    Refused { brief: Token },
+    Failed { brief: Token, why: Missing, failure: Failure },
+    /// Admission refused the brief.
+    Refused { brief: Token, failure: Failure },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -124,9 +157,9 @@ pub fn valid(limits: &Limits) -> bool {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Plan { brief, budget, deadline, sections } => begin(domain, env, brief, budget, deadline, sections, out),
-        Event::Ready { brief, section, size } => update(domain, env, brief, section, Some(size), false, out),
-        Event::Missing { brief, section } => update(domain, env, brief, section, None, false, out),
-        Event::Cut { brief, section, size } => update(domain, env, brief, section, Some(size), true, out),
+        Event::Ready { brief, section, size } => update(domain, env, brief, section, Ok(size), false, out),
+        Event::Missing { brief, section, why } => update(domain, env, brief, section, Err(why), false, out),
+        Event::Cut { brief, section, size } => update(domain, env, brief, section, Ok(size), true, out),
         Event::Abandon { brief } => {
             if let Some(active) = domain.briefs.remove(&brief) {
                 domain.deadlines.cancel(brief);
@@ -140,7 +173,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let Some(brief) = domain.deadlines.expire(env.now) else { return };
     let Some(mut active) = domain.briefs.remove(&brief) else { return };
-    let mut required = false;
+    let mut failure = None;
     let mut cutting = false;
     for index in 0..active.sections.len() {
         let status = active.status.get_mut(index).expect("section status");
@@ -150,8 +183,8 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     cutting = true;
                 }
                 let section = active.sections.get(index).expect("section");
-                if section.required() {
-                    required = true;
+                if section.required() && failure.is_none() {
+                    failure = Some(late(section));
                 }
                 *status = Status::Missing(Missing::Late);
             }
@@ -159,8 +192,8 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     active.waiting = 0;
-    if required {
-        fail(brief, &active, Missing::Late, out);
+    if let Some(failure) = failure {
+        fail(brief, &active, Missing::Late, failure, out);
     } else if cutting {
         drop_missing(&mut active, out);
         complete(brief, active, out);
@@ -178,25 +211,34 @@ fn begin(
     sections: Box<[Planned]>,
     out: &mut Queue<Request>,
 ) {
+    let too_many = permanent(b"brief", b"it has more sections than a brief may hold");
     let Ok(count) = u32::try_from(sections.len()) else {
-        out.push(Request::Refused { brief });
+        out.push(Request::Refused { brief, failure: too_many });
         return;
     };
-    if domain.briefs.contains_key(&brief)
-        || domain.briefs.len() == env.limits.briefs
-        || count > env.limits.sections
-        || budget > env.limits.brief_bytes
-        || deadline <= env.now
-        || !distinct(&sections)
-    {
-        out.push(Request::Refused { brief });
+    let failure = if domain.briefs.contains_key(&brief) || domain.briefs.len() == env.limits.briefs {
+        Some(Failure { fate: Fate::Capacity, section: b"brief", words: b"no brief slot is free" })
+    } else if count > env.limits.sections {
+        Some(too_many)
+    } else if budget > env.limits.brief_bytes {
+        Some(permanent(b"brief", b"its budget is past the limit"))
+    } else if deadline <= env.now {
+        Some(permanent(b"brief", b"its deadline has passed"))
+    } else if !distinct(&sections) {
+        Some(permanent(b"brief", b"a section is planned twice"))
+    } else {
+        None
+    };
+    if let Some(failure) = failure {
+        out.push(Request::Refused { brief, failure });
         return;
     }
     for section in &sections {
         match section {
-            Planned::Core { text, .. } => {
+            Planned::Core { kind, text, .. } => {
                 if text.len() > skein_lib::length::usize_of(env.limits.brief_bytes) {
-                    out.push(Request::Refused { brief });
+                    let failure = permanent(planned::core_name(*kind), b"its text is past the brief's limit");
+                    out.push(Request::Refused { brief, failure });
                     return;
                 }
             }
@@ -252,7 +294,7 @@ fn update(
     env: &Env<Limits>,
     brief: Token,
     section: Token,
-    size: Option<u32>,
+    size: Result<u32, Failure>,
     cut: bool,
     out: &mut Queue<Request>,
 ) {
@@ -281,7 +323,7 @@ fn update(
         was_cutting = cut;
         active.waiting = active.waiting.checked_sub(1).expect("an outstanding section");
         match size {
-            Some(actual)
+            Ok(actual)
                 if actual <= env.limits.read_bytes
                     && (!cut || actual <= *active.allotted.get(index).expect("cut allotment")) =>
             {
@@ -292,12 +334,16 @@ fn update(
                 }
                 *status = Status::Ready;
             }
-            Some(_) | None => {
+            Ok(_) | Err(_) => {
+                let failure = match size {
+                    Ok(_) => permanent(section_name(row), b"answered past its bound"),
+                    Err(failure) => failure,
+                };
                 let required = row.required();
                 if required {
                     *status = Status::Missing(Missing::Failed);
                     domain.deadlines.cancel(brief);
-                    fail(brief, &active, Missing::Failed, out);
+                    fail(brief, &active, Missing::Failed, failure, out);
                     return;
                 }
                 *status = Status::Dropped(Missing::Failed);
@@ -340,7 +386,7 @@ fn allocate(domain: &mut Domain, brief: Token, mut active: Active, expired: bool
     }
     let Some(plan) = planned::plan(available.as_slice(), active.budget) else {
         domain.deadlines.cancel(brief);
-        fail(brief, &active, Missing::Budget, out);
+        fail(brief, &active, Missing::Budget, permanent(b"brief", b"its required sections do not fit its budget"), out);
         return;
     };
     for placement in &plan.order {
@@ -356,7 +402,13 @@ fn allocate(domain: &mut Domain, brief: Token, mut active: Active, expired: bool
             {
                 if *required && !can_cut(text, allotted) {
                     domain.deadlines.cancel(brief);
-                    fail(brief, &active, Missing::Budget, out);
+                    fail(
+                        brief,
+                        &active,
+                        Missing::Budget,
+                        permanent(section_name(section), b"does not fit the brief's budget"),
+                        out,
+                    );
                     return;
                 }
             }
@@ -370,7 +422,7 @@ fn allocate(domain: &mut Domain, brief: Token, mut active: Active, expired: bool
                     let index = locate(&active, *token).expect("planned connector token");
                     if active.sections.get(index).expect("section").required() {
                         domain.deadlines.cancel(brief);
-                        fail(brief, &active, Missing::Late, out);
+                        fail(brief, &active, Missing::Late, late(active.sections.get(index).expect("section")), out);
                         return;
                     }
                 }
@@ -382,10 +434,17 @@ fn allocate(domain: &mut Domain, brief: Token, mut active: Active, expired: bool
         match action {
             ConnectorAction::CutTo { connector, token, size } => {
                 let index = locate(&active, token).expect("planned connector token");
+                let section = active.sections.get(index).expect("section");
                 if expired || size == 0 {
-                    if active.sections.get(index).expect("section").required() {
+                    if section.required() {
                         domain.deadlines.cancel(brief);
-                        fail(brief, &active, Missing::Budget, out);
+                        fail(
+                            brief,
+                            &active,
+                            Missing::Budget,
+                            permanent(section_name(section), b"does not fit the brief's budget"),
+                            out,
+                        );
                         return;
                     }
                     *active.status.get_mut(index).expect("section status") = Status::Dropped(Missing::Late);
@@ -454,9 +513,24 @@ fn drop_missing(active: &mut Active, out: &mut Queue<Request>) {
     }
 }
 
-fn fail(brief: Token, active: &Active, why: Missing, out: &mut Queue<Request>) {
+fn section_name(section: &Planned) -> &'static [u8] {
+    match section {
+        Planned::Core { kind, .. } => planned::core_name(*kind),
+        Planned::Connector { name, .. } => name,
+    }
+}
+
+fn permanent(section: &'static [u8], words: &'static [u8]) -> Failure {
+    Failure { fate: Fate::Permanent, section, words }
+}
+
+fn late(section: &Planned) -> Failure {
+    Failure { fate: Fate::Transient, section: section_name(section), words: b"not gathered by its deadline" }
+}
+
+fn fail(brief: Token, active: &Active, why: Missing, failure: Failure, out: &mut Queue<Request>) {
     drop_tokens(active, out);
-    out.push(Request::Failed { brief, why });
+    out.push(Request::Failed { brief, why, failure });
 }
 
 fn complete(brief: Token, active: Active, out: &mut Queue<Request>) {
@@ -618,6 +692,7 @@ mod tests {
                             required: true
                         },
                         Planned::Connector {
+                            name: b"section",
                             connector: 2,
                             kind: 7,
                             token: section,
@@ -653,6 +728,7 @@ mod tests {
         let second = Token::new(2);
         let sections = Box::new([
             Planned::Connector {
+                name: b"section",
                 connector: 3,
                 kind: 1,
                 token: first,
@@ -662,6 +738,7 @@ mod tests {
                 required: true,
             },
             Planned::Connector {
+                name: b"section",
                 connector: 3,
                 kind: 2,
                 token: second,
@@ -688,11 +765,12 @@ mod tests {
             ]
         );
         assert_eq!(
-            outputs(&mut domain, Event::Missing { brief, section: first }).as_ref(),
+            outputs(&mut domain, Event::Missing { brief, section: first, why: permanent(b"section", b"unavailable") })
+                .as_ref(),
             [
                 Request::Drop { connector: 3, section: first },
                 Request::Drop { connector: 3, section: second },
-                Request::Failed { brief, why: Missing::Failed },
+                Request::Failed { brief, why: Missing::Failed, failure: permanent(b"section", b"unavailable") },
             ]
         );
         assert!(domain.is_idle());
@@ -712,6 +790,7 @@ mod tests {
                 budget: 100,
                 deadline,
                 sections: Box::new([Planned::Connector {
+                    name: b"section",
                     connector: 4,
                     kind: 5,
                     token: section,
@@ -748,6 +827,7 @@ mod tests {
                 budget: 40,
                 deadline: Time::ZERO.saturating_add(Duration::from_secs(1)),
                 sections: Box::new([Planned::Connector {
+                    name: b"section",
                     connector: 4,
                     kind: 5,
                     token: section,
@@ -783,6 +863,7 @@ mod tests {
                 budget: 40,
                 deadline: Time::ZERO.saturating_add(Duration::from_secs(1)),
                 sections: Box::new([Planned::Connector {
+                    name: b"section",
                     connector: 4,
                     kind: 5,
                     token: section,

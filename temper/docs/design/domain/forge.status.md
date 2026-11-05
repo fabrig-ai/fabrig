@@ -78,8 +78,9 @@
     is that step's alone, and `next_act` holds the change.
   - 8.11: a repair's or a resolution's question, relayed as a producer's
     is (`temper-engine-domain/src/route/forge_route/relay.rs`,
-    `asking_delegate`), is unobserved in stories: every relay story's
-    asker is the change's producing task
+    `asking_delegate`), and its words, refused as a producer's are, are
+    unobserved in stories: every relay story runs the change's producing
+    task only
     (`tests/engine/domain/tests/suite/forge_routes/questions.rs`,
     `foremen.rs` and `goal_questions.rs`).
   - 9: a branch a tier follows still pauses its queue on its own CI's

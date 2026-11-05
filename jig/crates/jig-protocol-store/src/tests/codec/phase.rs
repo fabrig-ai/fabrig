@@ -296,8 +296,13 @@ fn a_revision_set_reads_back() {
 fn each_retry_notice_reads_back() {
     use crate::{codec::tasks::phase, tasks_v9::RetryNotice};
     for source in [
-        jig_domain_tasks::RetryNotice::Failed { class: jig_domain_tasks::Class::Lost, count: 3, allowance: 5 },
-        jig_domain_tasks::RetryNotice::Refused { count: 7 },
+        jig_domain_tasks::RetryNotice::Failed {
+            class: jig_domain_tasks::Class::Lost,
+            count: 3,
+            allowance: 5,
+            reason: None,
+        },
+        jig_domain_tasks::RetryNotice::Refused { count: 7, reason: None },
     ] {
         let encoded = phase::retry_notice(&source, &tasks_limits()).expect("fixed-width fields fit");
         let encoded = saved_wire(encoded, RetryNotice::measure, RetryNotice::encode, RetryNotice::decode);
@@ -432,5 +437,31 @@ fn a_connectors_effect_or_procedure_account_survives_the_store() {
             source: Some(Box::new(HoldSource::Account { connector: 2, entry, words: words.into() })),
         };
         assert_eq!(saved_phase(&source), Ok(source));
+    }
+}
+
+#[test]
+fn preparation_hold_and_retry_reasons_survive_the_store() {
+    use crate::{codec::tasks::phase, tasks_v9};
+    use jig_domain_tasks::{Active, Class, Hold, HoldSource, Phase, RetryNotice, Was};
+    let words: Box<[u8]> = b"brief: required section cannot fit".as_slice().into();
+    let held = Phase::Held {
+        was: Was::Active(Active::Due),
+        why: Hold::Failures(Class::Permanent),
+        source: Some(Box::new(HoldSource::Preparation { words: words.clone() })),
+    };
+    assert_eq!(saved_phase(&held), Ok(held));
+    for notice in [
+        RetryNotice::Failed { class: Class::Permanent, count: 3, allowance: 2, reason: Some(words.clone()) },
+        RetryNotice::Refused { count: 7, reason: Some(words) },
+    ] {
+        let encoded = phase::retry_notice(&notice, &tasks_limits()).expect("bounded reason");
+        let encoded = saved_wire(
+            encoded,
+            tasks_v9::RetryNotice::measure,
+            tasks_v9::RetryNotice::encode,
+            tasks_v9::RetryNotice::decode,
+        );
+        assert_eq!(phase::read_retry_notice(encoded), Ok(notice));
     }
 }

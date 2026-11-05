@@ -65,7 +65,7 @@ fn deadlines(first: TimerOwner) -> Harness {
                 row.phase = Phase::Active(Active::BackingOff { until: at });
                 row.holdings = Box::new([Holding::Write { resource: name.clone(), kind: 1 }]);
                 row.refusals = 1;
-                row.retry_notice = Some(RetryNotice::Refused { count: 1 });
+                row.retry_notice = Some(RetryNotice::Refused { count: 1, reason: None });
             }
             TimerOwner::Grace => {
                 row.last_message = 1;
@@ -297,7 +297,7 @@ fn backoff_arms_the_earlier_of_retry_and_wall() {
         let mut row = h.domain.task(1).unwrap().clone();
         row.phase = Phase::Active(Active::BackingOff { until: Wall::from_nanos(until) });
         row.refusals = 1;
-        row.retry_notice = Some(RetryNotice::Refused { count: 1 });
+        row.retry_notice = Some(RetryNotice::Refused { count: 1, reason: None });
         h.stored.insert(Key::Live(1), Stored::Live(Box::new(row)));
         let mut h = restore(h);
         let wake = until.min(1101);

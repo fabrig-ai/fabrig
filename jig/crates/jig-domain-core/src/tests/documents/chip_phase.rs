@@ -30,7 +30,8 @@ fn chip_owner_facts_keep_readiness_retry_hold_and_ending_clocks_distinct() {
         source: None,
     };
     row.tries.lost = 2;
-    row.retry_notice = Some(tasks::RetryNotice::Failed { class: tasks::Class::Lost, count: 2, allowance: 3 });
+    row.retry_notice =
+        Some(tasks::RetryNotice::Failed { class: tasks::Class::Lost, count: 2, allowance: 3, reason: None });
     let chip = chip_from_row(&limits, &row).unwrap();
     assert_eq!(chip.details.hold.unwrap().tries.lost, 2);
     assert_eq!(chip.details.retry, row.retry_notice);

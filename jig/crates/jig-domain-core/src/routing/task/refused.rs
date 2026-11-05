@@ -69,7 +69,16 @@ pub(crate) fn refused(
         core.restore_replaced_proof(token.raw());
         out.push(Request::Now(Box::new(Now::DropAssignment { task: token.raw() })));
         let mut follow = Queue::uncapped();
-        crate::routing::step::step_tasks(core, env, tasks::Event::PreparationFailed { task: token.raw() }, &mut follow);
+        let event = crate::routing::run::preparation::preparation_failure(
+            token.raw(),
+            jig_domain_brief::GatherFailure {
+                fate: jig_domain_brief::GatherFate::Capacity,
+                section: b"claim",
+                words: b"refused",
+            },
+            out,
+        );
+        crate::routing::step::step_tasks(core, env, event, &mut follow);
         for _ in 0..follow.len() {
             pending.push(follow.pop().expect("failed preparation output count"));
         }

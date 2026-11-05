@@ -12,21 +12,31 @@ use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
-pub(crate) fn brief_assembled(core: &mut Core, work: &mut Queue<Work>, task: u64, ready: bool) -> Queue<Request> {
+pub(crate) fn brief_assembled(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    task: u64,
+    failure: Option<brief::GatherFailure>,
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    if !ready {
-        work.push(Work::PreparationFailed { task });
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        return out;
+    if let Some(failure) = failure {
+        return route_preparation_failed(core, work, task, failure);
     }
     let Some(context) = core.contexts.get(&task).cloned() else {
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
     };
     let Some(attempt) = crate::fresh(&mut core.counters, crate::Family::Run) else {
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        return out;
+        return route_preparation_failed(
+            core,
+            work,
+            task,
+            brief::GatherFailure {
+                fate: brief::GatherFate::Permanent,
+                section: b"run",
+                words: b"no attempt number is left",
+            },
+        );
     };
     assert!(core.workspace_flight(task).is_none(), "one workspace flight per task");
     core.fly(crate::routing::flight::Flight::Workspace { task, attempt });
@@ -126,9 +136,16 @@ pub(crate) fn workspace_prepared(
         }
     }
     if !core.proofs.contains_key(&task) && core.proofs.len() == core.proofs.capacity() {
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        return out;
+        return route_preparation_failed(
+            core,
+            work,
+            task,
+            brief::GatherFailure {
+                fate: brief::GatherFate::Capacity,
+                section: b"run",
+                words: b"no room for its proof",
+            },
+        );
     }
     let resume = !transcript.closed
         && core.charter_of(task).policy.resume
@@ -362,7 +379,14 @@ pub(crate) fn plan_brief(
     };
     let mut wanted = List::with_capacity(env.limits.brief.sections);
     let Some(task_text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::Spec) else {
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+        work.push(Work::PreparationFailed {
+            task,
+            failure: brief::GatherFailure {
+                fate: brief::GatherFate::Permanent,
+                section: b"task",
+                words: b"could not be read within its bounds",
+            },
+        });
         return out;
     };
     wanted
@@ -376,7 +400,14 @@ pub(crate) fn plan_brief(
         .expect("task brief room");
     if !context.dependencies.is_empty() || !context.spec.inputs.is_empty() {
         let Some(text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::Dependencies) else {
-            work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+            work.push(Work::PreparationFailed {
+                task,
+                failure: brief::GatherFailure {
+                    fate: brief::GatherFate::Permanent,
+                    section: b"results",
+                    words: b"could not be read within its bounds",
+                },
+            });
             return out;
         };
         wanted
@@ -391,7 +422,14 @@ pub(crate) fn plan_brief(
     }
     if tail_wanted(core, task, context.tries.transient != 0) {
         let Some(text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::TranscriptTail) else {
-            work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+            work.push(Work::PreparationFailed {
+                task,
+                failure: brief::GatherFailure {
+                    fate: brief::GatherFate::Permanent,
+                    section: b"transcript",
+                    words: b"could not be read within its bounds",
+                },
+            });
             return out;
         };
         wanted
@@ -442,6 +480,7 @@ pub(crate) fn plan_brief(
         let token = Token::new(u64::try_from(index).expect("document index").checked_add(1).expect("document token"));
         wanted
             .push(brief::Planned::Connector {
+                name: b"document",
                 connector: document.connector,
                 kind: crate::DOCUMENT_KIND,
                 token,
@@ -589,14 +628,37 @@ pub(crate) fn route_activate(
     out
 }
 
-pub(crate) fn route_preparation_failed(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
+pub(crate) fn route_preparation_failed(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    task: u64,
+    failure: brief::GatherFailure,
+) -> Queue<Request> {
     drop(core.job_workspaces.remove(&task));
     super::results::clear(core, task);
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
     drop(core.transcripts.remove(&task));
-    work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
-    Queue::uncapped()
+    let mut out = Queue::uncapped();
+    let event = preparation_failure(task, failure, &mut out);
+    work.push(Work::Event(Event::Tasks(event)));
+    out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
+    out
+}
+
+/// One classification and log route for every brief failure (engine.md, 9.1).
+pub(crate) fn preparation_failure(task: u64, failure: brief::GatherFailure, out: &mut Queue<Request>) -> tasks::Event {
+    out.push(Request::Now(Box::new(Now::BriefFailed { task, failure })));
+    let reason = failure.reason();
+    match failure.fate {
+        brief::GatherFate::Capacity => tasks::Event::PreparationPaused { task, reason },
+        brief::GatherFate::Transient => {
+            tasks::Event::PreparationCounted { task, class: tasks::Class::Transient, reason }
+        }
+        brief::GatherFate::Permanent => {
+            tasks::Event::PreparationCounted { task, class: tasks::Class::Permanent, reason }
+        }
+    }
 }
 
 pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
@@ -605,7 +667,12 @@ pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task:
         drop(core.job_workspaces.remove(&task));
         core.restore_replaced_proof(task);
         out.push(Request::Now(Box::new(Now::DropAssignment { task })));
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+        let event = preparation_failure(
+            task,
+            brief::GatherFailure { fate: brief::GatherFate::Capacity, section: b"claim", words: b"refused" },
+            &mut out,
+        );
+        work.push(Work::Event(Event::Tasks(event)));
     }
     out
 }
@@ -682,12 +749,30 @@ pub(crate) fn transcript_loaded(
         return Queue::uncapped();
     }
     match load {
-        crate::routing::TranscriptLoad::Failed => route_preparation_failed(core, work, task),
+        crate::routing::TranscriptLoad::Failed => route_preparation_failed(
+            core,
+            work,
+            task,
+            brief::GatherFailure {
+                fate: brief::GatherFate::Transient,
+                section: b"transcript",
+                words: b"its window could not be loaded",
+            },
+        ),
         crate::routing::TranscriptLoad::Unread => transcript_unread(core, work, task),
         crate::routing::TranscriptLoad::Page { rows, done } => {
             for (row, text) in rows {
                 if !core.append_transcript(task, row, text) {
-                    return route_preparation_failed(core, work, task);
+                    return route_preparation_failed(
+                        core,
+                        work,
+                        task,
+                        brief::GatherFailure {
+                            fate: brief::GatherFate::Transient,
+                            section: b"transcript",
+                            words: b"its window could not be loaded",
+                        },
+                    );
                 }
             }
             if done {
@@ -714,10 +799,16 @@ pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u
         core.begin_transcript(task, previous_attempt, None);
         work.push(Work::StartBrief { task });
     } else if core.transcripts.remove(&task).is_some() {
-        super::results::clear(core, task);
-        drop(core.contexts.remove(&task));
-        drop(core.dependency_results.remove(&task));
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationUnread { task })));
+        return route_preparation_failed(
+            core,
+            work,
+            task,
+            brief::GatherFailure {
+                fate: brief::GatherFate::Transient,
+                section: b"transcript",
+                words: b"its window could not be read",
+            },
+        );
     }
     Queue::uncapped()
 }

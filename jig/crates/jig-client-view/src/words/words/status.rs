@@ -48,24 +48,27 @@ impl Words {
                 self.wall(b, *until);
                 if let Some(notice) = notice {
                     match notice {
-                        RetryNotice::OwnerFailed { class, count, allowance } => {
+                        RetryNotice::OwnerFailed { class, count, allowance, reason } => {
                             crate::tree::fragments::chip::hold_failure(b, *class, self);
                             self.text(
                                 b,
                                 P::RunRetryFailed,
                                 &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
                             );
+                            crate::tree::fragments::chip::retry_reason(b, reason.as_ref(), self);
                         }
-                        RetryNotice::Failed { class, count, allowance } => {
+                        RetryNotice::Failed { class, count, allowance, reason } => {
                             crate::tree::cards::chip::failure(b, *class, self);
                             self.text(
                                 b,
                                 P::RunRetryFailed,
                                 &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
                             );
+                            crate::tree::fragments::chip::retry_reason(b, reason.as_ref(), self);
                         }
-                        RetryNotice::Refused { count } => {
+                        RetryNotice::Refused { count, reason } => {
                             self.text(b, P::RunRetryRefused, &[Hole::Number(u64::from(*count))]);
+                            crate::tree::fragments::chip::retry_reason(b, reason.as_ref(), self);
                         }
                     }
                 }

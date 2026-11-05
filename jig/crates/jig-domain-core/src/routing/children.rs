@@ -66,13 +66,15 @@ pub(crate) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
                 Request::Ask { connector, ask: Ask::CutTo { section, size } }
             }
             brief::GatherRequest::Drop { connector, section } => Request::Ask { connector, ask: Ask::Drop { section } },
-            brief::GatherRequest::Failed { brief, .. } | brief::GatherRequest::Refused { brief } => {
+            brief::GatherRequest::Failed { brief, failure, .. } | brief::GatherRequest::Refused { brief, failure } => {
                 let task = brief.raw();
                 super::run::results::clear(core, task);
                 drop(core.contexts.remove(&task));
                 drop(core.dependency_results.remove(&task));
                 drop(core.transcripts.remove(&task));
-                append_tasks(core, env, tasks::Event::PreparationFailed { task }, &mut out);
+                let event = super::run::preparation::preparation_failure(task, failure, &mut out);
+                append_tasks(core, env, event, &mut out);
+                out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
                 continue;
             }
             brief::GatherRequest::Complete { brief, order } => {
