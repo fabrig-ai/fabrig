@@ -41,7 +41,7 @@ fn harness(settings: crate::Settings) -> Harness {
     h.endpoints = List::with_capacity(2);
     h.endpoints.push(api).expect("API endpoint");
     h.endpoints.push((configured().address, LOG_ENDPOINT)).expect("log endpoint");
-    h.component.test_calls_ready();
+    h.component.test_calls_ready(f::app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
     f::github_account(&mut h, 1, 22, b"acme", b"artificial-full-one");
     f::github_repository(&mut h, REPO, 22);
     h
@@ -169,7 +169,7 @@ fn unconfigured_origin_fails_once_until_reconnect() {
         access: f::app_access(skein_fake_forge_github::keys::KEYS.first().expect("key"), 7, 9),
     });
     h.run(Duration::ZERO);
-    h.component.test_calls_ready();
+    h.component.test_calls_ready(f::app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
     f::github_account(&mut h, 1, 22, b"acme", b"artificial-full-one");
     // The reconnect's startup owns a separate socket; use a fresh API call after it closes.
     h.refuse(FORGE);

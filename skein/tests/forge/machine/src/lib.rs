@@ -9,3 +9,5 @@ pub mod memory;
 mod peer;
 pub mod pipe;
 pub mod tls;
+
+pub use skein_forge_connection::seam::GitHub;

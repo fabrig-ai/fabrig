@@ -1090,7 +1090,7 @@ pub fn github_calls() -> Harness {
     let mut settings = github_settings();
     settings.forges.get_mut(0).expect("forge").access = None;
     let mut h = Harness::new(settings);
-    h.component.test_calls_ready();
+    h.component.test_calls_ready(app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
     github_account(&mut h, 1, 22, b"acme", b"artificial-full-one");
     h
 }

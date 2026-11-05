@@ -248,77 +248,6 @@ fn a_call_of_the_other_dialect_is_unavailable() {
 }
 
 impl Component {
-    pub(crate) fn test_calls_ready(&mut self) {
-        self.forges.get_mut(0).expect("forge").base.start = Start::Ready { cap: skein_forge::github::pin::PAGE_CAP };
-        self.forges.get_mut(0).expect("forge").base.forge.access =
-            Some(fixtures::app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
-        let gh = self.test_github_mut();
-        gh.connected = true;
-        gh.identity_checked = true;
-        gh.baseline = false;
-    }
-    pub(crate) fn test_github(&self) -> &crate::installations::GitHub {
-        &self.test_github_forge().state
-    }
-    pub(crate) fn test_github_mut(&mut self) -> &mut crate::installations::GitHub {
-        &mut self.test_github_forge_mut().state
-    }
-    pub(crate) fn test_local(&mut self, env: &Env<Limits>, up: &mut Queue<Event>) {
-        let before = up.len();
-        let ForgeEntry { base, dialect } = self.forges.get_mut(0).expect("forge");
-        match dialect {
-            Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
-            Dialect::GitHub(gh) => {
-                for _ in 0..64_u32 {
-                    if !self.common.github_local(base, gh, env, up) || up.len() != before {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
-
-impl Component {
-    pub(crate) fn test_github_handoffs(&self) -> u32 {
-        let mut count = 0_u32;
-        for entry in &self.forges {
-            match &entry.dialect {
-                Dialect::GitHub(gh) => {
-                    if gh.exchange.test_github_handoff() {
-                        count = count.saturating_add(1);
-                    }
-                }
-                Dialect::Forgejo { .. } => {}
-            }
-        }
-        for (_, id) in &self.common.calls {
-            match &self.common.waiting.get(*id).expect("indexed call").side {
-                Side::GitHub(call) => {
-                    if call.exchange.test_github_handoff() {
-                        count = count.saturating_add(1);
-                    }
-                }
-                Side::Unbegun | Side::Forgejo(_) => {}
-            }
-        }
-        count
-    }
-}
-
-impl Component {
-    fn test_github_forge(&self) -> &GitHubForge {
-        match &self.forges.get(0).expect("forge").dialect {
-            Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
-            Dialect::GitHub(gh) => gh,
-        }
-    }
-    fn test_github_forge_mut(&mut self) -> &mut GitHubForge {
-        match &mut self.forges.get_mut(0).expect("forge").dialect {
-            Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
-            Dialect::GitHub(gh) => gh,
-        }
-    }
     fn test_open_own(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) -> Token {
         let ForgeEntry { base, dialect } = self.forges.get_mut(0).expect("forge");
         let role = match dialect {
@@ -411,16 +340,5 @@ fn an_own_exchange_goes_with_its_connection() {
             Side::Unbegun => unreachable!("retired exchange"),
         };
         assert!(fresh, "{name}: closed call exchange releases before reclaim");
-    }
-}
-
-impl Component {
-    pub(crate) fn test_last_connection(&mut self) -> &mut Connection {
-        let (_, id) = self.common.connections.last().expect("fixture connection");
-        self.common.connection_slab.get_mut(*id).expect("indexed connection")
-    }
-    pub(crate) fn test_open_call(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
-        let forge = &self.forges.get(0).expect("fixture forge").base.forge;
-        self.common.open_call_origin(forge, None, env, io);
     }
 }

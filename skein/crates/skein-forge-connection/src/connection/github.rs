@@ -17,7 +17,7 @@ use skein_lib::{Env, List, Queue, Secret, usize_of};
 // Host, User-Agent, Accept, pin, Authorization and Content-Type; HTTP adds Content-Length.
 const HEADERS: u32 = 6;
 #[derive(Debug)]
-pub(crate) struct Exchange {
+pub struct Exchange {
     request: Option<Box<github::plans::plan::Exchange>>,
     decoder: Option<Box<github::decode::Decoder>>,
     done: Option<Body>,
@@ -257,6 +257,10 @@ impl Exchange {
     pub(crate) fn test_hold_heard(&mut self) {
         self.heard.push(Heard::Done(Body::Empty));
     }
+}
+
+#[cfg(any(test, feature = "seam"))]
+impl Exchange {
     pub(crate) fn test_github_handoff(&self) -> bool {
         match &self.request {
             Some(exchange) => {
