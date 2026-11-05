@@ -40,17 +40,21 @@ enum Rows {
     Collaborators(List<api::Collaborator>),
 }
 #[derive(Debug)]
+enum Delegate {
+    Artifact(super::artifact::Plan),
+    Commits(super::commits::Plan),
+    Turn(super::turn::Plan),
+    Contents(super::contents::Plan),
+    Actions(super::actions::Plan),
+}
+#[derive(Debug)]
 pub struct Plan {
     repository: api::Repository,
     read: api::Read,
     stage: Stage,
     row: Option<Repository>,
     request: Option<Exchange>,
-    turn: Option<super::turn::Plan>,
-    commits: Option<super::commits::Plan>,
-    artifact: Option<super::artifact::Plan>,
-    contents: Option<crate::forgejo::plans::contents::Plan>,
-    actions: Option<crate::forgejo::plans::actions::Plan>,
+    delegate: Option<Delegate>,
     rows: Rows,
     item: Option<api::Summary>,
     pull: Option<d::PullRequest>,
@@ -75,11 +79,7 @@ impl Plan {
             stage: Stage::Read,
             row: None,
             request: None,
-            turn: None,
-            commits: None,
-            artifact: None,
-            contents: None,
-            actions: None,
+            delegate: None,
             rows: Rows::None,
             item: None,
             pull: None,
@@ -179,7 +179,7 @@ impl Plan {
                 let plan =
                     super::artifact::Plan::new(self.row.as_ref().expect("resolved").clone(), run, name, max_bytes);
                 let step = plan.begin();
-                self.artifact = Some(plan);
+                self.delegate = Some(Delegate::Artifact(plan));
                 return Ok(step);
             }
             api::Read::Commits { before, after, page } => {
@@ -194,7 +194,7 @@ impl Plan {
                     bounds,
                 )?;
                 let step = plan.begin();
-                self.commits = Some(plan);
+                self.delegate = Some(Delegate::Commits(plan));
                 return Ok(step);
             }
             api::Read::Tree { object, page } => return Ok(self.turn(super::turn::Mode::Tree { object, page }, bounds)),
@@ -253,7 +253,7 @@ impl Plan {
                     bounds,
                 )?;
                 let step = plan.begin(bounds)?;
-                self.contents = Some(plan);
+                self.delegate = Some(Delegate::Contents(plan));
                 return Ok(step);
             }
             read @ (api::Read::Checks { .. } | api::Read::Statuses { .. } | api::Read::Job { .. }) => {
@@ -263,7 +263,7 @@ impl Plan {
                     bounds,
                 )?;
                 let step = plan.begin();
-                self.actions = Some(plan);
+                self.delegate = Some(Delegate::Actions(plan));
                 return Ok(step);
             }
             api::Read::Locate { .. } | api::Read::Settings => {
@@ -275,7 +275,7 @@ impl Plan {
     fn turn(&mut self, mode: super::turn::Mode, bounds: Bounds) -> Step {
         let plan = super::turn::Plan::new(mode, self.row.as_ref().expect("resolved").clone(), bounds);
         let step = plan.begin(bounds);
-        self.turn = Some(plan);
+        self.delegate = Some(Delegate::Turn(plan));
         step
     }
     fn permission(&mut self, user: u64, tables: &mut Tables) -> Step {
@@ -294,12 +294,10 @@ impl Plan {
     }
     #[must_use]
     pub fn raw_room(&self, answer_bytes: u32) -> u32 {
-        match &self.contents {
-            Some(plan) => plan.raw_room(answer_bytes),
-            None => match &self.actions {
-                Some(plan) => plan.raw_room(answer_bytes),
-                None => answer_bytes,
-            },
+        match &self.delegate {
+            Some(Delegate::Contents(plan)) => plan.raw_room(answer_bytes),
+            Some(Delegate::Actions(plan)) => plan.raw_room(answer_bytes),
+            Some(Delegate::Artifact(_) | Delegate::Commits(_) | Delegate::Turn(_)) | None => answer_bytes,
         }
     }
     pub fn take_cut(&mut self) -> bool {
@@ -312,28 +310,23 @@ impl Plan {
         word: &[u8],
         tables: &mut Tables,
     ) -> Result<Option<Step>, api::Error> {
-        if let Some(plan) = &mut self.artifact {
-            return plan.heard(heard, bounds, self.repository, tables);
-        }
-        if let Some(plan) = &mut self.commits {
-            return plan.heard(heard, bounds, self.repository, tables);
-        }
-        if let Some(plan) = &mut self.turn {
-            return plan.heard(heard, bounds, self.repository, tables);
-        }
-        if let Some(plan) = &mut self.contents {
-            return plan.heard(heard, bounds, self.repository, tables);
-        }
-        if let Some(plan) = &mut self.actions {
-            let step = plan.heard(heard, bounds, self.repository, tables)?;
-            if self.stage == Stage::Status {
-                return match step {
-                    Some(Step::Done(answer)) => self.pull_checks(answer?, bounds),
-                    Some(Step::Send(exchange)) => Ok(Some(Step::Send(exchange))),
-                    None => Ok(None),
-                };
+        match &mut self.delegate {
+            Some(Delegate::Artifact(plan)) => return plan.heard(heard, bounds, self.repository, tables),
+            Some(Delegate::Commits(plan)) => return plan.heard(heard, bounds, self.repository, tables),
+            Some(Delegate::Turn(plan)) => return plan.heard(heard, bounds, self.repository, tables),
+            Some(Delegate::Contents(plan)) => return plan.heard(heard, bounds, self.repository, tables),
+            Some(Delegate::Actions(plan)) => {
+                let step = plan.heard(heard, bounds, self.repository, tables)?;
+                if self.stage == Stage::Status {
+                    return match step {
+                        Some(Step::Done(answer)) => self.pull_checks(answer?, bounds),
+                        Some(Step::Send(exchange)) => Ok(Some(Step::Send(exchange))),
+                        None => Ok(None),
+                    };
+                }
+                return Ok(step);
             }
-            return Ok(step);
+            None => {}
         }
         match heard {
             Heard::Head { status, fields } => {
