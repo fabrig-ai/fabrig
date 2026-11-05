@@ -645,6 +645,7 @@ impl Chat {
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::FirstChat
+            | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
             | Act::Playground

@@ -121,7 +121,7 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        self.send(env, me, project, jig_client::shapes::CHAT, self.words.clone(), choice, serial, out);
+        self.send(env, me, project, jig_client::shapes::CHAT, self.words.clone(), Some(choice), serial, out);
     }
     #[expect(
         clippy::too_many_arguments,
@@ -137,7 +137,7 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        self.send(env, me, project, jig_client::shapes::CHAT, words.into(), choice, serial, out);
+        self.send(env, me, project, jig_client::shapes::CHAT, words.into(), Some(choice), serial, out);
     }
     pub(crate) fn first_chat(
         &mut self,
@@ -148,13 +148,26 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        let template = match (me, project) {
-            (Some(me), Some(project)) if jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE).is_some() => {
-                CONFIGURING_TEMPLATE
-            }
-            _ => jig_client::shapes::CHAT,
-        };
-        self.send(env, me, project, template, FIRST_CHAT_WORDS.into(), choice, serial, out);
+        let template = configuring_template(me, project);
+        self.send(env, me, project, template, FIRST_CHAT_WORDS.into(), Some(choice), serial, out);
+    }
+    pub(crate) fn configure_chat(
+        &mut self,
+        env: &Env<Limits>,
+        me: Option<&Me>,
+        project: Option<u32>,
+        words: Box<[u8]>,
+        serial: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
+        if self.start.is_some()
+            || words.len() > usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("text bound fits")
+        {
+            return;
+        }
+        self.words = words;
+        let template = configuring_template(me, project);
+        self.send(env, me, project, template, self.words.clone(), None, serial, out);
     }
     #[expect(
         clippy::too_many_arguments,
@@ -167,7 +180,7 @@ impl Chats {
         project: Option<u32>,
         template: u32,
         words: Box<[u8]>,
-        choice: &super::choice::Draft,
+        choice: Option<&super::choice::Draft>,
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
@@ -175,7 +188,9 @@ impl Chats {
             return;
         }
         let (Some(me), Some(project)) = (me, project) else { return };
-        if !choice.valid(me) {
+        if let Some(choice) = choice
+            && !choice.valid(me)
+        {
             return;
         }
         let Ok(words) = Text::new(words, temper_client_protocol_wire::CUE_BYTES) else { return };
@@ -188,6 +203,7 @@ impl Chats {
             Ok(mut ask) => {
                 if let c::Ask::Create { tasks, .. } = &mut ask
                     && let Some(task) = tasks.get_mut(0)
+                    && let Some(choice) = choice
                     && choice.context.is_some()
                 {
                     task.llm.clone_from(&choice.requested);
@@ -319,5 +335,16 @@ fn count_rows(rows: &skein_lib::List<c::TaskLine>, me: Option<&Me>, project: u32
             counts.0 |= configuring;
             counts.1 |= !configuring;
         }
+    }
+}
+
+fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
+    if let Some(me) = me
+        && let Some(project) = project
+        && jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE).is_some()
+    {
+        CONFIGURING_TEMPLATE
+    } else {
+        jig_client::shapes::CHAT
     }
 }

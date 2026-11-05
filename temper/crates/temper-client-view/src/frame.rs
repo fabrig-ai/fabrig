@@ -585,6 +585,7 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
         | Address::ConnectForge { .. }
         | Address::Adopt { .. }
         | Address::Settings { .. }
+        | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
     action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
@@ -645,6 +646,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Adopt { .. } => (false, true),
         Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Configure { .. }
         | Address::ConnectForge { .. }
         | Address::Forges
         | Address::Welcome { .. }
@@ -700,6 +702,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Settings { .. }
+            | Address::Configure { .. }
             | Address::Adopt { .. }
             | Address::ConnectModel { .. }
             | Address::Accounts => false,
@@ -767,6 +770,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Inbox { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     };
     if current {
@@ -798,6 +802,7 @@ pub(crate) fn accounts_link(
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     } {
         builder.state(skein_ui::State::Current);
