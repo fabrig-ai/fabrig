@@ -648,11 +648,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "hearth-test-git"
+version = "0.0.0"
+
+[[package]]
 name = "hearth-test-mirror"
 version = "0.0.0"
 dependencies = [
  "skein-scratch",
 ]
+
+[[package]]
+name = "hearth-test-render"
+version = "0.0.0"
+
+[[package]]
+name = "hearth-test-repository"
+version = "0.0.0"
 
 [[package]]
 name = "hearth-tree-world"
