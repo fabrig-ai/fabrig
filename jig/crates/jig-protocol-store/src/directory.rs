@@ -600,8 +600,7 @@ fn first_secrets_opened(
         crate::format::NONE,
         crate::patching::plan::binary(&store.patch_sets),
         counts.as_slice(),
-        0,
-        None,
+        (0, None),
         env.wall,
     );
     let manifesting = generations::store_manifest(deployment(store), generations::FIRST, bytes, below);

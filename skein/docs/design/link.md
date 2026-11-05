@@ -162,8 +162,7 @@ and that its stalled close is aborted at the link's deadline.
 
 - **A deadline for the handshake or a read** stays the owner's. One here would
   need all four to agree on what it fails.
-- **The connections' lifecycles** stay the owners' (`D023` of
-  `skein/docs/development/debt/`): the link holds only its own.
+- **The connections' lifecycles** stay the owners': the link holds only its own.
 - **Whether the link is a "component kit"** is `draft/component-kit.md`, 6.2.
 - **`Debug` over what passes through.** `Event` and `Moved` derive it over an
   `Up`'s bytes, as lib's `Up` does: they carry those bytes and keep none, and

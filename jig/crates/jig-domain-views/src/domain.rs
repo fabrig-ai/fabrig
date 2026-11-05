@@ -104,17 +104,17 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     match event {
         Event::EndWatch { watcher, end } => watch::close(domain, watcher, end, out),
         Event::Watch { watcher, party, subject, window, follow } => {
-            watch::open(domain, &env.limits, watcher, party, subject, window, follow, out);
+            watch::open(domain, &env.limits, watcher, party, subject, (window, follow), out);
         }
         Event::Changed { subjects } => watch::changed(domain, &env.limits, &subjects, out),
         Event::Made { watcher, outcome } => watch::made(domain, watcher, outcome, out),
         Event::Delivered { watcher } => watch::delivered(domain, watcher, out),
         Event::StreamDelivered { watcher } => crate::text::delivered(domain, watcher, out),
         Event::Text { run, turn, offset, text, call } => {
-            crate::text::written(domain, env, run, turn, offset, &text, call, out);
+            crate::text::written(domain, env, crate::text::At { run, turn, offset }, &text, call, out);
         }
         Event::Input { run, turn, offset, id, tool, input } => {
-            crate::text::input(domain, env, run, turn, offset, id, tool, &input, out);
+            crate::text::input(domain, env, crate::text::At { run, turn, offset }, id, tool, &input, out);
         }
         Event::Called { run, attempt, call } => crate::text::called(domain, env, run, attempt, call, out),
         Event::TurnCommitted { run, attempt, turn } => crate::text::committed(domain, run, attempt, turn),

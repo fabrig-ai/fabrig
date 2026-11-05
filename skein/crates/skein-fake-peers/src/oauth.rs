@@ -11,7 +11,7 @@ use skein_fake_oauth as issuer;
 use skein_http::{Header, server as http};
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Decimal, Duration, Env, List, Queue, Time, Token, Wall, bytes, usize_of};
+use skein_lib::{Decimal, Duration, Env, List, Queue, Secret, Time, Token, Wall, bytes, usize_of};
 use skein_oauth::HttpRequest;
 use skein_shell::Host;
 
@@ -383,7 +383,8 @@ impl Peer {
                 let payload_bytes = skein_lib::len_u64(target.len());
                 self.observe(Observation::Authorize { connection: owner, target }, payload_bytes);
             }
-            self.issuer.step(issuer::Event::Authorize { url: url.into_boxed_slice(), now }, &mut self.outgoing);
+            self.issuer
+                .step(issuer::Event::Authorize { url: Secret::new(url.into_boxed_slice()), now }, &mut self.outgoing);
             self.deliver(Some(index));
         } else if route == Route::Token || route == Route::Revoke {
             let connection = &mut self.connections[index];

@@ -16,6 +16,10 @@ use crate::{
     tests::*,
 };
 
+fn creator() -> crate::acts::bounds::Creator {
+    crate::acts::bounds::Creator { project: 1, person: 1, role: people::Role::Owner }
+}
+
 fn policy_holder(numbers: &[u32]) -> offers::Recipient {
     let mut roles = List::with_capacity(u32::try_from(numbers.len()).unwrap());
     for number in numbers {
@@ -56,9 +60,7 @@ fn a_goal_within_its_offer_is_direct_and_a_supported_goal_beyond_it_is_proposed(
     assert_eq!(beyond, Beyond::Proposed { to: policy_holder(&[0]) });
     let started = crate::acts::bounds::create_start(
         &core,
-        1,
-        1,
-        people::Role::Owner,
+        creator(),
         tasks::Executor::Agent { charter: 1 },
         budget,
         None,
@@ -69,9 +71,7 @@ fn a_goal_within_its_offer_is_direct_and_a_supported_goal_beyond_it_is_proposed(
     assert_eq!(
         crate::acts::bounds::create_start(
             &core,
-            1,
-            1,
-            people::Role::Owner,
+            creator(),
             tasks::Executor::Agent { charter: 1 },
             budget + 1,
             None,
@@ -86,9 +86,7 @@ fn a_goal_within_its_offer_is_direct_and_a_supported_goal_beyond_it_is_proposed(
     assert_eq!(
         crate::acts::bounds::create_start(
             &core,
-            1,
-            1,
-            people::Role::Owner,
+            creator(),
             tasks::Executor::Agent { charter: 2 },
             budget,
             None,
@@ -113,9 +111,7 @@ fn a_goal_without_an_accepting_role_reports_the_same_refusal_in_its_bound_and_ad
     assert_eq!(
         crate::acts::bounds::create_start(
             &core,
-            1,
-            1,
-            people::Role::Owner,
+            creator(),
             tasks::Executor::Agent { charter: 1 },
             501,
             None,
@@ -129,9 +125,7 @@ fn a_goal_without_an_accepting_role_reports_the_same_refusal_in_its_bound_and_ad
     );
     let started = crate::acts::bounds::create_start(
         &core,
-        1,
-        1,
-        people::Role::Owner,
+        creator(),
         tasks::Executor::Agent { charter: 1 },
         100,
         None,
@@ -161,9 +155,7 @@ fn a_policy_proposal_names_every_eligible_role_without_choosing_one_holder() {
     assert_eq!(
         crate::acts::bounds::create_start(
             &core,
-            1,
-            1,
-            people::Role::Owner,
+            creator(),
             tasks::Executor::Agent { charter: 1 },
             501,
             None,
@@ -788,17 +780,8 @@ fn procedure_goal_bounds_and_admission_keep_exact_executor_and_authority_facts()
         procedures.as_slice(),
         &[offers::CreateProcedure { connector: 1, code: 1 }, offers::CreateProcedure { connector: 2, code: 1 },]
     );
-    let admitted = crate::acts::bounds::create_start(
-        &core,
-        1,
-        1,
-        people::Role::Owner,
-        executor,
-        100,
-        None,
-        limits.tasks.tree_tasks,
-    )
-    .unwrap();
+    let admitted =
+        crate::acts::bounds::create_start(&core, creator(), executor, 100, None, limits.tasks.tree_tasks).unwrap();
     assert_eq!(admitted.authority.budget.spend, 100);
     assert_eq!(admitted.authority.tools, authority::Tools(0));
     assert_eq!(admitted.authority.grants, core.authority.role(1, 0).unwrap().authority.grants);
@@ -807,17 +790,7 @@ fn procedure_goal_bounds_and_admission_keep_exact_executor_and_authority_facts()
         core.creating_authority(1, 1, people::Role::Owner, limits.tasks.tree_tasks).delegation
     );
     assert_eq!(
-        crate::acts::bounds::create_start(
-            &core,
-            1,
-            1,
-            people::Role::Owner,
-            executor,
-            501,
-            None,
-            limits.tasks.tree_tasks
-        )
-        .unwrap_err(),
+        crate::acts::bounds::create_start(&core, creator(), executor, 501, None, limits.tasks.tree_tasks).unwrap_err(),
         people::Refusal::Authority {
             lacking: people::Lack::Budget { needs: 501, left: 500 },
             proposable: Some(people::Accepter::Role(0))
@@ -826,9 +799,7 @@ fn procedure_goal_bounds_and_admission_keep_exact_executor_and_authority_facts()
     assert_eq!(
         crate::acts::bounds::create_start(
             &core,
-            1,
-            1,
-            people::Role::Owner,
+            creator(),
             tasks::Executor::Procedure { connector: 3, code: 1 },
             100,
             None,
@@ -839,9 +810,7 @@ fn procedure_goal_bounds_and_admission_keep_exact_executor_and_authority_facts()
     );
     crate::acts::bounds::create_start(
         &core,
-        1,
-        1,
-        people::Role::Owner,
+        creator(),
         tasks::Executor::Procedure { connector: 1, code: u32::MAX },
         100,
         None,
@@ -853,8 +822,7 @@ fn procedure_goal_bounds_and_admission_keep_exact_executor_and_authority_facts()
     let mut out = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy: changed }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Changed { project: 1 }));
-    crate::acts::bounds::create_start(&core, 1, 1, people::Role::Owner, executor, 100, None, limits.tasks.tree_tasks)
-        .unwrap_err();
+    crate::acts::bounds::create_start(&core, creator(), executor, 100, None, limits.tasks.tree_tasks).unwrap_err();
     let Admission::Bounded { within: Bounds::Create { procedures, .. }, .. } = fixtures::creating(&core, &limits, 1, 1)
     else {
         panic!("changed goal facts")
@@ -903,9 +871,7 @@ fn charter_goal_bounds_refuse_an_incomplete_executor_list() {
     assert!(procedures.is_empty(), "charter overflow is independent of procedures");
     crate::acts::bounds::create_start(
         &core,
-        1,
-        1,
-        people::Role::Owner,
+        creator(),
         tasks::Executor::Agent { charter: 5 },
         100,
         None,
@@ -924,17 +890,7 @@ fn procedure_goal_bounds_refuse_an_incomplete_executor_list() {
     );
     let executor = tasks::Executor::Procedure { connector: 2, code: 1 };
     assert!(
-        crate::acts::bounds::create_start(
-            &core,
-            1,
-            1,
-            people::Role::Owner,
-            executor,
-            100,
-            None,
-            limits.tasks.tree_tasks
-        )
-        .is_ok(),
+        crate::acts::bounds::create_start(&core, creator(), executor, 100, None, limits.tasks.tree_tasks).is_ok(),
         "document receiving bound does not alter owner admission"
     );
 }

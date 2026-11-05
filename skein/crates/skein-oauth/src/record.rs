@@ -270,7 +270,8 @@ pub(crate) fn validate_refresh_additions(state: &RefreshState, limits: &Limits) 
     Ok(())
 }
 
-pub(crate) fn secret_ref(value: Option<&Secret>) -> Option<&[u8]> {
+#[must_use]
+pub fn secret_ref(value: Option<&Secret>) -> Option<&[u8]> {
     match value {
         Some(value) => Some(value.expose()),
         None => None,

@@ -351,21 +351,22 @@ pub(crate) fn routed(
     wake_holder(domain, env, number, out);
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one explicit semantic event carries its identity, revision, actor, choice and terminal destination"
-)]
+pub(crate) struct Deciding {
+    pub(crate) number: u64,
+    pub(crate) revision: u64,
+    pub(crate) by: u64,
+    pub(crate) entry: Option<u64>,
+    pub(crate) decision: EscalationDecision,
+}
+
 pub(crate) fn decide(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    number: u64,
-    revision: u64,
-    by: u64,
-    entry: Option<u64>,
-    decision: EscalationDecision,
+    deciding: Deciding,
     out: &mut Queue<Request>,
 ) {
+    let Deciding { number, revision, by, entry, decision } = deciding;
     let mut outcome = EscalationOutcome::Stale;
     if domain.ready()
         && by != 0

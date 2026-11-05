@@ -120,7 +120,7 @@ impl World {
                     Down::Finish => {}
                 }
             }
-            if !room || self.client.state == State::Closing || self.client.state == State::Closed {
+            if !room || self.client.stopped() {
                 return;
             }
             up(&mut self.client, &self.env, Up::Room, &mut self.above, &mut self.below);
@@ -341,7 +341,7 @@ fn dispatch_without_next(world: &mut World, source: &[u8], activity: u64) -> boo
         &mut world.above,
         &mut world.below,
     );
-    assert!(!world.client.asked, "the caller has not demanded its next output");
+    assert!(!world.client.asked(), "the caller has not demanded its next output");
     assert!(world.above.is_empty(), "dispatch holds output until Next");
     assert_eq!(world.client.activity(), activity, "activity is counted before output is drained: {source:?}");
     let mut completed = false;
@@ -490,7 +490,10 @@ fn an_owned_measurement_preserves_provider_bytes_lengths_and_policy() {
                 assert_eq!(prepared.limits, admitted);
                 assert_eq!(prepared.measured(), expected);
                 assert_eq!(rendered.len(), usize::try_from(expected.body).unwrap());
-                let actual = prepared.upload.as_ref().unwrap();
+                let actual = match &prepared.upload {
+                    Upload::Sending { body, .. } => body,
+                    Upload::Done => panic!("a prepared call holds its upload"),
+                };
                 if expected.compressed == 0 {
                     assert_eq!(actual, &rendered, "{provider:?}/{enabled}/{encoding:?}");
                 } else {

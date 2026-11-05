@@ -291,7 +291,7 @@ fn github_connection_close_finishes_before_closing() {
     let heard = h.github_answer(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n");
     assert_eq!(heard.last(), Some(&Heard::Done(Body::Empty)), "answer completes");
     assert_eq!(h.connection.phase(), Phase::Closed, "no reusable connection");
-    assert_eq!(h.connection.deadline, None, "no idle deadline");
+    assert_eq!(h.connection.deadline(), None, "no idle deadline");
 }
 
 #[test]
@@ -304,7 +304,7 @@ fn github_malformed_json_closes_after_its_head() {
         unreachable!("malformed terminal");
     };
     assert_eq!(h.connection.phase(), Phase::Closed, "no reusable half-read body");
-    assert_eq!(h.connection.deadline, None, "no idle deadline");
+    assert_eq!(h.connection.deadline(), None, "no idle deadline");
 }
 
 #[test]

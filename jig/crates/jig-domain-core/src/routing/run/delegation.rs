@@ -1,7 +1,8 @@
 //! Run delegation, procedure batches and recurring work routed through tasks
 //! and numbered connector holdings (`domain/engine.md`, sections 4.4 and 7).
 
-use crate::routing::{HoldingsNeed, Work};
+use super::Proposing;
+use crate::routing::{HoldingsNeed, Work, effect::procedure::ProcedureCall};
 
 use crate::{
     Ask, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, ProcedureStep, Request,
@@ -244,30 +245,21 @@ pub(crate) fn delegate_holdings(
             core,
             env,
             work,
-            ReplyTo::new(request),
-            flight.key,
+            Proposing { to: ReplyTo::new(request), key: flight.key, reason, as_holder },
             tasks::ProposalAction::Batch(flight.members),
-            reason,
-            as_holder,
             &mut None,
         ),
     }
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one proposal route carries its tracked priority and accepting-holder choice"
-)]
 pub(crate) fn propose_batch(
     core: &mut Core,
     env: &Env<Limits>,
-    to: ReplyTo,
-    key: CallKey,
+    proposing: Proposing,
     mut batch: Box<[Delegate]>,
-    reason: Box<[u8]>,
-    as_holder: bool,
     tracked: Option<u32>,
 ) -> Queue<Request> {
+    let Proposing { to, key, reason, as_holder } = proposing;
     if reason.len() > skein_lib::length::usize_of(env.limits.tasks.message_bytes) {
         return proposal_refused(core, to, key, tasks::Refusal::Read);
     }
@@ -360,21 +352,16 @@ pub(crate) fn propose_batch(
     out
 }
 
-#[expect(
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    reason = "one procedure batch carries its owner and bounded connector handoffs"
-)]
+#[expect(clippy::too_many_lines, reason = "one procedure batch carries its owner and bounded connector handoffs")]
 pub(crate) fn procedure_step(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    task: u64,
-    step: u64,
-    connector: u16,
+    call: ProcedureCall,
     procedure_code: u32,
     mut decision: ProcedureStep,
 ) -> Queue<Request> {
+    let ProcedureCall { task, step, connector } = call;
     if core.tasks.procedure_due(task) != Some((connector, procedure_code, step)) {
         if !decision.batch.is_empty() {
             return crate::routing::effect::procedure::refused(
@@ -553,17 +540,15 @@ pub(crate) fn procedure_step(
     out
 }
 
-#[expect(clippy::too_many_arguments, reason = "holdings answer carries its connector refusal with the route")]
 pub(crate) fn procedure_holdings(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    task: u64,
-    step: u64,
-    connector: u16,
+    call: ProcedureCall,
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
     refused: Option<HoldingsRefusal>,
 ) -> Queue<Request> {
+    let ProcedureCall { task, step, connector } = call;
     let known = core.connectors.contains(&connector);
     let Some(token) = core.procedure_creation_token(task, step) else { return Queue::uncapped() };
     let Some(crate::routing::flight::Flight::ProcedureCreation { route: flight, .. }) =

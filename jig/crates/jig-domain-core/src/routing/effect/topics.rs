@@ -5,17 +5,16 @@ use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo};
 
-#[expect(clippy::too_many_arguments, reason = "one decoded topic call carries its read descriptions")]
 pub(crate) fn subscribe(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
-    connector: u16,
-    topic: u64,
+    topic: (u16, u64),
     resources: &[authority::Effect],
 ) -> Queue<Request> {
+    let (connector, topic) = topic;
     let mut out = Queue::uncapped();
     if !core.current_proof(key.task, key.attempt) {
         return out;

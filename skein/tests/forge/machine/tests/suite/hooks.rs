@@ -231,6 +231,27 @@ fn a_body_keeps_the_deadline_that_started_at_accept() {
 }
 
 #[test]
+fn done_restarts_the_deadline_and_a_late_offer_keeps_it() {
+    let mut world = world();
+    let peer = world.accept();
+    world.run_for(Duration::from_secs(9));
+    world.send(peer, &deliveries::push(b"main", 7));
+    assert_eq!(world.status(peer), Some(204));
+    let expected = world.hints()[0].clone();
+    world.refuse();
+    world.advance_to(skein_lib::Time::from_nanos(10_000_000_000));
+    assert!(!world.peer(peer).closed);
+    assert!(world.hints().is_empty());
+    world.advance_to(skein_lib::Time::from_nanos(18_000_000_000));
+    world.request(Request::Offer);
+    assert_eq!(world.hints(), &[expected]);
+    world.advance_to(skein_lib::Time::from_nanos(18_999_999_999));
+    assert!(!world.peer(peer).closed);
+    world.advance_to(skein_lib::Time::from_nanos(19_000_000_000));
+    assert!(world.peer(peer).closed);
+}
+
+#[test]
 fn a_clients_close_still_offers_the_verified_hint() {
     let mut world = world();
     let peer = world.accept();

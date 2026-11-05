@@ -48,7 +48,10 @@ impl Domain {
     /// closed. The query allocates nothing. Work is bounded by accounts squared plus host facts
     /// squared plus sources times host facts, all within the configured capacities.
     #[must_use]
-    #[expect(clippy::too_many_arguments, reason = "one concrete read-only selection check")]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "public seam kept whole for callers outside this crate; slices cannot be folded into owned fields"
+    )]
     pub fn select(
         &self,
         payer: Use,

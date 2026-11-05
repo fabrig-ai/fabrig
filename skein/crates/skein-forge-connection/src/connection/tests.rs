@@ -41,16 +41,16 @@ fn handshake_bytes_do_not_write_an_exchange() {
 }
 
 #[test]
-fn a_connected_notice_keeps_the_in_flight_exchange() {
-    let mut h = f::ConnectionHarness::new();
-    h.start_forgejo(skein_forge::forgejo::request::Request::User, None).expect("user request");
-    h.pump();
-    h.connection.connect(&h.env);
-    assert!(h.connection.in_flight(), "the exchange still belongs to its holder");
-    h.connection.stream(&h.env, Up::Room);
-    h.pump();
-    assert!(h.connection.written, "the request wrote bytes");
-    assert_eq!(h.connection.phase(), Phase::Reading);
+fn a_connected_notice_keeps_the_close_under_way() {
+    let forge = f::settings().forges.into_boxed().into_iter().next().expect("fixture forge");
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: f::limits() };
+    let mut c = Connection::new(&forge, &env.limits, f::shared(), env.now);
+    let mut io = Queue::uncapped();
+    c.link.connecting(Token::new(100), &mut io);
+    c.close(&env, false, &mut io);
+    c.connect(&env);
+    assert!(c.closing(), "the connected notice keeps the close");
+    assert_eq!(c.phase(), Phase::Closed);
 }
 
 #[test]

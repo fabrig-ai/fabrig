@@ -176,7 +176,7 @@ impl Common {
                 let deadline = waiting.deadline;
                 let plan = &mut forgejo.plan;
                 if let Some(request) = plan.pending() {
-                    c.hold(deadline);
+                    c.rest(Some(deadline));
                     c.raw_room(plan.raw_room(self.shared.answer_bytes));
                     let forge = &base.forge;
                     let authorization = skein_forge::forgejo::credential::authorization(
@@ -431,7 +431,7 @@ impl Component {
                 self.common.wake = Some(env.now);
             }
             if self.common.lifecycle != Lifecycle::Live
-                || (c.phase() == Phase::Idle && c.deadline <= Some(env.now))
+                || (c.phase() == Phase::Idle && c.deadline() <= Some(env.now))
                 || c.phase() == Phase::Closed
             {
                 c.close(env, c.in_flight(), io);

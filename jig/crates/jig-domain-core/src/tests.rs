@@ -3344,6 +3344,10 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
 
 #[test]
 fn goal_deadlines_are_checked_against_the_role_and_policy() {
+    fn creator() -> crate::acts::bounds::Creator {
+        crate::acts::bounds::Creator { project: 1, person: 1, role: people::Role::Owner }
+    }
+
     let (mut core, _) = core();
     let deadline = Wall::from_nanos(2_000_000_000);
     let earlier = Wall::from_nanos(1_000_000_000);
@@ -3354,9 +3358,7 @@ fn goal_deadlines_are_checked_against_the_role_and_policy() {
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy: policy.clone() }, &mut out);
     let started = crate::acts::bounds::create_start(
         &core,
-        1,
-        1,
-        people::Role::Owner,
+        creator(),
         tasks::Executor::Agent { charter: 1 },
         10,
         Some(earlier),
@@ -3366,48 +3368,21 @@ fn goal_deadlines_are_checked_against_the_role_and_policy() {
     assert_eq!(started.authority.budget.spend, 10);
     assert_eq!(started.authority.budget.deadline, Some(earlier));
     assert_eq!(
-        crate::acts::bounds::create_start(
-            &core,
-            1,
-            1,
-            people::Role::Owner,
-            tasks::Executor::Agent { charter: 1 },
-            10,
-            Some(later),
-            2
-        )
-        .unwrap_err(),
+        crate::acts::bounds::create_start(&core, creator(), tasks::Executor::Agent { charter: 1 }, 10, Some(later), 2)
+            .unwrap_err(),
         people::Refusal::Authority { lacking: people::Lack::Deadline, proposable: Some(people::Accepter::Role(0)) }
     );
     assert_eq!(
-        crate::acts::bounds::create_start(
-            &core,
-            1,
-            1,
-            people::Role::Owner,
-            tasks::Executor::Agent { charter: 1 },
-            10,
-            None,
-            2
-        )
-        .unwrap_err(),
+        crate::acts::bounds::create_start(&core, creator(), tasks::Executor::Agent { charter: 1 }, 10, None, 2)
+            .unwrap_err(),
         people::Refusal::Authority { lacking: people::Lack::Deadline, proposable: Some(people::Accepter::Role(0)) }
     );
     policy.ceiling.budget.deadline = Some(deadline);
     while out.pop().is_some() {}
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(
-        crate::acts::bounds::create_start(
-            &core,
-            1,
-            1,
-            people::Role::Owner,
-            tasks::Executor::Agent { charter: 1 },
-            10,
-            Some(later),
-            2
-        )
-        .expect_err("beyond policy"),
+        crate::acts::bounds::create_start(&core, creator(), tasks::Executor::Agent { charter: 1 }, 10, Some(later), 2)
+            .expect_err("beyond policy"),
         people::Refusal::Authority { proposable: Some(people::Accepter::Nobody), lacking: people::Lack::Deadline }
     );
 }

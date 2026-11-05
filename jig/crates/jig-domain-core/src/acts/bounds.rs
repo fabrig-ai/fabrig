@@ -97,9 +97,15 @@ fn creating_executors(
             let authority::Executor::Procedure(procedure) = kind else { continue };
             for &connector in &core.connectors {
                 let executor = tasks::Executor::Procedure { connector, code: *procedure };
-                let supported =
-                    create_start(core, project, party, held, executor, 0, canonical_deadline, limits.tasks.tree_tasks)
-                        .is_ok();
+                let supported = create_start(
+                    core,
+                    Creator { project, person: party, role: held },
+                    executor,
+                    0,
+                    canonical_deadline,
+                    limits.tasks.tree_tasks,
+                )
+                .is_ok();
                 if supported && procedures.push(super::CreateProcedure { connector, code: *procedure }).is_err() {
                     return Err(people::Refusal::Limit { which: people::LimitKind::Authority });
                 }
@@ -238,22 +244,33 @@ pub(crate) fn creating_charter(
         role.authority.budget.deadline,
         earliest(policy.ceiling.budget.deadline, core.authority.rules().ceiling.budget.deadline),
     );
-    create_start(core, project, party, held, tasks::Executor::Agent { charter }, 0, deadline, limits.tasks.tree_tasks)
-        .is_ok()
+    create_start(
+        core,
+        Creator { project, person: party, role: held },
+        tasks::Executor::Agent { charter },
+        0,
+        deadline,
+        limits.tasks.tree_tasks,
+    )
+    .is_ok()
+}
+
+pub(crate) struct Creator {
+    pub(crate) project: u32,
+    pub(crate) person: u64,
+    pub(crate) role: people::Role,
 }
 
 /// The goal's one full judge, also sampled for fixed supported form facts.
-#[expect(clippy::too_many_arguments, reason = "a goal carries its requested authority and deadline")]
 pub(crate) fn create_start(
     core: &Core,
-    project: u32,
-    person: u64,
-    role: people::Role,
+    creator: Creator,
     executor: tasks::Executor,
     budget: u64,
     deadline: Option<Wall>,
     tasks_left: u32,
 ) -> Result<crate::CreateStart, people::Refusal> {
+    let Creator { project, person, role } = creator;
     standing::role(core, project, Some(role), super::Act::Amend)?;
     if !core.authority.escalations_held(project, role.number()) {
         return Err(people::Refusal::NoEscalationHolder);

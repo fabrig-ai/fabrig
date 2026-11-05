@@ -1,6 +1,6 @@
 //! Paged settlement of startup debris (hearth/docs/design/domain/store.md, 4.4 and 8.2).
 use crate::{
-    Phase, Store, index,
+    Phase, Standing, Store, index,
     limits::Limits,
     resolutions,
     vocabulary::{Answer, Directory, Entry, Event, Layer, Limit, Output, Removal, Request, Shape, Step, Stray},
@@ -284,10 +284,12 @@ fn stop_full(store: &mut Store, limits: &Limits, limit: Limit, out: &mut Queue<O
 fn finish(store: &mut Store, answer: Answer, out: &mut Queue<Output>) {
     store.phase = Phase::Ready;
     store.scan.entries = Box::new([]);
-    store.usable = answer == Answer::Ready;
-    match &answer {
-        Answer::Full { limit, most } => store.decline = crate::vocabulary::Decline::Full { limit: *limit, most: *most },
-        Answer::Unusable { step } => store.decline = crate::vocabulary::Decline::Unusable { step: *step },
+    store.standing = match &answer {
+        Answer::Ready => Standing::Usable,
+        Answer::Full { limit, most } => {
+            Standing::Declining(crate::vocabulary::Decline::Full { limit: *limit, most: *most })
+        }
+        Answer::Unusable { step } => Standing::Declining(crate::vocabulary::Decline::Unusable { step: *step }),
         Answer::Recorded
         | Answer::HasRoom
         | Answer::Found { .. }
@@ -302,9 +304,8 @@ fn finish(store: &mut Store, answer: Answer, out: &mut Queue<Output>) {
         | Answer::Strays { .. }
         | Answer::Cached { .. }
         | Answer::Refused { .. }
-        | Answer::Ready
-        | Answer::Unopened { .. } => {}
-    }
+        | Answer::Unopened { .. } => store.standing,
+    };
     if answer != Answer::Ready {
         store.scan.index = index::Index::with_capacity(0);
         store.scan.resolutions = Map::with_capacity(0);
