@@ -193,7 +193,7 @@ pub(crate) fn start(service: &mut crate::Service, issuer: &mut fake::Issuer, tar
 }
 fn redirect(issuer: &mut fake::Issuer, url: Box<[u8]>) -> Box<[u8]> {
     let mut out = Queue::uncapped();
-    issuer.step(fake::Event::Authorize { url, now: NOW }, &mut out);
+    issuer.step(fake::Event::Authorize { url: Secret::new(url), now: NOW }, &mut out);
     let Some(fake::Request::Redirect { state, code, .. }) = out.pop() else { panic!("issuer redirect") };
     format!(
         "/sign-in/google/return?state={}&code={}",

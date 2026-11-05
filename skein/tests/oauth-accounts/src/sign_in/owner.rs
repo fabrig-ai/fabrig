@@ -237,7 +237,9 @@ impl Client {
                 env,
                 accounts::Request::Redirected {
                     account,
-                    uri: bytes::copy_of(b"https://service.example/callback?state=late&code=late"),
+                    uri: skein_lib::Secret::new(bytes::copy_of(
+                        b"https://service.example/callback?state=late&code=late",
+                    )),
                 },
             );
         }
@@ -247,7 +249,7 @@ impl Client {
             assert!(!self.closed, "Closed once and last");
             match event {
                 accounts::Event::Visit { url, .. } => {
-                    self.visits.push(url);
+                    self.visits.push(url.into_exposed());
                     self.facts.push(Fact::Visit);
                     self.visited(env);
                 }
@@ -293,7 +295,10 @@ impl Client {
                         self.contracts[usize::try_from(account).expect("account index")] = super::Contracts::new();
                     } else {
                         if let Some(uri) = self.expired_paste.take() {
-                            self.ask(env, accounts::Request::Redirected { account: 0, uri });
+                            self.ask(
+                                env,
+                                accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri) },
+                            );
                         }
                         self.close(env);
                     }

@@ -162,8 +162,8 @@ fn public_sign_in_uses_s256_state_and_one_code_exchange() {
         },
     );
     let Some(Request::Visit { url }) = visit else { panic!("visit expected") };
-    assert!(bytes::find(&url, b"code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM").is_some());
-    assert!(bytes::find(&url, b"state=0123456789abcdef").is_some());
+    assert!(bytes::find(url.expose(), b"code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM").is_some());
+    assert!(bytes::find(url.expose(), b"state=0123456789abcdef").is_some());
     let uri = boxed(b"http://127.0.0.1:2345/callback");
     let http = request(step(
         &mut client,
@@ -208,7 +208,7 @@ fn confidential_sign_in_sends_secret_in_json_only_to_token_endpoint() {
         },
     );
     let Some(Request::Visit { url }) = visit else { panic!("visit expected") };
-    assert!(bytes::find(&url, b"secret").is_none());
+    assert!(bytes::find(url.expose(), b"secret").is_none());
     let http = request(step(
         &mut client,
         Event::Redirected {
@@ -251,7 +251,7 @@ fn confidential_registration_can_require_pkce_too() {
     ) else {
         panic!("visit expected")
     };
-    assert!(bytes::find(&url, b"code_challenge_method=S256").is_some());
+    assert!(bytes::find(url.expose(), b"code_challenge_method=S256").is_some());
     let http = request(step(
         &mut client,
         Event::Redirected {
@@ -645,7 +645,7 @@ fn issuer_https_endpoints_name_a_host() {
                 if admitted {
                     let Some(Request::Visit { url }) = result else { panic!("expected Visit for {uri:?}") };
                     if authorization {
-                        assert!(url.starts_with(uri));
+                        assert!(url.expose().starts_with(uri));
                     }
                 } else {
                     assert_eq!(failure(result), Failure::Malformed, "{uri:?}");
@@ -727,7 +727,7 @@ fn issuer_http_endpoints_are_admitted_only_on_numeric_loopback() {
                     match result {
                         Some(Request::Visit { url }) => {
                             if authorization {
-                                assert!(url.starts_with(uri));
+                                assert!(url.expose().starts_with(uri));
                             }
                         }
                         other => panic!("expected Visit for {uri:?}, got {}", other.is_some()),

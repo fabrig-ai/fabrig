@@ -684,7 +684,7 @@ impl Clients {
                         google.limits.deadline,
                         true,
                     );
-                    self.google_answer(call, 303, Some(&url), &[], Some(set));
+                    self.google_answer(call, 303, Some(url.expose()), &[], Some(set));
                 }
                 pending.phase = Phase::Visiting;
                 google.keep_pending(exchange, pending);

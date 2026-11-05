@@ -69,10 +69,11 @@ pub struct Config {
     pub terms: Option<Terms>,
 }
 
+#[derive(Debug)]
 pub enum Body {
     Token(TokenResponse),
     Error(OAuthError),
-    Raw(Box<[u8]>),
+    Raw(Secret),
 }
 
 #[derive(Debug)]
@@ -83,8 +84,9 @@ pub struct Plan {
     pub retry_after: Duration,
 }
 
+#[derive(Debug)]
 pub enum Event {
-    Authorize { url: Box<[u8]>, now: Time },
+    Authorize { url: Secret, now: Time },
     Post { request: HttpRequest, now: Time, wall: Wall },
     Get { id: u64, endpoint: Box<[u8]>, now: Time, wall: Wall },
     Tick { now: Time, wall: Wall },
@@ -155,38 +157,6 @@ pub struct Issuer {
     carried: List<Box<[u8]>>,
     authorizations: usize,
     revoked: bool,
-}
-
-impl core::fmt::Debug for Body {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Body::Token(value) => f.debug_tuple("Token").field(value).finish(),
-            Body::Error(value) => f.debug_tuple("Error").field(value).finish(),
-            Body::Raw(value) => f.debug_struct("Raw").field("len", &value.len()).finish(),
-        }
-    }
-}
-
-impl core::fmt::Debug for Event {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Event::Authorize { url, now } => {
-                f.debug_struct("Authorize").field("url_len", &url.len()).field("now", now).finish()
-            }
-            Event::Post { request, now, wall } => {
-                f.debug_struct("Post").field("request", request).field("now", now).field("wall", wall).finish()
-            }
-            Event::Get { id, endpoint, now, wall } => f
-                .debug_struct("Get")
-                .field("id", id)
-                .field("endpoint", endpoint)
-                .field("now", now)
-                .field("wall", wall)
-                .finish(),
-            Event::Tick { now, wall } => f.debug_struct("Tick").field("now", now).field("wall", wall).finish(),
-            Event::LoseResponse => f.write_str("LoseResponse"),
-        }
-    }
 }
 
 impl core::fmt::Debug for Issuer {
@@ -325,7 +295,7 @@ impl Issuer {
 
     pub fn step(&mut self, event: Event, out: &mut Queue<Request>) {
         match event {
-            Event::Authorize { url, now } => self.authorize(&url, now, out),
+            Event::Authorize { url, now } => self.authorize(url.expose(), now, out),
             Event::Post { request, now, wall } => self.post(request, now, wall, out),
             Event::Get { id, endpoint, now, wall } => {
                 openid::get(&self.config, &self.limits, id, &endpoint, now, wall, out);
@@ -500,7 +470,7 @@ impl Issuer {
                 };
                 (body, None)
             }
-            Body::Raw(value) => (value, None),
+            Body::Raw(value) => (value.into_exposed(), None),
         };
         if let Some(next) = next_refresh
             && next != self.config.refresh_token
