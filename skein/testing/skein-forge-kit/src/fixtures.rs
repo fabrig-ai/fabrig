@@ -1,6 +1,11 @@
 //! The component's small limits and configured forge.
 use skein_forge_connection::Limits;
 use skein_lib::Duration;
+pub const WORD: &[u8] = b"kit";
+pub const USER_AGENT: &[u8] = b"kit/0.0.0";
+pub const OP_BYTES: u32 = 512;
+// Twice the operation bound, the owner's word, and marker framing (forge.md 6).
+pub const BODY_ROOM: u32 = 2 * OP_BYTES + 3 + 15;
 pub const WRITER: u64 = 2;
 #[must_use]
 pub fn limits() -> Limits {
@@ -15,7 +20,7 @@ pub fn limits() -> Limits {
         depth: 16,
         chunk: 1024,
         string_bytes: 128,
-        body_bytes: 1042,
+        body_bytes: BODY_ROOM,
         inner: 8,
         target_bytes: 1024,
         repositories: 2,
@@ -72,7 +77,7 @@ pub fn shared() -> Shared {
         calls: 2,
         rows: 8,
         answer_bytes: 65_536,
-        op_bytes: 512,
+        op_bytes: OP_BYTES,
         lifetime: Duration::from_secs(10),
         name_bytes: 128,
         repositories: 2,
@@ -104,12 +109,7 @@ pub fn settings() -> Settings {
             access: Some(access(TOKEN, WRITER, None)),
         })
         .expect("one forge");
-    Settings {
-        forges,
-        webhooks: None,
-        word: Box::from(b"kit".as_slice()),
-        user_agent: Box::from(b"kit/0.0.0".as_slice()),
-    }
+    Settings { forges, webhooks: None, word: Box::from(WORD), user_agent: Box::from(USER_AGENT) }
 }
 /// Makes a literal HTTP answer for scenarios independent of recorded cases.
 #[must_use]

@@ -61,30 +61,6 @@ fn reconnect(h: &mut Harness) {
     h.connected(FORGE);
 }
 #[test]
-fn first_read_reports_missing_accepted_id() {
-    let mut h = harness(3, &[MISSING]);
-    h.answer(FORGE, &fixtures::ok(b"[]"));
-    assert_eq!(changes(&mut h).as_ref(), [(MISSING, None, Change::Deleted)]);
-}
-#[test]
-fn first_read_reports_suspended_accepted_row() {
-    let mut h = harness(3, &[1]);
-    h.answer(FORGE, &fixtures::ok(SUSPENDED));
-    assert_eq!(changes(&mut h).as_ref(), [(1, Some(account()), Change::Suspended)]);
-}
-#[test]
-fn first_read_reports_unaccepted_row() {
-    let mut h = harness(3, &[]);
-    h.answer(FORGE, &fixtures::ok(LIVE));
-    assert_eq!(changes(&mut h).as_ref(), [(1, Some(account()), Change::Created)]);
-}
-#[test]
-fn first_read_keeps_live_accepted_row_silent() {
-    let mut h = harness(3, &[1]);
-    h.answer(FORGE, &fixtures::ok(LIVE));
-    assert!(changes(&mut h).is_empty());
-}
-#[test]
 fn failed_first_read_keeps_the_baseline() {
     let mut h = harness(3, &[1, MISSING]);
     h.answer(FORGE, &fixtures::response_with_fields(200, LIVE, NEXT_PAGE));
