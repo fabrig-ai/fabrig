@@ -1747,6 +1747,13 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* ==== ui: welcome ==== */
 
+#app > .temper-home .temper-home-steps > li > .temper-home-copy { grid-column: 2 / -1; display: flex; align-items: baseline; gap: 12px; color: var(--gf-muted); font-size: 14px; line-height: 1.55; min-width: 0; }
+#app > .temper-home .temper-home-copy > p { margin: 0; overflow-wrap: anywhere; }
+#app > .temper-home .temper-home-copy.temper-home-done::before { content: '✓' / ''; color: var(--gf-good); }
+#app > .temper-home .temper-home-copy > .temper-home-acts { flex-shrink: 0; margin: 0; }
+#app > .temper-home .temper-home-steps > li > :is(h3, p) { min-width: 0; overflow-wrap: anywhere; }
+
+
 #app > .temper-welcome .temper-welcome-checklist > li > .temper-account-line { width: auto; }
 #app > .temper-welcome .temper-welcome-checklist { display: flex; flex-direction: column; gap: 0; margin: 0 0 32px; padding: 0; border-top: 1px solid var(--gf-line); font-size: 15px; }
 #app > .temper-welcome .temper-welcome-checklist > li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); color: var(--gf-muted); }

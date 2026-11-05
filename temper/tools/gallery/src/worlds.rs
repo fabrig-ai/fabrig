@@ -3290,3 +3290,80 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     )
     .expect("changes panel")
 }
+
+/// Home's copies share Ready's intent; the watch supplies progress and adoptions (client/README.md, 3.5).
+pub(super) fn home_copies(
+    mut row: temper_client_protocol_wire::v1::ForgeRowParts,
+    state: &str,
+) -> temper_client_protocol_wire::v1::ForgeRowParts {
+    use temper_client_protocol_wire::v1 as w;
+    let addresses: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
+    let addresses = if state == "home-copy-one" { &addresses[..1] } else { &addresses[..] };
+    let mut intent = List::with_capacity(2);
+    for address in addresses {
+        intent.push((*address).into()).expect("copy intent");
+    }
+    row.first = None;
+    row.starts_with = w::StartsWith::Copies(
+        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: intent }).expect("copy intent"),
+    );
+    row.makings = List::with_capacity(2);
+    row.repositories = List::with_capacity(2);
+    // The watch's key order is other, widget, while Ready asked widget first.
+    for address in addresses.iter().rev() {
+        let (org, name) = temper_client_domain::forge::making::target(address).expect("copy target");
+        if state == "home-copy-offer" {
+            continue;
+        }
+        if matches!(state, "home-copied" | "home-copy-one") || state == "home-copy-failed" && *address == addresses[0] {
+            row.repositories
+                .push(
+                    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner: org, name, project: PROJECT })
+                        .expect("copy adopted"),
+                )
+                .expect("two copies");
+        } else {
+            row.makings
+                .push(
+                    w::RepositoryMaking::new(
+                        &w::CEILINGS,
+                        w::RepositoryMakingParts {
+                            org,
+                            name,
+                            from: w::MakeFrom::Copy(
+                                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: (*address).into() })
+                                    .expect("copy source"),
+                            ),
+                            into: Some(
+                                w::MakeInto::new(
+                                    &w::CEILINGS,
+                                    w::MakeIntoParts { project: PROJECT, home: *address == addresses[0] },
+                                )
+                                .expect("copy into"),
+                            ),
+                            state: if state == "home-copy-failed" {
+                                w::MakingState::Failed(
+                                    w::MakingFailed::new(
+                                        &w::CEILINGS,
+                                        w::MakingFailedParts {
+                                            step: w::MakeStep::Repository,
+                                            reason: w::MakeFailure::Taken,
+                                            words: b"name taken".as_slice().into(),
+                                        },
+                                    )
+                                    .expect("copy failure"),
+                                )
+                            } else if *address == addresses[0] {
+                                w::MakingState::Making
+                            } else {
+                                w::MakingState::Waiting
+                            },
+                        },
+                    )
+                    .expect("copy making"),
+                )
+                .expect("two copies");
+        }
+    }
+    row
+}

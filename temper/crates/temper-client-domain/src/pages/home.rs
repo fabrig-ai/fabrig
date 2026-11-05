@@ -4,15 +4,17 @@ use crate::{Domain, forge, owner::Owner};
 use alloc::boxed::Box;
 use forge::dismissed::{self, Dismissal};
 use jig_client::{Client, Handle, Key, Latest, Told, Watchable, contract as c};
-use skein_lib::Queue;
+use skein_lib::{List, Queue, bytes};
+use temper_client_protocol_wire::{source, v1 as w};
 
 #[derive(Debug)]
-#[expect(clippy::partial_pub_fields, reason = "settings is a public read; skip state belongs to this page")]
+#[expect(clippy::partial_pub_fields, reason = "settings is a public read; request state belongs to this page")]
 pub struct Home {
     pub settings: Handle,
     skip: Option<Key>,
     skipped: bool,
     skip_refused: bool,
+    copies: List<Key>,
 }
 impl Home {
     pub(super) fn new(number: u64, out: &mut Queue<Request>) -> Self {
@@ -21,6 +23,7 @@ impl Home {
             skip: None,
             skipped: false,
             skip_refused: false,
+            copies: List::uncapped(),
         };
         out.push(Request::Client(jig_client::Event::Watch {
             handle: home.settings,
@@ -44,6 +47,30 @@ impl Home {
     }
     pub(super) fn told(&mut self, told: &Told, limits: forge::Limits) -> bool {
         match told {
+            Told::Answered { key, .. } => {
+                for index in 0..self.copies.len() {
+                    if self.copies.get(index) == Some(key) {
+                        self.copies.swap_remove(index).expect("held copy key");
+                        return true;
+                    }
+                }
+            }
+            Told::Pending { key } => {
+                for held in &self.copies {
+                    if held == key {
+                        return true;
+                    }
+                }
+            }
+            Told::Changed { .. }
+            | Told::Ended { .. }
+            | Told::Link { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. }
+            | Told::Page { .. }
+            | Told::Text { .. } => {}
+        }
+        match told {
             Told::Changed { handle } | Told::Ended { handle, .. } => *handle == self.settings,
             Told::Pending { key } if Some(*key) == self.skip => true,
             Told::Answered { key, outcome } if Some(*key) == self.skip => {
@@ -63,6 +90,12 @@ impl Home {
             | Told::Page { .. }
             | Told::Text { .. } => false,
         }
+    }
+    pub(super) fn copying(&self) -> bool {
+        !self.copies.is_empty()
+    }
+    pub(super) fn keep_copy(&mut self, key: Key) {
+        self.copies.push(key).expect("internal copy keys");
     }
     fn configured(&self, client: &Client) -> bool {
         let Some(document) = client.document(self.settings) else { return false };
@@ -115,11 +148,46 @@ pub struct Facts {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Repository {
     Unknown,
-    In { owner: Box<[u8]>, name: Box<[u8]> },
+    /// Copies being made into this project, a line each (client/README.md, 3.5, Home).
+    Copying {
+        lines: Box<[CopyLine]>,
+    },
+    /// The rows' copies in: their names, in the order asked.
+    CopiesIn {
+        names: Box<[Box<[u8]>]>,
+    },
+    /// The rows' copies not all asked, after a restart.
+    CopyOffer {
+        forge: u16,
+        addresses: Box<[Box<[u8]>]>,
+    },
+    In {
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
+    },
     Adopting(welcome::First),
-    Offer { first: welcome::First, refused: Option<forge::Answer> },
-    GitHub { account: Option<Box<[u8]>> },
+    Offer {
+        first: welcome::First,
+        refused: Option<forge::Answer>,
+    },
+    GitHub {
+        account: Option<Box<[u8]>>,
+    },
     None,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CopyLine {
+    pub org: Box<[u8]>,
+    pub name: Box<[u8]>,
+    pub state: CopyState,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CopyState {
+    Running { host: Box<[u8]> },
+    Waiting,
+    Adopting,
+    In,
+    Failed { words: Box<[u8]> },
 }
 impl Facts {
     #[must_use]
@@ -127,12 +195,14 @@ impl Facts {
         self.delivered && self.skip == Skip::NotSkipped && self.left() > 0
     }
 
-    /// The steps left: step 2 counts unless it is `In`.
+    /// The steps left: step 2 counts unless its repositories are in.
     #[must_use]
     pub fn left(&self) -> u8 {
         let repository = match self.repository {
-            Repository::In { .. } => false,
+            Repository::In { .. } | Repository::CopiesIn { .. } => false,
             Repository::Unknown
+            | Repository::Copying { .. }
+            | Repository::CopyOffer { .. }
             | Repository::Adopting(_)
             | Repository::Offer { .. }
             | Repository::GitHub { .. }
@@ -194,6 +264,9 @@ pub fn facts(root: &Domain, project: u32) -> Facts {
 }
 fn repository(root: &Domain, project: u32) -> Repository {
     use forge::listed::Held;
+    if let Some(copies) = copy_repository(root.forges(), forge::connect::playground(root.forge()), project) {
+        return copies;
+    }
     match forge::listed::held(root.forges(), root.forge().playground(), project) {
         Held::One { owner, name } | Held::Several { owner, name, .. } => {
             return Repository::In { owner: owner.into(), name: name.into() };
@@ -241,6 +314,126 @@ fn repository(root: &Domain, project: u32) -> Repository {
         }
     }
     Repository::None
+}
+
+/// The making rows take precedence over held repositories (client/README.md, 3.5, Home).
+fn copy_repository(state: &forge::forges::State, playground: Option<u16>, project: u32) -> Option<Repository> {
+    use forge::making;
+    let copies = making::copies(state, playground);
+    let rows = forge::listed::rows(state, playground);
+    let mut lines = List::uncapped();
+    let mut names = List::uncapped();
+    let mut unasked = List::uncapped();
+    let mut active = false;
+    if let Some(copies) = &copies {
+        for row in &rows {
+            if row.number != copies.forge {
+                continue;
+            }
+            for address in &copies.addresses {
+                let Some((org, name)) = making::target(address) else { continue };
+                let mut found = false;
+                for making in &row.makings {
+                    if making::is_target(making, address) {
+                        found = true;
+                        if let Some(into) = &making.into
+                            && into.project() == project
+                        {
+                            active = true;
+                            lines.push(copy_line(making)).expect("admitted making rows");
+                        }
+                        break;
+                    }
+                }
+                if found {
+                    continue;
+                }
+                for repository in &row.repositories {
+                    if repository.owner == org && repository.name == name {
+                        found = true;
+                        if repository.project == project {
+                            names.push(bytes::concat(&[&org, b"/", &name])).expect("admitted copies");
+                            lines
+                                .push(CopyLine { org: org.clone(), name: name.clone(), state: CopyState::In })
+                                .expect("admitted copies");
+                        }
+                        break;
+                    }
+                }
+                if !found {
+                    unasked.push(address.clone()).expect("admitted copy addresses");
+                    lines.push(CopyLine { org, name, state: CopyState::Waiting }).expect("admitted copies");
+                }
+            }
+        }
+    }
+    let mut held_are_copies = true;
+    for row in &rows {
+        for making in &row.makings {
+            let Some(into) = &making.into else { continue };
+            if into.project() != project {
+                continue;
+            }
+            let mut intended = false;
+            if let Some(copies) = &copies
+                && copies.forge == row.number
+            {
+                for address in &copies.addresses {
+                    intended |= making::is_target(making, address);
+                }
+            }
+            if !intended {
+                active = true;
+                lines.push(copy_line(making)).expect("admitted making rows");
+            }
+        }
+        for repository in &row.repositories {
+            if repository.project != project {
+                continue;
+            }
+            let mut intended = false;
+            if let Some(copies) = &copies
+                && copies.forge == row.number
+            {
+                for address in &copies.addresses {
+                    if let Some((org, name)) = making::target(address) {
+                        intended |= repository.owner == org && repository.name == name;
+                    }
+                }
+            }
+            held_are_copies &= intended;
+        }
+    }
+    if active {
+        return Some(Repository::Copying { lines: lines.into_boxed() });
+    }
+    if !unasked.is_empty()
+        && let Some(copies) = copies
+    {
+        return Some(Repository::CopyOffer { forge: copies.forge, addresses: unasked.into_boxed() });
+    }
+    if held_are_copies && !names.is_empty() {
+        return Some(Repository::CopiesIn { names: names.into_boxed() });
+    }
+    None
+}
+fn copy_line(making: &forge::making::Making) -> CopyLine {
+    let state = match &making.state {
+        w::MakingState::Waiting => CopyState::Waiting,
+        w::MakingState::Making => {
+            let host = match &making.from {
+                w::MakeFrom::Copy(copy) => match source::parse(copy.address()) {
+                    Ok(source) => source.host.into(),
+                    Err(_) => b"?".as_slice().into(),
+                },
+                w::MakeFrom::Empty => Box::default(),
+            };
+            CopyState::Running { host }
+        }
+        w::MakingState::Made(_) | w::MakingState::Adopting(_) => CopyState::Adopting,
+        w::MakingState::Failed(_) => CopyState::Failed { words: forge::making::phrase(making) },
+    };
+    CopyLine { org: making.org.clone(), name: making.name.clone(), state }
 }
 
 pub(super) fn delivered(client: &Client, handle: Handle) -> bool {

@@ -15,7 +15,7 @@ use temper_client_domain::{
     },
     pages::{
         Act,
-        home::{Facts, Needs, Repository},
+        home::{CopyLine, CopyState, Facts, Needs, Repository},
     },
 };
 
@@ -520,6 +520,37 @@ fn repository_step(
     let adoption = w.say(Word::Adoption, &[]);
     match repository {
         Repository::Unknown => return,
+        Repository::Copying { lines } => {
+            step(b, w, 2, false, &w.say(Word::HomeCopyAct, &[]), &[]);
+            for line in lines {
+                copy_line(b, w, bindings, name, line);
+            }
+        }
+        Repository::CopiesIn { names } => {
+            let (title, detail) = if names.len() == 1 {
+                (Word::HomeCopyIn, Word::HomeCopyInDetail)
+            } else {
+                (Word::HomeCopiesIn, Word::HomeCopiesInDetail)
+            };
+            step(
+                b,
+                w,
+                2,
+                true,
+                &w.say(title, &[Hole::Name(join_copies(names)), Hole::Name(name.into())]),
+                &w.say(detail, &[]),
+            );
+        }
+        Repository::CopyOffer { addresses, .. } => {
+            let Some(first) = addresses.first() else { return };
+            step(b, w, 2, false, &w.say(Word::HomeCopyOffer, &[Hole::Name(first.clone())]), &[]);
+            for address in addresses.iter().skip(1) {
+                text(b, Role::Paragraph, address, None);
+            }
+            acts(b);
+            button(b, bindings, &w.say(Word::HomeCopyAct, &[]), Act::CopyOffered, look::HOME_PRIMARY, false);
+            b.close();
+        }
         Repository::In { owner, name: repo } => {
             step(
                 b,
@@ -585,6 +616,57 @@ fn repository_step(
     }
     b.close();
 }
+fn join_copies(names: &[Box<[u8]>]) -> Box<[u8]> {
+    let mut joined: Box<[u8]> = Box::default();
+    for name in names {
+        let separator = if joined.is_empty() { b"".as_slice() } else { b", ".as_slice() };
+        joined = skein_lib::bytes::concat(&[&joined, separator, name]);
+    }
+    joined
+}
+fn copy_line(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: &[u8], line: &CopyLine) {
+    b.open(Role::Slot);
+    b.style(look::HOME_COPY);
+    let label = match &line.state {
+        CopyState::Running { host } => w.say(
+            Word::HomeCopying,
+            &[Hole::Name(line.org.clone()), Hole::Name(line.name.clone()), Hole::Name(host.clone())],
+        ),
+        CopyState::Waiting => w.say(Word::HomeCopyWaiting, &[]),
+        CopyState::Adopting => w.say(
+            Word::HomeAdopting,
+            &[Hole::Name(line.org.clone()), Hole::Name(line.name.clone()), Hole::Name(project.into())],
+        ),
+        CopyState::In => {
+            b.style(look::HOME_DONE);
+            let name = skein_lib::bytes::concat(&[&line.org, b"/", &line.name]);
+            let label = w.say(Word::HomeCopyIn, &[Hole::Name(name), Hole::Name(project.into())]);
+            match w.shell {
+                Shell::Browser => label,
+                Shell::Terminal => crate::accounts::words::join(&[&w.say(Word::HomeDone, &[]), &label]),
+            }
+        }
+        CopyState::Failed { words } => words.clone(),
+    };
+    text(b, Role::Paragraph, &label, None);
+    match &line.state {
+        CopyState::Failed { .. } => {
+            acts(b);
+            button(
+                b,
+                bindings,
+                &w.say(Word::HomeCopyAgain, &[]),
+                Act::CopyAgain { org: line.org.clone(), name: line.name.clone() },
+                look::HOME_QUIET,
+                false,
+            );
+            b.close();
+        }
+        CopyState::Running { .. } | CopyState::Waiting | CopyState::Adopting | CopyState::In => {}
+    }
+    b.close();
+}
+
 /// A project's settings (temper/docs/design/client/README.md, 3.5).
 pub(crate) fn settings(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
     page(b, root, w, bindings, project, true);

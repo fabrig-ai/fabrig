@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 139;
+pub const N: usize = 144;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -135,6 +135,31 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "home-ready", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
         Sample {
             name: "home-adopting",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-copying",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-copy-failed",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample { name: "home-copied", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
+        Sample {
+            name: "home-copy-one",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-copy-offer",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -1124,6 +1149,9 @@ fn home_domain(name: &str) -> Domain {
     let mut projects = List::with_capacity(1);
     projects.push(me.projects.get(0).expect("Hello project").clone()).expect("one project");
     me.projects = projects;
+    if name.starts_with("home-cop") {
+        me.projects.get_mut(0).expect("Home copy project").name = home_text("Widget");
+    }
     me.needs_total = match name {
         "home-at-work" | "home-needs-under-begin" => 1,
         "home-needs-several" => 3,
@@ -1574,6 +1602,11 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
         .expect("Home row"),
     )
     .expect("one forge");
+    if name.starts_with("home-cop") {
+        let row = rows.get(0).expect("Home forge").clone().into_parts();
+        *rows.get_mut(0).expect("Home forge") =
+            w::ForgeRow::new(&w::CEILINGS, crate::worlds::home_copies(row, name)).expect("Home copies");
+    }
     rows
 }
 

@@ -153,6 +153,15 @@ pub enum Word {
     HomeHow,
     HomeHowDetail,
     HomeStart,
+    HomeCopying,
+    HomeCopyWaiting,
+    HomeCopyIn,
+    HomeCopiesIn,
+    HomeCopyInDetail,
+    HomeCopiesInDetail,
+    HomeCopyAgain,
+    HomeCopyOffer,
+    HomeCopyAct,
     HomeIn,
     HomeInDetail,
     HomeAdopting,
@@ -975,7 +984,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Goal rows, ways and page add thirty-five phrases (client/README.md, 3.5).
 // The sheet replaces its placeholder with four refusal phrases (3.5).
 // Ready’s counted copy lead adds one phrase (client/README.md, 3.5).
-const PHRASES: u32 = 1464;
+// Home’s copies add nine phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1473;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -996,8 +1006,9 @@ const PHRASES: u32 = 1464;
 // Goal rows, ways and page add sixty-three segments (3.5).
 // The sheet adds five segments after removing its placeholder (3.5).
 // Ready’s counted copy lead adds two literals and a Number hole (3.5).
-const SEGMENTS: u32 = 2533;
-const ALL: [Word; 868] = [
+// Home’s copies add twenty-five literal and hole segments (3.5).
+const SEGMENTS: u32 = 2558;
+const ALL: [Word; 877] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1137,6 +1148,15 @@ const ALL: [Word; 868] = [
     Word::HomeHow,
     Word::HomeHowDetail,
     Word::HomeStart,
+    Word::HomeCopying,
+    Word::HomeCopyWaiting,
+    Word::HomeCopyIn,
+    Word::HomeCopiesIn,
+    Word::HomeCopyInDetail,
+    Word::HomeCopiesInDetail,
+    Word::HomeCopyAgain,
+    Word::HomeCopyOffer,
+    Word::HomeCopyAct,
     Word::HomeIn,
     Word::HomeInDetail,
     Word::HomeAdopting,
@@ -2011,6 +2031,15 @@ impl Word {
             Self::HomeHow => 3119,
             Self::HomeHowDetail => 3120,
             Self::HomeStart => 3121,
+            Self::HomeCopying => 3309,
+            Self::HomeCopyWaiting => 3310,
+            Self::HomeCopyIn => 3311,
+            Self::HomeCopiesIn => 3312,
+            Self::HomeCopyInDetail => 3313,
+            Self::HomeCopiesInDetail => 3314,
+            Self::HomeCopyAgain => 3315,
+            Self::HomeCopyOffer => 3316,
+            Self::HomeCopyAct => 3317,
             Self::HomeIn => 3122,
             Self::HomeInDetail => 3123,
             Self::HomeAdopting => 3124,
@@ -2806,6 +2835,13 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
         return Ok(temper_client_protocol_wire::v1::CEILINGS.changes_panel_landing);
     }
 
+    // Copy titles retain every 100-byte org, slash, 100-byte name, comma and space (3.5).
+    if word == Word::HomeCopiesIn && !last {
+        return temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow);
+    }
+    if word == Word::HomeCopyOffer || word == Word::HomeCopyIn && !last || word == Word::HomeCopying {
+        return Ok(joined.max(512));
+    }
     // The phone link names the joined title, question and its colon (3.5).
     if word == Word::HomeAnswerName {
         return home_answer_bytes(joined);
@@ -2982,11 +3018,13 @@ impl Words {
             // Goal rows, ways and page add 669 literal bytes (3.5).
             // Sheet refusal literals add 84 bytes (client/README.md, 3.5).
             // Ready’s counted copy lead adds 96 literal bytes (3.5).
-            text_bytes: 96 + 84 + 669 + 122 + 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
+            // Home’s copy phrases add 254 literal bytes (client/README.md, 3.5).
+            text_bytes: 254 + 96 + 84 + 669 + 122 + 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
+                .max(temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
                 .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
@@ -3207,6 +3245,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeHow => (&[b"Tell temper how you work"], &[]),
         Word::HomeHowDetail => (&[b"temper runs its default way of working until you change it."], &[]),
         Word::HomeStart => (&[b"Start"], &[]),
+        Word::HomeCopying => (&[b"Copying ", b"/", b" from ", b"\xe2\x80\xa6"], &[Name, Name, Name]),
+        Word::HomeCopyWaiting => (&[b"Waiting to copy"], &[]),
+        Word::HomeCopyIn => (&[b"", b" is in ", b""], &[Name, Name]),
+        Word::HomeCopiesIn => (&[b"", b" are in ", b""], &[Name, Name]),
+        Word::HomeCopyInDetail => (&[b"Chats can change its code now, on your Forgejo; nothing goes back where it was copied from."], &[]),
+        Word::HomeCopiesInDetail => (&[b"Chats can change their code now, on your Forgejo; nothing goes back where they were copied from."], &[]),
+        Word::HomeCopyAgain => (&[b"Copy again"], &[]),
+        Word::HomeCopyOffer => (&[b"Copy ", b""], &[Name]),
+        Word::HomeCopyAct => (&[b"Copy"], &[]),
         Word::HomeIn => (&[b"", b"/", b" is in ", b""], &[Name, Name, Name]),
         Word::HomeInDetail => (&[b"temper can change its code now; checked changes land on main through temper's merge queue."], &[]),
         Word::HomeAdopting => (&[b"Adopting ", b"/", b" into ", b"\xe2\x80\xa6"], &[Name, Name, Name]),

@@ -14,6 +14,11 @@ home-needs-several
 home-nothing-needs
 home-ready
 home-adopting
+home-copying
+home-copy-failed
+home-copied
+home-copy-one
+home-copy-offer
 home-refused
 home-no-repository
 home-after-skip

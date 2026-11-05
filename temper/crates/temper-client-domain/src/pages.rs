@@ -70,6 +70,13 @@ pub enum Act {
     MakeDefault,
     /// Home adopts the first repository again.
     AdoptFirst,
+    /// Ask a failed copy again into its kept project.
+    CopyAgain {
+        org: Box<[u8]>,
+        name: Box<[u8]>,
+    },
+    /// Ask the welcome intent’s copies left unasked after a restart.
+    CopyOffered,
     /// Skip this project's To begin (client/README.md, 3.5).
     SkipToBegin,
     /// Ready's name field.
@@ -535,6 +542,18 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::AdoptFirst } => {
             if let Address::Home { project } = pages.address {
                 adopt(pages, env, project, out);
+            }
+        }
+        Event::Act { act: Act::CopyAgain { org, name } } => copy_again(pages, env, client, &org, &name, out),
+        Event::Act { act: Act::CopyOffered } => {
+            if let Address::Home { project } = pages.address
+                && let Some(home) = &pages.home
+                && !home.copying()
+            {
+                let rows = copy_rows(env, client);
+                if let Some(copies) = crate::forge::making::copies(&rows, None) {
+                    copy_all(pages, env, client, project, &copies, out);
+                }
             }
         }
         Event::Act { act: Act::DefaultName { words } } => {
@@ -1084,6 +1103,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Choice(_)
         | Act::MakeDefault
         | Act::AdoptFirst
+        | Act::CopyAgain { .. }
+        | Act::CopyOffered
         | Act::DefaultName { .. }
         | Act::OpenProject { .. }
         | Act::Project { .. }
@@ -1447,7 +1468,9 @@ fn default_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &To
         default_chosen(pages, client);
         out.push(Request::Show { address: Address::Home { project } });
         adopt(pages, env, project, out);
-        copy_all(pages, env, client, project, out);
+        if let Some(copies) = pages.welcome_copies.clone() {
+            copy_all(pages, env, client, project, &copies, out);
+        }
     }
     true
 }
@@ -1460,12 +1483,10 @@ fn default_chosen(pages: &mut Pages, client: &Client) {
     }
 }
 
-/// Ready asks every copy in the same turn, without keeping their answers (client/README.md, 3.5).
-fn copy_all(pages: &mut Pages, env: &Env<Limits>, client: &Client, project: u32, out: &mut Queue<Request>) {
-    use crate::forge::{self, forges, listed, making};
-    use temper_client_protocol_wire::v1 as w;
-    let Some(copies) = pages.welcome_copies.clone() else { return };
-    let rows = match client.document(forges::handle()) {
+/// The shared forges watch supplies Ready and Home (client/README.md, 3.5).
+fn copy_rows(env: &Env<Limits>, client: &Client) -> crate::forge::forges::State {
+    use crate::forge::forges;
+    match client.document(forges::handle()) {
         Some(document) if document.state != jig_client::State::Ended => match document.latest {
             Some(Latest::Family(record)) => match forges::rows(record, &env.limits.forge) {
                 Some(rows) => forges::State::Rows(rows),
@@ -1474,7 +1495,20 @@ fn copy_all(pages: &mut Pages, env: &Env<Limits>, client: &Client, project: u32,
             Some(Latest::Jig(_)) | None => forges::State::Unknown,
         },
         Some(_) | None => forges::State::Unknown,
-    };
+    }
+}
+/// Ready and Home ask copies under the same keys (client/README.md, 3.5).
+fn copy_all(
+    pages: &mut Pages,
+    env: &Env<Limits>,
+    client: &Client,
+    project: u32,
+    copies: &crate::forge::making::Copies,
+    out: &mut Queue<Request>,
+) {
+    use crate::forge::{self, listed, making};
+    use temper_client_protocol_wire::v1 as w;
+    let rows = copy_rows(env, client);
     let home = match listed::held(&rows, None, project) {
         listed::Held::None => true,
         listed::Held::Unknown | listed::Held::One { .. } | listed::Held::Several { .. } => false,
@@ -1482,6 +1516,15 @@ fn copy_all(pages: &mut Pages, env: &Env<Limits>, client: &Client, project: u32,
     let mut number = 0_u64;
     for address in &copies.addresses {
         number = number.checked_add(1).expect("copy places fit");
+        let mut asked = false;
+        for row in &listed::rows(&rows, None) {
+            if row.number == copies.forge {
+                asked = making::asked(row, address);
+            }
+        }
+        if asked {
+            continue;
+        }
         let Some((org, name)) = making::target(address) else { continue };
         let Ok(into) = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: home && number == 1 }) else {
             continue;
@@ -1490,7 +1533,60 @@ fn copy_all(pages: &mut Pages, env: &Env<Limits>, client: &Client, project: u32,
         let Some(request) = forge::make_repository(&ask, &env.limits.forge) else { continue };
         pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
         let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+        if let Some(home) = &mut pages.home {
+            home.keep_copy(key);
+        }
         out.push(Request::Client(jig_client::Event::Send { key, name: Some(forge::copy_key(number)), request }));
+    }
+}
+
+/// A failed row keeps the source and adoption the person asked (client/README.md, 3.5, Home).
+fn copy_again(
+    pages: &mut Pages,
+    env: &Env<Limits>,
+    client: &Client,
+    org: &[u8],
+    name: &[u8],
+    out: &mut Queue<Request>,
+) {
+    use crate::forge::{self, making};
+    use temper_client_protocol_wire::v1 as w;
+    let Address::Home { project } = pages.address else { return };
+    let Some(home) = &pages.home else { return };
+    if home.copying() {
+        return;
+    }
+    for row in &forge::listed::rows(&copy_rows(env, client), None) {
+        for making in &row.makings {
+            if making.org.as_ref() != org || making.name.as_ref() != name {
+                continue;
+            }
+            let Some(into) = &making.into else { continue };
+            if into.project() != project {
+                continue;
+            }
+            match &making.state {
+                w::MakingState::Failed(_) => {}
+                w::MakingState::Waiting
+                | w::MakingState::Making
+                | w::MakingState::Made(_)
+                | w::MakingState::Adopting(_) => continue,
+            }
+            let from = match &making.from {
+                w::MakeFrom::Copy(copy) => Some(copy.address()),
+                w::MakeFrom::Empty => None,
+            };
+            let Ok(ask) = making::ask(row.number, org, name, from, Some(into.clone())) else { return };
+            let Some(request) = forge::make_repository(&ask, &env.limits.forge) else { return };
+            pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
+            let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+            let number = skein_lib::Decimal::of(pages.serial);
+            let label = skein_lib::bytes::concat(&[b"home-copy-again-", number.as_bytes()]);
+            let name = crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&label).expect("copy key fits"));
+            pages.home.as_mut().expect("Home is open").keep_copy(key);
+            out.push(Request::Client(jig_client::Event::Send { key, name: Some(name), request }));
+            return;
+        }
     }
 }
 
