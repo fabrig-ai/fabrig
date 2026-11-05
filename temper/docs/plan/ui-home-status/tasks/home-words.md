@@ -76,3 +76,15 @@ As `notes/common.md`, Your report, with which goldens moved.
 ## Answers
 
 2026-11-05 (fabrig/ui). Ruling (rulings.md, 9): Home's Changes link follows the project's Changes setting; hidden means hidden on Home too. Merge ui-settings's facts when on main; until then leave one function for it.
+
+## Rebase (2026-11-05, step merge, foreman ui-home-status/home-words/foreman-1)
+
+reconcile Home’s Not yet entry with the landed status-routing change
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Commit `bdf141ef2a` on the integration trunk removes the implemented `Looked` request and `status` subject from the gap.
+Task commit `d98dcb661d` edits the same line to remove the implemented kicker, headline and foot.
+Resolve that entry to:
+`- **Not yet:** 3.5: *Home on any project*'s lede, byline and Goals: plan `ui-home-status`. 3.4, 5.5: the composer's`
+Preserve the remaining status entries from the target trunk, including any later updates.
+Do not restore the obsolete claim that Home draws only the day, time and needs.
+This refusal requires only the status-file reconciliation; it reports no code or test failure.
