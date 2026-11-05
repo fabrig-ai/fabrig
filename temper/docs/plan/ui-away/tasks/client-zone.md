@@ -68,3 +68,15 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: where the view takes the zone, and each caller that keeps universal time.
+
+## Rebase (2026-11-05, step merge, foreman ui-away/client-zone/foreman-1)
+
+preserve incoming status updates and remove only the two completed zone gaps.
+The merge conflicts in `temper/docs/design/client/README.status.md` and `temper/docs/design/client/browser.status.md`.
+Incoming integration commit `98d3ddc0cc` adds Goal status entries beside the lines changed by `7a41679353`; `4c8072800e` also updates Settings status.
+Resolve both files using the incoming status content, retaining its Goal and Settings entries.
+In `README.status.md`, remove only `5.12: the zone, which every form reads as universal time.`
+In `browser.status.md`, remove only `2.1: the zone, the shell's input.`
+Preserve all other gaps, including the Away entries.
+The log reports automatic merges for the code files; it reports no build or test failure.
+After rebasing, run the spec's required package checks through heavy.
