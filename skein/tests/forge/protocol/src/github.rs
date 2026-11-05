@@ -1,4 +1,5 @@
 //! HTTP framing over seeded streams (skein/docs/design/fake-forge.md, 10.6).
+use std::collections::BTreeMap;
 use crate::{fixtures, github_fixture as fixture, referee::Accounting};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_fake_forge_github::{
@@ -8,7 +9,7 @@ use skein_fake_forge_github::{
 };
 use skein_forge_connection::{Component, Event, Limits, Request};
 use skein_forge_kit::{
-    fixtures as machine,
+    fixtures as machine, sockets::Sockets,
     joint::REPO,
     pipe::{Cut, Pipe},
 };
@@ -16,7 +17,6 @@ use skein_lib::{
     Duration, Env, Queue, ReplyTo, Rng, Secret, Time, Token, Wall,
     stream::{Down, Up},
 };
-use std::collections::BTreeMap;
 
 // Recovery listing timestamps must be above the observed issues-since cutoff.
 const WALL_BASE: Wall = Wall::from_nanos(31_536_000_000_000_000);
@@ -136,7 +136,7 @@ pub(crate) struct Github {
     pub closed: bool,
     pub secrets: Vec<Secret>,
     pub mints: u64,
-    peers: BTreeMap<Token, Peer>,
+    peers: Sockets<Peer>,
     service: Service,
     rng: Rng,
     cut_chance: u32,
@@ -186,7 +186,7 @@ impl Github {
             events: Vec::new(),
             connected: 0,
             closed: false,
-            peers: BTreeMap::new(),
+            peers: Sockets::default(),
             service: fixture::service(seed, fixture::key()),
             rng: Rng::new(seed),
             cut_chance,
@@ -330,11 +330,20 @@ impl Github {
         self.component.up(&self.env, event, &mut self.above, &mut self.below);
     }
     fn io(&mut self, request: skein_io::Request) {
-        match request {
-            skein_io::Request::Connect { owner, .. } => {
+        if let skein_io::Request::Abort { entity } | skein_io::Request::Close { entity } = request {
+            self.end(entity);
+            return;
+        }
+        if let skein_io::Request::Stream { stream, down: Down::Send(bytes) } = &request
+            && let Some(peer) = self.peers.get_mut(stream) {
+            peer.sent(bytes, &mut self.secrets);
+        }
+        let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { Token::new(0) };
+        let env = self.server_env();
+        let mut events = Queue::with_capacity(3);
+        let _ = self.peers.request(request, |_| {
                 let cut =
                     if self.rng.chance(self.cut_chance) { Cut::At(self.rng.between(0, 2048)) } else { Cut::Never };
-                let env = self.server_env();
                 let mut peer = Peer {
                     pipe: Pipe::new(self.rng.next_u64(), cut),
                     server: Server::new(owner, &env.limits).expect("GitHub server limits"),
@@ -352,31 +361,13 @@ impl Github {
                     delivered_heads: 0,
                 };
                 server::start(&mut peer.server, &mut self.service, &env, &mut peer.above, &mut peer.below);
-                assert!(self.peers.insert(owner, peer).is_none());
-                self.up(skein_io::Event::Connecting { owner, socket: owner });
-                self.up(skein_io::Event::Connected { owner });
-            }
-            skein_io::Request::Stream { stream, down } => {
-                if let Some(peer) = self.peers.get_mut(&stream) {
-                    if let Down::Send(bytes) = &down {
-                        peer.sent(bytes, &mut self.secrets);
-                    }
-                    peer.pipe.client_down(down);
-                }
-            }
-            skein_io::Request::Abort { entity } | skein_io::Request::Close { entity } => self.end(entity),
-            other @ (skein_io::Request::Listen { .. }
-            | skein_io::Request::Bind { .. }
-            | skein_io::Request::Reject { .. }
-            | skein_io::Request::Output { .. }
-            | skein_io::Request::Spawn { .. }
-            | skein_io::Request::Signal { .. }
-            | skein_io::Request::Usage { .. }
-            | skein_io::Request::Window { .. }) => panic!("unexpected GitHub io {other:?}"),
-        }
+            Some(peer)
+        }, &mut events);
+        while let Some(event) = events.pop() { self.up(event); }
     }
     fn end(&mut self, owner: Token) {
-        if let Some(peer) = self.peers.remove(&owner) {
+        let mut events = Queue::with_capacity(1);
+        if let Some(peer) = self.peers.close(owner, &mut events) {
             let counts = peer.pipe.request_counts();
             assert_eq!(counts.written, skein_lib::len_u64(peer.traces.len()));
             self.lines.extend_from_slice(peer.pipe.request_lines());
@@ -387,7 +378,7 @@ impl Github {
                     self.totals.cut_in_head += u64::from(index >= peer.delivered_heads);
                 }
             }
-            self.up(skein_io::Event::Closed { owner });
+            while let Some(event) = events.pop() { self.up(event); }
         }
     }
     pub fn accounting(&self) -> Accounting {
@@ -440,4 +431,9 @@ impl Github {
         assert_eq!(repository, REPO);
         self.action(Request::Call { call: Token::new(call), repository, op });
     }
+}
+
+impl skein_forge_kit::sockets::Peer for Peer {
+    fn take(&mut self, down: Down) { self.pipe.client_down(down); }
+    fn answer(&mut self) -> Option<Up> { self.pipe.client_up() }
 }
