@@ -207,7 +207,11 @@ mod tests {
         requests
             .iter()
             .filter_map(|request| match request {
-                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => Some(*read),
+                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { query, .. }) }
+                    if query.parent == Some(TASK) =>
+                {
+                    Some(*read)
+                }
                 _ => None,
             })
             .collect()
