@@ -2183,9 +2183,9 @@ section 9): the foreman and the requester decide, and the change relays
   a call in the words form to the change from its producing task, or
   the repair or the resolution it has live, answers with an error
   saying `Your report goes in finish; this change takes no words. To
-  ask: message target=this change, form=question.` Anything but a
-  question from such an agent found in the change's inbox at a step
-  receives those same words as words, in place of the fallback feedback.
+  ask: message target=this change, form=question.` Words or an answer
+  from such an agent found in the change's inbox at a step receive those
+  same words, as words, in place of the fallback feedback.
   A question of theirs past the open-queue ceiling keeps the fallback
   feedback (below). The stock coding charter tells its run the same
   (`../protocol/configuration.md`, 13.4).
@@ -2279,8 +2279,8 @@ section 9): the foreman and the requester decide, and the change relays
   change into the landing branch, and amendments of the live changes it
   concerns.
 
-A change keeps at most 16 open questions. Its configured question allowance
-must be less than 16, leaving room for the question past that allowance. A
+A change keeps at most 128 open questions. Its configured question allowance
+must be less than 128, leaving room for the question past that allowance. A
 question beyond the open-queue ceiling is answered with fallback feedback
 describing the enabled route and answer form; it never enters the relay (2026-11-04).
 
@@ -3058,3 +3058,8 @@ whole.
   `Status` carries only for a failed Actions run; until skein's dialect
   carries it on every row, every row is CI (5.3), another App's check
   runs among them, and its suites with no run list nothing.
+- **A refused `message` keeps no record** (8.11): the call's refusal of an
+  agent's own words is rendered and kept with no call's record, as the
+  `goal` tool's refusal is, where a decided call's answer is kept
+  (`root.md`, 5.2). So a call asked again decides again, from the change as
+  it then stands. Default: so.
