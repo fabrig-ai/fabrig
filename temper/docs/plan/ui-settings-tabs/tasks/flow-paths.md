@@ -112,3 +112,23 @@ Pre-approved:
 ## Report
 
 As the implementer's text says: which builder; each screenshot, by name; each difference and why it stays; each ending you changed or found none to change; the rules removed from `temper.css`.
+
+## Rebase (2026-11-05, step merge, foreman ui-settings-tabs/flow-paths/foreman-1)
+
+rebase the flow style and word registries onto the integration branch’s allocations
+The merge conflicts are in `temper/crates/temper-client-view/src/look.rs` and `temper/crates/temper-client-view/src/words.rs`.
+Integration commit `cbdead9c7b` brought main’s Goals and Needs you changes alongside Settings; preserve both sets of changes.
+
+In `look.rs`, keep integration’s existing allocations, including Settings tokens 299–320.
+Assign `SETTINGS_PATH` and `SETTINGS_TEXT` tokens 321 and 322; their branch tokens 275 and 276 now identify Goals styles.
+Append `temper-settings-path` and `temper-settings-text` to `NAMES.styles` in that order.
+Preserve this task’s removal of `ADOPTION_PAGE` and its `temper-reserved-61` placeholder.
+
+In `words.rs`, retain integration’s vocabulary and add both path words throughout the enum, `ALL`, key mapping and English definitions.
+Assign `PathAddForge` and `PathConnectAccount` keys 3360 and 3361; 3260 and 3261 now belong to `GoalLandWhole` and `GoalLandWholeLine`.
+Combine the counts: `PHRASES = 1485`, `SEGMENTS = 2582`, and `ALL: [Word; 888]`.
+Preserve integration’s word limits and hole handling.
+
+Keep the automatically merged flow callers, CSS, tests and status changes.
+Run the focused view tests for style names, vocabulary and flow paths, then the spec’s required checks.
+Preserve the acceptance requirement that terminal flow numbers and goldens remain unchanged.
