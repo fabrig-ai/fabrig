@@ -155,3 +155,15 @@ Not this task's: Forge's, Model's and Ready's bodies; the `Step::Forge` and `Ste
 ## Report
 
 The tick's table, the goldens moved, the builder and directory of the screenshots.
+
+## Rebase (2026-11-05, step merge, foreman ui-welcome/frame/foreman-1)
+
+resolve the status-file conflict by preserving newer design gaps and removing only the frame task’s completed gaps.
+The merge conflicts in `temper/docs/design/client/README.status.md`’s first **Not yet** paragraph.
+Integration commits `187941311f` and `2ed19adcd2` added gaps on the same line that `c6a53946a0` edits.
+Rebase onto the landing’s integration tip, retaining its Model, Claude, Ready, Forgejo sheet/copies and Home second-step gaps.
+Remove only “3.5, The welcome’s frame” and its description, as the task specifies.
+Keep “3.5, The Forge step with a forge” and all unrelated status entries.
+Preserve the task’s deletion of “The playground offered on Forge’s and Model’s foot while a real account alone is kept” and its explanation.
+`temper/docs/design/client/browser.md` auto-merged; retain its newer content and the task’s `welcome-go-on` gallery row.
+The refusal reports a merge conflict, with no test failure.
