@@ -60,3 +60,18 @@ As `notes/common.md`, Your report.
 ## Answers
 
 2026-11-05 (fabrig/ui). Ruling (rulings.md, 9): Home's Goals section shows when the Goals setting is on or the project has a goal.
+
+## Rebase (2026-11-05, step merge, foreman ui-home-status/home-goals/foreman-1)
+
+Rebase Home Goals onto the shared Needs session changes, preserving both behaviors and tests.
+The merge conflicts in `temper/crates/temper-client-view/src/pages/home.rs` and `temper/crates/temper-client-view/src/tests/home.rs`.
+Main’s relevant commits are `02a1b9f057` (shared Home Needs session) and `bff744b596` (standing Needs watch); integration incorporated them through `ebf85a0159`.
+In `pages/home.rs::main`, retain the incoming `rows` parameter, `needs(..., times, rows)` call and `crate::confirm::main(..., rows)`.
+Combine those with this branch’s Goals/Chats conditional, `GoalsFilter` import and `goals` helper.
+Keep Goals replacing Chats only when `!facts.to_begin() && root.has_goals(project)`.
+In `tests/home.rs`, retain both appended test groups: incoming Needs session tests and this branch’s Goals helpers and tests.
+Preserve the incoming `root_at_with_dismissals_and_needs` fixture setup and delivery to `needs_watch`, alongside `StatusFixture::goal_rows` and its tracked-task/report deliveries.
+Combine `home_limits` changes: preserve incoming `reads = 16` and provide sufficient handles and watches for Goals plus the standing Needs watch.
+Review the automatically merged domain routing so Home’s Goals, Chats, inbox and shared Needs session all receive their events.
+Run the focused Home view tests and Goals domain tests through heavy, then the specified terminal and gallery checks.
+Regenerate any resulting terminal goldens or gallery outputs with their tools.
