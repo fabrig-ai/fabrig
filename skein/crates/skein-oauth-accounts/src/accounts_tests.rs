@@ -375,6 +375,16 @@ fn a_wanted_account_is_refreshed_at_its_lead_with_no_grant() {
 }
 
 #[test]
+fn a_due_refresh_waits_for_sign_in_to_finish() {
+    let mut owner = wanted_owner();
+    owner.ask(Request::SignIn { account: 0, subject: None });
+    let _listener = owner.listen();
+    at(&mut owner, 20);
+    owner.fire();
+    assert!(!owner.component.has_work());
+}
+
+#[test]
 fn a_wanted_refresh_keeps_its_record_and_lends_nothing() {
     let expected = private::RefreshOutcome { kept: true, removed: 0, granted: false };
     for (name, mut owner, expected) in [("owner", wanted_owner(), expected), ("private", wanted_private(), expected)] {
@@ -584,22 +594,24 @@ fn a_wanted_account_is_left_alone_before_its_lead() {
 }
 
 fn queued_rejection(attempted: bool, refreshable: bool) -> Owner {
+    const RECORD_EXPIRY_SECONDS: u64 = 30;
+    const REFRESH_DUE_SECONDS: u64 = 20;
     let mut profile = limits();
     profile.exchanges = 1;
-    let mut account = refresh_at(30, None);
+    let mut account = refresh_at(RECORD_EXPIRY_SECONDS, None);
     if let Account::SignIn { shared, keeper: Keeper::Owner { kept: Some(record) }, .. } = &mut account {
         *shared = true;
         if !refreshable {
             record.refresh_token = None;
         }
     }
-    let mut blocker = refresh_at(30, None);
-    if let Account::SignIn { shared, .. } = &mut blocker {
+    let mut exchange_occupant = refresh_at(RECORD_EXPIRY_SECONDS, None);
+    if let Account::SignIn { shared, .. } = &mut exchange_occupant {
         *shared = true;
     }
-    let mut owner = Owner::configured([account, blocker], &profile);
+    let mut owner = Owner::configured([account, exchange_occupant], &profile);
     owner.ask(Request::Grant { account: 0 });
-    at(&mut owner, 20);
+    at(&mut owner, REFRESH_DUE_SECONDS);
     if attempted {
         owner.fire();
         owner.ask(Request::Locked { account: 0, answer: Locked::Busy });

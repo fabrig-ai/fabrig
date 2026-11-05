@@ -1,6 +1,6 @@
 //! Account admission and removal (oauth.md, sections 6.2, 6.3 and 6.6).
 
-use super::{AccountEntry, Component, Lending, Lifecycle, Name, State, Unusable, failed, held, set_held};
+use super::{AccountEntry, Component, Lending, Lifecycle, Name, Rejection, State, Unusable, failed, held, set_held};
 use crate::accounts::Source;
 use crate::keeper::{Operation, Private, Store};
 use crate::{Account, Asked, Event, Failure, Keeper, Limits, Lower, Refusal, Transport};
@@ -121,7 +121,7 @@ impl Component {
         let entry = self.entries.get_mut(account).expect("account entry");
         let slot = &mut entry.state;
         match slot {
-            State::Record { expiry, notice, .. } if env.now < *expiry && !notice.rejected() => {
+            State::Record { expiry, rejection, .. } if env.now < *expiry && *rejection == Rejection::Clear => {
                 super::grant(slot, &entry.source, env.now, entry.name.number(), up);
             }
             State::Record { lending, refresh, .. } => {
