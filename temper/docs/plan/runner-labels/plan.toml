@@ -1,0 +1,3 @@
+draft = "runner-labels"
+repo = "fabrig"
+sources = ["temper/docs/plan/runner-labels/inputs/request.md", "temper/docs/help/server.md", "AGENTS.md", "DESIGN.md"]
