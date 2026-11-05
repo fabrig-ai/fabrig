@@ -33,75 +33,67 @@ pub enum Heard {
 /// One read, ending at most once; its owner runs `User` before `ApiSettings`.
 #[derive(Debug)]
 pub struct Plan {
-    read: Read,
-    ended: bool,
+    state: State,
+}
+
+#[derive(Debug)]
+enum State {
+    Asked(Read),
+    Ended,
 }
 
 impl Plan {
     #[must_use]
     pub fn new(read: Read) -> Self {
-        Self { read, ended: false }
+        Self { state: State::Asked(read) }
     }
 
     pub fn begin(&mut self) -> Step {
-        let request = match self.read {
-            Read::User => Request::User,
-            Read::ApiSettings => Request::ApiSettings,
+        let request = match self.state {
+            State::Asked(read) => match read {
+                Read::User => Request::User,
+                Read::ApiSettings => Request::ApiSettings,
+            },
+            State::Ended => unreachable!("the owner begins a start plan once"),
         };
         Step::Send(Exchange { request, range: None })
     }
 
     pub fn heard(&mut self, heard: ExchangeHeard) -> Option<Step> {
-        if self.ended {
-            return None;
-        }
-        let answer = match heard {
-            ExchangeHeard::Head { status, fields } if status != 200 => {
-                Heard::Status { status, retry: fields.retry_after }
+        let answer;
+        self.state = match core::mem::replace(&mut self.state, State::Ended) {
+            State::Asked(read) => {
+                answer = match heard {
+                    ExchangeHeard::Head { status, fields } if status != 200 => {
+                        Heard::Status { status, retry: fields.retry_after }
+                    }
+                    ExchangeHeard::Head { .. } | ExchangeHeard::Row(_) => {
+                        self.state = State::Asked(read);
+                        return None;
+                    }
+                    ExchangeHeard::Done(Body::Document(document)) => document_answer(read, Some(document)),
+                    ExchangeHeard::Done(Body::Empty | Body::Raw { .. } | Body::Malformed(_))
+                    | ExchangeHeard::Failed(_) => Heard::Unanswered,
+                };
+                State::Ended
             }
-            ExchangeHeard::Head { .. } | ExchangeHeard::Row(_) => return None,
-            ExchangeHeard::Done(Body::Document(document)) => self.document(document),
-            ExchangeHeard::Done(Body::Empty | Body::Raw { .. } | Body::Malformed(_)) | ExchangeHeard::Failed(_) => {
-                Heard::Unanswered
-            }
+            State::Ended => return None,
         };
-        self.ended = true;
         Some(Step::Done(answer))
     }
+}
 
-    fn document(&self, document: Document) -> Heard {
-        match document {
-            Document::User(user) if self.read == Read::User => Heard::User { id: user.id },
-            Document::ApiSettings(settings) if self.read == Read::ApiSettings && settings.max_response_items > 0 => {
+fn document_answer(read: Read, document: Option<Document>) -> Heard {
+    match read {
+        Read::User => match document {
+            Some(Document::User(user)) => Heard::User { id: user.id },
+            Some(_) | None => Heard::Unanswered,
+        },
+        Read::ApiSettings => match document {
+            Some(Document::ApiSettings(settings)) if settings.max_response_items > 0 => {
                 Heard::ApiSettings { max_response_items: settings.max_response_items }
             }
-            Document::User(_)
-            | Document::ApiSettings(_)
-            | Document::Hook(_)
-            | Document::Token(_)
-            | Document::Org(_)
-            | Document::CreatedFile { .. }
-            | Document::CreatedRepository(_)
-            | Document::Team(_)
-            | Document::Repository(_)
-            | Document::RepoSearch { .. }
-            | Document::Search { .. }
-            | Document::Listed { .. }
-            | Document::Issue(_)
-            | Document::Comment(_)
-            | Document::Status(_)
-            | Document::Review(_)
-            | Document::Pull(_)
-            | Document::CombinedStatus(_)
-            | Document::Branch(_)
-            | Document::Protection(_)
-            | Document::Permission(_)
-            | Document::Compare(_)
-            | Document::Tree { .. }
-            | Document::Runs { .. }
-            | Document::Run(_)
-            | Document::Job(_)
-            | Document::Error(_) => Heard::Unanswered,
-        }
+            Some(_) | None => Heard::Unanswered,
+        },
     }
 }

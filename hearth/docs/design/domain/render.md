@@ -1328,8 +1328,9 @@ room check that remains, and what it keeps.
   stanza and then its end, and the end comes once.
 - **A decoder gives one thing a delivery.** The JSON decoder gives the
   next demand or a document's outcome, and a read takes one of each from a
-  delivery. The outcome comes once, with no read out; `Closed` comes last,
-  and once.
+  delivery and drops the decoder at its outcome, so that anything beside
+  it would be lost. The outcome comes once, with no read out; `Closed`
+  comes last, and once.
 - **Resumed work goes before the next event.** While the protocol layer
   has work to resume, no io or file event enters it (`work_pending`).
 - **One record at a time.** The client's printer takes the next record

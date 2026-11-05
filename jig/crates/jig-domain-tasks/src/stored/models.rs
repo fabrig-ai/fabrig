@@ -77,66 +77,22 @@ impl crate::Stored {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        Authority, Budget, Contract, Deadline, Delegation, Domain, Event, Executor, Flags, Funder, Kept, Models, New,
-        Numbers, Party, Scopes, Spec, Stored, Tools, WakePolicy, step,
-    };
-    use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+    use crate::Models;
 
     #[test]
-    fn remap_models_updates_a_live_authority_and_preserves_all() {
-        let kept = Kept { revisions: 4, versions: 8 };
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::limits::tests::LIMITS };
-        let mut domain = Domain::new(&env.limits, kept, 91, 1, crate::tests::charters(), Box::new([0]));
-        let authority = Authority {
-            tools: Tools(0),
-            models: Models::Named(3),
-            grants: Box::new([]),
-            delegation: Delegation { kinds: Box::new([]), tasks: 16, depth: 4 },
-            budget: Budget { spend: 100, deadline: None },
-            notes: Scopes(0),
-            note_resources: Box::new([]),
-        };
-        let new = New {
-            deadline: Deadline::Named,
-            label: 0,
-            flags: Flags::PLAIN,
-            number: 1,
-            project: 1,
-            executor: Executor::Agent { charter: 1 },
-            llm: None,
-            spec: Spec { job: None, asks: false, words: Box::new([1]), parameters: Box::new([]), inputs: Box::new([]) },
-            contract: Contract::Report { words: 32 },
-            authority,
-            numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
-            funder: Funder::Period { project: 1, period: 0 },
-            dependencies: Box::new([]),
-            holdings: Box::new([]),
-            wake: WakePolicy::DEFAULT,
-            recurring: None,
-            tracked: None,
-        };
-        let mut out = Queue::uncapped();
-        for event in [
-            Event::Check,
-            Event::Restored,
-            Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(1)), project: 1, period: 0, budget: 10_000 },
-            Event::Make { reply_to: ReplyTo::new(Token::new(2)), creator: Party::Person(9), batch: Box::new([new]) },
-        ] {
-            step(&mut domain, &env, event, &mut out);
-        }
-        let mut row = Stored::Live(Box::new(crate::domain::record(&domain, 1).expect("admitted task").clone()));
+    fn remap_preserves_all_and_translates_named_bits() {
         let mut moved = [0; 64];
-        moved[0] = 4;
-        let mut expected = row.clone();
-        let Stored::Live(value) = &mut expected else { panic!("live") };
-        value.authority.models = Models::Named(4);
-        row.remap_models(&moved);
-        assert_eq!(row, expected);
-        let Stored::Live(value) = &mut row else { panic!("live") };
-        value.authority.models = Models::All;
-        let expected = row.clone();
-        row.remap_models(&moved);
-        assert_eq!(row, expected);
+        moved[0] = 2;
+        moved[1] = 2;
+        moved[63] = 4;
+        for (before, after) in [
+            (Models::All, Models::All),
+            (Models::Named(3), Models::Named(2)),
+            (Models::Named(4), Models::Named(0)),
+            (Models::Named(1 << 63), Models::Named(4)),
+            (Models::Named(0), Models::Named(0)),
+        ] {
+            assert_eq!(before.remap(&moved), after);
+        }
     }
 }

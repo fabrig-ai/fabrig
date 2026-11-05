@@ -1255,6 +1255,19 @@ fn a_new_note_call_reads_again() {
     assert_eq!(take_draft_reads(&mut f), 0, "the old note call is already seen");
 }
 #[test]
+fn a_note_number_reused_in_a_later_turn_reads_again() {
+    let mut f = f::opened();
+    take_draft_reads(&mut f);
+    draft_answer(&mut f, notes_page(&[draft_note(12, 1, b"# First")]));
+    note_call(&mut f, 1, f::POSITION);
+    take_draft_reads(&mut f);
+    draft_answer(&mut f, notes_page(&[draft_note(12, 1, b"# First")]));
+    note_call(&mut f, 1, f::POSITION + 1);
+    assert_eq!(take_draft_reads(&mut f), 1, "each turn has its own call numbers");
+    draft_answer(&mut f, notes_page(&[draft_note(12, 2, b"# Revised")]));
+    assert_eq!(f.chat.draft.as_ref().unwrap().body.as_ref(), b"# Revised");
+}
+#[test]
 fn one_read_out_wanted_once_more() {
     let mut f = f::opened();
     assert_eq!(take_draft_reads(&mut f), 1);

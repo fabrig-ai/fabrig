@@ -1345,10 +1345,10 @@ Which is which, by what 7.1 prepares:
 | a required section past the brief's deadline | transient | `SECTION: not gathered by its deadline` |
 | a connector says its system failed for now | transient | the connector's |
 | a dependency's result the store no longer answers with | transient | `results: a dependency's result could not be read` |
-| a transcript's window that does not load | transient | `transcript: its window could not be loaded` |
+| a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread with no transient try spent (7.2) |
 | a required section that cannot fit, whole or cut | permanent | `SECTION: does not fit the brief's budget`, or `brief: its required sections do not fit its budget` |
 | a section a connector answered past its bound | permanent | `SECTION: answered past its bound` |
-| a plan the brief child refuses: more sections than a brief holds, a budget past the limit, a core text past it, a section planned twice, a deadline passed | permanent | `brief: ...`, naming which |
+| a plan the brief child refuses: more sections than a brief holds, a budget past the limit, a core text past it, a section planned twice, a deadline passed | permanent | `brief: ...`, naming which; for a core text, `SECTION: its text is past the brief's limit` |
 | a connector says its system answered wrongly, or will not answer | permanent | the connector's |
 | the root cannot put the brief together: a section's owner lost it, or no room for a required section | permanent | the application's |
 | a core section the core cannot read within its bounds | permanent | `task: ...`, `results: ...`, `transcript: ...` |
@@ -2001,6 +2001,12 @@ section 5).
   the start instead, beside section 6's refusals, a cause of people's
   and a failure of the core's. Default: it panics; the user's to
   decide.
+- **A transcript's load with no slot** (9.1, 7.2): a root whose load table
+  is full answers `TranscriptLoad::Failed`, as it does for a page it cannot
+  take, so room that frees by itself counts as transient, and the try it
+  spends makes the next run start fresh from the tail rather than resume.
+  Capacity would need `TranscriptLoad` to say which. Default: as built,
+  until the user says.
 
 - **A fresh attempt's tail, lost before its first turn.** An attempt
   that starts fresh from a closed window, or past the resume limit,

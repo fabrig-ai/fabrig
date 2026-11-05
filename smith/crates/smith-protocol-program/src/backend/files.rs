@@ -286,6 +286,12 @@ impl Backend {
                 unreachable!("startup retains its prompt")
             }
         };
+        if let Some(given) = &mut self.given {
+            given.push(super::Given::Instructions(bytes.clone()));
+            if let Some(server) = self.startup.server() {
+                given.push(super::Given::Tools(Box::from(server.tool_list())));
+            }
+        }
         self.file(
             Step::Instructions,
             file::Request::Store {

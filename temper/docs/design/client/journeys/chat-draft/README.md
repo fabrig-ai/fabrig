@@ -1,29 +1,53 @@
 # chat-draft
 
-This recording holds the reachable prefix of the walk; the document and
-goal steps are not recorded.
-
 On a fresh `temper box --fake-backends`, built with
 `temper/scripts/bundle.sh --loopback --record`: set up Forgejo on this
 machine with the offered empty `work/hello`, sign in to the fake ChatGPT
-plan, and create Hello. No chat is started during setup.
+plan, and create Hello. Wait for Home's status before starting the
+first chat. Home writes note 1; the chat's document is note 2.
 
-Reload `/chats/new` to start the recording. Send "Let us design Away
-mode." to start the first chat, T1. The fake model replies "Hello from
-the local fake model." Mark the settled chat with Alt+Shift+M and save
-with Alt+Shift+S.
+Reload `/projects/1/settings` to start the recording at How work runs.
+Mark the page with Alt+Shift+M, turn on "Chats can write drafts", and
+mark it again. Open "+ New chat", send "Let us design Away mode." to
+start the first chat, T1, and mark its settled reply. Press "+ Draft";
+the fake model writes the 29-line Away mode document and Split opens.
+Mark it, choose Chat, and send "Add what happens to a running goal."
+The second document turn answers "Edited", "+7 −0". Mark the settled
+Chat, choose Split and mark it, then Draft and mark it.
 
-The next required step, pressing "+ Draft", is blocked: the bar has no
-such control. The project's stock ways leave drafts off. The recording
-keeps those settings as the fresh box supplied them; it does not enable
-drafts to get past this step. Two document turns, Split, Draft, the
-Start goal sheet and the goal page remain unrecorded.
+Press "Start goal…", mark the one sheet with its default `away-mode`
+name and Task by task way, then press "Start goal". The fake goal, T2,
+finishes with its local report. Mark its page, press its "Draft" link
+back to T1, mark the returned chat, and save the recording with
+Alt+Shift+S. The first replay proves all 22 prints against the live
+pages. Split and Draft show the second revision's "A running goal"
+section, and the goal-create request carries that revision, followed
+by its draft and chat provenance. The goal's Draft link is read from
+those provenance lines, beyond its shortened specification preview.
 
-- `01.html`: the new chat with "Let us design Away mode." entered,
-  before Send.
-- `02.html`: the settled T1 after the fake reply, marked with
-  Alt+Shift+M. The bar has no "+ Draft".
-- `03.html`: the same settled chat at the recording's end, saved with
-  Alt+Shift+S.
+- `01.html`: How work runs with drafts Off, marked.
+- `02.html`: the same page before toggling "Chats can write drafts".
+- `03.html`: drafts On, marked.
+- `04.html`: the same page before opening "+ New chat".
+- `05.html`: the new chat with its opening words entered, before Send.
+- `06.html`: T1 after its opening fake reply, marked.
+- `07.html`: the settled chat before pressing "+ Draft".
+- `08.html`: Split after the first document write, marked.
+- `09.html`: the same Split before choosing Chat.
+- `10.html`: Chat with the revision request entered, before Send.
+- `11.html`: Chat after the second document turn, marked.
+- `12.html`: the same Chat before choosing Split.
+- `13.html`: Split after the second document turn, marked.
+- `14.html`: the same Split before choosing Draft.
+- `15.html`: Draft after the second document turn, marked.
+- `16.html`: the same Draft before pressing "Start goal…".
+- `17.html`: the Start goal sheet, marked.
+- `18.html`: the same sheet before pressing "Start goal".
+- `19.html`: the settled goal page, marked, with its Draft return link.
+- `20.html`: the same goal page before pressing Draft.
+- `21.html`: the returned chat T1, opened in Chat, marked.
+- `22.html`: the same chat at the recording's end.
 
-The first replay proves this prefix against the live page.
+The walk used a throwaway Chromium CDP driver, accepting JavaScript
+dialogs and using `Emulation.setDeviceMetricsOverride` for 420-pixel
+renders. No driver is kept. Screenshots are outside the checkout.

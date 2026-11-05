@@ -1,4 +1,5 @@
 //! A goal's reads and pure page facts (temper/docs/design/client/README.md, 5.8).
+mod specification;
 use super::{Request, delegation, goals, report, task};
 use crate::owner::Owner;
 use alloc::boxed::Box;
@@ -21,6 +22,10 @@ pub struct Counts {
 pub struct Goal {
     pub report: Option<report::Report>,
     pub line: Option<c::TaskLine>,
+    pub draft: (Option<Box<[u8]>>, Option<u64>),
+    specification: Option<specification::Specification>,
+    spec_revision: c::Revision,
+    text_bound: u32,
     report_handle: Handle,
     line_handle: Handle,
     project: u32,
@@ -36,12 +41,16 @@ pub struct Goal {
     ended_group: bool,
 }
 impl Goal {
-    pub(super) fn new(task: &c::Task, next: &mut u64, out: &mut Queue<Request>) -> Self {
+    pub(super) fn new(task: &c::Task, text_bound: u32, next: &mut u64, out: &mut Queue<Request>) -> Self {
         let report_handle = handle(*next);
         *next = next.checked_add(1).expect("goal handles fit");
         let line_handle = handle(*next);
         *next = next.checked_add(1).expect("goal handles fit");
         let mut goal = Self {
+            draft: provenance(task),
+            specification: specification::Specification::new(task, text_bound, next, out),
+            spec_revision: task.spec_revision,
+            text_bound,
             report: None,
             line: None,
             report_handle,
@@ -61,7 +70,15 @@ impl Goal {
         goal.reconcile(out);
         goal
     }
-    pub(super) fn changed(&mut self, task: &c::Task, out: &mut Queue<Request>) {
+    pub(super) fn changed(&mut self, task: &c::Task, next: &mut u64, out: &mut Queue<Request>) {
+        if self.spec_revision != task.spec_revision {
+            if let Some(specification) = self.specification.take() {
+                specification.leave(out);
+            }
+            self.draft = provenance(task);
+            self.specification = specification::Specification::new(task, self.text_bound, next, out);
+            self.spec_revision = task.spec_revision;
+        }
         self.activity = task.last_activity;
         self.changed = task.changed;
         self.query = own_line_query(task);
@@ -85,6 +102,11 @@ impl Goal {
         read(self.line_handle, c::Read::Tasks { query: self.query, live, ended }, out);
     }
     pub(super) fn told(&mut self, told: &Told, out: &mut Queue<Request>) -> bool {
+        if let Some(specification) = &mut self.specification
+            && specification.told(told, self.number, &mut self.draft, out)
+        {
+            return true;
+        }
         match told {
             Told::Page { handle, page } if *handle == self.report_handle => {
                 if let Some(at) = self.reporting.take() {
@@ -151,6 +173,9 @@ impl Goal {
         }
     }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
+        if let Some(specification) = &self.specification {
+            specification.leave(out);
+        }
         for handle in [self.report_handle, self.line_handle] {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
@@ -190,6 +215,9 @@ impl Goal {
     pub fn state(&self, task: &c::Task, ended: Option<&c::TaskPage>, needs: bool) -> goals::State {
         goals::state(&task.chip, needs, self.report.is_some(), self.counts(task, ended).total)
     }
+}
+fn provenance(task: &c::Task) -> (Option<Box<[u8]>>, Option<u64>) {
+    if task.spec.specification.words.cut { (None, None) } else { draft_of(task.spec.specification.words.bytes()) }
 }
 fn handle(number: u64) -> Handle {
     Handle { asker: Owner::Pages.asker(), number }

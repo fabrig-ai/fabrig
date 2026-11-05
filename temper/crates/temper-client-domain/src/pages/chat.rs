@@ -41,7 +41,7 @@ pub struct Chat {
     draft_asking: Asking,
     draft_project: Option<u32>,
     draft_out: bool,
-    notes_seen: u64,
+    notes_seen: (u64, u32, u64),
     pub task: u64,
     pub document: Handle,
     pub activity: Handle,
@@ -98,7 +98,7 @@ impl Chat {
             draft_asking: Asking::new(),
             draft_project: None,
             draft_out: false,
-            notes_seen: 0,
+            notes_seen: (0, 0, 0),
             task,
             document,
             activity,
@@ -380,13 +380,13 @@ impl Chat {
     fn note_calls(&mut self, out: &mut Queue<Request>) {
         let mut newest = self.notes_seen;
         for line in &self.thread.lines() {
-            if let jig_client::thread::Line::Turn { turn, .. } = line {
+            if let jig_client::thread::Line::Turn { name, turn, .. } = line {
                 for message in &turn.messages {
                     for block in &message.blocks {
                         if let c::Block::Call(call) = block
                             && call.tool.bytes() == b"note"
                         {
-                            newest = newest.max(call.number);
+                            newest = newest.max((name.attempt, name.number, call.number));
                         }
                     }
                 }
