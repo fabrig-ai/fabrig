@@ -204,6 +204,7 @@ pub(in crate::tests) fn task_doc(acts: &[ActKind]) -> Task {
         label: 0,
         flags: TaskFlags { ended_by: EndedBy::Result, conversation: false, listed: true, retention: Retention::Kept },
         last_activity: Wall::EPOCH,
+        made: Wall::EPOCH,
         waits_on: WaitsOn::Nothing,
         chip: chip(),
         goal: Some(8),

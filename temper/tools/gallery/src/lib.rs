@@ -158,6 +158,9 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     if sample.name == "needs-saw-open" {
         html = html.replace("class=\"temper-ask-saw\"", "open class=\"temper-ask-saw\"");
     }
+    if sample.name == "goal-landed-open" {
+        html = html.replace("class=\"temper-goal-landed-fold\"", "open class=\"temper-goal-landed-fold\"");
+    }
     let mut styles = String::new();
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");

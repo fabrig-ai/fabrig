@@ -239,7 +239,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `NewChat` | `/chats/new` |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
-  | `Task { task, filter }` | `/tasks/<task>`, and its plan's filter's query |
+  | `Task { task }` | `/tasks/<task>` |
   | `Adopt { project }` | `/projects/<project>/adopt` |
   | `Welcome { step }` | `/welcome`, and its step's query |
   | `Forges` | `/forges` |
@@ -266,19 +266,18 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   address is replaced with the printed one. It reads numbers, not the
   person's projects: a project the person isn't in shows an empty
   inbox, which its unfiltered address undoes. The inbox's filter, the chats
-  list's and a goal's plan's (below), the welcome's step,
+  list's (below), the welcome's step,
   `ConnectForge`'s choice, `ConnectModel`'s way (below) and
   `Authorize`'s query, kept as it came and never printed again, alone
   are in an address, and another page's query is dropped, `/chats/7?x=1`
   replaced with `/chats/7`.
-- **The chats list's and a goal's plan's filters are their queries,**
+- **The chats list's filter is its query,**
   as the inbox's (the user's pick, 10-23): none for "All", so that
   `/chats` is the list whole; `?state=live` for "Live" and
-  `?state=closed` for "Closed"; a goal's `/tasks/<task>?state=live`
-  for its plan's "Live only" (`README.md`, 5.8). A `state` that
-  doesn't read as one of the page's, `/tasks/9?state=closed` among
-  them, or a field of another name, is dropped, and the address
-  replaced with the printed one. A filter chosen is a move (below).
+  `?state=closed` for "Closed". A `state` that
+  doesn't read as one of the page's, or a field of another name, is dropped,
+  and the address replaced with the printed one. `/tasks/9?state=live` reads as
+  `/tasks/9`. A filter chosen is a move (below).
 - **The goals' filter is its query,** as the chats list's: `/projects/<project>/goals`
   is the list whole; `?state=needs` for "Needs you", `?state=live` for
   "Under way" and `?state=ended` for "Ended"; any other value reads as the
@@ -521,14 +520,12 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   full width, and the gutters are 16 px in the top bar and 20 px in
   the main. Each act keeps a focus ring.
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after
-  `temper.css`, whose variables and rules it builds on: what the task
-  pages add to the look, as `task.html` draws it in the terminal
-  sheets (`README.md`, 5.8): the result a goal gives as an outlined
-  tag at its card's top, a plan row's spend as a fourth, right-aligned
-  cell, a row's dependency line in small muted words under its name,
-  the list's name shown before its items, and the budget's card as the
-  mockup's side card, its terms and descriptions as its key and value
-  rows. `scripts/bundle.sh` passes the three to `skein-ui-bundle` in
+  `temper.css`, whose variables and rules it builds on: what an agent's
+  task's and a change's pages add to the look, as `task.html` draws it in
+  the terminal sheets (`README.md`, 5.9 and 5.10): a plan row's spend as a
+  fourth, right-aligned cell, a row's dependency line in small muted words
+  under its name, the list's name shown before its items. A goal's page takes
+  nothing from it. `scripts/bundle.sh` passes the three to `skein-ui-bundle` in
   that order.
 - **Settings' look** is the greenfield mock's `settings.html`, its
   `mock.css` rules taken exactly, values and all (`.col`, `.intro`, `.kicker`,
@@ -597,6 +594,18 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.
+- **A goal's look** is the greenfield mock's `goal.html` and its `startSheet`, its
+  `mock.css`'s rules taken exactly: `.col.wide`, `.byline`, `.btn` and its
+  `.primary`, `.quiet`, `.small`, `.rec`, `:disabled`; `.acts`, `.band`, `.goal-head`,
+  `.two`, `.report`, `.side`, `.bar`, `.task-line`, `.sent`, `.composer` and
+  `.composer-hint`, `.typing`, `dialog.sheet` and all under it, `.option`, `.field`,
+  `.text`, `.sheet-error`; at 760 px and under, `.choices` and its `.btn`,
+  `.goal-head h1` and `.two`. They live in `temper.css` under `#app:has(>
+  .temper-rail)`, on the `--gf-*` variables, under the marker `/* ==== ui: goals ====
+  */`, on tokens of their own, `temper-goal*` and `temper-sheet*`. `.acts` keep the
+  `.btn.small` height at phone width, wrapping as drawn; the bands' buttons stack at
+  760 px (`.choices`); the side follows the report at 1000 px and under by `.two`'s
+  wrap, not by a media rule.
 - **Goals' look** is the greenfield mock's `goals.html`, its `mock.css`
   rules taken exactly, values and all (`.col`, `.kicker`, `.headline`,
   `.lede`, `.intro`, `.section`, `.section-head`, `.empty`, `.goal-rows`,
@@ -1248,7 +1257,24 @@ from the engine's own answers, is where the look is tuned.
 | `needs-held` | a held task's card |
 | `needs-funds` | a held task out of budget: "S of L used." |
 | `needs-plain-words` | a question in no line form: "Reply…" alone |
-| `task-solo-T3` | the solo world's goal T3, its plan and budget |
+| `goal-running` | first-run-projects, running: six of nine tasks in, its report, Left and Risk, the bar, three waiting lines, "6 landed" folded |
+| `goal-needs-funds` | first-run-projects held for funds: "needs funds", its band with Release and Leave held |
+| `goal-needs-question` | welcome-stall with an open question: its band and its parsed choices, the recommended one primary |
+| `goal-planning` | forge-cards, no report and no tasks: the planning words, the dots and "Proposing tasks from the draft…" |
+| `goal-paused` | first-run-projects paused by the person: "paused by you", Resume |
+| `goal-landed` | pane-chat-line landed: its result, "Landed at 01:12.", no acts and no composer |
+| `goal-landed-open` | `goal-landed` with "N landed" pressed: its rows under it |
+| `goal-stopped` | welcome-stall stopped: "Stopped by you…", "Stopped before it landed." |
+| `goal-failed` | forge-cards failed: "Failed: " and its reason, "Failed before it landed." |
+| `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks landed.", no byline |
+| `goal-amending` | `goal-running` with Amend pressed: the editor, between the header and the report |
+| `goal-stop-dialog` | `goal-running` with Stop pressed: its confirmation |
+| `goal-toast` | `goal-running` paused, its toast showing |
+| `goal-sending` | `goal-running` with the person's words sent and one being sent, the composer holding its next words |
+| `start-goal` | Goals with "Start one from a draft" pressed: the sheet with no draft, its Draft field and two ways |
+| `start-goal-draft` | the sheet opened with first-run-projects.md, its name and its default way |
+| `start-goal-refused` | `start-goal-draft` after a refused start: `.sheet-error` in jig's words |
+| `task-solo-T3` | the solo world's goal T3, on `goal.html`'s page |
 | `accounts-solo` | the solo world's accounts |
 | `chats-first-run-1` | the first run's Chats at step 1: an empty list |
 | `welcome-first-run-0` | the first run's welcome: its two cards |
@@ -1318,7 +1344,7 @@ from the engine's own answers, is where the look is tuned.
 | `inbox-empty` | nothing needs the person |
 | `chat-closing` | `chat-solo-T6` with Close pressed: its confirmation |
 | `chat-rejecting` | `chat-solo-T10` with Reject pressed: the reason's box |
-| `task-held` | a goal's plan with a held task, Release offered |
+| `task-held` | an agent's task's plan with a held task, Release offered |
 | `task-releasing` | `task-held` with Release pressed: its confirmation |
 | `connect-model-choose` | the offered ways and the owner's holder choice |
 | `connect-model-key-details` | a key's secret field and Add key |
@@ -1332,7 +1358,7 @@ from the engine's own answers, is where the look is tuned.
 | `connect-model-key-lost` | a key request's answer lost, its alert asking for the value again |
 | `task-reference-T28` | the reference world's change T28, queued 2nd after T26 |
 | `task-reference-T24` | the reference world's change T24, landed, its ended task T25 |
-| `task-reference-T12` | the reference world's goal T12, its plan with its ended delegates T13, T14 and T24 |
+| `task-reference-T12` | the reference world's goal T12, its tasks with its ended delegates T13, T14 and T24 folded |
 | `task-solo-T9` | the solo world's agent T9, its run's committed calls and words within the shipped window |
 
 ### 7.3 Its tests

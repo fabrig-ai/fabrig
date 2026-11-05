@@ -133,6 +133,8 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         Act::FocusComposer
         | Act::MessageWords { .. }
         | Act::Send
+        | Act::Pause
+        | Act::Resume
         | Act::Stop
         | Act::Close
         | Act::DelegateFate { .. }
@@ -147,9 +149,14 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::MoreGoals
         | Act::GoalsFilter { .. }
         | Act::ChatFilter { .. }
-        | Act::PlanFilter { .. }
         | Act::ClosedChats => unreachable!("chat acts routed to chats"),
-        Act::Switcher(_)
+        Act::OpenStart { .. }
+        | Act::StartDraft { .. }
+        | Act::StartName { .. }
+        | Act::StartWay { .. }
+        | Act::StartCancel
+        | Act::StartGoal
+        | Act::Switcher(_)
         | Act::Needs(_)
         | Act::Choice(_)
         | Act::Accounts(_)

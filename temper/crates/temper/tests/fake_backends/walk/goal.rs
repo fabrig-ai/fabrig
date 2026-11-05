@@ -1,4 +1,5 @@
-//! A chat's goal writes a report on the fake box (temper/docs/design/domain/agent.md, 8.3;
+//! A chat's goal writes a report, reached from its Goals row on the fake box
+//! (temper/docs/design/client/README.md, 5.8; temper/docs/design/domain/agent.md, 8.3;
 //! temper/docs/design/protocol/configuration.md, 12.1).
 use super::open_default::{browser_bounds, named};
 use super::{Act, Call, Walk, adoption, ctl, path};
@@ -81,6 +82,7 @@ enum Page {
     Starting,
     Rail,
     Goals,
+    Goal,
     Done,
 }
 struct Judge {
@@ -105,20 +107,30 @@ impl Referee<NativeClient> for Judge {
                     text(client, Role::Heading { level: 1 }, b"1 goal, 0 under way."),
                     "the list counts the ended goal"
                 );
-                assert!(
-                    client.tree().nodes().iter().any(|node| {
+                let row = client
+                    .tree()
+                    .nodes()
+                    .iter()
+                    .find(|node| {
                         node.role == Role::Link
                             && node.name.as_deref().is_some_and(|name| {
                                 name.starts_with(b"Write a report for this local demonstration.")
                                     && name.windows(b"landed".len()).any(|part| part == b"landed")
                             })
-                    }),
-                    "the goal row names its landed state"
-                );
+                    })
+                    .expect("the goal row names its landed state")
+                    .id;
+                assert!(client.act(row, skein_ui::Act::Press), "the goal row opens its page");
+                self.page = Page::Goal;
+            }
+            Page::Goal if text(client, Role::Paragraph, b"I wrote this report on the local fake box.") => {
+                assert!(text(client, Role::Heading { level: 1 }, HEADLINE), "the report headlines the goal page");
+                assert!(named(client, Role::Region, b"Report").is_some(), "the goal page has its report");
+                assert!(text(client, Role::Heading { level: 2 }, b"Landing"), "the goal page shows Landing");
                 client.close();
                 self.page = Page::Done;
             }
-            Page::Starting | Page::Rail | Page::Goals | Page::Done => {}
+            Page::Starting | Page::Rail | Page::Goals | Page::Goal | Page::Done => {}
         }
         assert!(
             self.passed() || now < self.until,
