@@ -487,7 +487,7 @@ fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
     }
     acts
 }
-fn proposal(proposer: c::Proposer) -> c::Proposal {
+pub(super) fn proposal(proposer: c::Proposer) -> c::Proposal {
     let source = f::chat::proposal_root();
     let mut proposal = source
         .pages()
@@ -548,7 +548,7 @@ fn held(reason: Option<c::HoldCategory>) -> c::Escalation {
     }
     c::Escalation { task: Box::new(task), acts: offers(&[c::ActKind::Release, c::ActKind::LeaveHeld]) }
 }
-fn person() -> c::PersonTask {
+pub(super) fn person() -> c::PersonTask {
     let mut task = f::task::document();
     task.chip.title = words("Review the plan");
     task.spec.specification.words = words("Read the proposed plan and record your review.");

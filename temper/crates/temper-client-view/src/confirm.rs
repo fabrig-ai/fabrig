@@ -86,7 +86,7 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
         return;
     }
     for (act, word) in ACTIONS {
-        if root.pages().task().is_some() && act != ActKind::Release {
+        if root.pages().task().is_some() && root.pages().inbox().is_none() && act != ActKind::Release {
             continue;
         }
         let Some(admission) = jig_client::facts::offer(acts::offers(page), act) else { continue };
