@@ -534,7 +534,8 @@ impl World {
             | Event::TakePerson { .. }
             | Event::HandBackPerson { .. }
             | Event::AnswerPerson { .. }
-            | Event::Control { .. }
+            | Event::Cancel { .. }
+            | Event::Release { .. }
             | Event::Propose { .. }
             | Event::ProposePerson { .. }
             | Event::WithdrawPersonProposal { .. }
@@ -631,7 +632,8 @@ impl World {
             | Event::TakePerson { .. }
             | Event::HandBackPerson { .. }
             | Event::AnswerPerson { .. }
-            | Event::Control { .. }
+            | Event::Cancel { .. }
+            | Event::Release { .. }
             | Event::MoveToNewest { .. }
             | Event::Move { .. }
             | Event::Compound { .. }

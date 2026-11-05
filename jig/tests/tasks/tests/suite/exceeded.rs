@@ -1,7 +1,7 @@
 //! Configured bounds hold a run at once (domain/tasks.md, 5.5 and 5.8).
 use jig_domain_tasks::{
-    Accepted, Active, Bound, Cause, Class, Control, End, EndKind, EndedBy, Event, Exceeded, Flags, Hold, Line,
-    MessageKind, Party, Phase, RetryNotice, Stored, Tries, Was, Word,
+    Accepted, Active, Bound, Cause, Class, End, EndKind, EndedBy, Event, Exceeded, Flags, Hold, Line, MessageKind,
+    Party, Phase, Release, RetryNotice, Stored, Tries, Was, Word,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::Duration;
@@ -27,11 +27,10 @@ fn claimed(flags: Flags) -> World {
 fn release(w: &mut World) -> Reply {
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
-    w.send(Event::Control {
+    w.send(Event::Release {
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         by: REQUESTER,
-        task: TASK,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: TASK, again: None, message: None },
     });
     w.replies[&call].clone()
 }

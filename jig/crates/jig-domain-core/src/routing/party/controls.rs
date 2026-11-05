@@ -203,11 +203,10 @@ pub(crate) fn cancel_request(
                 None
             };
             let request = core.fly_person_task(request, PersonTaskRoute::Cancel(task));
-            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Control {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Cancel {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
-                task,
-                control: tasks::Control::Cancel { reason, grace, message },
+                operation: tasks::Cancel { task, reason, grace, message },
             })));
         }
         Err(why) => {
@@ -245,11 +244,10 @@ pub(crate) fn release_request(
                 }
             };
             let request = core.fly_person_task(request, PersonTaskRoute::Release(task));
-            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Control {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Release {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
-                task,
-                control: tasks::Control::Release { again, message },
+                operation: tasks::Release { task, again, message },
             })));
         }
         Err(why) => {

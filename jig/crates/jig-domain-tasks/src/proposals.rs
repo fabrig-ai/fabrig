@@ -4,7 +4,7 @@
 //! never knows role membership or a worker call identity. Terminal proposals
 //! leave live memory as retained store rows.
 use crate::domain::{Domain, publish, record, refused, task_mut};
-use crate::{Amendment, Authority, Change, Limits, New, Party, Phase, Refusal, Request, Stored, Was};
+use crate::{Amendment, Authority, Change, Limits, New, Party, Phase, Refusal, Release, Request, Stored, Was};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, ReplyTo, Time, Wall};
 
@@ -1158,7 +1158,8 @@ fn release_plan(
     if !crate::control::allowed(domain, task, by, env.limits.tasks) {
         return Err(Refusal::Reference);
     }
-    let plan = crate::control::check_release(domain, &crate::compound::Staged::new(0), env, task, by, None, None)?;
+    let operation = Release { task, again: None, message: None };
+    let plan = crate::control::check_release(domain, &crate::compound::Staged::new(0), env, by, operation)?;
     // The release may also write the proposer's release history before its accepted history.
     let proposer = record(domain, proposal.proposer).expect("pending proposer");
     let mut released = task == proposal.proposer;

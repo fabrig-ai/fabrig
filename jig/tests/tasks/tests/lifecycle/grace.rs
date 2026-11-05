@@ -1,5 +1,5 @@
 use jig_domain_tasks::{
-    Amendment, Control, Ending, Event, Executor, Key, MessageKind, Party, PersonAddress, Phase, Problem, Refusal,
+    Amendment, Cancel, Ending, Event, Executor, Key, MessageKind, Party, PersonAddress, Phase, Problem, Refusal,
     Stored, Word,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
@@ -14,11 +14,10 @@ const FIRST_WORD: u64 = 1;
 fn cancel(world: &mut World, grace: Option<Duration>, reason: &[u8]) -> Reply {
     let reply_to = world.to();
     let message = world.record(TASK).last_message + 1;
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Person(REQUESTER),
-        task: TASK,
-        control: Control::Cancel { reason: reason.into(), grace, message: grace.map(|_| message) },
+        operation: Cancel { task: TASK, reason: reason.into(), grace, message: grace.map(|_| message) },
     });
     world.replies.last_key_value().expect("cancel answered").1.clone()
 }

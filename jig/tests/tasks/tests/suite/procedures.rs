@@ -329,7 +329,7 @@ fn a_step_applies_its_batch_amendments_words_proposal_and_cancel_once() {
             amendments: Box::new([amendment(), second]),
             messages: Box::new([sent]),
             proposals: Box::new([offered.clone()]),
-            cancels: Box::new([tasks::ProcedureCancel {
+            cancels: Box::new([tasks::Cancel {
                 task: CHILD,
                 reason: b"done".as_slice().into(),
                 grace: None,
@@ -365,7 +365,7 @@ fn a_step_applies_its_batch_amendments_words_proposal_and_cancel_once() {
 #[test]
 fn a_step_checks_duplicate_cancels_against_the_first_and_keeps_its_batch_unmade() {
     let mut world = procedure_with_child();
-    let cancel = tasks::ProcedureCancel { task: CHILD, reason: Box::new([]), grace: None, message: None };
+    let cancel = tasks::Cancel { task: CHILD, reason: Box::new([]), grace: None, message: None };
     refused_without_writes(
         &mut world,
         ProcedureDecision {

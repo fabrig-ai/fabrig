@@ -1,4 +1,4 @@
-use jig_domain_tasks::{Amendment, Control, End, Endings, Event, Party, TaskResult, Tracking};
+use jig_domain_tasks::{Amendment, Cancel, End, Endings, Event, Party, TaskResult, Tracking};
 use jig_tasks_world::{LIMITS, World, task};
 
 fn finish(world: &mut World, number: u64, result: TaskResult) {
@@ -16,11 +16,10 @@ fn subtree() -> World {
     finish(&mut world, 3, TaskResult::Report { words: Box::new([]) });
     finish(&mut world, 2, TaskResult::Failure { reason: Box::new([1]) });
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Person(1),
-        task: 4,
-        control: Control::Cancel { reason: Box::new([1]), grace: None, message: None },
+        operation: Cancel { task: 4, reason: Box::new([1]), grace: None, message: None },
     });
     world.settle(4);
     world

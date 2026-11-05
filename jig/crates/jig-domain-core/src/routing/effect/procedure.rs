@@ -229,7 +229,7 @@ fn cancels(
     core: &mut Core,
     env: &Env<Limits>,
     parts: &[crate::StepCancel],
-) -> Result<Box<[tasks::ProcedureCancel]>, StepRefusal> {
+) -> Result<Box<[tasks::Cancel]>, StepRefusal> {
     let mut cancels = List::with_capacity(env.limits.tasks.batch);
     for part in parts {
         let message = if part.grace.is_some() {
@@ -241,7 +241,7 @@ fn cancels(
             None
         };
         if cancels
-            .push(tasks::ProcedureCancel { task: part.task, reason: part.reason.clone(), grace: part.grace, message })
+            .push(tasks::Cancel { task: part.task, reason: part.reason.clone(), grace: part.grace, message })
             .is_err()
         {
             return Err(problem(part.task, tasks::Refusal::Batch));

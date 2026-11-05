@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    self as tasks, Active, Amendment, Control, Ending, Event, Executor, Hold, HoldKind, Holding, Kind, MessageKind,
-    Name, Party, Phase, ProcedureDecision, ProcedureEnd, Taken, TaskResult, WakePolicy, WakeRule,
+    self as tasks, Active, Amendment, Ending, Event, Executor, Hold, HoldKind, Holding, Kind, MessageKind, Name, Party,
+    Phase, ProcedureDecision, ProcedureEnd, Release, Taken, TaskResult, WakePolicy, WakeRule,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, ReplyTo};
@@ -201,11 +201,10 @@ fn a_held_kept_task_keeps_its_met_until_release_then_is_due() {
     assert!(matches!(world.record(KEPT).phase, Phase::Held { .. }));
     assert!(!world.activations.contains(&KEPT));
     assert_eq!(
-        response(&mut world, |reply_to| Event::Control {
+        response(&mut world, |reply_to| Event::Release {
             reply_to,
             by: AMENDER,
-            task: KEPT,
-            control: Control::Release { again: None, message: None },
+            operation: Release { task: KEPT, again: None, message: None }
         }),
         Reply::Done
     );

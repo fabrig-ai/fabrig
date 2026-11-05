@@ -1,5 +1,5 @@
 use super::*;
-use crate::{Active, Operation, Phase, Problem, Refusal};
+use crate::{Active, Cancel, Operation, Phase, Problem, Refusal, Release};
 use skein_lib::List;
 
 const ROOT: u64 = 1;
@@ -27,7 +27,7 @@ pub(super) fn compound(test: &mut Harness, operations: Vec<Operation>, pool_budg
 }
 
 fn cancel(task: u64) -> Operation {
-    Operation::Cancel { task, reason: b"done".as_slice().into(), grace: None, message: None }
+    Operation::Cancel(Cancel { task, reason: b"done".as_slice().into(), grace: None, message: None })
 }
 
 fn refused(out: Vec<Request>, at: u32, task: u64, why: Refusal) {
@@ -40,7 +40,7 @@ fn a_refused_operation_leaves_the_operations_before_it_unmade() {
     let before = test.stored.clone();
     let out = compound(
         &mut test,
-        vec![cancel(FIRST), Operation::Release { task: SECOND, again: None, message: None }],
+        vec![cancel(FIRST), Operation::Release(Release { task: SECOND, again: None, message: None })],
         1_000,
     );
     refused(out, 1, SECOND, Refusal::State);
@@ -128,7 +128,7 @@ fn an_amendment_then_a_release_of_one_held_task_are_made_together() {
         &mut test,
         vec![
             Operation::Amend { task: FIRST, message: FIRST_MESSAGE, stop_run: false, amendment: Box::new(change) },
-            Operation::Release { task: FIRST, again: None, message: None },
+            Operation::Release(Release { task: FIRST, again: None, message: None }),
         ],
         1_000,
     );
@@ -153,7 +153,10 @@ fn words_then_a_stop_release_in_one_request_wake_the_task() {
     };
     compound(
         &mut test,
-        vec![Operation::Message { task: FIRST, word }, Operation::Release { task: FIRST, again: None, message: None }],
+        vec![
+            Operation::Message { task: FIRST, word },
+            Operation::Release(Release { task: FIRST, again: None, message: None }),
+        ],
         1_000,
     );
     let row = test.domain.task(FIRST).unwrap();
@@ -275,7 +278,10 @@ fn a_compound_that_changes_a_tasks_placed_hold_twice_is_refused_naming_the_secon
     let before = test.stored.clone();
     let out = compound(
         &mut test,
-        vec![Operation::Stop { task: ROOT, hold: 100 }, Operation::Release { task: ROOT, again: None, message: None }],
+        vec![
+            Operation::Stop { task: ROOT, hold: 100 },
+            Operation::Release(Release { task: ROOT, again: None, message: None }),
+        ],
         1_000,
     );
     refused(out, 1, ROOT, Refusal::Placed { hold: 100 });
@@ -285,7 +291,10 @@ fn a_compound_that_changes_a_tasks_placed_hold_twice_is_refused_naming_the_secon
     test.send(place(7, REQUESTER, 101));
     let out = compound(
         &mut test,
-        vec![Operation::Stop { task: ROOT, hold: 100 }, Operation::Release { task: 7, again: None, message: None }],
+        vec![
+            Operation::Stop { task: ROOT, hold: 100 },
+            Operation::Release(Release { task: 7, again: None, message: None }),
+        ],
         1_000,
     );
     assert!(out.iter().any(|request| match request {

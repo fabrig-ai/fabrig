@@ -1,4 +1,4 @@
-use jig_domain_tasks::{Active, End, Event, Key, Party, Phase, Refusal, Stored, TaskResult};
+use jig_domain_tasks::{Active, Cancel, End, Event, Key, Party, Phase, Refusal, Stored, TaskResult};
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::Wall;
 
@@ -35,7 +35,7 @@ fn writer_with_hold(writer: u64, holder: u64) -> (World, jig_domain_tasks::Name)
 
 #[test]
 fn a_cancelled_lost_writer_survives_two_restarts() {
-    use jig_domain_tasks::{Class, Control};
+    use jig_domain_tasks::Class;
     // A run can write its own hold, an ancestor's, or one handed to a delegate.
     for (writer, holder) in [(1, 1), (2, 1), (1, 2)] {
         let (mut w, resource) = writer_with_hold(writer, holder);
@@ -43,11 +43,10 @@ fn a_cancelled_lost_writer_survives_two_restarts() {
         w.restart();
         assert_eq!(w.runs.get(&writer), Some(&1));
         let reply_to = w.to();
-        w.send(Event::Control {
+        w.send(Event::Cancel {
             reply_to,
             by: Party::Person(1),
-            task: writer,
-            control: Control::Cancel { reason: b"stop".as_slice().into(), grace: None, message: None },
+            operation: Cancel { task: writer, reason: b"stop".as_slice().into(), grace: None, message: None },
         });
         w.terminal(writer, End::Failed(Class::Lost));
         // Drive every obligation offered before the connector confirms its read.

@@ -1,5 +1,6 @@
 //! Single-read positions remain bounded through lifecycle and restart.
 use super::*;
+use crate::Release;
 
 #[test]
 fn a_held_task_names_the_milestone_of_its_hold() {
@@ -11,11 +12,10 @@ fn a_held_task_names_the_milestone_of_its_hold() {
     h.route(1, EscalationHolder::Person(9), 1);
     h.restart();
     assert_eq!(live(&h, 1).hold, 3);
-    h.send(Event::Control {
+    h.send(Event::Release {
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: 1, again: None, message: None },
     });
     assert_eq!(live(&h, 1).hold, 3);
     h.send(Event::Hold { task: 1, why: Hold::Budget });
