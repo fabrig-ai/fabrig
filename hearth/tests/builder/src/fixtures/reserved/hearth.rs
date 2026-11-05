@@ -15,12 +15,12 @@ pub const HEARTH: &[File] = &[
 ];
 pub const CONTAINER: File = File {
     path: "hosts/chat/chat-prod.json",
-    body: br#"{"placement": {"kind": "container", "on": "rhi-prod"}}"#,
+    body: br#"{"placement": {"kind": "container", "on": "east-prod"}}"#,
     mode: 0o644,
 };
 pub const CONTAINER_HEARTH: File = File {
     path: "hosts/chat/chat-prod.json",
-    body: br#"{"placement": {"kind": "container", "on": "rhi-prod"}, "hearth": {}}"#,
+    body: br#"{"placement": {"kind": "container", "on": "east-prod"}, "hearth": {}}"#,
     mode: 0o644,
 };
 #[must_use]

@@ -456,6 +456,9 @@ prove on a real kernel.
   fixed mounts, which the tools then accept.
 - **A run's own environment:** a typed, bounded charter overlay, merged
   in one place, only once a host needs one.
+- **One `EnvNames`:** what prints an environment's names (section 5) is a
+  private copy in `smith-protocol-machine`, skein-io and skein-sim; whether
+  skein-io makes its own public, for all three.
 
 ## 10. On a program backend
 

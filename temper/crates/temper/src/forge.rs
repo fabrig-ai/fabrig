@@ -320,24 +320,46 @@ fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<cor
     named.webhooks.as_ref().map(|hooks| super::address(&hooks.listener)).transpose()
 }
 
-/// Composes a group's kind with the machine (temper/docs/design/protocol/setup.md, 7.1).
+/// Composes a forge's setup entry: its group's kind, or the machine's `owned` part with none
+/// (temper/docs/design/protocol/setup.md, 7.1 and 7.4).
 pub(crate) fn entry(
     directories: &super::Directories,
     bytes: &[u8],
     number: u16,
 ) -> Result<temper_forge_setup::setup::Entry, String> {
+    use temper_forge_setup::machine;
     let machine = super::box_command::machine(bytes, directories)?;
-    let kind = group_kind(directories, number)?;
-    temper_forge_setup::machine::entry(&machine, number, kind, &directories.jig())
-        .ok_or("the machine has no entry for it".into())
+    let path = super::path(&directories.data).join(super::path(&machine::group_path(number)));
+    let kind = if let Some(kind) = read_group_kind(&path)? {
+        kind
+    } else {
+        if machine.owned.is_none() {
+            return Err(format!("{}: absent, and application.machine names no owned Forgejo", path.display()));
+        }
+        machine::BoxKind::Owned
+    };
+    machine::entry(&machine, number, kind, &directories.jig()).ok_or("the machine has no entry for it".into())
 }
 
 fn group_kind(directories: &super::Directories, number: u16) -> Result<temper_forge_setup::machine::BoxKind, String> {
-    use temper_forge_setup::machine;
-    let path = super::path(&directories.data).join(super::path(&machine::group_path(number)));
-    let bytes =
-        skein_shell::read_file(&path, 16).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
-    machine::parse_group_file(&bytes).ok_or_else(|| format!("{}: invalid group kind", path.display()))
+    let path = super::path(&directories.data).join(super::path(&temper_forge_setup::machine::group_path(number)));
+    read_group_kind(&path)?.ok_or_else(|| format!("{}: absent", path.display()))
+}
+
+fn read_group_kind(path: &std::path::Path) -> Result<Option<temper_forge_setup::machine::BoxKind>, String> {
+    let bytes = match skein_shell::read_file(path, 16) {
+        Ok(bytes) => bytes,
+        // A dangling link is an existing group path, and keeps its read refusal.
+        Err(skein_shell::Unread::Absent)
+            if path.symlink_metadata().is_err_and(|why| why.kind() == std::io::ErrorKind::NotFound) =>
+        {
+            return Ok(None);
+        }
+        Err(why) => return Err(format!("{}: {}", path.display(), super::unread(why))),
+    };
+    temper_forge_setup::machine::parse_group_file(&bytes)
+        .map(Some)
+        .ok_or_else(|| format!("{}: invalid group kind", path.display()))
 }
 /// Removes a slot's directory beneath data, keeping the cache (7.1).
 fn remove(directories: &super::Directories, number: u16) -> Result<(), String> {
