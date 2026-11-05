@@ -1414,7 +1414,7 @@ fn a_chats_end_line_says_who_ended_it() {
 fn a_live_chat_keeps_its_choice_line_and_composer() {
     let view = fixtures::page_view(&messaging_root());
     assert!(style_position(view.tree().nodes(), crate::look::CHOICE).is_some());
-    assert!(style_position(view.tree().nodes(), crate::look::ACCOUNT_LINE).is_some());
+    assert!(style_position(view.tree().nodes(), crate::look::BYLINE).is_some());
     assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_some());
 }
 
@@ -1906,8 +1906,8 @@ fn the_playground_chats_bar_names_the_default_model() {
     let view = fixtures::page_view(&root);
     let bar = styled(view.tree(), crate::look::SESSION_TOP);
     let byline = style_position(subtree(view.tree(), bar), crate::look::BYLINE).expect("byline");
-    let line = fixtures::node_text(view.tree(), bar + 1 + byline);
-    assert!(skein_lib::bytes::find(&line, "Using Scripted model · Default".as_bytes()).is_some());
+    let node = &view.tree().nodes()[bar + 1 + byline];
+    assert_eq!(node.description.as_deref().or(node.name.as_deref()), Some("T9 · Scripted model · Default".as_bytes()));
 }
 
 #[test]

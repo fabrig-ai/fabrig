@@ -86,6 +86,7 @@ adoption-refused
 chats-reference
 chat-reference-T1
 chat-solo-T1
+chat-byline-open
 chat-solo-T6
 chat-first-run-2-T1
 chat-first-run-3-T1

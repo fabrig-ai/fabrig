@@ -2,10 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, A chat's bar, and 5.5: the chooser stays above a
-  chat's composer; its byline uses the composer's words until the chooser
-  moves to the bar. 3.5, A chat's
-  conversation, its look, and 5.7, In the browser it is one line: the
+- **Not yet:** 3.5, A chat's conversation, its look, and 5.7, In the browser it is one line: the
   conversation's old look; no three dots, no pen. 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:

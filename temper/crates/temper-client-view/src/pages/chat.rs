@@ -60,10 +60,7 @@ pub(crate) fn main(
         if configuring {
             super::configure::byline(b, root, words, task.project);
         } else {
-            b.open(Role::Slot);
-            b.style(look::BYLINE);
-            crate::choice::using(b, root, Some(task), words);
-            b.close();
+            crate::choice::byline(b, root, Some(task), words, bindings);
         }
         bar_status(b, root, task, words, times);
         bar_actions(b, task, words, bindings);
@@ -120,7 +117,7 @@ pub(crate) fn main(
         act_status(b, root, chat, words);
         b.close();
         if task.result.is_none() && !super::chats::ended(&task.chip) && !configuring {
-            crate::choice::composer(b, root, Some(task), words, bindings, times);
+            crate::choice::above_composer(b, root, Some(task), words, bindings, times);
         }
         session_composer(b, root, chat, task, words, bindings);
         b.close();

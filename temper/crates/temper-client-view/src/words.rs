@@ -466,6 +466,12 @@ pub enum Word {
     TimeDecember,
 
     ChangeModel,
+    BylineTask,
+    BylineModel,
+    BylineKey,
+    BylinePlan,
+    BylineProgram,
+    BylinePlayground,
     UsingModel,
     UsingDefault,
     UsingKey,
@@ -905,7 +911,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // New chat adds three phrases (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Chats adds six phrases and removes two filter empty phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1402;
+const PHRASES: u32 = 1408;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -920,8 +926,8 @@ const PHRASES: u32 = 1402;
 // New chat adds nine literal and hole segments (client/README.md, 3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Chats adds fourteen segments and removes two (client/README.md, 3.5).
-const SEGMENTS: u32 = 2438;
-const ALL: [Word; 806] = [
+const SEGMENTS: u32 = 2466;
+const ALL: [Word; 812] = [
     Word::Changes,
     Word::ChangesKicker,
     Word::ChangesNone,
@@ -1364,6 +1370,12 @@ const ALL: [Word; 806] = [
     Word::TimeNovember,
     Word::TimeDecember,
     Word::ChangeModel,
+    Word::BylineTask,
+    Word::BylineModel,
+    Word::BylineKey,
+    Word::BylinePlan,
+    Word::BylineProgram,
+    Word::BylinePlayground,
     Word::UsingModel,
     Word::UsingDefault,
     Word::UsingKey,
@@ -2204,6 +2216,12 @@ impl Word {
             Self::SignInNotReady => 1909,
             Self::OutOfDateMain => 183,
             Self::ChangeModel => 1067,
+            Self::BylineTask => 1505,
+            Self::BylineModel => 1500,
+            Self::BylineKey => 1501,
+            Self::BylinePlan => 1502,
+            Self::BylineProgram => 1503,
+            Self::BylinePlayground => 1504,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
             Self::UsingKey => 1070,
@@ -2641,18 +2659,37 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     {
         return Ok(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES);
     }
+    if word == Word::BylineTask && kind == HoleKind::Name {
+        return byline_bytes(joined);
+    }
     let model_name = joined.min(crate::choice::MODEL_SHOWN);
     if word == Word::ModelEffort {
         return Ok(model_name);
     }
     if last
-        && [Word::UsingModel, Word::UsingKey, Word::UsingPlan, Word::UsingProgram, Word::ModelNeedsAccount]
-            .contains(&word)
+        && [
+            Word::UsingModel,
+            Word::UsingKey,
+            Word::UsingPlan,
+            Word::UsingProgram,
+            Word::ModelNeedsAccount,
+            Word::BylineModel,
+            Word::BylineKey,
+            Word::BylinePlan,
+            Word::BylineProgram,
+        ]
+        .contains(&word)
     {
         let doubled = model_name.checked_mul(2).ok_or(Invalid::Overflow)?;
         return doubled.checked_add(3).ok_or(Invalid::Overflow);
     }
     Ok(if kind == HoleKind::Name { joined } else { 0 })
+}
+// Provider words, bounded program/model/effort names, and their literals.
+fn byline_bytes(joined: u32) -> Result<u32, Invalid> {
+    let bounded = joined.min(crate::choice::MODEL_SHOWN).checked_mul(3).ok_or(Invalid::Overflow)?;
+    let names = joined.checked_add(bounded).ok_or(Invalid::Overflow)?;
+    names.checked_add(128).ok_or(Invalid::Overflow)
 }
 fn english_language(
     connector: u16,
@@ -2779,6 +2816,7 @@ impl Words {
             text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 476 + 157 + 141,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
+                .max(byline_bytes(joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
@@ -3286,6 +3324,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BudgetDeadlineDate => (&[b"", b""], &[HoleKind::Date]),
         Word::BudgetDeadlineMoment => (&[b"", b" UTC"], &[HoleKind::Moment]),
         Word::ChangeModel => (&[b"Change model"], &[]),
+        Word::BylineTask => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
+        Word::BylineModel => (&[b"", b""], &[Name]),
+        Word::BylineKey => (&[b"", b" API key \xc2\xb7 ", b""], &[Name, Name]),
+        Word::BylinePlan => (&[b"", b" plan \xc2\xb7 ", b""], &[Name, Name]),
+        Word::BylineProgram => (&[b"your ", b" subscription, through ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
+        Word::BylinePlayground => (&[b"Scripted model \xc2\xb7 ", b""], &[Name]),
         Word::UsingModel => (&[b"Using ", b""], &[Name]),
         Word::UsingDefault => (&[b"Using the default model"], &[]),
         Word::UsingKey => (&[b"Using your ", b" API key \xc2\xb7 ", b""], &[Name, Name]),

@@ -61,7 +61,14 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 122;
+impl Sample {
+    /// Opens a page-owned disclosure in the static print (client/browser.md, 7).
+    #[must_use]
+    pub fn open_disclosure(&self) -> Option<&[u8]> {
+        if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
+    }
+}
+pub const N: usize = 123;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -279,6 +286,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-byline-open", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
         first_chat("chat-first-run-2-T1", 2, 1),
         first_chat("chat-first-run-3-T1", 3, 1),
