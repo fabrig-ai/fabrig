@@ -9,6 +9,7 @@ use skein_lib::{Env, Queue};
 
 pub(crate) mod failure;
 pub(crate) mod fit;
+mod models;
 
 pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, stored: Stored, out: &mut Queue<Request>) {
     match domain.startup {

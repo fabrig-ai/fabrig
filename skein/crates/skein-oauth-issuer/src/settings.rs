@@ -1,5 +1,5 @@
 use crate::{Client, Error, Issuer, Settings, documents};
-use skein_lib::{List, bytes};
+use skein_lib::{List, bytes, usize_of};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
@@ -112,7 +112,7 @@ impl Issuer {
 }
 
 pub(crate) fn bounded(value: &[u8], cap: u32) -> Result<(), Error> {
-    if value.len() > usize::try_from(cap).expect("u32 fits usize") { Err(Error::Limits) } else { Ok(()) }
+    if value.len() > usize_of(cap) { Err(Error::Limits) } else { Ok(()) }
 }
 pub(crate) fn optional(value: Option<&[u8]>, cap: u32) -> Result<(), Error> {
     if let Some(value) = value {

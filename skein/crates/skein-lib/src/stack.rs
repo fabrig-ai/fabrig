@@ -61,7 +61,7 @@ impl<T> Stack<T> {
     fn grow(&mut self) {
         let len = self.items.len();
         if len == self.items.capacity() {
-            let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
+            let cap = crate::usize_of(self.capacity);
             let needed = len.checked_add(1).expect("room for another item");
             let additional = grown(len, needed, cap).checked_sub(len).expect("room for another item");
             self.items.reserve_exact(additional);

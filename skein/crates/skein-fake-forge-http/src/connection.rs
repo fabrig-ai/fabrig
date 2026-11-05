@@ -4,6 +4,7 @@ use skein_http::{Header, server as http};
 use skein_lib::{
     Env, Queue, bytes,
     stream::{Down, Read, Up},
+    usize_of,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -116,7 +117,7 @@ pub fn turn(c: &mut Connection, limits: &http::Limits) -> Option<Turn> {
         http::Event::Done(reuse) => Turn::Done(reuse),
         http::Event::Reply(Up::Room) => {
             let reply = c.reply.as_ref().expect("reply body");
-            let end = c.offset.saturating_add(usize::try_from(limits.send).expect("u32 fits")).min(reply.len());
+            let end = c.offset.saturating_add(usize_of(limits.send)).min(reply.len());
             let chunk = bytes::copy_of(reply.get(c.offset..end).expect("bounded reply slice"));
             c.offset = end;
             c.requests.push(http::Request::Reply(Down::Send(chunk)));

@@ -21,15 +21,14 @@ impl Accounts {
 
     pub(super) fn socket_up(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits.io };
-        if self.sockets.is_ready() {
-            io::resume(&mut self.sockets, &env, &mut self.socket_events, &mut self.socket_submissions);
-        }
-        if let Some(complete) = self.socket_completions.pop() {
-            io::up(&mut self.sockets, &env, complete, &mut self.socket_events, &mut self.socket_submissions);
-        }
-        if self.sockets.is_due(now) {
-            io::fire(&mut self.sockets, &env, &mut self.socket_events, &mut self.socket_submissions);
-        }
+        io::stage::up(
+            &mut self.sockets,
+            &env,
+            &mut self.socket_completions,
+            &mut self.socket_events,
+            &mut self.socket_submissions,
+            now,
+        );
         if let Some(event) = self.socket_events.pop() {
             let env = Env { now, wall, limits: self.limits };
             self.driver.up(&env, event, &mut self.out, &mut self.socket_requests, &mut self.file_requests);

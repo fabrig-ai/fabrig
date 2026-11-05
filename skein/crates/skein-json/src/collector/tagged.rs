@@ -4,7 +4,7 @@
 use super::{AmbiguousFilter, Error, Filter, Keep, Key, Limits, Tagged, field};
 use crate::Token;
 use crate::document::{self, Builder};
-use skein_lib::{List, Stack};
+use skein_lib::{List, Stack, usize_of};
 
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the parent routes through state; candidate buffers remain private")]
@@ -168,10 +168,7 @@ impl Pending {
         match self.current {
             None => false,
             Some(key) if key == self.filter.tag => true,
-            Some(key) => {
-                field(self.filter.known.get(usize::try_from(index).expect("index")).expect("variant").children, key)
-                    .is_some()
-            }
+            Some(key) => field(self.filter.known.get(usize_of(index)).expect("variant").children, key).is_some(),
         }
     }
 
@@ -380,7 +377,7 @@ impl Pending {
                 if let Some(error) = candidate.error {
                     return Err(error);
                 }
-                let children = self.filter.known.get(usize::try_from(index).expect("index")).expect("variant").children;
+                let children = self.filter.known.get(usize_of(index)).expect("variant").children;
                 let mut destination = self.start;
                 let mut text = self.text_start;
                 (destination, text) = builder.copy_within(

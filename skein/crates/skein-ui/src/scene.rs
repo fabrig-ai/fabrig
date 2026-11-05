@@ -1,7 +1,7 @@
 //! Bounded drawing marks in preorder (ui.md, section 11).
 
 use crate::{DrawingKind, Limits, Style};
-use skein_lib::List;
+use skein_lib::{List, usize_of};
 
 /// Whole pixels from the box's top left.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -103,13 +103,7 @@ impl Scene {
         let Some(p) = self.properties.get(index) else {
             return &[];
         };
-        self.styles
-            .as_slice()
-            .get(
-                usize::try_from(p.styles.start).expect("u32 fits usize")
-                    ..usize::try_from(p.styles.end).expect("u32 fits usize"),
-            )
-            .expect("stored token span")
+        self.styles.as_slice().get(usize_of(p.styles.start)..usize_of(p.styles.end)).expect("stored token span")
     }
     #[must_use]
     pub fn mark_hint(&self, index: u32) -> Option<&[u8]> {
@@ -122,13 +116,7 @@ impl Scene {
         Some(self.slice(span))
     }
     fn slice(&self, span: Span) -> &[u8] {
-        self.bytes
-            .as_slice()
-            .get(
-                usize::try_from(span.start).expect("u32 fits usize")
-                    ..usize::try_from(span.end).expect("u32 fits usize"),
-            )
-            .expect("stored byte span")
+        self.bytes.as_slice().get(usize_of(span.start)..usize_of(span.end)).expect("stored byte span")
     }
     fn refuse(&mut self) -> bool {
         self.clear();
@@ -371,9 +359,7 @@ impl core::fmt::Display for Scene {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for (index, mark) in self.marks.iter().enumerate() {
             let index = u32::try_from(index).expect("mark index fits u32");
-            for (parent, ancestor) in
-                self.marks.iter().enumerate().take(usize::try_from(index).expect("u32 fits usize"))
-            {
+            for (parent, ancestor) in self.marks.iter().enumerate().take(usize_of(index)) {
                 match ancestor {
                     Mark::Group { marks, offset: _ } => {
                         let parent = u32::try_from(parent).expect("mark index fits u32");

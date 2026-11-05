@@ -13,7 +13,7 @@ const INSPECT: Grants = Grants { inspect: true, modify: false, shell: false };
 fn answer(path: &[u8]) -> Outcome {
     let mut fixture = Fixture::new();
     fixture.checkout.write(b"work/temper/src/lib.rs", b"at the bound\n");
-    fixture.checkout.write(b"work/temper/xxxxxxxxxxxxxxxxxxxx", b"at the bound\n");
+    fixture.checkout.write(b"work/temper/xxxxxxxxxxxxxxxxxxxxxxxxx", b"at the bound\n");
     let authority = fixture.authority(INSPECT);
     let calm = Settings::calm(9601);
     let settings = Settings { tools: Limits { path_bytes: PATH_BOUND, ..calm.tools }, ..calm };
@@ -30,8 +30,8 @@ fn a_path_at_its_bound_and_one_past_as_written_and_as_resolved() {
         b"./././././././././././src/lib.rs".as_slice(),
         b".//.//.//.//.//.//.//.//.//.//.//src//lib.rs///",
         b"src/../src/../././././src/lib.rs",
-        b"xxxxxxxxxxxxxxxxxxxx",
-        b"/work//temper//xxxxxxxxxxxxxxxxxxxx///",
+        b"xxxxxxxxxxxxxxxxxxxxxxxxx",
+        b"/temper//xxxxxxxxxxxxxxxxxxxxxxxxx///",
     ] {
         assert_eq!(
             answer(path),
@@ -54,8 +54,8 @@ fn a_path_one_byte_past_its_bound_is_refused() {
     for path in [
         b"./././././././././././src/main.rs".as_slice(),
         b".//.//.//.//.//.//.//.//.//.//.//src//main.rs///",
-        b"xxxxxxxxxxxxxxxxxxxxx",
-        b"/work//temper//xxxxxxxxxxxxxxxxxxxxx///",
+        b"xxxxxxxxxxxxxxxxxxxxxxxxxx",
+        b"/temper//xxxxxxxxxxxxxxxxxxxxxxxxxx///",
     ] {
         assert_eq!(answer(path), Outcome::TooLong, "{path:?}");
     }

@@ -11,7 +11,7 @@ use super::{
 use crate::text::Body;
 use alloc::boxed::Box;
 use skein_json::{Token, tokenizer};
-use skein_lib::bytes;
+use skein_lib::{bytes, usize_of};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Step {
@@ -272,7 +272,7 @@ pub fn decode(event: &[u8], body: &[u8], limits: &Limits) -> Result<Delivery, Ma
     let Some(mut decoder) = decoder(event, limits) else {
         return Ok(Delivery::Other);
     };
-    if body.len() > usize::try_from(limits.json.length).expect("u32 fits usize") {
+    if body.len() > usize_of(limits.json.length) {
         return Err(Malformed::Json(tokenizer::Error::TooLong));
     }
     let mut feed = tokenizer::Feed::new(body, &limits.json);

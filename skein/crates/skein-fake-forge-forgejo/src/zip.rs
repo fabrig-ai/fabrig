@@ -1,11 +1,11 @@
 //! One-file report ZIPs as served by Forgejo (skein/docs/design/forge.md, 5.2).
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api::Error;
-use skein_lib::bytes::copy_of;
+use skein_lib::{bytes::copy_of, usize_of};
 /// Writes the one-file archive served by the fake, with Forgejo's signed descriptor.
 /// The complete archive must fit the caller's existing raw-answer bound.
 pub(crate) fn write(path: &[u8], bytes: &[u8], deflated: bool, bound: u32) -> Result<Box<[u8]>, Error> {
-    let bound = usize::try_from(bound).expect("u32 fits");
+    let bound = usize_of(bound);
     let name = u16::try_from(path.len()).or(Err(Error::TooLarge))?;
     if path.is_empty() || path.ends_with(b"/") || bytes.len() > bound {
         return Err(Error::TooLarge);

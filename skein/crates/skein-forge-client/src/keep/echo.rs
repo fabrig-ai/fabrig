@@ -2,6 +2,7 @@ use super::{
     Domain, Echo, Entry, Env, Keep, Limits, List, Live, Position, Queue, Repository, Request, Resource, Stored, Time,
     What, api,
 };
+use skein_lib::usize_of;
 
 pub(super) fn is_echo(echoes: &[Echo], wanted: Echo) -> bool {
     for echo in echoes {
@@ -85,9 +86,7 @@ pub(crate) fn echo_room(k: &Keep, entry: &Entry) -> bool {
     match live_for_entry(k, entry) {
         Some(key) => {
             let row = k.live.get(&key).expect("resource exists");
-            !row.active
-                || !row.record.watch.participating
-                || row.record.echoes.len() < usize::try_from(row.echo_capacity).expect("u32 fits usize")
+            !row.active || !row.record.watch.participating || row.record.echoes.len() < usize_of(row.echo_capacity)
         }
         None => true,
     }

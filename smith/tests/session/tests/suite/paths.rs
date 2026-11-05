@@ -17,7 +17,7 @@ fn a_resolved_missing_path_reaches_the_llm_in_the_fixed_conversation_namespace()
         let name = Name::new(bytes(b"work")).expect("working name");
         let mut repos = vec![Directory {
             host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: Box::new([name.clone()]),
+            mount: name.clone(),
             root: Token::new(10),
             writable: true,
         }];
@@ -26,13 +26,13 @@ fn a_resolved_missing_path_reaches_the_llm_in_the_fixed_conversation_namespace()
                 host: Box::new([
                     smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")
                 ]),
-                mount: Box::new([Name::new(bytes(b"docs")).expect("other name")]),
+                mount: Name::new(bytes(b"docs")).expect("other name"),
                 root: Token::new(11),
                 writable: false,
             });
         }
         opening.spec.authority = Authority {
-            cwd: Box::new([name]),
+            cwd: Some(name),
             repos: repos.into(),
             grants: Grants { inspect: true, modify: false, shell: false },
         };

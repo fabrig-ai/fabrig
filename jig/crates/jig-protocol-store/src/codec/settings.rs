@@ -1596,7 +1596,8 @@ fn decode_default(
     let field_value = decode_value(value, limits)?;
     let field_revision = revision;
     let mut field_value = field_value;
-    remap_value(&mut field_value, &model_moves(&models, names), &models, names);
+    let kept = decode_names(models);
+    settings::remap(&mut field_value, &kept, names);
     Ok(settings::Default { value: field_value, revision: field_revision })
 }
 fn encode_changed(
@@ -1626,8 +1627,9 @@ fn decode_changed(
     };
     let field_revision = revision;
     let mut field_value = field_value;
+    let kept = decode_names(models);
     if let Some(value) = &mut field_value {
-        remap_value(value, &model_moves(&models, names), &models, names);
+        settings::remap(value, &kept, names);
     }
     Ok(settings::Changed { value: field_value, revision: field_revision })
 }
@@ -1775,14 +1777,14 @@ fn decode_revision(
         return Err(bound());
     }
     let mut items = items.into_boxed();
-    let moved = model_moves(&models, names);
+    let kept = decode_names(models);
     for item in &mut items {
         match &mut item.edit {
-            settings::Edit::Set(value) => remap_value(value, &moved, &models, names),
+            settings::Edit::Set(value) => settings::remap(value, &kept, names),
             settings::Edit::Removed | settings::Edit::Reset => {}
         }
         match &mut item.replaced {
-            settings::Replaced::Value(value) => remap_value(value, &moved, &models, names),
+            settings::Replaced::Value(value) => settings::remap(value, &kept, names),
             settings::Replaced::Default | settings::Replaced::Removed | settings::Replaced::NotOffered => {}
         }
     }
@@ -1852,10 +1854,10 @@ fn decode_proposal(
     }
     let field_items = list_38.into_boxed();
     let mut field_items = field_items;
-    let moved = model_moves(&models, names);
+    let kept = decode_names(models);
     for item in &mut field_items {
         match &mut item.edit {
-            settings::Edit::Set(value) => remap_value(value, &moved, &models, names),
+            settings::Edit::Set(value) => settings::remap(value, &kept, names),
             settings::Edit::Removed | settings::Edit::Reset => {}
         }
     }
@@ -2123,35 +2125,13 @@ fn encode_names(names: &[settings::ModelName], limits: &wire::Limits) -> Result<
     }
     Ok(result)
 }
-fn model_moves(kept: &List<wire::ModelName>, names: &[settings::ModelName]) -> [u64; 64] {
-    let mut moved = [0; 64];
-    for (bit, name) in kept.iter().enumerate() {
-        for (today, configured) in names.iter().enumerate() {
-            if configured.name.as_ref() == name.name() {
-                let today = u32::try_from(today).expect("configured model count");
-                *moved.get_mut(bit).expect("bounded stored catalogue") = 1_u64.checked_shl(today).unwrap_or(0);
-                break;
-            }
-        }
+fn decode_names(names: List<wire::ModelName>) -> Box<[settings::ModelName]> {
+    let mut kept = List::with_capacity(names.len());
+    for name in names.into_boxed() {
+        let wire::ModelNameParts { name, efforts } = name.into_parts();
+        kept.push(settings::ModelName { name, efforts: efforts.into_boxed() }).expect("decoded model count");
     }
-    moved
-}
-fn remap_mask(value: &mut authority::Models, moved: &[u64; 64]) {
-    if value.is_all() {
-        return;
-    }
-    let mut bits = 0;
-    for (bit, &today) in moved.iter().enumerate() {
-        let bit = u32::try_from(bit).expect("model bit");
-        if value.bits() & 1_u64.checked_shl(bit).unwrap_or(0) != 0 {
-            bits |= today;
-        }
-    }
-    *value = authority::Models::Named(bits);
-}
-fn remap_model(value: &mut u8, moved: &[u64; 64]) {
-    let bit = moved.get(usize::from(*value)).copied().unwrap_or(0);
-    *value = if bit == 0 { u8::MAX } else { u8::try_from(bit.trailing_zeros()).expect("model index") };
+    kept.into_boxed()
 }
 fn effort_names(names: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, wire::Problem> {
     let mut result = List::with_capacity(core::EFFORTS);
@@ -2163,58 +2143,6 @@ fn effort_names(names: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, wire::Problem> {
     // ModelName's constructor validates each effort's byte length too.
     Ok(result)
 }
-fn remap_choice(
-    value: &mut tasks::ModelEffort,
-    moved: &[u64; 64],
-    kept: &List<wire::ModelName>,
-    names: &[settings::ModelName],
-) {
-    let old_model = value.model;
-    remap_model(&mut value.model, moved);
-    let Some(effort) = value.effort else { return };
-    let Some(old) = kept.get(u32::from(old_model)) else {
-        value.model = u8::MAX;
-        return;
-    };
-    let Some(name) = old.efforts().get(u32::from(effort)) else {
-        value.model = u8::MAX;
-        return;
-    };
-    let Some(today) = names.get(usize::from(value.model)) else { return };
-    for (at, configured) in today.efforts.iter().enumerate() {
-        if configured == name {
-            value.effort = Some(u8::try_from(at).expect("effort count"));
-            return;
-        }
-    }
-    value.model = u8::MAX;
-}
-fn remap_value(
-    value: &mut settings::Value,
-    moved: &[u64; 64],
-    kept: &List<wire::ModelName>,
-    names: &[settings::ModelName],
-) {
-    match value {
-        settings::Value::Policy(value) => {
-            remap_mask(&mut value.policy.ceiling.models, moved);
-            for role in &mut value.policy.roles {
-                remap_mask(&mut role.authority.models, moved);
-            }
-        }
-        settings::Value::Rules(value) => remap_mask(&mut value.ceiling.models, moved),
-        settings::Value::Template(value) => {
-            if let Some(choice) = &mut value.llm {
-                remap_choice(&mut choice.main, moved, kept, names);
-                for model in &mut choice.subagents {
-                    remap_choice(model, moved, kept, names);
-                }
-            }
-        }
-        settings::Value::Charter(_) | settings::Value::Application(_) => {}
-    }
-}
-
 fn encode_wake_rule(value: tasks::WakeRule, limits: &wire::Limits) -> Result<wire::WakeRule, wire::Problem> {
     Ok(match value {
         tasks::WakeRule::Never => wire::WakeRule::Never,

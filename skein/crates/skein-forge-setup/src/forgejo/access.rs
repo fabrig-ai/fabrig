@@ -10,7 +10,7 @@ use skein_forge::forgejo::{
     document::{Document, Permission, Row},
     request::{Grant, HookSpec, Page, Repo, Request},
 };
-use skein_lib::{List, Secret, Writer};
+use skein_lib::{List, Secret, Writer, usize_of};
 
 /// What the repositories of one run share (forge-setup.md, 4.4 and 4.5).
 #[derive(Debug)]
@@ -244,7 +244,7 @@ impl Access {
             }
             self.kept = Some(hook.id);
         }
-        if rows.len() < usize::try_from(shared.cap.expect("cap read before listing")).expect("u32 fits") {
+        if rows.len() < usize_of(shared.cap.expect("cap read before listing")) {
             Ok(self.save(shared))
         } else {
             self.page = self.page.checked_add(1).ok_or(Why::Unexpected)?;

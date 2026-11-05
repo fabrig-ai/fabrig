@@ -37,7 +37,7 @@
 
 use alloc::boxed::Box;
 
-use skein_lib::{Decimal, Stack, Writer, bytes};
+use skein_lib::{Decimal, Stack, Writer, bytes, len_u64, usize_of};
 
 use crate::number;
 use crate::string::{self, Text};
@@ -148,7 +148,7 @@ impl Encoder {
     pub fn write(len: u32, limits: &Limits) -> Encoder {
         assert!(len <= limits.length, "a document is written at the length it was measured");
         Encoder {
-            sink: Sink::Writing(Writer::new(usize::try_from(len).expect("a u32 fits a usize"))),
+            sink: Sink::Writing(Writer::new(usize_of(len))),
             open: Stack::with_capacity(limits.depth),
             position: Position::Start,
         }
@@ -504,7 +504,7 @@ impl Encoder {
 
     fn put(&mut self, bytes: &[u8]) {
         match &mut self.sink {
-            Sink::Measuring { len, .. } => *len = len.saturating_add(u64::try_from(bytes.len()).unwrap_or(u64::MAX)),
+            Sink::Measuring { len, .. } => *len = len.saturating_add(len_u64(bytes.len())),
             Sink::Refused(_) => {}
             Sink::Writing(writer) => writer.put(bytes).expect("a document measured first fits"),
         }

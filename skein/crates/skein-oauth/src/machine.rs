@@ -11,7 +11,7 @@ use crate::{ClaimSelector, DecodeError, Failure, Json, Limits, OAuthError, Refre
 use crate::{classify, decode_error, decode_response, rotate};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
-use skein_lib::{Duration, Queue, Time, Wall, bytes};
+use skein_lib::{Duration, Queue, Time, Wall, bytes, usize_of};
 
 /// Startup bounds for one client and exchange.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -349,9 +349,7 @@ impl Client {
         now: Time,
     ) -> Result<(Exchange, Request, Phase), Failure> {
         validate_registration(&registration, &self.limits, false)?;
-        if prior.refresh_token.is_empty()
-            || prior.refresh_token.len() > usize::try_from(self.limits.document.token_bytes).expect("u32 fits")
-        {
+        if prior.refresh_token.is_empty() || prior.refresh_token.len() > usize_of(self.limits.document.token_bytes) {
             return Err(Failure::Limit);
         }
         if let Err(error) = crate::record::validate_refresh_additions(&prior, &self.limits.document) {
@@ -432,13 +430,13 @@ impl Client {
         }
         let code = redirect.code.expect("admitted redirect's code");
         let client_id = redirect.client_id;
-        if code.len() > usize::try_from(self.limits.code_bytes).expect("u32 fits") {
+        if code.len() > usize_of(self.limits.code_bytes) {
             self.finish(Failure::Limit, out);
             return;
         }
         if issued_id(&exchange.registration) {
             let client_id = client_id.expect("admitted redirect's issued client id");
-            if client_id.len() > usize::try_from(self.limits.document.issued_client_bytes).expect("u32 fits") {
+            if client_id.len() > usize_of(self.limits.document.issued_client_bytes) {
                 self.finish(Failure::Limit, out);
                 return;
             }
@@ -491,7 +489,7 @@ impl Client {
             self.retry_or_fail(exchange, Failure::Unavailable, answer.now, answer.retry_after, true, out);
             return;
         }
-        if answer.body.len() > usize::try_from(self.limits.document.document_bytes).expect("u32 fits") {
+        if answer.body.len() > usize_of(self.limits.document.document_bytes) {
             self.finish(Failure::Limit, out);
             return;
         }

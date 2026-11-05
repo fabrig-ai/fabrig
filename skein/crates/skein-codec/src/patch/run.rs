@@ -5,7 +5,7 @@ use crate::Reason;
 use crate::schema::{self, DeclIx, FieldIx, Held, Schema, Shape, Span, Type, TypeIx, VariantIx};
 use crate::value::{Items, Node, Part, Path, Problem, Refusal, Source, Value, growing_room};
 use alloc::boxed::Box;
-use skein_lib::{Buffer, List};
+use skein_lib::{Buffer, List, usize_of};
 
 mod build;
 mod heap;
@@ -220,7 +220,7 @@ impl Patcher {
         self.build.settle(result)
     }
     fn start_record(&mut self, root: DeclIx, record: Box<[u8]>) -> Result<(), Halt> {
-        if record.len() > usize::try_from(self.build.tables.capacity.bytes).expect("u32 fits usize") {
+        if record.len() > usize_of(self.build.tables.capacity.bytes) {
             return Err(Halt::Room);
         }
         self.old.value.use_reserved(&mut self.build.reserve);

@@ -2,7 +2,7 @@
 use super::{id, limits::Limits};
 use crate::api;
 use alloc::boxed::Box;
-use skein_lib::{Decimal, Wall, Writer, bytes};
+use skein_lib::{Decimal, Wall, Writer, bytes, len_u64, usize_of};
 /// An HTTP method.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Method {
@@ -336,7 +336,7 @@ pub fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
     bounded_fields(request, limits)?;
     let mut out = Target { length: 0, writer: None };
     target(request, &mut out)?;
-    if out.length > usize::try_from(limits.target_bytes).expect("u32 fits usize") {
+    if out.length > usize_of(limits.target_bytes) {
         return Err(Refusal::TooLong);
     }
     let mut out = Target { length: 0, writer: Some(Writer::new(out.length)) };
@@ -1216,7 +1216,7 @@ fn app_target(request: &Request, out: &mut Target) -> Result<(), Refusal> {
 }
 
 fn bounded(text: &[u8], limit: u32) -> Result<(), Refusal> {
-    if u64::try_from(text.len()).ok().ok_or(Refusal::TooLong)? > u64::from(limit) {
+    if len_u64(text.len()) > u64::from(limit) {
         return Err(Refusal::TooLong);
     }
     Ok(())
@@ -1234,7 +1234,7 @@ fn bounded_fields(request: &Request, limits: &Limits) -> Result<(), Refusal> {
             }
         }
         Request::Reviewers { logins, .. } => {
-            if u64::try_from(logins.len()).ok().ok_or(Refusal::TooLong)? > u64::from(limits.inner) {
+            if len_u64(logins.len()) > u64::from(limits.inner) {
                 return Err(Refusal::TooLong);
             }
             for login in logins {
@@ -1267,9 +1267,7 @@ fn bounded_fields(request: &Request, limits: &Limits) -> Result<(), Refusal> {
             }
         }
 
-        Request::DeleteBranch { branch, .. }
-            if u64::try_from(branch.len()).ok().ok_or(Refusal::TooLong)? > u64::from(limits.string_bytes) =>
-        {
+        Request::DeleteBranch { branch, .. } if len_u64(branch.len()) > u64::from(limits.string_bytes) => {
             return Err(Refusal::TooLong);
         }
         Request::Merge { .. }
