@@ -6,6 +6,7 @@ pub mod charters;
 pub(crate) mod check;
 pub mod fleet_needs;
 pub(crate) mod held;
+mod models;
 pub(crate) mod restart;
 pub(crate) mod revisions;
 pub mod templates;
@@ -22,6 +23,7 @@ pub use application::{Kind, KindScope};
 pub(crate) use change::{apply, change_shape, changes_current};
 pub use check::{check, check_change};
 pub use held::{Held, VersionKey};
+pub use models::{model_bit, remap};
 pub use restart::revision_writes;
 pub use revisions::history_copy;
 
