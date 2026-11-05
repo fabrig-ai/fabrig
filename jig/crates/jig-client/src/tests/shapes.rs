@@ -434,3 +434,22 @@ fn a_chat_keeps_its_note_scopes() {
     assert_eq!(task.authority.notes, offered.notes);
     assert_eq!(task.authority.note_resources, offered.note_resources);
 }
+
+#[test]
+fn set_agreed_goal_from_asks() {
+    for budget in [creating().within.budget, draft().budget] {
+        let draft = GoalDraft { budget, ..draft() };
+        let judged = set_agreed_goal_from(&me(), PROJECT, GOAL, draft, words());
+        let task = match judged {
+            Judged::Create(Ask::Create { tasks, .. })
+            | Judged::Propose { ask: Ask::Propose { action: ProposeAction::Batch { tasks }, .. }, .. } => {
+                tasks.get(0).unwrap().clone()
+            }
+            other @ (Judged::Create(_) | Judged::Propose { .. } | Judged::Refused(_) | Judged::NotOffered(_)) => {
+                panic!("offered agreed goal: {other:?}")
+            }
+        };
+        assert!(task.spec.asks, "budget={budget}");
+        assert_eq!(task.spec.words, words());
+    }
+}

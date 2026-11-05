@@ -177,7 +177,9 @@ pub(crate) fn valid(limits: &crate::Limits, batch: &[Member]) -> bool {
         return false;
     }
     for member in batch {
-        if member.words.len() > skein_lib::length::usize_of(limits.words) || !crate::llm::valid(member.llm.as_ref()) {
+        if member.words.len() > skein_lib::length::usize_of(limits.spec_bytes)
+            || !crate::llm::valid(member.llm.as_ref())
+        {
             return false;
         }
         match member_bytes(member) {
