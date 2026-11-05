@@ -284,7 +284,9 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   `/chats?state=live&at=start`. Every other `/chats` leaves the focus
   on its heading, as any move does.
 - **The welcome's step is its query:** none for its first step,
-  Welcome, so that `/welcome` is the welcome; `?at=forge`, `?at=model`
+  Welcome, so that `/welcome` is the welcome and decides by the store's
+  state; `?at=welcome` for that step asked by its link, which stays on it
+  unless the state is whole; `?at=forge`, `?at=model`
   and `?at=ready` for the others (`README.md`, 3.5, The welcome). As
   the inbox's filter, an `at` that doesn't read as a step, or a field
   of another name, is dropped, and the address replaced with the
@@ -452,6 +454,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   standalone page's holder choice or outer Choose card. Inside a way,
   its single Back returns to Model Choose. The API key details keep the
   full-width card with contents limited to 420 px; failure reasons in flow details are red.
+- **The welcome's title,** "Welcome · first run · temper" on every step,
+  whatever its level-1 heading, as Home's is "Home · temper"; the shell's
+  turn, the journeys' print and the gallery's take it from the same rule,
+  `main` styled `temper-welcome`.
 - **The welcome's look** (the user's greenfield pass, 2026-11-04;
   `README.md`, 3.5 and 5.6), at its own scale, in `temper.css`'s last
   block, every rule scoped to the welcome's frame
@@ -461,8 +467,9 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   name in the signal colour (#c2410c). The banner is a top bar, 22 px
   by 32 px, the brand, temper box's line in 14 px muted words, its
   "temper box" ink and bold, and the steps at its right in 14.5 px
-  words, each a numbered 24 px circle, the current one filled ink, a
-  done one ticked green, joined by short hairlines; at 1100 px and
+  words, each a link holding a numbered 24 px circle and its label, the
+  current one filled ink, a done one ticked green, joined by short
+  hairlines, hovered ink; below 760 px only the current label shows; at 1100 px and
   under, temper box's line takes its own row under them. The main is
   one 680 px column: the tagline (14 px) above the level-1 heading
   (32 px, 500),

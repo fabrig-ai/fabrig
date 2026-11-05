@@ -3,3 +3,23 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-welcome/inputs/request.md", "temper/docs/design/draft/first-run-projects.md", "temper/docs/design/draft/first-run-projects.status.md", "temper/docs/design/draft/to-begin.md", "temper/docs/design/draft/repository-copies.md", "temper/docs/design/draft/repository-copies.status.md", "temper/docs/design/draft/claude-provider.md", "temper/docs/design/draft/serve-without-box.md", "temper/docs/design/draft/fetch-progress.md", "temper/docs/design/client/journeys.md", "temper/crates/temper-client-view/src/pages/welcome.rs", "temper/crates/temper-client-view/src/pages/connect_model.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# One chain over the view, the request's order; the box's terminal and the engine's intent stand aside
+# from it, since they share no file with it. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "frame"
+title = "the wizard's frame and the Welcome step: steps as links, ?at=welcome, Go on setting up"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "the welcome's steps walk the wizard, each ticked by a fact"
+parts = ["frame"]
+walk = false
