@@ -173,7 +173,7 @@ impl Read {
         self.room = Some(true);
     }
     pub fn input(&mut self, child: &Child, below: &mut Queue<Asked>) -> bool {
-        let Some(input) = child.input else {
+        let Some(input) = child.input.token() else {
             return false;
         };
         let down = if let Some(blob) = self.blobs.get(self.sent) {

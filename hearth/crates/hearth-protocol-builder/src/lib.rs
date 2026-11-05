@@ -16,6 +16,7 @@ mod cache;
 mod client;
 mod events;
 mod git;
+mod held;
 mod indices;
 mod keep;
 mod terminal;
@@ -30,8 +31,9 @@ mod walk;
 use hearth_protocol_tree as tree;
 pub mod translate;
 use alloc::boxed::Box;
-use git::Intake;
+use git::{Intake, Stage};
 use git_machine::{hunks, invocation, listing, oid::Oid, rev_parse};
+use held::Held;
 use limits::Limits;
 use render::vocabulary::{Class, Event as RenderEvent};
 use skein_io::{self as io, kernel::Fd};
@@ -206,11 +208,11 @@ impl Protocol {
         let Some(child) = &self.child else {
             return false;
         };
-        if child.closing {
+        if child.stage == Stage::Closing {
             return child.work_pending() || child.done();
         }
-        if child.failed && child.process.is_none() {
-            return child.closed;
+        if child.failed && child.process.token().is_none() {
+            return child.process == Held::Closed;
         }
         let mode = self.mode.as_ref().expect("child has mode");
         let ready = match mode {
@@ -219,7 +221,7 @@ impl Protocol {
             Mode::Hunks { answer, .. } => answer.is_some(),
             Mode::Read(read) => read.ready(),
         };
-        if child.error.is_some() && child.error_state == Intake::Demand {
+        if child.error.token().is_some() && child.error_state == Intake::Demand {
             return true;
         }
         if child.failed || ready {
@@ -229,16 +231,20 @@ impl Protocol {
             {
                 return pending;
             }
-            return (child.output.is_some()
+            return (child.output.token().is_some()
                 && child.output_state != Intake::Ended
                 && child.output_state != Intake::Draining)
                 || (child.output_state == Intake::Ended && child.error_state == Intake::Ended && child.exit.is_some());
         }
         match mode {
             Mode::Rev { .. } => false,
-            Mode::Listing { above, below, .. } => !above.is_empty() || (child.output.is_some() && !below.is_empty()),
-            Mode::Hunks { above, below, .. } => !above.is_empty() || (child.output.is_some() && !below.is_empty()),
-            Mode::Read(read) => read.failed() || (child.output.is_some() && read.work_pending()),
+            Mode::Listing { above, below, .. } => {
+                !above.is_empty() || (child.output.token().is_some() && !below.is_empty())
+            }
+            Mode::Hunks { above, below, .. } => {
+                !above.is_empty() || (child.output.token().is_some() && !below.is_empty())
+            }
+            Mode::Read(read) => read.failed() || (child.output.token().is_some() && read.work_pending()),
         }
     }
     /// Every step is unavailable until the task that runs it (hearth/docs/design/domain/build.md, 4.3).
@@ -429,7 +435,7 @@ fn io_up(protocol: &mut Protocol, env: &Env<Limits>, event: io::Event, below: &m
             let Some(up) = stream_up(child, owner, up) else {
                 return;
             };
-            if child.input == Some(owner) {
+            if child.input.token() == Some(owner) {
                 match up {
                     Up::Room => {
                         if let Some(Mode::Read(read)) = &mut protocol.mode {
@@ -440,7 +446,7 @@ fn io_up(protocol: &mut Protocol, env: &Env<Limits>, event: io::Event, below: &m
                     Up::Bytes(_) | Up::End => unreachable!("write-only stdin"),
                 }
             } else {
-                assert_eq!(child.output, Some(owner), "current stdout");
+                assert_eq!(child.output.token(), Some(owner), "current stdout");
                 match protocol.mode.as_mut().expect("child mode") {
                     Mode::Rev { stdout, ended, .. } => revision_stdout(stdout, ended, up, child, below),
                     Mode::Listing { machine, above: events, below: requests, .. } => {
@@ -577,8 +583,8 @@ pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
     {
         return;
     }
-    if !child.closing
-        && let Some(stream) = child.error
+    if child.stage != Stage::Closing
+        && let Some(stream) = child.error.token()
         && child.error_state == Intake::Demand
     {
         child.error_state = Intake::Waiting;
@@ -590,7 +596,7 @@ pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
     }
     if (child.failed || ready)
         && child.output_state != Intake::Ended
-        && child.output.is_some()
+        && child.output.token().is_some()
         && child.output_state != Intake::Draining
     {
         let pending = child.output_state == Intake::Reading;
@@ -606,10 +612,10 @@ pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
         && child.error_state == Intake::Ended
         && child.exit.is_some()
     {
-        child.closing = true;
+        child.stage = Stage::Closing;
     }
-    if child.process.is_none() && child.closed {
-        child.closing = true;
+    if child.process == Held::Closed {
+        child.stage = Stage::Closing;
     }
     if child.resume(below) {
         return;
@@ -618,7 +624,7 @@ pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
         finish(protocol, env, above, below);
         return;
     }
-    if child.closing || child.failed || ready || child.output.is_none() {
+    if child.stage == Stage::Closing || child.failed || ready || child.output.token().is_none() {
         return;
     }
     resume_mode(mode, child, env, above, below);
