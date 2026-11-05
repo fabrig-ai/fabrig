@@ -77,3 +77,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: each overlay rule landed, or left with why.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling: a chat's document is the note with the lowest number in its own scope whose description doesn't begin with "work:". A note whose description begins "work:" is the agent's working note and isn't drawn: a configuring chat will keep its settings value in one.
