@@ -6,7 +6,7 @@
 
 use alloc::boxed::Box;
 
-use skein_lib::{Decimal, Wall, Writer};
+use skein_lib::{Civil, Decimal, Wall, Writer};
 
 use super::{Body, Limits, Rejection, Response};
 use crate::header::{is_field_byte, is_tchar};
@@ -247,42 +247,20 @@ fn answer_len(line: &[u8]) -> usize {
 }
 
 /// The `Date` field for `wall`, as an IMF-fixdate (RFC 9110, 5.6.7): the
-/// day of the week, the date and the time of day, in GMT. The date comes
-/// from the days since the epoch by whole 400-year cycles of the Gregorian
-/// calendar, each counted from a March 1, so that a leap day ends its
-/// year (Howard Hinnant's `civil_from_days`). Nothing saturates: a `Wall`
-/// counts at most some 214,000 days.
+/// day of the week, the date and the time of day, in GMT.
 fn put_date(head: &mut Writer, wall: Wall) {
     let seconds = wall.as_secs();
     let days = seconds / 86_400;
     let time = seconds % 86_400;
-    // 1970-01-01 is 719,468 days after 0000-03-01, which starts a cycle.
-    let shifted = days.saturating_add(719_468);
-    let cycle = shifted / 146_097;
-    let of_cycle = shifted % 146_097;
-    // The year of the cycle, less the leap days before it: a cycle's
-    // years have 365 days, one in four one more but one in a hundred, and
-    // one in four hundred one more again.
-    let year_of_cycle =
-        of_cycle.saturating_sub(of_cycle / 1_460).saturating_add(of_cycle / 36_524).saturating_sub(of_cycle / 146_096)
-            / 365;
-    let day_of_year = of_cycle.saturating_sub(
-        year_of_cycle.saturating_mul(365).saturating_add(year_of_cycle / 4).saturating_sub(year_of_cycle / 100),
-    );
-    // The month from March, 0 to 11: five months of 153 days.
-    let month = day_of_year.saturating_mul(5).saturating_add(2) / 153;
-    let day = day_of_year.saturating_sub(month.saturating_mul(153).saturating_add(2) / 5).saturating_add(1);
-    // January and February are the next year's.
-    let january = u64::from(month >= 10);
-    let year = cycle.saturating_mul(400).saturating_add(year_of_cycle).saturating_add(january);
+    let date = wall.civil();
     put(head, b"Date: ");
     put(head, weekday(days.saturating_add(4) % 7));
     put(head, b", ");
-    put_digits(head, day, 2);
+    put_digits(head, u64::from(date.day), 2);
     put(head, b" ");
-    put(head, month_name(month));
+    put(head, Civil::month_name(date.month).expect("Wall has a calendar month"));
     put(head, b" ");
-    put_digits(head, year, 4);
+    put_digits(head, u64::from(date.year), 4);
     put(head, b" ");
     put_digits(head, time / 3_600, 2);
     put(head, b":");
@@ -303,25 +281,6 @@ fn weekday(day: u64) -> &'static [u8] {
         5 => b"Fri",
         6 => b"Sat",
         _ => unreachable!("a day of the week is below 7"),
-    }
-}
-
-/// The month, from March, 0.
-fn month_name(month: u64) -> &'static [u8] {
-    match month {
-        0 => b"Mar",
-        1 => b"Apr",
-        2 => b"May",
-        3 => b"Jun",
-        4 => b"Jul",
-        5 => b"Aug",
-        6 => b"Sep",
-        7 => b"Oct",
-        8 => b"Nov",
-        9 => b"Dec",
-        10 => b"Jan",
-        11 => b"Feb",
-        _ => unreachable!("a month is below 12"),
     }
 }
 

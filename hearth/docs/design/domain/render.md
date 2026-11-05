@@ -1320,8 +1320,9 @@ room check that remains, and what it keeps.
   before a request, or while a piece is still being taken, overtakes
   nothing: the machine holds it and gives it to the next request.
 - **A pipe's reader gives one thing a delivery.** An `Inst`, a `Fetched`
-  or the pipe's end, and the next demand: resolution takes one of each
-  from a delivery. The pipe's end comes last, and once.
+  or the pipe's end, and the next demand. Resolution takes one of each
+  from a delivery, and one demand from a list reader's; a second would
+  be lost. The pipe's end comes last, and once.
 - **A list's end follows its last stanza.** A scan gives at most one
   stanza. A list with no blank line after its last stanza gives that
   stanza and then its end, and the end comes once.
@@ -1529,6 +1530,11 @@ Over generated repositories, valid by construction and then mutated:
 - **Where a resolution's closure is made:** 8.2's `Resolved` carries the
   closure, while 5.3 has the domain match `Inst` triples to `Packages`
   stanzas; one of the two is to change.
+- **What the queues beside the config and records machines keep:**
+  `Decode`'s and `Client`'s, in `hearth-protocol-builder`, hold what one
+  entry point of a machine gives. What each keeps goes in 8.5, with its
+  test, before its cap goes; it depends on those machines' move to the
+  model (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`).
 - **How the builder paces with its own queues uncapped:** an uncapped
   `answers` can hold a copy of every target's spec, so it takes a
   watermark (`skein/docs/foundation/programming-model.md`, 7.1) or a stop

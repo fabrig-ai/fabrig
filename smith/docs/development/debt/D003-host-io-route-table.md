@@ -7,7 +7,7 @@
 - **Checked:** 2026-11-03 at `41d63da8c3`
 - **Value:** low (one routing rule instead of a table per service; services drive io through `stage` like the rest)
 - **Size:** M (most of it in skein)
-- **Status:** open (waits on skein's D044)
+- **Status:** open
 - **Paid when:** `HostIo` has no `Map<Token, Operation>` route table and no `native_io_valid` of its own, and the multiplexing services call `stage` instead of `io::resume`.
 - **Measure:** `grep '^io_resume ' smith/scripts/old-forms.txt` is 15
 
@@ -37,8 +37,9 @@ hand, and the hand-written validity check can drift from skein's.
 
 ## What pays it back
 
-skein first: a lane chosen at construction, held in the token's top bits
-(skein's review's io F1; skein's `skein/docs/development/debt/D044-io-token-tags.md`, which this item waits on), and one public validity check (its F6). Then
+skein gives the lane: a token's top bits name its namespace (`Token::tagged`,
+`skein/docs/design/lib.md`, 4; skein's review's io F1), as skein's terminal
+does. It still lacks one public validity check (its F6). Then
 `HostIo` routes by lane, drops the table, calls `skein_io::valid` plus its
 own doubling rule, and the services move onto `stage`. skein's
 `skein/docs/design/io.status.md` does not record the collision yet.

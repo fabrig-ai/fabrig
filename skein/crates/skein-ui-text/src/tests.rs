@@ -1,8 +1,21 @@
-use crate::{Print, render};
+use crate::{Print, Terminal, render};
+use skein_lib::Token;
 use skein_ui::{Role, Run};
 mod bound;
 mod command;
 mod fixtures;
+
+#[test]
+fn a_terminal_owns_its_namespace_alone() {
+    for (op, owned) in [
+        (Token::tagged(4, 7).unwrap(), true),
+        (Token::new(7), false),
+        (Token::tagged(2, 7).unwrap(), false),
+        (Token::tagged(5, 7).unwrap(), false),
+    ] {
+        assert_eq!(Terminal::owns(op), owned, "namespace {}", op.tag());
+    }
+}
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "hand-written golden bytes fix the renderer's contract")]

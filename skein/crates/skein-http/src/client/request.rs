@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 
 use super::Limits;
-use crate::header::{is_field_byte, is_tchar};
+use crate::header::{field_len, is_field_byte, is_token};
 use crate::{Header, Method};
 
 /// The request body a call announces in its head.
@@ -69,31 +69,21 @@ const CRLF: &[u8] = b"\r\n";
 /// field, its name before its value, then the one `Host`, then the length.
 pub(super) fn write(call: &Call, limits: &Limits) -> Result<Box<[u8]>, Refusal> {
     check(call)?;
-    let length = framing(call);
-    let mut len = Measure(Some(0));
-    len.add(call.method.as_bytes().len());
-    len.add(1);
-    len.add(call.target.len());
-    len.add(VERSION.len());
+    let mut fields = Measure(Some(0));
     for header in &call.headers {
-        len.add(header.name.len());
-        len.add(2);
-        len.add(header.value.len());
-        len.add(CRLF.len());
+        fields.add(field_len(header.name.len(), header.value.len()).ok_or(Refusal::TooLong)?);
     }
-    if let Some(length) = &length {
-        len.add(CONTENT_LENGTH.len());
-        len.add(length.as_bytes().len());
-        len.add(CRLF.len());
-    }
-    if call.close {
-        len.add(CLOSE.len());
-    }
-    len.add(CRLF.len());
-    let len = match len.0 {
+    let len =
+        request_head_len(call.method, call.target.len(), fields.0.ok_or(Refusal::TooLong)?, call.body, call.close);
+    let len = match len {
+        Some(len) => u32::try_from(len).ok(),
+        None => None,
+    };
+    let len = match len {
         Some(len) if len <= limits.request => len,
         Some(_) | None => return Err(Refusal::TooLong),
     };
+    let length = framing(call.method, call.body);
     let mut head = Writer::new(usize::try_from(len).expect("a u32 fits a usize"));
     put(&mut head, call.method.as_bytes());
     put(&mut head, b" ");
@@ -129,13 +119,8 @@ fn check(call: &Call) -> Result<(), Refusal> {
     }
     let mut hosts: u32 = 0;
     for header in &call.headers {
-        if header.name.is_empty() {
+        if !is_token(&header.name) {
             return Err(Refusal::Name);
-        }
-        for &byte in &header.name {
-            if !is_tchar(byte) {
-                return Err(Refusal::Name);
-            }
         }
         for &byte in &header.value {
             if !is_field_byte(byte) {
@@ -157,24 +142,43 @@ fn check(call: &Call) -> Result<(), Refusal> {
 
 /// The `Content-Length` the head says, if it says one: the body's, or none
 /// for a method that gives a body a meaning (RFC 9110, 8.6).
-fn framing(call: &Call) -> Option<Decimal> {
-    match call.body {
+fn framing(method: Method, body: Body) -> Option<Decimal> {
+    match body {
         Body::Length(length) => Some(Decimal::of(length)),
-        Body::None if call.method.expects_body() => Some(Decimal::of(0)),
+        Body::None if method.expects_body() => Some(Decimal::of(0)),
         Body::None => None,
     }
 }
 
-/// A head's length, added up with checks: `None` past a `u32`.
-struct Measure(Option<u32>);
+/// The exact bytes of a request head whose fields take `fields` bytes in all
+/// ([`field_len`]).
+#[must_use]
+pub fn request_head_len(method: Method, target: usize, fields: usize, body: Body, close: bool) -> Option<usize> {
+    let mut len = Measure(Some(0));
+    len.add(method.as_bytes().len());
+    len.add(1);
+    len.add(target);
+    len.add(VERSION.len());
+    len.add(fields);
+    if let Some(length) = framing(method, body) {
+        len.add(CONTENT_LENGTH.len());
+        len.add(length.as_bytes().len());
+        len.add(CRLF.len());
+    }
+    if close {
+        len.add(CLOSE.len());
+    }
+    len.add(CRLF.len());
+    len.0
+}
+
+/// A head's length, added up with checks: `None` past a `usize`.
+struct Measure(Option<usize>);
 
 impl Measure {
     fn add(&mut self, len: usize) {
         let Some(sum) = self.0 else { return };
-        self.0 = match u32::try_from(len) {
-            Ok(len) => sum.checked_add(len),
-            Err(_) => None,
-        };
+        self.0 = sum.checked_add(len);
     }
 }
 

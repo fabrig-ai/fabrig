@@ -1004,14 +1004,14 @@ domain and `iterate`) uses:
 - Everything lib (skein's `skein-lib`) exports:
   - entities and names: `Id<T>`, `Slab<T>`, `Token`, `ReplyTo`;
   - bounded containers: `Queue<T>`, `List<T>`, `Map<K, V>` and `Set<K>`
-    (ordered, over B-trees), `Stack<T>`;
+    (ordered, over B-trees), `Lru<K, V>`, `Stack<T>`;
   - bytes: the `stream` vocabulary, `Intake`, `Reader`, `Writer` (sized)
     and its `Overflow`, `Decimal` (a count's digits, for text),
     `bytes::copy_of`, `bytes::zeroed` (a buffer for the side below to
     fill), and the byte search `bytes::find`, `find_from` and
     `count` (linear time, no allocation);
   - time and randomness: `Time`, `Duration`, `Wall` (wall-clock time,
-    never a deadline), `Deadlines`, `Rng`;
+    never a deadline), `Civil` (its date), `Deadlines`, `Rng`;
   - the environment: `Env<L>`.
 
 lib uses the same, plus generic types, lifetime parameters on its cursors,

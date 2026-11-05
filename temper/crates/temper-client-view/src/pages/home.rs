@@ -629,6 +629,17 @@ fn page(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, proj
 fn settings_controls(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
     b.open(Role::List);
     b.open(Role::Item);
+    let task = match root.pages().chats() {
+        Some(chats) => chats.open_configuring(root.client(), root.pages().me(root.client()), project),
+        None => None,
+    };
+    let address = match task {
+        Some(task) => Address::Chat { task },
+        None => Address::Configure { project },
+    };
+    go(b, bindings, &w.say(Word::ConfigureTitle, &[]), address, None);
+    b.close();
+    b.open(Role::Item);
     crate::frame::forges_link(b, root, w, bindings);
     b.close();
     b.open(Role::Item);

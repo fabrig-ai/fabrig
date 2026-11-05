@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use skein_io::{self as io, Addr, Event, Request};
-use skein_lib::{Duration, Env, Queue, Token};
+use skein_lib::{Duration, Queue, Token};
 use skein_shell::{Clock, Kernel, Wait};
 
 pub fn limits() -> io::Limits {
@@ -30,7 +30,7 @@ pub fn claim_and_accept(kernel: &mut Kernel, state: &mut io::Io, token: Token, a
     let now = clock.now();
     io::down(
         state,
-        &Env { now: now.now, wall: now.wall, limits },
+        &now.with(limits),
         Request::Listen { owner: Token::new(100), addr: Addr::Ip(address) },
         &mut submissions,
     );
@@ -42,7 +42,7 @@ pub fn claim_and_accept(kernel: &mut Kernel, state: &mut io::Io, token: Token, a
         state.reclaim();
         let now = clock.now();
         assert!(now.now < deadline, "inherited listener must settle");
-        let env = Env { now: now.now, wall: now.wall, limits };
+        let env = now.with(limits);
         kernel.reap(&mut completions);
         io::stage::up(state, &env, &mut completions, &mut events, &mut submissions, now.now);
         while let Some(event) = events.pop() {

@@ -26,7 +26,7 @@ extern crate alloc;
 mod body;
 pub mod client;
 pub mod gzip;
-mod header;
+pub mod header;
 mod message;
 pub mod server;
 pub mod sse;
