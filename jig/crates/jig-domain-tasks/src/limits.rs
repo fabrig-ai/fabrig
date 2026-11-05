@@ -245,18 +245,17 @@ pub(crate) mod tests {
 
     #[test]
     fn word_bytes_covers_fixed_notices_and_caller_limits() {
-        let notice = u32::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).unwrap();
-        let reminder = u32::try_from(crate::questions::OWED_WORDS.len()).unwrap();
-        for literal in [notice, reminder] {
-            for bound in [literal - 1, literal + 1] {
-                for (message, result, inbox, expected) in [
-                    (bound, 0, 0, bound.max(notice)),
-                    (0, bound, 0, bound.max(notice)),
-                    (0, 0, bound, notice.max(bound.min(reminder))),
-                ] {
-                    let limits = Limits { message_bytes: message, result_bytes: result, inbox_bytes: inbox, ..LIMITS };
-                    assert_eq!(limits.word_bytes(), expected, "{message}, {result}, {inbox}");
-                }
+        // Byte lengths of the durable notice and reminder in run and questions.
+        const NOTICE: u32 = 97;
+        const REMINDER: u32 = 87;
+        for (bound, expected) in
+            [(REMINDER - 1, NOTICE), (REMINDER + 1, NOTICE), (NOTICE - 1, NOTICE), (NOTICE + 1, 98)]
+        {
+            for (message, result, inbox, expected) in
+                [(bound, 0, 0, expected), (0, bound, 0, expected), (0, 0, bound, NOTICE)]
+            {
+                let limits = Limits { message_bytes: message, result_bytes: result, inbox_bytes: inbox, ..LIMITS };
+                assert_eq!(limits.word_bytes(), expected, "{message}, {result}, {inbox}");
             }
         }
     }
