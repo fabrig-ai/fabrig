@@ -50,7 +50,7 @@ fn a_failed_connection_holds_link_work_until_close() {
     h.connection.stream(&h.env, Up::Room);
     h.pump();
     assert!(h.connection.link.has_work(), "closed connection holds link events");
-    assert_eq!(h.connection.phase, Phase::Closed);
+    assert_eq!(h.connection.phase(), Phase::Closed);
     h.connection.close(&h.env, false, &mut h.io);
     h.pump();
     assert!(!h.connection.link.has_work(), "closing drains the link");
@@ -88,7 +88,7 @@ fn a_json_response_is_decoded_through_its_body_end() {
         ))),
         "decoded whole"
     );
-    assert_eq!(h.connection.phase, Phase::Idle, "reusable");
+    assert_eq!(h.connection.phase(), Phase::Idle, "reusable");
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn a_malformed_document_closes_without_reading_more() {
     let Some(Heard::Done(skein_forge::forgejo::plans::Body::Malformed(_))) = heard.last() else {
         unreachable!("malformed terminal");
     };
-    assert_eq!(h.connection.phase, Phase::Closed, "malformed closes");
+    assert_eq!(h.connection.phase(), Phase::Closed, "malformed closes");
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn a_connection_close_answer_ends_its_connection_after_it() {
     let Some(Heard::Done(skein_forge::forgejo::plans::Body::Document(_))) = heard.last() else {
         unreachable!("document ends first");
     };
-    assert_eq!(h.connection.phase, Phase::Closed, "answer closed connection");
+    assert_eq!(h.connection.phase(), Phase::Closed, "answer closed connection");
 }
 
 #[test]
@@ -242,7 +242,7 @@ fn raw_reads_keep_the_range_and_refuse_bytes_past_remaining_answer_room() {
             Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(expected), more })),
             "{name}: raw body"
         );
-        assert_eq!(h.connection.phase, phase, "{name}: connection state");
+        assert_eq!(h.connection.phase(), phase, "{name}: connection state");
         assert!(contains(&h.sent, range), "{name}: range header");
     }
 }
@@ -308,7 +308,7 @@ fn a_chunked_raw_read_keeps_the_last_short_piece() {
         Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&b"ab"[..]), more: false })),
         "final bytes kept"
     );
-    assert_eq!(h.connection.phase, Phase::Idle, "complete body reusable");
+    assert_eq!(h.connection.phase(), Phase::Idle, "complete body reusable");
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn a_tail_read_keeps_a_200s_last_bytes_and_closes_when_some_were_dropped() {
         let heard = h.answer(&fixtures::ok(response));
         let kept = Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(expected), more });
         assert_eq!(heard.last(), Some(&kept), "{name}: The last bytes");
-        assert_eq!(h.connection.phase, phase, "{name}: Connection state");
+        assert_eq!(h.connection.phase(), phase, "{name}: Connection state");
         assert!(contains(&h.sent, b"Range: bytes=-3\r\n"), "{name}: Suffix range");
     }
 }
@@ -352,7 +352,7 @@ fn a_tail_read_keeps_at_most_the_raw_room() {
         heard.last(),
         Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&b"mnopqrst"[..]), more: true }))
     );
-    assert_eq!(h.connection.phase, Phase::Closed, "Earlier bytes were dropped");
+    assert_eq!(h.connection.phase(), Phase::Closed, "Earlier bytes were dropped");
 }
 #[test]
 fn a_chunked_tail_read_keeps_the_last_bytes_across_pieces() {
@@ -363,7 +363,7 @@ fn a_chunked_tail_read_keeps_the_last_bytes_across_pieces() {
         heard.last(),
         Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&b"cde"[..]), more: true }))
     );
-    assert_eq!(h.connection.phase, Phase::Closed, "Earlier bytes were dropped");
+    assert_eq!(h.connection.phase(), Phase::Closed, "Earlier bytes were dropped");
 }
 #[test]
 fn a_tail_read_past_body_bytes_in_is_malformed_and_closes() {
@@ -377,7 +377,7 @@ fn a_tail_read_past_body_bytes_in_is_malformed_and_closes() {
             field: b"log"
         })))
     );
-    assert_eq!(h.connection.phase, Phase::Closed, "Body limit closes");
+    assert_eq!(h.connection.phase(), Phase::Closed, "Body limit closes");
 }
 
 #[test]

@@ -521,7 +521,7 @@ impl Component {
             skein_io::Event::Closed { owner } => {
                 if let Some(id) = common.connections.remove(&owner) {
                     let c = common.connection_slab.get_mut(id).expect("indexed connection");
-                    let closing = c.closing;
+                    let closing = c.closing();
                     if let Some(call) = common.holders.remove(&owner)
                         && common.lifecycle == Lifecycle::Live
                     {
@@ -753,13 +753,13 @@ impl Common {
             if let Some(deadline) = c.deadline
                 && deadline <= env.now
             {
-                if c.phase == Phase::Idle && ready(state) {
+                if c.phase() == Phase::Idle && ready(state) {
                     c.close(env, false, io);
                     break;
                 }
                 c.timeout();
             }
-            if c.phase == Phase::Idle
+            if c.phase() == Phase::Idle
                 && let Some(read) = start_read(state)
             {
                 if plan.is_none() {
@@ -793,7 +793,7 @@ impl Common {
                 }
                 continue;
             }
-            if c.phase == Phase::Closed {
+            if c.phase() == Phase::Closed {
                 c.close(env, c.in_flight(), io);
             }
             if !exchange.ready(c) {
