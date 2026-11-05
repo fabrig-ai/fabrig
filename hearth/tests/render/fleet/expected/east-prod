@@ -1,16 +1,16 @@
 target       east-prod   base east   environment prod
 placement    metal bios provider-a
-spec         9eb738ca1ce4
+spec         3dd5d46be5c0
 boot         part bc6cab417252
   mutable    false
-packages     part c3028524479a   resolution 6a6b6f669f96 needed
+packages     part 09e36b042b2f   resolution 6a6b6f669f96 needed
   sources    trixie amd64 main 20261001T030405Z updates security 20261001T031522Z
   request    btrfs-progs ca-certificates dbus linux-image-amd64 locales tiny-initramfs tzdata
   variant    apt
   preseed    locales/default_environment_locale select en_US.UTF-8
   preseed    locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8
-  preseed    tzdata/Areas select Europe
-  preseed    tzdata/Zones/Europe select Lisbon
+  preseed    tzdata/Areas select Etc
+  preseed    tzdata/Zones/Etc select UTC
   initramfs  btrfs scsi_mod sd_mod virtio_mmio virtio_pci virtio_scsi
   microcode  generic
   apt        install_recommends false
@@ -19,14 +19,14 @@ software     part 5db02a1979b4
   download   /opt/probe/bin/probe file 0755 root:root ba7816bf8f01
   scripts    service 500 16bddf2f1fbe
   fetch      ba7816bf8f01 https://example.test/probe
-config       part 172eda346a91
+config       part 5d678cb0979a
   groups     systemd-journal package
   presets    probe.service enable
   tmpfiles   /var/log/journal d 2755 root systemd-journal
   /etc/golden/empty        file 0644 root:root e3b0c44298fc
   /etc/golden/enabled      file 0644 root:root e056a35db086
   /etc/hostname            file 0644 root:root 80ea4fbde0e3
-  /etc/localtime           link root:root /usr/share/zoneinfo/Europe/Lisbon
+  /etc/localtime           link root:root /usr/share/zoneinfo/Etc/UTC
   /etc/probe/probe.conf    file 0644 root:root 77326c7bd90b
 data         part ac29d83fe256
   journal    /var/log/journal
