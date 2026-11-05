@@ -3,10 +3,10 @@ use crate::World;
 use skein_forge::api::Write;
 use skein_forge_client::{Condition, Effect, Entry, effect_key};
 use skein_forge_connection::{Limits, Settings, Shared};
-use skein_forge_machine_world::{fixtures, joint::REPO};
+use skein_forge_kit::{fixtures, joint::REPO};
 use skein_lib::Duration;
 
-pub const LIMITS: skein_forge_client::Limits = skein_forge_client_world::LIMITS;
+pub const LIMITS: skein_forge_client::Limits = skein_forge_kit::client::LIMITS;
 
 #[derive(Clone, Copy)]
 pub(crate) enum Shape {

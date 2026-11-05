@@ -56,7 +56,7 @@ fn a_reachable_run_writes_nothing() {
         .map(|item| (item, world.file(item).cloned()))
         .collect();
     assert_eq!(world.reachable(None, 1), Ended::Done);
-    let limits = skein_forge_machine_world::fixtures::fake_limits();
+    let limits = skein_forge_kit::fixtures::fake_limits();
     for request in world.requests() {
         assert_eq!(client::encode(request, &limits.documents).expect("request encodes").method, Method::Get);
     }
@@ -188,7 +188,7 @@ fn a_connected_run_writes_nothing() {
     let tally = world.tally().total;
     let routes: Vec<_> = world.tally().routes.iter().map(|(route, count)| (*route, *count)).collect();
     assert_eq!(world.reachable(None, 1), Ended::Done);
-    let limits = skein_forge_machine_world::fixtures::fake_limits();
+    let limits = skein_forge_kit::fixtures::fake_limits();
     for request in &world.requests()[since..] {
         assert_eq!(client::encode(request, &limits.documents).expect("request encodes").method, Method::Get);
     }

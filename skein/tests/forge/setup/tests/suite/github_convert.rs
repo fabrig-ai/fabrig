@@ -1,5 +1,5 @@
 use skein_fake_forge_github::keys;
-use skein_forge_machine_world::github::app_key;
+use skein_forge_kit::github::app_key;
 use skein_forge_setup::{
     github::manifest::Target,
     host::{Need, Plan},
@@ -158,7 +158,7 @@ fn convert(world: &mut HostWorld, run: u64, callback: &Callback) {
 pub(super) fn drawn_secrets(world: &HostWorld, seed: u64, code: &Secret) -> (Secret, Secret) {
     use skein_fake_forge_github::installations::{Kind, Reach, Scope};
     use skein_forge::github::{decode, document};
-    use skein_forge_machine_world::github::{Fake, WALL_BASE};
+    use skein_forge_kit::github::{Fake, WALL_BASE};
 
     let Some(Heard::Done { outcome: Outcome::Manifest { target, manifest, .. }, .. }) = world.heard().first() else {
         panic!("manifest form")

@@ -7,7 +7,7 @@ use skein_fake_forge_github::{
     service::{Limits as ServiceLimits, Service},
 };
 use skein_forge_connection::{Component, Event, Limits, Request};
-use skein_forge_machine_world::{
+use skein_forge_kit::{
     fixtures as machine,
     joint::REPO,
     pipe::{Cut, Pipe},
@@ -165,7 +165,7 @@ impl Github {
                 default: Box::from(b"main".as_slice()),
                 tree: Box::from([]),
                 labels: Box::from([]),
-                checks: skein_forge_machine_world::joint::checks(1000),
+                checks: skein_forge_kit::joint::checks(1000),
                 protection: None,
                 hooked: true,
             },
