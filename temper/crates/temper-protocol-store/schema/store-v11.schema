@@ -311,7 +311,9 @@ record RuleGate { number: u32 blocking: bool freshness: Freshness }
 record RuleApproval { role: u32 people: u32 freshness: Freshness }
 record LandingRule { pattern: RulePattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
 record CharterValue { number: u32 }
-enum SettingValue { rule: LandingRule, charter: CharterValue }
+record ProjectQuestions { route: Route }
+record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 enum SettingSlot { default, change, proposal: Number, replaced: Number }
