@@ -29,7 +29,7 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
   - it rests on `<id>` staying the same for a workspace, held by a test of 2.1;
   - **never share or copy a target across workspaces:** cargo's dep-info holds absolute paths, so a copied one misses changes, and a test goes green on old code;
   - a nested cargo must not re-enter the wrapper, or it deadlocks on its own place: the wrapper takes itself off `PATH`;
-  - it reads the checkout's `FETCH_HEAD` to see a new hold, since the worker tells it nothing.
+  - it reads the checkout's `.git/HEAD` time to see a new hold, since the worker tells it nothing, so a change of git's habits would stop its sweep silently.
   - **its disk is a pool of its own:** it reclaims its own idle targets only, and the pipeline's reclaim frees only the pipeline's, so a machine's disk budget counts both by hand: about 35 GB a workspace, and `checkout.workspaces` bounds how many.
 - **The pipeline:** every build goes through the same admission by hand, with the claim held for the whole run.
 - **A real design:** temper knows a repository's build. A worker with a build's disk budget, its places and its sweep as settings; or a question: does temper own this, or does a deployment always bring its own?
