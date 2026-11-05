@@ -211,7 +211,7 @@ fn making_a_directory_preserves_mode_and_exists_is_a_failure() {
             rig.events.pop(),
             Some(match result {
                 Ok(_) => Event::Made { owner: OWNER },
-                Err(error) => Event::Failed { owner: OWNER, error, committed: false, residue: None },
+                Err(error) => Event::failed(OWNER, error),
             }),
             "{label}"
         );
@@ -285,7 +285,7 @@ fn every_failed_private_open_stage_closes_its_owned_descriptors_before_one_termi
         }
         assert_eq!(
             rig.events.pop(),
-            Some(Event::Failed { owner: OWNER, error: Error::Other(5), committed: false, residue: None })
+            Some(Event::failed(OWNER, Error::Other(5)))
         );
         assert!(rig.events.is_empty() && rig.io.takes());
         assert_eq!(rig.io.open_files(), 1);
@@ -357,7 +357,7 @@ fn denied_private_opens_use_path_metadata_only_to_name_a_refusal() {
             let expected = if probe == 0 {
                 Event::Refused { owner: OWNER, found: Unsafe::Owner { found: USER + 1, expected: USER } }
             } else {
-                Event::Failed { owner: OWNER, error: Error::Permission, committed: false, residue: None }
+                Event::failed(OWNER, Error::Permission)
             };
             assert_eq!(rig.events.pop(), Some(expected));
             assert_eq!(rig.io.open_files(), if root_request { 1 } else { 2 });
@@ -511,7 +511,7 @@ fn reopening_a_replaced_file_keeps_the_loads_deadline() {
     rig.done(Ok(Done::Nothing));
     assert_eq!(
         rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::TimedOut, committed: false, residue: None })
+        Some(Event::failed(OWNER, Error::TimedOut))
     );
     assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }

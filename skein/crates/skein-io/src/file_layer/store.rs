@@ -170,7 +170,7 @@ pub(super) fn start(
     subs: &mut Queue<Submit>,
 ) {
     let Some(root_fd) = io.file(root) else {
-        events.push(Event::Failed { owner, error: Error::NotFound, committed: false, residue: None });
+        events.push(Event::failed(owner, Error::NotFound));
         return;
     };
     if io.random.is_none()
@@ -178,11 +178,11 @@ pub(super) fn start(
         || path.len() >= 4096
         || path.contains(&0)
     {
-        events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
+        events.push(Event::failed(owner, Error::InvalidArgument));
         return;
     }
     let Some((parent_path, target)) = split_path(&path) else {
-        events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
+        events.push(Event::failed(owner, Error::InvalidArgument));
         return;
     };
     let private_owner = io.private_owner(root);

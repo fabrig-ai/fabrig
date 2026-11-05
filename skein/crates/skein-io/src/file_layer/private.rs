@@ -217,7 +217,7 @@ pub(super) fn up(
             match opening.phase {
                 Phase::Opening if error == Error::Permission => {
                     opening.terminal =
-                        Some(Event::Failed { owner: opening.owner, error, committed: false, residue: None });
+                        Some(Event::failed(opening.owner, error));
                     opening.phase = Phase::DeniedOpening;
                     let operation = Op::Open {
                         root: opening.parent.expect("the same opened parent"),
@@ -269,7 +269,7 @@ pub(super) fn up(
                 | Phase::ClosingParent => {}
             }
             if opening.terminal.is_none() {
-                opening.terminal = Some(Event::Failed { owner: opening.owner, error, committed: false, residue: None });
+                opening.terminal = Some(Event::failed(opening.owner, error));
             }
             cleanup(io, opening, events, subs);
         }
@@ -378,7 +378,7 @@ pub(super) fn stopped(
         opening.terminal = Some(if reason == Error::Cancelled {
             Event::Cancelled { owner: opening.owner }
         } else {
-            Event::Failed { owner: opening.owner, error: reason, committed: false, residue: None }
+            Event::failed(opening.owner, reason)
         });
     }
     cleanup(io, opening, events, subs);
@@ -426,7 +426,7 @@ pub(super) fn denied_load(io: &mut FileIo, owner: Token, loading: super::Loading
         name: loading.path,
         parent: None,
         file: None,
-        terminal: Some(Event::Failed { owner, error: Error::Permission, committed: false, residue: None }),
+        terminal: Some(Event::failed(owner, Error::Permission)),
         made: false,
     };
     issue(io, opening, operation, subs);

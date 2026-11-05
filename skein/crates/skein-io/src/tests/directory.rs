@@ -57,7 +57,7 @@ fn a_rename_or_remove_answered_after_its_deadline_keeps_its_own_answer() {
             complete(&mut page.io, submit, result.clone(), &mut page.events, &mut page.subs);
             let expected = match result {
                 Ok(_) => success,
-                Err(error) => Event::Failed { owner: OWNER, error, committed: false, residue: None },
+                Err(error) => Event::failed(OWNER, error),
             };
             assert_eq!(page.events.pop(), Some(expected));
             assert!(page.events.is_empty(), "exactly one terminal");
@@ -87,7 +87,7 @@ fn a_rename_of_a_name_holding_a_slash_fails_before_any_record() {
         );
         assert_eq!(
             events.pop(),
-            Some(Event::Failed { owner: OWNER, error: Error::InvalidArgument, committed: false, residue: None })
+            Some(Event::failed(OWNER, Error::InvalidArgument))
         );
         assert!(subs.is_empty());
     }
@@ -122,7 +122,7 @@ impl Page {
         listed(&mut self.io, submit, names, &mut self.events, &mut self.subs);
     }
     fn failed(&mut self, error: Error) {
-        assert_eq!(self.events.pop(), Some(Event::Failed { owner: OWNER, error, committed: false, residue: None }));
+        assert_eq!(self.events.pop(), Some(Event::failed(OWNER, error)));
         assert!(self.events.is_empty() && self.subs.is_empty() && self.io.takes());
         assert_eq!(self.io.descriptor(self.directory), Some(CACHE));
     }

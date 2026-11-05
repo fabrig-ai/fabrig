@@ -15,11 +15,11 @@ pub(super) fn open_read(
     subs: &mut Queue<Submit>,
 ) {
     if name.contains(&0) {
-        events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
+        events.push(Event::failed(owner, Error::InvalidArgument));
         return;
     }
     if io.files.len() == io.files.capacity() {
-        events.push(Event::Failed { owner, error: Error::TooManyOpenFiles, committed: false, residue: None });
+        events.push(Event::failed(owner, Error::TooManyOpenFiles));
         return;
     }
     io.pending = Some(Pending::OpenRead { owner });

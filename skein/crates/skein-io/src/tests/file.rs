@@ -39,6 +39,16 @@ fn socket_and_file_operations() -> (Token, FileIo, Submit) {
 }
 
 #[test]
+fn a_failure_constructor_never_commits_or_leaves_residue() {
+    let Event::Failed { owner, error, committed, residue } = Event::failed(OWNER, crate::kernel::Error::Cancelled)
+    else { panic!("a failed event") };
+    assert_eq!(owner, OWNER);
+    assert_eq!(error, crate::kernel::Error::Cancelled);
+    assert!(!committed);
+    assert_eq!(residue, None);
+}
+
+#[test]
 fn an_io_and_a_file_operation_are_never_the_same_token() {
     let (socket, _, file) = socket_and_file_operations();
     assert_eq!(socket, Token::new(1), "slot zero, generation one after reclaim");
@@ -199,7 +209,7 @@ fn read_and_create_no_follow_use_the_safe_kernel_modes() {
     );
     assert_eq!(
         events.pop(),
-        Some(Event::Failed { owner: OWNER, error: crate::kernel::Error::NotFound, committed: false, residue: None })
+        Some(Event::failed(OWNER, crate::kernel::Error::NotFound))
     );
 
     file_layer::down(
@@ -391,7 +401,7 @@ fn a_stat_answered_after_its_deadline_keeps_its_own_answer() {
         (Ok(Done::Stat(stat)), Event::Stated { owner: OWNER, stat }),
         (
             Err(crate::kernel::Error::Permission),
-            Event::Failed { owner: OWNER, error: crate::kernel::Error::Permission, committed: false, residue: None },
+            Event::failed(OWNER, crate::kernel::Error::Permission),
         ),
     ] {
         let (mut io, file, _) = write_opened();
@@ -440,7 +450,7 @@ fn a_deadline_waits_for_uncancellable_stat_then_closes_the_file() {
     complete(&mut io, subs.pop().expect("cleanup close"), Ok(Done::Nothing), &mut events, &mut subs);
     assert_eq!(
         events.pop(),
-        Some(Event::Failed { owner: OWNER, error: crate::kernel::Error::TimedOut, committed: false, residue: None })
+        Some(Event::failed(OWNER, crate::kernel::Error::TimedOut))
     );
 }
 
@@ -468,7 +478,7 @@ fn each_file_request_uses_its_own_absolute_deadline() {
     complete(&mut io, open, Err(crate::kernel::Error::Cancelled), &mut events, &mut subs);
     assert_eq!(
         events.pop(),
-        Some(Event::Failed { owner: OWNER, error: crate::kernel::Error::TimedOut, committed: false, residue: None })
+        Some(Event::failed(OWNER, crate::kernel::Error::TimedOut))
     );
     assert!(io.takes());
 }
@@ -576,7 +586,7 @@ fn open_write_asks_the_write_open_and_tells_not_found_as_failed() {
     complete(&mut io, submit, Err(crate::kernel::Error::NotFound), &mut events, &mut subs);
     assert_eq!(
         events.pop(),
-        Some(Event::Failed { owner: OWNER, error: crate::kernel::Error::NotFound, committed: false, residue: None })
+        Some(Event::failed(OWNER, crate::kernel::Error::NotFound))
     );
     assert!(io.takes(), "the driver takes the next request");
 }
@@ -636,7 +646,7 @@ fn a_cut_of_a_file_io_does_not_hold_fails_not_found() {
     assert!(subs.is_empty(), "no descriptor is known to submit");
     assert_eq!(
         events.pop(),
-        Some(Event::Failed { owner: OWNER, error: crate::kernel::Error::NotFound, committed: false, residue: None })
+        Some(Event::failed(OWNER, crate::kernel::Error::NotFound))
     );
     assert!(io.takes(), "the refused cut is terminal");
 }
@@ -654,7 +664,7 @@ fn a_cut_past_its_deadline_waits_for_its_truncate_then_times_out() {
     complete(&mut io, submit, Ok(Done::Nothing), &mut events, &mut subs);
     assert_eq!(
         events.pop(),
-        Some(Event::Failed { owner: OWNER, error: crate::kernel::Error::TimedOut, committed: false, residue: None })
+        Some(Event::failed(OWNER, crate::kernel::Error::TimedOut))
     );
     assert!(io.takes(), "the expired cut settles after its truncate");
     assert!(events.is_empty(), "exactly one terminal");
