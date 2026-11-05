@@ -109,7 +109,7 @@ pub struct Harness {
     pub up: Queue<Event>,
     pub io: Queue<skein_io::Request>,
     pub answers: skein_lib::Map<u64, Answered>,
-    pub peers: skein_lib::Map<skein_lib::Token, Peer>,
+    pub peers: skein_forge_kit::sockets::Sockets<Peer>,
     pub endpoints: List<(skein_io::Addr, u16)>,
     pub opened: u32,
     pub archive: List<(u16, Secret)>,
@@ -153,7 +153,7 @@ impl Harness {
             up: Queue::with_capacity(32),
             io: Queue::with_capacity(32),
             answers: skein_lib::Map::with_capacity(32),
-            peers: skein_lib::Map::with_capacity(32),
+            peers: skein_forge_kit::sockets::Sockets::default(),
             endpoints,
             opened: 0,
             archive: List::with_capacity(32),
@@ -235,7 +235,7 @@ impl Harness {
     }
     fn newest(&self, forge: u16) -> skein_lib::Token {
         let mut found = None;
-        for (owner, peer) in &self.peers {
+        for (owner, peer) in self.peers.iter() {
             if peer.forge == forge {
                 found = Some(*owner);
             }
@@ -244,7 +244,7 @@ impl Harness {
     }
     fn owners(&self) -> List<skein_lib::Token> {
         let mut owners = List::with_capacity(32);
-        for (owner, _) in &self.peers {
+        for (owner, _) in self.peers.iter() {
             owners.push(*owner).expect("fixture peers fit");
         }
         owners
@@ -304,7 +304,7 @@ impl Harness {
     #[must_use]
     pub fn request_lines(&self, forge: u16) -> List<Box<[u8]>> {
         let mut lines = List::with_capacity(16);
-        for (_, peer) in &self.peers {
+        for (_, peer) in self.peers.iter() {
             if peer.forge != forge {
                 continue;
             }
@@ -324,13 +324,13 @@ impl Harness {
     #[must_use]
     pub fn request_bytes(&self, forge: u16) -> Box<[u8]> {
         let mut length = 0_usize;
-        for (_, peer) in &self.peers {
+        for (_, peer) in self.peers.iter() {
             if peer.forge == forge {
                 length = length.checked_add(peer.wire.received.len()).expect("bounded requests");
             }
         }
         let mut out = skein_lib::Writer::new(length);
-        for (_, peer) in &self.peers {
+        for (_, peer) in self.peers.iter() {
             if peer.forge == forge {
                 out.put(&peer.wire.received).expect("requests measured");
             }
@@ -375,86 +375,31 @@ impl Harness {
         let mut quiet = 0_u32;
         for _ in 0..1024_u32 {
             for _ in 0..self.io.len() {
-                match self.io.pop().expect("queued request") {
-                    skein_io::Request::Connect { owner, addr } => {
-                        let mut forge = None;
-                        for (address, number) in &self.endpoints {
-                            if *address == addr {
-                                forge = Some(*number);
-                            }
-                        }
-                        let forge = forge.expect("connect names a configured endpoint");
-                        self.opened = self.opened.saturating_add(1);
-                        let socket = skein_lib::Token::new(owner.raw().saturating_add(100));
-                        drop(
-                            self.peers
-                                .insert(
-                                    owner,
-                                    Peer {
-                                        forge,
-                                        socket,
-                                        wire: skein_world::stream::Wire::new(owner.raw()),
-                                        connected: false,
-                                    },
-                                )
-                                .expect("fixture peers fit"),
-                        );
-                        self.event(skein_io::Event::Connecting { owner, socket });
-                    }
-                    skein_io::Request::Stream { stream, down } => {
-                        for owner in self.owners().into_boxed() {
-                            let peer = self.peers.get_mut(&owner).expect("fixture peer");
-                            if peer.socket == stream {
-                                peer.wire.take(down);
-                                break;
-                            }
-                        }
-                    }
-                    skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => {
-                        let mut owner = None;
-                        for (token, peer) in &self.peers {
-                            if peer.socket == entity {
-                                owner = Some(*token);
-                                break;
-                            }
-                        }
-                        if let Some(owner) = owner {
-                            self.event(skein_io::Event::Closed { owner });
-                            let peer = self.peers.remove(&owner).expect("closed peer");
-                            self.archive
-                                .push((peer.forge, Secret::new(Box::from(peer.wire.received.as_slice()))))
-                                .expect("fixture history");
-                        }
-                    }
-                    skein_io::Request::Listen { .. }
-                    | skein_io::Request::Bind { .. }
-                    | skein_io::Request::Reject { .. }
-                    | skein_io::Request::Output { .. }
-                    | skein_io::Request::Spawn { .. }
-                    | skein_io::Request::Signal { .. }
-                    | skein_io::Request::Usage { .. }
-                    | skein_io::Request::Window { .. } => unreachable!("forge only uses sockets"),
+                let request = self.io.pop().expect("queued request");
+                let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { skein_lib::Token::new(0) };
+                let mut events = Queue::with_capacity(3);
+                let closed = self.peers.request(request, |addr| {
+                    let forge = self.endpoints.iter().find_map(|(address, number)| (*address == addr).then_some(*number))
+                        .expect("connect names a configured endpoint");
+                    self.opened = self.opened.saturating_add(1);
+                    Some(Peer { forge, socket: skein_lib::Token::new(owner.raw().saturating_add(100)),
+                        wire: skein_world::stream::Wire::new(owner.raw()), connected: false })
+                }, &mut events);
+                while let Some(event) = events.pop() { self.event(event); }
+                if let Some(peer) = closed {
+                    self.archive.push((peer.forge, Secret::new(Box::from(peer.wire.received.as_slice())))).expect("fixture history");
                 }
             }
-            let mut events = List::with_capacity(32);
-            let mut moved = false;
-            for owner in self.owners().into_boxed() {
-                let peer = self.peers.get_mut(&owner).expect("fixture peer");
-                let trace = peer.wire.trace.len();
-                if peer.connected
-                    && let Some(up) = peer.wire.answer()
-                {
-                    events.push(skein_io::Event::Stream { owner, up }).expect("fixture events fit");
-                }
-                moved |= peer.wire.trace.len() != trace;
-                // The trace signals progress; retaining it would charge the
-                // scripted peer's transcript to component heap measurements.
+            let mut events = Queue::with_capacity(32);
+            self.peers.pump(&mut events);
+            let mut moved = !events.is_empty();
+            for peer in self.peers.values_mut() {
+                moved |= !peer.wire.trace.is_empty();
+                // Retaining the trace would charge the scripted peer's
+                // transcript to component heap measurements.
                 peer.wire.trace.clear();
             }
-            moved |= !events.is_empty();
-            for event in events.into_boxed() {
-                self.event(event);
-            }
+            while let Some(event) = events.pop() { self.event(event); }
             if !moved && self.io.is_empty() {
                 quiet = quiet.saturating_add(1);
                 if quiet == 32 {
@@ -605,7 +550,7 @@ impl Harness {
     #[must_use]
     pub fn connections_for(&self, forge: u16) -> u32 {
         let mut count = 0_u32;
-        for (_, peer) in &self.peers {
+        for (_, peer) in self.peers.iter() {
             if peer.forge == forge {
                 count = count.checked_add(1).expect("bounded peers");
             }
@@ -874,4 +819,11 @@ pub fn github_calls() -> Harness {
     h.component.test_calls_ready(app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
     github_account(&mut h, 1, 22, b"acme", b"artificial-full-one");
     h
+}
+
+impl skein_forge_kit::sockets::Peer for Peer {
+    fn take(&mut self, down: skein_lib::stream::Down) { self.wire.take(down); }
+    fn answer(&mut self) -> Option<skein_lib::stream::Up> { self.wire.answer() }
+    fn connected(&self) -> bool { self.connected }
+    fn socket(&self, _owner: skein_lib::Token) -> skein_lib::Token { self.socket }
 }

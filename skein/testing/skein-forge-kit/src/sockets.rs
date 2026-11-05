@@ -9,6 +9,8 @@ pub trait Peer {
     fn answer(&mut self) -> Option<Up>;
     /// A world may hold completion at the connecting boundary.
     fn connected(&self) -> bool { true }
+    /// The io entity may differ from its owner.
+    fn socket(&self, owner: Token) -> Token { owner }
 }
 
 /// The owner -> peer table every forge world plays its io through.
@@ -26,11 +28,12 @@ impl<P> DerefMut for Sockets<P> {
 }
 impl<P: Peer> Sockets<P> {
     /// Dispatches socket requests; the world supplies connection outcomes.
-    pub fn request(&mut self, request: Request, mut make: impl FnMut(Addr) -> Option<P>, out: &mut Queue<Event>) {
+    pub fn request(&mut self, request: Request, mut make: impl FnMut(Addr) -> Option<P>, out: &mut Queue<Event>) -> Option<P> {
         match request {
             Request::Connect { owner, addr } => {
                 let peer = make(addr);
-                out.push(Event::Connecting { owner, socket: owner });
+                let socket = peer.as_ref().map_or(owner, |peer| peer.socket(owner));
+                out.push(Event::Connecting { owner, socket });
                 if let Some(peer) = peer {
                     let connected = peer.connected();
                     assert!(self.0.insert(owner, peer).is_none(), "fresh connection");
@@ -41,14 +44,23 @@ impl<P: Peer> Sockets<P> {
                 }
             }
             Request::Stream { stream, down } => {
-                if let Some(peer) = self.0.get_mut(&stream) { peer.take(down); }
+                if let Some(owner) = self.owner(stream)
+                    && let Some(peer) = self.0.get_mut(&owner) { peer.take(down); }
             }
             Request::Close { entity } | Request::Abort { entity } => {
-                self.close(entity, out);
+                return self.owner(entity).and_then(|owner| self.close(owner, out));
             }
             other => panic!("unexpected socket io {other:?}"),
         }
+        None
     }
+    fn owner(&self, socket: Token) -> Option<Token> {
+        if self.0.contains_key(&socket) { return Some(socket); }
+        self.0.iter().find_map(|(owner, peer)| (peer.socket(*owner) == socket).then_some(*owner))
+    }
+    /// The first owner and peer, in owner order.
+    #[must_use]
+    pub fn first(&self) -> Option<(&Token, &P)> { self.0.first_key_value() }
     /// Removes a peer and queues its settlement for the world to deliver.
     pub fn close(&mut self, owner: Token, out: &mut Queue<Event>) -> Option<P> {
         let peer = self.0.remove(&owner)?;
@@ -58,7 +70,7 @@ impl<P: Peer> Sockets<P> {
     /// Gives each peer one turn, in owner order.
     pub fn pump(&mut self, out: &mut Queue<Event>) {
         for (owner, peer) in &mut self.0 {
-            if let Some(up) = peer.answer() { out.push(Event::Stream { owner: *owner, up }); }
+            if peer.connected() && let Some(up) = peer.answer() { out.push(Event::Stream { owner: *owner, up }); }
         }
     }
 }

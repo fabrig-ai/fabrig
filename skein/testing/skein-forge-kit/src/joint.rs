@@ -442,7 +442,7 @@ impl Joint {
                     peer.wire.take(down);
                 } else if let Some(peer) = self.peers.get_mut(&stream) {
                     let before = peer.pipe.request_counts().written;
-                    self.peers.request(skein_io::Request::Stream { stream, down }, |_| unreachable!("stream"), &mut Queue::with_capacity(0));
+                    let _ = self.peers.request(skein_io::Request::Stream { stream, down }, |_| unreachable!("stream"), &mut Queue::with_capacity(0));
                     let peer = self.peers.get_mut(&stream).expect("peer");
                     let written = peer.pipe.request_counts().written.checked_sub(before).expect("monotonic writes");
                     let startup = self.forges.iter().any(|forge| {
@@ -483,7 +483,7 @@ impl Joint {
             request => {
                 let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { Token::new(0) };
                 let mut events = Queue::with_capacity(3);
-                self.peers.request(request, |_| {
+                let _ = self.peers.request(request, |_| {
                 let cut =
                     if self.rng.chance(self.cut_chance) { Cut::At(self.rng.between(0, 2048)) } else { Cut::Never };
                 let mut peer = Peer {

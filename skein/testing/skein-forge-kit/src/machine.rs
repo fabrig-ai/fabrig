@@ -642,7 +642,7 @@ impl Machine {
                 };
                 let mut made = made;
                 let mut events = Queue::with_capacity(3);
-                self.peers.request(request, |_| made.take(), &mut events);
+                let _ = self.peers.request(request, |_| made.take(), &mut events);
                 while let Some(event) = events.pop() { self.up(event); }
             }
             skein_io::Request::Stream { stream, down } => {
@@ -655,7 +655,7 @@ impl Machine {
                 let writing = matches!(&down, Down::Demand { room, .. } if *room > 0);
                 let before = peer.pending_bytes();
                 let mut events = Queue::with_capacity(0);
-                self.peers.request(skein_io::Request::Stream { stream, down }, |_| unreachable!("stream"), &mut events);
+                let _ = self.peers.request(skein_io::Request::Stream { stream, down }, |_| unreachable!("stream"), &mut events);
                 let peer = self.peers.get_mut(&stream).expect("stream peer");
                 let plain = peer.pending_bytes() - before;
                 self.flight_length = peer.flight_length.or(self.flight_length);
