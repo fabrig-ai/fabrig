@@ -439,13 +439,14 @@ pub fn object(value: u64) -> skein_forge::api::Commit {
 }
 
 fn files_service(page: u32) -> (service::Service, service::Limits) {
+    let connection = crate::fixtures::limits();
     let limits = service::Limits {
-        http: skein_http::server::Limits { body: u64::from(crate::hand::BODY_ROOM), ..fixture::limits().http },
-        github: skein_forge_connection::limits::documents(&crate::hand::limits()),
+        http: skein_http::server::Limits { body: u64::from(connection.body_bytes), ..fixture::limits().http },
+        github: skein_forge_connection::limits::documents(&connection),
         installations: installations::Limits { installations: 1, tokens: 2, listed: 1 },
         pages: pages::Limits { states: 1, manifest_bytes: 2048 },
         page,
-        body: crate::hand::BODY_ROOM,
+        body: connection.body_bytes,
         ..fixture::limits()
     };
     let service = service::Service::new(fixture::config(fixture::widgets(1)), &limits, 5).expect("fake config");
