@@ -14,6 +14,7 @@ pub enum Address {
     Task { task: u64, filter: PlanFilter },
     Home { project: u32 },
     Settings { project: u32 },
+    Repositories { project: u32 },
     Configure { project: u32 },
     Adopt { project: u32 },
 }
@@ -87,7 +88,7 @@ pub enum Place {
 }
 
 /// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/<task>`, `/tasks/<task>`,
-/// `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/configure`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
+/// `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/configure`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
 pub fn print(address: &Address) -> Box<[u8]> {
     let (name, number, tail) = match address {
@@ -118,6 +119,9 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Task { task, .. } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
         Address::Home { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"".as_slice()),
         Address::Settings { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"settings".as_slice()),
+        Address::Repositories { project } => {
+            (b"projects".as_slice(), Some(u64::from(*project)), b"settings/repositories".as_slice())
+        }
         Address::Configure { project } => {
             (b"projects".as_slice(), Some(u64::from(*project)), b"settings/configure".as_slice())
         }
@@ -210,6 +214,10 @@ pub fn parse(path: &[u8]) -> Place {
         (b"projects", _, b"settings") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Settings { project }
+        }
+        (b"projects", _, b"settings/repositories") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            Address::Repositories { project }
         }
         (b"projects", _, b"settings/configure") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };

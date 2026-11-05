@@ -9,9 +9,9 @@
   address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
   `Proposal { proposal }` and the fuller page's sections, with a review's
   "Change something"; ctl supplies the review groups and running-work effect
-  (`tools.md`, 5.2). 3.5, 5.3, 5.13: Settings' frame and tabs, `Repositories { project }`,
-  How work runs' controls and its session's watch and reads, `Forges` and `Accounts` in the frame, "Sign out" on the
-  `Accounts` tab, the rail and tab bar by kind 7, `drafts_offered`, and a proposal of settings' card in a chat.
+  (`tools.md`, 5.2). 3.5, 5.3, 5.13: How work runs' controls and its
+  session's watch and reads, the rail and tab bar by kind 7, `drafts_offered`,
+  and a proposal of settings' card in a chat.
   3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing. 3.5: Ready's model line names no

@@ -1,6 +1,29 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+/// Settings frame and rows (temper/docs/design/client/README.md, 3.5, Settings).
+pub const SETTINGS_COL: Style = Style { owner: owner(), token: 253 };
+pub const SETTINGS_INTRO: Style = Style { owner: owner(), token: 254 };
+pub const SETTINGS_KICKER: Style = Style { owner: owner(), token: 255 };
+pub const SETTINGS_HEADLINE: Style = Style { owner: owner(), token: 256 };
+pub const SETTINGS_LEDE: Style = Style { owner: owner(), token: 257 };
+pub const SETTINGS_TABS: Style = Style { owner: owner(), token: 258 };
+pub const SETTINGS_BODY: Style = Style { owner: owner(), token: 259 };
+pub const SETTINGS_SETTING: Style = Style { owner: owner(), token: 260 };
+pub const SETTINGS_SECTION: Style = Style { owner: owner(), token: 261 };
+pub const SETTINGS_SECTION_HEAD: Style = Style { owner: owner(), token: 262 };
+pub const SETTINGS_SECTION_TITLE: Style = Style { owner: owner(), token: 263 };
+pub const SETTINGS_LINES: Style = Style { owner: owner(), token: 264 };
+pub const SETTINGS_WHEN: Style = Style { owner: owner(), token: 265 };
+pub const SETTINGS_BAND: Style = Style { owner: owner(), token: 266 };
+pub const SETTINGS_QUIET_BAND: Style = Style { owner: owner(), token: 267 };
+pub const SETTINGS_TAG: Style = Style { owner: owner(), token: 268 };
+pub const SETTINGS_BTN: Style = Style { owner: owner(), token: 269 };
+pub const SETTINGS_PRIMARY: Style = Style { owner: owner(), token: 270 };
+pub const SETTINGS_SMALL: Style = Style { owner: owner(), token: 271 };
+pub const SETTINGS_DETAIL: Style = Style { owner: owner(), token: 272 };
+pub const SETTINGS_END: Style = Style { owner: owner(), token: 273 };
+
 /// A configuring chat's status, spend and controls (client/README.md, 3.5).
 pub const SESSION_ACTIONS: Style = Style { owner: owner(), token: 246 };
 /// A configuring chat's tag in Chats (client/README.md, 3.5).
@@ -742,6 +765,27 @@ pub const NAMES: Names<'static> = Names {
         b"temper-starter-note",
         b"temper-starter-ways",
         b"temper-starter-unsure",
+        b"temper-settings-col",
+        b"temper-settings-intro",
+        b"temper-settings-kicker",
+        b"temper-settings-headline",
+        b"temper-settings-lede",
+        b"temper-settings-tabs",
+        b"temper-settings-body",
+        b"temper-settings-setting",
+        b"temper-settings-section",
+        b"temper-settings-section-head",
+        b"temper-settings-section-title",
+        b"temper-settings-lines",
+        b"temper-settings-when",
+        b"temper-settings-band",
+        b"temper-settings-quiet-band",
+        b"temper-settings-tag",
+        b"temper-settings-btn",
+        b"temper-settings-primary",
+        b"temper-settings-small",
+        b"temper-settings-detail",
+        b"temper-settings-end",
     ],
     regions: &[b"temper-link"],
 };
