@@ -936,7 +936,7 @@ the core checks inherited authority and the prospective financial payer.
 | Tool | What it does | Answers |
 |---|---|---|
 | `delegate` | makes a batch of tasks as its delegates, each with what a party's `Create` names, its label, flags and LLM choice among them (tasks.md, section 4) | their numbers and their specs' revisions, and what a budget given `AsAllowed` was given; refused, and why; beyond authority, naming what it lacked and whether a proposal could be accepted |
-| `read_task` | reads its own task, its requester, live direct delegates, explicit references or escalation subjects in its project; retained ended direct delegates remain readable, and a proven requester chain permits descendant report reads through retained intermediate tasks | bounded specification words by default, or kept terminal report words with `field=result`; lifecycle, dependencies, spec revision, hold revision and reason, including connector hold words; durable unanswered question credits with their numbers, authorized answerers, addressed parties and activity positions, bounded by `tasks.inbox_messages` and available after the question delivery is consumed; `from` continues the selected field at the printed `next` byte offset |
+| `read_task` | reads its own task, its requester, live direct delegates, explicit references or escalation subjects in its project; retained ended direct delegates remain readable, and a proven requester chain permits descendant report reads through retained intermediate tasks | bounded specification words by default, or kept terminal report words with `field=result`, with the selected verdict code alongside verdict reasons; lifecycle, dependencies, spec revision, hold revision and reason, including connector hold words; durable unanswered question credits with their numbers, authorized answerers, addressed parties and activity positions, bounded by `tasks.inbox_messages` and available after the question delivery is consumed; `from` continues the selected field at the printed `next` byte offset |
 | `message` | words, a question or an answer to a task it references | sent; no reference; the inbox full; too large for a run to read |
 | `amend`, `release` | a task below it: an amendment naming its spec's revision as the run last read it, but for a change of priority alone, and adding or removing dependencies within its reach (tasks.md, section 7); a release naming its hold's, and, for an effect held uncertain, whether to make it again (tasks.md, 5.5 and section 7) | done, with the task's spec revision after the commit, the one its next amendment names (a release moves none); refused, and why; moved, with what it is now |
 | `cancel` | a task below it and its tree, with a reason, and a grace if the run gives one, within the tasks child's bound: the task is asked to finish first (tasks.md, section 7) | done; refused, and why |
@@ -970,8 +970,11 @@ task range supplies the linked records without restoring ended tasks. Loading
 grants no message, amendment or subscription authority. Authorization and the
 current attempt are checked again after a stored read. `field` accepts only
 `specification` (the default) or `result`. Report, NoChange, Change and Verdict
-results serve their kept words, including reports kept with cancellation; an
-unavailable terminal report is unknown. Both fields use bounded UTF-8 chunks
+results serve their kept words, including reports kept with cancellation. A
+Verdict result read also carries its selected code as optional metadata, on
+every chunk, separately from the bounded reason words. Specification reads
+and other results carry no verdict code. Offsets and totals count only the
+reason bytes. An unavailable terminal report is unknown. Both fields use bounded UTF-8 chunks
 and reject offsets inside a character or past the source. Continue with the same
 field and the printed `next` offset. Every chunk names the current spec revision; restart specification
 reads at zero if it changes between chunks.

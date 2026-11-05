@@ -15,7 +15,7 @@ use std::path::Path;
 
 use smith_events::{Block, Event, Verdict};
 
-use crate::{CheckVerdict, Measure};
+use crate::{CheckVerdict, Fault, Measure};
 
 use super::{Observer, Session};
 
@@ -146,7 +146,7 @@ fn evaluate(
     if edits == 0 || skein_lib::len_u64(content.len()) <= above {
         return measured(false);
     }
-    match crate::grade::file(workspace, path).and_then(|file| std::fs::read(file).map_err(|error| error.to_string())) {
+    match crate::grade::file(workspace, path).and_then(|file| std::fs::read(file).map_err(Fault::from)) {
         Ok(bytes) => {
             evidence.push(format!(
                 "successful_edits={edits}; replay_bytes={}; saved_equals_call_pieces={}",
@@ -156,7 +156,7 @@ fn evaluate(
             measured(bytes == content.as_bytes())
         }
         Err(error) => {
-            evidence.push(error);
+            evidence.push(error.detail);
             measured(false)
         }
     }

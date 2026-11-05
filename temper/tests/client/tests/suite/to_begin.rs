@@ -124,9 +124,9 @@ fn skip_on_home_hides_to_begin_on_every_device() {
     settle(&mut world);
     hidden(&world, first);
     hidden(&world, second);
-    // Release the two pages' watches before a third Home: the engine admits 16.
-    world.go(first, Address::Forges);
-    world.go(second, Address::Forges);
+    // Release the pages and their standing project watches before a third Home: the engine admits 16.
+    world.go(first, Address::Welcome { step: temper_client_domain::Step::Ready });
+    world.go(second, Address::Welcome { step: temper_client_domain::Step::Ready });
     settle(&mut world);
     let third = client(&mut world, fixtures::PARTY, PROJECT);
     assert!(!facts(&world, third, PROJECT).to_begin(), "no flash before the dismissal arrives");

@@ -1,0 +1,101 @@
+//! The session toast at the end of every page (client/README.md, 3.5).
+use super::fixtures as f;
+use crate::look;
+use jig_client::contract as c;
+use skein_lib::{Duration, Env, List, Queue, Time, Wall};
+use skein_ui::{Act, Role};
+use temper_client_domain::{
+    self as d, Address, Event,
+    pages::{self, needs},
+};
+
+const OBJECT: c::ObjectKey = c::ObjectKey::Question { task: f::INBOX_TASK, message: f::INBOX_QUESTION };
+fn root() -> d::Domain {
+    let mut offers = List::with_capacity(1);
+    offers.push(c::Offered { act: c::ActKind::Answer, admission: c::Admission::Allowed, effect: None }).unwrap();
+    let page = c::Question {
+        task: f::task::document().chip,
+        from: None,
+        message: f::INBOX_QUESTION,
+        words: f::task::document_words(b"Which path?"),
+        since: Wall::EPOCH,
+        acts: offers,
+        ending: None,
+    };
+    f::inbox_with_document(
+        d::address::Filter::ALL,
+        Some((
+            c::Read::Question { task: f::INBOX_TASK, message: f::INBOX_QUESTION },
+            c::ReadValue::Question(Box::new(page)),
+        )),
+    )
+}
+fn toast_at(tree: &skein_ui::Tree) -> Option<usize> {
+    for (at, node) in tree.nodes().iter().enumerate() {
+        if node.styles.as_slice().contains(&look::TOAST) {
+            return Some(at);
+        }
+    }
+    None
+}
+fn act(root: &mut d::Domain, act: pages::Act) {
+    f::root_event(root, Event::Act { action: d::Action::Pages(act) });
+}
+#[test]
+fn toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held() {
+    for address in [Address::Home { project: f::PROJECT }, Address::Chats { filter: d::ChatsFilter::All }] {
+        for (reply, later, said) in [
+            (false, false, "Answered: First"),
+            (true, false, "Answered: Replied: “My words”"),
+            (false, true, "Later: it stays in Needs you, after the others."),
+        ] {
+            let mut root = root();
+            if later {
+                act(&mut root, pages::Act::Needs(needs::Act::Later { object: OBJECT }));
+            } else if reply {
+                act(&mut root, pages::Act::Needs(needs::Act::OpenReply { object: OBJECT }));
+                act(&mut root, pages::Act::CardWords { object: OBJECT, words: b"My words".as_slice().into() });
+                act(&mut root, pages::Act::Needs(needs::Act::SendReply { object: OBJECT }));
+            } else {
+                act(
+                    &mut root,
+                    pages::Act::Needs(needs::Act::Choose { object: OBJECT, words: b"First".as_slice().into() }),
+                );
+            }
+            f::root_event(&mut root, Event::Went { place: d::Place::Address(address.clone()) });
+            for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+                let nodes = view.tree().nodes();
+                let at = toast_at(view.tree()).unwrap();
+                let toast = &nodes[at];
+                assert_eq!(toast.role, Role::Status);
+                assert_eq!(at + usize::try_from(toast.size).unwrap(), nodes.len());
+                assert_eq!(nodes[at + 1].role, Role::Text);
+                assert_eq!(nodes[at + 1].text.get(0).unwrap().text.as_ref(), said.as_bytes());
+                let undo = f::find(view.tree(), Role::Button, b"Undo");
+                assert_eq!(undo.is_some(), !later);
+                if let Some(undo) = undo {
+                    assert_eq!(
+                        crate::act(&mut view, undo, Act::Press),
+                        Some(d::Action::Pages(pages::Act::Needs(needs::Act::Undo { object: OBJECT })))
+                    );
+                }
+                let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+                skein_ui_text::render(view.tree(), b"temper", None, &mut print);
+                assert!(skein_lib::bytes::find(print.text.as_slice(), said.as_bytes()).is_some());
+            }
+            d::fire(
+                &mut root,
+                &Env {
+                    now: Time::ZERO.saturating_add(Duration::from_secs(5)),
+                    wall: Wall::EPOCH,
+                    limits: f::domain_limits(),
+                },
+                &mut Queue::uncapped(),
+            );
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                assert_eq!(toast_at(view.tree()), None);
+                assert!(f::find(view.tree(), Role::Button, b"Undo").is_none());
+            }
+        }
+    }
+}

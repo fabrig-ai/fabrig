@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, Kind, ModelTiers, Provider, Refusal, Task, check_task, read_configuration};
+use crate::{Agent, Fault, Kind, ModelTiers, Provider, Refusal, Task, bound, check_task, read_configuration};
 
 /// The attempt ordering requested by the suite author.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -103,13 +103,13 @@ impl Suite {
         if self.change { Some("parent") } else { self.reference.as_deref() }
     }
 
-    pub(crate) fn task_repetitions(&self, name: &str, authored: Option<u32>, logical: bool) -> Result<u32, String> {
+    pub(crate) fn task_repetitions(&self, name: &str, authored: Option<u32>, logical: bool) -> Result<u32, Fault> {
         if let Some(attempts) = self.attempts {
             return Ok(attempts);
         }
         let repetitions = self.repetitions_by_task.get(name).copied().unwrap_or(self.repetitions);
         if logical {
-            repetitions.checked_mul(authored.unwrap_or(1)).ok_or_else(|| "probe repetition count overflow".into())
+            repetitions.checked_mul(authored.unwrap_or(1)).ok_or_else(|| bound("probe repetition count overflow"))
         } else {
             Ok(self.repetitions_by_task.get(name).copied().or(authored).unwrap_or(repetitions))
         }

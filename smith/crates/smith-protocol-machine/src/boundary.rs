@@ -63,7 +63,7 @@ pub enum Below {
 }
 
 /// Process fields independent of the root descriptor owned by io.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct Spawn {
     /// Executable path.
     pub program: Box<[u8]>,
@@ -75,6 +75,19 @@ pub struct Spawn {
     pub dir: Box<[u8]>,
     /// Standard output and error pipe descriptors requested from io.
     pub pipes: Box<[skein_io::kernel::Pipe]>,
+}
+
+// smith/docs/design/domain/tools.md, section 5: a variable prints its name alone.
+impl core::fmt::Debug for Spawn {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Spawn")
+            .field("program", &self.program)
+            .field("args", &self.args)
+            .field("env", &crate::environment::EnvNames(&self.env))
+            .field("dir", &self.dir)
+            .field("pipes", &self.pipes)
+            .finish()
+    }
 }
 
 /// IO progress whose variant preserves the token's namespace (programming-model.md, section 4.2).

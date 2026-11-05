@@ -2,19 +2,16 @@
 //! Only attempt-owned paths and the selected model are substituted. No preset
 //! value is derived here (benchmarks.md, sections 5.4, 6.1 and 10).
 
+use crate::{Fault, configuration};
 use std::path::Path;
 
 use serde_json::Value;
 
 use crate::agent::Context;
-use crate::isolate::{Setup, SetupStep};
-
-fn configuration(reason: impl Into<String>) -> Setup {
-    Setup { step: SetupStep::Configuration, reason: reason.into() }
-}
+use crate::isolate::SetupStep;
 
 /// Render the pin's trace and shared account declarations with its credentials directory.
-pub fn product(context: &Context<'_>, base: &Value, login: &Path) -> Result<Value, Setup> {
+pub fn product(context: &Context<'_>, base: &Value, login: &Path) -> Result<Value, Fault> {
     let mut layer = base.clone();
     if !layer.is_object() || !layer["trace"].is_object() {
         return Err(configuration("Smith pin requires a product account and trace layer"));
@@ -28,10 +25,10 @@ pub fn product(context: &Context<'_>, base: &Value, login: &Path) -> Result<Valu
     Ok(layer)
 }
 
-fn declarations() -> Result<Value, Setup> {
+fn declarations() -> Result<Value, Fault> {
     let shared: toml::Value =
-        toml::from_str(crate::credential::logins::ACCOUNTS).map_err(|error| configuration(error.to_string()))?;
-    serde_json::to_value(shared).map_err(|error| configuration(error.to_string()))
+        toml::from_str(crate::credential::logins::ACCOUNTS).map_err(Fault::at(SetupStep::Configuration))?;
+    serde_json::to_value(shared).map_err(Fault::at(SetupStep::Configuration))
 }
 
 fn endpoint(provider: crate::Provider) -> &'static str {
@@ -42,7 +39,7 @@ fn endpoint(provider: crate::Provider) -> &'static str {
 }
 
 /// The selected endpoint's harness account comes from the shared declarations.
-pub fn account(context: &Context<'_>) -> Result<String, Setup> {
+pub fn account(context: &Context<'_>) -> Result<String, Fault> {
     declarations()?["endpoints"][endpoint(context.pin.pin.provider)]["account"]
         .as_str()
         .map(str::to_owned)
@@ -50,7 +47,7 @@ pub fn account(context: &Context<'_>) -> Result<String, Setup> {
 }
 
 /// The selected account's source decides whether channel facts live in a child trace.
-pub fn program(context: &Context<'_>) -> Result<bool, Setup> {
+pub fn program(context: &Context<'_>) -> Result<bool, Fault> {
     let account = account(context)?;
     let shared = declarations()?;
     let source = shared
@@ -67,7 +64,7 @@ fn setting(arguments: &mut Vec<String>, key: &str, value: &toml::Value) {
 }
 
 /// Pass product settings directly, resolving the tier model and private paths.
-pub fn arguments(context: &Context<'_>) -> Result<Vec<String>, Setup> {
+pub fn arguments(context: &Context<'_>) -> Result<Vec<String>, Fault> {
     let model = context
         .model
         .model
@@ -86,8 +83,8 @@ pub fn arguments(context: &Context<'_>) -> Result<Vec<String>, Setup> {
         .or_else(|| context.task.smith.get("model"))
         .and_then(toml::Value::as_str)
         .map_or_else(|| format!("{}/{model}", endpoint(context.pin.pin.provider)), str::to_owned);
-    let working =
-        crate::isolate::working_directory(context.guard, context.private, context.task).map_err(configuration)?;
+    let working = crate::isolate::working_directory(context.guard, context.private, context.task)
+        .map_err(Fault::at(SetupStep::Configuration))?;
     let mut arguments = vec![
         "-C".into(),
         working.to_str().ok_or_else(|| configuration("Smith workspace is not UTF-8"))?.into(),
@@ -100,8 +97,8 @@ pub fn arguments(context: &Context<'_>) -> Result<Vec<String>, Setup> {
         for (key, value) in fields {
             let key = key.replace("{model}", &selected);
             let value = if key == "workspace.directories" {
-                let directories = super::directories::render(context).map_err(configuration)?;
-                serde_json::from_value(directories).map_err(|error| configuration(error.to_string()))?
+                let directories = super::directories::render(context).map_err(Fault::at(SetupStep::Configuration))?;
+                serde_json::from_value(directories).map_err(Fault::at(SetupStep::Configuration))?
             } else {
                 value.clone()
             };

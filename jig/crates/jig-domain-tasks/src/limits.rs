@@ -96,10 +96,6 @@ pub struct Limits {
     pub charters: u32,
     /// Maximum documents per charter (domain/engine.md, 17.9).
     pub charter_documents: u32,
-    /// Charter versions held besides the newest view.
-    pub versions: u32,
-    /// Settings revisions held besides the newest.
-    pub revisions: u32,
     /// Maximum resource grants per task authority carrier.
     pub authority_grants: u32,
     /// Maximum base segments per carried grant pattern.
@@ -132,7 +128,7 @@ pub(crate) fn stub_capacity(limits: &Limits) -> Option<u32> {
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub fn valid(limits: &Limits) -> bool {
+pub fn valid(limits: &Limits, kept: crate::Kept) -> bool {
     if limits.placed_holds == 0
         || limits.project_placed_holds == 0
         || limits.party_placed_holds == 0
@@ -166,13 +162,13 @@ pub fn valid(limits: &Limits) -> bool {
     stub_capacity(limits).is_some()
         && limits.tasks.checked_mul(limits.subscriptions).is_some()
         && limits.tasks.checked_mul(limits.holdings).is_some()
-        && limits.revisions.checked_add(1).is_some()
+        && kept.revisions.checked_add(1).is_some()
         && crate::activity::line_bytes_limit(limits).is_some()
         && crate::waits::valid(limits)
         && limits.tasks.checked_mul(4).is_some()
-        && charter_capacity(limits).is_some()
+        && charter_capacity(limits, kept).is_some()
 }
 
-fn charter_capacity(limits: &Limits) -> Option<u32> {
-    limits.charters.checked_mul(2)?.checked_add(limits.versions)
+pub(crate) fn charter_capacity(limits: &Limits, kept: crate::Kept) -> Option<u32> {
+    limits.charters.checked_mul(2)?.checked_add(kept.versions)
 }

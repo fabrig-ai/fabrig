@@ -1,5 +1,46 @@
 use super::*;
 use crate::translate::{Undecodable, documents, live};
+// Two empty rows carry two u32 lengths (skein/docs/design/codec.md, 3).
+#[test]
+fn piece_lengths_share_the_document_byte_bound() {
+    const PIECE_BYTES: usize = 8;
+    let bytes = [0_u8; PIECE_BYTES];
+    let size = u64::try_from(PIECE_BYTES).unwrap();
+    for (most, expected) in [
+        (size, Ok(Some(Box::<[u8]>::from([])))),
+        (
+            size.checked_sub(1).unwrap(),
+            Err(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }),
+        ),
+    ] {
+        let limits = fixtures::limits_for_document(most);
+        let mut reader = Reader::new(&bytes);
+        let mut sum = 0_u64;
+        translate::next_piece(&mut reader, &mut sum, &limits).expect("first row fits both bounds");
+        assert_eq!(translate::next_piece(&mut reader, &mut sum, &limits), expected);
+    }
+}
+
+#[test]
+fn an_overlong_chip_list_keeps_split_sum_and_decode_order() {
+    const ROW_BOUND: u32 = 1;
+    const EMPTY_ROW_BYTES: usize = 4; // Its u32 length.
+    let first = fixtures::chip_pieces(ROW_BOUND);
+    let mut bytes = skein_lib::Writer::new(first.len().checked_add(EMPTY_ROW_BYTES).unwrap());
+    bytes.put(&first).unwrap();
+    // The row past the count bound has valid framing and an empty, undecodable record.
+    bytes.put(&0_u32.to_be_bytes()).unwrap();
+    let bytes = bytes.finish();
+    let size = u64::try_from(bytes.len()).unwrap();
+    for (most, problem) in [
+        (size, w::Problem { path: w::Path::ChipRows, reason: skein_codec::Reason::Short }),
+        (size.checked_sub(1).unwrap(), w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }),
+    ] {
+        let limits = fixtures::limits_for_document(most);
+        assert_eq!(documents::chip_piece(&bytes, &limits, ROW_BOUND), Err(problem));
+    }
+}
+
 #[test]
 fn a_me_record_becomes_the_contract_s_me() {
     assert_eq!(documents::frame(fixtures::frame_record(), &fixtures::limits()), Ok(fixtures::frame()));
@@ -69,13 +110,41 @@ fn a_document_one_byte_past_its_measured_limit_is_refused() {
 }
 #[test]
 fn document_decodes_borrow_the_kept_bounds() {
-    let limits = fixtures::limits();
-    let bounds = limits.receiving();
-    assert_eq!(bounds.document_text_bytes, limits.client().text.max(512));
-    assert_eq!(bounds.call_input, limits.client().text);
-    assert_eq!(documents::frame(fixtures::frame_record(), &limits), Ok(fixtures::frame()));
-    assert_eq!(documents::frame(fixtures::frame_record(), &limits), Ok(fixtures::frame()));
-    assert!(core::ptr::eq(bounds, limits.receiving()), "decoders retain the same receiving bounds");
+    for long_text in [32, 8192, w::CEILINGS.document_text_bytes + 1] {
+        let client = jig_client_domain::Limits {
+            long_text,
+            document_bytes: u64::from(w::CEILINGS.owned_record),
+            ask_bytes: u64::from(u32::MAX),
+            ..*fixtures::limits().client()
+        };
+        let limits = Limits::new(client, fixtures::limits().exchanges()).unwrap();
+        let bounds = limits.receiving();
+        assert_eq!(bounds.document_text_bytes, long_text.clamp(512, w::CEILINGS.document_text_bytes));
+        assert_eq!(bounds.specification_words, long_text.min(w::CEILINGS.specification_words));
+        assert_eq!(bounds.edit_note_body, long_text.min(w::CEILINGS.edit_note_body));
+        assert_eq!(bounds.call_input, limits.client().text);
+        assert_eq!(bounds.message_words, limits.client().text);
+        let len = 512.max(long_text.min(w::CEILINGS.document_text_bytes));
+        let mut bytes = skein_lib::List::with_capacity(len);
+        for _ in 0..len {
+            bytes.push(b'x').unwrap();
+        }
+        let bytes = bytes.into_boxed();
+        let record =
+            w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: bytes.clone(), cut: false }).unwrap();
+        let mut frame = fixtures::frame_record().into_parts();
+        let mut party = frame.party.into_parts();
+        party.name = record;
+        frame.party = w::MeParty::new(&w::CEILINGS, party).unwrap();
+        let decoded = documents::frame(w::Me::new(&w::CEILINGS, frame).unwrap(), &limits);
+        if long_text < 512 {
+            assert!(decoded.is_err());
+        } else {
+            assert_eq!(decoded.unwrap().party.name.bytes.bytes(), bytes.as_ref());
+        }
+        assert_eq!(documents::frame(fixtures::frame_record(), &limits), Ok(fixtures::frame()));
+        assert!(core::ptr::eq(bounds, limits.receiving()), "decoders retain the same receiving bounds");
+    }
 }
 #[test]
 fn invalid_receiving_limits_are_refused_at_construction() {

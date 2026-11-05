@@ -217,14 +217,14 @@ use jig_client::contract as c;
 use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
+fn home_limits() -> d::Limits {
+    let mut limits = f::domain_limits();
+    limits.client.domain.reads = 16;
+    limits
+}
 fn drive(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
     let mut out = Queue::uncapped();
-    d::step(
-        root,
-        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
-        event,
-        &mut out,
-    );
+    d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: home_limits() }, event, &mut out);
     out
 }
 fn deliver(root: &mut d::Domain, watch: Token, value: c::Delivery) {
@@ -266,7 +266,11 @@ fn home_documents(
 ) -> (d::Domain, Token) {
     home_documents_with_reads(rows, configured, chat, needs, chats, Some(&[]), true)
 }
-#[expect(clippy::disallowed_methods, reason = "test fixtures deliver Home documents through public events")]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::too_many_lines,
+    reason = "one fixture delivers Home and its standing inbox through public events"
+)]
 fn home_documents_with_reads(
     rows: List<w::ForgeRow>,
     configured: bool,
@@ -276,9 +280,9 @@ fn home_documents_with_reads(
     dismissed: Option<&[u32]>,
     settings_delivered: bool,
 ) -> (d::Domain, Token) {
-    let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_dismissals(
+    let (mut root, me_watch, _, _, accounts, _, needs_watch) = f::root_at_with_dismissals_and_needs(
         Address::Settings { project: f::PROJECT },
-        &f::domain_limits(),
+        &home_limits(),
         b"Shop",
         None,
         None,
@@ -306,6 +310,26 @@ fn home_documents_with_reads(
         .unwrap();
     f::deliver_me(&mut root, me_watch, me);
     let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
+    let mut delivered = drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: needs_watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
+                        List::with_capacity(0),
+                        0,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        false,
+                    )))),
+                },
+            },
+        },
+    );
+    while let Some(request) = delivered.pop() {
+        out.push(request);
+    }
     let mut settings = None;
     let mut live = None;
     for request in &out {
@@ -398,9 +422,16 @@ fn home_need_page(object: c::ObjectKey) -> c::ReadValue {
                 task: task.chip,
                 from: None,
                 message,
-                words: f::task::document_words(b"Which license?"),
+                words: c::DocumentText::complete(
+                    c::Text::new((if message == 8 { HOME_QUESTION } else { b"Which license?" }).into(), 4096).unwrap(),
+                ),
                 since: skein_lib::Wall::EPOCH,
-                acts: List::with_capacity(0),
+                acts: {
+                    let mut acts = List::with_capacity(1);
+                    acts.push(c::Offered { act: c::ActKind::Answer, admission: c::Admission::Allowed, effect: None })
+                        .unwrap();
+                    acts
+                },
                 ending: None,
             }))
         }
@@ -419,8 +450,21 @@ fn home_need_page(object: c::ObjectKey) -> c::ReadValue {
             cut: false,
             acts: List::with_capacity(0),
         })),
-        c::ObjectKey::Escalation(_) => {
-            c::ReadValue::Escalation(Box::new(c::Escalation { task: Box::new(task), acts: List::with_capacity(0) }))
+        c::ObjectKey::Escalation(number) => {
+            let held = f::task::held_root();
+            let mut task = held.pages().task().unwrap().document(held.client()).unwrap().clone();
+            task.chip.task = number;
+            task.chip.title = f::task::document_words(b"Add a README");
+            if number == 10 {
+                task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
+                task.budget.numbers.spent = 31;
+                task.budget.numbers.budget = 40;
+            }
+            let mut acts = List::with_capacity(2);
+            for act in [c::ActKind::Release, c::ActKind::LeaveHeld] {
+                acts.push(c::Offered { act, admission: c::Admission::Allowed, effect: None }).unwrap();
+            }
+            c::ReadValue::Escalation(Box::new(c::Escalation { task: Box::new(task), acts }))
         }
         c::ObjectKey::Proposal(_) => super::cards::batch_proposal(),
         c::ObjectKey::Task(_) | c::ObjectKey::Result(_) | c::ObjectKey::Note { .. } => {
@@ -987,10 +1031,20 @@ fn section_styles(tree: &skein_ui::Tree) -> Box<[skein_ui::Style]> {
     reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
 )]
 fn everyday_headlines_count_known_needs_and_mark_cut_reads() {
+    let questions: Box<[_]> = (1..=11).map(|message| c::ObjectKey::Question { task: f::INBOX_TASK, message }).collect();
     for (objects, cut, headline) in [
         (&QUESTIONS[..0], false, "Nothing needs you."),
         (&QUESTIONS[..1], false, "One thing needs you."),
-        (&QUESTIONS[..3], false, "3 things need you."),
+        (&questions[..2], false, "Two things need you."),
+        (&questions[..3], false, "Three things need you."),
+        (&questions[..4], false, "Four things need you."),
+        (&questions[..5], false, "Five things need you."),
+        (&questions[..6], false, "Six things need you."),
+        (&questions[..7], false, "Seven things need you."),
+        (&questions[..8], false, "Eight things need you."),
+        (&questions[..9], false, "Nine things need you."),
+        (&questions[..10], false, "10 things need you."),
+        (&questions[..11], false, "11 things need you."),
         (&QUESTIONS[..1], true, "1+ things need you."),
         (&QUESTIONS[..3], true, "3+ things need you."),
     ] {
@@ -1037,7 +1091,7 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
             assert_eq!(region.role, Role::Region);
             assert_eq!(region.name.as_deref(), Some(b"Needs you".as_slice()));
             let parts = children(subtree(tree, region.id));
-            assert_eq!(parts.len(), if browser { 3 } else { 2 });
+            assert_eq!(parts.len(), if browser && !beginning { 3 } else { 2 });
             assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
             assert_eq!(parts[1].styles.as_slice(), &[crate::look::ASK]);
             let heading = children(subtree(tree, parts[0].id));
@@ -1052,9 +1106,9 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
             assert_eq!(card[0].name.as_deref(), Some("Add a README · a question · under 1 min".as_bytes()));
             assert_eq!(card[1].name.as_deref(), Some(b"Which license?".as_slice()));
             let choices = children(subtree(tree, card[2].id));
-            assert_eq!(choices.len(), 1);
+            assert_eq!(choices.len(), 2);
             assert_eq!(choices[0].styles.as_slice(), &[crate::look::ASK_QUIET]);
-            if browser {
+            if browser && !beginning {
                 assert_eq!(parts[2].styles.as_slice(), &[crate::look::HOME_CTA]);
                 let spans = children(subtree(tree, parts[2].id));
                 assert_eq!(spans.len(), 2);
@@ -1068,7 +1122,12 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
                 b"Add a README",
                 d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
             );
-            assert_action(&mut view, Role::Button, b"Reply", inbox_act());
+            assert_action(
+                &mut view,
+                Role::Button,
+                b"Reply",
+                d::pages::Act::Needs(d::pages::needs::Act::OpenReply { object: QUESTIONS[0] }),
+            );
             assert_action(
                 &mut view,
                 Role::Link,
@@ -1133,8 +1192,11 @@ fn additional_needs_have_five_rows_and_browser_answer_link() {
                     link[0].id
                 })
                 .collect();
-            for id in ids {
-                assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(inbox_act())));
+            for (id, object) in ids.iter().zip(objects.iter().skip(1)) {
+                assert_eq!(
+                    crate::act(&mut view, *id, Act::Press),
+                    Some(d::Action::Pages(d::pages::Act::Needs(d::pages::needs::Act::Open { object: *object })))
+                );
             }
             assert_eq!(
                 main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::HOME_IN_A_ROW)),
@@ -1166,7 +1228,12 @@ fn nonquestion_need_opens_inbox_and_keeps_its_lowercase_kind() {
         let root = everyday(false, &[object], false, true);
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             contains(&f::main_text(view.tree()), kind);
-            assert_action(&mut view, Role::Button, b"Open", inbox_act());
+            assert_action(
+                &mut view,
+                Role::Button,
+                b"Open",
+                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+            );
             assert!(
                 !main_nodes(view.tree())
                     .iter()
@@ -1333,10 +1400,15 @@ fn read_need_without_a_title_links_by_task_number() {
         assert_action(
             &mut view,
             Role::Link,
-            b"T9",
+            b"Task 9",
             d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
         );
-        assert_action(&mut view, Role::Button, b"Reply", inbox_act());
+        assert_action(
+            &mut view,
+            Role::Button,
+            b"Reply",
+            d::pages::Act::Needs(d::pages::needs::Act::OpenReply { object: QUESTIONS[6] }),
+        );
     }
 }
 #[test]
@@ -1353,7 +1425,10 @@ fn phone_answer_name_holds_the_joined_title_and_words() {
         crate::words::Word::HomeAskLine,
         &[skein_ui::phrases::Hole::Name(title), skein_ui::phrases::Hole::Name(question)],
     );
-    let name = w.say(crate::words::Word::HomeAnswerName, &[skein_ui::phrases::Hole::Name(line)]);
+    let name = w.say(
+        crate::words::Word::HomeAnswerName,
+        &[skein_ui::phrases::Hole::Name(line), skein_ui::phrases::Hole::Name(b"Answer".as_slice().into())],
+    );
     assert_eq!(name.len(), ANSWER_NAME);
     assert!(name.ends_with(b" Answer"));
 }
@@ -1677,5 +1752,237 @@ fn settings_configure_link_opens_the_delivered_configuring_chat_in_both_shells()
         );
         let text = f::main_text(view.tree());
         assert!(skein_lib::bytes::find(&text, b"Hello").is_none(), "the watched row is not drawn on Settings");
+    }
+}
+
+const HOME_QUESTION: &[u8] = b"Which license?\n\nThe README needs a license.\n\nSaw: No license file.\nChoice: MIT (recommended)\nChoice: Apache";
+const PARSED: c::ObjectKey = c::ObjectKey::Question { task: f::INBOX_TASK, message: 8 };
+fn needs_act(root: &mut d::Domain, act: d::pages::needs::Act) {
+    drive(root, d::Event::Act { action: d::Action::Pages(d::pages::Act::Needs(act)) });
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
+fn parsed_home_card_replies_in_place_and_prints_choices() {
+    use d::pages::needs::Act as N;
+    let mut root = everyday(false, &[PARSED, QUESTIONS[0]], false, true);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Paragraph, b"Which license?");
+        main_find(view.tree(), Role::Paragraph, b"The README needs a license.");
+        let saw = styled(view.tree(), crate::look::ASK_SAW);
+        assert_eq!(saw.role, Role::Disclosure);
+        assert_eq!(saw.name.as_deref(), Some(b"What the agent saw".as_slice()));
+        assert!(!saw.states.as_slice().contains(&skein_ui::State::Expanded));
+        assert_eq!(styled(view.tree(), crate::look::RECOMMENDED).name.as_deref(), Some(b"MIT".as_slice()));
+        main_find(view.tree(), Role::Text, b"recommended");
+        assert_action(
+            &mut view,
+            Role::Button,
+            b"MIT",
+            d::pages::Act::Needs(N::Choose { object: PARSED, words: b"MIT".as_slice().into() }),
+        );
+        assert_action(
+            &mut view,
+            Role::Button,
+            b"Apache",
+            d::pages::Act::Needs(N::Choose { object: PARSED, words: b"Apache".as_slice().into() }),
+        );
+        assert_action(&mut view, Role::Button, b"Reply", d::pages::Act::Needs(N::OpenReply { object: PARSED }));
+        assert_action(&mut view, Role::Button, b"Later", d::pages::Act::Needs(N::Later { object: PARSED }));
+    }
+    let print = printed(&f::page_view(&root));
+    for words in ["Which license?", "MIT", "Apache", "Reply", "Later", "Which license? · a question · under 1 min"] {
+        contains(&print, words);
+    }
+    needs_act(&mut root, N::OpenReply { object: PARSED });
+    drive(
+        &mut root,
+        d::Event::Act {
+            action: d::Action::Pages(d::pages::Act::CardWords { object: PARSED, words: b"Use MIT".as_slice().into() }),
+        },
+    );
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let id = main_find(view.tree(), Role::TextArea, b"Your reply");
+        let field = &subtree(view.tree(), id)[0];
+        assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"Use MIT");
+        assert!(field.focus.is_some());
+        assert_action(&mut view, Role::Button, b"Send reply", d::pages::Act::Needs(N::SendReply { object: PARSED }));
+        assert_action(&mut view, Role::Button, b"Cancel", d::pages::Act::Needs(N::CancelReply));
+    }
+    needs_act(&mut root, N::CancelReply);
+    assert!(
+        !main_nodes(f::page_view(&root).tree()).iter().any(|n| n.styles.as_slice().contains(&crate::look::ASK_REPLY))
+    );
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
+fn home_answered_lines_precede_card_count_falls_and_undo_restores_it() {
+    use d::pages::needs::Act as N;
+    let mut root = everyday(false, &[PARSED, QUESTIONS[0]], false, true);
+    needs_act(&mut root, N::Choose { object: PARSED, words: b"MIT".as_slice().into() });
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Heading { level: 1 }, b"One thing needs you.");
+        main_find(view.tree(), Role::Heading { level: 2 }, "Needs you · 1".as_bytes());
+        let parts = children(subtree(view.tree(), styled(view.tree(), crate::look::HOME_NEEDS).id));
+        assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
+        assert_eq!(parts[1].styles.as_slice(), &[crate::look::ANSWERED]);
+        assert_eq!(parts[2].styles.as_slice(), &[crate::look::ASK]);
+        assert_action(&mut view, Role::Button, b"Undo", d::pages::Act::Needs(N::Undo { object: PARSED }));
+    }
+    contains(&printed(&f::page_view(&root)), "Add a README: MIT");
+    needs_act(&mut root, N::Undo { object: PARSED });
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Heading { level: 1 }, b"Two things need you.");
+        assert!(!main_nodes(view.tree()).iter().any(|n| n.styles.as_slice().contains(&crate::look::ANSWERED)));
+    }
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
+fn home_answered_window_expires_and_sets_the_next_change() {
+    use d::pages::needs::{ANSWERED_ON_HOME, Act as N};
+    let mut root = everyday(false, &[PARSED], false, true);
+    needs_act(&mut root, N::Choose { object: PARSED, words: b"MIT".as_slice().into() });
+    let end = skein_lib::Wall::from_nanos(f::NOW.as_nanos().checked_add(ANSWERED_ON_HOME.as_nanos()).unwrap());
+    for browser in [false, true] {
+        let mut view = f::view_of(if browser { f::browser_words() } else { f::words() });
+        crate::build(&mut view, &root, skein_lib::Wall::from_nanos(end.as_nanos() - 1), &mut Queue::uncapped());
+        styled(view.tree(), crate::look::ANSWERED);
+        assert_eq!(view.next_change(), Some(end));
+        crate::build(&mut view, &root, end, &mut Queue::uncapped());
+        assert!(!main_nodes(view.tree()).iter().any(|n| n.styles.as_slice().contains(&crate::look::ANSWERED)));
+    }
+}
+#[test]
+fn later_home_card_moves_to_a_line_then_returns_with_its_meta() {
+    use d::pages::needs::Act as N;
+    let mut root = everyday(false, &[PARSED, QUESTIONS[0]], false, true);
+    needs_act(&mut root, N::Later { object: PARSED });
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let rows = styled(view.tree(), crate::look::HOME_ROWS);
+        contains(&f::nodes_text(subtree(view.tree(), rows.id)), "Which license?");
+        assert_action(
+            &mut view,
+            Role::Link,
+            "Which license? · a question · under 1 min".as_bytes(),
+            d::pages::Act::Needs(N::Open { object: PARSED }),
+        );
+    }
+    needs_act(&mut root, N::Later { object: QUESTIONS[0] });
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(styled(view.tree(), crate::look::ASK_META).name.as_ref().unwrap().ends_with(" · later".as_bytes()));
+    }
+}
+#[test]
+fn beginning_keeps_only_the_card_and_no_phone_block_or_rows() {
+    let root = everyday(true, &[PARSED, QUESTIONS[0], QUESTIONS[1]], false, true);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let parts = children(subtree(view.tree(), styled(view.tree(), crate::look::HOME_NEEDS).id));
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
+        assert_eq!(parts[1].styles.as_slice(), &[crate::look::ASK]);
+        absent(&f::main_text(view.tree()), "Answer in a row");
+    }
+}
+#[test]
+fn phone_block_uses_short_and_the_open_count() {
+    for objects in [&[PARSED][..], &[PARSED, QUESTIONS[0]][..]] {
+        let root = everyday(false, objects, false, true);
+        let mut view = f::browser_page_view(&root);
+        let go = if objects.len() == 1 { "Answer" } else { "Answer, one at a time" };
+        let name = crate::accounts::words::join(&[b"Add a README: Which license? ", go.as_bytes()]);
+        assert_action(&mut view, Role::Link, &name, inbox_act());
+        assert_eq!(
+            f::nodes_text(subtree(view.tree(), styled(view.tree(), crate::look::HOME_CTA_GO).id)).as_ref(),
+            go.as_bytes()
+        );
+        absent(&f::main_text(f::page_view(&root).tree()), "Answer, one at a time");
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
+fn home_refusal_reopens_the_card_with_the_engines_words() {
+    use d::pages::needs::{Act as N, HOLD};
+    let mut root = everyday(false, &[PARSED], false, true);
+    needs_act(&mut root, N::Choose { object: PARSED, words: b"MIT".as_slice().into() });
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO.saturating_add(HOLD), wall: f::NOW, limits: home_limits() };
+    let mut out = Queue::uncapped();
+    d::fire(&mut root, &env, &mut out);
+    d::step(&mut root, &env, d::Event::Client { event: jig_client::Event::Stored }, &mut out);
+    let attempt = out
+        .iter()
+        .find_map(|request| {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } = request
+            {
+                Some(*attempt)
+            } else {
+                None
+            }
+        })
+        .expect("answer sent");
+    d::step(
+        &mut root,
+        &env,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                        refusal: c::Refusal::NotOffered,
+                        at: None,
+                    })),
+                },
+            },
+        },
+        &mut out,
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let card = styled(view.tree(), crate::look::ASK);
+        contains(&f::nodes_text(subtree(view.tree(), card.id)), "not offered");
+        main_find(view.tree(), Role::Heading { level: 1 }, b"One thing needs you.");
+    }
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
+fn home_funds_and_proposal_keep_decisions_confirmation_and_short_lines() {
+    let proposal = c::ObjectKey::Proposal(c::ProposalKey {
+        proposer: c::Proposer::Task(f::INBOX_TASK),
+        number: f::INBOX_QUESTION,
+    });
+    let funds = c::ObjectKey::Escalation(10);
+    for (object, name, kind) in
+        [(proposal, b"Accept".as_slice(), c::ActKind::Accept), (funds, b"Release", c::ActKind::Release)]
+    {
+        let mut root = everyday(false, &[object], false, true);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let button = main_find(view.tree(), Role::Button, name);
+            let Some(d::Action::Pages(action @ d::pages::Act::Decide { act, .. })) =
+                crate::act(&mut view, button, Act::Press)
+            else {
+                panic!("decision")
+            };
+            assert_eq!(act, kind);
+            if object == funds {
+                main_find(view.tree(), Role::Paragraph, b"31 of 40 used.");
+                main_find(view.tree(), Role::Disclosure, b"Leave held");
+            }
+            drive(&mut root, d::Event::Act { action: d::Action::Pages(action) });
+            let mut confirmed = f::browser_page_view(&root);
+            assert!(main_nodes(confirmed.tree()).iter().any(|node| node.role == Role::Dialog));
+            assert_action(&mut confirmed, Role::Button, b"Confirm", d::pages::Act::Confirm);
+            drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::Cancel) });
+        }
+    }
+    let root = everyday(false, &[PARSED, funds], false, true);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_action(
+            &mut view,
+            Role::Link,
+            "Add a README: 31 of 40 used · funds".as_bytes(),
+            d::pages::Act::Needs(d::pages::needs::Act::Open { object: funds }),
+        );
     }
 }

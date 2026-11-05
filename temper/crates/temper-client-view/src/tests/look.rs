@@ -490,3 +490,18 @@ fn agent_composer() -> crate::View {
     task.acts.push(c::Offered { act: c::ActKind::Message, admission: c::Admission::Allowed, effect: None }).unwrap();
     fixtures::page_view(&fixtures::task::agent_root(task, None, true))
 }
+
+#[test]
+fn configuring_opening_and_needs_have_their_css_names() {
+    for (style, name) in [
+        (STARTER_LEDE, b"temper-starter-lede".as_slice()),
+        (STARTER_SETS, b"temper-starter-sets"),
+        (STARTER_NOTE, b"temper-starter-note"),
+        (STARTER_WAYS, b"temper-starter-ways"),
+        (STARTER_UNSURE, b"temper-starter-unsure"),
+        (TOAST, b"temper-toast"),
+        (NEEDS, b"temper-needs"),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+}

@@ -464,7 +464,6 @@ fn an_interactive_private_grant_waits_for_sign_in_and_keeping() {
     world.close();
 }
 
-#[path = "lock.rs"]
 mod shared_tests;
 
 /// Order: `account_file_events_dispatched` (phase C).

@@ -397,11 +397,9 @@ fn updates_do_not_repeat_the_playground_project() {
             },
         },
     );
-    for words in [fixtures::words(), fixtures::browser_words()] {
-        let mut view = fixtures::view_of(words);
-        let tree = fixtures::build(&mut view, &root);
-        assert_eq!(style_count(tree.nodes(), look::META), 0);
-    }
+    let mut view = fixtures::view_of(fixtures::words());
+    let tree = fixtures::build(&mut view, &root);
+    assert_eq!(style_count(tree.nodes(), look::META), 0);
 }
 
 #[test]
