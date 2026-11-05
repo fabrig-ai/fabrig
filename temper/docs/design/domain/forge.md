@@ -1623,7 +1623,9 @@ delegate's terminal wakes it to offer the landed result.
   | `Missing`, `MissingJob` | permanent | `the forge has no such object` |
   | `TooLarge` | permanent | `the answer is past the client's limit` |
   | any other error | permanent | `the forge refused this read` |
-  | no change for the pull, its identity past the section's bytes, or a title that fills them | permanent | `the change cannot be named in its section` |
+  | no change for the pull, its identity past the section's bytes, or a title that fills them; no repository for a home-access reason | permanent | `the change cannot be named in its section` |
+  | failed checks whose heads do not fit their section | permanent | `the failed checks do not fit their section` |
+  | a section the plan gave wrong bounds, or the connector no longer holds | permanent | `the connector cannot hold this section` |
 
   A repair's two forge sections, its pull section and its reason (CI's or
   reviews'), are a pair, and each can stand without the other: the agent has

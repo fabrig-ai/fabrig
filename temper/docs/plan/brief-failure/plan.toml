@@ -40,3 +40,36 @@ id = 2
 story = "A real Forgejo's pull and compare answers are taken, the refused answer a fixture"
 parts = ["forge-answer"]
 walk = false
+
+[[part]]
+id = "brief-counts"
+title = "a brief's failure counts by why and ends held, naming the reason"
+mode = "direct"
+needs = ["brief-words", "retry-reason"]
+design = "jig/docs/design/domain/engine.md, 9.1"
+
+[[part]]
+id = "reason-shown"
+title = "the chip and temper ctl task show say the reason"
+mode = "direct"
+needs = ["retry-reason"]
+design = "jig/docs/design/client/domain/objects.md, 3"
+
+[[slice]]
+id = 3
+story = "A brief that fails says why on its chip and in temper ctl, a capacity refusal pauses, and anything else ends held"
+parts = ["brief-counts", "reason-shown"]
+walk = false
+
+[[part]]
+id = "forge-sections"
+title = "a forge section's read that fails says why, and one doesn't sink a repair"
+mode = "direct"
+needs = ["brief-words", "brief-counts"]
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[slice]]
+id = 4
+story = "On a real Forgejo, a change whose CI goes red gets a repair that starts, and a repair whose brief can't be read ends held with the reason in temper ctl"
+parts = ["forge-sections"]
+walk = true
