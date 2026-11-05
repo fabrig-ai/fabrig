@@ -1,11 +1,11 @@
 use super::{fixtures as f, read_support as r};
 use skein_fake_forge_domain::{self as fake, api as a};
 use skein_forge::{
-    forgejo::document::Body,
     github::{
         document::{Kind, Row},
         request::Method,
     },
+    text::Body,
 };
 use skein_lib::{Duration, List, Secret};
 

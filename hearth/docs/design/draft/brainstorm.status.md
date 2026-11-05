@@ -1,6 +1,6 @@
 # brainstorm: status
 
-2026-11-04. Where the design lags or departs from [brainstorm.md](brainstorm.md).
+2026-11-05. Where the design lags or departs from [brainstorm.md](brainstorm.md).
 
 Section 13's settled questions are carried by the design: a layer includes `/var`,
 and prepare splits off the slot's writable copy, with persistent data declared
@@ -279,9 +279,10 @@ question unsettled.
     (`hearth/docs/design/domain/testing.md`, 3.11). The move's timing and the
     kit's name remain open (section 11).
   - 4.3 and 13: tier ceilings are specified provisionally
-    (`hearth/docs/design/domain/testing.md`, section 9), but the user's CPU
-    budgets and the conformance tier's budget and place after landing remain
-    open (section 11). The mirror has a pin, requests and a fetch path (6.2);
+    (`hearth/docs/design/domain/testing.md`, section 9): the focused suite's
+    30 CPU seconds are the user's, and the fuzzy suite's CPU budget and the
+    conformance tier's budget and place after landing remain open
+    (section 11). The mirror has a pin, requests and a fetch path (6.2);
     whether those requests are right, its size and retention between runs
     still need measurements and a decision (section 11).
   - 5.3 and 13: machine identity toward the engine and the plane's secret

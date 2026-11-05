@@ -17,16 +17,16 @@ A change is a task that writes one repository's branch and lands it: its pull re
   `llm` (its `producer` and `review` choices, by configured model and
   effort names, defaulting to its charter's), and `questions`
   (`foreman`, `up`, or `none`, the default: how its producer's questions go).
-- **Its pull request title** is its coder's, punctuation kept, cut at a
-  UTF-8 boundary with “…” where the forge needs it.
+- **Its title:** the coder's, punctuation kept, cut at a UTF-8 boundary
+  with “…” where needed.
 - **Its panel:** task, repository, branch, base, pull URL, step, CI,
   gates, repair/update/resolution limits; `way: turn · landing task N`;
-  questions' route, count, producer question and standing. For its answer
-  number use `read_task` on the change.
+  questions' route, count, words and standing. `read_task` gives its answer
+  number. `CI not required` means its repository or rules ask for none.
+  JSON separates `ci_required` from `ci`, the head observation retained once ended.
 - **Approvals:** rule, role, freshness, required/remaining counts, people
-  and review heads; unread and incomplete differ from zero counted.
-  Unmapped accounts do not count. An approval wait's `next` points to
-  the pull request.
+  and heads; unread and incomplete differ from zero. Unmapped accounts
+  do not count. An approval wait's `next` points to the pull request.
 - **Its result** names the merge commit, tier verdict, pull request and
   address, and `Landed: pull request #N merged into BASE as SHORT.`.
   With repairs, `repairs: N:` lists reasons and successful reports by
@@ -111,15 +111,13 @@ refused, naming what it lacks or the forge's answer.
 
 ## What temper guarantees
 
-- **Landed at the head that passed:** temper merges naming the head
-  whose CI and gates passed; a moved head or base is checked again
-  first.
+- **Landed as checked:** temper merges the exact head after its required
+  CI and gates pass; it rechecks a moved head or base.
 - **Nothing overwritten:** a branch or pull request changed by someone
   else on the forge holds the change.
 - **Gates decide:** a blocking gate that asks for changes starts a
   repair; a person's rejection holds it; an advisory gate never blocks.
-  A reviewer that gives no verdict is asked once more, then the change
-  is held.
+  No verdict: ask once more, then hold.
   A reviewer unable to read fails saying why. `temper serve`'s
   unkept stderr names each refusal's task, tool and reason; Claude's
   Read denials are in the task's tool results.

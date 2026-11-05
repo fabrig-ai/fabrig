@@ -122,7 +122,7 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
         ("people.pending", 4),
         ("people.waiters", 4),
         ("people.amendment_bytes", MEMBER_BYTES),
-        ("core.policy_bytes", 4096),
+        ("core.policy_bytes", 8192),
     ] {
         limits.insert(name.into(), size.into());
     }

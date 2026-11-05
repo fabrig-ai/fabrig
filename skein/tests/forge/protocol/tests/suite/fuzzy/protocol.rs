@@ -1,4 +1,4 @@
-use skein_fake_forge_protocol::Faults;
+use skein_fake_forge_forgejo::Faults;
 use skein_forge::api::{Error, Op, Read};
 use skein_forge_machine_world::joint::{self, Joint};
 use skein_forge_protocol_world::fixtures;

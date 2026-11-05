@@ -3,7 +3,7 @@ use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 
 use self::layer as protocol;
 use skein_fake_forge_domain::{self as domain, api};
-use skein_fake_forge_protocol as forgejo;
+use skein_fake_forge_forgejo as forgejo;
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Up};
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};

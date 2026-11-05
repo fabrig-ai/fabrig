@@ -1514,6 +1514,11 @@ Over generated repositories, valid by construction and then mutated:
 - **Fetching a single commit** rather than a branch, which needs the
   forge to allow fetching an object by id; it depends on the forges the
   fleet uses.
+- **The bounds outside the builder:** `hearth_domain_tree::limits::walk_bound`
+  and `hearth_protocol_accounts::decoder_bound` size edges of the tree
+  helper and the activator, which the builder's limits don't hold, so its
+  `valid` (8.4) reads neither. Whether each of those processes checks them
+  at its own startup is to settle with their limits.
 - **Where a resolution's closure is made:** 8.2's `Resolved` carries the
   closure, while 5.3 has the domain match `Inst` triples to `Packages`
   stanzas; one of the two is to change.

@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-04. Where skein's code lags or departs from [testing.md](testing.md).
+2026-11-05. Where skein's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
@@ -11,7 +11,7 @@
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no
   reason is recorded.
-  6: `crates/skein-fail-stop`, `crates/skein-fake-forge-protocol`
+  6: `crates/skein-fail-stop`, `crates/skein-fake-forge-forgejo`
   (a memory suite) and `crates/skein-forge` have a `tests/` directory,
   where 6 puts what drives a crate from outside under `tests/`; no reason
   is recorded.

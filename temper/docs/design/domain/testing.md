@@ -1259,7 +1259,9 @@ section 8; testing-strategy.md, 2.9).
     story clears only unused goal projection grants: both stories make a
     chat's change, no tracked goal. Task ceiling and role-authority
     grants, the enforced CI/up-to-date/ exact-head gate rule, metadata
-    and all capacities stay, including `core.policy_bytes=4096`. The
+    and all capacities stay, including `core.policy_bytes=8192`. The
+    four-role stock policy measures 5,742 joined bytes; this fixture ceiling
+    leaves headroom, while Standard and Small keep 16,384. The
     pure service startup regression keeps the overbroad seed's named
     refusal and the narrowed seed's admission. This is offline coverage,
     and establishes no live proof.
@@ -2635,7 +2637,7 @@ scripts/proof-live.sh               the live tier
   the fake issuer. temper's fakes sit on them.
 - **The fake forge is skein's** (skein's `fake-forge.md`): its domain
   (`crates/skein-fake-forge-domain`), its protocol layer
-  (`crates/skein-fake-forge-protocol`), its forge peer (in
+  (`crates/skein-fake-forge-forgejo`), its forge peer (in
   `crates/skein-fake-peers`), the throwaway Forgejo
   (`testing/skein-throwaway-forgejo`), its tests in ordinary Rust, and
   the conformance (`testing/skein-forge-conformance`). Reconcile's world is

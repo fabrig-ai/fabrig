@@ -555,11 +555,11 @@ fn github_peer_serves_the_manifest_and_conversion_pages() {
     let mut world = World::new(f::SEED);
     let page = world.manifest();
     assert_eq!(page.status, 200);
-    assert_eq!(page.header(b"content-type"), Some(b"text/html".as_slice()));
+    assert_eq!(page.header(b"content-type"), Some(b"text/html; charset=utf-8".as_slice()));
     assert!(bytes::find(&page.body, b"Create GitHub App").is_some());
     let conversion = world.convert();
     assert_eq!(conversion.status, 201);
-    assert_eq!(conversion.header(b"content-type"), Some(b"application/json".as_slice()));
+    assert_eq!(conversion.header(b"content-type"), Some(b"application/json; charset=utf-8".as_slice()));
     let (_, Document::Conversion(app)) = conversion.decode(Kind::Conversion) else { panic!("converted App") };
     assert_eq!(app.slug.as_ref(), SLUG);
     let installed = world.install(b"org");
@@ -715,7 +715,7 @@ fn github_peer_keeps_a_continuation_until_the_followup_reply() {
 }
 
 fn commit_id(number: u64) -> api::Commit {
-    skein_fake_forge_protocol::routes::object(number).bytes
+    skein_fake_forge_forgejo::routes::object(number).bytes
 }
 fn failed_job() -> (World, Secret, api::JobAttempt) {
     let mut world = World::with_checks(

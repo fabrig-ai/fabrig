@@ -808,13 +808,13 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The rail adds four literals and one counted entry (client/README.md, 5.3).
 // Five switcher phrases describe repository rows in both shells.
 // Home adds 35 phrases for its steps, intro and connected lines (3.5).
-const PHRASES: u32 = 1315;
+const PHRASES: u32 = 1316;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
 // The switcher phrases add twenty-one literal and hole segments.
 // Home adds 87 literal and hole segments.
-const SEGMENTS: u32 = 2290;
+const SEGMENTS: u32 = 2291;
 const ALL: [Word; 720] = [
     Word::HomeThree,
     Word::HomeTwo,

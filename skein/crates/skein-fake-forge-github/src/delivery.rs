@@ -123,7 +123,7 @@ impl Store {
         match &mut payload {
             Delivery::Issue { body, .. } | Delivery::Comment { body, .. } | Delivery::Review { body, .. } => match body
             {
-                skein_forge::forgejo::document::Body::Kept(text) => {
+                skein_forge::text::Body::Kept(text) => {
                     if text.len() < usize::try_from(self.config.payload_size).expect("u32 fits") {
                         let mut padded = Writer::new(usize::try_from(self.config.payload_size).expect("u32 fits"));
                         padded.put(text).expect("payload size");
@@ -133,7 +133,7 @@ impl Store {
                         *text = padded.finish();
                     }
                 }
-                skein_forge::forgejo::document::Body::Long(_) => return Err(Problem::Config),
+                skein_forge::text::Body::Long(_) => return Err(Problem::Config),
             },
             Delivery::Pull { .. }
             | Delivery::Remark { .. }
@@ -390,7 +390,7 @@ fn cursor(id: u64) -> Box<[u8]> {
     out.finish()
 }
 fn cursor_id(value: &[u8]) -> Option<u64> {
-    skein_forge::forgejo::id::unsigned(value.strip_prefix(b"d-")?)
+    bytes::decimal(value.strip_prefix(b"d-")?)
 }
 fn post(
     id: u64,
@@ -470,7 +470,7 @@ impl crate::Service {
     pub fn hook(&mut self, hook: &skein_fake_forge_domain::Request, now: Wall) -> Result<Option<Post>, Problem> {
         use github::delivery::{Ci, Pull};
         use skein_fake_forge_domain::api::{Change, QueueHook, QueueRemoval};
-        use skein_forge::forgejo::document::Body;
+        use skein_forge::text::Body;
         let (repository, change, number, branch, commit, by, body, ended, queue) = match hook {
             skein_fake_forge_domain::Request::Reply { .. } => return Ok(None),
             skein_fake_forge_domain::Request::Hook {
@@ -587,7 +587,7 @@ mod tests {
                     Delivery::Issue {
                         repository: 2,
                         number: 3,
-                        body: skein_forge::forgejo::document::Body::Kept(bytes::copy_of(b"hello")),
+                        body: skein_forge::text::Body::Kept(bytes::copy_of(b"hello")),
                     },
                     Some(1),
                     Wall::EPOCH,
@@ -604,7 +604,7 @@ mod tests {
             if let Some(action) = &entry.row.action {
                 held = held.checked_add(skein_lib::len_u64(action.len())).unwrap();
             }
-            let Delivery::Issue { body: skein_forge::forgejo::document::Body::Kept(body), .. } = &entry.payload else {
+            let Delivery::Issue { body: skein_forge::text::Body::Kept(body), .. } = &entry.payload else {
                 panic!("filled issue payload")
             };
             assert_eq!(body.len(), 6000);

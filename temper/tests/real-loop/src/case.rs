@@ -264,7 +264,7 @@ mod identity_tests {
         let config = temper_worker_checkout_world::hosted::CONFIG;
         let mut domain = domain::Domain::new(&config, fixtures::SEED);
         let first = domain::repository(&mut domain, &config, (fixture().setup)());
-        let object = skein_fake_forge_protocol::routes::object(first);
+        let object = skein_fake_forge_forgejo::routes::object(first);
         let mut words = String::new();
         assert!(object.bytes[20..].iter().all(|byte| *byte == 0), "seeded repository uses SHA-1");
         for byte in &object.bytes[..20] {

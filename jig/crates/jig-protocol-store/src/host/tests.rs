@@ -1,5 +1,5 @@
 //! Drivers lifecycle over the simulator and crashing filesystem (store.md, 13).
-use super::{Drivers, Hosted, Lane, NotReady, Submission};
+use super::{Drivers, Hosted, Lane, NotReady, Submission, check_read_page, max_read};
 use crate::{Event, Store, tests::fixtures};
 use skein_fake_machine::{How, Machine, serve};
 use skein_io::kernel::{Complete, Error, Fd, Op};
@@ -185,4 +185,24 @@ fn debug_of_the_hosted_store_counts_its_terminals() {
     let debug = alloc::fmt::format(format_args!("{hosted:?}"));
     assert!(!debug.contains("171"));
     assert!(debug.contains("above: 1"));
+}
+
+#[test]
+fn a_store_whose_reads_are_below_its_page_is_refused() {
+    let mut limits = fixtures::store_limits();
+    let page = limits.store.page.bytes;
+    let below = page.checked_sub(1).unwrap();
+    // Synthetic fields check admission without constructing an invalid KV store.
+    limits.store.chunk = below;
+    limits.core.resume_bytes = below;
+    limits.core.load_bytes = u64::from(below);
+    assert_eq!(max_read(&limits), below);
+    assert_eq!(check_read_page(&limits), None);
+    for (chunk, resume, load) in [(page, below, below), (below, page, below), (below, below, page)] {
+        limits.store.chunk = chunk;
+        limits.core.resume_bytes = resume;
+        limits.core.load_bytes = u64::from(load);
+        assert_eq!(max_read(&limits), page);
+        assert_eq!(check_read_page(&limits), Some(()));
+    }
 }

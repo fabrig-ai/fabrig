@@ -1,4 +1,4 @@
-use skein_fake_forge_protocol::Route;
+use skein_fake_forge_forgejo::Route;
 use skein_forge::forgejo::{client, request::Method};
 use skein_forge_setup::{
     item::Item,
@@ -156,7 +156,7 @@ fn a_kept_admin_token_decides_the_listing() {
     let since = world.requests().len();
     assert_eq!(world.reachable(None, 1), Ended::Done);
     assert_eq!(
-        world.requests()[since..].iter().map(skein_fake_forge_protocol::route).collect::<Vec<_>>(),
+        world.requests()[since..].iter().map(skein_fake_forge_forgejo::route).collect::<Vec<_>>(),
         [Route::User, Route::ApiSettings, Route::RepoSearch]
     );
 }
@@ -169,7 +169,7 @@ fn forgetting_the_admin_token_makes_the_picker_the_connected_one() {
     let since = world.requests().len();
     assert_eq!(world.reachable(None, 1), Ended::Done);
     assert_eq!(
-        world.requests()[since..].iter().map(skein_fake_forge_protocol::route).collect::<Vec<_>>(),
+        world.requests()[since..].iter().map(skein_fake_forge_forgejo::route).collect::<Vec<_>>(),
         [Route::ApiSettings, Route::UserRepos]
     );
 }

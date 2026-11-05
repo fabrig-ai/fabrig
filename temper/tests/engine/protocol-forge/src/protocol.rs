@@ -1,7 +1,7 @@
 //! The forge connector and real component against the fake forge through bytes.
 use crate::fixtures;
 use skein_fake_forge_domain::{self as forge, api as raw};
-use skein_fake_forge_protocol::{Faults, Route, Tally};
+use skein_fake_forge_forgejo::{Faults, Route, Tally};
 use skein_forge_connection::Component;
 use skein_forge_machine_world::joint::{self, Joint, REPO};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};

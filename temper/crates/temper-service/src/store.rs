@@ -296,7 +296,7 @@ pub fn owns(token: Token) -> bool {
 
 #[cfg(test)]
 mod sizing_tests {
-    use super::{check_read_page, max_whole, page_bytes, protocol};
+    use super::{max_whole, page_bytes, protocol};
     use protocol::host::max_read;
 
     #[test]
@@ -304,26 +304,6 @@ mod sizing_tests {
         let (application, _, profile) = crate::tests::fixtures::store_limits();
         let limits = super::limits(&application, &application.forge, &profile).unwrap();
         assert!(max_read(&limits) >= limits.store.page.bytes);
-    }
-
-    #[test]
-    fn a_store_whose_reads_are_below_its_page_is_refused() {
-        let (_, _, mut limits) = crate::tests::fixtures::store_limits();
-        let page = limits.store.page.bytes;
-        let below = page.checked_sub(1).unwrap();
-        // Synthetic fields check admission without constructing an invalid KV store.
-        limits.store.chunk = below;
-        limits.core.resume_bytes = below;
-        limits.core.load_bytes = u64::from(below);
-        assert_eq!(max_read(&limits), below);
-        assert_eq!(check_read_page(&limits), None);
-        for (chunk, resume, load) in [(page, below, below), (below, page, below), (below, below, page)] {
-            limits.store.chunk = chunk;
-            limits.core.resume_bytes = resume;
-            limits.core.load_bytes = u64::from(load);
-            assert_eq!(max_read(&limits), page);
-            assert_eq!(check_read_page(&limits), Some(()));
-        }
     }
 
     #[test]

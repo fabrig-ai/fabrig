@@ -672,6 +672,34 @@ impl World {
         self.top.reclaim();
     }
 
+    /// Set the project's CI rule for a landing branch through durable settings.
+    pub fn landing_ci(&mut self, branch: &[u8], required: bool) {
+        let item = top::settings::Asked {
+            kind: top::settings::Kind::ProjectRules.number(),
+            scope: 5,
+            number: 1,
+            edit: top::settings::Edit::Set(top::settings::SizedValue {
+                size: 64,
+                value: top::settings::Value::Rule(top::settings::LandingRule {
+                    pattern: top::GatePattern {
+                        segments: [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"]
+                            .map(Box::from)
+                            .into(),
+                        last: top::GateLast::Exact(branch.into()),
+                    },
+                    enforce: true,
+                    ci: required,
+                    up_to_date: false,
+                    gates: Box::new([]),
+                    approvals: Box::new([]),
+                }),
+            }),
+        };
+        self.top.keep_settings(&self.env, 1, None, &[item], &mut self.top_out);
+        self.take_top();
+        self.run_for(1);
+    }
+
     pub fn adopt(&mut self) {
         self.adopt_as(top::Role::Owned);
     }

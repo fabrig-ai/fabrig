@@ -186,7 +186,7 @@ fn minted_json(
     json.key(b"token");
     json.string(row.token.expose());
     json.key(b"expires_at");
-    json.string(&skein_forge::forgejo::time::write(row.expires));
+    json.string(&skein_forge::time::write(row.expires));
     json.key(b"permissions");
     json.object_start();
     for permission in permissions {

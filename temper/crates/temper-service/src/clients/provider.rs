@@ -31,9 +31,9 @@ pub(super) fn urls(
         Some(origin) => origin.base(),
         None => {
             let skein_io::Addr::Ip(listener) = listener else {
-                return Err(super::invalid(config::What::Form));
+                return Err(config::clients::invalid(config::What::Form));
             };
-            let host = super::printed::address_text(listener).ok_or(super::invalid(config::What::Form))?;
+            let host = super::printed::address_text(listener).ok_or(config::clients::invalid(config::What::Form))?;
             endpoint(b"http://", &host)
         }
     };

@@ -62,6 +62,7 @@ fn world_with_owner(identity: people::IdentityKey) -> World {
 
 fn forge_with_only_temper(world: &mut World) {
     // Only temper is returned at adoption; the deployment owner is a separate identity.
+    world.fake_env.limits.limits.users = 6;
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     fake::repository(
         &mut world.fake,
@@ -108,7 +109,7 @@ fn approval_rule(role: u32, people: u32) -> settings::Value {
     })
 }
 
-fn configuring_proposal(world: &mut World) -> engine::Assignment {
+fn configuring_proposal(world: &mut World, role: u32, key: u8) -> engine::Assignment {
     let mut hello_event = protocol::hello_slots(Token::new(7), 2, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) =
         &mut hello_event
@@ -127,15 +128,15 @@ fn configuring_proposal(world: &mut World) -> engine::Assignment {
         panic!("chat")
     };
     batch[0].executor = people::TaskExecutor::Agent { charter: 3 };
-    let run = assigned_chat(world, 92, people::Ask::Create { project, batch });
+    let run = assigned_chat(world, key, people::Ask::Create { project, batch });
     assert_eq!(run.charter, 3);
     let mut charter = defaults().charters[0].clone();
     charter.policy.instructions = b"Keep reports short.".as_slice().into();
     let items: Box<[s::Item]> = Box::new([
-        kinds::item(1, 0, 1, &approval_rule(0, 1)),
+        kinds::item(1, 0, 1, &approval_rule(role, 1)),
         s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(s::Value::Charter(Box::new(charter))) },
     ]);
-    let event = world.protocol.call(Token::new(7), run.task, run.attempt, 1, engine::Call {
+    let event = world.protocol.call(Token::new(7), run.task, run.attempt, u64::from(key), engine::Call {
         completion: 1, position: 1, tool: engine::Tool::ProposeSettings {
             against: kinds::revision(&world.store.rows), kinds: kinds::decoded(&items), items,
             reason: b"Review changes\ntemper enforces: agent review and one person's approval\nyour agents follow: keep reports short".as_slice().into(),
@@ -152,7 +153,7 @@ fn configuring_proposal(world: &mut World) -> engine::Assignment {
 fn a_box_refuses_an_unfulfillable_person_approval_rule() {
     let mut world = box_world();
     let before = kinds::revision(&world.store.rows);
-    let run = configuring_proposal(&mut world);
+    let run = configuring_proposal(&mut world, 0, 92);
     if let Some(engine::CallAnswer::Proposed { proposal, .. }) = world.answers.last().cloned() {
         world.send(engine::Event::Party(engine::PartyInput::Ask {
             models: Box::new([]),
@@ -439,4 +440,311 @@ fn waiting_approval() -> (World, u64) {
     }
     assert_eq!(world.merges, 0, "the approval rule keeps the change queued");
     (world, change)
+}
+
+fn settle(world: &mut World) {
+    for _ in 0..200 {
+        world.tick();
+    }
+}
+
+fn readopt(world: &mut World, key: u8) {
+    world.send(engine::Event::Party(engine::PartyInput::Application {
+        scope: people::ApplicationScope::Project(1),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [key; 16],
+        digest: [5; 32],
+        carried: None,
+        request: engine::Application::Forge(forge_top::Ask::Adopt(temper_engine_domain_world::fixtures::adoption(1))),
+    }));
+    settle(world);
+}
+
+fn decide_configuring(world: &mut World, key: u8) {
+    let run = configuring_proposal(world, 2, key);
+    let Some(engine::CallAnswer::Proposed { proposal, .. }) = world.answers.last().cloned() else {
+        panic!("recorded configuring proposal: {:?}", world.answers)
+    };
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [key + 20; 16],
+        ask: people::Ask::DecideProposal {
+            project: people::DEPLOYMENT,
+            proposer: people::Proposer::Task(run.task),
+            proposal,
+            decision: people::ProposalDecision::Accept,
+            running: Some(people::Running::Stays),
+        },
+    }));
+    settle(world);
+    let event = world.protocol.answer(
+        Token::new(7),
+        run.task,
+        run.attempt,
+        2,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"Proposed.".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    settle(world);
+}
+
+fn collaborator_roles(world: &World) -> std::collections::BTreeMap<u64, people::Role> {
+    let mut identities = std::collections::BTreeMap::new();
+    let mut holdings = Vec::new();
+    for record in world.store.rows.values() {
+        match record {
+            Record::Core(jig_domain_core::Record::People(people::Stored::Person { number, identity }))
+                if identity.key.provider == 0 =>
+            {
+                let subject = identity.key.subject.as_ref().try_into().expect("forge user number");
+                identities.insert(*number, u64::from_be_bytes(subject));
+            }
+            Record::Core(jig_domain_core::Record::People(people::Stored::Roles { project: 1, holdings: rows })) => {
+                holdings = rows.to_vec();
+            }
+            _ => {}
+        }
+    }
+    holdings.iter().filter_map(|holding| identities.get(&holding.person).map(|user| (*user, holding.role))).collect()
+}
+
+#[test]
+fn stock_adoption_seeds_safe_human_approval_roles() {
+    writer_identity_is_ineligible();
+    assert_stock_roles();
+    let mut world = box_world();
+    let before = kinds::revision(&world.store.rows);
+    decide_configuring(&mut world, 101);
+    assert_eq!(kinds::revision(&world.store.rows), before);
+    let refusal = world
+        .web_replies
+        .iter()
+        .find_map(|reply| match reply {
+            people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) => {
+                Some(String::from_utf8_lossy(why))
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("no eligible human: {:?}", world.web_replies));
+    for words in ["currently 0 eligible", "project-policy", "re-adopt", "temper help configure"] {
+        assert!(refusal.contains(words), "approval setup route needs {words:?}: {refusal}");
+    }
+    assert!(collaborator_roles(&world).is_empty(), "temper is never a human member");
+    fake::grant(&mut world.fake, b"org/repo", 3, raw::Permission::Read);
+    fake::grant(&mut world.fake, b"org/repo", 5, raw::Permission::Admin);
+    readopt(&mut world, 102);
+    decide_configuring(&mut world, 103);
+    assert_eq!(kinds::revision(&world.store.rows), before, "other roles cannot fulfill member approvals");
+    fake::grant(&mut world.fake, b"org/repo", 4, raw::Permission::Write);
+    readopt(&mut world, 104);
+    assert_eq!(
+        collaborator_roles(&world),
+        std::collections::BTreeMap::from([
+            (3, people::Role::Observer),
+            (4, people::Role::Member),
+            (5, people::Role::Maintainer),
+        ])
+    );
+    decide_configuring(&mut world, 105);
+    assert_eq!(
+        kinds::revision(&world.store.rows),
+        before + 1,
+        "known member makes proposal usable: {:?}",
+        world.web_replies
+    );
+    stock_approval_lands(&mut world);
+    world.close();
+    duplicate_approvals_count_once();
+}
+
+fn stock_waiting_change(world: &mut World) -> u64 {
+    let ask = world.chat(1, b"Make a small fix.");
+    let chat = assigned_chat(world, 106, ask);
+    let index = world.assigned.len();
+    assert!(matches!(change_tool::change(world, &chat, 3, None, b"Small fix"), engine::CallAnswer::Delegated(_)));
+    let producer = reviews::next_assignment(world, index);
+    let tasks::Party::Task(change) = live_task(world, producer.task).requester else { panic!("change") };
+    let branch = light_rules::change_row(world, change).branch.clone();
+    fake::grant(&mut world.fake, b"org/repo", 2, raw::Permission::Write);
+    stock_produce(world, &producer, &branch);
+    let reviewer = reviews::next_assignment(world, index + 1);
+    reviews::finish_review(
+        world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+    );
+    settle(world);
+    assert_eq!(world.merges, 0, "agent review still needs a human approval");
+    change
+}
+
+fn stock_approval_lands(world: &mut World) {
+    let change = stock_waiting_change(world);
+    give_writer_legacy_membership(world);
+    for user in [1, 7, 3, 5, 5] {
+        post_approval(world, change, user);
+        assert_eq!(world.merges, 0, "temper, unknown users, other roles and duplicates cannot count: {user}");
+    }
+    world.restart_same();
+    settle(world);
+    assert!(world.root.ready(), "restart completes");
+    assert_eq!(world.merges, 0, "restart retains the approval wait");
+    post_approval(world, change, 4);
+    assert_eq!(world.merges, 1, "the known member's approval at the head permits landing");
+}
+
+fn writer_identity_is_ineligible() {
+    let mut world = world_with_owner(people::IdentityKey { provider: 0, subject: 1_u64.to_be_bytes().into() });
+    let before = kinds::revision(&world.store.rows);
+    world.send(kinds::change(
+        world.signed_in.expect("session"),
+        before,
+        94,
+        Box::new([kinds::item(1, 0, 1, &approval_rule(0, 1))]),
+    ));
+    settle(&mut world);
+    assert_eq!(
+        kinds::revision(&world.store.rows),
+        before,
+        "even an existing writer identity with owner role is not human"
+    );
+    world.close();
+}
+
+fn assert_stock_roles() {
+    let defaults = defaults();
+    let policy = defaults.policies.get(&1).expect("stock policy");
+    assert_eq!(
+        policy.permissions.as_ref(),
+        &[
+            people::PermissionRole { connector: 1, permission: 3, role: 1 },
+            people::PermissionRole { connector: 1, permission: 2, role: 2 },
+            people::PermissionRole { connector: 1, permission: 1, role: 3 },
+        ]
+    );
+    assert_eq!(policy.policy.escalation_role, Some(0));
+    let roles = &policy.policy.roles;
+    assert_eq!((roles[0].requests.0, roles[0].decides.0), (511, 31));
+    assert_eq!((roles[1].requests.0, roles[1].decides.0), (255, 31));
+    assert_eq!((roles[2].requests.0, roles[2].decides.0), (185, 0));
+    assert_eq!(roles[2].period_spend, roles[0].authority.budget.spend);
+    assert_eq!((roles[3].requests.0, roles[3].decides.0, roles[3].period_spend), (128, 0, 0));
+    assert_eq!(roles[3].authority.budget.spend, 0);
+    assert_eq!(roles[3].authority.tools.0, 0);
+    assert!(roles[3].authority.grants.is_empty());
+    assert!(roles[3].authority.delegation.kinds.is_empty());
+}
+
+fn give_writer_legacy_membership(world: &mut World) {
+    let owner = world.signed_in.expect("owner session");
+    world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(150)),
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: 1_u64.to_be_bytes().into() },
+            login: Box::new([]),
+            name: Box::new([]),
+        },
+    }));
+    settle(world);
+    world.signed_in = Some(owner);
+    let mut holdings = Vec::new();
+    let mut person = None;
+    for row in world.store.rows.values() {
+        match row {
+            Record::Core(jig_domain_core::Record::People(people::Stored::Person { number, identity }))
+                if identity.key.provider == 0 && identity.key.subject.as_ref() == 1_u64.to_be_bytes() =>
+            {
+                person = Some(*number);
+            }
+            Record::Core(jig_domain_core::Record::People(people::Stored::Roles { project: 1, holdings: rows })) => {
+                holdings = rows.to_vec();
+            }
+            _ => {}
+        }
+    }
+    holdings.push(people::Holding { person: person.expect("retained writer identity"), role: people::Role::Member });
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(151)),
+        sign_in: owner,
+        key: [151; 16],
+        ask: people::Ask::SetRoles { project: 1, holdings: holdings.into_boxed_slice() },
+    }));
+    settle(world);
+    assert_eq!(collaborator_roles(world).get(&1), Some(&people::Role::Member), "legacy writer has the required role");
+}
+
+fn stock_produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]) {
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"fix", b"checked", 1)
+        .expect("stock producer pushes its head");
+    // A recovered pull by another writer permits temper to post a review on the fake forge.
+    assert!(matches!(
+        world.external(
+            2,
+            raw::Op::Write(raw::Write::OpenPull {
+                opens_empty: false,
+                title: b"Small fix".as_slice().into(),
+                body: Box::new([]),
+                head: branch.into(),
+                base: b"main".as_slice().into(),
+            })
+        ),
+        raw::Answer::Created(_)
+    ));
+    let tasks::Contract::Change { connector, kind, .. } = live_task(world, producer.task).contract else {
+        panic!("stock producer's change contract")
+    };
+    let event = world.protocol.answer(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        5,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Change {
+                title: tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
+                connector,
+                kind,
+                resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                words: b"pushed".as_slice().into(),
+            },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+}
+
+fn duplicate_approvals_count_once() {
+    let mut world = box_world();
+    for user in [4, 7] {
+        fake::grant(&mut world.fake, b"org/repo", user, raw::Permission::Write);
+    }
+    readopt(&mut world, 102);
+    decide_configuring(&mut world, 105);
+    let before = kinds::revision(&world.store.rows);
+    world.send(kinds::change(
+        world.signed_in.expect("owner session"),
+        before,
+        94,
+        Box::new([kinds::item(1, 0, 1, &approval_rule(2, 2))]),
+    ));
+    settle(&mut world);
+    assert_eq!(kinds::revision(&world.store.rows), before + 1);
+    let change = stock_waiting_change(&mut world);
+    for _ in 0..2 {
+        post_approval(&mut world, change, 4);
+        assert_eq!(world.merges, 0, "two reviews by one member are one human approval");
+    }
+    post_approval(&mut world, change, 7);
+    assert_eq!(world.merges, 1, "a second distinct member fulfills the two-person rule");
+    world.close();
 }
