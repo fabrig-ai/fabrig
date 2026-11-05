@@ -242,7 +242,7 @@ fn connected() -> forge::Connection {
 // Welcome hides Live. Establish the world's Online observation before entering it.
 fn open(world: &mut Pages, address: Address) -> ClientId {
     let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All });
-    follow(world, client, vec![see(Role::Heading { level: 1 }, b"Chats")]);
+    follow(world, client, vec![see(Role::Heading { level: 1 }, b"Talk to an agent.")]);
     follow(world, client, vec![PersonStep::Go { address }]);
     client
 }
@@ -477,7 +477,7 @@ fn github_details_offer_only_the_app_of_ones_own_with_a_masked_key() {
         &mut world,
         client,
         vec![
-            see(Role::Heading { level: 1 }, b"Chats"),
+            see(Role::Heading { level: 1 }, b"Talk to an agent."),
             PersonStep::Go { address: at(GITHUB) },
             see(Role::Button, b"Connect the App"),
         ],

@@ -80,13 +80,13 @@ fn reload_chats(tier: &Tier) -> Vec<Step> {
         // 6: the playground's project made, the link stays up across a reload: the page's own
         // client bounds receive the box's Me (temper/docs/design/client/README.md, 2).
         Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
-        see(heading(1, b"Chats")),
+        see(heading(1, b"Talk to an agent about playground/widget.")),
         see(tier.states().live),
         temper_client_browser_world::connected(),
         Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),
         see(chat()),
         Step::Person(PersonStep::Reload),
-        see(heading(1, b"Chats")),
+        see(heading(1, b"Talk to an agent about playground/widget.")),
         see(tier.states().live),
         temper_client_browser_world::connected(),
         Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),

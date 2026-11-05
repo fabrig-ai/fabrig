@@ -92,6 +92,30 @@ fn tree_at(line: &TaskLine, now: Wall) -> (skein_ui::Tree, crate::frame::Binding
     );
     (b.finish(), bindings)
 }
+fn style_index(tree: &skein_ui::Tree, style: skein_ui::Style) -> usize {
+    for (index, node) in tree.nodes().iter().enumerate() {
+        if node.styles.as_slice().contains(&style) {
+            return index;
+        }
+    }
+    panic!("missing style {style:?}");
+}
+fn role_count(tree: &skein_ui::Tree, role: Role) -> usize {
+    let mut count = 0_usize;
+    for node in tree.nodes() {
+        if node.role == role {
+            count = count.checked_add(1).unwrap();
+        }
+    }
+    count
+}
+pub(super) fn row_status_styles(token: skein_ui::Style) -> Box<[skein_ui::Style]> {
+    if token == crate::look::STATUS_YOURS || token == crate::look::STATUS_WAITING {
+        Box::from([token, crate::look::STATE_NEEDS])
+    } else {
+        Box::from([token])
+    }
+}
 #[test]
 fn a_chats_row_says_its_status_from_jigs_facts() {
     let (tree, _) = tree(&line());
@@ -144,6 +168,10 @@ fn a_chats_row_links_to_its_chat_by_number() {
             bound = node.binding;
         }
     }
+    assert_eq!(role_count(&tree, Role::Link), 1);
+    let mut view = fixtures::page_view(&listed_root());
+    let id = fixtures::find(view.tree(), Role::Link, b"T9").unwrap();
+    assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/chats/9".as_slice()));
     let binding = bound.expect("bound link");
     assert_eq!(
         bindings.decode(binding.token, skein_ui::Act::Press),
@@ -172,7 +200,7 @@ fn a_chats_row_offers_its_number_as_a_terminal_command() {
             &mut Queue::with_capacity(limits.patches),
         );
         let control = fixtures::find(&tree, Role::Link, b"T9").expect("chat number link");
-        let (node, first) = fixtures::terminal_command(&tree, &limits, control, b"T9", b"Shop");
+        let (node, first) = fixtures::terminal_command(&tree, &limits, control, b"T9", b"Hello");
         let mut binding = None;
         for item in tree.nodes() {
             if item.id == node {
@@ -190,7 +218,29 @@ fn a_chats_row_offers_its_number_as_a_terminal_command() {
 #[test]
 fn a_chats_row_carries_the_row_token() {
     let (tree, _) = tree(&line());
-    assert_eq!(fixtures::styles(&tree, Role::Item).as_ref(), [Box::from([crate::look::ROW])]);
+    assert_eq!(fixtures::styles(&tree, Role::Item).as_ref(), [Box::from([crate::look::CHATS_ROW])]);
+    let nodes = tree.nodes();
+    assert_eq!(nodes[0].key, Some(skein_ui::Key { owner: crate::frame::owner(), kind: 10, a: TASK, b: 0 }));
+    assert_eq!(nodes[1].styles.as_slice(), [crate::look::CHATS_TOP]);
+    let title = style_index(&tree, crate::look::CHATS_LINE);
+    assert_eq!(title, 1 + usize::try_from(nodes[1].size).unwrap());
+    assert_eq!(nodes[title].name.as_deref(), Some(b"Hello".as_slice()));
+    assert!(style_index(&tree, crate::look::DETAILS) > title);
+
+    for ended_at in [false, true] {
+        let mut ended = line();
+        if ended_at {
+            ended.ended_at = Some(Wall::EPOCH);
+        } else {
+            ended.chip.phase = Phase::Ended;
+        }
+        let (tree, _) = self::tree(&ended);
+        assert_eq!(
+            fixtures::styles(&tree, Role::Item).as_ref(),
+            [Box::from([crate::look::CHATS_ROW, crate::look::CHATS_ROW_ENDED])]
+        );
+        assert!(fixtures::find(&tree, Role::Status, b"Closed").is_some());
+    }
 }
 
 pub(super) fn status_rows() -> [(TaskLine, skein_ui::Style); 11] {
@@ -249,7 +299,22 @@ pub(super) fn status_rows() -> [(TaskLine, skein_ui::Style); 11] {
 fn each_status_is_styled_by_its_meaning() {
     for (line, token) in status_rows() {
         let (tree, _) = tree(&line);
-        assert_eq!(fixtures::styles(&tree, Role::Status).as_ref(), [Box::from([token])]);
+        assert_eq!(fixtures::styles(&tree, Role::Status).as_ref(), [row_status_styles(token)]);
+        for node in tree.nodes() {
+            assert!(node.styles.len() <= 2);
+        }
+        let root = fixtures::root_in_project(None);
+        let mut b = Builder::new(&fixtures::tree_limits());
+        crate::pages::chats::status(
+            &mut b,
+            &line.chip,
+            (&line.waits_on, None, None),
+            (line.project, line.requester),
+            None,
+            root.pages().me(root.client()).unwrap(),
+            &fixtures::words(),
+        );
+        assert_eq!(fixtures::styles(&b.finish(), Role::Status).as_ref(), [Box::from([token])]);
     }
 }
 #[test]
@@ -257,10 +322,10 @@ fn a_row_shows_the_real_activity_or_end_time() {
     let mut live = line();
     let now = Wall::from_nanos(720_000_000_000);
     let (shown, _) = tree_at(&live, now);
-    assert!(skein_lib::bytes::find(&fixtures::text(&shown), b"12 min ago").is_some());
+    assert_eq!(fixtures::node_text(&shown, style_index(&shown, crate::look::TIME)).as_ref(), b"12 min");
     live.ended_at = Some(Wall::from_nanos(360_000_000_000));
     let (shown, _) = tree_at(&live, now);
-    assert!(skein_lib::bytes::find(&fixtures::text(&shown), b"6 min ago").is_some());
+    assert_eq!(fixtures::node_text(&shown, style_index(&shown, crate::look::TIME)).as_ref(), b"6 min");
 }
 
 fn open_chats(root: &mut Domain, env: &Env<temper_client_domain::Limits>, out: &mut Queue<Request>) -> (Token, Token) {
@@ -396,11 +461,11 @@ fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
 #[test]
 fn chats_have_one_list_or_the_empty_sentence() {
     let empty = fixtures::page_view(&fixtures::chats_root());
-    assert!(fixtures::find(empty.tree(), Role::Heading { level: 1 }, b"Chats").is_some());
+    assert!(fixtures::find(empty.tree(), Role::Heading { level: 1 }, b"Talk to an agent.").is_some());
     assert!(fixtures::styles(empty.tree(), Role::List).is_empty());
-    assert!(fixtures::find(empty.tree(), Role::Paragraph, b"No chats yet.").is_some());
+    assert!(fixtures::find(empty.tree(), Role::Paragraph, b"None.").is_some());
     let view = fixtures::page_view(&listed_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::List).as_ref(), [Box::from([crate::look::ROWS])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::List).as_ref(), [Box::from([crate::look::CHATS_ROWS])]);
     let list = fixtures::find(view.tree(), Role::List, b"Your chats").expect("named chats list");
     let nodes = view.tree().nodes();
     for (index, node) in nodes.iter().enumerate() {
@@ -428,8 +493,8 @@ fn playground_chats_show_the_list_without_the_start() {
     let view = fixtures::page_view(&root);
     assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Live chats").is_none());
     assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Closed chats").is_none());
-    assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some());
-    assert!(fixtures::find(view.tree(), Role::Paragraph, b"No chats yet.").is_some());
+    assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Talk to an agent about acme/shop.").is_some());
+    assert!(fixtures::find(view.tree(), Role::Paragraph, b"None.").is_some());
     let mut heading = None;
     for node in view.tree().nodes() {
         if node.role == (Role::Heading { level: 1 }) {
@@ -437,7 +502,7 @@ fn playground_chats_show_the_list_without_the_start() {
             heading = node.name.as_deref();
         }
     }
-    assert_eq!(heading, Some(b"Chats".as_slice()));
+    assert_eq!(heading, Some(b"Talk to an agent about acme/shop.".as_slice()));
     assert!(fixtures::find(view.tree(), Role::List, b"Suggested requests").is_none());
     assert!(fixtures::find(view.tree(), Role::Status, b"Ready").is_none());
     assert!(fixtures::find(view.tree(), Role::Text, b"acme/shop").is_none());
@@ -460,7 +525,7 @@ fn a_live_playground_chat_is_listed_under_your_chats() {
     rows.push(line()).expect("live row");
     deliver_live(&mut root, &env, &mut out, watch, rows);
     let view = fixtures::page_view(&root);
-    assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some());
+    assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Talk to an agent about acme/shop.").is_some());
     assert!(fixtures::find(view.tree(), Role::Link, b"T9").is_some());
     assert!(fixtures::find(view.tree(), Role::Paragraph, b"Hello").is_some());
     assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Closed chats").is_none());
@@ -473,7 +538,10 @@ fn a_chats_line_counts_the_delegates_it_waits_on() {
     line.waits_on = WaitsOn::Delegates;
     let (tree, _) = tree(&line);
     assert!(fixtures::find(&tree, Role::Status, b"waiting on 3 delegates").is_some());
-    assert_eq!(fixtures::styles(&tree, Role::Status).as_ref(), [Box::from([crate::look::STATUS_WAITING])]);
+    assert_eq!(
+        fixtures::styles(&tree, Role::Status).as_ref(),
+        [Box::from([crate::look::STATUS_WAITING, crate::look::STATE_NEEDS])]
+    );
 }
 
 #[test]
@@ -563,7 +631,7 @@ fn one_list_merges_activity_and_end_times_with_lower_numbers_first_on_a_tie() {
         listed(&[timed(9, 90, None), timed(6, 40, None)], &[timed(8, 200, Some(40)), timed(7, 0, Some(100))], false);
     let view = fixtures::page_view(&root);
     assert_eq!(numbers(view.tree()).as_ref(), [7, 9, 6, 8]);
-    assert_eq!(fixtures::styles(view.tree(), Role::List).as_ref(), [Box::from([crate::look::ROWS])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::List).as_ref(), [Box::from([crate::look::CHATS_ROWS])]);
 }
 #[test]
 fn each_filter_selects_its_lines_and_presses_its_bound_button() {
@@ -605,13 +673,10 @@ fn each_filter_selects_its_lines_and_presses_its_bound_button() {
     }
 }
 #[test]
-fn empty_filters_say_which_chats_are_missing() {
+fn empty_filters_all_say_none() {
     use temper_client_domain::address::ChatsFilter as Filter;
-    for (selected, words) in [
-        (Filter::All, b"No chats yet.".as_slice()),
-        (Filter::Live, b"No live chats."),
-        (Filter::Closed, b"No closed chats."),
-    ] {
+    for (selected, words) in [(Filter::All, b"None.".as_slice()), (Filter::Live, b"None."), (Filter::Closed, b"None.")]
+    {
         let mut root = listed(&[], &[], false);
         filter(&mut root, selected);
         let view = fixtures::page_view(&root);
@@ -619,7 +684,7 @@ fn empty_filters_say_which_chats_are_missing() {
         assert!(fixtures::styles(view.tree(), Role::List).is_empty());
     }
     for (selected, live, ended, words) in
-        [(Filter::Live, false, true, b"No live chats.".as_slice()), (Filter::Closed, true, false, b"No closed chats.")]
+        [(Filter::Live, false, true, b"None.".as_slice()), (Filter::Closed, true, false, b"None.")]
     {
         let active = [line()];
         let closed = [timed(8, 0, Some(0))];
@@ -660,7 +725,7 @@ fn delegate_counts_are_plural_and_absent_at_zero() {
                     paragraphs += 1;
                 }
             }
-            assert_eq!(paragraphs, 3, "title, spend and time; project/number is a command container");
+            assert_eq!(paragraphs, 3, "status and age, title, spend; number is a command container");
         }
     }
 }
@@ -731,40 +796,37 @@ fn main_of(nodes: &[skein_ui::Node]) -> usize {
     main.expect("a main")
 }
 #[test]
-fn the_chats_page_opens_with_its_pane_and_draws_its_list() {
-    let chats = fixtures::page_view(&fixtures::chats_root());
-    let nodes = chats.tree().nodes();
-    let main = main_of(nodes);
-    assert!(!nodes[main].styles.as_slice().contains(&crate::look::PAGE));
-    let pane = main + 1;
-    assert_eq!(nodes[pane].role, Role::Complementary);
-    assert_eq!(nodes[pane].name.as_deref(), Some(b"Project".as_slice()));
-    assert_eq!(nodes[pane].styles.as_slice(), [crate::look::SIDEBAR]);
-    assert_eq!(nodes[pane + 1].styles.as_slice(), [crate::look::CONTEXT]);
-    let playground = fixtures::page_view(&fixtures::playground_root(
-        temper_client_domain::Address::Chats { filter: ChatsFilter::All },
-        fixtures::PROJECT,
-        true,
-    ));
-    let playground_nodes = playground.tree().nodes();
-    assert!(!playground_nodes[main_of(playground_nodes)].styles.as_slice().contains(&crate::look::PAGE));
-    for node in playground_nodes {
-        assert!(!node.styles.as_slice().contains(&crate::look::PAGEBAR), "the playground's start keeps no bar");
-    }
-    for (page, view) in [("chats", &chats), ("playground", &playground)] {
+fn the_chats_page_opens_with_its_head_band_and_section() {
+    use crate::look;
+    for root in fixtures::pair(
+        fixtures::chats_root(),
+        fixtures::playground_root(
+            temper_client_domain::Address::Chats { filter: ChatsFilter::All },
+            fixtures::PROJECT,
+            true,
+        ),
+    ) {
+        let mut view = fixtures::page_view(&root);
         let nodes = view.tree().nodes();
-        let heading = index_of(nodes, fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Chats").unwrap());
-        let row = heading - 1;
-        assert_eq!(nodes[row].role, Role::Slot, "{page}");
-        assert_eq!(nodes[row].styles.as_slice(), [crate::look::HEADING], "{page}");
-        let end = row + usize::try_from(nodes[row].size).unwrap();
+        let main = main_of(nodes);
+        assert_eq!(nodes[main].styles.as_slice(), [look::MAIN, look::CHATS_PAGE]);
+        let intro = main + 1;
+        assert_eq!(nodes[intro].styles.as_slice(), [look::CHATS_INTRO]);
+        for node in nodes {
+            assert_ne!(node.role, Role::Complementary);
+        }
+        let section = style_index(view.tree(), look::CHATS_SECTION);
+        assert!(intro < section);
+        assert_eq!(nodes[section + 1].styles.as_slice(), [look::CHATS_SECTION_HEAD]);
+        let end = section + 1 + usize::try_from(nodes[section + 1].size).unwrap();
         for name in [b"All".as_slice(), b"Live", b"Closed"] {
             let button = index_of(nodes, fixtures::find(view.tree(), Role::Button, name).unwrap());
-            assert!(row < button && button < end, "{page}: {} in the heading row", name.escape_ascii());
+            assert!(section < button && button < end);
         }
-        let empty = index_of(nodes, fixtures::find(view.tree(), Role::Paragraph, b"No chats yet.").unwrap());
-        assert_eq!(empty, end, "{page}: the empty words follow the heading row");
-        assert_eq!(nodes[empty].styles.as_slice(), [crate::look::EMPTY], "{page}");
+        let link = fixtures::find(view.tree(), Role::Link, b"+ New chat").expect("new chat link");
+        assert!(index_of(nodes, link) < end);
+        assert_eq!(nodes[end].styles.as_slice(), [look::EMPTY]);
+        assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/chats/new".as_slice()));
     }
 }
 
@@ -799,7 +861,7 @@ fn done_and_failed_chats_say_closed_in_the_list_and_bar() {
 }
 
 #[test]
-fn rows_name_their_project_and_only_kept_ended_transcripts() {
+fn rows_omit_their_project_and_name_only_kept_ended_transcripts() {
     for ended in [false, true] {
         for kept in [false, true] {
             let mut line = line();
@@ -808,7 +870,7 @@ fn rows_name_their_project_and_only_kept_ended_transcripts() {
             }
             line.flags.retention = if kept { Retention::Kept } else { Retention::ForgottenOnceRead };
             let (tree, _) = tree(&line);
-            assert!(skein_lib::bytes::find(&fixtures::text(&tree), "Shop · T9".as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Shop").is_none());
             assert_eq!(
                 fixtures::find(&tree, Role::Paragraph, b"Closed. Its transcript is kept.").is_some(),
                 ended && kept
@@ -863,15 +925,34 @@ fn the_repository_context_links_into_its_project() {
         let address = d::Address::Chats { filter: ChatsFilter::All };
         let root = fixtures::forge_root(address, rows);
         let mut view = fixtures::page_view(&root);
-        let context = fixtures::find(view.tree(), Role::Paragraph, b"No repository yet");
+        let mut context = None;
+        for node in view.tree().nodes() {
+            if node.styles.as_slice().contains(&crate::look::CHATS_BAND) {
+                context = Some(node.id);
+            }
+        }
         assert_eq!(context.is_some(), !adopted);
+        let headline: &[u8] = if adopted { b"Talk to an agent about work/hello." } else { b"Talk to an agent." };
+        assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, headline).is_some());
+        assert!(fixtures::find(view.tree(), Role::Paragraph, "Shop · chats".as_bytes()).is_some());
+        assert!(
+            fixtures::find(view.tree(), Role::Paragraph, b"A chat answers a question or changes the code.").is_some()
+        );
         if let Some(context) = context {
             let nodes = view.tree().nodes();
             let at = index_of(nodes, context);
-            assert_eq!(nodes[at - 1].role, Role::Slot);
-            let end = at - 1 + usize::try_from(nodes[at - 1].size).unwrap();
+            assert_eq!(nodes[at].role, Role::Slot);
+            let end = at + usize::try_from(nodes[at].size).unwrap();
+            assert!(
+                skein_lib::bytes::find(
+                    &fixtures::node_text(view.tree(), at),
+                    b"Chats in Shop talk and plan, but change no code until a repository is in."
+                )
+                .is_some()
+            );
             let link = fixtures::find(view.tree(), Role::Link, b"Adopt a repository").unwrap();
             assert!(index_of(nodes, link) < end);
+            assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/projects/1/adopt".as_slice()));
             assert_eq!(
                 crate::act(&mut view, link, skein_ui::Act::Press),
                 Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Adopt { project: fixtures::PROJECT } }))
@@ -891,7 +972,10 @@ fn an_ended_or_refused_forges_watch_says_nothing_about_a_repository() {
             &mut root,
             d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end } } },
         );
-        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Paragraph, b"No repository yet").is_none());
+        let view = fixtures::page_view(&root);
+        for node in view.tree().nodes() {
+            assert!(!node.styles.as_slice().contains(&crate::look::CHATS_BAND));
+        }
     }
 }
 #[test]
@@ -903,7 +987,10 @@ fn the_playgrounds_project_keeps_its_context_instead_of_no_repository() {
             fixtures::PROJECT,
             true,
         );
-        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Paragraph, b"No repository yet").is_none());
+        let view = fixtures::page_view(&root);
+        for node in view.tree().nodes() {
+            assert!(!node.styles.as_slice().contains(&crate::look::CHATS_BAND));
+        }
         assert_eq!(
             d::forge::listed::without_repository(root.forges(), root.forge().playground(), fixtures::PROJECT),
             None
@@ -912,81 +999,23 @@ fn the_playgrounds_project_keeps_its_context_instead_of_no_repository() {
 }
 
 #[test]
-fn a_project_with_no_chat_offers_the_first_chat() {
-    use temper_client_domain::{Action, Address, pages::Act};
-    let (root, _, _) = fixtures::root_at(Address::Chats { filter: ChatsFilter::All }, &fixtures::domain_limits());
-    let mut view = fixtures::page_view(&root);
-    let button = fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").expect("first chat");
-    assert_eq!(
-        crate::act(&mut view, button, skein_ui::Act::Press),
-        Some(Action::Pages(Act::Go { address: Address::Configure { project: fixtures::PROJECT } }))
-    );
-}
-
-#[test]
-fn a_project_with_a_chat_offers_no_first_chat() {
-    for ended in [false, true] {
-        let mut chat = line();
-        if ended {
-            chat.ended_at = Some(Wall::EPOCH);
-            chat.chip.phase = Phase::Ended;
-        }
-        let root = listed(
-            if ended { &[] } else { core::slice::from_ref(&chat) },
-            if ended { core::slice::from_ref(&chat) } else { &[] },
-            false,
-        );
-        let view = fixtures::page_view(&root);
-        assert!(fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").is_none());
-    }
-}
-
-#[test]
-fn the_playground_project_offers_no_first_chat() {
-    let root = fixtures::playground_root(
-        temper_client_domain::Address::Chats { filter: ChatsFilter::All },
-        fixtures::PROJECT,
-        true,
-    );
-    let view = fixtures::page_view(&root);
-    assert!(fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").is_none());
-}
-
-#[test]
-fn the_first_chat_offer_is_only_shown_under_all() {
+fn chats_offers_no_first_chat_under_any_filter_even_while_starting() {
+    use temper_client_domain::{Action, Event, pages::Act};
     for selected in [ChatsFilter::All, ChatsFilter::Live, ChatsFilter::Closed] {
         let mut root = listed(&[], &[], false);
         filter(&mut root, selected);
-        let view = fixtures::page_view(&root);
-        assert_eq!(
-            fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").is_some(),
-            selected == ChatsFilter::All
+        fixtures::root_event(
+            &mut root,
+            Event::Act { action: Action::Pages(Act::ChatWords { words: b"draft".as_slice().into() }) },
         );
+        for pending in [false, true] {
+            if pending {
+                fixtures::root_event(&mut root, Event::Act { action: Action::Pages(Act::StartChat) });
+            }
+            let view = fixtures::page_view(&root);
+            assert!(fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").is_none());
+        }
     }
-}
-
-#[test]
-fn a_pending_chat_start_keeps_the_first_chat_offer() {
-    use temper_client_domain::{Action, Event, pages::Act};
-    let mut root = fixtures::playground_root(
-        temper_client_domain::Address::Chats { filter: ChatsFilter::All },
-        fixtures::SECOND_PROJECT,
-        true,
-    );
-    fixtures::root_event(
-        &mut root,
-        Event::Act { action: Action::Pages(Act::ChatWords { words: Box::from(*b"draft") }) },
-    );
-    fixtures::root_event(&mut root, Event::Act { action: Action::Pages(Act::StartChat) });
-    assert!(root.pages().chats().expect("chats").start.is_some());
-    let mut view = fixtures::page_view(&root);
-    let offer = fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").expect("offer");
-    assert_eq!(
-        crate::act(&mut view, offer, skein_ui::Act::Press),
-        Some(Action::Pages(Act::Go {
-            address: temper_client_domain::Address::Configure { project: fixtures::PROJECT }
-        }))
-    );
 }
 
 fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
@@ -1101,12 +1130,12 @@ fn the_chats_page_offers_nothing_of_the_welcome() {
 }
 
 #[test]
-fn welcome_or_unknown_deployments_keep_the_chats_pane() {
+fn welcome_or_unknown_deployments_keep_the_chats_page() {
     for welcome in [Some(true), None] {
         let root = no_project_root(welcome);
         let view = fixtures::page_view(&root);
-        assert!(fixtures::find(view.tree(), Role::Complementary, b"Project").is_some(), "{welcome:?}");
-        assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{welcome:?}");
+        assert!(fixtures::find(view.tree(), Role::Complementary, b"Project").is_none(), "{welcome:?}");
+        assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Talk to an agent.").is_some(), "{welcome:?}");
         assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"No project yet").is_none(), "{welcome:?}");
     }
 }
@@ -1118,13 +1147,13 @@ fn a_known_empty_project_list_is_required_for_no_project() {
     for me in [None, Some(me)] {
         let root = deployment_chats_root(Some(false), me);
         let view = fixtures::page_view(&root);
-        assert!(fixtures::find(view.tree(), Role::Complementary, b"Project").is_some());
+        assert!(fixtures::find(view.tree(), Role::Complementary, b"Project").is_none());
         assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"No project yet").is_none());
     }
 }
 
 #[test]
-fn configuring_rows_tag_the_chip_executor_in_meta_with_fixed_words_in_both_shells() {
+fn configuring_rows_name_the_chip_executor_in_the_top_line_in_both_shells() {
     use crate::look;
     let source = fixtures::chat::messaging_root();
     for listed in [false, true] {
@@ -1155,27 +1184,18 @@ fn configuring_rows_tag_the_chip_executor_in_meta_with_fixed_words_in_both_shell
                     &mut crate::words::Times::new(fixtures::NOW),
                 );
                 let tree = b.finish();
-                let mut meta = None;
-                let mut tag = None;
-                for (index, node) in tree.nodes().iter().enumerate() {
-                    if node.styles.as_slice().contains(&look::META) {
-                        meta = Some(index);
-                    }
-                    if node.styles.as_slice().contains(&look::CONFIGURING_TAG) {
-                        tag = Some(index);
-                    }
-                }
-                let meta = meta.expect("row meta");
-                let through = meta + usize::try_from(tree.nodes()[meta].size).unwrap();
-                assert_eq!(tag.is_some(), tagged);
-                if let Some(tag) = tag {
-                    assert!(meta < tag && tag < through);
-                    assert_eq!(tree.nodes()[tag].name.as_deref(), Some(b"Configuring".as_slice()));
-                    assert_eq!(tree.nodes()[tag].role, Role::Paragraph);
-                }
+                let top = style_index(&tree, look::CHATS_TOP);
+                let top_text = fixtures::node_text(&tree, top);
+                assert_eq!(skein_lib::bytes::find(&top_text, "T9 · Configuring".as_bytes()).is_some(), tagged);
+                assert_eq!(tree.nodes()[top].role, Role::Slot);
                 let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
                 skein_ui_text::render(&tree, b"temper", None, &mut print);
                 assert_eq!(skein_lib::bytes::find(print.text.as_slice(), b"Configuring").is_some(), tagged);
+                if tagged && words.shell == crate::words::Shell::Terminal {
+                    assert!(
+                        skein_lib::bytes::find(print.text.as_slice(), "[1] T9 · Configuring\n".as_bytes()).is_some()
+                    );
+                }
                 assert!(skein_lib::bytes::find(print.text.as_slice(), b"A renamed role").is_none());
             }
         }
@@ -1192,7 +1212,7 @@ fn chats_keeps_its_list_without_playground_suggestions_or_composer() {
     ) {
         for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
             let tree = view.tree();
-            assert!(fixtures::find(tree, Role::Heading { level: 1 }, b"Chats").is_some());
+            assert_eq!(role_count(tree, Role::Heading { level: 1 }), 1);
             for node in tree.nodes() {
                 assert_ne!(node.role, Role::TextArea, "Chats has no composer");
                 for style in [look::ENTRY, look::HINT, look::CHOICE] {

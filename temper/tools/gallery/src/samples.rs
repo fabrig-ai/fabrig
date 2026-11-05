@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 114;
+pub const N: usize = 117;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -205,6 +205,14 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-new", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
         Sample { name: "chat-new-no-repository", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample { name: "chats-no-repository", world: FirstRun { step: 7 }, address: CHATS, then: Shown },
+        Sample { name: "chats-live", world: Solo, address: Address::Chats { filter: ChatsFilter::Live }, then: Shown },
+        Sample {
+            name: "chats-closed",
+            world: Solo,
+            address: Address::Chats { filter: ChatsFilter::Closed },
+            then: Shown,
+        },
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
@@ -518,6 +526,15 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name == "chats-no-repository" {
+        let mut root = home_domain("home-no-repository");
+        step(
+            &mut root,
+            Event::Went { place: temper_client_domain::Place::Address(sample.address.clone()) },
+            &mut Queue::uncapped(),
+        );
+        return root;
+    }
     if sample.name == "chat-new" || sample.name == "chat-new-no-repository" {
         let mut root = home_domain(if sample.name == "chat-new" { "home-ready" } else { "home-no-repository" });
         step(

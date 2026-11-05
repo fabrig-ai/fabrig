@@ -34,7 +34,7 @@ fn the_start_keeps_status_context_meta_and_suggestions_in_order() {
 }
 
 #[test]
-fn other_chats_keep_their_pane_and_no_suggestions() {
+fn other_chats_keep_their_page_and_no_suggestions() {
     for (row, project, model, playground) in
         [("other project", f::SECOND_PROJECT, true, true), ("no answer", f::PROJECT, true, false)]
     {
@@ -44,7 +44,7 @@ fn other_chats_keep_their_pane_and_no_suggestions() {
             f::chats_root()
         };
         let view = f::page_view(&root);
-        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{row}");
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Talk to an agent.").is_some(), "{row}");
         assert!(f::find(view.tree(), Role::Status, b"Ready").is_none(), "{row}");
         assert!(f::find(view.tree(), Role::List, b"Suggested requests").is_none(), "{row}");
         for (at, node) in view.tree().nodes().iter().enumerate() {

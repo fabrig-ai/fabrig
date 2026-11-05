@@ -1,12 +1,27 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+/// The Chats page and its parts (client/README.md, 3.5).
+pub const CHATS_PAGE: Style = Style { owner: owner(), token: 254 };
+pub const CHATS_INTRO: Style = Style { owner: owner(), token: 255 };
+pub const CHATS_KICKER: Style = Style { owner: owner(), token: 256 };
+pub const CHATS_LEDE: Style = Style { owner: owner(), token: 257 };
+pub const CHATS_BAND: Style = Style { owner: owner(), token: 258 };
+pub const CHATS_TAG: Style = Style { owner: owner(), token: 259 };
+pub const CHATS_SECTION: Style = Style { owner: owner(), token: 260 };
+pub const CHATS_SECTION_HEAD: Style = Style { owner: owner(), token: 261 };
+pub const CHATS_ACT: Style = Style { owner: owner(), token: 262 };
+pub const CHATS_MORE: Style = Style { owner: owner(), token: 263 };
+pub const CHATS_ROWS: Style = Style { owner: owner(), token: 264 };
+pub const CHATS_ROW: Style = Style { owner: owner(), token: 265 };
+pub const CHATS_ROW_ENDED: Style = Style { owner: owner(), token: 266 };
+pub const CHATS_TOP: Style = Style { owner: owner(), token: 267 };
+pub const CHATS_LINE: Style = Style { owner: owner(), token: 268 };
+pub const STATE_NEEDS: Style = Style { owner: owner(), token: 269 };
 /// A session's byline, status, spend and controls (client/README.md, 3.5).
 pub const SESSION_RIGHT: Style = Style { owner: owner(), token: 246 };
 /// A new chat's centred repository context (client/README.md, 3.5).
 pub const META_LINE: Style = Style { owner: owner(), token: 253 };
-/// A configuring chat's tag in Chats (client/README.md, 3.5).
-pub const CONFIGURING_TAG: Style = Style { owner: owner(), token: 247 };
 /// A session’s main. (client/README.md, 3.5).
 pub const SESSION: Style = Style { owner: owner(), token: 234 };
 /// The session’s path and runs’ line. (client/README.md, 3.5).
@@ -425,8 +440,6 @@ pub const REPOSITORY_SELECTED: Style = Style { owner: owner(), token: 155 };
 pub const WELCOME_SETUP_DESCRIPTION: Style = Style { owner: owner(), token: 156 };
 /// The opening welcome’s software factory tagline.
 pub const WELCOME_TAGLINE: Style = Style { owner: owner(), token: 157 };
-/// The chats page's Project pane (temper/docs/design/client/README.md, 3.5).
-pub const SIDEBAR: Style = Style { owner: owner(), token: 158 };
 /// The banner's project switcher (temper/docs/design/client/README.md, 5.1).
 pub const PROJECTS: Style = Style { owner: owner(), token: 159 };
 /// The banner's way out of the playground (temper/docs/design/client/README.md, 5.6).
@@ -648,7 +661,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-repository-selected",
         b"temper-welcome-setup-description",
         b"temper-welcome-tagline",
-        b"temper-sidebar",
+        b"temper-reserved-158",
         b"temper-projects",
         b"temper-leave-playground",
         b"temper-project-rename",
@@ -738,13 +751,29 @@ pub const NAMES: Names<'static> = Names {
         b"temper-starter",
         b"temper-starters",
         b"temper-session-right",
-        b"temper-configuring-tag",
+        b"temper-reserved-247",
         b"temper-starter-lede",
         b"temper-starter-sets",
         b"temper-starter-note",
         b"temper-starter-ways",
         b"temper-starter-unsure",
         b"temper-meta-line",
+        b"temper-chats-page",
+        b"temper-chats-intro",
+        b"temper-chats-kicker",
+        b"temper-chats-lede",
+        b"temper-chats-band",
+        b"temper-chats-tag",
+        b"temper-chats-section",
+        b"temper-chats-section-head",
+        b"temper-chats-act",
+        b"temper-chats-more",
+        b"temper-chats-rows",
+        b"temper-chats-row",
+        b"temper-chats-row-ended",
+        b"temper-chats-top",
+        b"temper-chats-line",
+        b"temper-state-needs",
     ],
     regions: &[b"temper-link"],
 };

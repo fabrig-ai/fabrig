@@ -1,4 +1,4 @@
-//! The chats pane (temper/docs/design/client/README.md, 3.5, 5.1 and 5.6).
+//! The Chats page (temper/docs/design/client/README.md, 3.5, 5.1 and 5.6).
 use crate::{
     frame::Bindings,
     words::{TimeForm, Times, Word, Words},
@@ -14,17 +14,6 @@ fn text(b: &mut Builder, role: Role, value: &[u8]) {
     b.text(Run::Plain, value);
     b.close();
 }
-fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], act: Act) {
-    if role == Role::Link {
-        crate::link(b, name, bindings.insert(act));
-        b.text(Run::Plain, name);
-    } else {
-        b.open(role);
-        b.name(name);
-        b.bind(bindings.insert(act));
-    }
-    b.close();
-}
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -36,6 +25,7 @@ pub(crate) fn main(
 ) {
     b.open(Role::Main);
     b.style(crate::look::MAIN);
+    b.style(crate::look::CHATS_PAGE);
     if let Some(me) = root.pages().me(root.client())
         && me.projects.is_empty()
         && let Some(deployment) = root.forge().deployment()
@@ -46,24 +36,54 @@ pub(crate) fn main(
         b.close();
         return;
     }
-    b.open(Role::Complementary);
-    b.name(&words.say(Word::ProjectPane, &[]));
-    b.style(crate::look::SIDEBAR);
+    intro(b, root, words);
     repository_context(b, root, words, bindings);
     list(b, root, words, bindings, times);
     b.close();
-    if root.pages().chats().is_some()
-        && root.pages().me(root.client()).is_some()
-        && root.pages().project().is_some()
-        && offers_first_chat(root)
-    {
-        b.open(Role::Button);
-        b.name(&words.say(Word::FirstChat, &[]));
-        if let Some(project) = root.pages().project() {
-            b.bind(bindings.insert(Act::Go { address: Address::Configure { project } }));
-        }
-        b.close();
+}
+fn project_name(root: &Domain, words: &Words) -> Box<[u8]> {
+    match root.pages().project() {
+        Some(project) => match super::project_name(root.pages().me(root.client()), project) {
+            Some(name) => name,
+            None => words.say(Word::Project, &[Hole::Number(u64::from(project))]),
+        },
+        None => words.say(Word::ProjectPane, &[]),
     }
+}
+fn intro(b: &mut Builder, root: &Domain, words: &Words) {
+    use temper_client_domain::pages::home::{Repository, repository};
+    b.open(Role::Slot);
+    b.style(crate::look::CHATS_INTRO);
+    b.open(Role::Paragraph);
+    b.style(crate::look::CHATS_KICKER);
+    let kicker = words.say(Word::ChatsKicker, &[Hole::Name(project_name(root, words))]);
+    b.name(&kicker);
+    b.text(Run::Plain, &kicker);
+    b.close();
+    let repository = match root.pages().project() {
+        Some(project) => Some(repository(root, project)),
+        None => None,
+    };
+    let headline = match repository {
+        Some(Repository::In { owner, name }) => {
+            words.say(Word::ChatsHeadlineIn, &[Hole::Name(owner), Hole::Name(name)])
+        }
+        Some(
+            Repository::Unknown
+            | Repository::Adopting(_)
+            | Repository::Offer { .. }
+            | Repository::GitHub { .. }
+            | Repository::None,
+        )
+        | None => words.say(Word::ChatsHeadline, &[]),
+    };
+    text(b, Role::Heading { level: 1 }, &headline);
+    b.open(Role::Paragraph);
+    b.style(crate::look::CHATS_LEDE);
+    let lede = words.say(Word::ChatsLede, &[]);
+    b.name(&lede);
+    b.text(Run::Plain, &lede);
+    b.close();
     b.close();
 }
 fn repository_context(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
@@ -72,54 +92,35 @@ fn repository_context(b: &mut Builder, root: &Domain, words: &Words, bindings: &
             == Some(true)
     {
         b.open(Role::Slot);
-        b.style(crate::look::CONTEXT);
-        text(b, Role::Paragraph, &words.say(Word::NoRepositoryYet, &[]));
-        control(
+        b.style(crate::look::CHATS_BAND);
+        b.open(Role::Paragraph);
+        b.open(Role::Text);
+        b.style(crate::look::CHATS_TAG);
+        b.run(Run::Plain, &words.say(Word::NoRepositoryYet, &[]));
+        b.close();
+        if words.shell == crate::words::Shell::Terminal {
+            b.text(Run::Plain, b" ");
+        }
+        words.text(b, Word::ChatsNoRepositoryLine, &[Hole::Name(project_name(root, words))]);
+        b.close();
+        crate::link(
             b,
-            bindings,
-            Role::Link,
             &words.say(Word::ForgeAdopt, &[]),
-            Act::Go { address: Address::Adopt { project } },
+            bindings.insert(Act::Go { address: Address::Adopt { project } }),
         );
+        b.style(crate::look::CHATS_ACT);
+        words.text(b, Word::ForgeAdopt, &[]);
+        b.close();
         b.close();
     }
-}
-
-/// The first-chat offer follows the unfiltered chats document (temper/docs/design/client/README.md, 3.5).
-fn offers_first_chat(root: &Domain) -> bool {
-    let Some(project) = root.pages().project() else { return false };
-    if let Some(playground) = root.forge().playground()
-        && playground.project == Some(project)
-    {
-        return false;
-    }
-    let Some(chats) = root.pages().chats() else { return false };
-    if chats.filter != ChatsFilter::All {
-        return false;
-    }
-    if let Some(live) = chats.live(root.client())
-        && (!live.rows.is_empty() || live.more)
-    {
-        return false;
-    }
-    if let Some(page) = &chats.page {
-        if !page.live.is_empty() || page.live_after.is_some() {
-            return false;
-        }
-        if let EndedGroup::Rows { rows, after, .. } = &page.ended
-            && (!rows.is_empty() || after.is_some())
-        {
-            return false;
-        }
-    }
-    true
 }
 
 fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times) {
     let Some(chats) = root.pages().chats() else { return };
     b.open(Role::Slot);
-    b.style(crate::look::HEADING);
-    text(b, Role::Heading { level: 1 }, &words.say(Word::Chats, &[]));
+    b.style(crate::look::CHATS_SECTION);
+    b.open(Role::Slot);
+    b.style(crate::look::CHATS_SECTION_HEAD);
     b.open(Role::Slot);
     b.style(crate::look::FILTERS);
     for (filter, word) in [
@@ -136,6 +137,10 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
         b.close();
     }
     b.close();
+    crate::link(b, &words.say(Word::NewChatLink, &[]), bindings.insert(Act::Go { address: Address::NewChat }));
+    b.style(crate::look::CHATS_ACT);
+    words.text(b, Word::NewChatLink, &[]);
+    b.close();
     b.close();
     let live = match chats.live(root.client()) {
         Some(live) if chats.filter != ChatsFilter::Closed => live.rows.as_slice(),
@@ -149,12 +154,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
         _ => (&[][..], false),
     };
     if live.is_empty() && closed.is_empty() {
-        let word = match chats.filter {
-            ChatsFilter::All => Word::NoChats,
-            ChatsFilter::Live => Word::NoLiveChats,
-            ChatsFilter::Closed => Word::NoClosedChats,
-        };
-        let empty = words.say(word, &[]);
+        let empty = words.say(Word::ChatsNone, &[]);
         b.open(Role::Paragraph);
         b.name(&empty);
         b.style(crate::look::EMPTY);
@@ -163,7 +163,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
     } else {
         b.open(Role::List);
         b.name(&words.say(Word::YourChats, &[]));
-        b.style(crate::look::ROWS);
+        b.style(crate::look::CHATS_ROWS);
         // Select from the two bounded windows without allocating scratch or
         // cloning documents. Only the previous key survives each selection.
         let mut previous = None;
@@ -192,8 +192,13 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
         b.close();
     }
     if more {
-        control(b, bindings, Role::Button, &words.say(Word::MoreClosedChats, &[]), Act::ClosedChats);
+        b.open(Role::Button);
+        b.style(crate::look::CHATS_MORE);
+        b.name(&words.say(Word::MoreClosedChats, &[]));
+        b.bind(bindings.insert(Act::ClosedChats));
+        b.close();
     }
+    b.close();
 }
 
 fn before(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
@@ -209,39 +214,70 @@ pub(crate) fn row(
     times: &mut Times,
 ) {
     b.open(Role::Item);
-    b.style(crate::look::ROW);
+    b.style(crate::look::CHATS_ROW);
+    if line.ended_at.is_some() || ended(&line.chip) {
+        b.style(crate::look::CHATS_ROW_ENDED);
+    }
     b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 10, a: line.chip.task, b: 0 });
     b.open(Role::Slot);
-    b.style(crate::look::META);
-    if let Some(me) = root.pages().me(root.client()) {
-        status(b, &line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words);
-        if temper_client_domain::pages::chats::configuring(me, line.project, &line.chip.executor) {
-            b.open(Role::Paragraph);
-            b.style(crate::look::CONFIGURING_TAG);
-            b.name(&words.say(Word::Configuring, &[]));
-            words.text(b, Word::Configuring, &[]);
-            b.close();
-        }
-    }
-    // Keep the number's link in a container: a paragraph is flattened to text
-    // by the terminal, hiding the command promised by client/README.md, 3.5.
+    b.style(crate::look::CHATS_TOP);
+    // A slot keeps the number's command available in the terminal (client/README.md, 3.5).
     b.open(Role::Slot);
-    if let Some(project) = super::project_name(root.pages().me(root.client()), line.project) {
-        b.text(Run::Plain, &project);
+    let configuring = match root.pages().me(root.client()) {
+        Some(me) => temper_client_domain::pages::chats::configuring(me, line.project, &line.chip.executor),
+        None => false,
+    };
+    let number = words.say(Word::Chat, &[Hole::Number(line.chip.task)]);
+    crate::link(b, &number, bindings.insert(Act::Go { address: Address::Chat { task: line.chip.task } }));
+    b.text(Run::Plain, &number);
+    if configuring && words.shell == crate::words::Shell::Terminal {
         words.text(b, Word::ToolSeparator, &[]);
+        words.text(b, Word::Configuring, &[]);
     }
-    control(
-        b,
-        bindings,
-        Role::Link,
-        &words.say(Word::Chat, &[Hole::Number(line.chip.task)]),
-        Act::Go { address: Address::Chat { task: line.chip.task } },
-    );
+    b.close();
+    if configuring && words.shell == crate::words::Shell::Browser {
+        words.text(b, Word::ToolSeparator, &[]);
+        words.text(b, Word::Configuring, &[]);
+    }
+    b.close();
+    b.open(match words.shell {
+        crate::words::Shell::Terminal => Role::Paragraph,
+        crate::words::Shell::Browser => Role::Slot,
+    });
+    if let Some(me) = root.pages().me(root.client()) {
+        let (token, name) = if line.ended_at.is_some() {
+            (crate::look::STATUS_QUIET, words.say(Word::ChatClosed, &[]))
+        } else {
+            status_words(&line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words)
+        };
+        b.open(Role::Status);
+        b.style(token);
+        if token == crate::look::STATUS_YOURS || token == crate::look::STATUS_WAITING {
+            b.style(crate::look::STATE_NEEDS);
+        }
+        b.name(&name);
+        b.text(Run::Plain, &name);
+        b.close();
+    }
+    words.text(b, Word::ToolSeparator, &[]);
+    b.open(Role::Text);
+    b.style(crate::look::TIME);
+    b.run(Run::Plain, &times.say(words, TimeForm::Span, line.ended_at.unwrap_or(line.last_activity)));
     b.close();
     b.close();
-    text(b, Role::Paragraph, line.chip.title.bytes());
+    b.close();
+    b.open(Role::Paragraph);
+    b.style(crate::look::CHATS_LINE);
+    b.name(line.chip.title.bytes());
+    b.text(Run::Plain, line.chip.title.bytes());
+    b.close();
     if (line.ended_at.is_some() || ended(&line.chip)) && line.flags.retention == jig_client::contract::Retention::Kept {
-        text(b, Role::Paragraph, &words.say(Word::ChatKept, &[]));
+        b.open(Role::Paragraph);
+        b.style(crate::look::DETAILS);
+        let kept = words.say(Word::ChatKept, &[]);
+        b.name(&kept);
+        b.text(Run::Plain, &kept);
+        b.close();
     }
     b.open(Role::Paragraph);
     b.style(crate::look::DETAILS);
@@ -252,10 +288,6 @@ pub(crate) fn row(
         words.text(b, Word::ToolSeparator, &[]);
         words.text(b, Word::ChatDelegates, &[Hole::Number(u64::from(line.chip.details.details.live_delegates))]);
     }
-    b.close();
-    b.open(Role::Paragraph);
-    b.style(crate::look::TIME);
-    b.text(Run::Plain, &times.say(words, TimeForm::Ago, line.ended_at.unwrap_or(line.last_activity)));
     b.close();
     b.close();
 }
