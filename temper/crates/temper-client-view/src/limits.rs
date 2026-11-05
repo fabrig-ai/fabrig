@@ -37,10 +37,10 @@ impl Limits {
         // A decoded turn shares text across texts, names, inputs, outcomes and
         // summaries (jig-protocol-transcript's Budget; client/README.md, 5.4).
         // Splitting that text among rows squared blocks adds two markdown nodes
-        // per block; five structural nodes cover a call's slot and two paragraphs.
+        // per block; eight structural nodes cover a note tool line and its button.
         let blocks = receiving.rows.checked_mul(receiving.rows)?;
         let turn = skein_ui::markdown::max_nodes(receiving.turn_text)?
-            .checked_add(blocks.checked_mul(2_u32.checked_add(5)?)?)?
+            .checked_add(blocks.checked_mul(2_u32.checked_add(8)?)?)?
             // Per message: message/who/says slots, Temper paragraph and text,
             // a call disclosure, and spare cut room (client/README.md, 3.5).
             .checked_add(receiving.rows.checked_mul(8)?)?
@@ -123,10 +123,10 @@ impl Limits {
         // one item, link, status and added mark (client/README.md, 5.8),
         // seven nodes with text per dependency.
         let agent = markdown.checked_add(33)?.checked_add(receiving.rows.checked_mul(7)?)?;
-        // A full document's Markdown, a keyed slot per heading (at most one
+        // A full document's Markdown, two slots per heading (at most one
         // per three bytes), intro wrapper, path, group and attribution.
         let document = skein_ui::markdown::max_nodes(receiving.long_text)?
-            .checked_add(receiving.long_text.checked_div(3)?)?
+            .checked_add(receiving.long_text.checked_div(3)?.checked_mul(2)?)?
             .checked_add(24)?;
         let nodes = cards
             .checked_add(turns)?

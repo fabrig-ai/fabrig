@@ -81,20 +81,17 @@ fn root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str]) -> d::Domain {
 }
 const PROPOSAL: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Task(TASK), number: 12 };
 const ACCEPTED_AT: Wall = Wall::from_nanos(50_580_000_000_000);
+fn document_root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str], state: ProposalState) -> d::Domain {
+    activity_root(body, mode, activity(outcomes), state)
+}
 #[expect(
     clippy::too_many_lines,
     reason = "the fixture pumps the task, document and departed proposal through their public events"
 )]
-fn document_root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str], state: ProposalState) -> d::Domain {
+fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, state: ProposalState) -> d::Domain {
     let limits = limits();
-    let (mut root, me_watch, watch, _, _) = f::root_at_with_activity(
-        d::Address::Chat { task: TASK },
-        &limits,
-        b"Shop",
-        None,
-        Some(activity(outcomes)),
-        None,
-    );
+    let (mut root, me_watch, watch, _, _) =
+        f::root_at_with_activity(d::Address::Chat { task: TASK }, &limits, b"Shop", None, Some(activity), None);
     let source = f::chat::messaging_root();
     let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -467,5 +464,147 @@ fn start_over_has_its_own_dialog_words() {
             String::from_utf8_lossy(&f::text(after.tree()))
                 .contains("Start a new configuring chat? This one stays in Chats.")
         );
+    }
+}
+
+#[test]
+fn a_first_write_says_wrote() {
+    for shell in [Shell::Browser, Shell::Terminal] {
+        let view = view(&root(Some(BODY), Mode::Chat, &[FIRST]), shell);
+        let line = String::from_utf8(section_words(view.tree(), look::TURN_TOOL)).unwrap();
+        assert_eq!(line, "Wrotehow-shop-works.md12 lines");
+        assert!(styled(view.tree(), look::TOOL_FILE).len() == 1);
+        assert!(f::find(view.tree(), Role::Disclosure, b"1 tool call").is_none());
+    }
+    let view = view(&root(None, Mode::Chat, &[FIRST]), Shell::Browser);
+    assert_eq!(section_words(view.tree(), look::TOOL_FILE), b"untitled.md");
+}
+
+#[test]
+fn a_later_write_says_edited_and_counts() {
+    for shell in [Shell::Browser, Shell::Terminal] {
+        for mode in [Mode::Chat, Mode::Split, Mode::Draft] {
+            let view = view(&root(Some(BODY), mode, &[LATER]), shell);
+            let line = String::from_utf8(section_words(view.tree(), look::TURN_TOOL)).unwrap();
+            assert_eq!(line, "Editedhow-shop-works.md+1 −1");
+            let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+            skein_ui_text::render(view.tree(), b"temper", None, &mut print);
+            let printed = String::from_utf8(print.text.as_slice().to_vec()).unwrap();
+            assert!(printed.contains("Edited") && printed.contains("how-shop-works.md") && printed.contains("+1 −1"));
+            let show = f::find(view.tree(), Role::Button, b"Show").unwrap();
+            assert!(print.numbers.as_slice().contains(&show));
+        }
+    }
+}
+
+fn mixed_activity(tool: &[u8], failed: bool, outcome: &str) -> c::ActivityPage {
+    let mut activity = activity(&[FIRST, outcome]);
+    let c::TurnRead::Decoded(turn) = &mut activity.rows.get_mut(0).unwrap().decoded.as_mut().unwrap().turn else {
+        unreachable!()
+    };
+    let c::Block::Call(call) = turn.messages.get_mut(0).unwrap().blocks.get_mut(1).unwrap() else { unreachable!() };
+    call.tool = c::Text::new(tool.into(), 512).unwrap();
+    call.failed = failed;
+    activity
+}
+
+#[test]
+fn a_note_call_isnt_counted() {
+    let root =
+        activity_root(Some(BODY), Mode::Chat, mixed_activity(b"read", false, "Read README"), ProposalState::Ordinary);
+    let view = view(&root, Shell::Browser);
+    let disclosure = f::find(view.tree(), Role::Disclosure, b"1 tool call").unwrap();
+    assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), Some(b"read".as_slice()));
+    let at = view.tree().nodes().iter().position(|node| node.id == disclosure).unwrap();
+    assert_eq!(f::node_text(view.tree(), at).as_ref(), b"readRead README");
+    assert_eq!(styled(view.tree(), look::TOOL_FILE).len(), 1);
+}
+
+#[test]
+fn a_failed_note_stays_in_the_disclosure() {
+    let root = activity_root(Some(BODY), Mode::Chat, mixed_activity(b"note", true, LATER), ProposalState::Ordinary);
+    let view = view(&root, Shell::Browser);
+    let disclosure = f::find(view.tree(), Role::Disclosure, b"1 tool call").unwrap();
+    assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), Some(b"note".as_slice()));
+    assert_eq!(styled(view.tree(), look::TOOL_FILE).len(), 1);
+    assert!(String::from_utf8_lossy(&f::text(view.tree())).contains(LATER));
+}
+
+#[test]
+fn a_recall_stays_in_the_disclosure() {
+    for (tool, outcome) in [(b"recall".as_slice(), LATER), (b"note", "Unrecognized answer")] {
+        let root = activity_root(Some(BODY), Mode::Chat, mixed_activity(tool, false, outcome), ProposalState::Ordinary);
+        let view = view(&root, Shell::Browser);
+        let disclosure = f::find(view.tree(), Role::Disclosure, b"1 tool call").unwrap();
+        assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), Some(tool));
+        assert!(String::from_utf8_lossy(&f::text(view.tree())).contains(outcome));
+        assert_eq!(styled(view.tree(), look::TOOL_FILE).len(), 1);
+    }
+}
+
+#[test]
+fn show_presses_its_line() {
+    for (body, outcome, line) in [(Some(BODY), FIRST, 5), (Some(BODY), LATER, 11), (None, FIRST, 1)] {
+        let mut view = view(&root(body, Mode::Chat, &[outcome]), Shell::Browser);
+        let show = f::find(view.tree(), Role::Button, b"Show").unwrap();
+        assert_eq!(
+            crate::act(&mut view, show, skein_ui::Act::Press),
+            Some(d::Action::Pages(Act::ShowSection { line }))
+        );
+    }
+}
+
+#[test]
+fn show_flashes_and_focuses_the_section() {
+    let mut root = root(Some(BODY), Mode::Chat, &[LATER]);
+    let mut view = view(&root, Shell::Browser);
+    assert!(styled(view.tree(), look::DOC_FLASH).is_empty());
+    let show = f::find(view.tree(), Role::Button, b"Show").unwrap();
+    let mut previous_flash = None;
+    let mut sections = None;
+    for count in 1..=2 {
+        let event = crate::event(&view, show, skein_ui::Act::Press).unwrap();
+        f::root_event(&mut root, event);
+        assert_eq!(root.pages().chat().unwrap().mode, Mode::Split);
+        f::build(&mut view, &root);
+        let flashed = styled(view.tree(), look::DOC_FLASH);
+        assert_eq!(flashed.len(), 1);
+        assert_ne!(Some(flashed[0].id), previous_flash);
+        assert_eq!(flashed[0].key.unwrap().a, count);
+        previous_flash = Some(flashed[0].id);
+        let focused: Vec<_> = view.tree().nodes().iter().filter(|node| node.focus.is_some()).collect();
+        assert_eq!(focused.len(), 1);
+        assert!(focused[0].styles.as_slice().contains(&look::DOC_SEC));
+        assert_eq!(focused[0].focus, Some(count));
+        assert!(section_words(view.tree(), look::DOC_FLASH).starts_with(b"Lands"));
+        let current: Vec<_> = styled(view.tree(), look::DOC_SEC).iter().map(|node| node.id).collect();
+        if let Some(before) = &sections {
+            assert_eq!(&current, before);
+        }
+        sections = Some(current);
+    }
+}
+
+#[test]
+fn the_hint_names_the_key_only_with_a_document() {
+    for shell in [Shell::Browser, Shell::Terminal] {
+        for body in [None, Some(BODY)] {
+            let view = view(&root(body, Mode::Chat, &[]), shell);
+            let hint = section_words(view.tree(), look::SESSION_HINT);
+            assert_eq!(String::from_utf8(hint).unwrap().contains(" · Ctrl+\\ switches the draft"), body.is_some());
+        }
+    }
+}
+
+#[test]
+fn no_document_no_group_on_a_chat() {
+    for shell in [Shell::Browser, Shell::Terminal] {
+        let empty = view(&root(None, Mode::Chat, &[]), shell);
+        assert!(styled(empty.tree(), look::SEG).is_empty());
+        let view = view(&root(Some(BODY), Mode::Chat, &[]), shell);
+        let nodes = view.tree().nodes();
+        let byline = nodes.iter().position(|node| node.styles.as_slice().contains(&look::BYLINE)).unwrap();
+        let group = nodes.iter().position(|node| node.styles.as_slice().contains(&look::SEG)).unwrap();
+        assert_eq!(group, byline + usize::try_from(nodes[byline].size).unwrap());
     }
 }
