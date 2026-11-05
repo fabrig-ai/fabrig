@@ -1,5 +1,6 @@
 //! A project's settings frame and repositories (temper/docs/design/client/README.md, 3.5, Settings).
 use crate::{
+    forge::bindings::{Bindings as ForgeBindings, Meaning, WaysRow},
     frame::Bindings,
     look,
     words::{Word, Words},
@@ -8,7 +9,10 @@ use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, State, Style, phrases::Hole};
 use temper_client_domain::{
     Address, ChatsFilter, Domain,
-    forge::{self, listed},
+    forge::{
+        self, listed,
+        ways::{self, Asked, Control, Route, Ways},
+    },
     pages::Act,
 };
 
@@ -90,7 +94,14 @@ fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, p
     }
     false
 }
-pub(crate) fn how_work_runs(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
+pub(crate) fn how_work_runs(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    forge: &mut ForgeBindings,
+    project: u32,
+) {
     main(b);
     open(b, root, w, bindings, project, Tab::HowWorkRuns);
     if !missing(b, root, w, bindings, project) {
@@ -118,9 +129,274 @@ pub(crate) fn how_work_runs(b: &mut Builder, root: &Domain, w: &Words, bindings:
         b.close();
         b.close();
         b.close();
+        let stored = root.forge().ways(project);
+        let shown = match root.forge().ways_asked(Control::Ways) {
+            Some(Asked::Ways(value)) => *value,
+            Some(Asked::Questions(_)) | None => stored.unwrap_or(Ways::STOCK),
+        };
+        shows(b, root, w, forge, project, stored.is_none(), shown);
+        if shown.goals {
+            working(b, root, w, forge, project, shown);
+        }
+        status(b, w);
+        needs(b, root, w, forge, project);
+        telling(b, w);
         b.close();
     }
     b.close();
+    b.close();
+}
+
+/// A setting's label and small words; the caller draws its right-hand control,
+/// then closes the row with its refusal (client/README.md, 5.13).
+fn row(b: &mut Builder, w: &Words, label: &[u8], small: Option<Word>) {
+    let small = match small {
+        Some(word) => w.say(word, &[]),
+        None => Box::default(),
+    };
+    row_line(b, label, &small);
+}
+fn row_line(b: &mut Builder, label: &[u8], small: &[u8]) {
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SETTING);
+    b.open(Role::Slot);
+    crate::cards::text(b, Role::Text, label);
+    if !small.is_empty() {
+        text(b, Role::Text, small, look::SETTINGS_DETAIL);
+    }
+    b.close();
+}
+fn section(b: &mut Builder, w: &Words, title: Word) {
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION);
+    text(b, Role::Heading { level: 2 }, &w.say(title, &[]), look::SETTINGS_SECTION_TITLE);
+}
+fn refused(b: &mut Builder, root: &Domain, w: &Words, control: Control) {
+    if let Some(refusal) = root.forge().ways_refused(control) {
+        b.open(Role::Slot);
+        b.style(look::SETTINGS_REFUSAL);
+        crate::cards::refusal(b, w, refusal);
+        b.close();
+    }
+}
+fn ways_refused(b: &mut Builder, root: &Domain, w: &Words, bindings: &ForgeBindings, project: u32, row: WaysRow) {
+    let last = match bindings.ways_row {
+        Some((in_project, last)) if in_project == project => last,
+        Some((_, _)) | None => WaysRow::Drafts,
+    };
+    if last == row {
+        refused(b, root, w, Control::Ways);
+    }
+}
+fn shows(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut ForgeBindings,
+    project: u32,
+    unknown: bool,
+    shown: Ways,
+) {
+    section(b, w, Word::SettingsShows);
+    let disabled = unknown || root.forge().ways_asked(Control::Ways).is_some();
+    for (key, label, line, value, asked) in [
+        (
+            WaysRow::Drafts,
+            Word::SettingsDrafts,
+            Word::SettingsDraftsLine,
+            shown.drafts,
+            Ways { drafts: !shown.drafts, ..shown },
+        ),
+        (
+            WaysRow::Goals,
+            Word::SettingsGoals,
+            Word::SettingsGoalsLine,
+            shown.goals,
+            Ways { goals: !shown.goals, ..shown },
+        ),
+        (
+            WaysRow::Changes,
+            Word::SettingsChanges,
+            Word::SettingsChangesLine,
+            shown.changes,
+            Ways { changes: !shown.changes, ..shown },
+        ),
+        (WaysRow::Away, Word::SettingsAway, Word::SettingsAwayLine, shown.away, Ways { away: !shown.away, ..shown }),
+    ] {
+        let label = w.say(label, &[]);
+        row(b, w, &label, Some(line));
+        b.open(Role::Slot);
+        b.style(look::SETTINGS_TOGGLE_ROW);
+        let word = match (key, value) {
+            (WaysRow::Drafts, true) => Word::SettingsOn,
+            (WaysRow::Drafts, false) => Word::SettingsOff,
+            (WaysRow::Goals | WaysRow::Changes | WaysRow::Away | WaysRow::Way(_), true) => Word::SettingsShown,
+            (WaysRow::Goals | WaysRow::Changes | WaysRow::Away | WaysRow::Way(_), false) => Word::SettingsHidden,
+        };
+        crate::cards::text(b, Role::Text, &w.say(word, &[]));
+        b.open(Role::Check);
+        b.name(&label);
+        b.style(look::SETTINGS_SWITCH);
+        b.bind(bindings.insert_way(ways::Act::Set { project, asked: Asked::Ways(asked) }, key));
+        if value {
+            b.state(State::Pressed);
+        }
+        if disabled {
+            b.state(State::Disabled);
+        }
+        b.close();
+        b.close();
+        ways_refused(b, root, w, bindings, project, key);
+        b.close();
+    }
+    b.close();
+}
+/// The Goals table's shape (client/README.md, 5.13). Replace `ways` with
+/// `goals::ways` when that page supplies the shared table.
+#[derive(Debug)]
+struct Way {
+    number: u32,
+    name: Box<[u8]>,
+    line: Box<[u8]>,
+}
+fn ways(root: &Domain, w: &Words, project: u32) -> skein_lib::List<Way> {
+    let Some(me) = root.pages().me(root.client()) else { return skein_lib::List::with_capacity(0) };
+    let mut result = skein_lib::List::with_capacity(0);
+    for member in &me.projects {
+        if member.project != project {
+            continue;
+        }
+        result = skein_lib::List::with_capacity(member.templates.len());
+        let mut after = None;
+        for _ in 0..member.templates.len() {
+            let mut next: Option<&jig_client::contract::Template> = None;
+            for template in &member.templates {
+                if template.tracked.is_some()
+                    && match after {
+                        Some(number) => template.number > number,
+                        None => true,
+                    }
+                    && match next {
+                        Some(previous) => template.number < previous.number,
+                        None => true,
+                    }
+                {
+                    next = Some(template);
+                }
+            }
+            let Some(template) = next else { break };
+            let words = match template.name.bytes() {
+                b"whole" | b"Plan, tasks, land whole" => Some((Word::SettingsWhole, Word::SettingsWholeLine)),
+                b"each" | b"Task by task" => Some((Word::SettingsEach, Word::SettingsEachLine)),
+                b"goal" | b"review" | b"Plan, then wait for me" => {
+                    Some((Word::SettingsReview, Word::SettingsReviewLine))
+                }
+                b"one" | b"One agent, one branch" => Some((Word::SettingsOne, Word::SettingsOneLine)),
+                _ => None,
+            };
+            let (name, line) = match words {
+                Some((name, line)) => (w.say(name, &[]), w.say(line, &[])),
+                None => (template.name.bytes().into(), Box::default()),
+            };
+            result.push(Way { number: template.number, name, line }).expect("offered templates fit");
+            after = Some(template.number);
+        }
+    }
+    result
+}
+fn working(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, project: u32, shown: Ways) {
+    section(b, w, Word::SettingsWays);
+    b.open(Role::ChoiceGroup);
+    b.name(&w.say(Word::SettingsWays, &[]));
+    let selected = match root.pages().me(root.client()) {
+        Some(me) => ways::default_way(me, project, &shown),
+        None => None,
+    };
+    for way in &ways(root, w, project) {
+        // TaskLine records no template: there is no delivered usage count.
+        row_line(b, &way.name, &way.line);
+        b.open(Role::Slot);
+        b.style(look::SETTINGS_TOGGLE_ROW);
+        b.open(Role::Choice);
+        b.name(&w.say(Word::SettingsDefault, &[]));
+        if selected == Some(way.number) {
+            b.state(State::Selected);
+        }
+        if root.forge().ways_asked(Control::Ways).is_some() {
+            b.state(State::Disabled);
+        }
+        b.bind(bindings.insert_way(
+            ways::Act::Set { project, asked: Asked::Ways(Ways { way: way.number, ..shown }) },
+            WaysRow::Way(way.number),
+        ));
+        b.close();
+        b.close();
+        ways_refused(b, root, w, bindings, project, WaysRow::Way(way.number));
+        b.close();
+    }
+    b.close();
+    b.close();
+}
+fn disabled_select(b: &mut Builder, w: &Words, label: Word, small: Option<Word>, value: Word) {
+    let label = w.say(label, &[]);
+    row(b, w, &label, small);
+    b.open(Role::Select);
+    b.name(&label);
+    b.state(State::Disabled);
+    b.open(Role::Option);
+    b.name(&w.say(value, &[]));
+    b.state(State::Selected);
+    b.close();
+    b.close();
+    b.close();
+}
+fn facts(b: &mut Builder, w: &Words) {
+    text(b, Role::Paragraph, &w.say(Word::SettingsUnbuilt, &[]), look::SETTINGS_FACTS);
+}
+fn status(b: &mut Builder, w: &Words) {
+    section(b, w, Word::SettingsStatus);
+    disabled_select(b, w, Word::SettingsReports, Some(Word::SettingsReportsLine), Word::SettingsCountsOnly);
+    disabled_select(b, w, Word::SettingsRewritten, None, Word::SettingsOnOpen);
+    disabled_select(b, w, Word::SettingsBrief, Some(Word::SettingsBriefLine), Word::SettingsOff);
+    facts(b, w);
+    b.close();
+}
+fn needs(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, project: u32) {
+    section(b, w, Word::SettingsNeeds);
+    let stored = root.forge().questions(project);
+    let shown = match root.forge().ways_asked(Control::Questions) {
+        Some(Asked::Questions(route)) => *route,
+        Some(Asked::Ways(_)) | None => stored.unwrap_or(Route::None),
+    };
+    let label = w.say(Word::SettingsQuestions, &[]);
+    row(b, w, &label, None);
+    b.open(Role::Select);
+    b.name(&label);
+    if stored.is_none() || root.forge().ways_asked(Control::Questions).is_some() {
+        b.state(State::Disabled);
+    }
+    for (route, word) in
+        [(Route::Foreman, Word::SettingsForeman), (Route::Up, Word::SettingsUp), (Route::None, Word::SettingsAlone)]
+    {
+        b.open(Role::Option);
+        b.name(&w.say(word, &[]));
+        b.bind(bindings.insert(Meaning::Ways(ways::Act::Set { project, asked: Asked::Questions(route) })));
+        if shown == route {
+            b.state(State::Selected);
+        }
+        b.close();
+    }
+    b.close();
+    refused(b, root, w, Control::Questions);
+    b.close();
+    disabled_select(b, w, Word::SettingsFunds, Some(Word::SettingsUnbuilt), Word::SettingsBudgetUsed);
+    b.close();
+}
+fn telling(b: &mut Builder, w: &Words) {
+    section(b, w, Word::SettingsTelling);
+    disabled_select(b, w, Word::SettingsNotifications, Some(Word::SettingsNotificationsLine), Word::SettingsOff);
+    disabled_select(b, w, Word::SettingsQuiet, None, Word::SettingsNoQuiet);
+    facts(b, w);
     b.close();
 }
 
