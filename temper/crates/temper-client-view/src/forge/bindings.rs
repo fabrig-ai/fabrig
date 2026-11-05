@@ -5,6 +5,7 @@ use skein_ui::{Act, Binding};
 use temper_client_domain::{Action, forge};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Meaning {
+    Ways(forge::ways::Act),
     EndPlayground,
     Forges(forge::forges::Act),
     PlaceField(forge::admin::PlaceField),
@@ -29,10 +30,20 @@ pub enum Meaning {
     SetupField(forge::forges::SetupField),
     Copies,
 }
+/// The row owning kind 7's last request (client/README.md, 5.13).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum WaysRow {
+    Drafts,
+    Goals,
+    Changes,
+    Away,
+    Way(u32),
+}
 #[derive(Debug)]
 struct Entry {
     token: Token,
     meaning: Meaning,
+    row: Option<(u32, WaysRow)>,
 }
 #[derive(Debug)]
 pub struct Bindings {
@@ -40,20 +51,38 @@ pub struct Bindings {
     next: u64,
     connector: u16,
     checks: u32,
+    pub(crate) ways_row: Option<(u32, WaysRow)>,
 }
 impl Bindings {
     #[must_use]
     pub fn new(capacity: u32, checks: u32, connector: u16) -> Self {
-        Self { entries: List::with_capacity(capacity), next: 0, connector, checks }
+        Self { entries: List::with_capacity(capacity), next: 0, connector, checks, ways_row: None }
     }
     pub fn begin(&mut self) {
         self.entries.clear();
     }
     #[must_use]
     pub fn insert(&mut self, meaning: Meaning) -> Binding {
+        self.entry(meaning, None)
+    }
+    pub(crate) fn insert_way(&mut self, act: forge::ways::Act, row: WaysRow) -> Binding {
+        let forge::ways::Act::Set { project, .. } = act;
+        self.entry(Meaning::Ways(act), Some((project, row)))
+    }
+    pub(crate) fn remember(&mut self, token: Token) {
+        for entry in &self.entries {
+            if entry.token == token {
+                if let Some(row) = entry.row {
+                    self.ways_row = Some(row);
+                }
+                return;
+            }
+        }
+    }
+    fn entry(&mut self, meaning: Meaning, row: Option<(u32, WaysRow)>) -> Binding {
         self.next = self.next.checked_add(1).expect("binding tokens fit");
         let token = Token::new(self.next);
-        self.entries.push(Entry { token, meaning }).expect("form bindings fit");
+        self.entries.push(Entry { token, meaning, row }).expect("form bindings fit");
         Binding { owner: forge::words::owner(self.connector), token }
     }
 }
@@ -64,6 +93,21 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
             continue;
         }
         return match (entry.meaning.clone(), act) {
+            (
+                Meaning::Ways(forge::ways::Act::Set { project, asked: forge::ways::Asked::Questions(_) }),
+                Act::Input { value },
+            ) => {
+                let route = match value.as_ref() {
+                    b"foreman" => forge::ways::Route::Foreman,
+                    b"up" => forge::ways::Route::Up,
+                    b"none" => forge::ways::Route::None,
+                    _ => return None,
+                };
+                Some(Action::Forge(forge::Act::Ways(forge::ways::Act::Set {
+                    project,
+                    asked: forge::ways::Asked::Questions(route),
+                })))
+            }
             (Meaning::PlaceField(field), Act::Input { value }) => {
                 Some(Action::Forge(forge::Act::Forges(forge::forges::Act::PlaceWrite { field, text: value })))
             }
@@ -86,6 +130,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Some(Action::Forge(forge::Act::Write { field, text: value, typed }))
             }
             (meaning, Act::Press | Act::Toggle) => Some(match meaning {
+                Meaning::Ways(act) => Action::Forge(forge::Act::Ways(act)),
                 Meaning::EndPlayground => Action::Forge(forge::Act::EndPlayground),
                 Meaning::Forges(act) => Action::Forge(forge::Act::Forges(act)),
                 Meaning::Role(role) => Action::Forge(forge::Act::Choose { role }),
@@ -181,7 +226,8 @@ pub fn event(bindings: &Bindings, token: Token, act: Act) -> Option<temper_clien
                     forge::Event::AppKey { value }
                 }));
             }
-            Meaning::EndPlayground
+            Meaning::Ways(_)
+            | Meaning::EndPlayground
             | Meaning::Forges(_)
             | Meaning::PlaceField(_)
             | Meaning::Field(_)

@@ -514,7 +514,7 @@ pub(crate) fn rail(
     switcher(b, root, w, bindings, Some(project), Place::Rail);
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    entries(b, root, w, bindings, project, true);
+    entries(b, root, w, bindings, project, shown(root, project));
     b.close();
     crate::link(b, &w.say(Word::NewChat, &[]), bindings.insert(Act::Go { address: Address::NewChat }));
     b.style(crate::look::RAIL_NEW);
@@ -563,15 +563,11 @@ pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bi
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project, false);
+    entries(b, root, w, bindings, project, Shown { changes: false, ..shown(root, project) });
     if !goals_shown(root, project) {
         settings_link(b, root, w, bindings, project);
     }
     b.close();
-}
-
-fn goals_shown(root: &Domain, project: u32) -> bool {
-    root.has_goals(project) || root.pages().goals().is_some()
 }
 
 fn goals_current(root: &Domain) -> bool {
@@ -586,15 +582,23 @@ fn goals_current(root: &Domain) -> bool {
     false
 }
 
-fn entries(
-    b: &mut Builder,
-    root: &Domain,
-    w: &crate::words::Words,
-    bindings: &mut Bindings,
-    project: u32,
+fn goals_shown(root: &Domain, project: u32) -> bool {
+    let shown = match root.forge().ways(project) {
+        Some(ways) => ways.goals,
+        None => false,
+    };
+    shown || goals_current(root)
+}
+
+#[expect(clippy::struct_excessive_bools, reason = "the frame keeps each entry’s visibility or current state together")]
+struct Shown {
+    home: bool,
+    inbox: bool,
+    chats: bool,
     changes: bool,
-) {
-    use crate::words::Word;
+}
+// Navigation follows project ways and keeps the open page (client/README.md, 5.3).
+fn shown(root: &Domain, project: u32) -> Shown {
     let (home, inbox, chats) = match root.pages().address() {
         Address::Home { .. } => (true, false, false),
         Address::Inbox { .. } => (false, true, false),
@@ -614,6 +618,22 @@ fn entries(
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
+    let changes = match root.forge().ways(project) {
+        Some(ways) => ways.changes,
+        None => false,
+    } || root.pages().address() == &(Address::Changes { project });
+    Shown { home, inbox, chats, changes }
+}
+fn entries(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: u32,
+    shown: Shown,
+) {
+    use crate::words::Word;
+    let Shown { home, inbox, chats, changes } = shown;
     action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
     let count = root.pages().needs().count(root.client(), project);
     let name = if count.count == 0 {

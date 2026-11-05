@@ -99,6 +99,7 @@ pub fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<
     route::welcome_progress(root, env, out);
     route::welcome_program_progress(root, out);
     route::playground_progress(root, env, out);
+    route::ways_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);
 }
@@ -116,6 +117,7 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     route::welcome_progress(root, env, out);
     route::welcome_program_progress(root, out);
     route::playground_progress(root, env, out);
+    route::ways_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);
 }

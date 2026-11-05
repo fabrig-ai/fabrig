@@ -305,6 +305,10 @@ fn entry(
             b.close();
             return;
         }
+        if crate::cards::proposal::settings(b, root, card, words, bindings, false) {
+            b.close();
+            return;
+        }
         body(b, page, words);
         crate::cards::proposal_reason(b, page);
         if has_facts(page) {

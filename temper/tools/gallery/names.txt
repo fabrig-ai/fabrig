@@ -47,6 +47,9 @@ chats-reference
 chats-solo
 configure
 configure-chat
+configure-chat-accepted
+configure-chat-proposal
+configure-chat-replaced
 configure-chats-tag
 configure-refused
 configure-sending
@@ -154,6 +157,14 @@ playground-resetting
 repositories
 repositories-none
 settings
+settings-all-hidden
+settings-away-off
+settings-changes-off
+settings-chat-open
+settings-drafts-off
+settings-goals
+settings-goals-off
+settings-refused
 signed-out
 start-goal
 start-goal-draft
