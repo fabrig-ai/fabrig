@@ -299,7 +299,7 @@ fn a_repository_row_is_no_link() {
     }
 }
 #[test]
-fn accounts_are_in_the_frame_with_a_project_and_as_they_were_without() {
+fn accounts_are_in_the_settings_column_with_or_without_a_project() {
     for (address, heading, style) in [(Address::Accounts, b"Accounts".as_slice(), look::ACCOUNTS_PAGE)] {
         let (mut root, watch, _) = f::root_at(address, &f::domain_limits());
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -317,8 +317,8 @@ fn accounts_are_in_the_frame_with_a_project_and_as_they_were_without() {
         f::deliver_me(&mut root, watch, me);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             find(view.tree(), Role::Heading { level: 1 }, heading);
-            assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
-            assert_eq!(main(view.tree())[0].styles.as_slice(), &[look::MAIN, look::PAGE]);
+            assert!(main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
+            assert_eq!(main(view.tree())[0].styles.as_slice(), &[look::MAIN, look::SETTINGS]);
         }
     }
 }

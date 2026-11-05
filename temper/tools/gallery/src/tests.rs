@@ -808,6 +808,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "accounts-in-settings",
         heading: "What agents run on.",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
             Part::Named { role: Role::Navigation, name: "Settings" },
             Part::Named { role: Role::Text, name: "Signed in as Robin" },
             Part::Named { role: Role::Button, name: "Sign out" },
@@ -840,6 +841,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "accounts-solo",
         heading: "What agents run on.",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
             Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
             Part::Named { role: Role::Item, name: "Claude Code login claude-robin · Ready" },
             Part::Named { role: Role::Item, name: "API key · Ready" },
@@ -920,14 +922,79 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Link, name: "T1 Director replied" }],
     },
     Holds {
+        name: "accounts-states",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 11" },
+            Part::Text { text: "Ready" },
+            Part::Text { text: "Checking" },
+            Part::Text { text: "Granted" },
+            Part::Text { text: "Limited by " },
+            Part::Text { text: "temper reached its usage limit on your ChatGPT plan. Tasks on it wait." },
+            Part::Text { text: "Signed out of ChatGPT." },
+            Part::Text { text: "OpenAI refused temper’s sign-in. Check the configuration’s registration." },
+            Part::Text { text: "Cannot load " },
+            Part::Text { text: "Cancelled" },
+            Part::Text { text: "Closing" },
+            Part::Text { text: "Moving to another deployment" },
+        ],
+    },
+    Holds {
+        name: "accounts-key",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "Key (pasted once)" },
+            Part::Named { role: Role::Button, name: "Add key" },
+        ],
+    },
+    Holds {
+        name: "accounts-removing",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Text { text: "Remove this account and all its sources?" },
+            Part::Named { role: Role::Button, name: "Confirm" },
+        ],
+    },
+    Holds {
+        name: "accounts-signing-in",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" },
+            Part::Named { role: Role::Button, name: "Finish connecting" },
+        ],
+    },
+    Holds {
+        name: "accounts-program-needs-sign-in",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Text { text: "Claude Code isn't signed in for 'claude-robin' on " },
+            Part::Named { role: Role::Button, name: "Check again" },
+        ],
+    },
+    Holds {
+        name: "accounts-empty",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 0" },
+            Part::Named { role: Role::Text, name: "No account yet" },
+            Part::Named { role: Role::Link, name: "Connect a model" },
+        ],
+    },
+    Holds {
         name: "accounts-reference",
         heading: "What agents run on.",
-        parts: &[Part::Named { role: Role::Heading { level: 3 }, name: "Claude" }],
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 2" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
+        ],
     },
     Holds {
         name: "accounts-first-run-1",
         heading: "What agents run on.",
-        parts: &[Part::Named { role: Role::Disclosure, name: "Scripted model · the playground’s" }],
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 0" },
+            Part::Named { role: Role::Disclosure, name: "Scripted model · the playground’s" },
+        ],
     },
     Holds {
         name: "google-sign-in",

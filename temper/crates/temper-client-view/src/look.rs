@@ -74,7 +74,6 @@ pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
 /// The configuring opening’s unsure (client/README.md, 3.5).
 pub const STARTER_UNSURE: Style = Style { owner: owner(), token: 252 };
 /// A folded account.
-pub const ACCOUNT_ROW: Style = Style { owner: owner(), token: 124 };
 /// The rail switcher's panel.
 pub const PROJECTS_MENU: Style = Style { owner: owner(), token: 190 };
 /// The rail switcher's actions.
@@ -644,7 +643,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-121",
         b"temper-setup-strip",
         b"temper-sign-in",
-        b"temper-account-row",
+        b"temper-reserved-124",
         b"temper-flow-primary",
         b"temper-flow-failed",
         b"temper-flow-pair",
