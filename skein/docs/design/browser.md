@@ -190,13 +190,13 @@ pub enum Event {                                         // to the test
     Missed  { op: Token, seen: List<Seen>, more: u32 },  // what was there when the deadline passed
     Warned  { op: Token },                               // a go accepted its page's closing warning
     Done    { op: Token },                               // a navigation, a press, typing, a key
-    Refused { op: Token, why: Refusal },                 // Gone, Hidden, Covered, Disabled, Crashed
+    Refused { op: Token, why: Refusal, detail: Box<[u8]> },  // Gone, Hidden, Covered, Disabled, Crashed; a Protocol's detail below
     Snapshot   { op: Token, text: Box<[u8]> },
     Screenshot { op: Token, png: Box<[u8]> },
     Address { op: Token, url: Box<[u8]> },               // the history's current entry
     Attribute { op: Token, read: Read },
     Downloaded { person: Token, name: Box<[u8]>, path: Box<[u8]> },  // a file one of its pages saved, complete
-    Trouble { page: Token, trouble: Trouble, text: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog, a download failed
+    Trouble { page: Token, trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog, a download failed
     Closed  { owner: Token },                            // terminal
 }
 
@@ -281,6 +281,12 @@ pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, 
 - **The current address** is the page's history's current entry, as the
   browser's address bar shows it, so that a test sees the address the
   page's own code put there.
+- **A refusal says what refused it.** `Protocol` is the kit's word for
+  an answer it can't place, so a `Refused` with it carries its `detail`:
+  the CDP method, `: `, and Chromium's error message, or `malformed
+  reply` for an answer without the field the kit asked for; a request the
+  kit refuses itself says so in its own words. Cut to `Limits::text`.
+  Every other refusal's `detail` is empty: its `why` says it all.
 - **Every operation has one terminal event:** `Found`, `Met`, `Missed`,
   `Done`, `Refused`, `Snapshot`, `Screenshot`, `Address`
   or `Attribute`. Every person, page and the browser itself ends with one `Closed`. `Warned` is
@@ -404,6 +410,11 @@ it is. The page goes on, and the test sees it as it stayed. Left open,
 the dialog would hold every operation on the page until its deadline,
 and no request would answer it.
 
+A log entry's `url` is the resource it names, cut to `Limits::text`,
+beside its text and never in it, so that a test's expected words are
+read in the text alone and never match a port or a digest; it is empty
+where the entry names none and for every other trouble.
+
 The kit judges none of them. A test fails on any `Trouble` it did not
 expect, and a scenario that provokes one (a page made to fail, for
 example) expects it. That is the test's harness, not the kit.
@@ -486,8 +497,9 @@ The kit's tests are a crate of their own, `tests/browser`
     downloads directory, which it reads;
   - Chromium's path, in its configuration;
   - a face that turns its person's actions into the kit's requests;
-  - a harness that fails a test on unexpected `Trouble` and writes the
-    snapshot, the screenshot and stderr's tail into the failure report.
+  - a harness that fails a test on unexpected `Trouble`, naming its
+    `url` and the step its person is at, and writes the snapshot, the
+    screenshot and stderr's tail into the failure report.
 
   An application on skein-ui takes the face and the harness from
   `skein-fake-person-browser` (ui-web.md, 14.2).
