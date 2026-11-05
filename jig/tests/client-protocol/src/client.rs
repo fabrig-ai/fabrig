@@ -6,9 +6,9 @@ mod shapes;
 mod thread;
 use crate::{engine::Engine, fixtures, net::Net};
 use jig_client::{self as client, Ask, Event, Handle, Key, Latest, Link, Outcome, Readable, Told, Watchable};
+use jig_client_kit::{ClientId, harness::Observed};
 use jig_client_protocol_wire::v19 as w;
 use jig_client_shell_native::{Conn, Connections};
-use jig_client_world::{ClientId, harness::Observed};
 use skein_lib::Reader;
 use skein_lib::{Duration, List, Queue, Time, stream::Down};
 use std::collections::BTreeMap;
@@ -443,7 +443,7 @@ impl Story {
         self.net.cut_all();
         self.advance();
         let mut settings = fixtures::settings(self.engine.limits.core.documents.rows);
-        settings.served = jig_client_world::test::list([
+        settings.served = jig_client_kit::test::list([
             jig_protocol_engine_clients::Served { family: None, first: version, last: version },
             jig_protocol_engine_clients::Served { family: Some(1), first: 2, last: 2 },
         ]);
@@ -622,7 +622,7 @@ impl Story {
     }
 }
 
-pub fn transient_request(seed: u64, fault: &jig_client_world::FrontFault) {
+pub fn transient_request(seed: u64, fault: &jig_client_kit::FrontFault) {
     let mut limits = fixtures::owner_limits();
     limits.core.people.requests = 1;
     limits.core.people.request_retention = Duration::from_millis(100);
@@ -634,21 +634,21 @@ pub fn transient_request(seed: u64, fault: &jig_client_world::FrontFault) {
     story.sign_in();
     assert!(story.run_until(|s| s.client.link().state == Link::Live, Duration::from_secs(1)));
     let not_ready = match fault {
-        jig_client_world::FrontFault::Busy => {
+        jig_client_kit::FrontFault::Busy => {
             story.engine.driver.scripted_party(crate::stories::pressure(), story.now, fixtures::wall(story.now));
             false
         }
-        jig_client_world::FrontFault::NotReady => {
+        jig_client_kit::FrontFault::NotReady => {
             story.engine.driver.pause_restore(jig_test_profile::config(seed), story.now, fixtures::wall(story.now));
             true
         }
-        jig_client_world::FrontFault::Restart { .. }
-        | jig_client_world::FrontFault::Slow { .. }
-        | jig_client_world::FrontFault::DropWatch
-        | jig_client_world::FrontFault::NoAnswer
-        | jig_client_world::FrontFault::SignedOut
-        | jig_client_world::FrontFault::Versions
-        | jig_client_world::FrontFault::ObjectGone => unreachable!("this story checks transient request refusals"),
+        jig_client_kit::FrontFault::Restart { .. }
+        | jig_client_kit::FrontFault::Slow { .. }
+        | jig_client_kit::FrontFault::DropWatch
+        | jig_client_kit::FrontFault::NoAnswer
+        | jig_client_kit::FrontFault::SignedOut
+        | jig_client_kit::FrontFault::Versions
+        | jig_client_kit::FrontFault::ObjectGone => unreachable!("this story checks transient request refusals"),
     };
     let released = story.now.saturating_add(Duration::from_nanos(100_000_001));
     story.now = story.now.saturating_add(Duration::from_millis(50));

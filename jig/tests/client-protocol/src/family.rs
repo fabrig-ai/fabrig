@@ -40,7 +40,7 @@ pub fn answer(value: &Family) -> Option<first::Answer> {
 pub fn document(subject: d::Subject, bytes: &[u8]) -> Option<d::Document> {
     let value = codec::document_value(bytes, &crate::fixtures::owner_limits().connector).ok()?;
     let value: ConnectorDocument =
-        application::document(subject, value, &jig_client_world::test::limits().first.connector).ok()?;
+        application::document(subject, value, &jig_client_kit::test::limits().first.connector).ok()?;
     Some(d::Document::Connector(value))
 }
 #[must_use]
@@ -84,7 +84,7 @@ pub fn end(value: jig_client_domain::contract::WatchEnd) -> first::WatchEnd {
 pub fn read_result(subject: d::Subject, bytes: &[u8]) -> first::ReadResult {
     let answer = codec::read_answer_value(bytes, &crate::fixtures::owner_limits().connector);
     match answer {
-        Ok(Ok(value)) => application::document(subject, value, &jig_client_world::test::limits().first.connector)
+        Ok(Ok(value)) => application::document(subject, value, &jig_client_kit::test::limits().first.connector)
             .map_or(first::ReadResult::Unsupported, |value| first::ReadResult::Value(d::Document::Connector(value))),
         Ok(Err(jig_test_connector::DocumentMissing::Unknown)) | Err(_) => first::ReadResult::Unknown,
         Ok(Err(jig_test_connector::DocumentMissing::NotAllowed)) => first::ReadResult::NotAllowed,

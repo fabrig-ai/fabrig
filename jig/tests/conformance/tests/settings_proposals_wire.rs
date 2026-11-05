@@ -132,7 +132,7 @@ fn a_real_pending_review_survives_both_wire_translations() {
     else {
         panic!("read value")
     };
-    let link = jig_client_protocol_link::Limits::new(jig_client_world::test::limits().client.domain, 8)
+    let link = jig_client_protocol_link::Limits::new(jig_client_kit::test::limits().client.domain, 8)
         .expect("receiving limits");
     let read = jig_client_protocol_link::translate::reads::value(value.record(), &link)
         .expect("client decodes the real review");

@@ -56,7 +56,7 @@ impl Party {
         let mut bearer = Writer::new(61);
         bearer.put(b"Bearer ").expect("prefix");
         skein_lib::base64::encode(skein_lib::base64::Alphabet::Url, token.expose(), &mut bearer).expect("bearer");
-        let mut limits = jig_client_world::test::limits().client;
+        let mut limits = jig_client_kit::test::limits().client;
         limits.domain.owners = &[];
         limits.domain.rows = 32;
         limits.domain.projects = 64;
@@ -78,7 +78,7 @@ impl Party {
             &w::CEILINGS,
             w::HelloParts {
                 stream: [7; 16],
-                served: jig_client_world::test::list([w::Served::new(
+                served: jig_client_kit::test::list([w::Served::new(
                     &w::CEILINGS,
                     w::ServedParts { owner: w::Owner::Jig, first: 19, last: 19 },
                 )

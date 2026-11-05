@@ -2,9 +2,9 @@
 use jig_client_domain::contract::{Answer, Ask, Outcome, WatchEnd};
 #[cfg(test)]
 use jig_client_domain::contract::{Operation, Revision, Scope, SeenThrough, Text};
+use jig_client_kit::harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite};
+use jig_client_kit::observe;
 use jig_client_view::Owner;
-use jig_client_world::harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite};
-use jig_client_world::observe;
 use jig_ops_client_domain::{
     self as domain, Action, Address, Event, Request, infrastructure as infra, observability as obs,
 };
@@ -334,7 +334,7 @@ fn client_limits() -> jig_client::Limits {
             version: jig_ops_client_protocol_wire::VERSION,
         },
     ];
-    let mut client = jig_client_world::test::limits().client;
+    let mut client = jig_client_kit::test::limits().client;
     client.domain.owners = &OWNERS;
     client.domain.requests.bytes = 262_144;
     client
@@ -476,7 +476,7 @@ mod tests {
             Ask::Take { project: PROJECT, task: TASK },
             Ask::Compound {
                 project: PROJECT,
-                operations: jig_client_world::test::list([
+                operations: jig_client_kit::test::list([
                     Operation::Stop { project: PROJECT, task: TASK },
                     Operation::Message {
                         project: PROJECT,

@@ -1,5 +1,5 @@
+use jig_client_kit::{Until, stories};
 use jig_client_protocol_world::fixtures;
-use jig_client_world::{Until, stories};
 #[test]
 fn a_family_place_record_round_trips_through_its_owner_s_small_store_bytes() {
     use jig_client_test_domain::first::{Address, Record};
@@ -32,8 +32,8 @@ fn a_request_whose_answer_was_lost_is_made_once() {
 
 #[test]
 fn a_slow_reader_gets_fewer_deliveries_and_others_are_answered() {
+    use jig_client_kit::FrontFault;
     use jig_client_protocol_world::stories as bytes;
-    use jig_client_world::FrontFault;
     use skein_lib::Duration;
     let (mut world, first) = bytes::two_clients(fixtures::SEED);
     let second = world.client(
@@ -87,7 +87,7 @@ fn signed_out_with_requests_pending_then_signed_in_again() {
     for &seed in bytes::SEEDS {
         let (mut world, client) = bytes::ready(seed);
         pending_stop(&mut world, client);
-        world.fault(jig_client_world::FrontFault::SignedOut);
+        world.fault(jig_client_kit::FrontFault::SignedOut);
         world.person(
             client,
             vec![
@@ -117,8 +117,8 @@ fn a_person_s_words_reach_a_running_run_through_bytes() {
 
 #[test]
 fn actual_busy_not_ready_restart_and_dropped_watch_retry_the_same_request() {
+    use jig_client_kit::FrontFault;
     use jig_client_protocol_world::stories as bytes;
-    use jig_client_world::FrontFault;
     use skein_lib::Duration;
     for (label, fault) in [
         ("busy", FrontFault::Busy),
@@ -139,8 +139,8 @@ fn actual_busy_not_ready_restart_and_dropped_watch_retry_the_same_request() {
     }
 }
 
-fn pending_stop(world: &mut jig_client_protocol_world::stories::Story, client: jig_client_world::ClientId) {
-    world.fault(jig_client_world::FrontFault::NoAnswer);
+fn pending_stop(world: &mut jig_client_protocol_world::stories::Story, client: jig_client_kit::ClientId) {
+    world.fault(jig_client_kit::FrontFault::NoAnswer);
     jig_client_protocol_world::stories::submit_stop(world, client);
     assert!(
         world.kept(client).iter().any(|record| matches!(record, jig_client_test_domain::store::Record::Client(..))),
@@ -168,7 +168,7 @@ fn words_to_a_stopped_task_release_it_in_one_compound_request() {
 const EFFECT_WAIT: skein_lib::Duration = skein_lib::Duration::from_secs(1);
 #[test]
 fn cancelling_a_task_says_what_ends_before_it_is_sent() {
-    use jig_client_world::{Settings, World};
+    use jig_client_kit::{Settings, World};
     use skein_fake_person::{Find, Step};
     use skein_ui::Role;
     let mut world = World::new(

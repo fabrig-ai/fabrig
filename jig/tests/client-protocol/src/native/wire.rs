@@ -58,7 +58,7 @@ impl Wire {
                             .into_parts()
                             .record,
                     })
-                    .map(|record| jig_client_world::test::family_subject(&record, true)),
+                    .map(|record| jig_client_kit::test::family_subject(&record, true)),
                 };
                 Kind::Read(subject)
             }
@@ -76,7 +76,7 @@ impl Wire {
                             .record,
                     })
                 {
-                    let subject = jig_client_world::test::family_subject(&record, false);
+                    let subject = jig_client_kit::test::family_subject(&record, false);
                     self.watches.insert(open.watch(), subject);
                 }
                 Kind::Other
@@ -98,8 +98,8 @@ impl Wire {
             && matches!(w::SignInAnswer::decode(&w::CEILINGS, &mut Reader::new(message)), Ok(w::SignInAnswer::Refused))
     }
     #[must_use]
-    pub fn additional_receipts(&self, event: &Event) -> Vec<jig_client_world::harness::Receipt> {
-        use jig_client_world::harness::Receipt;
+    pub fn additional_receipts(&self, event: &Event) -> Vec<jig_client_kit::harness::Receipt> {
+        use jig_client_kit::harness::Receipt;
         if let Event::Streamed { message: Streamed::Record(bytes) } = event {
             if let w::StreamEvent::Delivery(value) =
                 w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("stream bytes")
@@ -107,7 +107,7 @@ impl Wire {
                 && let Some(subject) = self.watches.get(&value.watch())
                 && let Some(document) = crate::family::document(*subject, value.document().record())
             {
-                return jig_client_world::observe::received(&jig_client_test_domain::Event::First(
+                return jig_client_kit::observe::received(&jig_client_test_domain::Event::First(
                     jig_client_test_domain::first::Event::Watch {
                         watch: Token::new(value.watch()),
                         event: jig_client_test_domain::first::WatchEvent::Delivered(document),
@@ -137,7 +137,7 @@ impl Wire {
                     return Vec::new();
                 };
                 let value = crate::family::read_result(*subject, value.record());
-                jig_client_world::observe::received(&jig_client_test_domain::Event::First(
+                jig_client_kit::observe::received(&jig_client_test_domain::Event::First(
                     jig_client_test_domain::first::Event::Read { read: *exchange, result: value },
                 ))
             }
