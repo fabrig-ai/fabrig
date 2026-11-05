@@ -776,6 +776,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-channel-kit"
+version = "0.0.0"
+
+[[package]]
 name = "jig-channel-world"
 version = "0.0.0"
 dependencies = [
@@ -878,6 +882,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-client-kit"
+version = "0.0.0"
+
+[[package]]
 name = "jig-client-protocol-http"
 version = "0.0.0"
 dependencies = [
@@ -886,6 +894,10 @@ dependencies = [
  "skein-http",
  "skein-lib",
 ]
+
+[[package]]
+name = "jig-client-protocol-kit"
+version = "0.0.0"
 
 [[package]]
 name = "jig-client-protocol-link"
@@ -1203,6 +1215,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-core-kit"
+version = "0.0.0"
+
+[[package]]
 name = "jig-core-world"
 version = "0.0.0"
 dependencies = [
@@ -1344,6 +1360,10 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
 ]
+
+[[package]]
+name = "jig-engine-clients-kit"
+version = "0.0.0"
 
 [[package]]
 name = "jig-engine-clients-world"
@@ -1677,6 +1697,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-protocol-accounts-kit"
+version = "0.0.0"
+
+[[package]]
 name = "jig-protocol-accounts-world"
 version = "0.0.0"
 dependencies = [
@@ -1984,6 +2008,10 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
 ]
+
+[[package]]
+name = "jig-test-connector-kit"
+version = "0.0.0"
 
 [[package]]
 name = "jig-test-connector-world"
@@ -3007,6 +3035,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-forge-kit"
+version = "0.0.0"
+
+[[package]]
 name = "skein-forge-machine-world"
 version = "0.0.0"
 dependencies = [
@@ -3093,6 +3125,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-http-kit"
+version = "0.0.0"
+
+[[package]]
 name = "skein-http-world"
 version = "0.0.0"
 dependencies = [
@@ -3133,6 +3169,10 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
 ]
+
+[[package]]
+name = "skein-json-kit"
+version = "0.0.0"
 
 [[package]]
 name = "skein-json-world"
@@ -3242,6 +3282,10 @@ dependencies = [
  "skein-tls-world",
  "skein-world",
 ]
+
+[[package]]
+name = "skein-llm-kit"
+version = "0.0.0"
 
 [[package]]
 name = "skein-llm-world"
@@ -3483,6 +3527,10 @@ dependencies = [
  "rustls-pki-types",
  "skein-lib",
 ]
+
+[[package]]
+name = "skein-tls-kit"
+version = "0.0.0"
 
 [[package]]
 name = "skein-tls-world"
