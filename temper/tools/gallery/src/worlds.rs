@@ -256,6 +256,8 @@ fn world_in_layout(
     let (mut root, mut out) = started(address);
     let mut forge_watch = None;
     let mut accounts_watch = None;
+    let mut settings_chat_watch = None;
+    let settings_chat = settings.filter(|name| name.starts_with("configure-chat-"));
     let mut playground_read = false;
     // Every response answers an open/read, including the playground family read.
     for _ in 0_u32..256 {
@@ -265,7 +267,10 @@ fn world_in_layout(
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
                         c::Subject::Me => {
-                            let me = frame(w, connecting, configuring);
+                            let mut me = frame(w, connecting, configuring);
+                            if settings_chat.is_some() {
+                                settings_chat_frame(&mut me);
+                            }
                             Some(c::Delivery::Me(Box::new(me)))
                         }
                         c::Subject::Accounts => {
@@ -291,6 +296,15 @@ fn world_in_layout(
                             if configuring_chat {
                                 configuring_chip(&mut task.chip);
                             }
+                            if let Some(name) = settings_chat {
+                                settings_chat_watch = Some(watch);
+                                task.activity = if name == "configure-chat-replaced" { 2 } else { 1 };
+                                task.proposals = List::with_capacity(2);
+                                task.proposals.push(PROPOSAL).expect("settings proposal");
+                                if name == "configure-chat-replaced" {
+                                    task.proposals.push(SETTINGS_NEXT).expect("later proposal");
+                                }
+                            }
                             Some(c::Delivery::Task(Box::new(task)))
                         }
                         c::Subject::Tree { task, window } => Some(plan_tree(w, task, window, then)),
@@ -308,7 +322,16 @@ fn world_in_layout(
                     }
                 }
                 jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) } => {
-                    if let Some(value) = read_value(w, &what, then, goals) {
+                    let value = if let Some(name) = settings_chat {
+                        match &what {
+                            c::Read::Proposal { proposal } => Some(settings_proposal(*proposal)),
+                            c::Read::Activity { .. } => Some(c::ReadValue::Activity(Box::new(settings_activity(name)))),
+                            _ => read_value(w, &what, then, goals),
+                        }
+                    } else {
+                        read_value(w, &what, then, goals)
+                    };
+                    if let Some(value) = value {
                         answer(&mut root, read, value, &mut out);
                     }
                 }
@@ -346,6 +369,9 @@ fn world_in_layout(
                                 },
                                 &mut out,
                             );
+                        }
+                        v1::Read::ProposalItems(_) if settings_chat.is_some() => {
+                            settings_proposal_values(&mut root, read, &mut out);
                         }
                         v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
@@ -398,8 +424,13 @@ fn world_in_layout(
             }
         }
     }
-    assert!(out.is_empty(), "world fixture settles: {w:?}");
+    assert!(out.is_empty(), "world fixture settles: {w:?} {settings:?} {out:?}");
     first_run_ready(&mut root, w, forge_watch, &mut out);
+    if let Some(name) = settings_chat
+        && name != "configure-chat-proposal"
+    {
+        finish_settings_proposal(&mut root, settings_chat_watch.expect("settings chat watch"), name, &mut out);
+    }
     (root, accounts_watch)
 }
 fn started(address: Address) -> (Domain, Queue<Request>) {
@@ -3424,4 +3455,147 @@ pub(super) fn settings_world(name: &str) -> Domain {
         assert!(root.forge().ways_refused(forge::ways::Control::Ways).is_some());
     }
     root
+}
+
+const SETTINGS_NEXT: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Task(10), number: 2 };
+pub(super) fn settings_chat_world(name: &str) -> Domain {
+    world_in_layout(Solo, Address::Chat { task: 10 }, Then::Shown, true, None, Some(name)).0
+}
+fn settings_proposal(key: c::ProposalKey) -> c::ReadValue {
+    let c::ReadValue::Proposal(mut proposal) = proposal() else { unreachable!("proposal fixture") };
+    proposal.key = key;
+    proposal.reason = doc("I work alone on small changes.\nKeep drafts beside the code.");
+    let mut items = List::with_capacity(2);
+    for kind in [7, 6] {
+        items
+            .push(c::RevisionItemHead {
+                setting: c::Setting::Application { kind, scope: PROJECT, number: 1 },
+                edit: c::RevisionItemEdit::Set,
+            })
+            .expect("settings item");
+    }
+    proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+        against: 0,
+        items,
+        review: None,
+        made: None,
+    }));
+    c::ReadValue::Proposal(proposal)
+}
+fn settings_proposal_values(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as v};
+    let mut items = List::with_capacity(2);
+    for kind in [7, 6] {
+        let value =
+            v::SettingValue::new(&v::CEILINGS, v::SettingValueParts { value: settings_bytes("settings", kind) })
+                .expect("setting value");
+        let item = v::ProposalItem::new(
+            &v::CEILINGS,
+            v::ProposalItemParts { kind, scope: PROJECT, number: 1, edit: v::SettingEdit::Set(value) },
+        )
+        .expect("proposal item");
+        items.push(item).expect("proposal items");
+    }
+    let record =
+        v::ProposalItemsAnswer::new(&v::CEILINGS, v::ProposalItemsAnswerParts { items }).expect("proposal values");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: FORGE,
+                        record: Some(wire::proposal_items_answer(&record)),
+                    },
+                },
+            },
+        },
+        out,
+    );
+}
+fn settings_activity(name: &str) -> c::ActivityPage {
+    let mut rows = List::with_capacity(2);
+    let keys: &[c::ProposalKey] =
+        if name == "configure-chat-replaced" { &[SETTINGS_NEXT, PROPOSAL] } else { &[PROPOSAL] };
+    for key in keys {
+        let objects = List::from_boxed(Box::new([c::ObjectKey::Proposal(*key)]));
+        let call = c::Block::Call(c::Call {
+            number: key.number,
+            tool: text("propose_settings"),
+            input: text(""),
+            outcome: None,
+            failed: false,
+            objects,
+            parts: List::with_capacity(0),
+        });
+        let blocks = List::from_boxed(Box::new([call]));
+        let mut line = turn_line(&blocks, u32::try_from(key.number).expect("small turn"), None, false);
+        line.source.position = key.number;
+        rows.push(line).expect("settings turns");
+    }
+    c::ActivityPage { rows, cut: false, before: None, after: None }
+}
+fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &mut Queue<Request>) {
+    let mut task = root.pages().chat().expect("chat").task(root.client()).expect("task").clone();
+    task.proposals = List::with_capacity(1);
+    if name == "configure-chat-replaced" {
+        task.proposals.push(SETTINGS_NEXT).expect("pending proposal");
+    }
+    deliver(root, watch, c::Delivery::Task(Box::new(task)), out);
+    for _ in 0..64 {
+        let Some(request) = out.pop() else { break };
+        if let Some(jig_client::Down::Read {
+            read,
+            what: jig_client::Readable::Jig(c::Read::Proposal { proposal: key }),
+        }) = crate::driver::down(request)
+        {
+            assert_eq!(key, PROPOSAL);
+            let c::ReadValue::Proposal(proposal) = settings_proposal(key) else { unreachable!("settings") };
+            let c::ProposalAction::Settings(settings) = proposal.action else { unreachable!("settings") };
+            let state = if name == "configure-chat-accepted" {
+                c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) }
+            } else {
+                c::ProposalHistoryState::Withdrawn
+            };
+            answer(
+                root,
+                read,
+                c::ReadValue::Ended(Box::new(c::Ended {
+                    key: c::ObjectKey::Proposal(key),
+                    value: c::EndedValue::Proposal(c::ProposalHistory {
+                        action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                            against: settings.against,
+                            items: settings.items,
+                            made: if name == "configure-chat-accepted" { Some(1) } else { None },
+                        }),
+                        number: key.number,
+                        proposer: 10,
+                        as_holder: true,
+                        state,
+                    }),
+                    at: None,
+                    by: None,
+                })),
+                out,
+            );
+        }
+    }
+    assert!(out.is_empty(), "settings decision settles");
+}
+
+fn settings_chat_frame(me: &mut c::Me) {
+    let member = me.projects.get_mut(0).expect("project");
+    let mut templates = List::with_capacity(3);
+    for template in &member.templates {
+        templates.push(template.clone()).expect("chat templates");
+    }
+    let mut way = member.templates.get(0).expect("chat template").clone();
+    way.number = 4;
+    way.name = doc("goal for a draft");
+    way.tracked = Some(1);
+    way.flags.conversation = false;
+    way.flags.listed = true;
+    templates.push(way).expect("default way");
+    member.templates = templates;
 }
