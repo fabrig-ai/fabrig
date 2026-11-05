@@ -217,6 +217,10 @@ where it holds it.
   Its owner reads the bytes with `expose`, which makes each use visible in
   review. Clone, equality and `Hash` are over its bytes, as a record's
   derives need; it neither zeroes nor locks memory (io.md, 5.3).
+- **A carrier prints lengths.** A record carrying a peer's bytes prints them
+  as their length in `Debug`, never a byte of them, and a header prints its
+  name and its value's length, so a credential passing through prints and
+  traces without its bytes (http.md, 2; channel.md, 3).
 - **Widening:** `length::usize_of` widens a `u32` count to an index and `length::len_u64` a length to a count, so no step writes `try_from` for either.
 
 ### 6.1 Base64
@@ -753,16 +757,3 @@ What of this document is not built is in [`lib.status.md`](lib.status.md).
   hand-set token tags onto `Token::tagged`, in its own tree. They wait with
   no debt item to hold them; smith's tags wait on
   `smith/docs/development/debt/D020-hand-set-token-tags.md`.
-- **A peer's bytes in a carrier's `Debug`:** a record holding a
-  `Secret` prints without it (section 6), and a secret's bytes are
-  their owner's to keep out of `Debug` (io.md, 5.3); but the generic
-  carriers derive `Debug` over the bytes they carry: skein-channel's
-  `Frame` and `Event::Body`, skein-http's `Header`, a server's call and
-  a client's written head, io's stream, pipe and kernel bytes, kv's
-  values. Two carry a credential on a known path: a channel frame,
-  smith's grant refresh with its bearer or key; a header, an
-  `Authorization`, `Cookie` or `Set-Cookie` value. Either a rule here
-  that a record carrying a peer's bytes prints them as their length, and
-  a header its name and its value's length, carried out crate by crate,
-  the channel's frame and HTTP's header first; or the carriers stay as
-  they are, each owner keeping its records out of `Debug`.

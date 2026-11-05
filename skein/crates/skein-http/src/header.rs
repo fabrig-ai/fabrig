@@ -16,10 +16,17 @@ use crate::Version;
 /// Names are compared without regard to case ([`Header::is`]); the bytes
 /// are kept as the peer sent them. A value is not checked as UTF-8: a field
 /// whose value is text is the application's to check.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Header {
     pub name: Box<[u8]>,
     pub value: Box<[u8]>,
+}
+
+// skein/docs/design/http.md, 2: a header prints its name and its value's length.
+impl core::fmt::Debug for Header {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Header").field("name", &self.name).field("value_len", &self.value.len()).finish()
+    }
 }
 
 impl Header {
