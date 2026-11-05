@@ -11,6 +11,8 @@ pub struct LineRange {
     pub first: u32,
     /// Lines replaced from `first`; 0 to insert.
     pub remove: u32,
+    /// Continue the preceding line without a newline before the replacement.
+    pub join: bool,
 }
 
 /// Replace the range's lines, checking the resulting length before allocating.
@@ -37,7 +39,9 @@ pub fn splice(old: &[u8], range: LineRange, text: &[u8], bound: u32) -> Result<B
     }
     let (before, _) = old.split_at_checked(start).expect("range starts within body");
     let (_, after) = old.split_at_checked(end).expect("range ends within body");
-    let join_before = !before.is_empty() && !before.ends_with(b"\n") && (!text.is_empty() || !after.is_empty());
+    let before = if range.join { before.strip_suffix(b"\n").unwrap_or(before) } else { before };
+    let join_before =
+        !range.join && !before.is_empty() && !before.ends_with(b"\n") && (!text.is_empty() || !after.is_empty());
     let join_after = !text.is_empty() && !text.ends_with(b"\n") && !after.is_empty();
     let size = before
         .len()

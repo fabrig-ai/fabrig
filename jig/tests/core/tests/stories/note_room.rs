@@ -97,7 +97,7 @@ fn a_note_built_in_parts_is_recalled_and_read_whole() {
             core::NamedAction::NoteLines {
                 entry,
                 recalled: revision - 1,
-                range: notes::LineRange { first: revision, remove: 0 },
+                range: notes::LineRange { first: revision, remove: 0, join: false },
             }
         };
         action(&mut world, revision, call);

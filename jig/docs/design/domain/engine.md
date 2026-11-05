@@ -1334,6 +1334,10 @@ prefers. The notes child domain knows scopes, entries and indexes:
   `remove` 0. Lines count as the answer's do, below. A newline is added only
   where two lines would otherwise join, and nothing else of the body or the text
   changes, so a body with no final newline keeps none unless a line follows it.
+  With `join: true`, the replacement continues the line before `first` without
+  a newline: that line's ending newline, if present, is removed, and none is
+  added before the replacement. This lets a run build one long line in parts,
+  under the same revision and body bounds.
   There is this one form and no named section, since a body needn't be Markdown.
   It writes the description it names, and keeps the entry's references unless it
   names some.

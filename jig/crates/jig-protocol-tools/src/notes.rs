@@ -12,13 +12,22 @@ pub(crate) fn new(value: Node<'_>) -> Result<jig_domain_core::NamedAction, Probl
     if first.is_some() != remove.is_some() {
         return Err(Problem { field: if first.is_some() { b"remove" } else { b"first" }, why: crate::Why::Range });
     }
+    let join = match value.field(b"join")? {
+        Some(join) => {
+            if first.is_none() {
+                return Err(Problem { field: b"first", why: crate::Why::Range });
+            }
+            join.boolean()?
+        }
+        None => false,
+    };
     let range = match first {
         Some(first) => {
             let first = first.small()?;
             if first == 0 {
                 return Err(Problem { field: b"first", why: crate::Why::Range });
             }
-            Some(notes::LineRange { first, remove: remove.expect("range members come together").small()? })
+            Some(notes::LineRange { first, remove: remove.expect("range members come together").small()?, join })
         }
         None => None,
     };
