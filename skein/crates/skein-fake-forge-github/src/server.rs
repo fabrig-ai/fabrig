@@ -317,7 +317,10 @@ fn next(
     }
 }
 fn demand(server: &mut Server, limits: &Limits) {
-    server.connection.requests.push(http::Request::Body(Down::Demand { read: Read::Arrived { max: limits.http.read }, room: 0 }));
+    server
+        .connection
+        .requests
+        .push(http::Request::Body(Down::Demand { read: Read::Arrived { max: limits.http.read }, room: 0 }));
 }
 fn event_up(
     server: &mut Server,
@@ -665,13 +668,25 @@ mod git_tests {
         let http_env = Env { now: env.now, wall: env.wall, limits: env.limits.http };
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
-        http::down(&mut server.connection.http, &http_env, http::Request::Next, &mut server.connection.events, &mut below);
+        http::down(
+            &mut server.connection.http,
+            &http_env,
+            http::Request::Next,
+            &mut server.connection.events,
+            &mut below,
+        );
         let Some(Down::Demand { read: Read::Nothing, room }) = below.pop() else { panic!("response reservation") };
         assert!(room > 0);
         http::up(&mut server.connection.http, &http_env, Up::Room, &mut server.connection.events, &mut below);
         for line in [b"POST /.fake/git/push HTTP/1.1\r\n".as_slice(), b"Host: forge.test\r\n", b"\r\n"] {
             let Some(Down::Demand { .. }) = below.pop() else { panic!("request head demand") };
-            http::up(&mut server.connection.http, &http_env, Up::Bytes(bytes::copy_of(line)), &mut server.connection.events, &mut below);
+            http::up(
+                &mut server.connection.http,
+                &http_env,
+                Up::Bytes(bytes::copy_of(line)),
+                &mut server.connection.events,
+                &mut below,
+            );
         }
         let Some(Turn::Call(_)) = connection::turn(&mut server.connection, &h.limits.http) else {
             panic!("captured HTTP call")
@@ -701,10 +716,10 @@ mod git_tests {
         let mut server = Server::new(Token::new(77), &h.limits).expect("fixture HTTP server");
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
-        server.connection.events.push(http::Event::Call(git_call(
-            b"/.fake/git/clone",
-            http::Body::Length(u64::from(h.limits.body)),
-        )));
+        server
+            .connection
+            .events
+            .push(http::Event::Call(git_call(b"/.fake/git/clone", http::Body::Length(u64::from(h.limits.body)))));
         let turn = connection::turn(&mut server.connection, &h.limits.http).expect("private git head");
         event_up(
             &mut server,
@@ -716,10 +731,14 @@ mod git_tests {
             &mut below,
         );
         let Some(http::Request::Discard) = server.connection.requests.pop() else { panic!("discard refused body") };
-        let Some(http::Request::Respond(response)) = server.connection.requests.pop() else { panic!("credential refusal") };
+        let Some(http::Request::Respond(response)) = server.connection.requests.pop() else {
+            panic!("credential refusal")
+        };
         assert_eq!(response.status, 401);
         assert_eq!(h.service.git_calls().len(), 1);
-        let Some(http::Request::Reply(Down::Finish)) = server.connection.requests.pop() else { panic!("empty response finishes") };
+        let Some(http::Request::Reply(Down::Finish)) = server.connection.requests.pop() else {
+            panic!("empty response finishes")
+        };
         assert!(server.connection.requests.is_empty(), "no body demand");
     }
 }

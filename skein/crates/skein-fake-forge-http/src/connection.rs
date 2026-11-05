@@ -19,7 +19,10 @@ pub enum State {
 }
 
 #[expect(missing_debug_implementations, reason = "HTTP queues temporarily hold authorization headers")]
-#[expect(clippy::partial_pub_fields, reason = "the connection exposes the server pass fields and keeps head and reply ownership private")]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "the connection exposes the server pass fields and keeps head and reply ownership private"
+)]
 pub struct Connection {
     pub state: State,
     pub events: Queue<http::Event>,
