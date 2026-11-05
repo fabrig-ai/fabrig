@@ -1179,21 +1179,21 @@ pub(crate) fn connector_out(
                     subscriber.task,
                     subscriber.subscription,
                     class,
-                    translate::alert_words(&alert),
+                    jig_ops_protocol_observability::alert_words(&alert),
                     env.wall,
                 ) {
                     work.push(Work::Core(core::Event::Tasks(event)));
                 }
             }
         }
-        ConnectorRequest::Observability(observability::Request::Health { service, healthy, subscribers }) => {
+        ConnectorRequest::Observability(observability::Request::Health { service: _, healthy, subscribers }) => {
             for subscriber in subscribers {
                 let class = translate::news_class(subscriber.class);
                 if let Some(event) = domain.core.connector_news(
                     subscriber.task,
                     subscriber.subscription,
                     class,
-                    translate::health_words(&service, healthy),
+                    jig_ops_protocol_observability::health_words(healthy),
                     env.wall,
                 ) {
                     work.push(Work::Core(core::Event::Tasks(event)));
@@ -1217,13 +1217,13 @@ pub(crate) fn connector_out(
             assert_eq!(offered, step, "owner answers its offered step");
             let action = match chosen {
                 observability::WatchDecision::Triage { delegate, alerts } => {
-                    match translate::triage(&delegate, &alerts, &env.limits.policy.delegate) {
+                    match jig_ops_protocol_observability::triage(&delegate, &alerts, &env.limits.policy.delegate) {
                         Some(batch) => core::ProcedureStep { batch, ..core::ProcedureStep::new(core::StepEnd::Wait) },
                         None => core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
                     }
                 }
                 observability::WatchDecision::Lead { delegate } => {
-                    match translate::lead(&delegate, &env.limits.policy.delegate) {
+                    match jig_ops_protocol_observability::lead(&delegate, &env.limits.policy.delegate) {
                         Some(batch) => core::ProcedureStep { batch, ..core::ProcedureStep::new(core::StepEnd::Wait) },
                         None => core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
                     }
@@ -1243,7 +1243,7 @@ pub(crate) fn connector_out(
         }
         ConnectorRequest::Observability(observability::Request::Triage { watch, delegate, alerts, .. }) => {
             let Some(Procedure { step, connector, code }) = domain.hub_link.take_procedure(watch) else { return };
-            let action = match translate::triage(&delegate, &alerts, &env.limits.policy.delegate) {
+            let action = match jig_ops_protocol_observability::triage(&delegate, &alerts, &env.limits.policy.delegate) {
                 Some(batch) => core::ProcedureStep { batch, ..core::ProcedureStep::new(core::StepEnd::Wait) },
                 None => core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
             };

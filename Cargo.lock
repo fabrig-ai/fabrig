@@ -1493,6 +1493,7 @@ dependencies = [
  "jig-ops-domain-connectors",
  "jig-ops-domain-infrastructure",
  "jig-ops-domain-observability",
+ "jig-ops-protocol-observability",
  "jig-protocol-charter",
  "jig-protocol-tools",
  "jig-test-domain",
@@ -1525,6 +1526,16 @@ dependencies = [
 [[package]]
 name = "jig-ops-fake-production"
 version = "0.0.0"
+
+[[package]]
+name = "jig-ops-protocol-observability"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core",
+ "jig-ops-domain-observability",
+ "jig-protocol-tools",
+ "skein-lib",
+]
 
 [[package]]
 name = "jig-ops-world"
