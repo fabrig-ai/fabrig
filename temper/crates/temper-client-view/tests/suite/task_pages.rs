@@ -159,11 +159,7 @@ mod tests {
         let mut root = domain::unlinked(&domain_limits(), 11);
         let mut requests = root_event(
             &mut root,
-            Event::Start {
-                address: domain::Address::Task { task: TASK, filter: domain::PlanFilter::All },
-                kept: List::with_capacity(0),
-                with: None,
-            },
+            Event::Start { address: domain::Address::Task { task: TASK }, kept: List::with_capacity(0), with: None },
         );
         for event in [
             jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },

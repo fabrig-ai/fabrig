@@ -492,7 +492,7 @@ fn the_queue_offers_each_task_ahead_as_a_terminal_command() {
         assert_eq!(
             crate::act(&mut view, node, first),
             Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-                address: temper_client_domain::Address::Task { task, filter: temper_client_domain::PlanFilter::All },
+                address: temper_client_domain::Address::Task { task },
             },))
         );
     }

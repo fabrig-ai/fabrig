@@ -5,7 +5,6 @@ use super::{
     activity::{Asking, READ_FIRST, READ_MOST, signed_out},
     inbox::Card,
 };
-use crate::address::PlanFilter;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c};
@@ -304,7 +303,6 @@ pub struct Task {
     pub run: Option<Handle>,
     pub ended: Option<Ended>,
     pub goal: Option<super::goal::Goal>,
-    pub filter: PlanFilter,
     pub shape: Shape,
     pub latest: Option<Box<c::ActivityPage>>,
     pub thread: jig_client::thread::Thread,
@@ -344,7 +342,6 @@ impl Task {
             run: None,
             ended: None,
             goal: None,
-            filter: PlanFilter::All,
             shape: Shape::Unknown,
             latest: None,
             thread,
@@ -447,7 +444,6 @@ impl Task {
             | Act::MoreGoals
             | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
-            | Act::PlanFilter { .. }
             | Act::Filter { .. }
             | Act::OpenResult { .. }
             | Act::Decide { .. }
@@ -564,7 +560,6 @@ impl Task {
             | Act::MoreGoals
             | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
-            | Act::PlanFilter { .. }
             | Act::Filter { .. }
             | Act::OpenResult { .. }
             | Act::Decide { .. }

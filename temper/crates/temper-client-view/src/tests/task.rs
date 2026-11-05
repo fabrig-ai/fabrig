@@ -2,7 +2,6 @@ use super::fixtures::{self, task as f};
 use jig_client::contract as c;
 use skein_lib::List;
 use skein_ui::{Builder, Role};
-use temper_client_domain::PlanFilter;
 const TASK: u64 = 9;
 // Small's join bound, supplied as the read refusal fact.
 const READ_JOINS: u32 = 4;
@@ -16,7 +15,7 @@ const NO_ROWS: u32 = 0;
 #[test]
 fn the_task_header_names_the_playground_project_by_its_record() {
     let (mut root, _, watch, _, _) = fixtures::root_at_with_playground(
-        temper_client_domain::Address::Task { task: TASK, filter: PlanFilter::All },
+        temper_client_domain::Address::Task { task: TASK },
         &fixtures::domain_limits(),
         b"Project 1",
         Some((fixtures::PROJECT, true)),
@@ -127,9 +126,7 @@ fn a_plans_chip_links_to_its_tasks_page_by_number() {
     let link = &tree.nodes()[index_of(&tree, Role::Link, b"Task 12")];
     assert_eq!(
         bindings.decode(link.binding.expect("bound").token, skein_ui::Act::Press),
-        Some(Action::Pages(Act::Go {
-            address: temper_client_domain::Address::Task { task: CHILD, filter: PlanFilter::All }
-        }))
+        Some(Action::Pages(Act::Go { address: temper_client_domain::Address::Task { task: CHILD } }))
     );
 }
 #[test]
@@ -490,8 +487,7 @@ fn the_bar_links_only_a_requesting_task_before_the_current_task_paragraph() {
         [c::Requester::Task(7), c::Requester::Person(PARTY), c::Requester::Deployment { project: fixtures::PROJECT }]
     {
         let limits = fixtures::domain_limits();
-        let (mut root, _, watch, _) =
-            fixtures::root_at_with_tree(Address::Task { task: TASK, filter: PlanFilter::All }, &limits);
+        let (mut root, _, watch, _) = fixtures::root_at_with_tree(Address::Task { task: TASK }, &limits);
         let mut task = titled();
         task.priority = None;
         task.chip.executor = c::ChipExecutor::Party { party: PARTY };
@@ -531,7 +527,7 @@ fn the_bar_links_only_a_requesting_task_before_the_current_task_paragraph() {
             let id = link.id;
             assert_eq!(
                 crate::act(&mut view, id, skein_ui::Act::Press),
-                Some(Action::Pages(Act::Go { address: Address::Task { task: 7, filter: PlanFilter::All } }))
+                Some(Action::Pages(Act::Go { address: Address::Task { task: 7 } }))
             );
         }
     }
@@ -1165,9 +1161,7 @@ fn the_lineage_bar_links_the_parent_by_number_with_its_title() {
             let number = if lineage { CHILD } else { OTHER_DEPENDENCY };
             assert_eq!(
                 crate::act(&mut view, id, skein_ui::Act::Press),
-                Some(Action::Pages(Act::Go {
-                    address: temper_client_domain::Address::Task { task: number, filter: PlanFilter::All }
-                })),
+                Some(Action::Pages(Act::Go { address: temper_client_domain::Address::Task { task: number } })),
             );
         }
     }
@@ -1466,17 +1460,7 @@ fn press_button(root: &mut Domain, name: &[u8]) {
     let mut view = fixtures::page_view(root);
     let id = fixtures::find(view.tree(), Role::Button, name).expect("offered button");
     let action = crate::act(&mut view, id, skein_ui::Act::Press).expect("button binding");
-    if let Action::Pages(Act::PlanFilter { filter }) = action {
-        let task = root.pages().task().expect("task page").number;
-        fixtures::root_event(
-            root,
-            Event::Went {
-                place: temper_client_domain::Place::Address(temper_client_domain::Address::Task { task, filter }),
-            },
-        );
-    } else {
-        fixtures::root_event(root, Event::Act { action });
-    }
+    fixtures::root_event(root, Event::Act { action });
 }
 
 fn contains(tree: &Tree, expected: &[u8]) -> bool {
@@ -2182,10 +2166,8 @@ fn a_procedures_plan_keeps_rows_folds_held_counts_and_held_cards() {
 }
 
 fn unread_task() -> (Domain, skein_lib::Token) {
-    let (root, _, watch) = fixtures::root_at(
-        temper_client_domain::Address::Task { task: TASK, filter: PlanFilter::All },
-        &fixtures::domain_limits(),
-    );
+    let (root, _, watch) =
+        fixtures::root_at(temper_client_domain::Address::Task { task: TASK }, &fixtures::domain_limits());
     (root, watch.expect("task watch"))
 }
 fn end_task_read(root: &mut Domain, watch: skein_lib::Token, result: jig_client::Readout) {

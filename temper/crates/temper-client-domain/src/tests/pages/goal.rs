@@ -1,7 +1,7 @@
 //! The goal page's reads and decisions (temper/docs/design/client/README.md, 5.8).
 use super::{chats::chat_line, fixtures};
 use crate::{
-    Address, PlanFilter,
+    Address,
     pages::{
         self, Act, Event, Pages, Request,
         goal::{self, Counts, Fallback, Landing, Line},
@@ -24,7 +24,7 @@ struct Harness {
 impl Harness {
     fn new(task: c::Task) -> Self {
         let mut h = Self { pages: Pages::new(), fixture: f::opened(), out: Queue::uncapped() };
-        h.event(Event::Went { address: Address::Task { task: f::TASK, filter: PlanFilter::All } });
+        h.event(Event::Went { address: Address::Task { task: f::TASK } });
         h.take();
         h.deliver(task);
         h
@@ -409,7 +409,7 @@ fn leaving_the_page_closes_its_inbox() {
         assert!(left.contains(&Request::Client(jig_client::Event::Unwatch { handle: *handle })));
     }
     assert!(h.pages.inbox().is_none());
-    h.event(Event::Went { address: Address::Task { task: OTHER, filter: PlanFilter::All } });
+    h.event(Event::Went { address: Address::Task { task: OTHER } });
     for handle in &all {
         assert!(h.pages.task().unwrap().document.number > handle.number);
     }

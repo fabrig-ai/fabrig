@@ -1,6 +1,6 @@
 //! Starting a goal from a chat's draft (client/README.md, 5.14).
 use super::{Pages, Request, goal, needs::Toasted};
-use crate::{Address, Limits, PlanFilter, owner::Owner};
+use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Key, Outcome, Told, contract as c, shapes};
 use skein_lib::{Env, Queue, Writer};
@@ -230,7 +230,7 @@ pub(super) fn told(
         match sent {
             Some(Sent::Create) => {
                 if let c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) = done {
-                    out.push(Request::Show { address: Address::Task { task: *first, filter: PlanFilter::All } });
+                    out.push(Request::Show { address: Address::Task { task: *first } });
                     pages.start = None;
                     return true;
                 }

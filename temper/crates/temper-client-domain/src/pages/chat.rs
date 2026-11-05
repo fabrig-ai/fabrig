@@ -659,7 +659,6 @@ impl Chat {
             | Act::MoreGoals
             | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
-            | Act::PlanFilter { .. }
             | Act::ClosedChats
             | Act::Filter { .. }
             | Act::Decide { .. }

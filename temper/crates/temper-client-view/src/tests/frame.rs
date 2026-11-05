@@ -1,7 +1,7 @@
 use super::fixtures;
 use skein_ui::{Act, Role};
+use temper_client_domain::ChatsFilter;
 use temper_client_domain::{Action, pages};
-use temper_client_domain::{ChatsFilter, PlanFilter};
 
 #[test]
 fn the_navigation_is_named_main_navigation() {
@@ -386,7 +386,7 @@ fn the_navigation_marks_only_the_current_page() {
         (Address::Adopt { project: fixtures::PROJECT }, None),
         (Address::Accounts, None),
         (Address::Chat { task: 9 }, Some(b"Chats".as_slice())),
-        (Address::Task { task: 9, filter: PlanFilter::All }, None),
+        (Address::Task { task: 9 }, None),
     ] {
         let root = fixtures::root_at(address, &fixtures::domain_limits()).0;
         let view = fixtures::page_view(&root);
