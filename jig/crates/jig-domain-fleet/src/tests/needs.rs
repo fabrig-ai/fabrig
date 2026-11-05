@@ -128,7 +128,7 @@ fn refusal(h: &Harness) -> HelloRefusal {
 #[test]
 #[should_panic(expected = "configured agent needs fit their byte bound")]
 fn needs_past_their_byte_bound_fail_construction() {
-    core::mem::drop(Domain::new(&Limits { needs_bytes: 0, ..LIMITS }, needs_window(8192), Box::new([])));
+    core::mem::drop(Domain::new(&Limits { needs_bytes: 0, ..LIMITS }, 0, needs_window(8192), Box::new([])));
 }
 
 #[test]
@@ -281,7 +281,7 @@ fn endpoint_numbers(count: u32) -> Box<[u32]> {
 #[test]
 fn replacing_needs_keeps_running_attempts_and_rebuilds_placement_from_the_catalogue() {
     let catalogue = Box::new([b"model".as_slice().into(), b"future".as_slice().into()]);
-    let mut h = Harness::with_catalogue(LIMITS, needs_window(4096), catalogue);
+    let mut h = Harness::with_catalogue(LIMITS, 0, needs_window(4096), catalogue);
     let mut bounds = bounds_window(8192);
     bounds.models = Box::new([
         bounds.models[0].clone(),
@@ -336,8 +336,8 @@ fn start_version(run: Token, attempt: Token, revision: u32) -> Event {
 
 #[test]
 fn a_run_of_an_older_version_is_placed_by_its_own_needs() {
-    let limits = Limits { engine_slots: 1, versions: 1, ..LIMITS };
-    let mut h = Harness::with_needs(limits, versioned_needs());
+    let limits = Limits { engine_slots: 1, ..LIMITS };
+    let mut h = Harness::with_catalogue(limits, 1, versioned_needs(), Box::new([]));
     let engine = Token::new(0);
     assert!(h.step(Event::Hello { worker: 0, channel: engine, hello: hello(bounds_window(8192)) }).is_empty());
     assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }).is_empty());
@@ -360,8 +360,8 @@ fn a_run_of_an_older_version_is_placed_by_its_own_needs() {
 
 #[test]
 fn a_dropped_version_leaves_the_table_and_live_attempts_keep_theirs() {
-    let limits = Limits { engine_slots: 1, versions: 1, ..LIMITS };
-    let mut h = Harness::with_needs(limits, versioned_needs());
+    let limits = Limits { engine_slots: 1, ..LIMITS };
+    let mut h = Harness::with_catalogue(limits, 1, versioned_needs(), Box::new([]));
     let engine = Token::new(0);
     h.step(Event::Hello { worker: 0, channel: engine, hello: hello(bounds_window(8192)) });
     h.step(start_version(R1, A1, 1));
@@ -415,7 +415,8 @@ fn a_queued_old_version_keeps_its_models_when_the_newest_changes() {
     let mut old = needs_window(8192).charters[0].clone();
     old.models[0].name = b"old".as_slice().into();
     let needs = Needs { charters: Box::new([old.clone()]), ..needs_window(8192) };
-    let mut h = Harness::with_catalogue(LIMITS, needs, Box::new([b"old".as_slice().into(), b"new".as_slice().into()]));
+    let mut h =
+        Harness::with_catalogue(LIMITS, 0, needs, Box::new([b"old".as_slice().into(), b"new".as_slice().into()]));
     h.step(start_version(R1, A1, 1));
     assert!(h.settle().is_empty());
     let mut newest = old.clone();

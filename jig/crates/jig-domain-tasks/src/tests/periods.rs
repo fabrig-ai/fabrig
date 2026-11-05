@@ -49,7 +49,7 @@ fn restoring_period_facts_does_not_repeat_funding_shape_admission() {
     pool_with_opening.funder = Funder::Pool { project: 1, period: 0, person: 9 };
     pool_with_opening.parent = Some(original.funder);
     for row in [without_opening, pool_with_opening] {
-        let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+        let mut domain = Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
         let mut out = Queue::uncapped();
         step(&mut domain, &test.env, Event::Restore { record: Stored::Ledger(row) }, &mut out);
         assert!(out.is_empty());
@@ -84,7 +84,7 @@ fn a_closed_ledger_is_outside_the_live_restore_ranges() {
     let test = Harness::new();
     let mut row = *test.domain.funding(Funder::Period { project: 1, period: 0 }).unwrap();
     row.closed = true;
-    let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+    let mut domain = Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
     let mut out = Queue::uncapped();
     step(&mut domain, &test.env, Event::Restore { record: Stored::ClosedLedger(row) }, &mut out);
 }
@@ -175,7 +175,7 @@ fn an_unopened_period_cannot_be_resized() {
 #[test]
 fn a_period_resize_before_ready_is_refused() {
     let mut test = Harness::new();
-    test.domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+    test.domain = Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
     let out = test.send(Event::ResizePeriod { reply_to: to(), project: 1, period: 0, budget: 100 });
     assert_eq!(
         out.as_slice(),
@@ -197,7 +197,7 @@ fn cold_restore_retains_period_facts_without_rejudging_family_shape() {
         } else {
             row.period = None;
         }
-        let mut domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+        let mut domain = Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
         let mut out = Queue::uncapped();
         step(&mut domain, &test.env, Event::Restore { record: Stored::Ledger(row) }, &mut out);
         let mut refused = false;

@@ -199,7 +199,7 @@ fn restoring_a_job_checks_its_spec_contract_and_creator() {
     assert_eq!(admission(&mut h, Party::Task(1), job(2)), None);
     let row = h.domain.task(2).unwrap().clone();
     let mut cold = Harness::new();
-    cold.domain = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
+    cold.domain = crate::Domain::new(&h.env.limits, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
     cold.send(Event::Restore { record: crate::Stored::Live(Box::new(row.clone())) });
     assert!(cold.domain.restore_failure().is_none());
     for fault in 0_u8..7 {
@@ -214,11 +214,13 @@ fn restoring_a_job_checks_its_spec_contract_and_creator() {
             6 => bad.contract = crate::Contract::Job { bytes: 33 },
             _ => unreachable!(),
         }
-        cold.domain = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
+        cold.domain =
+            crate::Domain::new(&h.env.limits, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
         cold.send(Event::Restore { record: crate::Stored::Live(Box::new(bad)) });
         assert!(cold.domain.restore_failure().is_some());
     }
-    let mut cold = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
+    let mut cold =
+        crate::Domain::new(&h.env.limits, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
     let mut out = skein_lib::Queue::uncapped();
     for stored in h.stored.values() {
         if !stored.key().live() {
