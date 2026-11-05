@@ -830,3 +830,7 @@ pub(crate) fn retained_made(
     }
     out
 }
+
+#[cfg(test)]
+#[path = "../../tests/classify_subjects.rs"]
+mod classifier_tests;
