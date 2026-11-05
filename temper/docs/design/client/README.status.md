@@ -83,6 +83,26 @@
   3.5, *Goals*: `goals::row` is `pub(crate)` (`temper-client-view`'s
   `pages/goals.rs`), where this section has it public, because its `Bindings`
   is the view's own and Home, its next reader, is in the same crate.
+  3.5, *Needs you*: a filter's `kind` and `goal` narrow the open cards alone:
+  `temper-client-view`'s `pages/needs.rs`, `main`, asks `Session::answered` by
+  project, and an `Answered` keeps neither, so under such a filter the answered
+  lines and the head's count hold answers the filter leaves out; no reason is
+  recorded.
+- **Design departs:** 3.5, *Needs you*, *What the client keeps*, and 5.3, from
+  the request of 2026-11-05 for them, decided by its plan's cut, the request
+  leaving that judgement to it. The rail's watch opens while a project's frame shows, not once signed
+  in: the rail alone reads it, and opened at sign-in it would stale all three
+  journeys' recordings. Bare `/inbox` is `/`, the Inbox's unfiltered address
+  (`browser.md`, 2.3). The dots are a figure, not `role=img`: skein-ui's
+  `Role::Image` is an image, with no children. Money reads "S of L used", not "$S
+  of $L": the contract's units aren't dollars, and the request also asks the task
+  page's form, which has none. Leave held takes its reason in a disclosure, as
+  Reject does, where the request names no text area: `Decision::LeftHeld` needs
+  one. A `Choice:` line past `CUE_BYTES` is no choice (`../domain/agent.md`, 8.2),
+  where the request counts every such line, since its button could send nothing.
+  And " · later" shows on *Needs you*'s mono line as on Home's, where the request
+  and the mock have it on Home's card alone: the one function draws both, and no
+  reason is recorded.
 - **Design departs:** 3.5, *Goals*, from the request of 2026-11-05: "6 / 9" is
   on the task line (jig's `client/domain/contract.md`, 5.1), where the request
   offered the goal's document or the tree's read, and a row reads its report
