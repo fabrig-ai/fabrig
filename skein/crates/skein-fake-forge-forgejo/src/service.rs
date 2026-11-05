@@ -18,6 +18,7 @@ pub struct Service {
     pub(crate) calls: Slab<Call>,
     pub(crate) rng: Rng,
     pub(crate) tally: Tally,
+    pub(crate) refused: Option<crate::Route>,
     pub(crate) setup: crate::setup::Store,
 }
 impl Service {
@@ -84,7 +85,11 @@ impl Service {
         for repository in &config.repositories {
             setup.repository_high = setup.repository_high.max(repository.id);
         }
-        Ok(Self { config, calls: Slab::with_capacity(limits.calls), rng: Rng::new(seed), tally, setup })
+        Ok(Self { config, calls: Slab::with_capacity(limits.calls), rng: Rng::new(seed), tally, setup, refused: None })
+    }
+    /// Refuses a selected decoded route with 403, or permits every route.
+    pub fn refuse(&mut self, route: Option<crate::Route>) {
+        self.refused = route;
     }
     /// A host supplies its bound local origin before it accepts requests.
     pub fn set_base(&mut self, base: Box<[u8]>, limits: &Limits) -> Result<(), Error> {

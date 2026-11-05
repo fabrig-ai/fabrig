@@ -1,11 +1,11 @@
 use crate::{
-    ChatsFilter, ModelWay, PlanFilter, Step, WayKind,
+    ChatsFilter, GoalsFilter, ModelWay, PlanFilter, Step, WayKind,
     address::{Address, Filter, Kind, Place, parse, print},
 };
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 17] = [
+    let pages: [(Address, &[u8]); 20] = [
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
@@ -18,6 +18,9 @@ fn each_page_round_trips_through_its_path() {
         (Address::Settings { project: 0 }, b"/projects/0/settings"),
         (Address::Settings { project: u32::MAX }, b"/projects/4294967295/settings"),
         (Address::Home { project: 3 }, b"/projects/3"),
+        (Address::Goals { project: 0, filter: GoalsFilter::All }, b"/projects/0/goals"),
+        (Address::Goals { project: u32::MAX, filter: GoalsFilter::All }, b"/projects/4294967295/goals"),
+        (Address::Goals { project: 3, filter: GoalsFilter::All }, b"/projects/3/goals"),
         (Address::Settings { project: 3 }, b"/projects/3/settings"),
         (Address::Adopt { project: 3 }, b"/projects/3/adopt"),
         (Address::Configure { project: 0 }, b"/projects/0/settings/configure"),
@@ -126,6 +129,10 @@ fn a_path_that_is_no_page_is_missing() {
         b"/projects/4294967296",
         b"/projects/4294967296/settings",
         b"/projects/01/settings",
+        b"/projects/01/goals",
+        b"/projects/4294967296/goals",
+        b"/projects/x/goals",
+        b"/projects/3/goals/extra",
         b"/projects/99999999999/settings",
         b"/projects/4294967296/settings/configure",
         b"/projects/01/settings/configure",
@@ -430,4 +437,34 @@ fn new_chat_has_its_own_canonical_address() {
         assert_eq!(parse(canonical), Place::Address(address));
     }
     assert_eq!(parse(b"/chats/newer"), Place::Missing);
+}
+
+#[test]
+fn goals_filter_is_its_query() {
+    for (filter, path) in [
+        (GoalsFilter::All, b"/projects/3/goals".as_slice()),
+        (GoalsFilter::Needs, b"/projects/3/goals?state=needs"),
+        (GoalsFilter::Live, b"/projects/3/goals?state=live"),
+        (GoalsFilter::Ended, b"/projects/3/goals?state=ended"),
+    ] {
+        let address = Address::Goals { project: 3, filter };
+        assert_eq!(print(&address).as_ref(), path);
+        assert_eq!(parse(path), Place::Address(address));
+    }
+}
+
+#[test]
+fn goals_drops_unread_state_and_prints_the_canonical_address() {
+    for (path, canonical) in [
+        (b"/projects/3/goals?state=nope".as_slice(), b"/projects/3/goals".as_slice()),
+        (b"/projects/3/goals?state=closed", b"/projects/3/goals"),
+        (b"/projects/3/goals?state=Live", b"/projects/3/goals"),
+        (b"/projects/3/goals?state=live=ended", b"/projects/3/goals"),
+        (b"/projects/3/goals?state&at=start", b"/projects/3/goals"),
+        (b"/projects/3/goals?state=nope&state=needs&state=ended", b"/projects/3/goals?state=needs"),
+        (b"/projects/3/goals/?unknown=x&state=live", b"/projects/3/goals?state=live"),
+    ] {
+        let Place::Address(address) = parse(path) else { panic!("goals address") };
+        assert_eq!(print(&address).as_ref(), canonical, "{path:?}");
+    }
 }

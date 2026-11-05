@@ -17,6 +17,7 @@ mod emit_types;
 mod parse;
 pub mod patch;
 
+pub use emit_limits::{pascal, snake};
 pub use parse::{Error, parse};
 
 /// One schema version of a family.
@@ -159,7 +160,6 @@ pub fn generate(schema: &Schema) -> Output {
     emit_types::emit(&context, &mut rust);
     emit_codec::emit(&context, &mut rust);
     emit_bounds::emit(&context, &mut rust);
-    emit_functions::split_bound_functions(&mut rust);
     let goldens = emit_tests::emit(&context, &mut rust);
     Output { rust, goldens }
 }

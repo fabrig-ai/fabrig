@@ -57,14 +57,14 @@ pub fn secret(bytes: &[u8]) -> Secret {
     Secret::new(bytes.into())
 }
 /// A bot with both valid token files; changing one file isolates its repair.
-pub fn bot_tokens(world: &mut crate::World) -> u64 {
+pub fn bot_tokens(world: &mut crate::HostWorld) -> u64 {
     use skein_forge_setup::item::Item;
     let id = seed_bot_tokens(world.store_mut());
     world.put(Item::ApiToken, secret(API));
     world.put(Item::GitToken, secret(GIT));
     id
 }
-/// Seeds the bot in either the plan world or the host's HTTP world.
+/// Seeds the bot in the host's fake Forgejo.
 pub fn seed_bot_tokens(store: &mut skein_fake_forge_forgejo::setup::Store) -> u64 {
     let id = store.account(b"kit", false, b"kit:bot");
     store.token(id, b"kit-api", &[b"read:user", b"write:issue", b"write:repository"], secret(API));
@@ -73,14 +73,14 @@ pub fn seed_bot_tokens(store: &mut skein_fake_forge_forgejo::setup::Store) -> u6
 }
 /// A settled forge for perturbing one behavior on its next run.
 #[must_use]
-pub fn converged(seed: u64) -> crate::World {
-    let mut world = crate::World::owned(seed);
+pub fn converged(seed: u64) -> crate::HostWorld {
+    let mut world = crate::HostWorld::owned(seed);
     assert_eq!(world.reconcile(), crate::Ended::Done);
     world
 }
 /// The HTTP mutations since a given request, including any unintended route.
 #[must_use]
-pub fn write_routes(world: &crate::World, since: usize) -> Vec<skein_fake_forge_forgejo::Route> {
+pub fn write_routes(world: &crate::HostWorld, since: usize) -> Vec<skein_fake_forge_forgejo::Route> {
     use skein_forge::forgejo::{client, request::Method};
     let limits = skein_forge_machine_world::fixtures::fake_limits();
     let mut routes = Vec::new();
@@ -93,10 +93,10 @@ pub fn write_routes(world: &crate::World, since: usize) -> Vec<skein_fake_forge_
     routes
 }
 #[must_use]
-pub fn file_writes(world: &crate::World) -> usize {
-    world.trace().iter().filter(|line| line.starts_with("Write {")).count()
+pub fn file_writes(world: &crate::HostWorld) -> usize {
+    world.needs().iter().filter(|need| matches!(need, skein_forge_setup::host::Need::Write { .. })).count()
 }
-pub fn assert_bot(world: &crate::World) {
+pub fn assert_bot(world: &crate::HostWorld) {
     use skein_forge_setup::item::Item;
     let bot = world.store().find(b"kit").expect("bot made");
     assert_eq!((bot.id, bot.admin, bot.full_name.as_ref()), (3, false, b"kit:bot".as_slice()));
@@ -116,12 +116,12 @@ pub fn assert_bot(world: &crate::World) {
         Some([b"write:repository".as_slice().into(), b"read:user".as_slice().into()].as_slice())
     );
 }
-pub fn assert_org(world: &crate::World, org: &[u8]) {
+pub fn assert_org(world: &crate::HostWorld, org: &[u8]) {
     assert_eq!(world.store().organization(org).expect("org").owner.as_ref(), b"ada");
 }
 /// Seed each part independently; stale credentials answer as another user or nobody.
 #[must_use]
-pub fn random(seed: u64) -> crate::World {
+pub fn random(seed: u64) -> crate::HostWorld {
     use skein_forge_setup::item::Item;
     use skein_lib::Rng;
     let mut rng = Rng::new(seed);
@@ -175,7 +175,7 @@ pub fn random(seed: u64) -> crate::World {
     world
 }
 fn seed_token(
-    world: &mut crate::World,
+    world: &mut crate::HostWorld,
     rng: &mut skein_lib::Rng,
     bot: Option<u64>,
     file: skein_forge_setup::item::Item,
@@ -192,7 +192,7 @@ fn seed_token(
         world.put(file, secret(b"unknown-file-token"));
     }
 }
-fn seed_org(world: &mut crate::World, rng: &mut skein_lib::Rng, org: &[u8]) {
+fn seed_org(world: &mut crate::HostWorld, rng: &mut skein_lib::Rng, org: &[u8]) {
     if rng.next_u64() & 1 == 1 {
         world.store_mut().org(org, b"ada");
     }
@@ -278,7 +278,7 @@ pub fn crypto() -> skein_lib::CryptoRng {
 }
 
 /// A person's two tokens for a connected Forgejo, with no user kept yet.
-pub fn connected_tokens(world: &mut crate::World) -> u64 {
+pub fn connected_tokens(world: &mut crate::HostWorld) -> u64 {
     use skein_forge_setup::item::Item;
     let id = seed_connected_tokens(world.store_mut());
     world.put(Item::ApiToken, secret(API));
@@ -295,7 +295,7 @@ pub fn seed_connected_tokens(store: &mut skein_fake_forge_forgejo::setup::Store)
 }
 
 /// Five older admin tokens, including the default, precede the handover token.
-pub fn admin_handover(world: &mut crate::World) -> u64 {
+pub fn admin_handover(world: &mut crate::HostWorld) -> u64 {
     seed_admin_handover(world.store_mut(), 4)
 }
 /// The default admin token and the chosen older tokens precede the handed one.
@@ -348,13 +348,13 @@ pub fn picker_owners(store: &mut skein_fake_forge_forgejo::setup::Store) {
 
 /// Repository identities are scenario configuration; grants live in the setup store.
 #[must_use]
-pub fn repositories(seed: u64, owned: bool, paths: &[&[u8]]) -> crate::World {
-    crate::World::with_config(seed, owned, repository_config(paths))
+pub fn repositories(seed: u64, owned: bool, paths: &[&[u8]]) -> crate::HostWorld {
+    crate::HostWorld::configured(seed, owned, repository_config(paths))
 }
-fn repositories_with_cap(seed: u64, owned: bool, paths: &[&[u8]], cap: u32) -> crate::World {
-    crate::World::with_config(seed, owned, repository_config_with_cap(paths, cap))
+fn repositories_with_cap(seed: u64, owned: bool, paths: &[&[u8]], cap: u32) -> crate::HostWorld {
+    crate::HostWorld::configured(seed, owned, repository_config_with_cap(paths, cap))
 }
-/// Repository identities shared by the plan and HTTP host worlds.
+/// Repository identities for the host's HTTP peer.
 #[must_use]
 pub fn repository_config(paths: &[&[u8]]) -> Config {
     repository_config_with_cap(paths, 2)
@@ -377,7 +377,7 @@ fn repository_config_with_cap(paths: &[&[u8]], cap: u32) -> Config {
 
 /// The connected picker has four raw rows per page, including read-only grants.
 #[must_use]
-pub fn connected_picker(seed: u64) -> crate::World {
+pub fn connected_picker(seed: u64) -> crate::HostWorld {
     use skein_forge::forgejo::{
         document::{Access, TeamSpec, Units},
         request::Grant,
@@ -406,7 +406,7 @@ pub fn connected_picker(seed: u64) -> crate::World {
             })
             .expect("ten repositories");
     }
-    let mut world = crate::World::with_config(seed, false, config);
+    let mut world = crate::HostWorld::with_config(seed, &[], config);
     world.store_mut().account(b"ada", false, b"Ada");
     world.store_mut().account(b"kit", false, b"kit:bot");
     for id in [1, 2, 3, 6, 9, 10] {

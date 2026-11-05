@@ -97,11 +97,11 @@ fn a_delayed_judge_cannot_keep_or_charge_an_effect_after_its_calling_run_is_canc
     let _requests = core::step(
         &mut core,
         &env,
-        core::Event::Tasks(tasks::Event::Control {
+        core::Event::Tasks(tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(9902)),
             by: tasks::Party::Person(1),
-            task: key.task,
-            control: tasks::Control::Cancel {
+            operation: tasks::Cancel {
+                task: key.task,
                 reason: b"cancel while the judge reads".as_slice().into(),
                 grace: None,
                 message: None,
@@ -161,11 +161,11 @@ fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
     let _requests = core::step(
         &mut core,
         &env,
-        core::Event::Tasks(tasks::Event::Control {
+        core::Event::Tasks(tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(9930)),
             by: tasks::Party::Task(parent),
-            task,
-            control: tasks::Control::Cancel {
+            operation: tasks::Cancel {
+                task,
                 reason: b"procedure withdrawn".as_slice().into(),
                 grace: None,
                 message: None,
@@ -200,11 +200,11 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
     let _requests = core::step(
         &mut core,
         &env,
-        core::Event::Tasks(tasks::Event::Control {
+        core::Event::Tasks(tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(9940)),
             by: tasks::Party::Person(1),
-            task: key.task,
-            control: tasks::Control::Cancel {
+            operation: tasks::Cancel {
+                task: key.task,
                 reason: b"close all outboxes".as_slice().into(),
                 grace: None,
                 message: None,
@@ -333,11 +333,11 @@ fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
         let _requests = core::step(
             &mut core,
             &env,
-            core::Event::Tasks(tasks::Event::Control {
+            core::Event::Tasks(tasks::Event::Cancel {
                 reply_to: ReplyTo::new(Token::new(9952)),
                 by: tasks::Party::Person(1),
-                task: key.task,
-                control: tasks::Control::Cancel {
+                operation: tasks::Cancel {
+                    task: key.task,
                     reason: b"cancel while describing".as_slice().into(),
                     grace: None,
                     message: None,

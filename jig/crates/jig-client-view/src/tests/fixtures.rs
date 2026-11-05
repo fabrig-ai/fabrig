@@ -221,6 +221,8 @@ pub(crate) fn task_line(
             failed: 0,
             cancelled: 0,
         },
+        delegates_done: 0,
+        delegates_total: 0,
         held_below: 0,
         conversation: None,
     }

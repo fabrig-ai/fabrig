@@ -63,14 +63,11 @@ fn tracking_past_goals_per_project_is_refused_and_changes_nothing() {
     let mut change = amendment();
     change.tracked = Some(Tracking::Tracked { priority: 3 });
     let out = test.send(Event::Amend {
+        operation: crate::Amend { task: THIRD, message: MESSAGE, stop_run: false, amendment: Box::new(change) },
         places: Box::new([]),
         funder: None,
         reply_to: to(),
         by: Party::Person(REQUESTER),
-        task: THIRD,
-        message: MESSAGE,
-        stop_run: false,
-        amendment: change,
     });
     assert_eq!(out, vec![Request::Refused { reply_to: to(), problem: Problem::new(Some(THIRD), Refusal::Goals) }]);
     assert_eq!(test.domain.task(THIRD), Some(&before));

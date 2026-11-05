@@ -22,14 +22,14 @@
 //! [`LIMITS`]'.
 
 use std::fmt::Write as _;
-use std::fs;
 
 use skein_http::server::{self, Body, Error, Rejection, Response, Reuse};
 use skein_http::{Method, Version};
 
+use skein_protocol_kit::transcript::{Kept, kept, quote, quoted, unquote, word};
+
 use crate::reference::{self, RequestEnding, RequestHead};
 use crate::server_world::{Outcome, Plan, When};
-use crate::transcript::{quote, quoted, unquote, word};
 
 /// The server's limits a transcript is read with, unless its expectation
 /// says otherwise.
@@ -68,23 +68,14 @@ pub fn plan() -> Plan {
 #[must_use]
 pub fn all() -> Vec<Transcript> {
     let directory = skein_scratch::paths::tree().join("tests/http").join("transcripts").join("requests");
-    let mut names = Vec::new();
-    for entry in fs::read_dir(&directory).expect("the request transcripts directory") {
-        let path = entry.expect("a directory entry").path();
-        if path.extension().is_some_and(|extension| extension == "http") {
-            names.push(path.file_stem().expect("a name").to_string_lossy().into_owned());
-        }
-    }
-    names.sort();
     let mut transcripts = Vec::new();
-    for name in names {
-        let bytes = fs::read(directory.join(format!("{name}.http"))).expect("the request");
-        let transcript = match fs::read(directory.join(format!("{name}.expect"))) {
-            Ok(text) => {
+    for Kept { name, bytes, expect } in kept(&directory, "http") {
+        let transcript = match expect {
+            Some(text) => {
                 let (limits, entries) = parse(&text).unwrap_or_else(|error| panic!("{name}.expect: {error}"));
                 Transcript { name, bytes, limits, expected: Some(entries) }
             }
-            Err(_) => Transcript { name, bytes, limits: LIMITS, expected: None },
+            None => Transcript { name, bytes, limits: LIMITS, expected: None },
         };
         transcripts.push(transcript);
     }

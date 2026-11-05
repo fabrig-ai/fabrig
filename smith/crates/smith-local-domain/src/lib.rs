@@ -59,6 +59,7 @@ mod tests;
 #[cfg(test)]
 mod agent_tests;
 
+pub use agent::said;
 pub use boundary::{
     AccountFailure, AgentFailure, ChatRefusal, ChatState, Checks, CredentialFailure, DeliveryIntent, DeliveryRecord,
     DeliveryState, Event, ExitStatus, Failure, GitOp, GitResult, IntentDirectory, Notice, Older, Reading, Request,
@@ -71,6 +72,7 @@ pub use domain::{Domain, fire, resume, step};
 pub use end::EndCause;
 pub use facts::Fact;
 pub use limits::{AgentLimits, Limits, max_line_bytes, valid};
+pub use person::tool_verdict;
 
 // Events expose credential forms and bounded saved history to their callers.
 pub use smith_host_domain::{Form, Scheme, SourceName, Transcript};

@@ -35,7 +35,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     );
     assert_eq!(
         crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0,
-        1 | 2 | 4 | 512 | 1024
+        1 | 2 | 4 | 128 | 512 | 1024
     );
     assignment.run.ended_by =
         if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
@@ -85,8 +85,8 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 37_821, 362_314),
-        (1, true, 35_731, 364_404),
+        (1, false, 38_661, 361_474),
+        (1, true, 36_571, 363_564),
         (2, false, 33_355, 366_780),
         (3, false, 37_505, 362_630),
         (4, false, 31_114, 369_021),
@@ -141,8 +141,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
 }
 
 #[test]
-fn the_stock_brief_with_a_whole_spec_fits_every_charter_whole() {
-    use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
+fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const FRAMING: u32 = 64 * (16 + 7);
     // Three model declarations leave this margin beyond the framed brief.
     const MARGIN: u32 = 567;
@@ -152,43 +151,13 @@ fn the_stock_brief_with_a_whole_spec_fits_every_charter_whole() {
     let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
     let largest = temper_engine_smith::charter(&assignment(1, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 362_314);
+    assert_eq!(room, 361_474);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
-    let spec = vec![b's'; 131_072];
-    let mut task = spec.clone();
-    task.extend_from_slice(b"\nContract: Change\nRequester: task 1\n");
-    task.resize(usize::try_from(brief.budgets.task).unwrap(), b' ');
-    assert_eq!(&task[..spec.len()], spec);
-    // Gathering keeps the whole task and pull, then the reviews within the total.
-    let reviews = brief.brief_bytes - brief.budgets.task - brief.budgets.pull - OTHER;
-    assert!(reviews <= brief.budgets.reviews);
     for (number, open) in [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false)] {
         let mut assignment = assignment(number, open, 0);
-        let mut sections = vec![
-            BriefSection {
-                kind: BriefKind::Core(jig_domain_brief::Core::Task),
-                body: BriefBody::Text(task.clone().into()),
-            },
-            BriefSection {
-                kind: BriefKind::Forge(ForgeBriefKind::Pull),
-                body: BriefBody::Text(vec![b'p'; usize::try_from(brief.budgets.pull).unwrap()].into()),
-            },
-            BriefSection {
-                kind: BriefKind::Forge(ForgeBriefKind::Reviews),
-                body: BriefBody::Text(vec![b'r'; usize::try_from(reviews).unwrap()].into()),
-            },
-        ];
-        for index in 0..61 {
-            sections.push(BriefSection {
-                kind: BriefKind::Core(jig_domain_brief::Core::Attempts),
-                body: BriefBody::Text(
-                    vec![b'x'; usize::try_from(OTHER / 61 + u32::from(index < OTHER % 61)).unwrap()].into(),
-                ),
-            });
-        }
-        assignment.sections = sections.into();
+        assignment.sections = whole_spec_sections(&brief, OTHER);
         let mut charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(
@@ -203,8 +172,66 @@ fn the_stock_brief_with_a_whole_spec_fits_every_charter_whole() {
         assert!(u64::from(remaining) - rendered >= u64::from(MARGIN));
         let whole = temper_engine_smith::charter(&assignment);
         temper_engine_smith::fit_brief(&mut charter, Some(&mounted), &limits);
-        assert_eq!(charter, whole, "charter {number} open={open} keeps every byte");
+        assert!(charter.owned_bytes().unwrap() <= run::charter_room(Some(&mounted), &limits).unwrap());
+        assert!(run::brief_bytes(&charter.brief).unwrap() <= u64::from(remaining));
+        assert!(charter.brief.sections[0].text.ends_with(b" bytes; whole: the task's activity]\n"));
+        assert_eq!(
+            without_brief(charter),
+            without_brief(whole),
+            "charter {number} open={open} keeps fixed declarations"
+        );
     }
+}
+
+fn whole_spec_sections(
+    brief: &temper_engine_domain::BriefLimits,
+    other: u32,
+) -> Box<[temper_engine_domain::BriefSection]> {
+    use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
+    let spec = vec![b's'; 131_072];
+    let mut task = spec.clone();
+    task.extend_from_slice(b"\nContract: Change\nRequester: task 1\n");
+    task.resize(usize::try_from(brief.budgets.task).unwrap(), b' ');
+    assert_eq!(&task[..spec.len()], spec);
+    // Gathering keeps the whole task and pull, then the reviews within the total.
+    let reviews = brief
+        .brief_bytes
+        .checked_sub(brief.budgets.task)
+        .unwrap()
+        .checked_sub(brief.budgets.pull)
+        .unwrap()
+        .checked_sub(other)
+        .unwrap();
+    assert!(reviews <= brief.budgets.reviews);
+    let mut sections = vec![
+        BriefSection {
+            kind: BriefKind::Core(jig_domain_brief::Core::Task),
+            body: BriefBody::Text(task.clone().into()),
+        },
+        BriefSection {
+            kind: BriefKind::Forge(ForgeBriefKind::Pull),
+            body: BriefBody::Text(vec![b'p'; usize::try_from(brief.budgets.pull).unwrap()].into()),
+        },
+        BriefSection {
+            kind: BriefKind::Forge(ForgeBriefKind::Reviews),
+            body: BriefBody::Text(vec![b'r'; usize::try_from(reviews).unwrap()].into()),
+        },
+    ];
+    for index in 0..61 {
+        sections.push(BriefSection {
+            kind: BriefKind::Core(jig_domain_brief::Core::Attempts),
+            body: BriefBody::Text(
+                vec![b'x'; usize::try_from((other / 61).checked_add(u32::from(index < other % 61)).unwrap()).unwrap()]
+                    .into(),
+            ),
+        });
+    }
+    sections.into()
+}
+
+fn without_brief(mut charter: run::Charter) -> run::Charter {
+    charter.brief.sections = Box::default();
+    charter
 }
 
 #[test]

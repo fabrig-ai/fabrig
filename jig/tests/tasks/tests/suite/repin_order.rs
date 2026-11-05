@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    Accepted, Active, Added, Amendment, Control, End, EndKind, Ending, Event, Funder, Key, Line, MessageKind, Party,
-    Phase, Refusal, Stored,
+    self as tasks, Accepted, Active, Added, Amendment, Cancel, End, EndKind, Ending, Event, Funder, Key, Line,
+    MessageKind, Party, Phase, Refusal, Stored,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::ReplyTo;
@@ -22,25 +22,27 @@ fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Reply {
 fn amend(world: &mut World, by: Party, task: u64, dependencies: &[u64]) -> Reply {
     let message = world.record(task).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        operation: tasks::Amend {
+            task,
+            message,
+            stop_run: false,
+            amendment: Box::new(Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: Some(dependencies.into()),
+                authority: None,
+                llm: None,
+                reason: Box::new([1]),
+            }),
+        },
         places: Box::new([]),
         reply_to,
         by,
-        task,
-        message,
-        stop_run: false,
         funder: None,
-        amendment: Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: Some(dependencies.into()),
-            authority: None,
-            llm: None,
-            reason: Box::new([1]),
-        },
     })
 }
 
@@ -112,11 +114,10 @@ fn a_running_repin_given_a_dependency_lands_after_the_other_and_starts_its_depen
         world.claim(task, 1);
     }
     assert_eq!(
-        response(&mut world, |reply_to| Event::Control {
+        response(&mut world, |reply_to| Event::Cancel {
             reply_to,
             by: DIRECTOR,
-            task: FIRST_RUN,
-            control: Control::Cancel { reason: Box::new([1]), grace: None, message: None },
+            operation: Cancel { task: FIRST_RUN, reason: Box::new([1]), grace: None, message: None }
         }),
         Reply::Done
     );

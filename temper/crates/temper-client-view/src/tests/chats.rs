@@ -72,6 +72,8 @@ pub(super) fn line() -> TaskLine {
         budget,
         waits_on: WaitsOn::Nothing,
         phases: PhaseCounts { running: DELEGATES, ..PhaseCounts::ZERO },
+        delegates_done: 0,
+        delegates_total: 0,
         held_below: EMPTY,
         conversation: None,
     }
