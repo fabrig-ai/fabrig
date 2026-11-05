@@ -60,6 +60,19 @@ As the implementer's text has it, and what the real answer held that the code di
 
 ## Answers
 
+2026-11-05 (fabrig/temper). The capture is here, so don't stop for it: temper/docs/plan/brief-failure/notes/pr7/ on the trunk (pull.json, status.json, compare-base-sha.json, base-ref-tip.json, index.txt). Read at 15:02Z, anonymously, the repository being public, after the refusals began at 14:51Z. So a field that varies with the caller may differ, and the head's status had by then gone green after a re-run. Base and head are the ones the failing brief read.
+
+First: decode each through skein-forge's real decoder and the client's checks (compared, the pull's checks) as a test, and report plainly which pass. By eye they look ordinary: compare has 13 commits and total_commits 13, 50 file rows over 16 paths (finding-323's repeats, whose repair is in the deployed build), and merge commits in the list. No cause is proved, and the request's route is a guess: if all of them pass, say so, and don't invent a fix.
+
+Candidates to read, none proved:
+- the compare plan's total_commits != commits.len(), in skein-forge/src/forgejo/plans/commits.rs: Forgejo may list fewer commits than total_commits on a long range, as the journal's refusals of read_compare were on other tasks' ranges. A real refusal of a long range would be a true bug, whichever task it hit;
+- a tool's refusal from the agent's own arguments (a before that isn't the answer's), which is not a parser fault, and is words at most;
+- what this capture lacks: the red state. The brief's Ci section reads checks and jobs at a red head. A later repair of the same change read 'Repair CI at <head>: ' with no check named, which first-goal-fixes owns, but it may be the same answer's shape. If the cause isn't in this capture, name exactly which answer you'd want, in the red state, under ## Left: a request can be made of the deployment by a person, not by a test.
+
+A fixture's names and addresses go neutral, as your task says. No test reaches a real host. Done with no code change and the candidates read is an accepted end.
+
+2026-11-05, later, having read the capture. This answer holds where the one above differs: the compare has a cause to prove, so a run that ends with no code change has to show this cause false. The rest of the one above stands: the capture's provenance, neutral fixtures, no real host, and reporting which answers pass; its candidates stay open for what `removed` doesn't explain.
+
 2026-11-05. **What did the deployment's API answer to the refused reads?** The capture has come: `temper/docs/plan/brief-failure/notes/pr7/`, with `index.txt` naming each file's request and `inputs/capture.md` pointing to it. Step 2 no longer applies; take steps 3 and 4 and the capture acceptance.
 
 - **The compare's cause, by reading (run nothing on a real host; prove it with the test):** `compare-base-sha.json` has two `files[]` rows with `"status":"removed"`. `skein-forge/src/forgejo/client/files.rs`, `status`, knows `added`, `deleted`, `modified`, `changed`, `renamed` and `copied`, so the row is `Malformed::Value { field: b"status" }`, which `plans/contents.rs` turns into `InvalidAnswer`. No conformance transcript holds a compare with a removed file, which is why it never showed. `temper-engine-domain-forge/src/brief.rs` reads this compare, so it is a likely route to the repair's stuck brief.
