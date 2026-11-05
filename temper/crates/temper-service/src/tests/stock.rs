@@ -309,20 +309,20 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     }
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 3282, Setting::Policy(1), "the stock's policy 1 needs 3282 bytes"),
+        (b"core.policy_bytes", 5742, Setting::Policy(1), "the stock's policy 1 needs 5742 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
         (b"authority.executors", 8, Setting::Rules, "the stock's rules need 8 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
-        (b"authority.roles", 1, Setting::Policy(1), "the stock's policy 1 needs 1 role"),
+        (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
         (b"tasks.charters", 5, Setting::Charter(1), "the stock offers 5 charters"),
         (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
         (b"documents.text_bytes", 11, Setting::Template(3), "the stock's template 3 needs 11 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
         (b"core.settings.alternatives", 1, Setting::Charter(1), "the stock's charter 1 needs 1 alternative"),
-        (b"core.settings.permissions", 1, Setting::Policy(1), "the stock's policy 1 needs 1 permission"),
+        (b"core.settings.permissions", 3, Setting::Policy(1), "the stock's policy 1 needs 3 permissions"),
     ];
     // Every positive scalar bound reached by jig's whole-set check is at its
     // floor together. This catches a stock value acquiring another unmet bound.
@@ -430,7 +430,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3282 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5742 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -709,8 +709,10 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     own.templates[0].flags.listed = true;
     let policy = &mut own.policies.get_mut(&1).unwrap().policy;
     policy.period_spend = 41;
-    // The test's project copies this policy, whose role allowance must fit its period.
-    policy.roles[0].period_spend = 41;
+    // The project copies this policy; every role allowance fits its period.
+    for role in &mut policy.roles {
+        role.period_spend = role.period_spend.min(policy.period_spend);
+    }
     own.rules.maximum_run_spend = 2;
     let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
     let engine = crate::startup::engine_with(&document, at, &config::Directories::working(), &given).unwrap();
