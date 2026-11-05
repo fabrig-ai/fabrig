@@ -108,3 +108,14 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: each figure, old and new.
+
+## Rebase (2026-11-05, step merge, foreman ui-away/decided-tool/foreman-1)
+
+rebase the three conflicting files, preserve both features, and regenerate Story A.
+The merge failed on `temper/docs/design/domain/forge.status.md`, `temper/docs/help/task.md`, and `temper/tests/playground/tests/fixtures/story-a.log`.
+In `forge.status.md`, remove the entire Away/Overturn/decided gap entry: `5d6561d3b7` closes the routes, and this branch closes the tool and named answer. Keep unrelated gaps.
+In `task.md`, retain `433364d842`’s cancellation explanation and page condensation, then add `decided` beside `goal` in the host-tool list. Keep the page within its existing byte bound without losing facts.
+Regenerate `story-a.log` from the combined code; do not select either recording or splice hashes. Integration’s `8181ff01e3` regenerated it for other combined changes.
+Its generator is `temper/tests/playground/tests/suite/walk.rs::story_a_walks_from_the_welcome_to_the_csv_change_landed`, enabled by `SKEIN_CODEGEN_WRITE`.
+Through heavy, run that test in package `temper-playground-world`, binary `suite`, with generation enabled; then run `story_a_kept_log_replays_natively` without generation. Report the regenerated fixture.
+Run the focused `temper-docs` page checks and the spec’s relevant validation after resolving the conflicts.
