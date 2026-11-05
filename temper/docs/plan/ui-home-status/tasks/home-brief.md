@@ -58,3 +58,16 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-home-status/home-brief/foreman-1)
+
+Rebase Home’s brief onto integration, preserving the newer Needs session and Goals behavior.
+The merge failed in five paths; this is a branch conflict, not an infrastructure failure.
+Reconcile with `ebf85a0159` (main catch-up and Needs integration) and `7d6534e5c1` (rebased Home goals).
+- `temper/crates/temper-client-view/src/pages/home.rs`: keep integration’s `number_word`, Needs session rendering, row bound, confirmation and Goals rendering. Apply the branch’s `Facts::brief()` sentence, optional lede, clock byline and terminal composition around them. Drop `HomeNeedsThree`; integration’s `HomeThree` already supplies “Three.”
+- `temper/crates/temper-client-view/src/words.rs`: preserve integration’s vocabulary and IDs. The branch’s `HomeByline = 3289` collides with `NeedsLast`; assign a free ID. Add its enum, `ALL`, English phrase and capacity accounting. Retain the branch’s `Weekday` formatting and comma in `HomeDayTime`; recompute combined phrase, segment and word counts.
+- `temper/crates/temper-client-view/src/tests/home.rs`: retain integration’s standing Needs watch setup, delivery, fixture limits, expanded number tests and session action assertions. Add the branch’s brief tests and weekday expectations without restoring the older fixture setup.
+- `temper/tools/gallery/src/samples.rs`: retain integration’s Needs samples and Goals fixture. Add `home-morning` and `morning_status`; include it in the extracted `home_needs` helper and everyday/chat selections. Propagate the branch’s sample-aware `home_since(name, minutes)` into integration’s new helper call sites.
+- Preserve both sides’ gallery names and assertions; reconcile `samples::N` with the combined sample list. Keep the authorized `worlds.rs` clock override for Tuesday 08:04.
+- `temper/docs/design/client/README.status.md`: remove only the Home lede/byline gap, preserving integration’s other status entries.
+Check the automatically merged domain, frame and gallery files for consistency. Run the focused Home view, terminal shell and gallery checks through `heavy` with `TEMPER_BUNDLE=none`; regenerate affected terminal goldens using their existing tool and report them.
