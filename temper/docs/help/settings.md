@@ -6,10 +6,10 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 
 ## What it is
 
-The settings are a deployment's charters, templates and policies, and
-its rules, with temper's landing rules, the forge's charters and each
-project's ways and questions. A setting is named by its kind and number,
-or its project for ways and questions; the rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
+A deployment's settings are its charters, templates, policies, rules,
+landing rules, forge charters and each project's ways and questions.
+A setting is named by kind and number, or project for ways and
+questions; the rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
 `landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`,
 `project-ways 2`, `project-questions 2`.
 
@@ -28,62 +28,54 @@ or its project for ways and questions; the rules have no number: `charter 2`, `t
 - A policy is what a project made from it starts with, and the rules are
   the ceilings of every project: `temper help policy`.
 
-A project's own policy is no setting, yet it is an item of a change,
-named `project-policy P`: set to a policy whole, set alone and at most
-once a file. `settings show` lists no project's policy; `project show
-PROJECT` reads its roles and spends.
+A project's policy is no setting, but a change can name it as
+`project-policy P`: set whole, set alone, at most once per file.
+`settings show` omits it; `project show PROJECT` reads its roles and spends.
 
-The binary holds the defaults, and the store holds the changes over
-them. The current settings are the defaults with the stored changes over
-them: a setting no change names follows its default. The settings live
-in the store, never in the configuration document.
+The binary holds defaults; the store holds changes over them.
+A setting without a stored change follows its default. Settings never
+live in the configuration document.
 
-The stock has five charters, numbered 1, 2, 3, 4 and 6, and three
-templates: 1 for a chat, 2 for a goal and 3 for the configuring chat.
-Its rules offer those five charter executors and procedure executors
-2, 3 and 4.
+The stock has five charters (1, 2, 3, 4 and 6) and three templates:
+1 for a chat, 2 for a goal, 3 for the configuring chat. Its rules offer
+those five charter executors and procedures 2, 3 and 4.
 
-A setting's value is whole: a JSON value, as `settings show` prints
-it in JSON. Its members, with their types and bounds, are in
+A setting's whole value is JSON, as printed by `settings show`.
+Its members, types and bounds are in
 `temper help settings-fields`.
 
 ## How it changes
 
-A change is a set of items, at most one per setting. Each item does one
-of three things to its setting:
+A change holds at most one item per setting. Each item:
 
-- sets it to a whole value, which replaces the value before it;
-- removes it, so that it is no longer offered, its default included;
-- resets it, erasing its change, so that it follows its default again.
+- sets a whole replacement value;
+- removes the setting from those offered, its default included;
+- resets it, erasing its change to follow its default again.
 
 The rules are set or reset, never removed.
 
 A change names the newest revision its maker read. It makes one revision
-(`temper help revision`), or it is refused whole and changes nothing.
+(`temper help revision`), or is refused whole, changing nothing.
 The deployment's items need its owners; a project's policy needs that
 project's owners; a change of both needs one person who owns both. A
 party with a role in the deployment or in a project proposes one
 instead, for those owners to decide
 (`temper help proposal`).
 
-A start whose binary has a new default for a setting that follows its
-default makes a revision of its own. A stored change still wins over a
-default that changed.
+A start with a new default for a setting following its default makes
+a revision. Stored changes still win over changed defaults.
 
 ## What temper guarantees
 
-- A change is checked whole before it commits: each value in its shape
-  and within its bounds, each kind within its count, and every reference
-  between settings, such as a template's charter or a charter's models.
-- A refused change commits nothing. Its refusal names the item, its
-  setting and its fault.
-- A change against a revision that is no longer the newest is refused as
-  stale, naming the newest. Read again, and decide again on what you
-  read.
-- A change that leaves every setting as it was is refused as unchanged.
+- Before committing, temper checks the whole change: values' shapes
+  and bounds, counts per kind and references between settings, such as
+  a template's charter or a charter's models.
+- A refusal commits nothing and names the item, setting and fault.
+- A change against an older revision is refused as stale, naming the
+  newest. Read again and decide on what you read.
+- A change leaving every setting as it was is refused as unchanged.
 - An accepted change takes effect without a restart.
-- A change asked again under the same key gives its first outcome and
-  makes no second revision.
+- Repeating a change's key gives its first outcome, with no new revision.
 - Each kind is read when it is used: a charter's at each run, from its
   task's revision (`temper help revision`); a template's when a task is
   made from it; a policy's when a project is made from it; the rules at
@@ -154,7 +146,7 @@ version.
 
 ## Limits
 
-For the configuration members that need a restart, read `temper help configuration`.
+For configuration needing a restart, read `temper help configuration`.
 
 - temper does not patch a member: an item sets a whole value.
 - The person's client has no page to change settings.
@@ -166,6 +158,5 @@ For the configuration members that need a restart, read `temper help configurati
   a change to them needs a restart. Its limits must hold the stock's
   settings: a start refuses one that does not, and another model or a
   release with new stock can move what they need.
-- The stock needs room for at least five charters, three templates and
-  eight executor kinds: its five charters and three procedures. These
-  are floors; a deployment's own settings may need more.
+- Stock floors are five charters, three templates and eight executor
+  kinds (five charters, three procedures); your settings may need more.
