@@ -95,7 +95,12 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                     },
             } => {
                 let delivery = match subject {
-                    c::Subject::Settings => unreachable!("temper does not watch settings"),
+                    c::Subject::Settings => Some(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                        newest: 0,
+                        settings: List::with_capacity(0),
+                        held: List::with_capacity(0),
+                        pending: List::with_capacity(0),
+                    }))),
                     c::Subject::Me => Some(c::Delivery::Me(Box::new(demo_me()))),
                     c::Subject::Task { task } => Some(c::Delivery::Task(Box::new(delegation_task(task, landed)))),
                     c::Subject::Accounts if landed => Some(c::Delivery::Accounts(Box::new(demo_accounts()))),
@@ -168,6 +173,27 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                         record: Some(demo_answer()),
                     },
                 })
+            }
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
+            } => {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
+                    Some(jig_client::Up::ReadDone {
+                        read,
+                        result: jig_client::Readout::Family {
+                            family: wire::FORGE,
+                            record: Some(wire::setting_answer(
+                                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None }).unwrap(),
+                            )),
+                        },
+                    })
+                } else {
+                    None
+                }
             }
             Request::Client { .. }
             | Request::Unlinked { .. }
