@@ -87,7 +87,7 @@ fn check_issuer(document: oauth::Limits) {
             client_id: boxed(b"client"),
             client_secret: None,
             redirect_uri: boxed(b"http://127.0.0.1:1234/callback"),
-            refresh_token: boxed(b"seed"),
+            refresh_token: skein_lib::Secret::new(boxed(b"seed")),
             terms: Some(issued(&[&[b'c'; 1024][..]; fake::ISSUED])),
         },
         fake_limits,

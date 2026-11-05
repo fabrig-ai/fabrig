@@ -952,7 +952,11 @@ pub(crate) fn issuer_with_terms(
             client_id: bytes::copy_of(b"client"),
             client_secret: None,
             redirect_uri: bytes::copy_of(REDIRECT),
-            refresh_token: bytes::copy_of(if story == Story::SignInAgain { b"revoked" } else { b"seed" }),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(if story == Story::SignInAgain {
+                b"revoked"
+            } else {
+                b"seed"
+            })),
             terms,
         },
         issuer_limits,
@@ -1092,7 +1096,7 @@ fn protocol_connection(seed: u64, mut client: Client, room: bool) -> (Client, Ve
             client_id: registration.client_id.clone(),
             client_secret: None,
             redirect_uri: registration.redirect_uri.clone(),
-            refresh_token: bytes::copy_of(b"seed"),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(b"seed")),
             terms: sign_out.map(crate::sign_out::issuer_terms),
         },
         issuer_limits,

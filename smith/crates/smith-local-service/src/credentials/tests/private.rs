@@ -77,7 +77,7 @@ fn issuer() -> Peer {
             client_secret: None,
             terms: None,
             redirect_uri: REDIRECT.into(),
-            refresh_token: b"refresh-old".as_slice().into(),
+            refresh_token: Secret::new(b"refresh-old".as_slice().into()),
         },
         fake::Limits {
             document: native_limits().client.document,

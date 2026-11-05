@@ -50,7 +50,7 @@ fn scenario(seed: u64) {
             client_id: box_of(b"client"),
             client_secret: None,
             redirect_uri: box_of(b"http://127.0.0.1:1234/callback"),
-            refresh_token: box_of(b"seed"),
+            refresh_token: skein_lib::Secret::new(box_of(b"seed")),
             terms: None,
         },
         fake::Limits { document, uri_bytes: 256, request_bytes: 512, codes: 2, rotations: 2, plans: 2, carried: 0 },

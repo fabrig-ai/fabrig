@@ -138,7 +138,7 @@ impl Document {
             client_id: b"dynamic_agent_client".as_slice().into(),
             client_secret: None,
             redirect_uri: self.redirect_uri.clone(),
-            refresh_token: REFRESH.into(),
+            refresh_token: skein_lib::Secret::new(REFRESH.into()),
             terms: Some(issuer::Terms {
                 issued: Box::new([b"issued-client".as_slice().into()]),
                 omit_issued: false,

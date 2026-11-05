@@ -53,9 +53,9 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
             authorization_url: registration.authorization_url.clone(),
             token_endpoint: registration.token_endpoint.clone(),
             client_id: registration.client_id.clone(),
-            client_secret: registration.client_secret.clone().map(skein_lib::Secret::into_exposed),
+            client_secret: registration.client_secret.clone(),
             redirect_uri: registration.redirect_uri.clone(),
-            refresh_token: bytes::copy_of(b"seed"),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(b"seed")),
             terms: super::issuer::port_terms(story),
         },
         issuer_limits,
@@ -139,9 +139,9 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
                 };
                 let mut location = uri.to_vec();
                 location.extend_from_slice(b"?state=");
-                location.extend_from_slice(&state);
+                location.extend_from_slice(state.expose());
                 location.extend_from_slice(b"&code=");
-                location.extend_from_slice(&code);
+                location.extend_from_slice(code.expose());
                 if let Some(client_id) = client_id {
                     location.extend_from_slice(b"&client_id=");
                     location.extend_from_slice(&client_id);

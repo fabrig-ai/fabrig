@@ -29,9 +29,13 @@ fn make(story: Story, large: bool, access_token: Option<&[u8]>) -> Process {
             authorization_url: registration.authorization_url,
             token_endpoint: registration.token_endpoint,
             client_id: registration.client_id,
-            client_secret: registration.client_secret.map(skein_lib::Secret::into_exposed),
+            client_secret: registration.client_secret,
             redirect_uri: registration.redirect_uri,
-            refresh_token: if large { vec![b's'; 256].into_boxed_slice() } else { bytes::copy_of(b"seed") },
+            refresh_token: skein_lib::Secret::new(if large {
+                vec![b's'; 256].into_boxed_slice()
+            } else {
+                bytes::copy_of(b"seed")
+            }),
             terms: port_terms(story),
         },
         fake::Limits {
@@ -127,9 +131,9 @@ pub fn key_set() -> Box<[u8]> {
             authorization_url: registration.authorization_url,
             token_endpoint: registration.token_endpoint,
             client_id: registration.client_id,
-            client_secret: registration.client_secret.map(skein_lib::Secret::into_exposed),
+            client_secret: registration.client_secret,
             redirect_uri: registration.redirect_uri,
-            refresh_token: bytes::copy_of(b"seed"),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(b"seed")),
             terms: port_terms(Story::OpenIdAgain),
         },
         fake::Limits {

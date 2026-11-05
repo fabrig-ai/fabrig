@@ -69,7 +69,7 @@ fn make_with_cap_at(
             client_id: bytes::copy_of(b"client"),
             client_secret: None,
             redirect_uri: bytes::copy_of(b"http://127.0.0.1:1234/callback"),
-            refresh_token: bytes::copy_of(b"seed"),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(b"seed")),
             terms,
         },
         issuer::Limits { document, uri_bytes: 256, request_bytes: 1024, codes: 2, rotations: 2, plans: 2, carried: 1 },

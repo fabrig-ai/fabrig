@@ -142,7 +142,7 @@ fn issuer_with_token(transport: skein_fake_peers::Transport, port: u16, access_t
             client_secret: None,
             terms: None,
             redirect_uri: format!("http://127.0.0.1:{redirect}/callback").into_bytes().into(),
-            refresh_token: b"refresh-old".as_slice().into(),
+            refresh_token: skein_lib::Secret::new(b"refresh-old".as_slice().into()),
         },
         limits,
         skein_http::server::Limits {

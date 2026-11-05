@@ -33,7 +33,7 @@ pub(crate) fn peer(address: std::net::SocketAddr, registration: &serde_json::Val
             client_id: bytes("client"),
             client_secret: None,
             redirect_uri: b"http://127.0.0.1:0/auth/callback".as_slice().into(),
-            refresh_token: b"fake-refresh".as_slice().into(),
+            refresh_token: skein_lib::Secret::new(b"fake-refresh".as_slice().into()),
             terms: Some(skein_fake_oauth::Terms {
                 issued: Box::new([b"issued-client".as_slice().into()]),
                 omit_issued: false,
