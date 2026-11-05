@@ -1,7 +1,7 @@
 //! Call-specific HTTP refusals and table invalidation (forge.md, 3.4).
 use crate::api;
 use crate::forgejo::failure::Refusal;
-use crate::forgejo::plans::Fields;
+use crate::forgejo::plans::{Fields, tables::Tables};
 pub use crate::plan::transport;
 use skein_lib::Duration;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -82,6 +82,22 @@ pub fn classify(asked: Asked, status: u16, refusal: Option<Refusal>, retry: Opti
         }
     };
     Classified { error: before_write(asked, error), drop }
+}
+/// The refusal a status means, dropping the repository row where it says the row is stale (forge.md, 3.4).
+pub fn refused(
+    asked: Asked,
+    status: u16,
+    refusal: Option<Refusal>,
+    retry: Option<Duration>,
+    repository: api::Repository,
+    tables: &mut Tables,
+) -> api::Error {
+    let classified = classify(asked, status, refusal, retry);
+    match classified.drop {
+        Drop::Nothing => {}
+        Drop::Path | Drop::Row => tables.drop_repository(repository),
+    }
+    classified.error
 }
 #[must_use]
 pub fn before_write(asked: Asked, error: api::Error) -> api::Error {

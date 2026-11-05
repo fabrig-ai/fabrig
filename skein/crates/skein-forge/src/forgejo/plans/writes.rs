@@ -3,7 +3,7 @@
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
-    failure::{self, Asked, Drop},
+    failure::{self, Asked},
     plan::{Bounds, Exchange, Step},
     reading,
     tables::{Repository, Tables},
@@ -208,11 +208,8 @@ impl Plan {
                 },
                 Body::Document(_) | Body::Empty | Body::Raw { .. } | Body::Malformed(_) => None,
             };
-            let classified = failure::classify(self.asked(), self.status, refusal, self.retry);
-            if classified.drop != Drop::Nothing {
-                tables.drop_repository(self.repository);
-            }
-            return Ok(Some(Step::Done(Err(self.error(classified.error)))));
+            let error = failure::refused(self.asked(), self.status, refusal, self.retry, self.repository, tables);
+            return Ok(Some(Step::Done(Err(self.error(error)))));
         }
         let document = match body {
             Body::Document(document) => Some(document),
@@ -334,14 +331,8 @@ impl Plan {
         self.errors().error(error)
     }
 }
-fn at(row: &Repository) -> r::Repo {
-    r::Repo { owner: row.owner.clone(), name: row.name.clone() }
-}
-fn id(row: &Repository, bytes: api::Commit) -> ObjectId {
-    ObjectId { bytes, format: row.object_format }
-}
 fn initial(row: Repository, write: api::Write, bounds: Bounds, word: &[u8]) -> Result<(State, Step), api::Error> {
-    let at = at(&row);
+    let at = row.at();
     let request = match write.clone() {
         api::Write::Dispatch { workflow, branch, inputs } => Request::Dispatch { at, workflow, branch, inputs },
         api::Write::Rerun { attempt: job } => Request::Rerun { at, job: job.job },
@@ -380,9 +371,9 @@ fn initial(row: Repository, write: api::Write, bounds: Bounds, word: &[u8]) -> R
                 api::Check::Passed => d::StatusState::Success,
                 api::Check::Failed => d::StatusState::Failure,
             };
-            Request::PostStatus { at, commit: id(&row, commit), state, context, description, link }
+            Request::PostStatus { at, commit: row.id(commit), state, context, description, link }
         }
-        api::Write::CreateBranch { branch, commit } => Request::CreateBranch { at, branch, from: id(&row, commit) },
+        api::Write::CreateBranch { branch, commit } => Request::CreateBranch { at, branch, from: row.id(commit) },
         api::Write::DeleteBranch { branch } => Request::DeleteBranch { at, branch },
         api::Write::OpenPull { title, body, head, base } => {
             drop(write);
@@ -399,7 +390,7 @@ fn initial(row: Repository, write: api::Write, bounds: Bounds, word: &[u8]) -> R
                 api::MergeHow::Style => row.merge_style,
                 api::MergeHow::FastForwardOnly => d::MergeStyle::FastForwardOnly,
             },
-            head: id(&row, head),
+            head: row.id(head),
         },
     };
     Ok((State::Writing { row, write }, Step::send(request)))
@@ -458,12 +449,12 @@ fn next(
         State::Writing { row, write } => written(row, write, document),
         State::OpenHead { row, open } => {
             let head = branch(&row, document)?;
-            let request = Request::Branch { at: at(&row), name: open.base.clone() };
+            let request = Request::Branch { at: row.at(), name: open.base.clone() };
             Ok((State::OpenBase { row, open, head }, Step::send(request)))
         }
         State::OpenBase { row, open, head } => {
             let before = branch(&row, document)?;
-            let request = Request::Compare { at: at(&row), before, after: head, files: false };
+            let request = Request::Compare { at: row.at(), before, after: head, files: false };
             Ok((State::OpenCompare { row, open }, Step::send(request)))
         }
         State::OpenCompare { row, open } => compared(row, open, document),
@@ -504,7 +495,7 @@ fn compared(row: Repository, open: Open, document: Option<d::Document>) -> Resul
                 return Ok((State::Ended, Step::Done(Err(api::Error::NothingToMerge))));
             }
             let request = Request::OpenPull {
-                at: at(&row),
+                at: row.at(),
                 title: open.title.clone(),
                 body: open.body.clone(),
                 head: open.head.clone(),
@@ -573,14 +564,14 @@ fn lookup(row: Repository, number: u64, mut looking: Looking, forge: u16, tables
     if looking.add.is_empty() {
         return remove_reviewers(row, number, looking.remove);
     }
-    let request = Request::RequestReviewers { at: at(&row), number, reviewers: looking.add.into_boxed() };
+    let request = Request::RequestReviewers { at: row.at(), number, reviewers: looking.add.into_boxed() };
     (State::Adding { row, number, remove: looking.remove }, Step::send(request))
 }
 fn remove_reviewers(row: Repository, number: u64, remove: List<Box<[u8]>>) -> (State, Step) {
     if remove.is_empty() {
         return (State::Ended, Step::Done(Ok(api::Answer::Done)));
     }
-    let request = Request::RemoveReviewers { at: at(&row), number, reviewers: remove.into_boxed() };
+    let request = Request::RemoveReviewers { at: row.at(), number, reviewers: remove.into_boxed() };
     (State::Removing { row }, Step::send(request))
 }
 fn written(row: Repository, write: api::Write, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
@@ -635,7 +626,7 @@ fn written(row: Repository, write: api::Write, document: Option<d::Document>) ->
             if document.is_some() {
                 return Err(api::Error::Timeout);
             }
-            let request = Request::Pull { at: at(&row), number };
+            let request = Request::Pull { at: row.at(), number };
             return Ok((State::Merged { row }, Step::send(request)));
         }
     }?;
