@@ -3,7 +3,7 @@ id = "protocol-parties"
 part = "front-identities"
 kind = "feature"
 needs = []
-files = ["jig/tests/client-protocol/src/front.rs", "jig/tests/client-protocol/src/front/**", "jig/tests/client-protocol/src/engine.rs", "jig/tests/client-protocol/src/fixtures.rs", "jig/tests/client-protocol/tests/suite/shared/a.rs", "jig/tests/client/src/joint/role_fixture.rs", "jig/tests/client/src/joint/mod.rs"]
+files = ["jig/tests/client-protocol/src/front.rs", "jig/tests/client-protocol/src/front/**", "jig/tests/client-protocol/src/engine.rs", "jig/tests/client-protocol/src/fixtures.rs", "jig/tests/client-protocol/tests/suite/shared/a.rs", "jig/tests/client/src/joint/role_fixture.rs", "jig/tests/client/src/joint/mod.rs", "jig/tests/client/src/stories/shared/a_roles.rs"]
 effort = "high"
 minutes = 60
 +++
@@ -16,7 +16,7 @@ minutes = 60
 
 Acceptance:
 
-- `rg -o '#\[ignore' jig/tests/client-protocol | wc -l` reads 0, and the six `roles_*` tests in `tests/suite/shared/a.rs` pass, with the bodies in `jig/tests/client/src/stories/shared/a_roles.rs` unchanged.
+- `rg -o '#\[ignore' jig/tests/client-protocol | wc -l` reads 0, and the six `roles_*` tests in `tests/suite/shared/a.rs` pass, with the bodies in `jig/tests/client/src/stories/shared/a_roles.rs` unchanged but `confirm_two_parties` (see Answers).
 - The fixture's shape, inside which the choices are yours:
 
   ```rust
@@ -71,3 +71,16 @@ Acceptance:
 ## Report
 
 The common note's items; the first failure; each limit raised; the times. These six stories are newly held, so the lines they cost are named as such.
+
+## Answers
+
+### 2026-11-05: May the shared two-party story accept either winner, or must the protocol fixture complete the owner first? (debt-24/protocol-parties-1, foreman debt-24/protocol-parties/foreman-1)
+
+Either winner, with both clients naming the same one: fabrig/debt, the plan's owner, settled it. That's the rule the story's own doc states ("see the same winning decision"); "party 1 wins" was the Joint front's schedule, and `joint/role_stories.rs`'s `two_parties_decide_one_proposal_and_the_second_is_told_who` keeps pinning it there, unchanged, through its stored `ProposalDecided` rows.
+
+- **One body changes:** `confirm_two_parties` in `a_roles.rs`, added to the header. Each client presses Confirm and sees `Accepted` and a `Decided by person: ` text, as `decide` does with the number left out. Then, after `finish`, exactly one of persons 1 and 2 is named, and it's the same on both trees (`world.tree`, as `b_proposals.rs` reads it). `decide` and its other callers stay.
+- **Nothing else moves:** no other assertion, and the fixture isn't retimed or ordered.
+- **It must bite:** break the rule for real, not the comparison: make the second, repeated answer name the party asking instead of the recorded winner, watch this story go red on the protocol front, restore, and report it.
+- **If another shared story holds a front's schedule,** that's the same case: stop and ask fabrig/debt.
+
+Finish the rest on the pushed branch (`21d128213a`): the four other ignores, the seam test and its break, the optional delegate story, the checks and times above. `seed-projects`' run has found the other four stories pass on this front. `seed-projects` depends on this repair and won't make it.
