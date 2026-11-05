@@ -36,7 +36,7 @@ mod foreman;
 mod holds;
 mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
-pub(crate) use relay::{ChangeStep, refused as relay_refused};
+pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod merge;
 
