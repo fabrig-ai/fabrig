@@ -537,10 +537,14 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **On a managed or owned Forgejo** the connector asks for access
   before the adoption's reads: `Adopt { forge, repository }`, through
   the root and the routing, which runs it on the setup's host with the
-  admin's token (`../protocol/forge.md`, 2.6). It makes temper's user a
+  admin's token (`../protocol/forge.md`, 2.6). The repository is the
+  path the request carries, since temper's user may not see it yet. It
+  makes temper's user a
   collaborator with write on the repository, and its hook when the
-  deployment has a webhooks' listener. Done, the adoption reads as any
-  other; refused, the adoption is refused, with the run's failure named.
+  deployment has a webhooks' listener and serves the forge one
+  (`../protocol/setup.md`, 5.5). Done, the adoption reads as any
+  other; refused, the adoption is refused, with the run's failure named
+  (`../protocol/setup.md`, 5.4).
 - **The connector never holds the admin's token,** and the forge
   component never does: the setup's host alone uses it, for reconcile,
   for access at adoption and for the picker's reads (4.3)
@@ -550,7 +554,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
   repairs each one's collaborator and hook (`../protocol/forge.md`,
   2.1).
 - **Elsewhere there is nothing to ask:** on a connected Forgejo a person
-  gives the access, and on GitHub the App's installation does (4.3).
+  gives the access, and on GitHub the App's installation does (4.3). A
+  repository this leaves temper's user only able to read is still
+  adopted, and its answer says so (`../client/README.md`, 4.7).
 
 ### 4.3 What the picker offers
 

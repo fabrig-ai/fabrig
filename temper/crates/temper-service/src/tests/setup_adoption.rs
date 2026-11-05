@@ -246,3 +246,13 @@ fn records_fake_given_uses_the_webhooks_listener_without_a_file_secret() {
         assert_eq!(given.listener, if hooks { Some(([127, 0, 0, 1], 7101).into()) } else { None });
     }
 }
+
+#[test]
+fn an_owned_adoption_makes_one_hook_at_the_listener() {
+    let (mut service, mut forge) = admin_tests::access_host(true);
+    admin_tests::adopt_private(&mut service, 70);
+    admin_tests::finish_access(&mut service, &mut forge);
+    let mut hooks = forge.service.setup().repository_hooks(1);
+    assert_eq!(hooks.next().expect("adoption hook").url.as_ref(), b"http://127.0.0.1:7101/hooks/1");
+    assert!(hooks.next().is_none(), "one hook");
+}

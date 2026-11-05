@@ -436,7 +436,7 @@ fn take_over(token: &[u8]) -> Plan {
     Plan::TakeOver { forge: 1, admin_token: fixtures::secret(token) }
 }
 fn adopt() -> Plan {
-    Plan::Adopt { forge: 1, repository: core::num::NonZeroU64::new(7).unwrap() }
+    Plan::Adopt { forge: 1, repository: crate::host::Repository::Id(core::num::NonZeroU64::new(7).unwrap()) }
 }
 fn token_stop(why: Why) -> Event {
     Event::Stop {
@@ -1050,7 +1050,13 @@ fn a_forgejo_plan_on_a_github_forge_stops_at_once_unexpected() {
     for (plan, name) in [
         (Plan::Check { forge: 4 }, b"check".as_slice()),
         (Plan::TakeOver { forge: 4, admin_token: fixtures::secret(token) }, b"take-over"),
-        (Plan::Adopt { forge: 4, repository: core::num::NonZeroU64::new(1).expect("repository") }, b"adopt"),
+        (
+            Plan::Adopt {
+                forge: 4,
+                repository: crate::host::Repository::Id(core::num::NonZeroU64::new(1).expect("repository")),
+            },
+            b"adopt",
+        ),
     ] {
         let mut limits = limits();
         limits.runs = 1;
@@ -1082,7 +1088,13 @@ fn a_busy_github_forge_names_the_plan_at_the_app() {
         (Plan::Reconcile { forge: 4, adopted: Box::new([]) }, b"reconcile".as_slice()),
         (Plan::Check { forge: 4 }, b"check"),
         (Plan::TakeOver { forge: 4, admin_token: fixtures::secret(b"handed-token") }, b"take-over"),
-        (Plan::Adopt { forge: 4, repository: core::num::NonZeroU64::new(1).expect("repository") }, b"adopt"),
+        (
+            Plan::Adopt {
+                forge: 4,
+                repository: crate::host::Repository::Id(core::num::NonZeroU64::new(1).expect("repository")),
+            },
+            b"adopt",
+        ),
         (
             Plan::Reachable {
                 forge: 4,

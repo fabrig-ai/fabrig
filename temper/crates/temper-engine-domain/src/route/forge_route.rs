@@ -4281,6 +4281,12 @@ pub(crate) fn outputs(
             forge::Request::Manifest { forge, request, back } => {
                 assert!(super::now(domain, Request::Manifest { forge, request, back }), "manifest door");
             }
+            forge::Request::AdoptAccess { forge, request, owner, name } => {
+                assert!(
+                    super::now(domain, Request::AdoptAccess { forge, request, owner, name }),
+                    "adoption access door"
+                );
+            }
             forge::Request::Reachable { forge, request, installation, page } => {
                 assert!(
                     super::now(domain, Request::Reachable { forge, request, installation, page }),

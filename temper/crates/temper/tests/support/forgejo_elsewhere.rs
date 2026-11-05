@@ -82,6 +82,7 @@ pub fn restart() {
     assert_eq!(fs::metadata(&paste).expect("paste metadata").permissions().mode() & 0o777, 0o600);
     // Re-exec captures the support's logs and stage timings too. Neither the
     // child arguments nor its environment contains credential bytes.
+    forge.adoption_repositories();
     child(scratch.path(), false, &token);
     inspect(scratch.path(), &token);
     forge.witness_authenticates();
@@ -97,6 +98,15 @@ pub fn restart() {
         forge.repository_observation("elsewhere", "first", "pulls?state=all&limit=50").as_array().expect("pulls").len(),
         1
     );
+    for name in ["open", "closed"] {
+        assert_eq!(
+            forge.repository_observation("other", name, "collaborators/elsewhere-bot/permission")["permission"],
+            "write"
+        );
+        // temper/docs/design/protocol/setup.md, 5.5: managed forges poll.
+        assert_eq!(forge.repository_observation("other", name, "hooks").as_array().expect("hooks").len(), 0);
+        forge.remove_adoption_collaborator(name);
+    }
     fs::remove_file(&paste).expect("delete paste before restart");
     child(scratch.path(), true, &token);
     inspect(scratch.path(), &token);
@@ -113,6 +123,12 @@ pub fn restart() {
         forge.repository_observation("elsewhere", "first", "pulls?state=all&limit=50").as_array().expect("pulls").len(),
         1
     );
+    for name in ["open", "closed"] {
+        assert_eq!(
+            forge.repository_observation("other", name, "collaborators/elsewhere-bot/permission")["permission"],
+            "write"
+        );
+    }
     forge.stop();
     scratch.remove();
     elsewhere.remove();
@@ -141,6 +157,13 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     let path = config.join("temper.json");
     let bytes = fs::read_to_string(&path).expect("configuration").replace("\"acme\"", "\"elsewhere\"");
     let mut value: Value = serde_json::from_str(&bytes).expect("JSON");
+    assert!(
+        value.pointer("/application/webhooks/listener/socket").and_then(Value::as_str).is_some(),
+        "listener configured for no-hook observation"
+    );
+    // The first repository and both outside adoptions are retained across restart.
+    value["application"]["limits"]["overrides"]["forge.repositories"] = 3.into();
+    value["application"]["limits"]["overrides"]["forge.client.repositories"] = 3.into();
     value["engine"]["deployment"]["directory"] = json!(root.join("data"));
     let digest = value["engine"]["hosts"]["workers"][0]["digest"].as_str().expect("worker digest");
     write_private(&root.join("data/worker.digest"), &fs::read(config.join(digest)).expect("fixture digest"));
@@ -295,7 +318,14 @@ fn life(root: &Path, restarted: bool) {
         assert_eq!(call.exit, Some(Exit::Code(0)), "ctl call failed");
     }
     assert_eq!(engine.exit_status(), Some(Exit::Code(0)), "engine stopped");
-    let task = calls.ends().last().expect("landed task read");
+    let task = if restarted { calls.ends().last() } else { calls.ends().get(calls.ends().len() - 3) }
+        .expect("landed task read");
+    if !restarted {
+        for answer in &calls.ends()[calls.ends().len() - 2..] {
+            let answer = ctl::json(answer);
+            assert_eq!(answer["adopted"]["kinds"]["push"], true, "adoption grants write");
+        }
+    }
     let task = String::from_utf8_lossy(&task.stdout);
     let (landed, _) = ctl::landed_result(&task);
     assert!(
@@ -359,6 +389,24 @@ fn start_chat(calls: &mut ctl::Calls, root: &Path) {
         ctl::Call::new(&["task", "show", "2"]),
     ] {
         calls.push(ctl::Step::Run(call));
+    }
+    for (name, key) in [("open", "elsewhere-adopt-open"), ("closed", "elsewhere-adopt-closed")] {
+        calls.push(ctl::Step::Run(ctl::Call::new(&[
+            "repository",
+            "adopt",
+            "--project",
+            &project.to_string(),
+            "--owner",
+            "other",
+            "--name",
+            name,
+            "--landing",
+            "main",
+            "--no-home",
+            "--key",
+            key,
+            "--json",
+        ])));
     }
 }
 
