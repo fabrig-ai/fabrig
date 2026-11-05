@@ -572,7 +572,6 @@ hearth = { path = "hearth/crates/hearth" }
 hearth-protocol-builder = { path = "hearth/crates/hearth-protocol-builder" }
 hearth-client-protocol-records = { path = "hearth/crates/hearth-client-protocol-records" }
 hearth-recordings = { path = "hearth/testing/hearth-recordings" }
-hearth-git-world = { path = "hearth/tests/git" }
 hearth-fake-git = { path = "hearth/testing/hearth-fake-git" }
 hearth-protocol-config = { path = "hearth/crates/hearth-protocol-config" }
 hearth-fake-mmdebstrap = { path = "hearth/testing/hearth-fake-mmdebstrap" }

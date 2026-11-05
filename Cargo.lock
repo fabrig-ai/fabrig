@@ -421,10 +421,10 @@ dependencies = [
  "hearth-fake-git",
  "hearth-fake-machine",
  "hearth-fake-mmdebstrap",
- "hearth-git-world",
  "hearth-protocol-git",
  "hearth-protocol-mmdebstrap",
  "hearth-recordings",
+ "hearth-test-git",
  "hearth-test-mirror",
  "skein-lib",
  "skein-scratch",
@@ -506,9 +506,9 @@ version = "0.0.0"
 dependencies = [
  "hearth-protocol-git",
  "hearth-recordings",
+ "hearth-test-git",
  "skein-heap",
  "skein-lib",
- "skein-world",
 ]
 
 [[package]]
@@ -650,6 +650,12 @@ dependencies = [
 [[package]]
 name = "hearth-test-git"
 version = "0.0.0"
+dependencies = [
+ "hearth-protocol-git",
+ "hearth-recordings",
+ "skein-lib",
+ "skein-world",
+]
 
 [[package]]
 name = "hearth-test-mirror"

@@ -3,8 +3,6 @@ pub mod fixtures;
 pub mod generate;
 pub mod world;
 
-pub mod expect;
-mod hunks;
+pub use hearth_test_git::expect;
 pub mod mutate;
 pub mod reference;
-mod replay;
