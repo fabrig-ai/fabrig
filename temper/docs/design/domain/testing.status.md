@@ -56,7 +56,8 @@
   temper", a proposal's card and its review, in their step and view
   tests and joined with the engine, since the pages are not built
   (`../client/README.status.md`); the joined world's configuring chat
-  starts, proposes, is accepted, waits for an owner and goes stale
+  starts from `Configure` and `Settings`' "Configure temper" finds it,
+  but it proposes, is accepted, waits for an owner and goes stale
   through ctl alone (`tests/client`'s `configuring_chat.rs`). 6: a state
   digest for replay (`testing-strategy.md`, section 6); the walking
   world compares its formatted state
