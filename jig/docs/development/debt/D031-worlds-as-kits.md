@@ -30,5 +30,5 @@ dependency cycles slow builds.
 
 Move each reused driver, peer and fixture into a `jig/testing` kit, one edge at a time,
 deleting its `PENDING` line. The edges onto `skein-world` may be the kit's by design; if
-so, the rule should exempt them, so the list counts only jig's own. skein's own world
-edges are skein's `skein/docs/development/debt/D028-worlds-as-kits.md`.
+so, the rule should exempt them, so the list counts only jig's own. skein's world
+boundaries follow `skein/docs/design/testing.md`, 6.
