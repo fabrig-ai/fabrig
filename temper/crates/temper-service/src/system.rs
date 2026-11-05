@@ -214,6 +214,7 @@ impl Service {
         };
         if let Some(sign_in) = &settings.sign_in {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
+            clients.configure_forge_sign_in(&settings);
         }
         let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
         let mut forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
