@@ -266,14 +266,14 @@ fn stock_config() -> engine::Config {
 
 fn stock_limits() -> engine::Limits {
     let mut limits = walking::limits();
-    // Stock policy 1 holds ten grants; room for the design's five executor kinds.
+    // Stock policy 1 holds fourteen grants and nine executor kinds.
     limits.authority.grants = 16;
-    limits.authority.executors = 8;
+    limits.authority.executors = 9;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
-    limits.documents.executors = 8;
+    limits.documents.executors = 9;
     limits.notes.scopes = 32;
-    limits.tasks.charters = 5;
+    limits.tasks.charters = 6;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
     limits

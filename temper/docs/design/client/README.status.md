@@ -17,6 +17,22 @@
   route accepted by `ui-goal-page`'s `goal-browser` answer of 2026-11-05;
   `ui-chat-draft` owns its draft-to-goal continuation. On the fake box's
   stock project, Chats offers no Drafts filter or draft-start control.
+- **Not yet:** 3.5, *Home on any project*: the stock owner pool may
+  reserve the whole project period, leaving no funding for the status
+  agent (`temper-service`'s `stock.rs`, `project_policy`;
+  `jig-domain-core`'s `connector_repair_authority`). Returning then keeps
+  the computed sentence. The fake-box proof reduces the owner's pool
+  allowance to leave period funding, as the root's status world does.
+- **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
+  by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
+  and `Role::Image` in the terminal, where the request has `div.bar` and
+  `Role::Image` for both: skein-ui's `Role::Image` is an image, with no children.
+  The planning dots are spans in a `Figure`, not `.typing`'s `<i>`s. A live goal
+  with no tasks yet headlines as planning, where the request's words give "0 of 0
+  tasks landed." A dependency outside the goal's rows says "waits on task N",
+  where the request has its title alone, and the row has none. A goal's counts
+  search at most 8 pages for its own line and are then what the page holds, where
+  the request has them true past one page (section 11, *A goal's own line*).
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
@@ -55,8 +71,8 @@
   stops at "landed work.", which the section has no words for.
   3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
-  or in `temper-service`'s routing. 3.5: Ready's model line names no
-  email for a ChatGPT sign-in, whose account's display is empty, since
+  or in `temper-service`'s routing. 3.5: Ready's model line and the Model step's
+  status name no email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
   3.5, *Ready*: two endings leave nothing under "Model none yet"
@@ -120,7 +136,7 @@
   has the document; seen by reading, no test holds it and no reason is recorded.
   3.5, *Goals*: `goals::row` is `pub(crate)` (`temper-client-view`'s
   `pages/goals.rs`), where this section has it public, because its `Bindings`
-  is the view's own and Home, its next reader, is in the same crate.
+  is the view's own and Home reads it in the same crate.
   3.5, *Needs you*: a filter's `kind` and `goal` narrow the open cards alone:
   `temper-client-view`'s `pages/needs.rs`, `main`, asks `Session::answered` by
   project, and an `Answered` keeps neither, so under such a filter the answered
@@ -189,3 +205,12 @@
   no role in the deployment, where the request has their values for everyone: a
   proposal's items span scopes, so their read keeps that role
   (`../protocol/configuration.md`, 13.2).
+- **Design departs:** 3.5, *The welcome* and *Home*, from the request `ui-welcome`
+  of 2026-11-05, decided by its plan's cut. A plan's way at its address, with no
+  sign-in asked, keeps its card in the panel, where the request draws a way's page
+  for the key, the paste and Claude alone: that card is how the welcome reaches
+  the paste. A repository Home's sheet asked leaves the step's lines once in and
+  reads as any in the project, "ORG/NAME is in PROJECT" and the merge queue's
+  line, where the request has each copy ticked and then "Chats can change its code
+  now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
+  names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).

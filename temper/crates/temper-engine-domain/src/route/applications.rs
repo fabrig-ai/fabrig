@@ -41,7 +41,8 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         Application::Return { .. } => people::ApplicationScope::Own,
         Application::Dismiss {
             what: forge::PersonFact::ToBegin { project } | forge::PersonFact::GoalFrom { project, .. },
-        } => people::ApplicationScope::Project(*project),
+        }
+        | Application::Looked { project } => people::ApplicationScope::Project(*project),
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
@@ -75,6 +76,9 @@ pub(super) fn admitted(
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::Looked { project } => {
+            domain.work.push(Work::Forge(forge::Event::Looked { request, token, party: person, project }));
+        }
         Application::Dismiss { what } => {
             domain.work.push(Work::Forge(forge::Event::Dismiss { request, token, party: person, what }));
         }
@@ -161,6 +165,7 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::Accept(answer)) => Some(ApplicationAnswer::Accept(answer)),
         Some(forge::Answered::Install(answer)) => Some(ApplicationAnswer::Install(answer)),
         Some(forge::Answered::Dismiss(answer)) => Some(ApplicationAnswer::Dismiss(answer)),
+        Some(forge::Answered::Looked(answer)) => Some(ApplicationAnswer::Looked(answer)),
         None => None,
     }
 }

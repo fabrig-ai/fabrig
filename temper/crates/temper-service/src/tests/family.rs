@@ -1463,7 +1463,9 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                             assert_eq!(source, 7, "{name}");
                             path
                         }
-                        root::Application::Dismiss { .. } => panic!("return or install"),
+                        root::Application::Dismiss { .. } | root::Application::Looked { .. } => {
+                            panic!("return or install")
+                        }
                         root::Application::Forge(ask) => {
                             let (forge::Ask::Install { forge, back: Some(back) }
                             | forge::Ask::Connect {
@@ -2886,6 +2888,163 @@ fn the_changes_watch_names_its_project_subject() {
         assert_eq!(subject.raw(), forge::changes_subject(project));
         assert_eq!(connector, wire::FORGE);
         assert_eq!(scope, jig_domain_people::ApplicationScope::Project(7));
+    }
+}
+#[test]
+#[expect(clippy::too_many_lines, reason = "the family test covers Looked and its status document in both directions")]
+fn looked_and_status_translate_both_ways() {
+    const PROJECT: u32 = 7;
+    let requesting = w::Requesting::new(
+        &w::CEILINGS,
+        w::RequestingParts {
+            request: w::Request::Looked(w::Looked::new(&w::CEILINGS, w::LookedParts { project: PROJECT }).unwrap()),
+        },
+    )
+    .unwrap();
+    let watching = w::Watching::new(
+        &w::CEILINGS,
+        w::WatchingParts {
+            watch: w::Watch::Status(
+                w::StatusSubject::new(&w::CEILINGS, w::StatusSubjectParts { project: PROJECT }).unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    let forges = fixtures::forge_table(&[]);
+    let mut carried_request = exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting));
+    let carried = jig_domain_core::Carried { number: 2, digest: [9; 32] };
+    if let kit::ToApplication::Request { carried: value, .. } = &mut carried_request {
+        *value = Some(carried);
+    }
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        carried_request,
+        &forges,
+        None,
+        family::Deployment { welcome: false, owned: false },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::Application {
+        scope,
+        reply_to,
+        sign_in,
+        key,
+        digest,
+        carried: got,
+        request,
+    }) = event
+    else {
+        panic!("looked application")
+    };
+    assert_eq!(scope, people::ApplicationScope::Project(PROJECT));
+    assert_eq!(reply_to, REPLY);
+    assert_eq!(sign_in, 3);
+    assert_eq!(key, REQUEST_KEY);
+    assert_eq!(digest, [7; 32]);
+    assert_eq!(got, Some(carried));
+    assert_eq!(request, root::Application::Looked { project: PROJECT });
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
+        &forges,
+        None,
+        family::Deployment { welcome: false, owned: false },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::Watch { watcher, sign_in, subject, window }) = event else {
+        panic!("status watch")
+    };
+    assert_eq!(watcher, WATCHER);
+    assert_eq!(sign_in, 3);
+    assert_eq!(
+        subject,
+        jig_domain_core::documents::Watched::Application {
+            scope: people::ApplicationScope::Project(PROJECT),
+            connector: wire::FORGE,
+            subject: Token::new(forge::status_subject(PROJECT)),
+        }
+    );
+    assert_eq!(window, jig_domain_core::documents::Window { rows: 2, after: None });
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    for (answer, expected) in [
+        (Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)), w::Outcome::Looked),
+        (
+            Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::TooLarge)),
+            w::Outcome::ForgeRefused(
+                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
+            ),
+        ),
+        (None, w::Outcome::Unknown),
+    ] {
+        let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+    }
+    for (last_landed, brief, previous) in [
+        (None, None, None),
+        (
+            Some(skein_lib::Wall::from_nanos(123)),
+            Some(forge::Brief {
+                sentence: b"A landing".as_slice().into(),
+                lede: b"The work landed.".as_slice().into(),
+                at: skein_lib::Wall::from_nanos(234),
+                landed: 5,
+            }),
+            Some(skein_lib::Wall::from_nanos(345)),
+        ),
+    ] {
+        let value = forge::StatusView {
+            project: PROJECT,
+            landed: 6,
+            last_landed,
+            brief: brief.clone(),
+            previous,
+            seen: 2,
+            queued: 3,
+            red: true,
+            branch: b"main".as_slice().into(),
+        };
+        let bytes = family::document(forge::Document::Status(value), &forges, &w::CEILINGS).unwrap();
+        let got = wire::decode_project_status(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(
+            (got.project(), got.landed(), got.seen(), got.queued(), got.red(), got.branch()),
+            (PROJECT, 6, 2, 3, true, b"main".as_slice())
+        );
+        assert_eq!(
+            *got.last_landed(),
+            match last_landed {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            }
+        );
+        assert_eq!(
+            *got.previous(),
+            match previous {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            }
+        );
+        assert_eq!(
+            *got.brief(),
+            match brief {
+                Some(brief) => Some(
+                    w::StatusBrief::new(
+                        &w::CEILINGS,
+                        w::StatusBriefParts {
+                            sentence: brief.sentence,
+                            lede: brief.lede,
+                            at: brief.at.as_nanos(),
+                            landed: brief.landed,
+                        }
+                    )
+                    .unwrap()
+                ),
+                None => None,
+            }
+        );
     }
 }
 #[test]

@@ -531,7 +531,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 changes.leave(out);
                 pages.next = pages.next.max(changes.next());
             }
-            pages.home = None;
+            if let Some(home) = pages.home.take() {
+                home.leave(out);
+            }
             if let Some(chats) = pages.chats.take() {
                 pages.next = pages.next.max(chats.leave(out));
             }
@@ -814,11 +816,25 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.needs.configure(showing, &env.limits, out);
     let me = pages.me(client);
     pages.has_goals.configure(me, pages.project, out);
+    if let Address::Home { project } = pages.address
+        && pages.home.is_some()
+        && pages.has_goals(client, project)
+        && pages.goals.is_none()
+    {
+        // Inbox cards allocate handles as their reads arrive; reserve the goal handles
+        // past them and move its next allocation past this page's four handles.
+        if let Some(inbox) = &mut pages.inbox {
+            pages.next = pages.next.max(inbox.next);
+            pages.goals = Some(goals::Goals::new(pages.next));
+            pages.next = pages.next.checked_add(4).expect("page handles fit");
+            inbox.next = pages.next;
+        }
+    }
     let project = conversation_project(pages);
     if let Some(chats) = &mut pages.chats {
         chats.configure(me, project, &env.limits, out);
     }
-    if let Address::Goals { project, .. } = pages.address
+    if let Address::Goals { project, .. } | Address::Home { project } = pages.address
         && let Some(goals) = &mut pages.goals
     {
         goals.configure(me, project, client, &env.limits, out);
@@ -840,7 +856,7 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         return true;
     }
     if let Some(home) = &mut pages.home
-        && home.told(&told, env.limits.forge)
+        && home.told(&told, client, env.limits.forge, out)
     {
         return true;
     }
@@ -1047,7 +1063,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             changes.leave(out);
             pages.next = pages.next.max(changes.next());
         }
-        pages.home = None;
+        if let Some(home) = pages.home.take() {
+            home.leave(out);
+        }
         if let Some(inbox) = pages.inbox.take() {
             pages.next = pages.next.max(inbox.leave(out));
         }
@@ -1073,7 +1091,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
         }
         if let Address::Home { project } = address {
-            pages.home = Some(home::Home::new());
+            pages.home = Some(home::Home::new(project, pages.next, env.limits.forge, out));
+            pages.next = pages.next.checked_add(1).expect("page handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
             pages.next = pages.next.checked_add(2).expect("page handles fit");
             pages.inbox = Some(inbox::Inbox::new(
@@ -1264,9 +1283,14 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         if moved {
             chat.see(&mut pages.serial, out);
         }
-    } else if let Some(goals) = &mut pages.goals {
-        return goals.told(told, out);
-    } else if let Some(chats) = &mut pages.chats {
+        return true;
+    }
+    if let Some(goals) = &mut pages.goals
+        && goals.told(told.clone(), out)
+    {
+        return true;
+    }
+    if let Some(chats) = &mut pages.chats {
         if !chats.told(told.clone(), &pages.address, out) {
             return match &mut pages.inbox {
                 Some(inbox) => inbox.told(client, told, out),

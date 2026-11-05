@@ -460,6 +460,65 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-morning",
+        heading: "41 changes landed overnight. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Tuesday, 08:04 · you last looked 9 hours ago" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "first-run-projects is six of nine tasks in. Its store task hit the wasm size limit twice and was split in two.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Written by the status agent at 07:42" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Chats" },
+            Part::Text { text: "Landing: " },
+            Part::Text { text: "3 queued" },
+            Part::Text { text: "last landed 6 min ago" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
+        name: "home-computed",
+        heading: "2 changes landed since you last looked. Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Thursday, 21:19 · you last looked 9 hours ago" },
+            Part::Text { text: "3 queued" },
+            Part::Text { text: "last landed 6 min ago" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
+        name: "home-last-looked-none",
+        heading: "2 changes landed since you last looked. Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Thursday, 21:19" },
+            Part::Text { text: "3 queued" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
+        name: "home-landing-none",
+        heading: "Nothing needs you.",
+        parts: &[Part::Text { text: "nothing has landed yet" }, Part::Named { role: Role::Link, name: "Changes" }],
+    },
+    Holds {
+        name: "home-landing-red",
+        heading: "2 changes landed since you last looked. Nothing needs you.",
+        parts: &[
+            Part::Text { text: "main last moved 1 h ago" },
+            Part::Text { text: "nothing queued" },
+            Part::Text { text: "main red" },
+        ],
+    },
+    Holds {
+        name: "home-chats-sentence",
+        heading: "Nothing needs you.",
+        parts: &[Part::Named {
+            role: Role::Paragraph,
+            name: "A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing.",
+        }],
+    },
+    Holds {
         name: "home-three-left",
         heading: "Hello is ready.",
         parts: &[
@@ -521,6 +580,19 @@ const HOLDS: [Holds; samples::N] = [
         heading: "One thing needs you.",
         parts: &[
             Part::Named { role: Role::Link, name: "Goals" },
+            Part::Named { role: Role::Region, name: "Goals" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Goals" },
+            Part::Named { role: Role::Link, name: "All 8" },
+            Part::Goals {
+                rows: &[
+                    "CSV import · 1 / 3 · needs funds",
+                    "JSON output for tally report · 0 / 2 · needs you",
+                    "Make tally sum stream its input · 1 / 2 · running",
+                    "CSV export · planning",
+                    "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
+                ],
+            },
+            Part::Absent { role: Role::Region, name: "Chats" },
             Part::Named { role: Role::Link, name: "Needs you 1" },
             Part::Named { role: Role::Button, name: "Reply" },
             Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },

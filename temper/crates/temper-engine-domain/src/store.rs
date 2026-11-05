@@ -364,7 +364,7 @@ pub enum CoreRange {
     /// (jig's `RestoreRange::Accounts`).
     Accounts,
     /// Root startup pages only child Live/Ledger state; historical Ended rows stay outside this
-    /// range. Actual root-supported task shapes validate before child restoration.
+    /// range. Root-supported task shapes validate before child restoration.
     Tasks,
     /// Root pages current claims only, at most tasks `tasks` rows; every proof must correlate with
     /// its loaded live row before tasks Restored or fleet adoption. Historical

@@ -170,6 +170,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
 }
 
 fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
+    status_rows(rng, bounds);
     setting_row(rng, bounds);
     let number = u16::try_from(rng.below(65_536)).expect("u16");
     let kind = if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub };
@@ -415,4 +416,45 @@ fn verification_row(
         }]),
     });
     row_and_key(&row, rng, bounds);
+}
+
+fn status_rows(rng: &mut Rng, bounds: &Bounds) {
+    use skein_lib::Wall;
+    let project = u32::try_from(rng.below(4_294_967_296)).expect("u32");
+    let brief = if rng.below(2) == 0 {
+        None
+    } else {
+        Some(forge::Brief {
+            sentence: temper_codecs_world::drawn(rng, 200).into_boxed_slice(),
+            lede: temper_codecs_world::drawn(rng, 600).into_boxed_slice(),
+            at: Wall::from_nanos(rng.next_u64()),
+            landed: rng.next_u64(),
+        })
+    };
+    let running = if rng.below(2) == 0 {
+        None
+    } else {
+        Some(forge::StatusRunning {
+            task: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+            landed: rng.next_u64(),
+            since: Wall::from_nanos(rng.next_u64()),
+        })
+    };
+    let facts = forge::Stored::ProjectFacts(forge::ProjectFacts {
+        project,
+        landed: rng.next_u64(),
+        last_landed: Wall::from_nanos(rng.next_u64()),
+        brief,
+        running,
+    });
+    row_and_key(&facts, rng, bounds);
+    let looked = forge::Stored::Looked(forge::Looked {
+        party: rng.next_u64(),
+        project,
+        previous: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
+        latest: Wall::from_nanos(rng.next_u64()),
+        seen: rng.next_u64(),
+        next_seen: rng.next_u64(),
+    });
+    row_and_key(&looked, rng, bounds);
 }

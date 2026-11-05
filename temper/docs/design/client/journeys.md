@@ -522,9 +522,10 @@ over skein's harness.
   walk of typing. The user's word.
 - **The gallery's states,** set from hand-written worlds: whether each
   moves to a journey once the fake box reaches it, its answers then the
-  engine's own (`browser.md`, section 7). Model's forge done and failed
-  and Ready wait on a fake box whose Forgejo set up finishes, so that
-  fewer states are hand-made (`../draft/look-requests.md`, 8). The two
+  engine's own (`browser.md`, section 7). Ready and Model's forge done
+  can, `project-landing`'s walk reaching a fake box's Forgejo connected, so
+  that fewer states are hand-made (`../draft/look-requests.md`, 8); Model's
+  forge failed waits on a fake box whose set up can fail. The two
   fetching states wait on a still page at the fetch: `welcome-set-up`'s
   recording holds the fetch's rows, but they keep the page moving, so
   its pages 07 and 08 fall at preparing (8.1;

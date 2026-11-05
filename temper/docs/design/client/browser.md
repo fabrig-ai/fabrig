@@ -465,8 +465,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   `.forge-status`, `.spin`, `.acts`, `.panel`, `.away-note`, `.numbered`,
   `.field-v`, `.cmd` and `.checklist .current .mark`.
 - **The welcome's look** (the user's greenfield pass, 2026-11-04;
-  `README.md`, 3.5 and 5.6), at its own scale, in `temper.css`'s last
-  block, every rule scoped to the welcome's frame
+  `README.md`, 3.5 and 5.6), at its own scale, in a block of its own in
+  `temper.css`, every rule scoped to the welcome's frame
   (`#app:has(> .temper-welcome)`), so that no other page changes: IBM
   Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
   1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
@@ -1190,6 +1190,12 @@ from the engine's own answers, is where the look is tuned.
 | `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
 | `home-with-goals` | `home-at-work`'s deliveries with a goal in the project, so that the rail shows Goals |
 | `home-at-work` | hand-made Home deliveries: one question and three chats, the everyday request's words where the client holds its facts |
+| `home-morning` | hand-made Home deliveries: `ProjectStatus` with everything: a brief above `seen`, a last look nine hours ago, three queued, needs and chats; the mock's morning |
+| `home-computed` | hand-made Home deliveries: `ProjectStatus` with changes landed and no brief: the computed sentence, no lede or byline |
+| `home-last-looked-none` | hand-made Home deliveries: `ProjectStatus` of a party's first look: no "last looked" and nothing new |
+| `home-landing-none` | hand-made Home deliveries: `ProjectStatus` with nothing landed: "Landing: nothing has landed yet" |
+| `home-landing-red` | hand-made Home deliveries: `ProjectStatus` with `red`: " · main red" in the signal's colour |
+| `home-chats-sentence` | hand-made Home deliveries: no goal in the project: Chats' sentence after its rows |
 | `home-needs-several` | hand-made Home deliveries: three needs, the first as a card and the others as rows |
 | `home-nothing-needs` | hand-made Home deliveries: all steps done, no needs and one chat |
 | `home-ready` | hand-made Home deliveries: all three steps done; plain Home |
