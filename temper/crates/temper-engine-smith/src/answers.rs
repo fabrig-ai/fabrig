@@ -475,15 +475,32 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
         }
         CallAnswer::NoteRefused(why) => {
             text.add(b"Note refused: ")?;
-            text.add(match why {
+            let ending: &[u8] = match why {
                 jig_domain_notes::Refusal::Busy => b"busy",
                 jig_domain_notes::Refusal::Oversized => b"oversized",
                 jig_domain_notes::Refusal::Full => b"full",
                 jig_domain_notes::Refusal::Exists => b"already exists",
                 jig_domain_notes::Refusal::Missing => b"missing",
-                jig_domain_notes::Refusal::Moved { .. } => b"revision moved",
+                jig_domain_notes::Refusal::Moved { revision } => {
+                    text.add(b"revision moved, now ")?;
+                    text.number(u64::from(*revision))?;
+                    b""
+                }
+                jig_domain_notes::Refusal::PastEnd { lines } => {
+                    text.add(b"range past the end, ")?;
+                    text.number(u64::from(*lines))?;
+                    b" lines"
+                }
+                jig_domain_notes::Refusal::PastBound { bytes, bound } => {
+                    text.add(b"body past its bound, ")?;
+                    text.number(u64::from(*bytes))?;
+                    text.add(b" bytes of ")?;
+                    text.number(u64::from(*bound))?;
+                    b""
+                }
                 jig_domain_notes::Refusal::RevisionExhausted => b"revision exhausted",
-            })?;
+            };
+            text.add(ending)?;
             true
         }
         CallAnswer::Unavailable => {

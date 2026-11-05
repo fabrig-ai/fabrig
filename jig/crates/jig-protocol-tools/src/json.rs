@@ -188,6 +188,7 @@ impl<'a> Array<'a> {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one ordered vocabulary of tool argument field names")]
 fn field_name(key: &[u8]) -> &'static [u8] {
     const NAMES: &[&[u8]] = &[
         b"llm",
@@ -223,6 +224,7 @@ fn field_name(key: &[u8]) -> &'static [u8] {
         b"executor",
         b"fields",
         b"filter",
+        b"first",
         b"form",
         b"from",
         b"goal",
@@ -257,6 +259,7 @@ fn field_name(key: &[u8]) -> &'static [u8] {
         b"reason",
         b"recalled",
         b"references",
+        b"remove",
         b"resource",
         b"results",
         b"revision",

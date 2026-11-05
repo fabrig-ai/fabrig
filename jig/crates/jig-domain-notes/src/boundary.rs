@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 
 use skein_lib::{List, Token, Wall};
 
-use crate::LineChange;
+use crate::{LineChange, LineRange};
 
 /// A connector's bounded resource pattern, preserving literal segment boundaries.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -158,6 +158,10 @@ pub enum Refusal {
     Moved { revision: u32 },
     /// The entry's revision has reached its numeric bound.
     RevisionExhausted,
+    /// The range starts before line 1 or runs past the body's end.
+    PastEnd { lines: u32 },
+    /// The body would pass its bound; `bytes` saturates at `u32::MAX`.
+    PastBound { bytes: u32, bound: u32 },
 }
 
 /// Events from the parent and the store.
@@ -171,6 +175,8 @@ pub enum Event {
     Recall { owner: Token, by: Recall, page: u32 },
     /// Write an entry, naming the revision this writer recalled, if any.
     Write { owner: Token, entry: New, recalled: Option<u32> },
+    /// Replace body lines, naming the revision this writer recalled.
+    WriteLines { owner: Token, entry: New, recalled: u32, range: LineRange },
     /// Correct or delete an entry on a party's request.
     Edit { owner: Token, party: u64, name: u64, scope: Scope, change: Change },
     /// The parent could not load the requested store page.
