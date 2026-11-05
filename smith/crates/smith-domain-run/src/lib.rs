@@ -75,8 +75,8 @@ pub use budget::{
     Budget, BudgetRefusal, Ceiling, CompletionPermit, Exhausted, Granted, Overflow, Part, Prices, Rate, ReceivingLimit,
     Set, Share, Spend, Stage, admit, most_costly, reserve_spend,
 };
-pub use charter::brief_room;
 pub use charter::{Brief, Charter, Conventions, Mode, Section};
+pub use charter::{brief_room, charter_room};
 pub use domain::{
     Domain, completion_overflow, completion_permit, conversation_charter, fire, host_name, owner, reserve, resume,
     settle_reservation, step,

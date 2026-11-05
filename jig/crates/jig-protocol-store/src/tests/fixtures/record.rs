@@ -29,6 +29,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         flags: task::Flags { conversation: true, ..task::Flags::PLAIN },
         last_activity: Wall::from_nanos(19),
         ended_below: task::Endings { done: 3, failed: 5, cancelled: 7 },
+        ended_delegates: task::Endings { done: 11, failed: 13, cancelled: 17 },
         question_lines: task_question_lines(),
         hold: 13,
         proposal_rows: Box::new([task::ProposalRow { proposal: 43, revision: 3 }]),

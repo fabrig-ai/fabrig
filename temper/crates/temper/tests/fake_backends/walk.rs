@@ -155,6 +155,7 @@ struct Seen {
 }
 
 mod copy;
+mod goal;
 mod here_key;
 mod open_default;
 mod program_here;

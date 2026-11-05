@@ -32,14 +32,16 @@ fn change(instructions: &[u8]) -> Amendment {
 }
 fn amend(h: &mut Harness, change: Amendment) -> Vec<Request> {
     h.send(Event::Amend {
+        operation: crate::Amend {
+            task: 1,
+            message: h.domain.task(1).unwrap().last_message.checked_add(1).unwrap(),
+            stop_run: false,
+            amendment: Box::new(change),
+        },
         places: Box::new([]),
         funder: None,
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        message: h.domain.task(1).unwrap().last_message.checked_add(1).unwrap(),
-        stop_run: false,
-        amendment: change,
     })
 }
 

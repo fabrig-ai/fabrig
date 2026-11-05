@@ -60,6 +60,33 @@ const HOME_NAMES: [(skein_ui::Style, &[u8]); 18] = [
     (ASK_CHOICES, b"temper-ask-choices"),
     (ASK_QUIET, b"temper-ask-quiet"),
 ];
+const GOALS_NAMES: [(skein_ui::Style, &[u8]); 25] = [
+    (GOALS, b"temper-goals"),
+    (GOALS_INTRO, b"temper-goals-intro"),
+    (GOALS_KICKER, b"temper-goals-kicker"),
+    (GOALS_HEADLINE, b"temper-goals-headline"),
+    (GOALS_LEDE, b"temper-goals-lede"),
+    (GOALS_BYLINE, b"temper-goals-byline"),
+    (GOALS_SECTION, b"temper-goals-section"),
+    (GOALS_SECTION_HEAD, b"temper-goals-section-head"),
+    (GOALS_SECTION_TITLE, b"temper-goals-section-title"),
+    (GOALS_SIGNAL, b"temper-goals-signal"),
+    (GOALS_EMPTY, b"temper-goals-empty"),
+    (GOALS_FACTS, b"temper-goals-facts"),
+    (GOALS_ROWS, b"temper-goals-rows"),
+    (GOALS_ROW, b"temper-goals-row"),
+    (GOALS_ROW_ENDED, b"temper-goals-row-ended"),
+    (GOALS_TOP, b"temper-goals-top"),
+    (GOALS_LINE, b"temper-goals-line"),
+    (GOALS_FILTERS, b"temper-goals-filters"),
+    (GOALS_MORE, b"temper-goals-more"),
+    (GOALS_STATE_NEEDS, b"temper-goals-state-needs"),
+    (GOALS_STATE_RUNNING, b"temper-goals-state-running"),
+    (GOALS_STATE_PLANNING, b"temper-goals-state-planning"),
+    (GOALS_STATE_PAUSED, b"temper-goals-state-paused"),
+    (GOALS_STATE_LANDED, b"temper-goals-state-landed"),
+    (GOALS_STATE_STOPPED, b"temper-goals-state-stopped"),
+];
 const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
@@ -186,7 +213,9 @@ fn each_style_or_region_is_named_under_temper() {
         (CHATS_LINE, b"temper-chats-line".as_slice()),
         (STATE_NEEDS, b"temper-state-needs".as_slice()),
     ];
-    for (style, name) in named.into_iter().chain(FLOW_NAMES).chain(RAIL_NAMES).chain(HOME_NAMES).chain(chats) {
+    for (style, name) in
+        named.into_iter().chain(FLOW_NAMES).chain(RAIL_NAMES).chain(HOME_NAMES).chain(chats).chain(GOALS_NAMES)
+    {
         assert_eq!(NAMES.style(style), Some(name));
     }
     assert_eq!(NAMES.region(crate::frame::link_region()), Some(&b"temper-link"[..]));

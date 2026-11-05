@@ -371,6 +371,16 @@ fn change_expands_the_only_repository_field_by_field() {
     );
 }
 
+#[test]
+fn a_change_keeps_no_note_scope() {
+    let (mut world, chat) = super::goal_tool::chat_with_note_scope(authority::Scopes(7));
+    let answer = change(&mut world, &chat, PLAN_CALL, None, b"Small fix");
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("delegated: {answer:?}") };
+    let row = live(&world, made[0].task);
+    assert_eq!(row.authority.notes, tasks::Scopes(0));
+    assert!(row.authority.note_resources.is_empty());
+}
+
 fn producer(words: &[u8]) -> (World, tasks::TaskRecord) {
     let (mut world, chat) = chat_world(true);
     let engine::CallAnswer::Delegated(_) = change(&mut world, &chat, 93, None, words) else { panic!("delegated") };

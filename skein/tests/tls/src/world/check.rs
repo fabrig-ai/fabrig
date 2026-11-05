@@ -1,7 +1,8 @@
 //! The outcomes each run is checked against (tls.md, 5).
-use super::{Ending, Run, Scenario, Settings, meets, run};
+use super::{Ending, Run, Scenario, Settings, run};
 use crate::pki::{self, Versions};
-use skein_lib::stream::Fault;
+use skein_lib::stream::{Fault, Read};
+use skein_protocol_kit::below::meets;
 use skein_tls::client::{self, Error, Version};
 
 /// Runs the world as [`run`], and holds the run to what the scenario
@@ -67,11 +68,16 @@ fn check_handshake(scenario: &Scenario, settings: &Settings, run: &Run, what: &d
     true
 }
 
+/// What a demand is met by at the end: any byte left meets `Read::Nothing`.
+fn met_at_end(read: Read, bytes: &[u8]) -> bool {
+    matches!(read, Read::Nothing) && !bytes.is_empty() || meets(read, bytes)
+}
+
 fn check_ending(scenario: &Scenario, run: &Run, what: &dyn Fn() -> String) {
     if let Some(read) = run.ended {
         assert_eq!(scenario.ending, Ending::CloseNotify, "End only after close_notify; {}", what());
         let tail = &scenario.response[run.received.len()..];
-        assert!(!meets(read, tail), "the end comes once nothing left meets the demand: {read:?}; {}", what());
+        assert!(!met_at_end(read, tail), "the end comes once nothing left meets the demand: {read:?}; {}", what());
     }
     match run.failed {
         None => {}

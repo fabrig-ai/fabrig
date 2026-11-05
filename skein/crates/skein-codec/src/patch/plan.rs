@@ -1,4 +1,4 @@
-//! Matching, line checks and retained conversions (codec.md, 11.2–11.3).
+//! Matching, line checks and retained conversions (codec.md, 11.2–11.3 and 11.6).
 
 use super::text::{Block, Kind, Line, LineKind, Parsed, Range, Token};
 use super::{Missing, Op, PatchError, PatchWrong, Tables, Target, add, spelled};
@@ -87,7 +87,7 @@ pub(crate) struct RefusalPlan {
 
 /// Confirmed renames first, then unused names, all new indices to old.
 #[derive(Debug)]
-pub(crate) struct Matching {
+pub struct Matching {
     pub(crate) declarations: List<Option<DeclIx>>,
     pub(crate) fields: List<Option<FieldIx>>,
     pub(crate) variants: List<Option<VariantIx>>,
@@ -95,7 +95,7 @@ pub(crate) struct Matching {
 
 /// Level-by-level type comparison, reused by the run's carry operation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Comparison {
+pub enum Comparison {
     Equal,
     Widen { integer: bool },
     Wrap,
@@ -112,25 +112,6 @@ fn counts(schema: &Schema) -> (u32, u32) {
         }
     }
     (fields, variants)
-}
-
-fn empty_matching(new: &Schema) -> Matching {
-    let (fields, variants) = counts(new);
-    let mut matching = Matching {
-        declarations: List::with_capacity(new.declarations()),
-        fields: List::with_capacity(fields),
-        variants: List::with_capacity(variants),
-    };
-    for _ in 0..new.declarations() {
-        matching.declarations.push(None).expect("declaration room");
-    }
-    for _ in 0..fields {
-        matching.fields.push(None).expect("field room");
-    }
-    for _ in 0..variants {
-        matching.variants.push(None).expect("variant room");
-    }
-    matching
 }
 
 fn same_shape(old: Shape, new: Shape) -> bool {
@@ -176,11 +157,34 @@ fn find_part(schema: &Schema, declaration: DeclIx, name: &[u8]) -> Option<Target
     None
 }
 impl Matching {
-    pub(crate) fn old(&self, new: DeclIx) -> Option<DeclIx> {
+    /// Creates an unpaired matching sized for the current schema.
+    #[must_use]
+    pub fn new(new: &Schema) -> Self {
+        let (fields, variants) = counts(new);
+        let mut matching = Matching {
+            declarations: List::with_capacity(new.declarations()),
+            fields: List::with_capacity(fields),
+            variants: List::with_capacity(variants),
+        };
+        for _ in 0..new.declarations() {
+            matching.declarations.push(None).expect("declaration room");
+        }
+        for _ in 0..fields {
+            matching.fields.push(None).expect("field room");
+        }
+        for _ in 0..variants {
+            matching.variants.push(None).expect("variant room");
+        }
+        matching
+    }
+
+    #[must_use]
+    pub fn old(&self, new: DeclIx) -> Option<DeclIx> {
         *self.declarations.get(new.index()).expect("new declaration index")
     }
     #[expect(clippy::manual_map, reason = "step code uses explicit matches without callbacks")]
-    fn part(&self, new: Target) -> Option<Target> {
+    #[must_use]
+    pub fn part(&self, new: Target) -> Option<Target> {
         match new {
             Target::Declaration(at) => match self.old(at) {
                 Some(at) => Some(Target::Declaration(at)),
@@ -196,7 +200,8 @@ impl Matching {
             },
         }
     }
-    fn used(&self, old: Target) -> bool {
+    #[must_use]
+    pub fn used(&self, old: Target) -> bool {
         match old {
             Target::Declaration(at) => {
                 for &value in &self.declarations {
@@ -222,7 +227,8 @@ impl Matching {
         }
         false
     }
-    fn pair(&mut self, new: Target, old: Target) {
+    /// Pairs indices belonging to the current and kept schemas, of the same target kind.
+    pub fn pair(&mut self, new: Target, old: Target) {
         match new {
             Target::Declaration(new) => match old {
                 Target::Declaration(old) => {
@@ -242,57 +248,90 @@ impl Matching {
     }
 }
 
-fn renamed_declaration(
-    matching: &mut Matching,
-    old: &Schema,
-    new: &Schema,
-    patch: &[u8],
-    line: Line,
-) -> Result<(), PatchError> {
-    let old_at = old.find(spelled(patch, line.declaration)).ok_or(line.error(PatchWrong::Unknown))?;
-    let new_at =
-        new.find(spelled(patch, line.other)).ok_or(super::error(line.token.line, line.other, PatchWrong::Unknown))?;
-    let old_target = Target::Declaration(old_at);
-    let new_target = Target::Declaration(new_at);
-    if matching.used(old_target) || matching.part(new_target).is_some() {
-        return Err(line.error(PatchWrong::Twice));
-    }
-    if spelled(patch, line.declaration) == spelled(patch, line.other) {
-        return Err(line.error(PatchWrong::Mismatch));
-    }
-    matching.pair(new_target, old_target);
-    Ok(())
+/// Why a rename cannot pair its two schema targets (codec.md, 11.6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RenameRefused {
+    OldUnknown,
+    NewUnknown,
+    DeclarationUnknown,
+    NotMatched,
+    Twice,
 }
-fn renamed_part(
-    matching: &mut Matching,
-    old: &Schema,
-    new: &Schema,
-    patch: &[u8],
-    line: Line,
-) -> Result<(), PatchError> {
-    let new_decl = new.find(spelled(patch, line.declaration)).ok_or(line.error(PatchWrong::Unknown))?;
-    let old_decl = matching.old(new_decl).ok_or(line.error(PatchWrong::Mismatch))?;
-    if !same_shape(old.declaration(old_decl).shape, new.declaration(new_decl).shape) {
+impl Matching {
+    /// Checks a rename and returns its (current, kept) targets without pairing.
+    pub fn declaration_rename(
+        &self,
+        old: &Schema,
+        new: &Schema,
+        from: &[u8],
+        to: &[u8],
+    ) -> Result<(Target, Target), RenameRefused> {
+        let old_at = old.find(from).ok_or(RenameRefused::OldUnknown)?;
+        let new_at = new.find(to).ok_or(RenameRefused::NewUnknown)?;
+        self.rename_pair(Target::Declaration(new_at), Target::Declaration(old_at))
+    }
+    /// Checks a scoped rename and returns its (current, kept) targets without pairing.
+    pub fn part_rename(
+        &self,
+        old: &Schema,
+        new: &Schema,
+        declaration: &[u8],
+        from: &[u8],
+        to: &[u8],
+    ) -> Result<(Target, Target), RenameRefused> {
+        let new_decl = new.find(declaration).ok_or(RenameRefused::DeclarationUnknown)?;
+        let old_decl = self.old(new_decl).ok_or(RenameRefused::NotMatched)?;
+        if !same_shape(old.declaration(old_decl).shape, new.declaration(new_decl).shape) {
+            return Err(RenameRefused::NotMatched);
+        }
+        let old_at = find_part(old, old_decl, from).ok_or(RenameRefused::OldUnknown)?;
+        let new_at = find_part(new, new_decl, to).ok_or(RenameRefused::NewUnknown)?;
+        self.rename_pair(new_at, old_at)
+    }
+    fn rename_pair(&self, new: Target, old: Target) -> Result<(Target, Target), RenameRefused> {
+        if self.used(old) || self.part(new).is_some() {
+            return Err(RenameRefused::Twice);
+        }
+        Ok((new, old))
+    }
+    #[must_use]
+    pub fn compare(&self, old: &Schema, new: &Schema, kept: TypeIx, current: TypeIx) -> Comparison {
+        compare(&self.declarations, old, new, kept, current)
+    }
+    #[must_use]
+    pub fn payload(&self, old: Option<DeclIx>, new: Option<DeclIx>) -> bool {
+        payload(&self.declarations, old, new)
+    }
+}
+fn renamed(matching: &mut Matching, old: &Schema, new: &Schema, patch: &[u8], line: Line) -> Result<(), PatchError> {
+    let from = line.part.unwrap_or(line.declaration);
+    let result = if line.part.is_some() {
+        matching.part_rename(
+            old,
+            new,
+            spelled(patch, line.declaration),
+            spelled(patch, from),
+            spelled(patch, line.other),
+        )
+    } else {
+        matching.declaration_rename(old, new, spelled(patch, from), spelled(patch, line.other))
+    };
+    let (new, old) = match result {
+        Ok(pair) => pair,
+        Err(refused) => {
+            return Err(match refused {
+                RenameRefused::OldUnknown => super::error(line.token.line, from, PatchWrong::Unknown),
+                RenameRefused::NewUnknown => super::error(line.token.line, line.other, PatchWrong::Unknown),
+                RenameRefused::DeclarationUnknown => line.error(PatchWrong::Unknown),
+                RenameRefused::NotMatched => line.error(PatchWrong::Mismatch),
+                RenameRefused::Twice => line.error(PatchWrong::Twice),
+            });
+        }
+    };
+    if spelled(patch, from) == spelled(patch, line.other) {
         return Err(line.error(PatchWrong::Mismatch));
     }
-    let part = line.part.expect("part rename");
-    let old_at = find_part(old, old_decl, spelled(patch, part)).ok_or(super::error(
-        line.token.line,
-        part,
-        PatchWrong::Unknown,
-    ))?;
-    let new_at = find_part(new, new_decl, spelled(patch, line.other)).ok_or(super::error(
-        line.token.line,
-        line.other,
-        PatchWrong::Unknown,
-    ))?;
-    if matching.used(old_at) || matching.part(new_at).is_some() {
-        return Err(line.error(PatchWrong::Twice));
-    }
-    if spelled(patch, part) == spelled(patch, line.other) {
-        return Err(line.error(PatchWrong::Mismatch));
-    }
-    matching.pair(new_at, old_at);
+    matching.pair(new, old);
     Ok(())
 }
 fn matching(
@@ -303,55 +342,64 @@ fn matching(
     block: Block,
     errors: &mut List<Option<PatchError>>,
 ) -> Matching {
-    let mut matching = empty_matching(new);
+    let mut matching = Matching::new(new);
     for at in block.lines.start..block.lines.end {
         let line = *parsed.lines.get(at).expect("block line");
         if line.kind == LineKind::Rename
             && line.part.is_none()
-            && let Err(error) = renamed_declaration(&mut matching, old, new, patch, line)
+            && let Err(error) = renamed(&mut matching, old, new, patch, line)
         {
             *errors.get_mut(at).expect("line error slot") = Some(error);
         }
     }
-    for at in 0..new.declarations() {
-        let new_at = DeclIx::new(at);
-        if matching.old(new_at).is_none()
-            && let Some(old_at) = old.find(new.spelled(new.declaration(new_at).name))
-            && !matching.used(Target::Declaration(old_at))
-        {
-            matching.pair(Target::Declaration(new_at), Target::Declaration(old_at));
-        }
-    }
+    matching.pair_declarations(old, new);
     for at in block.lines.start..block.lines.end {
         let line = *parsed.lines.get(at).expect("block line");
         if line.kind == LineKind::Rename
             && line.part.is_some()
-            && let Err(error) = renamed_part(&mut matching, old, new, patch, line)
+            && let Err(error) = renamed(&mut matching, old, new, patch, line)
         {
             *errors.get_mut(at).expect("line error slot") = Some(error);
         }
     }
-    for at in 0..new.declarations() {
-        let new_at = DeclIx::new(at);
-        let Some(old_at) = matching.old(new_at) else {
-            continue;
-        };
-        let shape = new.declaration(new_at).shape;
-        if !same_shape(old.declaration(old_at).shape, shape) {
-            continue;
-        }
-        let (first, count) = parts(shape);
-        for at in first..add(first, count) {
-            let new_part = target(shape, at);
-            if matching.part(new_part).is_none()
-                && let Some(old_part) = find_part(old, old_at, new.spelled(part_name(new, new_part)))
-                && !matching.used(old_part)
+    matching.pair_parts(old, new);
+    matching
+}
+
+impl Matching {
+    pub fn pair_declarations(&mut self, old: &Schema, new: &Schema) {
+        for at in 0..new.declarations() {
+            let new_at = DeclIx::new(at);
+            if self.old(new_at).is_none()
+                && let Some(old_at) = old.find(new.spelled(new.declaration(new_at).name))
+                && !self.used(Target::Declaration(old_at))
             {
-                matching.pair(new_part, old_part);
+                self.pair(Target::Declaration(new_at), Target::Declaration(old_at));
             }
         }
     }
-    matching
+    pub fn pair_parts(&mut self, old: &Schema, new: &Schema) {
+        for at in 0..new.declarations() {
+            let new_at = DeclIx::new(at);
+            let Some(old_at) = self.old(new_at) else {
+                continue;
+            };
+            let shape = new.declaration(new_at).shape;
+            if !same_shape(old.declaration(old_at).shape, shape) {
+                continue;
+            }
+            let (first, count) = parts(shape);
+            for at in first..add(first, count) {
+                let new_part = target(shape, at);
+                if self.part(new_part).is_none()
+                    && let Some(old_part) = find_part(old, old_at, new.spelled(part_name(new, new_part)))
+                    && !self.used(old_part)
+                {
+                    self.pair(new_part, old_part);
+                }
+            }
+        }
+    }
 }
 
 pub(crate) fn payload(matching: &List<Option<DeclIx>>, old: Option<DeclIx>, new: Option<DeclIx>) -> bool {
@@ -643,12 +691,14 @@ pub(crate) fn compare(
     unreachable!("each wrapper advances within its schema's bounded types")
 }
 
+/// One layout change, in diff order (codec.md, 11.6).
 #[derive(Clone, Copy, Debug)]
-struct Change {
-    op: Op,
-    target: Target,
-    implicit: bool,
-    written: Option<Target>,
+#[expect(clippy::partial_pub_fields, reason = "line coverage is private to planning (codec.md, 11.6)")]
+pub struct Change {
+    pub op: Op,
+    pub target: Target,
+    pub implicit: bool,
+    pub written: Option<Target>,
     seen: bool,
 }
 fn change(changes: &mut List<Change>, op: Op, target: Target, implicit: bool, written: Option<Target>) {
@@ -669,7 +719,9 @@ fn dropped_parts(changes: &mut List<Change>, matching: &Matching, shape: Shape, 
     }
 }
 
-fn changes(old: &Schema, new: &Schema, matching: &Matching) -> List<Change> {
+/// Lists layout changes in current declaration order, then dropped declarations.
+#[must_use]
+pub fn changes(old: &Schema, new: &Schema, matching: &Matching) -> List<Change> {
     let room = add(
         u32::try_from(old.text().len()).expect("schema ceiling"),
         u32::try_from(new.text().len()).expect("schema ceiling"),
@@ -1693,7 +1745,7 @@ fn fill(plan: &mut Plan, old: &Schema, new: &Schema, matching: &Matching, identi
 
 pub(super) fn identity(tables: &Tables, index: u32) -> Result<Plan, PatchWrong> {
     let schema = tables.schemas.get(index).expect("kept schema index");
-    let mut matching = empty_matching(schema);
+    let mut matching = Matching::new(schema);
     for at in 0..schema.declarations() {
         matching.pair(Target::Declaration(DeclIx::new(at)), Target::Declaration(DeclIx::new(at)));
     }

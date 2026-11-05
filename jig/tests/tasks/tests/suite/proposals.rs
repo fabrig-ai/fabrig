@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    Event, Funder, MessageKind, Party, Proposal, ProposalAction, ProposalDecision, ProposalHolder, ProposalKind,
-    ProposalState,
+    Cancel, Event, Funder, MessageKind, Party, Proposal, ProposalAction, ProposalDecision, ProposalHolder,
+    ProposalKind, ProposalState,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 
@@ -138,11 +138,10 @@ fn a_batch_proposal_naming_a_task_since_ended_is_withdrawn() {
     assert_eq!(world.make(Party::Person(9), vec![task(1, &[])]), Reply::Made(vec![1]));
     propose_batch(&mut world, 9, 100, vec![task(2, &[1])]);
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Person(9),
-        task: 1,
-        control: jig_domain_tasks::Control::Cancel { reason: Box::new([]), message: None, grace: None },
+        operation: Cancel { task: 1, reason: Box::new([]), message: None, grace: None },
     });
     world.settle(1);
     let jig_domain_tasks::Stored::DecidedProposal(row) = &world.records[&jig_domain_tasks::Key::DecidedProposal(100)]
@@ -204,11 +203,10 @@ fn an_amendment_proposal_whose_task_ends_is_withdrawn() {
     assert_eq!(world.make(Party::Person(9), vec![task(1, &[])]), Reply::Made(vec![1]));
     propose_amendment(&mut world);
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Person(9),
-        task: 1,
-        control: jig_domain_tasks::Control::Cancel { reason: Box::new([]), message: None, grace: None },
+        operation: Cancel { task: 1, reason: Box::new([]), message: None, grace: None },
     });
     world.settle(1);
     let jig_domain_tasks::Stored::DecidedProposal(row) = &world.records[&jig_domain_tasks::Key::DecidedProposal(100)]

@@ -102,6 +102,8 @@ pub(super) fn line(value: &d::TaskLine, limits: &w::Limits) -> Result<w::TaskLin
             budget: owner::budget(&value.budget, limits)?,
             waits_on: waits(value.waits_on.clone(), limits)?,
             phases: live::phases(value.phases, limits)?,
+            delegates_done: value.delegates_done,
+            delegates_total: value.delegates_total,
             held_below: value.held_below,
             conversation: match value.conversation {
                 None => None,

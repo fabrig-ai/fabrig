@@ -13,7 +13,6 @@ skein-io.workspace = true
 skein-forge-setup.workspace = true
 skein-forge.workspace = true
 skein-lib.workspace = true
-skein-http.workspace = true
 skein-json.workspace = true
 skein-fake-forge-forgejo.workspace = true
 skein-fake-forge-github.workspace = true

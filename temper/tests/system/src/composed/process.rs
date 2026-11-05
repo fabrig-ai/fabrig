@@ -30,6 +30,7 @@ const PROCESS: Token = Token::new(701);
 
 /// One activation's process at a time, and what crossed its channel.
 pub(crate) struct Process {
+    pub(crate) charter: Box<[u8]>,
     seed: u64,
     /// The fake LLM's script, extended by each resumed activation.
     script: Script,
@@ -108,6 +109,7 @@ impl Process {
     }
     pub(crate) fn new(seed: u64, script: Script) -> Process {
         Process {
+            charter: Box::default(),
             seed,
             script,
             history: None,
@@ -272,23 +274,20 @@ impl Process {
 
     /// smith's start, its directories mounted from the trees the worker
     /// prepared, at the path the spawned process would see them.
-    fn start(&mut self, start: agent::Start, window: agent::Window, around: &Around<'_>) {
-        assert!(self.agent.is_none());
+    fn start(&mut self, mut start: agent::Start, window: agent::Window, around: &Around<'_>) {
+        self.check_start(&start, window, around);
         let assignment = around.assignment.expect("committed assignment");
-        let asked = assignment.live;
-        assert_eq!(
-            start.live,
-            (asked.text || asked.reasoning || asked.input).then_some(agent::channel::LiveAsk {
-                text: asked.text,
-                reasoning: asked.reasoning,
-                input: asked.input
-            }),
-            "smith receives the assignment's live ask"
-        );
-        assert_eq!((start.logical_run.raw(), start.activation), (assignment.task, assignment.attempt));
-        assert_eq!(start.directories.len(), usize::from(around.repository));
-        assert_eq!(start.workspace.is_some(), around.repository);
-        assert_eq!(window.turns, 2);
+        let receiving = receiving();
+        for directory in &mut start.directories {
+            directory.host = [b"/".as_slice(), directory.name.as_ref()].concat().into_boxed_slice();
+        }
+        start = temper_service::worker_route::fit_start(start, &receiving, 65_536);
+        self.charter = smith_protocol_channel::encode_charter(
+            start.charter.value(),
+            &smith_charter::CEILINGS,
+            &super::worker_protocol::endpoints(),
+        )
+        .expect("fitted charter encodes");
         let transcript = start.transcript.map(agent::Transcript::into_value);
         let restored = transcript.as_ref().map_or(0, |transcript| transcript.turns.len());
         assert_eq!(restored, assignment.transcript.len(), "the committed turns cross whole");
@@ -296,24 +295,14 @@ impl Process {
             let restored = transcript.as_ref().expect("a resumed conversation");
             assert_eq!(restored.turns, history.turns, "restored concrete history is the committed prefix");
         }
-        let mut settings = Settings::calm(self.seed);
         let mut mounted = Disk::new();
         let workspace = mount(&start.directories, around.disk, &mut mounted);
         self.mounts = mount_paths(&start.directories);
         let charter = start.charter.into_value();
-        settings.job = Job::Reporting;
-        settings.resume = transcript.is_some();
-        settings.budget = charter.budget;
-        settings.limits.run.budget = charter.budget;
-        settings.limits.run.host_tools =
-            u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
-        settings.limits.run.brief_sections = 16;
-        settings.limits.run.host_reply_bytes = 8192;
-        settings.limits.session.spend = charter.budget.spend;
-        settings.limits.session.budget.turns = charter.budget.turns;
-        settings.limits.session.budget.time = charter.budget.time;
-        // A parked activation and its resumed run retain both sides of each completion.
-        settings.limits.session.history_messages = charter.budget.turns.saturating_mul(4).saturating_add(1);
+        if matches!(assignment.run.contract, jig_domain_tasks::Contract::Verdict { .. }) {
+            measure(&charter, workspace.as_ref(), &receiving, self.charter.len());
+        }
+        let settings = activation_settings(self.seed, &charter, transcript.is_some(), &receiving);
         let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
         let event = smith::Event::Start(smith::Start {
             reply_to: ReplyTo::new(Token::new(402)),
@@ -332,6 +321,28 @@ impl Process {
         agent.enable_parent_host_calls();
         agent.enable_parent_deliveries();
         self.agent = Some(agent);
+    }
+
+    fn check_start(&self, start: &agent::Start, window: agent::Window, around: &Around<'_>) {
+        assert!(self.agent.is_none());
+        let assignment = around.assignment.expect("committed assignment");
+        let asked = assignment.live;
+        assert_eq!(
+            start.live,
+            (asked.text || asked.reasoning || asked.input).then_some(agent::channel::LiveAsk {
+                text: asked.text,
+                reasoning: asked.reasoning,
+                input: asked.input
+            }),
+            "smith receives the assignment's live ask"
+        );
+        assert_eq!((start.logical_run.raw(), start.activation), (assignment.task, assignment.attempt));
+        assert_eq!(start.directories.len(), usize::from(around.repository));
+        assert_eq!(start.workspace.is_some(), around.repository);
+        assert_eq!(window.turns, 2);
+        if matches!(assignment.run.contract, jig_domain_tasks::Contract::Verdict { .. }) {
+            assert!(start.directories.iter().all(|directory| !directory.writable), "review workspace is read-only");
+        }
     }
 
     /// One iteration of smith's world, then what it said, in order, onto the
@@ -609,4 +620,73 @@ fn host_calls(agent: &Agent, sent_calls: &mut Vec<Token>, now: Time, up: &mut Ve
             ask: agent::Ask::Host { tool: submission.tool.clone(), effect, body: submission.input.bytes().into() },
         });
     }
+}
+
+fn receiving() -> run::Limits {
+    use smith_agent_service::profile::{self, Configuration, Endpoint, Model};
+    let declarations = Configuration {
+        role_bound: None,
+        environment_bytes: 0,
+        endpoints: Box::new([Endpoint {
+            number: 0,
+            provider: skein_llm::Provider::OpenAi,
+            option_bytes: 0,
+            connect: Duration::from_secs(10),
+            handshake: Duration::from_secs(10),
+            models: Box::new([Model {
+                name: b"fake-1".as_slice().into(),
+                efforts: Box::default(),
+                window: 1_048_576,
+                output: 8192,
+                reasoning_item: 65_536,
+                oversized_reasoning: profile::OversizedReasoning::Fail,
+                head: Duration::from_secs(60),
+                idle: Duration::from_secs(30),
+            }]),
+        }]),
+    };
+    let template: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/agent.json"))
+            .expect("shipped agent settings");
+    let selected = smith_agent_shell::config::profile_from_value(template.get("profile").expect("profile").clone())
+        .expect("shipped receiving profile");
+    profile::derive(&selected, &declarations).expect("production receiving profile").domain.run
+}
+
+fn measure(charter: &run::Charter, workspace: Option<&run::Workspace>, limits: &run::Limits, encoded: usize) {
+    let owned = charter.owned_bytes().expect("charter ownership");
+    let room = run::charter_room(workspace, limits).expect("workspace fits");
+    let workspace_bytes = limits.run_bytes - room;
+    let host = limits.host_part - u64::from(run::brief_room(charter, workspace, limits).expect("fixed host fits"))
+        + run::brief_bytes(&charter.brief).expect("brief render");
+    eprintln!(
+        "admission encoded={encoded} charter={owned} workspace={workspace_bytes} sum={} run_bytes={} host={host} host_part={}",
+        owned + workspace_bytes,
+        limits.run_bytes,
+        limits.host_part
+    );
+}
+
+fn activation_settings(seed: u64, charter: &run::Charter, resumed: bool, receiving: &run::Limits) -> Settings {
+    let mut settings = Settings::calm(seed);
+    settings.window = 1_048_576;
+    settings.limits.session.tools.repos = receiving.directories;
+    settings.limits.session.tools.path_bytes =
+        settings.limits.session.tools.path_bytes.max(receiving.directory_name_bytes);
+    settings.limits.session.tools.host_path_bytes = receiving.host_path_bytes;
+    settings.limits.run = *receiving;
+    settings.job = Job::Reporting;
+    settings.resume = resumed;
+    settings.budget = charter.budget;
+    settings.limits.run.budget = charter.budget;
+    settings.limits.run.host_tools =
+        u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
+    settings.limits.run.brief_sections = 16;
+    settings.limits.run.host_reply_bytes = 8192;
+    settings.limits.session.spend = charter.budget.spend;
+    settings.limits.session.budget.turns = charter.budget.turns;
+    settings.limits.session.budget.time = charter.budget.time;
+    // A parked activation and its resumed run retain both sides of each completion.
+    settings.limits.session.history_messages = charter.budget.turns.saturating_mul(4).saturating_add(1);
+    settings
 }
