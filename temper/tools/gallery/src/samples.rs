@@ -72,7 +72,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 166;
+pub const N: usize = 169;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -363,6 +363,9 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "goal-stopped", world: Reference, address: task(118), then: Shown },
         Sample { name: "goal-failed", world: Reference, address: task(122), then: Shown },
         Sample { name: "goal-no-report", world: Reference, address: task(108), then: Shown },
+        Sample { name: "start-goal", world: Reference, address: CHATS, then: Shown },
+        Sample { name: "start-goal-draft", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "start-goal-refused", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
@@ -775,6 +778,28 @@ fn goal_domain(sample: &Sample) -> Domain {
     root
 }
 #[must_use]
+fn start_domain(sample: &Sample) -> Domain {
+    let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), Then::Shown);
+    if sample.name != "start-goal" {
+        let mut out = Queue::uncapped();
+        step(
+            &mut root,
+            Event::Act {
+                action: Action::Pages(Act::OpenStart {
+                    draft: Some(b"docs/design/draft/first-run-projects.md".as_slice().into()),
+                    chat: Some(1),
+                }),
+            },
+            &mut out,
+        );
+        if sample.name == "start-goal-refused" {
+            step(&mut root, Event::Act { action: Action::Pages(Act::StartGoal) }, &mut out);
+        }
+    }
+    root
+}
+#[must_use]
+#[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
     if sample.name == "chats-no-repository" {
         let mut root = home_domain("home-no-repository");
@@ -793,6 +818,9 @@ pub fn domain(sample: &Sample) -> Domain {
             &mut Queue::uncapped(),
         );
         return root;
+    }
+    if sample.name.starts_with("start-goal") {
+        return start_domain(sample);
     }
     if sample.name.starts_with("needs-") {
         return crate::needs::domain(sample.name);

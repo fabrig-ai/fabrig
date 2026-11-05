@@ -50,6 +50,8 @@ impl Bindings {
                         filter.goal = if value.is_empty() { None } else { Some(skein_ui::number(&value)?) };
                         Act::Filter { filter }
                     }
+                    (Act::StartWay { template }, skein_ui::Act::Toggle) => Act::StartWay { template: *template },
+                    (Act::StartName { .. }, skein_ui::Act::Input { value }) => Act::StartName { words: value },
                     (Act::AmendWords { .. }, skein_ui::Act::Input { value }) => Act::AmendWords { words: value },
                     (Act::AmendPriority { .. }, skein_ui::Act::Input { value }) => {
                         Act::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }

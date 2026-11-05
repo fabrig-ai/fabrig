@@ -13,14 +13,15 @@ A goal turns a draft into landed work, its own way: task by task, plan, tasks, l
 [7] Needs you
 [8] Under way
 [9] Ended
-[10] OAuth login · 6 / 9 · needs you
+[10] Start one from a draft
+[11] OAuth login · 6 / 9 · needs you
 Choose the provider.
-[11] Refresh token handling · 2 / 4 · running
+[12] Refresh token handling · 2 / 4 · running
 Two tasks landed; the rest runs.
-[12] Write release notes · planning
+[13] Write release notes · planning
 Planning from the draft.
-[13] Keyboard navigation · 3 / 3 · landed 01:12
+[14] Keyboard navigation · 3 / 3 · landed 01:12
 The keyboard pass landed.
-[14] Retire password login · stopped
+[15] Retire password login · stopped
 Stopped by you.
-[15] More goals
+[16] More goals

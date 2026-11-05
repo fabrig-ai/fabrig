@@ -620,6 +620,9 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
+    (owner(), skein_ui::Role::ChoiceGroup, SHEET_FIELDSET, "fieldset"),
+    (owner(), skein_ui::Role::Heading { level: 3 }, SHEET_FIELDSET, "legend"),
+    (owner(), skein_ui::Role::Text, SHEET_MUTED, "small"),
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
     (owner(), skein_ui::Role::Heading { level: 3 }, WELCOME_LEGEND, "legend"),
