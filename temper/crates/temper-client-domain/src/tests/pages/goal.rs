@@ -718,3 +718,106 @@ fn resume_is_refused_unless_paused() {
         .unwrap();
     assert!(page_act(&mut h, Act::Resume).is_empty(), "an open band makes the goal needs, not paused");
 }
+
+const MESSAGE_WORDS: &[u8] = b"Keep it small.";
+// One Send admits one message snapshot.
+const SENT_MESSAGES: u32 = 1;
+fn messenger() -> Harness {
+    let mut h = Harness::new(with_offer(c::ActKind::Message));
+    h.take();
+    h.fixture.client.step_unlinked(
+        Time::ZERO,
+        Wall::EPOCH,
+        jig_client::Event::Watch { handle: pages::me_handle(), subject: jig_client::Watchable::Jig(c::Subject::Me) },
+        &mut Queue::uncapped(),
+    );
+    h.fixture.client.step_unlinked(
+        Time::ZERO,
+        Wall::EPOCH,
+        jig_client::Event::Up {
+            up: jig_client::Up::Watched {
+                watch: h.fixture.me,
+                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(fixtures::chats::me()))),
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+    h
+}
+#[test]
+fn send_routes_on_a_tracked_task() {
+    let mut h = messenger();
+    let _draft = page_act(&mut h, Act::MessageWords { words: Box::from(MESSAGE_WORDS) });
+    assert_eq!(
+        page_act(&mut h, Act::Send).as_ref(),
+        [c::Ask::Message { project: fixtures::PROJECT, task: f::TASK, words: acts::text(MESSAGE_WORDS) }]
+    );
+    let page = h.pages.task().unwrap();
+    assert!(page.words.is_empty());
+    assert_eq!(page.thread.words.rows.len(), SENT_MESSAGES);
+    assert_eq!(page.thread.words.rows.get(0).unwrap().state, jig_client::thread::words::Words::BeingSent);
+    assert!(page_act(&mut h, Act::Send).is_empty());
+}
+#[test]
+fn tracked_activity_reads_again_when_its_position_moves() {
+    let mut task = tracked();
+    let mut h = Harness::new(task.clone());
+    h.take();
+    let activity = h.pages.task().unwrap().activity;
+    h.answer(
+        activity,
+        c::ReadValue::Activity(Box::new(c::ActivityPage {
+            rows: List::uncapped(),
+            before: None,
+            after: None,
+            cut: false,
+        })),
+    );
+    h.take();
+    task.activity += 1;
+    h.deliver(task.clone());
+    assert!(reads(&h.take()).contains(&(activity, c::Read::Activity { task: f::TASK, before: None })));
+    h.deliver(task);
+    for (handle, _) in &reads(&h.take()) {
+        assert_ne!(*handle, activity);
+    }
+}
+
+#[test]
+fn a_refused_goal_message_uses_the_toast() {
+    let mut h = messenger();
+    page_act(&mut h, Act::MessageWords { words: Box::from(MESSAGE_WORDS) });
+    page_act(&mut h, Act::Send);
+    let key = h.pages.task().unwrap().pending.get(0).unwrap().0;
+    let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+        refusal: c::Refusal::NotWaiting,
+        at: None,
+    }));
+    h.event(Event::Told { told: Told::Answered { key, outcome: outcome.clone() } });
+    assert_eq!(h.pages.needs().toast(), Some(&pages::needs::Toasted::Refused { outcome }));
+    let page = h.pages.task().unwrap();
+    assert!(page.outcome.is_none());
+    assert!(page.pending.is_empty());
+    assert!(page.thread.words.rows.is_empty());
+}
+
+#[test]
+fn answered_goal_messages_release_the_pending_word_room() {
+    let mut h = messenger();
+    // One more acknowledgment than the pending-word capacity must still send.
+    let attempts = h.pages.task().unwrap().thread.words.rows.capacity() + 1;
+    for message in 1..=attempts {
+        page_act(&mut h, Act::MessageWords { words: Box::from(MESSAGE_WORDS) });
+        assert_eq!(page_act(&mut h, Act::Send).len(), usize::try_from(SENT_MESSAGES).unwrap());
+        let key = h.pages.task().unwrap().pending.get(0).unwrap().0;
+        h.event(Event::Told {
+            told: Told::Answered {
+                key,
+                outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                    c::Outcome::Document(c::DocumentOutcome::Said { task: f::TASK, message: u64::from(message) }),
+                ))),
+            },
+        });
+        assert!(h.pages.task().unwrap().thread.words.rows.is_empty());
+    }
+}
