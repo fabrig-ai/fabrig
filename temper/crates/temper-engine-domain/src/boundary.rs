@@ -783,6 +783,12 @@ pub enum Request {
         request: Token,
         back: Option<Box<[u8]>>,
     },
+    AdoptAccess {
+        forge: u16,
+        request: Token,
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
+    },
     Reachable {
         forge: u16,
         request: Token,

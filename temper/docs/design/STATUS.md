@@ -53,8 +53,10 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
-(`domain/forge.md`); so do How work runs' controls for a person with a
-project's role alone, its stored way, which a goal's start does not read,
+(`domain/forge.md`); so do Start goal's sheet, which no page opens, a live
+goal's walk, which the fake box's model cannot script, How work runs'
+controls for a person with a project's role alone, its stored way, which
+a goal's start does not read,
 and its drafts, which no chat offers yet, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
@@ -72,15 +74,24 @@ no engine (`protocol/credentials.md`), and a closed change whose
 repository a removal erased leaves no project the Changes document
 (`client/README.md`);
 public reading still lacks a deployment's proxy configuration and
-figures, and its negative walk plays the proxy's own rules against
-scripted upstreams rather than temper's service
+figures, its negative walk plays the proxy's own rules against
+scripted upstreams rather than temper's service, and the server walk
+gives a forge's sign-in meta at `forge connect` where the user's
+request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
 managed (`protocol/setup.md`); `temper forge sign-in` prints an owned
 Forgejo's command without its binary and paths
-(`protocol/setup.md`), and a held task names no run's failure, which
-is the user's to decide (`domain/worker.md`); a kept GitHub forge whose base ends
+(`protocol/setup.md`), a preparation keeps a runner's row when its
+configuration names a `uuid`, reading no row, where the `runner-labels`
+request of 2026-11-05 has the uuid match (`protocol/setup.md`), and a
+held task names no run's failure, which
+is the user's to decide (`domain/worker.md`); with
+`TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
+workspaces stay as they are between workstreams and across a restart,
+for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
+a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
@@ -96,7 +107,12 @@ layout with no project, and says a project has no repository while
 the forges' rows are unknown; an account's sources are a list, not
 `.setting` rows; and under a kind or
 goal filter Needs you's answered lines and head count what the filter
-leaves out (`client/README.md`). The
+leaves out (`client/README.md`). Home says what changed since the person
+last looked and the status agent is built, but on the stock policy a
+person's pool leaves it no funding, the reference names no charter 9, no
+walk on a box reaches a brief, and a project's first run counts its span
+from the epoch (`client/README.md`,
+`domain/forge.md`, `protocol/configuration.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither

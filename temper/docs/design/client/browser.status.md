@@ -7,12 +7,14 @@
   `goal-toast` answers Pause without delivering a paused task document, so
   its toast says "Paused" while the header and acts still read running and
   Pause (`tools/gallery/src/samples.rs`, `goal_domain`).
-- **Departs:** 7.2: `start-goal` is Chats without a sheet, since `OpenStart`
-  without a supplied draft no longer opens one; `start-goal-draft` and
-  `start-goal-refused` still draw the sheet. Goals' entry goes to Chats'
-  Drafts filter, as the `ui-goal-page` `goal-browser` answer of 2026-11-05
-  accepts; `ui-chat-draft` owns the continuation.
-- **Not yet:** 7.2: `home-away`, `home-away-one`, `home-away-overturned`, `settings-away`. 7.1: a `home-*` state's title is its headline, then
+- **Departs:** 7.2: `start-goal` is Chats with no sheet and no filter,
+  `Chats { filter: All }`, since that is where Goals' entry goes and `OpenStart`
+  opens nothing without both a draft and a chat; `start-goal-draft` and
+  `start-goal-refused` draw the sheet by sending it both, which no page does.
+  The rulings of 2026-11-05 on the request `ui-goal-page` send the entry to a
+  Drafts filter, which is not built (`README.status.md`, 3.5, *Goals*, 5.14).
+- **Not yet:** 7.2: `home-away`, `home-away-one`, `home-away-overturned`,
+  `settings-away`. 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.

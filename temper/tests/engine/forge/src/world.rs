@@ -1081,6 +1081,14 @@ impl World {
         for _ in 0..self.top_out.len() {
             let request = self.top_out.pop().expect("counted top output");
             match request {
+                top::Request::AdoptAccess { forge, request, .. } => {
+                    top::step(
+                        &mut self.top,
+                        &self.env,
+                        top::Event::AccessAnswered { forge, request, answer: Ok(()) },
+                        &mut self.top_out,
+                    );
+                }
                 top::Request::ApplicationPart { request, .. } => {
                     top::step(&mut self.top, &self.env, top::Event::Adopt { request }, &mut self.top_out);
                 }

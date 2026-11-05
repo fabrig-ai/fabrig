@@ -2947,14 +2947,14 @@ for its kind, its user's login and its installations. Its nodes:
 
 | Outcome | The form says |
 |---|---|
-| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It is the project's home." if so; "temper may: KINDS." in the forge's words; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `forge.md`, 5.1 words it, on Forgejo its branch protection alone |
+| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It is the project's home." if so; "temper may: KINDS." in the forge's words; "temper's forge user can only read OWNER/NAME on forge F: work there fails until it has write." if it may not push and the role isn't context; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `forge.md`, 5.1 words it, on Forgejo its branch protection alone |
 | refused by the core | jig's words for its refusal |
 | no such forge | "No forge F is configured." |
 | not connected | "Forge F is not connected.", linked to the forges' page (3.5) |
 | not installed | "temper's App is not installed on OWNER.", with "Install on another account" (`forge.md`, 5.5) |
 | not granted | "OWNER/NAME is not granted to temper's App.", linked to the installation's page on GitHub (`forge.md`, 5.5) |
 | not found | "No repository OWNER/NAME on forge F that temper's forge user can see." |
-| no access | "temper's forge user may not read OWNER/NAME on forge F." |
+| no access | "temper's forge user may not read OWNER/NAME on forge F."; `temper ctl` adds "A managed or owned forge gives that access by its site admin's token, which needs write:repository: the server's log names the step." |
 | refused | "The forge connector refused it: another project writes OWNER/NAME, the project has a home already, or branches under PREFIX are not this deployment's." |
 | in flight | "OWNER/NAME is being adopted already; try again when that ends." |
 | too large | "A field is past the forge's bounds, or the forge's repositories are full." |
@@ -5807,12 +5807,6 @@ own tests:
   "temper can change its code now; checked changes land on main through
   temper's merge queue.". Supplying a creation age or a first CI result
   needs its own protocol decision.
-- **A goal's own page, and its report whole** (3.5, *Goals*; the request of
-  2026-11-05 leaves them to the plan `ui-goal-page`): Goals' "Start one from a
-  draft" with its sheet, which reads `goals::ways`, and a goal's page drawn from
-  the greenfield mock's `goal.html`, reading `goals::state` and the rest of what
-  `report::parse` gives. Default: no such link, 5.8's page, and the report's
-  headline the only part of it a page draws.
 - **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
   decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
   Goals or Chats. The fact reads the ended group once, so once the live watch
@@ -6072,9 +6066,19 @@ own tests:
   - no drain: Pause is jig's Stop, so its toast says running tasks stop, where the
     mock's say they finish. jig's Drain and a party's `Hold` are not built;
   - "Stop" is `Ask::Cancel`, and no new word replaces it.
-- **Start goal's places** (5.14): the chat's "Start goal…" and Chats' Drafts filter
-  wait for the Chats area's drafts; "When it needs you" and "follows the away switch"
-  wait for the away switch.
+- **A goal's own line** (5.8): no key selects one task, so a goal's counts follow
+  `Read::Tasks` by its project, requester, label and tracked for at most 8 pages,
+  and a party with more goals than that sees what the page holds. Default: so,
+  since the request `ui-goal-page` keeps jig's part to `made`; a key selecting one
+  task is the candidate (a jig change).
+- **Start goal's places** (5.14): the chat's "Start goal…", which opens the sheet
+  with its draft and its chat, and Chats' Drafts filter, where Goals' link then
+  goes, as the mock's, wait for the Chats area's drafts (*The draft beside a
+  chat,* above). So do the walk from a chat's draft to a goal's page, and any
+  "Started goal X" that area draws from `draft_of`. "When it needs you", the
+  `Asks: always` line it adds to the goal's words, the goal's paragraph in
+  `stock/chat.txt` that reads that line, and "follows the away switch" wait for
+  the away switch.
   Each is drawn when what stands behind it is; until then the sheet opens with no
   draft from Goals, and a goal always asks you.
 - **An agent's task's page against its mockup** (5.9), each a default

@@ -355,7 +355,10 @@ runs it or writes what it makes.
   leaves the forge as it was. A start's reconcile that stops leaves that
   forge not connected, named, until the next start, a managed connect or
   an owned forge's next set up ask (6.5); the engine and every other
-  forge run on.
+  forge run on. A managed forge's row names it too: its plan's stop
+  shows as `SetUpFailed`, with the plan, the step and the why, and Connect
+  stays offered, so a repository whose access a start could not repair
+  is said where the person looks.
 
 - **Closing progresses without diagnostic consumption.** The service's
   setup adapter tracks closing requested separately from host `Close`
@@ -460,11 +463,25 @@ runs it or writes what it makes.
 - **`Adopt { forge, repository }`** runs before an adoption's reads on a
   managed, owned or fake Forgejo (skein's `forge-setup.md`, 4.5): the bot made
   a collaborator with write, and the repository's hook made when the
-  listener is configured, with the forge's secret. Stopped, the adoption
+  listener is configured, with the forge's secret; a managed forge is
+  served none (5.5). A person's adoption gives the plan the path its
+  request carries, since the bot may not see the repository yet; the
+  fake's start-time plans give ids. Stopped, the adoption
   is refused, named (`../domain/forge.md`, access at adoption). A
   `403` here, at reconcile's step 6 or at the picker's read, is the
   admin's token without `write:repository` (skein's 4.3, step 1): it
   is shown as that scope missing, named with its step.
+- **A stop reads as one of the adoption's refusals**
+  (`../client/README.md`, 4.7), and the log names the plan, its step and
+  its why:
+
+  | The plan's stop | The adoption's refusal |
+  |---|---|
+  | `Repository`, `Missing` | not found |
+  | `Admin`, whatever its why; `Refused(_)` at `Repository` | no access |
+  | `Down` or `TimedOut`, or the run ended by the forge's end | unreachable |
+  | the host busy (5.1) | in flight |
+  | any other | invalid answer |
 - **At each start,** reconcile's step 6 checks each adopted
   repository's access, and repairs what changed.
 - **A fake forge:** its repositories are
@@ -2092,8 +2109,13 @@ runs it (section 7).
   13.4) with the overrides configuration.md, section 7 asks so that the
   engine's documents fit temper's client, those its agent sets, and the
   machine's concurrency the box keeps, and no other:
-  - `documents.rows` 2 and `documents.text_bytes` 128: temper's client's
-    rows and text;
+  - `documents.rows` 2, temper's client's rows, and
+    `documents.text_bytes` 512, the most document text its web and
+    terminal clients receive: their wire takes the larger of their
+    `text`, 512, and a hold's account, 512 (jig's
+    `client/domain/contract.md`, 5.3), and refuses a longer one. It is
+    also the piece a task's text reads in (jig's
+    `client/domain/contract.md`, 6), so it is as large as they take;
   - `tasks.message_bytes` and `tasks.result_bytes`, the agent's
     advertised message bytes (above): the fleet holds the agent to the
     engine's message bound at its hello (jig's
@@ -3553,7 +3575,7 @@ the preparation relies on stays here:
     over a row registered raw as `kit-host:host`, since it declares at its
     start. `register` run again writes the row's labels over
     (`runner-register-again-keeps-one-global-runner`), which is why a
-    later preparation does not run it.
+    preparation runs it only where the row may not exist (6.3).
 
 ### 13.4 The process tier
 
@@ -3678,6 +3700,11 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **A start holding the engine's documents to temper's clients** (8.1):
+  no start compares `documents.text_bytes` with what the web and terminal
+  clients receive, so a deployment past 512 starts, and those clients
+  refuse a document whose text is longer. A test holds `temper init`'s
+  documents to them; a deployment's own override is held by nothing.
 - **The deployment's own UX:** what `temper init` alone writes and says
   beyond 8.2, and how a server is set up. For now it is the cheapest
   bare deployment.
@@ -3767,6 +3794,15 @@ Each is intended; what it needs is named with it.
   name its loopback address. Taking `web` when it has one changes those
   three and that section, whose "its `web` is always null" goes with
   them; the request of 2026-11-05 left `docs/design/client/` alone.
+- **Reading a runner's row** (6.3): a preparation goes by
+  `runner/config.yaml`, since Forgejo's command line cannot read the
+  row. So a row a person removed stays gone until that file is removed
+  before a start, which no help page says until one covers removing a
+  runner, and `register`, where a preparation still runs it, leaves a
+  runner still running elsewhere on a raw row until it starts again.
+  Noticing either needs a reader with Forgejo running, at
+  `GET /api/v1/admin/actions/runners` as 13.3's facts read it, which
+  the preparation is not.
 
 ## 16. Open questions
 
@@ -3813,6 +3849,11 @@ Each is intended; what it needs is named with it.
   written in the merge's `Entry`'s commit, is the route when a run
   needs either, a store schema change in place until the first release
   (store.md, section 4; skein's `codec.md`, section 5).
+- **A managed Forgejo's listener.** 5.5 serves a forge connected as its
+  admin none, so it polls, while 5.3, 5.4 and skein's `forge-setup.md`,
+  4.5, make each hook when one is configured. A forge on another host
+  can't reach a loopback listener; one on this host could. The user's.
+  Default: 5.5's.
 - **Demo after a reset** (8.4; `../draft/first-run-projects.md`, 9):
   a second playground run makes "Demo" again, the first having been
   deleted by the reset, and reuses nothing but the name. The user's to
