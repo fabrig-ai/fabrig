@@ -1,8 +1,7 @@
 //! Bounded task messages and atomic turn reads (domain/tasks.md, section 8.2).
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{
-    Hint, Limits, MessageFamily, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Slot, Spoken,
-    Word,
+    Hint, Limits, MessageFamily, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Spoken, Word,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
@@ -128,6 +127,7 @@ pub(crate) fn prepare_staged(
                 )
                 | MessageFamily::Spoken(_)
                 | MessageFamily::Slot(_)
+                | MessageFamily::Separate(_)
                 | MessageFamily::Result
                 | MessageFamily::Virtual => {}
             }
@@ -190,19 +190,11 @@ pub(crate) fn room_staged(
     let mut extra_bytes = 0_usize;
     for word in record.inbox {
         match word.kind.family() {
-            MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested | Slot::Met | Slot::NothingAwaited) => {
+            MessageFamily::Separate(_) => {
                 extra_count = extra_count.checked_add(1).expect("bounded merged slots");
                 extra_bytes = extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
             }
-            MessageFamily::Slot(
-                Slot::EffectNotMade
-                | Slot::SettingsDecision
-                | Slot::ProposalDecision
-                | Slot::QuestionAnswered
-                | Slot::QuestionOwed
-                | Slot::QuestionEnded
-                | Slot::PersonStalled,
-            )
+            MessageFamily::Slot(_)
             | MessageFamily::Spoken(_)
             | MessageFamily::Hint(_)
             | MessageFamily::Result
@@ -310,6 +302,7 @@ pub(crate) fn check_message(
         MessageFamily::Spoken(_)
         | MessageFamily::Hint(_)
         | MessageFamily::Slot(_)
+        | MessageFamily::Separate(_)
         | MessageFamily::Result
         | MessageFamily::Virtual => {
             return Err(Box::new(crate::Problem {

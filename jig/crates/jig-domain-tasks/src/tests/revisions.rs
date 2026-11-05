@@ -22,7 +22,7 @@ const CONTINUE_MESSAGE: u64 = 1;
 
 const RETRY: Retry = Retry { retries: 2, base: Duration::from_millis(10), max: Duration::from_secs(1) };
 
-pub(super) const LIMITS: Limits = Limits {
+pub(crate) const LIMITS: Limits = Limits {
     placed_holds: 16,
     project_placed_holds: 8,
     party_placed_holds: 4,
