@@ -350,7 +350,9 @@ keeps (`../protocol/configuration.md`, section 2).
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
 | `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open `Configure`; adopt the first repository again, or open the adoption form; skip "To begin"; a question's choice, reply and Later, and a card's acts, in place |
-| `Settings { project }` | none | a project's settings: "Settings for PROJECT", "Configure temper", the links to `Forges`, `Accounts` and `Adopt { project }`, and "Sign out" (*Settings,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | sign out |
+| `Settings { project }` | the greenfield mock's `settings.html` | How work runs, the first tab of a project's settings: Configure temper, what the project shows, its ways of working, its status, what needs the person, while the person is away and telling them (*Settings,* below; 5.13) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13) |
+| `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
+| `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the fifth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root). In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
@@ -359,14 +361,13 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
 | `Task { task }` | `task.html` | a goal: its header, what was asked and the result it gives, its result once ended, its plan as a tree of its delegates, live and ended, with their counts and its filter, each task's state, spend and dependencies, its latest activity and history, its budget and authority (5.8), with Amend, Stop and Cancel (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Stop and its composer (5.11); either's own held card while it is held | `task`, `tree`, `activity` a page at a time, older pages on an agent's task's "Older"; `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change | a goal's plan's filter (5.8); as its document offers them (5.11): on a goal amend, stop, cancel; on an agent's task message, amend, stop; release its own held task or one of its plan |
 | `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
-| `Adopt { project }` | none: 4.4 | the adoption form, into `project` (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
-| `Forges` | `forges.html` | the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
-| `ConnectForge { forge }` | `connect-forge.html` | connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the forge connected, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
+| `Adopt { project }` | none: 4.4 | under its path (*Settings,* below), the adoption form, into `project` (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
+| `Forges` | `forges.html` | inside Settings' frame while a project is open (*Settings,* below): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
+| `ConnectForge { forge }` | `connect-forge.html` | under its path (*Settings,* below), connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the forge connected, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (below): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the playground's read (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
-| `Accounts` | `accounts.html` | the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
-| `ConnectModel { way }` | `connect-model.html` | connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
-| `HowWorkRuns` | none: the user's (5.13) | the settings in the person's words: the newest revision and who decided it; "Configure temper"; pending proposals of settings; roles, ways to start work, rules, running work and history, each row tagged Default, Changed or Added (5.13) | `settings`; each setting shown, `setting` (jig's `client/domain/contract.md`, 5.1 and 6) | start the configuring chat; move a revision's tasks to the newest; propose a reset, a removal or a restore |
-| `Proposal { proposal }` | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
+| `Accounts` | `accounts.html` | inside Settings' frame while a project is open (*Settings,* below), and there "Sign out" at its foot: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
+| `ConnectModel { way }` | `connect-model.html` | under its path (*Settings,* below), connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
+| `Proposal { proposal }`, later (5.13) | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
 - **Words and facts:** a chat's status from jig's facts (jig's
   `client/domain/client.md`, section 19), in jig's words, with temper's
@@ -809,8 +810,8 @@ keeps (`../protocol/configuration.md`, section 2).
   user, 2026-10-23). It shows no value. Its acts are jig's accounts'
   requests (jig's `client/domain/contract.md`, 3.2), each sent as 3.6
   says. Its parts, in order:
-  - *"Your accounts",* level 2, with their count and "+ Connect a
-    model", to `ConnectModel`; then each of the person's accounts as a
+  - *"Your accounts · N",* level 2, with "+ Connect a model", to
+    `ConnectModel`, in its head; then each of the person's accounts as a
     disclosure, folded, named by the account's heading (5.5, An
     account), its summary its deciding source's state in words and the
     account's line (5.5, An account's line). Opened: the state's words
@@ -860,9 +861,9 @@ keeps (`../protocol/configuration.md`, section 2).
     runs (4.8).
   - *With none of the person's own,* "Your accounts" holds "No model
     of yours yet." and "Connect a model", to `ConnectModel`.
-  Under "Your accounts" its lead says "The LLM accounts temper’s agents run
-  on for you. A task keeps its account: while the account is limited, the task
-  waits for it." The connect link wraps below it on a phone. Each folded row
+  The frame's lede says "The LLM accounts temper’s agents run on for you. A
+  task keeps its account: while the account is limited, the task waits for
+  it."; with no project it follows the page's heading. Each folded row
   shows its name, holder, deciding source’s tag and summary. Opened, its state
   precedes "Its sources in order: a run takes the first usable one.", its
   numbered sources, the rule and labelled model and use facts, then its acts.
@@ -1821,16 +1822,101 @@ keeps (`../protocol/configuration.md`, section 2).
   change's `Task { task }`. Until its first document, the page is its
   kicker; with its watch refused or ended, its kicker and "Shown on the
   forge." (4.2). The terminal prints the page; the view is shared.
-- **Settings:** `Settings { project }`, at `/projects/<project>/settings`,
-  has the level-1 heading "Settings for PROJECT"; a list of links,
-  "Configure temper", "Forges", "Accounts" and "Adopt a repository", each
-  with the marks 5.3 gives it; then "Sign out". "Configure temper" opens
-  the person's configuring chat in the project, the newest one not closed
-  (the highest task number, not the latest activity), on its conversation;
-  with none, `Configure { project }`. So `Settings`
-  reads the person's chats in the project as `Chats` does, and until they
-  are delivered the link opens `Configure`. A project's Delete, when it is built, is here
-  (section 10).
+- **Settings:** a project's settings are tabs, each a project page in the
+  rail's frame, "Settings" current, in one `.col` as Home's (720 wide, gap
+  60; 32 on a phone):
+  - *Its head:* the kicker "PROJECT · settings", then, by tab, the level-1
+    heading and the lede:
+
+    | Tab | Heading | Lede |
+    |---|---|---|
+    | How work runs | How work runs in PROJECT. | Everything the other pages do for this project comes from here, so each project, and each person, can work its own way. |
+    | Repositories | What PROJECT works on. | The repositories chats and goals in PROJECT read and change. |
+    | Forges | Where your code lives. | Each forge temper is connected to, or setting up. Add one to bring its repositories to temper. |
+    | Accounts | What agents run on. | The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it. |
+    | Builders | Where agents work. | The machines temper’s agents run on, each with its slots and how many are in use. |
+
+  - *Its tabs:* a navigation named "Settings", links, the current one
+    current, wrapping on a phone: "How work runs", to `Settings { project }`, at
+    `/projects/<project>/settings`; "Repositories", to `Repositories {
+    project }`, at `/projects/<project>/settings/repositories`; "Forges", to
+    `Forges`; "Accounts", to `Accounts`, these two with the marks 5.3 gives
+    them; and "Builders", to `Builders { project }`, at
+    `/projects/<project>/settings/builders`.
+  - *`Forges` and `Accounts`* keep their addresses and paths, so that a
+    sign-in's return, To begin's links and their tests hold. Whenever the
+    page has a project, as the rail does (5.3), they draw inside this frame,
+    with no level-1 heading of their own and no page bar; their rows follow
+    the tabs. With no project they take the same column, sections and rows
+    under their own level-1 heading, "Forges" or "Accounts", and that tab's
+    lede, with no kicker and no tabs. Choosing a project on them changes
+    nothing but the words naming the project.
+  - *Sign out* is the last row of the `Accounts` tab: "Signed in as NAME",
+    its login in small type, and "Sign out"; with "Sign out did not reach
+    the engine." beside it as 6.6 says. With no project, the banner has them
+    (5.1).
+  - *How work runs* is 5.13.
+  - *Repositories:* a section whose head holds the title "Repositories · N"
+    and "Adopt a repository", to `Adopt { project }`; then a line per
+    repository of the project, from the `forges` watch's rows whose
+    `project` matches: `owner/name`, and in the line's time place its
+    forge's name. A line is no link. The playground's project shows its
+    repository from the playground's read (4.8). With none, a quiet band:
+    the tag "No repository yet", "Chats in PROJECT talk and plan, but change
+    no code until a repository is in.", and "Adopt a repository".
+  - *The rows,* on `Forges` and `Accounts`, are the greenfield mock's language
+    applied to what the client has, since its tabs draw neither: every fact,
+    act, form and state of 4.8, 5.5 and `forge.md`, 5.4 stays, and only its
+    look is this. Each is a folded disclosure in `.lines`' place: a hairline
+    under it, 14 px 4 px, no card and no shadow. Its summary is its name in
+    ink, 15 px, its second line in `small`, 13.5 px, muted, and "⌄" at the far
+    right, faint, as `.switcher > summary::after`. Opened, its content is 14 px
+    under the summary, indented nothing, its facts `.setting` rows. A section's
+    head is as Repositories': `.section-title`, and the section's act at its
+    right, a `.btn.small`. Buttons are `.btn`, `.btn.primary`, `.btn.quiet` and
+    `.btn.small`; fields `.text`. The tabs' marks stay.
+  - *The `Forges` tab:* a section, "Your forges · N", with "+ Add a forge" in
+    its head, not while the playground runs. Until the watch answers, "Your
+    forges" alone, claiming nothing. With none, and the playground not running, a
+    quiet band: the tag "No forge yet", "No forge of yours yet.", and the
+    primary "Connect a forge". Then a row per forge (`forge.md`, 5.4). While the
+    playground is read, a section of its own holding its forge's row.
+  - *The `Accounts` tab:* a section, "Your accounts · N", with "+ Connect a
+    model" in its head, as 3.5's accounts page has its act and condition. Until
+    the document is read, "Your accounts" alone. With none, a quiet band: the
+    tag "No account yet", "No model of yours yet.", and, not while the playground is read, the
+    primary "Connect a model". Then a row per account, its summary its line (5.5, An account's
+    line). "Deployment accounts", for an owner, is a section of the same rows;
+    the playground's account, a section of its own; then *Sign out*.
+  - *Builders* reads jig's `deployment` document, watched while the tab is open
+    by a person with a role in the deployment, as `Accounts` watches it for an
+    owner. It draws `Deployment.hosts`, as far as the document's configured rows
+    hold them. A section, "Builders · N", N its rows; then a line per host, as
+    Repositories' are, no link and no act: the host's name, or "Builder
+    CHANNEL" with none; in `small`, "2 slots · 1 in use" ("1 slot" for one); in
+    the line's `.when`, "Not connected" while it is not connected, else
+    "Draining" while it drains, else "Connected". Under them, `.facts`: "Each
+    agent’s role names which builders it runs on. Tell Configure temper to
+    change it." With no host connected, `.empty`, "No builder is connected.",
+    above any lines left. A cut document says so, as `Accounts` does. With no
+    role in the deployment, one line, "Builders are seen by the deployment’s
+    owners.", and no section. Until the document is read, the title "Builders"
+    alone, claiming nothing. There is no capacity graph. The word on the page
+    is "builder"; the code's stays host.
+  - *The flows' paths:* `ConnectForge`, `ConnectModel` and `Adopt` stay pages of
+    their own, the first two in the welcome's look as built, `Adopt` in the
+    rows' `.col`, `.text` and `.btn`. With a project open, each draws at its
+    head, in the browser, a path as `Configure`'s: PROJECT / Settings / Forges /
+    Add a forge; PROJECT / Settings / Accounts / Connect an account; PROJECT /
+    Settings / Repositories / Adopt a repository. Its links go to the project's
+    `Home`, to `Settings { project }` and to the tab, and its last part is no
+    link. On a phone it is "‹" alone, a link to the tab. With no project it has
+    no path, and the terminal draws none: its rail holds "Settings". A flow's
+    ending with no page of its own returns to its tab: "Start over" on a forge
+    cut short, from `ConnectForge`, to `Forges`.
+  - "Settings" is current on every tab, on `ConnectForge`, `ConnectModel`,
+    `Adopt` and `Configure`, and on a configuring chat. A project's Delete,
+    when it is built, is on How work runs (section 10).
 - **Goals** (the greenfield mock's `goals.html`), at `/projects/<project>/goals`,
   in the project's frame, is the project's goals, the filter in its address:
   `GoalsFilter`, All, Needs, Live or Ended, whose query is `?state=needs`,
@@ -1919,8 +2005,7 @@ keeps (`../protocol/configuration.md`, section 2).
   `chat.html?id=new&configure=1`, in the project's frame):
   `Configure { project }`, at `/projects/<project>/settings/configure`,
   under `Settings`, so that it reads as configuring temper and not as
-  one more chat; `Settings`, which the path names, is the page above
-  until it is designed. It opens that project as `Home` does; with no
+  one more chat. It opens that project as `Home` does; with no
   such project in `me` it says what `Home` says. Each main of this
   layout (`temper-session`) is the page's height, in this order:
   - *Its top bar:* the path, a navigation named "Where": on a wide page
@@ -3123,20 +3208,15 @@ page (5.1): a navigation named by the open project, in this order:
 - the switcher (*Projects in the rail,* below);
 - "Home", to the open project's `Home`; "Needs you", to *Needs you*
   filtered by the open project, with the count of what needs the person
-  there (*What the client keeps,* 3.5), omitted when zero; "Goals", to
-  the project's `Goals`
-  with the filter All, shown only where the project has a goal or the
-  page is `Goals`, so that a fresh project keeps the rail the mock's
-  Default project does; "Chats", to `Chats`; and "Changes", to
-  `Changes { project }`, shown for every project and in no tab bar;
-  current on `Home`, on
-  `Inbox`, on `Goals`, on a goal (a tracked agent's `Task`) and on a
-  task whose document names a goal, and on `Changes`, on `Chats`, `NewChat` and
-  `Chat`, but a
-  configuring chat's, whose current entry is "Settings". Whether a
-  project has a goal is `Domain::has_goals(project)`, a fact the domain
-  keeps whatever the rail does, from a live watch and one ended read of
-  the goals' query with window 1, per open project;
+  there (*What the client keeps,* 3.5), omitted when zero; "Goals", to the project's `Goals` with the filter All, only while the project's
+  kind 7 shows them; "Chats", to `Chats`; and "Changes", to `Changes { project }`, only while
+  kind 7 shows them; current on `Home`, on `Inbox`, on Goals, a tracked goal and a task whose document names a goal, on
+  `Chats`, `NewChat` and `Chat`, but a configuring chat's, whose current entry is
+  "Settings", and on Changes. On Goals, on a goal and on Changes their
+  entry stays shown, so that nothing goes from under the person; a hidden
+  page keeps its address, hiding removing the way in and not the page.
+  Until kind 7 is read, or if its read is refused, the optional entries
+  are hidden (5.13);
 - `div.temper-rail-new`, one dashed box split in two: "+ New chat", named "New
   chat", a link to `NewChat` (`/chats/new`); and at its right a 36-pixel button
   behind a dashed line, named "More ways to start work", drawn as a chevron, its
@@ -3151,27 +3231,28 @@ page (5.1): a navigation named by the open project, in this order:
   Skein's keys, arrows and Escape; a press on an item closes it; a focused item
   takes the hover's grey. A phone doesn't show the entry. Which templates it offers
   is fixed until `../draft/template-places.md` is taken up;
-- at its foot: while the playground runs and is not leaving (4.8),
+- at its foot: the Away switch, only while kind 7 shows it or while Away
+  is on; while the playground runs and is not leaving (4.8),
   "Set up temper", as the banner has it (5.1); the link's state, as
   5.1 has it, the browser hiding it while live; "Behind" while a
   page's watch reopens, beside the link's region in the browser, so
   that it shows while the link is live, and in the region in the
   terminal, whose first line reads it (6.4); "Settings", to `Settings
-  { project }`, current there, on `Configure` and on a configuring
-  chat's `Chat` (3.5), with the dots "Forges" and "Accounts"
+  { project }`, current on every tab and page 3.5's *Settings* names,
+  with the dots "Forges" and "Accounts"
   carry below, each its state in words; the person's name; and "Sign
   out did not reach the engine." while `me` or the page cannot say
-  otherwise (6.6), "Sign out" itself being Settings' (3.5).
+  otherwise (6.6), "Sign out" itself being the `Accounts` tab's (3.5).
 
 "Forges", "Accounts" and "Adopt a repository" are no entries of the
-rail: they are `Settings`' (3.5), each current on nothing there. On a phone, at 760 px and under, the rail is a top
+rail: they are `Settings`' tabs and the Repositories tab's (3.5). On a phone, at 760 px and under, the rail is a top
 bar showing the switcher alone, and the tab bar closes the page: in the
 browser, a navigation named "Sections" after the main, with "Home",
-at most four, as the mock's: "Home", "Needs you", "Goals" and "Chats"
-with Goals shown, "Home", "Needs you", "Chats" and "Settings" without,
-as the rail's, drawn at phone width alone (`browser.md`, 2.5). The
-terminal has no tab bar; its frame prints "Goals" only where it shows,
-so that a project with no goal prints as it did.
+"Needs you", then "Goals" and "Chats" while kind 7 shows Goals, "Chats"
+and "Settings" while it hides them, drawn at phone width alone
+(`browser.md`, 2.5); with Goals shown, Settings is reached by the
+switcher's "Settings for PROJECT". The Away switch is a chip in the top
+bar, on the rail's terms. The terminal has no tab bar.
 
 **The banner's navigation,** on a page that is no project's (5.1).
 In the mockups' top bar's order: "Inbox", with the count of what needs
@@ -3189,13 +3270,11 @@ you", a text node of its own after the entry's name, read from the
 person's own accounts, the playground's provider's left out: red for a
 deciding source refused, needing a sign-in, misconfigured or
 unloaded, before amber for one limited; current on `Accounts` and
-`ConnectModel`; both whatever the project; and "How work runs", to `HowWorkRuns`, current there and on `Proposal`
-(5.13), whatever the project. With no project chosen, the
+`ConnectModel`; both whatever the project. With no project chosen, the
 project's entries are not offered. The mockups' "Tasks", a list of a
-project's tasks, and "Workers", the deployment's hosts, are not in the
-navigation (the user's pick, 10-23): Goals covers what a task list
-is for, and the hosts are the operator's, through the engine's
-configuration. "Adopt
+project's tasks, is not in the navigation (the user's pick, 10-23): Goals covers what a task list is for. Their "Workers", the deployment's
+hosts, is no entry either: Settings' Builders tab reads them (3.5), and
+changing them is the engine's configuration's. "Adopt
 a repository" and "Forges" are offered whatever the person's role: the
 engine judges each, and a refusal says why, since the client never
 computes what a party may do.
@@ -3225,9 +3304,9 @@ not the time they were adopted.
 With no home known, "3 repositories" is the row's words; the stand-in
 leaves that state unreached until the client is given the home. In the
 terminal a row reads "PROJECT · work/hello", one run of words. Choosing
-a project keeps the page where it can (3.5): on `Home`, `Changes`, `Settings` and
-`Configure`,
-that project's page.
+a project keeps the page where it can (3.5): on `Home`, `Changes`, `Settings`,
+`Repositories` and `Configure`, that project's page; on `Forges` and
+`Accounts`, the same page, the words naming the project changed.
 
 The acts of both, each one act and one request (3.6):
 
@@ -4424,31 +4503,102 @@ Its rules:
 The settings, their revisions and their proposals are
 `../protocol/configuration.md`, section 13, and jig's
 `domain/engine.md`, section 17; the draft is `../draft/configuring.md`,
-section 5. The pages' look and place are the user's to make (section
-11).
+section 5.
 
-- **Two pages and a card.** `HowWorkRuns`, "How work runs", lists the
-  settings in the person's words; `Proposal { proposal }`, under it,
-  reviews one proposal of settings; and a proposal of settings in a
-  chat is a card of its own (below). They read jig's `settings`
-  document, and each setting they show whole (`setting`, jig's
-  `client/domain/contract.md`, 5.1 and 6), again as the document says
-  it changed; temper's kinds' values, and a proposal's items of them,
-  from the forge's reads (`forge.md`, section 9). The settings are bounded by jig's limits and temper's
-  (`../protocol/configuration.md`, 13.2), so the page reads them all
-  as it opens. A party sees the deployment's settings with a role in
-  the deployment, and a project's with a role in that project, as the
-  document gives them; the client hides nothing of its own.
-- **In the navigation** after "Accounts", whatever the project
-  (5.3); current on both pages.
-- **How work runs:** the level-1 heading "How work runs"; the line "The
-  roles temper's agents take, the ways work starts, and the rules temper
-  holds it to."; the newest revision, "Revision 8, accepted by Pat today
+- **The tab,** `Settings { project }` (3.5, *Settings*), under its tabs: its
+  sections 44 apart, each a section title and its rows, each row a label,
+  small words and a control at its right, a phone stacking them:
+  - *Configure temper,* with no title: "Tell it how you work, in your own
+    words or by pointing at a document. It proposes the settings; nothing
+    changes until you accept."; "Start", primary, to `Configure { project }`;
+    or "Go on", to the person's newest configuring chat open in the project
+    (3.5). To begin's step keeps its words, "Tell temper how you work". The
+    configuring page is a page of its own, its path PROJECT / Settings /
+    Configure temper; it is not folded into this tab or docked beside it.
+  - *What the project shows,* live, kind 7: a row each, the state's word then
+    a switch:
+
+    | Label | Small | Words | Member |
+    |---|---|---|---|
+    | Chats can write drafts | A chat keeps a document beside it, in docs/design/draft/, that a goal can start from. | On / Off | `drafts` |
+    | Goals | Bigger work from a draft: a plan, tasks, landing. | Shown / Hidden | `goals` |
+    | Changes | The landing queue, as a page. | Shown / Hidden | `changes` |
+    | Away switch | Lets agents decide within limits while you’re away. | Shown / Hidden | `away` |
+
+  - *Ways of working,* live, kind 7's `way`, only while Goals is shown: a row
+    per template of the project with `tracked` set, in number order, named and
+    worded as the Goals page words them, one table for both: its name; its line, then " Used by
+    N." or " Used by none yet." where a goal's template is recorded; a radio,
+    " The default". A stored `way` of 0, or of a template no longer offered,
+    reads as the first. A goal's start preselects it.
+  - *Status,* disabled, each showing what temper does today: "Status lines and
+    reports", "Written words, beside the counts temper keeps itself.";
+    "Rewritten"; "The brief on Home", "What changed since you last looked."
+  - *What needs you:* "Questions a goal can answer from its plan", live, kind
+    6: "Answered by the goal, kept in its decisions" (`foreman`), "Asked of me
+    too" (`up`), "Not asked: each agent decides alone" (`none`); "Funds",
+    disabled, "Ask when a budget is used up".
+  - *While you're away, agents may decide,* after What needs you, shown only
+    while the Away switch is; its controls write through `SetAway`.
+  - *Telling you,* disabled: "Notifications", "Only when something needs you;
+    never for status.", "Off"; "Quiet hours", "None".
+  - A disabled section's last line says once "Not built yet: this is what
+    temper does today."; Funds' small words say the same. No control does
+    nothing: whoever builds a mechanism later turns its row on.
+- **What the client holds:** jig's `settings` watch, for the session, as the
+  `dismissed` and `forges` watches are held, Home reading the same one. It reads
+  kind 7 of the open project as the project opens, and kind 6 on the tab,
+  through the forge's reads in that project's scope (`forge.md`, section 9),
+  and again whenever the document's line for that setting says it changed and
+  when the link comes back. Until read, or if refused, the optional entries,
+  the tab's live controls and `drafts` all read as hidden, off and absent; a
+  value of none reads as the stock (`../protocol/configuration.md`, 13.4).
+- **Its acts:** each live control sends at once jig's `ChangeSettings` with one
+  item, running work staying, against the newest revision the person has, the
+  one exception to the pages sending proposals alone. The control is disabled
+  while it is out, and so are the others of kind 7, since they write one record;
+  the value asked shows meanwhile. A refusal is said under its row in jig's
+  words, `full` and a person who is no owner too, the control back at its
+  value. A `stale` refusal is sent once more against the revision it names.
+  Answered, the client takes the value at once and reads it again.
+- **The terminal:** the switches as checks, the selects as selects, a disabled
+  one marked so; it all prints.
+- **What the settings change:** the rail and the tab bar (5.3); `drafts`,
+  `pages::chats::drafts_offered`, the chats' offer of a draft and nothing else;
+  and these open the tab, `Address` having no anchors: Home's "Turn on drafts
+  and goals", "See the settings" and "Limits".
+- **The card in a chat:** a proposal of settings is a card at the call that
+  made it, as every proposal is (3.5): the title "How temper will run
+  PROJECT"; a line per line of the proposal's reason, in the person's words;
+  then each item, in small mono type, faint, in the words of `temper ctl` but
+  for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
+  "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as
+  "Questions: answered by the goal", "Questions: asked of me too" or "Questions:
+  not asked"; any other as "charter 2", "template 4", "landing rule 1". Those
+  values come from the forge's read of a proposal's items, which takes a role
+  in the deployment (`../protocol/configuration.md`, 13.2): without one, or until
+  it is delivered, kinds 6 and 7 are named as `temper ctl` names them. Then
+  "Accept", primary, jig's `Decide` with running work staying, and "Change
+  something", quiet, focusing the composer. Replaced by a later proposal, it is
+  dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
+  follows it". A person who may not accept it sees neither act: "Waiting for an
+  owner", the parties it waits for as jig's proposal names them. Nothing of it
+  says which items temper enforces and which agents follow: that is the review
+  page's, below, once it is built. In the inbox, its card shows the same lines
+  (3.5).
+
+**Later: the fuller page.** Roles, ways to start work, rules, running work and
+history join the tab, the review page opens, and the card gains "Review". The
+pages then read jig's `settings` document and each setting they show whole
+(`setting`, jig's `client/domain/contract.md`, 5.1 and 6), again as the document
+says it changed; temper's kinds' values, and a proposal's items of them, from
+the forge's reads (`forge.md`, section 9). A party sees the deployment's settings
+with a role in the deployment, and a project's with a role in that project, as
+the document gives them; the client hides nothing of its own.
+
+- **More of the page:** the newest revision, "Revision 8, accepted by Pat today
   at 14:03" (who decided it and when, 5.12; "temper's defaults" for the
-  first start's and "temper 0.4's defaults" for a release's); the
-  entry "Configure temper", which opens as `Settings`' does (3.5): the
-  person's configuring chat in the open project, the newest one not
-  closed, or `Configure { project }`; each
+  first start's and "temper 0.4's defaults" for a release's); each
   pending proposal of settings as a line, "Proposal 13 waits for an
   owner. Lee asked for a Reviewer role, from "Reviews"", with "Review".
   Then five sections, each a level-2 heading with its count and a line
@@ -4487,24 +4637,16 @@ section 5. The pages' look and place are the user's to make (section
 - **Its tags:** "Default", a setting no change is over; "Changed", one
   a change is over, with "changed in revision N"; "Added", one no
   default has.
-- **Proposals only, at first** (`../draft/configuring.md`, section 10;
-  jig keeps the owner's direct change in its API, and the pages never
-  send `ChangeSettings`). A row's act is "Change it in a chat", which
+- **Proposals, but for the tab's own rows** (`../draft/configuring.md`, section
+  10; jig keeps the owner's direct change in its API, and the pages send
+  `ChangeSettings` only for a row of the tab that is one setting, above). A later row's act is "Change it in a chat", which
   starts the configuring chat with the row named in its first message.
   "Reset to default…" on a changed default, "Remove…" on an added
   setting and "Restore…" in the history are the person's own proposals
   (jig's `Propose`), each confirmed (3.6) and opening its review page.
-- **The card in a chat:** a proposal of settings the chat's subtree made
-  is a card at the call that made it, as every proposal is (3.5): the
-  tag "Proposal 12" and "against revision 7", its title, one line per
-  change in the person's words, before and after ("Testers GPT-5 high
-  → GPT-5 medium", "Sub-owners new: temper stops one 4 h after its
-  start"), at most five and "and N more", then "Review", to its review
-  page, and "Nothing changes until an owner accepts it." Nothing is
-  accepted from the card. A person who may not accept it sees "Waiting
-  for an owner" in its tag's place and "Pat or Kim decides: it is in
-  their inbox.", the parties it waits for as jig's proposal names them.
-  In the inbox, its card is the chat's (3.5), with "Review".
+- **The card, with the review page:** at most five lines and "and N more",
+  then "Review", to its review page; nothing is accepted from it once the
+  review page reviews it.
 - **The review page:** the level-1 heading "Proposal 12 · from "How we
   work" · against revision 7"; "Made by T21 How we work, for Pat, today
   at 13:56"; then two blocks:
@@ -5185,8 +5327,8 @@ The tiers, the fakes and the budgets are `../domain/testing.md`'s (sections 2,
 4 and 6.1); the client's joint world is its 2.1 and 6.3. The client's
 own tests:
 
-- **How work runs and a proposal of settings** (5.13): step tests of their rows, card and review from jig's
-  documents, and the gallery's and goldens' pages
+- **How work runs and a proposal of settings** (5.13): step tests of each control's request, refusal and stale; the rail and tab bar under each value;
+  the card from jig's documents; a world test that accepts a proposal of kind 7 and sees `me`'s project show it; and the gallery's and goldens' pages
   (`../domain/testing.md`, 6.4).
 - **Credential-boundary consumption** is checked in the existing
   domain and composed-client fixtures, including the terminal shell's
@@ -5572,17 +5714,6 @@ own tests:
   gives a chat's state, not what its delegates landed, so saying it takes
   one read per row. Default: the chat's state as `Chats` words it,
   "closed · 1 h".
-- **Settings' own page** (*Settings,* 3.5; the requests
-  `home-drops-connected` and `configure-chat-in-settings`): the lines of
-  the forge, the model's account and the project leave Home, and go to
-  Settings once it is designed (the user, 2026-11-04); no request draws
-  it yet. Default: 3.5's list of links, so Accounts is a link there,
-  "Open Forgejo ↗" one step further on the Forges page, "Rename" in the
-  switcher, and the model's line in no place yet.
-- **The configuring chat docked beside How work runs** (*The configuring
-  chat's page,* 3.5; 5.13; the request `configure-chat-in-settings`
-  leaves it for later). It waits on How work runs and on Settings' design.
-  Default: a page of its own.
 - **What a configuring chat's runs use, on its top bar** (the same
   request): the request says the configuring role's first model. A
   template's `llm` may be its charter's default, which no client is given.
@@ -5643,9 +5774,10 @@ own tests:
   spend; jig's `client/domain/pages.md`, section 6, and the forge's
   parts in `forge.md`, 5.3 and 7.3), but the settings' Delete (3.5); the deployment's page but its LLM
   accounts, which the accounts page shows an owner, and its forges,
-  which the forges' page shows (3.5); the "Tasks" list of a project
-  and the deployment's hosts, which the mockups draw ("Tasks",
-  "Workers"), after jig's pages (`client/domain/pages.md`, 6.3 and 7);
+  which the forges' page shows (3.5); the "Tasks" list of a project,
+  which the mockups draw, after jig's pages (`client/domain/pages.md`, 6.3
+  and 7); of the deployment's hosts, which the mockups draw as "Workers",
+  all but what Settings' Builders tab reads (3.5): its capacity and its runs;
   a procedure's task beyond 5.10's page, and a person task beyond a
   tracked task's header and plan; making a service and showing its
   credential once; another party's kept work. Default: not in temper's
@@ -5913,11 +6045,6 @@ own tests:
   costs live tasks no more than any key), and a proposal's or a move's
   count of tasks that could not move; without it, "Running work" and the
   review page draw counts alone and say in words which tasks stay.
-- **How work runs' place and look** (5.13): the user's to make, with
-  no mockup yet. 5.13 and the banner's navigation place it after
-  "Accounts", which the rail leaves to `Settings` (5.3), so a project's
-  page has no such place yet. Default: 5.13 as drawn, on `Settings`
-  after "Accounts".
 - **The switcher's name** (5.1): the look requests name it "Project:
   NAME" apart from its summary's words, NAME; skein's disclosure names
   its summary by its words alone (skein's `ui-web.md`, section 6).

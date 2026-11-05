@@ -109,6 +109,7 @@ fn github_ready_offers_adoption_from_the_form_without_reading_repositories() {
     assert!(front.reachable_reads.is_empty());
     assert!(!front.engine_adopted(1, 7));
     press(&mut front, &mut root, Role::Link, b"Settings");
+    press(&mut front, &mut root, Role::Link, b"Repositories");
     press(&mut front, &mut root, Role::Link, b"Adopt a repository");
     assert!(has(&root, Role::TextField, b"Owner"));
     assert!(has(&root, Role::TextField, b"Name"));

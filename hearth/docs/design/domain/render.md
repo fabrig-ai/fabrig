@@ -1384,7 +1384,7 @@ room check that remains, and what it keeps.
     initramfs  btrfs nvme
   config       part e7c2a0d95b13
     /etc/hostname            file 0644 root:root 3f1c2ab07e44
-    /etc/localtime           link root:root /usr/share/zoneinfo/Europe/Lisbon
+    /etc/localtime           link root:root /usr/share/zoneinfo/Etc/UTC
     tmpfiles   /var/log/journal d 2755 root systemd-journal
   data         part 51aa0c7d9e41
     journal    /var/log/journal

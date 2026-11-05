@@ -9,9 +9,12 @@ use temper_client_world::{app::Temper, fixtures, front::Joint};
 use temper_engine_domain as engine;
 
 type ClientWorld = World<Temper, Joint>;
+// Review projections cut after the request and the beginning of its branch.
+const REVIEW_TEXT_BYTES: u32 = 64;
 
 fn change_world() -> (ClientWorld, u64) {
-    let limits = fixtures::domain_limits();
+    let mut limits = fixtures::domain_limits();
+    limits.client.domain.text = REVIEW_TEXT_BYTES;
     let mut front = Joint::with_change_landing(fixtures::SEED, &limits);
     front.engine.forge =
         Some(temper_engine_domain_world::forge_stand::ForgeStand::with_checks(fixtures::REPOSITORIES, &[b"build"]));
@@ -131,7 +134,7 @@ fn an_ended_child_of_the_change_is_never_listed_as_its_own_child() {
     let client = world.client(fixtures::PARTY, fixtures::task_page(task));
     let delegate = review(&mut world, client, task);
     let whole = world.front().engine.task(delegate).expect("live review").spec.words.clone();
-    assert!(whole.len() > usize::try_from(fixtures::domain_limits().client.domain.text).expect("text bound"));
+    assert!(whole.len() > usize::try_from(REVIEW_TEXT_BYTES).expect("text bound"));
     let observer = world.client(fixtures::PARTY, fixtures::task_page(delegate));
     see(&mut world, observer, Find::text(b"Review this change at the named head"));
     assert_cut_review(&world, observer);

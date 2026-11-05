@@ -250,6 +250,11 @@ answer, and a **notice** is not answered.
   inventory, only the sent list is valid. Names, rather than request IDs,
   distinguish these ordered replacements.
 
+Transcript refusal keeps its typed reason on the channel: `StartCause`
+appends `transcript`, and `RunFailure` appends a unit `transcript` variant.
+The failure's bounded detail carries the diagnostic. Existing variant
+tags stay fixed (`README.md`, 7).
+
 - **A refused start is not kept.** An answer that refuses its start
   (busy, a duplicate among them, or invalid, at the entrance or as a
   start the agent refuses; `../domain/hosts.md`, 6.1 and 6.3) crosses

@@ -88,7 +88,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (1, false, 39_736, 360_399),
         (1, true, 37_646, 362_489),
         (2, false, 33_561, 366_574),
-        (3, false, 38_681, 361_454),
+        (3, false, 39_031, 361_104),
         (4, false, 31_320, 368_815),
         (6, false, 32_151, 367_984),
     ] {

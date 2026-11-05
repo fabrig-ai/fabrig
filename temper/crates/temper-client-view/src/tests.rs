@@ -1,3 +1,4 @@
+mod builders;
 mod changes;
 mod chats;
 mod choice;
@@ -21,6 +22,7 @@ mod playground;
 mod playground_start;
 mod public;
 mod rail;
+mod settings;
 mod toast;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;

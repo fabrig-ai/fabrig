@@ -389,15 +389,16 @@ fn ready_names_the_forge_and_offers_adopt_a_repository() {
 
 #[test]
 fn a_forge_under_way_offers_start_over_in_the_welcome() {
-    let mut rows = List::with_capacity(1);
-    rows.push(row(HERE, w::Kind::Forgejo, w::Mode::Owned, w::Connection::Connecting, w::Offer::Offered)).unwrap();
-    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, rows);
+    let root = unfinished_root(Address::Welcome { step: Step::Forge { forge: None } });
     let view = f::page_view(&root);
     words_in_order(view.tree(), &["FORGE · not finished", "Start over"]);
     assert!(f::find(view.tree(), Role::Button, b"Go on").is_none());
     assert_eq!(
         press(&root, Role::Button, b"Start over"),
-        d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::StartOver { forge: HERE }))
+        d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::StartOver {
+            forge: HERE,
+            end: d::forge::forges::StartOverEnd::Welcome
+        }))
     );
 }
 
@@ -1976,6 +1977,29 @@ fn bot_tokens_connected_refusal_is_under_the_button_and_clears_the_fields() {
         &["Connect with its tokens", "Forge 3 is connected already: replace its tokens on Forges."],
     );
     assert!(!root.forge().tokens_form().has(d::forge::tokens::Field::Api));
+}
+
+fn unfinished_root(address: Address) -> d::Domain {
+    let mut rows = List::with_capacity(1);
+    rows.push(row(HERE, w::Kind::Forgejo, w::Mode::Owned, w::Connection::Connecting, w::Offer::Offered)).unwrap();
+    f::forge_root(address, rows)
+}
+
+#[test]
+fn start_over_names_where_it_ends() {
+    for (address, end) in [
+        (Address::ConnectForge { forge: None }, d::forge::forges::StartOverEnd::Forges),
+        (Address::Welcome { step: Step::Forge { forge: None } }, d::forge::forges::StartOverEnd::Welcome),
+    ] {
+        let root = unfinished_root(address);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let start = node(view.tree(), Role::Button, b"Start over");
+            assert_eq!(
+                crate::act(&mut view, start, Act::Press),
+                Some(d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::StartOver { forge: HERE, end })))
+            );
+        }
+    }
 }
 
 #[test]

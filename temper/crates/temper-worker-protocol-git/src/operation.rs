@@ -88,7 +88,7 @@ impl Operation {
                         invocation::joined(&[b"workspaces/", skein_lib::Decimal::of(at.workspace.raw()).as_bytes()]),
                         Some(op.kind()),
                     ),
-                    git::Op::Make { .. } => (Box::from(&b""[..]), Some(op.kind())),
+                    git::Op::Look { .. } | git::Op::Make { .. } => (Box::from(&b""[..]), Some(op.kind())),
                     git::Op::Fetch { at, .. }
                     | git::Op::Create { at, .. }
                     | git::Op::CheckOut { at, .. }
@@ -133,7 +133,8 @@ impl Operation {
     fn is_commit_tree(&self) -> bool {
         match self.command {
             Command::CommitTree { .. } => true,
-            Command::Version
+            Command::Origin { .. }
+            | Command::Version
             | Command::Clone { .. }
             | Command::Fetch { .. }
             | Command::Create { .. }
@@ -207,7 +208,8 @@ impl Operation {
     fn delimiter(&self) -> u8 {
         match self.command {
             Command::Unmerged => 0,
-            Command::Version
+            Command::Origin { .. }
+            | Command::Version
             | Command::Clone { .. }
             | Command::Fetch { .. }
             | Command::Create { .. }
@@ -257,6 +259,7 @@ impl Operation {
                         | git::Op::Fetch { .. }
                         | git::Op::Create { .. }
                         | git::Op::CheckOut { .. }
+                        | git::Op::Look { .. }
                         | git::Op::IsAncestor { .. }
                         | git::Op::Merge { .. }
                         | git::Op::Commit { .. }

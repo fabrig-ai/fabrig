@@ -15,7 +15,7 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 
 ### 2.1 A workspace kept between workstreams
 
-- **What:** `TEMPER_WORKSPACE_REUSE` on the worker, unset by default. A new workstream that takes an idle workspace with the same repositories keeps the clone, and fetches and checks out in place. After a worker's restart, a workspace whose directory already holds those repositories is reused too.
+- **What:** `TEMPER_WORKSPACE_REUSE` on the worker, unset by default. A new workstream that takes an idle workspace with the same repositories keeps the clone, and fetches and checks out in place. After a worker's restart, a workspace whose directory already holds those repositories is reused too. Any value counts as set; it's read once, at the worker's start. On main (`../domain/worker.status.md`).
 - **Why:** a checkout otherwise starts empty for each workstream (`../domain/worker.md`, section 5), so every file is new to cargo, and each crate recompiles. Kept, a new piece of work rebuilds only what changed.
 - **Cost and risk:** a run can write its `.git`. With no contained trees (`../domain/worker.md`, section 9), its hooks reach later workstreams, and the worker's own git runs them, with push credentials in reach. Acceptable for one trusted person only. Old objects also pile up in a clone.
 - **The pipeline:** a fixed set of long-lived checkouts, each claimed by one run, fetched and reset in place.
@@ -30,6 +30,7 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
   - **never share or copy a target across workspaces:** cargo's dep-info holds absolute paths, so a copied one misses changes, and a test goes green on old code;
   - a nested cargo must not re-enter the wrapper, or it deadlocks on its own place: the wrapper takes itself off `PATH`;
   - it reads the checkout's `FETCH_HEAD` to see a new hold, since the worker tells it nothing.
+  - **its disk is a pool of its own:** it reclaims its own idle targets only, and the pipeline's reclaim frees only the pipeline's, so a machine's disk budget counts both by hand: about 35 GB a workspace, and `checkout.workspaces` bounds how many.
 - **The pipeline:** every build goes through the same admission by hand, with the claim held for the whole run.
 - **A real design:** temper knows a repository's build. A worker with a build's disk budget, its places and its sweep as settings; or a question: does temper own this, or does a deployment always bring its own?
 

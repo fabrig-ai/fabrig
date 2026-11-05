@@ -389,6 +389,7 @@ fn ending(value: wire::Ending, parts: &mut Parts) -> host::Ending {
                                 cause: match record.cause {
                                     wire::StartCause::Other => host::StartCause::Other,
                                     wire::StartCause::Grants => host::StartCause::Grants,
+                                    wire::StartCause::Transcript => host::StartCause::Transcript,
                                 },
                             }
                         }
@@ -456,6 +457,7 @@ fn run_failure(value: wire::RunFailure) -> host::RunFailure {
             value: value.value(),
         }),
         wire::RunFailure::Model => host::RunFailure::Model,
+        wire::RunFailure::Transcript => host::RunFailure::Transcript,
         wire::RunFailure::Budget => host::RunFailure::Budget,
         wire::RunFailure::Policy => host::RunFailure::Policy,
         wire::RunFailure::Cancelled => host::RunFailure::Cancelled,
