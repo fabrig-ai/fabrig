@@ -31,7 +31,7 @@ pub fn valid(policy: &WakePolicy) -> bool {
     true
 }
 
-fn category(kind: &MessageKind) -> u8 {
+pub(crate) fn category(kind: &MessageKind) -> u8 {
     match kind.family() {
         MessageFamily::Spoken(Spoken::Words) => 0,
         MessageFamily::Spoken(Spoken::Question) => 1,
