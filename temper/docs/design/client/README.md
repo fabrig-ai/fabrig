@@ -5125,10 +5125,6 @@ own tests:
   intro; each is a new fact of a protocol or a stored one, the user's.
   Default: the day and time, the headline's count, no lede and no byline.
 - **The landing's line on Home** ("Landing: main last moved 1 h ago ·
-  nothing queued"; the same request): no client is given a project's
-  landing branch's last move or its queue's depth: `LandingsPanel` lists
-  turns alone, a queue's merge making no landing task. A new fact of the
-  forge's protocol, the user's. Default: Home draws no such line.
   nothing queued"; the same request): the line is *Changes*' (3.5), from
   the subject `changes` (4.6), and one function serves both. Default: Home
   draws no such line until it moves to that function.
@@ -5449,6 +5445,11 @@ own tests:
   the providers' facts, jig's `domain/providers.md`, 2.5); until then,
   each reads as the ending jig gives, in its words. Default: none drawn
   before jig's fact.
+- **A sign-in made with no model usable** (3.5, *Ready*; 5.5, A sign-in):
+  a sign-in that ends `Made` or `Renewed`, not declined, while no account
+  is usable has no words: 5.5's "temper’s agents now run on your ChatGPT
+  plan." would be false there. Ready's rule stands, that such an ending is
+  never silent; the words are the user's.
 - **A sign-in started from another client** (3.5, `ConnectModel`): a
   page opened at a sign-in's way, by a reload or a link, knows no
   sign-in of its own, and offers the way's button again; the accounts
