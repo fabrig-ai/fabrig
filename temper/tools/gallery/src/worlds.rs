@@ -233,6 +233,18 @@ fn configure_frame(me: &mut c::Me) {
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, false, None, None, false)
 }
+pub(super) fn drafts_world() -> Domain {
+    world_in_layout(
+        Reference,
+        Address::Chats { filter: temper_client_domain::ChatsFilter::Drafts },
+        Then::Shown,
+        false,
+        Some("chats-drafts"),
+        None,
+        false,
+    )
+    .0
+}
 pub(super) fn linked_chat_world(w: World, address: Address) -> Domain {
     world_in_layout(
         w,
@@ -352,7 +364,7 @@ fn world_in_layout(
                             held: List::with_capacity(0),
                             pending: List::with_capacity(0),
                         }))),
-                        c::Subject::Chips { tasks } if goals == Some("chat-goal-linked") => {
+                        c::Subject::Chips { tasks } if matches!(goals, Some("chat-goal-linked" | "chats-drafts")) => {
                             let mut chips = List::with_capacity(tasks.len());
                             for number in &tasks {
                                 let mut chip = document(w, 1).chip;
@@ -399,7 +411,8 @@ fn world_in_layout(
                             }
                         }
                         v1::Read::Setting(setting) => {
-                            let drafts = matches!(then, Then::Mode(_) | Then::DraftEmpty);
+                            let drafts =
+                                matches!(then, Then::Mode(_) | Then::DraftEmpty) || goals == Some("chats-drafts");
                             if setting.kind() == 7 && (goals.is_some() || drafts) {
                                 project_ways(&mut root, read, drafts, goals.is_some(), false, &mut out);
                                 continue;
@@ -448,7 +461,7 @@ fn world_in_layout(
                             }
                             continue;
                         }
-                        w::Watch::Dismissed if goals == Some("chat-goal-linked") => {
+                        w::Watch::Dismissed if matches!(goals, Some("chat-goal-linked" | "chats-drafts")) => {
                             let mut dismissed = List::with_capacity(1);
                             dismissed
                                 .push(w::PersonFact::GoalFrom(
@@ -1199,7 +1212,25 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             Some(c::ReadValue::Tasks(Box::new(goal_page(w, goals))))
         }
         c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(
-            if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 }) {
+            if goals == Some("chats-drafts") && *scope == (c::NoteScope::Tasks { project: PROJECT }) {
+                let mut rows = List::with_capacity(2);
+                for (task, title) in [(1, "Away mode"), (3, "Report format")] {
+                    rows.push(c::Note {
+                        number: 1,
+                        revision: c::Revision { value: 1 },
+                        scope: c::NoteScope::Task { project: PROJECT, task },
+                        description: doc(title),
+                        body: c::DocumentText { bytes: text(""), cut: true },
+                        writer: c::NoteAuthor::Task { task, attempt: 1 },
+                        tasks: List::with_capacity(0),
+                        changed: None,
+                        acts: List::with_capacity(0),
+                        cut: false,
+                    })
+                    .expect("chat document");
+                }
+                c::NotePage { rows, before: None, after: None, cut: false }
+            } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 }) {
                 configuring_note(scope)
             } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 1 }) {
                 chat_note(scope)

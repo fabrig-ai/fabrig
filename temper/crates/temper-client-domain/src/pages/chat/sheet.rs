@@ -132,6 +132,7 @@ pub(crate) fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut
         start.way = pages::start_goal::preferred_way(me, start.project, configured);
         start.default = start.way;
     }
+    pages::chats::refresh(root, out);
     if let Some(chat) = &mut root.pages.chat {
         chat.goal_watch(&root.client, &root.forge, out);
     }

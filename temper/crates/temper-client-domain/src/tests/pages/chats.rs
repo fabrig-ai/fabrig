@@ -476,7 +476,19 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
         assert_eq!(&*chats.words, b"draft");
         assert_eq!((chats.live, chats.closed), handles);
         assert_eq!(chats.page.as_ref(), Some(&closed));
-        assert!(out.is_empty(), "a filter move reads nothing again");
+        while let Some(request) = out.pop() {
+            match request {
+                Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(Read::Notes { .. }) }) => {
+                    assert_eq!(handle, chats.notes);
+                }
+                Request::Client(jig_client::Event::Unwatch { handle }) => {
+                    assert!([chats.notes, chats.goals].contains(&handle));
+                }
+                other @ (Request::Client(_) | Request::Show { .. } | Request::Replace { .. }) => {
+                    panic!("the live and closed windows stay: {other:?}")
+                }
+            }
+        }
     }
 }
 
@@ -912,4 +924,109 @@ fn adding_a_draft_replaces_the_new_chat_address() {
     page.act(crate::pages::Act::Go { address: address.clone() });
     assert_eq!(page.out.pop(), Some(Request::Replace { address }));
     assert!(page.out.is_empty());
+}
+
+#[test]
+fn reads_tasks_as_it_opens() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: false });
+    page.event(crate::pages::Event::Went { address: crate::Address::Chats { filter: ChatsFilter::All } });
+    let notes = page.pages.chats().unwrap().notes;
+    assert_eq!(
+        page.out.pop(),
+        Some(Request::Client(Event::Read {
+            handle: notes,
+            read: Readable::Jig(Read::Notes {
+                scope: NoteScope::Tasks { project: fixtures::PROJECT },
+                description: None,
+                after: None,
+            }),
+        }))
+    );
+    assert!(page.out.is_empty());
+    page.event(crate::pages::Event::Went { address: crate::Address::Chats { filter: ChatsFilter::Drafts } });
+    assert!(page.out.is_empty(), "filtering has no read");
+}
+
+fn list_note(number: u64, task: u64, title: &[u8]) -> Note {
+    let mut note = super::chat::draft_note(number, 1, b"");
+    note.scope = NoteScope::Task { project: fixtures::PROJECT, task };
+    note.description = DocumentText::complete(Text::new(title.into(), 32).unwrap());
+    note
+}
+fn note_page(notes: &[Note], after: Option<Cursor>) -> Told {
+    let Readout::Jig(ReadResult::Value(ReadValue::Notes(mut page))) = super::chat::notes_page(notes) else {
+        panic!("notes page")
+    };
+    page.after = after;
+    Told::Page { handle: Chats::new(FIRST).notes, page: Readout::Jig(ReadResult::Value(ReadValue::Notes(page))) }
+}
+#[test]
+fn pages_follow_to_the_rows_bound() {
+    const ROWS: u32 = 4;
+    let mut chats = Chats::new(FIRST);
+    let root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+    let mut out = Queue::uncapped();
+    chats.open_documents(fixtures::PROJECT, ROWS, &mut out);
+    out.pop();
+    let cursor = Cursor::new(b"next".as_slice().into(), CURSOR_BYTES).unwrap();
+    let first = note_page(&[list_note(9, 4, b"Later"), list_note(5, 4, b"Earlier")], Some(cursor.clone()));
+    assert!(chats.notes_told(skein_lib::Time::ZERO, root.client(), &first, &mut out));
+    assert_eq!(
+        out.pop(),
+        Some(Request::Client(Event::Read {
+            handle: chats.notes,
+            read: Readable::Jig(Read::Notes {
+                scope: NoteScope::Tasks { project: fixtures::PROJECT },
+                description: None,
+                after: Some(cursor.clone())
+            }),
+        }))
+    );
+    let second = note_page(
+        &[list_note(2, 4, b"Lowest"), list_note(1, 8, b"Another"), list_note(1, 7, b"Past bound")],
+        Some(cursor),
+    );
+    chats.notes_told(skein_lib::Time::ZERO, root.client(), &second, &mut out);
+    assert!(out.is_empty(), "no page past four notes");
+    assert_eq!(chats.documents.get(&4).unwrap().bytes(), b"Lowest");
+    assert_eq!(chats.documents.get(&8).unwrap().bytes(), b"Another");
+    assert!(!chats.documents.contains_key(&7));
+}
+#[test]
+fn document_reads_retry_transient_ends_and_clear_a_refusal() {
+    use skein_lib::{Duration, Time};
+    let mut chats = Chats::new(FIRST);
+    let root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+    let mut out = Queue::uncapped();
+    chats.open_documents(fixtures::PROJECT, 2, &mut out);
+    let read = out.pop().unwrap();
+    chats.notes_told(
+        Time::ZERO,
+        root.client(),
+        &Told::Page { handle: chats.notes, page: Readout::Jig(ReadResult::None(ReadNone::Busy)) },
+        &mut out,
+    );
+    let due = Time::ZERO.saturating_add(Duration::from_secs(1));
+    assert_eq!(chats.next_deadline(), Some(due));
+    chats.fire(Time::ZERO, &mut out);
+    assert!(out.is_empty());
+    chats.fire(due, &mut out);
+    assert_eq!(out.pop(), Some(read));
+    chats.notes_told(due, root.client(), &note_page(&[list_note(1, 4, b"Draft")], None), &mut out);
+    assert!(chats.documents.contains_key(&4));
+    chats.notes_told(
+        due,
+        root.client(),
+        &Told::Page { handle: chats.notes, page: Readout::Jig(ReadResult::None(ReadNone::Refused)) },
+        &mut out,
+    );
+    assert!(chats.documents.is_empty());
+    assert_eq!(chats.next_deadline(), None);
+    let closed = chats.leave(&mut out);
+    let mut cancelled = false;
+    while let Some(request) = out.pop() {
+        cancelled |= request == Request::Client(Event::Unwatch { handle: chats.notes });
+    }
+    assert!(cancelled);
+    assert!(closed > chats.goals.number);
 }

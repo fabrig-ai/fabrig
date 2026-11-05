@@ -62,6 +62,7 @@ pub enum WayKind {
 pub enum ChatsFilter {
     All,
     Live,
+    Drafts,
     Closed,
 }
 /// The project goals' filter is its query (temper/docs/design/client/browser.md, 2.3).
@@ -124,6 +125,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
             return match filter {
                 ChatsFilter::All => b"/chats".as_slice().into(),
                 ChatsFilter::Live => b"/chats?state=live".as_slice().into(),
+                ChatsFilter::Drafts => b"/chats?state=drafts".as_slice().into(),
                 ChatsFilter::Closed => b"/chats?state=closed".as_slice().into(),
             };
         }
@@ -282,6 +284,7 @@ fn parse_chats(query: &[u8]) -> ChatsFilter {
         if filter == ChatsFilter::All {
             filter = match field {
                 b"state=live" => ChatsFilter::Live,
+                b"state=drafts" => ChatsFilter::Drafts,
                 b"state=closed" => ChatsFilter::Closed,
                 _ => ChatsFilter::All,
             };
