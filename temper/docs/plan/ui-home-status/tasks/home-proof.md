@@ -60,3 +60,14 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report, with the builder, the paths and what still differs.
+
+## Rebase (2026-11-05, step merge, foreman ui-home-status/home-proof/foreman-1)
+
+preserve integration’s Home token allocation while retaining the branch’s mapping test
+The merge conflicts in `temper/crates/temper-client-view/src/look.rs`.
+Task commit `c761ae2307` assigns `HOME_FACTS`/`HOME_BYLINE` tokens 299/300.
+Integration commit `bbdb0f14d4` incorporates main’s chat changes and assigns those Home styles 326/327; token 300 now belongs to `TOAST`.
+Resolve using integration’s constants and complete `NAMES` ordering, including `temper-home-facts` and `temper-home-byline` at 326/327.
+Retain the branch’s `homes_facts_and_byline_keep_their_own_style_names` test and its other task changes.
+Verify through `heavy cargo nextest run -p temper-client-view --lib -E 'test(=look::tests::homes_facts_and_byline_keep_their_own_style_names)'` with `TEMPER_BUNDLE=none`; confirm one test runs.
+Regenerate affected goldens through their existing tool if the combined token mapping changes them.
