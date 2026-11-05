@@ -1,15 +1,15 @@
 # D001: The service and its machines pace work by room checks and `MAX_OUT`
 
 - **Kind:** complexity
-- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-git`, `hearth-protocol-mmdebstrap`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/src/fixtures/bounds.rs`
+- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-mmdebstrap`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/src/fixtures/bounds.rs`
 - **Seen:** 2026-11-04 at `66968a30ef`, in the request of plan hearth-workspace (its port table, and its rule that adopting the newer model in full is out of scope)
 - **Seen:** 2026-11-04 at `66968a30ef`, in `hearth/scripts/old-forms.txt` (`max_out`)
-- **Checked:** 2026-11-04 at `66968a30ef`
+- **Checked:** 2026-11-05 at `efd6a36487`
 - **Value:** high (hearth paces as the other trees do; `iterate` shrinks; new code stops copying the old form)
 - **Size:** L
 - **Status:** open
 - **Paid when:** no hearth step crate defines a `MaxOut` or a `MAX_OUT` constant, `iterate` asks no queue for room but the kernel's edge, the queues between a service's own layers are uncapped, and the orders the room checks kept are named predicates with world tests.
-- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 85`
+- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 78`
 
 ## What
 
@@ -18,10 +18,10 @@ Under `skein/docs/foundation/programming-model.md`, 6.3 and 7.1, nothing
 caps the entries between a root's own children; only the edges refuse.
 hearth still holds the old form:
 
-- every step crate of the builder declares what one entry point may emit:
+- step crates of the builder still declare what one entry point may emit:
   `MAX_OUT` in five domains, `MaxOut` and `MAX_OUT_*` in
   `hearth-protocol-builder`, and `MaxOut`, `UP_MAX_OUT` and `DOWN_MAX_OUT`
-  in the git, mmdebstrap, config and records machines;
+  in the mmdebstrap, config and records machines;
 - `hearth-service-builder/src/lib.rs` keeps eight capped queues, and
   `told` is the only uncapped one. Before each entry point it asks
   `io_room` or `protocol_room`; after it, `within` asserts the constant.
@@ -29,9 +29,9 @@ hearth still holds the old form:
 - `Service::new` refuses `limits.queue` under 3, "queues holding every
   MAX_OUT", and `tests/builder/src/fixtures/bounds.rs` sizes a world on
   that figure;
-- 26 `.room()` calls remain in non-test step code.
+- 25 `.room()` calls remain in non-test step code.
 
-Eight of the 85 are `io::MAX_OUT_*`, the kernel's edge, which skein keeps
+Eight of the 78 are `io::MAX_OUT_*`, the kernel's edge, which skein keeps
 and the other trees exempt (D011).
 
 ## Why it matters
@@ -48,6 +48,7 @@ First list what each room check keeps, a capacity or an order, as 7.2
 asks, and write each order's test. Then make the inner queues uncapped,
 from the machines up, and take the constants and `within` out. Do it with
 D004, which rewrites the same `io_up` and `io_down`.
+Git is done; mmdebstrap, config and records come next, then the service.
 
 ## What each room check keeps
 
@@ -60,10 +61,7 @@ first, and each order's test is named beside it.
 
 | Where | Check | Keeps |
 |---|---|---|
-| `hearth-protocol-git/src/tail.rs`, `Tail::admit` | `self.lines.room() == 0` | A capacity, `tail_lines`, at an edge: git's standard error. An order too: the oldest line leaves first. `the_tail_keeps_the_newest_lines_oldest_first_whatever_the_cuts`, in `hearth/tests/git`. |
-| the same | `self.line.room() > 0` | A capacity, `tail_line`, at the same edge. An order too: a line keeps its first bytes. The same test. |
-| `hearth-protocol-git/src/tail.rs`, `Tail::lines` | `lines.room() > 0` | A capacity: at `tail_lines` 0 it stops the unended line. `a_tail_of_no_lines_holds_nothing`. |
-| `hearth-protocol-mmdebstrap/src/tail.rs`, `admit` | `tail.lines.room() == 0` | A capacity, `tail_lines`, at an edge, and the same order as git's. `generated_failures_keep_the_reference_s_tail_and_cause`, in `hearth/tests/mmdebstrap`. |
+| `hearth-protocol-mmdebstrap/src/tail.rs`, `admit` | `tail.lines.room() == 0` | A capacity, `tail_lines`, at an edge. An order too: the oldest line leaves first. `generated_failures_keep_the_reference_s_tail_and_cause`, in `hearth/tests/mmdebstrap`. |
 | `hearth-protocol-builder/src/lib.rs`, `revision_stdout` | `stdout.room()`, three times | A capacity at an edge: `rev-parse`'s answer, of `MAX_STDOUT` and one byte to see excess. |
 | `hearth-protocol-builder/src/indices.rs`, `Indices` | `self.intake.room()` | A capacity: a read of a `Packages` file asks for no more than its intake holds. |
 | `hearth-protocol-tree/src/fields.rs`, `Fields::value` | `values.room()` | A capacity at an edge: a stored value's items, refused past `limit`. |
@@ -73,11 +71,10 @@ first, and each order's test is named beside it.
 | `hearth-protocol-config/src/document.rs` | `pending.room() == 0` | Nothing, the same: a stack whose depth the decoder's limits bound. |
 | `hearth-protocol-config/src/json.rs` | `values.room() == 0` | Nothing, the same. |
 
-The capacity-1 queues beside each git machine, in
-`hearth-protocol-builder/src/lib.rs` and `read.rs`, hold no room check, but
-a machine's second output panicked on them. They kept a capacity, one event
-and one demand for each entry, and what the machine's states keep behind
-them is in `hearth/docs/design/domain/render.md`, 8.5, with its tests in
+The queues beside each git machine, in
+`hearth-protocol-builder/src/lib.rs` and `read.rs`, are uncapped. The
+machine's states keep the orders in
+`hearth/docs/design/domain/render.md`, 8.5, and their tests stand in
 `hearth/tests/git`.
 
 ### The service
@@ -109,7 +106,9 @@ delays. These are the orders beside the checks, which
 | The domain takes a store step's answer before the store's next step | no predicate: the queue's order and the indices' `waiting` | `what_a_call_prints_and_stores_does_not_depend_on_its_queues` |
 
 `file_told` is drained before `told`, by the order of the loops. Nothing
-found depends on that, so it isn't stated as an order.
+failed when those loops were swapped:
+`what_a_call_prints_and_stores_does_not_depend_on_its_queues` and the eight
+protocol tests all passed. No order was found, so it isn't stated as one.
 
 ### The service-order search
 
