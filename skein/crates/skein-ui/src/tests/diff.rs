@@ -476,7 +476,7 @@ fn a_diff_reaches_four_patches_a_node_less_one() {
         apply(&mut rows, patch);
     }
     crate::diff(&old, &mut new, &limits, &mut next_id, &mut patches);
-    // Keys belong to items, runs to text, and values to fields. Below the root,
+    // Keys belong to items and slots, runs to text, and values to fields. Below the root,
     // matching therefore preserves the role of every node carrying runs or a value.
     // Those pairs take at most two updates and a move; only the root takes all three updates.
     assert_eq!(patches.len(), 3 * limits.nodes);
@@ -542,5 +542,45 @@ fn a_moved_fraction_keeps_its_node_and_patches_its_attribute_and_text() {
         | Patch::Move { .. }
         | Patch::Attribute { .. }
         | Patch::Value { .. } => unreachable!("words change text"),
+    }
+}
+
+fn keyed_slots(builder: &mut Builder, keys: [u64; 3], changed: bool) {
+    builder.open(Role::Page);
+    for key in keys {
+        builder.open(Role::Slot);
+        builder.key(Key { owner: Owner { number: 65_536 }, kind: 1, a: key, b: 0 });
+        builder.text(Run::Plain, if key == 2 && changed { b"new" } else { b"old" });
+        if key == 2 && changed {
+            builder.text(Run::Strong, b"added");
+        }
+        builder.close();
+    }
+    builder.close();
+}
+
+#[test]
+fn a_keyed_slot_keeps_its_node_as_its_sibling_changes() {
+    let mut view = View::new(&LIMITS);
+    let mut out = Queue::with_capacity(LIMITS.patches);
+    let mut builder = view.builder();
+    keyed_slots(&mut builder, [1, 2, 3], false);
+    view.finish(builder, 0, &mut out);
+    let ids: Vec<_> = view.tree().nodes().iter().filter(|n| n.key.is_some()).map(|n| n.id).collect();
+    let mut model = Vec::new();
+    while let Some(patch) = out.pop() {
+        apply(&mut model, patch);
+    }
+    for (shown, keys, expected) in [(1, [1, 2, 3], [ids[0], ids[1], ids[2]]), (2, [3, 1, 2], [ids[2], ids[0], ids[1]])]
+    {
+        let mut builder = view.builder();
+        keyed_slots(&mut builder, keys, true);
+        view.finish(builder, shown, &mut out);
+        let kept: Vec<_> = view.tree().nodes().iter().filter(|n| n.key.is_some()).map(|n| n.id).collect();
+        assert_eq!(kept, expected);
+        while let Some(patch) = out.pop() {
+            apply(&mut model, patch);
+        }
+        equal(&model, view.tree());
     }
 }

@@ -745,3 +745,38 @@ fn a_click_on_loose_words_does_nothing() {
     let mut page = held_page();
     assert_eq!(page.act(Event::Click { node: HELD_LOOSE, modifier: false }, &mut Vec::new()), None);
 }
+
+#[test]
+fn shortcut_key_takes_backslash() {
+    let mut view = View::new(&LIMITS);
+    let patches = fixtures::patches(&mut view, 0, |builder| {
+        main(builder);
+        builder.open(Role::Button);
+        builder.bind(fixtures::binding(1));
+        builder.shortcut(Shortcut { key: b'\\', modifier: Modifier::Primary });
+        builder.close();
+        end(builder);
+    });
+    // Preorder: page, main, shortcut button.
+    let button = NodeId(3);
+    for primary in [Primary::Control, Primary::Meta] {
+        let mut page = Page::new(fixtures::look(), &LIMITS, b"/", primary);
+        page.apply(&patches, &mut Vec::new());
+        for (key, code) in [
+            (b"\\".as_slice(), b"".as_slice()),
+            (b"|".as_slice(), b"Backslash".as_slice()),
+            (b"|".as_slice(), b"IntlBackslash".as_slice()),
+        ] {
+            let event = Event::Key {
+                key: key.into(),
+                code: code.into(),
+                control: primary == Primary::Control,
+                meta: primary == Primary::Meta,
+                alt: false,
+                shift: false,
+                in_field: true,
+            };
+            assert_eq!(page.act(event, &mut Vec::new()), Some((button, Act::Press)), "{primary:?} {code:?}");
+        }
+    }
+}
