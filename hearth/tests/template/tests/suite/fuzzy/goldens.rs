@@ -1,7 +1,6 @@
-#[path = "../../../../render/src/fixtures/decoders/golden.rs"]
-mod golden;
 use hearth_protocol_template::{limits::SHIPPED, template};
 use hearth_template_world::{check, generate, reference};
+use hearth_test_fixtures::golden;
 use skein_lib::Rng;
 #[test]
 fn golden_templates_cut_and_mutated_compile_as_the_reference_compiles_them() {

@@ -1,9 +1,8 @@
-#[path = "../../../../render/src/fixtures/decoders/golden.rs"]
-mod golden;
 use hearth_config_world::{
     generate,
     world::{self, Settings},
 };
+use hearth_test_fixtures::golden;
 use skein_lib::Rng;
 #[test]
 fn golden_documents_cut_and_mutated_read_as_the_reference_reads_them() {
