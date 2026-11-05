@@ -1212,6 +1212,7 @@ impl Runtime {
     }
 }
 fn step_failure(play: &mut dyn Play, face: &mut BrowserFace<'_>, now: Time) -> Option<(u32, String)> {
+    face.tick(now);
     // A completed Keep advances the script before its failure names that step.
     play.check_deadline(face, now);
     face.failure().map(|why| (play.at().saturating_sub(1), why))

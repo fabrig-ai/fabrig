@@ -350,6 +350,10 @@ to the next command, never a closure waiting on a reply:
 - **A press is done when the browser has taken it,** not when its
   effects show. What follows a press (a request, a page redrawn) the test
   awaits.
+- **The fake person's press re-finds a node gone before the mouse acts.**
+  It repeats the whole semantic find, including its scopes, after the
+  poll interval, until the original answer deadline. Other refusals
+  still fail the act.
 - **Covered is not a failure.** A dialog that has not closed yet, or a
   toast over a button, covers it for a moment. The test decides whether
   to wait and press again.

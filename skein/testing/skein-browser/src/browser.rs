@@ -1413,7 +1413,7 @@ impl Browser {
         }
         let why = if contains(&message, b"No node found at given location") {
             Refusal::Covered
-        } else if contains(&message, b"No node found") {
+        } else if node_missing(&message) {
             Refusal::Gone
         } else {
             Refusal::Protocol
@@ -2314,6 +2314,7 @@ fn waits_for_document(kind: &OpKind) -> bool {
 
 fn node_missing(message: &[u8]) -> bool {
     contains(message, b"No node found")
+        || contains(message, b"Node is detached from document")
         || contains(message, b"Could not find node")
         || contains(message, b"Cannot find node")
         || contains(message, b"No node with given id")
