@@ -14,14 +14,14 @@ const LATE: Token = Token::new(701);
 fn before_change() -> Driver {
     // Make and park the core's procedure independently of the forge child:
     // this is the boundary between the task document and its change record.
-    let mut core = jig_tasks_world::World::new(71, jig_tasks_world::LIMITS);
-    let mut new = jig_tasks_world::task(TASK, &[]);
+    let mut core = jig_tasks_kit::World::new(71, jig_tasks_kit::LIMITS);
+    let mut new = jig_tasks_kit::task(TASK, &[]);
     new.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
     new.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 32 };
     new.spec.parameters = Box::new([tasks::Parameter::Resource { name: 1, connector: 0, resource: forge::tag(1, 2) }]);
     new.authority = fixtures::report_delegate(b"change", Box::new([])).authority;
     new.numbers.budget = new.authority.budget.spend;
-    assert_eq!(core.make(tasks::Party::Person(1), vec![new]), jig_tasks_world::Reply::Made(vec![TASK]));
+    assert_eq!(core.make(tasks::Party::Person(1), vec![new]), jig_tasks_kit::Reply::Made(vec![TASK]));
     core.send(tasks::Event::Procedure {
         reply_to: ReplyTo::new(Token::new(99)),
         task: TASK,
