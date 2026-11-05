@@ -32,7 +32,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
             "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =
-        serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("engine JSON");
+        serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
@@ -59,7 +59,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     // A Create member owns stock's grants and executors, plus its words.
     value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
     let worker: serde_json::Value =
-        serde_json::from_slice(jig_channel_world::fixtures::WORKER_DOCUMENT).expect("worker JSON");
+        serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] = program.to_str().expect("program path").into();
@@ -127,7 +127,7 @@ pub(crate) fn write(directory: &Path, program: &Path, bundle: &Path) {
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
         fs::set_permissions(directory.join(name), fs::Permissions::from_mode(0o700)).expect("private directory");
     }
-    for (name, bytes) in jig_channel_world::fixtures::files(false).entries.into_boxed() {
+    for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
         if name.starts_with(b"charters/") {
             continue;
         }

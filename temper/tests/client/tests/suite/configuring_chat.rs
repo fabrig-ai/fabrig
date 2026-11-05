@@ -1,6 +1,6 @@
 //! Configuring chats through ctl and scripted runs in the joined world
 //! (temper/docs/design/domain/agent.md, 8.1; temper/docs/design/domain/testing.md, 6.3 and 6.4).
-use jig_client_world::harness::{App, ClientId, Front, World};
+use jig_client_kit::harness::{App, ClientId, Front, World};
 use jig_domain_core::{SettingsAnswer, SettingsRead, settings as s};
 use jig_domain_tasks as tasks;
 use skein_lib::Duration;

@@ -370,7 +370,7 @@ fn start_chat(calls: &mut ctl::Calls, root: &Path) {
     assert_eq!(connected["outcome"]["adopted"]["owner"], "elsewhere");
     assert_eq!(connected["outcome"]["adopted"]["name"], "first");
     let key = root.join("llm-key");
-    write_private(&key, jig_channel_world::fixtures::KEY);
+    write_private(&key, jig_channel_kit::fixtures::KEY);
     for call in [
         ctl::Call::new(&["account", "add-key", "1", key.to_str().expect("key path"), "--key", "elsewhere-model"]),
         ctl::Call::new(&["account", "list", "--until", "usable"]),

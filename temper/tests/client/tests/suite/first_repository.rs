@@ -1,6 +1,6 @@
 //! First-repository promises exercised through the person and ctl on the real engine.
 //! The kept owned forge follows temper/docs/design/protocol/forge.md, 2.1.
-use jig_client_world::harness::{ClientId, Until, World};
+use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step};
 use skein_lib::Token;
 use skein_ui::Role;
@@ -310,7 +310,7 @@ fn copy_act(
 }
 #[test]
 fn ready_copies_reach_the_engines_making_rows_in_order() {
-    use jig_client_world::harness::App;
+    use jig_client_kit::harness::App;
     use temper_client_domain::{Action, Step, forge as client_forge, pages};
     use temper_client_world::front::account_acts as h;
     let (mut front, mut root) = h::fresh_fixture(fixtures::SEED);

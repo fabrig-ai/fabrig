@@ -1,4 +1,4 @@
-use jig_client_world::harness::FrontFault;
+use jig_client_kit::harness::FrontFault;
 use skein_lib::Duration;
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 
@@ -22,8 +22,8 @@ const ADOPT: &[&[u8]] = &[
 const OFFLINE: Duration = Duration::from_millis(30);
 // Exactly one application is admitted even if its answer is cut.
 const ADOPTIONS: usize = 1;
-type World = jig_client_world::harness::World<Temper, Joint>;
-type Client = jig_client_world::harness::ClientId;
+type World = jig_client_kit::harness::World<Temper, Joint>;
+type Client = jig_client_kit::harness::ClientId;
 fn world() -> World {
     let mut world = fixtures::world(fixtures::SEED);
     // The proposal fixture leaves authority for a second chat in the same period.

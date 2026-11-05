@@ -118,7 +118,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         fs::write(&path, bytes).expect("fixture bytes");
         fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
     };
-    for (name, bytes) in jig_channel_world::fixtures::files(false).entries.into_boxed() {
+    for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
         if name.starts_with(b"charters/") {
             continue;
         }

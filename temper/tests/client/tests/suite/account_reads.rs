@@ -1,5 +1,5 @@
 //! A worker notice changes the real account documents and completes the tools' wait.
-use jig_client_world::harness::Until;
+use jig_client_kit::harness::Until;
 use jig_domain_host::LinkUp;
 use skein_lib::{Duration, Token};
 use temper_client_world::fixtures;

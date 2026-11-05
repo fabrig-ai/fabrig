@@ -450,7 +450,7 @@ impl Person {
                 Step::Press { find: Find::named(Role::Link, key_way) },
                 Step::Type {
                     find: Find::named(Role::TextField, b"Key (pasted once)"),
-                    words: jig_channel_world::fixtures::KEY.into(),
+                    words: jig_channel_kit::fixtures::KEY.into(),
                 },
                 Step::Press { find: Find::named(Role::Button, b"Add key") },
                 Step::See { find: Find::text(b"Added your"), within: START_WITHIN },

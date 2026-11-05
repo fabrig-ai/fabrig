@@ -88,7 +88,7 @@ pub fn stage_policies(value: &mut serde_json::Value) {
     for (index, policy) in policies.as_array_mut().expect("seed projects").iter_mut().enumerate() {
         if policy["policy"].is_number() {
             let original: Value =
-                serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("world defaults");
+                serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("world defaults");
             policy["policy"] = original["engine"]["projects"][0]["policy"].clone();
             policy["roles"] = original["engine"]["projects"][0]["roles"].clone();
         }

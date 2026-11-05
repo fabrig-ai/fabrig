@@ -1,5 +1,5 @@
 //! Inbox questions and the conversation around them, client/README.md, 3.5–3.6.
-use jig_client_world::harness::{ClientId, Fault, FrontFault, Until, World};
+use jig_client_kit::harness::{ClientId, Fault, FrontFault, Until, World};
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use skein_lib::Duration;
 use skein_ui::Role;

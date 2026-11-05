@@ -8,10 +8,10 @@ const HOLD_REVISION: u64 = 7;
 const WINDOW: u32 = 2;
 const TRIES: u32 = 2;
 pub fn proposal(builder: &mut Builder) {
-    let mut proposal = jig_client_world::stories::proposal();
-    proposal.reason = c::DocumentText::complete(jig_client_world::stories::text(b"It touches sign-in."));
+    let mut proposal = jig_client_kit::stories::proposal();
+    proposal.reason = c::DocumentText::complete(jig_client_kit::stories::text(b"It touches sign-in."));
     proposal.action = c::ProposalAction::Batch(List::with_capacity(0));
-    proposal.funding = jig_client_world::test::list([c::FundingOffer {
+    proposal.funding = jig_client_kit::test::list([c::FundingOffer {
         source: c::Funder::Pool { project: 1, person: 7, period: 3 },
         needed: BUDGET,
         left: Some(LEFT),
@@ -22,7 +22,7 @@ pub fn proposal(builder: &mut Builder) {
     temper_client_view::cards::proposal_at(builder, &page, &words, WINDOW, temper_client_view::cards::Place::Inbox);
 }
 pub fn held(builder: &mut Builder) {
-    let mut task = jig_client_world::stories::task();
+    let mut task = jig_client_kit::stories::task();
     task.hold = Some(Box::new(c::ChipHold {
         placed: None,
         words: None,
@@ -50,6 +50,6 @@ pub fn held(builder: &mut Builder) {
     temper_client_view::cards::decision(builder, &words, Some(&page), c::ActKind::Release);
 }
 pub fn report(builder: &mut Builder, bytes: &[u8]) {
-    let report = c::ResultValue::Report(c::DocumentText::complete(jig_client_world::stories::text(bytes)));
+    let report = c::ResultValue::Report(c::DocumentText::complete(jig_client_kit::stories::text(bytes)));
     temper_client_view::cards::value(builder, &report, &super::page_words());
 }

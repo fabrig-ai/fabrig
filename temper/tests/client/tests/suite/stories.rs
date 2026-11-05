@@ -1,4 +1,4 @@
-use jig_client_world::harness::{Front, Until};
+use jig_client_kit::harness::{Front, Until};
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
@@ -121,7 +121,7 @@ fn signed_out_mid_request_is_made_once_after_signing_in() {
         ],
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
-    world.fault(jig_client_world::harness::FrontFault::SignedOut);
+    world.fault(jig_client_kit::harness::FrontFault::SignedOut);
     world.person(
         person,
         vec![

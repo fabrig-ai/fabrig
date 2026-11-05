@@ -1,4 +1,4 @@
-use jig_client_world::{
+use jig_client_kit::{
     harness::{App, Until},
     observe,
 };
@@ -7,8 +7,7 @@ use skein_ui::Role;
 use skein_world::domain::Verdict;
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 
-fn running_delegate_page() -> (jig_client_world::harness::World<Temper, Joint>, jig_client_world::harness::ClientId, u64)
-{
+fn running_delegate_page() -> (jig_client_kit::harness::World<Temper, Joint>, jig_client_kit::harness::ClientId, u64) {
     let mut world = fixtures::world(fixtures::SEED);
     let fixtures::Dependents { first, .. } = fixtures::goal_with_dependent_delegates(world.front());
     let person = world.client(fixtures::PARTY, fixtures::task_page(first));

@@ -415,7 +415,7 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
     let mut document: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("configuration bytes")).expect("configuration JSON");
     let original: serde_json::Value =
-        serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("jig fixture");
+        serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("jig fixture");
     document["engine"]["projects"][0]["policy"] = original["engine"]["projects"][0]["policy"].clone();
     support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
     let ended = std::process::Command::new(skein_scratch::paths::binary("temper"))
@@ -2334,7 +2334,7 @@ fn serve_and_a_worker_alone_place_links_only_for_a_fetched_program() {
                 Some(&directory.join("programs")),
                 if fetched { Path::new("fetched") } else { Path::new("/found/claude") },
             );
-            for (name, bytes) in jig_channel_world::fixtures::files(false).entries.into_boxed() {
+            for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
                 if !name.starts_with(b"charters/") {
                     let path = directory.join(std::str::from_utf8(&name).unwrap());
                     fs::create_dir_all(path.parent().unwrap()).unwrap();

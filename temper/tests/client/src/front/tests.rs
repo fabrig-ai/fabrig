@@ -1,6 +1,6 @@
 use super::*;
-use jig_client_world::harness::{App, Duty};
-use jig_client_world::joint::transport::Watched;
+use jig_client_kit::harness::{App, Duty};
+use jig_client_kit::joint::transport::Watched;
 use skein_lib::{Env, Queue};
 
 const CLIENT: ClientId = ClientId(0);
@@ -106,7 +106,7 @@ fn pending_adoption(
     let mut kept = Vec::new();
     while let Some(request) = out.pop() {
         match Temper::duty(request) {
-            Duty::Store(jig_client_world::harness::StoreWrite::Save(record)) => kept.push(record),
+            Duty::Store(jig_client_kit::harness::StoreWrite::Save(record)) => kept.push(record),
             Duty::Wire(request) => front.wire(CLIENT, env.now, env.wall, request),
             Duty::Store(_) | Duty::Show { .. } | Duty::SignIn { .. } | Duty::SignOut | Duty::Fact => {}
         }
@@ -144,7 +144,7 @@ fn the_referee_reads_live_from_tempers_link_region() {
     settle_root(&mut front, &mut root, &limits, Vec::new());
     let mut patches = Queue::with_capacity(Temper::patch_limit(&view));
     Temper::build(&mut view, &root, &mut patches);
-    assert!(Temper::seen(Temper::tree(&view)).contains(&jig_client_world::harness::Seen::Link { live: true }));
+    assert!(Temper::seen(Temper::tree(&view)).contains(&jig_client_kit::harness::Seen::Link { live: true }));
 }
 
 #[test]
@@ -208,8 +208,8 @@ fn an_unconfigured_model_is_answered_immediately() {
 #[test]
 fn a_panel_dropped_before_its_first_record_keeps_loading_until_jig_reopens_it() {
     use client::forge::panel::State;
+    use jig_client_kit::harness::{Settings, Until, World};
     use jig_client_test_domain::family::Kind;
-    use jig_client_world::harness::{Settings, Until, World};
 
     let limits = fixtures::domain_limits();
     let mut front = Joint::with_change_landing(fixtures::SEED, &limits);
