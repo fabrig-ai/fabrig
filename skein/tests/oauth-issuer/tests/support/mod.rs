@@ -574,7 +574,7 @@ pub fn run(seed: u64, story: Story) -> Outcome {
                 event = oauth::Event::Http(answer);
             }
             Some(oauth::Request::Visit { url }) => {
-                event = world.authorize(&url);
+                event = world.authorize(url.expose());
             }
             Some(oauth::Request::Tokens { record, missing }) => {
                 world.terminal += 1;

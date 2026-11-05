@@ -454,7 +454,14 @@ fn core_ask(
             Some(Connector::Infrastructure | Connector::Observability) | None,
             core::Ask::Read { reply, scope, read, party, window: _ },
         ) => {
-            crate::client_documents::read(domain, env, decision, number, reply, scope, read, party, work);
+            crate::client_documents::read(
+                domain,
+                env,
+                decision,
+                number,
+                crate::client_documents::Reading { reply, scope, read, party },
+                work,
+            );
         }
         (
             Some(Connector::Infrastructure | Connector::Observability) | None,
@@ -927,7 +934,7 @@ pub(crate) fn connector_out(
                     infrastructure::DocumentMissing::NotAllowed => jig_domain_views::End::NotAllowed,
                 }),
             };
-            crate::client_documents::document(domain, env, decision, number, watcher, subject, document, work);
+            crate::client_documents::document(domain, env, decision, number, (watcher, subject), document, work);
         }
         ConnectorRequest::Infrastructure(infrastructure::Request::ReadAnswered { .. })
         | ConnectorRequest::Observability(observability::Request::ReadAnswered { .. }) => {
@@ -1109,7 +1116,7 @@ pub(crate) fn connector_out(
                     observability::DocumentMissing::NotAllowed => jig_domain_views::End::NotAllowed,
                 }),
             };
-            crate::client_documents::document(domain, env, decision, number, watcher, subject, document, work);
+            crate::client_documents::document(domain, env, decision, number, (watcher, subject), document, work);
         }
         ConnectorRequest::Observability(observability::Request::Save { record }) => {
             write(domain, decision, Write::Save(Record::Observability(record)));

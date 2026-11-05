@@ -6,12 +6,12 @@ use crate::{
     Ask, Core, Event, Family, Held, Limits, Request, fresh,
     routing::{
         Work,
-        party::dispatch::{Party, Routed},
+        party::dispatch::{Party, Routed, Signed},
     },
 };
 use alloc::boxed::Box;
 use jig_domain_people as people;
-use skein_lib::{Env, Queue, ReplyTo, Token};
+use skein_lib::{Env, Queue, Token};
 
 #[derive(Debug)]
 pub(crate) struct Flight {
@@ -32,18 +32,16 @@ pub(crate) struct Input {
     pub carried: Option<u64>,
 }
 
-#[expect(clippy::too_many_arguments, reason = "metadata envelope without an application value")]
 pub(crate) fn start(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    reply_to: ReplyTo,
-    sign_in: u64,
-    key: [u8; 16],
+    signed: Signed,
     scope: people::ApplicationScope,
     digest: [u8; 32],
     input: Input,
 ) -> Queue<Request> {
+    let Signed { reply_to, sign_in, key } = signed;
     let closed = match scope {
         people::ApplicationScope::Project(project) => !core.open_project(project),
         people::ApplicationScope::Own | people::ApplicationScope::Deployment => false,

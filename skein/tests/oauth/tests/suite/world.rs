@@ -220,7 +220,7 @@ fn issuer_revocation_error_and_malformed_document_are_typed() {
     issuer
         .queue(fake::Plan {
             status: 200,
-            body: fake::Body::Raw(boxed(b"{not-json")),
+            body: fake::Body::Raw(skein_lib::Secret::new(boxed(b"{not-json"))),
             delay: Duration::ZERO,
             retry_after: Duration::ZERO,
         })

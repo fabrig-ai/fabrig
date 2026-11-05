@@ -133,7 +133,7 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
         {
             scripted += 1;
             if !matches!(story, Story::Cancel | Story::Abort | Story::Timeout) {
-                issuer.step(fake::Event::Authorize { url: url.clone(), now }, &mut issuer_out);
+                issuer.step(fake::Event::Authorize { url: skein_lib::Secret::new(url.clone()), now }, &mut issuer_out);
                 let Some(fake::Request::Redirect { uri, state, code, client_id }) = issuer_out.pop() else {
                     panic!("authorized fake browser")
                 };
@@ -184,7 +184,8 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
             && let Some(uri) = &redirect
         {
             if confidential(story) {
-                client.ask(&env, accounts::Request::Redirected { account: 0, uri: uri.clone() });
+                client
+                    .ask(&env, accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri.clone()) });
                 redirect = None;
             } else if let Some((identity, _, _)) =
                 listeners.iter().find(|(_, _, port)| *port == url_parts(uri).0.port()).copied()

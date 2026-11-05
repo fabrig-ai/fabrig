@@ -15,7 +15,8 @@ use skein_llm::{self as llm, Call, Credential, Prompt};
 use skein_tls::client as tls;
 
 use crate::boundary::{Body, Event, Refusal, Request};
-use crate::call::{Connection, Phase};
+use crate::call::Connection;
+use crate::call::Phase::{Closing, Connecting, Draining, Handshaking, Head, Idle, Ready, Streaming};
 use crate::endpoint::{Endpoint, EndpointError, Transport};
 use crate::limits::{Limits, check};
 
@@ -213,7 +214,7 @@ impl Component {
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get_mut(*id) {
-                    Some(connection) if connection.call.is_none() => {
+                    Some(connection) if connection.call().is_none() => {
                         self.reserved =
                             self.reserved.checked_sub(connection.reservation).expect("running reservation held");
                         connection.reservation = 0;
@@ -329,7 +330,7 @@ impl Component {
                 for slot in &self.slots {
                     match slot {
                         Some(id) => match self.connections.get_mut(*id) {
-                            Some(connection) if connection.call == Some(call) => {
+                            Some(connection) if connection.call() == Some(call) => {
                                 connection.next(env, id.token(), up, io);
                                 break;
                             }
@@ -360,7 +361,7 @@ impl Component {
                 for slot in &self.slots {
                     match slot {
                         Some(id) => match self.connections.get_mut(*id) {
-                            Some(connection) if connection.call == Some(call) => {
+                            Some(connection) if connection.call() == Some(call) => {
                                 connection.cancel(env, id.token(), up, io);
                                 break;
                             }
@@ -403,10 +404,11 @@ impl Component {
                 None => {}
             },
             IoEvent::Connected { .. } => match self.connections.get_mut(id) {
-                Some(connection) if connection.phase == Phase::Connecting => {
-                    connection.connected(env, owner, up, io);
-                }
-                Some(_) | None => {}
+                Some(connection) => match connection.phase {
+                    Connecting { .. } => connection.connected(env, owner, up, io),
+                    Handshaking { .. } | Head { .. } | Streaming { .. } | Draining | Idle | Ready | Closing { .. } => {}
+                },
+                None => {}
             },
             IoEvent::Stream { up: stream, .. } => match self.connections.get_mut(id) {
                 Some(connection) => connection.cipher_up(env, owner, stream, up, io),
@@ -655,7 +657,7 @@ impl Component {
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get(*id) {
-                    Some(connection) if connection.call.is_some() => {
+                    Some(connection) if connection.call().is_some() => {
                         count = count.checked_add(1).expect("bounded conversations");
                     }
                     Some(_) | None => {}
@@ -713,11 +715,17 @@ impl Component {
                                 Some(connection) => {
                                     if connection.endpoint == waiting.endpoint {
                                         count = count.checked_add(1).expect("bounded connections");
-                                        if connection.phase == Phase::Idle || connection.phase == Phase::Ready {
-                                            reusable = true;
-                                        }
-                                    } else if connection.phase == Phase::Idle {
-                                        evictable = true;
+                                    }
+                                    match connection.phase {
+                                        Idle | Ready if connection.endpoint == waiting.endpoint => reusable = true,
+                                        Idle => evictable = true,
+                                        Connecting { .. }
+                                        | Handshaking { .. }
+                                        | Head { .. }
+                                        | Streaming { .. }
+                                        | Draining
+                                        | Ready
+                                        | Closing { .. } => {}
                                     }
                                 }
                                 None => {}
@@ -743,12 +751,15 @@ impl Component {
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get(*id) {
-                    Some(connection)
-                        if connection.endpoint == endpoint
-                            && (connection.phase == Phase::Idle || connection.phase == Phase::Ready) =>
-                    {
-                        return Some(*id);
-                    }
+                    Some(connection) if connection.endpoint == endpoint => match connection.phase {
+                        Idle | Ready => return Some(*id),
+                        Connecting { .. }
+                        | Handshaking { .. }
+                        | Head { .. }
+                        | Streaming { .. }
+                        | Draining
+                        | Closing { .. } => {}
+                    },
                     Some(_) | None => {}
                 },
                 None => {}
@@ -757,6 +768,7 @@ impl Component {
         None
     }
 
+    #[expect(clippy::too_many_lines, reason = "exhaustive connection reuse, eviction and opening")]
     fn serve_waiting(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<IoRequest>) -> bool {
         let index = match self.runnable_waiting() {
             Some(index) => index,
@@ -784,9 +796,7 @@ impl Component {
             }
             connection.activity = 0;
             connection.reservation = waiting.reservation;
-            connection.call = Some(waiting.call);
-            connection.phase = Phase::Head;
-            connection.idle_at = None;
+            connection.phase = Head { call: waiting.call };
             connection.deadlines = waiting.deadlines;
             connection.sync_deadlines(env);
             if waiting.asked {
@@ -800,12 +810,22 @@ impl Component {
             for slot in &self.slots {
                 match slot {
                     Some(id) => match self.connections.get_mut(*id) {
-                        Some(connection) if connection.endpoint != endpoint && connection.phase == Phase::Idle => {
-                            connection.request_close(false);
-                            connection.route(env, id.token(), up, io);
-                            return true;
-                        }
-                        Some(_) | None => {}
+                        Some(connection) => match connection.phase {
+                            Idle if connection.endpoint != endpoint => {
+                                connection.request_close(false);
+                                connection.route(env, id.token(), up, io);
+                                return true;
+                            }
+                            Connecting { .. }
+                            | Handshaking { .. }
+                            | Head { .. }
+                            | Streaming { .. }
+                            | Draining
+                            | Idle
+                            | Ready
+                            | Closing { .. } => {}
+                        },
+                        None => {}
                     },
                     None => {}
                 }
@@ -893,8 +913,7 @@ mod link_tests {
         connection.link.connecting(Token::new(100), &mut io);
         connection.link.close(&crate::call::link_env(&env), false, &mut io);
         // The routing budget can leave TLS's Closed queued between entrances.
-        connection.phase = Phase::Closing;
-        connection.call = None;
+        connection.phase = Closing { call: None };
         connection.sync_deadlines(&env);
         assert!(component.has_work(), "queued link work keeps a closing connection runnable");
         component.fire(&env, &mut up, &mut io);

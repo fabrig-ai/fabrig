@@ -499,8 +499,7 @@ impl Core {
             defaults,
             self.current.oldest,
             self.current.keys,
-            newest,
-            env.limits.settings.history,
+            (newest, env.limits.settings.history),
             room.saturating_sub(reserve).saturating_sub(out.len()),
             keep_previous,
         );
@@ -540,20 +539,19 @@ pub fn revision_writes(
     history: u32,
     room: u32,
 ) -> (List<Write>, u32) {
-    revision_writes_with_hold(revision, defaults, oldest, keys, newest, history, room, false)
+    revision_writes_with_hold(revision, defaults, oldest, keys, (newest, history), room, false)
 }
 
-#[expect(clippy::too_many_arguments, reason = "history extent and proposal counter are saved in the same settings row")]
 pub(crate) fn revision_writes_with_hold(
     revision: Option<Revision>,
     defaults: List<Write>,
     mut oldest: u32,
     keys: u64,
-    newest: u32,
-    history: u32,
+    history: (u32, u32),
     room: u32,
     keep_previous: bool,
 ) -> (List<Write>, u32) {
+    let (newest, history) = history;
     let mut writes = List::with_capacity(room);
     for write in defaults.into_boxed() {
         writes.push(write).expect("settings commit preflight");

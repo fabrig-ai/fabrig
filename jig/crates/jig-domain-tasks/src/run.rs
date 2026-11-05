@@ -67,19 +67,17 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, numbe
     out.push(Request::Done { reply_to: to });
 }
 
-#[expect(clippy::too_many_arguments, reason = "claim carries the caller's bounded write set")]
-pub(crate) fn claim(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    to: ReplyTo,
-    number: u64,
-    attempt: u64,
-    resumed: bool,
-    budget: u64,
-    account: Option<u32>,
-    writes: &[crate::Name],
-    out: &mut Queue<Request>,
-) {
+pub(crate) struct Claiming {
+    pub(crate) number: u64,
+    pub(crate) attempt: u64,
+    pub(crate) resumed: bool,
+    pub(crate) budget: u64,
+    pub(crate) account: Option<u32>,
+    pub(crate) writes: Box<[crate::Name]>,
+}
+
+pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: Claiming, out: &mut Queue<Request>) {
+    let Claiming { number, attempt, resumed, budget, account, writes } = claiming;
     let to = match entrance(domain, to, number) {
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
@@ -109,7 +107,7 @@ pub(crate) fn claim(
     if !fits {
         return refused(to, Some(number), Refusal::Funding, out);
     }
-    match crate::writers::claim(domain, env, number, attempt, writes, out) {
+    match crate::writers::claim(domain, env, number, attempt, &writes, out) {
         Ok(()) => {}
         Err(Some(resource)) => return out.push(Request::WriterWaiting { reply_to: to, task: Some(number), resource }),
         Err(None) => return refused(to, Some(number), Refusal::Holds, out),
@@ -404,18 +402,16 @@ pub(crate) fn refuses_job_end(executor: crate::Executor, end: &End) -> bool {
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "one fenced activation terminal")]
+pub(crate) struct Ended {
+    pub(crate) number: u64,
+    pub(crate) attempt: u64,
+    pub(crate) end: End,
+    pub(crate) saved: Option<Box<[SavedResource]>>,
+}
+
 #[expect(clippy::too_many_lines, reason = "one terminal normalizes the result and settles its current attempt")]
-pub(crate) fn activation(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    to: ReplyTo,
-    number: u64,
-    attempt: u64,
-    end: End,
-    saved: Option<Box<[SavedResource]>>,
-    out: &mut Queue<Request>,
-) {
+pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, ended: Ended, out: &mut Queue<Request>) {
+    let Ended { number, attempt, end, saved } = ended;
     if !domain.ready() {
         return refused(to, Some(number), Refusal::NotReady, out);
     }

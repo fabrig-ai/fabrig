@@ -48,7 +48,7 @@ impl Owner {
         for _ in 0_u32..8 {
             self.fire();
             if let Some(Event::Visit { url, .. }) = self.above.pop() {
-                return url;
+                return url.into_exposed();
             }
         }
         panic!("visit after listening")
@@ -636,7 +636,7 @@ impl Owner {
         for part in parts {
             uri.put(part).expect("fixture URI room");
         }
-        self.ask(Request::Redirected { account: 0, uri: uri.finish() });
+        self.ask(Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri.finish()) });
     }
 
     pub(super) fn finish_tokens(&mut self, identity: Token, body: &[u8]) -> Queue<Event> {

@@ -71,12 +71,12 @@ fn authorization(issuer: &mut Issuer, redirect: &[u8], extra: &[u8]) -> Option<R
         b"&state=0123456789abcdef",
         extra,
     ]);
-    step(issuer, Event::Authorize { url, now: Time::ZERO })
+    step(issuer, Event::Authorize { url: Secret::new(url), now: Time::ZERO })
 }
 fn plan(status: u16, delay: u64) -> Plan {
     Plan {
         status,
-        body: Body::Raw(bytes::copy_of(b"{}")),
+        body: Body::Raw(Secret::new(bytes::copy_of(b"{}"))),
         delay: Duration::from_secs(delay),
         retry_after: Duration::ZERO,
     }

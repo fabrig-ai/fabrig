@@ -268,7 +268,7 @@ impl SignInWorld {
 
     fn approved_callback(&mut self, visit: Box<[u8]>) -> Box<[u8]> {
         let mut out = Queue::uncapped();
-        self.issuer.step(fake::Event::Authorize { url: visit, now: self.now }, &mut out);
+        self.issuer.step(fake::Event::Authorize { url: Secret::new(visit), now: self.now }, &mut out);
         let Some(fake::Request::Redirect { uri, state, code, client_id }) = out.pop() else {
             panic!("issuer approval")
         };

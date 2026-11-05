@@ -54,7 +54,7 @@ fn each_form_sends_what_it_must() {
     ] {
         let mut client = Client::new(limits()).expect("client");
         let Some(Request::Visit { url }) = step(&mut client, begin(issued(), held)) else { panic!("visit") };
-        assert!(url.as_ref() == expected, "held record: {held}");
+        assert!(url.expose() == expected, "held record: {held}");
     }
 }
 
