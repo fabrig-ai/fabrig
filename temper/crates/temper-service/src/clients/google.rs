@@ -259,7 +259,7 @@ impl Google {
             redirect_uri: redirect,
             scope: bytes::copy_of(b"openid email profile"),
             wire: oauth::WireFormat::Form,
-            client_secret: Some(Secret::new(bytes::copy_of(self.settings.secret.expose()))),
+            client_secret: Some(self.settings.secret.clone()),
             pkce_for_confidential: true,
             metadata_claim: None,
             terms: Some(oauth::Terms {
