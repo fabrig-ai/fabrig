@@ -409,7 +409,7 @@ pub(super) fn issuer() -> (oauth::Peer, std::net::SocketAddr, Fd) {
             client_id: b"client".as_slice().into(),
             client_secret: None,
             redirect_uri: accounts::PARTY_REDIRECT.into(),
-            refresh_token: b"seed".as_slice().into(),
+            refresh_token: skein_lib::Secret::new(b"seed".as_slice().into()),
         },
         limits,
         skein_http::server::Limits { response, ..profile.server },

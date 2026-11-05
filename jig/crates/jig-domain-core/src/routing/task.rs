@@ -46,22 +46,21 @@ pub(crate) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
     out
 }
 
-fn route_proposal(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Queue<Request> {
+fn route_proposal(core: &mut Core, env: &Env<Limits>, mut event: tasks::Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    if let tasks::Event::Make { batch, .. } | tasks::Event::MakeResultFollowups { batch, .. } = &event
+    if let tasks::Event::Make { batch, reply_to, .. } | tasks::Event::MakeResultFollowups { batch, reply_to, .. } =
+        &mut event
         && let Err(problem) = core.batch_accounts(batch)
     {
-        let (tasks::Event::Make { reply_to, .. } | tasks::Event::MakeResultFollowups { reply_to, .. }) = event else {
-            unreachable!("checked batch event")
-        };
+        let reply_to = super::flight::take_reply(reply_to);
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, funder, .. } = &event
+    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, funder, reply_to, .. } = &mut event
         && let Err(why) = core.amendment_account(*task, amendment, *funder)
     {
         let problem = tasks::Problem::new(Some(*task), why);
-        let tasks::Event::Amend { reply_to, .. } = event else { unreachable!("checked amendment event") };
+        let reply_to = super::flight::take_reply(reply_to);
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
@@ -132,46 +131,47 @@ pub(crate) fn route_tasks(
     {
         return route_proposal(core, env, event);
     }
-    if let tasks::Event::Procedure { task, step, .. } = &event {
-        return super::effect::procedure::apply(core, env, *task, *step, event);
-    }
+    let mut event = if let tasks::Event::Procedure { reply_to, task, step, read, decision } = event {
+        return super::effect::procedure::apply(core, env, reply_to, task, step, read, decision);
+    } else {
+        event
+    };
     let mut out = Queue::uncapped();
-    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, funder, .. } = &event
+    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, funder, reply_to, .. } = &mut event
         && let Err(why) = core.amendment_account(*task, amendment, *funder)
     {
         let problem = tasks::Problem::new(Some(*task), why);
-        let tasks::Event::Amend { reply_to, .. } = event else { unreachable!("checked amendment event") };
+        let reply_to = super::flight::take_reply(reply_to);
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, .. } = &event
+    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, reply_to, .. } = &mut event
         && let Some(tasks::Tracking::Tracked { .. }) = amendment.tracked
         && let Some(row) = core.tasks.task(*task)
         && row.tracked.is_none()
         && core.projections.len() >= env.limits.tasks.tasks
     {
-        let tasks::Event::Amend { operation: tasks::Amend { task, .. }, reply_to, .. } = event else {
-            unreachable!("checked amendment")
-        };
-        out.push(tasks::Request::Refused { reply_to, problem: tasks::Problem::new(Some(task), tasks::Refusal::Goals) });
+        let problem = tasks::Problem::new(Some(*task), tasks::Refusal::Goals);
+        let reply_to = super::flight::take_reply(reply_to);
+        out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    if let tasks::Event::Make { batch, .. } = &event {
+    if let tasks::Event::Make { reply_to, creator, batch } = &mut event {
         let mut tracked = 0_u32;
-        for row in batch {
+        for row in batch.as_ref() {
             if row.tracked.is_some() {
                 tracked = tracked.checked_add(1).expect("bounded make batch");
             }
         }
         if tracked > env.limits.tasks.tasks.saturating_sub(core.projections.len()) {
-            let tasks::Event::Make { reply_to, creator, batch } = event else { unreachable!("checked creation event") };
             let capacity = tasks::Capacity::batch(
-                creator,
-                &batch,
+                *creator,
+                batch,
                 None,
                 tasks::CapacityCause::Tasks { limit: env.limits.tasks.tasks },
             );
             core.tasks.remember_capacity(env.wall, capacity);
+            let reply_to = super::flight::take_reply(reply_to);
             out.push(tasks::Request::Refused {
                 reply_to,
                 problem: tasks::Problem::capacity(None, tasks::Refusal::Live, capacity),

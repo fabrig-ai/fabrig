@@ -42,7 +42,7 @@ fn synthetic_login(root: &Path) -> PathBuf {
     let record = skein_oauth::SavedToken {
         key: 0,
         generation: 1,
-        access_token: b"unissued-access".as_slice().into(),
+        access_token: skein_lib::Secret::new(b"unissued-access".as_slice().into()),
         refresh_token: None,
         expires_at: skein_lib::Wall::from_nanos(u64::MAX),
         issued_client_id: None,

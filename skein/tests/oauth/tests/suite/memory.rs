@@ -58,11 +58,11 @@ fn check_client(document: oauth::Limits) {
         prior: oauth::RefreshState {
             key: 1,
             generation: 0,
-            refresh_token: boxed(b"seed"),
+            refresh_token: skein_lib::Secret::new(boxed(b"seed")),
             issued_client_id: Some(boxed(&[b'c'; 64])),
             granted_scopes: Some(boxed(&[b's'; 64])),
             subject: Some(boxed(&[b'u'; 64])),
-            id_token: Some(boxed(&[b'i'; 1024])),
+            id_token: Some(skein_lib::Secret::new(boxed(&[b'i'; 1024]))),
         },
         now: Time::ZERO,
     };
@@ -87,7 +87,7 @@ fn check_issuer(document: oauth::Limits) {
             client_id: boxed(b"client"),
             client_secret: None,
             redirect_uri: boxed(b"http://127.0.0.1:1234/callback"),
-            refresh_token: boxed(b"seed"),
+            refresh_token: skein_lib::Secret::new(boxed(b"seed")),
             terms: Some(issued(&[&[b'c'; 1024][..]; fake::ISSUED])),
         },
         fake_limits,
@@ -97,11 +97,11 @@ fn check_issuer(document: oauth::Limits) {
         .queue(fake::Plan {
             status: 200,
             body: fake::Body::Token(oauth::TokenResponse {
-                access_token: boxed(b"access"),
-                refresh_token: Some(boxed(b"next")),
+                access_token: skein_lib::Secret::new(boxed(b"access")),
+                refresh_token: Some(skein_lib::Secret::new(boxed(b"next"))),
                 expires_in: 30,
                 scope: Some(boxed(&[b's'; 64])),
-                id_token: Some(boxed(&[b'i'; 1024])),
+                id_token: Some(skein_lib::Secret::new(boxed(&[b'i'; 1024]))),
                 earliest_refresh_at: Some(Wall::from_nanos(10_000_000_000)),
             }),
             delay: Duration::ZERO,

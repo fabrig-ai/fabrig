@@ -22,7 +22,7 @@ fn signed_in_world() -> World {
         &[5; 16],
     );
     let mut providers = Map::with_capacity(1);
-    providers.insert(1, template).ok().expect("provider");
+    providers.insert(1, template).expect("provider");
     World::configured(fixtures::limits(), providers)
 }
 #[test]

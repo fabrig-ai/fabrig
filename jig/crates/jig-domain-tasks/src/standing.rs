@@ -4,7 +4,6 @@ use crate::domain::{Domain, publish, record, task_mut};
 use crate::{Executor, Funder, FundingRecord, Limits, Numbers, Phase, Request};
 use skein_lib::{Env, List, Queue};
 
-#[expect(clippy::too_many_lines, reason = "one atomic period rollover with full preflight and durable postings")]
 pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period: u64, out: &mut Queue<Request>) {
     if !domain.ready() || period == 0 {
         return;
@@ -23,12 +22,9 @@ pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period:
     }
     let project = task.project;
     let source = task.funder;
-    let old_period = match source {
-        Funder::Period { project: owner, period: old } | Funder::Pool { project: owner, period: old, .. }
-            if owner == project && old < period =>
-        {
-            old
-        }
+    let (old_period, pool) = match source {
+        Funder::Period { project: owner, period: old } if owner == project && old < period => (old, None),
+        Funder::Pool { project: owner, period: old, .. } if owner == project && old < period => (old, Some(source)),
         Funder::Task(_) | Funder::Recurring { .. } | Funder::Period { .. } | Funder::Pool { .. } => return,
     };
     let old = Funder::Period { project, period: old_period };
@@ -58,18 +54,14 @@ pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period:
     if crate::funders::available(new_numbers).is_none() {
         return;
     }
-    match source {
-        Funder::Pool { .. } => {
-            let Some(pool) = domain.funding.get(&source) else { return };
-            if pool.parent != Some(old)
-                || pool.numbers.budget.checked_sub(budget).is_none()
-                || pool.numbers.reserved.checked_sub(budget).is_none()
-            {
-                return;
-            }
+    if let Some(source) = pool {
+        let Some(pool) = domain.funding.get(&source) else { return };
+        if pool.parent != Some(old)
+            || pool.numbers.budget.checked_sub(budget).is_none()
+            || pool.numbers.reserved.checked_sub(budget).is_none()
+        {
+            return;
         }
-        Funder::Period { .. } => {}
-        Funder::Task(_) | Funder::Recurring { .. } => unreachable!("standing source checked"),
     }
     let ledger = FundingRecord {
         funder: archived,
@@ -80,15 +72,11 @@ pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period:
         closed: false,
     };
     assert!(domain.funding.insert(archived, ledger) == Ok(None), "standing ledger preflighted");
-    match source {
-        Funder::Pool { .. } => {
-            let pool = domain.funding.get_mut(&source).expect("pool preflighted");
-            pool.numbers.budget = pool.numbers.budget.checked_sub(budget).expect("pool budget preflighted");
-            pool.numbers.reserved = pool.numbers.reserved.checked_sub(budget).expect("pool reservation preflighted");
-            crate::funders::save_funding(domain, source, out);
-        }
-        Funder::Period { .. } => {}
-        Funder::Task(_) | Funder::Recurring { .. } => unreachable!("standing source checked"),
+    if let Some(source) = pool {
+        let pool = domain.funding.get_mut(&source).expect("pool preflighted");
+        pool.numbers.budget = pool.numbers.budget.checked_sub(budget).expect("pool budget preflighted");
+        pool.numbers.reserved = pool.numbers.reserved.checked_sub(budget).expect("pool reservation preflighted");
+        crate::funders::save_funding(domain, source, out);
     }
     domain.funding.get_mut(&fresh).expect("new period preflighted").numbers = new_numbers;
     crate::funders::save_funding(domain, archived, out);

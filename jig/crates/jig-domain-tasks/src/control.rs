@@ -1,7 +1,7 @@
 //! Root-authorized changes to live tasks (domain/tasks.md, sections 5.5 and 7).
 //! The child keeps only current state; root owns durable call decisions and
 //! commits every emitted save before any worker sees a control outcome.
-use crate::compound::{Operation, Staged};
+use crate::compound::Staged;
 use crate::domain::{Domain, entrance, publish, record, refused, task_mut};
 use crate::{
     Active, Authority, Limits, MessageKind, Party, Phase, Refusal, Request, Spec, Stored, Tries, WakePolicy, Was, Word,
@@ -787,61 +787,78 @@ pub(crate) fn allowed(domain: &Domain, number: u64, by: Party, bound: u32) -> bo
     }
 }
 
-pub(crate) fn apply(
+fn control_entrance(
+    domain: &Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    by: Party,
+    number: u64,
+    cancelling: bool,
+) -> Result<ReplyTo, (ReplyTo, Refusal)> {
+    let to = entrance(domain, to, number)?;
+    let permitted = match by {
+        Party::Deployment { project } => {
+            cancelling
+                && match record(domain, number) {
+                    Some(task) => task.project == project,
+                    None => false,
+                }
+        }
+        Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
+    };
+    if permitted { Ok(to) } else { Err((to, Refusal::Reference)) }
+}
+
+pub(crate) fn cancel(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     by: Party,
-    operation: Operation,
+    operation: Cancel,
     out: &mut Queue<Request>,
 ) {
-    let number = operation.task();
-    let to = match entrance(domain, to, number) {
+    let number = operation.task;
+    let to = match control_entrance(domain, env, to, by, number, true) {
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
-    let permitted = match by {
-        Party::Deployment { project } => match &operation {
-            Operation::Cancel(_) => match record(domain, number) {
-                Some(task) => task.project == project,
-                None => false,
-            },
-            Operation::Release(_) => false,
-            Operation::Move(_) | Operation::Amend(_) | Operation::Message(_) | Operation::Stop { .. } => {
-                unreachable!("single control operation")
-            }
-        },
-        Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
-    };
-    if !permitted {
-        return refused(to, Some(number), Refusal::Reference, out);
+    match check_cancel(domain, &Staged::new(0), env, by, operation) {
+        Ok(plan) => apply_cancel(domain, env, by, plan, out),
+        Err(problem) => return out.push(Request::Refused { reply_to: to, problem: *problem }),
     }
-    match operation {
-        Operation::Cancel(cancel) => match check_cancel(domain, &Staged::new(0), env, by, cancel) {
-            Ok(plan) => apply_cancel(domain, env, by, plan, out),
-            Err(problem) => return out.push(Request::Refused { reply_to: to, problem: *problem }),
-        },
-        Operation::Release(operation) => match check_release(domain, &Staged::new(0), env, by, operation) {
-            Ok(plan) => apply_release(domain, env, by, plan, out),
-            Err(why) => {
-                let problem = release_problem(domain, &Staged::new(0), &env.limits, number, by, why);
-                if why == Refusal::Busy {
-                    let capacity = match problem.capacity {
-                        Some(capacity) => capacity,
-                        None => crate::Capacity {
-                            project: Some(record(domain, number).expect("release task live").project),
-                            by,
-                            action: crate::CapacityAction::Release,
-                            cause: crate::capacity::inbox(number, &env.limits),
-                        },
-                    };
-                    domain.remember_capacity(env.wall, capacity);
-                }
-                return out.push(Request::Refused { reply_to: to, problem });
+    out.push(Request::Done { reply_to: to });
+}
+
+pub(crate) fn release(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    by: Party,
+    operation: Release,
+    out: &mut Queue<Request>,
+) {
+    let number = operation.task;
+    let to = match control_entrance(domain, env, to, by, number, false) {
+        Ok(to) => to,
+        Err((to, why)) => return refused(to, Some(number), why, out),
+    };
+    match check_release(domain, &Staged::new(0), env, by, operation) {
+        Ok(plan) => apply_release(domain, env, by, plan, out),
+        Err(why) => {
+            let problem = release_problem(domain, &Staged::new(0), &env.limits, number, by, why);
+            if why == Refusal::Busy {
+                let capacity = match problem.capacity {
+                    Some(capacity) => capacity,
+                    None => crate::Capacity {
+                        project: Some(record(domain, number).expect("release task live").project),
+                        by,
+                        action: crate::CapacityAction::Release,
+                        cause: crate::capacity::inbox(number, &env.limits),
+                    },
+                };
+                domain.remember_capacity(env.wall, capacity);
             }
-        },
-        Operation::Move(_) | Operation::Amend(_) | Operation::Message(_) | Operation::Stop { .. } => {
-            unreachable!("single control operation")
+            return out.push(Request::Refused { reply_to: to, problem });
         }
     }
     out.push(Request::Done { reply_to: to });
