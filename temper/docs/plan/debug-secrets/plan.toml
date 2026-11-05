@@ -1,3 +1,74 @@
 draft = "debug-secrets"
 repo = "fabrig"
 sources = ["temper/docs/plan/debug-secrets/inputs/debug-secrets.md", "AGENTS.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "http-heads"
+title = "skein-http's heads print lengths: Header, a server's Call and request line, a client's written head"
+mode = "direct"
+needs = []
+design = "skein/docs/design/http.md, 2"
+
+[[slice]]
+id = 1
+story = "an Authorization, Cookie or Set-Cookie value and a request's target are absent from the Debug of a head and of a machine reading or writing one"
+parts = ["http-heads"]
+walk = false
+
+[[part]]
+id = "channel-frames"
+title = "skein-channel's frames print lengths: Frame, Event::Body and a body being read"
+mode = "direct"
+needs = []
+design = "skein/docs/design/channel.md, 3"
+
+[[slice]]
+id = 2
+story = "a credential in a channel body is absent from the Debug of its frame, its event and a machine still reading it"
+parts = ["channel-frames"]
+walk = false
+
+[[part]]
+id = "issuer-authorization"
+title = "skein-oauth-issuer's Authorization prints state_len and nonce_len"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth-issuer.md, 4"
+
+[[slice]]
+id = 3
+story = "a client's state and nonce are absent from an authorization's Debug"
+parts = ["issuer-authorization"]
+walk = false
+
+[[part]]
+id = "link-secret"
+title = "jig's client wire: LinkSignIn's secret takes the generator's secret type, across jig and temper"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/README.md, 8"
+
+[[slice]]
+id = 4
+story = "the printed link's secret is absent from LinkSignIn's Debug, with the wire's bytes unchanged"
+parts = ["link-secret"]
+walk = false
+
+[[part]]
+id = "machine-names"
+title = "smith-protocol-machine's Variable, Environment and Spawn print names only"
+mode = "direct"
+needs = []
+design = "smith/docs/design/domain/tools.md, 5"
+
+[[slice]]
+id = 5
+story = "a configured variable's value is absent from the Debug of its record, the environment, a spawn and the component"
+parts = ["machine-names"]
+walk = false
