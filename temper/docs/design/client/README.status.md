@@ -2,7 +2,15 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.4, 5.5: the composer's
+- **Not yet:** 3.5, The Chats page: `pages/chats.rs` draws the pane, the
+  new chat's bar and the composer. 3.5, `NewChat`, A new chat, and 4.8, 5.6:
+  no such address; `/chats?at=start` and the chats page hold the new chat
+  and the playground's start. 3.5, One layout for every chat, A chat's bar,
+  and 5.5: a chat that is not a configuring chat draws `CHAT` and `CHATBAR`,
+  with the composer's line and chooser under its composer. 3.5, A chat's
+  conversation, its look, and 5.7, In the browser it is one line: the
+  conversation's old look; no three dots, no pen. 5.9: `AGENT_PAGE` and
+  `TASKBAR` are `CHAT` and `CHATBAR`. 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no
@@ -43,8 +51,8 @@
   "Start over" alone. The Model step showing an account added before
   as ready, where it shows `ConnectModel`'s Choose.
   3.5, With no project
-  yet, where the document shows the welcome: its heading, words and acts; `pages/chats.rs` draws the pane
-  alone, the new chat's bar with no status and the list under "Chats".
+  yet, where the document shows the welcome: its heading, words and acts; `pages/chats.rs` draws its page
+  alone.
   4.7: the "not installed" outcome, "temper's App is not installed on
   OWNER.", with "Install on another account": `temper-service/src/family.rs`
   maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;

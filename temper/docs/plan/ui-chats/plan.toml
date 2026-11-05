@@ -3,3 +3,30 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-chats/inputs/request.md", "temper/docs/design/client/greenfield/app.js", "temper/docs/design/client/greenfield/mock.css", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# One order, a chain of `needs`, since all of it conflicts in temper.css, the gallery and the goldens
+# (inputs/request.md, Design and the cut). The cut wrote the design. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "folds-away"
+title = "skein: a disclosure that folds on a press outside it or Escape"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 7"
+
+[[part]]
+id = "new-chat-address"
+title = "NewChat at /chats/new; Chats' start and ?at=start go"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.3"
+
+[[slice]]
+id = 1
+story = "a new chat has its own address, and a panel can fold away"
+parts = ["folds-away", "new-chat-address"]
+walk = false
