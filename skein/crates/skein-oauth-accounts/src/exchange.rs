@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_http::{Header, Method, client as http};
 use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Duration, Env, List, Queue, Time, bytes, len_u64};
+use skein_lib::{Duration, Env, List, Queue, Secret, Time, bytes, len_u64};
 use skein_link::{self as link, Link, Moved, Start, Upload};
 use skein_oauth as oauth;
 use skein_tls::client as tls;
@@ -51,7 +51,7 @@ pub(crate) struct Exchange {
     pub(crate) pending_grant: bool,
     pub(crate) aborted: bool,
     pub(crate) purpose: Purpose,
-    pub(crate) visit: Option<Box<[u8]>>,
+    pub(crate) visit: Option<Secret>,
     pub(crate) state_refusals: u32,
     pub(crate) sign_in: Option<oauth::Event>,
     pub(crate) return_location: Option<Box<[u8]>>,

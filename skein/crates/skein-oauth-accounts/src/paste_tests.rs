@@ -44,7 +44,10 @@ fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     out.finish()
 }
 fn paste(owner: &mut Owner, address: &[u8], state: &[u8], fields: &[u8]) {
-    owner.ask(Request::Redirected { account: 0, uri: joined(&[address, b"?state=", state, fields]) });
+    owner.ask(Request::Redirected {
+        account: 0,
+        uri: skein_lib::Secret::new(joined(&[address, b"?state=", state, fields])),
+    });
 }
 fn taken(owner: &mut Owner) {
     assert_event(owner.above.pop(), Event::Taken { account: 0 });

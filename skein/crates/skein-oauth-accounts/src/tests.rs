@@ -283,7 +283,7 @@ fn close_and_abort_settle_once_clear_deadlines_and_refuse_new_work_as_closed() {
         assert_refused(out.pop(), 9, Asked::SignIn, Refusal::Closed);
         component.down(
             &env,
-            Request::Redirected { account: 9, uri: bytes::copy_of(b"late") },
+            Request::Redirected { account: 9, uri: skein_lib::Secret::new(bytes::copy_of(b"late")) },
             &mut out,
             &mut Queue::uncapped(),
             &mut Queue::uncapped(),
@@ -510,7 +510,10 @@ fn a_name_no_live_account_holds_is_refused() {
     for (request, asked) in [
         (Request::SignIn { account: MISSING, subject: None }, Asked::SignIn),
         (
-            Request::Redirected { account: MISSING, uri: bytes::copy_of(b"https://service.example/callback") },
+            Request::Redirected {
+                account: MISSING,
+                uri: skein_lib::Secret::new(bytes::copy_of(b"https://service.example/callback")),
+            },
             Asked::Redirected,
         ),
         (Request::HandIn { account: MISSING, record: tests_record(0) }, Asked::HandIn),

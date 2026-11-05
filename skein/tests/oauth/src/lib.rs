@@ -1,6 +1,6 @@
 //! Worlds over the OAuth client and independent fake issuer.
 use skein_fake_oauth as fake;
-use skein_lib::{Duration, Queue, Time, Wall, bytes};
+use skein_lib::{Duration, Queue, Secret, Time, Wall, bytes};
 use skein_oauth as oauth;
 
 #[must_use]
@@ -238,12 +238,12 @@ pub fn visit(
 ) -> Box<[u8]> {
     let request = start(client, registration, nonce, port, 1);
     let Some(oauth::Request::Visit { url }) = request else { panic!("visit expected") };
-    url
+    url.into_exposed()
 }
 
 #[must_use]
 pub fn redirected(issuer: &mut fake::Issuer, url: Box<[u8]>) -> oauth::Event {
-    let redirect = fake_step(issuer, fake::Event::Authorize { url, now: time(1) });
+    let redirect = fake_step(issuer, fake::Event::Authorize { url: Secret::new(url), now: time(1) });
     let Some(fake::Request::Redirect { uri, state, code, client_id }) = redirect else { panic!("redirect expected") };
     oauth::Event::Redirected { client_id, uri, state, code: Some(code), error: None, now: time(2) }
 }
@@ -348,5 +348,5 @@ pub fn openid_visit(
         fake::Event::Get { id: get.id, endpoint: get.endpoint, now: time(1), wall: wall(100) },
     ));
     let Some(oauth::Request::Visit { url }) = client_step(client, oauth::Event::Http(answer)) else { panic!("visit") };
-    url
+    url.into_exposed()
 }

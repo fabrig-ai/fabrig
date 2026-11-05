@@ -95,7 +95,10 @@ fn handed_in_accounts_refuse_sign_in_and_redirect_without_child_work() {
     assert_refused(above.pop(), 0, Asked::SignIn, Refusal::Source);
     component.down(
         &env,
-        Request::Redirected { account: 0, uri: bytes::copy_of(b"http://localhost:31234/callback?state=a&code=b") },
+        Request::Redirected {
+            account: 0,
+            uri: skein_lib::Secret::new(bytes::copy_of(b"http://localhost:31234/callback?state=a&code=b")),
+        },
         &mut above,
         &mut below,
         &mut Queue::uncapped(),

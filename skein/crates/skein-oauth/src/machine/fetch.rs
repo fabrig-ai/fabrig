@@ -83,7 +83,7 @@ impl Client {
             let (request, phase) = self.http_request(&mut exchange, now)?;
             Ok((exchange, Request::Http(request), phase))
         } else {
-            Ok((exchange, Request::Visit { url }, Awaits::Redirect))
+            Ok((exchange, Request::Visit { url: Secret::new(url) }, Awaits::Redirect))
         }
     }
 
@@ -158,7 +158,7 @@ impl Client {
                 exchange.keys = keys::fitting_keys(body, &self.limits)?;
                 exchange.attempts = 0;
                 let url = exchange.visit.take().ok_or(Check::Keys)?;
-                Ok((Request::Visit { url }, Awaits::Redirect))
+                Ok((Request::Visit { url: Secret::new(url) }, Awaits::Redirect))
             }
         }
     }

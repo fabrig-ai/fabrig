@@ -973,7 +973,7 @@ pub(crate) fn issuer_with_terms(
     if story == Story::Retry {
         peer.queue(fake::Plan {
             status: 429,
-            body: fake::Body::Raw(Box::new([])),
+            body: fake::Body::Raw(skein_lib::Secret::new(Box::new([]))),
             delay: Duration::from_millis(5),
             retry_after: Duration::from_secs(1),
         })

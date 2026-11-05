@@ -88,7 +88,11 @@ fn a_fixed_account_sign_in_port_is_not_a_varying_port() {
 fn an_account_visit_is_the_childs_visited_event() {
     let url = b"http://issuer.test/visit";
     assert_eq!(
-        translate::up(driver::Event::Visit { account: 55, url: bytes::copy_of(url) }, Time::ZERO, b""),
+        translate::up(
+            driver::Event::Visit { account: 55, url: skein_lib::Secret::new(bytes::copy_of(url)) },
+            Time::ZERO,
+            b""
+        ),
         Up::Visited { source: 55, address: bytes::copy_of(url) }
     );
 }
@@ -98,7 +102,9 @@ fn an_account_visit_longer_than_the_address_bound_fails_the_account_sign_in_misc
         translate::up(
             driver::Event::Visit {
                 account: 55,
-                url: bytes::zeroed(usize::try_from(child::ADDRESS.checked_add(1).unwrap()).unwrap())
+                url: skein_lib::Secret::new(bytes::zeroed(
+                    usize::try_from(child::ADDRESS.checked_add(1).unwrap()).unwrap()
+                ))
             },
             Time::ZERO,
             b""

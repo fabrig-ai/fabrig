@@ -247,7 +247,7 @@ fn two_sign_ins_on_a_varying_redirect_own_two_ports() {
             ports
                 .push((
                     account,
-                    Owner::query(&url, b"redirect_uri")
+                    Owner::query(url.expose(), b"redirect_uri")
                         == Some(if account == 0 {
                             b"http%3A%2F%2F127.0.0.1%3A41000%2Fcallback"
                         } else {
@@ -366,7 +366,7 @@ fn a_sign_in_started_again_in_the_step_of_its_cancel_waits_for_the_port_then_vis
     for part in parts {
         uri.put(part).expect("fixture room");
     }
-    owner.ask(Request::Redirected { account: 0, uri: uri.finish() });
+    owner.ask(Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri.finish()) });
     assert_event(owner.above.pop(), Event::Taken { account: 0 });
 }
 
