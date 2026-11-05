@@ -70,6 +70,10 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words) {
         }
         Some(
             Repository::Unknown
+            | Repository::Copying { .. }
+            | Repository::CopiesIn { .. }
+            | Repository::CopyOffer { .. }
+            | Repository::Add { .. }
             | Repository::Adopting(_)
             | Repository::Offer { .. }
             | Repository::GitHub { .. }

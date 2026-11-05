@@ -332,6 +332,16 @@ impl Domain {
                 },
                 offer: self.offer(*forge),
                 first: self.first.get(forge).cloned(),
+                starts_with: match match self.record(*forge) {
+                    Some(record) => record.first.as_ref(),
+                    None => None,
+                } {
+                    Some(crate::FirstIntent::Copies { addresses }) => {
+                        crate::StartsWith::Copies { addresses: addresses.clone() }
+                    }
+                    Some(crate::FirstIntent::Nothing) => crate::StartsWith::Nothing,
+                    Some(crate::FirstIntent::Empty(_)) | None => crate::StartsWith::Repository,
+                },
                 installations: self.forge_installations(*forge, config.kind),
                 ended,
                 app: match self.connection(*forge) {
@@ -888,7 +898,10 @@ impl Domain {
         if !self.repositories.contains_key(&repository) {
             return Some((b"repository is not adopted; select an adopted owner/name", None));
         }
-        None
+        match &subscription.topic {
+            Topic::Landings { branch, .. } => admission::landing_subscription_problem(self, limits, repository, branch),
+            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
+        }
     }
 
     /// Current subscriber for an automatic goal topic, preserving its durable number.
@@ -1550,7 +1563,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Withdraw { entry } => withdraw(d, env, entry, out),
         Event::VetoChange { task, entry, prior } => veto_change(d, env, task, entry, prior, out),
         Event::Subscribe { subscription } => subscribe(d, env, subscription, out),
-        Event::Unsubscribe { task, topic } => unsubscribe(d, task, topic, out),
+        Event::Unsubscribe { task, topic } => unsubscribe(d, env, task, topic, out),
         Event::Hint { hint } => {
             crate::landing::hinted(d, &hint, out);
             crate::tiers::hinted(d, &hint, out);
@@ -3089,6 +3102,22 @@ fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Er
     }
 }
 
+// Uncertain reads retry without spending production's stall or resolution allowance
+// (temper/docs/design/domain/forge.md, 8.2 and 10).
+fn retry_step(env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    emit(
+        out,
+        Request::ChangeDecision {
+            task,
+            decision: change::Decision::Wait {
+                until: Some(skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000))),
+            },
+            entry: None,
+            evidence: None,
+        },
+    );
+}
+
 #[expect(clippy::too_many_lines, reason = "one bounded fresh-read chain preserves its stage and facts")]
 fn step_read(
     d: &mut Domain,
@@ -3102,17 +3131,7 @@ fn step_read(
         return;
     }
     if result == Err(skein_forge::api::Error::Busy) {
-        emit(
-            out,
-            Request::ChangeDecision {
-                task: pending.task,
-                decision: change::Decision::Wait {
-                    until: Some(skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000))),
-                },
-                entry: None,
-                evidence: None,
-            },
-        );
+        retry_step(env, pending.task, out);
         return;
     }
     let Some(row) = d.changes.get(&pending.task) else { return };
@@ -3199,7 +3218,7 @@ fn step_read(
             }
             if let Some(commit) = catch_up {
                 pending.stage = StepStage::CatchUp;
-                skein_forge::api::Read::Compare { before: commit, after: pending.base_tip.expect("base read") }
+                skein_forge::api::Read::Commits { before: pending.base_tip.expect("base read"), after: commit, page: 1 }
             } else {
                 pending.stage = StepStage::Pull;
                 match pull_number {
@@ -3209,18 +3228,11 @@ fn step_read(
             }
         }
         StepStage::CatchUp => {
-            pending.contains_catch_up = match result {
-                Ok(skein_forge::api::Answer::Compare { before, after, contains_before, .. })
-                    if Some(before) == catch_up && Some(after) == pending.base_tip =>
-                {
-                    if contains_before {
-                        change::Status::Passed
-                    } else {
-                        change::Status::Failed
-                    }
-                }
-                Ok(_) | Err(_) => change::Status::Pending,
-            };
+            pending.contains_catch_up = ancestry_status(result);
+            if pending.contains_catch_up == change::Status::Unknown {
+                retry_step(env, pending.task, out);
+                return;
+            }
             pending.stage = StepStage::Pull;
             match pull_number {
                 Some(number) => skein_forge::api::Read::Pull { number },
@@ -4326,7 +4338,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
             }
         }
         for topic in &topics {
-            unsubscribe(d, task, topic.clone(), out);
+            unsubscribe(d, env, task, topic.clone(), out);
         }
         unnamed(d, env, task, true, out);
         end_change(d, env, task, out);
@@ -5018,6 +5030,10 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
     }
     let key = (task, subscription.topic.clone());
     d.subscriptions.insert(key, subscription.clone()).expect("preflighted subscription capacity");
+    let landing = match &subscription.topic {
+        Topic::Landings { .. } => true,
+        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => false,
+    };
     topics::subscribe(d, &subscription, out);
     let tasks = subscription.goal_tasks.clone();
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Subscription(subscription) });
@@ -5029,9 +5045,12 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
     if let Some((repository, head)) = ci {
         ci_refresh(d, env, repository, head, out);
     }
+    if landing {
+        crate::tiers::watch(d, env, out);
+    }
 }
 
-fn unsubscribe(d: &mut Domain, task: u64, topic: Topic, out: &mut Queue<Request>) {
+fn unsubscribe(d: &mut Domain, env: &Env<Limits>, task: u64, topic: Topic, out: &mut Queue<Request>) {
     if d.subscriptions.remove(&(task, topic.clone())).is_some() {
         emit(out, Request::Erase { key: Key::Subscription { task, topic: topic.clone() } });
         match topic {
@@ -5046,7 +5065,8 @@ fn unsubscribe(d: &mut Domain, task: u64, topic: Topic, out: &mut Queue<Request>
                     emit(out, Request::Erase { key: Key::Ci { repository, head } });
                 }
             }
-            Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Landings { .. } => crate::tiers::watch(d, env, out),
+            Topic::Pull { .. } | Topic::Participation { .. } => {}
         }
     }
 }

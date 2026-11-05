@@ -85,6 +85,7 @@ impl Frame {
                 f::ForgeRow::new(
                     &f::CEILINGS,
                     f::ForgeRowParts {
+                        starts_with: f::StartsWith::Repository,
                         makings: skein_lib::List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number: FORGE,

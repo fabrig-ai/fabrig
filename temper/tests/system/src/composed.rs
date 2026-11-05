@@ -1027,6 +1027,10 @@ impl World {
             worker::Request::Answer { run, attempt, answer, work, preparation } => {
                 self.worker_answer(run, attempt, answer, &work, preparation);
             }
+            worker::Request::JobAnswer { run, attempt, answer, work, preparation } => {
+                let parts = link::parts(&work, preparation);
+                self.up(engine::Link::Up { up: host::LinkUp::JobAnswer { run, attempt, answer }, parts });
+            }
             // The link cancels a relay's local wait at once.
             worker::Request::CancelRelay { run, attempt, call } => {
                 self.worker_events.push_back(worker::Event::RelayCancelled { run, attempt, call });

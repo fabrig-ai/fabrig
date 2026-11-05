@@ -173,17 +173,25 @@ section 8.
   as the welcome's paste does.
 - **What the box prints:** its sign-in link; on fake backends the
   fakes' addresses and the files a person pastes (the walk `box`, on
-  fake backends); and, for the forge it owns, the forge's API and the
-  person's login:
+  fake backends). An owned forge's terminal lines say:
 
   ```text
-  HH:MM:SSZ Forgejo: api http://ADDR/api/v1
-  HH:MM:SSZ Forgejo: person LOGIN
+  HH:MM:SSZ Forge FORGE (Forgejo): starting
+  HH:MM:SSZ Forge FORGE (Forgejo): started
+  ```
+
+  The forge's API and the person's login are in
+  `DATA/box/logs/forgejo-FORGE.log`, each after its UTC time:
+
+  ```text
+  YYYY-MM-DDTHH:MM:SSZ Forgejo: api http://ADDR/api/v1
+  YYYY-MM-DDTHH:MM:SSZ Forgejo: person LOGIN
   ```
 
   The person's two header files are `person_read.header` and
   `person_write.header` in `DATA/forge-FORGE/` (`temper help box`).
-  `../design/protocol/setup.md`, 7.3 has the box print their paths too.
+  `../design/protocol/setup.md`, 7.2 has the log name their paths too;
+  that gap is recorded in `../design/protocol/setup.status.md`.
   Each header file holds one line, `Authorization: token TOKEN`, private
   to the box's user, so that a pass passes a token by its path and never
   reads it.

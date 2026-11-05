@@ -538,6 +538,28 @@ impl Worker {
             self.route(request);
         }
     }
+    fn run_answer(
+        &mut self,
+        run: Token,
+        attempt: Token,
+        answer: hub::RunAnswer,
+        work: &root::wire::Work,
+        preparation: Option<&root::wire::Preparation>,
+    ) {
+        let parts = worker_route::answer_parts(&answer, work, preparation);
+        self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::Answer { run, attempt, answer }, parts });
+    }
+    fn job_answer(
+        &mut self,
+        run: Token,
+        attempt: Token,
+        answer: hub::JobEnding,
+        work: &root::wire::Work,
+        preparation: Option<&root::wire::Preparation>,
+    ) {
+        let parts = worker_route::job_answer_parts(&answer, work, preparation);
+        self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::JobAnswer { run, attempt, answer }, parts });
+    }
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
             root::Request::Source { owner, name, operation, deadline } => {
@@ -563,11 +585,10 @@ impl Worker {
             }
             root::Request::Link(up) => self.link_down(self.env.now, link::Event::Up { up, parts: Box::default() }),
             root::Request::Answer { run, attempt, answer, work, preparation } => {
-                let parts = worker_route::answer_parts(&answer, &work, preparation.as_ref());
-                self.link_down(
-                    self.env.now,
-                    link::Event::Up { up: hub::LinkUp::Answer { run, attempt, answer }, parts },
-                );
+                self.run_answer(run, attempt, answer, &work, preparation.as_ref());
+            }
+            root::Request::JobAnswer { run, attempt, answer, work, preparation } => {
+                self.job_answer(run, attempt, answer, &work, preparation.as_ref());
             }
             root::Request::Io { owner, op, deadline } => {
                 let value = match crate::worker_git::identity(&op) {

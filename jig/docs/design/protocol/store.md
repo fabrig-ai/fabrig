@@ -2485,3 +2485,7 @@ intervals, and its indexes, by the rules of section 12.
   or a file-based one beside the store.
 - **Several engines:** the store is one process's; the log of commits is
   what would be replicated.
+- **One remap of a mask:** `jig-domain-authority`, `jig-domain-tasks` and
+  `jig-domain-people` each own a `Models` with the same `remap` (5.1), since
+  step code in jig has no generics. Sharing them takes one type the three
+  name.

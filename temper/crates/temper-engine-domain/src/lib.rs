@@ -45,7 +45,9 @@ pub use limits::{
     default_watermark, policy_row_bound, valid,
 };
 pub use link::{inbox_sender, inbox_words};
-pub use route::{Approval, Freshness, Gate, HostDelivery, HostRequest, LandingRule, adopt_repository_ask};
+pub use route::{
+    Approval, Freshness, Gate, HostDelivery, HostRequest, LandingRule, RepositoryIdentity, adopt_repository_ask,
+};
 pub use temper_engine_domain_forge::commit_text;
 pub use translate::{
     AfterLandingCheck, Config, GateCheck, LandingRules, ProjectLanding, RepositoryChecks, TierCheck, Way, landing_stock,

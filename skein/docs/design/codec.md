@@ -1963,6 +1963,10 @@ world, no cargo inside a test.
 - **A record's own `to_bytes`:** an owner makes a `Writer`, encodes into it
   and takes its bytes at each site. Generated per record, it changes the
   generator and every family's generated code.
+- **What the generator prints for a widening:** the emitters write
+  `usize::try_from(..).expect(..)` for a bound's `u32`, where step code writes
+  `usize_of` (lib.md, 6). Printing `usize_of` regenerates every tree's codecs,
+  with no reader's gain yet.
 - **Pieces of a converted type:** a patch whose conversion of a
   `pieces` field's items is not a copy, or an identity plan whose
   pieces reach a held field, is refused when planned (11.3). jig,

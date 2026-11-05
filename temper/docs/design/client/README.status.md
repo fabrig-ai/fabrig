@@ -39,18 +39,18 @@
   alone deciding;
   `temper-client-domain`'s `pages/welcome.rs` `decision` reads a
   refused `forges` watch as no forge, so a usable model opens Forge.
-  The playground offered on Forge's and Model's foot while a real
-  account alone is kept; `temper-client-view`'s `pages/welcome.rs`
-  `main` offers it only while the store is empty. FORGE in "FORGE · not
+  FORGE in "FORGE · not
   finished" as the forge's name; `forge/connect.rs` `unfinished` prints
   "FORGE" itself. "Go on" after a restart: the row's `app` is the forge
   domain's memory alone (`temper-engine-domain-forge`'s `domain.rs`
   `apps`), so a GitHub forge found unfinished after a restart offers
-  "Start over" alone. The Model step showing an account added before
-  as ready, where it shows `ConnectModel`'s Choose.
+  "Start over" alone.
   3.5, With no project
   yet, where the document shows the welcome: its heading, words and acts; `pages/chats.rs` draws its page
-  alone.
+  alone. There too, with a welcome or without one, `NewChat` at its address
+  outside the playground's start: `temper-client-view`'s `pages/new_chat.rs`
+  draws its layout where the section has it give way, its line calling the
+  missing project "Project".
   4.7: the "not installed" outcome, "temper's App is not installed on
   OWNER.", with "Install on another account": `temper-service/src/family.rs`
   maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;
@@ -88,6 +88,23 @@
   project, and an `Answered` keeps neither, so under such a filter the answered
   lines and the head's count hold answers the filter leaves out; no reason is
   recorded.
+  3.5, *A new chat* and *A project with no repository*: `NewChat`'s line says
+  the project has no repository for every `Repository` but `In`
+  (`temper-client-view`'s `pages/new_chat.rs`, `main`), so also with the
+  `forges` watch refused, ended or not delivered yet, where the section has
+  nothing said. The request of 2026-11-05 gives that line two cases and no
+  words for not knowing; no test holds it and no reason is recorded.
+- **Design departs:** 3.5, *A chat's conversation*, its cards, from the request
+  `ui-chats` of 2026-11-05, which names a proposal, a held task and a question's
+  answer as cards in the conversation: a chat's page holds proposals alone
+  (`temper-client-domain`'s `pages/chat.rs`, `cards`), since its held delegate
+  is its one line (5.7), and the answer the one line under "You" the same
+  section keeps. No reason is recorded.
+- **Design departs:** 5.9, and `browser.md`, 2.5, from the request `ui-chats` of
+  2026-11-05, decided by its plan's cut: the request retires `look::CHAT` and
+  `CHATBAR`, and they stand renamed `AGENT_PAGE` and `TASKBAR`, with `ENTRY` and
+  `COMPOSER_AREA` kept, because an agent's task's page still draws them and the
+  request keeps to chats' pages.
 - **Design departs:** 3.5, *Needs you*, *What the client keeps*, and 5.3, from
   the request of 2026-11-05 for them, decided by its plan's cut, the request
   leaving that judgement to it. The rail's watch opens while a project's frame shows, not once signed
