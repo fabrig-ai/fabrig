@@ -14,121 +14,103 @@
 //! stream, a body given up, a head that waited for a discard, pipelining,
 //! and reuse.
 
-use std::collections::BTreeMap;
-
 use skein_http::server::{Body, Error};
 use skein_http::{Method, Version};
 use skein_http_world::server_world::{self, Outcome, Plan, Run, Seen as Served, Settings};
 use skein_http_world::{generate, request_transcript, requests};
 use skein_lib::Rng;
+use skein_protocol_kit::seen::Seen;
 
 const ROUNDS: u64 = 10_000;
 
 /// The transcripts, longer, are swept fewer times.
 const TRANSCRIPT_ROUNDS: u64 = 1_000;
 
-/// How often each thing a sweep injects or reaches fell.
-#[derive(Default)]
-struct Seen(BTreeMap<String, u32>);
-
-impl Seen {
-    fn note(&mut self, what: String) {
-        *self.0.entry(what).or_default() += 1;
-    }
-
-    fn record(&mut self, run: &Run, settings: &Settings) {
-        for seen in &run.seen {
-            match seen.outcome {
-                Some(Outcome::Failed(Error::Stream(fault))) => {
-                    self.note("failed Stream".into());
-                    self.note(format!("failed Stream({fault:?})"));
-                }
-                Some(outcome) => self.note(format!("{outcome:?}")),
-                None => self.note("closed before the outcome".into()),
+fn record(tally: &mut Seen, run: &Run, settings: &Settings) {
+    for seen in &run.seen {
+        match seen.outcome {
+            Some(Outcome::Failed(Error::Stream(fault))) => {
+                tally.note("failed Stream".into());
+                tally.note(format!("failed Stream({fault:?})"));
             }
-            self.note_reply(seen);
-            for (_, refusal) in &seen.refused {
-                self.note(format!("refused {refusal:?}"));
-            }
-            if seen.discarded {
-                self.note("a body discarded".into());
-            }
-            if seen.reply_failed.is_some() {
-                self.note("the reply failed".into());
-            }
-            if seen.body_failed.is_some() {
-                self.note(format!("the body failed with {:?}", seen.body_failed));
-            }
-            if seen.outcome == Some(Outcome::Failed(Error::BodyTooLong)) {
-                let answered = seen.sent.starts_with(b"HTTP/1.1 413");
-                self.note(format!("a chunked body past the limit, answered: {answered}"));
-            }
+            Some(outcome) => tally.note(format!("{outcome:?}")),
+            None => tally.note("closed before the outcome".into()),
         }
-        self.note(format!("closed while waiting for {:?}", run.closed_while));
-        let fell = run.fell;
-        for (flag, what) in [
-            (fell.idle_end, "an end with nothing demanded"),
-            (fell.crossed_end, "a demand crossed the end"),
-            (fell.withdrew, "a body demand withdrawn"),
-            (fell.gave_up, "a body given up"),
-            (fell.late_answer, "an answer after the withdrawal"),
-            (fell.failed_after_end, "a failure after the end"),
-            (fell.reused, "a connection reused"),
-            (fell.pipelined, "requests pipelined"),
-            (fell.continued, "a 100 (Continue)"),
-            (fell.tired, "a client tired of waiting for a 100"),
-            (fell.head_waited, "a head waited for a discard"),
-            (fell.room_after_end, "room after the end"),
-            (fell.reply_withdrawn, "a reply's demand withdrawn"),
-            (fell.crossed_withdrawal, "a withdrawal crossed a piece"),
-            (fell.untouched, "a body untouched, discarded late"),
-            (fell.finished_over_grant, "a Finish in place of a grant's Send"),
-        ] {
-            if flag {
-                self.note(what.into());
-            }
+        note_reply(tally, seen);
+        for (_, refusal) in &seen.refused {
+            tally.note(format!("refused {refusal:?}"));
         }
-        if let Some(waiting) = fell.failed_while {
-            self.note(format!("failed while waiting for {waiting:?}"));
+        if seen.discarded {
+            tally.note("a body discarded".into());
         }
-        if settings.cut.is_some() {
-            self.note("a stream ended early".into());
+        if seen.reply_failed.is_some() {
+            tally.note("the reply failed".into());
+        }
+        if seen.body_failed.is_some() {
+            tally.note(format!("the body failed with {:?}", seen.body_failed));
+        }
+        if seen.outcome == Some(Outcome::Failed(Error::BodyTooLong)) {
+            let answered = seen.sent.starts_with(b"HTTP/1.1 413");
+            tally.note(format!("a chunked body past the limit, answered: {answered}"));
         }
     }
-
-    /// What the reply came to: one to `HEAD`, one in chunks to HTTP/1.0 run
-    /// to the end of the stream, or a final response that went before a 100
-    /// (Continue) the client waited for.
-    fn note_reply(&mut self, seen: &Served) {
-        let (Some(call), Some((response, _)), Some(Outcome::Done(_))) = (&seen.call, &seen.response, seen.outcome)
-        else {
-            return;
-        };
-        if call.method == Method::Head {
-            self.note("a response to HEAD".into());
-        }
-        if call.version == Version::Http10
-            && response.body == Body::Chunked
-            && requests::sends_body(call.method, response)
-            && seen.finished
-        {
-            self.note("a reply in chunks to HTTP/1.0, to the end of the stream".into());
-        }
-        let expects = call.version == Version::Http11
-            && call.body != Body::None
-            && call.body != Body::Length(0)
-            && call.headers.iter().any(|header| {
-                header.is(b"expect") && header.value.to_ascii_lowercase().windows(12).any(|w| w == b"100-continue")
-            });
-        if expects && !seen.sent.starts_with(b"HTTP/1.1 100") {
-            self.note("a final response before the 100 that was due".into());
+    tally.note(format!("closed while waiting for {:?}", run.closed_while));
+    let fell = run.fell;
+    for (flag, what) in [
+        (fell.idle_end, "an end with nothing demanded"),
+        (fell.crossed_end, "a demand crossed the end"),
+        (fell.withdrew, "a body demand withdrawn"),
+        (fell.gave_up, "a body given up"),
+        (fell.late_answer, "an answer after the withdrawal"),
+        (fell.failed_after_end, "a failure after the end"),
+        (fell.reused, "a connection reused"),
+        (fell.pipelined, "requests pipelined"),
+        (fell.continued, "a 100 (Continue)"),
+        (fell.tired, "a client tired of waiting for a 100"),
+        (fell.head_waited, "a head waited for a discard"),
+        (fell.room_after_end, "room after the end"),
+        (fell.reply_withdrawn, "a reply's demand withdrawn"),
+        (fell.crossed_withdrawal, "a withdrawal crossed a piece"),
+        (fell.untouched, "a body untouched, discarded late"),
+        (fell.finished_over_grant, "a Finish in place of a grant's Send"),
+    ] {
+        if flag {
+            tally.note(what.into());
         }
     }
+    if let Some(waiting) = fell.failed_while {
+        tally.note(format!("failed while waiting for {waiting:?}"));
+    }
+    if settings.cut.is_some() {
+        tally.note("a stream ended early".into());
+    }
+}
 
-    fn assert_fell(&self, expected: &[String]) {
-        for what in expected {
-            assert!(self.0.contains_key(what), "{what} fell: {:#?}", self.0);
-        }
+/// What the reply came to: one to `HEAD`, one in chunks to HTTP/1.0 run
+/// to the end of the stream, or a final response that went before a 100
+/// (Continue) the client waited for.
+fn note_reply(tally: &mut Seen, seen: &Served) {
+    let (Some(call), Some((response, _)), Some(Outcome::Done(_))) = (&seen.call, &seen.response, seen.outcome) else {
+        return;
+    };
+    if call.method == Method::Head {
+        tally.note("a response to HEAD".into());
+    }
+    if call.version == Version::Http10
+        && response.body == Body::Chunked
+        && requests::sends_body(call.method, response)
+        && seen.finished
+    {
+        tally.note("a reply in chunks to HTTP/1.0, to the end of the stream".into());
+    }
+    let expects = call.version == Version::Http11
+        && call.body != Body::None
+        && call.body != Body::Length(0)
+        && call.headers.iter().any(|header| {
+            header.is(b"expect") && header.value.to_ascii_lowercase().windows(12).any(|w| w == b"100-continue")
+        });
+    if expects && !seen.sent.starts_with(b"HTTP/1.1 100") {
+        tally.note("a final response before the 100 that was due".into());
     }
 }
 
@@ -159,7 +141,7 @@ fn generated_mutated_and_corrupted_requests_are_served_as_the_reference_reads_th
         let limits = server_world::limits(&mut rng);
         let settings = Settings::chaotic(&mut rng, limits, client.len());
         let run = server_world::check(&client, &plans, &settings, seed);
-        tally.record(&run, &settings);
+        record(&mut tally, &run, &settings);
     }
     let mut every: Vec<String> = [
         "Done(Keep)",
@@ -247,7 +229,7 @@ fn request_transcripts_cut_mutated_and_failed_are_served_as_the_reference_reads_
         let plans: Vec<Plan> = (0..4).map(|_| server_world::plan(&mut rng)).collect();
         let settings = Settings::chaotic(&mut rng, transcript.limits, client.len());
         let run = server_world::check(&client, &plans, &settings, seed);
-        tally.record(&run, &settings);
+        record(&mut tally, &run, &settings);
     }
     let every: Vec<String> =
         ["Done(Keep)", "Done(Close)", "Ended", "Failed(Truncated)", "failed Stream", "closed before the outcome"]
