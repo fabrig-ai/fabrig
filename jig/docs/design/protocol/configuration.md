@@ -610,8 +610,7 @@ accounts, up to the models' 64, within `fleet.grants` and
 figures, so a zero `people.operations` is refused as `tasks.delegates`
 needing `people.operations` of at least its count plus one. After them a
 relation with a zero on either side is not checked: a zero is a bound,
-refused as an override past its family's bound, as are the settings'
-equalities (`tasks.revisions` and the versions with `core.settings`'s).
+refused as an override past its family's bound.
 
 The **effective store codec envelope** bounds the framed byte collections
 people-v14 derives from `core.policy_bytes` and `people.amendment_bytes`,
