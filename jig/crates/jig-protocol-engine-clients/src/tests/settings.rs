@@ -133,6 +133,7 @@ fn the_inventory_at_profile_bounds_fits_one_wire_document() {
     let mut client = *f::client_limits().client();
     client.document_bytes = u64::from(w::CEILINGS.owned_record);
     client.text = u32::try_from(NAME_BYTES).unwrap();
+    client.long_text = client.text;
     client.turn_text = client.text;
     client.turn_bytes = client.text;
     let limits = jig_client_protocol_link::Limits::new(client, 4).unwrap();

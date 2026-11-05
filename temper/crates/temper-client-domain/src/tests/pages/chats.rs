@@ -354,6 +354,7 @@ fn a_started_chat_opens_its_conversation_activity() {}
 fn new_chats_and_cues_keep_the_send_bound_when_receiving_grows() {
     let mut limits = fixtures::limits();
     limits.client.domain.text = 2048;
+    limits.client.domain.long_text = 2048;
     limits.client.domain.turn_text = 2048;
     let bound = usize::try_from(temper_client_protocol_wire::CUE_BYTES).unwrap();
     let me = fixtures::chats::me();

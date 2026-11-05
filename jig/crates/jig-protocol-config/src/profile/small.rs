@@ -92,6 +92,7 @@ pub(super) const PEOPLE: people::Limits = people::Limits {
     act_grants: 0,
     identity_bytes: 1_024,
     words: 2_048,
+    spec_bytes: TASKS.spec_bytes,
     amendment_bytes: 8_192,
     sign_in_lifetime: Duration::from_secs(86400),
     request_retention: Duration::from_secs(86400),

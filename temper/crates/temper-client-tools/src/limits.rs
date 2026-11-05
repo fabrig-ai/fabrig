@@ -4,6 +4,8 @@ use skein_lib::{Duration, RequestLimits};
 use temper_client_domain as client;
 pub const ROWS: u32 = 32;
 pub const TEXT: u32 = 32_768;
+/// Whole document bodies and goal words (client/README.md, 5.4).
+pub const LONG_TEXT: u32 = 131_072;
 /// jig's portable login-directory name and configured adapter-name bounds.
 pub use crate::jig::call::{PROGRAM_ADAPTER, PROGRAM_NAME};
 pub const PART: u32 = 16_384;
@@ -53,6 +55,7 @@ pub fn client() -> client::Limits {
             kept: 16,
             projects: 2,
             text: TEXT,
+            long_text: LONG_TEXT,
             turn_text: TEXT,
             rows: ROWS, // Entries in a document's short lists and result windows.
             fields: 16,

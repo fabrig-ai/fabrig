@@ -16,6 +16,7 @@ const WITHIN: Duration = Duration::from_secs(1);
 pub fn limits() -> jig_client_test_domain::Limits {
     let mut limits = crate::test::limits();
     limits.client.domain.text = 128;
+    limits.client.domain.long_text = 128;
     limits.client.domain.turn_text = 128;
     limits.client.domain.turn_bytes = 128;
     limits.jig.roles = 4;

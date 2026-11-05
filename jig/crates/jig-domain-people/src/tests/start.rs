@@ -1271,3 +1271,26 @@ fn an_open_start_cannot_begin_again() {
     assert!(domain.start_complete(&env()));
     domain.start_restore(Wall::EPOCH);
 }
+
+#[test]
+fn restored_task_words_use_the_spec_bound() {
+    let mut env = env();
+    // One byte past ordinary words, exactly the task-spec bound.
+    env.limits.spec_bytes = env.limits.words + 1;
+    let words = skein_lib::bytes::zeroed(usize::try_from(env.limits.spec_bytes).unwrap());
+    let member = fixtures::member(&words);
+    let (mut domain, mut out) = new_start(&env);
+    load(&mut domain, &env, person(1), &mut out);
+    load(
+        &mut domain,
+        &env,
+        answer(
+            1,
+            Ask::Create { project: 1, batch: Box::new([member]) },
+            Outcome::Created { first: 1, last: 1, given: None },
+        ),
+        &mut out,
+    );
+    assert!(out.is_empty(), "a retained task spec past message words fits");
+    assert!(domain.start_link(&env));
+}

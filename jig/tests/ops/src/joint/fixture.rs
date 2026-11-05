@@ -32,6 +32,7 @@ pub fn limits() -> client::Limits {
     limits.jig.conversation_words = 16;
     limits.client.domain.rows = 32;
     limits.client.domain.text = 4096;
+    limits.client.domain.long_text = 4096;
     limits
 }
 struct Profile {

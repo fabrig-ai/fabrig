@@ -85,6 +85,7 @@ impl Application for OpsScript {
         let mut limits = super::limits();
         limits.client.domain.rows = bounds.rows;
         limits.client.domain.text = bounds.text;
+        limits.client.domain.long_text = bounds.text;
         limits.client.domain.document_bytes = bounds.document_bytes;
         let fits = |doc: &Document| match doc {
             Document::Observability(doc) => doc.fits(&limits.client.domain),

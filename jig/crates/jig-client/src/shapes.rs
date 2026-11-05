@@ -80,7 +80,7 @@ pub fn chat_from(me: &Me, project: u32, number: u32, words: Text) -> Result<Ask,
     if !template.flags.conversation {
         return Err(NotOffered::Template);
     }
-    let task = fill(template, creating, words, None)?;
+    let task = fill(template, creating, words, None, false)?;
     Ok(Ask::Create { project, tasks: single(task) })
 }
 pub fn close_chat(me: &Me, project: u32, chat: u64, delegates: &[Delegate], reason: Text) -> Result<Ask, NotOffered> {
@@ -131,6 +131,14 @@ pub fn set_goal(me: &Me, project: u32, draft: GoalDraft, reason: Text) -> Judged
 /// Fill an offered template by number, keeping the goal's authority/proposal judgement.
 #[must_use]
 pub fn set_goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reason: Text) -> Judged {
+    goal_from(me, project, number, draft, reason, false)
+}
+/// `set_goal_from`, with its specification's `asks` (client/domain/client.md, 19).
+#[must_use]
+pub fn set_agreed_goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reason: Text) -> Judged {
+    goal_from(me, project, number, draft, reason, true)
+}
+fn goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reason: Text, asks: bool) -> Judged {
     let creating = match creating(me, project) {
         Ok(value) => value,
         Err(why) => return Judged::NotOffered(why),
@@ -138,7 +146,7 @@ pub fn set_goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reaso
     let Some(template) = template(me, project, number) else {
         return Judged::NotOffered(NotOffered::Template);
     };
-    let task = match fill(template, creating, draft.words.clone(), Some(&draft)) {
+    let task = match fill(template, creating, draft.words.clone(), Some(&draft), asks) {
         Ok(value) => value,
         Err(why) => return Judged::NotOffered(why),
     };
@@ -170,6 +178,7 @@ fn fill(
     creating: &Creating,
     words: Text,
     draft: Option<&GoalDraft>,
+    asks: bool,
 ) -> Result<NewTask, NotOffered> {
     let executor = match template.executor {
         TemplateExecutor::Charter(charter) => {
@@ -239,7 +248,7 @@ fn fill(
         symbols: template.resources.clone(),
         deadline,
         executor,
-        spec: Specification { asks: false, words, parameters: List::with_capacity(0), inputs: List::with_capacity(0) },
+        spec: Specification { asks, words, parameters: List::with_capacity(0), inputs: List::with_capacity(0) },
         contract,
         authority,
         budget,

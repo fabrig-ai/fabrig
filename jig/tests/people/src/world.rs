@@ -35,6 +35,7 @@ pub const LIMITS: Limits = Limits {
     act_grants: 2,
     identity_bytes: 32,
     words: 64,
+    spec_bytes: 64,
     amendment_bytes: 512,
     sign_in_lifetime: Duration::from_secs(60),
     request_retention: Duration::from_secs(120),
