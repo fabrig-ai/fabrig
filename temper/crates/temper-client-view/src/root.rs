@@ -252,7 +252,14 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             view.limits.tree.text_per_node,
         );
     } else if let temper_client_domain::Address::Settings { project } = root.pages().address() {
-        crate::pages::settings::how_work_runs(&mut builder, root, &view.forge_words, &mut view.pages, *project);
+        crate::pages::settings::how_work_runs(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            &mut view.forge,
+            *project,
+        );
     } else if let temper_client_domain::Address::Repositories { project } = root.pages().address() {
         crate::pages::settings::repositories(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Chat { .. } = root.pages().address() {
@@ -320,7 +327,24 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
 }
 #[must_use]
 pub fn act(view: &mut View, node: NodeId, act: Act) -> Option<Action> {
-    if let temper_client_domain::Event::Act { action } = event(view, node, act)? { Some(action) } else { None }
+    if let temper_client_domain::Event::Act { action } = act_event(view, node, act)? { Some(action) } else { None }
+}
+/// Decode an act being sent and remember its setting row for a refusal (client/README.md, 5.13).
+#[must_use]
+pub fn act_event(view: &mut View, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {
+    let event = event(view, node, act)?;
+    for shown in view.tree().nodes() {
+        if shown.id != node {
+            continue;
+        }
+        if let Some(binding) = shown.binding
+            && binding.owner == temper_client_domain::forge::words::owner(view.forge_words.connector)
+        {
+            view.forge.remember(binding.token);
+        }
+        break;
+    }
+    Some(event)
 }
 /// The address a link node opens, which the browser shell gives as its href
 /// (client/browser.md, 2.3 and 7.1): its external address, or the page its press goes to.

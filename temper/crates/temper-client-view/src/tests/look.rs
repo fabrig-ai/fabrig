@@ -443,3 +443,18 @@ fn account_rows_and_sign_ins_have_distinct_style_names() {
     assert_eq!(NAMES.style(SIGN_IN), Some(b"temper-sign-in".as_slice()));
     assert_ne!(ACCOUNT_ROW, SIGN_IN);
 }
+
+#[test]
+fn the_settings_controls_have_their_own_names_and_small_element() {
+    for (style, name) in [
+        (SETTINGS_CHECKS, b"temper-settings-checks".as_slice()),
+        (SETTINGS_SWITCH, b"temper-settings-switch".as_slice()),
+        (SETTINGS_TOGGLE_ROW, b"temper-settings-toggle-row".as_slice()),
+        (SETTINGS_TEXT, b"temper-settings-text".as_slice()),
+        (SETTINGS_FACTS, b"temper-settings-facts".as_slice()),
+        (SETTINGS_REFUSAL, b"temper-settings-refusal".as_slice()),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+    assert!(ELEMENTS.contains(&(crate::frame::owner(), Role::Text, SETTINGS_DETAIL, "small")));
+}

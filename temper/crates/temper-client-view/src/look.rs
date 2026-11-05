@@ -23,6 +23,12 @@ pub const SETTINGS_PRIMARY: Style = Style { owner: owner(), token: 270 };
 pub const SETTINGS_SMALL: Style = Style { owner: owner(), token: 271 };
 pub const SETTINGS_DETAIL: Style = Style { owner: owner(), token: 272 };
 pub const SETTINGS_END: Style = Style { owner: owner(), token: 273 };
+pub const SETTINGS_CHECKS: Style = Style { owner: owner(), token: 274 };
+pub const SETTINGS_SWITCH: Style = Style { owner: owner(), token: 275 };
+pub const SETTINGS_TOGGLE_ROW: Style = Style { owner: owner(), token: 276 };
+pub const SETTINGS_TEXT: Style = Style { owner: owner(), token: 277 };
+pub const SETTINGS_FACTS: Style = Style { owner: owner(), token: 278 };
+pub const SETTINGS_REFUSAL: Style = Style { owner: owner(), token: 279 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
 pub const CHANGES: Style = Style { owner: owner(), token: 180 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
@@ -498,6 +504,7 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
+    (owner(), skein_ui::Role::Text, SETTINGS_DETAIL, "small"),
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
     (owner(), skein_ui::Role::Heading { level: 3 }, WELCOME_LEGEND, "legend"),
@@ -796,6 +803,12 @@ pub const NAMES: Names<'static> = Names {
         b"temper-settings-small",
         b"temper-settings-detail",
         b"temper-settings-end",
+        b"temper-settings-checks",
+        b"temper-settings-switch",
+        b"temper-settings-toggle-row",
+        b"temper-settings-text",
+        b"temper-settings-facts",
+        b"temper-settings-refusal",
     ],
     regions: &[b"temper-link"],
 };
