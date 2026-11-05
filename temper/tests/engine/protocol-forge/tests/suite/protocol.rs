@@ -585,6 +585,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::TierDecision { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::Decided { .. }
                 | top::Request::Call { .. } => {}
             }
         }

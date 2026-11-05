@@ -11,6 +11,81 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    SettingsProposalTitle,
+    SettingsProposalDrafts,
+    SettingsProposalGoals,
+    SettingsProposalChanges,
+    SettingsProposalAway,
+    SettingsProposalWay,
+    SettingsProposalOn,
+    SettingsProposalOff,
+    SettingsProposalShown,
+    SettingsProposalHidden,
+    SettingsProposalForeman,
+    SettingsProposalUp,
+    SettingsProposalNone,
+    SettingsProposalChange,
+    SettingsProposalWaiting,
+    SettingsProposalOwners,
+    SettingsProposalAccepted,
+    SettingsProposalReplaced,
+
+    AwaySettingsTitle,
+    AwayKinds,
+    AwayKindsLine,
+    AwayImplementation,
+    AwayRetry,
+    AwayWording,
+    AwayDependency,
+    AwayLocked,
+    AwaySettingsUntil,
+    AwayUntilLine,
+    AwayEight,
+    AwayByHand,
+    SettingsShows,
+    SettingsDrafts,
+    SettingsDraftsLine,
+    SettingsGoals,
+    SettingsGoalsLine,
+    SettingsChanges,
+    SettingsChangesLine,
+    SettingsAway,
+    SettingsAwayLine,
+    SettingsOn,
+    SettingsOff,
+    SettingsShown,
+    SettingsHidden,
+    SettingsWays,
+    SettingsDefault,
+    SettingsStatus,
+    SettingsReports,
+    SettingsReportsLine,
+    SettingsAgentReports,
+    SettingsRewritten,
+    SettingsOnOpen,
+    SettingsBrief,
+    SettingsBriefLine,
+    SettingsNeeds,
+    SettingsQuestions,
+    SettingsForeman,
+    SettingsUp,
+    SettingsAlone,
+    SettingsFunds,
+    SettingsBudgetUsed,
+    SettingsUnbuilt,
+    SettingsTelling,
+    SettingsNotifications,
+    SettingsNotificationsLine,
+    SettingsQuiet,
+    SettingsNoQuiet,
+    SettingsWhole,
+    SettingsWholeLine,
+    SettingsEach,
+    SettingsEachLine,
+    SettingsReview,
+    SettingsReviewLine,
+    SettingsOne,
+    SettingsOneLine,
     StartGoalTitle,
     StartGoalFrom,
     StartGoalLead,
@@ -18,6 +93,12 @@ pub enum Word {
     StartGoalDefault,
     StartGoalWays,
     StartGoalRun,
+    StartGoalAsks,
+    StartGoalFollow,
+    StartGoalFollowDetail,
+    StartGoalAlways,
+    StartGoalAlwaysDetail,
+    GoalFollowsAway,
     GoalsStartDraft,
 
     GoalTell,
@@ -82,69 +163,6 @@ pub enum Word {
     GoalRisk,
     GoalSeparator,
 
-    SettingsProposalTitle,
-    SettingsProposalDrafts,
-    SettingsProposalGoals,
-    SettingsProposalChanges,
-    SettingsProposalAway,
-    SettingsProposalWay,
-    SettingsProposalOn,
-    SettingsProposalOff,
-    SettingsProposalShown,
-    SettingsProposalHidden,
-    SettingsProposalForeman,
-    SettingsProposalUp,
-    SettingsProposalNone,
-    SettingsProposalChange,
-    SettingsProposalWaiting,
-    SettingsProposalOwners,
-    SettingsProposalAccepted,
-    SettingsProposalReplaced,
-
-    SettingsShows,
-    SettingsDrafts,
-    SettingsDraftsLine,
-    SettingsGoals,
-    SettingsGoalsLine,
-    SettingsChanges,
-    SettingsChangesLine,
-    SettingsAway,
-    SettingsAwayLine,
-    SettingsOn,
-    SettingsOff,
-    SettingsShown,
-    SettingsHidden,
-    SettingsWays,
-    SettingsDefault,
-    SettingsStatus,
-    SettingsReports,
-    SettingsReportsLine,
-    SettingsAgentReports,
-    SettingsRewritten,
-    SettingsOnOpen,
-    SettingsBrief,
-    SettingsBriefLine,
-    SettingsNeeds,
-    SettingsQuestions,
-    SettingsForeman,
-    SettingsUp,
-    SettingsAlone,
-    SettingsFunds,
-    SettingsBudgetUsed,
-    SettingsUnbuilt,
-    SettingsTelling,
-    SettingsNotifications,
-    SettingsNotificationsLine,
-    SettingsQuiet,
-    SettingsNoQuiet,
-    SettingsWhole,
-    SettingsWholeLine,
-    SettingsEach,
-    SettingsEachLine,
-    SettingsReview,
-    SettingsReviewLine,
-    SettingsOne,
-    SettingsOneLine,
     SettingsBuildersTab,
     SettingsBuildersHeading,
     SettingsBuildersLede,
@@ -696,6 +714,31 @@ pub enum Word {
     TimeDays,
     TimeAgo,
     TimeAt,
+    Away,
+    AwayChipOff,
+    AwayUntil,
+    ToastAwayOnUntil,
+    ToastAwayOn,
+    ToastAwayOff,
+    ToastAwayRefused,
+    AwayLimits,
+    ToastOverturnAlready,
+    ToastOverturnEnded,
+    ToastOverturned,
+    Overturn,
+    HomeDecisionOverturned,
+    HomeDecisionEnded,
+    HomeDecisionLanded,
+    HomeStillNeedsCount,
+    HomeStillNeeds,
+    HomeDecidedCount,
+    HomeDecidedMany,
+    HomeDecidedOne,
+    HomeAwayLandedMany,
+    HomeAwayLandedOne,
+    HomeAwayNow,
+    HomeAwaySpan,
+    HomeAway,
     TimeClock,
     TimePair,
     TimeDate,
@@ -1184,7 +1227,9 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1676;
+// Overturn adds its button and three toast phrases (client/README.md, 3.5).
+// Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
+const PHRASES: u32 = 1719;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1201,8 +1246,84 @@ const PHRASES: u32 = 1676;
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
-const SEGMENTS: u32 = 2912;
-const ALL: [Word; 1077] = [
+// Overturn adds four literal segments (client/README.md, 3.5).
+// The asking choice has five literals; the following word has three segments (5.14, 5.8).
+const SEGMENTS: u32 = 2981;
+const ALL: [Word; 1120] = [
+    Word::SettingsProposalTitle,
+    Word::SettingsProposalDrafts,
+    Word::SettingsProposalGoals,
+    Word::SettingsProposalChanges,
+    Word::SettingsProposalAway,
+    Word::SettingsProposalWay,
+    Word::SettingsProposalOn,
+    Word::SettingsProposalOff,
+    Word::SettingsProposalShown,
+    Word::SettingsProposalHidden,
+    Word::SettingsProposalForeman,
+    Word::SettingsProposalUp,
+    Word::SettingsProposalNone,
+    Word::SettingsProposalChange,
+    Word::SettingsProposalWaiting,
+    Word::SettingsProposalOwners,
+    Word::SettingsProposalAccepted,
+    Word::SettingsProposalReplaced,
+    Word::AwaySettingsTitle,
+    Word::AwayKinds,
+    Word::AwayKindsLine,
+    Word::AwayImplementation,
+    Word::AwayRetry,
+    Word::AwayWording,
+    Word::AwayDependency,
+    Word::AwayLocked,
+    Word::AwaySettingsUntil,
+    Word::AwayUntilLine,
+    Word::AwayEight,
+    Word::AwayByHand,
+    Word::SettingsShows,
+    Word::SettingsDrafts,
+    Word::SettingsDraftsLine,
+    Word::SettingsGoals,
+    Word::SettingsGoalsLine,
+    Word::SettingsChanges,
+    Word::SettingsChangesLine,
+    Word::SettingsAway,
+    Word::SettingsAwayLine,
+    Word::SettingsOn,
+    Word::SettingsOff,
+    Word::SettingsShown,
+    Word::SettingsHidden,
+    Word::SettingsWays,
+    Word::SettingsDefault,
+    Word::SettingsStatus,
+    Word::SettingsReports,
+    Word::SettingsReportsLine,
+    Word::SettingsAgentReports,
+    Word::SettingsRewritten,
+    Word::SettingsOnOpen,
+    Word::SettingsBrief,
+    Word::SettingsBriefLine,
+    Word::SettingsNeeds,
+    Word::SettingsQuestions,
+    Word::SettingsForeman,
+    Word::SettingsUp,
+    Word::SettingsAlone,
+    Word::SettingsFunds,
+    Word::SettingsBudgetUsed,
+    Word::SettingsUnbuilt,
+    Word::SettingsTelling,
+    Word::SettingsNotifications,
+    Word::SettingsNotificationsLine,
+    Word::SettingsQuiet,
+    Word::SettingsNoQuiet,
+    Word::SettingsWhole,
+    Word::SettingsWholeLine,
+    Word::SettingsEach,
+    Word::SettingsEachLine,
+    Word::SettingsReview,
+    Word::SettingsReviewLine,
+    Word::SettingsOne,
+    Word::SettingsOneLine,
     Word::StartGoalTitle,
     Word::StartGoalFrom,
     Word::StartGoalLead,
@@ -1210,6 +1331,12 @@ const ALL: [Word; 1077] = [
     Word::StartGoalDefault,
     Word::StartGoalWays,
     Word::StartGoalRun,
+    Word::StartGoalAsks,
+    Word::StartGoalFollow,
+    Word::StartGoalFollowDetail,
+    Word::StartGoalAlways,
+    Word::StartGoalAlwaysDetail,
+    Word::GoalFollowsAway,
     Word::GoalsStartDraft,
     Word::GoalTell,
     Word::GoalHint,
@@ -1271,68 +1398,6 @@ const ALL: [Word; 1077] = [
     Word::GoalLeft,
     Word::GoalRisk,
     Word::GoalSeparator,
-    Word::SettingsProposalTitle,
-    Word::SettingsProposalDrafts,
-    Word::SettingsProposalGoals,
-    Word::SettingsProposalChanges,
-    Word::SettingsProposalAway,
-    Word::SettingsProposalWay,
-    Word::SettingsProposalOn,
-    Word::SettingsProposalOff,
-    Word::SettingsProposalShown,
-    Word::SettingsProposalHidden,
-    Word::SettingsProposalForeman,
-    Word::SettingsProposalUp,
-    Word::SettingsProposalNone,
-    Word::SettingsProposalChange,
-    Word::SettingsProposalWaiting,
-    Word::SettingsProposalOwners,
-    Word::SettingsProposalAccepted,
-    Word::SettingsProposalReplaced,
-    Word::SettingsShows,
-    Word::SettingsDrafts,
-    Word::SettingsDraftsLine,
-    Word::SettingsGoals,
-    Word::SettingsGoalsLine,
-    Word::SettingsChanges,
-    Word::SettingsChangesLine,
-    Word::SettingsAway,
-    Word::SettingsAwayLine,
-    Word::SettingsOn,
-    Word::SettingsOff,
-    Word::SettingsShown,
-    Word::SettingsHidden,
-    Word::SettingsWays,
-    Word::SettingsDefault,
-    Word::SettingsStatus,
-    Word::SettingsReports,
-    Word::SettingsReportsLine,
-    Word::SettingsAgentReports,
-    Word::SettingsRewritten,
-    Word::SettingsOnOpen,
-    Word::SettingsBrief,
-    Word::SettingsBriefLine,
-    Word::SettingsNeeds,
-    Word::SettingsQuestions,
-    Word::SettingsForeman,
-    Word::SettingsUp,
-    Word::SettingsAlone,
-    Word::SettingsFunds,
-    Word::SettingsBudgetUsed,
-    Word::SettingsUnbuilt,
-    Word::SettingsTelling,
-    Word::SettingsNotifications,
-    Word::SettingsNotificationsLine,
-    Word::SettingsQuiet,
-    Word::SettingsNoQuiet,
-    Word::SettingsWhole,
-    Word::SettingsWholeLine,
-    Word::SettingsEach,
-    Word::SettingsEachLine,
-    Word::SettingsReview,
-    Word::SettingsReviewLine,
-    Word::SettingsOne,
-    Word::SettingsOneLine,
     Word::SettingsBuildersTab,
     Word::SettingsBuildersHeading,
     Word::SettingsBuildersLede,
@@ -1870,6 +1935,31 @@ const ALL: [Word; 1077] = [
     Word::TimeDays,
     Word::TimeAgo,
     Word::TimeAt,
+    Word::Away,
+    Word::AwayChipOff,
+    Word::AwayUntil,
+    Word::ToastAwayOnUntil,
+    Word::ToastAwayOn,
+    Word::ToastAwayOff,
+    Word::ToastAwayRefused,
+    Word::AwayLimits,
+    Word::ToastOverturnAlready,
+    Word::ToastOverturnEnded,
+    Word::ToastOverturned,
+    Word::Overturn,
+    Word::HomeDecisionOverturned,
+    Word::HomeDecisionEnded,
+    Word::HomeDecisionLanded,
+    Word::HomeStillNeedsCount,
+    Word::HomeStillNeeds,
+    Word::HomeDecidedCount,
+    Word::HomeDecidedMany,
+    Word::HomeDecidedOne,
+    Word::HomeAwayLandedMany,
+    Word::HomeAwayLandedOne,
+    Word::HomeAwayNow,
+    Word::HomeAwaySpan,
+    Word::HomeAway,
     Word::TimeClock,
     Word::TimePair,
     Word::TimeDate,
@@ -2285,74 +2375,6 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
-            Self::StartGoalTitle => 3550,
-            Self::StartGoalFrom => 3551,
-            Self::StartGoalLead => 3552,
-            Self::StartGoalName => 3553,
-            Self::StartGoalDefault => 3554,
-            Self::StartGoalWays => 3555,
-            Self::StartGoalRun => 3556,
-            Self::GoalsStartDraft => 3557,
-            Self::GoalTell => 3540,
-            Self::GoalHint => 3541,
-            Self::GoalPause => 3532,
-            Self::GoalResume => 3533,
-            Self::ToastPaused => 3534,
-            Self::ToastResumed => 3535,
-            Self::ToastProposed => 3538,
-            Self::ToastProposedEnd => 3539,
-            Self::GoalStopTitle => 3536,
-            Self::GoalStopStays => 3537,
-            Self::GoalSideTasks => 3500,
-            Self::GoalLandingTitle => 3501,
-            Self::GoalHowTitle => 3502,
-            Self::GoalDecidedTitle => 3503,
-            Self::GoalAlwaysAsks => 3504,
-            Self::GoalProposing => 3505,
-            Self::GoalNoTasks => 3506,
-            Self::GoalBarCount => 3507,
-            Self::GoalFoldCount => 3508,
-            Self::GoalMoreTasks => 3509,
-            Self::GoalWaitsTitle => 3510,
-            Self::GoalWaitsTask => 3511,
-            Self::GoalWaitsTasks => 3512,
-            Self::GoalWaitsYou => 3513,
-            Self::GoalWaitsResources => 3514,
-            Self::GoalWaits => 3515,
-            Self::GoalLandedAt => 3516,
-            Self::GoalStoppedBefore => 3517,
-            Self::GoalFailedBefore => 3518,
-            Self::GoalWholeNoTasks => 3519,
-            Self::GoalWholeCount => 3520,
-            Self::GoalEachChecked => 3521,
-            Self::GoalCountDigits => 3522,
-            Self::GoalOne => 3523,
-            Self::GoalTwo => 3524,
-            Self::GoalThree => 3525,
-            Self::GoalFour => 3526,
-            Self::GoalFive => 3527,
-            Self::GoalSix => 3528,
-            Self::GoalSeven => 3529,
-            Self::GoalEight => 3530,
-            Self::GoalNine => 3531,
-            Self::GoalPlanningTitle => 3587,
-            Self::GoalMetaCount => 3570,
-            Self::GoalSpent => 3571,
-            Self::GoalSince => 3572,
-            Self::GoalPlanningDraft => 3573,
-            Self::GoalPlanningAsked => 3574,
-            Self::GoalStoppedHeading => 3575,
-            Self::GoalFailedReason => 3576,
-            Self::GoalWrittenAt => 3577,
-            Self::GoalByAt => 3578,
-            Self::GoalDraft => 3579,
-            Self::GoalChat => 3580,
-            Self::GoalReportTitle => 3581,
-            Self::GoalReadingDraft => 3582,
-            Self::GoalReadingAsked => 3583,
-            Self::GoalLeft => 3584,
-            Self::GoalRisk => 3585,
-            Self::GoalSeparator => 3586,
             Self::SettingsProposalTitle => 3416,
             Self::SettingsProposalDrafts => 3417,
             Self::SettingsProposalGoals => 3418,
@@ -2371,6 +2393,18 @@ impl Word {
             Self::SettingsProposalOwners => 3431,
             Self::SettingsProposalAccepted => 3432,
             Self::SettingsProposalReplaced => 3433,
+            Self::AwaySettingsTitle => 3658,
+            Self::AwayKinds => 3659,
+            Self::AwayKindsLine => 3660,
+            Self::AwayImplementation => 3661,
+            Self::AwayRetry => 3662,
+            Self::AwayWording => 3663,
+            Self::AwayDependency => 3664,
+            Self::AwayLocked => 3665,
+            Self::AwaySettingsUntil => 3666,
+            Self::AwayUntilLine => 3667,
+            Self::AwayEight => 3668,
+            Self::AwayByHand => 3669,
             Self::SettingsShows => 3434,
             Self::SettingsDrafts => 3435,
             Self::SettingsDraftsLine => 3436,
@@ -2448,6 +2482,80 @@ impl Word {
             Self::BuildersCut => 3480,
             Self::PathAddForge => 3481,
             Self::PathConnectAccount => 3482,
+            Self::StartGoalTitle => 3550,
+            Self::StartGoalFrom => 3551,
+            Self::StartGoalLead => 3552,
+            Self::StartGoalName => 3553,
+            Self::StartGoalDefault => 3554,
+            Self::StartGoalWays => 3555,
+            Self::StartGoalRun => 3556,
+            Self::StartGoalAsks => 3590,
+            Self::StartGoalFollow => 3591,
+            Self::StartGoalFollowDetail => 3592,
+            Self::StartGoalAlways => 3593,
+            Self::StartGoalAlwaysDetail => 3594,
+            Self::GoalFollowsAway => 3595,
+            Self::GoalsStartDraft => 3557,
+            Self::GoalTell => 3540,
+            Self::GoalHint => 3541,
+            Self::GoalPause => 3532,
+            Self::GoalResume => 3533,
+            Self::ToastPaused => 3534,
+            Self::ToastResumed => 3535,
+            Self::ToastProposed => 3538,
+            Self::ToastProposedEnd => 3539,
+            Self::GoalStopTitle => 3536,
+            Self::GoalStopStays => 3537,
+            Self::GoalSideTasks => 3500,
+            Self::GoalLandingTitle => 3501,
+            Self::GoalHowTitle => 3502,
+            Self::GoalDecidedTitle => 3503,
+            Self::GoalAlwaysAsks => 3504,
+            Self::GoalProposing => 3505,
+            Self::GoalNoTasks => 3506,
+            Self::GoalBarCount => 3507,
+            Self::GoalFoldCount => 3508,
+            Self::GoalMoreTasks => 3509,
+            Self::GoalWaitsTitle => 3510,
+            Self::GoalWaitsTask => 3511,
+            Self::GoalWaitsTasks => 3512,
+            Self::GoalWaitsYou => 3513,
+            Self::GoalWaitsResources => 3514,
+            Self::GoalWaits => 3515,
+            Self::GoalLandedAt => 3516,
+            Self::GoalStoppedBefore => 3517,
+            Self::GoalFailedBefore => 3518,
+            Self::GoalWholeNoTasks => 3519,
+            Self::GoalWholeCount => 3520,
+            Self::GoalEachChecked => 3521,
+            Self::GoalCountDigits => 3522,
+            Self::GoalOne => 3523,
+            Self::GoalTwo => 3524,
+            Self::GoalThree => 3525,
+            Self::GoalFour => 3526,
+            Self::GoalFive => 3527,
+            Self::GoalSix => 3528,
+            Self::GoalSeven => 3529,
+            Self::GoalEight => 3530,
+            Self::GoalNine => 3531,
+            Self::GoalPlanningTitle => 3587,
+            Self::GoalMetaCount => 3570,
+            Self::GoalSpent => 3571,
+            Self::GoalSince => 3572,
+            Self::GoalPlanningDraft => 3573,
+            Self::GoalPlanningAsked => 3574,
+            Self::GoalStoppedHeading => 3575,
+            Self::GoalFailedReason => 3576,
+            Self::GoalWrittenAt => 3577,
+            Self::GoalByAt => 3578,
+            Self::GoalDraft => 3579,
+            Self::GoalChat => 3580,
+            Self::GoalReportTitle => 3581,
+            Self::GoalReadingDraft => 3582,
+            Self::GoalReadingAsked => 3583,
+            Self::GoalLeft => 3584,
+            Self::GoalRisk => 3585,
+            Self::GoalSeparator => 3586,
             Self::GoalsWaySeparator => 3285,
             Self::GoalsWayEnd => 3286,
             Self::GoalsKicker => 3271,
@@ -2647,18 +2755,18 @@ impl Word {
             Self::HomeChatDetail => 3132,
             Self::HomeNewChat => 3133,
             Self::HomeAdoptLink => 3141,
-            Self::HomeLooked => 3483,
-            Self::HomeLandedOne => 3484,
-            Self::HomeLandedMany => 3485,
-            Self::HomeByline => 3486,
-            Self::HomeLanding => 3487,
-            Self::HomeChatsSentence => 3488,
-            Self::LookedMinute => 3489,
-            Self::LookedMinutes => 3490,
-            Self::LookedHour => 3491,
-            Self::LookedHours => 3492,
-            Self::LookedDay => 3493,
-            Self::LookedDays => 3494,
+            Self::HomeLooked => 3621,
+            Self::HomeLandedOne => 3622,
+            Self::HomeLandedMany => 3623,
+            Self::HomeByline => 3624,
+            Self::HomeLanding => 3625,
+            Self::HomeChatsSentence => 3626,
+            Self::LookedMinute => 3627,
+            Self::LookedMinutes => 3628,
+            Self::LookedHour => 3629,
+            Self::LookedHours => 3630,
+            Self::LookedDay => 3631,
+            Self::LookedDays => 3632,
             Self::HomeDayTime => 3142,
             Self::HomeDone => 3143,
             Self::HomeNumber => 3144,
@@ -2960,6 +3068,31 @@ impl Word {
             Self::TimeDays => 1205,
             Self::TimeAgo => 1206,
             Self::TimeAt => 1207,
+            Self::Away => 3633,
+            Self::AwayChipOff => 3634,
+            Self::AwayUntil => 3635,
+            Self::ToastAwayOnUntil => 3636,
+            Self::ToastAwayOn => 3637,
+            Self::ToastAwayOff => 3638,
+            Self::ToastAwayRefused => 3639,
+            Self::AwayLimits => 3640,
+            Self::ToastOverturnAlready => 3657,
+            Self::ToastOverturnEnded => 3656,
+            Self::ToastOverturned => 3655,
+            Self::Overturn => 3654,
+            Self::HomeDecisionOverturned => 3653,
+            Self::HomeDecisionEnded => 3652,
+            Self::HomeDecisionLanded => 3651,
+            Self::HomeStillNeedsCount => 3650,
+            Self::HomeStillNeeds => 3649,
+            Self::HomeDecidedCount => 3648,
+            Self::HomeDecidedMany => 3647,
+            Self::HomeDecidedOne => 3646,
+            Self::HomeAwayLandedMany => 3645,
+            Self::HomeAwayLandedOne => 3644,
+            Self::HomeAwayNow => 3643,
+            Self::HomeAwaySpan => 3642,
+            Self::HomeAway => 3641,
             Self::TimeClock => 1208,
             Self::TimePair => 1209,
             Self::TimeDate => 1210,
@@ -3396,6 +3529,8 @@ pub enum Shell {
 }
 #[derive(Clone, Debug)]
 pub struct Words {
+    /// The shell's minutes east of universal time (temper/docs/design/client/README.md, 5.12).
+    pub zone_minutes: i32,
     pub shell: Shell,
     pub book: Phrasebook,
     pub language: u16,
@@ -3614,6 +3749,19 @@ pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 2] {
 }
 
 impl Words {
+    /// The shell's minutes east of universal time (temper/docs/design/client/README.md, 5.12).
+    pub(crate) fn set_zone_minutes(&mut self, zone_minutes: i32) {
+        self.zone_minutes = zone_minutes;
+    }
+    fn local_nanos(&self, at: skein_lib::Wall) -> i128 {
+        let offset = i128::from(self.zone_minutes).checked_mul(i128::from(MINUTE)).expect("i32 minutes fit i128");
+        i128::from(at.as_nanos()).checked_add(offset).expect("wall and i32 minutes fit i128")
+    }
+    /// The calendar day in the person's zone, including before the epoch.
+    pub(crate) fn calendar_day(&self, at: skein_lib::Wall) -> i64 {
+        i64::try_from(self.local_nanos(at).div_euclid(i128::from(DAY))).expect("wall and i32 minutes' days fit i64")
+    }
+
     /// The configured playground model's identifier has its own display name (client/README.md, 5.6).
     pub(crate) fn model_name(&self, name: &[u8]) -> Box<[u8]> {
         if name == SCRIPTED_MODEL { self.say(Word::PlaygroundModelName, &[]) } else { copy_of(name) }
@@ -3642,7 +3790,10 @@ impl Words {
             // The agent check refusal names its charter, adding 53 literal bytes.
             // Builders, flow paths and Home phrases add 204 literal bytes (3.5).
             // Home status and its last-look spans add 311 literal bytes (3.5).
-            text_bytes: 41203 + 204 + 901 + 311,
+            // Overturn adds 132 literal bytes (client/README.md, 3.5).
+            // Away’s Settings section has twelve literal phrases (3.5).
+            // Asking choice and goal following words (5.14, 5.8).
+            text_bytes: 41203 + 204 + 901 + 311 + 132 + 383 + 237,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -3657,7 +3808,7 @@ impl Words {
                 .max(temper_client_domain::forge::change::ADDRESS_BYTES),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { shell, book, language: 0, connector, name_bytes: joined })
+        Ok(Words { zone_minutes: 0, shell, book, language: 0, connector, name_bytes: joined })
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
@@ -3719,6 +3870,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::StartGoalDefault => (&[b" ", b"\xe2\x80\x99s default."], &[Name]),
         Word::StartGoalWays => (&[b"The project\xe2\x80\x99s ways of working"], &[]),
         Word::StartGoalRun => (&[b"Start goal"], &[]),
+        Word::StartGoalAsks => (&[b"When it needs you"], &[]),
+        Word::StartGoalFollow => (&[b"Follow the away switch"], &[]),
+        Word::StartGoalFollowDetail => (&[b"Asks while you\xe2\x80\x99re here; while you\xe2\x80\x99re away, decides within the project's limits and tells you."], &[]),
+        Word::StartGoalAlways => (&[b"Always ask"], &[]),
+        Word::StartGoalAlwaysDetail => (&[b"Waits for you on every question it can\xe2\x80\x99t answer from the plan."], &[]),
+        Word::GoalFollowsAway => (&[b"", b" \xc2\xb7 follows the away switch"], &[Name]),
         Word::GoalsStartDraft => (&[b"Start one from a draft"], &[]),
         Word::GoalTell => (&[b"Tell ", b" something"], &[Name]),
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
@@ -4427,6 +4584,31 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TimeDays => (&[b"", b" d"], &[Number]),
         Word::TimeAgo => (&[b"", b" ago"], &[Name]),
         Word::TimeAt => (&[b"at ", b""], &[Name]),
+        Word::Away => (&[b"Away"], &[]),
+        Word::AwayChipOff => (&[b"Away: off"], &[]),
+        Word::AwayUntil => (&[b"Away until ", b""], &[Name]),
+        Word::ToastAwayOnUntil => (&[b"Away until ", b": agents decide within ", b"\xe2\x80\x99s limits."], &[Name, Name]),
+        Word::ToastAwayOn => (&[b"Away: agents decide within ", b"\xe2\x80\x99s limits."], &[Name]),
+        Word::ToastAwayOff => (&[b"Away is off: questions wait for you again."], &[]),
+        Word::ToastAwayRefused => (&[b"Away didn\xe2\x80\x99t change. Try again."], &[]),
+        Word::AwayLimits => (&[b"Limits"], &[]),
+        Word::ToastOverturnAlready => (&[b"That was overturned already."], &[]),
+        Word::ToastOverturnEnded => (&[b"It has ended; a new goal can undo it."], &[]),
+        Word::ToastOverturned => (&[b"Overturned: its goal asks you again, under Still needs you."], &[]),
+        Word::Overturn => (&[b"Overturn"], &[]),
+        Word::HomeDecisionOverturned => (&[b"Overturned: it asks you again"], &[]),
+        Word::HomeDecisionEnded => (&[b"ended ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
+        Word::HomeDecisionLanded => (&[b"landed ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
+        Word::HomeStillNeedsCount => (&[b"Still needs you \xc2\xb7 ", b""], &[Number]),
+        Word::HomeStillNeeds => (&[b"Still needs you"], &[]),
+        Word::HomeDecidedCount => (&[b"Decided for you \xc2\xb7 ", b""], &[Number]),
+        Word::HomeDecidedMany => (&[b"", b" things were decided for you."], &[Name]),
+        Word::HomeDecidedOne => (&[b"One thing was decided for you."], &[]),
+        Word::HomeAwayLandedMany => (&[b"", b" changes landed."], &[Number]),
+        Word::HomeAwayLandedOne => (&[b"One change landed."], &[]),
+        Word::HomeAwayNow => (&[b"now"], &[]),
+        Word::HomeAwaySpan => (&[b"While you were away \xc2\xb7 ", b" to ", b""], &[Name, Name]),
+        Word::HomeAway => (&[b"While you were away"], &[]),
         Word::TimeClock => (&[b"", b":", b""], &[Name, Name]),
         Word::TimeDate => (&[b"", b" ", b""], &[Number, Name]),
         Word::TimeDateYear => (&[b"", b" ", b""], &[Name, Number]),
@@ -4484,6 +4666,18 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DelegateMove => (&[b"Delegate ", b" will be moved to you"], &[Number]),
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
+        Word::AwaySettingsTitle => (&[b"While you\xe2\x80\x99re away, agents may decide"], &[]),
+        Word::AwayKinds => (&[b"Kinds of decision"], &[]),
+        Word::AwayKindsLine => (&[b"Each shows afterwards as decided for you, with Overturn."], &[]),
+        Word::AwayImplementation => (&[b"Implementation choices within a task"], &[]),
+        Word::AwayRetry => (&[b"Retries and splitting a failing task"], &[]),
+        Word::AwayWording => (&[b"A design document\xe2\x80\x99s wording"], &[]),
+        Word::AwayDependency => (&[b"Adding a dependency"], &[]),
+        Word::AwayLocked => (&[b"Budgets, sign-ins, machines, what is hard to reverse: always wait"], &[]),
+        Word::AwaySettingsUntil => (&[b"Away until"], &[]),
+        Word::AwayUntilLine => (&[b"When it isn\xe2\x80\x99t turned off by hand."], &[]),
+        Word::AwayEight => (&[b"08:00, the end of quiet hours"], &[]),
+        Word::AwayByHand => (&[b"I turn it off"], &[]),
         Word::SettingsShows => (&[b"What the project shows"], &[]),
         Word::SettingsDrafts => (&[b"Chats can write drafts"], &[]),
         Word::SettingsDraftsLine => (&[b"A chat keeps a document beside it, in docs/design/draft/, that a goal can start from."], &[]),
@@ -4932,7 +5126,7 @@ impl Words {
             TimeForm::Span | TimeForm::Looked => Some(DAY),
             TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => None,
         };
-        let next = next_tick(at, now, elapsed, unit);
+        let next = next_tick(at, now, elapsed, unit, self.zone_minutes);
         let said = match form {
             TimeForm::Looked => self.looked_span(minutes),
             TimeForm::Span => self.time_span(minutes),
@@ -4962,8 +5156,8 @@ impl Words {
         }
     }
     fn calendar_time(&self, form: TimeForm, at: skein_lib::Wall, now: skein_lib::Wall) -> Box<[u8]> {
-        let day = at.as_nanos() / DAY;
-        let today = now.as_nanos() / DAY;
+        let day = self.calendar_day(at);
+        let today = self.calendar_day(now);
         let days = today.checked_sub(day);
         let clock = self.turn_clock(at);
         match form {
@@ -4997,13 +5191,14 @@ impl Words {
     }
     /// A turn under a day line has a fixed clock and needs no wake of its own.
     pub(crate) fn turn_clock(&self, at: skein_lib::Wall) -> Box<[u8]> {
-        let minute = at.as_nanos() / MINUTE;
+        let minute = self.local_nanos(at).div_euclid(i128::from(MINUTE));
+        let minute = u64::try_from(minute.rem_euclid(1440)).expect("minute in day");
         self.say(
             Word::TimeClock,
             &[Hole::Name(copy_of(&two_digits((minute / 60) % 24))), Hole::Name(copy_of(&two_digits(minute % 60)))],
         )
     }
-    fn time_weekday(&self, day: u64, full: bool) -> Box<[u8]> {
+    fn time_weekday(&self, day: i64, full: bool) -> Box<[u8]> {
         let short = [
             Word::TimeSundayShort,
             Word::TimeMondayShort,
@@ -5022,11 +5217,11 @@ impl Words {
             Word::TimeFriday,
             Word::TimeSaturday,
         ];
-        let index = usize::try_from(day.checked_add(4).expect("epoch day fits") % 7).expect("weekday fits");
+        let index = usize::try_from(day.checked_add(4).expect("epoch day fits").rem_euclid(7)).expect("weekday fits");
         self.say(*if full { long.get(index) } else { short.get(index) }.expect("weekday in week"), &[])
     }
     fn time_date(&self, at: skein_lib::Wall, now: skein_lib::Wall) -> Box<[u8]> {
-        let (year, month, day) = civil_date(at);
+        let (year, month, day) = civil_date(self.calendar_day(at));
         let months = [
             Word::TimeJanuary,
             Word::TimeFebruary,
@@ -5045,10 +5240,10 @@ impl Words {
             .get(usize::try_from(month.checked_sub(1).expect("months start at one")).expect("month fits"))
             .expect("month in year");
         let date = self.say(Word::TimeDate, &[Hole::Number(day), Hole::Name(self.say(*month, &[]))]);
-        if year == civil_date(now).0 {
+        if year == civil_date(self.calendar_day(now)).0 {
             date
         } else {
-            self.say(Word::TimeDateYear, &[Hole::Name(date), Hole::Number(year)])
+            self.say(Word::TimeDateYear, &[Hole::Name(date), Hole::Number(year.unsigned_abs())])
         }
     }
 }
@@ -5057,27 +5252,45 @@ fn two_digits(value: u64) -> [u8; 2] {
     let value = u8::try_from(value).expect("clock field fits");
     [b'0' + value / 10, b'0' + value % 10]
 }
-// Gregorian civil date; u64 nanoseconds bound the year to 2554.
-#[expect(clippy::arithmetic_side_effects, reason = "epoch days and Gregorian era intermediates fit u64")]
-fn civil_date(at: skein_lib::Wall) -> (u64, u64, u64) {
-    let days = at.as_nanos() / DAY + 719_468;
-    let era = days / 146_097;
-    let doe = days % 146_097;
+// Gregorian civil date; wall nanoseconds and i32 zone minutes bound all intermediates.
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "wall nanoseconds and i32 zone minutes bound Gregorian era intermediates within i64"
+)]
+fn civil_date(day: i64) -> (i64, u64, u64) {
+    let days = day + 719_468;
+    let era = days.div_euclid(146_097);
+    let doe = days.rem_euclid(146_097);
     let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     let mp = (5 * doy + 2) / 153;
     let day = doy - (153 * mp + 2) / 5 + 1;
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    (era * 400 + yoe + u64::from(month <= 2), month, day)
+    (
+        era * 400 + yoe + i64::from(month <= 2),
+        u64::try_from(month).expect("month is positive"),
+        u64::try_from(day).expect("day is positive"),
+    )
 }
 
-fn next_tick(at: skein_lib::Wall, now: skein_lib::Wall, elapsed: u64, unit: Option<u64>) -> Option<skein_lib::Wall> {
+fn next_tick(
+    at: skein_lib::Wall,
+    now: skein_lib::Wall,
+    elapsed: u64,
+    unit: Option<u64>,
+    zone_minutes: i32,
+) -> Option<skein_lib::Wall> {
     let nanos = match unit {
         Some(unit) => {
             let delta = elapsed.checked_div(unit)?.checked_add(1)?.checked_mul(unit)?;
             at.as_nanos().checked_add(delta)?
         }
-        None => (now.as_nanos() / DAY).checked_add(1)?.checked_mul(DAY)?,
+        None => {
+            let offset = i128::from(zone_minutes).checked_mul(i128::from(MINUTE))?;
+            let local = i128::from(now.as_nanos()).checked_add(offset)?;
+            let midnight = local.div_euclid(i128::from(DAY)).checked_add(1)?.checked_mul(i128::from(DAY))?;
+            u64::try_from(midnight.checked_sub(offset)?).ok()?
+        }
     };
     Some(skein_lib::Wall::from_nanos(nanos))
 }

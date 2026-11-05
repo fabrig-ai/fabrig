@@ -3708,3 +3708,6 @@ fn assert_named_call_writer_oracle(world: &World) {
     }
     assert!(count > 0, "real writer retained connector Calls");
 }
+
+#[path = "forge_routes/decided.rs"]
+mod decided;

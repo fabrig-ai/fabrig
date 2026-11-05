@@ -42,7 +42,8 @@
   a draft" is a link to `Chats { filter: All }`, `/chats`
   (`temper-client-view`'s `pages/goals.rs`), where those sections have it open
   the sheet with its Draft field, and nothing the view draws sends
-  `Act::OpenStart`: the sheet shows in the gallery and the tests alone.
+  `Act::OpenStart`: the sheet, including its "When it needs you" choice, shows
+  in the gallery and the tests alone.
   `temper-client-domain`'s `pages/start_goal.rs`, `open`, ignores one without
   both a draft and a chat, so "Start a goal" and the Draft field are drawn by
   nothing. The rulings of 2026-11-05 on that request (the answers to its tasks
@@ -66,10 +67,6 @@
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
-  5.3, 5.13: the Away switch in the rail and phone's top bar, "While you're
-  away, agents may decide" and its "Limits" await Away's `SetAway`, which is
-  not on main: the tab's "Away switch" row stores kind 7's `away`, and no other
-  page reads it.
   5.13: a person with a project's role alone can read kinds 6 and 7,
   but cannot change them on the tab: jig's settings inventory requires
   a deployment role (`jig-domain-core`'s `documents/settings.rs`, `make`),

@@ -173,7 +173,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `change` (4.3.1); with the authorised brief, its task section a whole
   spec (`../protocol/configuration.md`, section 7), and 1,472 bytes for
   64 stock sections' titles and framing (16 title bytes and 7 framing
-  bytes each), it leaves at least 607 bytes at `temper init`'s
+  bytes each), it leaves at least 361 bytes at `temper init`'s
   models; `temper-service`'s step tests hold each stock charter's
   figures. A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
@@ -301,6 +301,20 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
+- **`decided`,** of the control family, offered as every host tool is, a
+  goal's alone by what it answers: `{ question, options, took, why, kind
+  }`, `options` 2 to 6 words of the agent's, `took` an index into them,
+  `kind` one of `implementation`, `retry`, `wording`, `dependency` and
+  `other`; `question` at most 400 bytes, each option 120, `why` 400, a
+  call past those refused at decoding, saying so. The forge judges it
+  (`forge.md`, 5.9): "Decided: carry on with TOOK." with a `Decided` row
+  saved, or "Ask: your person is here or this kind waits for them. Ask
+  with message, as a question." Named and decided once, as `change`. Funds,
+  sign-ins, machines, a plan's go-ahead and anything hard to reverse are
+  kind `other`, by the charter's words (`../protocol/configuration.md`,
+  13.4). A goal that overturned words reach (`../client/README.md`, 3.5)
+  asks it with `message`, as a question, and waits. Nothing in the engine
+  answers a question for it, and one that skips the tool waits as ever.
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
   (`delegate`'s and `amend`'s schemas name every field of the spec and

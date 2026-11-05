@@ -172,7 +172,7 @@ impl Story {
     fn facts(&self) -> Facts {
         let root = self.probes[CLIENT.0].root.person();
         assert_eq!(root.pages().address(), &Address::Home { project: PROJECT });
-        home::facts(root, PROJECT)
+        home::facts(root, PROJECT, skein_lib::Wall::EPOCH)
     }
 
     fn shown(&self) -> w::ProjectStatus {
@@ -215,10 +215,12 @@ impl Story {
     }
 
     fn watch(&mut self, who: ClientId) {
-        // Observers exercise status alone; their unused account and settings
-        // subscriptions leave room for Home within the engine's fixed view bound.
-        let settings = self.probes[who.0].root.person().forge().settings_handle();
-        for handle in [temper_client_domain::pages::accounts::handle(), settings] {
+        // Observers use no settings, accounts or inbox; keep the shared engine watch table for Home's facts.
+        for handle in [
+            self.probes[who.0].root.person().forge().settings_handle(),
+            temper_client_domain::pages::accounts::handle(),
+            temper_client_domain::pages::needs::handle(),
+        ] {
             self.event(who, Event::Client { event: jig_client::Event::Unwatch { handle } }.into());
         }
         self.event(
@@ -370,8 +372,9 @@ fn a_look_reaches_another_device_of_the_party() {
     let other = story.looked(OTHER_PARTY).expect("member's second sitting");
     assert_eq!(story.watched(OTHER_CLIENT).previous(), &Some(other_first.latest.as_nanos()));
     assert_eq!(story.watched(SECOND_DEVICE).previous(), &None, "the owner's sitting has not moved");
-    story.go(CLIENT, Address::Home { project: PROJECT });
-    assert_eq!(story.shown().previous(), &Some(first.latest.as_nanos()));
+    // The source needs no Home page's watches to publish its next entry look.
+    story.look(CLIENT, 2205);
+    assert_eq!(story.looked(fixtures::PARTY).expect("owner's second sitting").previous, Some(first.latest));
     assert_eq!(
         story.watched(SECOND_DEVICE).previous(),
         &Some(first.latest.as_nanos()),

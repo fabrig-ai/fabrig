@@ -103,7 +103,7 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **Acting:** the acts `task show` lists under `acts:`, among them
   `task message`, `task answer`, `task amend`, `task stop`, `task cancel`, `task release`, `hold lift`, `task decide` and `proposal decide`.
 - **temper's runs** act on their delegates with the host tools
-  `delegate`, `change`, `goal`, `amend`, `message`, `cancel`, `release`,
+  `delegate`, `change`, `goal`, `decided`, `amend`, `message`, `cancel`, `release`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
   `read_task`: specs; `field=result` reads retained reports and Left lists,
   including changes and reviews, through a proven same-project requester

@@ -928,3 +928,144 @@ fn deliver_count(root: &mut d::Domain, watch: Token, count: u32, cut: bool) {
         },
     );
 }
+
+#[test]
+fn no_switch_on_a_fresh_project() {
+    let root = f::root_with_ways(Address::Home { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::AWAY)));
+        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::AWAY_CHIP)));
+    }
+}
+#[test]
+fn the_switch_shows_with_a_goal() {
+    let (mut root, me) = f::root_with_watch(None);
+    with_goal_fact(&mut root, me, Some(true));
+    assert!(!root.away_on(f::PROJECT, f::NOW));
+    let view = f::page_view(&root);
+    assert_eq!(styled(view.tree(), look::AWAY)[0].name.as_deref(), Some(b"Away".as_slice()));
+    let foot = children(styled(view.tree(), look::RAIL_FOOT));
+    let at = foot.iter().position(|n| n.styles.as_slice().contains(&look::AWAY)).unwrap();
+    assert_eq!(foot[at + 1].name.as_deref(), Some(b"Settings".as_slice()));
+}
+#[test]
+fn the_switch_shows_with_ways_away() {
+    let root = f::root_with_ways(
+        Address::Home { project: f::PROJECT },
+        Some(d::forge::ways::Ways { away: true, ..d::forge::ways::Ways::STOCK }),
+    );
+    let mut view = f::page_view(&root);
+    let node = &styled(view.tree(), look::AWAY)[0];
+    assert_eq!(node.role, Role::Button);
+    let id = node.id;
+    assert_eq!(
+        crate::act(&mut view, id, Act::Press),
+        Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Toggle { project: f::PROJECT })))
+    );
+}
+#[test]
+fn on_it_says_until_and_is_pressed() {
+    for zone in [0_i32, 120_i32] {
+        let mut root = f::away_root(Some(skein_lib::Wall::from_nanos(28_800_000_000_000)), None);
+        root.set_zone_minutes(zone);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let node = &styled(view.tree(), look::AWAY)[0];
+            assert_eq!(
+                node.name.as_deref(),
+                Some(if zone == 0_i32 { b"Away until 08:00".as_slice() } else { b"Away until 10:00" })
+            );
+            assert!(node.states.as_slice().contains(&State::Pressed));
+            assert_eq!(children(styled(view.tree(), look::AWAY)).last().unwrap().styles.as_slice(), [look::AWAY_TRACK]);
+        }
+    }
+}
+#[test]
+fn on_with_no_until_it_says_away() {
+    let root = f::away_root(None, None);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let node = &styled(view.tree(), look::AWAY)[0];
+        assert_eq!(node.name.as_deref(), Some(b"Away".as_slice()));
+        assert!(node.states.as_slice().contains(&State::Pressed));
+    }
+}
+#[test]
+fn past_until_it_draws_off_and_asks_a_wake() {
+    let until = skein_lib::Wall::from_nanos(28_800_000_000_000);
+    let root = f::away_root(Some(until), None);
+    let mut times = crate::words::Times::new(f::NOW);
+    let mut builder = skein_ui::Builder::new(&f::tree_limits());
+    crate::frame::rail(
+        &mut builder,
+        &root,
+        &f::browser_words(),
+        &mut crate::frame::Bindings::new(f::tree_limits().bindings),
+        &mut crate::forge::bindings::Bindings::new(
+            f::tree_limits().bindings,
+            f::domain_limits().forge.checks,
+            f::FORGE,
+        ),
+        f::PROJECT,
+        &mut times,
+    );
+    assert_eq!(times.next, Some(until), "the rail requests the expiry wake independently of page times");
+    let mut view = f::view_of(f::browser_words());
+    crate::build(&mut view, &root, skein_lib::Wall::from_nanos(until.as_nanos() - 1), &mut Queue::uncapped());
+    assert_eq!(view.next_change(), Some(until));
+    crate::build(&mut view, &root, until, &mut Queue::uncapped());
+    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::AWAY)));
+    let (mut root, me) = f::away_frame(Some(until), None);
+    with_goal_fact(&mut root, me, Some(true));
+    let mut view = f::view_of(f::browser_words());
+    crate::build(&mut view, &root, skein_lib::Wall::from_nanos(until.as_nanos() - 1), &mut Queue::uncapped());
+    assert_eq!(view.next_change(), Some(until));
+    crate::build(&mut view, &root, until, &mut Queue::uncapped());
+    let node = &styled(view.tree(), look::AWAY)[0];
+    assert_eq!(node.name.as_deref(), Some(b"Away".as_slice()));
+    assert!(!node.states.as_slice().contains(&State::Pressed));
+    assert_eq!(styled(view.tree(), look::AWAY_CHIP)[0].name.as_deref(), Some(b"Away: off".as_slice()));
+    assert!(view.next_change().is_none_or(|next| next > until));
+}
+#[test]
+fn disabled_while_out() {
+    let mut root = f::away_root(None, None);
+    f::away_toggle(&mut root);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for style in [look::AWAY, look::AWAY_CHIP] {
+            if let Some(node) = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&style)) {
+                assert!(node.states.as_slice().contains(&State::Disabled));
+                let id = node.id;
+                assert_eq!(crate::act(&mut view, id, Act::Press), None);
+            }
+        }
+    }
+}
+#[test]
+fn the_chip_is_the_browsers_alone() {
+    let root = f::away_root(None, None);
+    let terminal = f::page_view(&root);
+    assert!(!terminal.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::AWAY_CHIP)));
+    let browser = f::browser_page_view(&root);
+    let parts = children(styled(browser.tree(), look::RAIL));
+    assert_eq!(
+        parts.iter().map(|node| node.role).collect::<Vec<_>>(),
+        [Role::Link, Role::Disclosure, Role::Button, Role::Slot, Role::Link, Role::Slot]
+    );
+    assert_eq!(parts[3].styles.as_slice(), [look::RAIL_NAV]);
+    assert_eq!(parts[4].styles.as_slice(), [look::RAIL_NEW]);
+    assert_eq!(parts[5].styles.as_slice(), [look::RAIL_FOOT]);
+    assert_eq!(parts[1].styles.as_slice(), [look::PROJECTS]);
+    assert_eq!(parts[2].styles.as_slice(), [look::AWAY_CHIP]);
+    assert_eq!(parts[2].role, Role::Button);
+    assert!(parts[2].states.as_slice().contains(&State::Pressed));
+}
+#[test]
+fn in_the_terminal_it_is_numbered() {
+    let root = f::away_root(None, None);
+    let mut view = f::page_view(&root);
+    let id = styled(view.tree(), look::AWAY)[0].id;
+    let (id, _) = f::terminal_command(view.tree(), &view.limits().tree, id, b"Away (pressed)", b"Settings");
+    assert_eq!(
+        crate::act(&mut view, id, Act::Press),
+        Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Toggle { project: f::PROJECT })))
+    );
+}
