@@ -1023,6 +1023,12 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
 }
 
 #[test]
+fn the_coders_words_put_its_report_in_finish() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("Summarize the change in finish; message your change only in the question form."));
+}
+
+#[test]
 fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
     let words = include_str!("../stock/coding.txt");
     assert!(words.contains("Change only what was asked. If a requested fix is absent from the code, write nothing and finish with no_change, explaining what the code has; never add a feature in its place."));

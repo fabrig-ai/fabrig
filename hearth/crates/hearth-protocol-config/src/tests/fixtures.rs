@@ -17,8 +17,8 @@ pub fn document(input: &[u8]) -> Result<Document, Error> {
 pub fn decode_under(input: &[u8], limits: &Limits) -> Result<Value, Error> {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut decoder = Decoder::new(limits);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     json::down(&mut decoder, &env, Request::Decode, &mut above, &mut below);
     let mut offset = 0;
     for _ in 0..input.len().saturating_mul(4).saturating_add(16) {

@@ -98,6 +98,30 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **The pipeline:** its merge queue runs this gate on a machine of its own, with its checks in order.
 - **A real design:** a question: what a deployment's CI on a build machine looks like, and how it keeps a warm build of its own.
 
+### 2.10 A comparison's charters
+
+- **What:** for one comparison, a settings file outside this repository makes the deployment's charters carry the pipeline's prompts, models and efforts exactly. The goal's charter becomes a tick, at medium effort, that starts what a plan says. A producer charter becomes the plan's cutter, with the shell and write access, its instructions a pointer to a brief. The coding charter runs at high effort and the foreman at medium, both with the pipeline's text. The worker runs 8 at once with 10 workspaces, the pipeline's own table for that machine, by the user's word.
+- **Why:** the user asked, on 2026-11-05, for prompts, models and effort to match exactly, so that a difference in the results is temper's and not its words.
+- **Cost and risk:** a settings revision that's wrong for anything else, and these charters assume this one repository's plan format. The tick is still a model's run where the pipeline's is code, so its minutes are reported apart; writing it as a program would be a feature, not a hack. A planner with a shell reaches what 2.4 says the worker reaches. Ten targets could reach the machine's disk budget, but a workspace fills only when used, so a small plan fills few.
+- **The pipeline:** its cutter and foreman have a shell, and its tick is code.
+- **A real design:** a question: whether a planner writes through a change at all, and how stock charters take what the comparison shows.
+
+### 2.11 Briefs on the worker's disk
+
+- **What:** the cutter's charter points at a file on the one worker's disk that holds the pipeline's brief, along with a charter's reference copies, outside this repository.
+- **Why:** the brief is the pipeline's, is larger than a charter should hold, and must match byte for byte, by checksum.
+- **Cost and risk:** it works on one worker alone, and a change to the file changes runs with no settings revision to show it.
+- **The pipeline:** it starts each run with a pointer to a brief on disk, in the same way.
+- **A real design:** none: the brief is the pipeline's and goes with it.
+
+### 2.12 Reading what a run was sent
+
+- **What:** smith's trace, turned on in the worker's agent document with everything captured, gives each smith run's system text, tools and effort. A Claude run's effort is read from its own session file. `request-dump` adds a dump of what leaves for the provider, as its own entry when it lands.
+- **Why:** a match can't be claimed from settings alone: what a run was sent has to be read.
+- **Cost and risk:** the trace and session files hold whatever the run was sent, so repository text and anything an agent read, on the worker's disk. The trace's delivery is best effort, so a count of its runs against the task list is part of reading it.
+- **The pipeline:** its runs keep their own session records on the machine that ran them.
+- **A real design:** a question: what a deployment's operators may read of a run's prompts.
+
 ## 3. Left out, with its gap
 
 For the user to weigh; each can become an entry.

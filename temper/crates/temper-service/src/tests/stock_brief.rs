@@ -89,7 +89,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     for (number, open, non_brief, remaining) in [
         (1, false, 40_335, 359_800),
         (1, true, 38_245, 361_890),
-        (2, false, 34_305, 365_830),
+        (2, false, 34_362, 365_773),
         (3, false, 39_103, 361_032),
         (4, false, 32_064, 368_071),
         (6, false, 32_895, 367_240),

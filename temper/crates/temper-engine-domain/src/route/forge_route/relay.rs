@@ -356,7 +356,14 @@ fn take<'a>(
         if row.requester != word.from && !row.delegates.contains(&target) && !row.references.contains(&target) {
             continue;
         }
-        let words = takes_no_messages(row.requester, questions.route, env.limits.tasks.message_bytes);
+        let words = if word.kind != tasks::MessageKind::Question
+            && questions.route != change::Route::None
+            && asking_delegate(delegate, target)
+        {
+            REPORT_IN_FINISH.into()
+        } else {
+            takes_no_messages(row.requester, questions.route, env.limits.tasks.message_bytes)
+        };
         messages.push(StepMessage { target, kind, words }).expect("reply room checked");
     }
     Inbox { messages, asked, answer }
@@ -519,6 +526,21 @@ fn is_answer(kind: &tasks::MessageKind) -> bool {
         | tasks::MessageKind::PersonStalled { .. }
         | tasks::MessageKind::EffectNotMade { .. }
         | tasks::MessageKind::News { .. } => false,
+    }
+}
+
+/// What an agent hears of its words to its own change: its report goes in `finish`
+/// (temper/docs/design/domain/forge.md, 8.11).
+const REPORT_IN_FINISH: &[u8] =
+    b"Your report goes in finish; this change takes no words. To ask: message target=this change, form=question.";
+
+/// Refuse `task`'s words to `target` where `target` is the change it works for, under an enabled route.
+pub(crate) fn own_agents_words(domain: &Domain, task: u64, target: u64) -> Option<&'static [u8]> {
+    let row = domain.forge.change(target)?;
+    if row.questions.route != change::Route::None && asking_delegate(row.delegate, task) {
+        Some(REPORT_IN_FINISH)
+    } else {
+        None
     }
 }
 

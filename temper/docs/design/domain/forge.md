@@ -2224,8 +2224,23 @@ section 9): the foreman and the requester decide, and the change relays
   live), oldest first, as its open questions, kept on its record, and
   works them one at a time in that order: the next gets its foreman, or
   is passed up, once the one before is answered. A question from any
-  other task, and every task's words, receive fallback feedback naming
+  other task, and any other task's words, receive fallback feedback naming
   the enabled route and the answer form; words do not settle a question.
+- **Its own agents' words.** Its agent's report goes in its `finish`,
+  and the question form is its one use of `message` to its change. Its
+  words settle nothing, and in a run that may wait, what reaches it
+  before its `finish` refuses that `finish` until read (smith's
+  `domain/run.md`, section 6), so feedback meant for a requester would
+  cost it a turn. The `message` call itself refuses them, nothing sent:
+  a call in the words form to the change from its producing task, or
+  the repair or the resolution it has live, answers with an error
+  saying `Your report goes in finish; this change takes no words. To
+  ask: message target=this change, form=question.` Anything but a
+  question from such an agent found in the change's inbox at a step
+  receives those same words as words, in place of the fallback feedback.
+  A question of theirs past the open-queue ceiling keeps the fallback
+  feedback (below). The stock coding charter tells its run the same
+  (`../protocol/configuration.md`, 13.4).
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,
   `forge.change_policy.questions` (4 in `small`, 80 in `standard`, which
