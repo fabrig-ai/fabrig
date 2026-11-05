@@ -1433,36 +1433,49 @@ const COPY_ADDRESS_BYTES: usize = 512;
 #[test]
 fn dismiss_and_dismissals_round_trip() {
     let limits = fixtures::limits();
-    let what = v1::Dismissal::ToBegin(v1::ToBegin::new(&limits, v1::ToBeginParts { project: u32::MAX }).unwrap());
-    let dismiss = v1::Dismiss::new(&limits, v1::DismissParts { what: what.clone() }).unwrap();
-    let request = v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Dismiss(dismiss) }).unwrap();
-    assert_eq!(crate::decode_requesting(&crate::requesting(&request), &limits), Some(request));
-    let watch = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Dismissed }).unwrap();
-    assert_eq!(crate::decode_watching(&crate::watching(&watch), &limits), Some(watch));
-    let answer = v1::Answer::new(&limits, v1::AnswerParts { outcome: v1::Outcome::Dismissed }).unwrap();
-    assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
-    for count in [0, crate::DISMISSED, crate::DISMISSED + 1] {
-        let mut dismissed = List::with_capacity(count);
-        let mut writer = skein_lib::Writer::new(6 + usize::try_from(count).unwrap() * 5);
-        writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
-        writer.put(&count.to_be_bytes()).unwrap();
-        for _ in 0..count {
-            dismissed.push(what.clone()).unwrap();
-            what.encode(&mut writer).unwrap();
-        }
-        let bytes = writer.finish();
-        let made = v1::Dismissals::new(&limits, v1::DismissalsParts { dismissed });
-        if count > crate::DISMISSED {
-            assert_eq!(
-                made.unwrap_err(),
-                v1::Problem { path: v1::Path::DismissalsDismissed, reason: skein_codec::Reason::Bound }
-            );
-            assert_eq!(crate::decode_dismissals(&bytes, &limits), None);
-        } else {
-            let record = made.unwrap();
-            assert_eq!(crate::dismissals(&record), bytes);
-            assert_eq!(crate::decode_dismissals(&bytes, &limits), Some(record));
-            assert_eq!(crate::decode_dismissals(&fixtures::trailing(&bytes), &limits), None);
+    assert_eq!(crate::DISMISSED, 8192, "client/README.md, 4.6: a party's fact bound");
+    for what in [
+        v1::PersonFact::ToBegin(v1::ToBegin::new(&limits, v1::ToBeginParts { project: u32::MAX }).unwrap()),
+        v1::PersonFact::GoalFrom(
+            v1::GoalFrom::new(
+                &limits,
+                v1::GoalFromParts { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX },
+            )
+            .unwrap(),
+        ),
+    ] {
+        let dismiss = v1::Dismiss::new(&limits, v1::DismissParts { what: what.clone() }).unwrap();
+        let request =
+            v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Dismiss(dismiss) }).unwrap();
+        assert_eq!(crate::decode_requesting(&crate::requesting(&request), &limits), Some(request));
+        let watch = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Dismissed }).unwrap();
+        assert_eq!(crate::decode_watching(&crate::watching(&watch), &limits), Some(watch));
+        let answer = v1::Answer::new(&limits, v1::AnswerParts { outcome: v1::Outcome::Dismissed }).unwrap();
+        assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
+        for count in [0, crate::DISMISSED, crate::DISMISSED + 1] {
+            let mut dismissed = List::with_capacity(count);
+            let mut writer =
+                skein_lib::Writer::new(6 + usize::try_from(count).unwrap() * usize::try_from(what.measure()).unwrap());
+            writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
+            writer.put(&count.to_be_bytes()).unwrap();
+            for _ in 0..count {
+                dismissed.push(what.clone()).unwrap();
+                what.encode(&mut writer).unwrap();
+            }
+            let bytes = writer.finish();
+            let made = v1::Dismissals::new(&limits, v1::DismissalsParts { dismissed });
+            if count > crate::DISMISSED {
+                assert_eq!(
+                    made.unwrap_err(),
+                    v1::Problem { path: v1::Path::DismissalsDismissed, reason: skein_codec::Reason::Bound }
+                );
+                assert_eq!(crate::decode_dismissals(&bytes, &limits), None);
+            } else {
+                let record = made.unwrap();
+                assert_eq!(crate::dismissals(&record), bytes);
+                assert_eq!(crate::decode_dismissals(&bytes, &limits), Some(record));
+                assert_eq!(crate::decode_dismissals(&fixtures::trailing(&bytes), &limits), None);
+            }
         }
     }
 }
@@ -1623,7 +1636,7 @@ fn aways_rows_are_bounded_at_construction_and_decode() {
         },
     )
     .unwrap();
-    for count in [0, crate::DISMISSED, crate::DISMISSED + 1] {
+    for count in [0, v1::CEILINGS.aways_rows, v1::CEILINGS.aways_rows + 1] {
         let mut rows = List::with_capacity(count);
         let mut writer =
             skein_lib::Writer::new(6 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
@@ -1635,7 +1648,7 @@ fn aways_rows_are_bounded_at_construction_and_decode() {
         }
         let bytes = writer.finish();
         let made = v1::Aways::new(&limits, v1::AwaysParts { rows });
-        if count > crate::DISMISSED {
+        if count > v1::CEILINGS.aways_rows {
             assert_eq!(
                 made.unwrap_err(),
                 v1::Problem { path: v1::Path::AwaysRows, reason: skein_codec::Reason::Bound }

@@ -35,7 +35,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     );
     assert_eq!(
         crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0,
-        1 | 2 | 4 | 128 | 512 | 1024
+        1 | 2 | 4 | 128 | 256 | 512 | 1024
     );
     assignment.run.ended_by =
         if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
@@ -87,10 +87,10 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 40_335, 359_800),
-        (1, true, 38_245, 361_890),
+        (1, false, 40_974, 359_161),
+        (1, true, 38_884, 361_251),
         (2, false, 34_428, 365_707),
-        (3, false, 39_103, 361_032),
+        (3, false, 39_775, 360_360),
         (4, false, 32_064, 368_071),
         (6, false, 32_895, 367_240),
         (9, false, 30_731, 369_404),
@@ -150,15 +150,18 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
 #[test]
 fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const FRAMING: u32 = 64 * (16 + 7);
+    // Task words and contract, then the task identity and requester.
+    const TASK_PARTS: u32 = 2;
     // Three model declarations leave this margin beyond the framed brief.
     const MARGIN: u32 = 361;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
     let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
+    assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(1, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 359_800);
+    assert_eq!(room, 359_161);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
@@ -197,7 +200,7 @@ fn whole_spec_sections(
     use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
     let spec = vec![b's'; 131_072];
     let mut task = spec.clone();
-    task.extend_from_slice(b"\nContract: Change\nRequester: task 1\n");
+    task.extend_from_slice(b"\nContract: Change\n[This task: 1, in project 1]\nRequester: task 1\n");
     task.resize(usize::try_from(brief.budgets.task).unwrap(), b' ');
     assert_eq!(&task[..spec.len()], spec);
     // Gathering keeps the whole task and pull, then the reviews within the total.

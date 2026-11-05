@@ -166,7 +166,7 @@ fn the_same_again_writes_nothing() {
 #[test]
 fn past_the_bound_a_new_row_is_too_large() {
     let mut d = domain();
-    for project in 2..LIMITS.dismissed() + 2 {
+    for project in 2..(LIMITS.bindings * LIMITS.judge_projects) + 2 {
         outputs(&mut d, Event::Restore { record: Stored::Away(Away { project, ..away() }) });
     }
     assert_eq!(set(&mut d, NOW, true, None, 7).as_ref(), [done()]);
@@ -378,7 +378,7 @@ fn both_are_erased_with_the_project() {
 fn rows_past_their_bound_are_refused_at_restart() {
     for family in [RecordKind::Away, RecordKind::Decided] {
         let mut d = domain();
-        let limit = if family == RecordKind::Away { LIMITS.dismissed() } else { LIMITS.decided() };
+        let limit = if family == RecordKind::Away { LIMITS.bindings * LIMITS.judge_projects } else { LIMITS.decided() };
         for n in 0..=limit {
             if n == limit {
                 assert!(d.restore_fit_failure().is_none());

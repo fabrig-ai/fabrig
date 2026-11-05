@@ -5,6 +5,7 @@ mod choice;
 mod configure;
 mod confirm;
 mod delegation;
+mod document;
 mod model_forge;
 mod new_chat;
 pub use temper_fixtures::client_documents as documents;
@@ -110,6 +111,7 @@ fn a_part_needing_a_document_says_shown_on_the_forge() {
 }
 
 mod chat;
+mod chat_sheet;
 
 mod task;
 

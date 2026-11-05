@@ -822,6 +822,63 @@ fn answered_goal_messages_release_the_pending_word_room() {
     }
 }
 
+fn cut_specification() -> c::Task {
+    let mut task = tracked();
+    task.spec.specification.words = f::document_text(b"A long draft");
+    task.spec.specification.words.cut = true;
+    task
+}
+fn source_read(requests: &[Request]) -> Option<(Handle, u64)> {
+    for (handle, read) in &reads(requests) {
+        if let c::Read::TaskText { task: f::TASK, field: c::TaskTextField::Specification, from } = read {
+            return Some((*handle, *from));
+        }
+    }
+    None
+}
+fn source(from: u64, total: u64, next: Option<u64>, text: &[u8]) -> c::ReadValue {
+    c::ReadValue::TaskText(Box::new(c::TaskText {
+        task: f::TASK,
+        field: c::TaskTextField::Specification,
+        from,
+        total,
+        next,
+        text: c::Text::new(text.into(), u32::try_from(text.len()).unwrap()).unwrap(),
+    }))
+}
+#[test]
+fn a_cut_specification_reads_its_provenance() {
+    const FIRST: &[u8] = b"Work\nDraft: ";
+    const LAST: &[u8] = b"away.md\nChat: T4";
+    let total = skein_lib::len_u64(FIRST.len() + LAST.len());
+    let offset = skein_lib::len_u64(FIRST.len());
+    let mut h = Harness::new(cut_specification());
+    let (handle, from) =
+        source_read(&h.take()).expect("cut goal words need their source before finding Draft: and Chat: lines");
+    assert_eq!(from, 0);
+    h.answer(handle, source(0, total, Some(offset), FIRST));
+    assert_eq!(h.goal().draft, (None, None), "a partial line is not provenance");
+    assert_eq!(source_read(&h.take()), Some((handle, offset)));
+    h.answer(handle, source(offset, total, None, LAST));
+    assert_eq!(h.goal().draft, (Some(Box::from(b"away.md".as_slice())), Some(4)));
+    assert_eq!(source_read(&h.take()), None);
+}
+
+#[test]
+fn specification_sources_stop_at_the_long_text_bound() {
+    // fixtures::limits sets long_text to 32 bytes.
+    for (words, expected) in [
+        (b"Draft: a.md\nChat: T4\n12345678901".as_slice(), (Some(Box::from(b"a.md".as_slice())), Some(4))),
+        (b"Draft: a.md\nChat: T4\n123456789012".as_slice(), (None, None)),
+    ] {
+        let mut h = Harness::new(cut_specification());
+        let (handle, _) = source_read(&h.take()).unwrap();
+        h.answer(handle, source(0, skein_lib::len_u64(words.len()), None, words));
+        assert_eq!(h.goal().draft, expected);
+        assert_eq!(source_read(&h.take()), None);
+    }
+}
+
 #[test]
 fn the_line_reads_always() {
     for words in [b"Asks: always".as_slice(), b"Goal\nAsks: always\nChat: T4", b"Goal\nAsks: always"] {

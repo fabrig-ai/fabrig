@@ -51,3 +51,27 @@ fn validity_does_not_price_retained_payloads() {
         assert!(crate::valid(&limits));
     }
 }
+
+#[test]
+fn long_text_at_either_receiving_bound_is_valid() {
+    let base = super::fixtures::limits();
+    for long_text in [base.text, u32::try_from(base.document_bytes).unwrap()] {
+        let ask_bytes = u64::from(long_text) + u64::try_from(size_of::<crate::contract::Ask>()).unwrap();
+        assert!(crate::valid(&Limits { ask_bytes, long_text, ..base }), "long_text={long_text}");
+    }
+}
+
+#[test]
+fn long_text_outside_either_receiving_bound_is_refused() {
+    let base = super::fixtures::limits();
+    for long_text in [base.text - 1, u32::try_from(base.document_bytes).unwrap() + 1] {
+        assert!(!crate::valid(&Limits { long_text, ask_bytes: u64::MAX, ..base }), "long_text={long_text}");
+    }
+}
+
+#[test]
+fn an_ask_without_room_for_long_text_and_its_record_is_refused() {
+    let base = super::fixtures::limits();
+    let ask_bytes = u64::from(base.long_text) + u64::try_from(size_of::<crate::contract::Ask>()).unwrap() - 1;
+    assert!(!crate::valid(&Limits { ask_bytes, ..base }));
+}

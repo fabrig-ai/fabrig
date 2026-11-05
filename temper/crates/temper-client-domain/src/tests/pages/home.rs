@@ -734,7 +734,7 @@ fn dismissal_rows(f: &mut Fixture, projects: &[u32]) {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for project in projects {
         dismissed
-            .push(w::Dismissal::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
+            .push(w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
             .unwrap();
     }
     up(
@@ -946,7 +946,7 @@ fn a_skipped_project_hides_to_begin_and_a_refused_skip_brings_it_back() {
                 assert_eq!(
                     *request,
                     forge::dismissed::ask(
-                        forge::dismissed::Dismissal::ToBegin { project: f::PROJECT },
+                        forge::dismissed::PersonFact::ToBegin { project: f::PROJECT },
                         &f::limits().forge
                     )
                     .unwrap()
@@ -1025,7 +1025,7 @@ fn skip_respects_its_page_and_request_bounds() {
     let mut limits = f::limits();
     limits.forge.field_bytes = u32::MAX;
     assert!(
-        forge::dismissed::ask(forge::dismissed::Dismissal::ToBegin { project: f::PROJECT }, &limits.forge).is_none()
+        forge::dismissed::ask(forge::dismissed::PersonFact::ToBegin { project: f::PROJECT }, &limits.forge).is_none()
     );
     let mut out = Queue::uncapped();
     pages::step(
@@ -1052,7 +1052,7 @@ fn skip_respects_its_page_and_request_bounds() {
             key,
             name: None,
             request: forge::dismissed::ask(
-                forge::dismissed::Dismissal::ToBegin { project: f::PROJECT },
+                forge::dismissed::PersonFact::ToBegin { project: f::PROJECT },
                 &f::limits().forge
             )
             .unwrap(),
@@ -1374,6 +1374,34 @@ fn a_status_document_must_name_this_project() {
     status_document(&mut f, &document);
     assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Shown(Box::new(document)));
 }
+#[test]
+fn a_refused_goal_from_changes_no_page() {
+    let mut f = fixture();
+    ready(&mut f);
+    let before = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
+    let key = jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: CHAT };
+    let fact = forge::dismissed::PersonFact::GoalFrom { project: f::PROJECT, chat: CHAT, goal: CHAT + 1, at: 0 };
+    event(
+        &mut f.root,
+        Event::Client {
+            event: jig_client::Event::Send {
+                key,
+                name: None,
+                request: forge::dismissed::ask(fact, &f::limits().forge).unwrap(),
+            },
+        },
+    );
+    for outcome in [
+        family_answer(w::Outcome::ForgeRefused(
+            w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
+        )),
+        family_answer(w::Outcome::Dismissed),
+    ] {
+        skip_answer(&mut f, key, outcome);
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH), before);
+    }
+}
+
 #[test]
 fn needs_count_falls_when_answered_and_keeps_later_cards() {
     let mut f = fixture();

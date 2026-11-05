@@ -64,7 +64,10 @@ pub(crate) fn person_note_change(change: people::NoteChange) -> notes::Change {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "brief index refusals retain distinct capacity and permanent failures")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the child routes share one decision queue and retain distinct brief index refusals"
+)]
 pub(crate) fn tag_notes(
     core: &mut Core,
     env: &Env<Limits>,
@@ -82,9 +85,22 @@ pub(crate) fn tag_notes(
             notes::Request::Load { owner, range } => {
                 out.push(Request::Held(Box::new(Held::NotesLoad { owner, range })));
             }
-            notes::Request::Written { owner, name, revision } => match core.take_note(owner) {
+            notes::Request::Written { owner, name, revision, change } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key }) => {
-                    call_decision(core, &mut out, to, key, CallPart::NoteWritten { name, revision });
+                    call_decision(
+                        core,
+                        &mut out,
+                        to,
+                        key,
+                        CallPart::NoteWritten {
+                            name,
+                            revision,
+                            lines: change.lines,
+                            added: change.added,
+                            removed: change.removed,
+                            first: change.first,
+                        },
+                    );
                 }
                 Some(NoteRoute::Person { request }) => work.push(Work::Event(Event::People(people::Event::Decided {
                     request,

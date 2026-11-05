@@ -21,6 +21,7 @@ impl Sheet {
     fn new() -> Self {
         let mut limits = f::domain_limits();
         limits.client.domain.text = TEXT;
+        limits.client.domain.long_text = TEXT;
         limits.client.domain.turn_text = TEXT;
         let (mut root, watch, _) = f::root_at(Address::Home { project: f::PROJECT }, &limits);
         let source = f::playground_root(Address::Home { project: f::PROJECT }, f::PROJECT, false);

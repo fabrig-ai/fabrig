@@ -779,7 +779,7 @@ fn to_begin(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, n
     );
     if !facts.chat_asked {
         acts(b);
-        go(b, bindings, &w.say(Word::HomeNewChat, &[]), Address::NewChat, None);
+        go(b, bindings, &w.say(Word::HomeNewChat, &[]), Address::NewChat { draft: false }, None);
         b.close();
     }
     b.close();

@@ -42,6 +42,7 @@ pub fn limits() -> Limits {
                 kept: 4,
                 projects: 2,
                 text: 32,
+                long_text: 32,
                 turn_text: 32,
                 rows: 2,
                 fields: 4,

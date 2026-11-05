@@ -240,6 +240,7 @@ fn an_owner_moves_running_work_through_the_client_and_hears_both_counts() {
     limits.client.domain.projects = 64;
     limits.jig.roles = 64;
     limits.client.domain.text = 4096;
+    limits.client.domain.long_text = 4096;
     limits.client.domain.document_bytes = 1_048_576;
     let mut client = Client::unlinked(&limits.client, 8455).expect("public client");
     let codec =

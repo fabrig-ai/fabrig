@@ -42,7 +42,7 @@ pub fn a() -> Vec<Step<Address>> {
 }
 
 fn new_chat() -> Step<Address> {
-    Step::Go { address: Address::NewChat }
+    Step::Go { address: Address::NewChat { draft: false } }
 }
 
 fn see(find: Find) -> Step<Address> {

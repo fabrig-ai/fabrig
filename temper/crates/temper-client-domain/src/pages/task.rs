@@ -295,6 +295,7 @@ pub struct Task {
     pub document: Handle,
     pub document_read: DocumentRead,
     read_wait: Duration,
+    long_text: u32,
     asking: Asking,
     /// The document that already permitted an ending-triggered panel reopen (client/forge.md, 9.2).
     pub(crate) panel_reopened_at: Option<u64>,
@@ -335,6 +336,7 @@ impl Task {
             document,
             document_read: DocumentRead::Reading,
             read_wait: READ_FIRST,
+            long_text: limits.client.domain.long_text,
             asking,
             panel_reopened_at: None,
             tree,
@@ -449,6 +451,7 @@ impl Task {
             | Act::Resume
             | Act::Stop
             | Act::Close
+            | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::ClosedChats
             | Act::MoreGoals
@@ -461,6 +464,9 @@ impl Task {
             | Act::Again { .. }
             | Act::Confirm
             | Act::Cancel
+            | Act::AddDraft
+            | Act::Mode { .. }
+            | Act::ShowSection { .. }
             | Act::Go { .. } => unreachable!("only composer and older acts routed here"),
         }
     }
@@ -577,6 +583,7 @@ impl Task {
             | Act::Resume
             | Act::Stop
             | Act::Close
+            | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older
             | Act::ClosedChats
@@ -590,6 +597,9 @@ impl Task {
             | Act::Again { .. }
             | Act::Confirm
             | Act::Cancel
+            | Act::AddDraft
+            | Act::Mode { .. }
+            | Act::ShowSection { .. }
             | Act::Go { .. } => unreachable!("only amendment acts routed here"),
         }
     }
@@ -1059,9 +1069,9 @@ impl Task {
             }
             self.cards.clear();
             if let Some(goal) = &mut self.goal {
-                goal.changed(task, out);
+                goal.changed(task, &mut self.next, out);
             } else {
-                self.goal = Some(super::goal::Goal::new(task, &mut self.next, out));
+                self.goal = Some(super::goal::Goal::new(task, self.long_text, &mut self.next, out));
             }
         } else if let Some(goal) = self.goal.take() {
             goal.leave(out);

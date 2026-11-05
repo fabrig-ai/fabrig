@@ -23,12 +23,18 @@ chat-change-held
 chat-change-landed
 chat-change-running
 chat-closing
+chat-draft-chat
+chat-draft-draft
+chat-draft-empty
+chat-draft-split
 chat-first-run-2-T1
 chat-first-run-3-T1
 chat-first-run-4-T4
 chat-goal
+chat-goal-linked
 chat-held-task
 chat-new
+chat-new-draft
 chat-new-first-run-1
 chat-new-no-repository
 chat-reference-T1
@@ -36,8 +42,11 @@ chat-rejecting
 chat-solo-T1
 chat-solo-T10
 chat-solo-T6
+chat-start-goal
+chat-start-goal-refused
 chat-working
 chats-closed
+chats-drafts
 chats-empty
 chats-first-run-1
 chats-first-run-5
@@ -48,6 +57,8 @@ chats-solo
 configure
 configure-chat
 configure-chat-accepted
+configure-chat-document
+configure-chat-document-split
 configure-chat-proposal
 configure-chat-replaced
 configure-chats-tag
@@ -165,6 +176,7 @@ out-of-date
 playground-resetting
 rail-away-off
 rail-away-on
+rail-new-menu
 repositories
 repositories-none
 settings

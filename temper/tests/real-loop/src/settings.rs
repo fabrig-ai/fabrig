@@ -9,7 +9,7 @@ fn model(value: &jig_domain_core::Model) -> Value {
         "cached_price":value.cached_price,"cache_write_price":value.cache_write_price,"output_price":value.output_price,
         "price_unit":value.price_unit,"efforts":value.efforts.iter().map(|effort| text(effort)).collect::<Vec<_>>(),"effort":value.effort.as_deref().map(text)})
 }
-/// Use the binary's actual defaults, with this deployment's models.
+/// Use the binary's defaults, with this deployment's models.
 #[must_use]
 pub fn stock(deployment: &Value) -> Value {
     let mut value = deployment["engine"].clone();

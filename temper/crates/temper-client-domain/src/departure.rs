@@ -45,7 +45,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut 
         }
         Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }

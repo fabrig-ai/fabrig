@@ -842,6 +842,9 @@ fn enabled(attribute: &skein_ui::Attribute) -> bool {
     !attribute.states.as_slice().contains(&State::Disabled)
 }
 fn shortcut_key(key: &[u8], code: &[u8]) -> Option<u8> {
+    if key == b"\\" || code == b"Backslash" || code == b"IntlBackslash" {
+        return Some(b'\\');
+    }
     if key.len() == 1 && key[0].is_ascii_alphanumeric() {
         return Some(key[0].to_ascii_lowercase());
     }

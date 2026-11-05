@@ -167,7 +167,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         temper_client_domain::Address::ConnectModel { .. }
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Chats { .. }
-        | temper_client_domain::Address::NewChat
+        | temper_client_domain::Address::NewChat { .. }
         | temper_client_domain::Address::Chat { .. }
         | temper_client_domain::Address::Task { .. }
         | temper_client_domain::Address::Inbox { .. }
@@ -185,7 +185,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         }
     }
     match root.pages().address() {
-        temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat => {
+        temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat { .. } => {
             crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
         }
         temper_client_domain::Address::Welcome { .. }
@@ -253,7 +253,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         );
     } else if let temper_client_domain::Address::Inbox { .. } = root.pages().address() {
         crate::pages::inbox::main(&mut builder, root, &view.forge_words, &mut view.pages, view.rows, &mut times);
-    } else if *root.pages().address() == temper_client_domain::Address::NewChat {
+    } else if let temper_client_domain::Address::NewChat { .. } = root.pages().address() {
         crate::pages::new_chat::main(
             &mut builder,
             root,

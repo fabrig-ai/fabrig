@@ -142,8 +142,9 @@ Authority
 - **Budget:**
   - *spend:* how much its subtree may spend;
   - *deadline:* by when it must end, in wall time, if at all.
-- **Notes:** the scopes it may write in (engine.md, section 10). It may
-  read every scope its project reaches.
+- **Notes:** the scopes it may write in (engine.md, section 10), a goal's
+  meaning, for a root conversation, its own. It may read every scope its
+  project reaches.
 
 ## 4. Resources and their names
 

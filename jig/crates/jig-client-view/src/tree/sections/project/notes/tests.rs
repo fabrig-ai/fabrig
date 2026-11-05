@@ -34,3 +34,24 @@ fn a_resource_notes_filter_keeps_the_whole_path_behind_its_cut_label() {
         Some(Act::FilterNotes { filter: expected })
     );
 }
+
+#[test]
+fn the_tasks_scope_has_a_read_only_label() {
+    let words = crate::tests::tree::cards::shared_words();
+    let client = crate::tests::tree::cards::CLIENT;
+    let capacity = crate::sizes::limits::of_words(&client, &client.client, words).unwrap();
+    let mut b = Builder::new(&capacity);
+    let mut bindings = JigBindings::new(capacity.bindings, client.client.text);
+    scope_choice(
+        &mut b,
+        words,
+        &mut bindings,
+        &NoteFilter { scope: NoteScope::Project(PROJECT), description: None },
+        NoteScope::Tasks { project: PROJECT },
+    );
+    let tree = b.finish();
+    assert!(crate::tests::tree::cards::contains(&tree, b"goals' notes"));
+    for node in tree.nodes() {
+        assert!(node.binding.is_none());
+    }
+}

@@ -16,6 +16,7 @@ mod boundary;
 mod domain;
 mod drop_project;
 mod limits;
+mod lines;
 mod read;
 #[cfg(test)]
 mod tests;
@@ -25,4 +26,5 @@ pub use boundary::{
 };
 pub use domain::{Domain, step, valid_entry, valid_line, valid_new, valid_scope};
 pub use limits::{Limits, valid};
+pub use lines::{LineChange, line_change};
 pub use read::valid_recall;

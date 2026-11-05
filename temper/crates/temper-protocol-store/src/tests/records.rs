@@ -1695,10 +1695,15 @@ fn repository_makings_and_their_outcomes_round_trip() {
 fn dismissed_rows_round_trip_at_the_field_bounds() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for (party, project) in [(0, 0), (7, 3), (u64::MAX, u32::MAX)] {
-        let row = forge::Stored::Dismissed { party, what: forge::Dismissal::ToBegin { project } };
-        let bytes = records::encode(&row);
-        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
-        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+        for what in [
+            forge::PersonFact::ToBegin { project },
+            forge::PersonFact::GoalFrom { project, chat: party, goal: u64::MAX, at: u64::MAX },
+        ] {
+            let row = forge::Stored::Dismissed { party, what };
+            let bytes = records::encode(&row);
+            let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+            assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+        }
     }
 }
 

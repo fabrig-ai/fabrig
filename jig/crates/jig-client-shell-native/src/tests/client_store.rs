@@ -42,6 +42,7 @@ pub(super) fn bounds() -> client::Limits {
             segments: RECEIVING_ITEMS,
             authority: RECEIVING_ITEMS,
             text: TEXT_BYTES,
+            long_text: TEXT_BYTES,
             turn_text: TEXT_BYTES,
             projects: RECEIVING_ITEMS,
             fields: RECEIVING_ITEMS,

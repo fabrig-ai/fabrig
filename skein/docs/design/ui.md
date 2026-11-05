@@ -262,8 +262,9 @@ how far a piece of work has gone toward its end.
   is made by the owner's view (section 6). A secret's value is never
   printed by the text shell, which prints `(hidden)` (ui-text.md,
   section 5).
-- **A key,** `Key { owner, kind, a, b }`, on an item or a tree item, says
-  which object it shows, so a list diffs by object, not by place.
+- **A key,** `Key { owner, kind, a, b }`, on an item, a tree item or a slot,
+  says which object it shows, so a list, or a slot's siblings, diff by object,
+  not by place.
 
 ### 3.5 Images and drawings
 
@@ -420,7 +421,7 @@ how far a piece of work has gone toward its end.
 - **A bound node may name a key it answers to:** a letter `a` to `z` or
   a digit `0` to `9`, with no modifier, with the platform's primary one
   (Control; Command on Apple's platforms), or with Alt (`Shortcut { key,
-  modifier }`); or Escape.
+  modifier }`); `\` with the primary one; or Escape.
 - **The primary modifier is a fact of the platform,** which a shell reads
   from its platform once, at start, and maps and matches shortcuts by:
   not the look's, which is the application's and the same on every

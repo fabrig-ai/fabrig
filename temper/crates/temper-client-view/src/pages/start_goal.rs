@@ -11,7 +11,7 @@ use temper_client_domain::{
     Address, Domain,
     pages::{
         Act, goal,
-        start_goal::{self, Failure, StartGoal},
+        start_goal::{Failure, StartGoal},
     },
 };
 
@@ -81,7 +81,7 @@ fn ways(b: &mut Builder, root: &Domain, start: &StartGoal, words: &Words, bindin
     words.text(b, Word::GoalHowTitle, &[]);
     b.close();
     if let Some(me) = root.pages().me(root.client()) {
-        let default = start_goal::default_way(me, start.project);
+        let default = start.default;
         for way in &super::goals::ways(me, start.project, words) {
             b.open(Role::Slot);
             b.style(look::SHEET_OPTION);

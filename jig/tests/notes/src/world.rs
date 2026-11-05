@@ -125,7 +125,7 @@ impl World {
                         assert_eq!(owner, caller, "recall answer echoes caller");
                         assert!(answer.replace(Answer::Recalled { entries, more }).is_none(), "one answer per call");
                     }
-                    Request::Written { owner, name, revision } => {
+                    Request::Written { owner, name, revision, .. } => {
                         assert_eq!(owner, caller, "write answer echoes caller");
                         assert!(answer.replace(Answer::Written { name, revision }).is_none(), "one answer per call");
                     }

@@ -2,7 +2,7 @@
 use super::{Request, welcome};
 use crate::{Domain, forge, owner::Owner};
 use alloc::boxed::Box;
-use forge::dismissed::{self, Dismissal};
+use forge::dismissed::{self, PersonFact};
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, contract as c};
 use skein_lib::{Env, List, Queue, Wall, bytes};
 use temper_client_protocol_wire::{source, v1 as w};
@@ -75,7 +75,7 @@ impl Home {
         if self.skip.is_some() {
             return;
         }
-        let Some(request) = dismissed::ask(Dismissal::ToBegin { project }, &limits) else { return };
+        let Some(request) = dismissed::ask(PersonFact::ToBegin { project }, &limits) else { return };
         *serial = serial.checked_add(1).expect("page keys fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
         self.skip = Some(key);
@@ -731,7 +731,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
             Some(chats) => chats.delivered(root.client(), project),
             None => false,
         };
-    let mut skip = match root.forge().dismissed(Dismissal::ToBegin { project }) {
+    let mut skip = match root.forge().dismissed(PersonFact::ToBegin { project }) {
         Some(true) => Skip::Skipped,
         Some(false) => Skip::NotSkipped,
         None => Skip::Unknown,
@@ -997,7 +997,7 @@ pub(super) fn delivered(client: &Client, handle: Handle) -> bool {
 pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<crate::Request>) {
     let project = match root.pages.address() {
         crate::Address::Home { project } => *project,
-        crate::Address::NewChat
+        crate::Address::NewChat { .. }
         | crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
         | crate::Address::Accounts

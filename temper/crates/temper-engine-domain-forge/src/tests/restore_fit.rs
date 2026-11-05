@@ -91,7 +91,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             Stored::ProposedEffect(ProposedEffect { number: n, entry: status(n, n), resource: What::Repository })
         }
         RecordKind::Entry => Stored::Entry { entry: status(n, n), held: true },
-        RecordKind::Dismissed => Stored::Dismissed { party: n, what: Dismissal::ToBegin { project: number } },
+        RecordKind::Dismissed => Stored::Dismissed { party: n, what: PersonFact::ToBegin { project: number } },
         RecordKind::Binding => {
             Stored::Binding { address: Box::new([u8::try_from(number).unwrap()]), subject: Box::new([]) }
         }

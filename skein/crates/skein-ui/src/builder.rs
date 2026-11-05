@@ -8,8 +8,8 @@ use crate::Binding;
 use crate::Limits;
 use crate::tree::length;
 use crate::{
-    Drawing, DrawingKind, EntryKind, Fraction, Key, Node, Picture, Region, Role, Run, Shortcut, SlotRef, Sort, Source,
-    Spans, State, Style, TextRun, Tree, Value,
+    Drawing, DrawingKind, EntryKind, Fraction, Key, Modifier, Node, Picture, Region, Role, Run, Shortcut, SlotRef,
+    Sort, Source, Spans, State, Style, TextRun, Tree, Value,
 };
 
 use alloc::boxed::Box;
@@ -297,8 +297,11 @@ impl Builder {
     }
     pub fn shortcut(&mut self, shortcut: Shortcut) {
         assert!(
-            shortcut.key.is_ascii_lowercase() || shortcut.key.is_ascii_digit() || shortcut == Shortcut::ESCAPE,
-            "shortcut keys are letters or digits, or Escape"
+            shortcut.key.is_ascii_lowercase()
+                || shortcut.key.is_ascii_digit()
+                || shortcut == Shortcut::ESCAPE
+                || shortcut == Shortcut { key: b'\\', modifier: Modifier::Primary },
+            "shortcut keys are letters or digits, primary backslash, or Escape"
         );
         assert!(self.node().binding.is_some() || self.node().link.is_some(), "shortcut nodes are bound");
         self.node_mut().shortcut = Some(shortcut);
@@ -329,11 +332,11 @@ impl Builder {
         }
     }
 
-    /// Identify a list item by its object.
+    /// Identify a list item, tree item or slot by its object.
     pub fn key(&mut self, key: Key) {
         assert!(
-            self.node().role == Role::Item || self.node().role == Role::TreeItem,
-            "keys belong to list or tree items"
+            [Role::Item, Role::TreeItem, Role::Slot].contains(&self.node().role),
+            "keys belong to list items, tree items or slots"
         );
         self.node_mut().key = Some(key);
     }
@@ -633,6 +636,7 @@ fn acted_on(role: Role) -> bool {
         | Role::Disclosure
         | Role::Image
         | Role::Figure
+        | Role::Group
         | Role::Slot => false,
     }
 }

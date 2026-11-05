@@ -149,6 +149,10 @@ pub(crate) fn byline(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
         (None, None) => Box::default(),
     };
     if !line.is_empty() {
+        let line = match root.pages().chat() {
+            Some(chat) => w.say(Word::BylineTask, &[Hole::Number(chat.task), Hole::Name(line)]),
+            None => line,
+        };
         text(b, Role::Paragraph, &line, Some(look::BYLINE));
     }
 }
@@ -178,7 +182,7 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     }
     b.bind(bindings.insert(Act::StartChat));
     b.close();
-    super::session::hint(b, w);
+    super::session::hint(b, w, false);
     if chats.refusal.is_some() {
         w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
     }

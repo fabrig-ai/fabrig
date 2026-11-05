@@ -7,7 +7,7 @@
 - **Design lags:**
   - 3: "the Chats page's start": `../client/README.md`, 3.5: the start is the page `NewChat` now, which offers no template's place yet.
   - 2, 4: `../protocol/configuration.md`, 13.2: temper has seven kinds, none of offers; 13.4: no stock offers.
-  - 3, 6: `../client/README.md`, 3.5: the first chat's offer names template 3, else template 1, by number; 5.3: the navigation's new chat is fixed; 5.13: How work runs' ways to start work show no places or order. The look requests `new-menu` and `configure-chat-in-settings` draw the rail's menu over templates 1 and 2 and the configuring chat under Settings (`../client/journeys.md`, 7).
+  - 3, 6: `../client/README.md`, 3.5: the first chat's offer names template 3, else template 1, by number; 5.3: the navigation's new chat is fixed; 5.13: How work runs' ways to start work show no places or order. `../client/README.md`, 5.3: the rail's menu lists "Chat", "Goal", which opens `NewChat { draft: true }`, and "All ways to start work", fixed rather than from offers, and the look request `configure-chat-in-settings` draws the configuring chat under Settings (`../client/journeys.md`, 7).
   - 8: `../domain/agent.md`, 8.1: the configuring agent's instructions name no offers.
 - **Design departs:**
   - 3: How work runs' "Tell temper how you work": `../client/README.md`, 5.13: the entry reads "Configure temper" and opens the person's newest configuring chat not closed, or `Configure { project }`, rather than starting a chat: the user's decision in the look request `configure-temper-name`, since the chat configures temper as a whole.

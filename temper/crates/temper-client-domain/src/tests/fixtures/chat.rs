@@ -49,7 +49,7 @@ pub fn opened() -> Fixture {
         client.step_unlinked(Time::ZERO, Wall::EPOCH, event, &mut emitted);
     }
     let mut out = Queue::with_capacity(OUTPUTS);
-    let mut chat = Chat::new(TASK, FIRST, &limits, &mut out);
+    let mut chat = Chat::new(TASK, crate::pages::chat::document::Mode::Chat, FIRST, &limits, &mut out);
     let _read = out.pop();
     client.step_unlinked(
         Time::ZERO,

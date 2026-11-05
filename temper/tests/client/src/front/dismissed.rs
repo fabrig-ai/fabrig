@@ -46,7 +46,7 @@ impl Joint {
         } = request
             && Some(request)
                 == client::forge::dismissed::ask(
-                    client::forge::dismissed::Dismissal::ToBegin { project: 1 },
+                    client::forge::dismissed::PersonFact::ToBegin { project: 1 },
                     &self.limits.forge,
                 )
                 .as_ref()

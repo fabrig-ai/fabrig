@@ -112,7 +112,8 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     let ask_bytes = u32::try_from(client.ask_bytes).ok()?;
     wire.owned_record = document_bytes;
     // Retained connector accounts fit beside text previews (client/domain/contract.md, 5.3).
-    wire.document_text_bytes = client.text.max(HOLD_ACCOUNT_BYTES);
+    wire.document_text_bytes = client.long_text.clamp(HOLD_ACCOUNT_BYTES, w::CEILINGS.document_text_bytes);
+    narrow(client.long_text, &mut [&mut wire.specification_words, &mut wire.edit_note_body]);
     #[rustfmt::skip]
     narrow(client.text, &mut [
         &mut wire.task_text_words, &mut wire.placed_line_reason, &mut wire.model_set_names_names_item,
@@ -124,10 +125,10 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.hold_reason_stalled_fields_waiting, &mut wire.result_value_approved_fields_state,
         &mut wire.person_answer_choice_reason, &mut wire.person_answer_approved_words_some,
         &mut wire.person_answer_words_value, &mut wire.person_answer_cannot_reason,
-        &mut wire.parameter_bytes_value, &mut wire.specification_words, &mut wire.pattern_end_exact_value,
+        &mut wire.parameter_bytes_value, &mut wire.pattern_end_exact_value,
         &mut wire.pattern_end_open_value, &mut wire.pattern_segments_item, &mut wire.amendment_instructions_some,
         &mut wire.message_words, &mut wire.answer_question_words, &mut wire.amend_reason, &mut wire.cancel_reason,
-        &mut wire.move_reason, &mut wire.edit_note_description, &mut wire.edit_note_body,
+        &mut wire.move_reason, &mut wire.edit_note_description,
         &mut wire.make_service_name, &mut wire.read_notes_description_some, &mut wire.word_result_approved_state,
         &mut wire.word_words, &mut wire.activity_words_words, &mut wire.field_rule_name,
         &mut wire.task_contract_document_approval_state, &mut wire.runtime_running_tool_some,
