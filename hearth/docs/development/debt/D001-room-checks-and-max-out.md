@@ -1,15 +1,15 @@
 # D001: The service and its machines pace work by room checks and `MAX_OUT`
 
 - **Kind:** complexity
-- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-mmdebstrap`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
+- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
 - **Seen:** 2026-11-04 at `66968a30ef`, in the request of plan hearth-workspace (its port table, and its rule that adopting the newer model in full is out of scope)
 - **Seen:** 2026-11-04 at `66968a30ef`, in `hearth/scripts/old-forms.txt` (`max_out`)
-- **Checked:** 2026-11-05 at `efd6a36487`
+- **Checked:** 2026-11-05 at `c5f7fb2992`
 - **Value:** high (hearth paces as the other trees do; `iterate` shrinks; new code stops copying the old form)
 - **Size:** L
 - **Status:** open
 - **Paid when:** no hearth step crate defines a `MaxOut` or a `MAX_OUT` constant, `iterate` asks no queue for room but the kernel's edge, the queues between a service's own layers are uncapped, and the orders the room checks kept are named predicates with world tests.
-- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 70`
+- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 57`
 
 ## What
 
@@ -21,7 +21,7 @@ hearth still holds the old form:
 - step crates of the builder still declare what one entry point may emit:
   `MAX_OUT` in five domains, `MaxOut` and `MAX_OUT_*` in
   `hearth-protocol-builder`, and `MaxOut`, `UP_MAX_OUT` and `DOWN_MAX_OUT`
-  in the mmdebstrap, config and records machines;
+  in the config and records machines;
 - `hearth-service-builder/src/lib.rs` keeps eight capped queues, and
   `told` is the only uncapped one. Before each entry point it asks
   `io_room` or `protocol_room`; after it, `within` asserts the constant.
@@ -29,7 +29,7 @@ hearth still holds the old form:
 - `Service::new` refuses `limits.queue` under 3, "queues holding every
   MAX_OUT", and `tests/builder/tests/suite/bounds.rs` sizes a world on
   that figure;
-- 25 `.room()` calls remain in non-test step code.
+- 23 `.room()` calls remain in non-test step code.
 
 The count leaves out the eight `io::MAX_OUT_*` uses, the kernel's edge.
 
@@ -47,7 +47,7 @@ First list what each room check keeps, a capacity or an order, as 7.2
 asks, and write each order's test. Then make the inner queues uncapped,
 from the machines up, and take the constants and `within` out. Do it with
 D004, which rewrites the same `io_up` and `io_down`.
-Git is done; mmdebstrap, config and records come next, then the service.
+Git and mmdebstrap are done; config and records come next, then the service.
 
 ## What each room check keeps
 
@@ -70,11 +70,11 @@ first, and each order's test is named beside it.
 | `hearth-protocol-config/src/document.rs` | `pending.room() == 0` | Nothing, the same: a stack whose depth the decoder's limits bound. |
 | `hearth-protocol-config/src/json.rs` | `values.room() == 0` | Nothing, the same. |
 
-The queues beside each git machine, in
-`hearth-protocol-builder/src/lib.rs` and `read.rs`, are uncapped. The
-machine's states keep the orders in
+The queues beside git's machines and mmdebstrap's, these last in
+`hearth-protocol-builder/src/resolve.rs` and `indices.rs`, are uncapped.
+The machines' states keep the orders in
 `hearth/docs/design/domain/render.md`, 8.5, and their tests stand in
-`hearth/tests/git`.
+`hearth/tests/git` and `hearth/tests/mmdebstrap`.
 
 ### The service
 
@@ -87,7 +87,7 @@ All in `hearth-service-builder/src/lib.rs`.
 | `io_up`, `io_down` | `file_told.room() < 1`, twice | A capacity between the root's own children. It never binds: the file layer takes one request at a time, so the queue holds at most one event. |
 | `io_up`, `io_down` | `file_submissions.room() < 2`, three times | A capacity, the kernel's edge, through the file layer's queue: an operation and its cancel. The one before `expire` reserves 2 for one cancel. |
 | `protocol_up` | `protocol_room`, before `protocol::fire` | Nothing: `fire` touches neither queue. |
-| `protocol_up`, `protocol_down` | `protocol_room`, three times | A capacity between the root's own children: `calls` and `asked`. |
+| `protocol_up`, `protocol_down` | `protocol_room`, four times | A capacity between the root's own children: `calls` and `asked`. |
 | `domain_stage` | `answers.room()`, three times | A capacity between the root's own children, with a real sink behind it, the client's output. This one does the work: it stops render outrunning a stuck client, at about 2 queued records at `queue` 3 and about 30 at 32. |
 | `io_within`, `protocol_within`, `within` | their calls | One entry point's outputs against its constant, which is a capacity, and they keep no queue. They aren't called around `fire`, the file layer, or the `file_told` pass. They go with the constants. |
 | `Service::new` | `limits.queue >= 3` | A capacity: the reservations fit. The largest `MAX_OUT` is 2, and nothing found explains 3. |

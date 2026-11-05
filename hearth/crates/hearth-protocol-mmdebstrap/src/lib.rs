@@ -7,12 +7,6 @@ pub mod lists;
 pub mod output;
 pub mod packages;
 pub mod tail;
-pub mod vector;
-/// Maximum emissions into the caller's reserved queues.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MaxOut {
-    pub above: u32,
-    pub below: u32,
-}
 #[cfg(test)]
 mod tests;
+pub mod vector;

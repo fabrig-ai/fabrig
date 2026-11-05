@@ -1309,8 +1309,9 @@ or a named predicate keeps each one, and a test holds it.
 `hearth/docs/development/debt/D001-room-checks-and-max-out.md` lists every
 room check that remains, and what it keeps.
 
-- **One read at a time.** A git machine has at most one demand out, and
-  makes the next once the last is answered.
+- **One read at a time.** A git machine, and mmdebstrap's pipe reader
+  and list reader, have at most one demand out, and make the next once
+  the last is answered.
 - **A blob's piece is taken before the next is read.** `cat-file`'s
   machine stops after each piece until it is told `Next`. A body waits in
   git's pipe, never in the builder, so a static file of 64 MiB is held a
@@ -1318,6 +1319,12 @@ room check that remains, and what it keeps.
 - **An outcome answers a request.** A stream's end or fault that comes
   before a request, or while a piece is still being taken, overtakes
   nothing: the machine holds it and gives it to the next request.
+- **A pipe's reader gives one thing a delivery.** An `Inst`, a `Fetched`
+  or the pipe's end, and the next demand: resolution takes one of each
+  from a delivery. The pipe's end comes last, and once.
+- **A list's end follows its last stanza.** A scan gives at most one
+  stanza. A list with no blank line after its last stanza gives that
+  stanza and then its end, and the end comes once.
 - **Resumed work goes before the next event.** While the protocol layer
   has work to resume, no io or file event enters it (`work_pending`).
 - **One record at a time.** The client's printer takes the next record
@@ -1522,3 +1529,19 @@ Over generated repositories, valid by construction and then mutated:
 - **Where a resolution's closure is made:** 8.2's `Resolved` carries the
   closure, while 5.3 has the domain match `Inst` triples to `Packages`
   stanzas; one of the two is to change.
+- **How the builder paces with its own queues uncapped:** an uncapped
+  `answers` can hold a copy of every target's spec, so it takes a
+  watermark (`skein/docs/foundation/programming-model.md`, 7.1) or a stop
+  on `takes`. A pass's loops take bounds of their own: an uncapped
+  queue's capacity bounds nothing, and one pass could run a whole render.
+  It is to settle with the service's move to the model
+  (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`).
+- **What resumed work's order protects** (8.5): the cases searched show
+  a client nothing different when an io event enters with work pending.
+  The guard stays until a consequence is found and a test holds it;
+  pending cache work is to be read beside stdin's room, a child's exit
+  and a pipe's end. It depends on the same move.
+- **The domain's next event and its own resumed work:** 8.5 orders the
+  protocol layer's alone, and the domain's step takes event after event
+  without asking whether it has work to resume. Whether it must depends
+  on the first build step that streams its events.
