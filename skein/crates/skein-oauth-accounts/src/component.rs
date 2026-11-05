@@ -144,16 +144,10 @@ impl Refresh {
         }
     }
     fn request(self) -> Self {
-        match self {
-            Self::Untried | Self::Due => Self::Due,
-            Self::Spent | Self::DueAgain => Self::DueAgain,
-        }
+        if self.attempted() { Self::DueAgain } else { Self::Due }
     }
     fn forgo(self) -> Self {
-        match self {
-            Self::Untried | Self::Due => Self::Untried,
-            Self::Spent | Self::DueAgain => Self::Spent,
-        }
+        if self.attempted() { Self::Spent } else { Self::Untried }
     }
 }
 
@@ -179,16 +173,10 @@ impl Notice {
         }
     }
     fn announce(self) -> Self {
-        match self {
-            Self::Quiet | Self::Announced => Self::Announced,
-            Self::Rejected | Self::RejectedAnnounced => Self::RejectedAnnounced,
-        }
+        if self.rejected() { Self::RejectedAnnounced } else { Self::Announced }
     }
     fn reject(self) -> Self {
-        match self {
-            Self::Quiet | Self::Rejected => Self::Rejected,
-            Self::Announced | Self::RejectedAnnounced => Self::RejectedAnnounced,
-        }
+        if self.announced() { Self::RejectedAnnounced } else { Self::Rejected }
     }
 }
 

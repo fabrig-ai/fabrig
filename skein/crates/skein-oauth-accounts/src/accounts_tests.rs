@@ -13,7 +13,7 @@ struct Sent {
 const ADDED: u32 = 7;
 const PATH_BOUND: usize = 4096; // Private paths must be shorter than io's bound.
 const NAME_BYTES: usize = 8; // oauth.md, 6.2: a tag and a u32, including wanted.
-const STATE_BYTES: usize = 208; // The 192-byte record state plus a 16-byte earliest Time.
+const STATE_BYTES: usize = 192; // The 176-byte record state plus a 16-byte earliest Time.
 const ROOMY_ACCOUNTS: u32 = 3; // One configured account and two added places.
 const ADDRESS: core::net::SocketAddr =
     core::net::SocketAddr::new(core::net::IpAddr::V4(core::net::Ipv4Addr::LOCALHOST), 31000);

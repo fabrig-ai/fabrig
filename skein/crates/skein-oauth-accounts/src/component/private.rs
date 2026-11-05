@@ -341,7 +341,7 @@ impl Component {
         let has_record = record.is_some();
         match record {
             Some(record) => {
-                *self.accounts.get_mut(account).expect("account state") = recorded(record, env, Lending::Free)
+                *self.accounts.get_mut(account).expect("account state") = recorded(record, env, Lending::Free);
             }
             None => {}
         }
