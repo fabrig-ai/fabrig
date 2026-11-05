@@ -5,5 +5,12 @@
         "tasks.tree_tasks": 1024
       }
     }
+  },
+  "application": {
+    "limits": {
+      "overrides": {
+        "forge.change_policy.questions": 4
+      }
+    }
   }
 }

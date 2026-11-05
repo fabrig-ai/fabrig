@@ -4,6 +4,12 @@ Kind: reference
 
 Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.
 
+The table uses the small profile, not the standard profile selected by temper init. Standard tasks.tree_tasks is 384; small is 32 as listed below. engine.limits.profile selects the profile; engine.limits.overrides replaces named values. Check the box's configuration for its effective value; these are profile defaults.
+
+The tree limit counts all tasks made over the requester's tree's life, including its root and ended tasks. Ending a task frees live slots, not lifetime capacity; a restart does not reset the count. A task's delegated authority may leave less room than this deployment limit.
+
+A change batch reserves one task per member and shares the descendant allowance across members within each change policy's cap. These are prospective allowances for that call, not retained reservations across calls. A task-tree refusal names available and minimum required capacity and says whether fewer changes per call can fit (temper help change).
+
 ## tasks
 
 - `tasks.placed_holds`: count, 4. Bounds placed holds in the deployment, including lifted holds kept for their tasks.
