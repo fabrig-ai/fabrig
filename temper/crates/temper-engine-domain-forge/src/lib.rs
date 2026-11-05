@@ -34,6 +34,12 @@ pub use status::{
     BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
     StatusView, status_paragraphs, status_subject,
 };
+mod away;
+pub use away::{
+    AWAY_SUBJECT, Away, AwaysView, DECIDED_OPTION_BYTES, DECIDED_OPTIONS, DECIDED_PER_PROJECT, DECIDED_QUESTION_BYTES,
+    DECIDED_WHY_BYTES, Decided, DecidedCall, DecisionKind, DecisionView, DecisionsView, OverturnAnswer, SetAwayAnswer,
+    decided_subject,
+};
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, Dismissal};
 mod domain;
@@ -270,6 +276,8 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::Away(row) => Key::Away { party: row.party, project: row.project },
+        Stored::Decided(row) => Key::Decided { project: row.project, number: row.number },
         Stored::Looked(row) => Key::Looked { party: row.party, project: row.project },
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
@@ -426,6 +434,13 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::Decided(row) => {
+            let mut bytes = skein_lib::len_u64(row.question.len()).checked_add(skein_lib::len_u64(row.why.len()))?;
+            for option in &row.options {
+                bytes = bytes.checked_add(skein_lib::len_u64(option.len()))?;
+            }
+            Some(bytes)
+        }
         Stored::ProjectFacts(row) => Some(match &row.brief {
             Some(brief) => {
                 skein_lib::len_u64(brief.sentence.len()).checked_add(skein_lib::len_u64(brief.lede.len()))?
@@ -520,7 +535,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::Looked(_)
+        Stored::Away(_)
+        | Stored::Looked(_)
         | Stored::Dismissed { .. }
         | Stored::ForgeNumber { .. }
         | Stored::Playground(_)
