@@ -678,7 +678,7 @@ keeps (`../protocol/configuration.md`, section 2).
     composer, "Asked RECIPIENT to approve it; it waits in Needs you." `Judged::Refused`,
     `NotOffered` or a refused answer: jig's words under the form, the form kept.
   - *After:* the fact's chat shows `.turn-tool`: pen, "Started goal", `.file` TITLE, its
-    state, "Open", placed among the turns by the time the fact was made. Goals an
+    state, "Open", placed among the turns by the fact's `at`. Goals an
     agent started with the `goal` tool keep their line in the conversation (5.7).
 - **The Chats page** (the greenfield mock's `chats.html`): `Chats { filter }`,
   a page of the frame and no pane, a main with the token `CHATS_PAGE`,
@@ -2193,8 +2193,9 @@ for its kind, its user's login and its installations. Its nodes:
 - **`Dismiss`:** of the project it names, from any party with a role
   there (`../domain/forge.md`, 5.5): `what`, `PersonFact`, a fact the party
   keeps: `to_begin`, `ToBegin`, the project (u32), "Skip" on that project's
-  "To begin"; or `goal_from`, `GoalFrom`, the project (u32), the chat (u64) and
-  the goal (u64), that the person started that goal from that chat's document.
+  "To begin"; or `goal_from`, `GoalFrom`, the project (u32), the chat (u64), the
+  goal (u64) and `at` (u64), that the person started that goal from that chat's
+  document, at the client's clock.
   The root names the project as the request's scope, whatever scope the record
   came under.
   Its outcome: *dismissed*, `dismissed`, no fields, once the row has
@@ -2414,8 +2415,8 @@ for its kind, its user's login and its installations. Its nodes:
   watcher gets its own party's document (`../domain/forge.md`, 5.5). Its
   document, `Dismissals`: `dismissed`, the party's rows in their key's
   order, at most `DISMISSED` (8,192), each a `PersonFact`: `ToBegin {
-  project }`, or `GoalFrom { project, chat, goal }`, that the person started
-  goal `goal` from chat `chat`'s document. A start whose
+  project }`, or `GoalFrom { project, chat, goal, at }`, that the person started
+  goal `goal` from chat `chat`'s document at the client's clock's `at`. A start whose
   `forge.judge_projects` is past an eighth of that bound is refused, a party
   holding at most one `ToBegin` a project (`../protocol/configuration.md`,
   section 7). A party's rows are bounded by `DISMISSED` too, and all rows by
@@ -3061,7 +3062,8 @@ The words for each offered source are:
   only member"; a key's or a program's login's with no uses given,
   "Your own work" (jig's `domain/accounts.md`, 4.2).
 - **The composer's line** names the account and model the work's next
-  run takes, on a chat as its bar's byline, with the chooser behind it
+  run takes, on a chat as its bar's byline, before its mode group (3.5, *A chat's
+  document*), with the chooser behind it
   (3.5), and just above its field on an agent's task's page, from what
   jig gives every page: `me`, the accounts document
   and its readiness. When the welcome's model usability is known false
