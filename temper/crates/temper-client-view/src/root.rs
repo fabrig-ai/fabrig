@@ -85,9 +85,18 @@ impl View {
         let project = crate::pages::project_name(root.pages().me(root.client()), form.project);
         b.open(Role::Main);
         b.style(crate::look::MAIN);
-        b.style(crate::look::PAGE);
+        b.style(crate::look::SETTINGS);
         b.open(Role::Slot);
-        b.style(crate::look::ADOPTION_PAGE);
+        b.style(crate::look::SETTINGS_COL);
+        crate::pages::settings::path(
+            b,
+            root,
+            &self.forge_words,
+            &mut self.pages,
+            Some(form.project),
+            crate::pages::settings::FlowTab::Repositories,
+            crate::words::Word::Adoption,
+        );
         forge::page::page(
             b,
             form,
@@ -158,6 +167,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Builders { .. }
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
@@ -180,6 +190,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Builders { .. }
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
@@ -285,6 +296,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.forge,
             *project,
         );
+    } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
+        crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Repositories { project } = root.pages().address() {
         crate::pages::settings::repositories(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Chat { .. } = root.pages().address() {
@@ -305,6 +318,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             root,
             &view.forge_words,
             &mut view.accounts,
+            &mut view.pages,
+            rail_project,
             view.limits.tree.text_per_node,
         );
     } else if *root.pages().address() == temper_client_domain::Address::Accounts {
@@ -325,6 +340,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.pages,
             &mut view.forge,
             *forge,
+            rail_project,
             &view.forge_sign_in,
         );
     } else if *root.pages().address() == temper_client_domain::Address::Forges {

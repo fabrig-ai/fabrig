@@ -2604,7 +2604,7 @@ pub(crate) fn change_batch(
         return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
     }
     let spend = change_batch_spend(context, count)?;
-    let rooms = change_task_rooms(domain, env, context.project, context.tasks_left, changes, count)?;
+    let rooms = change_task_rooms(domain, env, context, changes, count)?;
     let mut batch = List::with_capacity(count);
     for (index, change) in changes.iter().enumerate() {
         let earlier = changes.get(..index).expect("earlier changes in this batch");
@@ -2624,11 +2624,11 @@ pub(crate) fn change_batch(
 fn change_task_rooms(
     domain: &Domain,
     env: &Env<Limits>,
-    project: u32,
-    available: u32,
+    context: &tasks::DelegationContext,
     changes: &[crate::ChangeCall],
     count: u32,
 ) -> Result<Box<[u32]>, ChangeRefused> {
+    let available = context.tasks_left;
     if count == 1 && available == 0 {
         return Ok(Box::new([0]));
     }
@@ -2650,7 +2650,7 @@ fn change_task_rooms(
         let share = left.checked_div(active).expect("nonempty share").max(1);
         active = 0;
         for (room, change) in rooms.iter_mut().zip(changes) {
-            let cap = change_task_limit(domain, env, project, change);
+            let cap = change_task_limit(env, change_questions(domain, context.project, change));
             let take = cap.saturating_sub(*room).min(share).min(left);
             *room = room.saturating_add(take);
             left = left.saturating_sub(take);
@@ -2671,13 +2671,9 @@ fn change_questions(domain: &Domain, project: u32, change: &crate::ChangeCall) -
     }
 }
 
-fn change_task_limit(domain: &Domain, env: &Env<Limits>, project: u32, change: &crate::ChangeCall) -> u32 {
+fn change_task_limit(env: &Env<Limits>, questions: forge_change::Route) -> u32 {
     let policy = env.limits.forge.change_policy;
-    if change_questions(domain, project, change) == forge_change::Route::Foreman {
-        policy.tasks.saturating_add(policy.questions)
-    } else {
-        policy.tasks
-    }
+    if questions == forge_change::Route::Foreman { policy.tasks.saturating_add(policy.questions) } else { policy.tasks }
 }
 
 fn change_task_refusal(available: u32, count: u32) -> ChangeRefused {
@@ -3052,8 +3048,7 @@ fn chat_change(
         kinds.push(tasks::AuthorityExecutor::Job(forge::MERGE_KIND)).expect("merge kind");
     }
     authority.delegation.kinds = kinds.into_boxed();
-    authority.delegation.tasks =
-        change_task_limit(domain, env, repository.project, change).min(context.tasks_left.saturating_sub(1));
+    authority.delegation.tasks = change_task_limit(env, questions).min(context.tasks_left.saturating_sub(1));
     authority.delegation.depth = 2.min(authority.delegation.depth.saturating_sub(1));
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);

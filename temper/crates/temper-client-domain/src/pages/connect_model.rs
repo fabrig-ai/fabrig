@@ -57,6 +57,7 @@ pub const fn open(address: &Address) -> bool {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
@@ -91,6 +92,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
@@ -113,6 +115,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }

@@ -181,3 +181,13 @@ fn choosing_a_project_stays_on_forges_and_accounts() {
         assert!(f.out.is_empty());
     }
 }
+#[test]
+fn choosing_a_project_keeps_the_builders_tab() {
+    let mut f = fixture();
+    deliver(&mut f, two_projects());
+    event(&mut f, Event::Went { address: Address::Builders { project: fixtures::PROJECT } });
+    while f.out.pop().is_some() {}
+    event(&mut f, Event::Act { act: Act::Project { project: OTHER } });
+    assert_eq!(f.pages.project(), Some(OTHER));
+    assert_eq!(f.out.pop(), Some(Request::Show { address: Address::Builders { project: OTHER } }));
+}

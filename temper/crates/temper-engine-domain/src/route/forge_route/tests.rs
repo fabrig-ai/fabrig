@@ -3648,3 +3648,23 @@ fn a_projects_foreman_grants_the_foremans_charter_and_tasks() {
     assert_eq!(inherited.authority.delegation.tasks, 12);
     assert!(inherited.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Charter(super::FOREMAN_CHARTER)));
 }
+
+#[test]
+fn inherited_foreman_changes_share_the_call_task_room() {
+    use temper_engine_domain_forge_change::Route;
+    let (mut domain, mut env, mut context) = change_choice_world();
+    env.limits.forge.change_policy.tasks = 8;
+    env.limits.forge.change_policy.questions = 4;
+    context.tasks_left = 26;
+    set_project_questions(&mut domain, &env, Route::Foreman);
+    let changes = change_family(&[None, None]);
+    let batch = match super::change_batch(&domain, &env, 1, &context, &changes) {
+        Ok(batch) => batch,
+        Err(super::ChangeRefused::Refusal(why)) => panic!("{why:?}"),
+        Err(super::ChangeRefused::Words(words)) => panic!("{words:?}"),
+    };
+    assert_eq!(batch.len(), 2);
+    for member in &batch {
+        assert_eq!(member.authority.delegation.tasks, 12);
+    }
+}

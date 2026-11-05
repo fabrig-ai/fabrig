@@ -66,6 +66,12 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
             "The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it.",
             3,
         ),
+        (
+            Address::Builders { project: f::PROJECT },
+            "Where agents work.",
+            "The machines temper’s agents run on, each with its slots and how many are in use.",
+            4,
+        ),
     ] {
         let root = root(address);
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -84,7 +90,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
             let links: Vec<_> = nav.iter().filter(|n| n.role == Role::Link).collect();
             assert_eq!(
                 links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
-                [b"How work runs".as_slice(), b"Repositories", b"Forges", b"Accounts"]
+                [b"How work runs".as_slice(), b"Repositories", b"Forges", b"Accounts", b"Builders"]
             );
             let ids: Vec<_> = links
                 .iter()
@@ -99,6 +105,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
                 repositories(),
                 Address::Forges,
                 Address::Accounts,
+                Address::Builders { project: f::PROJECT },
             ]) {
                 assert_eq!(crate::href(&mut view, id), Some(d::address::print(&address)));
                 assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
@@ -301,11 +308,8 @@ fn a_repository_row_is_no_link() {
     }
 }
 #[test]
-fn forges_and_accounts_are_in_the_frame_with_a_project_and_as_they_were_without() {
-    for (address, heading, style) in [
-        (Address::Forges, b"Forges".as_slice(), look::FORGES),
-        (Address::Accounts, b"Accounts".as_slice(), look::ACCOUNTS_PAGE),
-    ] {
+fn accounts_are_in_the_settings_column_with_or_without_a_project() {
+    for (address, heading, style) in [(Address::Accounts, b"Accounts".as_slice(), look::ACCOUNTS_PAGE)] {
         let (mut root, watch, _) = f::root_at(address, &f::domain_limits());
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             assert!(main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
@@ -322,11 +326,8 @@ fn forges_and_accounts_are_in_the_frame_with_a_project_and_as_they_were_without(
         f::deliver_me(&mut root, watch, me);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             find(view.tree(), Role::Heading { level: 1 }, heading);
-            assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
-            assert_eq!(
-                main(view.tree())[0].styles.as_slice(),
-                &[look::MAIN, if style == look::FORGES { look::FORGES } else { look::PAGE }]
-            );
+            assert!(main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
+            assert_eq!(main(view.tree())[0].styles.as_slice(), &[look::MAIN, look::SETTINGS]);
         }
     }
 }
@@ -875,6 +876,100 @@ fn until_read_the_switches_are_disabled_and_unchecked() {
                     .as_slice()
                     .contains(&State::Disabled)
             );
+        }
+    }
+}
+
+#[test]
+fn alone_it_keeps_its_heading_and_lede_with_no_tabs() {
+    let (mut root, watch, _) = f::root_at(Address::Forges, &f::domain_limits());
+    for project in [true, false] {
+        if !project {
+            let mut me = root.pages().me(root.client()).unwrap().clone();
+            me.projects.clear();
+            f::deliver_me(&mut root, watch, me);
+        }
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(main(view.tree())[0].styles.as_slice(), &[look::MAIN, look::SETTINGS]);
+            let col = styled(view.tree(), look::SETTINGS_COL);
+            let intro = styled(view.tree(), look::SETTINGS_INTRO);
+            assert!(col.len() > intro.len());
+            find(view.tree(), Role::Heading { level: 1 }, if project { b"Where your code lives." } else { b"Forges" });
+            assert_eq!(
+                intro.iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_KICKER)).count(),
+                usize::from(project)
+            );
+            assert_eq!(
+                main(view.tree()).iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_TABS)).count(),
+                usize::from(project)
+            );
+            find(
+                view.tree(),
+                Role::Paragraph,
+                b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
+            );
+        }
+    }
+}
+
+#[test]
+fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
+    for (address, tab, to, here) in [
+        (Address::ConnectForge { forge: None }, b"Forges".as_slice(), b"/forges".as_slice(), b"Add a forge".as_slice()),
+        (
+            Address::ConnectModel { way: None },
+            b"Accounts".as_slice(),
+            b"/accounts".as_slice(),
+            b"Connect an account".as_slice(),
+        ),
+        (
+            Address::Adopt { project: f::PROJECT },
+            b"Repositories".as_slice(),
+            b"/projects/1/settings/repositories".as_slice(),
+            b"Adopt a repository".as_slice(),
+        ),
+    ] {
+        let root = root(address);
+        let terminal = f::page_view(&root);
+        assert!(!terminal.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_PATH)));
+        let mut browser = f::browser_page_view(&root);
+        let path = styled(browser.tree(), look::SETTINGS_PATH);
+        assert!(path.iter().any(|n| n.role == Role::Navigation && n.name.as_deref() == Some(b"Where")));
+        let links: Vec<_> = path.iter().filter(|n| n.role == Role::Link).map(|n| (n.id, n.name.clone())).collect();
+        let expected = [
+            (tab, to),
+            (b"Shop".as_slice(), b"/projects/1".as_slice()),
+            (b"Settings".as_slice(), b"/projects/1/settings".as_slice()),
+            (tab, to),
+        ];
+        assert_eq!(links.len(), expected.len());
+        let last = path.iter().find(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)).unwrap();
+        assert_eq!(last.role, Role::Text);
+        assert_eq!(last.name.as_deref(), Some(here));
+        assert_eq!(f::nodes_text(subtree(browser.tree(), last.id)).as_ref(), here);
+        assert!(last.binding.is_none() && last.external.is_none());
+        assert!(path.iter().find(|n| n.styles.as_slice().contains(&look::BACK)).unwrap().role == Role::Link);
+        for ((id, name), (label, to)) in links.into_iter().zip(expected) {
+            assert_eq!(name.as_deref(), Some(label));
+            assert_eq!(crate::href(&mut browser, id).as_deref(), Some(to));
+        }
+        assert!(
+            styled(browser.tree(), look::RAIL)
+                .iter()
+                .any(|n| n.name.as_deref() == Some(b"Settings") && n.states.as_slice().contains(&State::Current))
+        );
+    }
+}
+
+#[test]
+fn no_project_draws_no_path() {
+    for address in [Address::ConnectForge { forge: None }, Address::ConnectModel { way: None }] {
+        let (mut root, watch, _) = f::root_at(address, &f::domain_limits());
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.projects.clear();
+        f::deliver_me(&mut root, watch, me);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_PATH)));
         }
     }
 }

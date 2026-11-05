@@ -125,8 +125,6 @@ pub const STARTER_NOTE: Style = Style { owner: owner(), token: 250 };
 pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
 /// The configuring opening’s unsure (client/README.md, 3.5).
 pub const STARTER_UNSURE: Style = Style { owner: owner(), token: 252 };
-/// A folded account.
-pub const ACCOUNT_ROW: Style = Style { owner: owner(), token: 124 };
 /// The rail switcher's panel.
 pub const PROJECTS_MENU: Style = Style { owner: owner(), token: 190 };
 /// The rail switcher's actions.
@@ -439,8 +437,6 @@ pub const CONNECT_FORGE: Style = Style { owner: owner(), token: 118 };
 pub const FLOW_CODE: Style = Style { owner: owner(), token: 119 };
 /// The Forges page (client/forge.md, 5.4).
 pub const FORGES: Style = Style { owner: owner(), token: 120 };
-/// A forge's row on the Forges page (client/forge.md, 5.4).
-pub const FORGE_ROW: Style = Style { owner: owner(), token: 121 };
 /// The setup strip (client/README.md, 5.1, 5.6).
 pub const SETUP_STRIP: Style = Style { owner: owner(), token: 122 };
 /// Browser sign-in page (protocol/sign-in.md, 7).
@@ -722,10 +718,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-connect-forge",
         b"temper-flow-code",
         b"temper-forges",
-        b"temper-forge-row",
+        b"temper-reserved-121",
         b"temper-setup-strip",
         b"temper-sign-in",
-        b"temper-account-row",
+        b"temper-reserved-124",
         b"temper-flow-primary",
         b"temper-flow-failed",
         b"temper-flow-pair",
@@ -975,6 +971,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-copy",
         b"temper-home-small",
         b"temper-welcome-forge-status",
+        b"temper-settings-row",
+        b"temper-settings-path",
+        b"temper-settings-empty",
     ],
     regions: &[b"temper-link"],
 };
@@ -1076,3 +1075,6 @@ pub const SETTINGS_TOGGLE_ROW: Style = Style { owner: owner(), token: 357 };
 pub const SETTINGS_TEXT: Style = Style { owner: owner(), token: 358 };
 pub const SETTINGS_FACTS: Style = Style { owner: owner(), token: 359 };
 pub const SETTINGS_REFUSAL: Style = Style { owner: owner(), token: 360 };
+pub const SETTINGS_ROW: Style = Style { owner: owner(), token: 374 };
+pub const SETTINGS_PATH: Style = Style { owner: owner(), token: 375 };
+pub const SETTINGS_EMPTY: Style = Style { owner: owner(), token: 376 };
