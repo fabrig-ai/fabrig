@@ -1,3 +1,27 @@
 draft = "hearth-names"
 repo = "fabrig"
 sources = ["hearth/docs/plan/hearth-names/inputs/request.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "names"
+title = "hearth's documents and fixtures name no real machine layout, provider or key"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/protocol/format.md, 3.1"
+
+[[slice]]
+id = 1
+story = "hearth reads as one neutral example fleet: the search finds no real host, provider or key under hearth/, and hearth's focused suite passes"
+parts = ["names"]
+walk = false
+
+[[question]]
+id = "port-and-zone"
+parts = ["names"]
+text = """Three things that also describe the real deployment are outside the request's mapping and stay as they are. Should any of them change before fabrig goes public? (1) The SSH port 10127, in protocol/format.md 3.7 and 5.10 and two fixtures. (2) The zone Europe/Lisbon, in the design, the fleet's fixtures and goldens. (3) domain/store.md 9.2, which says how the fleet's containers clear an id range today and names carbon-forge, east-chat and south-agent-control. Recommendation: replace 1 with a neutral port and 2 with a neutral zone, and drop the sentence in 3, as one small follow-up plan. No task here waits for this."""
