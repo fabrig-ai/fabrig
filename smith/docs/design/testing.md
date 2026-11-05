@@ -726,6 +726,9 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 - **A live red no offline world shows** (testing.status.md, 2.3): its
   repair starts from the first after-landing log whose failure says why
   (2.3), in the lowest tier that shows it.
+- **The agent, run and host worlds' edges** (testing.status.md, 2): each
+  takes fakes of its own, held to the code by a protocol or simulated
+  world as the session and tools worlds' are, or says why it can't.
 - **The key's story after landing.** The story on an Anthropic API key
   is the owner's for now (2.3): no key is among the after-landing tier's
   inputs. It returns to the after-landing tier when a key becomes one of
