@@ -10,7 +10,7 @@
         "clients_http.streams": 8,
         "core.resume_bytes": 16803814,
         "documents.rows": 2,
-        "documents.text_bytes": 128,
+        "documents.text_bytes": 512,
         "fleet.configured_workers": 8,
         "fleet.slots": 2,
         "fleet.workers": 2,

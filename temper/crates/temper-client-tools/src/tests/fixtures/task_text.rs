@@ -3,7 +3,7 @@ use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Time, Wall};
 
-/// A synthetic stored task projected with the shipped 128-byte text window.
+/// A synthetic stored task projected with a small 128-byte text window.
 pub(crate) fn source_task(words: &[u8]) -> (core::Core, core::Limits, tasks::TaskRecord) {
     let mut limits = jig_test_profile::limits().core;
     limits.documents.text_bytes = 128;
