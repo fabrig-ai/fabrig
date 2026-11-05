@@ -43,3 +43,23 @@ One `ask` first, then a file at a time. `cargo fmt`; `(cd jig && python3 -I -B s
 ## Report
 
 The common note's items; the Measure's core count before and after; `const PROJECT`'s; the wrappers. No new rule: nothing to break by hand.
+
+## Answers
+
+2026-11-05. Q: conformance's `ask`s run over another world and queue or drain, so may they stay as wrappers over a shared
+event constructor, or does conformance leave the task? A: **They stay as wrappers over a shared constructor; conformance
+stays in the task.** What goes is the copied event body, and this widens the acceptance's "wrappers" for these two files:
+
+- `jig_core_kit::fixtures` gains one constructor beside `ask_as`, taking the reply base, sign-in, key and `people::Ask`
+  and returning `jig_test_domain::Event`, with the literal key as the spec says. The kit's `ask` and `ask_as` build on it.
+- `conformance/src/scenarios.rs`: `ask` keeps its queue until the domain is ready. `party_ask` stays `pub(crate)`, because
+  `lib.rs` calls it and isn't yours, and becomes one line over the constructor. It keeps `PARTY_REPLY_BASE`, which
+  `scenarios/lifecycle.rs` reads.
+- `conformance/src/deletion.rs`: `ask` keeps its drain and its base 9000, beside `act`'s 9500, and calls the constructor.
+- No trait, and no change to either world.
+
+The acceptance's `rg` also lists asks that aren't copies of this one, and they stay: `core/tests/suite/stories.rs` (not
+yours), `reads.rs`'s `ask` in the kit (a read), `settings/support.rs` (returns the reply, sits on `ask_key`),
+`route_orders.rs` and `restore_pages.rs` (build events from other inputs) and `conformance/tests/suite/application.rs` (a
+connector request). The report names them as exemptions. `const PROJECT: u32 = 1` reads 12 at this base, not 13: one
+named in the kit's `fixtures`, and the other copies go.
