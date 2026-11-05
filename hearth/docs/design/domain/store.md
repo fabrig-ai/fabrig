@@ -1467,3 +1467,6 @@ What the steward must keep across restarts and reboots lives in
   predicates, before it is used as an output; depends on hearth/docs/design/domain/build.md, 9.3.
 - **Trusting a received key [M6]:** whether a receiver ever checks a
   layer by building it; depends on reproducible builds.
+- **A reconciled layer's base:** 6.2 lets it be collected while its
+  descendants are kept, while 7.1 holds it as an ancestor under a
+  descendant's pin; one of the two is to change.

@@ -1,6 +1,6 @@
 # The store: status
 
-2026-11-04. Where hearth's code lags or departs from [store.md](store.md).
+2026-11-05. Where hearth's code lags or departs from [store.md](store.md).
 
 - **Not yet:** 2.1, 2.2, 2.3, 4.1, 4.2: layers as read-only btrfs
   subvolumes, the empty layer's root ownership, and the on-disk snapshot,
@@ -49,7 +49,8 @@
   recording the last N builds per target.
 - **Departs:** 6.2, 7.1: unsettled: 6.2 allows a reconciled packages
   layer's base to be collected while its descendants are kept; 7.1
-  makes that base an ancestor held by a descendant's pin.
+  makes that base an ancestor held by a descendant's pin. Section 12
+  keeps the question.
 - **Not yet:** 6.4: recording apt's and mmdebstrap's versions in a
   resolution's `made` fields in M2. The resolution adapter supplies
   empty version strings.

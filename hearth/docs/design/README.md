@@ -749,4 +749,17 @@ Each document lists its own. The ones that reach across:
   it holds itself (hearth/docs/design/domain/activator.md);
 - the fake machine's final home (hearth/docs/design/domain/testing.md);
 - the local mirror for the real tier: which packages, pinned how,
-  fetched by whom (hearth/docs/design/domain/testing.md).
+  fetched by whom (hearth/docs/design/domain/testing.md);
+- which names that look private stay in hearth's files, beyond the
+  domain, addresses and account that reserved names replaced: which
+  provider runs which production machine and what each serves, with
+  the `hardware` values and firmware that name them
+  (hearth/docs/design/domain/machine.md, 2.3, 2.4, 2.7 and 7.2); the
+  fleet's targets beyond section 6's, as `ion-prod`, `carbon-prod` and
+  `chat-prod`; the key fragment of the VPN example
+  (hearth/docs/design/protocol/format.md, 8.6;
+  hearth/docs/design/domain/render.md, 6.3; the records tests' fixtures);
+  the digest of a pinned release
+  (hearth/docs/design/domain/artifacts.md, 7.4); the organization path
+  `ai/`, the project name `stoa` and the name `os`. They are the user's
+  to name.

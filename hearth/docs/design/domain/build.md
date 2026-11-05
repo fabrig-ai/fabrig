@@ -1110,3 +1110,6 @@ with its tail.
 - **seccomp in sandboxes;** depends on skein's contained trees.
 - **The limits' defaults;** depends on the real tier's costs.
 - **`SOURCE_DATE_EPOCH` per layer;** depends on hearth/docs/design/domain/reproducible.md.
+- **5.4's hooks and 5.5's:** 5.4's argument vector lists setup, essential
+  and customize hooks, while 5.5 also needs an extract hook; one of the
+  two is to change.

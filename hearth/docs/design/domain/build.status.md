@@ -1,6 +1,6 @@
 # Building outputs: status
 
-2026-11-04. Where hearth's code lags or departs from [build.md](build.md).
+2026-11-05. Where hearth's code lags or departs from [build.md](build.md).
 
 - **Not yet:** 2, 3, 4.1, 4.3: executing the rootfs recipe's steps,
   pinning the plan's chain and producing an output through the builder
@@ -21,6 +21,7 @@
 - **Departs:** 5.4, 5.5: unsettled: 5.4's mmdebstrap argument vector
   lists setup, essential and customize hooks, but omits the extract hook
   that 5.5 requires to seed fixed ids before packages are configured.
+  Section 15 keeps the question.
 - **Not yet:** 5.8: computing the kernel, modules and initramfs-input
   digests and passing kernel inputs to the packages walk. The tree
   format carries boot digests, but the walk only copies its parent's
