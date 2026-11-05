@@ -7,6 +7,7 @@ use temper_worker_domain_checkout::git;
 
 #[derive(Debug)]
 pub(crate) struct Directories {
+    pub keep: bool,
     pub trash: Option<Fd>,
     pub workspaces: Option<Fd>,
     pub serial: u64,
@@ -14,7 +15,7 @@ pub(crate) struct Directories {
 }
 impl Directories {
     pub fn new(serial: u64) -> Directories {
-        Directories { trash: None, workspaces: None, serial, failures: 0 }
+        Directories { keep: false, trash: None, workspaces: None, serial, failures: 0 }
     }
     fn rename(&mut self, from_dir: Fd, from: Box<[u8]>) -> Op {
         let to = Box::from(Decimal::of(self.serial).as_bytes());
@@ -213,7 +214,8 @@ fn layout(
     let allowed = match stage {
         Layout::Trash => result == Err(Error::Exists),
         Layout::Workspaces | Layout::Home => result == Err(Error::NotFound),
-        Layout::OpenTrash | Layout::NewWorkspaces | Layout::NewHome | Layout::OpenWorkspaces => false,
+        Layout::NewWorkspaces => dirs.keep && result == Err(Error::Exists),
+        Layout::OpenTrash | Layout::NewHome | Layout::OpenWorkspaces => false,
     };
     if let Err(error) = result
         && !allowed
@@ -224,7 +226,11 @@ fn layout(
         Layout::Trash => (Layout::OpenTrash, open(settings.root, Box::from(&b"trash"[..]), OpenHow::DirectoryNoFollow)),
         Layout::OpenTrash => {
             dirs.trash = Some(fd(result).expect("successful open"));
-            (Layout::Workspaces, dirs.rename(settings.root, Box::from(&b"workspaces"[..])))
+            if dirs.keep {
+                (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..])))
+            } else {
+                (Layout::Workspaces, dirs.rename(settings.root, Box::from(&b"workspaces"[..])))
+            }
         }
         Layout::Workspaces => (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..]))),
         Layout::Home => (Layout::NewWorkspaces, mkdir(settings.root, b"workspaces")),

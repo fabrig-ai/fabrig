@@ -8,6 +8,7 @@ mod agent_recovery;
 mod agent_turn;
 mod amend_tools;
 mod b2;
+mod builders;
 mod change_panel;
 mod chat;
 mod chat_draft;

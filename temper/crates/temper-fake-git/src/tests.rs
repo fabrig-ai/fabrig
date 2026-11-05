@@ -81,6 +81,7 @@ fn spawn(command: &Command) -> k::Spawn {
         Command::CheckOut { .. } | Command::Clean => Some(temper_worker_domain_checkout::git::Kind::CheckOut),
         Command::Merge { .. } => Some(temper_worker_domain_checkout::git::Kind::Merge),
         Command::Version => None,
+        Command::Origin { .. } => Some(temper_worker_domain_checkout::git::Kind::Look),
     };
     let identity = Identity {
         token: Secret::new(b"route-only-token".as_slice().into()),

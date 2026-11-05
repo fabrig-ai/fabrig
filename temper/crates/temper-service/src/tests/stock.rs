@@ -290,7 +290,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 3917);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 4253);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1067,6 +1067,22 @@ fn kinds_are_declared_with_their_bounds() {
                 value_bytes: temper_engine_smith::kinds::size(&settings::Value::Charter(2)),
                 per_scope: 2,
                 charters: 1
+            },
+            Kind {
+                number: 6,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 1,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 7,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 8,
+                per_scope: 1,
+                charters: 0
             },
         ]
     );

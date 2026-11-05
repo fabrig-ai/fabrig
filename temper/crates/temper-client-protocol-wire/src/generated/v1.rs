@@ -1265,6 +1265,24 @@ pub enum Path {
     ForgeCharterCharter,
     /// Bytes after `ForgeCharter`.
     ForgeCharterTail,
+    /// The tag of `QuestionsRoute`.
+    QuestionsRouteTag,
+    /// The `route` field of `ProjectQuestions`.
+    ProjectQuestionsRoute,
+    /// Bytes after `ProjectQuestions`.
+    ProjectQuestionsTail,
+    /// The `drafts` field of `ProjectWays`.
+    ProjectWaysDrafts,
+    /// The `goals` field of `ProjectWays`.
+    ProjectWaysGoals,
+    /// The `changes` field of `ProjectWays`.
+    ProjectWaysChanges,
+    /// The `away` field of `ProjectWays`.
+    ProjectWaysAway,
+    /// The `way` field of `ProjectWays`.
+    ProjectWaysWay,
+    /// Bytes after `ProjectWays`.
+    ProjectWaysTail,
 }
 
 /// A decoding or bound failure at a schema path.
@@ -8342,6 +8360,106 @@ impl ForgeCharter {
     /// Moves the fields out without copying.
     #[must_use]
     pub fn into_parts(self) -> ForgeCharterParts { ForgeCharterParts { charter: self.charter } }
+
+}
+
+/// `QuestionsRoute` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum QuestionsRoute {
+    /// `none` without a payload.
+    None,
+    /// `foreman` without a payload.
+    Foreman,
+    /// `up` without a payload.
+    Up,
+}
+
+impl QuestionsRoute {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `ProjectQuestions`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectQuestionsParts {
+    /// The `route` field.
+    pub route: QuestionsRoute,
+}
+
+/// `ProjectQuestions` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectQuestions {
+    route: QuestionsRoute,
+}
+
+impl ProjectQuestions {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ProjectQuestionsParts) -> Result<Self, Problem> {
+        let ProjectQuestionsParts { route } = parts;
+        let value = Self { route };
+        Ok(value)
+    }
+
+    /// Reads the `route` field.
+    #[must_use]
+    pub fn route(&self) -> &QuestionsRoute { &self.route }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ProjectQuestionsParts { ProjectQuestionsParts { route: self.route } }
+
+}
+
+/// Movable fields of `ProjectWays`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectWaysParts {
+    /// Boolean fields in schema order.
+    pub skein_bools: [bool; 4],
+    /// The `way` field.
+    pub way: u32,
+}
+
+/// `ProjectWays` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectWays {
+    skein_bools: [bool; 4],
+    way: u32,
+}
+
+impl ProjectWays {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ProjectWaysParts) -> Result<Self, Problem> {
+        let ProjectWaysParts { skein_bools, way } = parts;
+        let value = Self { skein_bools, way };
+        Ok(value)
+    }
+
+    /// Reads the `drafts` field.
+    #[must_use]
+    pub fn drafts(&self) -> bool { { let [value, _, _, _] = self.skein_bools; value } }
+
+    /// Reads the `goals` field.
+    #[must_use]
+    pub fn goals(&self) -> bool { { let [_, value, _, _] = self.skein_bools; value } }
+
+    /// Reads the `changes` field.
+    #[must_use]
+    pub fn changes(&self) -> bool { { let [_, _, value, _] = self.skein_bools; value } }
+
+    /// Reads the `away` field.
+    #[must_use]
+    pub fn away(&self) -> bool { { let [_, _, _, value] = self.skein_bools; value } }
+
+    /// Reads the `way` field.
+    #[must_use]
+    pub fn way(&self) -> u32 { self.way }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ProjectWaysParts { ProjectWaysParts { skein_bools: self.skein_bools, way: self.way } }
 
 }
 
@@ -15825,6 +15943,119 @@ impl ForgeCharter {
     }
 }
 
+impl QuestionsRoute {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::None | Self::Foreman | Self::Up => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::None => writer.put(&[0_u8])?,
+            Self::Foreman => writer.put(&[1_u8])?,
+            Self::Up => writer.put(&[2_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::QuestionsRouteTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::QuestionsRouteTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::None,
+            1 => Self::Foreman,
+            2 => Self::Up,
+            _ => return Err(Problem { path: Path::QuestionsRouteTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl ProjectQuestions {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_route = &self.route;
+        size = size.checked_add(field_route.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_route = &self.route;
+        field_route.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ProjectQuestionsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_route = QuestionsRoute::decode_from(limits, reader)?;
+        Ok(Self { route: decoded_route })
+    }
+}
+
+impl ProjectWays {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_drafts = &self.drafts();
+        writer.put(&[u8::from(*field_drafts)])?;
+        let field_goals = &self.goals();
+        writer.put(&[u8::from(*field_goals)])?;
+        let field_changes = &self.changes();
+        writer.put(&[u8::from(*field_changes)])?;
+        let field_away = &self.away();
+        writer.put(&[u8::from(*field_away)])?;
+        let field_way = &self.way;
+        writer.put(&field_way.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ProjectWaysTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_drafts = match reader.u8().ok_or(Problem { path: Path::ProjectWaysDrafts, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectWaysDrafts, reason: skein_codec::Reason::Bool }) };
+        let decoded_goals = match reader.u8().ok_or(Problem { path: Path::ProjectWaysGoals, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectWaysGoals, reason: skein_codec::Reason::Bool }) };
+        let decoded_changes = match reader.u8().ok_or(Problem { path: Path::ProjectWaysChanges, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectWaysChanges, reason: skein_codec::Reason::Bool }) };
+        let decoded_away = match reader.u8().ok_or(Problem { path: Path::ProjectWaysAway, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectWaysAway, reason: skein_codec::Reason::Bool }) };
+        let decoded_way = reader.u32().ok_or(Problem { path: Path::ProjectWaysWay, reason: skein_codec::Reason::Short })?;
+        Ok(Self { skein_bools: [decoded_drafts, decoded_goals, decoded_changes, decoded_away], way: decoded_way })
+    }
+}
+
 impl Role {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -20743,6 +20974,92 @@ impl ForgeCharter {
     }
 }
 
+impl QuestionsRoute {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl ProjectQuestions {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(QuestionsRoute::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(QuestionsRoute::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl ProjectWays {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64)?.checked_add(1_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64)?;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 /// Maximum wire bytes among this family's top-level types.
 #[must_use]
 pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -20928,6 +21245,9 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RuleApproval::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingRule::encoded_bound_within(limits)?);
     biggest = biggest.max(ForgeCharter::encoded_bound_within(limits)?);
+    biggest = biggest.max(QuestionsRoute::encoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectQuestions::encoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectWays::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
@@ -21116,12 +21436,15 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RuleApproval::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingRule::decoded_bound_within(limits)?);
     biggest = biggest.max(ForgeCharter::decoded_bound_within(limits)?);
+    biggest = biggest.max(QuestionsRoute::decoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectQuestions::decoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectWays::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, FirstEmpty, FirstEmptyParts, CopyAddresses, CopyAddressesParts, SetUpFirst, SetUp, SetUpParts, Return, ReturnParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, PersonFact, Dismiss, DismissParts, Dismissals, DismissalsParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Kind, Mode, SetUpStep, SetUpBinary, SetUpFetched, SetUpFetchedParts, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, StartsWith, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, Read, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, ChangesSubject, ChangesSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, ChangesQueued, ChangesQueuedParts, ChangesQueue, ChangesQueueParts, ChangesLanded, ChangesLandedParts, ChangesPanel, ChangesPanelParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Foreman, ForemanParts, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, Path};
+    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, FirstEmpty, FirstEmptyParts, CopyAddresses, CopyAddressesParts, SetUpFirst, SetUp, SetUpParts, Return, ReturnParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, PersonFact, Dismiss, DismissParts, Dismissals, DismissalsParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Kind, Mode, SetUpStep, SetUpBinary, SetUpFetched, SetUpFetchedParts, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, StartsWith, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, Read, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, ChangesSubject, ChangesSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, ChangesQueued, ChangesQueuedParts, ChangesQueue, ChangesQueueParts, ChangesLanded, ChangesLandedParts, ChangesPanel, ChangesPanelParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Foreman, ForemanParts, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, QuestionsRoute, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -21174,7 +21497,7 @@ mod golden_tests {
         };
         at && past
     }
-    static GOLDEN_0: [Case; 742] = [
+    static GOLDEN_0: [Case; 752] = [
         ("enum_role_owned_smallest", || { let value = Role::Owned; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Role::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_role_owned_full", || { let value = Role::Owned; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Role::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_role_adopted_smallest", || { let value = Role::Adopted; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Role::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -21917,6 +22240,16 @@ mod golden_tests {
         ("record_landing_rule_full", || { let value = LandingRule::new(&CEILINGS, LandingRuleParts { pattern: LandingPattern::new(&CEILINGS, LandingPatternParts { segments: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items }, last: LandingLast::Exact(LandingExact::new(&CEILINGS, LandingExactParts { value: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings"), enforce: true, ci: true, up_to_date: true, gates: { let mut items = skein_lib::List::with_capacity(1); items.push(RuleGate::new(&CEILINGS, RuleGateParts { number: u32::MAX, blocking: true, freshness: RuleFreshness::Exact }).expect("golden within ceilings")).expect("one slot"); items }, approvals: { let mut items = skein_lib::List::with_capacity(1); items.push(RuleApproval::new(&CEILINGS, RuleApprovalParts { role: u32::MAX, people: u32::MAX, freshness: RuleFreshness::Exact }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255, 1, 1, 1, 0, 0, 0, 1, 255, 255, 255, 255, 1, 0, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandingRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_charter_smallest", || { let value = ForgeCharter::new(&CEILINGS, ForgeCharterParts { charter: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeCharter::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_charter_full", || { let value = ForgeCharter::new(&CEILINGS, ForgeCharterParts { charter: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeCharter::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_questions_route_none_smallest", || { let value = QuestionsRoute::None; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, QuestionsRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_questions_route_none_full", || { let value = QuestionsRoute::None; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, QuestionsRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_questions_route_foreman_smallest", || { let value = QuestionsRoute::Foreman; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, QuestionsRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_questions_route_foreman_full", || { let value = QuestionsRoute::Foreman; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, QuestionsRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_questions_route_up_smallest", || { let value = QuestionsRoute::Up; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, QuestionsRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_questions_route_up_full", || { let value = QuestionsRoute::Up; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, QuestionsRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_questions_smallest", || { let value = ProjectQuestions::new(&CEILINGS, ProjectQuestionsParts { route: QuestionsRoute::None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectQuestions::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_questions_full", || { let value = ProjectQuestions::new(&CEILINGS, ProjectQuestionsParts { route: QuestionsRoute::None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectQuestions::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_ways_smallest", || { let value = ProjectWays::new(&CEILINGS, ProjectWaysParts { skein_bools: [false, false, false, false], way: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectWays::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_ways_full", || { let value = ProjectWays::new(&CEILINGS, ProjectWaysParts { skein_bools: [true, true, true, true], way: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 1, 1, 1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectWays::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
     ];
 
     #[test]

@@ -61,6 +61,8 @@ pub enum Shape {
     LandingPattern,
     LandingLast,
     ForgeCharter,
+    ProjectWays,
+    ProjectQuestions,
 }
 /// A shape's own row.
 #[derive(Debug)]
@@ -265,6 +267,8 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"rules" => Some(Shape::Rules),
         b"landing-rule" => Some(Shape::LandingRule),
         b"forge-charter" => Some(Shape::ForgeCharter),
+        b"project-ways" => Some(Shape::ProjectWays),
+        b"project-questions" => Some(Shape::ProjectQuestions),
         _ => None,
     }
 }

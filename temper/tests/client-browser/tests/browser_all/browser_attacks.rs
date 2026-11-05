@@ -31,6 +31,7 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
         see(tier.states().live),
         temper_client_browser_world::connected(),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Settings") }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Accounts") }),
         see(live.clone()),
     ];
     for origin in [0, 1] {
@@ -43,6 +44,7 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
             temper_client_browser_world::connected(),
             Step::Person(PersonStep::Gone { find: target.done.clone(), within: ABSENT }),
             Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Settings") }),
+            Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Accounts") }),
             see(live.clone()),
         ]);
     }

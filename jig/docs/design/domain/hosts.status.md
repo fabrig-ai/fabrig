@@ -1,6 +1,8 @@
 # hosts: status
 
 2026-11-05. Where jig's code lags or departs from [hosts.md](hosts.md).
+Section 6.3 has no gap in transcript refusal classification across the worker
+channel or in closing refused starts without an acknowledgement.
 
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.

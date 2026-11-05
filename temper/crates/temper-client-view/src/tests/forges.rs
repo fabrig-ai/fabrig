@@ -1,5 +1,6 @@
 #![allow(clippy::disallowed_types, clippy::disallowed_methods, reason = "tests inspect semantic trees")]
 use super::{connect_forge as cf, fixtures as f};
+use crate::look;
 use skein_lib::List;
 use skein_ui::{Act, Role, State};
 use temper_client_domain::ChatsFilter;
@@ -19,27 +20,44 @@ fn go(address: Address) -> d::Action {
 }
 #[test]
 fn the_forges_page_says_its_words_and_folds_each_row() {
-    let view = f::page_view(&root(Address::Forges, cf::connected()));
-    cf::words_in_order(
-        view.tree(),
-        &[
-            "Forges",
-            "Your forges 2",
-            "Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
-            "+ Add a forge",
-        ],
+    let (mut root, watch, ..) = f::root_at_with_forges(
+        Address::Forges,
+        &f::domain_limits(),
+        b"Shop",
+        None,
+        None,
+        Some(cf::rows(cf::connected(), w::Offer::Offered)),
     );
-    let row = view
-        .tree()
-        .nodes()
-        .iter()
-        .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
-        .unwrap();
-    assert!(!row.states.as_slice().contains(&State::Expanded));
-    assert_eq!(row.description.as_deref(), Some("forge 3 · Forgejo · Connected as temper".as_bytes()));
-    assert!(f::find(view.tree(), Role::Term, b"Account").is_some());
-    assert!(f::find(view.tree(), Role::Description, "temper · user 42".as_bytes()).is_some());
+    for project in [true, false] {
+        if !project {
+            let mut me = root.pages().me(root.client()).unwrap().clone();
+            me.projects.clear();
+            f::deliver_me(&mut root, watch, me);
+        }
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            cf::words_in_order(
+                view.tree(),
+                &[
+                    if project { "Where your code lives." } else { "Forges" },
+                    "Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
+                    "Your forges · 2",
+                    "+ Add a forge",
+                ],
+            );
+            let row = view
+                .tree()
+                .nodes()
+                .iter()
+                .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
+                .unwrap();
+            assert!(!row.states.as_slice().contains(&State::Expanded));
+            assert_eq!(row.description.as_deref(), Some("Forge 3 · Forgejo · Connected as temper".as_bytes()));
+            assert!(f::find(view.tree(), Role::Term, b"Account").is_some());
+            assert!(f::find(view.tree(), Role::Description, "temper · user 42".as_bytes()).is_some());
+        }
+    }
 }
+
 #[test]
 fn each_forgejo_mode_says_its_access_in_a_slot() {
     for (mode, words) in [
@@ -92,14 +110,14 @@ fn a_forge_row_opened_offers_its_action() {
     let root = root(Address::Forges, failed);
     assert_eq!(action(&root, Role::Button, b"Set up again"), d::Action::Forge(d::forge::Act::SetUp { forge: HERE }));
     let view = f::page_view(&root);
-    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_PRIMARY)));
+    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::FLOW_PRIMARY)));
     let row = view
         .tree()
         .nodes()
         .iter()
         .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
         .unwrap();
-    assert_eq!(row.description.as_deref(), Some("forge 3 · Forgejo · Set up failed: fetch failed".as_bytes()));
+    assert_eq!(row.description.as_deref(), Some("Forge 3 · Forgejo · Set up failed: fetch failed".as_bytes()));
     let root = self::root(Address::Forges, w::Connection::Connecting);
     assert_eq!(
         action(&root, Role::Link, "Open its set-up ›".as_bytes()),
@@ -120,7 +138,7 @@ fn a_forge_row_opened_offers_its_action() {
 fn no_forge_of_yours_yet_offers_connect_a_forge() {
     let root = f::forge_root(Address::Forges, List::with_capacity(0));
     let view = f::page_view(&root);
-    assert!(f::find(view.tree(), Role::Paragraph, b"No forge of yours yet.").is_some());
+    assert!(String::from_utf8_lossy(&f::text(view.tree())).contains("No forge of yours yet."));
     for name in [b"+ Add a forge".as_slice(), b"Connect a forge"] {
         assert_eq!(action(&root, Role::Link, name), go(Address::ConnectForge { forge: None }));
     }
@@ -128,10 +146,10 @@ fn no_forge_of_yours_yet_offers_connect_a_forge() {
 #[test]
 fn the_navigation_has_forges_with_its_dot_and_words() {
     for (connection, style, text) in [
-        (w::Connection::Connecting, crate::look::NAV_LIMITED, b"a forge is setting up".as_slice()),
+        (w::Connection::Connecting, look::NAV_LIMITED, b"a forge is setting up".as_slice()),
         (
             w::Connection::Stopped(w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: Box::default() }).unwrap()),
-            crate::look::NAV_NEEDS,
+            look::NAV_NEEDS,
             b"a forge needs you",
         ),
     ] {
@@ -144,7 +162,7 @@ fn the_navigation_has_forges_with_its_dot_and_words() {
                 .iter()
                 .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Settings"))
                 .unwrap();
-            assert!(!nav.states.as_slice().contains(&State::Current));
+            assert!(nav.states.as_slice().contains(&State::Current));
             let dot = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&style)).unwrap();
             assert_eq!(dot.role, Role::Text);
             assert_eq!(dot.text.get(0).unwrap().text.as_ref(), b" \xc2\xb7 ");
@@ -239,7 +257,7 @@ fn install_on_another_account_follows_an_accepted_installation() {
             .iter()
             .find(|node| node.role == Role::Button && node.name.as_deref() == Some(name))
             .unwrap();
-        let style = if accepted { crate::look::FLOW_SECONDARY } else { crate::look::FLOW_PRIMARY };
+        let style = if accepted { look::FLOW_SECONDARY } else { look::FLOW_PRIMARY };
         assert!(install.styles.as_slice().contains(&style));
         assert_eq!(
             action(&root, Role::Button, name),
@@ -555,7 +573,7 @@ fn forges_lists_the_playground_row_with_nothing_to_add() {
         view.tree()
             .nodes()
             .iter()
-            .filter(|n| n.role == Role::Disclosure && n.styles.as_slice().contains(&crate::look::FORGE_ROW))
+            .filter(|n| n.role == Role::Disclosure && n.styles.as_slice().contains(&look::SETTINGS_ROW))
             .count(),
         1
     );
@@ -776,4 +794,199 @@ fn a_connecting_answer_updates_the_row_before_the_watch() {
     let view = f::browser_page_view(&root);
     assert!(view.tree().nodes().iter().any(|node| node.role == Role::Disclosure
         && node.description.as_ref().is_some_and(|text| skein_lib::bytes::find(text, b"Connecting").is_some())));
+}
+
+fn styled(tree: &skein_ui::Tree, style: skein_ui::Style) -> &[skein_ui::Node] {
+    let (index, node) = tree.nodes().iter().enumerate().find(|(_, n)| n.styles.as_slice().contains(&style)).unwrap();
+    &tree.nodes()[index..index.checked_add(usize::try_from(node.size).unwrap()).unwrap()]
+}
+
+#[test]
+fn the_tab_draws_its_section_head_and_its_act_in_it() {
+    let root = root(Address::Forges, cf::connected());
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let section = styled(view.tree(), look::FORGES);
+        assert!(section[0].styles.as_slice().contains(&look::SETTINGS_SECTION));
+        let head = styled(view.tree(), look::SETTINGS_SECTION_HEAD);
+        assert_eq!(head[0].role, Role::Slot);
+        assert!(head.iter().any(|n| n.role == Role::Heading { level: 2 }
+            && n.name.as_deref() == Some("Your forges · 2".as_bytes())
+            && n.styles.as_slice().contains(&look::SETTINGS_SECTION_TITLE)));
+        let act = head.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"+ Add a forge")).unwrap();
+        assert!(act.styles.as_slice().contains(&look::SETTINGS_BTN));
+        assert!(act.styles.as_slice().contains(&look::SETTINGS_SMALL));
+    }
+    assert_eq!(action(&root, Role::Link, b"+ Add a forge"), go(Address::ConnectForge { forge: None }));
+    let root = f::playground_forges_root(Address::Forges, List::with_capacity(0));
+    let view = f::page_view(&root);
+    assert!(!styled(view.tree(), look::SETTINGS_SECTION_HEAD).iter().any(|n| n.role == Role::Link));
+}
+
+#[test]
+fn no_forge_is_a_quiet_band_and_an_unread_watch_claims_nothing() {
+    let root = f::forge_root(Address::Forges, List::with_capacity(0));
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let band = styled(view.tree(), look::SETTINGS_QUIET_BAND);
+        assert!(band[0].styles.as_slice().contains(&look::SETTINGS_BAND));
+        assert!(
+            band.iter().any(
+                |n| n.styles.as_slice().contains(&look::SETTINGS_TAG) && n.name.as_deref() == Some(b"No forge yet")
+            )
+        );
+        assert!(String::from_utf8_lossy(&f::text(view.tree())).contains("No forge of yours yet."));
+        let act = band.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Connect a forge")).unwrap();
+        assert!(act.styles.as_slice().contains(&look::SETTINGS_PRIMARY));
+        assert!(!act.styles.as_slice().contains(&look::SETTINGS_SMALL));
+    }
+    assert_eq!(action(&root, Role::Link, b"Connect a forge"), go(Address::ConnectForge { forge: None }));
+    let limits = f::domain_limits();
+    let mut unknown = d::unlinked(&limits, f::SEED);
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits };
+    let mut out = skein_lib::Queue::uncapped();
+    for event in [
+        d::Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
+        d::Event::Start {
+            address: Address::Forges,
+            kept: List::with_capacity(0),
+            with: Some(jig_client::With::Transport),
+        },
+        d::Event::Client {
+            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        },
+    ] {
+        d::step(&mut unknown, &env, event, &mut out);
+    }
+    let mut me_watch = None;
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open {
+                            watch,
+                            subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
+                        },
+                },
+        } = request
+        {
+            me_watch = Some(watch);
+        }
+    }
+    let template = f::forge_root(Address::Forges, List::with_capacity(0));
+    d::step(
+        &mut unknown,
+        &env,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch.unwrap(),
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
+                        template.pages().me(template.client()).unwrap().clone(),
+                    ))),
+                },
+            },
+        },
+        &mut out,
+    );
+    let mut forge_watch = false;
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
+        } = request
+        {
+            forge_watch |= Some(subject) == d::forge::forges::watch(&limits.forge);
+        }
+    }
+    assert!(forge_watch, "the forges watch is open and unanswered");
+    let view = f::page_view(&unknown);
+    assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"Your forges").is_some());
+    assert!(
+        !view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_BAND)
+            || n.styles.as_slice().contains(&look::SETTINGS_LINES))
+    );
+    assert!(f::find(view.tree(), Role::Link, b"+ Add a forge").is_none());
+}
+
+#[test]
+fn each_forge_is_a_folded_row_with_its_facts_as_settings() {
+    for rows in [
+        cf::rows(cf::connected(), w::Offer::Offered),
+        cf::github_rows(true),
+        cf::first_rows(cf::connected(), cf::made()),
+    ] {
+        let root = f::forge_root(Address::Forges, rows);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let lines = styled(view.tree(), look::SETTINGS_LINES);
+            let mut count = 0_usize;
+            for (index, row) in lines.iter().enumerate().filter(|(_, n)| n.role == Role::Disclosure) {
+                count += 1;
+                assert!(row.styles.as_slice().contains(&look::SETTINGS_ROW));
+                assert!(!row.states.as_slice().contains(&State::Expanded));
+                let body = &lines[index..index.checked_add(usize::try_from(row.size).unwrap()).unwrap()];
+                for (at, fact) in
+                    body.iter().enumerate().filter(|(_, n)| n.styles.as_slice().contains(&look::SETTINGS_SETTING))
+                {
+                    assert_eq!(fact.role, Role::Slot);
+                    let children = &body[at + 1..at.checked_add(usize::try_from(fact.size).unwrap()).unwrap()];
+                    assert_eq!(children[0].role, Role::Term);
+                    assert_eq!(children[usize::try_from(children[0].size).unwrap()].role, Role::Description);
+                }
+                for (at, _) in body.iter().enumerate().filter(|(_, n)| n.role == Role::Term) {
+                    assert!(body[at - 1].styles.as_slice().contains(&look::SETTINGS_SETTING));
+                }
+            }
+            assert!(count > 0);
+        }
+    }
+}
+
+fn assert_no_old_chrome(root: &d::Domain) {
+    for view in [f::page_view(root), f::browser_page_view(root)] {
+        for node in view.tree().nodes() {
+            for style in [look::CARD, look::PAGEBAR, look::HEADING, look::SUBTLE_COUNT] {
+                assert!(!node.styles.as_slice().contains(&style), "old chrome {style:?} on {:?}", node.name);
+            }
+        }
+    }
+}
+
+#[test]
+fn the_old_chrome_is_gone() {
+    for connection in [
+        w::Connection::NotConnected,
+        w::Connection::NotSetUp,
+        w::Connection::SettingUp(
+            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
+                .unwrap(),
+        ),
+        w::Connection::SetUpFailed(
+            w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"fetch failed".as_slice().into(), at: None })
+                .unwrap(),
+        ),
+        stopped(),
+        w::Connection::Connecting,
+        cf::connected(),
+    ] {
+        let mut root = root(Address::Forges, connection);
+        assert_no_old_chrome(&root);
+        replace_act(&mut root, d::forge::forges::Act::OpenReplace { forge: HERE });
+        assert_no_old_chrome(&root);
+        replace_act(&mut root, d::forge::forges::Act::Remove { forge: HERE });
+        assert_no_old_chrome(&root);
+    }
+    for rows in [
+        cf::github_rows(true),
+        cf::github_rows(false),
+        cf::first_rows(cf::connected(), cf::made()),
+        cf::first_rows(cf::connected(), w::FirstState::Making),
+        cf::first_rows(
+            cf::connected(),
+            w::FirstState::Failed(
+                w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::Repository }).unwrap(),
+            ),
+        ),
+    ] {
+        assert_no_old_chrome(&f::forge_root(Address::Forges, rows));
+    }
+    assert_no_old_chrome(&f::playground_forges_root(Address::Forges, List::with_capacity(0)));
 }

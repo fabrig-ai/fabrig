@@ -19,11 +19,6 @@
   deployment's help, and the fields alone (`forge/connect.rs` `body`,
   `Choice::Owned`). 5.4, Elsewhere: the dot leaving out the playground's
   forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
-  5.4, at Choose, with no welcome: "Start over" on a forge cut short ends
-  at the inbox, not the choices (`README.md`, 3.5):
-  `temper-client-domain`'s `forge/forges.rs` `removal_told` leaves for
-  `/welcome?at=forge` from `ConnectForge` too, and the welcome's guard
-  (`domain.rs` `welcome`) sends that on; no test holds it.
   6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:
   the reads of the forge's other parts.
