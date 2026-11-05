@@ -2,7 +2,7 @@
 use super::{
     Box, Limits, List, Reader, Wall, activity_line_fields, c, chip_ending_fields, chip_fields, cursor_fields,
     escalation_decision_record_fields, milestone_line_fields, object_key_fields, person_proposal_fields,
-    person_task_fields, piece_problem, proposal_decision_fields, proposal_history_fields, question_fields,
+    person_task_fields, proposal_decision_fields, proposal_history_fields, question_fields,
     result_fields, task_fields, too_large, w,
 };
 
@@ -27,21 +27,7 @@ pub(crate) fn ended_delegate_piece(
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
     for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(too_large());
-        }
+        let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::EndedDelegate::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = ended_delegate_fields(&row, limits)?;
         if rows.push(row).is_err() {
