@@ -138,7 +138,10 @@ fn a_decided_answer_is_rendered_as_smiths_text() {
     assert_eq!(to, TO);
     assert_eq!(
         answer,
-        core::SettledAnswer::Host { error: false, body: b"Note 4 revision 2 written".as_slice().into() }
+        core::SettledAnswer::Host {
+            error: false,
+            body: "Note 4 revision 2 written · +2 −1 · line 2".as_bytes().into()
+        }
     );
 }
 #[test]

@@ -5,8 +5,6 @@ The remaining gaps concern settings reads, verdict follow-up tasks,
 change-refusal model wording and shell authority for runs that cannot deliver.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
 
-- **Not yet:** 8.3: a chat's document: its authority's note scope, its
-  instructions and its tool's answer's words.
 - **Not yet:** 4.4: a verdict's follow-up tasks. 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`), since jig's `setting` read names jig's kinds and an application's alone (jig's `client/domain/contract.md`, 5.1), so the configuring agent proposes a project's policy without reading it first.
 - **Not yet:** 4.3.1: a change's refusal omits which model its charter
   refused, because `temper-engine-smith/src/answers.rs` renders
