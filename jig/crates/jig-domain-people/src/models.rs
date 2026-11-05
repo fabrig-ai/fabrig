@@ -152,178 +152,113 @@ pub fn remap_models(ask: &mut Ask, moved: &[u64; 64]) {
     }
 }
 
-fn authority_bits(value: &Authority) -> u64 {
-    match value.models {
-        Some(Models::Named(bits)) => bits,
-        Some(Models::All) | None => 0,
+/// Named references and explicit presence are independent: ALL and NONE both select explicitly.
+struct Selectors {
+    bits: u64,
+    any: bool,
+}
+
+impl Selectors {
+    fn authority(&mut self, value: &Authority) {
+        match value.models {
+            Some(Models::Named(bits)) => {
+                self.bits |= bits;
+                self.any = true;
+            }
+            Some(Models::All) => self.any = true,
+            None => {}
+        }
+    }
+    fn amendment(&mut self, value: &Amendment) {
+        if let Some(authority) = &value.authority {
+            self.authority(authority);
+        }
+    }
+    fn members(&mut self, values: &[Member]) {
+        for value in values {
+            self.authority(&value.authority);
+        }
     }
 }
-fn amendment_bits(value: &Amendment) -> u64 {
-    match &value.authority {
-        Some(value) => authority_bits(value),
-        None => 0,
+
+fn selectors(ask: &Ask) -> Selectors {
+    let mut selected = Selectors { bits: 0, any: false };
+    match ask {
+        Ask::Create { batch, .. } => selected.members(batch),
+        Ask::Amend { amendment, .. } => selected.amendment(amendment),
+        Ask::Propose { action, .. } => match action {
+            Action::Batch(batch) => selected.members(batch),
+            Action::Amend { amendment, .. } => selected.amendment(amendment),
+            Action::Settings { .. } => {},
+        },
+        Ask::Compound { operations, .. } => {
+            for operation in operations {
+                match operation {
+                    Operation::Amend { amendment, .. } => selected.amendment(amendment),
+                    Operation::Cancel { .. }
+                    | Operation::Move { .. }
+                    | Operation::Release { .. }
+                    | Operation::Message { .. }
+                    | Operation::Stop { .. } => {}
+                }
+            }
+        }
+        Ask::ChangePolicy { change, .. } => match change {
+            PolicyChange::Role(role) => selected.authority(&role.authority),
+            PolicyChange::RoleSpend { .. }
+            | PolicyChange::ProjectSpend { .. }
+            | PolicyChange::Requirements { .. }
+            | PolicyChange::Projections { .. }
+            | PolicyChange::Permissions { .. }
+            | PolicyChange::Templates { .. } => {},
+        },
+        Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
+        | Ask::Restore { .. }
+        | Ask::Rename { .. }
+        | Ask::MakeProject { .. }
+        | Ask::ChangeSettings { .. }
+        | Ask::MoveToNewest { .. }
+        | Ask::MarkSeen { .. }
+        | Ask::Application { .. }
+        | Ask::EditNote { .. }
+        | Ask::MakeService { .. }
+        | Ask::Adopt { .. }
+        | Ask::Withdraw { .. }
+        | Ask::Stop { .. }
+        | Ask::Cancel { .. }
+        | Ask::Lift { .. }
+        | Ask::Release { .. }
+        | Ask::TakePerson { .. }
+        | Ask::HandBackPerson { .. }
+        | Ask::AnswerPerson { .. }
+        | Ask::Move { .. }
+        | Ask::DecideProposal { .. }
+        | Ask::Say { .. }
+        | Ask::AnswerQuestion { .. }
+        | Ask::SetRoles { .. }
+        | Ask::SetPool { .. }
+        | Ask::DecideEscalation { .. }
+        | Ask::AccountSignIn { .. }
+        | Ask::AccountSignOut { .. }
+        | Ask::AccountChange { .. } => {},
     }
+    selected
 }
-fn members_bits(values: &[Member]) -> u64 {
-    let mut bits = 0;
-    for value in values {
-        bits |= authority_bits(&value.authority);
-    }
-    bits
-}
+
 /// The original context contains exactly the names referenced by frozen selectors.
 #[must_use]
 pub fn valid_model_context(ask: &Ask, names: &[Box<[u8]>]) -> bool {
     if !valid_model_names(names) {
         return false;
     }
-    let bits = match ask {
-        Ask::Create { batch, .. } => members_bits(batch),
-        Ask::Amend { amendment, .. } => amendment_bits(amendment),
-        Ask::Propose { action, .. } => match action {
-            Action::Batch(batch) => members_bits(batch),
-            Action::Amend { amendment, .. } => amendment_bits(amendment),
-            Action::Settings { .. } => 0,
-        },
-        Ask::Compound { operations, .. } => {
-            let mut bits = 0;
-            for operation in operations {
-                match operation {
-                    Operation::Amend { amendment, .. } => bits |= amendment_bits(amendment),
-                    Operation::Cancel { .. }
-                    | Operation::Move { .. }
-                    | Operation::Release { .. }
-                    | Operation::Message { .. }
-                    | Operation::Stop { .. } => {}
-                }
-            }
-            bits
-        }
-        Ask::ChangePolicy { change, .. } => match change {
-            PolicyChange::Role(role) => authority_bits(&role.authority),
-            PolicyChange::RoleSpend { .. }
-            | PolicyChange::ProjectSpend { .. }
-            | PolicyChange::Requirements { .. }
-            | PolicyChange::Projections { .. }
-            | PolicyChange::Permissions { .. }
-            | PolicyChange::Templates { .. } => 0,
-        },
-        Ask::RemoveProject { .. }
-        | Ask::SetVisibility { .. }
-        | Ask::Restore { .. }
-        | Ask::Rename { .. }
-        | Ask::MakeProject { .. }
-        | Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::Application { .. }
-        | Ask::EditNote { .. }
-        | Ask::MakeService { .. }
-        | Ask::Adopt { .. }
-        | Ask::Withdraw { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Lift { .. }
-        | Ask::Release { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Move { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::SetRoles { .. }
-        | Ask::SetPool { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => 0,
-    };
     let mask = u64::MAX
         .checked_shr(u32::try_from(64_usize.checked_sub(names.len()).expect("bounded context")).expect("bounded names"))
         .unwrap_or(0);
-    bits == mask
+    selectors(ask).bits == mask
 }
 
 /// Application parts have no model-name carrier; explicit selectors need that capability.
 pub(crate) fn has_model_selector(ask: &Ask) -> bool {
-    match ask {
-        Ask::Create { batch, .. } => members_have_selector(batch),
-        Ask::Amend { amendment, .. } => amendment_has_selector(amendment),
-        Ask::Propose { action, .. } => match action {
-            Action::Batch(batch) => members_have_selector(batch),
-            Action::Amend { amendment, .. } => amendment_has_selector(amendment),
-            Action::Settings { .. } => false,
-        },
-        Ask::Compound { operations, .. } => {
-            for operation in operations {
-                match operation {
-                    Operation::Amend { amendment, .. } => {
-                        if amendment_has_selector(amendment) {
-                            return true;
-                        }
-                    }
-                    Operation::Cancel { .. }
-                    | Operation::Move { .. }
-                    | Operation::Release { .. }
-                    | Operation::Message { .. }
-                    | Operation::Stop { .. } => {}
-                }
-            }
-            false
-        }
-        Ask::ChangePolicy { change, .. } => match change {
-            PolicyChange::Role(role) => role.authority.models.is_some(),
-            PolicyChange::RoleSpend { .. }
-            | PolicyChange::ProjectSpend { .. }
-            | PolicyChange::Requirements { .. }
-            | PolicyChange::Projections { .. }
-            | PolicyChange::Permissions { .. }
-            | PolicyChange::Templates { .. } => false,
-        },
-        Ask::RemoveProject { .. }
-        | Ask::SetVisibility { .. }
-        | Ask::Restore { .. }
-        | Ask::Rename { .. }
-        | Ask::MakeProject { .. }
-        | Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::Application { .. }
-        | Ask::EditNote { .. }
-        | Ask::MakeService { .. }
-        | Ask::Adopt { .. }
-        | Ask::Withdraw { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Lift { .. }
-        | Ask::Release { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Move { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::SetRoles { .. }
-        | Ask::SetPool { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => false,
-    }
-}
-fn members_have_selector(batch: &[Member]) -> bool {
-    for member in batch {
-        if member.authority.models.is_some() {
-            return true;
-        }
-    }
-    false
-}
-fn amendment_has_selector(amendment: &Amendment) -> bool {
-    match &amendment.authority {
-        Some(authority) => authority.models.is_some(),
-        None => false,
-    }
+    selectors(ask).any
 }
