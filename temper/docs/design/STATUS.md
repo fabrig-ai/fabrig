@@ -53,8 +53,10 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
-(`domain/forge.md`); so do How work runs' controls for a person with a
-project's role alone, its stored way, which a goal's start does not read,
+(`domain/forge.md`); so do Start goal's sheet, which no page opens, a live
+goal's walk, which the fake box's model cannot script, How work runs'
+controls for a person with a project's role alone, its stored way, which
+a goal's start does not read,
 and its drafts, which no chat offers yet, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
