@@ -274,6 +274,13 @@ pub enum CompletionTerminal {
     Cancelled,
 }
 
+/// The provider call that submits the next delivery, independent of its fields.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DeliveryCall {
+    MidRun,
+    Finish,
+}
+
 /// The agent on a typed scripted host. [`World::run`]
 /// drives every boundary to settlement, then checks its ledgers, referee and facts.
 /// The backend owns the typed provider state and queues.
@@ -290,6 +297,7 @@ pub struct World<B: Backend = Typed> {
     backend: B,
     parent_deliveries: bool,
     parent_host_calls: bool,
+    delivery_call: DeliveryCall,
     host_run: Token,
     reply_to: Token,
     delivery_submissions: Vec<DeliverySubmission>,
@@ -437,8 +445,7 @@ impl<B: Backend> World<B> {
         };
         let root = workspace
             .as_ref()
-            .and_then(|workspace| workspace.directories.first())
-            .map(|directory| directory.root.raw());
+            .and_then(|workspace| workspace.directories.first().map(|directory| directory.root.raw()));
         backend.contract(charter.outcome.clone(), charter.grants.deliver.clone());
         let observed_contract = charter.outcome.clone();
         let delivery = charter.grants.deliver.is_some();
@@ -481,6 +488,7 @@ impl<B: Backend> World<B> {
             backend,
             parent_deliveries: false,
             parent_host_calls: false,
+            delivery_call: DeliveryCall::MidRun,
             host_run,
             reply_to,
             delivery_submissions: Vec::new(),
@@ -1151,8 +1159,8 @@ impl<B: Backend> World<B> {
                 self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }));
             }
             Request::Deliver { host_run, owner, change, name, deadline } => {
-                // Title/body are this fixture host's final-Change policy only.
-                // The Report-only mid-run fixture instead requires opaque ticket.
+                // The fixture host takes title/body for change deliveries and
+                // an opaque ticket for its report-only delivery policy.
                 let required: &[&[u8]] = if change.fields.iter().any(|field| field.name.as_ref() == b"ticket") {
                     &[b"ticket"]
                 } else {
@@ -1169,7 +1177,7 @@ impl<B: Backend> World<B> {
                 assert_eq!(host_run, self.host_run, "the push names the scripted host's request");
                 self.delivery_names.push((name, self.now));
                 let tree = self.code();
-                let finishing = !change.fields.iter().any(|field| field.name.as_ref() == b"ticket");
+                let finishing = self.delivery_call == DeliveryCall::Finish;
                 self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing });
                 self.snapshots.insert(owner, tree);
                 self.flights.open(
@@ -1429,6 +1437,15 @@ impl<B: Backend> World<B> {
     fn observe_completion_terminal(&mut self, index: usize, event: &Event) {
         let outcome = match event {
             Event::Below(smith_domain::Below::Completed { completion, .. }) => {
+                for said in &completion.content {
+                    if let llm::Said::ToolCall { call: llm::Decoded::Served { ask }, .. } = said {
+                        match ask {
+                            run::Ask::Finish { .. } => self.delivery_call = DeliveryCall::Finish,
+                            run::Ask::Deliver { .. } => self.delivery_call = DeliveryCall::MidRun,
+                            run::Ask::Host { .. } | run::Ask::SubAgent { .. } | run::Ask::Wait => {}
+                        }
+                    }
+                }
                 let usage = completion.usage;
                 CompletionTerminal::Completed(usage)
             }

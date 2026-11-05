@@ -6,17 +6,17 @@ A change is a task that writes one repository's branch and lands it: its pull re
 
 ## What it is
 
-- **A change task** is delegated with `change`: words,
-  and a repository when several may be written. Its coder reads only
-  those words (temper help task).
-  With control it also names `landing` (`goal`, a
+- **A change task** takes `change`'s words and repository. Its coder reads
+  only those words (temper help task).
+  With control: `landing` (`goal`, a
   branch, or the default), `branch` (`mine`: its whole goal branch),
   `after` (task numbers or names from the same call it waits for), `merge` (a catch-up), `repairs` (the red landing
   commit from news: temper help tier), `changes` (one batch), `producer` (the charter number for its coder,
   repairs and resolutions; default: the forge's change charter) and
-  `llm` (its `producer` and `review` choices, by configured model and
-  effort names, defaulting to its charter's), and `questions`
+  `llm` (`producer` and `review` model and effort names; default: its charter's),
+  and `questions`
   (`foreman`, `up`, or `none`, the default: how its producer's questions go).
+  Answered producers retain delivered work and merge the moved goal tip.
 - **Its title:** the coder's, punctuation kept, cut at a UTF-8 boundary
   with “…” where needed.
 - **Its panel:** task, repository, branch, base, pull URL, step, CI,
