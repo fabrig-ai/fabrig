@@ -1206,6 +1206,7 @@ fn folded_calls(
     }
     b.open(Role::Disclosure);
     b.style(look::WORK);
+    b.style(look::TURN_TOOL);
     b.name(&count);
     b.description(&description.finish());
     for block in blocks {

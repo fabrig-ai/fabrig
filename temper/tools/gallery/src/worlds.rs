@@ -984,7 +984,18 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         c::Read::Activity { task: number, before } => {
             Some(c::ReadValue::Activity(Box::new(activity_window(w, *number, before.as_ref()))))
         }
-        c::Read::Proposal { .. } => Some(proposal()),
+        c::Read::Proposal { .. } => {
+            let mut value = proposal();
+            if then == Then::HeldTask
+                && let c::ReadValue::Proposal(proposal) = &mut value
+            {
+                let task = shown_task(Solo, 3, Then::Held);
+                proposal.reason = doc("The CSV import task is held after its run failed. Release it to try again.");
+                proposal.action = c::ProposalAction::Release { task: c::TaskLink::Live(task.chip), hold: task.hold };
+                proposal.funding = List::with_capacity(0);
+            }
+            Some(value)
+        }
         c::Read::Question { .. } => Some(c::ReadValue::Question(Box::new(c::Question {
             task: document(Solo, 3).chip,
             from: Some(c::Requester::Task(3)),
@@ -2545,6 +2556,9 @@ fn accounts(w: World, then: Then) -> c::Accounts {
             }),
             Then::Shown
             | Then::Working
+            | Then::DelegatedGoal
+            | Then::HeldChange
+            | Then::HeldTask
             | Then::Filled
             | Then::Refused
             | Then::SignedOut
@@ -2881,7 +2895,14 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
         *phase = c::ChipPhase::Active(c::RunStage::Due);
         t.waits_on = c::WaitsOn::Nothing;
     }
-    if then == Then::Held || then == Then::Releasing {
+    if then == Then::DelegatedGoal && task == 2 {
+        t.priority = Some(1);
+        t.chip.executor = c::ChipExecutor::Agent { charter: 2 };
+        t.chip.title = doc("Keep widget's CSV export reliable");
+        t.flags.conversation = false;
+        t.flags.listed = true;
+    }
+    if then == Then::Held || then == Then::Releasing || (then == Then::HeldChange && task == 2) {
         t.goal = Some(task);
         t.flags.conversation = false;
         t.flags.listed = true;

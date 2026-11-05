@@ -28,10 +28,10 @@ impl Limits {
         let text = text.max(3400);
         let markdown = skein_ui::markdown::max_nodes(receiving.text)?;
         let cards = card_nodes(receiving, markdown)?;
-        // Each watched task has one card at its first anchor: fourteen structural
+        // Each watched task has one card at its first anchor: sixteen structural
         // nodes plus the result's markdown, and one region for live delegates.
         let delegations = temper_client_domain::pages::delegation::bound(domain);
-        let delegated = markdown.checked_add(14)?.checked_mul(delegations)?.checked_add(1)?;
+        let delegated = markdown.checked_add(16)?.checked_mul(delegations)?.checked_add(1)?;
         // Both chat and agent pages price a committed turn by turn_text; fields
         // and cards retain text. One turn node holds at most turn_text bytes.
         // A decoded turn shares text across texts, names, inputs, outcomes and
@@ -191,7 +191,8 @@ fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32
         .checked_add(authority)?
         .checked_add(receiving.rows.checked_mul(16)?)?
         .checked_add(32)?;
-    let card = proposed.checked_mul(receiving.rows)?.checked_add(128)?;
+    // Conversation controls share one slot.
+    let card = proposed.checked_mul(receiving.rows)?.checked_add(129)?;
     let cards = card.checked_mul(receiving.reads.checked_add(1)?)?;
     Some(cards)
 }

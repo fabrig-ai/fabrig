@@ -1102,6 +1102,44 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Paragraph, name: "T7 found it" }],
     },
     Holds {
+        name: "chat-held-task",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "The CSV import task is held" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "chat-change-running",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Task 2" },
+            Part::Named { role: Role::Paragraph, name: "Change" },
+            Part::Named { role: Role::Status, name: "Running" },
+        ],
+    },
+    Holds {
+        name: "chat-change-landed",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "CI passed. Landed" },
+            Part::Named { role: Role::Status, name: "Landed" },
+        ],
+    },
+    Holds {
+        name: "chat-change-held",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[Part::Named { role: Role::Status, name: "Held" }],
+    },
+    Holds {
+        name: "chat-goal",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Started goal" },
+            Part::Named { role: Role::Link, name: "Task 2" },
+        ],
+    },
+    Holds {
         name: "chat-first-run-2-T1",
         heading: "T1 · Add CSV export to widget",
         parts: &[
@@ -1307,13 +1345,18 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 13] = [
+const SPENDS: [(&str, Role, &str); 18] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
+    ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
     ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
     ("chat-working", Role::Paragraph, "1 spent · of 40"),
+    ("chat-change-running", Role::Paragraph, "0 spent · of 20"),
+    ("chat-change-landed", Role::Paragraph, "0 spent · of 20"),
+    ("chat-change-held", Role::Paragraph, "0 spent · of 20"),
+    ("chat-goal", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-2-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-3-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-4-T4", Role::Paragraph, "0 spent · of 20"),

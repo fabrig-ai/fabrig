@@ -21,6 +21,9 @@ pub enum World {
 pub enum Then {
     Shown,
     Working,
+    DelegatedGoal,
+    HeldChange,
+    HeldTask,
     Filled,
     Refused,
     SignedOut,
@@ -69,7 +72,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 147;
+pub const N: usize = 152;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -408,6 +411,21 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-byline-open", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
         Sample { name: "chat-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
+        Sample { name: "chat-held-task", world: Solo, address: Address::Chat { task: 10 }, then: Then::HeldTask },
+        first_chat("chat-change-running", 2, 1),
+        first_chat("chat-change-landed", 3, 1),
+        Sample {
+            name: "chat-change-held",
+            world: FirstRun { step: 2 },
+            address: Address::Chat { task: 1 },
+            then: Then::HeldChange,
+        },
+        Sample {
+            name: "chat-goal",
+            world: FirstRun { step: 2 },
+            address: Address::Chat { task: 1 },
+            then: Then::DelegatedGoal,
+        },
         first_chat("chat-first-run-2-T1", 2, 1),
         first_chat("chat-first-run-3-T1", 3, 1),
         first_chat("chat-first-run-4-T4", 4, 4),
@@ -590,6 +608,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::SignInRefused => "#other-states-refused",
             Then::Shown
             | Then::Working
+            | Then::DelegatedGoal
+            | Then::HeldChange
+            | Then::HeldTask
             | Then::Filled
             | Then::Refused
             | Then::SignedOut
@@ -715,7 +736,7 @@ pub fn domain(sample: &Sample) -> Domain {
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
     match sample.then {
-        Then::Shown | Then::Working | Then::Held => {}
+        Then::Shown | Then::Working | Then::Held | Then::DelegatedGoal | Then::HeldChange | Then::HeldTask => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(

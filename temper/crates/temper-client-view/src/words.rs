@@ -672,6 +672,13 @@ pub enum Word {
     PlaygroundTryAgain,
 
     SuggestedRequests,
+    DelegationOpen,
+    DelegationLineChange,
+    DelegationLineGoal,
+    DelegationLineReport,
+    DelegationLineVerdict,
+    DelegationLineJob,
+    DelegationLineApproval,
     DelegationChange,
     DelegationReport,
     DelegationVerdict,
@@ -984,7 +991,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Byline forms add six phrases (client/README.md, 5.5).
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
 // The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
-const PHRASES: u32 = 1476;
+// Delegation lines add seven literal phrases (client/README.md, 5.7).
+const PHRASES: u32 = 1483;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1002,8 +1010,9 @@ const PHRASES: u32 = 1476;
 // Goal rows, ways and page add sixty-three segments (client/README.md, 3.5).
 // Byline forms add twenty-eight segments (client/README.md, 5.5).
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
-const SEGMENTS: u32 = 2592;
-const ALL: [Word; 880] = [
+// Delegation lines add seven literal segments (client/README.md, 5.7).
+const SEGMENTS: u32 = 2599;
+const ALL: [Word; 887] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1648,6 +1657,13 @@ const ALL: [Word; 880] = [
     Word::PlaygroundNotConnected,
     Word::PlaygroundTryAgain,
     Word::SuggestedRequests,
+    Word::DelegationOpen,
+    Word::DelegationLineChange,
+    Word::DelegationLineGoal,
+    Word::DelegationLineReport,
+    Word::DelegationLineVerdict,
+    Word::DelegationLineJob,
+    Word::DelegationLineApproval,
     Word::DelegationChange,
     Word::DelegationReport,
     Word::DelegationVerdict,
@@ -2568,6 +2584,13 @@ impl Word {
 
             Self::SuggestedRequests => 192,
             // 194 is DeadlineMoment; 200..=267 and 280..=281 are card words.
+            Self::DelegationOpen => 2300,
+            Self::DelegationLineChange => 2301,
+            Self::DelegationLineGoal => 2302,
+            Self::DelegationLineReport => 2303,
+            Self::DelegationLineVerdict => 2304,
+            Self::DelegationLineJob => 2305,
+            Self::DelegationLineApproval => 2306,
             Self::DelegationChange => 195,
             Self::DelegationReport => 196,
             Self::DelegationVerdict => 197,
@@ -3573,6 +3596,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBack => (&[b"\xe2\x80\xb9 Back"], &[]),
         Word::WelcomePlaygroundInstead => (&[b"Try the playground instead"], &[]),
 
+        Word::DelegationOpen => (&[b"Open"], &[]),
+        Word::DelegationLineChange => (&[b"Change"], &[]),
+        Word::DelegationLineGoal => (&[b"Started goal"], &[]),
+        Word::DelegationLineReport => (&[b"report"], &[]),
+        Word::DelegationLineVerdict => (&[b"verdict"], &[]),
+        Word::DelegationLineJob => (&[b"job"], &[]),
+        Word::DelegationLineApproval => (&[b"approval"], &[]),
         Word::DelegationChange => (&[b"T", b" \xc2\xb7 CHANGE"], &[Number]),
         Word::DelegationReport => (&[b"T", b" \xc2\xb7 REPORT"], &[Number]),
         Word::DelegationVerdict => (&[b"T", b" \xc2\xb7 VERDICT"], &[Number]),
