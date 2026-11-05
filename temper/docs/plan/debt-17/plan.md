@@ -11,12 +11,14 @@ plan's base and is still open. D003 reads 86, not the item's 97.
 | skein D034 | `codec-once` | `codec-once` | | medium | 15 | `build.rs`, `names.rs`, the `#[path]` go |
 | skein D044 | `terminal-namespace` | `terminal-namespace` | | medium | 20 | namespace 4 of `Token::tagged`, the same bit |
 | skein D003 | `env-with` | `env-with` | | medium | 40 | 75 sites onto `Env::with` and `Now::with` |
+| skein D005 | `civil-date` | `civil-date` | | high | 60 | `Civil` and `Wall::civil` in lib; ui, http and forge on it |
+| skein D006 | `lru` | `lru` | | high | 50 | `skein_lib::Lru`; both dialects' tables on it |
 
-Still to come in later pushes: skein D005, D006, D008, D019, D026 and jig D027, each surveyed first.
+Still to come in later pushes: skein D008, D019, D026 and jig D027, each surveyed first.
 
 ## Critical path
 
-Nothing here waits on anything yet: `env-with`, 40 minutes.
+Nothing here waits on anything yet: `civil-date`, 60 minutes.
 
 ## Decisions
 
@@ -32,6 +34,19 @@ Nothing here waits on anything yet: `env-with`, 40 minutes.
   Three in `skein-fake-forge-github/src/server.rs` must not convert, since tests move those clocks apart. The spec's narrower
   search reads 0 after, and `env-with` also takes the 15 `Now` rewraps the old measure counted, since `Now::with` is the same
   one line.
+
+- **IMF-fixdate's read stays in skein-forge.** The item puts it in skein-http, but skein-forge, its one reader, takes only lib
+  and json (`skein/docs/design/forge.md`, 2.1). Only the arithmetic and the month names move to lib. `skein-http` keeps the
+  write, and `skein_ui::date` keeps its public names as delegates, since jig reads them and this plan stays in skein.
+- **`Civil::days` is signed.** `skein_forge::time::read` accepts a date just outside `Wall` when its offset brings it in, and
+  going through `Civil::wall` would have refused it without a test noticing. The spec adds the pins.
+- **`Lru` is a pair of B-trees,** after `Deadlines`, not today's scan. The price is a few nodes in tables of at most 16 rows;
+  the forge's memory ceilings stay unmoved, and the task stops and asks if one trips. Two unreachable panics in Forgejo's
+  table go (capacity 0, clock exhaustion); the spec names them.
+- **`users.rs` stays, as an alias.** `forge.md`, 4.4 and `forge-github.md` name the root's logins' table, and the latter is
+  read by tests.
+- **temper's own calendars stay.** Six in `temper-box`, `temper-client-domain`, `temper-client-view` and
+  `temper-client-tools`: the item is skein's, and fabrig/ui has priority over those crates. They're worth an item of temper's.
 
 ## Overlaps
 

@@ -1276,9 +1276,7 @@ pub struct Limits {
   itself: no service forgets it, and none writes it twice. Its length is
   fixed, so the answers stay of a fixed length and the longest of them,
   and the least `Limits::response`, grows by its 37 bytes. The date is
-  reckoned with integers alone, by whole 400-year cycles of the
-  Gregorian calendar (Howard Hinnant's `civil_from_days`), as no `std`
-  is at hand. A 100 (Continue) carries none, as 6.6.1 allows of a 1xx.
+  lib's `Wall::civil` (lib.md, 8). A 100 (Continue) carries none, as 6.6.1 allows of a 1xx.
   Reason phrases are the standard's, or none.
 - **Each event or comment the writer writes is a block of its own,**
   ended by a blank line, so a reader's count starts over at each, and

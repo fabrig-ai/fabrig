@@ -47,3 +47,29 @@ id = 2
 story = "no skein code rebuilds an Env from another's clocks"
 parts = ["env-with"]
 walk = false
+
+[[part]]
+id = "civil-date"
+title = "one civil date on Wall serves the ui, the server's Date and the forge's times (skein D005)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 8"
+
+[[slice]]
+id = 3
+story = "skein converts days to a date in one place"
+parts = ["civil-date"]
+walk = false
+
+[[part]]
+id = "lru"
+title = "one bounded least-recently-used table in lib, and the forge's tables on it (skein D006)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 5"
+
+[[slice]]
+id = 4
+story = "both dialects' tables stand on lib's Lru"
+parts = ["lru"]
+walk = false
