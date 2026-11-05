@@ -31,13 +31,22 @@ fn first_object(name: &str) -> c::ObjectKey {
 fn entries(name: &str) -> List<c::InboxEntry> {
     let mut entries = List::with_capacity(3);
     for task in 1..=3 {
-        entries.push(documents::entry(if task == 1 { first_object(name) } else { object(task) }, 1, task, Wall::EPOCH, None)).expect("three questions");
+        entries
+            .push(documents::entry(
+                if task == 1 { first_object(name) } else { object(task) },
+                1,
+                task,
+                Wall::EPOCH,
+                None,
+            ))
+            .expect("three questions");
     }
     entries
 }
 fn act(root: &mut Domain, act: needs::Act, out: &mut Queue<Request>) {
     driver::step(root, Event::Act { action: Action::Pages(Act::Needs(act)) }, out);
 }
+#[expect(clippy::too_many_lines, reason = "one fixture answers each card kind through the domain's read requests")]
 pub fn domain(name: &str) -> Domain {
     let source = worlds::world(World::Solo, Address::Inbox { filter: Filter::ALL }, Then::Shown).0;
     let mut me = source.pages().me(source.client()).expect("fixture me").clone();
@@ -46,7 +55,8 @@ pub fn domain(name: &str) -> Domain {
     me.needs = c::Needs {
         questions: if name == "needs-proposal" || name == "needs-held" || name == "needs-funds" { 2 } else { 3 },
         proposals: u32::from(name == "needs-proposal"),
-        escalations: u32::from(name == "needs-held" || name == "needs-funds"), person_tasks: 0,
+        escalations: u32::from(name == "needs-held" || name == "needs-funds"),
+        person_tasks: 0,
     };
     let prototype = source
         .pages()
@@ -130,9 +140,16 @@ pub fn domain(name: &str) -> Domain {
                 driver::answer(&mut root, read, c::ReadValue::Question(Box::new(q)), &mut out);
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { .. }) } => {
-                let mut p = source.pages().inbox().expect("source inbox").cards.iter().find_map(|card| {
-                    if let Some(c::ReadValue::Proposal(p)) = &card.page { Some(p.as_ref().clone()) } else { None }
-                }).expect("source proposal");
+                let mut p = source
+                    .pages()
+                    .inbox()
+                    .expect("source inbox")
+                    .cards
+                    .iter()
+                    .find_map(|card| {
+                        if let Some(c::ReadValue::Proposal(p)) = &card.page { Some(p.as_ref().clone()) } else { None }
+                    })
+                    .expect("source proposal");
                 p.key = c::ProposalKey { proposer: c::Proposer::Task(1), number: 1 };
                 p.reason = text("Accept how temper will run your work. New work follows this plan.");
                 driver::answer(&mut root, read, c::ReadValue::Proposal(Box::new(p)), &mut out);
@@ -167,7 +184,12 @@ fn actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
 }
 
 fn escalation(name: &str) -> c::Escalation {
-    let source = worlds::world(World::Solo, Address::Task { task: 3, filter: temper_client_domain::PlanFilter::All }, Then::Held).0;
+    let source = worlds::world(
+        World::Solo,
+        Address::Task { task: 3, filter: temper_client_domain::PlanFilter::All },
+        Then::Held,
+    )
+    .0;
     let mut task = source.pages().task().expect("task page").document(source.client()).expect("task").clone();
     task.chip.task = 1;
     task.chip.title = text("first-run-projects");
@@ -175,11 +197,21 @@ fn escalation(name: &str) -> c::Escalation {
     task.budget.numbers.spent = 31;
     task.budget.numbers.budget = 40;
     let hold = task.hold.as_mut().expect("held fixture");
-    hold.reason = if name == "needs-funds" { c::HoldCategory::Budget } else { c::HoldCategory::Failures { class: c::HoldFailure::Run } };
+    hold.reason = if name == "needs-funds" {
+        c::HoldCategory::Budget
+    } else {
+        c::HoldCategory::Failures { class: c::HoldFailure::Run }
+    };
     hold.words = Some(text("Without release the goal stops after they land, with the Ready page undone."));
     // The escalation's offers are independent of its task's offers.
     let mut acts = List::with_capacity(2);
-    acts.push(c::Offered { act: c::ActKind::Release, admission: c::Admission::Allowed, effect: Some(c::Effect::Release(c::ReleaseEffect::RunAgain)) }).expect("release");
-    acts.push(c::Offered { act: c::ActKind::LeaveHeld, admission: c::Admission::Allowed, effect: None }).expect("leave held");
+    acts.push(c::Offered {
+        act: c::ActKind::Release,
+        admission: c::Admission::Allowed,
+        effect: Some(c::Effect::Release(c::ReleaseEffect::RunAgain)),
+    })
+    .expect("release");
+    acts.push(c::Offered { act: c::ActKind::LeaveHeld, admission: c::Admission::Allowed, effect: None })
+        .expect("leave held");
     c::Escalation { task: Box::new(task), acts }
 }

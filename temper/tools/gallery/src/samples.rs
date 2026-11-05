@@ -248,24 +248,9 @@ pub fn samples() -> [Sample; N] {
             address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
             then: Shown,
         },
-        Sample {
-            name: "needs-proposal",
-            world: Solo,
-            address: Address::Inbox { filter: Filter::ALL },
-            then: Shown,
-        },
-        Sample {
-            name: "needs-held",
-            world: Solo,
-            address: Address::Inbox { filter: Filter::ALL },
-            then: Shown,
-        },
-        Sample {
-            name: "needs-funds",
-            world: Solo,
-            address: Address::Inbox { filter: Filter::ALL },
-            then: Shown,
-        },
+        Sample { name: "needs-proposal", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-held", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-funds", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
             name: "needs-plain-words",
             world: Solo,

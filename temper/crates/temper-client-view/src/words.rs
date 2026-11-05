@@ -869,7 +869,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
 // Needs count and toast add five phrases (client/README.md, 3.5).
-// Needs you adds sixteen phrases (client/README.md, 3.5).
+// Needs you adds sixteen phrases; its kinds add two (client/README.md, 3.5).
 const PHRASES: u32 = 1369;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
@@ -883,7 +883,7 @@ const PHRASES: u32 = 1369;
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
 // Needs count and toast add eleven literal and hole segments (3.5).
-// Needs you adds thirty-four literal and hole segments (3.5).
+// Needs you adds thirty-four literal and hole segments; its kinds add six (3.5).
 const SEGMENTS: u32 = 2376;
 const ALL: [Word; 773] = [
     Word::ConfigureAgent,
@@ -2663,8 +2663,8 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Needs count and toast add 87 literal bytes (3.5).
-            // Needs you adds 225 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87 + 225 + 20,
+            // Needs you adds 225 literal bytes; its kinds add fifteen (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87 + 225 + 15,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)

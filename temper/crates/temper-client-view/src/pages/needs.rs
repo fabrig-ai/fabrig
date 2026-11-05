@@ -72,6 +72,7 @@ fn home_project(root: &Domain, filter: Option<u32>) -> Option<u32> {
     Some(root.pages().me(root.client())?.projects.get(0)?.project)
 }
 
+#[expect(clippy::too_many_arguments, reason = "the flow passes the view's row bound to its card facts")]
 fn flow(
     b: &mut Builder,
     root: &Domain,

@@ -57,7 +57,7 @@ pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
                                 let words = task.spec.specification.words.bytes();
                                 let end = skein_lib::bytes::find(words, b"\n").unwrap_or(words.len());
                                 words.get(..end).expect("batch heading").into()
-                            },
+                            }
                             None => title.clone(),
                         },
                         jig_client::contract::ProposalAction::Settings(_)
@@ -70,7 +70,7 @@ pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
                 } else {
                     first_sentence(proposal.reason.bytes())
                 }
-            },
+            }
             Some(page) => {
                 let words = super::inbox::card_words(page);
                 if words.is_empty() { title.clone() } else { words }

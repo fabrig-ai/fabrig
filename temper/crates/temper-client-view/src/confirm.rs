@@ -97,13 +97,18 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
                 let disclosure = rejecting || answering || (needs && act == ActKind::LeaveHeld);
                 if disclosure {
                     b.open(Role::Disclosure);
-                    b.name(&words.say(if answering {
-                        Word::AnswerInWords
-                    } else if needs && act == ActKind::LeaveHeld {
-                        Word::LeaveHeld
-                    } else if needs {
-                        Word::RejectProposal
-                    } else { Word::Reject }, &[]));
+                    b.name(&words.say(
+                        if answering {
+                            Word::AnswerInWords
+                        } else if needs && act == ActKind::LeaveHeld {
+                            Word::LeaveHeld
+                        } else if needs {
+                            Word::RejectProposal
+                        } else {
+                            Word::Reject
+                        },
+                        &[],
+                    ));
                     if let Some(open) = root.pages().confirmation()
                         && open.object == card.object
                         && open.act == act
@@ -124,8 +129,13 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
                     b.bind(bindings.insert(Act::CardWords { object: card.object, words: Box::default() }));
                     b.close();
                 }
-                let word = if needs && act == ActKind::Release { Word::NeedsRelease }
-                    else if rejecting { Word::RejectProposal } else { word };
+                let word = if needs && act == ActKind::Release {
+                    Word::NeedsRelease
+                } else if rejecting {
+                    Word::RejectProposal
+                } else {
+                    word
+                };
                 b.open(Role::Button);
                 b.name(&words.say(word, &[]));
                 b.bind(bindings.insert(Act::Decide { object: card.object, revision: acts::revision(page), act }));
