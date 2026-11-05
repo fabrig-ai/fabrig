@@ -237,9 +237,9 @@ impl Subject {
     #[must_use]
     pub fn shape(&self) -> SubjectShape {
         match self {
-            Self::Application { scope, connector, subject } => SubjectShape::Application {
-                scope: *scope, connector: *connector, subject: *subject,
-            },
+            Self::Application { scope, connector, subject } => {
+                SubjectShape::Application { scope: *scope, connector: *connector, subject: *subject }
+            }
             Self::Run { task } => SubjectShape::Run(*task),
             Self::Task { task } | Self::Tree { task } => SubjectShape::Retained(*task),
             Self::Chips { .. } => SubjectShape::Chips,

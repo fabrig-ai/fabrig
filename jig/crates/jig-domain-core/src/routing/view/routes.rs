@@ -215,7 +215,9 @@ fn refused_subject(watcher: Token, subject: &Subject, why: WatchRefusal) -> Queu
             out.push(Request::Now(Box::new(Now::WatchRefused { watcher, why })));
             out
         }
-        SubjectShape::Run(_) | SubjectShape::Retained(_) | SubjectShape::Chips | SubjectShape::Other => refused(watcher, why),
+        SubjectShape::Run(_) | SubjectShape::Retained(_) | SubjectShape::Chips | SubjectShape::Other => {
+            refused(watcher, why)
+        }
     }
 }
 
@@ -357,14 +359,16 @@ fn admission(core: &Core, env: &Env<Limits>, party: u64, subject: &Subject, wind
             }
             None
         }
-        SubjectShape::Run(_) | SubjectShape::Retained(_) | SubjectShape::Chips | SubjectShape::Other => match documents::make(core, &env.limits, party, subject, window, env.wall) {
-            Ok(_) => None,
-            Err(Missing::NotAllowed) => Some(WatchRefusal::NotAllowed),
-            Err(Missing::Unknown | Missing::Ended) if retained_subject(subject).is_some() => {
-                if core.reads.len() >= env.limits.load_slots { Some(WatchRefusal::Busy) } else { None }
+        SubjectShape::Run(_) | SubjectShape::Retained(_) | SubjectShape::Chips | SubjectShape::Other => {
+            match documents::make(core, &env.limits, party, subject, window, env.wall) {
+                Ok(_) => None,
+                Err(Missing::NotAllowed) => Some(WatchRefusal::NotAllowed),
+                Err(Missing::Unknown | Missing::Ended) if retained_subject(subject).is_some() => {
+                    if core.reads.len() >= env.limits.load_slots { Some(WatchRefusal::Busy) } else { None }
+                }
+                Err(Missing::Unknown | Missing::Ended | Missing::TooLarge) => Some(WatchRefusal::Unknown),
             }
-            Err(Missing::Unknown | Missing::Ended | Missing::TooLarge) => Some(WatchRefusal::Unknown),
-        },
+        }
     }
 }
 
@@ -620,7 +624,11 @@ fn changed_run(core: &mut Core, env: &Env<Limits>, run: Token, out: &mut Queue<R
                 named = Some(binding.subject.token());
                 break;
             }
-            SubjectShape::Application { .. } | SubjectShape::Run(_) | SubjectShape::Retained(_) | SubjectShape::Chips | SubjectShape::Other => {}
+            SubjectShape::Application { .. }
+            | SubjectShape::Run(_)
+            | SubjectShape::Retained(_)
+            | SubjectShape::Chips
+            | SubjectShape::Other => {}
         }
     }
     if let Some(name) = named {

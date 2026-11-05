@@ -73,7 +73,9 @@ fn control(core: &Core, limits: &Limits, who: PartyTask, control: Control) -> Re
         Control::Stop => mutable(row),
         Control::Cancel { .. } => match &row.phase {
             tasks::Phase::Ended(ending) => Err(crate::routing::refusals::ended(ending)),
-            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => Ok(()),
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
+                Ok(())
+            }
         },
         Control::Release { .. } => match &row.phase {
             tasks::Phase::Held { .. } => Ok(()),

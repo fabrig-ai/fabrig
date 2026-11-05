@@ -1,5 +1,9 @@
 //! Proposal and escalation choices use their current waiting holder.
-use crate::{Core, Limits, acts::{Act, Decision}, documents};
+use crate::{
+    Core, Limits,
+    acts::{Act, Decision},
+    documents,
+};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
