@@ -354,7 +354,7 @@ fn a_line_counts_its_direct_delegates_past_a_page() {
 fn a_grandchild_is_not_a_delegates_count() {
     let mut world = counts_world(836);
     let parent = world.assignments[0];
-    let member = jig_core_world::fixtures::member(&world, tasks::Executor::Agent { charter: 1 }, b"branch");
+    let member = jig_core_world::fixtures::member(&world, tasks::Executor::Agent { charter: 1 }, b"child");
     let child = jig_core_world::fixtures::delegate(&mut world, parent, FIRST_COMPLETION, member);
     let run = *world.assignments.last().expect("child assigned");
     let mut grandchild = jig_core_world::fixtures::member(&world, tasks::Executor::Agent { charter: 1 }, b"leaf");
