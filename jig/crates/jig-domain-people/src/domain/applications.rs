@@ -1,6 +1,6 @@
 //! Application core parts and request admission (domain/people.md, 5.1).
 use super::{Domain, invalid_ask, project, role, valid_ask};
-use crate::{Ask, Kind, Limits, Outcome, Refusal, Request, Role};
+use crate::{ApplicationScope, Ask, AskFamily, Kind, Limits, Outcome, Refusal, Request, Role};
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, Token};
 
@@ -12,15 +12,21 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
     let id = Id::from_token(request);
     let flight = domain.party_pending(id).ok_or(Outcome::Refused(Refusal::Unknown))?;
     let application_project = match flight.ask.family() {
-        crate::AskFamily::Application(crate::ApplicationScope::Project(project)) => project,
-        crate::AskFamily::Application(crate::ApplicationScope::Own | crate::ApplicationScope::Deployment) => crate::DEPLOYMENT,
-        crate::AskFamily::Project(_) | crate::AskFamily::Restore | crate::AskFamily::Deployment
-        | crate::AskFamily::Account | crate::AskFamily::Lift | crate::AskFamily::Seen => return Err(Outcome::Refused(Refusal::NotOffered)),
+        AskFamily::Application(ApplicationScope::Project(project)) => project,
+        AskFamily::Application(ApplicationScope::Own | ApplicationScope::Deployment) => crate::DEPLOYMENT,
+        AskFamily::Project(_)
+        | AskFamily::Restore
+        | AskFamily::Deployment
+        | AskFamily::Account
+        | AskFamily::Lift
+        | AskFamily::Seen => return Err(Outcome::Refused(Refusal::NotOffered)),
     };
     match ask.family() {
         // Account requests are their holder's own and may wait on the accounts component.
-        crate::AskFamily::Restore | crate::AskFamily::Application(_) | crate::AskFamily::Account => return Err(Outcome::Refused(Refusal::NotOffered)),
-        crate::AskFamily::Project(_) | crate::AskFamily::Deployment | crate::AskFamily::Lift | crate::AskFamily::Seen => {}
+        AskFamily::Restore | AskFamily::Application(_) | AskFamily::Account => {
+            return Err(Outcome::Refused(Refusal::NotOffered));
+        }
+        AskFamily::Project(_) | AskFamily::Deployment | AskFamily::Lift | AskFamily::Seen => {}
     }
     if project(&ask) != application_project {
         return Err(Outcome::Refused(Refusal::Unknown));
@@ -73,7 +79,7 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
             if role == Some(Role::Owner) { None } else { Some(Refusal::Role { held: role }) }
         }
         Ask::Application { scope, .. } => {
-            if *scope == crate::ApplicationScope::Own || role.is_some() {
+            if *scope == ApplicationScope::Own || role.is_some() {
                 None
             } else {
                 Some(Refusal::Role { held: None })

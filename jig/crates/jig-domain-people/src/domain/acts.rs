@@ -1,6 +1,6 @@
 //! Connector-scoped deployment flights and retained outcomes (people.md, 5.3).
 use super::{Domain, Pending, answer_expiry, answer_reservations, deadline};
-use crate::{Act, ActKey, ActKind, Again, Key, LimitKind, Limits, Outcome, Refusal, Request, Stored};
+use crate::{Act, ActKey, ActKind, Again, Key, LimitKind, Limits, Outcome, OutcomeFamily, Refusal, Request, Stored};
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Time, Wall};
 
@@ -213,11 +213,14 @@ pub(super) fn load(domain: &mut Domain, key: ActKey, act: Act, outcome: Outcome,
 
 fn permanent(outcome: &Outcome) -> bool {
     match outcome.family() {
-        crate::OutcomeFamily::Again(_) | crate::OutcomeFamily::SignedOut => false,
-        crate::OutcomeFamily::Compound | crate::OutcomeFamily::Refused
-        | crate::OutcomeFamily::CompoundRefused | crate::OutcomeFamily::ServiceMade(_)
-        | crate::OutcomeFamily::RolesSet(_) | crate::OutcomeFamily::ProjectMade(_)
-        | crate::OutcomeFamily::Settled => true,
+        OutcomeFamily::Again(_) | OutcomeFamily::SignedOut => false,
+        OutcomeFamily::Compound
+        | OutcomeFamily::Refused
+        | OutcomeFamily::CompoundRefused
+        | OutcomeFamily::ServiceMade(_)
+        | OutcomeFamily::RolesSet(_)
+        | OutcomeFamily::ProjectMade(_)
+        | OutcomeFamily::Settled => true,
     }
 }
 
@@ -228,8 +231,8 @@ mod tests;
 #[cfg(test)]
 mod classifications {
     use super::*;
-    use crate::tests::{OutcomeClass, outcome_classes};
     use crate::Reply;
+    use crate::tests::{OutcomeClass, outcome_classes};
 
     #[test]
     fn outcome_classes_keep_status_retention_reply_and_capacity() {
@@ -240,17 +243,33 @@ mod classifications {
             let (kept, reply) = match family {
                 OutcomeClass::Again(why) => (false, Reply::Again(why)),
                 OutcomeClass::SignedOut => (false, Reply::SignedOut),
-                OutcomeClass::Compound | OutcomeClass::Refused | OutcomeClass::CompoundRefused
-                | OutcomeClass::ServiceMade(_) | OutcomeClass::RolesSet(_) | OutcomeClass::ProjectMade(_)
+                OutcomeClass::Compound
+                | OutcomeClass::Refused
+                | OutcomeClass::CompoundRefused
+                | OutcomeClass::ServiceMade(_)
+                | OutcomeClass::RolesSet(_)
+                | OutcomeClass::ProjectMade(_)
                 | OutcomeClass::Settled => (true, Reply::Outcome(outcome.clone())),
             };
             assert_eq!(permanent(&outcome), kept, "{outcome:?}");
             assert_eq!(super::super::requests::outcome_reply(outcome.clone()), reply, "{outcome:?}");
             let capacity = if refusal == Some(Refusal::Limit { which: LimitKind::Projects }) {
                 Some(crate::CapacityCause::Limit { which: LimitKind::Projects })
-            } else { None };
+            } else {
+                None
+            };
             assert_eq!(crate::capacity::permanent(&outcome), capacity, "{outcome:?}");
-            let made = match family { OutcomeClass::ProjectMade(project) => Some(project), _ => None };
+            let made = match family {
+                OutcomeClass::ProjectMade(project) => Some(project),
+                OutcomeClass::Again(_)
+                | OutcomeClass::SignedOut
+                | OutcomeClass::Compound
+                | OutcomeClass::Refused
+                | OutcomeClass::CompoundRefused
+                | OutcomeClass::ServiceMade(_)
+                | OutcomeClass::RolesSet(_)
+                | OutcomeClass::Settled => None,
+            };
             assert_eq!(super::super::deletion::made_project(&outcome), made, "{outcome:?}");
         }
     }

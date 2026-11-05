@@ -3,7 +3,7 @@
 //! Permanent facts come from retained keyed answers; entrance pressure is
 //! bounded live history, independent of diagnostics and replay decisions.
 
-use crate::{Ask, LimitKind, Outcome, Refusal, RequestKey};
+use crate::{ApplicationScope, Ask, AskFamily, LimitKind, Outcome, Refusal, RequestKey};
 use skein_lib::Wall;
 
 /// The refused operation's kind and existing object identity, without its payload.
@@ -102,12 +102,11 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
 
 pub(crate) fn project(ask: &Ask) -> Option<u32> {
     match ask.family() {
-        crate::AskFamily::Project(project)
-        | crate::AskFamily::Application(crate::ApplicationScope::Project(project)) => Some(project),
-        crate::AskFamily::Restore | crate::AskFamily::Deployment
-        | crate::AskFamily::Application(crate::ApplicationScope::Deployment) => Some(crate::DEPLOYMENT),
-        crate::AskFamily::Application(crate::ApplicationScope::Own) | crate::AskFamily::Account
-        | crate::AskFamily::Lift | crate::AskFamily::Seen => None,
+        AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => Some(project),
+        AskFamily::Restore | AskFamily::Deployment | AskFamily::Application(ApplicationScope::Deployment) => {
+            Some(crate::DEPLOYMENT)
+        }
+        AskFamily::Application(ApplicationScope::Own) | AskFamily::Account | AskFamily::Lift | AskFamily::Seen => None,
     }
 }
 

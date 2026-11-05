@@ -1,6 +1,9 @@
 //! Keyed requests, shared answer reservations and terminal replies (domain/people.md, 5.1).
 use super::{Domain, acts, admission, deadline, fact, invalid_ask, mark_seen, project, role, valid_ask};
-use crate::{Again, Ask, Fact, Key, Limits, Outcome, Refusal, Reply, Request, RequestKey, Stored};
+use crate::{
+    Again, ApplicationScope, Ask, AskFamily, Fact, Key, Limits, Outcome, OutcomeFamily, Refusal, Reply, Request,
+    RequestKey, Stored,
+};
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Time, Wall};
 
@@ -93,12 +96,15 @@ pub(super) fn signed_out(to: ReplyTo, out: &mut Queue<Request>) {
 
 pub(super) fn outcome_reply(outcome: Outcome) -> Reply {
     match outcome.family() {
-        crate::OutcomeFamily::Again(why) => Reply::Again(why),
-        crate::OutcomeFamily::SignedOut => Reply::SignedOut,
-        crate::OutcomeFamily::Compound | crate::OutcomeFamily::Refused
-        | crate::OutcomeFamily::CompoundRefused | crate::OutcomeFamily::ServiceMade(_)
-        | crate::OutcomeFamily::RolesSet(_) | crate::OutcomeFamily::ProjectMade(_)
-        | crate::OutcomeFamily::Settled => Reply::Outcome(outcome),
+        OutcomeFamily::Again(why) => Reply::Again(why),
+        OutcomeFamily::SignedOut => Reply::SignedOut,
+        OutcomeFamily::Compound
+        | OutcomeFamily::Refused
+        | OutcomeFamily::CompoundRefused
+        | OutcomeFamily::ServiceMade(_)
+        | OutcomeFamily::RolesSet(_)
+        | OutcomeFamily::ProjectMade(_)
+        | OutcomeFamily::Settled => Reply::Outcome(outcome),
     }
 }
 
@@ -180,10 +186,12 @@ pub(super) fn admit_ask(
     let project = project(&ask);
     // An account request's check is its holder, never a role (domain/authority.md, 8.4).
     let role = match ask.family() {
-        crate::AskFamily::Application(crate::ApplicationScope::Own)
-        | crate::AskFamily::Lift | crate::AskFamily::Account => None,
-        crate::AskFamily::Project(_) | crate::AskFamily::Application(crate::ApplicationScope::Project(_) | crate::ApplicationScope::Deployment)
-        | crate::AskFamily::Restore | crate::AskFamily::Deployment | crate::AskFamily::Seen => role(domain, key.person, project),
+        AskFamily::Application(ApplicationScope::Own) | AskFamily::Lift | AskFamily::Account => None,
+        AskFamily::Project(_)
+        | AskFamily::Application(ApplicationScope::Project(_) | ApplicationScope::Deployment)
+        | AskFamily::Restore
+        | AskFamily::Deployment
+        | AskFamily::Seen => role(domain, key.person, project),
     };
     let refusal = admission(domain, key.person, project, role, &ask);
     if let Some(refusal) = refusal {
@@ -324,9 +332,13 @@ fn written_place(domain: &Domain, person: u64, ask: &Ask) -> Option<(RequestKey,
 
 pub(super) fn reserves_answer(ask: &Ask) -> bool {
     match ask.family() {
-        crate::AskFamily::Seen => false,
-        crate::AskFamily::Project(_) | crate::AskFamily::Application(_) | crate::AskFamily::Restore
-        | crate::AskFamily::Deployment | crate::AskFamily::Account | crate::AskFamily::Lift => true,
+        AskFamily::Seen => false,
+        AskFamily::Project(_)
+        | AskFamily::Application(_)
+        | AskFamily::Restore
+        | AskFamily::Deployment
+        | AskFamily::Account
+        | AskFamily::Lift => true,
     }
 }
 
@@ -374,11 +386,14 @@ pub(super) fn answer_decided(
 
     match outcome.family() {
         // A retry closes the flight without retaining its key.
-        crate::OutcomeFamily::Again(_) | crate::OutcomeFamily::SignedOut => {}
-        crate::OutcomeFamily::Compound | crate::OutcomeFamily::Refused
-        | crate::OutcomeFamily::CompoundRefused | crate::OutcomeFamily::ServiceMade(_)
-        | crate::OutcomeFamily::RolesSet(_) | crate::OutcomeFamily::ProjectMade(_)
-        | crate::OutcomeFamily::Settled => save_answer(domain, env, key, ask, models, outcome.clone(), out),
+        OutcomeFamily::Again(_) | OutcomeFamily::SignedOut => {}
+        OutcomeFamily::Compound
+        | OutcomeFamily::Refused
+        | OutcomeFamily::CompoundRefused
+        | OutcomeFamily::ServiceMade(_)
+        | OutcomeFamily::RolesSet(_)
+        | OutcomeFamily::ProjectMade(_)
+        | OutcomeFamily::Settled => save_answer(domain, env, key, ask, models, outcome.clone(), out),
     }
     for to in replies.into_boxed() {
         out.push(Request::Reply { to, reply: outcome_reply(outcome.clone()) });

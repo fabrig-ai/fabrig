@@ -343,31 +343,31 @@ impl Ask {
     #[must_use]
     pub const fn family(&self) -> AskFamily {
         match self {
-        Self::Compound { project, .. }
-        | Self::EditNote { project, .. }
-        | Self::MakeService { project, .. }
-        | Self::Adopt { project, .. }
-        | Self::SetRoles { project, .. }
-        | Self::RemoveProject { project, .. }
-        | Self::SetVisibility { project, .. }
-        | Self::Rename { project, .. }
-        | Self::ChangePolicy { project, .. }
-        | Self::SetPool { project, .. }
-        | Self::DecideEscalation { project, .. }
-        | Self::DecideProposal { project, .. }
-        | Self::Say { project, .. }
-        | Self::AnswerQuestion { project, .. }
-        | Self::Amend { project, .. }
-        | Self::Move { project, .. }
-        | Self::TakePerson { project, .. }
-        | Self::HandBackPerson { project, .. }
-        | Self::AnswerPerson { project, .. }
-        | Self::Stop { project, .. }
-        | Self::Cancel { project, .. }
-        | Self::Release { project, .. }
-        | Self::Create { project, .. }
-        | Self::Propose { project, .. }
-        | Self::Withdraw { project, .. } => AskFamily::Project(*project),
+            Self::Compound { project, .. }
+            | Self::EditNote { project, .. }
+            | Self::MakeService { project, .. }
+            | Self::Adopt { project, .. }
+            | Self::SetRoles { project, .. }
+            | Self::RemoveProject { project, .. }
+            | Self::SetVisibility { project, .. }
+            | Self::Rename { project, .. }
+            | Self::ChangePolicy { project, .. }
+            | Self::SetPool { project, .. }
+            | Self::DecideEscalation { project, .. }
+            | Self::DecideProposal { project, .. }
+            | Self::Say { project, .. }
+            | Self::AnswerQuestion { project, .. }
+            | Self::Amend { project, .. }
+            | Self::Move { project, .. }
+            | Self::TakePerson { project, .. }
+            | Self::HandBackPerson { project, .. }
+            | Self::AnswerPerson { project, .. }
+            | Self::Stop { project, .. }
+            | Self::Cancel { project, .. }
+            | Self::Release { project, .. }
+            | Self::Create { project, .. }
+            | Self::Propose { project, .. }
+            | Self::Withdraw { project, .. } => AskFamily::Project(*project),
             Self::Application { scope, .. } => AskFamily::Application(*scope),
             Self::Restore { .. } => AskFamily::Restore,
             Self::MakeProject { .. } | Self::ChangeSettings { .. } | Self::MoveToNewest { .. } => AskFamily::Deployment,
@@ -384,38 +384,38 @@ impl Ask {
             Self::SetRoles { project, holdings } => Some((*project, holdings)),
             Self::Restore { .. }
             | Self::Compound { .. }
-        | Self::MarkSeen { .. }
-        | Self::Application { .. }
-        | Self::MakeService { .. }
-        | Self::EditNote { .. }
-        | Self::Adopt { .. }
-        | Self::ChangePolicy { .. }
-        | Self::RemoveProject { .. }
-        | Self::SetVisibility { .. }
-        | Self::Rename { .. }
-        | Self::MakeProject { .. }
-        | Self::ChangeSettings { .. }
-        | Self::MoveToNewest { .. }
-        | Self::SetPool { .. }
-        | Self::DecideEscalation { .. }
-        | Self::DecideProposal { .. }
-        | Self::Say { .. }
-        | Self::AnswerQuestion { .. }
-        | Self::Amend { .. }
-        | Self::Move { .. }
-        | Self::TakePerson { .. }
-        | Self::HandBackPerson { .. }
-        | Self::AnswerPerson { .. }
-        | Self::Stop { .. }
-        | Self::Cancel { .. }
-        | Self::Lift { .. }
-        | Self::Release { .. }
-        | Self::Create { .. }
-        | Self::Propose { .. }
-        | Self::Withdraw { .. }
-        | Self::AccountSignIn { .. }
-        | Self::AccountSignOut { .. }
-        | Self::AccountChange { .. } => None,
+            | Self::MarkSeen { .. }
+            | Self::Application { .. }
+            | Self::MakeService { .. }
+            | Self::EditNote { .. }
+            | Self::Adopt { .. }
+            | Self::ChangePolicy { .. }
+            | Self::RemoveProject { .. }
+            | Self::SetVisibility { .. }
+            | Self::Rename { .. }
+            | Self::MakeProject { .. }
+            | Self::ChangeSettings { .. }
+            | Self::MoveToNewest { .. }
+            | Self::SetPool { .. }
+            | Self::DecideEscalation { .. }
+            | Self::DecideProposal { .. }
+            | Self::Say { .. }
+            | Self::AnswerQuestion { .. }
+            | Self::Amend { .. }
+            | Self::Move { .. }
+            | Self::TakePerson { .. }
+            | Self::HandBackPerson { .. }
+            | Self::AnswerPerson { .. }
+            | Self::Stop { .. }
+            | Self::Cancel { .. }
+            | Self::Lift { .. }
+            | Self::Release { .. }
+            | Self::Create { .. }
+            | Self::Propose { .. }
+            | Self::Withdraw { .. }
+            | Self::AccountSignIn { .. }
+            | Self::AccountSignOut { .. }
+            | Self::AccountChange { .. } => None,
         }
     }
 }
@@ -506,7 +506,6 @@ pub enum OutcomeFamily {
     ProjectMade(u32),
     Settled,
 }
-
 
 /// Root's answer for one routed flight; people replies to each bounded waiter and saves
 /// final outcomes with the parent's task decision. (domain/people.md, section 5.1).
@@ -1327,8 +1326,12 @@ impl Outcome {
     pub const fn refusal(&self) -> Option<&Refusal> {
         match self {
             Self::Refused(why) | Self::CompoundRefused { why, .. } => Some(why),
-            Self::Again(_) | Self::SignedOut | Self::Compound { .. }
-            | Self::ServiceMade { .. } | Self::RolesSet { .. } | Self::ProjectMade { .. }
+            Self::Again(_)
+            | Self::SignedOut
+            | Self::Compound { .. }
+            | Self::ServiceMade { .. }
+            | Self::RolesSet { .. }
+            | Self::ProjectMade { .. }
             | Self::Created { .. }
             | Self::MarkedSeen { .. }
             | Self::Applied { .. }
@@ -1381,9 +1384,12 @@ impl Outcome {
                 Some(Refusal::Ended { .. }) => ActStatus::Ended,
                 Some(_) | None => ActStatus::Refused,
             },
-            OutcomeFamily::SignedOut | OutcomeFamily::CompoundRefused
-            | OutcomeFamily::ServiceMade(_) | OutcomeFamily::RolesSet(_)
-            | OutcomeFamily::ProjectMade(_) | OutcomeFamily::Settled => ActStatus::Refused,
+            OutcomeFamily::SignedOut
+            | OutcomeFamily::CompoundRefused
+            | OutcomeFamily::ServiceMade(_)
+            | OutcomeFamily::RolesSet(_)
+            | OutcomeFamily::ProjectMade(_)
+            | OutcomeFamily::Settled => ActStatus::Refused,
         }
     }
 }

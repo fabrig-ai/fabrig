@@ -1,6 +1,8 @@
 //! Project closure and retained deletion progress (jig/docs/design/domain/people.md, 5.2).
 use super::Domain;
-use crate::{Act, Ask, DeletionStep, KeptDeletion, Key, Outcome, Request, Stored};
+use crate::{
+    Act, ApplicationScope, Ask, AskFamily, DeletionStep, KeptDeletion, Key, Outcome, OutcomeFamily, Request, Stored,
+};
 use skein_lib::{Duration, List, Queue};
 
 pub(super) fn keep(
@@ -94,11 +96,15 @@ pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
 
 pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {
     match outcome.family() {
-        crate::OutcomeFamily::ProjectMade(project) => Some(project),
-        crate::OutcomeFamily::Again(_) | crate::OutcomeFamily::SignedOut
-        | crate::OutcomeFamily::Compound | crate::OutcomeFamily::Refused
-        | crate::OutcomeFamily::CompoundRefused | crate::OutcomeFamily::ServiceMade(_)
-        | crate::OutcomeFamily::RolesSet(_) | crate::OutcomeFamily::Settled => None,
+        OutcomeFamily::ProjectMade(project) => Some(project),
+        OutcomeFamily::Again(_)
+        | OutcomeFamily::SignedOut
+        | OutcomeFamily::Compound
+        | OutcomeFamily::Refused
+        | OutcomeFamily::CompoundRefused
+        | OutcomeFamily::ServiceMade(_)
+        | OutcomeFamily::RolesSet(_)
+        | OutcomeFamily::Settled => None,
     }
 }
 
@@ -111,10 +117,12 @@ pub(super) fn act_project(act: &Act) -> Option<u32> {
 
 pub(super) fn ask_project(ask: &Ask) -> Option<u32> {
     match ask.family() {
-        crate::AskFamily::Project(project)
-        | crate::AskFamily::Application(crate::ApplicationScope::Project(project)) => Some(project),
-        crate::AskFamily::Application(crate::ApplicationScope::Own | crate::ApplicationScope::Deployment)
-        | crate::AskFamily::Restore | crate::AskFamily::Deployment | crate::AskFamily::Account
-        | crate::AskFamily::Lift | crate::AskFamily::Seen => None,
+        AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => Some(project),
+        AskFamily::Application(ApplicationScope::Own | ApplicationScope::Deployment)
+        | AskFamily::Restore
+        | AskFamily::Deployment
+        | AskFamily::Account
+        | AskFamily::Lift
+        | AskFamily::Seen => None,
     }
 }

@@ -1,14 +1,16 @@
 //! Request shape and payload validation (domain/people.md, 5.1).
-use crate::{Ask, LimitKind, Limits, Refusal, Seen};
+use crate::{ApplicationScope, Ask, AskFamily, LimitKind, Limits, Refusal, Seen};
 use alloc::boxed::Box;
 
 pub(super) fn project(ask: &Ask) -> u32 {
     match ask.family() {
-        crate::AskFamily::Project(project)
-        | crate::AskFamily::Application(crate::ApplicationScope::Project(project)) => project,
-        crate::AskFamily::Application(crate::ApplicationScope::Own | crate::ApplicationScope::Deployment)
-        | crate::AskFamily::Restore | crate::AskFamily::Deployment | crate::AskFamily::Account
-        | crate::AskFamily::Lift | crate::AskFamily::Seen => crate::DEPLOYMENT,
+        AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => project,
+        AskFamily::Application(ApplicationScope::Own | ApplicationScope::Deployment)
+        | AskFamily::Restore
+        | AskFamily::Deployment
+        | AskFamily::Account
+        | AskFamily::Lift
+        | AskFamily::Seen => crate::DEPLOYMENT,
     }
 }
 
@@ -302,9 +304,15 @@ mod classifications {
         for (ask, family) in ask_classes() {
             assert_eq!(ask.family(), family, "{ask:?}");
             let (scope, capacity, deletion, reserved) = match family {
-                AskClass::Project(project) | AskClass::Application(crate::ApplicationScope::Project(project)) => (project, Some(project), Some(project), true),
-                AskClass::Restore | AskClass::Deployment | AskClass::Application(crate::ApplicationScope::Deployment) => (crate::DEPLOYMENT, Some(crate::DEPLOYMENT), None, true),
-                AskClass::Application(crate::ApplicationScope::Own) | AskClass::Account | AskClass::Lift => (0, None, None, true),
+                AskClass::Project(project) | AskClass::Application(ApplicationScope::Project(project)) => {
+                    (project, Some(project), Some(project), true)
+                }
+                AskClass::Restore | AskClass::Deployment | AskClass::Application(ApplicationScope::Deployment) => {
+                    (crate::DEPLOYMENT, Some(crate::DEPLOYMENT), None, true)
+                }
+                AskClass::Application(ApplicationScope::Own) | AskClass::Account | AskClass::Lift => {
+                    (0, None, None, true)
+                }
                 AskClass::Seen => (0, None, None, false),
             };
             assert_eq!(project(&ask), scope, "{ask:?}");
@@ -315,10 +323,19 @@ mod classifications {
     }
 
     #[test]
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        clippy::disallowed_methods,
+        reason = "step tests use ordinary Rust to read expected roster members from every table row"
+    )]
     fn every_ask_only_applies_rosters_with_their_exact_members() {
         for (ask, _) in ask_classes() {
-            let expected = match &ask { Ask::SetRoles { project, holdings } => Some((*project, holdings.clone())), _ => None };
-            assert_eq!(ask.roster(), expected.as_ref().map(|(project, holdings)| (*project, holdings.as_ref())), "{ask:?}");
+            let expected = match &ask {
+                Ask::SetRoles { project, holdings } => Some((*project, holdings.clone())),
+                _ => None,
+            };
+            let expected_roster = expected.as_ref().map(|(project, holdings)| (*project, holdings.as_ref()));
+            assert_eq!(ask.roster(), expected_roster, "{ask:?}");
             let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
             let env = Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH };
             domain.start_restore(env.wall);
@@ -327,9 +344,28 @@ mod classifications {
             assert!(domain.start_complete(&env));
             domain.roles.insert(7, Box::new([Holding { person: 9, role: Role::Owner }])).unwrap();
             for person in [8, 9] {
-                domain.people.insert(person, Identity { key: IdentityKey { provider: 0, subject: Box::new([person.to_le_bytes()[0]]) }, login: Box::new([]), name: Box::new([]) }).unwrap();
+                domain
+                    .people
+                    .insert(
+                        person,
+                        Identity {
+                            key: IdentityKey { provider: 0, subject: Box::new([u8::try_from(person).unwrap()]) },
+                            login: Box::new([]),
+                            name: Box::new([]),
+                        },
+                    )
+                    .unwrap();
             }
-            let id = domain.pending.insert(super::super::requests::Pending::Party(super::super::requests::PartyPending { key: RequestKey { person: 9, key: [8; 16] }, ask: ask.clone(), models: Box::new([]), replies: List::with_capacity(0), part: None })).unwrap();
+            let id = domain
+                .pending
+                .insert(super::super::requests::Pending::Party(super::super::requests::PartyPending {
+                    key: RequestKey { person: 9, key: [8; 16] },
+                    ask: ask.clone(),
+                    models: Box::new([]),
+                    replies: List::with_capacity(0),
+                    part: None,
+                }))
+                .unwrap();
             let mut out = Queue::uncapped();
             let result = super::super::parties::apply_roles(&mut domain, &env, id.token(), &mut out);
             match expected {

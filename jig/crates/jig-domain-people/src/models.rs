@@ -189,7 +189,7 @@ fn selectors(ask: &Ask) -> Selectors {
         Ask::Propose { action, .. } => match action {
             Action::Batch(batch) => selected.members(batch),
             Action::Amend { amendment, .. } => selected.amendment(amendment),
-            Action::Settings { .. } => {},
+            Action::Settings { .. } => {}
         },
         Ask::Compound { operations, .. } => {
             for operation in operations {
@@ -210,7 +210,7 @@ fn selectors(ask: &Ask) -> Selectors {
             | PolicyChange::Requirements { .. }
             | PolicyChange::Projections { .. }
             | PolicyChange::Permissions { .. }
-            | PolicyChange::Templates { .. } => {},
+            | PolicyChange::Templates { .. } => {}
         },
         Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
@@ -241,7 +241,7 @@ fn selectors(ask: &Ask) -> Selectors {
         | Ask::DecideEscalation { .. }
         | Ask::AccountSignIn { .. }
         | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => {},
+        | Ask::AccountChange { .. } => {}
     }
     selected
 }

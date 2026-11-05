@@ -61,8 +61,8 @@ pub(super) fn apply_roles(
         return Err(Outcome::Again(Again::NotReady));
     }
     let flight = domain.party_pending(Id::from_token(request)).ok_or(Outcome::Refused(Refusal::Unknown))?;
-    let (project, holdings) = flight.part.as_ref().unwrap_or(&flight.ask).roster()
-        .ok_or(Outcome::Refused(Refusal::Unknown))?;
+    let (project, holdings) =
+        flight.part.as_ref().unwrap_or(&flight.ask).roster().ok_or(Outcome::Refused(Refusal::Unknown))?;
     if !domain.roles.contains_key(&project) {
         return Err(Outcome::Refused(Refusal::Unknown));
     }

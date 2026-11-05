@@ -2,7 +2,7 @@
 mod fit;
 use super::{Answered, Domain, SignIn, Start, answer_expiry, deadline};
 use crate::{
-    Key, LimitKind, Limits, Refusal, Request, RestoreBound, RestoreFailure, RestoreProjection, Stored,
+    Key, LimitKind, Limits, OutcomeFamily, Refusal, Request, RestoreBound, RestoreFailure, RestoreProjection, Stored,
 };
 use skein_lib::{Env, Queue, Time, Wall};
 
@@ -74,16 +74,19 @@ impl Domain {
             let source = Key::Answer(*key);
             link(self, source, key.person);
             match answer.outcome.family() {
-                crate::OutcomeFamily::ServiceMade(person) => link(self, source, person),
-                crate::OutcomeFamily::RolesSet(project) => {
+                OutcomeFamily::ServiceMade(person) => link(self, source, person),
+                OutcomeFamily::RolesSet(project) => {
                     assert!(self.roles.contains_key(&project), "{source:?} links missing roster {project}");
                     // Only successful roster asks retain their members as required references.
                     link_roster(self, source, &answer.ask);
                 }
-                crate::OutcomeFamily::Again(_) | crate::OutcomeFamily::SignedOut
-                | crate::OutcomeFamily::Compound | crate::OutcomeFamily::Refused
-                | crate::OutcomeFamily::CompoundRefused | crate::OutcomeFamily::ProjectMade(_)
-                | crate::OutcomeFamily::Settled => {}
+                OutcomeFamily::Again(_)
+                | OutcomeFamily::SignedOut
+                | OutcomeFamily::Compound
+                | OutcomeFamily::Refused
+                | OutcomeFamily::CompoundRefused
+                | OutcomeFamily::ProjectMade(_)
+                | OutcomeFamily::Settled => {}
             }
         }
         for (party, _) in &self.results_seen {
