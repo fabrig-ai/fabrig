@@ -96,6 +96,7 @@ pub struct World {
     period_budget: u64,
     creating: jig_test_profile::fixtures::Creating,
     chat_ending: tasks::EndedBy,
+    goal_branch: bool,
     root: engine::Domain,
     env: Env<engine::Limits>,
     root_out: Queue<engine::Request>,
@@ -218,6 +219,10 @@ fn worker_limits() -> worker::Limits {
     limits.agent.messages = 4;
     limits.agent.call_bytes = 4096;
     limits.checkout.message_bytes = 4096;
+    limits.checkout.conflicts = 2;
+    limits.agent.conflicts = 2;
+    limits.checkout.path_bytes = 64;
+    limits.agent.path_bytes = 64;
     limits.agent.no_progress = Duration::from_secs(120);
     limits.bounds = crate::world::bounds();
     limits.bounds.inbox = 4;
@@ -374,6 +379,7 @@ impl World {
             scripts: VecDeque::new(),
             parked: std::collections::BTreeMap::new(),
             period_budget: config.core.defaults.rules.period_spend,
+            goal_branch: false,
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             chat_ending: config
                 .core
@@ -607,6 +613,10 @@ impl World {
         };
         if !self.scripts.is_empty() {
             agreement::quiet(&mut batch[0]);
+        }
+        if self.goal_branch {
+            batch[0].tracked = Some(1);
+            batch[0].symbols = Box::new([people::Symbol { connector: 1, symbol: 1 }]);
         }
         // As jig_client::shapes::chat does, copy the template's ending into Create.
         batch[0].flags.ended_by = match self.chat_ending {
@@ -1055,6 +1065,191 @@ impl World {
     fn up(&mut self, link: engine::Link) {
         self.root_events.push_back(engine::Event::Worker(engine::WorkerInput::Link { channel: CHANNEL, link }));
     }
+}
+
+impl World {
+    /// A goal's producer delivers, asks its change a question, then continues when answered.
+    #[must_use]
+    pub fn questioning_producer(seed: u64) -> Self {
+        let goal = Script {
+            cue: b"Help the person with their work.".as_slice().into(),
+            turns: Box::new([
+                call(b"change", br#"{"changes":[{"words":"Make two edits","landing":"goal","questions":"up"},{"words":"Advance the goal","landing":"goal"}]}"#),
+                call(b"wait", b"{}"),
+            ]),
+        };
+        let mut world = Self::configured_with(seed, goal.clone(), true, questioning_config);
+        world.goal_branch = true;
+        let moving = Script {
+            cue: b"Read only what the change needs".as_slice().into(),
+            turns: Box::new([
+                call(b"write", br#"{"path":"goal.txt","content":"goal moved\n"}"#),
+                call(b"finish", br#"{"title":"Advance the goal","body":"Give the waiting producer new context."}"#),
+            ]),
+        };
+        world.scripts = VecDeque::from([goal, questioning_script(), moving]);
+        world
+    }
+
+    /// Advance the goal while its producer parks, then verify that producer's next delivery.
+    pub fn continue_delivered_producer(&mut self) {
+        self.until_producer_answer(0);
+        assert_eq!(self.assignment().task, 4);
+        assert!(matches!(self.agent().answer(), run::Answer::Parked { .. }), "{:?}", self.agent().answer());
+        let attempt = self.assignment().attempt;
+        let branch = self.assignment().workspace.repositories[0].push.clone().expect("producer push branch");
+        let first = self.forge.branch(b"org/repo", &branch).expect("first delivery exists");
+        let base = self.reviewed_change().base.clone();
+        let goal = self.advance_goal_for_producer(&base);
+        self.answer_producer_question();
+        self.until_producer_answer(attempt);
+        assert!(matches!(self.agent().answer(), run::Answer::Parked { .. }));
+        let second = self.forge.branch(b"org/repo", &branch).expect("second delivery exists");
+        self.assert_producer_history(first, goal, second);
+        self.run();
+        self.answer_producer_question();
+        let attempt = self.assignment().attempt;
+        self.until_producer_answer(attempt);
+        assert!(
+            matches!(self.agent().answer(), run::Answer::Accepted { .. }),
+            "task {}: {:?}",
+            self.assignment().task,
+            self.agent().answer()
+        );
+        let third = self.forge.branch(b"org/repo", &branch).expect("third delivery exists");
+        self.assert_producer_history(second, goal, third);
+        self.assert_producer_file(third, b"third.txt", b"third delivery\n");
+        let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(4)));
+        for _ in 0..10000 {
+            if self.store.rows.contains_key(&key) {
+                break;
+            }
+            self.tick();
+        }
+        let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
+            self.store.rows.get(&key)
+        else {
+            panic!("the same producer finished")
+        };
+        assert_eq!(row.tries, tasks::Tries::NONE, "question resumes spend no failure tries");
+        let producers = self
+            .store
+            .rows
+            .values()
+            .filter(|record| {
+                matches!(record,
+            engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))
+                if row.executor == (tasks::Executor::Agent { charter: 2 }))
+            })
+            .count();
+        assert_eq!(producers, 2, "the waiting producer and the independent producer; no replacement");
+    }
+
+    fn until_producer_answer(&mut self, after: u64) {
+        for _ in 0..10000 {
+            self.tick();
+            if self.assignment.as_ref().is_some_and(|assignment| assignment.task == 4 && assignment.attempt > after)
+                && self.process.answered.is_some()
+            {
+                return;
+            }
+        }
+        panic!("producer did not answer: {:?}", self.observed);
+    }
+
+    fn assert_producer_history(&mut self, previous: u64, goal: u64, head: u64) {
+        assert_ne!(previous, head);
+        assert!(self.forge.is_ancestor(previous, head), "the delivery retains the preceding delivery");
+        assert!(self.forge.is_ancestor(goal, head), "the producer merges the moved goal tip");
+        self.assert_producer_file(head, b"first.txt", b"first delivery\n");
+        self.assert_producer_file(head, b"second.txt", b"second delivery\n");
+        self.assert_producer_file(head, b"goal.txt", b"goal moved\n");
+    }
+
+    fn assert_producer_file(&mut self, head: u64, path: &[u8], content: &[u8]) {
+        assert_eq!(
+            self.forge.api(b"org/repo", 1, fake::Op::Read(fake::Read::File { commit: head, path: path.into() })),
+            Ok(fake::Answer::File(content.into()))
+        );
+    }
+
+    fn advance_goal_for_producer(&mut self, base: &[u8]) -> u64 {
+        let before = self.forge.branch(b"org/repo", base).expect("goal branch exists");
+        for _ in 0..10000 {
+            if self.process.answered.is_some()
+                && self.root_events.is_empty()
+                && self.worker_events.is_empty()
+                && !self.committing()
+            {
+                self.env.now = self.env.now.saturating_add(Duration::from_secs(1));
+            }
+            self.tick();
+            let head = self.forge.branch(b"org/repo", base).expect("goal branch stays live");
+            if head != before {
+                return head;
+            }
+        }
+        panic!("the independent change did not advance the goal");
+    }
+
+    fn answer_producer_question(&mut self) {
+        let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(2)));
+        let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+            self.store.rows.get(&key)
+        else {
+            panic!("live change")
+        };
+        let question = row.questions[0].number;
+        self.root_events.push_back(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::default(),
+            reply_to: ReplyTo::new(Token::new(902)),
+            sign_in: self.party.sign_in.expect("signed in"),
+            key: [u8::try_from(question).expect("fixture question number"); 16],
+            ask: people::Ask::AnswerQuestion {
+                project: 1,
+                task: 1,
+                question,
+                words: b"Continue with the second edit.".as_slice().into(),
+            },
+        }));
+    }
+}
+
+fn questioning_script() -> Script {
+    Script {
+        cue: b"Read only what the change needs".as_slice().into(),
+        turns: Box::new([
+            call(b"write", br#"{"path":"first.txt","content":"first delivery\n"}"#),
+            call(b"deliver", br#"{"title":"First edit","body":"Keep this work."}"#),
+            call(b"message", br#"{"target":2,"form":"question","words":"Add the second edit? I recommend yes."}"#),
+            call(b"wait", b"{}"),
+            call(b"write", br#"{"path":"second.txt","content":"second delivery\n"}"#),
+            call(b"deliver", br#"{"title":"Both edits","body":"Keep both edits."}"#),
+            call(b"message", br#"{"target":2,"form":"question","words":"Keep both edits? I recommend yes."}"#),
+            call(b"wait", b"{}"),
+            call(b"write", br#"{"path":"third.txt","content":"third delivery\n"}"#),
+            call(b"finish", br#"{"title":"Both edits","body":"Both edits are ready."}"#),
+        ]),
+    }
+}
+
+fn questioning_config(seed: u64) -> engine::Config {
+    let mut config = agreement::config(seed);
+    let rule = engine::LandingRule {
+        connector: 1,
+        kind: 4,
+        enforce: true,
+        ci: false,
+        up_to_date: false,
+        pattern: authority::Pattern {
+            segments: Box::new([b"forge".as_slice().into()]),
+            last: authority::Last::Open(Box::default()),
+        },
+        gates: Box::default(),
+        approvals: Box::default(),
+    };
+    config.kinds_stock = engine::landing_stock(&[rule], &skein_lib::Map::with_capacity(0), 2, 4);
+    config
 }
 
 fn signed_in_party() -> parties::Party {

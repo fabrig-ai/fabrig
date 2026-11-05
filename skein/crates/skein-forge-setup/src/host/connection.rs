@@ -235,17 +235,15 @@ impl Connection {
         self.link.up(&link_env(env), event);
     }
     fn http_stream(&mut self, env: &Env<Limits>, event: Up) {
-        let h =
-            Env { now: env.now, wall: env.wall, limits: limits::http_transport(&env.limits, self.link.encrypted()) };
+        let h = env.with(limits::http_transport(&env.limits, self.link.encrypted()));
         http::up(&mut self.http, &h, event, &mut self.http_up, &mut self.http_down);
     }
     fn http_down(&mut self, env: &Env<Limits>, request: http::Request) {
-        let h =
-            Env { now: env.now, wall: env.wall, limits: limits::http_transport(&env.limits, self.link.encrypted()) };
+        let h = env.with(limits::http_transport(&env.limits, self.link.encrypted()));
         http::down(&mut self.http, &h, request, &mut self.http_up, &mut self.http_down);
     }
     fn json_down(&mut self, env: &Env<Limits>, request: tokenizer::Request) {
-        let j = Env { now: env.now, wall: env.wall, limits: self.json_limits(&env.limits) };
+        let j = env.with(self.json_limits(&env.limits));
         tokenizer::down(&mut self.json, &j, request, &mut self.json_up, &mut self.json_down);
     }
     pub(super) fn fail(&mut self) {
@@ -376,7 +374,7 @@ impl Connection {
                 }
             }
             http::Event::Body(event) => {
-                let j = Env { now: env.now, wall: env.wall, limits: self.json_limits(&env.limits) };
+                let j = env.with(self.json_limits(&env.limits));
                 tokenizer::up(&mut self.json, &j, event, &mut self.json_up, &mut self.json_down);
             }
             http::Event::Upload(event) => match event {

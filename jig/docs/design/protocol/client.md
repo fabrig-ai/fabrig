@@ -518,7 +518,12 @@ recipient.
 - **One exchange per read,** answered once: the document, a page with its
   cursors, or why there is none (unknown, busy, signed out, version not
   served) (`../client/domain/contract.md`, section 6). A page's cursor
-  is the engine's, opaque bytes the client gives back.
+  is the engine's, opaque bytes the client gives back. Inside they are a
+  record of the family `jig-engine-cursor`
+  (`jig/crates/jig-protocol-engine-clients/schema/cursor-v1.schema`),
+  whose goldens the families' drift check holds, with a key inside one in
+  the store's codec. A cursor of another version does not decode, and
+  its read is answered unknown (`README.md`, section 7).
 - **Credential boundaries, on the client,** visibly end pending reads
   in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
   a family's `None`, once each, on sign-out and unconditionally on

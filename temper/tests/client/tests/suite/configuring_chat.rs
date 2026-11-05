@@ -41,10 +41,22 @@ fn the_page_starts_the_configuring_chat() {
         assert!(assignment.workspace.repositories.is_empty(), "the configuring chat names no repository");
         let task = front.engine.task(assignment.task).expect("configuring chat");
         assert_eq!(task.spec.words.as_ref(), WORKFLOW);
-        let root = root.person();
-        assert_eq!(root.pages().address(), &Address::Chat { task: assignment.task });
-        let chat = root.pages().chat().expect("chat page");
-        assert_eq!(chat.task, assignment.task);
+        let task = assignment.task;
+        let person = root.person();
+        assert_eq!(person.pages().address(), &Address::Chat { task });
+        assert_eq!(person.pages().chat().expect("chat page").task, task);
+        account_acts::event(&mut front, &mut root, Temper::went(Address::Settings { project: PROJECT }));
+        account_acts::settle(&mut front, &mut root);
+        let person = root.person();
+        assert_eq!(
+            person.pages().chats().expect("Settings holds chats").open_configuring(
+                person.client(),
+                person.pages().me(person.client()),
+                PROJECT,
+            ),
+            Some(task),
+            "Settings finds the configuring task in the real engine's delivered rows",
+        );
     }
 }
 

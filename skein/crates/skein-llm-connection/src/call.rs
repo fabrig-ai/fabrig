@@ -194,7 +194,7 @@ impl Connection {
         up: &mut Queue<Event>,
         io: &mut Queue<IoRequest>,
     ) {
-        let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
+        let llm_env = env.with(self.llm_limits);
         llm::down(&mut self.llm, &llm_env, llm::Request::Start, &mut self.llm_events, &mut self.plain_down);
         self.route(env, owner, up, io);
     }
@@ -204,13 +204,13 @@ impl Connection {
             self.route(env, owner, up, io);
             return;
         }
-        let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
+        let llm_env = env.with(self.llm_limits);
         llm::down(&mut self.llm, &llm_env, llm::Request::Next, &mut self.llm_events, &mut self.plain_down);
         self.route(env, owner, up, io);
     }
 
     pub(crate) fn cancel(&mut self, env: &Env<Limits>, owner: Token, up: &mut Queue<Event>, io: &mut Queue<IoRequest>) {
-        let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
+        let llm_env = env.with(self.llm_limits);
         llm::down(&mut self.llm, &llm_env, llm::Request::Cancel, &mut self.llm_events, &mut self.plain_down);
         self.route(env, owner, up, io);
         if self.phase == Phase::Connecting {
@@ -223,7 +223,7 @@ impl Connection {
             self.route(env, owner, up, io);
             return;
         }
-        let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
+        let llm_env = env.with(self.llm_limits);
         llm::abort(
             &mut self.llm,
             &llm_env,
@@ -257,7 +257,7 @@ impl Connection {
                 Up::Bytes(_) | Up::End | Up::Room | Up::Failed(_) => {}
             }
         }
-        let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
+        let llm_env = env.with(self.llm_limits);
         llm::up(&mut self.llm, &llm_env, event, &mut self.llm_events, &mut self.plain_down);
     }
 
@@ -271,7 +271,7 @@ impl Connection {
     }
 
     pub(crate) fn closed(&mut self, env: &Env<Limits>, owner: Token, up: &mut Queue<Event>, io: &mut Queue<IoRequest>) {
-        let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
+        let llm_env = env.with(self.llm_limits);
         self.link.closed();
         if self.abort_pending() {
             self.control = Control::Aborting;
@@ -307,7 +307,7 @@ impl Connection {
             Due::Call(phase) => phase,
             Due::Keep => unreachable!("keep runs only on an idle connection"),
         };
-        let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
+        let llm_env = env.with(self.llm_limits);
         llm::abort(
             &mut self.llm,
             &llm_env,
@@ -319,7 +319,7 @@ impl Connection {
 
     #[expect(clippy::too_many_lines, reason = "the bounded routing pass covers the LLM client and link")]
     pub(crate) fn route(&mut self, env: &Env<Limits>, _owner: Token, up: &mut Queue<Event>, io: &mut Queue<IoRequest>) {
-        let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
+        let llm_env = env.with(self.llm_limits);
         if self.abort_pending() {
             self.control = Control::Aborting;
             llm::down(&mut self.llm, &llm_env, llm::Request::Cancel, &mut self.llm_events, &mut self.plain_down);

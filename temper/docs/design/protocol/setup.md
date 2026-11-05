@@ -767,13 +767,17 @@ binaries; and decides by
   preparation's lock uses too, and which builds `internal
   forge-child`'s command for skein's parent-death exec; the
   preparation's commands and Forgejo's parent loop are not in it, and
-  run on skein-io (6.3). It is the one place temper locks a file or
-  uses `std::process` outside
-  skein: a boundary test scans the production crates' sources (`crates/*/src`, test files aside) and
-  fails the gate when either appears outside that module, but
-  `std::process::ExitCode` in the binary's `main`. Test crates
-  (`testing/`, `tools/`) are not scanned. It moves onto skein when
-  skein's shell offers both (section 15).
+  run on skein-io (6.3). It is where temper locks a file or uses
+  `std::process` outside skein: a boundary test scans the production
+  crates' sources (`crates/*/src`, test files aside) and fails the gate
+  when either appears outside that module, but for what it declares by
+  file, each for that use alone: `std::process::ExitCode` in the binary's
+  `main`; `temper program-login`'s exec of smith's command
+  (credentials.md, section 3); Claude Code's fetch's lock, and its
+  launcher's exec and process id (6.6); and the process tier's fault,
+  which aborts its own serve. Test crates (`testing/`,
+  `tools/`) are not scanned. It moves onto skein when skein's shell
+  offers both (section 15).
 - **The runner's spec:** its configuration file (its connection,
   capacity, labels, timeouts, its jobs' directory, no cache), its `PATH`
   from the setup. Its jobs run as the user that runs it (section 15).
@@ -983,7 +987,9 @@ its own for any other host.
   box and no `temper forge fetch` runs it: the first command of its
   source that needs it does (`../draft/claude-provider.md`, 3), its
   sign-in, its status or a run, so a machine that never chooses Claude
-  never downloads it.
+  never downloads it. Declaring a source has each host report its login
+  (jig's `domain/accounts.md`, 5), so the fetch may begin with a status,
+  before any sign-in: declaring is choosing Claude.
 
   | Binary | From | Into |
   |---|---|---|
@@ -1025,8 +1031,10 @@ its own for any other host.
     fetches the build if it is missing, and replaces itself with it,
     its arguments unchanged. `temper serve`, a worker alone and `temper
     program-login` each write both links at their start, when the path
-    is `"fetched"`, so a person's own command never fetches by a stale
-    name.
+    is `"fetched"`, in that directory, private: a link pointing elsewhere
+    is replaced by a new one and a rename, and a right one left as it is,
+    so that two starts at once are harmless and a person's own command
+    never fetches by a stale name.
   - **Found by its size:** every command of the source passes through
     the launcher, so it hashes nothing it finds. A file at the pin's
     size runs; one of any other size is refused, naming its path, and
@@ -1036,8 +1044,10 @@ its own for any other host.
   - **At most once at a time:** the launcher waits on an exclusive lock,
     `<cache>/claude-code/VERSION/claude.lock`, then looks again, so of
     two commands at once one fetches and the other finds it. A command
-    killed at its own deadline, a status's or a run's, leaves its part
-    file to the next, which writes it again from its start.
+    killed at its own deadline, a status's or a run's, fails as that
+    command, and leaves its part file to the next, which writes it again
+    from its start; `temper program-login`, which has no deadline,
+    finishes it.
   - **It says so on stderr,** stdout being the command's own: `fetching
     Claude Code`, then this section's lines, `BINARY` being
     `claude-code`. `temper program-login`'s terminal shows them.
@@ -2271,8 +2281,9 @@ playground and no Forgejo on this machine.
   among those tests, reaches `temper serve`'s sign-in link with no forge
   and every group dormant: no `forge-N` directory, no group's file and
   nothing in the cache. The process
-  tier starts a box on empty directories (13.4), and reads its welcome's
-  Model step, ChatGPT's and Claude's cards, with no `claude` on `PATH`.
+  tier starts a box on empty directories (13.4), and a story of its own
+  starts the shipped box the same way and reads its welcome's Model step,
+  ChatGPT's and Claude's cards, with no `claude` on `PATH` (13.1).
 
 ### 8.3 The default document
 
@@ -3173,11 +3184,13 @@ temper-forge-setup           step code: the setup's types and checks; the machin
 │                              configuration, and a forge's setup entry by its kind; the setup mapped
 │                              onto the plans' given values, and the kit's check of them; the fetch's
 │                              machine and the preparation's; app.ini and the runner's files; the
-│                              processes' specs; the kinds' steps and the group's file. Names no host
+│                              processes' specs; the kinds' steps and the group's file; Claude Code's
+│                              pin (6.6). Names no host
 ├── skein-forge-setup, skein-forge
 └── jig-protocol-config, skein-lib, skein-json
 temper-forge-setup-shell     ordinary Rust: the hosts of fetch, prepare and run: commands, files, the
-│                              forge's locks, the exec, the fetch's requests over TLS, on skein-io
+│                              forge's locks, the exec, the fetch's requests over TLS, on skein-io;
+│                              Claude Code's fetch, under its lock (6.6)
 ├── temper-forge-setup
 └── skein-io, skein-http, skein-tls, skein-lib, skein-json, skein-shell
 temper-box                   the box's machine (step code), its kinds' groups, their files and records
@@ -3201,7 +3214,7 @@ temper-fake-git              ordinary Rust: the fake git program's core, temper 
 ├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-forge-http, skein-fake-peers
 └── skein-lib, skein-io, skein-http, skein-json
 temper                       the binary: temper forge fetch|prepare|run|remove, temper box, temper init,
-                               temper fake llm|forge|git
+                               temper fake llm|forge|git; Claude Code's launcher (6.6)
 ```
 
 - **The engine runs the setup host** in its protocol layer (5.1):
@@ -3296,6 +3309,20 @@ relies on.
   its path, the file left; a part file left by a fetch cut short
   written again; the lines reaching the host's writer in order, with a
   size and without, none for a file already there.
+- **Claude Code's pin and fetch** (6.6): in temper-forge-setup, each
+  platform's digest and size against 6.6's table, and each pin's URL. At
+  its host, on the same file server: a missing build fetched once, then
+  found with no request; a wrong digest refused and nothing left; a file
+  of another size refused and left; two commands at once making one
+  request. No test reaches `downloads.claude.ai` (section 15).
+- **Claude Code's offer and launcher** (6.6, 8.2, 8.3), on the shipped
+  binary with an empty environment, in `crates/temper/tests/suite/startup.rs`:
+  a fresh box's Model step reads ChatGPT's and Claude's cards, its
+  program's path `"fetched"`; `temper program-login` and the launcher's
+  own link reach a build placed in the cache, its arguments unchanged,
+  `DISABLE_AUTOUPDATER=1` in its environment and stdout the build's
+  alone; `temper serve`, a worker alone and `temper program-login` write
+  both links for a fetched program, and neither for a found `claude`.
 - **A fetch's lines** (7.2), in temper-box: each relayed as a `fetched`
   line for the group the box is starting, in its log and on no terminal,
   with `--echo steps` and in a failure's tail too; one from a group
@@ -3625,10 +3652,11 @@ Each is intended; what it needs is named with it.
 - **The LLM providers out of the document,** each a design of its own;
   the scripted provider, the playground's (8.4), may become the binary's
   stock first, its endpoint the fake LLM's port, the machine's.
-- **A lock and an exec in skein's shell,** onto which 6.4's module
-  moves once skein's shell offers an exec and a lock held across it,
-  which skein's `Lock` is not (skein's `io.md`, section 5). A second
-  service that execs is what would ask skein for them.
+- **A lock and an exec in skein's shell,** onto which 6.4's module and
+  Claude Code's lock and launcher (6.6) move once skein's shell offers an
+  exec and a lock held across it, which skein's `Lock` is not (skein's
+  `io.md`, section 5). A second service that execs is what would ask
+  skein for them.
 - **A story of Reconcile over TLS.** The managed string form takes a
   forge on another host over TLS and the service hands that transport to
   skein (5.6), but every test of the admin connect, the process story
@@ -3665,6 +3693,22 @@ Each is intended; what it needs is named with it.
   percentage: a walk's fetch lasts seconds, its `fetched` lines keep the
   page moving, and `again` takes no page while it moves
   (`../client/journeys.md`, 8.1).
+- **Claude Code's download walked** (6.6): every test's download is a
+  fake one, so the pinned URL, digests and sizes first meet
+  `downloads.claude.ai`, and the build first runs as temper's launcher
+  runs it, when someone chooses Claude on a machine with no `claude`.
+  Whoever walks this next does that once.
+- **The person's `claude` installed after init** (6.6, 8.2): taken in
+  place of the fetched build, or not; for now init's choice holds until
+  the box is made again (`../draft/claude-provider.md`, 6).
+- **Choosing Claude's model and effort** (8.3): init writes Opus alone;
+  choosing is the work the user asked for apart, for ChatGPT and Claude
+  alike (`../draft/claude-provider.md`, 4).
+- **The other fake peers' refused connections** (7.5): the issuer's log
+  takes a line for each connection it turns away at its cap, from skein's
+  OAuth peer's count; `fake github`, `fake forgejo` and `fake model` turn
+  theirs away silently, and skein's forge and LLM peers count none. Each
+  takes the same count and line when a walk meets its cap.
 
 ## 16. Open questions
 

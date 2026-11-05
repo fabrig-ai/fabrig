@@ -4,7 +4,7 @@ use skein_ui::{Style, look::Names};
 /// A session's byline, status, spend and controls (client/README.md, 3.5).
 pub const SESSION_RIGHT: Style = Style { owner: owner(), token: 246 };
 /// A new chat's centred repository context (client/README.md, 3.5).
-pub const META_LINE: Style = Style { owner: owner(), token: 248 };
+pub const META_LINE: Style = Style { owner: owner(), token: 253 };
 /// A configuring chat's tag in Chats (client/README.md, 3.5).
 pub const CONFIGURING_TAG: Style = Style { owner: owner(), token: 247 };
 /// A session’s main. (client/README.md, 3.5).
@@ -31,6 +31,16 @@ pub const BYLINE: Style = Style { owner: owner(), token: 243 };
 pub const STARTER: Style = Style { owner: owner(), token: 244 };
 /// The configuring session’s suggested first messages. (client/README.md, 3.5).
 pub const STARTERS: Style = Style { owner: owner(), token: 245 };
+/// The configuring opening’s lede (client/README.md, 3.5).
+pub const STARTER_LEDE: Style = Style { owner: owner(), token: 248 };
+/// The configuring opening’s sets (client/README.md, 3.5).
+pub const STARTER_SETS: Style = Style { owner: owner(), token: 249 };
+/// The configuring opening’s note (client/README.md, 3.5).
+pub const STARTER_NOTE: Style = Style { owner: owner(), token: 250 };
+/// The configuring opening’s ways (client/README.md, 3.5).
+pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
+/// The configuring opening’s unsure (client/README.md, 3.5).
+pub const STARTER_UNSURE: Style = Style { owner: owner(), token: 252 };
 /// A folded account.
 pub const ACCOUNT_ROW: Style = Style { owner: owner(), token: 124 };
 /// The rail switcher's panel.
@@ -729,6 +739,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-starters",
         b"temper-session-right",
         b"temper-configuring-tag",
+        b"temper-starter-lede",
+        b"temper-starter-sets",
+        b"temper-starter-note",
+        b"temper-starter-ways",
+        b"temper-starter-unsure",
         b"temper-meta-line",
     ],
     regions: &[b"temper-link"],

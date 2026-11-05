@@ -1,0 +1,127 @@
+draft = "debt-17"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-17/inputs/request.md", "skein/docs/development/debt/D003-env-rewraps.md", "skein/docs/development/debt/D005-civil-calendars.md", "skein/docs/development/debt/D006-lru-tables.md", "skein/docs/development/debt/D008-http-head-parsing.md", "skein/docs/development/debt/D019-channel-machine-flags.md", "skein/docs/development/debt/D026-crate-tests-directories.md", "skein/docs/development/debt/D034-codec-double-generation.md", "skein/docs/development/debt/D044-io-token-tags.md", "jig/docs/development/debt/D027-engine-clients-cursor-format.md", "hearth/docs/development/debt/D008-path-modules.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "hearth-path"
+title = "hearth's last two #[path]s become plain modules of their suite (hearth D008)"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/testing.md, 2.4"
+
+[[part]]
+id = "codec-once"
+title = "tests/codec generates its fixtures once, and skein-codec compiles none (skein D034)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/codec.md, 6"
+
+[[part]]
+id = "terminal-namespace"
+title = "the terminal names its operations through Token::tagged (skein D044)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/io.md, 5"
+
+[[slice]]
+id = 1
+story = "three small items land: no #[path] in hearth, one codec generation, no hand tag in the terminal"
+parts = ["hearth-path", "codec-once", "terminal-namespace"]
+walk = false
+
+[[part]]
+id = "env-with"
+title = "an Env of the same clocks is env.with(limits) (skein D003)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 9"
+
+[[slice]]
+id = 2
+story = "no skein code rebuilds an Env from another's clocks"
+parts = ["env-with"]
+walk = false
+
+[[part]]
+id = "civil-date"
+title = "one civil date on Wall serves the ui, the server's Date and the forge's times (skein D005)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 8"
+
+[[slice]]
+id = 3
+story = "skein converts days to a date in one place"
+parts = ["civil-date"]
+walk = false
+
+[[part]]
+id = "lru"
+title = "one bounded least-recently-used table in lib, and the forge's tables on it (skein D006)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 5"
+
+[[slice]]
+id = 4
+story = "both dialects' tables stand on lib's Lru"
+parts = ["lru"]
+walk = false
+
+[[part]]
+id = "http-header"
+title = "one reading of a head for both skein-http machines and skein-llm (skein D008)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/http.md, 2"
+
+[[slice]]
+id = 5
+story = "skein-http reads a head one way, and skein-llm stands on its predicates"
+parts = ["http-header"]
+walk = false
+
+[[part]]
+id = "channel-states"
+title = "the channel machine's lifecycle is states that hold their data (skein D019)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/channel.md, 8.3"
+
+[[slice]]
+id = 6
+story = "the channel machine has no flags, and goes closed in one place"
+parts = ["channel-states"]
+walk = false
+
+[[part]]
+id = "crate-tests-move"
+title = "no crate keeps a tests/ directory (skein D026)"
+mode = "direct"
+needs = ["codec-once"]
+design = "skein/docs/design/testing.md, 6"
+
+[[slice]]
+id = 7
+story = "what drives skein's crates from outside lives under skein/tests"
+parts = ["crate-tests-move"]
+walk = false
+
+[[part]]
+id = "cursor-schema"
+title = "the owner cursor is a schema's record, with goldens (jig D027)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/client.md, 6"
+
+[[slice]]
+id = 8
+story = "a cursor's bytes are checked like every other byte format jig sends"
+parts = ["cursor-schema"]
+walk = false
