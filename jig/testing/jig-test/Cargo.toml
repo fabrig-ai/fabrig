@@ -54,7 +54,7 @@ jig-client = { path = "../../crates/jig-client" }
 skein-fake-oauth.workspace = true
 skein-http.workspace = true
 jig-client-protocol-kit.workspace = true
-jig-channel-world = { path = "../../tests/channel" }
+jig-channel-kit.workspace = true
 jig-client-shell-native = { path = "../../crates/jig-client-shell-native" }
 skein-tls-kit.workspace = true
 skein-world.workspace = true

@@ -21,7 +21,7 @@ pub fn provider(
 ) -> (skein_fake_peers::llm::Peer, SocketAddr, Fd) {
     let listener = listener();
     let address = listener.local_addr().expect("provider address");
-    let mut peer = jig_channel_world::fixtures::provider_at(
+    let mut peer = jig_channel_kit::fixtures::provider_at(
         address,
         scripts,
         credential,

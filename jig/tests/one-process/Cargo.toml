@@ -22,7 +22,7 @@ jig-client-domain.workspace = true
 jig-conformance.workspace = true
 smith-channel.workspace = true
 smith-charter.workspace = true
-jig-channel-world = { path = "../channel" }
+jig-channel-kit.workspace = true
 jig-client-protocol-kit.workspace = true
 jig-client-shell-native = { path = "../../crates/jig-client-shell-native" }
 jig-test-service.workspace = true

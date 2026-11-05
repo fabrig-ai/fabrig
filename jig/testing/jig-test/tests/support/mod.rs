@@ -49,16 +49,16 @@ pub(super) fn configuration_value(directory: &Path) -> serde_json::Value {
     for name in ["secrets", "charters", "state", "agent-root"] {
         fs::create_dir(directory.join(name)).expect("deployment directory");
     }
-    for (name, bytes) in jig_channel_world::fixtures::files(false).entries.into_boxed() {
+    for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
         private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
     }
     private(&directory.join("worker.secret"), b"worker-secret");
     private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     agent_configuration(directory);
     let mut value: serde_json::Value =
-        serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("engine JSON");
+        serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     let worker: serde_json::Value =
-        serde_json::from_slice(jig_channel_world::fixtures::WORKER_DOCUMENT).expect("worker JSON");
+        serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] =
