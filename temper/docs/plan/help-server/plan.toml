@@ -1,0 +1,3 @@
+draft = "help-server"
+repo = "fabrig"
+sources = ["temper/docs/plan/help-server/inputs/request.md", "temper/docs/help/server.md", "AGENTS.md", "DESIGN.md"]
