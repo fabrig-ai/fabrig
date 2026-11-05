@@ -1,4 +1,8 @@
 //! Full bounded scenario shared by the service and hosted-peer memory binaries.
+#![expect(
+    clippy::must_use_candidate,
+    reason = "Fixture builders serve the memory scenarios rather than a service API."
+)]
 use skein_fake_forge_domain::{self as domain, api as a};
 use skein_fake_forge_github::{
     self as fake,
