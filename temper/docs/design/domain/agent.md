@@ -896,8 +896,46 @@ of `../draft/v0.1.0.md`, 2.1.
   the chat (jig's `domain/tasks.md`, 8.1; jig's `domain/people.md`,
   section 6). The chat cannot ask its own person: it says in its reply
   that a question waits for them.
+- **A question's line form.** jig's question carries words alone, so a
+  question's options and its recommendation are in its words; the stock
+  chat's instructions (charter 1, the goal's paragraph) have a goal
+  write them in one form, which temper's client draws as a question,
+  its context, what the agent saw and its choices (`../client/README.md`,
+  3.5, *Needs you*). No protocol, store or tool knows the form:
+
+  ```
+  Fix the dropped watch in jig’s store, or keep it alive in temper serve?
+
+  MakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local.
+
+  Saw: The box test reproduces it every time.
+  Choice: In jig’s store (recommended)
+  Choice: In temper serve
+  ```
+
+  - The first line is the **question**, and never a trailing line.
+  - The **trailing lines** are found walking up from the last line,
+    blank lines passed over: each line beginning `Saw: ` or `Choice: `
+    is one, and the first other line ends them. Such a line above that
+    point is context, words like any other.
+  - The lines between the question and the trailing lines are the
+    **context**, without its first and last blank lines.
+  - A trailing `Saw: ` line is **what the agent saw**, several joined by
+    a line break, in their order.
+  - A trailing `Choice: ` line is a **choice**, in its order, its words
+    what follows the prefix, trimmed; one with no words, or past what an
+    answer's words take in the client (`CUE_BYTES`, 256), is no choice.
+    One ending ` (recommended)` is recommended, that ending no part of
+    its words; past the first so marked, the ending is removed and
+    recommends nothing.
+  - **The fallback:** words with no choice, or words the read cut
+    (`question.words.cut`), have no trailing lines: the first paragraph
+    is the question, the rest the context, with nothing the agent saw
+    and no choices, and they are answered by a reply alone. Any question
+    a person, a change's relay or an older goal wrote draws this way.
 - **The person answers in the inbox,** `temper ctl task answer TASK
-  QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page, and
+  QUESTION TEXT` (`../client/tools.md`, 5.3), Home's card or the inbox's
+  page, and
   nobody else does: the answer reaches the goal itself, as its
   requester's, never through the chat's model, which may not answer a
   question that waits in its person's inbox (jig's `domain/people.md`,

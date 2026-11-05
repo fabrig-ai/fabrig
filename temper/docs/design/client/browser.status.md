@@ -3,7 +3,9 @@
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
 - **Not yet:** 2.3, 2.5: Goals' path and look: plan `ui-goals`.
-- **Not yet:** 7.1: a `home-*` state's title is its headline, then
+- **Not yet:** 7.2: `needs-proposal`, `needs-held`, `needs-funds`,
+  `home-morning-card`, `home-answered` and
+  `home-one-need`. 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.

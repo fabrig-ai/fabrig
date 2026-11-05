@@ -1,3 +1,4 @@
+mod needs;
 use crate::ChatsFilter;
 mod accounts;
 mod chat;
