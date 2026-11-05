@@ -1131,6 +1131,10 @@ to 7 and 11 settle.
 - **temper's side of section 15:** temper's literals that write out a
   `Limits` whole move onto `Limits::EMPTY` in its own tree. They wait
   with no debt item to hold them.
+- **`skein_ui::date`'s `civil` and `wall`** delegate to lib's (lib.md, 8),
+  `civil` still answering an `Option` that every wall time fills. They go
+  when jig's views read lib's, in jig's own tree, and wait with no debt
+  item to hold them.
 
 ## 19. Open questions
 

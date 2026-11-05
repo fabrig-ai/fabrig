@@ -88,7 +88,7 @@ struct Hooks {
     url: Box<[u8]>,
     expected: Vec<(u64, Option<u64>)>,
 }
-fn seed_hooks(world: &mut skein_forge_setup_world::World, seed: u64) -> Hooks {
+fn seed_hooks(world: &mut skein_forge_setup_world::HostWorld, seed: u64) -> Hooks {
     let mut rng = skein_lib::Rng::new(seed);
     let address =
         std::net::SocketAddr::from(([127, 0, 0, 1], 8000 + u16::try_from(rng.next_u64() % 1000).expect("small port")));

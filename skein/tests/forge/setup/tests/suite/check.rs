@@ -3,7 +3,7 @@ use skein_forge_setup::{
     item::Item,
     reconcile::{Failure, Outcome, Stage, Why},
 };
-use skein_forge_setup_world::{Ended, World, fixtures};
+use skein_forge_setup_world::{Ended, HostWorld, fixtures};
 
 fn failure(subject: &[u8], why: Why) -> Ended {
     Ended::Stop(Failure { forge: 1, step: Stage::Token, subject: subject.into(), why })
@@ -11,7 +11,7 @@ fn failure(subject: &[u8], why: Why) -> Ended {
 
 #[test]
 fn two_tokens_of_one_user_are_accepted_and_the_user_is_kept() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     let id = fixtures::connected_tokens(&mut world);
     assert_eq!(world.check(), Ended::Done);
     assert_eq!(world.outcome(), Some(&Outcome::Identity { id, login: b"alice".as_slice().into() }));
@@ -22,7 +22,7 @@ fn two_tokens_of_one_user_are_accepted_and_the_user_is_kept() {
 
 #[test]
 fn a_second_check_of_the_same_tokens_writes_nothing() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     fixtures::connected_tokens(&mut world);
     assert_eq!(world.check(), Ended::Done);
     let writes = fixtures::file_writes(&world);
@@ -32,7 +32,7 @@ fn a_second_check_of_the_same_tokens_writes_nothing() {
 
 #[test]
 fn two_tokens_of_two_users_are_refused_naming_git() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     fixtures::connected_tokens(&mut world);
     let other = world.store_mut().account(b"another", false, b"Another person");
     let token = fixtures::secret(b"another-persons-git-token");
@@ -44,7 +44,7 @@ fn two_tokens_of_two_users_are_refused_naming_git() {
 
 #[test]
 fn a_git_token_without_read_user_is_refused_naming_git() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     let id = fixtures::connected_tokens(&mut world);
     let token = fixtures::secret(b"git-token-without-read-user");
     world.store_mut().token(id, b"git-no-user", &[b"write:repository"], token.clone());
@@ -55,7 +55,7 @@ fn a_git_token_without_read_user_is_refused_naming_git() {
 
 #[test]
 fn an_api_token_of_a_site_admin_is_refused() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     fixtures::connected_tokens(&mut world);
     let admin = world.store().find(b"kit-admin").expect("admin fixture").id;
     let token = fixtures::secret(b"admin-token-for-a-connected-forge");
@@ -68,7 +68,7 @@ fn an_api_token_of_a_site_admin_is_refused() {
 
 #[test]
 fn a_replacement_answering_as_another_user_is_refused() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     fixtures::connected_tokens(&mut world);
     let other = world.store_mut().account(b"another", false, b"Another person");
     let kept = fixtures::secret(&other.to_le_bytes());
@@ -80,7 +80,7 @@ fn a_replacement_answering_as_another_user_is_refused() {
 
 #[test]
 fn no_secret_is_in_a_checks_failure_debug_or_trace() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     fixtures::connected_tokens(&mut world);
     let unknown = b"unknown-connected-api-token";
     world.put(Item::ApiToken, fixtures::secret(unknown));

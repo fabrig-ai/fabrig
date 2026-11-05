@@ -5,18 +5,18 @@ use skein_forge_setup::{
     reachable::Reached,
     reconcile::{Failure, Outcome, Stage, Why},
 };
-use skein_forge_setup_world::{Ended, World, fixtures};
+use skein_forge_setup_world::{Ended, HostWorld, fixtures};
 
 fn failure(stage: Stage, subject: &[u8], why: Why) -> Ended {
     Ended::Stop(Failure { forge: 1, step: stage, subject: subject.into(), why })
 }
-fn page(world: &World) -> (&[Reached], bool) {
+fn page(world: &HostWorld) -> (&[Reached], bool) {
     let Some(Outcome::Reachable { rows, more }) = world.outcome() else { panic!("picker outcome") };
     (rows, *more)
 }
 #[test]
 fn the_admin_pages_through_every_repository_to_the_end() {
-    let mut world = World::managed_paged(7, 4);
+    let mut world = HostWorld::managed_paged(7, 4);
     let mut all = Vec::new();
     for (number, count, more) in [(1, 4, true), (2, 4, true), (3, 2, false)] {
         assert_eq!(world.reachable(None, number), Ended::Done);
@@ -43,13 +43,13 @@ fn the_admin_pages_through_every_repository_to_the_end() {
 }
 #[test]
 fn a_page_past_the_end_is_empty_and_has_no_more() {
-    let mut world = World::managed_paged(7, 4);
+    let mut world = HostWorld::managed_paged(7, 4);
     assert_eq!(world.reachable(None, 4), Ended::Done);
     assert_eq!(page(&world), ([].as_slice(), false));
 }
 #[test]
 fn a_reachable_run_writes_nothing() {
-    let mut world = World::managed_paged(7, 4);
+    let mut world = HostWorld::managed_paged(7, 4);
     let writes = fixtures::file_writes(&world);
     let files: Vec<_> = [Item::AdminToken, Item::ApiToken, Item::GitToken, Item::User, Item::WebhookSecret]
         .into_iter()
@@ -73,7 +73,7 @@ fn a_reachable_run_writes_nothing() {
 }
 #[test]
 fn a_plain_users_token_cannot_list() {
-    let mut world = World::managed_paged(7, 4);
+    let mut world = HostWorld::managed_paged(7, 4);
     let user = world.store().find(b"ada").expect("person fixture").id;
     let token = fixtures::secret(b"plain-person-token-for-reachable");
     world.store_mut().token(user, b"picker", &[b"read:user", b"write:repository"], token.clone());
@@ -84,14 +84,14 @@ fn a_plain_users_token_cannot_list() {
 }
 #[test]
 fn an_installation_given_to_a_forgejo_sends_no_request() {
-    let mut world = World::managed_paged(7, 4);
+    let mut world = HostWorld::managed_paged(7, 4);
     assert_eq!(world.reachable(Some(7), 1), failure(Stage::Installation, b"7", Why::Unexpected));
     assert!(world.requests().is_empty());
     assert_eq!(world.tally().total, 0);
 }
 #[test]
 fn neither_token_kept_stops_missing() {
-    let mut world = World::managed_paged(7, 4);
+    let mut world = HostWorld::managed_paged(7, 4);
     world.forget(Item::AdminToken);
     world.forget(Item::ApiToken);
     assert_eq!(world.reachable(None, 1), failure(Stage::Token, b"api", Why::Missing));
@@ -99,7 +99,7 @@ fn neither_token_kept_stops_missing() {
 }
 #[test]
 fn no_secret_is_in_a_reachable_failure_debug_or_trace() {
-    let mut world = World::managed_paged(7, 4);
+    let mut world = HostWorld::managed_paged(7, 4);
     let unknown = b"unknown-admin-token-for-reachable";
     world.put(Item::AdminToken, fixtures::secret(unknown));
     let ended = world.reachable(None, 1);

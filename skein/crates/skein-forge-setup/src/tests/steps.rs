@@ -329,6 +329,17 @@ fn a_run_that_kept_both_tokens_reads_the_cap_at_the_first_hook_listing() {
     assert_eq!(run.step(Event::Read(Some(secret(b"hook-secret")))), fixtures::send(Request::ApiSettings));
 }
 #[test]
+fn a_reconcile_with_an_off_loopback_listener_asks_no_secret_or_draw() {
+    let given = crate::given::Given {
+        adopted: Box::new([9]),
+        listener: Some(core::net::SocketAddr::from(([192, 0, 2, 1], 8080))),
+        ..fixtures::given()
+    };
+    let mut run = Run::with_given(given);
+    fixtures::to_org(&mut run);
+    assert_eq!(writable(&mut run, 9), Need::Done(fixtures::done()));
+}
+#[test]
 fn a_run_with_both_tokens_valid_and_no_listener_reads_no_cap_and_no_secret() {
     let mut run = fixtures::access_run(&[9]);
     assert_eq!(writable(&mut run, 9), Need::Done(fixtures::done()));

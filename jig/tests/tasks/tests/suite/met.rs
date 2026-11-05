@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    self as tasks, Active, Amendment, Control, Ending, Event, Executor, Hold, HoldKind, Holding, Kind, MessageKind,
-    Name, Party, Phase, ProcedureDecision, ProcedureEnd, Taken, TaskResult, WakePolicy, WakeRule,
+    self as tasks, Active, Amendment, Ending, Event, Executor, Hold, HoldKind, Holding, Kind, MessageKind, Name, Party,
+    Phase, ProcedureDecision, ProcedureEnd, Release, Taken, TaskResult, WakePolicy, WakeRule,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, ReplyTo};
@@ -21,25 +21,27 @@ fn amend(world: &mut World, dependencies: &[u64]) {
     let message = world.record(KEPT).last_message + 1;
     assert_eq!(
         response(world, |reply_to| Event::Amend {
+            operation: tasks::Amend {
+                task: KEPT,
+                message,
+                stop_run: false,
+                amendment: Box::new(Amendment {
+                    tracked: None,
+                    addressed: None,
+                    instructions: None,
+                    release: None,
+                    spec: None,
+                    wake: None,
+                    dependencies: Some(dependencies.into()),
+                    authority: None,
+                    llm: None,
+                    reason: Box::new([1]),
+                })
+            },
             places: Box::new([]),
             reply_to,
             by: AMENDER,
-            task: KEPT,
-            message,
-            stop_run: false,
-            funder: None,
-            amendment: Amendment {
-                tracked: None,
-                addressed: None,
-                instructions: None,
-                release: None,
-                spec: None,
-                wake: None,
-                dependencies: Some(dependencies.into()),
-                authority: None,
-                llm: None,
-                reason: Box::new([1]),
-            },
+            funder: None
         }),
         Reply::Done
     );
@@ -201,11 +203,10 @@ fn a_held_kept_task_keeps_its_met_until_release_then_is_due() {
     assert!(matches!(world.record(KEPT).phase, Phase::Held { .. }));
     assert!(!world.activations.contains(&KEPT));
     assert_eq!(
-        response(&mut world, |reply_to| Event::Control {
+        response(&mut world, |reply_to| Event::Release {
             reply_to,
             by: AMENDER,
-            task: KEPT,
-            control: Control::Release { again: None, message: None },
+            operation: Release { task: KEPT, again: None, message: None }
         }),
         Reply::Done
     );
@@ -231,7 +232,11 @@ fn a_live_met_leaves_all_ordinary_sender_room_available() {
             eligible: false,
         };
         assert_eq!(
-            response(&mut world, |reply_to| Event::Message { reply_to, project: 1, task: KEPT, word: message }),
+            response(&mut world, |reply_to| Event::Message {
+                reply_to,
+                project: 1,
+                operation: tasks::Message { task: KEPT, word: message }
+            }),
             Reply::Done
         );
     }

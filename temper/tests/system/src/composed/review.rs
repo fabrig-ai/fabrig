@@ -47,6 +47,61 @@ impl World {
         world
     }
 
+    /// Produce a pull with `bytes` changed content bytes and review it through
+    /// the production assignment and receiving-worker fitting entrances.
+    #[must_use]
+    pub fn large_review_change(seed: u64, bytes: usize, review: Script) -> Self {
+        let small = Self::review_change(seed, review.clone(), review);
+        let chat = small.scripts.front().expect("chat script").clone();
+        let mut world = Self::configured_limits(seed, chat, true, config, |limits| {
+            limits.brief.read_bytes = 131_072;
+            limits.brief.brief_bytes = 131_072;
+            limits.brief.budgets.pull = 131_072;
+            limits.forge.brief_bytes = 131_072;
+            limits.journal.result_bytes = 131_072;
+        });
+        world.scripts = small.scripts;
+        let producer = world.scripts.get_mut(1).expect("producer script");
+        let mut turns = vec![call(b"read", br#"{"path":"export.csv","offset":1,"window":128}"#)];
+        turns.extend(producer.turns.clone());
+        producer.turns = turns.into_boxed_slice();
+        world.forge.advance(b"org/repo", b"main", b"export.csv", &vec![b'x'; bytes - b"fruit,count\n".len()]);
+        world
+    }
+
+    /// The fitted charter delivered to the reviewer at the process entrance.
+    #[must_use]
+    pub fn review_charter(&self, task: u64) -> smith_domain_run::Charter {
+        let process = if self.assignment().task == task {
+            &self.process
+        } else {
+            self.parked.get(&task).expect("review process")
+        };
+        smith_protocol_channel::decode_charter(
+            &process.charter,
+            &smith_charter::CEILINGS,
+            &super::worker_protocol::endpoints(),
+        )
+        .expect("receiving charter")
+    }
+
+    /// Count the changed before/after contents reported by the fake forge.
+    pub fn pull_diff_bytes(&mut self) -> usize {
+        let number = self.reviewed_change().pull.expect("pull opened");
+        let answer = self
+            .forge
+            .api(b"org/repo", 1, super::fake::Op::Read(super::fake::Read::PullFiles { number, page: 1, limit: 100 }))
+            .expect("pull files");
+        let super::fake::Answer::PullFiles { files, more, .. } = answer else { panic!("pull files answer") };
+        assert!(!more);
+        files
+            .iter()
+            .map(|file| {
+                file.before.as_ref().map_or(0, |text| text.len()) + file.after.as_ref().map_or(0, |text| text.len())
+            })
+            .sum()
+    }
+
     /// The durable change being judged, including CI and gate failure accounting.
     #[must_use]
     pub fn reviewed_change(&self) -> &forge::ChangeRow {

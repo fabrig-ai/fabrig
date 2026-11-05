@@ -15,6 +15,10 @@ fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
         RecordKind::Making => Stored::Making(making::row(number)),
+        RecordKind::LandingLog => Stored::LandingLog(LandingLog {
+            repository: skein_forge::api::Repository { forge: 1, repository: number },
+            landings: Box::new([]),
+        }),
         RecordKind::Tier => Stored::Tier(tier_row(number)),
         RecordKind::Verification => Stored::Verification(Verification {
             repository: REPO,
@@ -144,6 +148,7 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
         (K::Receipt, LIMITS.repositories * (LIMITS.gates + LIMITS.tiers.tiers) * LIMITS.receipts_per_gate),
         (K::Tier, LIMITS.repositories * LIMITS.tiers.tiers),
         (K::Verification, LIMITS.changes),
+        (K::LandingLog, LIMITS.repositories),
         (K::Application, LIMITS.applications),
         (K::Call, LIMITS.named_calls),
         (K::Repository, LIMITS.repositories),
@@ -853,5 +858,90 @@ fn tier_row(number: u32) -> TierRow {
             run: None,
         },
         task: None,
+    }
+}
+
+#[test]
+fn landing_logs_restore_and_report_their_missing_repository() {
+    let mut d = domain();
+    let record = Stored::LandingLog(LandingLog {
+        repository: REPO,
+        landings: Box::new([LoggedLanding {
+            commit: [7; 32],
+            branch: b"main".as_slice().into(),
+            at: Wall::from_nanos(123),
+            changes: Box::new([LoggedChange { task: 51, pull: None, title: b"A lasting title".as_slice().into() }]),
+        }]),
+    });
+    restore(&mut d, record.clone());
+    let Stored::LandingLog(expected) = record else { unreachable!("fixture") };
+    assert_eq!(d.landing_log(REPO), Some(&expected));
+    assert_eq!(
+        d.missing_link(&reconcile::empty_tasks()),
+        Some(MissingLink {
+            kind: RecordKind::LandingLog,
+            key: Key::LandingLog { repository: REPO },
+            need: Need::Repository(REPO),
+        })
+    );
+    restore(&mut d, Stored::Repository(adopted()));
+    assert_eq!(d.missing_link(&reconcile::empty_tasks()), None);
+}
+
+#[test]
+fn landing_log_fields_fit_at_the_limit_and_refuse_one_more() {
+    let landing = LoggedLanding {
+        commit: [7; 32],
+        branch: vec![b'x'; usize::try_from(LIMITS.name_bytes).unwrap()].into(),
+        at: Wall::EPOCH,
+        changes: vec![
+            LoggedChange { task: 1, pull: None, title: Box::new([]) };
+            usize::try_from(LIMITS.landing_members).unwrap()
+        ]
+        .into(),
+    };
+    for (field, bound, set) in [
+        (0_u8, LIMITS.landings_kept, RestoreSet::LandingsKept),
+        (1, LIMITS.landing_members, RestoreSet::LandingMembers),
+        (2, LIMITS.name_bytes, RestoreSet::NameBytes),
+    ] {
+        for extra in [0, 1] {
+            let mut row = LandingLog {
+                repository: REPO,
+                landings: vec![landing.clone(); usize::try_from(LIMITS.landings_kept).unwrap()].into(),
+            };
+            let count = usize::try_from(bound + extra).unwrap();
+            match field {
+                0 => row.landings = vec![landing.clone(); count].into(),
+                1 => row.landings[0].changes = vec![landing.changes[0].clone(); count].into(),
+                2 => row.landings[0].branch = vec![b'x'; count].into(),
+                _ => unreachable!("fixture field"),
+            }
+            let mut d = domain();
+            restore(&mut d, Stored::LandingLog(row.clone()));
+            if extra == 0 {
+                assert_eq!(d.restore_fit_failure(), None);
+                assert_eq!(d.landing_log(REPO), Some(&row));
+            } else {
+                assert_eq!(
+                    d.restore_fit_failure(),
+                    Some(&RestoreFit {
+                        family: Some(RecordKind::LandingLog),
+                        set,
+                        held: u64::from(bound + 1),
+                        additional: 0,
+                        limit: u64::from(bound),
+                    })
+                );
+                assert!(d.landing_log(REPO).is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn landings_kept_is_positive_and_fits_the_store_ceiling() {
+    for (landings_kept, accepted) in [(0, false), (1, true), (256, true), (257, false)] {
+        assert_eq!(valid(&Limits { landings_kept, ..LIMITS }), accepted);
     }
 }

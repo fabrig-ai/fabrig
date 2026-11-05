@@ -53,6 +53,9 @@ pub const LIMITS: top::Limits = top::Limits {
     collaborators: 8,
     landings: 8,
     landing_members: 2,
+    landings_kept: 16,
+    changes_rows: 32,
+    changes_landed: 8,
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
@@ -1303,6 +1306,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
 }

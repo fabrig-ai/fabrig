@@ -92,14 +92,11 @@ pub(crate) fn amend_route(
     };
     let request = core.fly_person_task(request, PersonTaskRoute::Amended { task, released });
     routed.work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
+        operation: tasks::Amend { task, message, stop_run, amendment: Box::new(amendment) },
         places: evidence.places.into_boxed(),
         funder: None,
         reply_to: ReplyTo::new(request),
         by: tasks::Party::Person(person),
-        task,
-        message,
-        stop_run,
-        amendment,
     })));
 }
 
@@ -203,11 +200,10 @@ pub(crate) fn cancel_request(
                 None
             };
             let request = core.fly_person_task(request, PersonTaskRoute::Cancel(task));
-            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Control {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Cancel {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
-                task,
-                control: tasks::Control::Cancel { reason, grace, message },
+                operation: tasks::Cancel { task, reason, grace, message },
             })));
         }
         Err(why) => {
@@ -245,11 +241,10 @@ pub(crate) fn release_request(
                 }
             };
             let request = core.fly_person_task(request, PersonTaskRoute::Release(task));
-            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Control {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Release {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
-                task,
-                control: tasks::Control::Release { again, message },
+                operation: tasks::Release { task, again, message },
             })));
         }
         Err(why) => {
@@ -329,13 +324,12 @@ pub(crate) fn move_request(
         Ok(()) => {
             let token = core.fly(crate::routing::flight::Flight::Moving { request, task });
             routed.work.push(Work::Event(Event::Tasks(tasks::Event::Move {
+                operation: tasks::Move { task, reason },
                 reply_to: ReplyTo::new(token),
-                task,
                 person,
                 period: core.period(project),
                 pool_budget: core.pool_budget(project, person),
                 period_budget: core.period_budget(project),
-                reason,
             })));
         }
         Err(why) => {

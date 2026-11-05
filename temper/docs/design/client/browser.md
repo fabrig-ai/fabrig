@@ -230,6 +230,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   |---|---|
   | `Inbox { filter }` | `/`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
+  | `Changes { project }` | `/projects/<project>/changes` |
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
@@ -246,7 +247,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 
   `<task>` and `<project>` are the task's and the project's numbers in
   decimal. A later page's path comes with it, in this shape
-  (`/projects/<project>/changes`). The
+  (`/projects/<project>/board`). The
   public pages' paths, under `/public`, are section 8's.
 - **The inbox's filter is its query:** the fields it sets, in one
   order, `?project=<project>&kind=<kind>&goal=<goal>`, and none with
@@ -1131,6 +1132,10 @@ from the engine's own answers, is where the look is tuned.
 
 | Name | The state |
 |---|---|
+| `changes` | a hand-made `ChangesPanel` delivery: three queued and four landed |
+| `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
+| `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
+| `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
 | `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |

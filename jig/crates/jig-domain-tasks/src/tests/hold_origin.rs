@@ -1,7 +1,7 @@
 //! Public task entrances preserve immutable connector reference facts.
 
 use super::revisions::{Harness, LIMITS, task, to};
-use crate::{Active, Cause, Control, Domain, End, Event, Hold, HoldSource, Key, Name, Party, Phase, Request, Stored};
+use crate::{Active, Cause, Domain, End, Event, Hold, HoldSource, Key, Name, Party, Phase, Release, Request, Stored};
 use alloc::boxed::Box;
 use skein_lib::Wall;
 
@@ -52,11 +52,10 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_milestones() {
     let row = h.domain.task(1).unwrap();
     assert_eq!(origin(&row.phase), Some(&resource(b"changed")));
     let position = row.milestone;
-    h.send(Event::Control {
+    h.send(Event::Release {
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: 1, again: None, message: None },
     });
     assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
     let Some(Stored::Milestone(retained)) = h.stored.get(&Key::Milestone { task: 1, position }) else {
