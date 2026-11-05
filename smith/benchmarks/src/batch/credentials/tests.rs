@@ -25,7 +25,7 @@ fn an_unreadable_generation_never_passes_the_pair() {
     assert!(matches!(
         proof(
             &[End::Completed, End::Completed],
-            &Err("cannot inspect generation".into()),
+            &Err(Fault::new(crate::FaultKind::Credential, "cannot inspect generation")),
             &Ok(Some(5)),
             Path::new("synthetic-record")
         ),
@@ -139,7 +139,7 @@ fn two_attempt_processes_meet_before_either_can_finish() {
         settlement_ms: 1000,
         setup_deadline_seconds: 5,
         disk_estimate_bytes: 0,
-        ..crate::request_fixture::request(
+        ..crate::fixture::request::request(
             Path::new(env!("CARGO_MANIFEST_DIR")).join("tasks/probes/credentials/task.toml"),
             result.identity,
         )

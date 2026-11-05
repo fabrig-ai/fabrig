@@ -282,5 +282,4 @@ fn path_field(input: &[u8], field: &[u8]) -> PathField {
 }
 
 #[cfg(test)]
-#[path = "policy_tests.rs"]
 mod tests;

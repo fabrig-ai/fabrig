@@ -2,7 +2,6 @@
 //! The composed bound sums independently bounded layers, so equality with the
 //! sum is not expected; the driver attains the declared run context/section
 //! and decoded-completion limits rather than only measuring construction.
-#[path = "memory/jobs.rs"]
 mod jobs;
 
 use skein_lib::List;

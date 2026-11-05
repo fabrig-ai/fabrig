@@ -494,5 +494,4 @@ pub(super) fn mcp_configuration(relay_path: &[u8], server_port: u16, secret: &[u
 }
 
 #[cfg(test)]
-#[path = "files_tests.rs"]
 mod tests;

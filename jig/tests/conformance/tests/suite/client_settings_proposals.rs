@@ -2,6 +2,7 @@
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
 use jig_client_protocol_wire::v19 as w;
+use jig_client_scripted_engine::wire;
 use jig_client_test_records::settings_proposals as values;
 use skein_lib::{Reader, Writer};
 macro_rules! encoded {
@@ -85,8 +86,7 @@ fn settings_proposals_and_running_decisions_keep_the_client_contract() {
 fn pending_reviews_keep_origins_values_sizes_and_the_cut_fact() {
     let limits = limits();
     let pending = values::pending();
-    let wire = translate::settings_proposals::wire_owner_proposal_action_settings(&pending, limits.wire())
-        .expect("settings action");
+    let wire = wire_owner_proposal_action_settings(&pending, limits.wire()).expect("settings action");
     let mut parts = w::Proposal::decode(
         limits.wire(),
         &mut Reader::new(include_bytes!(
@@ -128,8 +128,7 @@ fn pending_reviews_keep_origins_values_sizes_and_the_cut_fact() {
 fn retained_settings_actions_keep_the_revision_they_made() {
     let limits = limits();
     let retained = values::retained();
-    let wire = translate::settings_proposals::wire_owner_retained_action_settings(&retained, limits.wire())
-        .expect("retained settings");
+    let wire = wire::wire_retained_action_settings(&retained, limits.wire()).expect("retained settings");
     let mut proposal = w::ProposalHistory::decode(
         limits.wire(),
         &mut Reader::new(include_bytes!(
@@ -285,11 +284,7 @@ fn engine_pending_settings_review_reaches_the_client_and_encodes_back_without_lo
     let c::SettingValue::Template(template) = &value.value else { panic!("template") };
     assert_eq!(template.grace, Some(skein_lib::Duration::from_secs(4)));
     let w::ProposalAction::Settings(original) = wire.action() else { panic!("settings wire action") };
-    assert_eq!(
-        translate::settings_proposals::wire_owner_proposal_action_settings(&action, limits.wire())
-            .expect("client encoder"),
-        **original
-    );
+    assert_eq!(wire_owner_proposal_action_settings(&action, limits.wire()).expect("client encoder"), **original);
 }
 #[test]
 fn engine_accepted_party_settings_history_keeps_its_party_key_and_revision() {
@@ -351,4 +346,18 @@ fn engine_running_and_pending_settings_limit_refusals_keep_their_client_names() 
             .expect("keyed answer");
         assert_eq!(translate::answers::answer(answer, &limits), Ok(c::Answer::Refused { refusal: expected, at: None }));
     }
+}
+
+// Preserve the review key carried by owner documents (client/domain/contract.md, 5.1).
+fn wire_owner_proposal_action_settings(
+    value: &c::ProposalActionSettings,
+    limits: &w::Limits,
+) -> Result<w::ProposalActionSettings, w::Problem> {
+    let mut parts = wire::wire_proposal_action_settings(value, limits)?.into_parts();
+    if let (Some(source), Some(review)) = (&value.review, parts.review.take()) {
+        let mut review = review.into_parts();
+        review.key = source.key;
+        parts.review = Some(w::SettingsReview::new(limits, review)?);
+    }
+    w::ProposalActionSettings::new(limits, parts)
 }

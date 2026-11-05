@@ -3,6 +3,7 @@
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
 use jig_client_protocol_wire::v19 as w;
+use jig_client_scripted_engine::wire;
 use jig_client_test_records::settings as values;
 use skein_lib::{List, Writer};
 macro_rules! encoded {
@@ -85,7 +86,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
                 t,
                 w::RefusalMalformedParts {
                     at: 0,
-                    why: w::Malformed::Settings(translate::settings::wire_malformed_settings(&why, t).expect("fault")),
+                    why: w::Malformed::Settings(wire::wire_malformed_settings(&why, t).expect("fault")),
                 },
             )
             .expect("refusal"),
@@ -98,7 +99,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
     );
     assert_eq!(refusal(&unchanged, &limits), Ok(c::Refusal::Malformed { at: 0, why: c::Malformed::SettingsUnchanged }));
     let document = values::settings_document();
-    let settings = translate::settings::wire_settings_document(&document, t).expect("settings");
+    let settings = wire::wire_settings_document(&document, t).expect("settings");
     let bytes = encoded!(&w::ReadValue::Settings(settings.clone()));
     assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Settings(Box::new(document))));
     let bytes = encoded!(&w::DeliveryValue::Settings(settings));
@@ -114,8 +115,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         application: None,
         proposed: None,
     };
-    let bytes =
-        encoded!(&w::ReadValue::Setting(translate::settings::wire_setting_document(&document, t).expect("setting")));
+    let bytes = encoded!(&w::ReadValue::Setting(wire::wire_setting_document(&document, t).expect("setting")));
     assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Setting(Box::new(document))));
     for answer in [
         c::RevisionAnswer::Revision(values::settings_revision()),
@@ -125,16 +125,14 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         let bytes = encoded!(&w::ReadValue::Revision(
             w::ReadRevisionAnswer::new(
                 t,
-                w::ReadRevisionAnswerParts {
-                    value: translate::settings::wire_revision_answer(&answer, t).expect("revision")
-                }
+                w::ReadRevisionAnswerParts { value: wire::wire_revision_answer(&answer, t).expect("revision") }
             )
             .expect("revision answer")
         ));
         assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Revision(Box::new(answer))));
     }
     let page = values::settings_page();
-    let bytes = encoded!(&w::ReadValue::Revisions(translate::settings::wire_revisions_page(&page, t).expect("page")));
+    let bytes = encoded!(&w::ReadValue::Revisions(wire::wire_revisions_page(&page, t).expect("page")));
     assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Revisions(Box::new(page))));
 }
 

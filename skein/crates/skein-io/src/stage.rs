@@ -33,7 +33,9 @@ pub fn up(
         if !io.is_ready() || !room(submissions, MAX_OUT_RESUME) {
             break;
         }
+        let before = submissions.len();
         crate::resume(io, env, told, submissions);
+        within(submissions, before, MAX_OUT_RESUME);
     }
     if io.is_ready() {
         return;
@@ -45,7 +47,9 @@ pub fn up(
         let Some(complete) = completions.pop() else {
             break;
         };
+        let before = submissions.len();
         crate::up(io, env, complete, told, submissions);
+        within(submissions, before, MAX_OUT_UP);
     }
     if !completions.is_empty() {
         return;
@@ -56,7 +60,9 @@ pub fn up(
         if !io.is_due(now) || !room(submissions, MAX_OUT_FIRE) {
             break;
         }
+        let before = submissions.len();
         crate::fire(io, env, told, submissions);
+        within(submissions, before, MAX_OUT_FIRE);
     }
 }
 
@@ -70,11 +76,19 @@ pub fn down(io: &mut Io, env: &Env<Limits>, asked: &mut Queue<Request>, submissi
         let Some(request) = asked.pop() else {
             break;
         };
+        let before = submissions.len();
         crate::down(io, env, request, submissions);
+        within(submissions, before, MAX_OUT_DOWN);
     }
 }
 
 /// Whether the kernel's submission queue holds the most an entry point submits.
 fn room(submissions: &Queue<Submit>, max: MaxOut) -> bool {
     submissions.room() >= max.submissions
+}
+
+/// What an entry point submitted is within what it declared, which `room` relies on.
+fn within(submissions: &Queue<Submit>, before: u32, max: MaxOut) {
+    let submitted = submissions.len().checked_sub(before).expect("an entry point only adds submissions");
+    assert!(submitted <= max.submissions, "an entry point submits no more than it declares");
 }

@@ -395,10 +395,7 @@ fn oversized_reasoning_defaults_to_fail_and_drop_requires_explicit_selection() {
     assert_eq!(parse_value(&document).err().as_deref(), Some("model oversized_reasoning must be fail or drop"));
 }
 
-#[path = "../../../tests/support/product.rs"]
-mod product;
-
-use product::product_document;
+use crate::fixture::product_document;
 
 fn all_product_models(mut document: serde_json::Value) -> serde_json::Value {
     let mut astra = document["endpoints"][0]["models"][0].clone();

@@ -9,6 +9,10 @@ mod turns;
 mod values;
 pub(crate) use front::{answer, ask, delivery, none, read, selector, subject};
 use turns::turn_bytes;
+pub use values::{
+    wire_malformed_settings, wire_proposal_action_settings, wire_retained_action_settings, wire_revision_answer,
+    wire_revisions_page, wire_setting_document, wire_settings_document,
+};
 
 #[cfg(test)]
 mod tests;

@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::grade::{Ended, Snapshot};
 use crate::process::ProcessResult;
-use crate::{AttemptResult, Measure, Outcome, OutcomeCheck, Task};
+use crate::{AttemptResult, Fault, Measure, Outcome, OutcomeCheck, Task};
 
 pub(super) const fn neutral(check: &OutcomeCheck) -> bool {
     match check {
@@ -53,10 +53,10 @@ impl Neutral {
 
     pub(super) fn observed(
         &mut self,
-        observed: Result<Ended, String>,
+        observed: Result<Ended, Fault>,
         process: &ProcessResult,
         outcome: &Outcome,
-    ) -> Result<&Ended, String> {
+    ) -> Result<&Ended, Fault> {
         if process.observing.as_deref().is_some_and(crate::agent::Observing::program_source) {
             self.program();
         }
@@ -157,7 +157,7 @@ mod cache_pair_tests {
         assert!(tools.iter().all(|check| check.passed == Measure::unavailable("Claude Code's built-in tools")));
         assert_eq!(crate::judge(&result), crate::Judgment::Pass, "{:?}", result.outcome.checks);
         for reason in ["agent trace open: missing", "agent trace read: denied"] {
-            observing.agent_trace(Err(reason.into()));
+            observing.agent_trace(Err(crate::Fault::new(crate::FaultKind::Stream, reason)));
             result.outcome.checks.retain(|check| check.check != "stream-whole");
             let whole = observing
                 .health(crate::Exit::Code(0), crate::Forced::No)

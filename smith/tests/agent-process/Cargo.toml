@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+skein-scratch.workspace = true
 skein-shell.workspace = true
 skein-heap.workspace = true
 skein-fake-llm-domain.workspace = true
@@ -49,7 +50,6 @@ serde = { version = "1", features = ["derive"] }
 smith-transcript.workspace = true
 
 [dev-dependencies]
-skein-scratch.workspace = true
 smith-bench = { path = "../../benchmarks" }
 
 [lints.rust]

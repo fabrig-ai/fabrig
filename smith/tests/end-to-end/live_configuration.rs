@@ -187,7 +187,6 @@ fn the_live_arguments_carry_private_program_homes() {
     }
 }
 
-#[path = "support/live_tests.rs"]
 mod live_tests;
 
 pub mod support;

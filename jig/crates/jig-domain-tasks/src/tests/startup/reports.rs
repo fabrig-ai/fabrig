@@ -16,7 +16,7 @@ const CHARTER: u32 = 1;
 
 fn fresh() -> (Domain, Env<crate::Limits>, Queue<Request>) {
     (
-        Domain::new(&LIMITS, SEED, INITIAL_REVISION, charters(), Box::new([0])),
+        Domain::new(&LIMITS, crate::tests::KEPT, SEED, INITIAL_REVISION, charters(), Box::new([0])),
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS },
         Queue::uncapped(),
     )
@@ -126,7 +126,7 @@ fn capacity_refusals_account_for_zero_full_or_available_room() {
     for (room, first_held, first_lost, second_held, second_lost) in [(0, 0, 1, 0, 2), (1, 1, 0, 1, 1), (2, 1, 0, 2, 0)]
     {
         let limits = crate::Limits { room_refusals: room, ..LIMITS };
-        let mut domain = Domain::new(&limits, SEED, INITIAL_REVISION, charters(), Box::new([0]));
+        let mut domain = Domain::new(&limits, crate::tests::KEPT, SEED, INITIAL_REVISION, charters(), Box::new([0]));
         domain.remember_capacity(Wall::EPOCH, request);
         assert_eq!(domain.capacity_mark(), 1);
         assert_eq!(domain.capacity_refusals().len(), first_held);
