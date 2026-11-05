@@ -1,20 +1,11 @@
 //! Scripted repositories: the domain receives typed documents.
 use hearth_domain_render::{
     parts::meta::{Meta, Placement as MetaPlacement},
-    revision::{Document, Entry, Firmware, Layer, Mode, Oid, Placement, Position, Runs},
+    revision::{Document, Entry, Firmware, Layer, Mode, Placement, Position, Runs},
     vocabulary::Decoded,
 };
 use hearth_lib::encode::Digest;
-#[derive(Clone, Debug)]
-pub struct Repository {
-    pub entries: Vec<Entry>,
-    pub blobs: Vec<(Oid, Box<[u8]>)>,
-    pub documents: Vec<(Oid, Decoded)>,
-}
-#[must_use]
-pub fn oid(byte: u8) -> Oid {
-    Oid(vec![byte; 40].into_boxed_slice())
-}
+pub use hearth_test_render::{Repository, oid};
 #[must_use]
 pub fn document(placement: Option<Placement>) -> Decoded {
     Decoded::Document(Document {
@@ -659,10 +650,10 @@ pub fn error_at_budget(bytes: usize) -> hearth_domain_render::errors::Error {
 
 pub mod laws;
 pub mod oracle;
-pub use oracle::draw;
-pub mod properties;
 pub use crate::golden::repository_of;
+pub use hearth_test_render::properties;
 pub use laws::merged;
+pub use oracle::draw;
 pub use properties::digests;
 mod decoded;
 pub use decoded::*;

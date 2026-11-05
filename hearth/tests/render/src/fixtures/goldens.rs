@@ -23,9 +23,4 @@ pub fn check_digests(name: &str) {
     }
 }
 
-/// The JSON stream has one outstanding read and one terminal result.
-pub const JSON_QUEUE: u32 = 1;
-/// Each byte can advance both decoder directions and its bounded containers.
-pub const JSON_TURNS_PER_BYTE: usize = 8;
-/// Opening, end-of-stream and terminal delivery fit within thirty-two turns.
-pub const JSON_TURN_GRACE: usize = 32;
+pub use hearth_test_render::{JSON_QUEUE, JSON_TURN_GRACE, JSON_TURNS_PER_BYTE};

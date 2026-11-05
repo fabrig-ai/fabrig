@@ -1,5 +1,5 @@
 pub mod fixtures;
-pub mod parent;
+pub use hearth_test_render::parent;
 
 pub mod expressions;
 pub mod reference;
@@ -10,8 +10,8 @@ pub mod templates;
 
 pub mod declarations;
 
-pub mod golden;
+pub use hearth_test_render::golden;
 
-pub mod json;
-pub mod repositories;
+pub use hearth_test_render::json;
+pub use hearth_test_render::repositories;
 pub mod spacing;
