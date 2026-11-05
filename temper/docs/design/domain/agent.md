@@ -927,6 +927,39 @@ of `../draft/v0.1.0.md`, 2.1.
 - **Its stories:** `suite::fuzzy::green_light` on fakes (testing.md, 2.4), and
   rung B0 walked on real backends (`../draft/v0.1.0.md`, 2.1).
 
+### 8.3 A chat's document
+
+A chat keeps one Markdown document beside its conversation: its agent writes
+it, the person reads it in Chat, Split or Draft (`../client/README.md`, 3.5,
+*A chat's document*), and a goal starts from it. It is the note of jig's in the
+chat's own scope (jig's `domain/engine.md`, section 10), the lowest numbered:
+there is no kind, and every note in that scope is the document. Its description
+is its title, its body Markdown. The configuring chat's "How PROJECT works" is
+the same mechanism.
+
+- **Who may write:** a chat's authority's note scopes hold a goal's, which for
+  a root conversation is its own (`../protocol/configuration.md`, 13.4), so a
+  chat writes its own scope and only it. A goal and an advisor keep no note
+  scopes. A run knows its task number from its brief.
+- **Its instructions** are held in the binary, under the chat's own paragraph
+  of `chat.txt`: when the person asks for a draft, or says "write this up", keep
+  one document, with `note`, scope goal, the project and its own task number,
+  description its title, its body Markdown beginning with `# TITLE` and a muted
+  line "Draft, DATE, with the user.", whole each time, naming the note and the
+  revision it read, one `##` section per topic, open questions under "## Open
+  questions". It says in a sentence what changed and doesn't repeat it. Mermaid
+  isn't drawn, so it doesn't draw.
+- **The configuring agent's,** `configuring.txt` (8.1): the same, its title "How
+  PROJECT works", written once the person's way is understood, kept current as
+  the conversation changes it.
+- **The tool's answer** gives the client what its line says (`../client/README.md`,
+  3.5): `Note N revision R written · 64 lines` for a first write, `Note N revision
+  R written · +18 −6 · line 31` for a later one, from jig's `lines`, `added`,
+  `removed` and `first` (jig's `domain/engine.md`, section 10).
+- **Its stories:** a scripted turn of the fake model that writes a document
+  (`testing.md`, 2.4), proved through ctl and walked in the journey `chat-draft`
+  (`../client/journeys.md`, 9).
+
 ## 9. The world
 
 smith's worlds test the agent itself (smith's documents, each section

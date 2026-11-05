@@ -2,6 +2,10 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Not yet:** 2.3: `NewChat`'s `?draft=1` and `Chats`' `?state=drafts`. 2.5: a
+  chat's document, its sheet and `Ctrl+\`. 7.2: `chat-draft-*`, `chat-new-draft`,
+  `chat-start-goal*`, `chat-goal-linked`, `chats-drafts`, `configure-chat-document*`
+  and `rail-new-menu`.
 - **Not yet:** 2.5: the Chats page and every chat in the greenfield mock's
   rules. 7.2: the `chats-live`, `chats-closed`, `chats-no-repository`,
   `chat-new*`, `chat-working`, `chat-change-*`, `chat-goal` and

@@ -234,7 +234,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Chats { filter }` | `/chats`, and its filter's query |
-  | `NewChat` | `/chats/new` |
+  | `NewChat { draft }` | `/chats/new`, and `?draft=1` with a draft |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
   | `Task { task, filter }` | `/tasks/<task>`, and its plan's filter's query |
@@ -555,6 +555,14 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   `NewChat`'s. An agent's task's page keeps its own look, `AGENT_PAGE` and
   `TASKBAR`, with `ENTRY`, `COMPOSER_AREA`, `COMPOSER` and `HINT` for its
   composer.
+- **A chat's document** (`README.md`, 3.5) is `configure-chat-draft`'s rules, in
+  `temper.css` under the same marker: `temper-mode-chat`, `-split` and `-draft` on
+  the session, `.temper-doc`, `.temper-doc-inner`, `.temper-doc-path`,
+  `.temper-doc-sec`, `.temper-doc-changed`, `.temper-doc-note`, `.temper-seg`, and
+  the rail's strip with `.temper-rail-unfold` and `files/menu.svg`. What those
+  name is drawn, and the look of its flow's tokens isn't, since nothing draws a
+  flow yet. The sheet to start a goal is the mock's `dialog.sheet`, `.option`,
+  `.field` and `.text`, and `Ctrl+\` steps through the modes.
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.
@@ -1150,6 +1158,18 @@ from the engine's own answers, is where the look is tuned.
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
 | `chat-goal` | a chat with a goal it started: its one line |
 | `chat-byline-open` | a chat with its byline pressed: the chooser's panel |
+| `chat-draft-chat` | a chat with a document, in Chat: its group and tool line |
+| `chat-draft-split` | the same chat in Split: the strip, the pane and a tinted section |
+| `chat-draft-draft` | the same chat in Draft: the composer at the foot on white |
+| `chat-draft-empty` | "+ Draft" pressed and nothing written: the empty pane |
+| `chat-new-draft` | `NewChat { draft: true }`: the empty pane in Split |
+| `chat-start-goal` | a chat's sheet to start a goal, open |
+| `chat-start-goal-refused` | the same sheet, refused in jig's words |
+| `chat-goal-linked` | a chat with its goal started: "Goal TITLE →", and its line |
+| `chats-drafts` | the Chats page under Drafts: "writes away-mode.md" |
+| `configure-chat-document` | a configuring chat in Chat, its document written |
+| `configure-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
+| `rail-new-menu` | the rail's "+ New chat" with its menu open |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's inbox: a proposal, a question |
 | `task-solo-T3` | the solo world's goal T3, its plan and budget |
