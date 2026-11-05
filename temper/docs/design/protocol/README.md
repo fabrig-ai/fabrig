@@ -259,8 +259,9 @@ default; the document is `temper.json` in the configuration directory
   document among it, into the three directories, refusing when the
   configuration directory holds a document (setup.md, 8.2).
 - **`temper internal agent AGENT.json`:** smith's agent shell,
-  `smith_agent_shell::run`, on smith's agent configuration
-  (configuration.md, section 5). The worker's protocol layer spawns it,
+  `smith_agent_shell::run_decoded`, on smith's agent configuration as
+  temper reads it, a `"fetched"` program naming its launcher
+  (configuration.md, section 5; setup.md, 6.6). The worker's protocol layer spawns it,
   one process per run; a person never does.
 - **`temper open DIRECTORY LINK_OR_ADDRESS`:** a person's terminal client
   (`../client/README.md`, 6.1). It reads no configuration file.
