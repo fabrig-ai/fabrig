@@ -1,9 +1,9 @@
 //! P reads and acts on the actual engine's public Ops client tree.
-use jig_client_view::address::{Address as JigAddress, TaskSection};
-use jig_client_world::{
+use jig_client_kit::{
     Until,
     harness::{ClientId, FrontFault},
 };
+use jig_client_view::address::{Address as JigAddress, TaskSection};
 use jig_conformance::Cut;
 use jig_ops_client_domain::{Address, observability as obs};
 use jig_ops_world::joint::engine::Milestone;
@@ -23,7 +23,7 @@ fn p_accepts_the_restart_from_the_incidents_page() {
 
 type OpsEngine = jig_conformance::Harness<jig_ops_world::joint::engine::OpsApplication>;
 
-type StoryWorld = jig_client_world::World<fixture::Client, jig_ops_world::joint::front::Joint>;
+type StoryWorld = jig_client_kit::World<fixture::Client, jig_ops_world::joint::front::Joint>;
 
 fn restart_started(seed: u64, cut: Cut, noise: bool) -> (StoryWorld, ClientId, u64, u64) {
     let (mut world, p) = monitor(seed);
@@ -110,8 +110,7 @@ fn p_story(seed: u64, cut: Cut, noise: bool) -> StoryWorld {
 
 fn monitor(
     seed: u64,
-) -> (jig_client_world::World<fixture::Client, jig_ops_world::joint::front::Joint>, jig_client_world::harness::ClientId)
-{
+) -> (jig_client_kit::World<fixture::Client, jig_ops_world::joint::front::Joint>, jig_client_kit::harness::ClientId) {
     let mut world = fixture::world(seed);
     let p = world.client_with(
         1,

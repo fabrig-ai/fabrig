@@ -1294,7 +1294,7 @@ fn check_run() {
     let directory = scratch.path();
     let (agent, _) = support::configuration::documents(directory, env!("CARGO_BIN_EXE_temper"));
     support::write_private(&directory.join("agent.json"), &agent);
-    support::write_private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
+    support::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     document(&directory.join("temper.json"), &support::configuration::check_document(directory));
     let observations = directory.join("observations");
     fs::write(&observations, b"{\"observations_lost\":0}\n").expect("checkpoint");

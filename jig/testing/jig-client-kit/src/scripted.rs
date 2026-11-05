@@ -366,6 +366,7 @@ impl Front<Test> for Scripted {
     fn seed(&mut self, seed: crate::harness::Seed) {
         use crate::harness::Seed;
         match seed {
+            Seed::TwoProjects { party } => stories::two_projects(self, party),
             Seed::Roles { story } => stories::roles(self, story),
             Seed::PendingGoal { words, budget } => stories::proposal(self, &words, budget),
             Seed::Profile => stories::profile(self),

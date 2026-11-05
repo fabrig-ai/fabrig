@@ -71,7 +71,7 @@ impl Typed {
     }
 
     pub(crate) fn new(settings: &Settings) -> Self {
-        let mut client = skein_llm_world::limits();
+        let mut client = skein_llm_kit::limits();
         client.input = u32::try_from(settings.limits.session.answer_bytes).expect("domain call input fits u32");
         let stated = smith_protocol_llm::Stated::from_tools(&settings.limits.session.tools, client.input)
             .expect("domain tool declarations fit");

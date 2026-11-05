@@ -197,6 +197,12 @@ impl Joint {
 
 impl Front<Test> for Joint {
     fn seed(&mut self, seed: crate::harness::Seed) {
+        if let crate::harness::Seed::TwoProjects { party } = seed {
+            let (configuration, limits) = crate::stories::shared::a_projects::setup(party);
+            *self = configured_fixture(configuration, &limits);
+            self.unsigned_on_bind();
+            return;
+        }
         if let crate::harness::Seed::Roles { story } = seed {
             *self = super::role_fixture::seeded(story);
             return;
@@ -322,13 +328,17 @@ impl Front<Test> for Joint {
 /// The shared real-core front fixture, with externally supplied owner limits.
 #[must_use]
 pub fn fixture(owner_limits: &jig_test_domain::Limits) -> Joint {
+    configured_fixture(jig_test_profile::config(8455), owner_limits)
+}
+
+fn configured_fixture(configuration: jig_test_domain::Config, owner_limits: &jig_test_domain::Limits) -> Joint {
     use crate::joint::engine::Driver;
     use jig_client_domain::contract as client;
     use jig_core_kit::peers::Peers;
     use jig_domain_people as people;
 
     let driver = Driver::new(
-        jig_test_profile::config(8455),
+        configuration,
         *owner_limits,
         Peers::new(Vec::new(), Vec::new()),
         Time::ZERO,
@@ -353,6 +363,12 @@ mod tests {
     use super::*;
     use jig_client_domain::contract as client;
     use jig_domain_people as people;
+
+    #[test]
+    fn moving_between_named_projects() {
+        let mut world = crate::World::new(crate::Settings { seed: 8510, ..crate::Settings::default() }, front());
+        crate::stories::shared::a_projects::moving_between_named_projects(&mut world);
+    }
 
     fn clock(now: Time) -> Wall {
         Wall::from_nanos(1_000_000_000_000 + now.as_nanos())

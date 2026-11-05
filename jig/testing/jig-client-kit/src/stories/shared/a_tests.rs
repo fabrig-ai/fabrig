@@ -1,6 +1,12 @@
 //! Scripted journeys (jig/docs/design/client/domain/testing.md, 4).
 
 #[test]
+fn moving_between_named_projects() {
+    let mut world = crate::stories::seeded_world(8510);
+    super::a_projects::moving_between_named_projects(&mut world);
+}
+
+#[test]
 fn words_in_a_running_conversation() {
     let mut world = crate::stories::seeded_world(8510);
     super::a_person::words_in_a_running_conversation(&mut world);

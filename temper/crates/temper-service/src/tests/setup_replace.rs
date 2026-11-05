@@ -233,7 +233,7 @@ fn no_key_in_diagnostics(service: &crate::Service, pem: &Secret) {
 }
 fn reconcile_app(service: &mut crate::Service) -> Token {
     let mut face = Face::new();
-    let mut github = skein_forge_machine_world::github::Fake::new(7);
+    let mut github = skein_forge_kit::github::Fake::new(7);
     let engine = service.engine.as_mut().unwrap();
     advance(engine);
     let run = *engine.setup.runs.first().expect("Connected starts reconcile").0;

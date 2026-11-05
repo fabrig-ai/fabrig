@@ -129,7 +129,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         ("secrets/forge-1.user", b"42\n".as_slice()),
         ("secrets/forge-1.api-token", b"forge-1-api-token-value".as_slice()),
         ("secrets/forge-1.git-token", b"forge-1-git-token-value".as_slice()),
-        ("root.der", skein_tls_world::pki::ROOT),
+        ("root.der", skein_tls_kit::pki::ROOT),
     ] {
         write(name, bytes);
     }
@@ -354,7 +354,7 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
     fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("worker-alone fixture");
     let (agent, input) = worker_document(&directory);
     fs::write(directory.join("agent.json"), agent).expect("worker-alone fixture");
-    fs::write(directory.join("root.der"), skein_tls_world::pki::ROOT).expect("worker-alone fixture");
+    fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("worker-alone fixture");
     let secret = directory.join("worker.secret");
     fs::write(&secret, b"worker-secret").expect("worker-alone fixture");
     fs::set_permissions(secret, fs::Permissions::from_mode(0o600)).expect("worker-alone fixture");

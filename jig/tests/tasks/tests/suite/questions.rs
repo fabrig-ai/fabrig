@@ -80,6 +80,10 @@ fn parked() -> World {
 #[test]
 fn a_task_with_its_own_question_unanswered_parks_on_finish() {
     let world = parked();
+    assert_question_parked(&world);
+}
+
+fn assert_question_parked(world: &World) {
     assert_eq!(world.record(ASKER).phase, Phase::Active(Active::Idle));
     assert_eq!(world.record(ASKER).tries, Tries::NONE);
     assert!(world.records.values().any(|row| matches!(row, Stored::Activity(ActivityLine {
@@ -103,17 +107,32 @@ fn the_answer_wakes_a_task_kept_by_its_question() {
 }
 
 #[test]
-fn a_question_keep_permits_failure() {
+fn a_question_keep_parks_a_finished_failure() {
     let mut world = asked();
-    world.terminal(
-        ASKER,
-        End::Finished {
-            result: TaskResult::Failure { reason: b"cannot proceed".as_slice().into() },
-            cancel_delegates: false,
-        },
-    );
+    world.terminal(ASKER, failure());
+    assert_question_parked(&world);
+    message(&mut world, Party::Task(REQUESTER), ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
+    assert!(world.record(ASKER).questions.is_empty());
+    assert!(world.activations.contains(&ASKER));
+    world.claim(ASKER, ANSWER);
+    world.terminal(ASKER, failure());
     world.settle(ASKER);
     assert!(matches!(world.results[&ASKER], Ending::Failed { .. }));
+}
+
+fn failure() -> End {
+    End::Finished {
+        result: TaskResult::Failure { reason: b"cannot proceed".as_slice().into() },
+        cancel_delegates: false,
+    }
+}
+
+#[test]
+fn a_question_keep_lets_a_failing_run_count() {
+    let mut world = asked();
+    world.terminal(ASKER, End::Failed(Class::Run));
+    assert_eq!(world.record(ASKER).tries.of(Class::Run), 1);
+    assert!(matches!(world.record(ASKER).phase, Phase::Active(Active::BackingOff { .. })));
 }
 
 #[test]

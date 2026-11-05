@@ -1,6 +1,5 @@
 //! The GitHub layer's full stores, measured independently of the shared domain.
-#[path = "../github/fixtures.rs"]
-mod f;
+use skein_forge_kit::fake_github as f;
 
 use skein_fake_forge_github::{
     self as fake,

@@ -6,7 +6,7 @@ use skein_lib::Wall;
 pub(super) const COMPLETION: Token = Token::new(80);
 
 fn limits() -> protocol::ComponentLimits {
-    let client = skein_llm_world::limits();
+    let client = skein_llm_kit::limits();
     let adapter = protocol::Limits {
         tool_bytes: 4096,
         history_bytes: 4096,

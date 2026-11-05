@@ -1,7 +1,5 @@
 //! Hosted GitHub stores filled over simulated loopback, with every owner iteration measured.
-#[path = "../../../fake-forge/tests/github/fixtures.rs"]
-#[expect(dead_code, reason = "The service binary also uses this fixture's direct request helper.")]
-mod f;
+use skein_forge_kit::fake_github as f;
 
 use skein_fake_forge_github as fake;
 use skein_fake_peers::{

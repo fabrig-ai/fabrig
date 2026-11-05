@@ -12,21 +12,15 @@ const WORLD_KITS: [&str; 2] = ["skein-world", "smith-agent-process-world"];
 // Each remaining world edge has a reason; removing an edge also removes its entry.
 const PENDING: &[(&str, &str, &str)] = &[
     ("jig-channel-world", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
-    ("jig-channel-world", "skein-llm-world", "The protocol fixture uses the simulated LLM peer."),
-    ("jig-client-protocol-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-client-protocol-world", "jig-engine-clients-world", "The client fixture reuses engine protocol scenarios."),
-    ("jig-conformance-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-conformance-world", "jig-engine-clients-world", "The client fixture reuses engine protocol scenarios."),
-    ("jig-engine-clients-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-one-process-world", "jig-channel-world", "The process fixture composes the channel world."),
     ("jig-one-process-world", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-one-process-world", "jig-protocol-accounts-world", "The fixture uses the accounts protocol peer."),
     ("jig-ops-world", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
-    ("jig-ops-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-test", "jig-channel-world", "The process fixture composes the channel world."),
     ("jig-test", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-test", "jig-protocol-accounts-world", "The fixture uses the accounts protocol peer."),
-    ("jig-test", "skein-tls-world", "The process tests use the TLS fixture."),
 ];
 
 pub(super) fn pending_world_dependency(package: &str, dependency: &str) -> bool {

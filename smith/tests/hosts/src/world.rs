@@ -461,7 +461,7 @@ impl World {
         .expect("agent configuration");
         let kind = smith_local_shell::compose::AgentKind::Spawned { program: "smith-agent".into() };
         let mut config = skein_sim::Config::calm();
-        config.wall = skein_tls_world::pki::VALID;
+        config.wall = skein_tls_kit::pki::VALID;
         let mut machine = skein_fake_machine::Machine::new();
         let root = machine.lay(&[]);
         let referee = Referee {

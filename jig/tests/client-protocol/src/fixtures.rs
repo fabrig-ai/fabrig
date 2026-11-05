@@ -1,6 +1,6 @@
 //! One bounded core, person and pair of protocol sides for every story.
 use crate::Protocol;
-use jig_client_world::{Settings, Test, World};
+use jig_client_kit::{Settings, Test, World};
 use jig_protocol_engine_clients::{Limits, Served};
 use skein_lib::{Duration, List, Secret, Time, Wall};
 pub const SEED: u64 = 8510;
@@ -18,7 +18,7 @@ pub fn address() -> skein_io::Addr {
 pub fn owner_limits() -> jig_test_domain::Limits {
     let mut limits = jig_test_profile::limits();
     // Client keeps closing watches until their engine terminals arrive.
-    limits.core.views.watchers = jig_client_world::test::limits().client.domain.watches;
+    limits.core.views.watchers = jig_client_kit::test::limits().client.domain.watches;
     // Two clients may place distinct overlapping holds on the same task.
     limits.core.tasks.placed_holds = 2;
     limits.core.tasks.project_placed_holds = 2;
@@ -63,11 +63,11 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         deployment_provider: 2,
         heartbeat: Duration::from_millis(50),
         rows,
-        served: jig_client_world::test::list([
+        served: jig_client_kit::test::list([
             Served { family: None, first: 19, last: 19 },
             Served { family: Some(1), first: 2, last: 2 },
         ]),
-        providers: jig_client_world::test::list([0]),
+        providers: jig_client_kit::test::list([0]),
         seed: Secret::new(Box::new([7; 32])),
         stream: 31,
         models: models(),
@@ -168,7 +168,7 @@ pub fn domain_limits() -> jig_client_domain::Limits {
     jig_client_domain::Limits {
         owners: &[jig_client_domain::Spoken { family: 1, version: jig_client_test_protocol_wire::VERSION }],
         handles: 8,
-        ..jig_client_world::stories::shared::a_roles::limits().client.domain
+        ..jig_client_kit::stories::shared::a_roles::limits().client.domain
     }
 }
 

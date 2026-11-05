@@ -105,7 +105,7 @@ impl Protocol {
             max_failure_bytes: domain.session.failure_bytes,
             decoded_call_bytes: domain.decoded_call_bytes,
         };
-        let peer_limits = skein_llm_world::fake::limits(&translation.client);
+        let peer_limits = skein_llm_kit::fake::limits(&translation.client);
         let service = provider::Service::new(
             provider::Config {
                 echo: skein_llm::openai::Echo::NONE,
@@ -146,7 +146,7 @@ impl Protocol {
         component
             .grant(GrantName { account: 0, generation: 1 }, credential, Time::from_nanos(u64::MAX))
             .expect("fixture grant");
-        let config = fake::Config { calls: 256, cache_entries: 256, ..skein_llm_world::fake::config() };
+        let config = fake::Config { calls: 256, cache_entries: 256, ..skein_llm_kit::fake::config() };
         Self {
             component,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },

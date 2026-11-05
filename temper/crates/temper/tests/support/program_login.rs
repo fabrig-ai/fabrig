@@ -28,7 +28,7 @@ pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Pat
     }
     fs::write(directory.join("agent.json"), serde_json::to_vec(&agent).expect("agent JSON")).expect("agent");
     fs::write(directory.join("temper.json"), deployment).expect("deployment configuration");
-    fs::write(directory.join("root.der"), skein_tls_world::pki::ROOT).expect("public trust");
+    fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public trust");
 }
 
 #[must_use]

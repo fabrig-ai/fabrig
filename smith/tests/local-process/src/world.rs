@@ -725,7 +725,7 @@ impl World {
                 refresh_token: Some(skein_lib::Secret::new(b"refresh".as_slice().into())),
                 metadata: None,
                 expires_at: Wall::from_nanos(
-                    skein_tls_world::pki::VALID.as_nanos() + Duration::from_secs(7200).as_nanos(),
+                    skein_tls_kit::pki::VALID.as_nanos() + Duration::from_secs(7200).as_nanos(),
                 ),
             };
             tokens
@@ -818,7 +818,7 @@ impl World {
                 }),
                 metadata: None,
                 expires_at: Wall::from_nanos(
-                    skein_tls_world::pki::VALID.as_nanos()
+                    skein_tls_kit::pki::VALID.as_nanos()
                         + match mode {
                             Authentication::Proactive => Duration::from_secs(61).as_nanos(),
                             Authentication::Current => Duration::from_secs(3600).as_nanos(),
@@ -839,7 +839,7 @@ impl World {
     pub fn settle(&mut self) {
         let launch = &self.scenario.launch;
         let mut config = skein_sim::Config::calm();
-        config.wall = skein_tls_world::pki::VALID;
+        config.wall = skein_tls_kit::pki::VALID;
         config.faults = self.scenario.faults;
         let mut machine = self.machine.take().expect("one invocation");
         if launch.authenticated {

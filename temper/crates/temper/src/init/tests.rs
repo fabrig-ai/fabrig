@@ -212,7 +212,7 @@ fn check_agent(dirs: &Directories, mut document: serde_json::Value) {
     document["endpoints"][0]["trust_der"] = serde_json::json!(config.join("root.der"));
     document["endpoints"][1]["address"] = "127.0.0.1:443".into();
     document["endpoints"][1]["trust_der"] = serde_json::json!(config.join("root.der"));
-    fs::write(config.join("root.der"), skein_tls_world::pki::ROOT).expect("fixture trust");
+    fs::write(config.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");
     let checked = config.join("agent-check.json");
     fs::write(&checked, serde_json::to_vec(&document).expect("agent JSON")).expect("metadata fixture");
     let agent = crate::agent::read(&checked).expect("written agent configuration parses");

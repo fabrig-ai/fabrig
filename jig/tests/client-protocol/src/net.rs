@@ -1,7 +1,7 @@
 //! Seeded byte streams, bounded by real demands; cuts fail both ends.
 use crate::referee::Rules;
+use jig_client_kit::ClientId;
 use jig_client_shell_native::Conn;
-use jig_client_world::ClientId;
 use skein_io::{Event, Request};
 use skein_lib::{
     Duration, Rng, Time, Token,

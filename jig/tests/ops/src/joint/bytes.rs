@@ -2,9 +2,9 @@
 use super::front::{ApplicationDocument, Joint, Subject, application_document, subject_route};
 use crate::conformance::Story;
 use jig_client::{Event, Message, Request, Streamed};
+use jig_client_kit::harness::{ClientId, Receipt};
 use jig_client_protocol_world::{fixtures, native::wire::Wire, net::Net};
 use jig_client_shell_native::{Conn, Connections};
-use jig_client_world::harness::{ClientId, Receipt};
 use jig_domain_core as core;
 use jig_ops_client_domain as d;
 use jig_ops_domain as root;
@@ -150,7 +150,7 @@ impl Bytes {
             login: login.into(),
             name: Box::new([]),
         });
-        settings.served = jig_client_world::test::list([
+        settings.served = jig_client_kit::test::list([
             clients::Served { family: None, first: 19, last: 19 },
             clients::Served { family: Some(1), first: 1, last: 1 },
             clients::Served { family: Some(2), first: 1, last: 1 },
@@ -326,7 +326,7 @@ impl Bytes {
         if !offline && joint.offline_until.take().is_some() {
             joint.reconnects += 1;
             joint.observed.append(&mut joint.pending_observed);
-            joint.observed.push(jig_client_world::harness::Observed::Reachable { live: true });
+            joint.observed.push(jig_client_kit::harness::Observed::Reachable { live: true });
         }
         let mut quiet = 0;
         for _ in 0..100_000 {

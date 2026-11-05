@@ -106,7 +106,7 @@ impl Probe {
             owner: 0,
             version: 1,
             kind: 2,
-            ids: jig_client_world::test::list([project]),
+            ids: jig_client_kit::test::list([project]),
         };
         let call =
             jig_client_protocol_http::public(&jig_client_protocol_http::Mapping::new(b"/jig").expect("prefix"), &path);
@@ -309,7 +309,7 @@ impl Referee<Process> for Judge {
             task.tracked = Some(17);
             task.spec.words =
                 c::Text::new(b"Visible HTTP goal\nhidden HTTP spec".as_slice().into(), 128).expect("spec");
-            send(client, 1, c::Ask::Create { project: 1, tasks: jig_client_world::test::list([task]) });
+            send(client, 1, c::Ask::Create { project: 1, tasks: jig_client_kit::test::list([task]) });
             self.phase = 2;
         }
         if self.phase == 2 && client.chats_made == 1 {
@@ -391,7 +391,7 @@ fn document() -> Vec<u8> {
 }
 fn files() -> jig_test_service::Files {
     jig_test_service::Files {
-        entries: jig_client_world::test::list([
+        entries: jig_client_kit::test::list([
             (b"charters/chat.txt".as_slice().into(), Secret::new(b"hidden HTTP charter".as_slice().into())),
             (b"app.secret".as_slice().into(), Secret::new(b"application-token".as_slice().into())),
             (

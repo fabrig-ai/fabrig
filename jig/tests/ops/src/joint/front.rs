@@ -1,7 +1,7 @@
 //! The real Ops engine and client meet at an ordinary protocol face (testing.md, 5).
 use super::engine::OpsApplication;
 use crate::conformance::{Config, Story};
-use jig_client_world::harness::{ClientId, Front, FrontFault, Observed};
+use jig_client_kit::harness::{ClientId, Front, FrontFault, Observed};
 use jig_conformance::Harness;
 use jig_ops_client_domain::{self as client, infrastructure as infra, observability as obs};
 use jig_ops_domain as root;
@@ -241,7 +241,7 @@ impl Front<super::fixture::Client> for Joint {
             self.callbacks.push((client, client::Event::Client { event: jig_client::Event::Stored }));
         }
     }
-    fn receipts(&mut self, client: ClientId, event: &client::Event) -> Vec<jig_client_world::harness::Receipt> {
+    fn receipts(&mut self, client: ClientId, event: &client::Event) -> Vec<jig_client_kit::harness::Receipt> {
         self.bytes.as_mut().expect("byte face").receipts(client, event)
     }
     fn delivers(&mut self, client: ClientId, event: &client::Event) -> bool {

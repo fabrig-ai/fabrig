@@ -433,8 +433,8 @@ pub fn prepared_accounts(
                 address: (host, port).into(),
                 transport: if tls {
                     skein_oauth_accounts::Transport::Tls {
-                        server_name: skein_tls_world::pki::name(),
-                        trust: skein_tls_world::pki::client(&[]),
+                        server_name: skein_tls_kit::pki::name(),
+                        trust: skein_tls_kit::pki::client(&[]),
                     }
                 } else {
                     skein_oauth_accounts::Transport::Plaintext

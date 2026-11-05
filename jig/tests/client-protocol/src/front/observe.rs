@@ -1,9 +1,9 @@
 //! Facts decoded independently at the byte boundary, before the root sees them.
 use crate::native::Received;
 use jig_client::{Message, Request as ClientRequest, contract as c};
+use jig_client_kit::harness::{Receipt, Sent};
 use jig_client_protocol_wire::v19 as w;
 use jig_client_test_domain::{Event, Request};
-use jig_client_world::harness::{Receipt, Sent};
 use skein_lib::{Reader, RequestEnvelope, Token};
 
 #[derive(PartialEq, Eq)]
@@ -136,7 +136,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                 | w::Ask::SetPool(_) => None,
             };
             if let Some((key, kind, revision)) = decided {
-                sent.card = Some(jig_client_world::observe::key(key));
+                sent.card = Some(jig_client_kit::observe::key(key));
                 sent.revision = Some((kind, revision));
             }
         }
@@ -150,7 +150,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                 scope: jig_client_test_domain::family::Scope::Project(request.project()),
                 kind: jig_client_test_domain::family::Kind::Item(request.value().object()),
             };
-            sent.card = Some(jig_client_world::harness::CardKey::of(jig_client_test_view::family_key(&subject)));
+            sent.card = Some(jig_client_kit::harness::CardKey::of(jig_client_test_view::family_key(&subject)));
             sent.revision = Some((0, request.value().revision()));
         }
     }
@@ -188,7 +188,7 @@ pub fn receipts(fact: &Received) -> Vec<Receipt> {
         },
         Received::SignedIn { .. } | Received::Sent { .. } => return Vec::new(),
     };
-    jig_client_world::observe::received(&event)
+    jig_client_kit::observe::received(&event)
 }
 
 #[cfg(test)]
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn encoded_ordinary_requests_without_cards_keep_their_observations() {
-        use jig_client_world::test::list;
+        use jig_client_kit::test::list;
         let words = c::Text::new(b"continue".as_slice().into(), 32).expect("fixture text");
         let asks = [
             (c::Ask::Stop { project: PROJECT, task: TASK }, None),
@@ -303,7 +303,7 @@ mod tests {
             encoded(&envelope, w::FamilyRequest::measure, w::FamilyRequest::encode),
         ))
         .expect("family request observed");
-        let card = jig_client_world::harness::CardKey::of(jig_client_test_view::family_key(
+        let card = jig_client_kit::harness::CardKey::of(jig_client_test_view::family_key(
             &jig_client_test_domain::family::Subject {
                 scope: jig_client_test_domain::family::Scope::Project(PROJECT),
                 kind: jig_client_test_domain::family::Kind::Item(TASK),

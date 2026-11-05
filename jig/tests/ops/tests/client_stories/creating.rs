@@ -14,12 +14,12 @@ fn the_environment_rule_accepts_the_templates_chat_request() {
     let ask = jig_client::shapes::chat(
         &engine.truth().frames[&PARTY],
         PROJECT,
-        jig_client_world::stories::text(b"staging for one week"),
+        jig_client_kit::stories::text(b"staging for one week"),
     )
     .expect("fixture offers the chat template");
     engine.send(Time::ZERO, Wall::EPOCH, PARTY, KEY, ATTEMPT, ask).expect("request fits the fixture");
     assert_eq!(
         engine.pending_commits().last().expect("one pending decision").answer,
-        Some(Answer::Done(Outcome::Made { what: Made::Tasks { tasks: jig_client_world::test::list([CHAT]) } }))
+        Some(Answer::Done(Outcome::Made { what: Made::Tasks { tasks: jig_client_kit::test::list([CHAT]) } }))
     );
 }

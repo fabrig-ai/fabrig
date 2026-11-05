@@ -1,7 +1,7 @@
 //! One actual reference service and native client, joined by simulated sockets.
 use super::{NativeClient, Script};
 use crate::fixtures;
-use jig_client_world::App;
+use jig_client_kit::App;
 use skein_io::kernel::{Complete, Submit};
 use skein_lib::{Duration, Queue, Secret, Time, Wall};
 use skein_shell::{Delegate, Host};
@@ -126,7 +126,7 @@ impl skein_world::Machine for Machine {
 }
 fn files() -> jig_test_service::Files {
     jig_test_service::Files {
-        entries: jig_client_world::test::list([
+        entries: jig_client_kit::test::list([
             (b"charters/chat.txt".as_slice().into(), Secret::new(b"Reply to the person".as_slice().into())),
             (b"app.secret".as_slice().into(), Secret::new(b"application-token".as_slice().into())),
             (

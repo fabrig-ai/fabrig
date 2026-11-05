@@ -33,7 +33,7 @@ skein-scratch.workspace = true
 jig-test-profile.workspace = true
 jig-client.workspace = true
 jig-client-protocol-link.workspace = true
-jig-client-world = { path = "../client" }
+jig-client-kit.workspace = true
 skein-tls.workspace = true
 skein-oauth-issuer.workspace = true
 serde_json = "1.0"
