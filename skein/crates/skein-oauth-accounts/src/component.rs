@@ -104,18 +104,80 @@ pub(crate) enum State {
         expiry: Time,
         lead: Time,
         earliest: Option<Time>,
-        announced: bool,
-        held: bool,
-        rejected: bool,
-        attempted: bool,
-        due: bool,
-        rejection: Option<u64>,
+        lending: Lending,
+        refresh: Refresh,
+        notice: Notice,
     },
     // Startup wall metadata is turned into this process's monotonic deadline
     // at its first entrance, which is the first clock the owner supplies.
     Loaded {
         record: SavedToken,
     },
+}
+
+// Independent record lifecycles (skein/docs/foundation/programming-model.md, 5.4).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Lending {
+    Free,
+    Held,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum Refresh {
+    Untried,
+    Due,
+    Spent,
+    DueAgain,
+}
+
+impl Refresh {
+    fn due(self) -> bool {
+        match self {
+            Self::Due | Self::DueAgain => true,
+            Self::Untried | Self::Spent => false,
+        }
+    }
+    fn attempted(self) -> bool {
+        match self {
+            Self::Spent | Self::DueAgain => true,
+            Self::Untried | Self::Due => false,
+        }
+    }
+    fn request(self) -> Self {
+        if self.attempted() { Self::DueAgain } else { Self::Due }
+    }
+    fn forgo(self) -> Self {
+        if self.attempted() { Self::Spent } else { Self::Untried }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum Notice {
+    Quiet,
+    Announced,
+    Rejected,
+    RejectedAnnounced,
+}
+
+impl Notice {
+    fn announced(self) -> bool {
+        match self {
+            Self::Announced | Self::RejectedAnnounced => true,
+            Self::Quiet | Self::Rejected => false,
+        }
+    }
+    fn rejected(self) -> bool {
+        match self {
+            Self::Rejected | Self::RejectedAnnounced => true,
+            Self::Quiet | Self::Announced => false,
+        }
+    }
+    fn announce(self) -> Self {
+        if self.rejected() { Self::RejectedAnnounced } else { Self::Announced }
+    }
+    fn reject(self) -> Self {
+        if self.announced() { Self::RejectedAnnounced } else { Self::Rejected }
+    }
 }
 
 /// The owner's bounded accounts, exchanges and holds, ending with one Closed.
@@ -220,7 +282,7 @@ impl Component {
             if loaded {
                 let prior = core::mem::replace(slot, State::Empty);
                 match prior {
-                    State::Loaded { record } => *slot = recorded(record, env, false),
+                    State::Loaded { record } => *slot = recorded(record, env, Lending::Free),
                     State::Empty | State::Record { .. } => unreachable!("loaded state was checked"),
                 }
             }
@@ -267,24 +329,23 @@ impl Component {
                 let mut refresh = false;
                 let mut repeated = false;
                 match self.accounts.get_mut(account) {
-                    Some(State::Record { record, held, rejected, rejection, due, .. })
+                    Some(State::Record { record, lending, notice, refresh: renewal, .. })
                         if record.generation == generation =>
                     {
-                        repeated = *rejection == Some(generation);
-                        *rejection = Some(generation);
-                        *rejected = true;
-                        if *held || wanted {
+                        repeated = notice.rejected();
+                        *notice = notice.reject();
+                        if *lending == Lending::Held || wanted {
                             match self.sources.get(account).expect("account source") {
                                 Source::HandedIn => {
-                                    *held = false;
+                                    *lending = Lending::Free;
                                     failed(number(&self.names, account), Failure::Expired, up);
                                 }
                                 Source::SignIn { .. } => {
                                     if repeated {
-                                        *held = false;
+                                        *lending = Lending::Free;
                                         failed(number(&self.names, account), Failure::Expired, up);
                                     } else {
-                                        *due = true;
+                                        *renewal = renewal.request();
                                         refresh = true;
                                     }
                                 }
@@ -343,7 +404,7 @@ impl Component {
         let ready = self.refresh_ready(account, env.now);
         let slot = self.accounts.get_mut(account).expect("validated account");
         match slot {
-            State::Record { held: true, .. } => {
+            State::Record { lending: Lending::Held, .. } => {
                 up.push(Event::Refused {
                     account: number(&self.names, account),
                     asked: Asked::Grant,
@@ -351,7 +412,7 @@ impl Component {
                 });
                 return;
             }
-            State::Empty | State::Record { held: false, .. } => {}
+            State::Empty | State::Record { lending: Lending::Free, .. } => {}
             State::Loaded { .. } => unreachable!("initialized account"),
         }
         match *self.bindings.get(account).expect("account binding") {
@@ -379,7 +440,7 @@ impl Component {
                             });
                             return;
                         }
-                        set_held(slot, true);
+                        set_held(slot, Lending::Held);
                         exchange.pending_grant = true;
                     }
                 }
@@ -388,8 +449,8 @@ impl Component {
                 let needs_refresh = match self.sources.get(account).expect("account source") {
                     Source::HandedIn => false,
                     Source::SignIn { .. } => match slot {
-                        State::Record { lead, attempted: false, .. } => env.now >= *lead,
-                        State::Empty | State::Record { attempted: true, .. } => false,
+                        State::Record { lead, refresh, .. } => env.now >= *lead && !refresh.attempted(),
+                        State::Empty => false,
                         State::Loaded { .. } => unreachable!("initialized account"),
                     },
                 };
@@ -405,7 +466,7 @@ impl Component {
                             why: Refusal::Full { bound: env.limits.exchanges },
                         });
                     } else {
-                        set_held(slot, true);
+                        set_held(slot, Lending::Held);
                         self.start_refresh(env, account, true, up);
                     }
                 } else {
@@ -456,18 +517,18 @@ impl Component {
             }
         }
         let slot = self.accounts.get_mut(account).expect("validated account");
-        let held = match slot {
-            State::Empty => false,
-            State::Record { record: prior, held, .. } => {
+        let lending = match slot {
+            State::Empty => Lending::Free,
+            State::Record { record: prior, lending, .. } => {
                 if record.generation <= prior.generation {
                     return;
                 }
-                *held
+                *lending
             }
             State::Loaded { .. } => unreachable!("initialized account"),
         };
-        *slot = recorded(record, env, held);
-        if held {
+        *slot = recorded(record, env, lending);
+        if lending == Lending::Held {
             grant(slot, self.sources.get(account).expect("account source"), env.now, number(&self.names, account), up);
         }
     }
@@ -599,32 +660,35 @@ impl Component {
             let source = self.sources.get(account).expect("account source");
             let wanted = self.wanted(account);
             match self.accounts.get_mut(account).expect("account state") {
-                State::Record { record, expiry, lead, earliest, announced, held, rejected, attempted, due, .. } => {
-                    if (*held || wanted) && !*attempted && env.now >= *lead {
+                State::Record { record, expiry, lead, earliest, lending, refresh, notice } => {
+                    if (*lending == Lending::Held || wanted) && !refresh.attempted() && env.now >= *lead {
                         match source {
                             Source::SignIn { .. } => {
-                                *attempted = record.refresh_token.is_none();
-                                *due = !*attempted;
+                                *refresh = if record.refresh_token.is_none() { Refresh::Spent } else { Refresh::Due };
                             }
                             Source::HandedIn => {}
                         }
                     }
                     if env.now >= *expiry {
-                        if *held && !*due && self.bindings.get(account) == Some(&None) {
-                            *held = false;
+                        if *lending == Lending::Held && !refresh.due() && self.bindings.get(account) == Some(&None) {
+                            *lending = Lending::Free;
                             failed(number(&self.names, account), Failure::Expired, up);
                             return;
                         }
-                        *announced = true;
-                    } else if record.refresh_token.is_none() && env.now >= *lead && !*announced && !*rejected {
-                        *announced = true;
+                        *notice = notice.announce();
+                    } else if record.refresh_token.is_none()
+                        && env.now >= *lead
+                        && !notice.announced()
+                        && !notice.rejected()
+                    {
+                        *notice = notice.announce();
                         up.push(Event::Expiring {
                             account: number(&self.names, account),
                             generation: record.generation,
                         });
                         return;
                     }
-                    if *due
+                    if refresh.due()
                         && match earliest {
                             Some(at) => env.now >= *at,
                             None => true,
@@ -836,12 +900,12 @@ impl Component {
         match stage {
             Stage::Keeping { candidate, missing } => {
                 let slot = self.accounts.get_mut(account).expect("account state");
-                let held = held(slot) || exchange.pending_grant;
+                let lending = if held(slot) || exchange.pending_grant { Lending::Held } else { Lending::Free };
                 match keeping {
                     Keeping::Kept => {
                         let generation = candidate.generation;
                         let subject = candidate.subject.clone();
-                        *slot = just_kept(candidate, env, held);
+                        *slot = just_kept(candidate, env, lending);
                         if exchange.signing_in() {
                             up.push(Event::SignedIn {
                                 account: number(&self.names, account),
@@ -850,7 +914,7 @@ impl Component {
                                 subject,
                             });
                         }
-                        if held {
+                        if lending == Lending::Held {
                             grant(
                                 slot,
                                 self.sources.get(account).expect("account source"),
@@ -964,7 +1028,7 @@ impl Component {
                 up.push(Event::Failed { account: number(&self.names, account), ends: Ends::Refresh, failure });
             }
             if exchange.pending_grant || (!exchange.signing_in() && !exchange.signing_out() && held(slot)) {
-                set_held(slot, false);
+                set_held(slot, Lending::Free);
                 failed(number(&self.names, account), failure, up);
             }
             if !exchange.signing_in() && failure == Failure::Exchange(oauth::Failure::Refused) {
@@ -1144,7 +1208,7 @@ impl Component {
         if self.lifecycle == Lifecycle::Live && !self.exchanges.is_full() {
             for state in &self.accounts {
                 match state {
-                    State::Record { due: true, earliest: None, .. } => return true,
+                    State::Record { refresh, earliest: None, .. } if refresh.due() => return true,
                     State::Empty | State::Loaded { .. } | State::Record { .. } => {}
                 }
             }
@@ -1192,12 +1256,12 @@ impl Component {
                 continue;
             }
             let next = match self.accounts.get(account).expect("account state") {
-                State::Record { lead, earliest, expiry, held, announced, rejected, attempted, due, record, .. } => {
+                State::Record { lead, earliest, expiry, lending, notice, refresh, record } => {
                     match self.sources.get(account).expect("account source") {
                         Source::HandedIn | Source::SignIn { .. } if record.refresh_token.is_none() => {
-                            if !*announced && !*rejected {
+                            if !notice.announced() && !notice.rejected() {
                                 Some(*lead)
-                            } else if *held {
+                            } else if *lending == Lending::Held {
                                 Some(*expiry)
                             } else {
                                 None
@@ -1205,19 +1269,23 @@ impl Component {
                         }
                         Source::HandedIn => None,
                         Source::SignIn { .. } => {
-                            let interested = *held || self.wanted(account);
+                            let interested = *lending == Lending::Held || self.wanted(account);
                             if interested
                                 && record.refresh_token.is_some()
-                                && (!*attempted || *due)
+                                && (!refresh.attempted() || refresh.due())
                                 && !self.exchanges.is_full()
                             {
                                 let refresh = match earliest {
-                                    Some(at) if *due => *at,
+                                    Some(at) if refresh.due() => *at,
                                     Some(at) => (*at).max(*lead),
                                     None => *lead,
                                 };
-                                Some(if *held && !*announced { refresh.min(*expiry) } else { refresh })
-                            } else if *held && !*announced {
+                                Some(if *lending == Lending::Held && !notice.announced() {
+                                    refresh.min(*expiry)
+                                } else {
+                                    refresh
+                                })
+                            } else if *lending == Lending::Held && !notice.announced() {
                                 Some(*expiry)
                             } else {
                                 None
@@ -1266,9 +1334,9 @@ fn turn_of(exchange: &Exchange, lifecycle: Lifecycle, now: Time) -> Option<Turn>
     None
 }
 
-fn just_kept(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
+fn just_kept(record: SavedToken, env: &Env<Limits>, lending: Lending) -> State {
     let half = Duration::from_nanos(record.remaining(env.wall).as_nanos().checked_div(2).expect("nonzero divisor"));
-    let mut state = recorded(record, env, held);
+    let mut state = recorded(record, env, lending);
     match &mut state {
         State::Record { lead, .. } => {
             *lead = (*lead).max(env.now.saturating_add(half));
@@ -1278,7 +1346,7 @@ fn just_kept(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
     state
 }
 
-fn recorded(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
+fn recorded(record: SavedToken, env: &Env<Limits>, lending: Lending) -> State {
     let remaining = record.remaining(env.wall);
     let expiry = env.now.saturating_add(remaining);
     let lead = env
@@ -1289,33 +1357,22 @@ fn recorded(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
         earliest =
             Some(env.now.saturating_add(Duration::from_nanos(at.as_nanos().saturating_sub(env.wall.as_nanos()))));
     }
-    State::Record {
-        record,
-        expiry,
-        lead,
-        earliest,
-        announced: false,
-        held,
-        rejected: false,
-        attempted: false,
-        due: false,
-        rejection: None,
-    }
+    State::Record { record, expiry, lead, earliest, lending, refresh: Refresh::Untried, notice: Notice::Quiet }
 }
 
 fn held(slot: &State) -> bool {
     match slot {
-        State::Record { held, .. } => *held,
+        State::Record { lending, .. } => *lending == Lending::Held,
         State::Empty | State::Loaded { .. } => false,
     }
 }
 
-fn set_held(slot: &mut State, value: bool) {
+fn set_held(slot: &mut State, value: Lending) {
     match slot {
-        State::Record { held, due, .. } => {
-            *held = value;
-            if !value {
-                *due = false;
+        State::Record { lending, refresh, .. } => {
+            *lending = value;
+            if value == Lending::Free {
+                *refresh = refresh.forgo();
             }
         }
         State::Empty | State::Loaded { .. } => {}
@@ -1324,17 +1381,17 @@ fn set_held(slot: &mut State, value: bool) {
 
 fn grant(slot: &mut State, source: &Source, now: Time, account: u32, up: &mut Queue<Event>) {
     match slot {
-        State::Record { record, expiry, held, rejected, .. } if now < *expiry && !*rejected => {
+        State::Record { record, expiry, lending, notice, .. } if now < *expiry && !notice.rejected() => {
             let missing = match source {
                 Source::SignIn { registration, .. } => !oauth::missing_scopes(registration, record).is_empty(),
                 Source::HandedIn => false,
             };
             if missing {
-                *held = false;
+                *lending = Lending::Free;
                 failed(account, Failure::NotGranted, up);
                 return;
             }
-            *held = true;
+            *lending = Lending::Held;
             up.push(Event::Granted {
                 account,
                 token: record.access_token.clone(),
@@ -1343,8 +1400,8 @@ fn grant(slot: &mut State, source: &Source, now: Time, account: u32, up: &mut Qu
             });
         }
         State::Empty => failed(account, Failure::Expired, up),
-        State::Record { held, .. } => {
-            *held = false;
+        State::Record { lending, .. } => {
+            *lending = Lending::Free;
             failed(account, Failure::Expired, up);
         }
         State::Loaded { .. } => unreachable!("initialized account"),

@@ -1,6 +1,6 @@
 //! Shared writes read once under the owner's lock (oauth.md, section 6.4).
 
-use super::{Component, Lifecycle, State, grant, held, names::number, recorded};
+use super::{Component, Lending, Lifecycle, Refresh, State, grant, held, names::number, recorded};
 use crate::accounts::{Source, copy_registration};
 use crate::exchange::{Exchange, OwnerLock, Stage};
 use crate::keeper::{Operation, Store};
@@ -161,14 +161,14 @@ impl Component {
                     State::Empty | State::Loaded { .. } => false,
                 };
                 if newer {
-                    let holding = held(slot);
+                    let holding = if held(slot) { Lending::Held } else { Lending::Free };
                     *slot = recorded(record, env, holding);
                     let ready = match slot {
                         State::Record { lead, .. } => env.now < *lead,
                         State::Empty | State::Loaded { .. } => unreachable!("record just read"),
                     };
                     if ready && !exchange.signing_out() {
-                        if holding || exchange.pending_grant {
+                        if holding == Lending::Held || exchange.pending_grant {
                             grant(
                                 slot,
                                 self.sources.get(account).expect("account source"),
@@ -237,9 +237,8 @@ impl Component {
         pending_grant: bool,
         up: &mut Queue<Event>,
     ) {
-        if let State::Record { due, attempted, .. } = self.accounts.get_mut(account).expect("account state") {
-            *due = false;
-            *attempted = true;
+        if let State::Record { refresh, .. } = self.accounts.get_mut(account).expect("account state") {
+            *refresh = Refresh::Spent;
         }
         let client = oauth::Client::new(env.limits.client).expect("validated client limits");
         let exchange = Exchange::new(account, client, pending_grant);
@@ -254,9 +253,8 @@ impl Component {
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
         let account = exchange.account;
         let prior = match self.accounts.get_mut(account).expect("account") {
-            State::Record { record, due, attempted, .. } => {
-                *due = false;
-                *attempted = true;
+            State::Record { record, refresh, .. } => {
+                *refresh = Refresh::Spent;
                 record.refresh_state().expect("refreshable account")
             }
             State::Empty | State::Loaded { .. } => unreachable!("refreshable account"),
