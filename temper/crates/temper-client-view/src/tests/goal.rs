@@ -60,9 +60,38 @@ fn note(body: &[u8]) -> c::Note {
     }
 }
 fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool) -> Domain {
+    root_with_side(task, done, total, note, needs, Side::empty())
+}
+struct Side {
+    rows: List<c::TreeRow>,
+    ended: c::TaskPage,
+    need: Option<u64>,
+}
+impl Side {
+    fn empty() -> Self {
+        Self {
+            rows: List::uncapped(),
+            ended: c::TaskPage {
+                live: List::uncapped(),
+                live_after: None,
+                ended: c::EndedGroup::Rows { rows: List::uncapped(), after: None, cut: false },
+            },
+            need: None,
+        }
+    }
+}
+#[expect(clippy::too_many_lines, reason = "one fixture settles the goal and its side reads together")]
+fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool, side: Side) -> Domain {
     let limits = fixtures::domain_limits();
-    let (mut root, _, watch, inbox_watch) =
-        fixtures::root_at_with_needs(Address::Task { task: TASK, filter: PlanFilter::All }, &limits);
+    let (mut root, _, watch, tree_watch, _, _, inbox_watch) = fixtures::root_at_with_dismissals_and_needs(
+        Address::Task { task: TASK, filter: PlanFilter::All },
+        &limits,
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+    );
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: NOW, limits };
     temper_client_domain::step(
@@ -84,7 +113,7 @@ fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool
         Event::Client {
             event: ClientEvent::Up {
                 up: Up::Watched {
-                    watch: inbox_watch,
+                    watch: inbox_watch.unwrap(),
                     event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(documents::inbox(
                         List::uncapped(),
                         0,
@@ -97,12 +126,29 @@ fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool
         },
         &mut out,
     );
+    fixtures::root_event(
+        &mut root,
+        Event::Client {
+            event: ClientEvent::Up {
+                up: Up::Watched {
+                    watch: tree_watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tree(Box::new(c::Tree {
+                        root: task.chip.clone(),
+                        rows: side.rows.clone(),
+                        folded: List::uncapped(),
+                        held_below: 0,
+                        next: None,
+                    }))),
+                },
+            },
+        },
+    );
     // Drain only the finite reads and watches opened by this document and its replies.
     while let Some(request) = out.pop() {
         let up = match request {
             Request::Unlinked {
                 request: UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Jig(what) } },
-            } => match read_value(what, &task, done, total, note.as_ref(), needs) {
+            } => match read_value(what, &task, done, total, note.as_ref(), needs, &side) {
                 Some(value) => Some(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(value)) }),
                 None => None,
             },
@@ -118,6 +164,19 @@ fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool
                     0,
                     false,
                 )))),
+            }),
+            Request::Unlinked {
+                request:
+                    UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Jig(c::Subject::Tree { .. }) } },
+            } => Some(Up::Watched {
+                watch,
+                event: c::WatchEvent::Delivered(c::Delivery::Tree(Box::new(c::Tree {
+                    root: task.chip.clone(),
+                    rows: side.rows.clone(),
+                    folded: List::uncapped(),
+                    held_below: 0,
+                    next: None,
+                }))),
             }),
             Request::Client { .. }
             | Request::Unlinked { .. }
@@ -142,6 +201,7 @@ fn read_value(
     total: u32,
     note: Option<&c::Note>,
     needs: bool,
+    side: &Side,
 ) -> Option<c::ReadValue> {
     match what {
         c::Read::Notes { .. } => {
@@ -168,7 +228,7 @@ fn read_value(
             let mut rows = List::uncapped();
             if needs {
                 rows.push(documents::entry(
-                    c::ObjectKey::Question { task: TASK, message: 1 },
+                    c::ObjectKey::Question { task: side.need.unwrap_or(TASK), message: 1 },
                     fixtures::PROJECT,
                     1,
                     MADE,
@@ -184,11 +244,11 @@ fn read_value(
                 cut: false,
             })))
         }
+        c::Read::Tasks { .. } => Some(c::ReadValue::Tasks(Box::new(side.ended.clone()))),
         c::Read::Settings
         | c::Read::Setting(_)
         | c::Read::Revision(_)
         | c::Read::Revisions(_)
-        | c::Read::Tasks { .. }
         | c::Read::Me
         | c::Read::Turn { .. }
         | c::Read::TaskText { .. }
@@ -568,5 +628,444 @@ fn an_unread_document_draws_as_a_task_read() {
         let tree = draw(&root, &words).0;
         assert_eq!(fixtures::text(&tree).as_ref(), b"Reading task 9\xe2\x80\xa6");
         assert_eq!(tree.nodes()[1].role, Role::Status);
+    }
+}
+
+fn delegate(number: u64, title: &[u8], phase: c::ChipPhase) -> c::TreeRow {
+    let mut task = document();
+    task.chip.task = number;
+    task.chip.title = text(title);
+    f::phase(&mut task, phase);
+    c::TreeRow {
+        chip: task.chip,
+        parent: TASK,
+        depth: 1,
+        proposals: List::uncapped(),
+        spent: 0,
+        dependencies: List::uncapped(),
+        cut: false,
+    }
+}
+fn landed(number: u64, title: &[u8]) -> c::TreeRow {
+    let mut row = delegate(number, title, c::ChipPhase::Ended);
+    row.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"Done."))));
+    row
+}
+fn ended_line(row: c::TreeRow) -> c::TaskLine {
+    let mut line = chats::line();
+    line.chip = row.chip;
+    line.ended_at = Some(UPDATED);
+    line
+}
+fn with_rows(rows: &[c::TreeRow], ended: &[c::TaskLine]) -> Side {
+    let mut side = Side::empty();
+    for row in rows {
+        side.rows.push(row.clone()).unwrap();
+    }
+    if let c::EndedGroup::Rows { rows, .. } = &mut side.ended.ended {
+        for row in ended {
+            rows.push(row.clone()).unwrap();
+        }
+    }
+    side
+}
+fn side_root(side: Side) -> Domain {
+    let needs = side.need.is_some();
+    root_with_side(document(), 0, 3, None, needs, side)
+}
+fn node_end(tree: &Tree, at: usize) -> usize {
+    at.checked_add(usize::try_from(tree.nodes()[at].size).unwrap()).unwrap()
+}
+type RowWords = Box<[Box<[u8]>]>;
+fn row_words(parts: &[&[u8]]) -> RowWords {
+    let mut result = List::uncapped();
+    for part in parts {
+        result.push(Box::from(*part)).unwrap();
+    }
+    result.into_boxed()
+}
+fn lines(tree: &Tree) -> Box<[RowWords]> {
+    let mut lines = List::uncapped();
+    for (index, node) in tree.nodes().iter().enumerate() {
+        if node.styles.as_slice().contains(&look::GOAL_LINE) {
+            let mut parts = List::uncapped();
+            let end = node_end(tree, index);
+            let mut at = index.checked_add(1).unwrap();
+            let start = at;
+            for _ in start..end {
+                if at == end {
+                    break;
+                }
+                parts.push(fixtures::node_text(tree, at)).unwrap();
+                at = node_end(tree, at);
+            }
+            lines.push(parts.into_boxed()).unwrap();
+        }
+    }
+    lines.into_boxed()
+}
+fn task_links(tree: &Tree) -> Box<[Box<[u8]>]> {
+    let side = styled(tree, look::GOAL_SIDE);
+    let end = node_end(tree, side);
+    let mut links = List::uncapped();
+    for node in &tree.nodes()[side..end] {
+        if node.role == Role::Link {
+            links.push(node.name.clone().unwrap()).unwrap();
+        }
+    }
+    links.into_boxed()
+}
+#[test]
+fn tasks_merge_the_trees_rows_and_the_ended_page_by_number() {
+    let root = side_root(with_rows(
+        &[
+            delegate(15, b"Fifteen", c::ChipPhase::Active(c::RunStage::Idle)),
+            delegate(11, b"Tree eleven", c::ChipPhase::Active(c::RunStage::Idle)),
+        ],
+        &[ended_line(landed(10, b"Ten")), ended_line(landed(11, b"Stale eleven")), ended_line(landed(13, b"Thirteen"))],
+    ));
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let (tree, bindings, _) = draw(&root, &words);
+        assert_eq!(task_links(&tree), row_words(&[b"Tree eleven", b"Fifteen", b"Ten", b"Thirteen"]));
+        let side = styled(&tree, look::GOAL_SIDE);
+        let end = node_end(&tree, side);
+        let mut numbers = [11, 15, 10, 13].into_iter();
+        for node in &tree.nodes()[side..end] {
+            if node.role == Role::Link {
+                let task = numbers.next().unwrap();
+                assert_eq!(
+                    bindings.decode(node.binding.unwrap().token, skein_ui::Act::Press),
+                    Some(temper_client_domain::Action::Pages(Act::Go {
+                        address: Address::Task { task, filter: PlanFilter::All }
+                    }))
+                );
+            }
+        }
+        assert!(numbers.next().is_none());
+        let bar = styled(&tree, look::GOAL_BAR);
+        let start = bar.checked_add(1).unwrap();
+        let children = &tree.nodes()[start..node_end(&tree, bar)];
+        let expected = [true, false, true, false];
+        assert_eq!(children.len(), expected.len());
+        for (node, landed) in children.iter().zip(expected) {
+            assert_eq!(node.styles.as_slice().contains(&look::GOAL_BAR_LANDED), landed);
+        }
+    }
+}
+#[test]
+fn a_delegates_own_delegates_and_cancelled_ones_are_left_out() {
+    let mut child = delegate(20, b"Grandchild", c::ChipPhase::Active(c::RunStage::Idle));
+    child.parent = 11;
+    child.depth = 2;
+    let mut cancelled = landed(12, b"Cancelled");
+    cancelled.chip.details.details.ending = Some(c::ChipEnding::Cancelled {
+        reason: text(b"Stop"),
+        result: None,
+        by: c::Requester::Person(73),
+        at: UPDATED,
+    });
+    let root = side_root(with_rows(
+        &[child, cancelled.clone(), delegate(11, b"Direct", c::ChipPhase::Active(c::RunStage::Idle))],
+        &[ended_line(cancelled), ended_line(landed(14, b"Done"))],
+    ));
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let tree = draw(&root, &words).0;
+        assert_eq!(task_links(&tree), row_words(&[b"Direct", b"Done"]));
+        assert_eq!(tree.nodes()[styled(&tree, look::GOAL_BAR)].name.as_deref(), Some(b"1 landed of 2".as_slice()));
+    }
+}
+#[test]
+fn the_bar_is_named_and_classed() {
+    let root = side_root(with_rows(
+        &[
+            landed(10, b"Done"),
+            delegate(11, b"Running", c::ChipPhase::Active(c::RunStage::Running { attempt: 1 })),
+            delegate(12, b"Waiting", c::ChipPhase::Active(c::RunStage::Idle)),
+        ],
+        &[],
+    ));
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let tree = draw(&root, &words).0;
+        let at = styled(&tree, look::GOAL_BAR);
+        assert_eq!(tree.nodes()[at].role, Role::Image);
+        assert_eq!(tree.nodes()[at].name.as_deref(), Some(b"1 landed of 3".as_slice()));
+        assert_eq!(tree.nodes()[at].size, 4);
+        assert_eq!(tree.nodes()[at.checked_add(1).unwrap()].styles.as_slice(), [look::GOAL_BAR_LANDED]);
+        assert_eq!(tree.nodes()[at.checked_add(2).unwrap()].styles.as_slice(), [look::GOAL_BAR_RUNNING]);
+        assert!(tree.nodes()[at.checked_add(3).unwrap()].styles.is_empty());
+    }
+}
+fn assert_line(mut row: c::TreeRow, expected: &[u8], need: bool, style: Option<Style>) {
+    row.chip.task = 11;
+    row.chip.title = text(b"The task");
+    let mut side = with_rows(&[row, delegate(12, b"Dependency", c::ChipPhase::Active(c::RunStage::Idle))], &[]);
+    side.need = if need { Some(11) } else { None };
+    let root = side_root(side);
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let tree = draw(&root, &words).0;
+        let at = styled(&tree, look::GOAL_LINE);
+        let subtree = &tree.nodes()[at..node_end(&tree, at)];
+        assert_eq!(subtree[1].role, Role::Link);
+        assert_eq!(subtree[1].name.as_deref(), Some(b"The task".as_slice()));
+        let last = subtree.last().unwrap();
+        assert_eq!(last.role, Role::Text);
+        assert_eq!(last.text.as_slice()[0].text.as_ref(), expected);
+        if let Some(style) = style {
+            let mut found = false;
+            for node in subtree {
+                found |= node.styles.as_slice().contains(&style);
+            }
+            assert!(found);
+        }
+    }
+}
+fn waiting(deps: &[u64], holds: bool) -> c::TreeRow {
+    let mut dependencies = List::uncapped();
+    for dep in deps {
+        dependencies.push(*dep).unwrap();
+    }
+    delegate(11, b"The task", c::ChipPhase::Waiting { dependencies, more: false, holds })
+}
+#[test]
+fn a_running_line_says_running() {
+    assert_line(
+        delegate(11, b"Task", c::ChipPhase::Active(c::RunStage::Running { attempt: 1 })),
+        b"running",
+        false,
+        Some(look::GOAL_LINE_RUNNING),
+    );
+}
+#[test]
+fn a_waits_on_line_names_its_dependency() {
+    assert_line(waiting(&[12], false), b"waits on Dependency", false, None);
+}
+#[test]
+fn a_waits_on_line_names_an_unshown_task() {
+    assert_line(waiting(&[99], false), b"waits on task 99", false, None);
+}
+#[test]
+fn a_waits_on_tasks_line_says_its_count() {
+    assert_line(waiting(&[12, 13], false), b"waits on 2 tasks", false, None);
+}
+#[test]
+fn a_waits_on_you_line_says_you() {
+    assert_line(waiting(&[], false), b"waits on you", true, None);
+}
+#[test]
+fn a_waits_on_resources_line_says_resources() {
+    assert_line(waiting(&[], true), b"waits on its resources", false, None);
+}
+#[test]
+fn a_held_line_says_held() {
+    assert_line(
+        delegate(
+            11,
+            b"Task",
+            c::ChipPhase::Held { reason: c::HoldCategory::Failures { class: c::HoldFailure::Run }, revision: 1 },
+        ),
+        b"held",
+        false,
+        Some(look::GOAL_LINE_NEEDS),
+    );
+}
+#[test]
+fn a_failed_line_says_failed() {
+    let mut row = landed(11, b"Task");
+    row.chip.details.details.ending = Some(c::ChipEnding::Failed(text(b"Failed")));
+    assert_line(row, b"failed", false, None);
+}
+#[test]
+fn a_waits_line_says_waits() {
+    assert_line(waiting(&[], false), b"waits", false, None);
+}
+#[test]
+fn landed_rows_fold_under_n_landed_with_their_end() {
+    let root = side_root(with_rows(
+        &[landed(14, b"No time")],
+        &[ended_line(landed(11, b"Earlier")), ended_line(landed(13, b"Later"))],
+    ));
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let tree = draw(&root, &words).0;
+        let at = styled(&tree, look::GOAL_LANDED_FOLD);
+        assert_eq!(tree.nodes()[at].role, Role::Disclosure);
+        assert_eq!(tree.nodes()[at].name.as_deref(), Some(b"3 landed".as_slice()));
+        assert!(!tree.nodes()[at].states.as_slice().contains(&skein_ui::State::Expanded));
+        assert_eq!(
+            lines(&tree).as_ref(),
+            [row_words(&[b"Earlier", b"06:20"]), row_words(&[b"Later", b"06:20"]), row_words(&[b"No time"])]
+        );
+    }
+}
+fn section_text(tree: &Tree, name: &[u8]) -> Box<[u8]> {
+    for (at, node) in tree.nodes().iter().enumerate() {
+        if node.role == Role::Region && node.name.as_deref() == Some(name) {
+            let end = node_end(tree, at);
+            for index in at..end {
+                if tree.nodes()[index].styles.as_slice().contains(&look::GOAL_FACTS) {
+                    return fixtures::node_text(tree, index);
+                }
+            }
+        }
+    }
+    panic!("section facts: {name:?}")
+}
+fn contains_run(tree: &Tree, value: &[u8]) -> bool {
+    for node in tree.nodes() {
+        for run in &node.text {
+            if run.text.as_ref() == value {
+                return true;
+            }
+        }
+    }
+    false
+}
+#[test]
+fn no_tasks_while_planning_and_after() {
+    for (total, expected) in [(0, "Proposing tasks from the draft…"), (3, "No tasks.")] {
+        let root = root(document(), 0, total, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            assert_eq!(section_text(&draw(&root, &words).0, b"Tasks").as_ref(), expected.as_bytes());
+        }
+    }
+}
+#[test]
+fn more_of_its_tasks_past_a_page() {
+    for (after, cut, expected) in [(false, false, false), (true, false, true), (false, true, true)] {
+        let mut side = Side::empty();
+        if let c::EndedGroup::Rows { after: cursor, cut: capped, .. } = &mut side.ended.ended {
+            *cursor = if after { Some(c::Cursor::new(Box::from(b"next".as_slice()), 32).unwrap()) } else { None };
+            *capped = cut;
+        }
+        let root = side_root(side);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            assert_eq!(contains_run(&tree, b"More of its tasks are not shown."), expected);
+        }
+    }
+}
+fn branch(task: &mut c::Task) {
+    let mut path = List::uncapped();
+    for part in [b"temper".as_slice(), b"9", b"g9"] {
+        path.push(Box::from(part)).unwrap();
+    }
+    task.resources
+        .push(c::ResourceLine {
+            part: c::Part { connector: 1, kind: c::PartKind::Resource, key: c::PartKey::Path(path) },
+            kind: 1,
+            taken: false,
+            holder: None,
+            writer: None,
+            writer_lost: false,
+        })
+        .unwrap();
+}
+#[test]
+fn landing_says() {
+    for (ending, at, has_branch, total, expected) in [
+        (
+            Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"Done")))),
+            Some(UPDATED),
+            false,
+            3,
+            b"Landed at 06:20.".as_slice(),
+        ),
+        (Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"Done")))), None, false, 3, b"Landed."),
+        (Some(c::ChipEnding::Failed(text(b"Failure"))), None, true, 3, b"Failed before it landed."),
+        (
+            Some(c::ChipEnding::Cancelled {
+                reason: text(b"Stop"),
+                result: None,
+                by: c::Requester::Person(73),
+                at: UPDATED,
+            }),
+            None,
+            true,
+            3,
+            b"Stopped before it landed.",
+        ),
+        (None, None, true, 0, b"Lands whole once all its tasks are checked."),
+        (None, None, false, 3, b"Each task lands on its own once checked."),
+    ] {
+        let mut task = document();
+        if let Some(ending) = ending {
+            end(&mut task, ending);
+        }
+        task.chip.details.details.ended_at = at;
+        if has_branch {
+            branch(&mut task);
+        }
+        let root = root(task, 0, total, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            assert_eq!(section_text(&draw(&root, &words).0, b"Landing").as_ref(), expected);
+        }
+    }
+}
+#[test]
+fn lands_whole_through_nine_and_past() {
+    for (total, expected) in [
+        (1, b"Lands whole once all one are checked.".as_slice()),
+        (2, b"Lands whole once all two are checked."),
+        (3, b"Lands whole once all three are checked."),
+        (4, b"Lands whole once all four are checked."),
+        (5, b"Lands whole once all five are checked."),
+        (6, b"Lands whole once all six are checked."),
+        (7, b"Lands whole once all seven are checked."),
+        (8, b"Lands whole once all eight are checked."),
+        (9, b"Lands whole once all nine are checked."),
+        (10, b"Lands whole once all 10 are checked."),
+    ] {
+        let mut task = document();
+        branch(&mut task);
+        let root = root(task, 0, total, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            assert_eq!(section_text(&draw(&root, &words).0, b"Landing").as_ref(), expected);
+        }
+    }
+}
+#[test]
+fn how_it_runs_says_its_way_by_its_branch() {
+    for has_branch in [false, true] {
+        let mut task = document();
+        if has_branch {
+            branch(&mut task);
+        }
+        let root = root(task, 0, 3, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            assert_eq!(
+                section_text(&draw(&root, &words).0, b"How it runs").as_ref(),
+                if has_branch {
+                    b"Plan, tasks, land whole \xc2\xb7 always asks you".as_slice()
+                } else {
+                    b"Task by task \xc2\xb7 always asks you"
+                }
+            );
+        }
+    }
+}
+#[test]
+fn decided_only_with_a_decided_line() {
+    for body in [None, Some(b"No decisions.".as_slice()), Some(b"Report.\nDecided: one at 06:00 \xc2\xb7 two at 06:10")]
+    {
+        let report = match body {
+            Some(body) => Some(note(body)),
+            None => None,
+        };
+        let root = root(document(), 0, 3, report, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            let mut has = false;
+            for node in tree.nodes() {
+                has |= node.role == Role::Region && node.name.as_deref() == Some(b"Decided by the goal");
+            }
+            let expected = match body {
+                Some(body) => body.starts_with(b"Report."),
+                None => false,
+            };
+            assert_eq!(has, expected);
+            if has {
+                assert_eq!(section_text(&tree, b"Decided by the goal").as_ref(), b"one at 06:00 \xc2\xb7 two at 06:10");
+            }
+            assert_eq!(tree.nodes()[styled(&tree, look::GOAL_SIDE)].role, Role::Complementary);
+        }
     }
 }

@@ -11,6 +11,39 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    GoalSideTasks,
+    GoalLandingTitle,
+    GoalHowTitle,
+    GoalDecidedTitle,
+    GoalAlwaysAsks,
+    GoalProposing,
+    GoalNoTasks,
+    GoalBarCount,
+    GoalFoldCount,
+    GoalMoreTasks,
+    GoalWaitsTitle,
+    GoalWaitsTask,
+    GoalWaitsTasks,
+    GoalWaitsYou,
+    GoalWaitsResources,
+    GoalWaits,
+    GoalLandedAt,
+    GoalStoppedBefore,
+    GoalFailedBefore,
+    GoalWholeNoTasks,
+    GoalWholeCount,
+    GoalEachChecked,
+    GoalCountDigits,
+    GoalOne,
+    GoalTwo,
+    GoalThree,
+    GoalFour,
+    GoalFive,
+    GoalSix,
+    GoalSeven,
+    GoalEight,
+    GoalNine,
+
     GoalPlanningTitle,
     GoalMetaCount,
     GoalSpent,
@@ -989,8 +1022,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Goal rows and ways add eighteen phrases; the page adds sixteen (client/README.md, 3.5).
 // Needs count, toast and page kinds add twenty-three phrases (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
-// The goal header and report add eighteen phrases (client/README.md, 5.8).
-const PHRASES: u32 = 1484;
+// The goal header and report use eighteen phrases; its side uses thirty-two (client/README.md, 5.8).
+const PHRASES: u32 = 1516;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1005,9 +1038,41 @@ const PHRASES: u32 = 1484;
 // Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
 // Needs count, toast and page kinds add fifty-one segments (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
-// The goal header and report add forty literal and hole segments (5.8).
-const SEGMENTS: u32 = 2587;
-const ALL: [Word; 888] = [
+// The goal header and report use forty literal and hole segments; its side uses fifty-two (5.8).
+const SEGMENTS: u32 = 2639;
+const ALL: [Word; 920] = [
+    Word::GoalSideTasks,
+    Word::GoalLandingTitle,
+    Word::GoalHowTitle,
+    Word::GoalDecidedTitle,
+    Word::GoalAlwaysAsks,
+    Word::GoalProposing,
+    Word::GoalNoTasks,
+    Word::GoalBarCount,
+    Word::GoalFoldCount,
+    Word::GoalMoreTasks,
+    Word::GoalWaitsTitle,
+    Word::GoalWaitsTask,
+    Word::GoalWaitsTasks,
+    Word::GoalWaitsYou,
+    Word::GoalWaitsResources,
+    Word::GoalWaits,
+    Word::GoalLandedAt,
+    Word::GoalStoppedBefore,
+    Word::GoalFailedBefore,
+    Word::GoalWholeNoTasks,
+    Word::GoalWholeCount,
+    Word::GoalEachChecked,
+    Word::GoalCountDigits,
+    Word::GoalOne,
+    Word::GoalTwo,
+    Word::GoalThree,
+    Word::GoalFour,
+    Word::GoalFive,
+    Word::GoalSix,
+    Word::GoalSeven,
+    Word::GoalEight,
+    Word::GoalNine,
     Word::GoalPlanningTitle,
     Word::GoalMetaCount,
     Word::GoalSpent,
@@ -1901,6 +1966,38 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::GoalSideTasks => 3400,
+            Self::GoalLandingTitle => 3401,
+            Self::GoalHowTitle => 3402,
+            Self::GoalDecidedTitle => 3403,
+            Self::GoalAlwaysAsks => 3404,
+            Self::GoalProposing => 3405,
+            Self::GoalNoTasks => 3406,
+            Self::GoalBarCount => 3407,
+            Self::GoalFoldCount => 3408,
+            Self::GoalMoreTasks => 3409,
+            Self::GoalWaitsTitle => 3410,
+            Self::GoalWaitsTask => 3411,
+            Self::GoalWaitsTasks => 3412,
+            Self::GoalWaitsYou => 3413,
+            Self::GoalWaitsResources => 3414,
+            Self::GoalWaits => 3415,
+            Self::GoalLandedAt => 3416,
+            Self::GoalStoppedBefore => 3417,
+            Self::GoalFailedBefore => 3418,
+            Self::GoalWholeNoTasks => 3419,
+            Self::GoalWholeCount => 3420,
+            Self::GoalEachChecked => 3421,
+            Self::GoalCountDigits => 3422,
+            Self::GoalOne => 3423,
+            Self::GoalTwo => 3424,
+            Self::GoalThree => 3425,
+            Self::GoalFour => 3426,
+            Self::GoalFive => 3427,
+            Self::GoalSix => 3428,
+            Self::GoalSeven => 3429,
+            Self::GoalEight => 3430,
+            Self::GoalNine => 3431,
             Self::GoalPlanningTitle => 3327,
             Self::GoalMetaCount => 3310,
             Self::GoalSpent => 3311,
@@ -3033,8 +3130,8 @@ impl Words {
             // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
             // Needs count, toast and page kinds add 327 literal bytes (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            // The goal header and report add 358 literal bytes (5.8).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 5 + 419 + 250 + 476 + 87 + 225 + 15 + 367 + 54 + 358,
+            // The goal header and report use 358 literal bytes; its side uses 443 (5.8).
+            text_bytes: 443 + 32768 + 288 + 149 + 401 + 11 + 5 + 419 + 250 + 476 + 87 + 225 + 15 + 367 + 54 + 358,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3102,6 +3199,38 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::GoalSideTasks => (&[b"Tasks"], &[]),
+        Word::GoalLandingTitle => (&[b"Landing"], &[]),
+        Word::GoalHowTitle => (&[b"How it runs"], &[]),
+        Word::GoalDecidedTitle => (&[b"Decided by the goal"], &[]),
+        Word::GoalAlwaysAsks => (&[b"", b" \xc2\xb7 always asks you"], &[Name]),
+        Word::GoalProposing => (&[b"Proposing tasks from the draft\xe2\x80\xa6"], &[]),
+        Word::GoalNoTasks => (&[b"No tasks."], &[]),
+        Word::GoalBarCount => (&[b"", b" landed of ", b""], &[Number, Number]),
+        Word::GoalFoldCount => (&[b"", b" landed"], &[Number]),
+        Word::GoalMoreTasks => (&[b"More of its tasks are not shown."], &[]),
+        Word::GoalWaitsTitle => (&[b"waits on ", b""], &[Name]),
+        Word::GoalWaitsTask => (&[b"waits on task ", b""], &[Number]),
+        Word::GoalWaitsTasks => (&[b"waits on ", b" tasks"], &[Number]),
+        Word::GoalWaitsYou => (&[b"waits on you"], &[]),
+        Word::GoalWaitsResources => (&[b"waits on its resources"], &[]),
+        Word::GoalWaits => (&[b"waits"], &[]),
+        Word::GoalLandedAt => (&[b"Landed at ", b"."], &[Name]),
+        Word::GoalStoppedBefore => (&[b"Stopped before it landed."], &[]),
+        Word::GoalFailedBefore => (&[b"Failed before it landed."], &[]),
+        Word::GoalWholeNoTasks => (&[b"Lands whole once all its tasks are checked."], &[]),
+        Word::GoalWholeCount => (&[b"Lands whole once all ", b" are checked."], &[Name]),
+        Word::GoalEachChecked => (&[b"Each task lands on its own once checked."], &[]),
+        Word::GoalCountDigits => (&[b"", b""], &[Number]),
+        Word::GoalOne => (&[b"one"], &[]),
+        Word::GoalTwo => (&[b"two"], &[]),
+        Word::GoalThree => (&[b"three"], &[]),
+        Word::GoalFour => (&[b"four"], &[]),
+        Word::GoalFive => (&[b"five"], &[]),
+        Word::GoalSix => (&[b"six"], &[]),
+        Word::GoalSeven => (&[b"seven"], &[]),
+        Word::GoalEight => (&[b"eight"], &[]),
+        Word::GoalNine => (&[b"nine"], &[]),
         Word::GoalPlanningTitle => (&[b"Planning"], &[]),
         Word::GoalMetaCount => (&[b"", b" of ", b" tasks"], &[Number, Number]),
         Word::GoalSpent => (&[b"", b" of ", b" spent"], &[Number, Number]),
