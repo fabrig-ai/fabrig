@@ -20,7 +20,6 @@ pub const LIMITS: Limits = Limits {
     program_sources: 12,
     source_detail_bytes: 4096,
     needs_bytes: 4096,
-    versions: 0,
     workers: 4,
     engine_slots: 0,
     slots: 3,
@@ -513,7 +512,7 @@ pub struct World {
 impl World {
     #[must_use]
     pub fn new(settings: Settings) -> World {
-        assert!(fleet::valid(&settings.limits), "domain limits are valid");
+        assert!(fleet::valid(&settings.limits, 0), "domain limits are valid");
         let unseen = settings.latency.max.saturating_add(settings.wind_down.max);
         assert!(
             settings.worker_grace.saturating_add(unseen) <= settings.limits.grace,

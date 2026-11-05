@@ -59,9 +59,7 @@ pub(crate) fn logins(value: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
     let mut reader = Reader::new(value);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else {
-            return Err(piece_problem(skein_codec::Reason::Malformed));
-        };
+        let item = skein_codec::piece::counted(&mut reader);
         let value = w::ProgramLogin::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(login(&value, room)?).expect("counted login pieces");
     }
@@ -79,9 +77,7 @@ pub(crate) fn hosts(value: &[u8], limits: &Limits, room: &mut u64) -> Result<Lis
     let mut reader = Reader::new(value);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else {
-            return Err(piece_problem(skein_codec::Reason::Malformed));
-        };
+        let item = skein_codec::piece::counted(&mut reader);
         let row = w::ProgramHost::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(c::ProgramHost {
             name: name(row.name(), room)?,

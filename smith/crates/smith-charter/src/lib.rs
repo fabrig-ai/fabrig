@@ -10,6 +10,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 #[rustfmt::skip]
+// The schema compiler writes this module to generated/v4.rs.
 #[path = "generated/v4.rs"]
 pub mod v4;
 

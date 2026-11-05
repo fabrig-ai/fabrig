@@ -132,12 +132,12 @@ fn a_reply_at_the_page_size_succeeds() {
         let reply = listed(&call, PAGE).result.expect("reply");
         match reply {
             Reply::Rows(rows) => assert_eq!(rows.len(), usize::try_from(PAGE).expect("page fits")),
-            Reply::GithubRows(rows) => assert_eq!(rows.len(), usize::try_from(PAGE).expect("page fits")),
+            Reply::GitHubRows(rows) => assert_eq!(rows.len(), usize::try_from(PAGE).expect("page fits")),
             other @ (Reply::Document(_)
             | Reply::Empty
             | Reply::Status(_)
             | Reply::Down
-            | Reply::GithubDocument(_)
+            | Reply::GitHubDocument(_)
             | Reply::Unsigned) => panic!("page reply: {other:?}"),
         }
     }

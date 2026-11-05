@@ -7,10 +7,11 @@ use super::{
     key,
     write::Write,
 };
+use crate::github::{Reply, reply, unexpected};
 use crate::{
     call::Auth,
     item::{self, Item},
-    reconcile::{self, Event, Need, Outcome, Reply, Stage, Why},
+    plan::{self, Event, Need, Outcome, Stage, Why},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -51,7 +52,7 @@ impl Paste {
         Ok(Self { given: given.clone(), app, state: State::Begin })
     }
     fn stop(&self, subject: &[u8], why: Why) -> Need {
-        app::stop(self.given.forge, Stage::App, subject, why)
+        plan::stop(self.given.forge, Stage::App, subject, why)
     }
     fn hook(&mut self, mut child: Hook, checked: Checked, event: Event) -> Need {
         let mut out = Queue::uncapped();
@@ -83,19 +84,11 @@ impl Paste {
     }
     fn proved(&mut self, key: Secret, user: Option<NonZeroU64>, event: Event) -> Need {
         let subject = Decimal::of(self.app.get());
-        let app = match reconcile::reply(event) {
-            Ok(Reply::GithubDocument(Document::App(app))) => app,
+        let app = match reply(event) {
+            Ok(Reply::Document(Document::App(app))) => app,
             Ok(Reply::Unsigned) => return self.stop(b"key", Why::KeyForm),
-            Ok(
-                reply @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)),
-            ) => {
-                return self.stop(subject.as_bytes(), reconcile::unexpected(reply));
+            Ok(reply @ (Reply::Empty | Reply::Status(_) | Reply::Down | Reply::Document(_) | Reply::Rows(_))) => {
+                return self.stop(subject.as_bytes(), unexpected(reply));
             }
             Err(why) => return self.stop(subject.as_bytes(), why),
         };
@@ -112,18 +105,16 @@ impl Paste {
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {
-            State::Begin => match event {
-                Event::Begin => {
+            State::Begin => match event.begin() {
+                Ok(()) => {
                     self.state = State::Pasted;
                     Need::Read(Item::Pasted)
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(b"key", Why::Unexpected)
-                }
+                Err(why) => self.stop(b"key", why),
             },
-            State::Pasted => match event {
-                Event::Read(None) => self.stop(b"key", Why::Missing),
-                Event::Read(Some(pem)) => {
+            State::Pasted => match event.read() {
+                Ok(None) => self.stop(b"key", Why::Missing),
+                Ok(Some(pem)) => {
                     if pem.is_empty() {
                         return self.stop(b"key", Why::Missing);
                     }
@@ -133,10 +124,10 @@ impl Paste {
                     self.state = State::Id(key);
                     Need::Read(Item::AppId)
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => self.stop(b"key", Why::Unexpected),
+                Err(why) => self.stop(b"key", why),
             },
-            State::Id(key) => match event {
-                Event::Read(read) => {
+            State::Id(key) => match event.read() {
+                Ok(read) => {
                     match optional_id(read) {
                         Ok(Some(id)) => {
                             if id != self.app {
@@ -149,10 +140,10 @@ impl Paste {
                     self.state = State::User(key);
                     Need::Read(Item::User)
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => self.stop(b"id", Why::Unexpected),
+                Err(why) => self.stop(b"id", why),
             },
-            State::User(key) => match event {
-                Event::Read(read) => {
+            State::User(key) => match event.read() {
+                Ok(read) => {
                     let user = match optional_id(read) {
                         Ok(user) => user,
                         Err(why) => return self.stop(b"user", why),
@@ -161,9 +152,7 @@ impl Paste {
                     self.state = State::App { key, user };
                     Need::Send { request: Request::App.into(), auth }
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(b"user", Why::Unexpected)
-                }
+                Err(why) => self.stop(b"user", why),
             },
             State::App { key, user } => self.proved(key, user, event),
             State::Bot { key, slug, lacking, user } => match app::bot(event) {

@@ -115,10 +115,8 @@ pub(super) fn compound(
     let path = w::Path::CompoundOperations;
     let mut reader = skein_lib::Reader::new(value.operations());
     let mut decoded = List::with_capacity(asks::count(value.operations(), path)?);
-    while reader.remaining() != 0 {
-        let Ok(Some(bytes)) = skein_codec::piece::split(&mut reader) else {
-            return Err(Untranslatable { path });
-        };
+    for _ in 0..decoded.capacity() {
+        let bytes = skein_codec::piece::counted(&mut reader);
         let Ok(operation) = w::Operation::decode(limits, &mut skein_lib::Reader::new(&bytes)) else {
             return Err(Untranslatable { path });
         };
@@ -270,7 +268,7 @@ fn batch(
     let mut tasks = List::with_capacity(asks::count(bytes, path)?);
     let mut reader = skein_lib::Reader::new(bytes);
     for _ in 0..tasks.capacity() {
-        let bytes = asks::item(&mut reader, path)?;
+        let bytes = skein_codec::piece::counted(&mut reader);
         let task = match w::NewTask::decode(limits, &mut skein_lib::Reader::new(&bytes)) {
             Ok(task) => task,
             Err(problem) => return Err(Untranslatable { path: problem.path }),

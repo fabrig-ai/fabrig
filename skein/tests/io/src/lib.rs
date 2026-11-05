@@ -4,8 +4,9 @@
 //! What the test binaries share:
 //!
 //! - [`world`]: the loop, each process's io and owner over one simulator,
-//!   and the checks every world makes (testing-strategy.md, 6): `MAX_OUT` at
-//!   each call, io's contract in the [`ledger`], the invariants once settled,
+//!   and the checks every world makes (testing-strategy.md, 6): the stage holds
+//!   each call to its `MAX_OUT_*`, io's contract in the [`ledger`], the
+//!   invariants once settled,
 //!   and a trace to replay;
 //! - [`owner`]: the scripted owner, running each connection by a plan;
 //! - [`referee`]: each scenario's expectations, safety and liveness;

@@ -28,7 +28,7 @@ fn a_prepared_pin_runs_only_its_selected_tasks() {
         max_stdout_bytes: 1,
         max_stderr_bytes: 1,
         disk_estimate_bytes: 1,
-        ..crate::request_fixture::request(root.join("tasks/probes/large-write/task.toml"), identity)
+        ..crate::fixture::request::request(root.join("tasks/probes/large-write/task.toml"), identity)
     };
     assert_eq!(selected_configuration_matches(&suite.agents, std::slice::from_ref(&pin), &request), Ok(true));
     request.identity.task = "probes/smoke-tools".into();

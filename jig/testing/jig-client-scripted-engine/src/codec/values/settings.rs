@@ -5,7 +5,7 @@ use super::{
     wire_policy_permission, wire_policy_requirement, wire_proposal_key, wire_proposer, wire_template,
     wire_template_override,
 };
-pub(in crate::codec) fn wire_settings_document(
+pub fn wire_settings_document(
     value: &c::SettingsDocument,
     limits: &w::Limits,
 ) -> Result<w::SettingsDocument, w::Problem> {
@@ -125,10 +125,7 @@ pub(in crate::codec) fn wire_settings_proposal(
     )
 }
 
-pub(in crate::codec) fn wire_setting_document(
-    value: &c::SettingDocument,
-    limits: &w::Limits,
-) -> Result<w::SettingDocument, w::Problem> {
+pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> Result<w::SettingDocument, w::Problem> {
     w::SettingDocument::new(
         limits,
         w::SettingDocumentParts {
@@ -267,10 +264,7 @@ pub(in crate::codec) fn wire_rules(value: &c::Rules, limits: &w::Limits) -> Resu
     )
 }
 
-pub(in crate::codec) fn wire_revision_answer(
-    value: &c::RevisionAnswer,
-    limits: &w::Limits,
-) -> Result<w::RevisionAnswer, w::Problem> {
+pub fn wire_revision_answer(value: &c::RevisionAnswer, limits: &w::Limits) -> Result<w::RevisionAnswer, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::RevisionAnswer::Revision(value) => w::RevisionAnswer::Revision(wire_revision_document(value, limits)?),
         c::RevisionAnswer::Forgotten(value) => w::RevisionAnswer::Forgotten(wire_revision_forgotten(value, limits)?),
@@ -343,10 +337,7 @@ pub(in crate::codec) fn wire_revision_forgotten(
     w::RevisionForgotten::new(limits, w::RevisionForgottenParts { oldest: value.oldest })
 }
 
-pub(in crate::codec) fn wire_revisions_page(
-    value: &c::RevisionsPage,
-    limits: &w::Limits,
-) -> Result<w::RevisionsPage, w::Problem> {
+pub fn wire_revisions_page(value: &c::RevisionsPage, limits: &w::Limits) -> Result<w::RevisionsPage, w::Problem> {
     w::RevisionsPage::new(
         limits,
         w::RevisionsPageParts {
@@ -416,7 +407,7 @@ pub(in crate::codec) fn wire_refusal_full(
     )
 }
 
-pub(in crate::codec) fn wire_malformed_settings(
+pub fn wire_malformed_settings(
     value: &c::MalformedSettings,
     limits: &w::Limits,
 ) -> Result<w::MalformedSettings, w::Problem> {
@@ -445,7 +436,7 @@ pub(in crate::codec) fn wire_setting_fault(
     })
 }
 
-pub(in crate::codec) fn wire_retained_action_settings(
+pub fn wire_retained_action_settings(
     value: &c::RetainedActionSettings,
     limits: &w::Limits,
 ) -> Result<w::RetainedActionSettings, w::Problem> {
@@ -459,7 +450,7 @@ pub(in crate::codec) fn wire_retained_action_settings(
     )
 }
 
-pub(in crate::codec) fn wire_proposal_action_settings(
+pub fn wire_proposal_action_settings(
     value: &c::ProposalActionSettings,
     limits: &w::Limits,
 ) -> Result<w::ProposalActionSettings, w::Problem> {

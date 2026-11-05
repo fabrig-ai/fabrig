@@ -143,7 +143,10 @@ enum Form {
   helpers, each item decoded by its own type's code as the reader splits
   the piece. A piece whose lengths do not end exactly at its end is
   refused as malformed. Its worst case is its bound, and its items'
-  decoded size is the owner's to count against the same sum.
+  decoded size is the owner's to count against the same sum. An owner
+  bounding the items by that sum splits with `piece::split_within`,
+  which charges each item and its length and refuses past the owner's
+  most; one reserving by count counts first with `piece::count`.
 - **A type uses only types declared before it.** The types form a tree, and
   decoding nests to a fixed depth.
 - **No imports.** A record of another family, such as a charter carried in
