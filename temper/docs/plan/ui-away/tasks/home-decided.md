@@ -65,3 +65,17 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-away/home-decided/foreman-1)
+
+merge the landing trunk and regenerate Story A from the combined code
+The merge conflicts in `temper/tests/playground/tests/fixtures/story-a.log`.
+Task commit `67586abc10` regenerated it for Home’s decided watch and reads.
+The landing trunk also regenerated it in `47e1ec14c6` (decided tool answers) and `562d9a3e1a` (stock goal instructions).
+Preserve both sides’ source changes, including the automatically merged fixtures and `home::facts` callers.
+Regenerate the conflicting log using `temper/tests/playground/tests/suite/walk.rs`; do not splice its encoded exchanges or retain either side’s recording unchanged.
+Run through heavy, one command at a time:
+`SKEIN_CODEGEN_WRITE=1 TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`
+Then verify the regenerated recording:
+`TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_kept_log_replays_natively)'`
+This generated fixture is the task’s responsibility under `temper/docs/design/playground.md`, section 9. Include it in the merge resolution and report its regeneration.
