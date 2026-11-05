@@ -33,7 +33,7 @@ fn handshake_bytes_do_not_write_an_exchange() {
         }
     }
     assert!(sent, "the handshake wrote bytes");
-    assert_eq!(c.phase, Phase::Handshaking, "TLS writes keep the handshake phase");
+    assert_eq!(c.phase(), Phase::Handshaking, "TLS writes keep the handshake phase");
     assert!(!c.written, "no exchange byte was written");
     c.timeout();
     let Some(Ended::Failed(failure)) = c.take_ended() else { unreachable!("timeout reports failure") };
@@ -50,7 +50,7 @@ fn a_connected_notice_keeps_the_in_flight_exchange() {
     h.connection.stream(&h.env, Up::Room);
     h.pump();
     assert!(h.connection.written, "the request wrote bytes");
-    assert_eq!(h.connection.phase, Phase::Reading);
+    assert_eq!(h.connection.phase(), Phase::Reading);
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn an_early_head_and_upload_endings_preserve_the_sending_exchange() {
             Moved::Within => assert!(!head, "early head is not swallowed"),
             Moved::Nothing | Moved::Token(_) | Moved::Finished { .. } => unreachable!("no completed exchange"),
         }
-        assert_eq!(h.connection.phase, Phase::Sending { written: false }, "no write completed");
+        assert_eq!(h.connection.phase(), Phase::Sending { written: false }, "no write completed");
         assert!(h.connection.in_flight(), "the exchange remains held");
         h.connection.stream(&h.env, Up::Room);
         for _ in 0_u32..64 {
@@ -105,7 +105,7 @@ fn an_early_head_and_upload_endings_preserve_the_sending_exchange() {
         }
         assert!(h.connection.written, "the request head wrote bytes");
         let expected = if head { Phase::Sending { written: true } } else { Phase::Reading };
-        assert_eq!(h.connection.phase, expected, "only a live upload keeps sending after the write");
+        assert_eq!(h.connection.phase(), expected, "only a live upload keeps sending after the write");
         assert!(h.connection.take_ended().is_none(), "an upload ending is not an exchange failure");
     }
 }
