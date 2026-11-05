@@ -23,19 +23,15 @@ pub(super) struct Runner {
 impl Host for Runner {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits };
-        while let Some(complete) = self.completions.pop() {
+        for _ in 0..self.completions.len() {
+            let complete = self.completions.pop().expect("completion counted at stage entry");
             if complete.op == ROOT_CLOSE {
                 self.closed = true;
             } else {
-                io::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
+                self.completions.push(complete);
             }
         }
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
-        while self.io.is_due(now) {
-            io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             let owner = event.owner().expect("source events have an owner");
             assert!(self.source.owns(owner), "source owns routed event");
