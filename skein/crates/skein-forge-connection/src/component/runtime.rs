@@ -18,7 +18,6 @@ impl Component {
         forges.push(ForgeEntry::new(forge, &env.limits)).expect("forge room checked");
     }
 
-    #[expect(clippy::disallowed_methods, reason = "swap_remove needs the local position of the configured forge")]
     pub(super) fn remove(
         &mut self,
         env: &Env<Limits>,
@@ -27,7 +26,14 @@ impl Component {
         io: &mut Queue<skein_io::Request>,
     ) {
         let Self { forges, common } = self;
-        let Some(position) = forges.iter().position(|entry| entry.base.forge.number == number) else { return };
+        let mut position = None;
+        for (at, entry) in forges.iter().enumerate() {
+            if entry.base.forge.number == number {
+                position = Some(at);
+                break;
+            }
+        }
+        let Some(position) = position else { return };
         // Discard this forge's queued notifications before returning its terminals.
         for _ in 0..up.len() {
             let event = up.pop().expect("queued notification");

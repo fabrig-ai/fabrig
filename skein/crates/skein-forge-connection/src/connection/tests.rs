@@ -1,109 +1,54 @@
-//! The complete GitHub handoff, held at simultaneous peak and released at its terminals.
+//! A handshake's writes precede the holder's exchange.
 use super::*;
-use crate::tests::fixtures::Exchange as Pending;
-use crate::tests::fixtures::{self as f, ConnectionHarness};
-use crate::{connection::Failure, settings::Transport};
-use github::plans::plan::{Comparison, Exchange as GitHubExchange, Retention};
+use crate::tests::fixtures as f;
+use skein_lib::{Token, Wall};
 
-fn peak(h: &mut ConnectionHarness) {
-    let size = usize::try_from(h.env.limits.string_bytes).expect("string bound");
-    let request = github::request::Request::Raw {
-        owner: f::filled(size, b'o'),
-        name: f::filled(size, b'n'),
-        path: f::filled(size, b'p'),
-        commit: [0; 32],
-    };
-    h.start(Pending::GitHub {
-        exchange: GitHubExchange {
-            request,
-            retention: Some(Retention::Whole { bytes: f::shared().answer_bytes }),
-            comparison: Comparison::MergeBase,
-        },
-        authorization: Some(Secret::new(Box::from(b"Bearer test-token".as_slice()))),
-    })
-    .expect("maximum exchange encodes");
-}
-fn retained(h: &ConnectionHarness) -> &GitHubExchange {
-    h.github.request.as_ref().expect("retained request")
-}
 #[test]
-#[expect(clippy::print_stdout, clippy::disallowed_macros, reason = "report the handoff fixture peak")]
-fn github_exchange_handoff_stays_under_the_ceiling_on_every_connection() {
-    // All configured connections retaining their full exchange handoffs.
-    const CEILING: i64 = 13_000;
-    let span = skein_heap::Span::start();
-    let count = f::limits().connections + f::github_settings().forges.len();
-    let mut connections = List::with_capacity(count);
-    for _ in 0..count {
-        let mut h = ConnectionHarness::github();
-        peak(&mut h);
-        connections.push(h).expect("all call and own connections");
+fn handshake_bytes_do_not_write_an_exchange() {
+    let mut forge = f::settings().forges.into_boxed().into_iter().next().expect("fixture forge");
+    forge.transport =
+        Transport::Tls { trust: f::trust(), server_name: skein_tls::Name::new("localhost").expect("DNS name") };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: f::limits() };
+    let mut c = Connection::new(&forge, &env.limits, f::shared(), env.now);
+    let mut io = Queue::uncapped();
+    c.link.connecting(Token::new(100), &mut io);
+    c.connect(&env);
+    let mut sent = false;
+    for _ in 0_u32..64 {
+        match c.step(&env, &mut io, false) {
+            Moved::Within | Moved::Nothing => {}
+            Moved::Head(_) | Moved::Token(_) | Moved::Finished { .. } => unreachable!("no HTTP exchange"),
+        }
+        while let Some(request) = io.pop() {
+            let skein_io::Request::Stream { down, .. } = request else { unreachable!("link emits stream requests") };
+            match down {
+                Down::Send(bytes) => sent |= !bytes.is_empty(),
+                Down::Demand { room, .. } => {
+                    if room > 0 {
+                        c.stream(&env, Up::Room);
+                    }
+                }
+                Down::Finish => {}
+            }
+        }
     }
-    for h in &connections {
-        let exchange = retained(h);
-        assert_eq!(exchange.retention, Some(Retention::Whole { bytes: f::shared().answer_bytes }));
-        assert_eq!(exchange.comparison, Comparison::MergeBase);
-        let github::request::Request::Raw { owner, name, path, .. } = &exchange.request else { unreachable!("raw") };
-        assert_eq!(owner.len(), usize::try_from(h.env.limits.string_bytes).expect("bound"));
-        assert_eq!((name.len(), path.len()), (owner.len(), owner.len()));
-    }
-    let grown = span.end();
-    assert!(grown.peak <= CEILING, "{} <= {CEILING}", grown.peak);
-    println!("GitHub exchange handoffs: peak={} ceiling={CEILING}", grown.peak);
-}
-#[test]
-fn github_exchange_handoff_is_dropped_at_its_answer_and_replaced() {
-    let mut h = ConnectionHarness::github();
-    peak(&mut h);
-    h.github_answer(&f::ok(b""));
-    assert!(h.github.request.is_none(), "answer releases the handoff");
-    h.start(Pending::GitHub {
-        exchange: GitHubExchange {
-            request: github::request::Request::Raw {
-                owner: Box::from(b"a".as_slice()),
-                name: Box::from(b"b".as_slice()),
-                path: Box::from(b"c".as_slice()),
-                commit: [0; 32],
-            },
-            retention: Some(Retention::Head { bytes: 1 }),
-            comparison: Comparison::Full,
-        },
-        authorization: Some(Secret::new(Box::from(b"Bearer test-token".as_slice()))),
-    })
-    .expect("replacement request");
-    let exchange = retained(&h);
-    assert_eq!(exchange.retention, Some(Retention::Head { bytes: 1 }));
-    assert_eq!(exchange.comparison, Comparison::Full);
+    assert!(sent, "the handshake wrote bytes");
+    assert_eq!(c.phase, Phase::Handshaking, "TLS writes keep the handshake phase");
+    assert!(!c.written, "no exchange byte was written");
+    c.timeout();
+    let Some(Ended::Failed(failure)) = c.take_ended() else { unreachable!("timeout reports failure") };
+    assert_eq!(failure, Failure::Unseen);
 }
 
 #[test]
-fn github_followed_request_sends_exact_bytes_without_authorization_or_range() {
-    let redirect = github::redirect::parse(b"http://logs.example.test/job%2Fpart?signature=invented", 128, 1024)
-        .expect("invented log origin");
-    let mut h = ConnectionHarness::github();
-    h.forge.transport = Transport::Plaintext { name: Some(redirect.origin.host.clone()) };
-    h.forge.address = skein_io::Addr::Ip(([127, 0, 0, 1], redirect.origin.port).into());
-    h.start(Pending::GitHub {
-        exchange: GitHubExchange {
-            request: github::redirect::request(&redirect),
-            retention: Some(Retention::Tail { bytes: 8 }),
-            comparison: Comparison::Full,
-        },
-        authorization: None,
-    })
-    .expect("followed request encodes");
-    h.github_answer(&f::ok(b"log"));
-    assert_eq!(h.sent.as_ref(), b"GET /job%2Fpart?signature=invented HTTP/1.1\r\nHost: logs.example.test\r\nUser-Agent: kit/0.0.0\r\nAccept: application/vnd.github+json\r\nX-GitHub-Api-Version: 2026-03-10\r\n\r\n");
-}
-
-#[test]
-fn queued_answers_precede_transport_endings() {
-    let mut h = ConnectionHarness::github();
-    h.github.heard.push(Heard::Done(Body::Empty));
-    h.connection.failed(Failure::Seen);
-    assert!(h.github.ready(&h.connection));
-    assert_eq!(h.github.heard(&mut h.connection), Some(Heard::Done(Body::Empty)));
-    assert_eq!(h.github.heard(&mut h.connection), Some(Heard::Failed(Failure::Seen)));
-    assert_eq!(h.github.heard(&mut h.connection), None, "one terminal");
-    assert!(!h.github.ready(&h.connection));
+fn a_connected_notice_keeps_the_in_flight_exchange() {
+    let mut h = f::ConnectionHarness::new();
+    h.start_forgejo(skein_forge::forgejo::request::Request::User, None).expect("user request");
+    h.pump();
+    h.connection.connect(&h.env);
+    assert!(h.connection.in_flight(), "the exchange still belongs to its holder");
+    h.connection.stream(&h.env, Up::Room);
+    h.pump();
+    assert!(h.connection.written, "the request wrote bytes");
+    assert_eq!(h.connection.phase, Phase::Reading);
 }

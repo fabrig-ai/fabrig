@@ -8,14 +8,14 @@ use alloc::boxed::Box;
 use skein_lib::{List, Time, Wall};
 
 impl Component {
-    fn github_progress(&mut self, _at: u32, progress: Progress, env: &Env<Limits>, up: &mut Queue<Event>) {
+    fn github_progress(&mut self, progress: Progress, env: &Env<Limits>, up: &mut Queue<Event>) {
         let super::super::ForgeEntry { base, dialect } = self.forges.get_mut(0).expect("forge");
         match dialect {
             super::super::Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
             super::super::Dialect::GitHub(gh) => self.common.github_progress(base, gh, progress, env, up),
         }
     }
-    fn github_local(&mut self, _at: u32, env: &Env<Limits>, up: &mut Queue<Event>) -> bool {
+    fn github_local(&mut self, env: &Env<Limits>, up: &mut Queue<Event>) -> bool {
         let super::super::ForgeEntry { base, dialect } = self.forges.get_mut(0).expect("forge");
         match dialect {
             super::super::Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
@@ -238,12 +238,7 @@ fn installation_page_number_overflow_fails_the_attempt() {
         Read::Idle | Read::Changes(_) | Read::Waiting { .. } => unreachable!("reading"),
     }
     let (mut up, mut io) = queues();
-    component.github_progress(
-        0,
-        Progress::Paged(Ok(InstallationPage { rows: Box::from([]), next: true })),
-        &env,
-        &mut up,
-    );
+    component.github_progress(Progress::Paged(Ok(InstallationPage { rows: Box::from([]), next: true })), &env, &mut up);
     assert_eq!(
         component.start(fixtures::FORGE),
         Some(Start::Waiting {
@@ -298,13 +293,12 @@ fn failed_later_page_preserves_committed_table() {
         staged.push(installation(id, login)).expect("page rows");
     }
     component.github_progress(
-        0,
         Progress::Paged(Ok(InstallationPage { rows: staged.into_boxed(), next: true })),
         &env,
         &mut up,
     );
     component.test_local(&env, &mut up);
-    component.github_progress(0, Progress::Paged(Err(api::Error::InvalidAnswer)), &env, &mut up);
+    component.github_progress(Progress::Paged(Err(api::Error::InvalidAnswer)), &env, &mut up);
     let gh = component.test_github();
     let row = gh.rows.get(&1).expect("committed row");
     assert_eq!((row.account.login.as_ref(), row.api_expires, row.git_expires), (b"acme".as_slice(), expiry, expiry));
@@ -324,10 +318,9 @@ fn failed_later_page_preserves_committed_table() {
         | Event::Closed => unreachable!("one fact"),
     }
     env.now = env.now.saturating_add(limits.start_backoff);
-    let _progressed = component.github_local(0, &env, &mut up);
+    let _progressed = component.github_local(&env, &mut up);
     let page = installation(1, b"acme");
     component.github_progress(
-        0,
         Progress::Paged(Ok(InstallationPage { rows: Box::from([page]), next: false })),
         &env,
         &mut up,

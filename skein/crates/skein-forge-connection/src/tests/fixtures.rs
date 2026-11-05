@@ -523,20 +523,6 @@ pub fn specimen() -> skein_forge::forgejo::plans::tables::Repository {
     }
 }
 
-/// A component-selected request and its complete Authorization value.
-#[derive(Debug)]
-pub enum Exchange {
-    Forgejo {
-        request: skein_forge::forgejo::request::Request,
-        range: Option<skein_forge::forgejo::plans::plan::Range>,
-        authorization: Secret,
-    },
-    GitHub {
-        exchange: skein_forge::github::plans::plan::Exchange,
-        authorization: Option<Secret>,
-    },
-}
-
 /// One connection's scripted stream, shared by its step tests.
 #[derive(Debug)]
 pub struct ConnectionHarness {
@@ -547,27 +533,11 @@ pub struct ConnectionHarness {
     pub forge: Forge,
     pub io: Queue<skein_io::Request>,
     pub sent: Box<[u8]>,
+    pub user_agent: Box<[u8]>,
     pub body_demands: u32,
     pub local_pumps: u32,
 }
-#[derive(Debug)]
-enum FixtureHeard {
-    Forgejo(skein_forge::forgejo::plans::Heard),
-    GitHub(skein_forge::github::plans::Heard),
-}
 impl ConnectionHarness {
-    fn heard(&mut self) -> Option<FixtureHeard> {
-        match self.forge.kind {
-            Kind::Forgejo => {
-                let event = self.forgejo.heard(&mut self.connection)?;
-                Some(FixtureHeard::Forgejo(event))
-            }
-            Kind::GitHub => {
-                let event = self.github.heard(&mut self.connection)?;
-                Some(FixtureHeard::GitHub(event))
-            }
-        }
-    }
     pub fn new() -> Self {
         let forge = settings().forges.into_boxed().into_iter().next().expect("one forge");
         Self::with_forge(forge, shared())
@@ -604,6 +574,7 @@ impl ConnectionHarness {
             forge,
             io: Queue::with_capacity(32),
             sent: Box::from([]),
+            user_agent: Box::from(USER_AGENT),
             body_demands: 0,
             local_pumps: 0,
         }
@@ -614,34 +585,34 @@ impl ConnectionHarness {
             Kind::GitHub => self.github.pump(&mut self.connection, &self.env, &mut self.io),
         }
     }
-    pub fn start(&mut self, exchange: Exchange) -> Result<(), &'static str> {
-        match exchange {
-            Exchange::Forgejo { request, range, authorization } => {
-                match self.forgejo.start(
-                    &mut self.connection,
-                    &self.env,
-                    &self.forge,
-                    USER_AGENT,
-                    skein_forge::forgejo::plans::plan::Exchange { request, range },
-                    authorization,
-                ) {
-                    Ok(()) => Ok(()),
-                    Err(_) => Err("Forgejo refused"),
-                }
-            }
-            Exchange::GitHub { exchange, authorization } => {
-                match self.github.start(
-                    &mut self.connection,
-                    &self.env,
-                    &self.forge,
-                    USER_AGENT,
-                    exchange,
-                    authorization,
-                ) {
-                    Ok(()) => Ok(()),
-                    Err(_) => Err("GitHub refused"),
-                }
-            }
+    /// Forgejo tests supply the component's complete token header.
+    pub fn start_forgejo(
+        &mut self,
+        request: skein_forge::forgejo::request::Request,
+        range: Option<skein_forge::forgejo::plans::plan::Range>,
+    ) -> Result<(), &'static str> {
+        let credential = skein_forge::credential::Credential::Token(Secret::new(Box::from(TOKEN)));
+        let authorization = skein_forge::forgejo::credential::authorization(&credential).expect("fixture token");
+        match self.forgejo.start(
+            &mut self.connection,
+            &self.env,
+            &self.forge,
+            &self.user_agent,
+            skein_forge::forgejo::plans::plan::Exchange { request, range },
+            authorization,
+        ) {
+            Ok(()) => Ok(()),
+            Err(_) => Err("Forgejo refused"),
+        }
+    }
+    pub fn start_github(
+        &mut self,
+        exchange: skein_forge::github::plans::plan::Exchange,
+        authorization: Option<Secret>,
+    ) -> Result<(), &'static str> {
+        match self.github.start(&mut self.connection, &self.env, &self.forge, USER_AGENT, exchange, authorization) {
+            Ok(()) => Ok(()),
+            Err(_) => Err("GitHub refused"),
         }
     }
     pub fn ready(&self) -> bool {
@@ -652,12 +623,15 @@ impl ConnectionHarness {
     }
     pub fn answer(&mut self, response: &[u8]) -> List<skein_forge::forgejo::plans::Heard> {
         let mut heard = List::with_capacity(16);
-        for event in self.answer_dialect(response).into_boxed() {
-            match event {
-                FixtureHeard::Forgejo(event) => heard.push(event).expect("fixture events fit"),
-                FixtureHeard::GitHub(_) => unreachable!("Forgejo harness answer"),
+        let mut wire = skein_world::stream::Wire::new(1);
+        let mut written = false;
+        for _ in 0_u32..1024 {
+            self.answer_wire(response, &mut wire, &mut written);
+            if let Some(event) = self.forgejo.heard(&mut self.connection) {
+                heard.push(event).expect("fixture events fit");
             }
         }
+        self.sent = Box::from(wire.received.as_slice());
         heard
     }
     /// The existing connection fixture with a buffered or fragmented peer body.
@@ -743,60 +717,44 @@ impl ConnectionHarness {
     }
     pub fn github_answer(&mut self, response: &[u8]) -> List<skein_forge::github::plans::Heard> {
         let mut heard = List::with_capacity(16);
-        for event in self.answer_dialect(response).into_boxed() {
-            match event {
-                FixtureHeard::GitHub(event) => heard.push(event).expect("fixture events fit"),
-                FixtureHeard::Forgejo(_) => unreachable!("GitHub harness answer"),
-            }
-        }
-        heard
-    }
-    fn answer_dialect(&mut self, response: &[u8]) -> List<FixtureHeard> {
         let mut wire = skein_world::stream::Wire::new(1);
         let mut written = false;
-        let mut heard = List::with_capacity(16);
         for _ in 0_u32..1024 {
-            self.pump();
-            for _ in 0..self.io.len() {
-                let request = self.io.pop().expect("queued io request");
-                match request {
-                    skein_io::Request::Stream { down, .. } => wire.take(down),
-                    skein_io::Request::Listen { .. }
-                    | skein_io::Request::Connect { .. }
-                    | skein_io::Request::Bind { .. }
-                    | skein_io::Request::Reject { .. }
-                    | skein_io::Request::Output { .. }
-                    | skein_io::Request::Spawn { .. }
-                    | skein_io::Request::Signal { .. }
-                    | skein_io::Request::Usage { .. }
-                    | skein_io::Request::Window { .. }
-                    | skein_io::Request::Close { .. }
-                    | skein_io::Request::Abort { .. } => unreachable!("one connection emits stream requests"),
-                }
-            }
-            if !written && self.connection.phase == crate::connection::Phase::Reading {
-                wire.write(response);
-                written = true;
-            }
-            if let Some(event) = wire.answer() {
-                self.connection.stream(&self.env, event);
-            }
-            if let Some(event) = self.heard() {
+            self.answer_wire(response, &mut wire, &mut written);
+            if let Some(event) = self.github.heard(&mut self.connection) {
                 heard.push(event).expect("fixture events fit");
             }
         }
         self.sent = Box::from(wire.received.as_slice());
         heard
     }
-}
-/// Forgejo tests supply the component's complete token header.
-pub fn forgejo_exchange(
-    request: skein_forge::forgejo::request::Request,
-    range: Option<skein_forge::forgejo::plans::plan::Range>,
-) -> Exchange {
-    let credential = skein_forge::credential::Credential::Token(Secret::new(Box::from(TOKEN)));
-    let authorization = skein_forge::forgejo::credential::authorization(&credential).expect("fixture token");
-    Exchange::Forgejo { request, range, authorization }
+    fn answer_wire(&mut self, response: &[u8], wire: &mut skein_world::stream::Wire, written: &mut bool) {
+        self.pump();
+        for _ in 0..self.io.len() {
+            let request = self.io.pop().expect("queued io request");
+            match request {
+                skein_io::Request::Stream { down, .. } => wire.take(down),
+                skein_io::Request::Listen { .. }
+                | skein_io::Request::Connect { .. }
+                | skein_io::Request::Bind { .. }
+                | skein_io::Request::Reject { .. }
+                | skein_io::Request::Output { .. }
+                | skein_io::Request::Spawn { .. }
+                | skein_io::Request::Signal { .. }
+                | skein_io::Request::Usage { .. }
+                | skein_io::Request::Window { .. }
+                | skein_io::Request::Close { .. }
+                | skein_io::Request::Abort { .. } => unreachable!("one connection emits stream requests"),
+            }
+        }
+        if !*written && self.connection.phase == crate::connection::Phase::Reading {
+            wire.write(response);
+            *written = true;
+        }
+        if let Some(event) = wire.answer() {
+            self.connection.stream(&self.env, event);
+        }
+    }
 }
 pub fn known() -> Harness {
     let mut h = Harness::ready();
@@ -842,21 +800,8 @@ pub fn trust() -> skein_tls::Config {
 pub fn request_bytes(settings: Settings) -> Box<[u8]> {
     let mut h = ConnectionHarness::new();
     h.forge = settings.forges.into_boxed().into_iter().next().expect("one configured forge");
-    let Exchange::Forgejo { request, range, authorization } =
-        forgejo_exchange(skein_forge::forgejo::request::Request::User, None)
-    else {
-        unreachable!("Forgejo fixture")
-    };
-    h.forgejo
-        .start(
-            &mut h.connection,
-            &h.env,
-            &h.forge,
-            &settings.user_agent,
-            skein_forge::forgejo::plans::plan::Exchange { request, range },
-            authorization,
-        )
-        .expect("valid request");
+    h.user_agent = settings.user_agent;
+    h.start_forgejo(skein_forge::forgejo::request::Request::User, None).expect("valid request");
     h.answer(&user_ok());
     h.sent
 }
