@@ -3,6 +3,8 @@
 2026-11-05. Where jig's code lags or departs from [tasks.md](tasks.md).
 Unlisted sections have no known gap.
 
+- **Not yet:** 5.2, 5.5: a retry notice and a hold with a preparation's
+  reason; a brief's failure counted in its class.
 - **Not yet:** 5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
   7: a

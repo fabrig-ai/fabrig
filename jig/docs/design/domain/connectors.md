@@ -85,7 +85,7 @@ application root            routes between the core and every connector
   | release what this closing task held | the release's effects |
   | subscribe this task to this topic; unsubscribe | news for these subscribers, classified |
   | serve this read for a run | its answer |
-  | gather this section for a brief, within this budget; cut it to a size; hand it over | ready, with its size; the section |
+  | gather this section for a brief, within this budget; cut it to a size; hand it over | ready, with its size, or why it could not (engine.md, 9.1); the section |
   | name what a run of this task needs prepared; hand it over | its workspace items, with their size, and the application's credentials they need; the items |
   | what a run of this task left on its resources | taken: facts updated, procedures stepped |
   | adopt this resource into this project | adopted, with what may be done there and the parties it knows; refused |
@@ -716,7 +716,8 @@ release the writer; Uncertain and Held retain it for connector recovery.
   errors, an environment's state, a pull request against its base, a
   file at a branch's head. The brief child domain plans them (engine.md,
   section 9) by kind and budget; the connector gathers each, keeps it,
-  and says its size; asked to cut it to a smaller size, it cuts it by its
+  and says its size, or says why it could not, in fixed words and how
+  that counts (engine.md, 9.1); asked to cut it to a smaller size, it cuts it by its
   own rules and says the new size; when the brief is complete, it hands
   the section to the root, which puts the assignment together (root.md,
   section 7).

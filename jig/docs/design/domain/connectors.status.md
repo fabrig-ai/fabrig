@@ -1,7 +1,8 @@
 # connectors: status
 
-2026-11-03. Where jig's code lags or departs from [connectors.md](connectors.md).
+2026-11-05. Where jig's code lags or departs from [connectors.md](connectors.md).
 
+- **Not yet:** 9: a connector saying why it could not gather a section.
 - **Not yet:** 3.4: `Unname` at retention's erasure at the deployment's
   horizon, which is not built (`../protocol/store.md`, 11.1).
   4.2: a projection's or a release's failure for good, kept
