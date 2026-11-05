@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 115;
+pub const N: usize = 117;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -240,6 +240,8 @@ pub fn samples() -> [Sample; N] {
         model_forge_sample("welcome-model-forge-done", 7),
         model_forge_sample("welcome-model-forge-failed", 9),
         welcome_model_sample("welcome-model-key-details", temper_client_domain::WayKind::Key, Shown),
+        model_forge_sample("welcome-model-connected", 7),
+        welcome_model_sample("welcome-model-away", temper_client_domain::WayKind::SignIn, SigningIn),
         welcome_model_sample("welcome-model-signing-in", temper_client_domain::WayKind::SignIn, SigningIn),
         welcome_model_sample("welcome-model-signin-ready", temper_client_domain::WayKind::SignIn, SignInReady),
         welcome_model_sample("welcome-model-declined", temper_client_domain::WayKind::SignIn, Declined),
@@ -402,8 +404,11 @@ fn special_mockup(name: &str) -> Option<String> {
         "welcome-model-key-details" => {
             return Some("welcome.html?world=first-run&step=0&at=model&way=key&bare".to_owned());
         }
-        "welcome-model-signing-in" | "welcome-model-signin-ready" => {
-            return Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare".to_owned());
+        "welcome-model-away"
+        | "welcome-model-signing-in"
+        | "welcome-model-signin-ready"
+        | "welcome-model-connected" => {
+            return Some("welcome.html?at=model".to_owned());
         }
         "github-app-details" => {
             return Some("connect-forge.html?world=first-run-github&step=1&forge=2&bare".to_owned());
@@ -537,6 +542,29 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
+    if sample.name.starts_with("welcome-model-") || sample.name.starts_with("welcome-paste-") {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Model accounts").clone();
+        doc.usable =
+            matches!(sample.name, "welcome-model-connected" | "welcome-model-signin-ready" | "welcome-model-renewed");
+        if doc.usable {
+            let mut rows = skein_lib::List::with_capacity(1);
+            for row in &doc.accounts {
+                if row.provider == Some(18) {
+                    rows.push(row.clone()).expect("ChatGPT account");
+                    break;
+                }
+            }
+            doc.accounts = rows;
+        } else {
+            doc.accounts.clear();
+        }
+        crate::driver::deliver(
+            &mut root,
+            accounts_watch.expect("Model accounts watch"),
+            c::Delivery::Accounts(Box::new(doc)),
+            &mut out,
+        );
+    }
     match sample.then {
         Then::Shown | Then::Held => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),

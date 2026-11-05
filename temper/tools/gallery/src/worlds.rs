@@ -133,12 +133,13 @@ fn template_preview(member: &mut c::MeProject) {
     });
 }
 fn providers(w: World) -> List<c::ProviderOffer> {
-    let mut rows = List::with_capacity(2);
+    let mut rows = List::with_capacity(3);
     let names: &[(u32, &str)] = match w {
         Reference => &[(17, "anthropic"), (18, "openai")],
         Solo => &[(17, "anthropic")],
-        FirstRun { step: 1..=5 | 10 } => &[(17, "Playground"), (18, "openai")],
-        World::Bare | FirstRun { .. } => &[(18, "openai")],
+        FirstRun { step: 1..=5 | 10 } => &[(17, "Playground"), (18, "openai"), (19, "anthropic")],
+        FirstRun { .. } => &[(18, "openai"), (19, "anthropic")],
+        World::Bare => &[(18, "openai")],
     };
     for (number, name) in names {
         let mut programs = List::with_capacity(1);
@@ -2144,7 +2145,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
                 .expect("host");
         }
     }
-    let mut readiness = List::with_capacity(2);
+    let mut readiness = List::with_capacity(3);
     for provider in &providers(w) {
         readiness
             .push(c::PayerReadiness {
