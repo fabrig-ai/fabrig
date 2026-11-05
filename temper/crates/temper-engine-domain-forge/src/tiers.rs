@@ -728,10 +728,35 @@ fn observed_part(
 ) {
     let outcome = match follow.outcome {
         Some(landing::Verdict::Passed) => p::Outcome::Passed,
-        Some(landing::Verdict::Fault(_)) => p::Outcome::Fault,
+        Some(landing::Verdict::Fault(fault)) => {
+            words::fault(row, follow, fault_words(fault));
+            p::Outcome::Fault
+        }
         Some(landing::Verdict::Failed | landing::Verdict::Running) | None => return,
     };
     advance(d, env, row, follow, outcome, out);
+}
+fn reported_part(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut TierRow,
+    follow: &mut crate::runs::Follow,
+    answer: Result<api::Answer, api::Error>,
+    out: &mut Queue<Request>,
+) -> bool {
+    if let Err(api::Error::Busy) = &answer {
+        return false;
+    }
+    let reason = match &answer {
+        Err(error) => joined(&[b"artifact report: ", crate::effect_words::error_words(*error)]),
+        Ok(_) => Box::from(b"artifact report is empty, malformed or names no failing tests".as_slice()),
+    };
+    let outcome = reported(d, env, row, answer);
+    if outcome == p::Outcome::Fault {
+        words::fault(row, follow, &reason);
+    }
+    advance(d, env, row, follow, outcome, out);
+    true
 }
 fn advance(
     d: &mut Domain,
@@ -1183,9 +1208,7 @@ pub(crate) fn answered(
         None => false,
     };
     let ended = if reporting {
-        let outcome = reported(d, env, &row, answer);
-        advance(d, env, &mut row, &mut follow, outcome, out);
-        true
+        reported_part(d, env, &mut row, &mut follow, answer, out)
     } else {
         let ended = follow.answered(answer, writer, env.now, env.limits.client.lifetime).is_some();
         words::observe(&mut row, &follow);

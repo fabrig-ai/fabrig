@@ -12,9 +12,9 @@
       "data": { "every": "1h", "keep": { "hourly": 24, "daily": 14, "weekly": 8 } }
     }
   },
-  "locale": { "timezone": { "area": "Europe", "zone": "Lisbon" }, "locale": "en_US.UTF-8" },
+  "locale": { "timezone": { "area": "Etc", "zone": "UTC" }, "locale": "en_US.UTF-8" },
   "ssh": {
-    "port": 10127,
+    "port": 2222,
     "authorized": { "alice": { "x1": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA… alice@x1" } }
   }
 }

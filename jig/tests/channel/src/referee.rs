@@ -189,7 +189,7 @@ impl skein_world::Referee<Proc> for Referee {
         let ended = if matches!(self.story, crate::stories::Story::InvalidCharter) {
             self.rules.refused_ends.len() == 1 && worker.acknowledgements.is_empty()
         } else if matches!(self.story, crate::stories::Story::InvalidTranscript) {
-            self.rules.refused_ends.len() == 1 && worker.acknowledgements.len() == self.expected_answers
+            self.rules.refused_ends.len() == 1 && transcript_recovered(worker, &store)
         } else {
             worker.acknowledgements.len() == self.expected_answers
         };
@@ -839,6 +839,7 @@ impl Referee {
             })
             .max();
         if matches!(self.story, crate::stories::Story::Window | crate::stories::Story::InvalidTranscript)
+            && (!matches!(self.story, crate::stories::Story::InvalidTranscript) || self.resumed_attempt == 0)
             && parked.is_some_and(|at| at > self.resumed_attempt)
             && self.party.quiescent()
         {
@@ -975,4 +976,39 @@ impl Referee {
             self.views.borrow_mut().input.act(procs, &self.store.borrow());
         }
     }
+}
+
+fn transcript_recovered(worker: &crate::processes::Wire, store: &Store) -> bool {
+    use jig_protocol_worker_wire::{Assignment, CEILINGS};
+    if worker.acknowledgements.len() != 2 {
+        return false;
+    }
+    let assignments: Vec<_> = worker
+        .frames
+        .iter()
+        .filter(|(_, kind, _)| *kind == 0x0180)
+        .map(|(_, _, bytes)| Assignment::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("assignment"))
+        .collect();
+    assert_eq!(assignments.len(), 3, "one fresh retry follows the refused resume");
+    let fresh = assignments.last().expect("fresh retry");
+    assert_eq!((fresh.task(), fresh.attempt()), (1, 3));
+    assert!(fresh.transcript().is_empty(), "the retry resumes nothing");
+    let message = fresh
+        .messages()
+        .iter()
+        .find(|message| message.words() == b"Continue now")
+        .expect("the refused resume retains the pending person's message");
+    assert!(
+        turns(store).iter().any(|turn| turn.attempt == 3 && turn.read == Some(message.name())),
+        "the fresh agent takes the pending person's message"
+    );
+    assert!(
+        terminal(store, 1, 2, crate::stories::Story::InvalidTranscript),
+        "the refused resume commits a transient task failure"
+    );
+    assert!(
+        terminal(store, 1, 3, crate::stories::Story::InvalidTranscript),
+        "the fresh retry commits its parked terminal"
+    );
+    true
 }
