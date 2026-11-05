@@ -2993,6 +2993,7 @@ dependencies = [
  "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",
+ "skein-forge-kit",
  "skein-lib",
  "skein-world",
 ]
@@ -3035,6 +3036,21 @@ dependencies = [
 [[package]]
 name = "skein-forge-kit"
 version = "0.0.0"
+dependencies = [
+ "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
+ "skein-fake-forge-github",
+ "skein-forge",
+ "skein-forge-client",
+ "skein-forge-connection",
+ "skein-http",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-tls",
+ "skein-tls-kit",
+ "skein-world",
+]
 
 [[package]]
 name = "skein-forge-machine-world"
@@ -3045,10 +3061,9 @@ dependencies = [
  "skein-fake-forge-github",
  "skein-forge",
  "skein-forge-connection",
+ "skein-forge-kit",
  "skein-heap",
- "skein-http",
  "skein-io",
- "skein-json",
  "skein-lib",
  "skein-tls",
  "skein-tls-kit",
@@ -3064,9 +3079,8 @@ dependencies = [
  "skein-fake-forge-github",
  "skein-forge",
  "skein-forge-client",
- "skein-forge-client-world",
  "skein-forge-connection",
- "skein-forge-machine-world",
+ "skein-forge-kit",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -3095,7 +3109,7 @@ dependencies = [
  "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
  "skein-forge",
- "skein-forge-machine-world",
+ "skein-forge-kit",
  "skein-forge-setup",
  "skein-heap",
  "skein-io",

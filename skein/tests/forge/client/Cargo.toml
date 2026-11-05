@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+skein-forge-kit.workspace = true
 skein-forge.workspace = true
 skein-world.workspace = true
 skein-lib.workspace = true
