@@ -50,6 +50,7 @@ pub(crate) struct Flight {
     pub task: u64,
     pub attempt: u64,
     pub key: Option<CallKey>,
+    pub settings_against: Option<u32>,
     pub render: FlightRender,
     pub name: Box<[u8]>,
     pub tool: Box<[u8]>,
@@ -90,6 +91,7 @@ pub(crate) fn decode(domain: &mut Domain, to: ReplyTo, task: u64, attempt: u64, 
         task,
         attempt,
         key: None,
+        settings_against: None,
         render: FlightRender::Plain,
         name: call.name.clone(),
         tool: call.tool.clone(),
@@ -113,33 +115,125 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     if flight.key.is_some() {
         return;
     }
+    if let Some(against) = flight.settings_against
+        && !assembled_matches(&body.tool, against)
+    {
+        rendered(
+            domain,
+            to,
+            SettledAnswer::Host {
+                error: true,
+                body: Box::from(b"assembly must contain one proposal against its base revision".as_slice()),
+            },
+        );
+        return;
+    }
     let body = super::checked_call(body, &env.limits);
     let key =
         CallKey { task: flight.task, attempt: flight.attempt, completion: body.completion, position: body.position };
     let Some(to) = admit(domain, to, key, &body.tool) else { return };
-    let render = if let crate::Tool::ReadTask { .. } = &body.tool {
-        FlightRender::TaskRead
-    } else if let crate::Tool::Settings { from, read } = &body.tool {
-        let requested = match read {
-            jig_domain_core::SettingsRead::Revision { number } => Some(u64::from(*number)),
-            jig_domain_core::SettingsRead::Inventory
-            | jig_domain_core::SettingsRead::Setting { .. }
-            | jig_domain_core::SettingsRead::Revisions { .. } => None,
-        };
-        FlightRender::Settings { from: *from, requested }
-    } else if let crate::Tool::Change { changes } = &body.tool {
-        change_choice(domain, key.task, changes)
-    } else if let crate::Tool::Delegate { batch } = &body.tool {
-        person_roles(domain, key.task, batch)
-    } else if let crate::Tool::Amend { amendment, .. } = &body.tool {
-        FlightRender::Amended(crate::Changed::amendment(amendment))
-    } else {
-        FlightRender::Plain
-    };
+    let render = flight_render(domain, key, &body.tool);
     let flight = domain.call_renders.get_mut(&right).expect("current typed flight");
     flight.render = render;
     flight.key = Some(key);
     relay_payload(domain, env, decision, to, key, body);
+}
+
+fn flight_render(domain: &Domain, key: CallKey, tool: &crate::Tool) -> FlightRender {
+    match tool {
+        crate::Tool::ReadTask { .. } => FlightRender::TaskRead,
+        crate::Tool::Settings { from, read } => settings_render(read, *from),
+        crate::Tool::Change { changes } => change_choice(domain, key.task, changes),
+        crate::Tool::Delegate { batch } => person_roles(domain, key.task, batch),
+        crate::Tool::Amend { amendment, .. } => FlightRender::Amended(crate::Changed::amendment(amendment)),
+        crate::Tool::SettingsFragment { .. }
+        | crate::Tool::ProposeSettings { .. }
+        | crate::Tool::Note { .. }
+        | crate::Tool::Recall { .. }
+        | crate::Tool::EffectForge { .. }
+        | crate::Tool::ReadNamed { .. }
+        | crate::Tool::ReadForge { .. }
+        | crate::Tool::Propose { .. }
+        | crate::Tool::Decide { .. }
+        | crate::Tool::Withdraw { .. }
+        | crate::Tool::DecideEscalation { .. }
+        | crate::Tool::Goal { .. }
+        | crate::Tool::Cancel { .. }
+        | crate::Tool::Release { .. }
+        | crate::Tool::Message { .. }
+        | crate::Tool::Introduce { .. }
+        | crate::Tool::Subscribe { .. }
+        | crate::Tool::SubscribeForge { .. }
+        | crate::Tool::SubscribeNamedForge { .. }
+        | crate::Tool::Unsubscribe { .. }
+        | crate::Tool::Rejected(_)
+        | crate::Tool::RejectedMessage(_)
+        | crate::Tool::RejectedControl(_)
+        | crate::Tool::RejectedProposal(_)
+        | crate::Tool::RejectedNote(_)
+        | crate::Tool::Unavailable => FlightRender::Plain,
+    }
+}
+
+fn settings_render(read: &jig_domain_core::SettingsRead, from: u32) -> FlightRender {
+    let requested = match read {
+        jig_domain_core::SettingsRead::Revision { number } => Some(u64::from(*number)),
+        jig_domain_core::SettingsRead::Inventory
+        | jig_domain_core::SettingsRead::Setting { .. }
+        | jig_domain_core::SettingsRead::Revisions { .. } => None,
+    };
+    FlightRender::Settings { from, requested }
+}
+
+fn assembled_matches(tool: &crate::Tool, against: u32) -> bool {
+    match tool {
+        crate::Tool::ProposeSettings { against: base, .. } => *base == against,
+        crate::Tool::ReadTask { .. }
+        | crate::Tool::Settings { .. }
+        | crate::Tool::SettingsFragment { .. }
+        | crate::Tool::Note { .. }
+        | crate::Tool::Recall { .. }
+        | crate::Tool::EffectForge { .. }
+        | crate::Tool::ReadNamed { .. }
+        | crate::Tool::ReadForge { .. }
+        | crate::Tool::Propose { .. }
+        | crate::Tool::Decide { .. }
+        | crate::Tool::Withdraw { .. }
+        | crate::Tool::DecideEscalation { .. }
+        | crate::Tool::Goal { .. }
+        | crate::Tool::Change { .. }
+        | crate::Tool::Delegate { .. }
+        | crate::Tool::Amend { .. }
+        | crate::Tool::Cancel { .. }
+        | crate::Tool::Release { .. }
+        | crate::Tool::Message { .. }
+        | crate::Tool::Introduce { .. }
+        | crate::Tool::Subscribe { .. }
+        | crate::Tool::SubscribeForge { .. }
+        | crate::Tool::SubscribeNamedForge { .. }
+        | crate::Tool::Unsubscribe { .. }
+        | crate::Tool::Rejected(_)
+        | crate::Tool::RejectedMessage(_)
+        | crate::Tool::RejectedControl(_)
+        | crate::Tool::RejectedProposal(_)
+        | crate::Tool::RejectedNote(_)
+        | crate::Tool::Unavailable => false,
+    }
+}
+
+/// Decode a completed assembly under the finishing call's identity and base.
+pub(super) fn decode_settings(domain: &mut Domain, to: ReplyTo, key: CallKey, against: u32, input: Box<[u8]>) {
+    let right = to.into_token();
+    let flight = domain.call_renders.get(&right).expect("current finalization flight");
+    let call = fleet::Call {
+        name: flight.name.clone(),
+        tool: b"propose_settings".as_slice().into(),
+        writes: true,
+        input,
+        deadline: skein_lib::Duration::ZERO,
+    };
+    decode(domain, ReplyTo::new(right), key.task, key.attempt, call);
+    domain.call_renders.get_mut(&right).expect("assembled decode flight").settings_against = Some(against);
 }
 
 fn change_choice(domain: &Domain, task: u64, changes: &[crate::ChangeCall]) -> FlightRender {

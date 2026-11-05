@@ -112,6 +112,18 @@ default that changed.
   project and is set alone. The inventory lists no project's policy;
   the tool reads it when named.
 
+For a proposal larger than one host call, the configuring chat stages the
+complete proposal's JSON text through `propose_settings` fragments, even
+splitting within one setting. It then finalizes one proposal for an owner's
+one acceptance and one revision. Fragments change no settings. Each call
+fits the model's payload limit; the deployment retains at most 65,536 text
+bytes for one task and attempt at its base revision. A stale revision,
+a new attempt or a service restart discards unfinished text, so the chat
+reads settings again and stages afresh. Finalization validates whole values
+and consumes the text, including when a value is refused. Several accepted
+partial proposals leave different revision records; a check of one revision
+reads only that revision's edits.
+
 ## Limits
 
 For the configuration members that need a restart, read `temper help configuration`.

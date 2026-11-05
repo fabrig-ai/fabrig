@@ -314,3 +314,146 @@ fn a_chat_is_offered_no_settings_tools() {
         assert!(!offered.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name));
     }
 }
+
+#[test]
+fn a_reference_sized_set_becomes_one_bounded_proposal() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let items = reference_sized_items(&mut world, &run);
+    let document = json!({"against":1,"reason":REASON,"items":items}).to_string();
+    assert!(document.len() >= 19_748, "reference-sized compact settings");
+    assert!(items[0].to_string().len() > CALL_BYTES, "one setting exceeds a call");
+    let before = world.settings_rows();
+    let mut completion = 10;
+    for (offset, text) in document.as_bytes().chunks(4_000).enumerate() {
+        let input = json!({"against":1,"fragment":{"offset":offset * 4_000,
+            "text":std::str::from_utf8(text).expect("fixture ASCII")}});
+        let (body, error) = bounded_proposal(&mut world.driver, &run, completion, &input);
+        assert!(!error, "{}", String::from_utf8_lossy(&body));
+        assert_eq!(world.settings_rows(), before, "fragments apply nothing and propose nothing");
+        completion += 1;
+    }
+    let input = json!({"against":1,"finish":document.len()});
+    let (body, error) = bounded_proposal(&mut world.driver, &run, completion, &input);
+    assert!(!error, "{}", String::from_utf8_lossy(&body));
+    let proposal = proposal_number(&body);
+    let review = world.review(&run, proposal);
+    let core::documents::ProposalAction::Settings { review: Some(review), .. } = review.action else {
+        panic!("complete review")
+    };
+    assert_eq!(usize::try_from(review.items.len()).expect("item count"), items.len());
+    assert_eq!(world.head().number, 1, "finalization still needs owner acceptance");
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2, "one acceptance creates one revision");
+    for (index, number) in [1, 2, 3].into_iter().enumerate() {
+        assert_eq!(read_charter(&mut world.driver, &run, completion + number, number), items[index]["set"]);
+    }
+    let revision = world
+        .settings_rows()
+        .into_iter()
+        .find_map(|record| match record {
+            s::Record::Revision { history: false, revision } if revision.head.number == 2 => Some(revision),
+            _ => None,
+        })
+        .expect("accepted revision");
+    assert_eq!(revision.items.len(), items.len(), "collector sees the complete accepted edit set");
+}
+
+#[test]
+fn settings_fragments_are_contiguous_bounded_and_retryable() {
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let before = world.settings_rows();
+    let (first, error) = stage(&mut world, &run, 1, 1, 0, "aλ");
+    assert!(!error);
+    assert!(first.ends_with(b"3"), "offset counts UTF-8 bytes");
+    let (again, error) = stage(&mut world, &run, 2, 1, 0, "aλ");
+    assert!(!error);
+    assert_eq!(again, first, "identical retransmission keeps the byte count");
+    for (completion, offset, text) in [(3, 4, "gap"), (4, 1, "conflict")] {
+        assert!(stage(&mut world, &run, completion, 1, offset, text).1, "noncontiguous fragment");
+    }
+    assert!(finish(&mut world, &run, 5, 1, 4).1, "length must match");
+    assert!(!stage(&mut world, &run, 6, 1, 0, "").1, "empty offset zero discards");
+    assert!(finish(&mut world, &run, 7, 1, 3).1, "discard leaves no assembly");
+    let part = "x".repeat(8_000);
+    for index in 0..8 {
+        assert!(!stage(&mut world, &run, 10 + index, 1, usize::try_from(index).unwrap() * 8_000, &part).1);
+    }
+    assert!(!stage(&mut world, &run, 20, 1, 64_000, &"x".repeat(1_536)).1, "exact ceiling fits");
+    assert!(stage(&mut world, &run, 21, 1, 65_536, "x").1, "one byte past is refused");
+    assert_eq!(world.settings_rows(), before, "staging never creates settings or proposals");
+    assert!(!stage(&mut world, &run, 22, 1, 0, "").1);
+}
+
+#[test]
+fn a_settings_assembly_is_bound_to_its_task_attempt_and_base() {
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let other = world.chat(CONFIGURING, world.owner, 21);
+    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let document = serde_json::json!({"against":1,"reason":REASON,
+        "items":charter_item(value, b"A private proposed change.")})
+    .to_string();
+    assert!(!stage(&mut world, &run, 2, 1, 0, &document).1);
+    assert!(finish(&mut world, &other, 1, 1, document.len()).1, "another task cannot finish it");
+    assert!(stage(&mut world, &other, 2, 1, 0, "replace").1, "another task cannot replace it");
+    world.park(&run);
+    let next = world.wake(&run, 23);
+    assert!(finish(&mut world, &next, 1, 1, document.len()).1, "new attempt has no assembly");
+    assert!(!stage(&mut world, &next, 2, 1, 0, &document).1);
+    world.change(1, 24, Box::new([owner_charter(b"The owner's change.")]));
+    assert!(finish(&mut world, &next, 3, 1, document.len()).1, "stale base refused");
+    assert!(finish(&mut world, &next, 4, 2, document.len()).1, "stale bytes discarded");
+    assert!(!stage(&mut world, &other, 3, 2, 0, "fresh").1, "slot released");
+    assert!(!stage(&mut world, &other, 4, 2, 0, "").1);
+}
+
+#[test]
+fn finalization_validates_whole_values_and_the_staged_base() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let charter = read_charter(&mut world.driver, &run, 1, CHAT);
+    let items = charter_item(charter, b"A complete change.");
+    let before = world.settings_rows();
+    for (index, input) in [
+        json!({"against":2,"reason":REASON,"items":items}),
+        json!({"against":1,"reason":REASON,"items":[{"setting":{"kind":"charter","number":1},"set":{}}]}),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let input = input.to_string();
+        let completion = 10 + u32::try_from(index).unwrap() * 2;
+        assert!(!stage(&mut world, &run, completion, 1, 0, &input).1);
+        assert!(finish(&mut world, &run, completion + 1, 1, input.len()).1, "invalid finalization refused");
+        assert_eq!(world.settings_rows(), before);
+    }
+    let input = json!({"against":1,"reason":REASON,"items":items}).to_string();
+    assert!(!stage(&mut world, &run, 20, 1, 0, &input).1);
+    let (body, error) = finish(&mut world, &run, 21, 1, input.len());
+    assert!(!error);
+    let (replayed, error) = finish(&mut world, &run, 21, 1, input.len());
+    assert!(!error, "settled finalization replays without its volatile bytes");
+    assert_eq!(replayed, body);
+    world.decide(&run, proposal_number(&body), 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+}
+
+#[test]
+fn settings_fragments_require_the_tasks_authority() {
+    let mut config = config();
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.tools.0 &= !core::ToolFamilies::JIG.settings;
+    for role in &mut policy.roles {
+        role.authority.tools.0 &= !core::ToolFamilies::JIG.settings;
+    }
+    let mut world = World::new(config);
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
+    assert!(stage(&mut world, &run, 1, 1, 0, "private").1, "authority must hold settings");
+    assert!(finish(&mut world, &run, 2, 1, 7).1, "finalization requires the same authority");
+    assert_eq!(world.head().number, 1);
+}

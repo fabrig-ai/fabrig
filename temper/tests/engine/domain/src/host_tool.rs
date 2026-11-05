@@ -86,9 +86,17 @@ fn render(
     body: engine::Call,
     name: &[u8],
 ) -> (ReplyTo, smith_domain_run::HostAnswer) {
-    driver.send(Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }));
+    let right = to.into_token();
+    let delivered = driver.delivered.len();
+    driver.send(Event::Worker(engine::WorkerInput::DecodedHostCall { to: ReplyTo::new(right), body }));
     for _ in 0..STEPS {
         driver.advance(true);
+        if let Some(answer) = relayed_answer(driver, delivered, name) {
+            return (ReplyTo::new(right), answer);
+        }
+        if let Some(answer) = decode_assembly(driver) {
+            return answer;
+        }
         if !driver.protocol.pending_renders.is_empty()
             || driver.delivered.iter().any(|delivery| {
                 matches!(delivery,
@@ -99,6 +107,10 @@ fn render(
             break;
         }
     }
+    render_answer(driver, name)
+}
+
+fn render_answer(driver: &mut Driver, name: &[u8]) -> (ReplyTo, smith_domain_run::HostAnswer) {
     let mut settings_delivery = None;
     for (index, delivery) in driver.delivered.iter().enumerate() {
         if let Delivery::Host(delivery) = delivery
@@ -119,5 +131,44 @@ fn render(
         assert_eq!(rendered_name.as_ref(), name);
         let (_, answer) = driver.protocol.answers.last().expect("typed answer");
         (to, temper_engine_smith::answer(answer))
+    }
+}
+
+fn relayed_answer(driver: &Driver, delivered: usize, name: &[u8]) -> Option<smith_domain_run::HostAnswer> {
+    for delivery in driver.delivered[delivered..].iter().rev() {
+        if let Delivery::Link {
+            down:
+                jig_domain_host::LinkDown::Relayed {
+                    call, answer: jig_domain_host::Relayed::Answer { text, error }, ..
+                },
+            ..
+        } = delivery
+            && call.as_ref() == name
+        {
+            return smith_domain_run::HostAnswer::new(text.clone(), *error);
+        }
+    }
+    None
+}
+
+fn decode_assembly(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::HostAnswer)> {
+    let request = driver.host_requests.pop()?;
+    let engine::HostRequest::Decode { to, attempt, call, .. } = *request else { panic!("assembled decode") };
+    let completion = u32::from_be_bytes(call.name.get(8..12).expect("completion").try_into().expect("u32"));
+    let position = u32::from_be_bytes(call.name.get(12..16).expect("position").try_into().expect("u32"));
+    let input = smith_domain_run::HostInput::attested(call.input).expect("assembled input");
+    match temper_engine_smith::call_configured(
+        smith_domain_run::CallName { activation: attempt, completion, position },
+        &call.tool,
+        &input,
+        driver.root.models(),
+    )
+    .expect("assembled proposal decode")
+    {
+        temper_engine_smith::Decoded::Call(body) => {
+            driver.send(Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }));
+            None
+        }
+        temper_engine_smith::Decoded::Answered(answer) => Some((to, answer)),
     }
 }

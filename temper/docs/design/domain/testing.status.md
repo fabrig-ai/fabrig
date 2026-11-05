@@ -1,6 +1,7 @@
 # testing: status
 
 2026-11-05. Where temper's code lags or departs from [testing.md](testing.md).
+6.4, 6.5.3: bounded proposal assembly and its single accepted revision have no gap.
 
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:

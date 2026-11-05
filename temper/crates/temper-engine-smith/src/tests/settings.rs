@@ -640,3 +640,35 @@ fn a_runs_proposal_carries_the_forges_charter_number() {
     assert_eq!((kinds[0].kind, kinds[0].scope, kinds[0].number), (3, 0, 1));
     assert_eq!(kinds[0].value.value, temper_engine_domain_forge::settings::Value::Charter(2));
 }
+
+#[test]
+fn proposal_fragments_decode_without_becoming_settings_edits() {
+    for (input, offset, text) in [
+        (
+            br#"{"against":1,"fragment":{"offset":0,"text":"{\"items\":["}}"#.as_slice(),
+            0,
+            Some(b"{\"items\":[".as_slice()),
+        ),
+        (br#"{"against":1,"finish":12}"#, 12, None),
+    ] {
+        assert_eq!(
+            decided(b"propose_settings", input).expect("fragment").tool,
+            engine::Tool::SettingsFragment {
+                against: 1,
+                offset,
+                text: match text {
+                    Some(text) => Some(Box::from(text)),
+                    None => None,
+                }
+            }
+        );
+    }
+    for input in [
+        br#"{"against":1,"fragment":{"offset":0,"text":"x"},"finish":1}"#.as_slice(),
+        br#"{"against":1,"fragment":{"offset":0,"text":"x"},"items":[],"reason":"why"}"#,
+        br#"{"against":1,"fragment":{"offset":-1,"text":"x"}}"#,
+        br#"{"against":1,"fragment":{"offset":0,"text":"x","extra":0}}"#,
+    ] {
+        assert!(decoded(b"propose_settings", input).is_err(), "mixed or malformed fragment");
+    }
+}

@@ -109,22 +109,10 @@ pub(crate) fn relay_payload(
                 Tool::ReadTask { .. } => unreachable!("task reads enter before replay"),
                 Tool::Settings { .. } => unreachable!("settings reads enter before replay"),
                 Tool::ProposeSettings { against, items, reason, kinds } => {
-                    if let Some(jig_domain_people::Refusal::Judged { why, .. }) =
-                        super::room_refusal(domain.host_part, &items)
-                    {
-                        super::host_route::rendered(
-                            domain,
-                            reply_to,
-                            core::SettledAnswer::Host { error: true, body: why },
-                        );
-                        return;
-                    }
-                    domain.kinds = kinds;
-                    domain.work.push(Work::Core(core::Event::NamedAction {
-                        to: reply_to,
-                        key,
-                        action: core::NamedAction::ProposeSettings { against, items, reason },
-                    }));
+                    super::settings::propose(domain, reply_to, key, against, items, reason, kinds);
+                }
+                Tool::SettingsFragment { against, offset, text } => {
+                    super::settings::fragment(domain, reply_to, key, against, offset, text);
                 }
                 Tool::ReadNamed { .. } => unreachable!("named reads resolved before deciding"),
                 tool @ (Tool::Change { .. } | Tool::Goal { .. }) => {

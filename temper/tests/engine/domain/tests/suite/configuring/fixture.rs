@@ -499,3 +499,68 @@ pub(super) fn assert_heard(run: &engine::Assignment, expected: &[u8]) {
     };
     assert!(messages.iter().any(|message| message.text.as_ref() == expected), "{messages:?}");
 }
+
+// configuration.md, 13.8: init's output 8,192 bounds each decoded call payload.
+pub(super) const CALL_BYTES: usize = 10_662;
+pub(super) fn bounded_proposal(
+    driver: &mut Driver,
+    run: &engine::Assignment,
+    completion: u32,
+    input: &Value,
+) -> (Box<[u8]>, bool) {
+    let configured: Value =
+        serde_json::from_slice(include_bytes!("../../../../../../crates/temper-init/template/agent.json"))
+            .expect("init's agent limits");
+    assert_eq!(configured["profile"]["declared"]["tool_payload"], CALL_BYTES);
+    let input = input.to_string();
+    assert!(input.len() <= CALL_BYTES, "serialized call exceeds the configured payload ceiling");
+    host_tool(driver, run, completion, b"propose_settings", input.as_bytes())
+}
+pub(super) fn proposal_number(body: &[u8]) -> u64 {
+    std::str::from_utf8(body)
+        .expect("proposal answer")
+        .strip_prefix("proposed as proposal ")
+        .expect("proposal")
+        .strip_suffix(" to the deployment's owners")
+        .expect("deployment owners")
+        .parse()
+        .expect("proposal number")
+}
+
+pub(super) fn stage(
+    world: &mut World,
+    run: &engine::Assignment,
+    completion: u32,
+    against: u32,
+    offset: usize,
+    text: &str,
+) -> (Box<[u8]>, bool) {
+    bounded_proposal(
+        &mut world.driver,
+        run,
+        completion,
+        &json!({"against":against,"fragment":{"offset":offset,"text":text}}),
+    )
+}
+pub(super) fn finish(
+    world: &mut World,
+    run: &engine::Assignment,
+    completion: u32,
+    against: u32,
+    length: usize,
+) -> (Box<[u8]>, bool) {
+    bounded_proposal(&mut world.driver, run, completion, &json!({"against":against,"finish":length}))
+}
+pub(super) fn reference_sized_items(world: &mut World, run: &engine::Assignment) -> Vec<Value> {
+    let reference: Value =
+        serde_json::from_slice(include_bytes!("../../../../../../docs/examples/reference/settings.json"))
+            .expect("reference settings");
+    let mut items = Vec::new();
+    for (index, number) in [1, 2, 3].into_iter().enumerate() {
+        let mut value = read_charter(&mut world.driver, run, number, number);
+        // Keep the world's model and authority; carry reference-sized text as whole charter values.
+        value["instructions"] = json!(reference["items"][if index < 2 { 0 } else { index }].to_string());
+        items.push(json!({"setting":{"kind":"charter","number":number},"set":value}));
+    }
+    items
+}

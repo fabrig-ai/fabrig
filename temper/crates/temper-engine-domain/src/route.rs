@@ -18,6 +18,7 @@ mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
+pub(crate) mod settings;
 mod tools;
 use crate::archive::take_read;
 use crate::assemble::{brief_outputs, take_payload};

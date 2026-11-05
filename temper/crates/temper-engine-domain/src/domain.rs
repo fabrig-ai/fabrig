@@ -86,6 +86,7 @@ pub struct Domain {
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) kinds: Box<[crate::KindValue]>,
+    pub(crate) settings_assembly: Option<crate::route::settings::Assembly>,
     pub(crate) kinds_stock: Option<Box<[forge::settings::Stock]>>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
     pub(crate) application_playground: Option<crate::route::playground::Context>,
@@ -284,10 +285,7 @@ impl Domain {
     #[expect(clippy::too_many_lines, reason = "the root allocates every child and bounded handoff table together")]
     pub fn new(mut config: Config, limits: &Limits) -> Result<Domain, fleet::WorkerProblem> {
         assert!(valid(limits), "root limits are valid");
-        assert!(
-            config.core.settings.deployment_provider != 0,
-            "deployment service provider differs from forge sign-in provider 0"
-        );
+        assert!(config.core.settings.deployment_provider != 0, "deployment provider differs from forge sign-in 0");
         assert!(config.core.connectors.len() == 1, "the forge is the deployment's one connector");
         let forge_connector = *config.core.connectors.first().expect("one connector");
         for charter in &config.core.defaults.charters {
@@ -474,6 +472,7 @@ impl Domain {
             forge,
             application: None,
             kinds: Box::default(),
+            settings_assembly: None,
             kinds_stock,
             application_carried: None,
             application_playground: None,
@@ -699,6 +698,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     domain.changed();
     let mut out = core::mem::replace(&mut domain.scratch, Queue::with_capacity(0));
     step_routed(domain, env, event, &mut out);
+    crate::route::settings::sweep(domain);
     stage_now(domain, &mut out);
     assert!(out.is_empty(), "step stages every immediate output");
     domain.scratch = out;
@@ -708,7 +708,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 /// turn bytes are under the budget (domain/root.md, 4.1). Only an
 /// activation asks; nothing else waits on bytes.
 pub(crate) fn within_budget(domain: &Domain, limits: &Limits) -> bool {
-    domain.held_bytes() < limits.memory_bytes
+    let assembly = match &domain.settings_assembly {
+        Some(value) => skein_lib::len_u64(value.bytes.len()),
+        None => 0,
+    };
+    domain.held_bytes().saturating_add(assembly) < limits.memory_bytes
 }
 
 pub(crate) fn admits(domain: &Domain, limits: &Limits) -> bool {
@@ -1014,6 +1018,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>) {
     domain.changed();
     let mut out = core::mem::replace(&mut domain.scratch, Queue::with_capacity(0));
     fire_routed(domain, env, &mut out);
+    crate::route::settings::sweep(domain);
     stage_now(domain, &mut out);
     assert!(out.is_empty(), "fire stages every immediate output");
     domain.scratch = out;

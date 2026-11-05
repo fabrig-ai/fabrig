@@ -1,6 +1,7 @@
 # agent: status
 
 2026-11-05. Where temper's code lags or departs from [agent.md](agent.md).
+8.1: bounded proposal assembly and its single accepted revision have no gap.
 The remaining gaps concern settings reads, verdict follow-up tasks,
 change-refusal model wording, shell authority for runs that cannot deliver
 and the fake's goal script.

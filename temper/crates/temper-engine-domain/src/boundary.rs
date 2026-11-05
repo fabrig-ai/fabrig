@@ -143,6 +143,9 @@ pub enum Tool {
     ReadTask { task: u64, field: jig_domain_core::reads::TaskTextField, from: u64 },
     /// Read settings without retaining a named-call record.
     Settings { read: jig_domain_core::SettingsRead, from: u32 },
+    /// Stage complete proposal JSON at a byte offset, or finalize at its length
+    /// when text is absent (temper/docs/design/domain/agent.md, 8.1).
+    SettingsFragment { against: u32, offset: u32, text: Option<Box<[u8]>> },
     /// Propose whole settings to the deployment's owners.
     ProposeSettings {
         against: u32,

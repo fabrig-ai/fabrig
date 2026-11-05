@@ -223,6 +223,7 @@ fn a_runs_short_proposal_is_answered_and_its_next_call_is_decided() {
         .insert(
             REPLY,
             Flight {
+                settings_against: None,
                 task,
                 attempt: 1,
                 key: Some(key),

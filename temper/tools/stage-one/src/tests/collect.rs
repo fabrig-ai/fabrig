@@ -324,3 +324,79 @@ fn current_keeps_an_unset_temper_default_as_reset() {
     let (_, current) = collect::assemble(&outputs).expect("unset default");
     assert_eq!(edit(&current, "landing-rule", Some(1), None), Edit::Reset);
 }
+
+fn keep_profile(_items: &mut Vec<crate::golden::Item>) {}
+fn profile_ctl(dir: &Path) -> CtlOutputs {
+    super::check::profile_evidence(dir, keep_profile);
+    let items: Value = serde_json::from_slice(&fs::read(dir.join("items.json")).expect("accepted edits")).unwrap();
+    let current: Value = serde_json::from_slice(&fs::read(dir.join("current.json")).expect("current")).unwrap();
+    let mut outputs = CtlOutputs { project: 7, revision: 2, ..CtlOutputs::default() };
+    outputs.by_command.insert(
+        words("revision show 2 --json"),
+        json!({"head":{"number":2,"against":1},"items":items["items"]}).to_string(),
+    );
+    outputs.by_command.insert(words("settings show --json"), json!({"settings":current["items"]}).to_string());
+    for row in current["items"].as_array().expect("current items") {
+        let key = &row["setting"];
+        let kind = key["kind"].as_str().unwrap();
+        if kind == "project-policy" {
+            continue;
+        }
+        let call = match key["number"].as_u64() {
+            Some(number) => format!("settings show {kind} {number} --json"),
+            None => format!("settings show {kind} --json"),
+        };
+        outputs.by_command.insert(words(&call), json!({"setting":key,"value":row["set"]}).to_string());
+    }
+    // If the final workaround revision contains no policy, current still reads it separately.
+    let policy =
+        current["items"].as_array().unwrap().iter().find(|row| row["setting"]["kind"] == "project-policy").unwrap();
+    let mut policy = policy["set"].clone();
+    for role in policy["roles"].as_array_mut().unwrap() {
+        role["authority"] = json!({"authority":role["authority"]});
+    }
+    outputs.by_command.insert(words("project show 7 --json"), json!({"number":7,"policy":policy}).to_string());
+    outputs
+}
+
+#[test]
+fn one_assembled_revision_supplies_every_item_and_both_role_bindings() {
+    let scratch = Scratch::new("stage-one-assembled-revision");
+    let mut outputs = profile_ctl(scratch.path());
+    let expected = evidence::read(scratch.path()).expect("profile evidence");
+    let (items, current) = collect::assemble(&outputs).expect("recorded ctl assembly");
+    assert_eq!(items, expected.items);
+    assert_eq!(current, expected.current);
+    let mut assembled = expected.clone();
+    assembled.items = items;
+    assembled.current = current;
+    let check = |evidence: &evidence::Evidence| {
+        crate::check::check(&crate::golden::reference().unwrap(), &crate::golden::profile().unwrap(), evidence)
+    };
+    let report = check(&assembled);
+    for role in ["designer", "triage"] {
+        assert!(report.binding.iter().find(|binding| binding.role == role).unwrap().number.is_some(), "{role}");
+    }
+    let mut revision: Value = serde_json::from_str(&outputs.by_command[&words("revision show 2 --json")]).unwrap();
+    let rows = revision["items"].as_array().unwrap().clone();
+    assert_eq!(rows.len(), 11, "the walk's eleven-proposal workaround");
+    // Eleven separately accepted edits leave only the last in the chosen final revision.
+    for (index, row) in rows.iter().enumerate() {
+        let number = 3 + index;
+        outputs.by_command.insert(
+            words(&format!("revision show {number} --json")),
+            json!({"head":{"number":number},"items":[row]}).to_string(),
+        );
+    }
+    outputs.revision = 13;
+    revision["head"]["number"] = json!(13);
+    revision["items"] = json!([rows.last().unwrap()]);
+    outputs.by_command.insert(words("revision show 13 --json"), revision.to_string());
+    let (items, _) = collect::assemble(&outputs).expect("last revision only");
+    assert_eq!(items.items.len(), 1, "history and current must not fill in accepted edits");
+    assembled.items = items;
+    let report = check(&assembled);
+    for role in ["designer", "triage"] {
+        assert_eq!(report.binding.iter().find(|binding| binding.role == role).unwrap().number, None, "{role}");
+    }
+}

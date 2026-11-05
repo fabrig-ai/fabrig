@@ -2167,6 +2167,13 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   agent's largest call, and the engine's message and result bounds are
   the payload less two (13.4). A deployment whose models' output is
   larger raises them with its T.
+  The configuring agent transports a larger settings set through bounded
+  fragments of its complete proposal JSON (`../domain/agent.md`, 8.1),
+  including splits within one setting, then finalizes one owner proposal.
+  The volatile assembly ceiling is 65,536 decoded bytes across the
+  deployment, within the root's existing memory budget; every fragment
+  call still fits this per-call payload ceiling. Neither output nor the
+  deployment's budgets change.
 - **Memory:** `engine.memory_bytes` is the engine's byte budget
   (`../domain/root.md`, 4.1), independent of a model's edge bounds.
   The start checks those bounds, without comparing memory with a sum
@@ -2176,6 +2183,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   the owned deployment and do not move with a box's.
 - **The budgets** follow the model's C (13.4), so a larger output gives
   larger spends with no setting changed: output 32,000 gives C 1,081.
+
 
 ### 13.9 The reference's configuration
 

@@ -108,6 +108,9 @@ fn models(values: &[engine::Model]) -> Box<[protocol::Model]> {
 }
 pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::Model]) -> Result<Decoded, Problem> {
     let value = crate::json::parse(bytes)?;
+    if value.field(b"fragment")?.is_some() || value.field(b"finish")?.is_some() {
+        return fragment(name, &value);
+    }
     only(&value, &[b"against", b"items", b"reason"], b"propose_settings")?;
     let against = positive(value.required(b"against")?, b"against")?;
     let reason = value.required(b"reason")?.text(b"reason")?;
@@ -135,6 +138,25 @@ pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::
         completion: name.completion,
         position: name.position,
         tool: engine::Tool::ProposeSettings { against, items, reason, kinds },
+    }))
+}
+
+fn fragment(name: run::CallName, value: &Value) -> Result<Decoded, Problem> {
+    only(value, &[b"against", b"fragment", b"finish"], b"propose_settings")?;
+    let against = positive(value.required(b"against")?, b"against")?;
+    let (offset, text) = if let Some(fragment) = value.field(b"fragment")? {
+        if value.field(b"finish")?.is_some() {
+            return Err(Problem::Range(b"finish"));
+        }
+        only(fragment, &[b"offset", b"text"], b"fragment")?;
+        (fragment.required(b"offset")?.small(b"offset")?, Some(fragment.required(b"text")?.text(b"text")?))
+    } else {
+        (value.required(b"finish")?.small(b"finish")?, None)
+    };
+    Ok(Decoded::Call(engine::Call {
+        completion: name.completion,
+        position: name.position,
+        tool: engine::Tool::SettingsFragment { against, offset, text },
     }))
 }
 

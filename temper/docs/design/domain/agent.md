@@ -862,6 +862,36 @@ agents must do stays text its runs read.
   `project`), each named and valued as the file names and values it,
   so that a description's landing rules, the forge's charters and a
   project's own policy are proposed as its charters are.
+- **Bounded proposal transport.** `propose_settings` still takes whole values
+  in `items`, with `against` and `reason`, for a set that fits one call.
+  A larger set is staged as the UTF-8 JSON text of that same complete object:
+  `{"against":R,"fragment":{"offset":0,"text":"first part"}}`, then
+  successive fragments at the acknowledged decoded byte offset. A fragment
+  may split inside a single setting or JSON string; its `text` is JSON-escaped
+  for its own call. Each serialized call must fit the configured payload
+  ceiling (about ten kilobytes at init's output, `../protocol/configuration.md`,
+  13.8). `{"against":R,"finish":N}` finalizes exactly N retained bytes,
+  decodes the complete object through the settings-file decoder and model
+  checks, and proposes once through the same authorization, stale-revision
+  checks, charter-room and kind judges and owner review as a direct call.
+  Its embedded `against` must equal R. Only an owner acceptance applies
+  its whole validated values and makes one revision.
+  One volatile assembly slot across the deployment holds at most 65,536
+  bytes, the shared host-input and settings decoder ceiling, charged to
+  the existing root memory budget. It belongs to the proposing task,
+  attempt and base revision. Another task receives busy and cannot read,
+  overwrite or finalize it. No fragment applies settings or creates a
+  proposal. Offsets must append contiguously; identical retries at any
+  retained range acknowledge the same total, conflicting overlaps and
+  gaps refuse without mutation. Different text at offset zero replaces
+  the owner's assembly; empty text there discards it. A wrong finish
+  length refuses without mutation. A matching finish consumes the text,
+  including on validation failure. The completed finish uses the existing
+  named-call replay, yielding the same proposal without its assembly.
+  Stale revision, loss of the attempt's current proof, stopping and service
+  restart discard unfinished text; the next attempt stages from zero.
+  No model output or deployment budget is raised. Several accepted partial
+  proposals do not fulfill this single-proposal contract.
 - **It changes nothing itself.** Its charter's `settings` family reads
   and proposes; only an owner's decision changes settings (jig's
   `domain/engine.md`, 17.6). A member's configuring chat proposes as

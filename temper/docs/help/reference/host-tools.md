@@ -223,8 +223,10 @@ Propose a change of the deployment's settings to its owners, with a reason. You 
 A write.
 
 - `against`: an integer from 1 to 4294967295; required. The newest revision you read. A proposal against an older one is stale, and you hear the newest.
-- `reason`: text; required. Why; the owners read it.
-- `items`: a list; required. The changes, at most one per setting.
+- `reason`: text; optional. Why; required with items; the owners read it.
+- `fragment`: an object; optional. Stage complete proposal JSON (against, reason, items); offset counts UTF-8 bytes. 0 starts; at most 65536 bytes.
+- `finish`: an integer from 1 to 65536; optional. Finalize at the retained byte count against the same base; validates whole values and proposes once.
+- `items`: a list; optional. The changes, at most one per setting.
 
 ## read_items
 
