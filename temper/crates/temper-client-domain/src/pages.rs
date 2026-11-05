@@ -38,6 +38,7 @@ pub struct Pages {
     pub home: Option<home::Home>,
     chats: Option<chats::Chats>,
     goals: Option<goals::Goals>,
+    has_goals: goals::HasGoals,
     chat: Option<chat::Chat>,
     task: Option<task::Task>,
     accounts: accounts::Accounts,
@@ -196,6 +197,7 @@ impl Pages {
             home: None,
             chats: None,
             goals: None,
+            has_goals: goals::HasGoals::new(),
             chat: None,
             task: None,
             accounts: accounts::Accounts::default(),
@@ -316,6 +318,9 @@ impl Pages {
     #[must_use]
     pub const fn goals(&self) -> Option<&goals::Goals> {
         self.goals.as_ref()
+    }
+    pub(crate) fn has_goals(&self, client: &Client, project: u32) -> bool {
+        self.project == Some(project) && self.has_goals.has(client, project)
     }
     #[must_use]
     pub const fn chat(&self) -> Option<&chat::Chat> {
@@ -589,6 +594,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         };
     pages.accounts.configure(owner, &mut pages.next, out);
     let me = pages.me(client);
+    pages.has_goals.configure(me, pages.project, out);
     let project = conversation_project(pages);
     if let Some(chats) = &mut pages.chats {
         chats.configure(me, project, &env.limits, out);
@@ -603,6 +609,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if pages.has_goals.told(&told) {
+        return true;
+    }
     if let Some(home) = &mut pages.home
         && home.told(&told, env.limits.forge)
     {
@@ -1216,6 +1225,7 @@ fn awaits_first_read(thread: &jig_client::thread::Thread) -> bool {
 fn link_changed(pages: &mut Pages, link: Link, out: &mut Queue<Request>) {
     match link {
         Link::SignedOut | Link::OutOfDate => {
+            pages.has_goals.leave(out);
             if pages.watching {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle: me_handle() }));
                 pages.watching = false;
