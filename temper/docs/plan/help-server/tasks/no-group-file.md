@@ -3,7 +3,7 @@ id = "no-group-file"
 part = "owned-by-hand"
 kind = "feature"
 needs = []
-files = ["temper/crates/temper/src/forge.rs", "temper/crates/temper/src/commands.rs", "temper/crates/temper/src/tests/box_kinds.rs", "temper/crates/temper/tests/suite/forge.rs", "temper/docs/help/reference/commands.md", "temper/docs/design/protocol/setup.status.md", "temper/docs/design/protocol/README.status.md"]
+files = ["temper/crates/temper/src/forge.rs", "temper/crates/temper/src/commands.rs", "temper/crates/temper/src/tests/commands.rs", "temper/crates/temper/src/tests/box_kinds.rs", "temper/crates/temper/tests/suite/forge.rs", "temper/docs/help/reference/commands.md", "temper/docs/design/protocol/setup.status.md", "temper/docs/design/protocol/README.status.md"]
 effort = "high"
 minutes = 60
 +++
@@ -36,6 +36,7 @@ May also change, and how:
 
 - `temper/crates/temper/src/tests/box_kinds.rs` and `temper/crates/temper/tests/suite/forge.rs`: the tests below.
 - `temper/crates/temper/src/commands.rs`: the `forge fetch`, `prepare` and `run` rows' `notes`, one sentence each. `temper/docs/help/reference/commands.md` is regenerated, never written by hand, by `temper/crates/temper/src/tests/commands.rs`'s test with `SKEIN_CODEGEN_WRITE=1`.
+- `temper/crates/temper/src/tests/commands.rs`: `each_row_answers_its_help`'s hand-written `forge run` text, gaining the sentence that row's `notes` gains, and nothing else.
 - `temper/docs/design/protocol/setup.status.md` and `README.status.md` (a departure from your text, which leaves `docs/design/` alone): remove the **Not yet** entry for 7.1 and 7.4, and README's for section 4 that names the group's file.
 
 Options, each pre-approved:
@@ -67,3 +68,7 @@ Options, each pre-approved:
 ## Report
 
 As the implementer's text says, and the rule each new test was broken by.
+
+## Answers
+
+2026-11-05. May this task update the hand-written `forge run` help text in `temper/crates/temper/src/tests/commands.rs`? Yes. The sentence this spec requires in that row's `notes` is what the test's literal copies, so its acceptance cannot hold otherwise, and the test keeps its meaning: the row renders as written. Append to the literal's notes line the same sentence, word for word, and change nothing else in the file; the file is now in `files`. Keep the pushed commit `709064f503`; run `tests::commands::each_row_answers_its_help` alone, then the unfiltered `heavy cargo nextest run -p temper --lib -E 'test(~box_kinds) | test(~help)'`, and push.
