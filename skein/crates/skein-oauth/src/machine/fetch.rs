@@ -1,14 +1,14 @@
 //! A sign-in's bounded GETs, retries and move to its visit (oauth.md, section 3).
 use super::{
-    Client, ClientLimits, Exchange, Failure, HttpEvidence, HttpRequest, HttpResponse, Method, Phase, Registration,
-    Request,
+    Awaits, Client, ClientLimits, Exchange, Failure, HttpEvidence, HttpRequest, HttpResponse, Method, Phase,
+    Registration, Request,
 };
 use super::{Grant, SignInValues, admit};
 use crate::record::secret_ref;
 use crate::redirect::{authorization_url, has_openid, sign_in_values, validate_registration};
 use crate::{Check, keys, pkce};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Queue, Secret, Time, Writer, usize_of};
+use skein_lib::{Queue, Secret, Time, Writer, usize_of};
 
 pub(super) enum Fetch {
     Metadata { endpoint: Box<[u8]> },
@@ -39,7 +39,7 @@ impl Client {
         &mut self,
         mut registration: Registration,
         values: SignInValues,
-    ) -> Result<(Exchange, Request, Phase), Failure> {
+    ) -> Result<(Exchange, Request, Awaits), Failure> {
         let SignInValues { key, generation, state, verifier, nonce, port, issued_client_id, id_token, subject, now } =
             values;
         validate_registration(&registration, &self.limits, true)?;
@@ -83,7 +83,7 @@ impl Client {
             let (request, phase) = self.http_request(&mut exchange, now)?;
             Ok((exchange, Request::Http(request), phase))
         } else {
-            Ok((exchange, Request::Visit { url }, Phase::AwaitRedirect))
+            Ok((exchange, Request::Visit { url }, Awaits::Redirect))
         }
     }
 
@@ -92,7 +92,7 @@ impl Client {
         exchange: &mut Exchange,
         _now: Time,
         deadline: Time,
-    ) -> Result<(HttpRequest, Phase), Failure> {
+    ) -> Result<(HttpRequest, Awaits), Failure> {
         let endpoint = match exchange.fetch.as_ref().ok_or(failure())? {
             Fetch::Metadata { endpoint } | Fetch::Keys { endpoint } => endpoint.clone(),
         };
@@ -101,43 +101,41 @@ impl Client {
         exchange.attempts = exchange.attempts.checked_add(1).ok_or(failure())?;
         Ok((
             HttpRequest { id, method: Method::Get, endpoint, content_type: b"", body: Box::default(), deadline },
-            Phase::AwaitKeys { id, deadline },
+            Awaits::Keys { id, deadline },
         ))
     }
 
-    pub(super) fn keys_answer(&mut self, answer: HttpResponse, deadline: Time, out: &mut Queue<Request>) {
-        let Some(mut exchange) = self.active.take() else {
-            self.finish(failure(), out);
-            return;
-        };
+    pub(super) fn keys_answer(
+        &mut self,
+        mut exchange: Exchange,
+        answer: HttpResponse,
+        deadline: Time,
+        out: &mut Queue<Request>,
+    ) -> Phase {
         if answer.now >= exchange.deadline {
-            self.finish(failure(), out);
-            return;
+            return Self::finish(failure(), out);
         }
         if answer.now >= deadline
             || answer.evidence != HttpEvidence::Response
             || answer.status == 429
             || answer.status >= 500
         {
-            self.retry_or_fail(exchange, Failure::Unavailable, answer.now, answer.retry_after, true, out);
-            return;
+            return self.retry_or_fail(exchange, Failure::Unavailable, answer.now, answer.retry_after, true, out);
         }
         if !(200..300).contains(&answer.status) {
-            self.finish(failure(), out);
-            return;
+            return Self::finish(failure(), out);
         }
         let result = self.read_keys(&mut exchange, &answer.body, answer.now);
         match result {
             Ok((request, phase)) => {
-                self.active = Some(exchange);
-                self.phase = phase;
                 out.push(request);
+                phase.hold(exchange)
             }
-            Err(_) => self.finish(failure(), out),
+            Err(_) => Self::finish(failure(), out),
         }
     }
 
-    fn read_keys(&mut self, exchange: &mut Exchange, body: &[u8], now: Time) -> Result<(Request, Phase), Check> {
+    fn read_keys(&mut self, exchange: &mut Exchange, body: &[u8], now: Time) -> Result<(Request, Awaits), Check> {
         let fetch = exchange.fetch.take().ok_or(Check::Keys)?;
         match fetch {
             Fetch::Metadata { .. } => {
@@ -160,15 +158,8 @@ impl Client {
                 exchange.keys = keys::fitting_keys(body, &self.limits)?;
                 exchange.attempts = 0;
                 let url = exchange.visit.take().ok_or(Check::Keys)?;
-                Ok((Request::Visit { url }, Phase::AwaitRedirect))
+                Ok((Request::Visit { url }, Awaits::Redirect))
             }
-        }
-    }
-
-    pub(super) fn keys_timeout(&mut self, now: Time, out: &mut Queue<Request>) {
-        match self.active.take() {
-            Some(exchange) => self.retry_or_fail(exchange, Failure::TimedOut, now, Duration::ZERO, true, out),
-            None => self.finish(failure(), out),
         }
     }
 }

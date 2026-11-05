@@ -82,7 +82,11 @@ impl Backend {
                                 return;
                             }
                             if right == super::INTERRUPT_RIGHT {
-                                self.interrupt.send(self.process.pipes().input.expect("interrupt write"), below);
+                                self.interrupt.send(
+                                    self.process.pipes().input.expect("interrupt write"),
+                                    below,
+                                    &mut self.given,
+                                );
                             } else if let Some(bytes) = &self.outgoing {
                                 let start = usize::try_from(self.written).expect("input cursor");
                                 let end = start
@@ -97,6 +101,9 @@ impl Backend {
                                     down: stream::OutputDown::Send { right, bytes: chunk },
                                 }));
                                 if finished {
+                                    if let Some(given) = &mut self.given {
+                                        given.push(super::Given::Input(bytes.clone()));
+                                    }
                                     self.outgoing = None;
                                     self.written = 0;
                                     self.remember_session(below);

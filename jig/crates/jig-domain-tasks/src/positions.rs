@@ -40,6 +40,7 @@ pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32) {
         MessageFamily::Spoken(Spoken::Words)
         | MessageFamily::Hint(_)
         | MessageFamily::Slot(_)
+        | MessageFamily::Separate(_)
         | MessageFamily::Result
         | MessageFamily::Virtual => {}
     }

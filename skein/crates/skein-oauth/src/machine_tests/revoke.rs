@@ -11,7 +11,7 @@ fn configured(public: bool, wire: WireFormat, issued: bool, endpoint: bool) -> R
     registration
 }
 
-fn begin(registration: Registration, held_id: bool) -> Event {
+pub(super) fn begin(registration: Registration, held_id: bool) -> Event {
     let Event::Refresh { registration, prior, now } =
         refresh(registration, if held_id { Some(boxed(b"client-1")) } else { None })
     else {

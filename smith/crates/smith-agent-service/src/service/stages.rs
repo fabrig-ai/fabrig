@@ -156,6 +156,7 @@ impl Stages {
         let machine = machine::Component::new(&limits.machine, environment);
         Ok(Parts {
             stages: Stages {
+                dumps: None,
                 limits,
                 events,
                 teardown: Teardown::Live { failure: None },
@@ -268,6 +269,11 @@ impl Stages {
                 .push(domain::Grant { name: grant.name, valid: grant.valid, renewable: grant.renewable })
                 .expect("grant count was checked at Start");
         }
+        let identity = match start.identity {
+            Some(identity) => Some(identity.bytes()),
+            None => None,
+        };
+        super::dump::started(self, identity, start.activation, &start.charter);
         self.run_started = self.domain_env.now;
         self.opening.contract(start.charter.outcome.clone());
         self.domain_events.push(domain::Event::Start(domain::Start {

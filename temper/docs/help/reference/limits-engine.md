@@ -281,5 +281,5 @@ A change batch reserves one task per member and shares the descendant allowance 
 ## clients_http
 
 - `clients_http.streams`: count, 2. Bounds HTTP client streams admitted at once.
-- `clients_http.calls`: count, 4. Bounds HTTP client calls admitted at once.
+- `clients_http.calls`: count, 6. Bounds HTTP client calls admitted at once.
 - `clients_http.public_calls`: count, 0. Bounds public HTTP calls in flight apart from signed-in calls.
