@@ -219,29 +219,29 @@ outbox and the deployment's part (5.4).
 
 ## 3. Changes and landing queues
 
-temper's `Changes { project }` page (`README.md`, 3.5): a
-project's changes, by landing branch (`../domain/forge.md`, section
-9):
+temper's `Changes { project }` page (`README.md`, 3.5): what is on the
+way to a project's landing branches and what last landed there, from
+the subject `changes` (`README.md`, 4.6):
 
-- **The queue:** the ready changes in order, each with its goal and
-  priority and when it became ready; the first says what it is doing
-  (updating, CI on its updated head, merging); a change past the queue's
-  window is marked as going ahead of those ready after it.
-- **The order's rule,** in a line: "by goal priority, then by when each
-  became ready; ready for over WINDOW goes first", WINDOW the forge's
-  queue window (`../protocol/configuration.md`, section 7).
-- **Not ready yet,** by step: producing, checking, gating, repairing,
-  resolving.
-- **Held,** each with its reason (section 6).
-- **The branch:** its tip, CI on it, and the landings recently made,
-  paged.
-- **Paused:** when CI fails on the branch's tip, "main fails at its tip
-  since 10:02; T88 repairs it, first in the queue; the rest wait", with
-  the repair as a chip. Past its repairs' bound, the queue is held for a
-  person, whose card offers to release it as it is (a flaky check) or to
-  cancel the repair.
-- **Where temper may not merge,** the queue is still ordered for people
-  to see, each ready change "waiting for someone else's merge".
+- **The queue,** per landing branch with ready changes: those changes
+  in order (`../domain/forge.md`, section 9), each with its title and
+  where it came from. The change that owns the queue leads, at whichever
+  step of its turn; the first says it is checking, and since when, and
+  the others their place.
+- **Landed recently:** the project's last landings, newest first, across
+  its repositories, from the landing log
+  (`../domain/after-landing.md`, section 10), which keeps each change's
+  title past its close.
+- **A branch's red,** in the page's line: while a retained verdict blames
+  a landing on the branch, unrepaired (`../domain/after-landing.md`,
+  5.2), or a live repair of the branch runs (`../domain/forge.md`,
+  section 9).
+- **A project that lands by turn** has no queue (`../domain/landing.md`,
+  sections 8 and 9): its page's queue is empty, and what it lands is
+  listed as landed.
+
+Each row opens its change's `Task { task }`: a change has no page of
+its own. What else the page could draw is section 10's.
 
 ## 4. Approvals
 
@@ -1095,7 +1095,7 @@ and its hold (2.5) follow.
 | a change's result | a result, on its task's page, in a chat, in an update | `../domain/forge.md`, 8.2 and 8.6 |
 | its holds | a hold, on the held card | `../domain/forge.md`, 8.4 and 8.5; jig's `domain/connectors.md`, 4.3 and section 11 |
 | what a proposed write would do; the outbox | an effect, on a proposal card; an outbox entry | `../domain/forge.md`, section 6 |
-| queues, paused and held | temper's `Changes` page | `../domain/forge.md`, section 9 |
+| a project's queues, its branches' red and its last landings | temper's `Changes` page, from the subject `changes` (`README.md`, 4.6) | `../domain/forge.md`, section 9; `../domain/after-landing.md`, section 10 |
 | approvals | a person task's card; a panel | `../domain/forge.md`, 8.3 and 8.7; jig's `domain/people.md`, section 8 |
 | adoption, repositories, health, landing rules | temper's `Adopt` page; a project's part | `../domain/forge.md`, sections 4 and 5, and 8.7; jig's `domain/connectors.md`, section 12; jig's `domain/authority.md`, section 10 |
 | goals' issues, landings as news, findings | a project's part; a goal's page | `../domain/forge.md`, sections 7 and 12 |
@@ -1326,6 +1326,14 @@ made by the forge connector from what it keeps of the change
 
 ## 10. Open questions
 
+- **What else `Changes` could draw** (section 3): a ready change's goal
+  and priority and when it became ready; a change past the queue's window
+  marked as going ahead; the order's rule in a line; changes not ready
+  yet, by step; held changes, each with its reason; the branch's tip and
+  CI, its landings paged; a paused queue in words, with its repair's chip
+  and its release; "waiting for someone else's merge". Default: none is
+  drawn, as the greenfield mock draws none, and held work is in Needs you
+  (the user, 2026-11-05).
 - **A change's requirements, heads and CI contexts in its panel** (2.2;
   9.2). Default: left out until the connector keeps them beside the
   change's record (a judgment of each requirement at the current head,

@@ -1696,3 +1696,50 @@ fn dismissed_rows_round_trip_at_the_field_bounds() {
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
     }
 }
+
+#[expect(
+    clippy::disallowed_macros,
+    reason = "ordinary boundary fixtures allocate rows at configured bounds and one past them"
+)]
+fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored {
+    forge::Stored::LandingLog(forge::LandingLog {
+        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+        landings: vec![
+            forge::LoggedLanding {
+                commit: [7; 32],
+                branch: vec![b'x'; usize::try_from(branch_bytes).unwrap()].into(),
+                at: skein_lib::Wall::from_nanos(123),
+                changes: vec![
+                    forge::LoggedChange { task: 51, pull: Some(2), title: vec![b't'; 256].into() };
+                    usize::try_from(members).unwrap()
+                ]
+                .into(),
+            };
+            usize::try_from(landings).unwrap()
+        ]
+        .into(),
+    })
+}
+
+#[test]
+fn landing_logs_round_trip_and_refuse_each_configured_bound() {
+    let limits = fixtures::LIMITS;
+    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_669);
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
+    for extra in [0, 1] {
+        for row in [
+            landing_log(limits.landings_kept + extra, limits.landing_members, limits.name_bytes),
+            landing_log(limits.landings_kept, limits.landing_members + extra, limits.name_bytes),
+            landing_log(limits.landings_kept, limits.landing_members, limits.name_bytes + extra),
+        ] {
+            let bytes = records::encode(&row);
+            let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+            assert_eq!(records::row(&key, &bytes, &bounds), if extra == 0 { Ok(row) } else { Err(crate::Undecodable) });
+        }
+    }
+    let mut row = landing_log(1, 1, 1);
+    if let forge::Stored::LandingLog(row) = &mut row {
+        row.landings[0].changes[0].pull = None;
+    }
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}

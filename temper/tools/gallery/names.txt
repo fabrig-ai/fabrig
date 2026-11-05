@@ -5,6 +5,10 @@ accounts-solo
 adoption
 adoption-filled
 adoption-refused
+changes
+changes-empty
+changes-landed-only
+changes-one
 chat-closing
 chat-first-run-2-T1
 chat-first-run-3-T1

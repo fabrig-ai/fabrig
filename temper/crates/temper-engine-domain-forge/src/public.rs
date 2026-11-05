@@ -143,7 +143,7 @@ impl Domain {
         }
         newest
     }
-    fn repository_address(&self, row: &ChangeRow) -> Option<Box<[u8]>> {
+    pub(crate) fn repository_address(&self, row: &ChangeRow) -> Option<Box<[u8]>> {
         let repo = self.repositories.get(&row.repository)?;
         let Some(forge) = self.configured.get(&row.repository.forge) else {
             return Some(Box::default());
@@ -201,4 +201,26 @@ fn phase(phase: &policy::Phase) -> w::PublicLandingPhase {
         policy::Phase::Held { .. } => w::PublicLandingPhase::Held,
         policy::Phase::Cancelled => w::PublicLandingPhase::Cancelled,
     }
+}
+
+/// Select the panels' order over exactly the supplied candidates (domain/forge.md, 9).
+pub(crate) fn order_ready(
+    mut candidates: List<temper_engine_domain_forge_change::Ready>,
+    repair: Option<u64>,
+    limits: &Limits,
+    now: Wall,
+) -> Option<List<temper_engine_domain_forge_change::Ready>> {
+    let mut ordered = List::with_capacity(candidates.capacity());
+    // Each selection removes one admitted candidate.
+    while !candidates.is_empty() {
+        let mut first = 0;
+        for (index, candidate) in candidates.iter().enumerate() {
+            if crate::panel::queue_before(candidate, candidates.get(first)?, repair, limits, now) {
+                first = u32::try_from(index).ok()?;
+            }
+        }
+        let candidate = candidates.swap_remove(first)?;
+        ordered.push(candidate).ok()?;
+    }
+    Some(ordered)
 }

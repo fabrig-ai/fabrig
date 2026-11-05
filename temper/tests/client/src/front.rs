@@ -91,6 +91,11 @@ struct HeldReply {
 }
 fn engine_limits() -> engine::Limits {
     let mut limits = temper_engine_domain_world::fixtures::forge_limits();
+    // The world's engine admits the whole starters and cues its client offers.
+    limits.people.words = limits.people.words.max(temper_client_protocol_wire::CUE_BYTES);
+    limits.tasks.spec_bytes = limits.tasks.spec_bytes.max(temper_client_protocol_wire::CUE_BYTES);
+    limits.tasks.message_bytes = limits.tasks.message_bytes.max(limits.people.words);
+    limits.tasks.inbox_bytes = limits.tasks.inbox_bytes.max(limits.tasks.message_bytes);
     // The world's own bound, not production's: automatic Seen takes a key per arrival.
     limits.people.requests = 5;
     // A goal's driver plus two clients, as a fresh client at an address beside the person's.
@@ -222,7 +227,14 @@ impl Joint {
             }]);
             (config, engine_limits)
         });
-        let mut front = Self::with_engine(seed, &limits, Store::new(), [bootstrap, config], &engine_limits, 1);
+        let mut front = Self::with_engine(
+            seed,
+            &limits,
+            Store::with_limits(&engine_limits),
+            [bootstrap, config],
+            &engine_limits,
+            1,
+        );
         front.reachable_empty = empty;
         front.engine.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(&[
             (b"acme", b"shop", 7),
@@ -363,12 +375,13 @@ impl Joint {
     }
     #[must_use]
     pub fn new(seed: u64, limits: client::Limits) -> Joint {
+        let engine_limits = engine_limits();
         Self::with_engine(
             seed,
             &limits,
-            Store::new(),
+            Store::with_limits(&engine_limits),
             [walking::config(seed), walking::config(seed)],
-            &engine_limits(),
+            &engine_limits,
             1,
         )
     }
@@ -504,13 +517,22 @@ impl Joint {
         Self::open_chats_with_refused_hello(seed, limits, true)
     }
     fn open_chats_with_refused_hello(seed: u64, limits: client::Limits, refuse_hello: bool) -> Joint {
+        let engine_limits = engine_limits();
         let configs = std::array::from_fn(|_| {
             let mut config = walking::config(seed);
             config.core.defaults.templates =
                 temper_engine_domain_world::fixtures::templates_ending(jig_domain_tasks::EndedBy::Requester);
             config
         });
-        Self::with_engine_with_refused_hello(seed, &limits, Store::new(), configs, &engine_limits(), 1, refuse_hello)
+        Self::with_engine_with_refused_hello(
+            seed,
+            &limits,
+            Store::with_limits(&engine_limits),
+            configs,
+            &engine_limits,
+            1,
+            refuse_hello,
+        )
     }
     /// The small profile carries a whole turn while an activity page can size it.
     #[must_use]
@@ -533,7 +555,7 @@ impl Joint {
         Self::with_engine(
             seed,
             limits,
-            Store::with_transcript_bytes(bytes),
+            Store::with_limits(&engine_limits),
             [walking::config(seed), walking::config(seed)],
             &engine_limits,
             1,
@@ -566,7 +588,7 @@ impl Joint {
             engine_limits.journal.held = 192;
             (config, engine_limits)
         });
-        Self::with_engine(seed, &limits, Store::new(), [bootstrap, config], &engine_limits, 2)
+        Self::with_engine(seed, &limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 2)
     }
     pub(crate) fn with_questions(seed: u64, limits: &client::Limits) -> Self {
         Self::with_question_text_bound(seed, limits, None, false)
@@ -603,7 +625,8 @@ impl Joint {
                 // The chat, its goal and the goal's possible delegate fit the tree.
                 engine_limits.tasks.tree_tasks = tasks;
             }
-            engine_limits.tasks.inbox_bytes = 512;
+            engine_limits.tasks.inbox_bytes =
+                engine_limits.tasks.message_bytes.checked_mul(8).expect("question and answer slots fit");
             if let Some(text) = text {
                 engine_limits.documents.text_bytes = text;
             }
@@ -614,7 +637,7 @@ impl Joint {
             engine_limits.journal.held = 192;
             (config, engine_limits)
         });
-        Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, 2)
+        Self::with_engine(seed, limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 2)
     }
     /// A goal and its delegated authority fit, with bounds chosen by the story.
     pub(crate) fn with_delegates(seed: u64, limits: &client::Limits, delegates: u32, page_rows: u32) -> Self {
@@ -652,7 +675,8 @@ impl Joint {
             engine_limits.authority = authority_limits;
             // The core prices two inbox projections for each live task.
             engine_limits.people.inbox_tasks = tasks * 2;
-            engine_limits.tasks.inbox_bytes = 512;
+            engine_limits.tasks.inbox_bytes =
+                engine_limits.tasks.message_bytes.checked_mul(8).expect("question and answer slots fit");
             engine_limits.fleet.slots = 2;
             engine_limits.fleet.attempts = 4;
             engine_limits.journal.writes = 4096;
@@ -660,7 +684,7 @@ impl Joint {
             engine_limits.journal.held = 192;
             (config, engine_limits)
         });
-        Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, 2)
+        Self::with_engine(seed, limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 2)
     }
     /// A real forge procedure is admitted by this scenario's policy.
     #[must_use]
@@ -670,7 +694,7 @@ impl Joint {
         const PARAMETERS: u32 = 2;
         let [(bootstrap, mut engine_limits), (config, _)] = std::array::from_fn(|_| Self::procedure_config(seed));
         engine_limits.tasks.parameters = PARAMETERS;
-        Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, SLOTS)
+        Self::with_engine(seed, limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, SLOTS)
     }
     fn procedure_config(seed: u64) -> (engine::Config, engine::Limits) {
         use jig_domain_authority as a;
@@ -885,6 +909,7 @@ impl Joint {
             unreachable!("worker hello")
         };
         value.bounds.models = worker_models;
+        value.bounds.message_bytes = engine_limits.tasks.message_bytes;
         if refuse_hello {
             // The fixture configures only worker zero.
             const UNCONFIGURED_WORKER: u32 = 7;
@@ -1807,11 +1832,19 @@ impl Front<Temper> for Joint {
                     fixtures::REPOSITORIES,
                 );
                 self.engine.pump();
-                self.engine.send(temper_engine_domain_world::protocol::hello_slots(
+                let mut hello = temper_engine_domain_world::protocol::hello_slots(
                     fixtures::QUESTION_WORKER,
                     limits.fleet.slots,
                     hosting,
-                ));
+                );
+                if let engine::Event::Worker(engine::WorkerInput::Link {
+                    link: engine::Link::Hello { hello, .. },
+                    ..
+                }) = &mut hello
+                {
+                    hello.bounds.message_bytes = limits.tasks.message_bytes;
+                }
+                self.engine.send(hello);
                 self.engine.settle();
                 self.reads = 0;
                 self.read_loads.clear();
