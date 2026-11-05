@@ -20,3 +20,16 @@ id = 1
 story = "connect keeps a close, with its pin failing first; each finding is done or skipped with a reason, and net lines fall"
 parts = ["spot-review"]
 walk = false
+
+[[part]]
+id = "payloads"
+title = "no production function in jig needs too_many_arguments, but two public seams a comment names (jig D016)"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 10.3"
+
+[[slice]]
+id = 2
+story = "every jig test holds, no public type moved, and the item's search reads the two named seams"
+parts = ["payloads"]
+walk = false
