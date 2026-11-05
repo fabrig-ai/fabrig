@@ -1,107 +1,14 @@
 //! Hand-steered component exchanges (skein/docs/design/forge-connection.md, 10).
 use skein_forge_connection::Limits;
-use skein_lib::Duration;
-pub const WORD: &[u8] = b"kit";
-pub const USER_AGENT: &[u8] = b"kit/0.0.0";
-pub const OP_BYTES: u32 = 512;
-// Twice the operation bound, the owner's word, and marker framing (forge.md 6).
-pub const BODY_ROOM: u32 = 2 * OP_BYTES + 3 + 15;
-pub const WRITER: u64 = 2;
-#[must_use]
-pub fn limits() -> Limits {
-    Limits {
-        forges: 2,
-        token_bytes: 64,
-        key_bytes: 1200,
-        connections: 2,
-        head_bytes: 4096,
-        headers: 32,
-        body_bytes_in: 1_048_576,
-        depth: 16,
-        chunk: 1024,
-        string_bytes: 128,
-        body_bytes: BODY_ROOM,
-        inner: 8,
-        target_bytes: 1024,
-        repositories: 2,
-        users: 8,
-        installations: 3,
-        log_origins: 2,
-        deadline: Duration::from_secs(10),
-        idle: Duration::from_secs(5),
-        start_backoff: Duration::from_secs(1),
-        start_backoff_max: Duration::from_secs(8),
-        renew_before: Duration::from_secs(60),
-        // Beyond token-renewal stories; puller stories advance this timer themselves.
-        log_poll: Duration::from_secs(86_400),
-        log_catch_up: Duration::from_secs(3600),
-        log_pages: 10,
-        delivery_bytes: 65_536,
-        hooks: 4,
-        hook_head_bytes: 8192,
-        hook_body_bytes: 1_048_576,
-        hook_deadline: Duration::from_secs(10),
-        hook_secret_bytes: 128,
-        tls: skein_tls::client::Limits { read: 16384, send: 16384, records: skein_tls::client::MAX_RECORD },
-    }
-}
-
-use core::net::{Ipv4Addr, SocketAddr};
-use skein_forge::api;
-use skein_forge_connection::{
-    Answered, Component, Event, Settings, Shared,
-    settings::{Forge, Kind, Transport},
-    start::Start,
+pub use skein_forge_kit::fixtures::{
+    BODY_ROOM, FORGE, OP_BYTES, REPO, TOKEN, USER_AGENT, WORD, WRITER, limits, settings, shared,
 };
+use skein_lib::Duration;
+
+use skein_forge::api;
+use skein_forge_connection::{Answered, Component, Event, Settings, Shared, settings::Kind, start::Start};
 use skein_lib::{Env, List, Queue, Secret, Time, Wall};
 use std::boxed::Box;
-pub const FORGE: u16 = 1;
-pub const REPO: api::Repository = api::Repository { forge: 1, repository: 1 };
-pub const TOKEN: &[u8] = b"0123456789abcdef0123456789abcdef01234567";
-#[must_use]
-pub fn shared() -> Shared {
-    Shared {
-        calls: 2,
-        op_bytes: OP_BYTES,
-        answer_bytes: 65_536,
-        rows: 8,
-        lifetime: Duration::from_secs(10),
-        name_bytes: 128,
-        repositories: 2,
-        io: skein_io::Limits {
-            sockets: 8,
-            names: 0,
-            refusals: 2,
-            intake: 32_768,
-            receive: 4096,
-            output: 32_768,
-            sends: 4,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            retry: Duration::from_millis(10),
-        },
-    }
-}
-#[must_use]
-pub fn settings() -> Settings {
-    let mut forges = List::with_capacity(2);
-    forges
-        .push(Forge {
-            number: FORGE,
-            kind: Kind::Forgejo,
-            log_origins: List::with_capacity(0),
-            address: skein_io::Addr::Ip(SocketAddr::from((Ipv4Addr::LOCALHOST, 3000))),
-            transport: Transport::Plaintext { name: None },
-            access: Some(skein_forge_connection::Access {
-                credential: skein_forge::credential::Credential::Token(Secret::new(Box::from(TOKEN))),
-                user: WRITER,
-                webhook_secret: None,
-            }),
-        })
-        .expect("one forge");
-    Settings { forges, webhooks: None, word: Box::from(WORD), user_agent: Box::from(USER_AGENT) }
-}
 #[derive(Debug)]
 pub struct Harness {
     pub component: Component,

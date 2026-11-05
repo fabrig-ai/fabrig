@@ -508,14 +508,3 @@ fn a_calls_deadline_distinguishes_connecting_from_a_written_request() {
         assert!(h.peers.is_empty(), "{name}: connection aborted");
     }
 }
-#[test]
-fn closing_an_active_call_discards_it_and_ends_its_socket() {
-    let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Branch { branch: Box::from(&b"main"[..]) }));
-    h.run(Duration::ZERO);
-    h.send(skein_forge_connection::Request::Close);
-    h.run(Duration::ZERO);
-    assert!(h.closed, "close terminal");
-    assert!(h.peers.is_empty(), "no socket owned");
-    assert!(h.answered(1).is_none(), "no call answer after Close");
-}

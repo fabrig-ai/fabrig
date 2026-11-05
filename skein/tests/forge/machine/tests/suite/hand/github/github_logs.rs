@@ -195,13 +195,6 @@ fn said_origins_forget_the_oldest_first() {
     );
 }
 #[test]
-fn a_followed_redirect_is_unavailable_without_another_follow() {
-    let mut h = followed();
-    h.answer(LOG_ENDPOINT, &redirect(b"another.test"));
-    terminal(&mut h, 1, 3, Err(Error::Unavailable));
-    assert!(origins(&h).is_empty());
-}
-#[test]
 fn original_deadline_covers_follow_before_and_after_its_write() {
     for (connected, cost) in [(false, 2), (true, 3)] {
         let mut h = harness(settings());

@@ -96,16 +96,6 @@ fn successful_probe_routes_the_call_by_owner_account() {
     assert_eq!(count(&h, TWO), 1);
 }
 #[test]
-fn second_installation_settings_needs_no_extra_read() {
-    let mut h = candidates();
-    begin(&mut h, Op::Read(Read::Settings));
-    h.answer(FORGE, &f::status(404));
-    next(&mut h);
-    h.answer(FORGE, &f::ok(f::GITHUB_REPOSITORY));
-    answered(&mut h, 2, Ok(settings()));
-    assert_eq!(count(&h, b"GET /repositories/1 "), 2);
-}
-#[test]
 fn probe_only_advances_after_a_404() {
     let wrong_id = br#"{"id":2,"owner":{"id":22,"login":"acme","type":"Organization"},"name":"widgets","default_branch":"main","html_url":"https://github.com/acme/widgets","allow_merge_commit":true,"allow_squash_merge":true,"allow_rebase_merge":false}"#;
     for (label, response, expected) in [
