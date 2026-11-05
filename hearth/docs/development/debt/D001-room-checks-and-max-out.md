@@ -102,14 +102,41 @@ delays. These are the orders beside the checks, which
 
 | Order | Kept by | Its test, in `hearth/tests/builder` |
 |---|---|---|
-| Resumed work goes before the next event | `work_pending` | `what_a_call_prints_and_stores_does_not_depend_on_its_queues` |
-| One record at a time | `takes` | the same |
+| Resumed work goes before the next event | `work_pending` | Held only by the design; the bounded service-order search below found no biting case. |
+| One record at a time | `takes` | `what_a_call_prints_and_stores_does_not_depend_on_its_queues` |
 | An answer follows its resources' close | the machine's state | the same |
 | A build's report comes whole | `holds`, `reporting` | `a_build_prints_its_layers_then_its_failure_then_its_reply` |
 | The domain takes a store step's answer before the store's next step | no predicate: the queue's order and the indices' `waiting` | `what_a_call_prints_and_stores_does_not_depend_on_its_queues` |
 
 `file_told` is drained before `told`, by the order of the loops. Nothing
 found depends on that, so it isn't stated as an order.
+
+### The service-order search
+
+The queue comparison does not pin resumed work before the next io event.
+Removing `work_pending` from `protocol_up`'s `told` guard survived 384
+fixed cases: thin, eight blobs, templates, four-target resolution, a
+resolving diff and git killed after seven stdout bytes; seeds 0 through 7;
+queue sizes 3, 4, 8 and 32; git chunks and file reads of 64 bytes. Half
+used calm completions; half forced short reads and writes and delayed
+every completion by up to 1 ms. Each case's client submissions and
+completions, excluding timestamps, were identical with and without the guard. A temporary assertion confirmed
+that the missing guard admits an io event while protocol work is pending,
+including thin at seed 0 and queue 3 with delayed completions. This is
+an order held only by the design, not a passing mutation check.
+
+Before removing that check, the service round must find an observable
+consequence of admitting the next io event while work is pending, and pin
+it with a biting test; recheck pending cache work alongside stdin room,
+child exit and pipe-end events. The guard stays until then.
+
+The store-step mutation does change the order of operations in thin's
+resolution at seed 7 and queue 3, although its printed and stored results
+are unchanged. The resolving row of
+`what_a_call_prints_and_stores_does_not_depend_on_its_queues` also checks
+that the first index's cache record finishes storing, including its
+directory close, before the next index opens. Treating every store event
+as an emitted answer reverses those two milestones and fails the test.
 
 ### What the service round must finish
 
