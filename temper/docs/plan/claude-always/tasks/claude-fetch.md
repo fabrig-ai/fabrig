@@ -83,3 +83,7 @@ Acceptance:
 ## Report
 
 As your text says, and: how long a launcher adds to a command on your machine; what you chose for `Fetched::read`; any command of the source that did not pass through the launcher.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Allow it: add the Claude fetch's module to the boundary test's declared modules, for just the lock and the launcher exec, with a comment saying why; the test keeps its purpose, naming where these operations live. Edit that test in this task. Then recheck on the merged head.
