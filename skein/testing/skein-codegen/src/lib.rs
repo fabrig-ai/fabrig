@@ -17,6 +17,7 @@ mod emit_types;
 mod parse;
 pub mod patch;
 
+pub use emit_limits::{pascal, snake};
 pub use parse::{Error, parse};
 
 /// One schema version of a family.

@@ -7,6 +7,7 @@ use std::{fs, path::Path};
 use skein_codec::schema::{self, DeclIx, FieldIx, Shape, VariantIx};
 
 use super::{Error, files::Crate, text::PatchText};
+use crate::snake;
 
 /// Generates `patches/mod.rs` from an owner's kept texts and patches.
 pub fn module(owner: &Path) -> Result<String, Error> {
@@ -29,17 +30,6 @@ fn unique(names: &mut BTreeMap<String, String>, spelled: String, name: &str) -> 
         return Err(Error::Spelled { first, second: name.to_owned() });
     }
     Ok(spelled)
-}
-
-fn snake(name: &str) -> String {
-    let mut out = String::new();
-    for character in name.chars() {
-        if character.is_ascii_uppercase() && !out.is_empty() {
-            out.push('_');
-        }
-        out.push(if character == '.' || character == '-' { '_' } else { character.to_ascii_lowercase() });
-    }
-    out
 }
 
 fn ident(name: &str) -> String {
