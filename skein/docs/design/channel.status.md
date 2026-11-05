@@ -2,8 +2,6 @@
 
 2026-11-05. Where skein's code lags or departs from [channel.md](channel.md).
 
-- **Not yet:** 3: a frame's lengths: `Frame`, `Event::Body` and the machine's
-  `ReadState::Body` print their bytes.
 - **Departs:** 8.3: four cells of `skein-channel/src/machine.rs` break "its
   owner hears closed once, with why" or "closing stops now", because the
   request of 2026-11-05 held the machine's behaviour still while its flags
