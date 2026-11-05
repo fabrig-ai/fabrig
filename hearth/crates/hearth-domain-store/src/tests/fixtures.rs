@@ -153,7 +153,14 @@ pub fn blob(arrival: skein_lib::Token, sha256: hearth_lib::encode::Digest) -> Ev
 }
 pub fn full() -> Harness {
     let mut store = ready(crate::limits::SHIPPED, &[]);
-    store.store.usable = false;
+    store.store.standing =
+        crate::Standing::Declining(crate::vocabulary::Decline::Unusable { step: crate::vocabulary::Step::List });
+    store
+}
+pub fn failed_entry() -> Harness {
+    let mut store = ready(crate::limits::SHIPPED, &[]);
+    drop(store.step(Time::ZERO, blob(ARRIVAL, MOTD)));
+    drop(store.step(Time::ZERO, Event::Failed));
     store
 }
 
@@ -253,7 +260,11 @@ pub fn recorded_ready() -> Harness {
 
 pub fn room_store(usable: bool, recorded: bool) -> Harness {
     let mut store = if recorded { recorded_ready() } else { ready(ONE_RESOLUTION, &[]) };
-    store.store.usable = usable;
+    store.store.standing = if usable {
+        crate::Standing::Usable
+    } else {
+        crate::Standing::Declining(crate::vocabulary::Decline::Unusable { step: crate::vocabulary::Step::List })
+    };
     store
 }
 
