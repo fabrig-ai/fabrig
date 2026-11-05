@@ -1,4 +1,4 @@
-//! Project landings and party sittings (temper/docs/design/domain/forge.md, 5.6).
+//! Project landings, sittings and briefs (temper/docs/design/domain/forge.md, 5.6, 5.7).
 use super::*;
 use jig_domain_people::ApplicationScope;
 
@@ -355,4 +355,242 @@ fn a_repository_removed_counts_no_landing() {
     status::landed(&mut d, BEFORE, REPO, &mut out);
     assert!(out.is_empty());
     assert!(d.project_facts.is_empty());
+}
+
+fn asks_run(out: Queue<Request>) -> Option<Box<[u8]>> {
+    for request in rows(out) {
+        if let Request::StatusRun { project, words } = request {
+            assert_eq!(project, PROJECT);
+            return Some(words);
+        }
+    }
+    None
+}
+fn brief(at: Wall, landed: u64) -> Brief {
+    Brief { sentence: b"Earlier".as_slice().into(), lede: Box::new([]), at, landed }
+}
+fn running(d: &mut Domain, task: u64, since: Wall) {
+    d.project_facts.get_mut(&PROJECT).unwrap().running = Some(StatusRunning { task: Some(task), landed: 3, since });
+}
+fn status_heard(d: &mut Domain, task: u64, report: Option<&[u8]>) -> Box<[Request]> {
+    outputs(
+        d,
+        Event::StatusHeard {
+            task,
+            report: match report {
+                Some(words) => Some(Box::from(words)),
+                None => None,
+            },
+        },
+    )
+}
+#[test]
+fn a_new_sitting_with_something_new_asks_a_run() {
+    let mut d = restored();
+    assert!(asks_run(look(&mut d, PARTY, after(1800))).is_some());
+    assert_eq!(
+        d.project_facts.get(&PROJECT).unwrap().running,
+        Some(StatusRunning { task: None, landed: 3, since: after(1800) })
+    );
+    let out = outputs(&mut d, Event::StatusTask { project: PROJECT, task: TIER_TASK });
+    let row = d.project_facts.get(&PROJECT).unwrap();
+    assert_eq!(row.running.as_ref().unwrap().task, Some(TIER_TASK));
+    assert!(out.contains(&Request::Save {
+        record: Stored::ProjectFacts(row.clone()),
+        release: None,
+        read_afresh: None
+    }));
+}
+#[test]
+fn a_first_look_asks_none() {
+    let mut d = restored();
+    assert!(asks_run(look(&mut d, OTHER_PARTY, after(1800))).is_none());
+}
+#[test]
+fn a_look_within_the_sitting_asks_none() {
+    let mut d = restored();
+    assert!(asks_run(look(&mut d, PARTY, after(1799))).is_none());
+}
+#[test]
+fn nothing_new_asks_none() {
+    for landed in [0, 3] {
+        let mut d = restored();
+        let row = d.project_facts.get_mut(&PROJECT).unwrap();
+        row.landed = landed;
+        row.brief = if landed == 0 { None } else { Some(brief(Wall::EPOCH, landed)) };
+        assert!(asks_run(look(&mut d, PARTY, after(1800))).is_none());
+    }
+}
+#[test]
+fn a_brief_under_an_hour_old_asks_none() {
+    for seconds in [0, 3599, 3600] {
+        let mut d = restored();
+        d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 2));
+        assert!(asks_run(look(&mut d, PARTY, after(seconds))).is_none());
+    }
+    let mut d = restored();
+    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 2));
+    assert!(asks_run(look(&mut d, PARTY, after(3601))).is_some());
+}
+#[test]
+fn a_run_in_flight_asks_none() {
+    for task in [None, Some(TIER_TASK)] {
+        let mut d = restored();
+        d.project_facts.get_mut(&PROJECT).unwrap().running = Some(StatusRunning { task, landed: 3, since: BEFORE });
+        assert!(asks_run(look(&mut d, PARTY, after(3600))).is_none());
+    }
+}
+#[test]
+fn past_an_hour_it_counts_as_none() {
+    let mut d = restored();
+    running(&mut d, TIER_TASK, BEFORE);
+    assert!(asks_run(look(&mut d, PARTY, after(3601))).is_some());
+    assert_eq!(d.project_facts.get(&PROJECT).unwrap().running.as_ref().unwrap().task, None);
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "this boundary test validates the fitted report as UTF-8")]
+fn a_report_splits_into_sentence_and_lede() {
+    for (report, sentence, lede) in [
+        (
+            b"  A paragraph.\nStill the first.\n\n More details. \n".as_slice(),
+            b"A paragraph.\nStill the first.".as_slice(),
+            b"More details.".as_slice(),
+        ),
+        (b"Sentence only".as_slice(), b"Sentence only".as_slice(), b"".as_slice()),
+        (b"Sentence.\r\n\r\n LeDe. \r\n".as_slice(), b"Sentence.".as_slice(), b"LeDe.".as_slice()),
+        (b"Sentence.\n \t\n LeDe. ".as_slice(), b"Sentence.".as_slice(), b"LeDe.".as_slice()),
+    ] {
+        let mut d = restored();
+        running(&mut d, TIER_TASK, BEFORE);
+        // A landing made while the agent runs belongs to a later brief.
+        d.project_facts.get_mut(&PROJECT).unwrap().landed = 4;
+        let out = status_heard(&mut d, TIER_TASK, Some(report));
+        let row = d.project_facts.get(&PROJECT).unwrap();
+        assert_eq!(row.brief, Some(Brief { sentence: sentence.into(), lede: lede.into(), at: env().wall, landed: 3 }));
+        assert_eq!(row.running, None);
+        assert!(out.contains(&marked()));
+        assert!(out.contains(&Request::Save {
+            record: Stored::ProjectFacts(row.clone()),
+            release: None,
+            read_afresh: None
+        }));
+    }
+    let mut d = restored();
+    running(&mut d, TIER_TASK, BEFORE);
+    let sentence = "é".repeat(BRIEF_SENTENCE_BYTES);
+    let lede = "界".repeat(BRIEF_LEDE_BYTES);
+    let mut report = skein_lib::Writer::new(sentence.len().checked_add(2).unwrap().checked_add(lede.len()).unwrap());
+    report.put(sentence.as_bytes()).unwrap();
+    report.put(b"\n\n").unwrap();
+    report.put(lede.as_bytes()).unwrap();
+    status_heard(&mut d, TIER_TASK, Some(&report.finish()));
+    let saved = d.project_facts.get(&PROJECT).unwrap().brief.as_ref().unwrap();
+    assert_eq!(saved.sentence, text::fit(sentence.as_bytes(), BRIEF_SENTENCE_BYTES, b"..."));
+    assert_eq!(saved.lede, text::fit(lede.as_bytes(), BRIEF_LEDE_BYTES, b"..."));
+    assert!(saved.sentence.len() <= BRIEF_SENTENCE_BYTES);
+    assert!(saved.lede.len() <= BRIEF_LEDE_BYTES);
+    core::str::from_utf8(&saved.sentence).expect("sentence is UTF-8");
+    core::str::from_utf8(&saved.lede).expect("lede is UTF-8");
+}
+#[test]
+fn an_empty_report_saves_nothing() {
+    for report in [b"".as_slice(), b" \n\t\n ".as_slice(), b" \n\nNo first paragraph".as_slice()] {
+        let mut d = restored();
+        running(&mut d, TIER_TASK, BEFORE);
+        let out = status_heard(&mut d, TIER_TASK, Some(report));
+        assert_eq!(d.project_facts.get(&PROJECT).unwrap().brief, None);
+        assert_eq!(d.project_facts.get(&PROJECT).unwrap().running, None);
+        assert_eq!(out.len(), 1, "only save the cleared run");
+    }
+}
+#[test]
+fn a_failed_run_saves_nothing_and_asks_nobody() {
+    let mut d = restored();
+    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 2));
+    running(&mut d, TIER_TASK, BEFORE);
+    let out = status_heard(&mut d, TIER_TASK, None);
+    assert_eq!(d.project_facts.get(&PROJECT).unwrap().brief, Some(brief(BEFORE, 2)));
+    assert_eq!(d.project_facts.get(&PROJECT).unwrap().running, None);
+    assert_eq!(out.len(), 1);
+    running(&mut d, TIER_TASK, BEFORE);
+    let out = outputs(&mut d, Event::StatusRefused { project: PROJECT });
+    assert_eq!(d.project_facts.get(&PROJECT).unwrap().running, None);
+    assert_eq!(out.len(), 1);
+}
+#[test]
+fn a_late_result_is_dropped() {
+    let mut d = restored();
+    running(&mut d, TIER_TASK, BEFORE);
+    look(&mut d, PARTY, after(3601));
+    let expected = d.project_facts.get(&PROJECT).unwrap().clone();
+    assert!(status_heard(&mut d, TIER_TASK, Some(b"Late report")).is_empty());
+    assert_eq!(d.project_facts.get(&PROJECT), Some(&expected));
+}
+#[test]
+fn a_restored_run_is_still_in_flight() {
+    let mut d = restored();
+    let row = ProjectFacts {
+        running: Some(StatusRunning { task: Some(TIER_TASK), landed: 3, since: BEFORE }),
+        ..facts(PROJECT, 3)
+    };
+    restore(&mut d, &env(), Stored::ProjectFacts(row));
+    assert!(asks_run(look(&mut d, PARTY, after(1800))).is_none());
+    status_heard(&mut d, TIER_TASK, Some(b"Restored report"));
+    assert_eq!(view(&d, PARTY).brief.unwrap().sentence.as_ref(), b"Restored report");
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "this boundary test reads the status specification as UTF-8")]
+fn its_words_say_what_landed_since_the_brief() {
+    let mut d = restored();
+    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 1));
+    let mut landings = List::with_capacity(24);
+    for n in 0_u8..24 {
+        let mut title = skein_lib::Writer::new(8);
+        title.put(b"Title ").unwrap();
+        if n < 10 {
+            title.put(b"0").unwrap();
+        }
+        title.put(skein_lib::Decimal::of(u64::from(n)).as_bytes()).unwrap();
+        landings
+            .push(LoggedLanding {
+                commit: [n; 32],
+                branch: b"main".as_slice().into(),
+                at: after(u64::from(n)),
+                changes: Box::new([LoggedChange { task: u64::from(n), pull: None, title: title.finish() }]),
+            })
+            .unwrap();
+    }
+    let landings = landings.into_boxed();
+    let mut restore_env = env();
+    restore_env.limits.landings_kept = 24;
+    restore(&mut d, &restore_env, Stored::LandingLog(LandingLog { repository: REPO, landings }));
+    assert_eq!(d.restore_fit_failure(), None);
+    tier_run(&mut d, TIER, 1, &[FIRST]);
+    let mut failing = List::with_capacity(7);
+    for number in 0_u64..7 {
+        let mut name = skein_lib::Writer::new(9);
+        name.put(b"failing-").unwrap();
+        name.put(skein_lib::Decimal::of(number).as_bytes()).unwrap();
+        failing.push(name.finish()).unwrap();
+    }
+    d.tiers.get_mut(&(REPO, Box::from(TIER))).unwrap().record.failing = policy::Failures::Tests(failing.into_boxed());
+    tier_run(&mut d, b"many", 1, &[FIRST]);
+    d.tiers.get_mut(&(REPO, Box::from(b"many".as_slice()))).unwrap().record.failing = policy::Failures::Many;
+    let words = asks_run(look(&mut d, PARTY, after(7200))).unwrap();
+    let words = core::str::from_utf8(&words).unwrap();
+    assert!(words.contains("2 hours; 2 changes landed"), "{words}");
+    let mut titles = List::with_capacity(24);
+    for line in words.lines() {
+        if line.starts_with("- ") {
+            titles.push(line).unwrap();
+        }
+    }
+    let titles = titles.as_slice();
+    assert_eq!(titles.len(), 20);
+    assert_eq!(titles.first().copied(), Some("- Title 23"));
+    assert_eq!(titles.last().copied(), Some("- Title 04"));
+    assert!(!words.contains("Title 00"));
+    assert!(words.contains("Tier browser: 7 failing tests; failing-0; failing-1; failing-2; failing-3; failing-4"));
+    assert!(!words.contains("failing-5"));
+    assert!(words.contains("Tier many: many failing tests"));
 }

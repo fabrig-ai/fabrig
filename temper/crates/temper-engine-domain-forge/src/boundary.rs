@@ -1306,6 +1306,17 @@ pub enum Event {
         task: u64,
         words: Box<[u8]>,
     },
+    StatusTask {
+        project: u32,
+        task: u64,
+    },
+    StatusRefused {
+        project: u32,
+    },
+    StatusHeard {
+        task: u64,
+        report: Option<Box<[u8]>>,
+    },
     TierTask {
         repository: skein_forge::api::Repository,
         tier: Box<[u8]>,
@@ -1773,6 +1784,11 @@ pub enum Request {
         act: [u8; 16],
         adoption: Adoption,
         repository: skein_forge::api::Repository,
+    },
+    /// Make Home's brief task (temper/docs/design/domain/forge.md, 5.7).
+    StatusRun {
+        project: u32,
+        words: Box<[u8]>,
     },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
     TierRun {

@@ -89,6 +89,9 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::FirstFailed { .. }
             | forge::Event::Connection { .. }
             | forge::Event::Fetched { .. }
+            | forge::Event::StatusTask { .. }
+            | forge::Event::StatusRefused { .. }
+            | forge::Event::StatusHeard { .. }
             | forge::Event::Looked { .. }
             | forge::Event::Dismiss { .. }
             | forge::Event::Application { .. }

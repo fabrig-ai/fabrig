@@ -1164,6 +1164,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
     }
     match event {
         Event::TierWords { task, words } => crate::tiers::words::projected(d, task, &words, out),
+        Event::StatusTask { project, task } => crate::status::task(d, project, Some(task), out),
+        Event::StatusRefused { project } => crate::status::task(d, project, None, out),
+        Event::StatusHeard { task, report } => crate::status::heard(d, env.wall, task, report, out),
         Event::TierTask { repository, tier, number, task } => {
             crate::tiers::task(d, repository, tier, number, Some(task), out);
         }

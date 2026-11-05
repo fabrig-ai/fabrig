@@ -1,8 +1,10 @@
-//! Project landings and a party's sittings (temper/docs/design/domain/forge.md, 5.6).
+//! Project landings, sittings and briefs (temper/docs/design/domain/forge.md, 5.6, 5.7).
 use crate::{Answered, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;
 use skein_lib::{Duration, Env, List, Queue, Token, Wall};
+
+mod words;
 
 /// A new sitting past this (temper/docs/design/domain/forge.md, 5.6).
 pub const SITTING: Duration = Duration::from_secs(1800);
@@ -99,11 +101,13 @@ pub(crate) fn looked(
         None => 0,
     };
     let now = env.wall;
+    let mut sitting = false;
     let mut row = match d.looked.remove(&key) {
         Some(mut row) => {
             if let Some(age) = now.as_nanos().checked_sub(row.latest.as_nanos())
                 && age >= SITTING.as_nanos()
             {
+                sitting = true;
                 row.previous = Some(row.latest);
                 row.seen = row.next_seen;
             }
@@ -116,6 +120,9 @@ pub(crate) fn looked(
     out.push(Request::Save { record: Stored::Looked(row.clone()), release: None, read_afresh: None });
     out.push(Request::Marked { tasks: Box::new([status_subject(project)]) });
     d.looked.insert(key, row).expect("looked room checked");
+    if sitting {
+        ask_run(d, env, project, out);
+    }
     d.connect.answer(request, token, Answered::Looked(LookedAnswer::Looked), out);
 }
 
@@ -176,5 +183,109 @@ impl Domain {
             }
         }
         Some(view)
+    }
+}
+
+// A brief and a stuck run each get an hour (temper/docs/design/domain/forge.md, 5.7).
+const HOUR: Duration = Duration::from_secs(3600);
+
+fn old(now: Wall, then: Wall) -> bool {
+    match now.as_nanos().checked_sub(then.as_nanos()) {
+        Some(age) => age > HOUR.as_nanos(),
+        None => false,
+    }
+}
+fn save(row: &ProjectFacts, out: &mut Queue<Request>) {
+    out.push(Request::Save { record: Stored::ProjectFacts(row.clone()), release: None, read_afresh: None });
+}
+fn ask_run(d: &mut Domain, env: &Env<Limits>, project: u32, out: &mut Queue<Request>) {
+    let Some(row) = d.project_facts.get(&project) else { return };
+    let covered = match &row.brief {
+        Some(brief) => brief.landed,
+        None => 0,
+    };
+    if row.landed <= covered {
+        return;
+    }
+    if let Some(brief) = &row.brief
+        && !old(env.wall, brief.at)
+    {
+        return;
+    }
+    if let Some(running) = &row.running
+        && !old(env.wall, running.since)
+    {
+        return;
+    }
+    let words = words::specification(d, row, env.wall);
+    let row = d.project_facts.get_mut(&project).expect("held facts");
+    row.running = Some(StatusRunning { task: None, landed: row.landed, since: env.wall });
+    save(row, out);
+    out.push(Request::StatusRun { project, words });
+}
+
+pub(crate) fn task(d: &mut Domain, project: u32, task: Option<u64>, out: &mut Queue<Request>) {
+    let Some(row) = d.project_facts.get_mut(&project) else { return };
+    let Some(running) = &mut row.running else { return };
+    match task {
+        Some(task) => running.task = Some(task),
+        None => row.running = None,
+    }
+    save(row, out);
+}
+
+pub(crate) fn heard(d: &mut Domain, now: Wall, task: u64, report: Option<Box<[u8]>>, out: &mut Queue<Request>) {
+    if let Some(project) = d.status_project(task) {
+        let row = d.project_facts.get_mut(&project).expect("named status project");
+        let running = row.running.as_ref().expect("named run");
+        if let Some(report) = &report {
+            let (sentence, lede) = status_paragraphs(report);
+            if !sentence.is_empty() {
+                row.brief = Some(Brief {
+                    sentence: crate::text::fit(sentence, BRIEF_SENTENCE_BYTES, b"..."),
+                    lede: crate::text::fit(lede, BRIEF_LEDE_BYTES, b"..."),
+                    at: now,
+                    landed: running.landed,
+                });
+                out.push(Request::Marked { tasks: Box::new([status_subject(row.project)]) });
+            }
+        }
+        row.running = None;
+        save(row, out);
+    }
+}
+
+/// The first paragraph and remaining words of a status report (temper/docs/design/domain/forge.md, 5.7).
+#[must_use]
+pub fn status_paragraphs(words: &[u8]) -> (&[u8], &[u8]) {
+    let mut from = 0;
+    for (at, byte) in words.iter().enumerate() {
+        if *byte != b'\n' {
+            continue;
+        }
+        let after = at.checked_add(1).expect("bounded paragraph cursor");
+        if words.get(from..at).expect("report line").trim_ascii().is_empty() {
+            return (
+                words.get(..from).expect("first paragraph").trim_ascii(),
+                words.get(after..).expect("remaining paragraphs").trim_ascii(),
+            );
+        }
+        from = after;
+    }
+    (words.trim_ascii(), b"")
+}
+
+impl Domain {
+    /// The project whose current status run names this task (temper/docs/design/domain/forge.md, 5.7).
+    #[must_use]
+    pub fn status_project(&self, task: u64) -> Option<u32> {
+        for (project, row) in &self.project_facts {
+            if let Some(running) = &row.running
+                && running.task == Some(task)
+            {
+                return Some(*project);
+            }
+        }
+        None
     }
 }
