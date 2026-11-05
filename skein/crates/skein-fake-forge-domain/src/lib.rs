@@ -78,7 +78,7 @@ pub use domain::{Config, Domain, Metadata, Room, Skew, Tally, fire, step, step_a
 pub use faults::{Rate, RateDenied, RateKey, rate};
 pub use git::{Object, Signature, Tree};
 pub use limits::{Limits, valid};
-pub use object::object_bytes;
+pub use object::{commit_bytes, commit_count, object_bytes};
 pub use observe::{Branches, Observation, Operation};
 pub use scenario::{
     advance, check, commit, commit_tree, grant, merge_commit, repository, set_failing, set_reachable, set_refusing,

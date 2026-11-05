@@ -8,8 +8,8 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as fake, api as a};
 use skein_forge::{
-    forgejo::document::Body as Text,
     github::{document as d, request::Method},
+    text::Body as Text,
 };
 use skein_json::Token;
 use skein_lib::{ReplyTo, Wall, bytes};
@@ -31,7 +31,7 @@ pub(crate) fn route(method: Method, target: &[u8]) -> Option<Route> {
     }
     let tail = target.strip_prefix(b"/repos/")?;
     let at = bytes::find(tail, b"/issues/comments/")?;
-    let id = skein_forge::forgejo::id::unsigned(tail.get(at.checked_add(17)?..)?)?;
+    let id = bytes::decimal(tail.get(at.checked_add(17)?..)?)?;
     Some(Route { repository: bytes::copy_of(tail.get(..at)?), id })
 }
 pub(crate) fn call(service: &Service, route: Route, access: Access, body: &[u8], reply_to: ReplyTo) -> Outcome {

@@ -83,7 +83,7 @@ fn a_token_read_is_admitted_then_called() {
     let wire = get(&mut forge, b"/repos/acme/widgets/branches/main", auth.expose());
     assert!(wire.starts_with(b"HTTP/1.1 200 "), "branch response");
     assert_eq!(header(&wire, b"X-RateLimit-Used"), Some(b"1".as_slice()));
-    let commit = skein_forge::forgejo::id::write(&skein_fake_forge_protocol::routes::object(1));
+    let commit = github::id::write_commit(&domain::commit_bytes(1)).expect("padded SHA-1");
     assert!(bytes::find(&wire, &commit).is_some(), "domain commit in body");
 }
 #[test]
@@ -164,7 +164,7 @@ fn an_ambiguous_update_answers_the_stale_refusal() {
 fn a_hooked_pass_releases_due_hooks_ahead_of_its_call() {
     let (mut forge, auth) = token(9);
     assert!(forge.service.installations_mut().take_event().is_some(), "installation setup event");
-    let sha = skein_forge::forgejo::id::write(&skein_fake_forge_protocol::routes::object(1));
+    let sha = github::id::write_commit(&domain::commit_bytes(1)).expect("padded SHA-1");
     let body = f::parts(&[br#"{"ref":"refs/heads/feature","sha":""#, &sha, br#""}"#]);
     let wire = request(b"POST", b"/repos/acme/widgets/git/refs", auth.expose(), &body);
     assert!(forge.serve(&wire, wall(1199)).starts_with(b"HTTP/1.1 201 "), "branch created");
