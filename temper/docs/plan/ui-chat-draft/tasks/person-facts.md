@@ -89,3 +89,12 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/person-facts/foreman-1)
+
+resolve both document conflicts, preserving the new `at` design and the eightfold bound.
+The merge conflicts with integration commit `d9fa8d0a036610acceb43d4621f9ee669463ed55` (“ui-chat-draft: the client's batch”).
+In `temper/docs/design/domain/forge.status.md`, remove only the completed 5.5 gap for `PersonFact`, `GoalFrom` and its bound; retain integration's separate `5.5: GoalFrom's at` gap.
+In `temper/docs/design/protocol/store.md`, section 2, combine both edits to family 34: keep integration's `GoalFrom { project, chat, goal, at }` and this branch's bound of `8 times` the forge's `bindings` times `judge_projects`.
+Preserve integration's key-order description ending “the project, the chat, the goal and when.”
+Keep the remaining document content unchanged. The `at` implementation remains a recorded gap; this rebase needs no schema or code extension.
