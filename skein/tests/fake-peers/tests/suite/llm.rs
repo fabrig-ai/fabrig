@@ -831,3 +831,22 @@ fn an_llm_peer_answers_on_its_adopted_listener() {
         sim.assert_no_open_fds(pid);
     }
 }
+
+#[test]
+fn a_kept_body_is_what_the_peer_read_after_inflating() {
+    const BODY: &[u8] =
+        br#"{"model":"test-model","input":[{"role":"user","content":[{"type":"input_text","text":"hi"}]}]}"#;
+    for gzip in [false, true] {
+        let endpoint = Endpoint::openai();
+        let mut peer = make(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)), Transport::Plaintext).unwrap().keeping_bodies();
+        let mut encoded = vec![0; skein_http::gzip::bound(BODY.len()).unwrap()];
+        let length = skein_http::gzip::encode(BODY, &mut encoded).unwrap();
+        let (fields, body) = if gzip {
+            (b"authorization: Bearer secret-test-token\r\ncontent-encoding: gzip\r\n".as_slice(), &encoded[..length])
+        } else {
+            (b"authorization: Bearer secret-test-token\r\n".as_slice(), BODY)
+        };
+        send_request(&mut peer, &endpoint, fields, body);
+        assert_eq!(peer.bodies(), &[Box::<[u8]>::from(BODY)]);
+    }
+}

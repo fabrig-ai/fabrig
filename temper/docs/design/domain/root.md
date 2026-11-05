@@ -147,9 +147,11 @@ with the worker's (`../protocol/README.md`, section 8).
   sections 4 and 5): the assignment's `ForgeWorkspace` down; up, beside
   an answer, `Parts`: the heads the run pushed, the repositories it
   saved, a permanent failure to prepare one.
-- **Facts,** which decide nothing: the root's one, a failed preparation
-  (`Fact::PreparationFailed`, section 7.4), at most 32 waiting to be
-  drained, the rest counted as lost; and the children's own.
+- **Facts,** which decide nothing: the root's, among them a failed
+  preparation (`Fact::PreparationFailed`, section 7.4) and a brief's read
+  refused and a brief failed (`Fact::BriefReadRefused`, `Fact::BriefFailed`;
+  forge.md, 8.4), at most 32 waiting to be drained, the rest counted as
+  lost; and the children's own.
 - **Tools.** The root's `Tool` is a host call in typed form, as the
   protocol layer decodes it (`../protocol/llm.md`, section 4): jig's
   operations on tasks, notes, the forge's reads, effects and topics, and
@@ -758,8 +760,9 @@ preparing, held until its claim commits:
   merged in for a semantic repair. A repair also has a required reason
   section: CI's failures, with the failed step and its output's end, for
   a CI or semantic repair; reviews' remarks for a gate's repair; the
-  forge's reason for a merge-queue ejection. Each kind has its budget
-  (`ci`, `reviews`, `pull`).
+  forge's reason for a merge-queue ejection. A read of one of a repair's
+  two that fails becomes words in its place, the other standing for it
+  (forge.md, 8.4). Each kind has its budget (`ci`, `reviews`, `pull`).
 - **For a task holding no run branch in its project's adopted home**
   (forge.md, section 11), one section, required: why its runs read the
   home without pushing, bounded by its words.
@@ -774,10 +777,10 @@ preparing, held until its claim commits:
   takes it once the brief is complete. A read refused at the forge
   client's admission (`Busy`) is retained and retried after the client
   reclaims, within the gather's deadline. A read sent but unanswered
-  at that deadline leaves its required section late: the brief is not
-  ready, the task goes back to Due after preparation's backoff, and no
-  attempt is spent. A section whose bytes the forge no longer has sends
-  the brief back, as a missing one does.
+  at that deadline leaves its required section late: the brief fails,
+  counting as transient, and no attempt is spent. A section whose bytes
+  the forge no longer has fails the brief too, counting as permanent
+  (jig's `domain/engine.md`, 9.1).
 
 Required forge sections take room from optional core sections alone, never
 from a charter's document sections. The small root's eight section slots

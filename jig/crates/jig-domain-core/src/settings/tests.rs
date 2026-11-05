@@ -6,19 +6,6 @@ use crate::{
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Time};
 
-#[test]
-fn history_copy_orders_held_and_history_with_the_revision_number() {
-    for number in [0, 7, u32::MAX] {
-        assert_eq!(
-            history_copy(number),
-            (
-                crate::Key::Core(crate::CoreKey::Settings(Key::Held(number))),
-                crate::Key::Core(crate::CoreKey::Settings(Key::History(number))),
-            ),
-        );
-    }
-}
-
 fn template() -> Template {
     Template {
         resources: Box::new([]),
@@ -867,7 +854,7 @@ fn remap_template_choices_follow_model_and_effort_names_and_mark_departures() {
             subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
         });
         let mut value = Value::Template(Box::new(template));
-        remap(&mut value, &kept, &names);
+        remap(&mut value, &moves(&kept, &names), &kept, &names);
         let Value::Template(template) = value else { panic!("template") };
         let choice = template.llm.unwrap();
         assert_eq!(choice.main, expected);
@@ -885,7 +872,7 @@ fn remap_named_masks_follow_names_and_drop_departures_while_all_stays() {
         let mut rules = config(1).defaults.rules;
         rules.ceiling.models = before;
         let mut value = Value::Rules(Box::new(rules));
-        remap(&mut value, &kept, &names);
+        remap(&mut value, &moves(&kept, &names), &kept, &names);
         let Value::Rules(rules) = value else { panic!("rules") };
         assert_eq!(rules.ceiling.models, after);
     }
