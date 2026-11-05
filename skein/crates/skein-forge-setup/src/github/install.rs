@@ -1,12 +1,11 @@
 //! The App's install link, with host-issued authority (forge-setup.md, 5.4 and 5.7).
 use super::{
-    app,
     given::{self, Given, Refused},
     manifest,
 };
 use crate::{
     item::{self, Item},
-    reconcile::{Event, Need, Outcome, Stage, Why},
+    plan::{self, Event, Need, Outcome, Stage, Why},
 };
 use alloc::boxed::Box;
 use skein_forge::github as dialect;
@@ -46,7 +45,7 @@ pub fn step(machine: &mut Install, event: Event, out: &mut Queue<Need>) {
                 Need::Read(Item::AppSlug)
             }
             Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                app::stop(inputs.given.forge, Stage::App, b"slug", Why::Unexpected)
+                plan::stop(inputs.given.forge, Stage::App, b"slug", Why::Unexpected)
             }
         },
         Phase::Slug(inputs) => match event {
@@ -63,13 +62,13 @@ pub fn step(machine: &mut Install, event: Event, out: &mut Queue<Need>) {
                         inputs.given.limits.page_bytes,
                     ) {
                         Some(url) => Need::Done(Outcome::Install { state: inputs.state, url }),
-                        None => app::stop(inputs.given.forge, Stage::App, b"install", Why::Unexpected),
+                        None => plan::stop(inputs.given.forge, Stage::App, b"install", Why::Unexpected),
                     },
-                    None => app::stop(inputs.given.forge, Stage::App, b"slug", Why::Missing),
+                    None => plan::stop(inputs.given.forge, Stage::App, b"slug", Why::Missing),
                 }
             }
             Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                app::stop(inputs.given.forge, Stage::App, b"slug", Why::Unexpected)
+                plan::stop(inputs.given.forge, Stage::App, b"slug", Why::Unexpected)
             }
         },
         Phase::Ended => return,

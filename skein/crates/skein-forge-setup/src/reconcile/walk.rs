@@ -1,5 +1,6 @@
 //! Adopted repositories walked in the order given (forge-setup.md, 4.3, step 6).
-use super::{Event, Need, Reconcile, Stage, State};
+use super::{Reconcile, State};
+use crate::plan::{Event, Need, Stage};
 use crate::{
     access::{Access, Fail, Move},
     given::Given,

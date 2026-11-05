@@ -1,7 +1,8 @@
 //! The two token files are checked before the bot's id (forge-setup.md, 4.3).
-use super::{Event, Need, Reconcile, Reply, State, Why};
+use super::{Reconcile, State};
 use crate::call::Auth;
 use crate::item::Item;
+use crate::plan::{Event, Need, Reply, Why};
 use alloc::boxed::Box;
 use skein_forge::forgejo::{
     document::{Document, Row},
@@ -238,16 +239,7 @@ pub(super) fn advance(machine: &mut Reconcile, event: Event) -> Need {
     let mut tokens = machine.tokens.take().expect("token phase owns its walk");
     let need = match tokens.event(machine, event) {
         Ok(need) => need,
-        Err(why) => {
-            let mut failure = machine.stop(super::Stage::Token, why);
-            match &mut failure {
-                Need::Stop(f) => f.subject = bytes::copy_of(tokens.name()),
-                Need::Send { .. } | Need::Read(_) | Need::Write { .. } | Need::Draw(_) | Need::Done(_) => {
-                    unreachable!("stop")
-                }
-            }
-            failure
-        }
+        Err(why) => machine.stop_named(crate::plan::Stage::Token, tokens.name(), why),
     };
     machine.tokens = Some(tokens);
     need

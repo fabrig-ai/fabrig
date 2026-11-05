@@ -5,7 +5,8 @@ use crate::{
     given::{self, Given, Refused},
     host::File,
     item::Item,
-    reconcile::{self, Event, Failure, Need, Outcome, Reply, Stage, Why, reply, unexpected},
+    plan::{self, Event, Need, Outcome, Reply, Stage, Why},
+    reconcile::{self, reply, unexpected},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -143,7 +144,7 @@ impl Create {
         self.state = State::Ended;
         self.admin = None;
         self.shared.secret = None;
-        Need::Stop(Failure { forge: self.forge, step, subject, why })
+        plan::stop(self.forge, step, &subject, why)
     }
     fn send(&self, request: Request) -> Need {
         Need::Send { request: request.into(), auth: Auth::Token(self.admin.clone().expect("admin before writes")) }

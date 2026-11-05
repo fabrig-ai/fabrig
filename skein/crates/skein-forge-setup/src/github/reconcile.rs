@@ -1,6 +1,6 @@
 //! Prove the kept App, repair its hook and sweep installations (forge-setup.md, 5.6).
 use super::{
-    app::{self, Kept},
+    app::Kept,
     checks::{self, Lacking},
     given::{self, Given, Refused},
     hook::{self, Hook},
@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     item::{self, Item},
-    reconcile::{self, Event, Need, Outcome, Reply, Stage, Why},
+    plan::{self, Event, Need, Outcome, Reply, Stage, Why, reply},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -52,7 +52,7 @@ impl Reconcile {
         Ok(Self { given: given.clone(), wall, state: State::Begin })
     }
     fn stop(&self, subject: &[u8], why: Why) -> Need {
-        app::stop(self.given.forge, Stage::App, subject, why)
+        plan::stop(self.given.forge, Stage::App, subject, why)
     }
     fn hook(&mut self, mut child: Hook, checked: Checked, event: Event) -> Need {
         let mut out = Queue::uncapped();
@@ -164,7 +164,7 @@ impl Reconcile {
     }
 }
 fn document(event: Event) -> Result<App, Why> {
-    match reconcile::reply(event)? {
+    match reply(event)? {
         Reply::GithubDocument(Document::App(app)) => Ok(app),
         Reply::Unsigned => Err(Why::KeyForm),
         Reply::Status(status) => Err(Why::Refused(status)),
@@ -201,7 +201,7 @@ pub(crate) fn halt(machine: &mut Reconcile, why: Why, out: &mut Queue<Need>) {
         State::Accepted(_) => machine.stop(b"accepted", why),
         State::App { kept, .. } => machine.stop(Decimal::of(kept.id()).as_bytes(), why),
         State::Hook { checked, .. } => machine.stop(&checked.slug, why),
-        State::Sweep { .. } => app::stop(machine.given.forge, Stage::Installation, b"installations", why),
+        State::Sweep { .. } => plan::stop(machine.given.forge, Stage::Installation, b"installations", why),
         State::Ended => return,
     };
     out.push(need);

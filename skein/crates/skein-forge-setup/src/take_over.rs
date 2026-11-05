@@ -1,9 +1,10 @@
 //! Takes over an owned Forgejo's handed admin token (forge-setup.md, 4.7).
-use crate::call::Auth;
 use crate::{
+    call::Auth,
     given::{self, Given, Refused},
     item::Item,
-    reconcile::{self, Event, Failure, Need, Outcome, Reply, Stage, Why, reply, unexpected},
+    plan::{self, Event, Need, Outcome, Reply, Stage, Why},
+    reconcile::{self, reply, unexpected},
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::{
@@ -63,7 +64,7 @@ impl TakeOver {
     fn stop(&mut self, step: Stage, why: Why) -> Need {
         self.state = State::Ended;
         self.taken = None;
-        Need::Stop(Failure { forge: self.forge, step, subject: self.admin_name.clone(), why })
+        plan::stop(self.forge, step, &self.admin_name, why)
     }
 
     fn done(&mut self) -> Need {

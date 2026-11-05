@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     item::{self, Item},
-    reconcile::{Event, Need, Outcome, Reply, Stage, Why},
+    plan::{self, Event, Need, Outcome, Reply, Stage, Why},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -43,7 +43,7 @@ impl Accept {
         })
     }
     fn stop(&self, why: Why) -> Need {
-        app::stop(self.forge, Stage::Installation, Decimal::of(self.installation.get()).as_bytes(), why)
+        plan::stop(self.forge, Stage::Installation, Decimal::of(self.installation.get()).as_bytes(), why)
     }
     fn verified(&mut self, ids: &[u64]) -> Need {
         let id = self.installation.get();
@@ -76,7 +76,7 @@ impl Accept {
                     Need::Read(Item::AppId)
                 }
                 Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    app::stop(self.forge, Stage::App, b"id", Why::Unexpected)
+                    plan::stop(self.forge, Stage::App, b"id", Why::Unexpected)
                 }
             },
             Phase::Id => match event {
@@ -85,10 +85,10 @@ impl Accept {
                         self.phase = Phase::Key(id);
                         Need::Read(Item::AppKey)
                     }
-                    None => app::stop(self.forge, Stage::App, b"id", Why::Missing),
+                    None => plan::stop(self.forge, Stage::App, b"id", Why::Missing),
                 },
                 Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    app::stop(self.forge, Stage::App, b"id", Why::Unexpected)
+                    plan::stop(self.forge, Stage::App, b"id", Why::Unexpected)
                 }
             },
             Phase::Key(id) => match event {
@@ -96,9 +96,9 @@ impl Accept {
                     self.phase = Phase::Accepted(app::Kept::new(id, key));
                     Need::Read(Item::Accepted)
                 }
-                Event::Read(_) => app::stop(self.forge, Stage::App, b"key", Why::Missing),
+                Event::Read(_) => plan::stop(self.forge, Stage::App, b"key", Why::Missing),
                 Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    app::stop(self.forge, Stage::App, b"key", Why::Unexpected)
+                    plan::stop(self.forge, Stage::App, b"key", Why::Unexpected)
                 }
             },
             Phase::Accepted(app) => match event {
@@ -126,7 +126,7 @@ impl Accept {
                 }
                 Event::Reply(Reply::Status(404)) => self.stop(Why::Missing),
                 Event::Reply(Reply::Status(status)) => self.stop(Why::Refused(status)),
-                Event::Reply(Reply::Unsigned) => app::stop(self.forge, Stage::App, b"key", Why::KeyForm),
+                Event::Reply(Reply::Unsigned) => plan::stop(self.forge, Stage::App, b"key", Why::KeyForm),
                 Event::Reply(Reply::Down) => self.stop(Why::Down),
                 Event::Reply(
                     Reply::Document(_)
