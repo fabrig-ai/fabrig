@@ -16,7 +16,7 @@ fn a_reader_gets_every_target_of_its_environment_that_has_the_task() {
     let cache = fleet.cache(b"carbon-prod");
     let Value::Map(reads) = fleet.root(&cache, b"carbon-prod").expect("root") else { panic!("map") };
     let Some(Value::Map(targets)) = &only(&reads).value else { panic!("targets") };
-    assert_eq!(keys(targets).as_ref(), [b"ion-prod"]);
+    assert_eq!(keys(targets).as_ref(), [b"west-prod"]);
 }
 #[test]
 fn the_reader_itself_is_included_when_it_has_the_task() {
@@ -24,7 +24,7 @@ fn the_reader_itself_is_included_when_it_has_the_task() {
     let cache = fleet.cache(b"carbon-prod");
     let Value::Map(reads) = fleet.root(&cache, b"carbon-prod").expect("root") else { panic!("map") };
     let Some(Value::Map(targets)) = &only(&reads).value else { panic!("targets") };
-    assert_eq!(keys(targets).as_ref(), [b"carbon-prod".as_slice(), b"ion-prod"]);
+    assert_eq!(keys(targets).as_ref(), [b"carbon-prod".as_slice(), b"west-prod"]);
 }
 #[test]
 fn a_task_nobody_has_gives_an_empty_exports_map() {
@@ -42,7 +42,7 @@ fn an_exporters_settings_fault_fails_the_reader_naming_the_exporter() {
     assert_eq!(
         fleet.root(&cache, b"carbon-prod").expect_err("bad settings").kind,
         Kind::Exported(crate::errors::Exported {
-            exporter: copy_of(b"ion-prod"),
+            exporter: copy_of(b"west-prod"),
             task: copy_of(b"vpn"),
             cause: Cause::Schema(Schema::Wrong { expected: TypeName::Int })
         })
@@ -51,12 +51,12 @@ fn an_exporters_settings_fault_fails_the_reader_naming_the_exporter() {
 #[test]
 fn an_exporter_with_a_broken_document_fails_the_reader() {
     let mut fleet = readers(false);
-    fleet.refused(b"hosts/ion/ion-prod.json");
+    fleet.refused(b"hosts/west/west-prod.json");
     let cache = fleet.cache(b"carbon-prod");
     assert_eq!(
         fleet.root(&cache, b"carbon-prod").expect_err("broken document").at,
         Some(crate::errors::Place {
-            path: copy_of(b"hosts/ion/ion-prod.json"),
+            path: copy_of(b"hosts/west/west-prod.json"),
             position: Some(fixtures::composition::at(2, 3))
         })
     );
@@ -78,7 +78,7 @@ fn a_refused_hosts_document_fails_the_reader_with_its_fault() {
 #[test]
 fn an_exporters_other_faults_leave_its_readers_rendering() {
     let mut fleet = readers(false);
-    fleet.faults.push(fixtures::error_at(b"tasks/unrelated/tree/etc/a.j2", 1, 1, b"ion-prod"));
+    fleet.faults.push(fixtures::error_at(b"tasks/unrelated/tree/etc/a.j2", 1, 1, b"west-prod"));
     let cache = fleet.cache(b"carbon-prod");
     let Value::Map(reads) = fleet.root(&cache, b"carbon-prod").expect("unrelated fault") else { panic!("map") };
     assert_eq!(keys(&reads).as_ref(), [b"vpn"]);
@@ -87,7 +87,7 @@ fn an_exporters_other_faults_leave_its_readers_rendering() {
 fn a_pair_is_evaluated_once_for_all_its_readers() {
     let fleet = readers(false);
     let mut cache = fleet.cache(b"carbon-prod");
-    assert_eq!(fleet.prime(&mut cache, b"ion-prod"), 0);
+    assert_eq!(fleet.prime(&mut cache, b"west-prod"), 0);
 }
 #[test]
 fn exports_held_past_their_limit_fail_the_reader_with_an_evaluation_limit() {

@@ -20,7 +20,7 @@ What is open is in section 11.
   it takes its target once as bootstrap would, then converges as any
   standalone machine, fetching through the host's apt-cacher-ng.
 - **`hearth dev` names machines, never containers** (3.4) [M5]: a
-  container has no instance of its own. `hearth dev up rhi-dev` brings
+  container has no instance of its own. `hearth dev up east-dev` brings
   up the machine with the containers `dev` places on it, all of them or
   a selection; `shell` and `diff` reach one with `--container`; `apply`
   sends one revision to the machine and its containers, as they run.
@@ -57,22 +57,22 @@ Exploring is for what the agent does not know yet. Development is one
 activity at different stakes (`hearth/docs/design/draft/archive/factory.md`, section 3): run a
 revision somewhere and watch it, here on one agent's throwaway machine
 with a root it may change. A session, adding DKIM to `mail-dev`, the
-mail stack, which `dev` places as a container on `rhi-dev` as `prod`
-places `mail-prod` on `rhi-prod` (hearth/docs/design/protocol/format.md, 3.1):
+mail stack, which `dev` places as a container on `east-dev` as `prod`
+places `mail-prod` on `east-prod` (hearth/docs/design/protocol/format.md, 3.1):
 
 ```
-hearth dev up rhi-dev --containers mail-dev      rhi-dev's VM, cloned (3.2), running mail-dev alone of its containers (3.4)
-hearth dev shell rhi-dev -c mail-dev             in the container: apt install opendkim; edit /etc/opendkim.conf; systemctl enable opendkim
-hearth dev diff rhi-dev -c mail-dev --suggest --out d
+hearth dev up east-dev --containers mail-dev     east-dev's VM, cloned (3.2), running mail-dev alone of its containers (3.4)
+hearth dev shell east-dev -c mail-dev            in the container: apt install opendkim; edit /etc/opendkim.conf; systemctl enable opendkim
+hearth dev diff east-dev -c mail-dev --suggest --out d
                                                  the capture and its drafts (section 5): about a second
                                                  the drafts move into tasks/mail, the conf as a template
-hearth dev apply rhi-dev                         a packages change in mail-dev (section 6): the container restarted on a new slot,
-                                                 the hand-made changes gone; rhi-dev's own slot untouched
-hearth dev apply rhi-dev                         a template tweak with a reload entry: live inside the container, in seconds
+hearth dev apply east-dev                        a packages change in mail-dev (section 6): the container restarted on a new slot,
+                                                 the hand-made changes gone; east-dev's own slot untouched
+hearth dev apply east-dev                        a template tweak with a reload entry: live inside the container, in seconds
 git commit && git push                           a change, its rendered diff, the lab's gate (section 7)
 ```
 
-`rhi-dev`'s own target is developed with the same commands without
+`east-dev`'s own target is developed with the same commands without
 `-c`, where a packages change is a soft reboot rather than a
 container's restart. Until M5, a target that runs as a container in
 production is developed as a machine of its own (3.4).
@@ -105,12 +105,12 @@ production is developed as a machine of its own (3.4).
    at the working tree's commit (6.1) or at `--at`. A container's
    target is refused, naming the machine it runs on (3.4), and a
    machine's not placed on an EFI VM; both before Incus is touched.
-2. **Copy** `hearth-dev-seed` to `rhi-dev`, a snapshot on the btrfs
+2. **Copy** `hearth-dev-seed` to `east-dev`, a snapshot on the btrfs
    pool, set the instance's keys (8.2), start it, and wait for its agent.
 3. **Push** the commit's bundle (6.2), the secrets, and the hearth
    binary the target's `hearth` task pins (hearth/docs/design/protocol/format.md, 5.12), fetched
    once by its digest.
-4. **Retarget:** `incus exec rhi-dev -- <binary> retarget rhi-dev --revision
+4. **Retarget:** `incus exec east-dev -- <binary> retarget east-dev --revision
    <commit> --bundle <file> --secrets <dir> [--containers <c>,…]`; wait
    for slot `a`, blessed, then [M5] for each container it runs.
 
@@ -120,7 +120,7 @@ configuration accepts mutable targets (4.3) and the placement has the
 machine record's kind and firmware. It runs bootstrap's steps 5 to 7 and
 9 on the machine's own top level (hearth/docs/design/domain/machine.md, 8.2): import the secrets;
 stop the daemon; build the output as `hearth` unless the store holds it;
-place it into `@rhi-dev.a`, the target's identity made anew; give it the
+place it into `@east-dev.a`, the target's identity made anew; give it the
 first bless (hearth/docs/design/domain/slots.md, section 4); write the target, the desired
 revision and [M5] the container selection (3.4); reboot. It writes as
 the release it places, checked as bootstrap checks its own
@@ -130,7 +130,7 @@ seed's slots, entries, ESP files, records and identity (hearth/docs/design/domai
 
 ### 3.3 Several machines, and down
 
-- **`--count <n>`** makes `rhi-dev-1` to `rhi-dev-<n>`, one target
+- **`--count <n>`** makes `east-dev-1` to `east-dev-<n>`, one target
   with its own identity on each: agents in parallel, or replicas.
 - **Several targets make a cluster** [M5]: `hearth dev up stoa-1-dev
   stoa-2-dev stoa-3-dev`, a machine per member (hearth/docs/design/protocol/format.md, 3.6) on one
@@ -153,16 +153,16 @@ seed's slots, entries, ESP files, records and identity (hearth/docs/design/domai
   production. `hosts/mail/mail-dev.json`:
 
   ```json
-  { "placement": { "kind": "container", "on": "rhi-dev", "mutable": true } }
+  { "placement": { "kind": "container", "on": "east-dev", "mutable": true } }
   ```
 
   A placement is replaced whole (hearth/docs/design/protocol/format.md, 3.4), so it names `mutable`
   again, which `envs/dev.json`'s VM placement set. `hearth dev up
   mail-dev` is refused before Incus is touched: `mail-dev is a container
-  on rhi-dev: hearth dev up rhi-dev`. What counts is the placement in
+  on east-dev: hearth dev up east-dev`. What counts is the placement in
   `dev`, so a service `dev` places on a VM of its own is a machine
   there, as before M5 (the last bullet).
-- **A machine comes up with its containers.** `hearth dev up rhi-dev`
+- **A machine comes up with its containers.** `hearth dev up east-dev`
   brings up its VM (3.2), whose hearth then builds and starts every
   container `dev` places on it, as any host's does (hearth/docs/design/protocol/wire.md, 4.7;
   hearth/docs/design/domain/slots.md, section 12). `--containers mail-dev,chat-dev` runs those
@@ -174,7 +174,7 @@ seed's slots, entries, ESP files, records and identity (hearth/docs/design/domai
   removed container's are (hearth/docs/design/domain/slots.md, 12.7), its data kept for the next
   time it runs.
 - **One revision for the machine and its containers** (hearth/docs/design/protocol/wire.md, 4.7),
-  so `apply` names machines too. `hearth dev apply rhi-dev` ships the
+  so `apply` names machines too. `hearth dev apply east-dev` ships the
   working tree; the host's pass converges each container it runs, then
   its own target; the report has a line per target: unchanged, live,
   restarted, rebooted or fell back. A commit that changes the host and
@@ -183,15 +183,15 @@ seed's slots, entries, ESP files, records and identity (hearth/docs/design/domai
   eligible (hearth/docs/design/domain/slots.md, 12.8), else by restarting it on the new slot
   (12.2): seconds, with the host's own slot untouched.
 - **`shell` and `diff` take `--container`** (`-c`): `hearth dev shell
-  rhi-dev -c mail-dev` enters the container (4.4), and `hearth dev diff
-  rhi-dev -c mail-dev` captures it through the host's hearth (5.1).
+  east-dev -c mail-dev` enters the container (4.4), and `hearth dev diff
+  east-dev -c mail-dev` captures it through the host's hearth (5.1).
   Without it they act on the machine's own root. `diff` takes several
   `-c`, or `--all` for the machine and every container it runs, each
   captured apart, its drafts under `<dir>/<target>/` (5.2).
 - **Several at once:** several containers of one machine come up
   together, all or the ones `--containers` names; containers of several
-  machines are those machines named together, `hearth dev up rhi-dev
-  ion-dev`, each machine running the listed containers placed on it; a
+  machines are those machines named together, `hearth dev up east-dev
+  west-dev`, each machine running the listed containers placed on it; a
   machine and one of its containers are one instance, developed
   together as they run. `--count <n>` gives each copy the same
   selection, each container with its own identity per copy.
@@ -247,10 +247,10 @@ fstab, so the line is the sealed twin's and the kernel's rule holds
 
 ### 4.4 Exploring
 
-- **`hearth dev shell rhi-dev`** is `incus exec rhi-dev -- bash -l`,
+- **`hearth dev shell east-dev`** is `incus exec east-dev -- bash -l`,
   root, with `http_proxy` naming the host's apt-cacher-ng, so apt
   fetches through it with nothing written to `/etc`; `hearth dev shell
-  rhi-dev -c mail-dev` [M5] is `incus exec rhi-dev -- machinectl shell
+  east-dev -c mail-dev` [M5] is `incus exec east-dev -- machinectl shell
   mail-dev` (3.4). There the
   agent installs from the slot's own sources, the pinned snapshot's
   (hearth/docs/design/domain/build.md, 5.6), edits `/etc`, fills `/opt`, enables units, adds
@@ -457,13 +457,13 @@ the same loop, its engine in the agent's place.
 output; the domain never sees its text:
 
 ```
-incus copy hearth-dev-seed rhi-dev --project hearth-dev
-incus config set rhi-dev user.hearth.target=rhi-dev user.hearth.commit=<c> --project hearth-dev
-incus start rhi-dev --project hearth-dev
-incus file push --uid 59999 --gid 59999 --mode 0600 <bundle> rhi-dev/run/hearth/<c>.bundle --project hearth-dev
-incus exec rhi-dev --project hearth-dev -- hearth status --json
+incus copy hearth-dev-seed east-dev --project hearth-dev
+incus config set east-dev user.hearth.target=east-dev user.hearth.commit=<c> --project hearth-dev
+incus start east-dev --project hearth-dev
+incus file push --uid 59999 --gid 59999 --mode 0600 <bundle> east-dev/run/hearth/<c>.bundle --project hearth-dev
+incus exec east-dev --project hearth-dev -- hearth status --json
 incus list --format json --project hearth-dev
-incus delete --force rhi-dev --project hearth-dev
+incus delete --force east-dev --project hearth-dev
 ```
 
 `incus list --format json` is decoded strictly, unknown fields skipped

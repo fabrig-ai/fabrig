@@ -142,7 +142,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         line: "Download an owned forge's Forgejo and runner binaries into the cache.",
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
-        notes: "Fetches only the binaries the forge's setup gives as \"fetched\", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent.",
+        notes: "Fetches only the binaries the forge's setup gives as \"fetched\", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
     },
     Row {
         words: &["forge", "prepare"],
@@ -151,7 +151,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         line: "Prepare an owned forge before its Forgejo first runs.",
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
-        notes: "",
+        notes: "A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
     },
     Row {
         words: &["forge", "run"],
@@ -160,7 +160,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         line: "Run an owned forge's Forgejo or its runner.",
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
-        notes: "Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child.",
+        notes: "Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
     },
     Row {
         words: &["forge", "remove"],

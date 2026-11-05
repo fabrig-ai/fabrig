@@ -452,9 +452,9 @@ its sockets tagged as the server's are.
   the page's origin (`location.origin`) at start and gives the view
   both at construction; a page whose origin is not `http` or `https`
   offers no way. Further facts of a
-  signed-out page come as further `temper-` metas made the same way:
-  the forges that sign in through temper, for "to continue to" and the
-  signed-out note (9.3).
+  signed-out page come as further `temper-` metas: the forges that sign
+  in through temper, for "to continue to" and the signed-out note (9.3),
+  made once the forge's records load (9.7).
 - **The signed-out main** (`../client/README.md`, 5.1), in the browser
   with a way: temper's mark, the level-1 heading "Sign in", and a link
   for each way, "Continue with Google" to
@@ -507,7 +507,8 @@ the issuer at start, and draws the authorization's page.
   temper has "Open Forgejo ↗" (`../client/forge.md`, 5.4), to
   Forgejo's own route that starts a sign-in with the temper source,
   `ROOT/user/oauth2/temper`, in a new tab. ROOT is the forge's browser
-  origin: its owned setup's `public` when present, else its `git` URL
+  origin: its owned setup's `public` when present, else its record's
+  `web` when it has one, else its `git` URL
   (`forge.md`, 2.1; `setup.md`, 6.2). Forgejo sends the
   browser to temper's `/oauth/authorize`, temper answers at once, and
   Forgejo opens signed in. No click.
@@ -699,14 +700,26 @@ section 3), and temper's `application.sign_in.forges`:
   client one of the provider's, or the start is refused at its path.
 - **Checked once the forge is known.** A forge is a record in temper's
   store, made at runtime (`forge.md`, 2.1), so the start cannot check
-  it. Once the forge's records load, and when a forge is made, an entry
-  serves only when its forge is a kept Forgejo whose browser origin's
-  `/user/oauth2/temper/callback` is exactly its client's
+  it, and an entry refuses no start, whichever forges are kept. Once
+  the forge's records load, and when a forge is made or removed, an
+  entry serves only when its forge is a kept Forgejo whose browser
+  origin's `/user/oauth2/temper/callback` is exactly its client's
   `redirect_uri`: its owned setup's `public` when present, else its
-  `git` URL (9.1). An entry that does not serve is named once in the
-  log, and its forge has no meta, no "Open Forgejo ↗" and no line on
-  the signed-out page; every other entry serves. Server-to-server API
-  calls keep the record's `api` and transport; git uses `git`.
+  record's `web` when it has one, else its `git` URL (9.1); and when
+  its meta has room within `clients.bundle_bytes`. An entry that does
+  not serve is named once in the log, for that reason, and its forge
+  has no meta, no "Open Forgejo ↗" and no line on the signed-out page;
+  every other entry serves. Server-to-server API calls keep the
+  record's `api` and transport; git uses `git`.
+- **A browser origin apart from `git`,** by `web`: a Forgejo connected
+  as its admin (`setup.md`, 5.5) gives it where temper and its workers
+  reach it at another address than people do, as a Forgejo a host's own
+  units run beside temper is on loopback to temper and on its public
+  name to a browser (`setup.md`, 7.4).
+- **The page follows.** The metas are made anew when an entry's serving
+  changes, and the `ETag` is the page's so made, so a browser's next
+  revalidation takes them. A reply on its way ends with the page it
+  began.
   With a provider and no `sign_in.forges`, nothing of temper's names
   the provider's clients.
 
@@ -724,7 +737,8 @@ section 3), and temper's `application.sign_in.forges`:
   of jig's answers.
 - **Step tests:** `sign_in.forges`' checks, at start and once the
   forge's records load, an entry for a forge not kept, not a Forgejo,
-  or of another origin named and left out; the metas' bytes;
+  of another origin or past the bundle's room named and left out; the
+  metas' bytes;
   `temper forge sign-in`'s printed bytes and the files it makes.
 - **One process-tier story** (`../domain/testing.md`, 2.6): an owned
   Forgejo, the temper source added by the printed command, a scripted

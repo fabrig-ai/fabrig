@@ -54,7 +54,7 @@ pub fn exported_error() -> crate::errors::Error {
     use crate::errors::{Cause, Exported, Kind, Schema, TypeName};
     let mut error = super::modules_guard();
     error.kind = Kind::Exported(Exported {
-        exporter: copy_of(b"ion-prod"),
+        exporter: copy_of(b"west-prod"),
         task: copy_of(b"vpn"),
         cause: Cause::Schema(Schema::Wrong { expected: TypeName::String }),
     });

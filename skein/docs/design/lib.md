@@ -757,3 +757,7 @@ What of this document is not built is in [`lib.status.md`](lib.status.md).
   hand-set token tags onto `Token::tagged`, in its own tree. They wait with
   no debt item to hold them; smith's tags wait on
   `smith/docs/development/debt/D003-host-io-route-table.md`.
+- **The carriers left:** section 6's rule goes crate by crate, each when a
+  draft asks for it; `lib.status.md` names those it has not reached. The
+  stream's records and `Intake` would close the most at once, since every
+  head, body and frame passes through them.
