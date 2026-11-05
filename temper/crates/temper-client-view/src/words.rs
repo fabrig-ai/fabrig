@@ -21,6 +21,8 @@ pub enum Word {
     SettingsAccountsHeading,
     SettingsAccountsLede,
     SettingsAccountsTab,
+    PathAddForge,
+    PathConnectAccount,
     SettingsHowTab,
     SettingsRepositoriesTab,
     SettingsConfigureHelp,
@@ -987,7 +989,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings adds seventeen phrases and thirty-three literal/hole segments (3.5).
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
-const PHRASES: u32 = 1483;
+const PHRASES: u32 = 1485;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1002,8 +1004,8 @@ const PHRASES: u32 = 1483;
 // Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
-const SEGMENTS: u32 = 2580;
-const ALL: [Word; 886] = [
+const SEGMENTS: u32 = 2582;
+const ALL: [Word; 888] = [
     Word::SettingsKicker,
     Word::SettingsHowHeading,
     Word::SettingsHowLede,
@@ -1014,6 +1016,8 @@ const ALL: [Word; 886] = [
     Word::SettingsAccountsHeading,
     Word::SettingsAccountsLede,
     Word::SettingsAccountsTab,
+    Word::PathAddForge,
+    Word::PathConnectAccount,
     Word::SettingsHowTab,
     Word::SettingsRepositoriesTab,
     Word::SettingsConfigureHelp,
@@ -1905,6 +1909,8 @@ impl Word {
             Self::SettingsAccountsHeading => 3350,
             Self::SettingsAccountsLede => 3351,
             Self::SettingsAccountsTab => 3359,
+            Self::PathAddForge => 3360,
+            Self::PathConnectAccount => 3361,
             Self::SettingsHowTab => 3352,
             Self::SettingsRepositoriesTab => 3353,
             Self::SettingsConfigureHelp => 3354,
@@ -3758,6 +3764,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsAccountsHeading => (&[b"What agents run on."], &[]),
         Word::SettingsAccountsLede => (&[b"The LLM accounts temper\xe2\x80\x99s agents run on for you. A task keeps its account: while the account is limited, the task waits for it."], &[]),
         Word::SettingsAccountsTab => (&[b"Accounts"], &[]),
+        Word::PathAddForge => (&[b"Add a forge"], &[]),
+        Word::PathConnectAccount => (&[b"Connect an account"], &[]),
         Word::SettingsHowTab => (&[b"How work runs"], &[]),
         Word::SettingsRepositoriesTab => (&[b"Repositories"], &[]),
         Word::SettingsConfigureHelp => (&[b"Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept."], &[]),

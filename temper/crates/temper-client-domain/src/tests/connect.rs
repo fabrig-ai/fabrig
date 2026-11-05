@@ -979,24 +979,27 @@ fn remove_asks_then_sends_remove_forge() {
     assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::ConfirmRemove)).is_empty());
 }
 #[test]
-fn an_unfinished_forgejo_offers_start_over_which_removes_then_chooses() {
-    let (mut root, _, watch) = opened(true);
-    deliver_first(&mut root, watch, w::Connection::NotSetUp, w::FirstState::Making);
-    let row = connect::unfinished(connect::records(root.forges()), None).unwrap();
-    assert_eq!(connect::unfinished_acts(row).as_slice(), &[connect::UnfinishedAct::StartOver]);
-    let (attempt, _, request) =
-        sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::StartOver { forge: HERE })));
-    let w::Request::RemoveForge(_) = request else { panic!("remove") };
-    let out = reply(&mut root, attempt, w::Outcome::Removed);
-    let mut chose = false;
-    for request in &out {
-        if let Request::Leave { to, .. } = request
-            && to.as_ref() == b"/welcome?at=forge"
-        {
-            chose = true;
+fn a_removed_start_over_leaves_for_its_end() {
+    for (end, to) in [
+        (forges::StartOverEnd::Welcome, b"/welcome?at=forge".as_slice()),
+        (forges::StartOverEnd::Forges, b"/forges".as_slice()),
+    ] {
+        let (mut root, _, watch) = opened(true);
+        deliver_first(&mut root, watch, w::Connection::NotSetUp, w::FirstState::Making);
+        let row = connect::unfinished(connect::records(root.forges()), None).unwrap();
+        assert_eq!(connect::unfinished_acts(row).as_slice(), &[connect::UnfinishedAct::StartOver]);
+        let (attempt, _, request) =
+            sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::StartOver { forge: HERE, end })));
+        let w::Request::RemoveForge(_) = request else { panic!("remove") };
+        let out = reply(&mut root, attempt, w::Outcome::Removed);
+        let mut leaves = List::with_capacity(1);
+        for request in &out {
+            if let Request::Leave { to, .. } = request {
+                leaves.push(to.as_ref()).expect("one leave after removal");
+            }
         }
+        assert_eq!(leaves.as_slice(), &[to], "{end:?}");
     }
-    assert!(chose);
 }
 
 #[test]

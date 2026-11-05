@@ -161,7 +161,7 @@ fn each_style_or_region_is_named_under_temper() {
         (STATUS_DONE, b"temper-status-done"),
         (CHOICE, b"temper-choice"),
         (ACCOUNTS_PAGE, b"temper-accounts-page"),
-        (ADOPTION_PAGE, b"temper-adoption-page"),
+        (SETTINGS_COL, b"temper-settings-col"),
         (INVITATION, b"temper-invitation"),
         (REFUSAL, b"temper-refusal"),
         (STEPS, b"temper-steps"),
@@ -214,7 +214,7 @@ fn each_pages_main_carries_the_main_token() {
     let view = fixtures::page_view(&fixtures::account_root().0);
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, SETTINGS])]);
     let view = fixtures::page_view(&fixtures::adoption_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, SETTINGS])]);
     let view = fixtures::page_view(&fixtures::chat::chat_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, CHAT])]);
 }
@@ -432,7 +432,7 @@ fn the_choice_token_stays_on_the_composer_slot() {
 #[test]
 fn the_account_and_adoption_pages_keep_their_headings() {
     // One root at a time: two outgrow a stack array's 16 KiB.
-    for token in [ACCOUNTS_PAGE, ADOPTION_PAGE] {
+    for token in [ACCOUNTS_PAGE, SETTINGS_COL] {
         let root = if token == ACCOUNTS_PAGE {
             let (mut root, watch, _) =
                 fixtures::root_at(temper_client_domain::Address::Accounts, &fixtures::domain_limits());
@@ -444,8 +444,7 @@ fn the_account_and_adoption_pages_keep_their_headings() {
             fixtures::adoption_root()
         };
         let view = fixtures::page_view(&root);
-        let heading: Box<[skein_ui::Style]> =
-            if token == ACCOUNTS_PAGE { Box::from([SETTINGS_HEADLINE]) } else { Box::from([]) };
+        let heading: Box<[skein_ui::Style]> = Box::from([SETTINGS_HEADLINE]);
         assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).as_ref(), [heading]);
         let mut found = false;
         for node in view.tree().nodes() {
@@ -457,7 +456,7 @@ fn the_account_and_adoption_pages_keep_their_headings() {
                 found = true;
             }
         }
-        assert_eq!(found, token == ADOPTION_PAGE);
+        assert!(!found);
     }
 }
 
@@ -513,6 +512,8 @@ fn settings_styles_keep_their_css_names_beside_main_pages() {
         (SETTINGS_DETAIL, b"temper-settings-detail".as_slice()),
         (SETTINGS_END, b"temper-settings-end".as_slice()),
         (SETTINGS_ROW, b"temper-settings-row".as_slice()),
+        (SETTINGS_PATH, b"temper-settings-path".as_slice()),
+        (SETTINGS_TEXT, b"temper-settings-text".as_slice()),
     ] {
         assert_eq!(NAMES.style(style), Some(name));
     }
