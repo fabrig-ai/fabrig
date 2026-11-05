@@ -6,7 +6,7 @@
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Changes { project }`: no address in `temper-client-domain`'s
-  `address.rs`. 3.5: *Goals*, *A goal's report*: plan `ui-goals`. 3.5, 5.13, 10:
+  `address.rs`. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
   with their tests, and with them How work runs' offer of `Configure` and
   a review's "Change something"; ctl supplies the review groups and running-work effect
