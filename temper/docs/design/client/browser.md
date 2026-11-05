@@ -1120,6 +1120,9 @@ from the engine's own answers, is where the look is tuned.
 |---|---|
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
 | `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
+| `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
+| `home-accounts-both` | hand-made Home deliveries: ChatGPT plan and Claude subscription; link offers another account |
+| `home-accounts-key` | hand-made Home deliveries: an API key; link offers another account |
 | `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
 | `home-at-work` | hand-made Home deliveries: one question and three chats, the everyday request's words where the client holds its facts |
 | `home-needs-several` | hand-made Home deliveries: three needs, the first as a card and the others as rows |

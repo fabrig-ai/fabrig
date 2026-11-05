@@ -1,5 +1,8 @@
 home-three-left
 home-two-left
+home-accounts-claude
+home-accounts-both
+home-accounts-key
 home-one-left
 home-at-work
 home-needs-several

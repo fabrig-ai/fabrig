@@ -835,14 +835,14 @@ fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
     }
     let intro = children(subtree(tree, top[0].id));
     assert_eq!(intro.len(), 3);
-    for (node, role) in intro.iter().zip([Role::Paragraph, Role::Heading { level: 1 }, Role::Paragraph]) {
+    for (node, role) in intro.iter().zip([Role::Paragraph, Role::Heading { level: 1 }, Role::Slot]) {
         assert_eq!(node.role, role);
     }
     assert_eq!(intro[0].styles.as_slice(), &[crate::look::HOME_KICKER]);
-    assert_eq!(intro[2].styles.as_slice(), &[crate::look::HOME_LEDE]);
+    assert_eq!(intro[2].styles.as_slice(), &[crate::look::HOME_LEDES]);
     contains(
         &f::node_text(tree, tree.nodes().iter().position(|node| node.id == intro[2].id).unwrap()),
-        "Your agents run on your ChatGPT plan. Forgejo runs on this machine.",
+        "Your agents run on your ChatGPT plan, and Forgejo on this machine.",
     );
     let begin = children(subtree(tree, top[1].id));
     assert_eq!(begin.len(), 3);
@@ -1524,5 +1524,176 @@ fn home_skip_hides_the_card_and_refusal_offers_retry() {
         assert_eq!(parts[2].role, Role::Alert);
         assert_eq!(parts[2].name.as_deref(), Some(b"temper couldn't keep that. Try Skip again.".as_slice()));
         assert_action(&mut view, Role::Button, b"Skip", d::pages::Act::SkipToBegin);
+    }
+}
+
+fn home_accounts_document(holdings: &[(&[u8], c::AccountKind, bool)]) -> c::Accounts {
+    let mut doc = super::accounts::document(0);
+    doc.accounts = List::with_capacity(u32::try_from(holdings.len()).expect("fixture count"));
+    for (index, (provider, kind, usable)) in holdings.iter().enumerate() {
+        let mut row =
+            super::accounts::card_document(provider, b"", *kind).accounts.get(0).expect("fixture row").clone();
+        row.number = u32::try_from(index).expect("fixture index").checked_add(1).expect("fixture number");
+        row.sources.get_mut(0).expect("fixture source").usable = *usable;
+        doc.accounts.push(row).expect("fixture rows fit");
+    }
+    doc
+}
+
+#[test]
+fn home_more_accounts_names_usable_holdings() {
+    use c::AccountKind::{Key, Program, SignIn};
+    type Holding = (&'static [u8], c::AccountKind, bool);
+    let cases: &[(&[Holding], &str)] = &[
+        (&[], "Add another account"),
+        (&[(b"openai", SignIn, true)], "Add Claude or another plan"),
+        (&[(b"anthropic", Program, true)], "Add ChatGPT or another plan"),
+        (&[(b"openai", SignIn, true), (b"anthropic", Program, true)], "Add another account"),
+        (&[(b"openai", Key, true)], "Add another account"),
+        (&[(b"anthropic", Key, true)], "Add another account"),
+        (&[(b"openai", SignIn, false), (b"anthropic", Program, false)], "Add another account"),
+        (&[(b"openai", SignIn, true), (b"anthropic", Program, false)], "Add Claude or another plan"),
+        (&[(b"openai", SignIn, false), (b"anthropic", Program, true)], "Add ChatGPT or another plan"),
+        (&[(b"openai", SignIn, true), (b"openai", SignIn, true)], "Add Claude or another plan"),
+        (&[(b"anthropic", Program, true), (b"anthropic", Program, true)], "Add ChatGPT or another plan"),
+        (&[(b"custom", SignIn, true)], "Add another account"),
+        (&[(b"openai", SignIn, true), (b"custom", Program, true)], "Add another account"),
+        (&[(b"anthropic", Program, true), (b"openai", Key, true)], "Add another account"),
+        (&[(b"openai", SignIn, true), (b"openai", Key, true)], "Add another account"),
+    ];
+    for (holdings, label) in cases {
+        let (mut root, watch) = home_root(forge_rows(true), false, false);
+        super::accounts::deliver(&mut root, watch, home_accounts_document(holdings));
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let wrapper = styled(view.tree(), crate::look::HOME_LEDES);
+            let parts = children(subtree(view.tree(), wrapper.id));
+            let link = parts.last().expect("Accounts link");
+            assert_eq!(link.role, Role::Link);
+            assert_eq!(link.name.as_deref(), Some(label.as_bytes()), "{holdings:?}");
+            let id = link.id;
+            assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/accounts".as_slice()));
+            assert_eq!(
+                crate::act(&mut view, id, Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Go { address: Address::Accounts }))
+            );
+        }
+    }
+}
+
+#[test]
+fn home_more_accounts_reads_every_source_and_ignores_playground() {
+    let (mut root, watch) = home_root(forge_rows(true), false, false);
+    let mut doc = home_accounts_document(&[(b"openai", c::AccountKind::SignIn, true)]);
+    let row = doc.accounts.get_mut(0).expect("account");
+    let mut key = row.sources.get(0).expect("source").clone();
+    row.sources = List::with_capacity(2);
+    row.sources.push(key.clone()).expect("plan source");
+    key.kind = c::AccountKind::Key;
+    key.number = 2;
+    row.sources.push(key).expect("key source");
+    super::accounts::deliver(&mut root, watch, doc);
+    main_find(f::page_view(&root).tree(), Role::Link, b"Add another account");
+
+    let (mut root, _, _, _, watch) = f::root_at_with_playground(
+        Address::Home { project: f::PROJECT },
+        &f::domain_limits(),
+        b"Shop",
+        Some((f::PROJECT, true)),
+    );
+    let playground = root.forge().playground_provider().expect("playground provider");
+    let mut doc = home_accounts_document(&[
+        (b"openai", c::AccountKind::SignIn, true),
+        (b"anthropic", c::AccountKind::Program, true),
+    ]);
+    doc.accounts.get_mut(0).expect("playground row").provider = Some(playground);
+    doc.accounts.get_mut(1).expect("real row").provider = Some(playground.checked_add(1).expect("provider"));
+    super::accounts::deliver(&mut root, watch.expect("accounts watch"), doc);
+    assert_eq!(crate::pages::accounts::home_accounts(&root), (false, crate::words::Word::HomeAddChatGpt));
+}
+
+#[test]
+fn home_lede_joins_only_the_facts_it_holds() {
+    use c::AccountKind::{Key, Program, SignIn};
+    for (holdings, start) in [
+        (&[][..], ""),
+        (&[(b"openai".as_slice(), SignIn, true)][..], "Your agents run on your ChatGPT plan"),
+        (&[(b"anthropic".as_slice(), Program, true)][..], "Your agents run on your Claude subscription"),
+        (&[(b"openai".as_slice(), Key, true)][..], "Your agents run on an API key"),
+        (&[(b"anthropic".as_slice(), Key, true)][..], "Your agents run on an API key"),
+        (&[(b"openai".as_slice(), Key, false)][..], ""),
+    ] {
+        for forge in ["here", "remote", "none", "disconnected", "fake"] {
+            let mut rows = forge_rows(true);
+            let mut parts = rows.get(0).expect("forge row").clone().into_parts();
+            match forge {
+                "remote" => parts.mode = w::Mode::Managed,
+                "disconnected" => parts.connection = w::Connection::NotConnected,
+                "fake" => parts.mode = w::Mode::Fake,
+                _ => {}
+            }
+            *rows.get_mut(0).expect("forge row") = w::ForgeRow::new(&w::CEILINGS, parts).expect("forge");
+            if forge == "none" {
+                rows = List::with_capacity(0);
+            }
+            let end = match (forge, start.is_empty()) {
+                ("here", false) => ", and Forgejo on this machine",
+                ("here", true) => "Forgejo runs on this machine",
+                ("remote", false) => ", and Forgejo holds your code",
+                ("remote", true) => "Forgejo holds your code",
+                _ => "",
+            };
+            let expected: Box<[u8]> = if start.is_empty() && end.is_empty() {
+                Box::default()
+            } else {
+                crate::accounts::words::join(&[start.as_bytes(), end.as_bytes(), b"."])
+            };
+            let (mut root, watch) = home_root(rows, false, false);
+            super::accounts::deliver(&mut root, watch, home_accounts_document(holdings));
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                let wrapper = styled(view.tree(), crate::look::HOME_LEDES);
+                let parts = children(subtree(view.tree(), wrapper.id));
+                assert_eq!(parts.len(), if expected.is_empty() { 1 } else { 2 });
+                if !expected.is_empty() {
+                    assert_eq!(parts[0].role, Role::Paragraph);
+                    assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_LEDE]);
+                    assert_eq!(parts[0].name.as_deref(), Some(expected.as_ref()), "{forge} {holdings:?}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn home_accounts_follow_the_lede_in_the_tree_and_terminal() {
+    let (mut root, watch) = home_root(forge_rows(true), false, false);
+    super::accounts::deliver(&mut root, watch, home_accounts_document(&[(b"openai", c::AccountKind::SignIn, true)]));
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(crate::look::NAMES.style(crate::look::HOME_LEDES), Some(b"temper-home-ledes".as_slice()));
+        let wrapper = styled(view.tree(), crate::look::HOME_LEDES);
+        assert_eq!(wrapper.role, Role::Slot);
+        let parts = children(subtree(view.tree(), wrapper.id));
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].role, Role::Paragraph);
+        assert_eq!(parts[1].role, Role::Link);
+        let id = parts[1].id;
+        let (node, act) =
+            f::terminal_command(view.tree(), &view.limits().tree, id, b"Add Claude or another plan", b"Shop is ready.");
+        assert_eq!(
+            crate::act(&mut view, node, act),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Accounts }))
+        );
+    }
+    let print = printed(&f::page_view(&root));
+    let lede = skein_lib::bytes::find(&print, b"Your agents run on your ChatGPT plan, and Forgejo on this machine.")
+        .expect("lede");
+    let link = skein_lib::bytes::find(&print, b"Add Claude or another plan").expect("link");
+    let begin = skein_lib::bytes::find(&print, b"To begin:").expect("card");
+    assert!(lede < link && link < begin);
+    drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SkipToBegin) });
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for node in main_nodes(view.tree()) {
+            assert!(!node.styles.as_slice().contains(&crate::look::HOME_LEDES));
+        }
+        absent(&f::main_text(view.tree()), "Add Claude or another plan");
     }
 }

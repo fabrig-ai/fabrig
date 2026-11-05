@@ -32,7 +32,13 @@ pub enum Word {
     HomeChatName,
     HomeWaiting,
     HomeClosed,
-    HomeAgents,
+    HomeAgentsOn,
+    HomeAddAccount,
+    HomeAddChatGpt,
+    HomeAddClaude,
+    HomeAndForge,
+    HomeAndForgeHere,
+    HomeAgentsKey,
     HomeForgeHere,
     HomeForge,
     HomeProjectReady,
@@ -833,7 +839,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Home adds 35 phrases for its steps, intro and connected lines (3.5).
 // Everyday Home adds twenty-one phrases (3.5).
 // To begin replaces seven phrases with nine for the card, notes and Skip (3.5).
-const PHRASES: u32 = 1338;
+// More accounts adds six phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1344;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -841,8 +848,9 @@ const PHRASES: u32 = 1338;
 // Home adds 87 literal and hole segments.
 // Everyday Home adds forty-five literal and hole segments (3.5).
 // To begin removes four segments with its shorter words and new card phrases (3.5).
-const SEGMENTS: u32 = 2331;
-const ALL: [Word; 743] = [
+// More accounts adds eight literal and hole segments (3.5).
+const SEGMENTS: u32 = 2339;
+const ALL: [Word; 749] = [
     Word::HomeOpen,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
@@ -864,7 +872,13 @@ const ALL: [Word; 743] = [
     Word::HomeChatName,
     Word::HomeWaiting,
     Word::HomeClosed,
-    Word::HomeAgents,
+    Word::HomeAgentsOn,
+    Word::HomeAddAccount,
+    Word::HomeAddChatGpt,
+    Word::HomeAddClaude,
+    Word::HomeAndForge,
+    Word::HomeAndForgeHere,
+    Word::HomeAgentsKey,
     Word::HomeForgeHere,
     Word::HomeForge,
     Word::HomeProjectReady,
@@ -1612,7 +1626,13 @@ impl Word {
             Self::HomeChatName => 3162,
             Self::HomeWaiting => 3163,
             Self::HomeClosed => 3164,
-            Self::HomeAgents => 3114,
+            Self::HomeAgentsOn => 3114,
+            Self::HomeAddAccount => 3180,
+            Self::HomeAddChatGpt => 3179,
+            Self::HomeAddClaude => 3178,
+            Self::HomeAndForge => 3177,
+            Self::HomeAndForgeHere => 3176,
+            Self::HomeAgentsKey => 3175,
             Self::HomeForgeHere => 3115,
             Self::HomeForge => 3116,
             Self::HomeProjectReady => 3166,
@@ -2551,8 +2571,8 @@ impl Words {
             holes: 4,
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
-            // Everyday Home adds 288 bytes of English literals (3.5).
-            text_bytes: 32768 + 288,
+            // Everyday Home adds 288 bytes; More accounts adds 149 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2661,9 +2681,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeChatName => (&[b"", b", ", b", ", b""], &[Name, Name, Name]),
         Word::HomeWaiting => (&[b"waiting on you"], &[]),
         Word::HomeClosed => (&[b"closed"], &[]),
-        Word::HomeAgents => (&[b"Your agents run on your ", b"."], &[Name]),
-        Word::HomeForgeHere => (&[b"Forgejo runs on this machine."], &[]),
-        Word::HomeForge => (&[b"", b" holds your code."], &[Name]),
+        Word::HomeAgentsKey => (&[b"Your agents run on an API key"], &[]),
+        Word::HomeAndForgeHere => (&[b", and Forgejo on this machine"], &[]),
+        Word::HomeAndForge => (&[b", and ", b" holds your code"], &[Name]),
+        Word::HomeAddClaude => (&[b"Add Claude or another plan"], &[]),
+        Word::HomeAddChatGpt => (&[b"Add ChatGPT or another plan"], &[]),
+        Word::HomeAddAccount => (&[b"Add another account"], &[]),
+        Word::HomeAgentsOn => (&[b"Your agents run on your ", b""], &[Name]),
+        Word::HomeForgeHere => (&[b"Forgejo runs on this machine"], &[]),
+        Word::HomeForge => (&[b"", b" holds your code"], &[Name]),
         Word::HomeProjectReady => (&[b"", b" is ready."], &[Name]),
         Word::HomeOptional => (&[b"Optional"], &[]),
         Word::HomeSkip => (&[b"Skip"], &[]),

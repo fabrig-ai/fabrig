@@ -41,7 +41,7 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::HOME);
-    intro(b, root, w, name, &facts, times);
+    intro(b, root, w, bindings, name, &facts, times);
     if facts.to_begin() {
         to_begin(b, root, w, bindings, project, name, &facts);
     }
@@ -53,7 +53,15 @@ pub(crate) fn main(
     b.close();
 }
 
-fn intro(b: &mut Builder, root: &Domain, w: &Words, name: &[u8], facts: &Facts, times: &mut Times) {
+fn intro(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    name: &[u8],
+    facts: &Facts,
+    times: &mut Times,
+) {
     b.open(Role::Slot);
     b.style(look::HOME_INTRO);
     // The kicker is this Home's day and time, not a project's creation time.
@@ -87,9 +95,10 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, name: &[u8], facts: &Facts, 
         b.close();
         return;
     }
+    let (key, more) = super::accounts::home_accounts(root);
     let mut lede = Box::default();
     if let Some(account) = super::accounts::first_usable_kind(root, w) {
-        lede = w.say(Word::HomeAgents, &[Hole::Name(account)]);
+        lede = if key { w.say(Word::HomeAgentsKey, &[]) } else { w.say(Word::HomeAgentsOn, &[Hole::Name(account)]) };
     }
     for row in &forge::listed::rows(root.forges(), forge::connect::playground(root.forge())) {
         if row.mode == Mode::Fake {
@@ -98,11 +107,14 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, name: &[u8], facts: &Facts, 
         match row.connection {
             Connection::Connected { .. } => {
                 let sentence = if row.kind == Kind::Forgejo && row.mode == Mode::Owned {
-                    w.say(Word::HomeForgeHere, &[])
+                    w.say(if lede.is_empty() { Word::HomeForgeHere } else { Word::HomeAndForgeHere }, &[])
                 } else {
-                    w.say(Word::HomeForge, &[Hole::Name(crate::forge::connect::name(w, row, root))])
+                    w.say(
+                        if lede.is_empty() { Word::HomeForge } else { Word::HomeAndForge },
+                        &[Hole::Name(crate::forge::connect::name(w, row, root))],
+                    )
                 };
-                lede = sentence_after(&lede, &sentence);
+                lede = crate::accounts::words::join(&[&lede, &sentence]);
                 break;
             }
             Connection::NotConnected
@@ -113,9 +125,14 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, name: &[u8], facts: &Facts, 
             | Connection::Stopped { .. } => {}
         }
     }
+    b.open(Role::Slot);
+    b.style(look::HOME_LEDES);
     if !lede.is_empty() {
+        let lede = crate::accounts::words::join(&[&lede, b"."]);
         text(b, Role::Paragraph, &lede, Some(look::HOME_LEDE));
     }
+    go(b, bindings, &w.say(more, &[]), Address::Accounts, None);
+    b.close();
     b.close();
 }
 // The first need has a card, followed by at most five other needs and five chats (3.5).
@@ -349,9 +366,6 @@ fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, beg
     b.close();
 }
 
-fn sentence_after(before: &[u8], sentence: &[u8]) -> Box<[u8]> {
-    crate::accounts::words::join(&[before, if before.is_empty() { b"" } else { b" " }, sentence])
-}
 fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style>) {
     b.open(role);
     if let Some(style) = style {

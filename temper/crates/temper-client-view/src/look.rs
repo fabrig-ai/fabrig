@@ -63,7 +63,9 @@ pub const HOME_CTA_GO: Style = Style { owner: owner(), token: 223 };
 pub const HOME_TAG: Style = Style { owner: owner(), token: 229 };
 /// To begin's Skip button (client/README.md, 3.5).
 pub const HOME_SKIP: Style = Style { owner: owner(), token: 231 };
-/// To begin's remaining steps note (client/README.md, 3.5).
+/// Home’s lede and Accounts link (client/README.md, 3.5).
+pub const HOME_LEDES: Style = Style { owner: owner(), token: 233 };
+/// To begin’s remaining steps note (client/README.md, 3.5).
 pub const HOME_NOTE: Style = Style { owner: owner(), token: 232 };
 /// Home's first needs card (client/README.md, 3.5).
 pub const ASK: Style = Style { owner: owner(), token: 224 };
@@ -688,6 +690,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-settings",
         b"temper-home-skip",
         b"temper-home-note",
+        b"temper-home-ledes",
     ],
     regions: &[b"temper-link"],
 };
