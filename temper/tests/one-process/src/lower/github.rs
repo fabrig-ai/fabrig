@@ -143,7 +143,7 @@ fn peer_options(life: Duration, ci: bool) -> (Rc<RefCell<Forge>>, Peer) {
     config.limits.calls = wire.calls;
     config.limits.title_bytes = 512;
     config.limits.body_bytes = 2048;
-    assert!(skein_fake_forge_protocol::git::fits(&wire, &config.limits));
+    assert!(skein_fake_forge_protocol::git::fits(&wire.git(), &config.limits));
     let mut domain = domain::Domain::new(&config, fixtures::SEED);
     for (id, name) in [(REPOSITORY, b"acme/app".as_slice()), (3, b"umbra/tool".as_slice())] {
         domain::repository(

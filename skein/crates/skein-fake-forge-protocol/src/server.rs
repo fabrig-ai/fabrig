@@ -325,7 +325,7 @@ fn resume_on(
             }
         } else if let Some(event) = server.json_events.pop() {
             if let Some(decoder) = &mut server.git_decoder {
-                match crate::git::server::body(decoder, &env.limits, &event) {
+                match crate::git::server::body(decoder, &env.limits.git(), &event) {
                     crate::git::server::BodyStep::Demand(request) => json_down(server, env, request),
                     crate::git::server::BodyStep::Decoded(call) => {
                         server.git_decoder = None;

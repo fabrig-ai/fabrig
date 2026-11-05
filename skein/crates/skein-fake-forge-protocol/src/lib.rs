@@ -28,6 +28,13 @@ pub struct Limits {
     pub documents: skein_forge::forgejo::limits::Limits,
     pub raw_bytes: u32,
 }
+impl Limits {
+    /// The private git route's bounds (fake-forge.md, section 12).
+    #[must_use]
+    pub const fn git(&self) -> git::Limits {
+        git::Limits { http: self.http, documents: self.documents }
+    }
+}
 /// The repository's id, path and protected branch from the scenario.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Repository {
