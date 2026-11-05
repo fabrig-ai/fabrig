@@ -1052,3 +1052,104 @@ fn the_asked_welcome_stays_until_the_store_is_whole() {
         assert_eq!(root.pages().address(), &Address::Welcome { step: Step::WelcomeAsked });
     }
 }
+
+#[test]
+fn model_step_selects_each_welcome_shape_and_usable_wins_at_every_way() {
+    use crate::{ModelWay, WayKind};
+    use pages::{
+        accounts::Way,
+        connect_model::Act as A,
+        welcome::{ModelStep as S, model_step},
+    };
+    let sign_in = Way::SignIn { provider: 17, plan: true };
+    for (kind, elsewhere, finishing, expected) in [
+        (None, false, false, S::Choose),
+        (Some(WayKind::Key), false, false, S::Key { way: Way::Key { provider: 17 } }),
+        (Some(WayKind::Program), false, false, S::Program { way: Way::Program { provider: 17 } }),
+        (Some(WayKind::SignIn), false, false, S::SignIn { way: sign_in }),
+        (Some(WayKind::SignIn), false, true, S::Away { way: sign_in }),
+        (Some(WayKind::SignIn), true, false, S::Paste { way: sign_in }),
+        (Some(WayKind::SignIn), true, true, S::Finishing { way: sign_in }),
+    ] {
+        let (mut root, me, accounts, _) = opened(false, Step::Model { way: None });
+        let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+        frame.providers.get_mut(0).unwrap().programs = List::with_capacity(1);
+        frame
+            .providers
+            .get_mut(0)
+            .unwrap()
+            .programs
+            .push(c::Text::new(b"Claude Code".as_slice().into(), 32).unwrap())
+            .unwrap();
+        deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+        let step = Step::Model {
+            way: match kind {
+                Some(kind) => Some(ModelWay { provider: 17, kind, source: None }),
+                None => None,
+            },
+        };
+        go(&mut root, step);
+        if elsewhere || finishing {
+            let act = if elsewhere {
+                A::SignInElsewhere { name: [1; 16], way: sign_in }
+            } else {
+                A::SignIn { name: [1; 16], way: sign_in }
+            };
+            let mut out = event(&mut root, Event::Act { action: Action::Pages(Act::ConnectModel(act)) });
+            let mut stored = event(&mut root, Event::Client { event: jig_client::Event::Stored });
+            while let Some(request) = stored.pop() {
+                out.push(request);
+            }
+            let attempt = model_attempt(&out);
+            up(
+                &mut root,
+                Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                        c::DocumentOutcome::AccountSignInStarted {
+                            source: 43,
+                            address: b"https://accounts.example/sign-in".as_slice().into(),
+                        },
+                    )))),
+                    why: None,
+                },
+            );
+            if elsewhere && finishing {
+                event(&mut root, Event::SignInAddress { value: Secret::new(b"fixture".as_slice().into()) });
+                let out = event(
+                    &mut root,
+                    Event::Act { action: Action::Pages(Act::ConnectModel(A::Finish { name: [2; 16] })) },
+                );
+                let attempt = model_attempt(&out);
+                up(
+                    &mut root,
+                    Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::AccountFinishing { source: 43 },
+                        )))),
+                        why: None,
+                    },
+                );
+            }
+        }
+        assert_eq!(model_step(&root), Some(expected));
+        account(&mut root, accounts, 17, true);
+        assert_eq!(model_step(&root), Some(S::Usable), "usable at {step:?}");
+    }
+    let root = crate::unlinked(&f::limits(), f::SEED);
+    assert_eq!(model_step(&root), None);
+}
+
+fn model_attempt(out: &Queue<Request>) -> Token {
+    for request in out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, .. } } } =
+            request
+        {
+            return *attempt;
+        }
+    }
+    panic!("Model request sent")
+}
