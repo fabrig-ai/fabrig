@@ -116,3 +116,16 @@ Not this task's: the sheet, `not_yet`, Ready, Home.
 ## Report
 
 What each bound came to, the goldens moved, and what a row of each kind reads as.
+
+## Rebase (2026-11-05, step merge, foreman ui-welcome/setup-intent/foreman-1)
+
+rebase setup-intent, preserving both appended tests and combining status gap removals
+The merge refused three content conflicts against `origin/ui-welcome/integration` (observed tip `6ba045f092`).
+
+- `temper/crates/temper-client-domain/src/tests/connect.rs`: retain `4fee53047a`’s `forge_status_keeps_recovery_installation_and_admin_details_separate` alongside this branch’s `empty_setup` helper and `set_up_again_keeps_copies_or_nothing_from_the_row_and_last_ask`. Keep this branch’s `starts_with` fixture fields and `SetUpFirst::Empty` assertion conversions. The appended tests cover independent behavior.
+- `temper/docs/design/client/README.status.md`: start from the integration version and remove only the stale clause “`SetUp` carries an org and a name, in the store, on the wire and in the engine.” Preserve the sheet’s “Not available yet” gap. Keep the frame and Forge-step gap removals from `e182357db2` and `4fee53047a`, plus integration’s unrelated status updates.
+- `temper/docs/design/protocol/setup.status.md`: start from the integration version and remove the opening 6.7 gap about `Copies`, `Nothing` and `starts_with`. Preserve `07cb703142`’s removal of the forge-label/hands gap and the newer 7.5 issuer-walk departure.
+
+These resolutions follow `temper/docs/design/protocol/setup.md`, 6.7, and `temper/docs/design/client/README.md`, 4.6: the engine carries the three-way intent while the sheet remains unfinished.
+
+Run both retained connect tests individually through `heavy cargo nextest run -p temper-client-domain --lib` with exact test filters; confirm each selects one test. Continue the spec’s required checks for the combined code.
