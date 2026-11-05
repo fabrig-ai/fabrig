@@ -178,11 +178,10 @@ fn a_tasks_end_clears_its_unused_activation_marker() {
     watch_outputs(
         &mut core,
         &limits,
-        Event::Tasks(tasks::Event::Control {
+        Event::Tasks(tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(FIRST)),
             by: tasks::Party::Person(1),
-            task: FIRST,
-            control: tasks::Control::Cancel { reason: b"done".as_slice().into(), grace: None, message: None },
+            operation: tasks::Cancel { task: FIRST, reason: b"done".as_slice().into(), grace: None, message: None },
         }),
     );
     watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::EffectsSettled { task: FIRST }));

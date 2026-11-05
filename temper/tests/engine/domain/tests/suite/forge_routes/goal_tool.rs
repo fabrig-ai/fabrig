@@ -174,7 +174,24 @@ fn assert_plan_inbox(world: &mut World, chat: u64, message: u64, plan: &[u8]) {
 }
 
 fn chat_world(cap: u64, tasks: u32, depth: u32) -> (World, engine::Assignment) {
-    start_chat(World::configured(true, true), cap, tasks, depth, None)
+    start_chat(World::configured(true, true), cap, tasks, depth, None, None)
+}
+
+pub(super) fn chat_with_note_scope(scopes: authority::Scopes) -> (World, engine::Assignment) {
+    task_with_note_scope(scopes, None)
+}
+
+fn task_with_note_scope(scopes: authority::Scopes, tracked: Option<u32>) -> (World, engine::Assignment) {
+    let world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { notes: Some(scopes), ..StoryLimits::default() },
+    );
+    start_chat(world, 400, 11, 3, None, tracked)
 }
 
 fn start_chat(
@@ -183,6 +200,7 @@ fn start_chat(
     tasks: u32,
     depth: u32,
     person_words: Option<&[u8]>,
+    tracked: Option<u32>,
 ) -> (World, engine::Assignment) {
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
@@ -190,6 +208,7 @@ fn start_chat(
     if let Some(words) = person_words {
         batch[0].words = words.into();
     }
+    batch[0].tracked = tracked;
     batch[0].budget = people::Budget::AsAllowed { cap: Some(cap) };
     batch[0].contract = people::Contract::Report { words: 32 };
     batch[0].authority.tools = 1 | 2 | 4 | 512;
@@ -297,6 +316,24 @@ fn a_goals_authority_is_the_runs_narrowed() {
     );
     assert_eq!(row.authority.budget.deadline, parent.authority.budget.deadline);
     assert_eq!(row.authority.models, parent.authority.models);
+}
+
+#[test]
+fn a_goal_keeps_its_own_note_scope() {
+    for (held, expected) in [(0, 0), (2, 0), (7, 1)] {
+        let (mut world, chat) = chat_with_note_scope(authority::Scopes(held));
+        let task = delegated(goal(&mut world, &chat, GOAL_CALL, false));
+        assert_eq!(live(&world, task).authority.notes, tasks::Scopes(expected));
+        assert!(live(&world, task).authority.note_resources.is_empty());
+    }
+}
+
+#[test]
+fn an_advisor_keeps_no_note_scope() {
+    let (mut world, run) = task_with_note_scope(authority::Scopes(7), Some(0));
+    let advisor = delegated(goal(&mut world, &run, GOAL_CALL, true));
+    assert_eq!(live(&world, advisor).authority.notes, tasks::Scopes(0));
+    assert!(live(&world, advisor).authority.note_resources.is_empty());
 }
 
 #[test]
@@ -414,7 +451,7 @@ fn running_goal_with_agreement(agree: bool) -> (World, engine::Assignment, engin
 }
 
 fn running_goal_for_request(agree: bool, request: &[u8]) -> (World, engine::Assignment, engine::Assignment) {
-    let (mut world, chat) = start_chat(World::configured(true, true), 400, 11, 3, Some(request));
+    let (mut world, chat) = start_chat(World::configured(true, true), 400, 11, 3, Some(request), None);
     let task = delegated(call(
         &mut world,
         &chat,
@@ -662,7 +699,7 @@ fn agreed_at_spec_edge(extra: usize, person_words: &[u8]) -> (World, u64, Box<[u
     let bound = skein_lib::usize_of(world.env.limits.tasks.spec_bytes);
     let fixed = AGREED_SUFFIX.len() + PERSON_HEADING.len() + PERSON_BYTES;
     let words = vec![b's'; bound - fixed + extra].into_boxed_slice();
-    let (mut world, chat) = start_chat(world, 400, 11, 3, Some(person_words));
+    let (mut world, chat) = start_chat(world, 400, 11, 3, Some(person_words), None);
     let task = delegated(call(
         &mut world,
         &chat,
@@ -749,7 +786,7 @@ fn an_agreed_brief_uses_the_persons_newest_consumed_chat_words() {
     const MESSAGE_KEY: u8 = 96; // Distinct from the chat creation and agent call keys.
     const STEPS: u32 = 200; // The root world's durable round-trip bound.
     const NEWEST: &[u8] = b"Newest request: read both files, then ask me before changing either.";
-    let (mut world, chat) = start_chat(World::configured(true, true), 400, 11, 3, Some(PERSON_REQUEST));
+    let (mut world, chat) = start_chat(World::configured(true, true), 400, 11, 3, Some(PERSON_REQUEST), None);
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(u64::from(MESSAGE_KEY))),

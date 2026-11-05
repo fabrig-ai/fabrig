@@ -826,8 +826,7 @@ pub enum NamedAction {
         subscription: u64,
     },
     Control {
-        target: u64,
-        control: tasks::Control,
+        cancel: tasks::Cancel,
     },
     /// Release a delegate naming the hold the caller saw.
     Release {
@@ -1038,7 +1037,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Propose { .. }
         | tasks::Event::DecideProposal { .. }
         | tasks::Event::WithdrawProposal { .. }
-        | tasks::Event::Control { .. }
+        | tasks::Event::Cancel { .. }
+        | tasks::Event::Release { .. }
         | tasks::Event::Amend { .. }
         | tasks::Event::Move { .. }
         | tasks::Event::Subscribe { .. }

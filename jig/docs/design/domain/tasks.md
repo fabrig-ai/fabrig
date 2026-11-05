@@ -220,6 +220,10 @@ it is live:
   and its **last activity**: when it last heard words, its run last
   committed a turn, or one of its delegates last ended, and until then
   when it is made. Task queries order by them (engine.md, section 11).
+- **Its delegates' endings:** how many of its direct delegates have ended
+  done, failed and cancelled, kept as each ends, so that a list of tasks says
+  how far a task has gone without reading its delegates. A delegate moved
+  away is not counted, and a retained delegate's erasure takes nothing back.
 - **Its holds:** the resources it writes and holds alone, or the pool
   slots it holds; or, while it waits for them, its place in their queues
   (section 6).

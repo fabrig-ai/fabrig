@@ -3,8 +3,7 @@
 use core::fmt;
 use skein_codec::schema::Schema;
 
-mod compare;
-mod matching;
+mod spell;
 mod walk;
 
 /// A family's changes and unconfirmed renames (codec.md, 10.5).
@@ -88,8 +87,8 @@ pub fn diff(kept: &Schema, current: &Schema, renames: &[Rename]) -> Result<Diff,
     if kept.spelled(kept.family()) != current.spelled(current.family()) {
         return Err(DiffError::Family);
     }
-    let pairs = matching::declarations(kept, current, renames)?;
-    Ok(walk::diff(kept, current, renames, &pairs))
+    let matching = walk::matching(kept, current, renames)?;
+    Ok(walk::diff(kept, current, &matching))
 }
 
 impl Diff {
@@ -228,3 +227,6 @@ impl fmt::Display for Diff {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

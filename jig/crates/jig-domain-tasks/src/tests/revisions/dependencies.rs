@@ -59,14 +59,11 @@ fn an_unreachable_dependency_is_named_and_count_or_repeat_refusals_name_none() {
         let mut change = amendment();
         change.dependencies = Some(dependencies.into_boxed_slice());
         let out = test.send(Event::Amend {
+            operation: crate::Amend { task: TARGET, message: 1, stop_run: false, amendment: Box::new(change) },
             places: Box::new([place(DEPENDENCY, Party::Person(PERSON), UNRELATED_ROOT, 0, Status::Done)]),
             reply_to: to(),
             by: Party::Task(AMENDER),
-            task: TARGET,
-            message: 1,
-            stop_run: false,
             funder: None,
-            amendment: change,
         });
         let problems = out
             .iter()
@@ -182,14 +179,11 @@ fn ended_dependencies_are_judged_only_on_their_places() {
         let mut change = amendment();
         change.dependencies = Some(Box::new([DEPENDENCY]));
         let out = test.send(Event::Amend {
+            operation: crate::Amend { task: TARGET, message: 1, stop_run: false, amendment: Box::new(change) },
             places: places.into_boxed_slice(),
             reply_to: to(),
             by,
-            task: TARGET,
-            message: 1,
-            stop_run: false,
             funder: None,
-            amendment: change,
         });
         let problem = out.iter().find_map(|request| match request {
             Request::Refused { problem, .. } => Some(problem.clone()),

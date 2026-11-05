@@ -1,10 +1,10 @@
 use skein_fake_forge_forgejo::Route;
 use skein_forge::forgejo::request::Request;
 use skein_forge_setup::item::Item;
-use skein_forge_setup_world::{Ended, World, fixtures};
+use skein_forge_setup_world::{Ended, HostWorld, fixtures};
 #[test]
 fn an_empty_forge_is_given_its_bot_and_both_tokens() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     assert_eq!(world.reconcile(), Ended::Done);
     let bot = world.store().find(b"kit").expect("the bot is made");
     assert_eq!((bot.admin, &*bot.full_name), (false, b"kit:bot".as_slice()));
@@ -21,7 +21,7 @@ fn an_empty_forge_is_given_its_bot_and_both_tokens() {
 }
 #[test]
 fn the_tokens_hold_the_scopes_of_setup_section_4() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     assert_eq!(world.reconcile(), Ended::Done);
     let id = world.store().find(b"kit").expect("bot").id;
     assert_eq!(
@@ -38,7 +38,7 @@ fn the_tokens_hold_the_scopes_of_setup_section_4() {
 }
 #[test]
 fn a_token_file_that_answers_as_the_bot_is_kept_untouched() {
-    let mut world = World::managed(3);
+    let mut world = HostWorld::new(3, &[]);
     fixtures::bot_tokens(&mut world);
     assert_eq!(world.reconcile(), Ended::Done);
     assert_eq!(world.file(Item::ApiToken), Some(&fixtures::secret(fixtures::API)));
@@ -48,7 +48,7 @@ fn a_token_file_that_answers_as_the_bot_is_kept_untouched() {
 }
 #[test]
 fn a_token_file_holding_another_users_token_is_made_again() {
-    let mut world = World::managed(3);
+    let mut world = HostWorld::new(3, &[]);
     let bot = fixtures::bot_tokens(&mut world);
     let person = world.store_mut().account(b"person", false, b"A person");
     world.store_mut().token(person, b"persons-token", &[b"read:user"], fixtures::secret(b"a-persons-token"));
@@ -62,7 +62,7 @@ fn a_token_file_holding_another_users_token_is_made_again() {
 }
 #[test]
 fn a_token_file_holding_a_secret_the_forge_never_made_is_made_again() {
-    let mut world = World::managed(3);
+    let mut world = HostWorld::new(3, &[]);
     let bot = fixtures::bot_tokens(&mut world);
     world.put(Item::ApiToken, fixtures::secret(b"a-secret-the-forge-never-made"));
     assert_eq!(world.reconcile(), Ended::Done);
@@ -72,7 +72,7 @@ fn a_token_file_holding_a_secret_the_forge_never_made_is_made_again() {
 }
 #[test]
 fn an_owned_forge_makes_a_missing_org_for_its_person() {
-    let mut world = World::owned(7);
+    let mut world = HostWorld::owned(7);
     assert_eq!(world.reconcile(), Ended::Done);
     for name in [b"acme", b"work"] {
         assert_eq!(world.store().organization(name).expect("organization made").owner.as_ref(), b"ada");
@@ -81,7 +81,7 @@ fn an_owned_forge_makes_a_missing_org_for_its_person() {
 }
 #[test]
 fn a_managed_forge_reads_no_org() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     assert_eq!(world.reconcile(), Ended::Done);
     assert!(!world.requests().iter().any(|request| matches!(request, Request::Org { .. })));
     assert!(world.secrets_absent());
@@ -119,7 +119,7 @@ fn a_revoked_token_is_made_again() {
 #[test]
 fn a_person_under_the_bots_login_is_refused() {
     use skein_forge_setup::reconcile::{Failure, Stage, Why};
-    let mut world = World::owned(7);
+    let mut world = HostWorld::owned(7);
     world.store_mut().account(b"kit", false, b"A person");
     assert_eq!(
         world.reconcile(),
@@ -131,7 +131,7 @@ fn a_person_under_the_bots_login_is_refused() {
 #[test]
 fn no_secret_is_in_any_failure_debug_or_trace() {
     use skein_forge_setup::reconcile::{Failure, Stage, Why};
-    let mut world = World::owned(7);
+    let mut world = HostWorld::owned(7);
     fixtures::bot_tokens(&mut world);
     world.put(Item::AdminToken, fixtures::secret(b"unrecognized-admin-token"));
     assert_eq!(
@@ -150,7 +150,7 @@ fn no_secret_is_in_any_failure_debug_or_trace() {
 #[test]
 fn a_token_on_the_second_page_is_replaced() {
     use skein_forge::forgejo::request::Page;
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     let bot = world.store_mut().account(b"kit", false, b"kit:bot");
     for (name, value) in [
         (b"other-one".as_slice(), b"first-unrelated-token".as_slice()),
@@ -181,7 +181,7 @@ fn a_token_on_the_second_page_is_replaced() {
 #[test]
 fn another_services_bot_is_unmarked() {
     use skein_forge_setup::reconcile::{Failure, Stage, Why};
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     world.store_mut().account(b"kit", false, b"other:bot");
     assert_eq!(
         world.reconcile(),
@@ -197,7 +197,7 @@ fn another_services_bot_is_unmarked() {
 #[test]
 fn the_three_scope_admin_token_is_refused_at_the_first_owned_org_read() {
     use skein_forge_setup::reconcile::{Failure, Stage, Why};
-    let mut world = World::owned(7);
+    let mut world = HostWorld::owned(7);
     world.store_mut().revoke(fixtures::ADMIN);
     world.store_mut().token(
         1,

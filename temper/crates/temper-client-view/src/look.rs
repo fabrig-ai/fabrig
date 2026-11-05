@@ -23,6 +23,56 @@ pub const SETTINGS_PRIMARY: Style = Style { owner: owner(), token: 270 };
 pub const SETTINGS_SMALL: Style = Style { owner: owner(), token: 271 };
 pub const SETTINGS_DETAIL: Style = Style { owner: owner(), token: 272 };
 pub const SETTINGS_END: Style = Style { owner: owner(), token: 273 };
+/// The Goals column (client/README.md, 3.5).
+pub const GOALS: Style = Style { owner: owner(), token: 274 };
+/// Goals’ intro (client/README.md, 3.5).
+pub const GOALS_INTRO: Style = Style { owner: owner(), token: 275 };
+/// Goals’ project and page name (client/README.md, 3.5).
+pub const GOALS_KICKER: Style = Style { owner: owner(), token: 276 };
+/// Goals’ count headline (client/README.md, 3.5).
+pub const GOALS_HEADLINE: Style = Style { owner: owner(), token: 277 };
+/// Goals’ ways of working (client/README.md, 3.5).
+pub const GOALS_LEDE: Style = Style { owner: owner(), token: 278 };
+/// Goals’ byline (client/README.md, 3.5).
+pub const GOALS_BYLINE: Style = Style { owner: owner(), token: 279 };
+/// A Goals section (client/README.md, 3.5).
+pub const GOALS_SECTION: Style = Style { owner: owner(), token: 280 };
+/// A Goals section’s heading and actions (client/README.md, 3.5).
+pub const GOALS_SECTION_HEAD: Style = Style { owner: owner(), token: 281 };
+/// A Goals section’s title (client/README.md, 3.5).
+pub const GOALS_SECTION_TITLE: Style = Style { owner: owner(), token: 282 };
+/// A Goals section’s signal colour (client/README.md, 3.5).
+pub const GOALS_SIGNAL: Style = Style { owner: owner(), token: 283 };
+/// An empty Goals list (client/README.md, 3.5).
+pub const GOALS_EMPTY: Style = Style { owner: owner(), token: 284 };
+/// Goals’ facts (client/README.md, 3.5).
+pub const GOALS_FACTS: Style = Style { owner: owner(), token: 285 };
+/// The Goals rows (client/README.md, 3.5).
+pub const GOALS_ROWS: Style = Style { owner: owner(), token: 286 };
+/// A goal’s row link (client/README.md, 3.5).
+pub const GOALS_ROW: Style = Style { owner: owner(), token: 287 };
+/// An ended goal’s row (client/README.md, 3.5).
+pub const GOALS_ROW_ENDED: Style = Style { owner: owner(), token: 288 };
+/// A goal’s title, counts and state (client/README.md, 3.5).
+pub const GOALS_TOP: Style = Style { owner: owner(), token: 289 };
+/// A goal’s report headline (client/README.md, 3.5).
+pub const GOALS_LINE: Style = Style { owner: owner(), token: 290 };
+/// Goals’ filter buttons (client/README.md, 3.5).
+pub const GOALS_FILTERS: Style = Style { owner: owner(), token: 291 };
+/// The button to read more goals (client/README.md, 3.5).
+pub const GOALS_MORE: Style = Style { owner: owner(), token: 292 };
+/// A goal needing the person (client/README.md, 3.5).
+pub const GOALS_STATE_NEEDS: Style = Style { owner: owner(), token: 293 };
+/// A running goal (client/README.md, 3.5).
+pub const GOALS_STATE_RUNNING: Style = Style { owner: owner(), token: 294 };
+/// A planning goal (client/README.md, 3.5).
+pub const GOALS_STATE_PLANNING: Style = Style { owner: owner(), token: 295 };
+/// A goal paused by the person (client/README.md, 3.5).
+pub const GOALS_STATE_PAUSED: Style = Style { owner: owner(), token: 296 };
+/// A landed goal (client/README.md, 3.5).
+pub const GOALS_STATE_LANDED: Style = Style { owner: owner(), token: 297 };
+/// A stopped or failed goal (client/README.md, 3.5).
+pub const GOALS_STATE_STOPPED: Style = Style { owner: owner(), token: 298 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
 pub const CHANGES: Style = Style { owner: owner(), token: 180 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
@@ -796,6 +846,31 @@ pub const NAMES: Names<'static> = Names {
         b"temper-settings-small",
         b"temper-settings-detail",
         b"temper-settings-end",
+        b"temper-goals",
+        b"temper-goals-intro",
+        b"temper-goals-kicker",
+        b"temper-goals-headline",
+        b"temper-goals-lede",
+        b"temper-goals-byline",
+        b"temper-goals-section",
+        b"temper-goals-section-head",
+        b"temper-goals-section-title",
+        b"temper-goals-signal",
+        b"temper-goals-empty",
+        b"temper-goals-facts",
+        b"temper-goals-rows",
+        b"temper-goals-row",
+        b"temper-goals-row-ended",
+        b"temper-goals-top",
+        b"temper-goals-line",
+        b"temper-goals-filters",
+        b"temper-goals-more",
+        b"temper-goals-state-needs",
+        b"temper-goals-state-running",
+        b"temper-goals-state-planning",
+        b"temper-goals-state-paused",
+        b"temper-goals-state-landed",
+        b"temper-goals-state-stopped",
     ],
     regions: &[b"temper-link"],
 };

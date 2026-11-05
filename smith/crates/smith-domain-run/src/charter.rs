@@ -329,6 +329,13 @@ pub fn brief_room(charter: &Charter, workspace: Option<&crate::Workspace>, limit
     u32::try_from(remaining).ok()
 }
 
+/// Charter ownership available after the prepared workspace is charged against
+/// `run_bytes`. Returns `None` on overflow or when the workspace alone exceeds it.
+#[must_use]
+pub fn charter_room(workspace: Option<&crate::Workspace>, limits: &Limits) -> Option<u64> {
+    limits.run_bytes.checked_sub(crate::workspace::cost(workspace)?)
+}
+
 fn non_brief_host_bytes(charter: &Charter, workspace: Option<&crate::Workspace>, limits: &Limits) -> Option<u64> {
     let outcome = &charter.outcome;
     let grants = &charter.grants;

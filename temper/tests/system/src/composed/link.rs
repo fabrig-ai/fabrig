@@ -9,7 +9,6 @@
 //! results, decoded and rendered with smith's codecs and temper's charter
 //! translation.
 
-use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
@@ -27,44 +26,29 @@ pub const GIT_BASE: &[u8] = b"http://forge.test";
 /// The hub's assignment beside the service's workspace and per-repository saves.
 #[must_use]
 pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::Workspace) {
-    let forges = {
-        let mut table = temper_service::forges::Forges::with_capacity(1);
-        assert!(table.insert(settings::Forge {
-            log_origins: None,
-            mode: temper_engine_domain_forge::Mode::Connected,
-            number: temper_engine_forge_world::REPO.forge,
-            kind: settings::Kind::Forgejo,
-            api: jig_protocol_config::Address::Host { name: b"forge.test".as_slice().into(), port: 80 },
-            transport: settings::Transport::Plaintext,
-            git: GIT_BASE.into(),
-            git_program: None,
-            web: None,
-            app_read_only: false,
-            user: 1,
-            identity: 1,
-        }));
-        table
+    let forges = forges();
+    let encoding = temper_service::assignment::Encoding {
+        limits: v1::CEILINGS,
+        endpoints: worker_protocol::endpoints(),
+        deployment: [0; 16],
+        charter_bytes: 65_536,
     };
-    let items = translate::items(assignment, &forges, &temper_service::forge::tokens::Tokens::empty(), &v1::CEILINGS)
-        .expect("world workspace fits the payload");
-    let repositories = translate::workspace(items.as_ref());
-    let workspace = items.map(|_| host::Workspace { workstream: assignment.workstream, items: Token::new(0) });
-    let hub = host::Assignment {
-        messages: messages(&assignment.messages),
-        assignment: host::RunAssignment {
-            identity: identity(assignment.task, assignment.conversation),
-            live: assignment.live,
-            run: Token::new(assignment.task),
-            attempt: Token::new(assignment.attempt),
-            workspace,
-            save: assignment.run.policy.resume,
-            charter: charter(assignment),
-            grants: grants(&assignment.grants),
-        },
-        turns: assignment.transcript.clone(),
-        answered: answered(&assignment.settled),
+    let event = temper_service::assignment::down(
+        assignment.clone(),
+        &forges,
+        &encoding,
+        &temper_service::values::Values::new(0, 0),
+        Token::new(7),
+        skein_lib::Time::ZERO,
+    )
+    .expect("production assignment fits");
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment: hub }, parts, .. } =
+        event
+    else {
+        panic!("assignment down")
     };
-    (hub, repositories)
+    let assigned = temper_service::worker_route::items(&hub, &parts, &v1::CEILINGS).expect("workspace parts decode");
+    (hub, assigned)
 }
 
 /// The worker's parts through the service's channel records, without bytes.
@@ -123,71 +107,21 @@ pub fn end_with(outcome: &[u8], change: Option<temper_engine_smith::ChangeResour
     temper_engine_smith::result(answer, change).expect("a result the engine takes").end
 }
 
-fn identity(task: u64, conversation: u64) -> [u8; 16] {
-    let mut identity = [0; 16];
-    let (first, second) = identity.split_at_mut(8);
-    first.copy_from_slice(&task.to_be_bytes());
-    second.copy_from_slice(&conversation.to_be_bytes());
-    identity
-}
-
-/// The engine's charter, smith's charter encoded: temper's translation, its
-/// conversation resumed when the charter resumes and turns are kept.
-fn charter(assignment: &engine::Assignment) -> Box<[u8]> {
-    let charter = temper_engine_smith::charter(assignment);
-    smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &worker_protocol::endpoints())
-        .expect("smith encodes the engine's charter")
-}
-
-fn messages(words: &[tasks::Word]) -> Box<[host::StartMessage]> {
-    let mut messages = Vec::with_capacity(words.len());
-    for word in words {
-        messages.push(host::StartMessage {
-            name: Token::new(word.number),
-            sender: word.from.sender(),
-            words: word.words.clone(),
-            finish_requested: word.finish_requested(),
-        });
-    }
-    messages.into_boxed_slice()
-}
-
-fn grants(grants: &[accounts::Grant]) -> Box<[host::Grant]> {
-    Box::from(grants)
-}
-
-fn answered(settled: &[core::Settled]) -> Box<[host::AnsweredCall]> {
-    let mut answered = Vec::with_capacity(settled.len());
-    for core::Settled { key, call } in settled {
-        let answer = match &call.answer {
-            core::SettledAnswer::Host { error, body } => {
-                host::SettledAnswer::Host { error: *error, body: body.clone() }
-            }
-            core::SettledAnswer::Delivery { outcome, evidence } => {
-                host::SettledAnswer::Delivery { outcome: delivery(*outcome), evidence: evidence.clone() }
-            }
-        };
-        answered.push(host::AnsweredCall {
-            name: jig_protocol_charter::call_name(&jig_protocol_charter::CallKey {
-                activation: key.attempt,
-                completion: key.completion,
-                position: key.position,
-            }),
-            tool: call.tool.clone(),
-            answer,
-        });
-    }
-    answered.into_boxed_slice()
-}
-
-/// As jig's protocol layer names a delivery's outcome: an invalid one was
-/// refused (`testing/jig-test-service`).
-const fn delivery(outcome: core::DeliveryOutcome) -> host::DeliveryOutcome {
-    match outcome {
-        core::DeliveryOutcome::Delivered => host::DeliveryOutcome::Delivered,
-        core::DeliveryOutcome::Nothing => host::DeliveryOutcome::Nothing,
-        core::DeliveryOutcome::Stale => host::DeliveryOutcome::Stale,
-        core::DeliveryOutcome::Refused | core::DeliveryOutcome::Invalid => host::DeliveryOutcome::Refused,
-        core::DeliveryOutcome::Failed => host::DeliveryOutcome::Failed,
-    }
+fn forges() -> temper_service::forges::Forges {
+    let mut table = temper_service::forges::Forges::with_capacity(1);
+    assert!(table.insert(settings::Forge {
+        log_origins: None,
+        mode: temper_engine_domain_forge::Mode::Connected,
+        number: temper_engine_forge_world::REPO.forge,
+        kind: settings::Kind::Forgejo,
+        api: jig_protocol_config::Address::Host { name: b"forge.test".as_slice().into(), port: 80 },
+        transport: settings::Transport::Plaintext,
+        git: GIT_BASE.into(),
+        git_program: None,
+        web: None,
+        app_read_only: false,
+        user: 1,
+        identity: 1,
+    }));
+    table
 }

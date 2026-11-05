@@ -2,94 +2,87 @@
 
 //! Split generated functions at codec.md, section 6's line bound.
 
-pub(crate) fn split_bound_functions(out: &mut String) {
-    let source = core::mem::take(out);
-    let lines = source.lines().collect::<Vec<_>>();
-    let mut offset = 0;
-    while let Some(line) = lines.get(offset) {
-        let signature = line.trim_start();
-        let bound = ["pub fn encoded_bound", "pub fn decoded_bound"].iter().any(|prefix| signature.starts_with(prefix));
-        if !bound || !line.ends_with('{') {
-            out.push_str(line);
-            out.push('\n');
-            offset = offset.checked_add(1).expect("source offset");
-            continue;
-        }
-        let indent = line.len().checked_sub(line.trim_start().len()).expect("indent length");
-        let closing = format!("{}}}", " ".repeat(indent));
-        let count = lines.iter().skip(offset).position(|candidate| *candidate == closing).expect("function closes");
-        let end = offset.checked_add(count).expect("function end");
-        let function = lines.get(offset..=end).expect("function range");
-        if function.len() > 100 {
-            split(function, indent, out);
-        } else {
-            for line in function {
-                out.push_str(line);
-                out.push('\n');
-            }
-        }
-        offset = end.checked_add(1).expect("source offset");
-    }
-}
+use alloc::collections::BTreeMap;
 
-fn split(function: &[&str], indent: usize, out: &mut String) {
-    let name = function
-        .first()
-        .expect("signature")
-        .trim_start()
-        .strip_prefix("pub fn ")
-        .expect("public function")
-        .split('(')
-        .next()
-        .expect("name");
-    let start = function.iter().position(|line| line.trim_start().starts_with("let mut ")).expect("accumulator");
-    let variable = function
-        .get(start)
-        .expect("declaration")
-        .trim_start()
-        .strip_prefix("let mut ")
-        .expect("mutable accumulator")
-        .split(' ')
-        .next()
-        .expect("name");
-    let end =
-        function.iter().rposition(|line| line.trim_start().starts_with(&format!("{variable} ="))).expect("statements");
-    let body_start = start.checked_add(1).expect("body start");
-    let tail_start = end.checked_add(1).expect("tail start");
-    let statements = function.get(body_start..tail_start).expect("statements");
-    let padding = " ".repeat(indent);
-    let scope = if indent == 0 { "" } else { "Self::" };
-    out.push_str(&format!("{}\n", function.get(..body_start).expect("header").join("\n")));
-    for (index, _) in statements.chunks(90).enumerate() {
-        out.push_str(&format!("{padding}    {variable} = {scope}{name}_{index}(limits, {variable})?;\n"));
-    }
-    out.push_str(&format!("{}\n", function.get(tail_start..).expect("tail").join("\n")));
-    for (index, chunk) in statements.chunks(90).enumerate() {
-        out.push_str(&format!("\n{padding}fn {name}_{index}(limits: &Limits, mut {variable}: u64) -> Option<u64> {{\n{}\n{padding}    Some({variable})\n{padding}}}\n", chunk.join("\n")));
-    }
-}
+use crate::{Record, emit_types::rust_type};
 
-/// Keeps each field's operations together when a record method exceeds the bound.
-pub(crate) fn split_record_functions(record: &crate::Record, source: &str) -> String {
-    let mut out = String::new();
+pub(crate) fn fold(signature: &str, name: &str, var: &str, statements: &[String], tail: &str, out: &mut String) {
+    out.push_str(signature);
     let mut helpers = String::new();
-    let mut lines = source.lines().peekable();
-    while let Some(line) = lines.next() {
-        out.push_str(&format!("{line}\n"));
-        let method = line.trim_start().strip_prefix("pub fn ").or_else(|| line.trim_start().strip_prefix("fn "));
-        let name = method.and_then(|method| method.split('(').next()).unwrap_or("");
-        if !line.ends_with('{') || !matches!(name, "check" | "measure" | "encode" | "decode_from") {
+    if statements.len() < 96 {
+        out.extend(statements.iter().map(String::as_str));
+    } else {
+        for (index, chunk) in statements.chunks(90).enumerate() {
+            out.push_str(&format!("    {var} = {name}_{index}(limits, {var})?;\n"));
+            helpers.push_str(&format!(
+                "\nfn {name}_{index}(limits: &Limits, mut {var}: u64) -> Option<u64> {{\n{}    Some({var})\n}}\n",
+                chunk.concat()
+            ));
+        }
+    }
+    out.push_str(tail);
+    out.push_str(&helpers);
+}
+
+pub(crate) struct Statement {
+    pub text: String,
+    pub boundary: bool,
+    pub decoded: Option<String>,
+}
+
+impl Statement {
+    pub fn new(text: String, boundary: bool) -> Self {
+        Self { text, boundary, decoded: None }
+    }
+}
+
+pub(crate) enum Tail {
+    Line(String),
+    Members(Vec<Member>),
+}
+
+pub(crate) enum Member {
+    Field(String),
+    Bools(Vec<String>),
+}
+
+pub(crate) struct Method {
+    pub name: &'static str,
+    pub head: Vec<String>,
+    pub body: Vec<Statement>,
+    pub tail: Tail,
+}
+
+impl Method {
+    pub fn new(name: &'static str, signature: &str, tail: &str) -> Self {
+        Self { name, head: vec![signature.into()], body: Vec::new(), tail: Tail::Line(tail.into()) }
+    }
+}
+
+/// Renders statements once, keeping balanced operations within each helper.
+pub(crate) fn render(record: &Record, method: &Method, out: &mut String, helpers: &mut String) {
+    out.extend(method.head.iter().map(String::as_str));
+    let body = method.body.iter().map(|statement| &statement.text);
+    let lines = method.head.iter().skip(1).chain(body).map(|text| text.lines().count()).sum::<usize>();
+    let split = lines >= 98;
+    let mut chunks = vec![Vec::new()];
+    let mut count = 0_usize;
+    for statement in &method.body {
+        if split && statement.boundary && count >= 70 {
+            chunks.push(Vec::new());
+            count = 0;
+        }
+        count = count.checked_add(statement.text.lines().count()).expect("method lines");
+        chunks.last_mut().expect("chunk").push(statement);
+    }
+    let mut decoded = BTreeMap::new();
+    let types = record.fields.iter().map(|field| (field.name.as_str(), &field.ty)).collect::<BTreeMap<_, _>>();
+    for (index, chunk) in chunks.iter().enumerate() {
+        if !split {
+            out.extend(chunk.iter().map(|statement| statement.text.as_str()));
             continue;
         }
-        let mut body = lines.by_ref().take_while(|line| *line != "    }").collect::<Vec<_>>();
-        if body.len() < 99 {
-            for line in body {
-                out.push_str(&format!("{line}\n"));
-            }
-            out.push_str("    }\n");
-            continue;
-        }
-        let mut tail = body.pop().expect("method result").to_owned();
+        let name = method.name;
         let (parameters, arguments, result, finish, call) = match name {
             "measure" => ("&self, mut size: u32", "self, size", "u32", "size", "size = "),
             "encode" => (
@@ -103,67 +96,48 @@ pub(crate) fn split_record_functions(record: &crate::Record, source: &str) -> St
             "decode_from" => ("limits: &Limits, reader: &mut skein_lib::Reader<'_>", "limits, reader", "", "", ""),
             _ => unreachable!("record method selected"),
         };
-        if name == "measure" || body.first().is_some_and(|line| line.trim_start().starts_with("let version =")) {
-            out.push_str(&format!("{}\n", body.remove(0)));
-            if name == "decode_from" {
-                out.push_str(&format!("{}\n", body.remove(0)));
-            }
-        }
-        let mut chunks = vec![String::new()];
-        for line in body {
-            let chunk = chunks.last().expect("chunk");
-            let boundary = chunk.matches('{').count() == chunk.matches('}').count()
-                && (!matches!(name, "measure" | "encode") || line.trim_start().starts_with("let field_"));
-            if boundary && chunk.lines().count() >= 70 {
-                chunks.push(String::new());
-            }
-            chunks.last_mut().expect("chunk").push_str(&format!("{line}\n"));
-        }
-        for (index, chunk) in chunks.iter().enumerate() {
-            let (parameters, arguments) = if name == "check" && !chunk.contains("self.") && !chunk.contains(" = self;")
-            {
-                ("limits: &Limits", "limits")
-            } else {
-                (parameters, arguments)
-            };
+        let (mut result, mut finish, mut call) = (result.to_owned(), finish.to_owned(), call.to_owned());
+        if name == "decode_from" {
             let fragment = format!("{}Decoded{index}", record.name);
-            let mut result = result.to_owned();
-            let mut finish = finish.to_owned();
-            let mut call = call.to_owned();
-            if name == "decode_from" {
-                let fields = record
-                    .fields
-                    .iter()
-                    .filter(|field| chunk.contains(&format!("let decoded_{} =", field.name)))
-                    .collect::<Vec<_>>();
-                let members = fields
-                    .iter()
-                    .map(|field| format!("{}: decoded_{}", field.name, field.name))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                for field in &fields {
-                    for suffix in [",", " }", "]"] {
-                        tail = tail.replace(
-                            &format!("decoded_{}{suffix}", field.name),
-                            &format!("decoded_{index}.{}{suffix}", field.name),
-                        );
-                    }
-                }
-                helpers.push_str(&format!("\n#[derive(Debug)]\nstruct {fragment} {{\n"));
-                for field in &fields {
-                    helpers.push_str(&format!("    {}: {},\n", field.name, crate::emit_types::rust_type(&field.ty)));
-                }
-                helpers.push_str("}\n");
-                result = format!("Result<{fragment}, Problem>");
-                finish = format!("Ok({fragment} {{ {members} }})");
-                call = format!("let decoded_{index} = ");
+            let fields = chunk.iter().filter_map(|statement| statement.decoded.as_deref()).collect::<Vec<_>>();
+            let members = fields.iter().map(|field| format!("{field}: decoded_{field}")).collect::<Vec<_>>().join(", ");
+            helpers.push_str(&format!("\n#[derive(Debug)]\nstruct {fragment} {{\n"));
+            for field in fields {
+                decoded.insert(field, index);
+                helpers.push_str(&format!("    {field}: {},\n", rust_type(types.get(field).expect("decoded field"))));
             }
-            let question = if name == "measure" { "" } else { "?" };
-            out.push_str(&format!("        {call}Self::{name}_{index}({arguments}){question};\n"));
-            helpers.push_str(&format!("\nimpl {} {{\n    fn {name}_{index}({parameters}) -> {result} {{\n{chunk}        {finish}\n    }}\n}}\n", record.name));
+            helpers.push_str("}\n");
+            result = format!("Result<{fragment}, Problem>");
+            finish = format!("Ok({fragment} {{ {members} }})");
+            call = format!("let decoded_{index} = ");
         }
-        out.push_str(&format!("{tail}\n    }}\n"));
+        let question = if name == "measure" { "" } else { "?" };
+        out.push_str(&format!("        {call}Self::{name}_{index}({arguments}){question};\n"));
+        helpers.push_str(&format!("\nimpl {} {{\n    fn {name}_{index}({parameters}) -> {result} {{\n", record.name));
+        helpers.extend(chunk.iter().map(|statement| statement.text.as_str()));
+        helpers.push_str(&format!("        {finish}\n    }}\n}}\n"));
     }
-    out.push_str(&helpers);
-    out
+    match &method.tail {
+        Tail::Line(line) => out.push_str(line),
+        Tail::Members(members) => {
+            let value = |field: &str| {
+                decoded
+                    .get(field)
+                    .map_or_else(|| format!("decoded_{field}"), |index| format!("decoded_{index}.{field}"))
+            };
+            let members = members
+                .iter()
+                .map(|member| match member {
+                    Member::Field(field) => format!("{field}: {}", value(field)),
+                    Member::Bools(fields) => format!(
+                        "skein_bools: [{}]",
+                        fields.iter().map(|field| value(field)).collect::<Vec<_>>().join(", ")
+                    ),
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!("        Ok(Self {{ {members} }})\n"));
+        }
+    }
+    out.push_str("    }\n");
 }

@@ -690,6 +690,10 @@ impl Fingerprints {
   its field or variant, has a kind (10.3), and is one line of text
   (10.2), the operation a patch spells (section 11) and the command
   writes (section 12).
+- **The plan's matching and change list:** the diff matches, compares
+  and lists through `skein_codec::patch` (11.6), so one definition says
+  what a compatible change is. The diff spells that list, places the
+  renames among its lines (10.2) and proposes renames (10.1).
 - **Matched by name** (10.1): declarations, then the fields of matched
   records and the variants of matched enumerations, the renames its
   author confirmed first. A rename is proposed where one leaves and
@@ -1391,6 +1395,35 @@ pub enum Op {
     Order, Payload, Written,
 }
 pub enum Target { Declaration(DeclIx), Field(FieldIx), Variant(VariantIx) }
+
+// The matching and the change list a plan computes, which the diff reads (section 10).
+// A rename check says what is wrong; a plan's own refusals stay the plan's.
+pub struct Matching { /* each current declaration's, field's and variant's kept one */ }
+pub enum Comparison { Equal, Widen { integer: bool }, Wrap, Retype }
+pub struct Change {
+    pub op: Op,
+    pub target: Target,
+    pub implicit: bool,
+    pub written: Option<Target>,
+    /* whether a plan's line has met it */
+}
+pub enum RenameRefused { OldUnknown, NewUnknown, DeclarationUnknown, NotMatched, Twice }
+pub fn changes(old: &Schema, new: &Schema, matching: &Matching) -> List<Change>;
+impl Matching {
+    pub fn new(new: &Schema) -> Matching; // nothing paired
+    pub fn old(&self, new: DeclIx) -> Option<DeclIx>;
+    pub fn part(&self, new: Target) -> Option<Target>;
+    pub fn used(&self, old: Target) -> bool;
+    pub fn pair(&mut self, new: Target, old: Target);
+    pub fn declaration_rename(&self, old: &Schema, new: &Schema, from: &[u8], to: &[u8])
+        -> Result<(Target, Target), RenameRefused>;
+    pub fn part_rename(&self, old: &Schema, new: &Schema, declaration: &[u8], from: &[u8], to: &[u8])
+        -> Result<(Target, Target), RenameRefused>;
+    pub fn pair_declarations(&mut self, old: &Schema, new: &Schema); // what is left, by name
+    pub fn pair_parts(&mut self, old: &Schema, new: &Schema);        // what is left, by name
+    pub fn compare(&self, old: &Schema, new: &Schema, kept: TypeIx, current: TypeIx) -> Comparison;
+    pub fn payload(&self, old: Option<DeclIx>, new: Option<DeclIx>) -> bool;
+}
 
 pub fn header(patch: &[u8]) -> Result<Header, PatchError>; // its header lines alone
 impl Header {

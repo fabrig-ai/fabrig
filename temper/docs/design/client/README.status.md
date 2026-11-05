@@ -11,7 +11,7 @@
   "Change something"; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 5.3, 5.13: How work runs' controls and its
   proposal of settings' card in a chat. 5.3: the rail and tab bar by kind 7
-  await the Goals address and the Away switch.
+  await the Away switch.
   3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing. 3.5: Ready's model line names no
@@ -63,3 +63,11 @@
   the welcome's Ready. The code records no reason; it lets a person make
   the project Ready would offer before Ready, the case of the draft's open question
   (`../draft/first-run-projects.status.md`).
+  3.5, 4.6, Changes: the queue's first says "checking" at whichever step of
+  its turn, and "checks started" gives when that step began
+  (`temper-engine-domain-forge`'s `views/changes.rs`, `Change.since`), where
+  the request of 2026-11-05 has when its checks began: nothing keeps that time.
+  4.6: `changes_view` reads every `ChangeRow`'s repository with `?`, and no
+  step erases a closed change's row (`../domain/after-landing.status.md`), so
+  once a forge's removal erases a repository with a closed change, no project
+  has the document; seen by reading, no test holds it and no reason is recorded.

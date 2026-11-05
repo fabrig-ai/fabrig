@@ -515,6 +515,8 @@ mod tests {
             budget: task.budget,
             waits_on: c::WaitsOn::Nothing,
             phases: c::PhaseCounts::ZERO,
+            delegates_done: 0,
+            delegates_total: 0,
             held_below: 0,
             conversation: None,
         }
@@ -613,7 +615,13 @@ mod tests {
                 assert_order(&page, &["Change · Task 9", "Shop", "Goal", "Task 12", "PR #216"]);
                 task_link(&mut view, 12);
             } else {
-                assert!(!page.contains("Goal"), "no other goal means no slot: {page}");
+                assert!(
+                    !view.tree().nodes().iter().any(|node| {
+                        node.role == skein_ui::Role::Paragraph
+                            && node.text.iter().any(|run| run.text.as_ref() == b"Goal")
+                    }),
+                    "no other goal means no header slot: {page}"
+                );
             }
         }
     }

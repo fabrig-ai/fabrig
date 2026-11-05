@@ -12,6 +12,9 @@ use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Key, Record};
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 
+#[cfg(test)]
+mod report;
+
 // Writes for the system goal world's approval, planning and five-task route.
 const GOAL_WRITES: u32 = 4_735;
 

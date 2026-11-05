@@ -176,6 +176,7 @@ pub(crate) fn route_forge(
                     | Address::Changes { .. }
                     | Address::Settings { .. }
                     | Address::Repositories { .. }
+                    | Address::Goals { .. }
                     | Address::Configure { .. }
                     | Address::Adopt { .. } => continue,
                 };
@@ -450,7 +451,8 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
     let mut child = Queue::uncapped();
     let on_tab = match root.pages.address() {
         Address::Settings { .. } => true,
-        Address::Changes { .. }
+        Address::Goals { .. }
+        | Address::Changes { .. }
         | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
