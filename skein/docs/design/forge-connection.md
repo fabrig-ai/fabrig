@@ -1072,3 +1072,16 @@ The owner's domain owes:
 - **An installation's lifecycle** (3.4, 8.6): `GitHub`'s mint, read and
   identity flags take lifecycle states (programming-model.md, section
   5.4). Default: as they stand, until a debt item names them.
+- **A call's side beside its dialect** (7.1): a step matches the call's variant
+  with its entry's dialect, since a GitHub call takes its installations from
+  the entry. Whether the variant can reach them with no second match, so that
+  the dialect is read once. Default: as it stands, until a debt item names it.
+- **Who sets a connection's deadline** (8.1): a state holds its `until`, and
+  each holder's `rest` sets it, nine calls across the component, where 8.1 has
+  one place after each transition. Whether a transition can take it from its
+  holder. Default: as they stand, until a debt item names them.
+- **A JSON body's state** (8.1): `Exchange` keeps the body and its next request
+  beside `receive`, not in `Receiving::Json` (programming-model.md, section
+  5.4), since a demand can reach them after `discard`. Whether `discard` clears
+  that demand, so that they move. Default: as they stand, until a debt item
+  names them.

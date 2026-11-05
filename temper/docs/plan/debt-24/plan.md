@@ -25,16 +25,33 @@ Two independent parts (`inputs/request.md`): the spot review of debt-22, and the
 | D028 | `skein-kits` | `path-fixtures` | `forge-kit` | medium | 35 | four `#[path]`s go |
 | D028 | `skein-kits` | `skein-world-readers` | `llm-kit`, `tls-kit`, `forge-kit`, `world-exemptions` | medium | 30 | smith, temper and jig read the kits |
 | D028 | `skein-kits` | `world-gate` | the eight above | medium | 25 | `skein_worlds.rs`; the item goes |
-| D030 | `connection-worlds` | `hand-face` | | high | 40 | `Harness` lifted to `hand`; a baseline; `free_rate` |
-| D030 | `connection-worlds` | `hand-forgejo` | `hand-face` | medium | 35 | about 88 Forgejo tests move |
+| D030 | `connection-worlds` | `hand-face` | | high | 40 | `Harness` lifted to `hand`; a baseline; `abort` and one `free_rate` test |
+| D030 | `connection-worlds` | `hand-forgejo` | `hand-face` | medium | 35 | about 83 Forgejo tests move |
 | D030 | `connection-worlds` | `hand-github` | `hand-face` | medium | 25 | about 73 public GitHub tests move |
 | D030 | `connection-worlds` | `connection-seam` | `hand-github`, `hand-forgejo` | high | 35 | the `seam` feature |
 | D030 | `connection-worlds` | `hand-rows` | `connection-seam` | medium | 30 | about 137 tests that read private rows move |
-| D030 | `connection-worlds` | `hand-seeded` | `hand-rows` | high | 40 | about 106 tests that seed move; the crate's fake goes |
+| D030 | `connection-worlds` | `hand-seeded` | `hand-rows` | high | 40 | about 119 tests that seed move; the crate's fake goes |
 | D030 | `connection-worlds` | `connection-residue` | `hand-seeded` | high | 30 | `Harness` leaves the crate |
+| D030 | `connection-worlds` | `forge-sockets` | `forge-kit`, `connection-residue` | high | 70 | `Sockets`; each world's arms go; seeds replay |
+| D030 | `connection-worlds` | `connection-close` | `forge-sockets` | high | 30 | duplicates and fixture copies go; the item goes |
 | D031 | `jig-kits` | `world-exemptions` | | medium | 25 | `skein-world` and smith's world exempt; two unused edges go; Measure 27 |
+| D031 | `jig-kits` | `connector-kit` | `kit-packages`, `world-exemptions` | medium | 30 | paths and kinds; five edges |
+| D031 | `jig-kits` | `core-kit` | `connector-kit` | medium | 50 | the core world's library; six edges |
+| D031 | `jig-kits` | `client-kit` | `core-kit`, `seed-projects` | medium | 70 | the client world's library; four edges |
+| D031 | `jig-kits` | `engine-clients-kit` | `client-kit` | medium | 25 | the peer and its fixtures; two edges |
+| D031 | `jig-kits` | `client-protocol-kit` | `engine-clients-kit` | medium | 50 | all but `public`; four edges |
+| D031 | `jig-kits` | `accounts-kit` | `client-protocol-kit` | medium | 25 | `fixtures`, `Story`; two edges |
+| D031 | `jig-kits` | `channel-kit` | `accounts-kit`, `skein-world-readers` | medium | 50 | the channel world's library; two edges; Measure 0 |
+| D031 | `jig-kits` | `temper-kit-names` | `channel-kit` | medium | 20 | temper reads the kits |
+| D031 | `jig-kits` | `jig-kits-close` | `temper-kit-names`, `skein-world-readers` | medium | 20 | `PENDING` goes; design's names; the item goes |
+| D035 | `world-verbs` | `core-verbs` | `core-kit` | high | 60 | one `ask`; the core world's numbers named |
+| D035 | `world-verbs` | `accounts-names` | | high | 45 | the accounts' rows named; a table |
+| D035 | `world-verbs` | `people-names` | | medium | 25 | `sign_in_owner`, `sign_in_second` |
+| D035 | `world-verbs` | `connector-names` | `connector-kit` | medium | 35 | a path names its seed |
+| D035 | `world-verbs` | `const-sweep` | `client-protocol-kit` | medium | 45 | a fixture named once per world; tasks' verbs |
+| D035 | `world-verbs` | `verbs-close` | the five above | medium | 20 | the held files; the target; the item goes |
 
-So far, `spot-review` is 295 implementer-minutes; no debt item closes in it, by the request. The table grows with each push.
+1615 implementer-minutes in all: 295 in `spot-review`, 100 in `front-identities`, 290 in `skein-kits`, 335 in `connection-worlds`, 365 in `jig-kits`, 230 in `world-verbs`. No debt item closes in `spot-review`, by the request. That's more than "small" says, because five items' **Paid when**s are wide; `kit-packages` and the re-export are what kept it here. Measure each item by re-reading it: D028's Measure read 17, not 16.
 
 ## What was decided
 
@@ -64,6 +81,20 @@ So far, `spot-review` is 295 implementer-minutes; no debt item closes in it, by 
 - **The D030 moves are a chain only where they must be.** `hand-forgejo` and `hand-github` hold different directories, and the rest follow helpers (`github_start`, then `github_renewal`, then the seed batch). The survey expects -400 to -700 lines, not the review's larger guess, and it's measured at the end.
 - **`world-exemptions` reads "smith's own world kits" as `smith-agent-process-world`.** Smith has no `testing/` and no such item, and about seven of smith's packages and temper's read it, so a kit for it isn't this plan's. It's the item's clause, so it isn't a question, and fabrig/debt may differ.
 
+- **D035's target is an exempted search, not 0.** 80 of its 262 matches are spans, bounds and seeds (`millis`, `between`, `fixture`, `workers`...), where the number is the point, which is the item's own clause. `verbs-close` runs the item's pattern with those twelve functions exempt, target at most ten, each named. `jig/testing` joins the search, since D031 moves code there from `jig/tests`.
+- **`ask`'s literal key stays, against the item's example.** The Measure doesn't read it. `key: [request; 16]` and its reply token follow from that number, and a retry repeats it, so a hidden counter would change the tokens tests read. It's a request's identity, so it's a number that's the point. `ask` goes from seven copies to one per world. This is the second call worth fabrig/debt's look.
+- **`SEED` stays per file.** It has 46 files and 51 distinct values, and each names its run. `PROJECT` is 44 of 50 at one value, so one name per world removes most.
+- **D035 follows D031 where they meet.** Verbs live in the kits `connector-kit` and `core-kit` create, and `const-sweep` needs the client and protocol kits. Accounts and people go now: nothing else holds them.
+- **Temper's edges aren't in `PENDING`, and they go anyway.** The item says no package, and the rule reads only jig. `temper-kit-names` does them late, so the moves leave temper alone until then.
+
+## Seen, left
+
+- `skein/tests/fake-peers/tests/forge/fixtures.rs` (23 lines) and `temper/tests/engine/protocol-forge/src/fixtures.rs` (35) share lines with the forge kit's fixtures. `connection-close` reports them, and no item here pays them.
+- `a_delegate_s_escalation_record_names_the_person_who_asked` is on Scripted and Joint but not Protocol; `protocol-parties` adds it if it passes as is.
+- Smith has no `testing/`. `smith-agent-process-world` stays a kit by name; a real kit would be smith's own item.
+- `settings::moves`' three copies stand, with the reason above.
+- Five `#[path]`s and three manifest `path =`s reach within their package. Neither the item nor the gate counts them.
+
 ## Overlaps
 
 - The spot review's tasks meet no other draft's files. `jig-domain-people/src/tests.rs` and `jig-domain-tasks/src/tests.rs` aren't in any listed task's files.
@@ -73,6 +104,10 @@ So far, `spot-review` is 295 implementer-minutes; no debt item closes in it, by 
 - `jig/tests/client-protocol` and `jig/tests/client` are D029's and then D031's, in that order.
 - `skein/tests/forge/machine` is shared by D028's and D030's tasks: `hand-face` goes first; the `hand-*` tasks hold `src/hand.rs` and `tests/suite/hand/**`, and `tls-kit` and `forge-kit` hold the rest.
 
+- `jig/tests/core/tests/suite/stories.rs` (`ui-chat-draft/note-scope`), `jig/tests/core/tests/stories/note_room.rs` and `jig/tests/notes/**` (`note-parts/note-range`) aren't on `main` yet: `core-verbs` stays off them, the re-export keeps them compiling, and `verbs-close` takes them last with a line or two.
+- `temper-kit-names` holds a `use` line in `temper/tests/client/**` and `temper/tests/client-browser/**`, which `ui-chat-draft` and `ui-phone` are changing. It goes near the end, and searches again before it pushes.
+- `const-sweep` and `core-verbs` meet `jig-client-kit`, `jig-core-kit` and their worlds' suites after the moves, never beside them.
+
 ## Critical path
 
-So far: `http-kit`'s chain through `kit-packages`, `llm-kit`, `tls-kit`, `forge-kit`, `path-fixtures`, `world-gate`, about 200 minutes; D030's chain is about 200 too. The rest of the test items are still being cut.
+`world-exemptions`, `connector-kit`, `core-kit`, `client-kit`, `engine-clients-kit`, `client-protocol-kit`, `accounts-kit`, `channel-kit`, `temper-kit-names`, `jig-kits-close`: 365 minutes. `client-kit` also waits on `protocol-parties` and `seed-projects`, 100 minutes, beside `core-kit`'s 105. Next longest are D035's `const-sweep` and `verbs-close` off that chain, 315, and D030's `hand-face` to `connection-close`, 310. Up to twelve tasks can run at once early on.

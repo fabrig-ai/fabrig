@@ -4,6 +4,8 @@ use jig_domain_accounts::{
 };
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 pub const ANALYST: u32 = 7;
+pub const PROVIDER: u32 = 1;
+pub const HOLDER: Holder = Holder::Party(7);
 /// A holder keeps fewer accounts than the deployment, so that each bound is passed alone.
 pub const LIMITS: Limits = Limits {
     accounts: 3,
@@ -30,7 +32,7 @@ pub struct World {
 }
 impl Default for World {
     fn default() -> World {
-        World::with_start(LIMITS, providers(vec![provider(1, true, false)]), &source_rows(&[ANALYST]))
+        World::with_start(LIMITS, providers(vec![provider(PROVIDER, true, false)]), &source_rows(&[ANALYST]))
     }
 }
 impl World {
@@ -43,7 +45,8 @@ impl World {
     }
     #[must_use]
     pub fn wanting(accounts: &[u32]) -> World {
-        let mut world = Self::with_start(LIMITS, providers(vec![provider(1, true, false)]), &source_rows(accounts));
+        let mut world =
+            Self::with_start(LIMITS, providers(vec![provider(PROVIDER, true, false)]), &source_rows(accounts));
         world.step(Event::Want);
         world
     }
@@ -93,7 +96,7 @@ impl World {
 pub fn source_rows(sources: &[u32]) -> Vec<Stored> {
     let mut rows = Vec::new();
     for (place, number) in sources.iter().enumerate() {
-        let mut row = account(1_000 + number, 1, Holder::Deployment, b"");
+        let mut row = account(1_000 + number, PROVIDER, Holder::Deployment, b"");
         if let Stored::Account { place: at, .. } = &mut row {
             *at = u32::try_from(place).expect("bounded source places");
         }
@@ -122,9 +125,23 @@ pub fn providers(list: Vec<Provider>) -> Providers {
 pub fn account(number: u32, provider: u32, holder: Holder, subject: &[u8]) -> Stored {
     Stored::Account { place: 0, uses: None, number, provider, holder, subject: subject.into(), display: Box::new([]) }
 }
+/// An account of the world's holder with its configured provider.
+#[must_use]
+pub fn held(number: u32, subject: &[u8]) -> Stored {
+    account(number, PROVIDER, HOLDER, subject)
+}
+/// A program name reserved by the world's holder.
+#[must_use]
+pub fn issued(number: u32, name: &[u8]) -> Stored {
+    Stored::Issued { number, holder: HOLDER, name: name.into(), signed_out: false }
+}
 #[must_use]
 pub fn source(account: u32, number: u32, place: u32, kind: Kind) -> Stored {
     Stored::Source { account, number, place, kind, name: Box::new([]), held: None }
+}
+#[must_use]
+pub fn program(account: u32, number: u32, place: u32, name: &[u8]) -> Stored {
+    Stored::Source { account, number, place, kind: Kind::Program, name: name.into(), held: None }
 }
 fn drain(out: &mut Queue<Request>) -> Vec<Request> {
     let mut result = Vec::new();

@@ -697,9 +697,8 @@ fn echo_input(owner: u64) -> skein_llm::Call {
 }
 
 fn echoed_completion_json(world: &Exchange, bounds: &client::Limits) -> skein_llm::Json {
-    let response =
-        skein_http_world::reference::response(&world.responses, skein_http::Method::Post, false, &bounds.http);
-    let events = skein_http_world::reference::events(&response.body, &bounds.sse);
+    let response = skein_http_kit::reference::response(&world.responses, skein_http::Method::Post, false, &bounds.http);
+    let events = skein_http_kit::reference::events(&response.body, &bounds.sse);
     let terminal =
         events.events.iter().find(|event| event.name == b"response.completed").expect("actual terminal wire echo");
     skein_llm::Json::from_bytes(&terminal.data, &bounds.native().document())
@@ -751,7 +750,7 @@ fn configured_responses_echoes_preserve_the_completion_past_the_previous_token_c
     assert_eq!(key_count(tokens, b"input_index"), 20);
     let edge = tokens.len();
     let request = skein_llm::Json::from_bytes(
-        &skein_http_world::reference::request(
+        &skein_http_kit::reference::request(
             &skein_llm_world::identity(&echoed.requests),
             &skein_llm_world::fake::limits(&bounds).http,
         )
@@ -819,7 +818,7 @@ fn actual_request_heads_match_the_independent_http_reader_on_both_dialects() {
         assert_eq!(world.queries.len(), 1);
         let [head] = world.heads.as_slice() else { panic!("one request head") };
         let parsed =
-            skein_http_world::reference::request(&world.requests, &skein_llm_world::fake::limits(&limits()).http);
+            skein_http_kit::reference::request(&world.requests, &skein_llm_world::fake::limits(&limits()).http);
         let expected = parsed.head.expect("independent whole HTTP head");
         let head_fields: Vec<_> = head.iter().map(|header| (header.name.to_vec(), header.value.to_vec())).collect();
         let expected: Vec<_> = expected
@@ -1388,9 +1387,8 @@ fn the_stream_opened_by_a_piece_reports_the_replys_usage() {
     let mut world = piece_exchange(skein_llm::Provider::Anthropic, false, None);
     world.run();
     let bounds = limits();
-    let response =
-        skein_http_world::reference::response(&world.responses, skein_http::Method::Post, false, &bounds.http);
-    let events = skein_http_world::reference::events(&response.body, &bounds.sse);
+    let response = skein_http_kit::reference::response(&world.responses, skein_http::Method::Post, false, &bounds.http);
+    let events = skein_http_kit::reference::events(&response.body, &bounds.sse);
     let opening = events.events.iter().find(|event| event.name == b"message_start").expect("opening usage");
     let json = skein_llm::anthropic::Json::from_bytes(&opening.data, &bounds.native().document()).unwrap();
     let skein_llm::anthropic::Event::Started { usage } =

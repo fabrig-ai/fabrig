@@ -392,3 +392,7 @@ client's evidence: unsent, possibly sent, or a response received.
 - **Fairness in the memory pool.** Arrival order lets one large call hold
   back smaller ones behind it while it waits. Whether a bounded bypass is
   worth its complexity waits for a measurement under load.
+- **A connection's phase** (5): `Connection` keeps `waiting` and `reservation`
+  beside `Phase`, and neither `call.rs` nor `component.rs` has one handler per
+  cell (programming-model.md, section 5.4). Default: as they stand, until a
+  debt item names them.

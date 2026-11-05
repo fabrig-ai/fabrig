@@ -9,7 +9,7 @@ use skein_lib::{Duration, Env, List, Queue, Time, Token};
 use skein_llm::{Failure, Phase, client::Evidence};
 use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
 use skein_llm_connection_world::plaintext::Wire;
-use skein_tls_world::{drive::Wire as TlsWire, pki, server::Server};
+use skein_tls_kit::{drive::Wire as TlsWire, pki, server::Server};
 use skein_world::domain::assert_replays;
 
 fn limits() -> Limits {
@@ -35,7 +35,7 @@ fn limits() -> Limits {
         },
         // HTTP may demand one whole head line; TLS must admit that derived read.
         tls: skein_tls::client::Limits {
-            read: skein_llm::client::largest_read(&skein_llm_world::limits()),
+            read: skein_llm::client::largest_read(&skein_llm_kit::limits()),
             send: 4096,
             records: skein_tls::client::MAX_RECORD,
         },
@@ -104,7 +104,7 @@ struct World {
 
 impl World {
     fn new(deadlines: Deadlines, seed: u64, handshake: bool) -> World {
-        let call = skein_llm_world::call(7);
+        let call = skein_llm_kit::call(7);
         let mut endpoints = List::with_capacity(1);
         endpoints
             .push(Endpoint {
@@ -118,7 +118,7 @@ impl World {
                     skein_llm_connection::Transport::Plaintext
                 },
                 llm: call.endpoint,
-                limits: skein_llm_world::limits(),
+                limits: skein_llm_kit::limits(),
                 credential: skein_llm::client::CredentialLimits { value: 2048 },
             })
             .expect("one endpoint");
@@ -508,10 +508,10 @@ fn run_a_steady_stream_outlasts_any_fixed_bound_and_completes(seed: u64) -> Worl
     world.run_until_request();
     world.wire.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n");
     world.run_until_head();
-    write_event(&mut world, skein_llm_world::TEXT_ADDED);
+    write_event(&mut world, skein_llm_kit::TEXT_ADDED);
     for tick in 1..=20 {
         world.now = Time::from_nanos(tick * 500_000_000);
-        write_event(&mut world, skein_llm_world::TEXT_DELTA);
+        write_event(&mut world, skein_llm_kit::TEXT_DELTA);
         let expected = Some(world.now.saturating_add(Duration::from_secs(1)));
         for _ in 0..20_000 {
             world.tick();
@@ -524,9 +524,9 @@ fn run_a_steady_stream_outlasts_any_fixed_bound_and_completes(seed: u64) -> Worl
         world.component.fire(&env, &mut world.up, &mut world.io);
         assert!(world.terminals.is_empty());
     }
-    let done = skein_llm_world::TEXT_DONE.replace("Hello", &"Hello".repeat(20));
+    let done = skein_llm_kit::TEXT_DONE.replace("Hello", &"Hello".repeat(20));
     write_event(&mut world, &done);
-    write_event(&mut world, skein_llm_world::TERMINAL);
+    write_event(&mut world, skein_llm_kit::TERMINAL);
     world.wire.write(b"0\r\n\r\n");
     for _ in 0..20_000 {
         world.tick();
@@ -555,7 +555,7 @@ fn run_a_stalled_drain_is_closed_by_idleness_without_a_second_terminal(seed: u64
         false,
     );
     world.run_until_request();
-    let response = skein_llm_world::text_response(true);
+    let response = skein_llm_kit::text_response(true);
     assert!(response.ends_with(b"0\r\n\r\n"));
     world.wire.write(&response[..response.len() - 5]);
     for _ in 0..20_000 {
@@ -600,7 +600,7 @@ fn a_stalled_drain_is_closed_by_idleness_without_a_second_terminal() {
 fn idle_tls_world() -> World {
     let mut world = World::new(Deadlines::none(), 47, true);
     world.run_until_request();
-    world.wire.write(&skein_llm_world::text_response(true));
+    world.wire.write(&skein_llm_kit::text_response(true));
     let keep = Time::ZERO.saturating_add(limits().idle_keep);
     for _ in 0..20_000 {
         world.tick();
@@ -664,7 +664,7 @@ fn a_close_while_handshaking_lets_the_tls_call_complete_and_says_closed_last() {
     let env = world.env();
     world.component.down(&env, Request::Close, &mut world.up, &mut world.io);
     world.run_until_request();
-    world.wire.write(&skein_llm_world::text_response(true));
+    world.wire.write(&skein_llm_kit::text_response(true));
     for _ in 0..20_000 {
         world.tick();
         if world.owner_closed {
@@ -689,8 +689,8 @@ fn content_deltas_keep_idle_alive_but_do_not_extend_the_whole_call() {
         world.wire.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n");
         world.run_until_head();
         world.now = Time::from_nanos(500_000_000);
-        write_event(&mut world, skein_llm_world::TEXT_ADDED);
-        write_event(&mut world, skein_llm_world::TEXT_DELTA);
+        write_event(&mut world, skein_llm_kit::TEXT_ADDED);
+        write_event(&mut world, skein_llm_kit::TEXT_DELTA);
         for _ in 0..1000 {
             world.tick();
         }
@@ -728,17 +728,17 @@ fn pings_between_content_deltas_allow_completion_and_do_not_shorten_the_largest_
     for _ in 0..1000 {
         world.tick();
     }
-    let done = skein_llm_world::TEXT_DONE.replace("Hello", "HelloHello");
+    let done = skein_llm_kit::TEXT_DONE.replace("Hello", "HelloHello");
     for (now, event) in [
-        (1_200_000_000, skein_llm_world::TEXT_ADDED),
-        (1_200_000_000, skein_llm_world::TEXT_DELTA),
+        (1_200_000_000, skein_llm_kit::TEXT_ADDED),
+        (1_200_000_000, skein_llm_kit::TEXT_DELTA),
         (1_500_000_000, r#"{"type":"ping"}"#),
         (1_800_000_000, r#"{"type":"ping"}"#),
-        (2_000_000_000, skein_llm_world::TEXT_DELTA),
+        (2_000_000_000, skein_llm_kit::TEXT_DELTA),
         (2_300_000_000, r#"{"type":"ping"}"#),
         (2_600_000_000, r#"{"type":"ping"}"#),
         (2_800_000_000, done.as_str()),
-        (2_800_000_000, skein_llm_world::TERMINAL),
+        (2_800_000_000, skein_llm_kit::TERMINAL),
     ] {
         world.now = Time::from_nanos(now);
         write_event(&mut world, event);
@@ -834,18 +834,18 @@ fn the_terminal_event_is_in_the_largest_gap_for_plaintext_and_tls() {
             world.tick();
         }
         world.now = Time::from_nanos(1_500_000_000);
-        write_event(&mut world, skein_llm_world::TEXT_ADDED);
-        write_event(&mut world, skein_llm_world::TEXT_DELTA);
+        write_event(&mut world, skein_llm_kit::TEXT_ADDED);
+        write_event(&mut world, skein_llm_kit::TEXT_DELTA);
         for _ in 0..1000 {
             world.tick();
         }
         world.now = Time::from_nanos(2_100_000_000);
-        write_event(&mut world, skein_llm_world::TEXT_DONE);
+        write_event(&mut world, skein_llm_kit::TEXT_DONE);
         for _ in 0..1000 {
             world.tick();
         }
         world.now = Time::from_nanos(2_900_000_000);
-        write_event(&mut world, skein_llm_world::TERMINAL);
+        write_event(&mut world, skein_llm_kit::TERMINAL);
         world.wire.write(b"0\r\n\r\n");
         for _ in 0..20_000 {
             world.tick();
@@ -870,7 +870,7 @@ fn a_provider_failure_reaches_the_owner_with_its_report() {
     let mut world = World::new(Deadlines::none(), 1, false);
     world.run_until_request();
     let body = br#"{"error":{"code":"subscription_sharing_usage_limit_exceeded","message":"spent","param":"model"}}"#;
-    let source = skein_llm_world::response(429, "x-request-id: fixture-request\r\n", body, false);
+    let source = skein_llm_kit::response(429, "x-request-id: fixture-request\r\n", body, false);
     world.wire.write(&source);
     while world.terminals.is_empty() {
         world.tick();

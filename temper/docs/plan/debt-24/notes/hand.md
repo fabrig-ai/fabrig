@@ -29,11 +29,12 @@ skein/tests/forge/machine/tests/suite/hand/github.rs    a mod line per moved Git
 
 | File | Harness tests | Reach | Task |
 |---|---|---|---|
-| `free_rate`, `contents`, `writes`, `reads`, `connection`, `artifact`, `abort` | 14, 23, 17, 22, 15, 1, 5 | public, by hand; `reads` and `connection` hold four `drv`; one `free_rate` test seeds | `hand-forgejo` (`free_rate` in `hand-face`) |
+| `abort`; `free_rate`'s `forgejo_ignores_github_rate_headers` | 5, 1 | public, by hand | `hand-face` |
+| `contents`, `writes`, `reads`, `connection`, `artifact` | 23, 17, 22, 15, 1 | public, by hand; `reads` and `connection` hold four `drv` | `hand-forgejo` |
 | `src/tests.rs`' six `Harness` sites | 6 | public | `hand-forgejo` |
 | `github_start`, `github_installations`, `runtime` | 46, 17, 10 | public, by hand | `hand-github` |
 | `github_installation_loss`, `github_renewal`, `puller` | 68, 39, 26 | read private state | `hand-rows` |
-| `github_calls`, `github_unknown_repository`, `github_logs`, `github_files`, `github_writes_heap` | 47, 37, 12, 7, 2 | seed private state | `hand-seeded` |
+| `github_calls`, `github_unknown_repository`, `github_logs`, `github_files`, `github_writes_heap`, the rest of `free_rate` | 47, 37, 12, 7, 2, 13 | seed private state | `hand-seeded` |
 
 Stays in the crate: `dialects`, `hooks`, `limits/tests.rs`, `installations/tests.rs`, `app/tests.rs`, `component/github/tests.rs`, `connection/**/tests.rs`, `component/tests.rs`, and what's left of the mixed files.
 

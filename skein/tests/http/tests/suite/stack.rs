@@ -19,7 +19,7 @@ use skein_http_world::transcript::{self, Transcript};
 use skein_json::Token;
 use skein_json::tokenizer::{self as json, Tokenizer};
 use skein_json::writer::{self, Encoder};
-use skein_json_world::{Decoded, Outcome, reference};
+use skein_json_kit::{Decoded, Outcome, reference};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Env, Intake, Queue, Rng, Time, Wall};
 

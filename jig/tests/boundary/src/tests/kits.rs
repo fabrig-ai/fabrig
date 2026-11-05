@@ -6,65 +6,38 @@ use std::{
     process::Command,
 };
 
+// Kits by design, whatever their names say (jig/docs/design/domain/testing.md, 7).
+const WORLD_KITS: [&str; 2] = ["skein-world", "smith-agent-process-world"];
+
 // Each remaining world edge has a reason; removing an edge also removes its entry.
 const PENDING: &[(&str, &str, &str)] = &[
-    ("jig-accounts-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-brief-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-channel-world", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-channel-world", "skein-llm-world", "The protocol fixture uses the simulated LLM peer."),
-    ("jig-channel-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-channel-world", "smith-agent-process-world", "The protocol fixture drives the agent process peer."),
-    ("jig-client-browser-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-client-protocol-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-client-protocol-world", "jig-core-world", "The fixture uses the core world driver and its peers."),
     ("jig-client-protocol-world", "jig-engine-clients-world", "The client fixture reuses engine protocol scenarios."),
-    ("jig-client-protocol-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-client-shell-native", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-client-test-kit", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-client-views-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-client-wire-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-client-world", "jig-core-world", "The fixture uses the core world driver and its peers."),
-    ("jig-client-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-conformance", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-conformance-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-conformance-world", "jig-core-world", "The fixture uses the core world driver and its peers."),
     ("jig-conformance-world", "jig-engine-clients-world", "The client fixture reuses engine protocol scenarios."),
     ("jig-conformance-world", "jig-test-connector-world", "The fixture uses the connector simulator."),
-    ("jig-conformance-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-core-world", "jig-test-connector-world", "The fixture uses the connector simulator."),
-    ("jig-core-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-engine-clients-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-engine-clients-world", "jig-core-world", "The fixture uses the core world driver and its peers."),
-    ("jig-engine-clients-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-engine-workers-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-fleet-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-host-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-notes-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-one-process-world", "jig-channel-world", "The process fixture composes the channel world."),
     ("jig-one-process-world", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-one-process-world", "jig-protocol-accounts-world", "The fixture uses the accounts protocol peer."),
-    ("jig-one-process-world", "skein-llm-world", "The protocol fixture uses the simulated LLM peer."),
-    ("jig-one-process-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-one-process-world", "smith-agent-process-world", "The protocol fixture drives the agent process peer."),
     ("jig-ops-world", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-ops-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-ops-world", "jig-core-world", "The fixture uses the core world driver and its peers."),
-    ("jig-ops-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-people-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
-    ("jig-protocol-accounts-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-store-world", "jig-core-world", "The fixture uses the core world driver and its peers."),
-    ("jig-tasks-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-test", "jig-channel-world", "The process fixture composes the channel world."),
     ("jig-test", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-test", "jig-protocol-accounts-world", "The fixture uses the accounts protocol peer."),
     ("jig-test", "skein-tls-world", "The process tests use the TLS fixture."),
-    ("jig-test", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-test-domain", "jig-test-connector-world", "The fixture uses the connector simulator."),
-    ("jig-test-service", "jig-protocol-accounts-world", "The fixture uses the accounts protocol peer."),
-    ("jig-test-service", "skein-world", "The simulator supplies the clock, verdict and world driver."),
     ("jig-test-store", "jig-test-connector-world", "The fixture uses the connector simulator."),
     ("jig-test-store-files", "jig-test-connector-world", "The fixture uses the connector simulator."),
-    ("jig-worker-link-world", "skein-world", "The simulator supplies the clock, verdict and world driver."),
 ];
 
 pub(super) fn pending_world_dependency(package: &str, dependency: &str) -> bool {
@@ -126,7 +99,7 @@ fn world_breaches(packages: &[Package], pending: &[(&str, &str, &str)]) -> Vec<S
             package
                 .dependencies
                 .iter()
-                .filter(|name| name.ends_with("-world"))
+                .filter(|name| name.ends_with("-world") && !WORLD_KITS.contains(&name.as_str()))
                 .map(|name| (package.name.as_str(), name.as_str()))
         })
         .collect();
@@ -252,6 +225,8 @@ fn world_edges_name_normal_and_dev_dependencies_and_require_exact_reasons() {
     );
     let failures = world_breaches(&packages, &[("jig-sample", "normal-world", "")]);
     assert_eq!(failures, ["jig-sample -> normal-world: pending reason is empty", "jig-sample -> dev-world"]);
+    let packages = [fixture("jig-sample", &["skein-world", "another-world"], &["smith-agent-process-world"])];
+    assert_eq!(world_breaches(&packages, &[]), ["jig-sample -> another-world"]);
 }
 
 #[test]

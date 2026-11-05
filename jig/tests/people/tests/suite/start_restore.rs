@@ -1,5 +1,6 @@
-use jig_domain_people::{Ask, EndedBy, Holding, Lack, Outcome, Refusal, Reply, Role, TaskExecutor};
-use jig_people_world::{Settings, World, fixtures::people_member};
+use jig_domain_people::{Ask, EndedBy, Lack, Outcome, Refusal, Reply, TaskExecutor};
+use jig_people_world::fixtures::{member, people_member};
+use jig_people_world::{Settings, World};
 
 #[test]
 fn writer_refusal_replays_after_the_start_without_routing_or_writing() {
@@ -7,13 +8,7 @@ fn writer_refusal_replays_after_the_start_without_routing_or_writing() {
         let mut settings = Settings::calm(14);
         settings.authority_refuses = malformed;
         let mut world = World::new(settings);
-        let signin = world.signin(10, 1);
-        world.commit_all();
-        let Reply::SignedIn { person, .. } = world.reply(signin).expect("durable sign-in replied") else {
-            panic!("sign-in")
-        };
-        world.roles(1, Box::new([Holding { person, role: Role::Member }]));
-        world.commit_all();
+        member(&mut world);
         let mut member = people_member(b"request", 1);
         if malformed {
             member.executor = TaskExecutor::Person(jig_domain_people::PersonAddress::Person(999));
@@ -133,13 +128,7 @@ fn explicit_world_sweep_commits_each_page_without_skipping_erased_keys() {
     use jig_people_world::LIMITS;
     use skein_lib::Wall;
     let mut world = World::new(Settings::calm(18));
-    let signed = world.signin(10, 1);
-    world.commit_all();
-    let Reply::SignedIn { person, .. } = world.reply(signed).expect("durable sign-in replied") else {
-        panic!("sign-in")
-    };
-    world.roles(1, Box::new([Holding { person, role: Role::Member }]));
-    world.commit_all();
+    let person = member(&mut world);
     for number in 11..18 {
         world.signin(number, 1);
         world.commit_all();

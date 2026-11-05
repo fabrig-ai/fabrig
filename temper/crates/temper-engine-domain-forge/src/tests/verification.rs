@@ -303,6 +303,7 @@ fn verifying() -> Domain {
 
 fn heard(cancelled: bool) -> change::Heard {
     change::Heard {
+        delegate_running: false,
         start_conflict: None,
         lacking: None,
         spend: None,

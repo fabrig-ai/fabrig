@@ -43,3 +43,11 @@ Acceptance:
 ## Report
 
 The common note's items; the break's failure on each front. The story is newly held, so its lines are named as such.
+
+## Answers
+
+### 2026-11-05: Who repairs `roles_two_parties_decide_one_proposal`, this task or `protocol-parties`? (debt-24/seed-projects-1, foreman debt-24/seed-projects/foreman-1)
+
+`protocol-parties`: it's that task's acceptance, and its spec now holds fabrig/debt's answer (either winner, both clients naming the same one, in `confirm_two_parties`). Don't change that body here, though `stories/shared/**` is in this header. This task's own work stands on the pushed branch (`bdd54520d0`), with its break already reported.
+
+The next run merges `origin/debt-24/protocol-parties` first, keeping the `#[ignore]` removals where both branches made them, and runs what the last one didn't: both packages' whole suites and the checks after them. If that branch doesn't yet hold the repair, this one failure is known and not this task's: don't change it or ask about it again; report it under `## Left`, naming `protocol-parties`, with every other test passing.

@@ -6,7 +6,7 @@ use skein_heap::Meter;
 use skein_io::kernel::Addr;
 use skein_lib::{Duration, Env, List, Queue, Time, Token};
 use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
-use skein_tls_world::pki;
+use skein_tls_kit::pki;
 
 fn full_pool_limits() -> Limits {
     Limits {
@@ -31,7 +31,7 @@ fn full_pool_limits() -> Limits {
         },
         // HTTP may demand one whole head line; TLS must admit that derived read.
         tls: skein_tls::client::Limits {
-            read: skein_llm::client::largest_read(&skein_llm_world::limits()),
+            read: skein_llm::client::largest_read(&skein_llm_kit::limits()),
             send: 4096,
             records: skein_tls::client::MAX_RECORD,
         },
@@ -55,24 +55,24 @@ fn full_pool_stays_under_its_peak_ceiling() {
                 trust: pki::client(&[]),
             },
             llm: skein_llm::Endpoint::openai(),
-            limits: skein_llm_world::limits(),
+            limits: skein_llm_kit::limits(),
             credential: skein_llm::client::CredentialLimits { value: 2048 },
         })
         .expect("one endpoint");
-    let first = skein_llm_world::call(7);
+    let first = skein_llm_kit::call(7);
     let destination = endpoints.get(0).unwrap();
     let mut client = destination.limits;
     client.http.request = skein_llm::client::request_head(&destination.llm, &destination.credential, &client).unwrap();
     let measured = skein_llm::client::measure(
         &first.prompt,
-        Some(skein_llm_world::credential_of(&first)),
+        Some(skein_llm_kit::credential_of(&first)),
         &destination.llm,
         &client,
     )
     .unwrap();
     limits.memory = 2 * skein_llm::client::reservation(measured, &client).unwrap();
-    let second = skein_llm_world::call(8);
-    let third = skein_llm_world::call(9);
+    let second = skein_llm_kit::call(8);
+    let third = skein_llm_kit::call(9);
     let mut up = Queue::uncapped();
     let mut io = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: pki::VALID, limits };
@@ -227,20 +227,16 @@ fn every_declared_waiting_start_stays_under_the_peak_ceiling() {
     use skein_llm_connection_world::world::{Point, World};
     let meter = Meter::new();
     meter.start();
-    let mut input = skein_llm_world::call(7);
+    let mut input = skein_llm_kit::call(7);
     input.endpoint = skein_llm::Endpoint::openai();
     input.prompt.instructions = b"close-world".as_slice().into();
-    let mut bounds = skein_llm_world::limits();
+    let mut bounds = skein_llm_kit::limits();
     bounds.http.request =
         skein_llm::client::request_head(&input.endpoint, &skein_llm::client::CredentialLimits { value: 2048 }, &bounds)
             .unwrap();
-    let measured = skein_llm::client::measure(
-        &input.prompt,
-        Some(skein_llm_world::credential_of(&input)),
-        &input.endpoint,
-        &bounds,
-    )
-    .unwrap();
+    let measured =
+        skein_llm::client::measure(&input.prompt, Some(skein_llm_kit::credential_of(&input)), &input.endpoint, &bounds)
+            .unwrap();
     let memory = 2 * skein_llm::client::reservation(measured, &bounds).unwrap();
     drop(input);
     let mut world = World::empty_with_memory(59, 8, 1, 1, memory);

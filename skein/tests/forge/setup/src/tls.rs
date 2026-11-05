@@ -4,7 +4,7 @@ use skein_lib::{
     Intake,
     stream::{Down, Read, Up},
 };
-use skein_tls_world::{pki, server::Server};
+use skein_tls_kit::{pki, server::Server};
 
 pub(crate) enum Carrier {
     Plain(Box<Pipe>),

@@ -857,7 +857,7 @@ mod tests {
     use super::*;
     use core::num::NonZeroU32;
     use skein_forge_setup::host::Transport;
-    use skein_tls_world::pki;
+    use skein_tls_kit::pki;
 
     fn tls_reply_world() -> HostWorld {
         let mut settings = fixtures::host_settings();

@@ -85,18 +85,6 @@ fn github_without_rate_headers_reports_no_window() {
 }
 
 #[test]
-fn forgejo_ignores_github_rate_headers() {
-    let mut h = f::known();
-    begin(&mut h);
-    answer(&mut h, 200, f::BRANCH_BODY, FIRST_FIELDS);
-    let got = terminal(&h);
-    assert_eq!(
-        (got.cost, got.free, got.rate, &got.result),
-        (ONE_REQUEST, 0, None, &Ok(Answer::Commit(f::BRANCH_HEAD)))
-    );
-}
-
-#[test]
 fn a_304_counts_free_and_cost_before_plan_refusal() {
     for mut h in [github_known(), f::known(), f::github_calls()] {
         begin(&mut h);
