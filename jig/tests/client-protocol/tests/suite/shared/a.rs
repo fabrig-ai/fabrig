@@ -77,14 +77,12 @@ fn a_proposals_world() -> jig_client_world::World<jig_client_world::Test, jig_cl
 }
 
 #[test]
-#[ignore = "printed_link_has_one_identity: this protocol fixture authenticates only its first owner"]
 fn roles_a_maintainer_accepts_a_members_proposal() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_roles::a_maintainer_accepts_a_members_proposal(&mut world);
 }
 
 #[test]
-#[ignore = "printed_link_has_one_identity: this protocol fixture authenticates only its first owner"]
 fn roles_two_parties_decide_one_proposal() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_roles::two_parties_decide_one_proposal(&mut world);
