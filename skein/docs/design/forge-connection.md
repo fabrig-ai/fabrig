@@ -1063,3 +1063,10 @@ The owner's domain owes:
 - **A listener over TLS,** for a forge on another host, waits for
   skein-tls's server side (tls.md). Default: that forge polls alone
   until then.
+- **What a connection's states hold past their tables** (8.1, 8.4): what
+  outlives an exchange in Closed and Idle, the deadline Idle keeps, and a
+  refused answer's wait in Answering. Whether the tables take them or the
+  states lose them, which moves events and times.
+- **An installation's lifecycle** (3.4, 8.6): `GitHub`'s mint, read and
+  identity flags take lifecycle states (programming-model.md, section
+  5.4). Default: as they stand, until a debt item names them.
