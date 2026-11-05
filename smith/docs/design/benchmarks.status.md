@@ -26,17 +26,13 @@
   - 11.4: `shell-cwd` at version 3 has not been seen on its bundle.
     Only `smith-bench validate repository/shell-cwd` on a machine
     holding it shows that the first grade finds the frozen workspace's
-    two lines (section 15), that the grade keeps its 80 s, and that the
-    seed fails and the reference passes. That run also settles
-    `benchmarks/tasks/repository/shell-cwd/grader/src/lib.rs`, line 40:
-    it calls `tools::valid`, and the frozen
-    `crates/smith-domain-tools/src/limits.rs`, the blob
-    `reference/solution.patch` names, has `worst_case` and no `valid`.
-    The frozen crate's `lib.rs` is not in the repository and no
-    committed summary is newer than that line, so whether the oracle
-    compiles is unknown; if it does not, every attempt fails that
-    grade, the reference included. The user has not said whether the
-    line goes back to `worst_case`.
+    two lines (section 15), that the grade keeps its 80 s, that the
+    oracle compiles against the frozen tree (its `tools::worst_case`
+    is read from the blob `reference/solution.patch` names and from
+    the rewritten commits holding it) and that the seed fails and the
+    reference passes. Not validated: the bundle is absent, and the
+    source rebuild could not start because the archive host's name
+    could not be resolved.
   - 16.6: a projection on this change's ratio alone:
     `benchmarks/src/parity/change.rs`'s `project_report` still multiplies
     in the ratios of the changes landed before it (`--landed`).
