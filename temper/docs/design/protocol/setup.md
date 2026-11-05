@@ -3570,7 +3570,7 @@ the preparation relies on stays here:
     over a row registered raw as `kit-host:host`, since it declares at its
     start. `register` run again writes the row's labels over
     (`runner-register-again-keeps-one-global-runner`), which is why a
-    later preparation does not run it.
+    preparation runs it only where the row may not exist (6.3).
 
 ### 13.4 The process tier
 
@@ -3784,6 +3784,15 @@ Each is intended; what it needs is named with it.
   name its loopback address. Taking `web` when it has one changes those
   three and that section, whose "its `web` is always null" goes with
   them; the request of 2026-11-05 left `docs/design/client/` alone.
+- **Reading a runner's row** (6.3): a preparation goes by
+  `runner/config.yaml`, since Forgejo's command line cannot read the
+  row. So a row a person removed stays gone until that file is removed
+  before a start, which no help page says until one covers removing a
+  runner, and `register`, where a preparation still runs it, leaves a
+  runner still running elsewhere on a raw row until it starts again.
+  Noticing either needs a reader with Forgejo running, at
+  `GET /api/v1/admin/actions/runners` as 13.3's facts read it, which
+  the preparation is not.
 
 ## 16. Open questions
 
