@@ -64,6 +64,11 @@ members = [
     "skein/crates/skein-fake-machine",
     "skein/testing/skein-fake-channel",
     "skein/testing/skein-protocol-kit",
+    "skein/testing/skein-json-kit",
+    "skein/testing/skein-http-kit",
+    "skein/testing/skein-tls-kit",
+    "skein/testing/skein-llm-kit",
+    "skein/testing/skein-forge-kit",
     "skein/testing/skein-fake-person",
     "skein/testing/skein-fake-person-browser",
     "skein/crates/skein-fake-oauth",
@@ -187,6 +192,13 @@ members = [
     "jig/testing/jig-client-test-protocol-wire",
     "jig/testing/jig-client-test-domain",
     "jig/testing/jig-client-test-kit",
+    "jig/testing/jig-test-connector-kit",
+    "jig/testing/jig-core-kit",
+    "jig/testing/jig-client-kit",
+    "jig/testing/jig-engine-clients-kit",
+    "jig/testing/jig-client-protocol-kit",
+    "jig/testing/jig-protocol-accounts-kit",
+    "jig/testing/jig-channel-kit",
     "jig/testing/jig-client-test-view",
     "jig/testing/jig-conformance",
     "jig/tests/conformance",
@@ -401,6 +413,11 @@ skein-browser-world = { path = "skein/tests/browser" }
 skein-fake-machine = { path = "skein/crates/skein-fake-machine" }
 skein-fake-channel = { path = "skein/testing/skein-fake-channel" }
 skein-protocol-kit = { path = "skein/testing/skein-protocol-kit" }
+skein-json-kit = { path = "skein/testing/skein-json-kit" }
+skein-http-kit = { path = "skein/testing/skein-http-kit" }
+skein-tls-kit = { path = "skein/testing/skein-tls-kit" }
+skein-llm-kit = { path = "skein/testing/skein-llm-kit" }
+skein-forge-kit = { path = "skein/testing/skein-forge-kit" }
 skein-fake-checkout = { path = "skein/crates/skein-fake-checkout" }
 skein-sim-world = { path = "skein/crates/skein-sim-world" }
 skein-playground = { path = "skein/crates/skein-playground" }
@@ -488,6 +505,13 @@ jig-test-domain = { path = "jig/testing/jig-test-domain" }
 jig-test-profile = { path = "jig/testing/jig-test-profile" }
 jig-client-test-domain = { path = "jig/testing/jig-client-test-domain" }
 jig-client-test-kit = { path = "jig/testing/jig-client-test-kit" }
+jig-test-connector-kit = { path = "jig/testing/jig-test-connector-kit" }
+jig-core-kit = { path = "jig/testing/jig-core-kit" }
+jig-client-kit = { path = "jig/testing/jig-client-kit" }
+jig-engine-clients-kit = { path = "jig/testing/jig-engine-clients-kit" }
+jig-client-protocol-kit = { path = "jig/testing/jig-client-protocol-kit" }
+jig-protocol-accounts-kit = { path = "jig/testing/jig-protocol-accounts-kit" }
+jig-channel-kit = { path = "jig/testing/jig-channel-kit" }
 jig-client-fake-person-browser = { path = "jig/testing/jig-client-fake-person-browser" }
 jig-client-test-view = { path = "jig/testing/jig-client-test-view" }
 jig-conformance = { path = "jig/testing/jig-conformance" }
