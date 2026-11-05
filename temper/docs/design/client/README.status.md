@@ -11,11 +11,13 @@
   with their tests; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
-  or in `temper-service`'s routing. 3.5: Ready's and Home's model lines name no
+  or in `temper-service`'s routing. 3.5: Ready's model line names no
   email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
-  3.5, Home: Connected and its rename are still drawn once To begin is gone.
+  3.5, Settings: the forge and account lines await Settings' design;
+  "Open Forgejo ↗" is reached through Forges, one step beyond Settings,
+  and the model line has no other place yet.
   3.5, Home: "landed" on a chat's line waits on the client's Home
   chat-row reader: the list gives the chat's state, not what its
   delegates landed. It needs one read per row; Home uses the supplied

@@ -1540,13 +1540,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-acts > .temper-home-primary:hover { background: #000; }
 #app > .temper-home .temper-home-acts > .temper-home-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
 #app > .temper-home .temper-home-acts > .temper-home-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
-/* Connected: a line each, its act at the right. */
-#app > .temper-home .temper-home-lines { display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 1px solid var(--gf-line); list-style: none; }
-#app > .temper-home .temper-home-lines > li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 4px; border-bottom: 1px solid var(--gf-line); }
-#app > .temper-home .temper-home-lines > li > p { margin: 0; color: var(--gf-ink); }
-#app > .temper-home .temper-home-lines .temper-home-muted { color: var(--gf-muted); }
-#app > .temper-home .temper-home-lines > li > :is(a, button) { flex: none; padding: 0; border: 0; background: none; color: var(--gf-faint); font: 13px/1.6 var(--gf-sans); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
-#app > .temper-home .temper-home-lines > li > :is(a, button):hover { text-decoration-color: var(--gf-ink); }
 /* Home for a project at work, the greenfield mockup's everyday home.html:
    what changed since the person last looked, what needs them, the chats,
    and the landing's line. */
