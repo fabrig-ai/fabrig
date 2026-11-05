@@ -173,12 +173,13 @@ fn settings_inventory_pages_continue_at_the_exact_offset_and_end() {
         if let Some(marker) = marker {
             let page = body.get(..marker).expect("page before marker");
             assert!(page.ends_with(b"\n"));
-            combined.put(page).expect("reconstructed page");
             let digits = body
                 .get(marker.checked_add(6).expect("marker length")..body.len().checked_sub(1).expect("line end"))
                 .expect("next offset");
             let next = u32::try_from(crate::decimal(digits, b"next").expect("offset")).expect("u32 offset");
             assert!(next > from);
+            let count = usize::try_from(next.checked_sub(from).expect("offset advances")).expect("page bytes");
+            combined.put(page.get(..count).expect("source bytes before separator")).expect("reconstructed page");
             from = next;
             pages += 1;
         } else {
@@ -241,20 +242,23 @@ fn settings_inbox_outcomes_keep_the_revision_and_rejection_reason() {
 #[test]
 fn settings_pages_price_escapes_cut_long_lines_and_keep_utf8_offsets() {
     let quoted = "\"".repeat(800);
-    let first = settings_form::page::page(quoted.as_bytes(), 0).expect("quoted text");
+    let first = settings_form::page::page_bounded(quoted.as_bytes(), 0, 1558).expect("quoted text");
     assert_eq!(first.as_ref(), format!("{}\nnext: 768\n", "\"".repeat(768)).as_bytes());
     let last = settings_form::page::page(quoted.as_bytes(), 768).expect("last quoted page");
     assert_eq!(last.as_ref(), format!("{}\nend\n", "\"".repeat(32)).as_bytes());
-    let unicode = format!("{}λ", "x".repeat(1535));
-    let page = settings_form::page::page(unicode.as_bytes(), 0).expect("UTF-8 boundary cut");
+    let unicode = format!("{}λ{}", "x".repeat(1535), "z".repeat(100));
+    let page = settings_form::page::page_bounded(unicode.as_bytes(), 0, 1558).expect("UTF-8 boundary cut");
     assert!(page.ends_with(b"next: 1535\n"));
     assert_eq!(
         settings_form::page::page(unicode.as_bytes(), 1535).expect("last character").as_ref(),
-        "λ\nend\n".as_bytes()
+        format!("λ{}\nend\n", "z".repeat(100)).as_bytes()
     );
     assert_eq!(settings_form::page::page(unicode.as_bytes(), 1536), Err(settings_form::page::Error::Offset));
     let lines = format!("short\n{}", "q".repeat(1800));
-    assert_eq!(settings_form::page::page(lines.as_bytes(), 0).expect("line cut").as_ref(), b"short\nnext: 6\n");
+    assert_eq!(
+        settings_form::page::page(lines.as_bytes(), 0).expect("whole lines").as_ref(),
+        format!("{lines}\nend\n").as_bytes()
+    );
 }
 
 #[test]
@@ -681,5 +685,30 @@ fn project_settings_reads_require_project_and_refuse_number() {
             let bytes = format!(r#"{{"setting":{{"kind":"{kind}"{suffix}}}}}"#);
             assert_eq!(decided(b"settings", bytes.as_bytes()).unwrap_err(), expected);
         }
+    }
+}
+
+#[test]
+fn settings_pages_reserve_escaped_framing_within_the_allowance() {
+    use settings_form::page::{Error, page_bounded};
+    for text in ["\"".repeat(100), "\\".repeat(100), "\n".repeat(100), "\0".repeat(100), "λ".repeat(100)] {
+        for maximum in [32, 64, 128, 512, 1024] {
+            let body = page_bounded(text.as_bytes(), 0, maximum).expect("a page fits");
+            let limits = skein_json::writer::Limits { depth: 1, length: maximum + 2 };
+            let mut encoded = skein_json::writer::Encoder::measure(&limits);
+            encoded.string(&body);
+            encoded.measured().expect("escaped page and JSON quotes fit the allowance");
+        }
+    }
+    for maximum in 0..8 {
+        assert_eq!(page_bounded(b"a", 0, maximum), Err(Error::TooLarge));
+    }
+    assert_eq!(page_bounded(b"a", 0, 8).expect("exact allowance").as_ref(), b"a\nend\n");
+    assert_eq!(page_bounded("λ".as_bytes(), 1, 128), Err(Error::Offset));
+    assert_eq!(page_bounded(b"", 0, 5).expect("empty page").as_ref(), b"end\n");
+    for maximum in [0, 1, 16] {
+        let answer = crate::settings_answer_bounded(&inventory(1), 0, None, &[], None, maximum);
+        assert!(answer.error());
+        assert!(answer.text().len() <= usize::try_from(maximum).unwrap());
     }
 }

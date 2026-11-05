@@ -182,7 +182,7 @@ pub(super) fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
         && crate::pages::project_name(root.pages().me(root.client()), project).is_none()
     {
         crate::cards::text(b, Role::Paragraph, &w.say(Word::ProjectNotYours, &[Hole::Number(u64::from(project))]));
-        link(b, w, bindings, Word::Chats, Address::Chats { filter: ChatsFilter::All, start: false });
+        link(b, w, bindings, Word::Chats, Address::Chats { filter: ChatsFilter::All });
         return true;
     }
     false

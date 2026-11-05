@@ -17,7 +17,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Change, Commit, Error, Op, Read, Repository};
-use skein_lib::{Duration, Env, List, Map, Queue, Time, Token};
+use skein_lib::{Duration, Env, List, Map, Queue, Time, Token, usize_of};
 #[derive(Debug)]
 pub(crate) struct Keep {
     live: Map<Resource, Live>,
@@ -159,7 +159,7 @@ impl Keep {
 }
 fn valid_resource(r: &Resource, l: &Limits) -> bool {
     match &r.what {
-        What::Branch(name) => !name.is_empty() && name.len() <= usize::try_from(l.op_bytes).expect("u32 fits usize"),
+        What::Branch(name) => !name.is_empty() && name.len() <= usize_of(l.op_bytes),
         What::Repository | What::Pull(_) | What::Issue(_) => true,
     }
 }
@@ -221,7 +221,7 @@ fn scan_busy(state: Scan) -> bool {
     }
 }
 fn admission(k: &Keep, l: &Limits, watches: &[Watch]) -> Result<(), Error> {
-    if watches.len() > usize::try_from(l.resources).expect("u32 fits usize") {
+    if watches.len() > usize_of(l.resources) {
         return Err(Error::TooLarge);
     }
     if !k.ready || k.failed {

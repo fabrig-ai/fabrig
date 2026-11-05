@@ -11,17 +11,18 @@ fn suggestions_show_only_in_the_playground_project() {
         ("no playground", f::PROJECT, true, false, false),
     ] {
         let root = if playground {
-            f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
+            f::playground_root(Address::NewChat, project, model)
         } else {
-            f::chats_root()
+            let mut root = f::chats_root();
+            f::root_event(&mut root, Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) });
+            root
         };
         let view = f::page_view(&root);
         assert_eq!(f::find(view.tree(), Role::List, b"Suggested requests").is_some(), shown, "{row}");
-        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{row}");
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"New chat").is_some(), "{row}");
         if shown {
             let mut heading = None;
             let mut suggestion = None;
-            let mut composer = None;
             for (index, node) in view.tree().nodes().iter().enumerate() {
                 if node.role == (Role::Heading { level: 1 }) {
                     heading = Some(index);
@@ -29,18 +30,15 @@ fn suggestions_show_only_in_the_playground_project() {
                 if node.role == Role::List && node.name.as_deref() == Some(b"Suggested requests") {
                     suggestion = Some(index);
                 }
-                if node.role == Role::TextArea {
-                    composer = Some(index);
-                }
             }
-            assert!(heading.unwrap() < composer.unwrap() && composer.unwrap() < suggestion.unwrap(), "{row}");
+            assert!(heading.unwrap() < suggestion.unwrap(), "{row}");
         }
     }
 }
 #[test]
 fn suggestion_buttons_wait_for_a_start_and_press_their_own_cue() {
     for (row, pending) in [("ready", false), ("start pending", true)] {
-        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+        let mut root = f::playground_root(Address::NewChat, f::PROJECT, true);
         if pending {
             for act in [Act::ChatWords { words: b"My draft".as_slice().into() }, Act::StartChat] {
                 f::root_event(&mut root, Event::Act { action: Action::Pages(act) });
@@ -64,20 +62,6 @@ fn suggestion_buttons_wait_for_a_start_and_press_their_own_cue() {
                 "{row}"
             );
         }
-        let mut start = None;
-        for candidate in view.tree().nodes() {
-            if candidate.role == Role::Button && candidate.name.as_deref() == Some(b"Start chat") {
-                start = Some(candidate);
-            }
-        }
-        let start = start.expect("start button");
-        assert_eq!(start.states.as_slice().contains(&State::Disabled), pending, "{row}: composer send");
-        let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("chat field");
-        assert_eq!(
-            crate::act(&mut view, field, skein_ui::Act::Submit),
-            if pending { None } else { Some(Action::Pages(Act::StartChat)) },
-            "{row}: Enter shares send readiness"
-        );
     }
 }
 
@@ -87,7 +71,7 @@ fn the_playground_banner_is_absent_when_the_link_is_unavailable() {
         ("signed out", jig_client::Up::SignedOut),
         ("out of date", jig_client::Up::Served { served: false, versions: None }),
     ] {
-        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
         f::root_event(&mut root, Event::Client { event: jig_client::Event::Up { up } });
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Region, b"Playground").is_none(), "{row}");
@@ -120,7 +104,7 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
             if node.role == Role::Main {
                 main = Some(index);
             }
-            if node.styles.as_slice().contains(&crate::look::CHATBAR) {
+            if node.styles.as_slice().contains(&crate::look::SESSION_TOP) {
                 chatbar = Some(index);
             }
             if node.styles.as_slice().contains(&crate::look::THREAD) {
@@ -146,9 +130,9 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
 fn the_playground_account_always_names_default_whatever_the_model_or_project() {
     use jig_client::contract as c;
     for (row, project, model, requested, expected) in [
-        ("default", f::PROJECT, true, false, "Using Scripted model · Default"),
-        ("requested", f::PROJECT, true, true, "Using Scripted model · Default"),
-        ("another project", f::SECOND_PROJECT, true, false, "Using Scripted model · Default"),
+        ("default", f::PROJECT, true, false, "Scripted model · Default"),
+        ("requested", f::PROJECT, true, true, "Scripted model · Default"),
+        ("another project", f::SECOND_PROJECT, true, false, "Scripted model · Default"),
     ] {
         let choice = if requested {
             Some(c::LlmChoice {
@@ -160,13 +144,10 @@ fn the_playground_account_always_names_default_whatever_the_model_or_project() {
             None
         };
         let root = f::playground_choice_root(Address::Chat { task: 1 }, project, model, choice);
-        let view = f::page_view(&root);
-        assert!(skein_lib::bytes::find(&f::text(view.tree()), expected.as_bytes()).is_some(), "{row}");
+        assert_eq!(super::choice::using_text(&root), expected, "{row}");
     }
-    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
-    assert!(
-        f::find(f::page_view(&root).tree(), Role::Paragraph, "Using Scripted model · Default".as_bytes()).is_some()
-    );
+    let root = f::playground_root(Address::NewChat, f::PROJECT, true);
+    assert!(super::choice::using_text(&root) == "Scripted model · Default");
 }
 
 #[test]
@@ -235,29 +216,27 @@ fn pending_words_without_a_party_are_named_you() {
 fn a_real_account_keeps_the_playgrounds_scripted_model() {
     let root = f::playground_kept_root();
     assert!(root.forge().playground().is_some());
-    let view = f::page_view(&root);
-    assert!(f::find(view.tree(), Role::Paragraph, "Using Scripted model · Default".as_bytes()).is_some());
+    assert!(super::choice::using_text(&root) == "Scripted model · Default");
 }
 
 #[test]
 fn the_hidden_deployment_playground_account_needs_only_its_public_provider() {
     use jig_client::contract::Readiness;
     for (ready, payer, expected) in [
-        (Some(Readiness::Usable), 73, "Using Scripted model · Default"),
-        (Some(Readiness::Unknown), 73, "Using Scripted model · Default"),
-        (None, 73, "Using Scripted model · Default"),
+        (Some(Readiness::Usable), 73, "Scripted model · Default"),
+        (Some(Readiness::Unknown), 73, "Scripted model · Default"),
+        (None, 73, "Scripted model · Default"),
         (Some(Readiness::Unavailable), 73, "Scripted model · needs an account"),
-        (Some(Readiness::Usable), 74, "Using Scripted model · Default"),
+        (Some(Readiness::Usable), 74, "Scripted model · Default"),
     ] {
         let root = f::hidden_playground_root(ready, payer);
-        let view = f::page_view(&root);
-        assert!(f::find(view.tree(), Role::Paragraph, expected.as_bytes()).is_some());
+        assert!(super::choice::using_text(&root).ends_with(expected));
     }
 }
 
 #[test]
 fn the_playground_chooser_names_the_provider_and_model_but_keeps_the_configured_choice() {
-    let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let mut root = f::playground_root(Address::NewChat, f::PROJECT, true);
     let mut view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"Playground").is_some());
     assert!(f::find(view.tree(), Role::Button, crate::words::SCRIPTED_MODEL).is_none());
@@ -292,11 +271,11 @@ fn the_playground_account_is_in_its_own_folded_section() {
 #[test]
 fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_project() {
     for (address, project, leaving, chats) in [
-        (Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, false, true),
+        (Address::Chats { filter: ChatsFilter::All }, f::PROJECT, false, true),
         (Address::Chat { task: 1 }, f::PROJECT, false, false),
-        (Address::Chats { filter: ChatsFilter::All, start: false }, f::SECOND_PROJECT, false, true),
+        (Address::Chats { filter: ChatsFilter::All }, f::SECOND_PROJECT, false, true),
         (Address::Chat { task: 1 }, f::SECOND_PROJECT, false, false),
-        (Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true, true),
+        (Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true, true),
         (Address::Chat { task: 1 }, f::PROJECT, true, false),
     ] {
         let (mut root, _, _, _, watch) =
@@ -353,16 +332,41 @@ fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_proje
         if let Some(accounts) = accounts {
             assert!(frame.unwrap() < accounts && accounts < main.unwrap());
         }
-        if chats {
-            let pane = main.unwrap() + 1;
-            assert_eq!(nodes[pane].role, Role::Complementary);
-            assert_eq!(
-                playground.unwrap() + usize::try_from(nodes[playground.unwrap()].size).unwrap(),
-                pane + usize::try_from(nodes[pane].size).unwrap(),
-                "banner ends the pane"
+        assert!(playground.unwrap() < main.unwrap());
+    }
+}
+
+#[test]
+fn the_frame_banner_follows_the_page_and_leaving_rules() {
+    for (address, leaving, shown) in [
+        (Address::Chats { filter: ChatsFilter::All }, false, true),
+        (Address::NewChat, false, true),
+        (Address::Chat { task: 1 }, false, false),
+        (Address::Chat { task: 1 }, true, true),
+    ] {
+        let mut root = f::playground_root(address.clone(), f::PROJECT, true);
+        if leaving {
+            f::root_event(
+                &mut root,
+                Event::Act { action: Action::Forge(temper_client_domain::forge::Act::EndPlayground) },
             );
-        } else {
-            assert!(playground.unwrap() < main.unwrap());
+        }
+        let view = f::page_view(&root);
+        let nodes = view.tree().nodes();
+        let mut banner = None;
+        let mut main = None;
+        for (index, node) in nodes.iter().enumerate() {
+            if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") {
+                banner = Some(index);
+            }
+            if node.role == Role::Main {
+                main = Some(index);
+            }
+        }
+        let main = main.expect("main");
+        assert_eq!(banner.is_some(), shown, "{address:?}, leaving={leaving}");
+        if let Some(banner) = banner {
+            assert_eq!(banner + usize::try_from(nodes[banner].size).unwrap(), main, "banner is before main");
         }
     }
 }

@@ -1470,3 +1470,7 @@ What the steward must keep across restarts and reboots lives in
 - **A reconciled layer's base:** 6.2 lets it be collected while its
   descendants are kept, while 7.1 holds it as an ancestor under a
   descendant's pin; one of the two is to change.
+- **The containers named in 9.2:** whether the sentence on how the fleet's
+  containers clear the builder's range stays, the rule before it being
+  what holds; the user's to decide, with the example fleet's SSH port and
+  zone (hearth/docs/design/protocol/format.md, 13).

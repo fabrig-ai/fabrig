@@ -106,11 +106,12 @@ fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
         exited(),
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         press(Find::exactly_named(Role::Button, b"Try the playground")),
+        Step::Person(PersonStep::Go { address: b"/chats/new".as_slice().into() }),
         see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(tier.states().live),
         temper_client_browser_world::connected(),
-        see(heading(b"Chats")),
+        see(heading(b"New chat")),
         // The public index keeps goals that end while it holds the project.
         visibility(client, true),
         exited(),

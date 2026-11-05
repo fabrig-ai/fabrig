@@ -4,7 +4,8 @@ use skein_lib::{Decimal, Writer};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Address {
     Inbox { filter: Filter },
-    Chats { filter: ChatsFilter, start: bool },
+    Chats { filter: ChatsFilter },
+    NewChat,
     Accounts,
     Forges,
     ConnectForge { forge: Option<Choice> },
@@ -98,7 +99,7 @@ pub enum Place {
     Public(Public),
 }
 
-/// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/<task>`, `/tasks/<task>`,
+/// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
 /// `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/configure`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
 pub fn print(address: &Address) -> Box<[u8]> {
@@ -116,16 +117,14 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Forges => (b"forges".as_slice(), None, b"".as_slice()),
         Address::ConnectModel { way } => return print_way(b"/accounts/connect", *way, b"?"),
         Address::Accounts => (b"accounts".as_slice(), None, b"".as_slice()),
-        Address::Chats { filter, start } => {
-            return match (filter, start) {
-                (ChatsFilter::All, false) => b"/chats".as_slice().into(),
-                (ChatsFilter::Live, false) => b"/chats?state=live".as_slice().into(),
-                (ChatsFilter::Closed, false) => b"/chats?state=closed".as_slice().into(),
-                (ChatsFilter::All, true) => b"/chats?at=start".as_slice().into(),
-                (ChatsFilter::Live, true) => b"/chats?state=live&at=start".as_slice().into(),
-                (ChatsFilter::Closed, true) => b"/chats?state=closed&at=start".as_slice().into(),
+        Address::Chats { filter } => {
+            return match filter {
+                ChatsFilter::All => b"/chats".as_slice().into(),
+                ChatsFilter::Live => b"/chats?state=live".as_slice().into(),
+                ChatsFilter::Closed => b"/chats?state=closed".as_slice().into(),
             };
         }
+        Address::NewChat => return b"/chats/new".as_slice().into(),
         Address::Chat { task } => (b"chats".as_slice(), Some(*task), b"".as_slice()),
         Address::Task { task, .. } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
         Address::Home { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"".as_slice()),
@@ -214,10 +213,8 @@ pub fn parse(path: &[u8]) -> Place {
         (b"accounts", b"", b"") => Address::Accounts,
         (b"accounts", b"connect", b"") => Address::ConnectModel { way: parse_way(fields) },
         (b"welcome", b"", b"") => Address::Welcome { step: welcome_step(fields) },
-        (b"chats", b"", b"") => {
-            let (filter, start) = parse_chats(fields);
-            Address::Chats { filter, start }
-        }
+        (b"chats", b"", b"") => Address::Chats { filter: parse_chats(fields) },
+        (b"chats", b"new", b"") => Address::NewChat,
         (b"chats", _, b"") => {
             let Some(task) = decimal(number) else {
                 return Place::Missing;
@@ -269,9 +266,8 @@ pub fn parse(path: &[u8]) -> Place {
     Place::Address(address)
 }
 
-fn parse_chats(query: &[u8]) -> (ChatsFilter, bool) {
+fn parse_chats(query: &[u8]) -> ChatsFilter {
     let mut filter = ChatsFilter::All;
-    let mut start = false;
     let mut rest = query;
     for _ in 0..query.len() {
         if rest.is_empty() {
@@ -287,9 +283,8 @@ fn parse_chats(query: &[u8]) -> (ChatsFilter, bool) {
                 _ => ChatsFilter::All,
             };
         }
-        start |= field == b"at=start";
     }
-    (filter, start)
+    filter
 }
 
 fn parse_goals(query: &[u8]) -> GoalsFilter {

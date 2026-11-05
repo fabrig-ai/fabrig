@@ -90,29 +90,9 @@ pub fn part(
         words.status(builder, Word::Unshowable, &[]);
         return;
     }
-    match part {
-        ApplicationPart::Connector { .. } => words.text(
-            builder,
-            Word::Connector,
-            &[Hole::Number(u64::from(jig_ops_domain_connectors::number(
-                jig_ops_domain_connectors::Connector::Observability,
-            )))],
-        ),
-        ApplicationPart::Resource { path, .. } => {
-            words.text(builder, Word::Resource, &[Hole::Name(skein_lib::bytes::copy_of(b""))]);
-            for segment in path {
-                jig_client_view::literal_segment::render(builder, segment);
-            }
-        }
-        ApplicationPart::Kind { kind, .. } => words.text(builder, Word::Kind, &[Hole::Number(u64::from(*kind))]),
-        ApplicationPart::Panel { .. }
-        | ApplicationPart::Result { .. }
-        | ApplicationPart::OwnerEffect { .. }
-        | ApplicationPart::Effect { .. }
-        | ApplicationPart::Outbox { .. }
-        | ApplicationPart::Hold { .. }
-        | ApplicationPart::Project { .. }
-        | ApplicationPart::Deployment { .. } => match side.part(part) {
+    match drawing::part(builder, part, words, jig_ops_domain_connectors::Connector::Observability) {
+        drawing::Part::Drawn => {}
+        drawing::Part::Document => match side.part(part) {
             Some(object) => match &object.value {
                 Value::Loading => words.status(builder, Word::Loading, &[]),
                 Value::Unknown => words.status(builder, Word::Unknown, &[]),

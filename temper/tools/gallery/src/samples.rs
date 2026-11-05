@@ -21,6 +21,10 @@ pub enum World {
 pub enum Then {
     Shown,
     Hosts { role: bool, connected: bool },
+    Working,
+    DelegatedGoal,
+    HeldChange,
+    HeldTask,
     Filled,
     Refused,
     SignedOut,
@@ -62,8 +66,15 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 158;
-const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
+impl Sample {
+    /// Opens a page-owned disclosure in the static print (client/browser.md, 7).
+    #[must_use]
+    pub fn open_disclosure(&self) -> Option<&[u8]> {
+        if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
+    }
+}
+pub const N: usize = 172;
+const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
 fn task(task: u64) -> Address {
@@ -293,6 +304,16 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
+        Sample { name: "chat-new", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample { name: "chat-new-no-repository", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample { name: "chats-no-repository", world: FirstRun { step: 7 }, address: CHATS, then: Shown },
+        Sample { name: "chats-live", world: Solo, address: Address::Chats { filter: ChatsFilter::Live }, then: Shown },
+        Sample {
+            name: "chats-closed",
+            world: Solo,
+            address: Address::Chats { filter: ChatsFilter::Closed },
+            then: Shown,
+        },
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
@@ -362,6 +383,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
         welcome_sample("welcome-first-run-0", temper_client_domain::Step::Welcome),
+        Sample { name: "chat-new-first-run-1", world: FirstRun { step: 1 }, address: Address::NewChat, then: Shown },
         Sample { name: "chats-first-run-1", world: FirstRun { step: 1 }, address: CHATS, then: Shown },
         owned_sample("connect-forge-first-run-6", 6, false),
         Sample { name: "forges-first-run-7", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
@@ -415,7 +437,25 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "adoption-refused", world: Reference, address: Address::Adopt { project: 1 }, then: Refused },
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-byline-open", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample { name: "chat-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
+        Sample { name: "chat-held-task", world: Solo, address: Address::Chat { task: 10 }, then: Then::HeldTask },
+        first_chat("chat-change-running", 2, 1),
+        first_chat("chat-change-landed", 3, 1),
+        Sample {
+            name: "chat-change-held",
+            world: FirstRun { step: 2 },
+            address: Address::Chat { task: 1 },
+            then: Then::HeldChange,
+        },
+        Sample {
+            name: "chat-goal",
+            world: FirstRun { step: 2 },
+            address: Address::Chat { task: 1 },
+            then: Then::DelegatedGoal,
+        },
         first_chat("chat-first-run-2-T1", 2, 1),
         first_chat("chat-first-run-3-T1", 3, 1),
         first_chat("chat-first-run-4-T4", 4, 4),
@@ -569,8 +609,11 @@ fn special_mockup(name: &str) -> Option<String> {
     None
 }
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one exhaustive table maps each page and world to its mockup")]
+#[expect(clippy::too_many_lines, reason = "one match keeps gallery addresses and mock states together")]
 pub fn mockup(sample: &Sample) -> Option<String> {
+    if sample.name == "chat-new-first-run-1" {
+        return None;
+    }
     if sample.name.starts_with("goals-") {
         return Some(if sample.world == Reference {
             "goals.html?project=fabrig".to_owned()
@@ -603,6 +646,10 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::SignInRefused => "#other-states-refused",
             Then::Hosts { .. }
             | Then::Shown
+            | Then::Working
+            | Then::DelegatedGoal
+            | Then::HeldChange
+            | Then::HeldTask
             | Then::Filled
             | Then::Refused
             | Then::SignedOut
@@ -626,6 +673,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         World::Bare => return None,
     };
     let (page, task) = match sample.address {
+        Address::NewChat => return Some("chat.html?id=new".to_owned()),
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::Inbox { .. } => ("inbox", None),
@@ -656,6 +704,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         }
         Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::NewChat
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
@@ -693,7 +742,26 @@ pub fn mockup(sample: &Sample) -> Option<String> {
     Some(format!("{page}.html?world={world}{task}{forge}{way}&bare"))
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one dispatch composes the named gallery states and their follow-up events")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name == "chats-no-repository" {
+        let mut root = home_domain("home-no-repository");
+        step(
+            &mut root,
+            Event::Went { place: temper_client_domain::Place::Address(sample.address.clone()) },
+            &mut Queue::uncapped(),
+        );
+        return root;
+    }
+    if sample.name == "chat-new" || sample.name == "chat-new-no-repository" {
+        let mut root = home_domain(if sample.name == "chat-new" { "home-ready" } else { "home-no-repository" });
+        step(
+            &mut root,
+            Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+            &mut Queue::uncapped(),
+        );
+        return root;
+    }
     if sample.name.starts_with("needs-") {
         return crate::needs::domain(sample.name);
     }
@@ -712,7 +780,13 @@ pub fn domain(sample: &Sample) -> Domain {
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
     match sample.then {
-        Then::Shown | Then::Hosts { .. } | Then::Held => {}
+        Then::Hosts { .. }
+        | Then::Shown
+        | Then::Working
+        | Then::Held
+        | Then::DelegatedGoal
+        | Then::HeldChange
+        | Then::HeldTask => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(

@@ -67,7 +67,7 @@ fn brand_returns_to_chats_from_every_welcome_step_without_starting_the_playgroun
         press(&mut front, &mut root, Role::Link, b"Settings");
         assert!(has(&root, Role::Link, b"Accounts"), "{}", text(Temper::tree(&draw(&root))));
         press(&mut front, &mut root, Role::Link, b"Chats");
-        assert!(has(&root, Role::Heading { level: 1 }, b"Chats"), "{}", text(Temper::tree(&draw(&root))));
+        assert!(has(&root, Role::Heading { level: 1 }, b"Talk to an agent."), "{}", text(Temper::tree(&draw(&root))));
         assert!(front.playground_starts.is_empty(), "brand must only navigate");
     }
 }

@@ -1,6 +1,7 @@
 //! Positions for single reads, retained with the task (protocol/store.md, 15.7).
 use crate::{
-    Change, Domain, History, Limits, MessageKind, Party, Proposal, ProposalState, Request, Stored, TaskRecord, Word,
+    Change, Domain, History, Limits, MessageFamily, Party, Proposal, ProposalState, Request, Spoken, Stored,
+    TaskRecord, Word,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue};
@@ -28,35 +29,19 @@ pub struct ProposalRow {
 }
 
 pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32) {
-    if word.kind == MessageKind::Question {
-        question(task, word.number, task.activity, bound);
-    }
-    match word.kind {
-        MessageKind::Answer { question } => match word.from {
+    match word.kind.family() {
+        MessageFamily::Spoken(Spoken::Question) => question(task, word.number, task.activity, bound),
+        MessageFamily::Spoken(Spoken::Answer { question }) => match word.from {
             Party::Person(_) => {
                 let _first = answer(task, question, AnswerLine { task: task.number, position: task.activity });
             }
             Party::Task(_) | Party::Deployment { .. } => {}
         },
-        MessageKind::Words
-        | MessageKind::Question
-        | MessageKind::EffectNotMade { .. }
-        | MessageKind::Escalation { .. }
-        | MessageKind::Proposal { .. }
-        | MessageKind::SettingsDecision { .. }
-        | MessageKind::ProposalDecision { .. }
-        | MessageKind::FinishRequested { .. }
-        | MessageKind::Amendment { .. }
-        | MessageKind::Met { .. }
-        | MessageKind::QuestionAnswered { .. }
-        | MessageKind::QuestionOwed
-        | MessageKind::NothingAwaited
-        | MessageKind::QuestionEnded { .. }
-        | MessageKind::Notice { .. }
-        | MessageKind::Timer { .. }
-        | MessageKind::News { .. }
-        | MessageKind::PersonStalled { .. }
-        | MessageKind::Result(_) => {}
+        MessageFamily::Spoken(Spoken::Words)
+        | MessageFamily::Hint(_)
+        | MessageFamily::Slot(_)
+        | MessageFamily::Result
+        | MessageFamily::Virtual => {}
     }
 }
 

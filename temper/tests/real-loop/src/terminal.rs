@@ -574,9 +574,9 @@ mod tests {
 
     #[test]
     fn controls_use_the_last_matching_label_and_ignore_disabled_numbers() {
-        let page = b"== Chats == Live\n  [1] Chats\n[2] Chats (current)\n[3] Chats elsewhere\n[-] Chats\n[4] Start a chat: (empty) (enter sends)\n  - [14] T1\n  - [15] T12\n";
+        let page = b"== Chats == Live\n  [1] Chats\n[2] Chats (current)\n[3] Chats elsewhere\n[-] Chats\n[4] What do you want done?: (empty) (enter sends)\n  - [14] T1\n  - [15] T12\n";
         assert_eq!(control(page, b"Chats"), Some(b"2".as_slice()));
-        assert_eq!(control(page, b"Start a chat"), Some(b"4".as_slice()));
+        assert_eq!(control(page, b"What do you want done?"), Some(b"4".as_slice()));
         assert_eq!(control(page, b"Chat"), None);
         assert_eq!(control(page, b"T1"), Some(b"14".as_slice()));
     }

@@ -158,6 +158,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         temper_client_domain::Address::ConnectModel { .. }
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Chats { .. }
+        | temper_client_domain::Address::NewChat
         | temper_client_domain::Address::Chat { .. }
         | temper_client_domain::Address::Task { .. }
         | temper_client_domain::Address::Inbox { .. }
@@ -175,7 +176,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         }
     }
     match root.pages().address() {
-        temper_client_domain::Address::Chats { .. } => {}
+        temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat => {
+            crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
+        }
         temper_client_domain::Address::Welcome { .. }
         | temper_client_domain::Address::ConnectModel { .. }
         | temper_client_domain::Address::Accounts
@@ -192,7 +195,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. } => {
-            // Outside the chats pane the line shows only while the
+            // Outside Chats and NewChat the line shows only while the
             // playground is leaving; while it runs, the frame's "Set up
             // temper" is the way out (temper/docs/design/client/README.md, 5.1).
             if root.forge().leaving() {
@@ -241,6 +244,16 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         );
     } else if let temper_client_domain::Address::Inbox { .. } = root.pages().address() {
         crate::pages::inbox::main(&mut builder, root, &view.forge_words, &mut view.pages, view.rows, &mut times);
+    } else if *root.pages().address() == temper_client_domain::Address::NewChat {
+        crate::pages::new_chat::main(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            &mut view.forge,
+            view.limits.tree.text_per_node,
+            &mut times,
+        );
     } else if let temper_client_domain::Address::Chats { .. } = root.pages().address() {
         crate::pages::chats::main(
             &mut builder,
@@ -366,7 +379,6 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         Action::Pages(temper_client_domain::pages::Act::OpenProject { .. }) => {
             Some(temper_client_domain::address::print(&temper_client_domain::Address::Chats {
                 filter: temper_client_domain::ChatsFilter::All,
-                start: false,
             }))
         }
         Action::Pages(temper_client_domain::pages::Act::Go { address }) => {

@@ -3,7 +3,7 @@ use super::{Answer, Call, Decoder, Name, Object, Parents};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api;
 use skein_json::{Compact, Document, Kind, Token, document, tokenizer};
-use skein_lib::{List, Time, base64, bytes};
+use skein_lib::{List, Time, base64, bytes, usize_of};
 
 pub(super) fn collect(decoder: &mut Decoder, event: &tokenizer::Event) -> Result<Option<Document>, ()> {
     if decoder.over {
@@ -73,7 +73,7 @@ fn optional(doc: &Document, at: u32) -> Result<Option<u64>, ()> {
 }
 fn string(doc: &Document, at: u32, max: u32) -> Result<Box<[u8]>, ()> {
     let value = text(doc, at, Kind::String)?;
-    if value.len() > usize::try_from(max).expect("u32 fits") {
+    if value.len() > usize_of(max) {
         return Err(());
     }
     Ok(bytes::copy_of(value))

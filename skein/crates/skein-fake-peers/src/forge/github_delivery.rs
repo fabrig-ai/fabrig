@@ -4,8 +4,9 @@ use skein_fake_forge_github::{self as github, delivery::Post};
 use skein_http::{Header, Method, client};
 use skein_io as io;
 use skein_lib::{
-    Duration, Env, Queue, Time, Token, Wall, bytes,
+    Duration, Env, Queue, Time, Token, Wall, bytes, len_u64,
     stream::{Down, Read, Up},
+    usize_of,
 };
 use std::net::SocketAddr;
 
@@ -44,7 +45,7 @@ impl Peer {
         }
     }
     fn github_post(&mut self, post: Post, now: Time) {
-        if self.github_deliveries.len() == usize::try_from(self.face.limits.connections).expect("u32 fits") {
+        if self.github_deliveries.len() == usize_of(self.face.limits.connections) {
             self.github_result(post, 502, Delivery::NoRoom);
             return;
         }
@@ -202,8 +203,7 @@ impl Peer {
                         continue;
                     }
                     let post = outbound.post.as_ref().expect("active post");
-                    let count =
-                        (post.body.len() - outbound.sent).min(usize::try_from(env.limits.send).expect("u32 fits"));
+                    let count = (post.body.len() - outbound.sent).min(usize_of(env.limits.send));
                     let chunk = bytes::copy_of(&post.body[outbound.sent..outbound.sent + count]);
                     outbound.sent += count;
                     client::down(
@@ -267,7 +267,7 @@ impl Peer {
         if !self.kept.deliveries {
             return;
         }
-        let size = u64::try_from(post.head.len() + post.body.len()).expect("bounded post");
+        let size = len_u64(post.head.len() + post.body.len());
         let post = skein_fake_forge_forgejo::delivery::Post { head: post.head, body: post.body };
         self.observe(Observation::Delivery { post: Some(post), outcome }, size);
     }

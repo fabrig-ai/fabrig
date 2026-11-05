@@ -214,12 +214,12 @@ impl Settings {
 pub fn spec(prompt: &[u8]) -> agent::Spec {
     let repo = Directory {
         host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-        mount: io::names(b"/work"),
+        mount: io::names(b"/work").into_vec().pop().expect("mount name"),
         root: Token::new(0),
         writable: true,
     };
     let grants = Grants { inspect: true, modify: true, shell: true };
-    let authority = Authority { cwd: io::names(b"/work"), repos: Box::new([repo]), grants };
+    let authority = Authority { cwd: io::names(b"/work").into_vec().pop(), repos: Box::new([repo]), grants };
     agent::Spec {
         backend: smith_domain_session::record::Backend::Direct,
         account: Some(0),

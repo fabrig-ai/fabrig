@@ -4,7 +4,7 @@ use super::text::{Block, Kind, Line, LineKind, Parsed, Range, Token};
 use super::{Missing, Op, PatchError, PatchWrong, Tables, Target, add, spelled};
 use crate::schema::{DeclIx, FieldIx, Held, Schema, Shape, Span, Type, TypeIx, VariantIx};
 use alloc::boxed::Box;
-use skein_lib::{List, bytes};
+use skein_lib::{List, bytes, usize_of};
 
 #[cfg(test)]
 mod tests;
@@ -1104,7 +1104,7 @@ fn uint(pool: &mut List<u8>, value: u64, width: u32) {
     let bytes = value.to_be_bytes();
     let start = 8_u32.checked_sub(width).expect("integer width at most eight");
     for at in start..8 {
-        emit(pool, *bytes.get(usize::try_from(at).expect("u32 fits usize")).expect("integer byte index"));
+        emit(pool, *bytes.get(usize_of(at)).expect("integer byte index"));
     }
 }
 fn encoded_hex(pool: &mut List<u8>, value: &[u8], bound: u32, fixed: bool, pieces: bool) -> Result<(), PatchWrong> {

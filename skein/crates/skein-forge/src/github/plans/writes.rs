@@ -14,6 +14,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
+use skein_lib::len_u64;
 
 mod merge;
 mod reviewers;
@@ -386,7 +387,7 @@ impl Plan {
         if pull.number != number || crate::github::id::write_commit(&pull.head_commit).is_none() {
             return Err(self.invalid());
         }
-        if u64::try_from(pull.reviewers.len()).ok().ok_or(api::Error::TooLarge)? > u64::from(bounds.rows) {
+        if len_u64(pull.reviewers.len()) > u64::from(bounds.rows) {
             return Err(api::Error::TooLarge);
         }
         let Ok(pull) = super::reading::pull(pull, api::Ci::None) else {

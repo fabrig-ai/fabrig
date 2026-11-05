@@ -12,7 +12,7 @@
 
 use crate::{
     Core, Held, Limits, Now, Request, WatchBinding, WatchRefusal, WatchedSubject,
-    documents::{self, Missing, Subject, Watched, Window},
+    documents::{self, Missing, Subject, SubjectShape, Watched, Window},
 };
 use alloc::boxed::Box;
 use jig_domain_views as views;
@@ -208,30 +208,16 @@ fn refused(watcher: Token, why: WatchRefusal) -> Queue<Request> {
 }
 
 fn refused_subject(watcher: Token, subject: &Subject, why: WatchRefusal) -> Queue<Request> {
-    match subject {
-        Subject::Application { connector, subject, .. } => {
+    match subject.shape() {
+        SubjectShape::Application { connector, subject, .. } => {
             let mut out = Queue::uncapped();
-            out.push(Request::Ask { connector: *connector, ask: crate::Ask::DropDocument { subject: *subject } });
+            out.push(Request::Ask { connector, ask: crate::Ask::DropDocument { subject } });
             out.push(Request::Now(Box::new(Now::WatchRefused { watcher, why })));
             out
         }
-        Subject::Frame { .. }
-        | Subject::Task { .. }
-        | Subject::Tree { .. }
-        | Subject::Chips { .. }
-        | Subject::Inbox { .. }
-        | Subject::Accounts { .. }
-        | Subject::Query { .. }
-        | Subject::Run { .. }
-        | Subject::Settings
-        | Subject::Deployment
-        | Subject::Proposal { .. }
-        | Subject::Escalation { .. }
-        | Subject::Question { .. }
-        | Subject::PersonTask { .. }
-        | Subject::Result { .. }
-        | Subject::Project { .. }
-        | Subject::Note { .. } => refused(watcher, why),
+        SubjectShape::Run(_) | SubjectShape::Retained(_) | SubjectShape::Chips | SubjectShape::Other => {
+            refused(watcher, why)
+        }
     }
 }
 
@@ -314,31 +300,15 @@ fn open_follow(
     if let Some(why) = admission(core, env, party, &subject, &window) {
         return refused_subject(watcher, &subject, why);
     }
-    let subject = match subject {
-        Subject::Chips { tasks: named } => {
+    let subject = match subject.chips() {
+        Some(named) => {
             let mut tasks = List::with_capacity(named.len());
-            for number in named.into_boxed() {
-                tasks.push(number).expect("admitted chip count");
+            for number in named {
+                tasks.push(*number).expect("admitted chip count");
             }
             Subject::Chips { tasks }
         }
-        subject @ (Subject::Frame { .. }
-        | Subject::Task { .. }
-        | Subject::Tree { .. }
-        | Subject::Inbox { .. }
-        | Subject::Accounts { .. }
-        | Subject::Query { .. }
-        | Subject::Run { .. }
-        | Subject::Settings
-        | Subject::Deployment
-        | Subject::Proposal { .. }
-        | Subject::Escalation { .. }
-        | Subject::Question { .. }
-        | Subject::PersonTask { .. }
-        | Subject::Result { .. }
-        | Subject::Project { .. }
-        | Subject::Note { .. }
-        | Subject::Application { .. }) => subject,
+        None => subject,
     };
     let mut existing = None;
     for (_, flight) in &core.flights {
@@ -379,41 +349,26 @@ fn admission(core: &Core, env: &Env<Limits>, party: u64, subject: &Subject, wind
     if closed_subject(core, subject) {
         return Some(WatchRefusal::NotAllowed);
     }
-    match subject {
-        Subject::Application { scope, connector, .. } => {
-            if !core.connectors.as_ref().contains(connector) {
+    match subject.shape() {
+        SubjectShape::Application { scope, connector, .. } => {
+            if !core.connectors.as_ref().contains(&connector) {
                 return Some(WatchRefusal::Unknown);
             }
-            if *scope != jig_domain_people::ApplicationScope::Own && core.people.role(party, scope.project()).is_none()
-            {
+            if scope != jig_domain_people::ApplicationScope::Own && core.people.role(party, scope.project()).is_none() {
                 return Some(WatchRefusal::NotAllowed);
             }
             None
         }
-        Subject::Frame { .. }
-        | Subject::Task { .. }
-        | Subject::Tree { .. }
-        | Subject::Chips { .. }
-        | Subject::Inbox { .. }
-        | Subject::Accounts { .. }
-        | Subject::Query { .. }
-        | Subject::Run { .. }
-        | Subject::Settings
-        | Subject::Deployment
-        | Subject::Proposal { .. }
-        | Subject::Escalation { .. }
-        | Subject::Question { .. }
-        | Subject::PersonTask { .. }
-        | Subject::Result { .. }
-        | Subject::Project { .. }
-        | Subject::Note { .. } => match documents::make(core, &env.limits, party, subject, window, env.wall) {
-            Ok(_) => None,
-            Err(Missing::NotAllowed) => Some(WatchRefusal::NotAllowed),
-            Err(Missing::Unknown | Missing::Ended) if retained_subject(subject).is_some() => {
-                if core.reads.len() >= env.limits.load_slots { Some(WatchRefusal::Busy) } else { None }
+        SubjectShape::Run(_) | SubjectShape::Retained(_) | SubjectShape::Chips | SubjectShape::Other => {
+            match documents::make(core, &env.limits, party, subject, window, env.wall) {
+                Ok(_) => None,
+                Err(Missing::NotAllowed) => Some(WatchRefusal::NotAllowed),
+                Err(Missing::Unknown | Missing::Ended) if retained_subject(subject).is_some() => {
+                    if core.reads.len() >= env.limits.load_slots { Some(WatchRefusal::Busy) } else { None }
+                }
+                Err(Missing::Unknown | Missing::Ended | Missing::TooLarge) => Some(WatchRefusal::Unknown),
             }
-            Err(Missing::Unknown | Missing::Ended | Missing::TooLarge) => Some(WatchRefusal::Unknown),
-        },
+        }
     }
 }
 
@@ -439,27 +394,11 @@ fn application_subject(
 ) -> Option<(u16, Token, jig_domain_people::ApplicationScope, u64, Window)> {
     let binding = core.watch_binding(watcher)?;
     let subject = &core.view_names.get(binding.subject)?.subject;
-    match subject {
-        Subject::Application { scope, connector, subject } => {
-            Some((*connector, *subject, *scope, binding.party, binding.window))
+    match subject.shape() {
+        SubjectShape::Application { scope, connector, subject } => {
+            Some((connector, subject, scope, binding.party, binding.window))
         }
-        Subject::Frame { .. }
-        | Subject::Task { .. }
-        | Subject::Tree { .. }
-        | Subject::Chips { .. }
-        | Subject::Inbox { .. }
-        | Subject::Accounts { .. }
-        | Subject::Query { .. }
-        | Subject::Run { .. }
-        | Subject::Settings
-        | Subject::Deployment
-        | Subject::Proposal { .. }
-        | Subject::Escalation { .. }
-        | Subject::Question { .. }
-        | Subject::PersonTask { .. }
-        | Subject::Result { .. }
-        | Subject::Project { .. }
-        | Subject::Note { .. } => None,
+        SubjectShape::Run(_) | SubjectShape::Retained(_) | SubjectShape::Chips | SubjectShape::Other => None,
     }
 }
 
@@ -468,27 +407,11 @@ pub(crate) fn marked(core: &mut Core, connector: u16, subjects: List<Token>) -> 
     for (_, flight) in &core.flights {
         let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
         let subject = &core.view_names.get(binding.subject).expect("bound application subject").subject;
-        let touched = match subject {
-            Subject::Application { connector: owner, subject, .. } => {
-                *owner == connector && subjects.as_slice().contains(subject)
+        let touched = match subject.shape() {
+            SubjectShape::Application { connector: owner, subject, .. } => {
+                owner == connector && subjects.as_slice().contains(&subject)
             }
-            Subject::Frame { .. }
-            | Subject::Task { .. }
-            | Subject::Tree { .. }
-            | Subject::Chips { .. }
-            | Subject::Inbox { .. }
-            | Subject::Accounts { .. }
-            | Subject::Query { .. }
-            | Subject::Run { .. }
-            | Subject::Settings
-            | Subject::Deployment
-            | Subject::Proposal { .. }
-            | Subject::Escalation { .. }
-            | Subject::Question { .. }
-            | Subject::PersonTask { .. }
-            | Subject::Result { .. }
-            | Subject::Project { .. }
-            | Subject::Note { .. } => false,
+            SubjectShape::Run(_) | SubjectShape::Retained(_) | SubjectShape::Chips | SubjectShape::Other => false,
         };
         if touched {
             let _new = core.changed_views.insert(binding.subject).expect("bounded connector marks");
@@ -533,8 +456,8 @@ fn watch_document(
     if closed_subject(core, subject) {
         return Err(views::End::Gone);
     }
-    let filtered = match subject {
-        Subject::Chips { tasks: named } => {
+    let filtered = match subject.chips() {
+        Some(named) => {
             let mut tasks = List::with_capacity(named.len());
             for number in named {
                 let Some(row) = core.tasks.task(*number) else { continue };
@@ -548,23 +471,7 @@ fn watch_document(
             }
             Some(Subject::Chips { tasks })
         }
-        Subject::Frame { .. }
-        | Subject::Task { .. }
-        | Subject::Tree { .. }
-        | Subject::Inbox { .. }
-        | Subject::Accounts { .. }
-        | Subject::Query { .. }
-        | Subject::Run { .. }
-        | Subject::Settings
-        | Subject::Deployment
-        | Subject::Proposal { .. }
-        | Subject::Escalation { .. }
-        | Subject::Question { .. }
-        | Subject::PersonTask { .. }
-        | Subject::Result { .. }
-        | Subject::Project { .. }
-        | Subject::Note { .. }
-        | Subject::Application { .. } => None,
+        None => None,
     };
     let subject = match &filtered {
         Some(filtered) => filtered,
@@ -712,29 +619,16 @@ fn changed_run(core: &mut Core, env: &Env<Limits>, run: Token, out: &mut Queue<R
     for (_, flight) in &core.flights {
         let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
         let subject = &core.view_names.get(binding.subject).expect("bound current-run subject").subject;
-        match subject {
-            Subject::Run { task } if *task == run.raw() => {
+        match subject.shape() {
+            SubjectShape::Run(task) if task == run.raw() => {
                 named = Some(binding.subject.token());
                 break;
             }
-            Subject::Frame { .. }
-            | Subject::Task { .. }
-            | Subject::Tree { .. }
-            | Subject::Chips { .. }
-            | Subject::Inbox { .. }
-            | Subject::Accounts { .. }
-            | Subject::Query { .. }
-            | Subject::Run { .. }
-            | Subject::Settings
-            | Subject::Deployment
-            | Subject::Proposal { .. }
-            | Subject::Escalation { .. }
-            | Subject::Question { .. }
-            | Subject::PersonTask { .. }
-            | Subject::Result { .. }
-            | Subject::Project { .. }
-            | Subject::Note { .. }
-            | Subject::Application { .. } => {}
+            SubjectShape::Application { .. }
+            | SubjectShape::Run(_)
+            | SubjectShape::Retained(_)
+            | SubjectShape::Chips
+            | SubjectShape::Other => {}
         }
     }
     if let Some(name) = named {
@@ -765,24 +659,9 @@ pub(crate) fn retained_task(core: &Core, watcher: Token) -> Option<u64> {
 }
 
 fn retained_subject(subject: &Subject) -> Option<u64> {
-    match subject {
-        Subject::Task { task } | Subject::Tree { task } => Some(*task),
-        Subject::Frame { .. }
-        | Subject::Chips { .. }
-        | Subject::Inbox { .. }
-        | Subject::Accounts { .. }
-        | Subject::Query { .. }
-        | Subject::Run { .. }
-        | Subject::Settings
-        | Subject::Deployment
-        | Subject::Proposal { .. }
-        | Subject::Escalation { .. }
-        | Subject::Question { .. }
-        | Subject::PersonTask { .. }
-        | Subject::Result { .. }
-        | Subject::Project { .. }
-        | Subject::Note { .. }
-        | Subject::Application { .. } => None,
+    match subject.shape() {
+        SubjectShape::Retained(task) => Some(task),
+        SubjectShape::Application { .. } | SubjectShape::Run(_) | SubjectShape::Chips | SubjectShape::Other => None,
     }
 }
 
@@ -830,3 +709,7 @@ pub(crate) fn retained_made(
     }
     out
 }
+
+#[cfg(test)]
+#[path = "../../tests/classify_subjects.rs"]
+mod classifier_tests;

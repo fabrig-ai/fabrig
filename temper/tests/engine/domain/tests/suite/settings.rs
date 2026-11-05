@@ -757,7 +757,7 @@ fn a_run_reads_the_settings_and_proposes_a_change_an_owner_accepts() {
     assert!(!error, "{}", String::from_utf8_lossy(&proposed));
     let text = std::str::from_utf8(&proposed).expect("proposal text");
     let proposal: u64 = text
-        .strip_prefix("proposed as proposal ")
+        .strip_prefix(&format!("proposed as t{}/", run.task))
         .expect("proposal number")
         .strip_suffix(" to the deployment's owners")
         .expect("owners")

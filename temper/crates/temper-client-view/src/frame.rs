@@ -386,7 +386,7 @@ pub(crate) fn banner(
     crate::link(
         builder,
         &words.say(crate::words::Word::BrandChats, &[]),
-        bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } }),
+        bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }),
     );
     builder.style(crate::look::BRAND);
     builder.text(Run::Plain, &words.say(crate::words::Word::Brand, &[]));
@@ -508,11 +508,7 @@ pub(crate) fn rail(
     b.style(crate::look::RAIL_NAV);
     entries(b, root, w, bindings, project, true);
     b.close();
-    crate::link(
-        b,
-        &w.say(Word::NewChat, &[]),
-        bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: true } }),
-    );
+    crate::link(b, &w.say(Word::NewChat, &[]), bindings.insert(Act::Go { address: Address::NewChat }));
     b.style(crate::look::RAIL_NEW);
     w.text(b, Word::NewChatLink, &[]);
     b.close();
@@ -594,7 +590,7 @@ fn entries(
     let (home, inbox, chats) = match root.pages().address() {
         Address::Home { .. } => (true, false, false),
         Address::Inbox { .. } => (false, true, false),
-        Address::Chats { .. } => (false, false, true),
+        Address::Chats { .. } | Address::NewChat => (false, false, true),
         Address::Chat { .. } => (false, false, !crate::pages::chat::configuring(root)),
         Address::Task { .. }
         | Address::Accounts
@@ -659,7 +655,7 @@ fn entries(
         b,
         Role::Link,
         &w.say(Word::Chats, &[]),
-        Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+        Act::Go { address: Address::Chats { filter: ChatsFilter::All } },
         chats,
         bindings,
     );
@@ -695,6 +691,7 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         | Address::Changes { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::NewChat
         | Address::Task { .. }
         | Address::Welcome { .. } => false,
     };
@@ -724,6 +721,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         | Address::Forges
         | Address::Welcome { .. }
         | Address::Chats { .. }
+        | Address::NewChat
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::ConnectModel { .. }
@@ -765,9 +763,9 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         builder,
         Role::Link,
         &words.say(crate::words::Word::Chats, &[]),
-        Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+        Act::Go { address: Address::Chats { filter: ChatsFilter::All } },
         match root.pages().address() {
-            Address::Chats { .. } | Address::Chat { .. } => true,
+            Address::Chats { .. } | Address::NewChat | Address::Chat { .. } => true,
             Address::ConnectForge { .. }
             | Address::Forges
             | Address::Welcome { .. }
@@ -842,6 +840,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Chats { .. }
+        | Address::NewChat
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Inbox { .. }
@@ -876,6 +875,7 @@ pub(crate) fn accounts_link(
         Address::Accounts | Address::ConnectModel { .. } => true,
         Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::NewChat
         | Address::Welcome { .. }
         | Address::Forges
         | Address::ConnectForge { .. }

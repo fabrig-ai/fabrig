@@ -182,7 +182,7 @@ fn account(root: &mut Domain, watch: Token, provider: u32, usable: bool) -> Queu
 }
 fn moved(mut out: Queue<Request>, replace: bool) -> bool {
     while let Some(request) = out.pop() {
-        if request == (Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false }, replace }) {
+        if request == (Request::Show { address: Address::Chats { filter: ChatsFilter::All }, replace }) {
             return true;
         }
     }
@@ -286,7 +286,7 @@ fn a_kept_real_forge_never_offers_the_playground() {
         account(&mut root, accounts, 18, false);
         forge_rows(&mut root, forges.unwrap(), Some(3), adopted);
         assert_eq!(pages::welcome::playground_offered(&root), Some(false));
-        assert!(!moved(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) }), false));
+        assert!(shown(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) })).is_none());
     }
 }
 #[test]
@@ -351,12 +351,15 @@ fn a_later_step_never_moves_on() {
     }
 }
 #[test]
-fn try_the_playground_opens_chats_without_a_playground_row() {
+fn try_the_playground_opens_new_chat_without_a_playground_row() {
     let (mut root, _, _, forges) = opened(true, Step::Welcome);
-    assert!(!moved(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) }), false));
+    assert!(shown(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) })).is_none());
     answer(&mut root, false);
     forge_rows(&mut root, forges.unwrap(), None, false);
-    assert!(moved(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) }), false));
+    assert_eq!(
+        shown(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) })),
+        Some((Address::NewChat, false))
+    );
     assert!(root.forge().playground_starting());
 }
 #[test]
@@ -452,10 +455,7 @@ fn leaving_the_welcome_keeps_the_sessions_forges() {
     let (mut root, _, _, forges) = opened(true, Step::Welcome);
     let watch = forges.unwrap();
     up(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
-    let mut out = event(
-        &mut root,
-        Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
-    );
+    let mut out = event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All }) });
     let mut closed = false;
     while let Some(request) = out.pop() {
         if let Request::Unlinked {
@@ -556,7 +556,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
 fn the_setup_strip_shows_while_there_is_no_demo_and_the_first_run_is_not_over() {
     use forge::listed;
     let (mut root, _, accounts, forges) = opened(true, Step::Model { way: None });
-    event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) });
+    event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All }) });
     assert!(listed::setup(&root).is_none());
     account(&mut root, accounts, 18, false);
     strip_forges(&mut root, forges.unwrap(), None);
@@ -761,7 +761,7 @@ fn default_made_opens_home_and_waits_for_its_membership() {
     assert_eq!(root.pages().default_project().project, Some(77));
     let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
     frame.projects.get_mut(0).unwrap().project = 77;
-    event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) });
+    event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All }) });
     deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
     assert_eq!(root.pages().project(), Some(77));
     assert_eq!(root.pages().default_project().project, None);

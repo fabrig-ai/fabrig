@@ -14,7 +14,7 @@ pub struct Bundle {
 }
 impl Bundle {
     pub fn new(page: Box<[u8]>, digest: String, files: BTreeMap<String, Box<[u8]>>) -> Result<Self, String> {
-        if page.len() > usize::try_from(FILE_BYTES).expect("file bound fits usize")
+        if page.len() > skein_lib::usize_of(FILE_BYTES)
             || digest.len() != 16
             || !digest.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
             || files.len() > FILES
@@ -26,7 +26,7 @@ impl Bundle {
             if path.len() > 1024
                 || !Path::new(path).components().all(|part| matches!(part, Component::Normal(_)))
                 || of(Path::new(path)).is_none()
-                || content.len() > usize::try_from(FILE_BYTES).expect("file bound fits usize")
+                || content.len() > skein_lib::usize_of(FILE_BYTES)
             {
                 return Err("invalid bundle file".into());
             }

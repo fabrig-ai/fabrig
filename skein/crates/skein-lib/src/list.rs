@@ -83,7 +83,7 @@ impl<T> List<T> {
     fn grow(&mut self) {
         let len = self.items.len();
         if len == self.items.capacity() {
-            let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
+            let cap = crate::usize_of(self.capacity);
             let needed = len.checked_add(1).expect("room for another item");
             let additional = grown(len, needed, cap).checked_sub(len).expect("room for another item");
             self.items.reserve_exact(additional);
@@ -120,7 +120,7 @@ impl<T> List<T> {
     /// Removes a suffix without changing the allocated capacity.
     pub fn truncate(&mut self, length: u32) {
         assert!(length <= self.len(), "truncate only removes a suffix");
-        self.items.truncate(usize::try_from(length).expect("u32 fits usize"));
+        self.items.truncate(crate::usize_of(length));
     }
 
     /// Empties the list, keeping its grown buffer: a list refilled in place

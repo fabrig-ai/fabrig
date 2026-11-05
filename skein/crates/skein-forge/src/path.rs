@@ -1,7 +1,7 @@
 //! Origin targets and percent encoding (skein/docs/design/forge.md, 4.4).
 use crate::limits::Limits;
 use alloc::boxed::Box;
-use skein_lib::{List, Overflow, Writer, bytes};
+use skein_lib::{List, Overflow, Writer, bytes, usize_of};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Pair {
     pub name: Box<[u8]>,
@@ -81,7 +81,7 @@ fn unescape(text: &[u8], query: bool) -> Result<Box<[u8]>, Unread> {
     Ok(out.into_boxed())
 }
 pub fn read(target: &[u8], limits: &Limits) -> Result<Target, Unread> {
-    if target.len() > usize::try_from(limits.target_bytes).expect("u32 fits") {
+    if target.len() > usize_of(limits.target_bytes) {
         return Err(Unread::TooLong);
     }
     if target.first() != Some(&b'/') || target.contains(&b'#') {
