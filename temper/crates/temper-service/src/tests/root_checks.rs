@@ -356,39 +356,140 @@ fn payload_turn_queue_refusals_name_the_configured_and_required_bytes() {
     assert_eq!(lines(&found).as_ref(), b"workers[0].limits.overrides.hub.turn_queue_bytes: 199 bytes, short of the agent's turns * workers[0].limits.overrides.hub.turn_bytes, 200 bytes\n");
 }
 
+fn complete_profile_startup(document: &[u8], agent: &crate::settings::Agent) {
+    let named = crate::named(document, &jig_protocol_config::Directories::working()).unwrap();
+    let mut entries = skein_lib::List::with_capacity(u32::try_from(named.files.len()).unwrap());
+    for file in named.files {
+        entries.push((file.path, skein_lib::Secret::new(vec![b'0'; 64].into()))).unwrap();
+    }
+    let found = crate::startup::check(
+        document,
+        &jig_protocol_config::Directories::working(),
+        &crate::settings::Files { entries },
+        agent,
+        &fixtures::seeds(),
+        None,
+        skein_lib::List::with_capacity(0),
+        None,
+    );
+    if let Err(problems) = found {
+        panic!("{}", String::from_utf8_lossy(&lines(&problems)));
+    }
+}
+
+/// Merge every shipped overlay member as configuration.md, 13.9 requires.
+fn merge_profile(base: &[u8], overlay: &[u8]) -> Box<[u8]> {
+    use skein_json::writer::{Encoder, Limits};
+    let bounds = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 };
+    let base = jig_protocol_config::document(base, &bounds).unwrap();
+    let overlay = jig_protocol_config::document(overlay, &bounds).unwrap();
+    let mut tokens = Vec::new();
+    merge_profile_members((&base, 0), (&overlay, 0), &mut tokens);
+    let merged =
+        skein_json::Document::from_tokens(&tokens, &skein_json::document::Limits { tokens: 16_384, text: 1_048_576 })
+            .unwrap();
+    let limits = Limits { depth: 32, length: 1_048_576 };
+    let mut measure = Encoder::measure(&limits);
+    measure.document(&merged);
+    let mut writer = Encoder::write(measure.measured().unwrap(), &limits);
+    writer.document(&merged);
+    writer.finish()
+}
+
+fn merge_profile_members(
+    base: (&skein_json::Document, u32),
+    overlay: (&skein_json::Document, u32),
+    tokens: &mut Vec<skein_json::Token>,
+) {
+    use skein_json::{Kind, Token};
+    if base.0.token(base.1).unwrap().kind != Kind::ObjectStart
+        || overlay.0.token(overlay.1).unwrap().kind != Kind::ObjectStart
+    {
+        copy_profile_value(overlay, tokens);
+        return;
+    }
+    tokens.push(Token::ObjectStart);
+    for (document, start, retained) in [(base.0, base.1, true), (overlay.0, overlay.1, false)] {
+        let mut at = start.checked_add(1).unwrap();
+        while document.token(at).unwrap().kind != Kind::ObjectEnd {
+            let key = document.text(document.token(at).unwrap()).unwrap();
+            let value = at.checked_add(1).unwrap();
+            let previous = base.0.member(base.1, key);
+            if retained || previous.is_none() {
+                tokens.push(Token::Key(key.into()));
+                if let (Some(original), Some(replacement)) = (previous, overlay.0.member(overlay.1, key)) {
+                    merge_profile_members((base.0, original), (overlay.0, replacement), tokens);
+                } else {
+                    copy_profile_value((document, value), tokens);
+                }
+            }
+            at = jig_protocol_config::read::after(document, value).unwrap();
+        }
+    }
+    tokens.push(Token::ObjectEnd);
+}
+
+fn copy_profile_value(source: (&skein_json::Document, u32), tokens: &mut Vec<skein_json::Token>) {
+    use skein_json::{Kind, Token};
+    let (document, start) = source;
+    for at in start..jig_protocol_config::read::after(document, start).unwrap() {
+        let record = document.token(at).unwrap();
+        let text = document.text(record).unwrap();
+        tokens.push(match record.kind {
+            Kind::ObjectStart => Token::ObjectStart,
+            Kind::ObjectEnd => Token::ObjectEnd,
+            Kind::ArrayStart => Token::ArrayStart,
+            Kind::ArrayEnd => Token::ArrayEnd,
+            Kind::Key => Token::Key(text.into()),
+            Kind::String => Token::String(text.into()),
+            Kind::Number => Token::Number(text.into()),
+            Kind::True => Token::True,
+            Kind::False => Token::False,
+            Kind::Null => Token::Null,
+            Kind::Long => panic!("profile text is retained"),
+        });
+    }
+}
+
+fn profile_question_bound(bytes: &[u8]) -> u32 {
+    let document = jig_protocol_config::document(
+        bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    )
+    .unwrap();
+    let jig = fixtures::parse_engine(&fixtures::value(bytes, b"engine"));
+    let mut problems = Problems::empty();
+    let application = crate::startup::application::parse(
+        &document,
+        document.member(0, b"application").unwrap(),
+        &jig,
+        &jig_protocol_config::Directories::working(),
+        &mut problems,
+    )
+    .unwrap();
+    assert_eq!(lines(&problems).as_ref(), b"");
+    crate::limits::engine(&jig.limits, &application.limits).unwrap().forge.change_policy.questions
+}
+
+/// The reference supplies four questions over init's standard eighty, before the first start.
+#[test]
+fn the_reference_profile_keeps_four_questions_per_change() {
+    let generated = super::stock::generated();
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).expect("init agent"));
+    assert_eq!(profile_question_bound(&generated), 80, "init keeps standard's bound");
+    complete_profile_startup(&generated, &agent);
+    let reference = merge_profile(&generated, include_bytes!("../../../../docs/examples/reference/limits.json"));
+    complete_profile_startup(&reference, &agent);
+    assert_eq!(profile_question_bound(&reference), 4, "the reference overrides standard's bound");
+}
+
 #[test]
 fn shipped_payload_profiles_pass_complete_startup_checks() {
     let generated = super::stock::generated();
-    let reference = include_bytes!("../../../../docs/examples/reference/limits.json");
-    let limits = fixtures::value(reference, b"engine.limits.overrides");
-    let parsed = jig_protocol_config::document(
-        &limits,
-        &jig_protocol_config::DocumentLimits { bytes: 1024, tokens: 64, depth: 8 },
-    )
-    .unwrap();
-    let at = jig_protocol_config::read::Object::new(&parsed, 0).unwrap().member(&parsed, b"tasks.tree_tasks").unwrap();
-    let tree_tasks = jig_protocol_config::read::integer(&parsed, at, u64::MAX).unwrap();
-    let overlay = super::stock::limited(&generated, b"tasks.tree_tasks", tree_tasks);
+    let overlay = merge_profile(&generated, include_bytes!("../../../../docs/examples/reference/limits.json"));
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).expect("stock agent"));
     for document in [&generated, &overlay] {
-        let named = crate::named(document, &jig_protocol_config::Directories::working()).unwrap();
-        let mut entries = skein_lib::List::with_capacity(u32::try_from(named.files.len()).unwrap());
-        for file in named.files {
-            entries.push((file.path, skein_lib::Secret::new(vec![b'0'; 64].into()))).unwrap();
-        }
-        let found = crate::startup::check(
-            document,
-            &jig_protocol_config::Directories::working(),
-            &crate::settings::Files { entries },
-            &agent,
-            &fixtures::seeds(),
-            None,
-            skein_lib::List::with_capacity(0),
-            None,
-        );
-        if let Err(problems) = found {
-            panic!("{}", String::from_utf8_lossy(&lines(&problems)));
-        }
+        complete_profile_startup(document, &agent);
     }
 }
 
