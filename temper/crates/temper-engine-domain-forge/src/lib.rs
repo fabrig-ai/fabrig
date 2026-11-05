@@ -94,7 +94,7 @@ mod verification;
 pub use boundary::*;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
-pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
+pub use domain::{DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
 pub use gates::{GateCandidate, GateLast, GatePattern, Requires};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{

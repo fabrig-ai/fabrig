@@ -69,7 +69,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
             && !facts.writer_taken
             && facts.pull != Pull::Closed
         {
-            next.state = released_state(&next, was, *why, facts);
+            next.state = released_state(was, *why);
             next.since = now;
             next.owns_turn = false;
             return Stepped { change: next, decision: Decision::EndHold };
@@ -382,13 +382,13 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         | Hold::Failed
         | Hold::Rejected
         | Hold::Authority(_) => {
-            change.state = released_state(&change, was, why, facts);
+            change.state = released_state(was, why);
             Stepped { change, decision: Decision::None }
         }
     }
 }
 
-fn released_state(change: &Change, was: &State, why: Hold, facts: &Facts) -> State {
+fn released_state(was: &State, why: Hold) -> State {
     match was {
         State::Ready { head, .. }
         | State::Queued { head, .. }
@@ -403,11 +403,7 @@ fn released_state(change: &Change, was: &State, why: Hold, facts: &Facts) -> Sta
         | State::Ended => {
             unreachable!("held state retains a live predecessor")
         }
-        State::Producing { requested: true }
-            if why == Hold::Failed && facts.branch.is_none() && change.last_head.is_none() =>
-        {
-            State::Producing { requested: false }
-        }
+        State::Producing { requested: true } if why == Hold::Failed => State::Producing { requested: false },
         State::Repairing { why: repair, .. } if why == Hold::Failed => {
             State::Repairing { requested: false, why: *repair }
         }
@@ -494,13 +490,19 @@ fn producing(
         }
         Early::None => {}
     }
+    // A failed producer holds whatever it delivered (domain/forge.md, 8.4).
+    if requested && standing.delegate == Status::Failed {
+        return hold(change, Hold::Failed);
+    }
     match facts.branch {
-        Some(head) => {
+        Some(head) if facts.titled => {
             change.state = State::Opening { requested: false };
             change.last_head = Some(head);
             change.since = now;
             Stepped { change, decision: Decision::None }
         }
+        Some(_) if !requested => request_producer(change, facts, standing, now),
+        Some(_) => waiting_on_agent(change, facts, now, limits),
         None if !requested => {
             if let Some(commit) = facts.catch_up {
                 return catch_up_due(change, commit, facts, now, limits);
