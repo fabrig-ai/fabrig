@@ -368,7 +368,7 @@ fn world_in_layout(
                         }
                         v1::Read::Setting(setting) => {
                             if setting.kind() == 7 && goals.is_some() {
-                                project_ways(&mut root, read, true, false, &mut out);
+                                project_ways(&mut root, read, true, false, false, &mut out);
                                 continue;
                             }
                             let bytes = settings.map(|name| settings_bytes(name, setting.kind()));
@@ -3716,7 +3716,7 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
         "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
             Wall::from_nanos(1_792_483_440_000_000_000)
         }
-        "rail-away-on" => Wall::from_nanos(1_792_479_840_000_000_000),
+        "rail-away-on" | "rail-away-off" => Wall::from_nanos(1_792_479_840_000_000_000),
         name if name.starts_with("goal-") => goal_wall(world, 0),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
         "changes-landed-only" => offset(Reference, 2),
@@ -3783,7 +3783,7 @@ pub(super) fn changes_world(name: &str) -> Domain {
                     wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
                 {
                     assert_eq!(setting.kind(), 7);
-                    project_ways(&mut root, read, false, name != "changes-landed-only", &mut out);
+                    project_ways(&mut root, read, false, name != "changes-landed-only", false, &mut out);
                 }
             }
             Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
@@ -3819,10 +3819,17 @@ pub(super) fn changes_world(name: &str) -> Domain {
     assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
-pub(super) fn project_ways(root: &mut Domain, read: Token, goals: bool, changes: bool, out: &mut Queue<Request>) {
+pub(super) fn project_ways(
+    root: &mut Domain,
+    read: Token,
+    goals: bool,
+    changes: bool,
+    away: bool,
+    out: &mut Queue<Request>,
+) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
     let ways =
-        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [false, goals, changes, false], way: 0 })
+        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [false, goals, changes, away], way: 0 })
             .expect("gallery project ways");
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");
@@ -4345,7 +4352,7 @@ pub(super) fn away_record(on: bool) -> Box<[u8]> {
         &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) }).expect("Away rows"),
     )
 }
-pub(super) fn rail_away_on(root: &mut Domain, watch: Token) {
+pub(super) fn rail_away_toggle(root: &mut Domain, watch: Token, on: bool) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let mut out = Queue::uncapped();
     temper_client_domain::step(
@@ -4373,7 +4380,7 @@ pub(super) fn rail_away_on(root: &mut Domain, watch: Token) {
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: away_record(true),
+                        bytes: away_record(on),
                     },
                 },
             },

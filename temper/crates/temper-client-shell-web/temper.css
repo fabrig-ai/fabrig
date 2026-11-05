@@ -1790,7 +1790,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-settings .temper-settings-col > section > :not(input[type=checkbox], input[type=checkbox] + label) { grid-column: 1 / -1; }
 .temper-settings .temper-settings-col > section > input[type=checkbox] { align-self: center; margin: 14px 0 0; accent-color: var(--gf-ink); }
 .temper-settings .temper-settings-col > section > input[type=checkbox] + label { margin-top: 14px; font-size: 14px; }
-.temper-settings [role=radiogroup] { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; margin-top: 14px; font-size: 14px; }
 .temper-settings [role=radiogroup] > input { align-self: baseline; margin-top: 4px; accent-color: var(--gf-ink); }
 .temper-settings .temper-settings-col > section > .temper-settings-btn { justify-self: start; margin-top: 14px; font-family: var(--gf-sans); }
 .temper-settings .temper-settings-btn:disabled { opacity: .45; cursor: default; }
@@ -1957,6 +1956,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: away ==== */
+.temper-settings [role=radiogroup]:has(> input) { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; margin-top: 14px; font-size: 14px; }
 .temper-settings-checks > div { display: flex; align-items: baseline; gap: 10px; }
 .temper-settings-checks > div > input { flex: none; width: 13px; height: 13px; margin: revert; }
 .temper-settings-checks > div > label { min-width: 0; }
