@@ -2,6 +2,19 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 10: a browser walk from a draft's sheet through planning, a live
+  report and delegate tasks, Pause, Resume, a message and Stop. The fake box's
+  model (`temper-fake/src/backends.rs`, `model_document`) writes a report only
+  for the first chat's goal, task 2, then finishes it without delegates. The
+  browser can open that ended goal and its report, but cannot exercise those
+  live states with this script.
+- **Departs:** 3.5, 5.14: Goals' "Start one from a draft" goes to Chats with
+  the Drafts filter, rather than opening a sheet with a Draft field;
+  `temper-client-domain`'s `pages/start_goal.rs` ignores `OpenStart` without
+  a supplied draft. The sheet with a supplied draft remains. This is the
+  route accepted by `ui-goal-page`'s `goal-browser` answer of 2026-11-05;
+  `ui-chat-draft` owns its draft-to-goal continuation. On the fake box's
+  stock project, Chats offers no Drafts filter or draft-start control.
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
@@ -107,6 +120,11 @@
   `forges` watch refused, ended or not delivered yet, where the section has
   nothing said. The request of 2026-11-05 gives that line two cases and no
   words for not knowing; no test holds it and no reason is recorded.
+  3.5, *The rows*: an account's sources are a list under their level-3
+  heading, each with its state and acts, and a sign-in under way a paragraph
+  (`temper-client-view`'s `pages/accounts/rows.rs`, `draw`), where the section
+  has a row's facts as `.setting` rows, because the rows keep their sources,
+  observations and forms in document order.
 - **Design departs:** 3.5, *A chat's conversation*, its cards, from the request
   `ui-chats` of 2026-11-05, which names a proposal, a held task and a question's
   answer as cards in the conversation: a chat's page holds proposals alone
@@ -133,6 +151,14 @@
   And " · later" shows on *Needs you*'s mono line as on Home's, where the request
   and the mock have it on Home's card alone: the one function draws both, and no
   reason is recorded.
+- **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
+  `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
+  draws no path, where the request has each flow add one: the same request
+  keeps the terminal's prints' meaning, a path would shift every number on the
+  flows, and the terminal's rail holds "Settings". With hosts kept and none
+  connected, `.empty` stands above their "Not connected" lines, where the
+  request gives none connected `.empty` and no words for that case, so that no
+  state is dropped.
 - **Design departs:** 3.5, *Goals*, from the request of 2026-11-05: "6 / 9" is
   on the task line (jig's `client/domain/contract.md`, 5.1), where the request
   offered the goal's document or the tree's read, and a row reads its report

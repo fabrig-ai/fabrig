@@ -9,7 +9,7 @@ use jig_client::contract as c;
 use skein_lib::{List, Queue, Wall};
 use skein_ui::{Builder, Role, Style, Tree};
 use temper_client_domain::{
-    Address, GoalsFilter, PlanFilter,
+    Address, GoalsFilter,
     pages::{goals::State, report::Report},
 };
 
@@ -98,7 +98,7 @@ fn a_row_is_one_link_to_its_task() {
     assert_eq!(
         bindings.decode(binding.token, skein_ui::Act::Press),
         Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-            address: Address::Task { task: line().chip.task, filter: PlanFilter::All }
+            address: Address::Task { task: line().chip.task }
         }))
     );
     // Text roles map to spans in the browser: top(title, count(state)), then line.
@@ -216,12 +216,12 @@ fn a_row_reads_in_the_terminal() {
         assert_eq!(
             bindings.decode(binding.token, act),
             Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-                address: Address::Task { task: line.chip.task, filter: PlanFilter::All }
+                address: Address::Task { task: line.chip.task }
             }))
         );
     }
 }
-fn template(number: u32, name: &[u8], tracked: bool) -> c::Template {
+pub(super) fn template(number: u32, name: &[u8], tracked: bool) -> c::Template {
     c::Template {
         resources: List::uncapped(),
         number,
@@ -735,15 +735,15 @@ fn more_goals_offers_and_reads() {
     }
 }
 #[test]
-fn the_page_draws_no_spend_and_no_draft_link() {
+fn the_page_draws_no_spend() {
     let page = Page::populated();
     for words in [fixtures::words(), fixtures::browser_words()] {
         let (tree, bindings) = page.tree(&words);
         let text = fixtures::text(&tree);
-        for forbidden in [b"spent".as_slice(), b"budget", b"Start one from a draft"] {
+        for forbidden in [b"spent".as_slice(), b"budget"] {
             assert!(skein_lib::bytes::find(&text, forbidden).is_none());
         }
-        assert_eq!(role_nodes(&tree, Role::Link).len(), row_tasks(&tree, &bindings).len());
+        assert_eq!(role_nodes(&tree, Role::Link).len(), row_tasks(&tree, &bindings).len() + 1);
         assert_eq!(tree.nodes()[0].styles.as_slice(), [look::MAIN, look::GOALS]);
         let sections = style_order(
             &tree,
@@ -753,5 +753,43 @@ fn the_page_draws_no_spend_and_no_draft_link() {
             sections.as_ref(),
             [look::GOALS_INTRO, look::GOALS_SECTION, look::GOALS_SECTION_HEAD, look::GOALS_FILTERS, look::GOALS_ROWS]
         );
+    }
+}
+
+#[test]
+fn the_link_shows_with_a_tracked_template() {
+    let page = Page::populated();
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let (tree, bindings) = page.tree(&words);
+        let mut end = 0;
+        let mut found = false;
+        for (index, node) in tree.nodes().iter().enumerate() {
+            if node.styles.as_slice().contains(&look::GOALS_SECTION_HEAD) {
+                end = index + usize::try_from(node.size).unwrap();
+            }
+            if node.role == Role::Link && node.name.as_deref() == Some(b"Start one from a draft") {
+                assert!(index < end);
+                assert!(node.styles.as_slice().contains(&look::SHEET_LINK));
+                assert_eq!(
+                    bindings.decode(node.binding.unwrap().token, skein_ui::Act::Press),
+                    Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                        address: Address::Chats { filter: temper_client_domain::ChatsFilter::All },
+                    }))
+                );
+                found = true;
+            }
+        }
+        assert!(found);
+    }
+}
+#[test]
+fn none_with_none() {
+    let mut page = Page::populated();
+    let mut me = page.root.pages().me(page.root.client()).unwrap().clone();
+    me.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([template(UNTRACKED_WAY, b"chat", false)]));
+    fixtures::deliver_me(&mut page.root, page.me, me);
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let (tree, _) = page.tree(&words);
+        assert!(fixtures::find(&tree, Role::Link, b"Start one from a draft").is_none());
     }
 }
