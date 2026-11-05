@@ -984,7 +984,9 @@ fn home_domain(name: &str) -> Domain {
                     w::Watch::Forges => wire::forges(
                         &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Home forges"),
                     ),
-                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Landings(_) => continue,
+                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Changes(_) => {
+                        continue;
+                    }
                 };
                 step(
                     &mut root,
