@@ -24,6 +24,7 @@ mod accounts_runtime;
 mod agent;
 pub mod box_command;
 pub mod bundle;
+pub mod claude_code;
 pub mod commands;
 pub mod ctl;
 pub mod fake;
@@ -468,6 +469,10 @@ fn prepare_with_limits(
     if let Some(agent) = &agent
         && let Some(program) = agent.programs.first()
     {
+        if agent::launcher(path(&program.directory)).as_deref() == Some(path(&program.path)) {
+            claude_code::place(path(&program.path).parent().expect("launcher parent"), path(&directories.cache))
+                .map_err(|why| format!("programs.claude_code: {why}"))?;
+        }
         // Source commands use the agent's explicit command environment.
         let environment = agent::configuration(path(&named.worker.as_ref().expect("local agent checked").agent))?
             .service

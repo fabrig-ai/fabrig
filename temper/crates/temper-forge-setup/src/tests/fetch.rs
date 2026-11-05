@@ -149,7 +149,7 @@ fn fetch_bound_through_checked() {
     }
 }
 
-use crate::fetch::{self, Bottle, Event, Extraction, Failure, Fetched, Pin, Request};
+use crate::fetch::{self, Bottle, Event, Extraction, Failure, Fetched, Named, Pin, Request};
 use skein_forge::forgejo::pin::{Binary, Platform};
 use skein_lib::{Queue, sha256::Sha256};
 
@@ -166,7 +166,7 @@ fn a_fetched_line_reads_back() {
             (0, Some(u64::MAX)),
             (u64::MAX, Some(u64::MAX)),
         ] {
-            let fetched = Fetched { binary, done, total };
+            let fetched = Fetched { binary: Named::Forge(binary), done, total };
             let expected = match total {
                 Some(total) => format!("fetched {word} {done} of {total} bytes\n"),
                 None => format!("fetched {word} {done} bytes\n"),
@@ -320,7 +320,7 @@ fn architecture_pins() {
             let mut pins = Vec::new();
             if forgejo {
                 pins.push(Pin {
-                    binary: Binary::Forgejo,
+                    binary: Named::Forge(Binary::Forgejo),
                     origin: if mirror { origin(b"mirror.test", 443) } else { origin(b"codeberg.org", 443) },
                     path: format!("/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{arch}")
                         .as_bytes()
@@ -332,7 +332,7 @@ fn architecture_pins() {
             }
             if runner {
                 pins.push(Pin {
-                    binary: Binary::Runner,
+                    binary: Named::Forge(Binary::Runner),
                     origin: if mirror { origin(b"127.0.0.1", 8443) } else { origin(b"code.forgejo.org", 443) },
                     path: format!("/forgejo/runner/releases/download/v13.2.1/forgejo-runner-13.2.1-linux-{arch}")
                         .as_bytes()
@@ -349,7 +349,7 @@ fn architecture_pins() {
 }
 fn pin(file: &[u8]) -> Pin {
     Pin {
-        binary: Binary::Forgejo,
+        binary: Named::Forge(Binary::Forgejo),
         origin: origin(b"mirror.test", 8443),
         path: b"/binary".as_slice().into(),
         digest: sha(b"abc"),
@@ -367,7 +367,7 @@ fn open(file: &str) -> Request {
     Request::Open { part: format!("{file}.part").as_bytes().into() }
 }
 fn say(done: u64, total: Option<u64>) -> Request {
-    Request::Say(Fetched { binary: Binary::Forgejo, done, total })
+    Request::Say(Fetched { binary: Named::Forge(Binary::Forgejo), done, total })
 }
 fn write(offset: u64, bytes: &[u8]) -> Request {
     Request::Write { offset, bytes: bytes.into() }
@@ -595,7 +595,7 @@ fn macos_architecture_pins() {
         };
         let expected: Result<Box<[Pin]>, Failure> = expected.map(|()| -> Box<[Pin]> { Box::new([
             Pin {
-                    binary: Binary::Forgejo,
+                    binary: Named::Forge(Binary::Forgejo),
                 origin: if mirror { origin(b"mirror.test", 443) } else { origin(b"ghcr.io", 443) },
                 path: b"/v2/homebrew/core/forgejo/blobs/sha256:19db7c548064dfd4097264a7b4c4cf3b228bfd6190bc33a3c6e8a9b26c3d0e06".as_slice().into(),
                 digest: unhex("4b6ed0e7e6ef034d298872125f69332e2aad49367435f66c58ee5eb2c5680cf6"),
@@ -606,7 +606,7 @@ fn macos_architecture_pins() {
                 }),
             },
             Pin {
-                    binary: Binary::Runner,
+                    binary: Named::Forge(Binary::Runner),
                 origin: if mirror { origin(b"127.0.0.1", 8443) } else { origin(b"ghcr.io", 443) },
                 path: b"/v2/homebrew/core/forgejo-runner/blobs/sha256:0a8cb32f024121e50ebca1840ed2f5650d65d3eb3e183679c0f8f0bc14d6fb48".as_slice().into(),
                 digest: unhex("2829f0125068f0ad92f908cb08c4d3c2f458cc22eec15fd675c332823cbece4b"),
