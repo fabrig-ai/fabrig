@@ -1,13 +1,11 @@
 //! cat-file --batch's bounded header and streamed body (hearth/docs/design/domain/render.md, 2.2–2.3).
-use crate::{MaxOut, limits::Limits, oid::Oid};
+use crate::{limits::Limits, oid::Oid};
 use alloc::boxed::Box;
 use skein_lib::{
     Env, Queue, Writer, bytes,
     stream::{Delimiter, Down, Fault, Read, Up},
 };
 pub const HEADER: u32 = 93;
-pub const UP_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
-pub const DOWN_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     Read { oid: Oid, size: u64, max: u64 },

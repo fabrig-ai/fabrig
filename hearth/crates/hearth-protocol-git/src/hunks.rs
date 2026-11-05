@@ -1,13 +1,11 @@
 //! Unified hunks with bounded lines and retained text (hearth/docs/design/domain/render.md, 2.2 and 6.1).
-use crate::{MaxOut, limits::Limits};
+use crate::limits::Limits;
 use alloc::boxed::Box;
 use core::mem;
 use skein_lib::{
     Env, List, Queue, bytes,
     stream::{Delimiter, Down, Fault, Read, Up},
 };
-pub const UP_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
-pub const DOWN_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Kind {
     Hunk,

@@ -52,8 +52,8 @@ pub fn list(stdout: &[u8], limits: &Limits, settings: &Settings) -> Outcome {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut machine = Listing::new(limits);
     let mut wire = Source::new(stdout, settings);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     if settings.close == Some(0) {
         assert_closed(&mut machine, &env, &mut wire);
         return Outcome::Closed;
@@ -89,8 +89,8 @@ pub fn list(stdout: &[u8], limits: &Limits, settings: &Settings) -> Outcome {
     panic!("listing did not settle for {settings:?}")
 }
 fn assert_closed(machine: &mut Listing, env: &Env<Limits>, wire: &mut Source) {
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     listing::down(machine, env, Request::Close, &mut above, &mut below);
     assert_eq!(above.pop(), Some(Event::Closed), "Close answers Closed");
     while let Some(down) = below.pop() {
@@ -123,8 +123,8 @@ pub fn read(
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut machine = Batch::START;
     let mut wire = Source::new(stdout, settings);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut requests = requests.iter();
     let mut pending = requests.next().copied();
     let mut result = Vec::new();
@@ -193,8 +193,8 @@ pub fn read(
 }
 fn batch_closed(machine: &mut hearth_protocol_git::batch::Batch, env: &Env<Limits>, wire: &mut Source) {
     use hearth_protocol_git::batch::{self, Event, Request};
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     batch::down(machine, env, Request::Close, &mut above, &mut below);
     assert_eq!(above.pop(), Some(Event::Closed), "Close answers Closed");
     while let Some(down) = below.pop() {
@@ -244,13 +244,13 @@ impl Stepped {
             batch: None,
             diff: None,
             tail: None,
-            diff_events: Queue::with_capacity(1),
+            diff_events: Queue::uncapped(),
             held: skein_lib::stream::Held::new(case.stdout.clone().into_boxed_slice()),
             feed: case.stdout.clone().into_boxed_slice(),
             requests: Vec::from(case.requests.clone()).into_iter(),
-            listing_events: Queue::with_capacity(1),
-            batch_events: Queue::with_capacity(1),
-            below: Queue::with_capacity(1),
+            listing_events: Queue::uncapped(),
+            batch_events: Queue::uncapped(),
+            below: Queue::uncapped(),
             read: None,
             action: None,
             closed: false,

@@ -24,16 +24,16 @@ impl Tail {
             if byte == b'\n' {
                 let line = core::mem::replace(&mut self.line, List::with_capacity(self.max)).into_boxed();
                 if self.lines.capacity() > 0 {
-                    if self.lines.room() == 0 {
-                        self.lines.pop();
+                    if self.lines.len() == self.lines.capacity() {
+                        drop(self.lines.pop());
                     }
                     self.lines.push(line);
                 }
                 self.pending = false;
             } else {
                 self.pending = true;
-                if self.line.room() > 0 {
-                    self.line.push(byte).expect("line room");
+                if self.line.len() < self.max {
+                    self.line.push(byte).expect("line within its limit");
                 }
             }
         }
@@ -46,7 +46,7 @@ impl Tail {
                 lines.push(line.clone()).expect("tail capacity");
             }
         }
-        if self.pending && lines.room() > 0 {
+        if self.pending && lines.len() < self.lines.capacity() {
             lines.push(skein_lib::bytes::copy_of(self.line.as_slice())).expect("tail capacity");
         }
         lines.into_boxed()
