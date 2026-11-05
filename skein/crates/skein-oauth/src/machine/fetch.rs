@@ -65,35 +65,43 @@ impl Client {
             &self.limits,
         )?;
         let deadline = now.checked_add(self.limits.sign_in_time).ok_or(Failure::Limit)?;
+        let fetch = if has_openid(&registration) { Some(initial(&registration, &self.limits)?) } else { None };
+        let (visit, url) = if fetch.is_some() { (Some(url), None) } else { (None, Some(url)) };
         let mut exchange = Exchange {
             registration,
-            grant: Grant::SignIn { key, generation, code: None },
-            state,
-            verifier,
-            nonce,
+            grant: Grant::SignIn {
+                key,
+                generation,
+                code: None,
+                state,
+                verifier,
+                nonce,
+                visit,
+                fetch,
+                keys: Box::default(),
+            },
             deadline,
             attempts: 0,
-            visit: None,
-            fetch: None,
-            keys: Box::default(),
         };
-        if has_openid(&exchange.registration) {
-            exchange.visit = Some(url);
-            exchange.fetch = Some(initial(&exchange.registration, &self.limits)?);
+        if exchange.fetching() {
             let (request, phase) = self.http_request(&mut exchange, now)?;
             Ok((exchange, Request::Http(request), phase))
         } else {
-            Ok((exchange, Request::Visit { url: Secret::new(url) }, Awaits::Redirect))
+            let url = Secret::new(url.expect("sign-in visits without a fetch"));
+            Ok((exchange, Request::Visit { url }, Awaits::Redirect))
         }
     }
 
     pub(super) fn keys_request(
         &mut self,
         exchange: &mut Exchange,
-        _now: Time,
         deadline: Time,
     ) -> Result<(HttpRequest, Awaits), Failure> {
-        let endpoint = match exchange.fetch.as_ref().ok_or(failure())? {
+        let fetch = match &exchange.grant {
+            Grant::SignIn { fetch, .. } => fetch,
+            Grant::Refresh { .. } | Grant::Revoke { .. } => return Err(failure()),
+        };
+        let endpoint = match fetch.as_ref().ok_or(failure())? {
             Fetch::Metadata { endpoint } | Fetch::Keys { endpoint } => endpoint.clone(),
         };
         let id = self.next_id;
@@ -136,28 +144,24 @@ impl Client {
     }
 
     fn read_keys(&mut self, exchange: &mut Exchange, body: &[u8], now: Time) -> Result<(Request, Awaits), Check> {
-        let fetch = exchange.fetch.take().ok_or(Check::Keys)?;
-        match fetch {
+        let (fetch, visit, keys) = match &mut exchange.grant {
+            Grant::SignIn { fetch, visit, keys, .. } => (fetch, visit, keys),
+            Grant::Refresh { .. } | Grant::Revoke { .. } => return Err(Check::Keys),
+        };
+        match fetch.take().ok_or(Check::Keys)? {
             Fetch::Metadata { .. } => {
-                let issuer = &exchange
-                    .registration
-                    .terms
-                    .as_ref()
-                    .ok_or(Check::Keys)?
-                    .openid
-                    .as_ref()
-                    .ok_or(Check::Keys)?
-                    .issuer;
+                let terms = exchange.registration.terms.as_ref().ok_or(Check::Keys)?;
+                let issuer = &terms.openid.as_ref().ok_or(Check::Keys)?.issuer;
                 let endpoint = keys::issuer_key_set(body, issuer, &self.limits)?;
-                exchange.fetch = Some(Fetch::Keys { endpoint });
+                *fetch = Some(Fetch::Keys { endpoint });
                 exchange.attempts = 0;
                 let (request, phase) = self.http_request(exchange, now).or(Err(Check::Keys))?;
                 Ok((Request::Http(request), phase))
             }
             Fetch::Keys { .. } => {
-                exchange.keys = keys::fitting_keys(body, &self.limits)?;
+                *keys = keys::fitting_keys(body, &self.limits)?;
                 exchange.attempts = 0;
-                let url = exchange.visit.take().ok_or(Check::Keys)?;
+                let url = visit.take().ok_or(Check::Keys)?;
                 Ok((Request::Visit { url: Secret::new(url) }, Awaits::Redirect))
             }
         }
@@ -171,29 +175,25 @@ pub(super) struct Identity {
 impl Client {
     pub(super) fn identity(
         &self,
-        exchange: &Exchange,
+        registration: &Registration,
+        nonce: Option<&Secret>,
+        keys: &[keys::Key],
         response: &crate::TokenResponse,
         wall: skein_lib::Wall,
     ) -> Result<Identity, Check> {
-        if !has_openid(&exchange.registration) {
+        if !has_openid(registration) {
             return Ok(Identity { subject: None, token: None });
         }
         let token = response.id_token.as_ref().ok_or(Check::Missing)?.expose();
-        let terms = exchange.registration.terms.as_ref().ok_or(Check::Issuer)?;
+        let terms = registration.terms.as_ref().ok_or(Check::Issuer)?;
         let openid = terms.openid.as_ref().ok_or(Check::Issuer)?;
         let expected = crate::jwt::Expected {
             issuer: &openid.issuer,
-            client_id: &exchange.registration.client_id,
-            nonce: secret_ref(exchange.nonce.as_ref()).ok_or(Check::Nonce)?,
+            client_id: &registration.client_id,
+            nonce: secret_ref(nonce).ok_or(Check::Nonce)?,
         };
-        let subject = crate::jwt::verify_id_token(
-            token,
-            &exchange.keys,
-            &expected,
-            wall,
-            self.limits.skew,
-            &self.limits.document,
-        )?;
+        let subject =
+            crate::jwt::verify_id_token(token, keys, &expected, wall, self.limits.skew, &self.limits.document)?;
         Ok(Identity { subject: Some(subject), token: Some(Secret::new(skein_lib::bytes::copy_of(token))) })
     }
 }
