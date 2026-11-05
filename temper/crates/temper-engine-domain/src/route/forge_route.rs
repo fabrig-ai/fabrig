@@ -15,9 +15,13 @@ pub(crate) const CHANGE_CODE: u32 = 2;
 const FOREMAN_CHARTER: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
+pub(crate) const STATUS_CODE: u32 = 5;
+const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
 mod change_llm;
+mod status_route;
+pub(crate) use status_route::{refused as status_refused, start_status_step};
 mod tier_route;
 pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
@@ -1673,6 +1677,9 @@ pub(crate) fn run_workspace(
     context: &tasks::RunContext,
     _attempt: u64,
 ) -> Option<RunWorkspace> {
+    if context.executor == (tasks::Executor::Agent { charter: STATUS_CHARTER }) {
+        return Some(status_route::workspace(context.task));
+    }
     let root = domain.core.tasks.root(context.task)?;
     let parent = match context.requester {
         tasks::Party::Task(task) => Some(task),
@@ -4247,6 +4254,12 @@ pub(crate) fn outputs(
             forge::Request::Manifest { forge, request, back } => {
                 assert!(super::now(domain, Request::Manifest { forge, request, back }), "manifest door");
             }
+            forge::Request::AdoptAccess { forge, request, owner, name } => {
+                assert!(
+                    super::now(domain, Request::AdoptAccess { forge, request, owner, name }),
+                    "adoption access door"
+                );
+            }
             forge::Request::Reachable { forge, request, installation, page } => {
                 assert!(
                     super::now(domain, Request::Reachable { forge, request, installation, page }),
@@ -4660,6 +4673,7 @@ pub(crate) fn outputs(
                     holds::drift(domain, task, &resource);
                 }
             }
+            forge::Request::StatusRun { project, words } => status_route::start_status_run(domain, env, project, words),
             forge::Request::TierRun { repository, tier, number, tip } => {
                 start_tier_run(domain, env, repository, tier, number, tip);
             }

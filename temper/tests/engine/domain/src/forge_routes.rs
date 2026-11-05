@@ -59,6 +59,7 @@ pub struct CallError {
 pub struct World {
     restart_config: engine::Config,
     oracle_documents: Vec<(Token, forge_top::Document)>,
+    oracle_watcher: u64,
     broken: bool,
     oracle_running: bool,
     oracle_peer: Option<(Token, u32, u32)>,
@@ -919,6 +920,7 @@ impl World {
         Self {
             restart_config: crate::oracle::config::copy(&config),
             oracle_documents: Vec::new(),
+            oracle_watcher: 0x4e33,
             broken: false,
             oracle_running: false,
             oracle_peer: None,
@@ -1447,14 +1449,20 @@ impl World {
                     Delivery::Link { down: host::LinkDown::Relayed { answer: host::Relayed::Busy, .. }, .. } => {
                         self.busy_calls += 1;
                     }
-                    Delivery::Application { outcome, .. } => {
-                        let Some(engine::ApplicationAnswer::Adopt(outcome)) = outcome else {
-                            panic!("retained adoption answer")
-                        };
-                        self.adopted.push(outcome);
-                    }
+                    Delivery::Application { outcome, .. } => match outcome {
+                        Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
+                        Some(engine::ApplicationAnswer::Looked(_)) => {}
+                        answer => panic!("retained application answer: {answer:?}"),
+                    },
                     _ => {}
                 },
+                engine::Request::AdoptAccess { forge, request, .. } => {
+                    self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::AccessAnswered {
+                        forge,
+                        request,
+                        answer: Ok(()),
+                    })));
+                }
                 engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
@@ -2344,12 +2352,15 @@ impl World {
         panic!("restart oracle party read did not answer");
     }
 
-    fn oracle_document(&mut self, sign_in: u64, project: u32, subject: u64) -> Option<forge_top::Document> {
-        const WATCH: Token = Token::new(0x4e33);
+    /// One authenticated forge document, using a fresh watch identity for each subject.
+    #[must_use]
+    pub fn oracle_document(&mut self, sign_in: u64, project: u32, subject: u64) -> Option<forge_top::Document> {
+        let watch = Token::new(self.oracle_watcher);
+        self.oracle_watcher = self.oracle_watcher.checked_add(1).expect("fixture watch identities");
         self.oracle_documents.clear();
-        self.panels.retain(|(watcher, _)| *watcher != WATCH);
+        self.panels.retain(|(watcher, _)| *watcher != watch);
         self.send(engine::Event::Party(engine::PartyInput::Watch {
-            watcher: WATCH,
+            watcher: watch,
             sign_in,
             subject: documents::Watched::Application {
                 scope: people::ApplicationScope::Project(project),
@@ -2363,14 +2374,15 @@ impl World {
             .oracle_documents
             .iter()
             .rev()
-            .find_map(|(watcher, doc)| (*watcher == WATCH).then(|| doc.clone()))
+            .find_map(|(watcher, doc)| (*watcher == watch).then(|| doc.clone()))
             .or_else(|| {
                 self.panels.iter().rev().find_map(|(watcher, panel)| {
-                    (*watcher == WATCH).then(|| forge_top::Document::Change(panel.clone()))
+                    (*watcher == watch).then(|| forge_top::Document::Change(panel.clone()))
                 })
             });
-        self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: WATCH }));
+        self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: watch }));
         self.oracle_settle();
+        self.panels.retain(|(watcher, _)| *watcher != watch);
         answer
     }
 

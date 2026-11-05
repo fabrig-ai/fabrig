@@ -529,6 +529,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Connect { .. }
                 | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
+                | top::Request::AdoptAccess { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }
@@ -576,6 +577,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::StatusRun { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::MakingCopied { .. }

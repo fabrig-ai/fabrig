@@ -1081,6 +1081,14 @@ impl World {
         for _ in 0..self.top_out.len() {
             let request = self.top_out.pop().expect("counted top output");
             match request {
+                top::Request::AdoptAccess { forge, request, .. } => {
+                    top::step(
+                        &mut self.top,
+                        &self.env,
+                        top::Event::AccessAnswered { forge, request, answer: Ok(()) },
+                        &mut self.top_out,
+                    );
+                }
                 top::Request::ApplicationPart { request, .. } => {
                     top::step(&mut self.top, &self.env, top::Event::Adopt { request }, &mut self.top_out);
                 }
@@ -1182,6 +1190,7 @@ impl World {
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::StatusRun { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }
@@ -1337,6 +1346,8 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::Looked(row) => top::Key::Looked { party: row.party, project: row.project },
         top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }

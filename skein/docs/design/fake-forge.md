@@ -529,7 +529,9 @@ and what the two layers share (section 12), and holds no clock of its own.
   in id order and paged by number as Forgejo pages it) are served from this
   layer's own bounded store, not the domain's (forge-setup.md, section 4).
   A repository read by id answers the domain's settings when the host
-  lends the domain.
+  lends the domain. A site admin's read of a configured repository by its
+  path is answered the same way, with no domain call, as Forgejo shows a
+  site admin every repository.
 - **A first repository is made in the domain** (forge-setup.md, 4.9).
   The setup's `CreateRepository` in an org the setup store keeps makes
   a domain repository owned by that org, private, whose `main` is one

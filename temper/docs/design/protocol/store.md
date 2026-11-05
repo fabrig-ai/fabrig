@@ -137,6 +137,8 @@ section 7).
   | Byte | Family | Key | What a row holds | Bounded by |
   |---|---|---|---|---|
   | 34 | `Dismissed` | `Dismissed { party, what }`: the party, then what it dismissed, `ToBegin { project }` the one kind for now | what the person dismissed, on every device and across restarts (`../domain/forge.md`, 5.5). Its record is its key's fields, `{ party, what }`, as `Flight`'s is. Written by the party's `Dismiss` (`../client/README.md`, 4.6), a second writing nothing; erased in the decision that releases its project (jig's `domain/connectors.md`, section 2). A family of the forge connector's though it is people's, as `Binding` is. jig erases no party, so nothing erases a row by its party: a member removed keeps theirs, as a binding stays (`sign-in.md`, section 5; section 7) | the forge's `bindings` times its `judge_projects`: the members times the projects |
+  | 36 | `ProjectFacts` | `ProjectFacts { project }` | a project's landed count, the wall of its latest landing and the status agent's brief, none or `{ sentence, lede, at, landed }` (`../domain/forge.md`, 5.6). Written in the decision that lands a change and when a brief is heard; erased with its project | `judge_projects` |
+  | 37 | `Looked` | `Looked { party, project }` | a party's `previous` and `latest` looks at a project, walls, and the `landed` counts at them, `seen` and `next_seen` (`../domain/forge.md`, 5.6). Written by the party's request; erased with its project | `bindings` times `judge_projects` |
 
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads a row: what a party sees of them comes in
@@ -173,6 +175,8 @@ section 7).
     its branch one byte string;
   - `Dismissed` is the party, then what it dismissed: 0 `ToBegin` and
     the project.
+  - `ProjectFacts` is the project; `Looked` is the party, then the
+    project.
 - **Written out, not generated:** each family has a small encoder and
   decoder in `temper-protocol-store`. A property test holds each encoder
   to the order `Key` derives, on generated keys of every family, and
@@ -379,8 +383,9 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
   of its merge.
 - **A party's dismissals outlive it.** jig erases no party: a member
   taken out of the configuration stays a party, and a role lost leaves
-  the party's rows. So `Dismissed` is erased with its project alone, and
-  a row can outlive its member's use for it, within the family's bound:
+  the party's rows. So `Dismissed` and `Looked` are erased with their
+  project alone, and a row can outlive its member's use for it, within
+  the family's bound:
   a person given the role back finds it still dismissed. Default:
   nothing, until jig erases a party, when its connector would
   need telling, a change of jig's (jig's `domain/connectors.md`, section

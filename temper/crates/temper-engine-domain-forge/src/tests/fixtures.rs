@@ -18,7 +18,7 @@ pub fn adoption() -> Adoption {
 
 /// Play the core after the connector's locate, returning the adoption outputs.
 pub fn begin_adoption(d: &mut Domain, request: Token, adoption: Adoption) -> Box<[Request]> {
-    outputs(
+    let started = outputs(
         d,
         Event::Application {
             role: None,
@@ -29,6 +29,11 @@ pub fn begin_adoption(d: &mut Domain, request: Token, adoption: Adoption) -> Box
             ask: Ask::Adopt(adoption),
         },
     );
+    for output in &started {
+        if let Request::AdoptAccess { forge, request, .. } = output {
+            outputs(d, Event::AccessAnswered { forge: *forge, request: *request, answer: Ok(()) });
+        }
+    }
     let sent = ready(d);
     let [Request::Call { call, .. }] = sent.as_ref() else { panic!("one locate call") };
     outputs(

@@ -993,6 +993,19 @@ fn changes_panel_round_trips() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
+fn project_status_round_trips_and_refuses_trailing_bytes() {
+    for bytes in [
+        include_bytes!("../golden/record_project_status_smallest.bin").as_slice(),
+        include_bytes!("../golden/record_project_status_full.bin").as_slice(),
+    ] {
+        let status = crate::decode_project_status(bytes, &v1::CEILINGS).expect("project status golden");
+        assert_eq!(crate::project_status(&status).as_ref(), bytes);
+        assert_eq!(crate::decode_project_status(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
 fn watching_changes_round_trips() {
     let limits = fixtures::limits();
     let subject = v1::ChangesSubject::new(&limits, v1::ChangesSubjectParts { project: 1 }).expect("project");
