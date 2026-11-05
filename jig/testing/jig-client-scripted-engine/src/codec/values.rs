@@ -130,6 +130,11 @@ pub(super) use run_facts::*;
 #[path = "values/settings.rs"]
 mod settings;
 pub(super) use settings::*;
+pub use settings::{
+    wire_malformed_settings, wire_proposal_action_settings, wire_retained_action_settings, wire_revision_answer,
+    wire_revisions_page, wire_setting_document, wire_settings_document,
+};
+
 #[path = "values/specification.rs"]
 mod specification;
 pub(super) use specification::*;

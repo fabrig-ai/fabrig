@@ -147,8 +147,6 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         contract_choices,
         charters,
         charter_documents,
-        versions: _,
-        revisions: _,
         authority_grants,
         authority_segments,
         authority_bytes,
@@ -297,7 +295,6 @@ fn set_fleet(limits: &mut jig_domain_fleet::Limits, name: &[u8], value: u64) -> 
         source_detail_bytes,
         workers,
         needs_bytes,
-        versions: _,
         engine_slots,
         slots,
         workstreams,
@@ -557,10 +554,10 @@ fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Re
         load_bytes,
         call_records,
         call_answer_bytes,
-        tasks,
+        tasks: _,
         authority: _,
         people: _,
-        fleet,
+        fleet: _,
         brief: _,
         brief_parts,
         brief_core_budgets,
@@ -583,11 +580,8 @@ fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Re
             }
             if name == b"settings.revisions" {
                 settings.revisions = count(value)?;
-                tasks.revisions = count(value)?;
             } else {
                 settings.versions = count(value)?;
-                tasks.versions = count(value)?;
-                fleet.versions = count(value)?;
             }
         }
         b"settings.history" => {

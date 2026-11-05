@@ -1,7 +1,7 @@
 //! Bridge between the provider-neutral vocabulary and Responses documents.
 //! No state or owner references are retained. Measurement and encoding borrow
 //! schemas/replay into the reserved bytes (llm.md, sections 4.2, 4.5 and 4.7).
-use crate::{Block, Error, Failure, Prompt, Provider, Replay, Role, Stop, Usage, openai};
+use crate::{Block, Error, Prompt, Provider, Replay, Role, openai};
 use alloc::boxed::Box;
 use skein_json::{Kind, writer};
 #[cfg(test)]
@@ -792,45 +792,12 @@ pub const fn decode(error: crate::DocumentError) -> Error {
     }
 }
 
-pub(crate) const fn stop(value: openai::Stop) -> Stop {
-    match value {
-        openai::Stop::EndTurn => Stop::EndTurn,
-        openai::Stop::ToolUse => Stop::ToolUse,
-        openai::Stop::MaxTokens => Stop::MaxTokens,
-        openai::Stop::Refusal => Stop::Refusal,
-    }
-}
-pub(crate) const fn usage(value: openai::Usage) -> Usage {
-    Usage {
-        input: value.input,
-        output: value.output,
-        cache_read: value.cache_read,
-        cache_write: value.cache_write,
-        reasoning: value.reasoning,
-    }
-}
-pub(crate) const fn failure(value: openai::Failure) -> Failure {
-    match value {
-        openai::Failure::Limit { which, bound } => Failure::Limit { which, bound },
-        openai::Failure::Protocol => Failure::Protocol,
-        openai::Failure::Unauthorized => Failure::Unauthorized,
-        openai::Failure::Refused => Failure::Refused,
-        openai::Failure::Unsupported => Failure::Unsupported,
-        openai::Failure::Exhausted { retry_after } => Failure::Exhausted { retry_after },
-        openai::Failure::RateLimited { retry_after } => Failure::RateLimited { retry_after },
-        openai::Failure::Overloaded => Failure::Overloaded,
-        openai::Failure::Unavailable => Failure::Unavailable,
-        openai::Failure::ContextTooLong => Failure::ContextTooLong,
-        openai::Failure::Invalid => Failure::Invalid,
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{failure, part, stop, usage};
-    use crate::{Block, Error, Failure, Message, Prompt, Provider, Replay, Role, Stop, Usage, openai};
+    use super::part;
+    use crate::{Block, Error, Message, Prompt, Provider, Replay, Role, openai};
     use alloc::boxed::Box;
-    use skein_lib::{Duration, bytes};
+    use skein_lib::bytes;
     const LIMITS: openai::Limits = openai::Limits {
         request: 8192,
         retained: 8192,
@@ -1119,28 +1086,6 @@ mod tests {
             let block = Block::Text { text: bytes::copy_of(b"answer"), replay: Some(replay) };
             assert_eq!(request(&prompt(Role::Assistant, block), Provider::OpenAi, &LIMITS), Err(Error::Invalid));
         }
-    }
-    #[test]
-    fn common_terminal_vocabulary_preserves_usage_stop_and_retry() {
-        assert_eq!(stop(openai::Stop::Refusal), Stop::Refusal);
-        assert_eq!(stop(openai::Stop::MaxTokens), Stop::MaxTokens);
-        assert_eq!(stop(openai::Stop::ToolUse), Stop::ToolUse);
-        assert_eq!(stop(openai::Stop::EndTurn), Stop::EndTurn);
-        let counts = openai::Usage {
-            input: Some(10),
-            output: Some(3),
-            cache_read: Some(5),
-            cache_write: Some(2),
-            reasoning: None,
-        };
-        assert_eq!(
-            usage(counts),
-            Usage { input: Some(10), output: Some(3), cache_read: Some(5), cache_write: Some(2), reasoning: None }
-        );
-        assert_eq!(
-            failure(openai::Failure::RateLimited { retry_after: Duration::from_secs(7) }),
-            Failure::RateLimited { retry_after: Duration::from_secs(7) }
-        );
     }
     #[test]
     fn only_requires_distinct_offered_names_in_both_dialects() {

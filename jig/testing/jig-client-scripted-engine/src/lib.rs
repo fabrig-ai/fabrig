@@ -13,6 +13,13 @@
 #![forbid(unsafe_code)]
 mod application;
 mod codec;
+/// Scripted settings wire projections (client/domain/testing.md, 4).
+pub mod wire {
+    pub use crate::codec::{
+        wire_malformed_settings, wire_proposal_action_settings, wire_retained_action_settings, wire_revision_answer,
+        wire_revisions_page, wire_setting_document, wire_settings_document,
+    };
+}
 mod faults;
 pub use application::{
     Application, ApplicationCommit, ApplicationScope, ApplicationValue, Decision, Never, NoApplication,

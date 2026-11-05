@@ -1,9 +1,7 @@
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
-#[path = "../support/direct_opening.rs"]
 mod direct_opening;
-#[path = "../support/opening.rs"]
 mod opening;
 
 mod coding;

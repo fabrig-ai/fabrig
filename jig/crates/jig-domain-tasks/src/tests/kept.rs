@@ -47,7 +47,7 @@ fn requester_ending_restores_without_rejudging_earlier_authority() {
         let mut broken = original.clone();
         broken.requester = requester;
         let mut cold = Harness::new();
-        cold.domain = Domain::new(&LIMITS, 91, 1, crate::tests::charters(), Box::new([0]));
+        cold.domain = Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
 
         let out = cold.send(Event::Restore { record: Stored::Live(Box::new(broken)) });
         assert!(out.is_empty());

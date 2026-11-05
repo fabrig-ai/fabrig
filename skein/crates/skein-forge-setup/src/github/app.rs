@@ -1,11 +1,12 @@
-//! The App and failures shared by GitHub's plans (forge-setup.md, 6.4).
+//! The App shared by GitHub's plans (forge-setup.md, 6.4).
+use crate::github::{Reply, reply};
 use crate::{
     call::Auth,
     item,
-    reconcile::{self, Event, Failure, Need, Reply, Stage, Why},
+    plan::{Event, Why},
 };
 use core::num::NonZeroU64;
-use skein_lib::{Secret, bytes};
+use skein_lib::Secret;
 
 /// The App a plan acts as: its id and its key (forge-setup.md, 6.4).
 #[derive(Clone, Debug)]
@@ -29,24 +30,15 @@ impl Kept {
 pub(crate) fn id_of(read: Option<Secret>) -> Option<NonZeroU64> {
     item::app_id(read?.expose())
 }
-/// A plan's stop, naming its stage and subject without credentials.
-pub(crate) fn stop(forge: u16, stage: Stage, subject: &[u8], why: Why) -> Need {
-    Need::Stop(Failure { forge, step: stage, subject: bytes::copy_of(subject), why })
-}
 /// The unauthenticated bot read's nonzero identity (forge-setup.md, 5.3).
 pub(crate) fn bot(event: Event) -> Result<NonZeroU64, Why> {
-    match reconcile::reply(event)? {
-        Reply::GithubDocument(skein_forge::github::document::Document::BotUser(id)) => {
+    match reply(event)? {
+        Reply::Document(skein_forge::github::document::Document::BotUser(id)) => {
             NonZeroU64::new(id).ok_or(Why::Unexpected)
         }
         Reply::Status(404) => Err(Why::Missing),
         Reply::Status(status) => Err(Why::Refused(status)),
         Reply::Down => Err(Why::Down),
-        Reply::Document(_)
-        | Reply::Rows(_)
-        | Reply::Empty
-        | Reply::GithubDocument(_)
-        | Reply::GithubRows(_)
-        | Reply::Unsigned => Err(Why::Unexpected),
+        Reply::Empty | Reply::Document(_) | Reply::Rows(_) | Reply::Unsigned => Err(Why::Unexpected),
     }
 }

@@ -398,9 +398,9 @@ impl Connection {
                     Speech::GitHub { document, rows, .. } => match document.take() {
                         Some(dialect::document::Document::Rows) => {
                             let rows = core::mem::replace(rows, List::with_capacity(0));
-                            Reply::GithubRows(rows.into_boxed())
+                            Reply::GitHubRows(rows.into_boxed())
                         }
-                        Some(document) => Reply::GithubDocument(document),
+                        Some(document) => Reply::GitHubDocument(document),
                         None => Reply::Down,
                     },
                 };
