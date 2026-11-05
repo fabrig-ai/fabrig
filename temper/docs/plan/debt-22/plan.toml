@@ -1,0 +1,3 @@
+draft = "debt-22"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-22/inputs/request.md", "temper/docs/plan/debt-22/inputs/debt20-review.md", "skein/docs/development/debt/D021-forgejo-plan-states.md", "skein/docs/development/debt/D022-oauth-states.md"]
