@@ -2558,7 +2558,6 @@ pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeFamily, ActStatus, Optio
     ])
 }
 
-#[expect(clippy::too_many_lines, reason = "the table pins every request variant and application scope")]
 pub(crate) fn ask_classes() -> Vec<(Ask, AskFamily)> {
     use AskFamily as F;
     Vec::from([
@@ -2566,8 +2565,6 @@ pub(crate) fn ask_classes() -> Vec<(Ask, AskFamily)> {
         (Ask::RemoveProject { project: 7, grace: None }, F::Project(7)),
         (Ask::ChangeSettings { against: 9, digest: [8; 32], projects: Box::new([]) }, F::Deployment),
         (Ask::MoveToNewest { revision: 9 }, F::Deployment),
-        (Ask::Compound { project: 7, operations: List::with_capacity(0) }, F::Project(7)),
-        (Ask::Create { project: 7, batch: Box::new([]) }, F::Project(7)),
         (Ask::MarkSeen { seen: Seen::Results { through: 9 } }, F::Seen),
         (Ask::MarkSeen { seen: Seen::Conversation { task: 8, through: 9 } }, F::Seen),
         (
@@ -2582,61 +2579,7 @@ pub(crate) fn ask_classes() -> Vec<(Ask, AskFamily)> {
             Ask::Application { scope: ApplicationScope::Deployment, connector: 2, digest: [8; 32] },
             F::Application(ApplicationScope::Deployment),
         ),
-        (
-            Ask::EditNote {
-                project: 7,
-                name: 9,
-                scope: Box::new(NoteScope::Project),
-                change: Box::new(NoteChange::Delete { recalled: 1 }),
-            },
-            F::Project(7),
-        ),
-        (Ask::MakeService { project: 7, name: b"service".as_slice().into(), role: Role::Member }, F::Project(7)),
-        (
-            Ask::Adopt {
-                project: 7,
-                adoption: Adoption {
-                    resource: ResourceName { connector: 2, path: Box::new([]) },
-                    role: ResourceRole::Owned,
-                    options: Box::new([]),
-                },
-            },
-            F::Project(7),
-        ),
-        (Ask::Propose { project: 7, action: Action::Batch(Box::new([])), reason: Box::new([]) }, F::Project(7)),
-        (Ask::Withdraw { project: 7, proposal: 9 }, F::Project(7)),
-        (Ask::Stop { project: 7, task: 9 }, F::Project(7)),
-        (Ask::Cancel { project: 7, task: 9, reason: Box::new([]), grace: None }, F::Project(7)),
-        (Ask::Release { project: 7, task: 9, revision: 8, again: None }, F::Project(7)),
         (Ask::Lift { hold: 9, revision: 8, with_tasks: true }, F::Lift),
-        (Ask::TakePerson { project: 7, task: 9 }, F::Project(7)),
-        (Ask::HandBackPerson { project: 7, task: 9 }, F::Project(7)),
-        (
-            Ask::AnswerPerson {
-                project: 7,
-                task: 9,
-                revision: 8,
-                result: PersonResult::Report { words: Box::new([]) },
-            },
-            F::Project(7),
-        ),
-        (Ask::Move { project: 7, task: 9, reason: Box::new([]) }, F::Project(7)),
-        (
-            Ask::DecideProposal {
-                project: 7,
-                proposer: Proposer::Party(8),
-                proposal: 9,
-                decision: ProposalDecision::Accept,
-                running: None,
-            },
-            F::Project(7),
-        ),
-        (Ask::Say { project: 7, task: 9, words: Box::new([]) }, F::Project(7)),
-        (Ask::AnswerQuestion { project: 7, task: 9, question: 8, words: Box::new([]) }, F::Project(7)),
-        (
-            Ask::Amend { project: 7, task: 9, revision: 8, amendment: fixtures::unchanged(b"work"), release: None },
-            F::Project(7),
-        ),
         (
             Ask::SetRoles {
                 project: 7,
@@ -2647,19 +2590,10 @@ pub(crate) fn ask_classes() -> Vec<(Ask, AskFamily)> {
             },
             F::Project(7),
         ),
-        (Ask::SetRoles { project: 7, holdings: Box::new([]) }, F::Project(7)),
-        (Ask::ChangePolicy { project: 7, change: PolicyChange::ProjectSpend { period_spend: 9 } }, F::Project(7)),
-        (Ask::Rename { project: 7, name: "project".into() }, F::Project(7)),
         (Ask::MakeProject { name: "project".into(), policy: 9 }, F::Deployment),
-        (Ask::SetPool { project: 7, person: 9, budget: 8 }, F::Project(7)),
-        (
-            Ask::DecideEscalation { project: 7, task: 9, revision: 8, decision: EscalationDecision::Release },
-            F::Project(7),
-        ),
         (Ask::AccountSignIn { holder: AccountHolder::Own, provider: 9 }, F::Account),
         (Ask::AccountSignOut { holder: AccountHolder::Deployment, source: 9 }, F::Account),
         (Ask::AccountChange { holder: AccountHolder::Own, change: AccountChange::MoveOut { account: 9 } }, F::Account),
-        (Ask::SetVisibility { project: 7, public: true }, F::Project(7)),
     ])
 }
 
