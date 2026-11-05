@@ -1,5 +1,5 @@
 //! Page and ctl replacement on the joined client/engine (temper/docs/design/client/tools.md, 11.2).
-use jig_client_world::harness::{ClientId, Until, World};
+use jig_client_kit::harness::{ClientId, Until, World};
 use skein_lib::{Duration, Token};
 use skein_ui::{Act, Role};
 use skein_world::domain::Verdict;

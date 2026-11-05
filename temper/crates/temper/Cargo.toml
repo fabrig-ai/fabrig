@@ -93,7 +93,7 @@ skein-ui.workspace = true
 jig-client-shell-native.workspace = true
 jig-protocol-config.workspace = true
 skein-world.workspace = true
-jig-channel-world.workspace = true
+jig-channel-kit.workspace = true
 skein-tls-kit.workspace = true
 serde_json.workspace = true
 

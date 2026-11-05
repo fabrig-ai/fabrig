@@ -1,5 +1,5 @@
 //! A chat from first words through its change landing and closure (client/README.md, 3.5 and 5.7).
-use jig_client_world::harness::Until;
+use jig_client_kit::harness::Until;
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
@@ -39,10 +39,10 @@ const DIAGNOSTIC_NOW: skein_lib::Time = skein_lib::Time::ZERO;
 const DIAGNOSTIC_WALL: skein_lib::Wall = skein_lib::Wall::EPOCH;
 const POLL_ROUNDS: usize = 12;
 const START_OFFSET: i32 = 0;
-const DIAGNOSTIC_CLIENT: jig_client_world::harness::ClientId = jig_client_world::harness::ClientId(0);
+const DIAGNOSTIC_CLIENT: jig_client_kit::harness::ClientId = jig_client_kit::harness::ClientId(0);
 #[test]
 fn prepared_chat_answer_reaches_the_pages_task_watch() {
-    use jig_client_world::harness::{App, Duty, Front};
+    use jig_client_kit::harness::{App, Duty, Front};
     use temper_client_world::{app::Temper, front::Joint};
     let limits = fixtures::domain_limits();
     let mut front = Joint::new(fixtures::SEED, limits);
@@ -72,7 +72,7 @@ fn prepared_chat_answer_reaches_the_pages_task_watch() {
         jig_client::contract::Phase::Ended
     );
 }
-type ChatWorld = jig_client_world::harness::World<temper_client_world::app::Temper, temper_client_world::front::Joint>;
+type ChatWorld = jig_client_kit::harness::World<temper_client_world::app::Temper, temper_client_world::front::Joint>;
 const CHANGE_BRANCH: &[u8] = b"temper/chat-story";
 const CHANGE_TITLE: &[u8] = b"Export the table as CSV";
 const CHANGE_CALL: u64 = 1109;
@@ -80,7 +80,7 @@ const STORY_STEPS: u32 = 200;
 const STORY_WORKER: skein_lib::Token = skein_lib::Token::new(7);
 const PAST_CLOSE_GRACE: skein_lib::Duration = skein_lib::Duration::from_secs(6);
 
-fn printed(world: &ChatWorld, person: jig_client_world::harness::ClientId) -> String {
+fn printed(world: &ChatWorld, person: jig_client_kit::harness::ClientId) -> String {
     let limits = fixtures::domain_limits();
     let words = fixtures::phrasebooks(&limits);
     let bounds = fixtures::view_bounds(&limits, &words);
@@ -194,7 +194,7 @@ fn record_delegation(
     driver.send(temper_engine_domain_world::protocol::turn(STORY_WORKER, chat, attempt, 1, 1, read, &body));
 }
 
-fn chat_from_new_chat(world: &mut ChatWorld, task: u64) -> jig_client_world::harness::ClientId {
+fn chat_from_new_chat(world: &mut ChatWorld, task: u64) -> jig_client_kit::harness::ClientId {
     use temper_client_domain::Address;
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.at_text_shell(person);
@@ -340,7 +340,7 @@ const AFTER_CANCEL_ANSWER: skein_lib::Time = skein_lib::Time::from_nanos(6_100_0
 const AFTER_GRACE: skein_lib::Time = skein_lib::Time::from_nanos(6_000_000_000);
 #[test]
 fn a_prepared_close_expires_through_the_fronts_clock() {
-    use jig_client_world::harness::Front;
+    use jig_client_kit::harness::Front;
     use temper_engine_domain::{self as engine, PartyInput};
     let mut front = temper_client_world::front::Joint::new(fixtures::SEED, fixtures::domain_limits());
     let task = fixtures::chat(&mut front, b"A chat to close");
@@ -460,10 +460,10 @@ fn a_goal_proposed_in_a_chat_accepted_in_the_inbox_leaves_the_chat() {
     );
 }
 
-const INBOX_CLIENT: jig_client_world::harness::ClientId = jig_client_world::harness::ClientId(1);
+const INBOX_CLIENT: jig_client_kit::harness::ClientId = jig_client_kit::harness::ClientId(1);
 #[test]
 fn the_proposal_fixture_admits_both_chat_and_inbox_clients() {
-    use jig_client_world::harness::Front;
+    use jig_client_kit::harness::Front;
     let mut front = temper_client_world::front::Joint::new(fixtures::SEED, fixtures::domain_limits());
     proposed_goal(&mut front);
     for client in [DIAGNOSTIC_CLIENT, INBOX_CLIENT] {
@@ -475,7 +475,7 @@ fn the_proposal_fixture_admits_both_chat_and_inbox_clients() {
 type Probe = (temper_client_world::app::Root, skein_lib::Queue<temper_client_domain::Request>);
 const PROBE_ROUNDS: usize = 24;
 fn probe(seed: u64, address: temper_client_domain::Address) -> Probe {
-    use jig_client_world::harness::App;
+    use jig_client_kit::harness::App;
     use temper_client_world::app::Temper;
     let limits = fixtures::domain_limits();
     let (mut root, _) = Temper::new(seed);
@@ -489,7 +489,7 @@ fn probe(seed: u64, address: temper_client_domain::Address) -> Probe {
     (root, out)
 }
 fn pump(front: &mut temper_client_world::front::Joint, probes: &mut [Probe]) {
-    use jig_client_world::harness::{App, ClientId, Duty, Front};
+    use jig_client_kit::harness::{App, ClientId, Duty, Front};
     use temper_client_world::app::Temper;
     let env = skein_lib::Env { now: DIAGNOSTIC_NOW, wall: DIAGNOSTIC_WALL, limits: fixtures::domain_limits() };
     for _ in 0..PROBE_ROUNDS {
@@ -510,7 +510,7 @@ fn pump(front: &mut temper_client_world::front::Joint, probes: &mut [Probe]) {
 }
 #[test]
 fn accepting_the_goal_with_chat_and_inbox_watches_settles_the_engine() {
-    use jig_client_world::harness::{App, Front};
+    use jig_client_kit::harness::{App, Front};
     use temper_client_domain::{Action, Event, pages::Act};
     let mut front = temper_client_world::front::Joint::new(fixtures::SEED, fixtures::domain_limits());
     let task = proposed_goal(&mut front);

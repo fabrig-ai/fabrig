@@ -66,7 +66,7 @@ pub fn scripted_sized(scripts: Box<[api::Script]>, strings: u32) -> Recipe {
             path: b"/v1/responses".as_slice().into(),
             headers: Box::new([]),
         },
-        credential: skein_llm::Credential::key(jig_channel_world::fixtures::KEY.into()),
+        credential: skein_llm::Credential::key(jig_channel_kit::fixtures::KEY.into()),
         protocol_limits: protocol,
         domain: domain::Domain::try_scripted(&config, 17, scripts).expect("bounded real-loop scripts"),
         domain_limits: config,

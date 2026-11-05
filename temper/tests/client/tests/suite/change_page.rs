@@ -1,5 +1,5 @@
 //! a real procedure's ended children through the engine and the person.
-use jig_client_world::harness::{ClientId, Settings, Until, World};
+use jig_client_kit::harness::{ClientId, Settings, Until, World};
 use skein_fake_person::{Find, Step, Target};
 use skein_lib::Token;
 use skein_ui::Role;

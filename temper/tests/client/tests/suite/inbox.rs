@@ -1,4 +1,4 @@
-use jig_client_world::harness::Until;
+use jig_client_kit::harness::Until;
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use skein_ui::Role;
 use skein_world::domain::Verdict;

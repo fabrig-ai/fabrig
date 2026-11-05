@@ -1,6 +1,6 @@
 //! The switch and decisions cross both roots (temper/docs/design/client/README.md,
 //! 3.5, Away, and 4.6; temper/docs/design/domain/forge.md, 5.8 and 5.9).
-use jig_client_world::harness::{App, ClientId, Duty, Front};
+use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, RequestEnvelope, Time, Wall};
 use temper_client_domain::{
     Action, Address, Event, Request,

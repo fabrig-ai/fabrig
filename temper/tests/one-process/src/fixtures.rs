@@ -2,7 +2,7 @@
 #[cfg(test)]
 pub(crate) mod durable;
 use crate::world::Settings;
-use jig_channel_world::fixtures as channel;
+use jig_channel_kit::fixtures as channel;
 use skein_lib::{Duration, Secret};
 pub(crate) use temper_playground::documents::{
     CHAT_WAIT_MS, CLIENTS, FORGE, FORGE_CONNECTOR, GRANT_KINDS, PROCEDURE_CODE, PRODUCER_SPEND, PRODUCER_TOOLS,

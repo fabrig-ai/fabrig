@@ -1,6 +1,6 @@
 //! Home's looks through the joined roots (temper/docs/design/domain/testing.md, 2.1).
 use super::{Joint, client, engine_limits, fixtures, walking};
-use jig_client_world::harness::ClientId;
+use jig_client_kit::harness::ClientId;
 use skein_lib::Duration;
 use temper_engine_domain::{Parts, Record};
 use temper_engine_domain_world::{forge_stand::ForgeStand, store::Store};

@@ -1,5 +1,5 @@
 //! A hold's printed way out uses ctl's shipped grammar.
-use jig_client_world::harness::{ClientId, Settings, Until, World};
+use jig_client_kit::harness::{ClientId, Settings, Until, World};
 use jig_domain_tasks as tasks;
 use skein_fake_person::{Find, Step};
 use skein_world::domain::Verdict;
