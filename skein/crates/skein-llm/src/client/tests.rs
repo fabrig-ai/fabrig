@@ -490,7 +490,10 @@ fn an_owned_measurement_preserves_provider_bytes_lengths_and_policy() {
                 assert_eq!(prepared.limits, admitted);
                 assert_eq!(prepared.measured(), expected);
                 assert_eq!(rendered.len(), usize::try_from(expected.body).unwrap());
-                let actual = prepared.upload.as_ref().unwrap();
+                let actual = match &prepared.upload {
+                    Upload::Sending { body, .. } => body,
+                    Upload::Done => panic!("a prepared call holds its upload"),
+                };
                 if expected.compressed == 0 {
                     assert_eq!(actual, &rendered, "{provider:?}/{enabled}/{encoding:?}");
                 } else {

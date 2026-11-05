@@ -247,6 +247,11 @@ enum State {
     Closed,
 }
 
+enum Upload {
+    Sending { body: Box<[u8]>, offset: usize },
+    Done,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Outcome {
     Pending,
@@ -279,9 +284,8 @@ pub struct Client {
     content: Option<List<Block>>,
     content_bytes: u64,
     call: Option<http::Call>,
-    upload: Option<Box<[u8]>>,
+    upload: Upload,
     kept_body: Option<Box<[u8]>>,
-    upload_offset: usize,
     /// The end of the bytes sent within `upload`: the compressed member
     /// fills the front of the room its bound set aside.
     upload_end: usize,
@@ -534,9 +538,8 @@ impl Client {
             content: Some(List::with_capacity(limits.output_items)),
             content_bytes: 0,
             call: Some(call),
-            upload: Some(body),
+            upload: Upload::Sending { body, offset: 0 },
             kept_body,
-            upload_offset: 0,
             upload_end: end,
             http_events: Queue::uncapped(),
             sse_events: Queue::uncapped(),
@@ -875,23 +878,26 @@ fn http_event(
     match event {
         http::Event::Response(response) => response_head(client, response, env, above, below),
         http::Event::Upload(Up::Room) => {
-            if let Some(body) = &client.upload {
-                let end = client.upload_offset.saturating_add(usize_of(env.limits.http.send)).min(client.upload_end);
-                let piece =
-                    body.get(client.upload_offset..end).expect("the upload offset stays within the measured body");
-                client.requests.push(http::Request::Upload(Down::Send(bytes::copy_of(piece))));
-                client.upload_offset = end;
-                if end == client.upload_end {
-                    client.upload = None;
-                    client.requests.push(http::Request::Upload(Down::Finish));
-                } else {
-                    client
-                        .requests
-                        .push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: env.limits.http.send }));
+            match &mut client.upload {
+                Upload::Sending { body, offset } => {
+                    let end = offset.saturating_add(usize_of(env.limits.http.send)).min(client.upload_end);
+                    let piece =
+                        body.get(*offset..end).expect("the upload offset stays within the measured body");
+                    client.requests.push(http::Request::Upload(Down::Send(bytes::copy_of(piece))));
+                    *offset = end;
+                    if end == client.upload_end {
+                        client.upload = Upload::Done;
+                        client.requests.push(http::Request::Upload(Down::Finish));
+                    } else {
+                        client
+                            .requests
+                            .push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: env.limits.http.send }));
+                    }
                 }
+                Upload::Done => {}
             }
         }
-        http::Event::Upload(Up::Failed(_)) => client.upload = None,
+        http::Event::Upload(Up::Failed(_)) => client.upload = Upload::Done,
         http::Event::Upload(Up::Bytes(_) | Up::End) => {
             fail(client, Failure::Protocol, bytes::copy_of(b"invalid upload event"), above);
             closing(client, env, above, below);
@@ -1489,7 +1495,7 @@ fn close_machines(client: &mut Client, env: &Env<Limits>, below: &mut Queue<Down
     client.requests.clear();
     client.http_events.clear();
     client.outputs.clear();
-    client.upload = None;
+    client.upload = Upload::Done;
     client.call = None;
     client.content = None;
     client.decoder = None;
