@@ -117,10 +117,13 @@ section 11.
   GitHub connect's browser steps (section 8; `forge.md`, 9.1). The
   mapping's engine end
   owns its calls in flight: the server asks for its room before it
-  hands it a call, and answers a call under `/jig` that finds none
-  itself, as it answers a path no one claims: `503`, with no body,
-  closing the connection (jig's `protocol/client.md`, 17.4). The
-  server's connections are its own bound, never the engine end's.
+  hands it a call. An ordinary call under `/jig` that finds none waits
+  for it, its body unread (`browser.md`, 2.2); once the server is
+  stopping it answers that call itself, as it answers a path no one
+  claims: `503`, with no body, closing the connection (jig's
+  `protocol/client.md`, 17.4). A public read that finds none takes its
+  own busy answer (17.5 there). The server's connections are its own
+  bound, never the engine end's.
 - **Joined to the engine from the start.** `tests/client`
   (`temper-client-world`) runs temper's client and view, with skein's
   fake person, against temper's engine root (section 10;
