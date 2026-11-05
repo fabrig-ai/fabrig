@@ -92,3 +92,22 @@ Pre-approved:
 ## Report
 
 As the implementer's text says, with the status words you found true, and each pre-approved option taken.
+
+## Rebase (2026-11-05, step merge, foreman ui-settings/how-work-runs/foreman-1)
+
+rebase settings onto the landed Goals work, preserving both features and resolving shared IDs and gallery setup.
+The merge refused five content conflicts; this is the branch’s red.
+The incoming work is in `603bf80edf`, merged into `origin/ui-settings/integration` by `8c7f0478a6`; the shared base is `b8f9179cd0`.
+
+- `temper/crates/temper-client-view/src/look.rs`: retain Goals tokens 274–298; assign the six new settings tokens 299–304 and append their names in matching order. Keep the settings `small` element mapping.
+- `temper/crates/temper-client-view/src/words.rs`: preserve incoming Goals words and Settings IDs 3278–3294. Move this task’s 44 new IDs to 3295–3338; merge all enum, ALL and English entries. Before further word changes, combined counts are PHRASES 1495, SEGMENTS 2560, ALL 899; retain both text-byte additions.
+- `temper/tools/gallery/src/samples.rs`: retain all Goals samples and settings samples and both domain dispatches; combined N is 132. Preserve both sets of names and Holds tests.
+- `temper/tools/gallery/src/worlds.rs`: give `world_in_layout` separate Goals and settings inputs, updating every caller. Retain incoming tracked-task/report dispatch and Goals setting answers alongside settings kinds 6/7 and refusal acts.
+- Reconcile `settings_frame` with incoming `frame`: it already supplies tracked templates, including number 4. Do not append duplicate template numbers or overflow the six-template capacity.
+- `temper/docs/design/client/README.status.md`: remove the completed How work runs controls gap and Goals-address gap; retain the proposal-card gap, Away-switch gap and incoming Changes findings.
+
+Apply the spec’s integration conditions now that Goals has landed:
+- In `pages/goals.rs`, add the template number to shared `Way`; replace `pages/settings.rs`’s private table with `goals::ways`, handling its optional line.
+- `temper-client-domain/src/pages/report.rs` now exists: show “Written by each goal’s agent” and update the settings assertion and terminal golden. The incoming stock directory has no “status agent” match, so Home’s brief remains “Off”.
+- Regenerate affected terminal goldens through the existing `SKEIN_CODEGEN_WRITE` test mechanism and report generated changes.
+- Verify settings acts, style-name mappings, both gallery families and `each_fixture_page_prints_as_its_golden_file` through heavy, then complete the spec’s required checks.

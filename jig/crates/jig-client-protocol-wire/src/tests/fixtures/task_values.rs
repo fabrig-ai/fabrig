@@ -25,6 +25,7 @@ pub fn task(limits: &Limits) -> Task {
             )
             .expect("fixture flags"),
             last_activity: 0,
+            made: 0,
             waits_on: WaitsOn::Nothing,
             chip: chip(limits, &rows),
             goal: Some(u64::MAX),

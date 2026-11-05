@@ -748,10 +748,23 @@ impl Joint {
     /// client/README.md, 8 and 10: a pushed change lands through CI and an agent gate.
     #[must_use]
     pub fn with_change_landing(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None)
+        Self::change_landing(seed, limits, false, None)
     }
-    #[expect(clippy::too_many_lines, reason = "the shared landing fixture keeps its policy and bounds together")]
-    fn change_landing(seed: u64, limits: &client::Limits, session: Option<Duration>) -> Self {
+    /// Settings and a following change through the same joined engine.
+    #[must_use]
+    pub fn with_settings_changes(seed: u64, limits: &client::Limits) -> Self {
+        Self::change_landing(seed, limits, true, None)
+    }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the shared change fixture keeps its policy and settings variant together"
+    )]
+    fn change_landing(seed: u64, limits: &client::Limits, settings: bool, session: Option<Duration>) -> Self {
+        // Chat, reviewer, foreman and change procedure; chat/change/producer depth;
+        // the same owner in the project and deployment.
+        const SETTINGS_EXECUTORS: u32 = 4;
+        const SETTINGS_DEPTH: u32 = 3;
+        const SETTINGS_OWNERS: u32 = 2;
         const SLOTS: u32 = 1;
         // domain/forge.md, 8.4: six descendants, plus the change itself.
         const CHANGE_DESCENDANTS: u32 = 6;
@@ -857,6 +870,33 @@ impl Joint {
             limits.brief.read_bytes = 512;
             limits.brief.budgets.pull = 384;
             limits.brief.budgets.ci = 384;
+            if settings {
+                config.core.kinds = temper_service::stock::kinds(&limits, connector);
+                let owner = config.core.owners[0].clone();
+                config.core.owners =
+                    Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
+                limits.people.initial_owners = SETTINGS_OWNERS;
+                let mut foreman = config.core.defaults.charters[0].clone();
+                foreman.number = 6;
+                let mut charters = config.core.defaults.charters.into_vec();
+                charters.push(foreman);
+                config.core.defaults.charters = charters.into_boxed_slice();
+                rules.ceiling.delegation.kinds = Box::new([
+                    a::Executor::Charter(1),
+                    a::Executor::Charter(4),
+                    a::Executor::Charter(6),
+                    a::Executor::Procedure(2),
+                ]);
+                policy.ceiling.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
+                policy.roles[0].authority.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
+                rules.ceiling.delegation.depth = SETTINGS_DEPTH;
+                policy.ceiling.delegation.depth = SETTINGS_DEPTH;
+                policy.roles[0].authority.delegation.depth = SETTINGS_DEPTH;
+                limits.tasks.depth = SETTINGS_DEPTH;
+                limits.authority.executors = SETTINGS_EXECUTORS;
+                limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
+                limits.documents.executors = SETTINGS_EXECUTORS;
+            }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();
             a::step(&mut domain, a::Event::Policy { project: 1, policy }, &mut out);
@@ -865,7 +905,26 @@ impl Joint {
             config.core.defaults.rules = domain.rules().clone();
             (config, limits)
         });
-        Self::with_engine(seed, limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, SLOTS)
+        if settings {
+            let mut driver = Driver::cold(Store::with_limits(&engine_limits), bootstrap, &engine_limits);
+            driver.settle();
+            let mut store = driver.take_store();
+            store.seed(
+                temper_engine_domain_world::fixtures::account_rows(&config.core.settings.llm_providers),
+                Box::new([]),
+            );
+            let restart = temper_engine_domain_world::oracle::config::copy(&config);
+            Self::with_engine(seed, limits, store, [config, restart], &engine_limits, SLOTS)
+        } else {
+            Self::with_engine(
+                seed,
+                limits,
+                Store::with_limits(&engine_limits),
+                [bootstrap, config],
+                &engine_limits,
+                SLOTS,
+            )
+        }
     }
     fn landing_reviewer(config: &mut engine::Config) {
         let mut reviewer = config.core.defaults.charters[0].clone();
@@ -884,6 +943,10 @@ impl Joint {
     ) -> Self {
         Self::with_engine_with_refused_hello(seed, limits, store, configs, engine_limits, slots, false)
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the shared fixture configures the joined roots and their independent observations together"
+    )]
     fn with_engine_with_refused_hello(
         seed: u64,
         limits: &client::Limits,

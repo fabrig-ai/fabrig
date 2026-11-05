@@ -488,8 +488,8 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 /* .card.card-pad and .card-top h2: the task's stacked cards. */
 .temper-page > .temper-task-card { min-width: 0; padding: 17.5px 21px; border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); margin-block: 0 10.5px; overflow-wrap: anywhere; }
 .temper-task-card > h2 { margin: 0; font: 700 16.33px/1.3 var(--temper-mono); letter-spacing: -.025em; }
-/* What was asked and .rule: markdown followed by the supplied resource row. */
-.temper-task-card > p, .temper-task-card > ul:not(.temper-events), .temper-task-card > ol, .temper-task-card > pre, .temper-task-card > blockquote { margin: 16.33px 0 0; font-size: 14px; line-height: 1.7; }
+/* A task card's markdown and supplied resource row. */
+.temper-task-card > p, .temper-task-card > ul, .temper-task-card > ol, .temper-task-card > pre, .temper-task-card > blockquote { margin: 16.33px 0 0; font-size: 14px; line-height: 1.7; }
 .temper-task-card pre { overflow-x: auto; white-space: pre; overflow-wrap: normal; }
 .temper-task-card code { font: inherit; }
 .temper-task-card > .temper-meta { border-top: 1px solid var(--temper-line); padding-top: 14px; margin-top: 14px; }
@@ -533,15 +533,6 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-plan-hold button:first-of-type { background: var(--temper-accent); border-color: var(--temper-accent); color: white; }
 .temper-plan-hold button:first-of-type:hover { background: #a8563e; }
 .temper-plan-hold textarea { display: block; width: 100%; min-height: 87.5px; margin-top: 9.33px; border: 1px solid #d8d0c5; border-radius: 5.83px; padding: 9.33px; resize: vertical; font: inherit; }
-/* .timeline and .event: faint wall-clock times beside activity words. */
-.temper-events { display: grid; list-style: none; padding: 0; margin: 0; }
-.temper-events > li { display: grid; grid-template-columns: 63px minmax(0, 1fr); gap: 14px; padding: 9.33px 0; border-bottom: 1px solid #f0ede8; font-size: 12.83px; }
-.temper-events > li:last-child { border-bottom: 0; }
-.temper-events > li > p { color: #a09c93; margin: 0; }
-.temper-events > li > div { min-width: 0; }
-.temper-events > li > div p { margin: 3.5px 0 0; color: var(--temper-muted); font-size: 12.83px; }
-/* .event strong: the first line is the ink headline, level with the time. */
-.temper-events > li > div > p:first-child { margin-top: 0; color: var(--temper-ink); }
 /* .page at 850px: keep the task heading on the page's left edge. */
 @media (max-width: 850px) {
   .temper-main.temper-page > .temper-task-heading { margin-left: 19.83px; }
@@ -1093,7 +1084,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* The project's frame */
 :root:has(#app > .temper-rail) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
-  --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-signal-pale: #fff7ed; --gf-good: #15803d;
+  --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-signal-pale: #fff7ed; --gf-signal-line: #f1d5bd; --gf-hint: #8a8a93; --gf-good: #15803d;
   --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
   --gf-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -1613,6 +1604,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: goals ==== */
+#app:has(> .temper-rail) .temper-goal-composer textarea { field-sizing: content; min-width: 0; overflow-y: auto; }
 
 /* The column includes the main gutters: 720 px of content plus 48 px on each side. */
 #app:has(> .temper-rail) .temper-goals { width: 100%; max-width: 816px; margin: 0 auto; padding: 64px 48px 96px; display: flex; flex-direction: column; gap: 60px; font: 15px/1.6 var(--gf-sans); letter-spacing: normal; }
@@ -1651,8 +1643,104 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app:has(> .temper-rail) .temper-goals-line { font-size: 15px; }
 }
 
-
-
+/* A goal and its start sheet (client/browser.md, 2.5). */
+#app:has(> .temper-rail) .temper-goal { width: 100%; max-width: 1096px; margin: 0 auto; padding: 64px 48px 96px; display: flex; flex-direction: column; gap: 48px; font: 15px/1.6 var(--gf-sans); letter-spacing: normal; }
+#app:has(> .temper-rail) :is(.temper-goal, .temper-sheet) p { margin: 0; }
+#app:has(> .temper-rail) .temper-goal-byline { font-size: 12px; color: var(--gf-faint); }
+#app:has(> .temper-rail) :is(.temper-goal-btn, .temper-goal-choices button, .temper-goal-choices summary) { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 14.5px; text-decoration: none; text-align: left; }
+#app:has(> .temper-rail) .temper-goal-btn:hover { border-color: #b4b4ae; }
+#app:has(> .temper-rail) :is(.temper-goal-btn.temper-goal-primary, .temper-goal-choices .temper-recommended) { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app:has(> .temper-rail) .temper-goal-btn.temper-goal-primary:hover { background: #000; }
+#app:has(> .temper-rail) .temper-goal-btn.temper-goal-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-goal-btn.temper-goal-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-goal-btn.temper-goal-small { min-height: 34px; padding: 5px 12px; font-size: 13.5px; }
+#app:has(> .temper-rail) .temper-goal-btn .temper-goal-primary { margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; opacity: .72; }
+#app:has(> .temper-rail) .temper-goal-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+#app:has(> .temper-rail) .temper-goal-band { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; padding: 20px 24px; border-radius: 12px; background: var(--gf-signal-pale); }
+#app:has(> .temper-rail) .temper-goal-band > p { flex: 1 1 280px; }
+#app:has(> .temper-rail) .temper-goal-band .temper-goal-band-tag { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-signal); }
+#app:has(> .temper-rail) .temper-goal-band .temper-goal-btn:not(.temper-goal-primary) { border-color: var(--gf-signal-line); }
+#app:has(> .temper-rail) .temper-goal-head { max-width: 720px; display: flex; flex-direction: column; gap: 14px; }
+#app:has(> .temper-rail) .temper-goal-head .temper-goal-meta { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+#app:has(> .temper-rail) .temper-goal-head .temper-goal-meta strong { color: var(--gf-ink); font-weight: 500; }
+#app:has(> .temper-rail) .temper-goal-head h1 { margin: 0; font-size: 30px; line-height: 1.3; font-weight: 500; letter-spacing: -.02em; transition: opacity .3s; }
+#app:has(> .temper-rail) .temper-goal-two { display: flex; flex-wrap: wrap; gap: 56px; }
+#app:has(> .temper-rail) .temper-goal-report { flex: 1 1 460px; min-width: 0; max-width: 640px; display: flex; flex-direction: column; gap: 16px; font-size: 16px; line-height: 1.75; }
+#app:has(> .temper-rail) .temper-goal-report > .temper-goal-title { line-height: 1.75; }
+#app:has(> .temper-rail) .temper-goal-report strong { font-weight: 600; }
+#app:has(> .temper-rail) .temper-goal-side { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 36px; }
+#app:has(> .temper-rail) .temper-goal-bar { display: flex; gap: 3px; margin: 0 0 10px; }
+#app:has(> .temper-rail) .temper-goal-bar > * { flex: 1; height: 6px; border-radius: 3px; background: var(--gf-line); }
+#app:has(> .temper-rail) .temper-goal-bar .temper-goal-bar-landed { background: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-goal-bar .temper-goal-bar-running { background: #a1a1aa; }
+#app:has(> .temper-rail) .temper-goal-line { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 14px; }
+#app:has(> .temper-rail) .temper-goal-line > :last-child { flex: none; color: var(--gf-faint); }
+#app:has(> .temper-rail) .temper-goal-line.temper-goal-line-running > :last-child { color: var(--gf-good); }
+#app:has(> .temper-rail) .temper-goal-sent { display: flex; flex-direction: column; gap: 10px; max-width: 720px; }
+#app:has(> .temper-rail) .temper-goal-sent p { font-size: 14.5px; }
+#app:has(> .temper-rail) .temper-goal-sent .temper-goal-you { align-self: flex-end; max-width: 85%; padding: 8px 14px; border-radius: 14px 14px 4px 14px; background: var(--gf-hover); }
+#app:has(> .temper-rail) .temper-goal-composer { display: flex; align-items: flex-end; gap: 10px; padding: 8px 8px 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 14px; background: var(--gf-surface); }
+#app:has(> .temper-rail) .temper-goal-composer:focus-within { border-color: #a8a8a2; box-shadow: 0 0 0 3px rgba(24, 24, 27, .05); }
+#app:has(> .temper-rail) .temper-goal-composer textarea { flex: 1; min-height: 26px; max-height: 220px; margin: 6px 0; padding: 0; border: 0; outline: none; resize: none; background: none; line-height: 1.55; }
+#app:has(> .temper-rail) .temper-goal-composer textarea::placeholder { color: var(--gf-hint); }
+#app:has(> .temper-rail) .temper-goal-composer button { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--gf-ink) url(files/send.svg) center / 16px no-repeat; color: transparent; font-size: 0; overflow: hidden; }
+#app:has(> .temper-rail) .temper-goal-composer button:disabled { background-color: var(--gf-line-2); cursor: default; }
+#app:has(> .temper-rail) .temper-goal p.temper-goal-hint { margin: 6px 6px 0; font-size: 12px; color: var(--gf-faint); }
+#app:has(> .temper-rail) .temper-goal-typing { display: flex; gap: 4px; margin: 0; padding: 6px 0; }
+#app:has(> .temper-rail) .temper-goal-typing > * { width: 6px; height: 6px; border-radius: 50%; background: var(--gf-hint); animation: typing 1s infinite ease-in-out; }
+#app:has(> .temper-rail) .temper-goal-typing > :nth-child(2) { animation-delay: .15s; }
+#app:has(> .temper-rail) .temper-goal-typing > :nth-child(3) { animation-delay: .3s; }
+#app:has(> .temper-rail) .temper-sheet { width: min(620px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); }
+#app:has(> .temper-rail) .temper-sheet::backdrop { background: rgba(24, 24, 27, .32); }
+#app:has(> .temper-rail) .temper-sheet form { display: flex; flex-direction: column; gap: 20px; padding: 24px 26px; }
+#app:has(> .temper-rail) .temper-sheet form > :first-child { display: flex; flex-direction: column; gap: 6px; }
+#app:has(> .temper-rail) .temper-sheet h2 { margin: 0; font: 500 19px/1.6 var(--gf-sans); letter-spacing: -.01em; }
+#app:has(> .temper-rail) .temper-sheet button { margin: 0; font-family: var(--gf-sans); font-weight: 400; line-height: 1.6; }
+#app:has(> .temper-rail) .temper-sheet button.temper-goal-primary { font-weight: 500; }
+#app:has(> .temper-rail) .temper-sheet-fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
+#app:has(> .temper-rail) .temper-sheet-fieldset legend { margin-bottom: 8px; padding: 0; font-size: 14px; font-weight: 600; }
+#app:has(> .temper-rail) .temper-sheet-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 10px; padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 10px; cursor: pointer; }
+#app:has(> .temper-rail) .temper-sheet-option:has(input:checked) { border-color: var(--gf-ink); background: #fafaf9; }
+#app:has(> .temper-rail) .temper-sheet-option input { margin: 4px 0 0; accent-color: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-sheet-option label { font-weight: 500; cursor: pointer; }
+#app:has(> .temper-rail) .temper-sheet-option small { grid-column: 2; color: var(--gf-muted); font-size: 13px; }
+#app:has(> .temper-rail) .temper-goal-field { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field { display: grid; grid-template-columns: max-content minmax(0, 1fr); max-width: 720px; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field > :is(h2, p, textarea, [role=status]) { grid-column: 1 / -1; margin: 0; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field > textarea { min-height: 160px; resize: vertical; font: inherit; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field > input[type=text] { width: 100%; min-width: 0; }
+#app:has(> .temper-rail) .temper-goal > .temper-goal-field > button { justify-self: start; }
+#app:has(> .temper-rail) .temper-goal-field > label { min-width: 6.5em; font-size: 14px; font-weight: 600; }
+#app:has(> .temper-rail) .temper-goal-text { min-height: 38px; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); }
+#app:has(> .temper-rail) .temper-sheet .temper-sheet-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--gf-line); }
+#app:has(> .temper-rail) .temper-goal-btn:disabled { opacity: .45; cursor: default; }
+#app:has(> .temper-rail) .temper-sheet-error { margin: -8px 0 0; color: #b42318; font-size: 14px; }
+#app:has(> .temper-rail) .temper-goal-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+#app:has(> .temper-rail) .temper-goal-choices > details { margin: 0; }
+#app:has(> .temper-rail) .temper-goal-choices summary { list-style: none; cursor: pointer; }
+#app:has(> .temper-rail) .temper-goal-choices summary::-webkit-details-marker { display: none; }
+#app:has(> .temper-rail) .temper-goal-choices textarea { display: block; width: 100%; min-height: 90px; margin: 8px 0; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; }
+#app:has(> .temper-rail) .temper-goal-title { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-goal-section { display: flex; flex-direction: column; gap: 6px; }
+#app:has(> .temper-rail) .temper-goal-side > .temper-goal-section:first-child { gap: 4px; }
+#app:has(> .temper-rail) .temper-goal-side > .temper-goal-section:first-child > .temper-goal-title { margin-bottom: 8px; }
+#app:has(> .temper-rail) .temper-goal-facts { font-size: 13.5px; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-goal-line > .temper-goal-line-needs { color: var(--gf-signal); }
+#app:has(> .temper-rail) .temper-goal-landed-fold > summary { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; margin-top: 6px; cursor: pointer; }
+#app:has(> .temper-rail) .temper-goal-landed-fold > summary:hover { text-decoration-color: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-goal-composer-box { max-width: 720px; }
+#app:has(> .temper-rail) .temper-sheet-muted { color: var(--gf-muted); font-size: 14px; }
+#app:has(> .temper-rail) .temper-sheet-link { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-sheet-link:hover { text-decoration-color: var(--gf-ink); }
+@keyframes typing { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+@media (max-width: 760px) {
+  #app:has(> .temper-rail) .temper-goal { padding: 8px 20px 112px; }
+  #app:has(> .temper-rail) .temper-goal-choices { flex-direction: column; align-items: stretch; }
+  #app:has(> .temper-rail) .temper-goal-choices :is(.temper-goal-btn, button, summary) { min-height: 48px; font-size: 15.5px; }
+  #app:has(> .temper-rail) .temper-goal-choices .temper-goal-btn.temper-goal-quiet { min-height: 44px; }
+  #app:has(> .temper-rail) .temper-goal-head h1 { font-size: 23px; }
+  #app:has(> .temper-rail) .temper-goal-two { gap: 32px; }
+}
 
 /* ==== ui: changes ==== */
 #app > .temper-changes .temper-changes-mono { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
@@ -1666,6 +1754,23 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: settings ==== */
+
+/* Settings proposal cards, from greenfield/mock.css's .proposal rules. */
+.temper-settings-proposal { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; border-radius: 12px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
+.temper-settings-proposal.temper-settings-proposal-superseded { opacity: .5; }
+.temper-settings-proposal-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+.temper-settings-proposal-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.temper-settings-proposal-items li { display: flex; flex-direction: column; gap: 2px; }
+.temper-settings-proposal-items .temper-settings-proposal-reason { color: var(--gf-ink); }
+.temper-settings-proposal-items small { font: 12px var(--gf-mono); color: var(--gf-faint); }
+.temper-settings-proposal-acts { display: flex; flex-wrap: wrap; gap: 10px; }
+.temper-settings-proposal .temper-settings-btn { min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 13.5px var(--gf-sans); }
+.temper-settings-proposal .temper-settings-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+.temper-settings-proposal .temper-settings-small { border-color: transparent; background: none; color: var(--gf-muted); }
+.temper-settings-proposal .temper-settings-small:hover { background: var(--gf-hover); color: var(--gf-ink); }
+.temper-settings-proposal .temper-settings-primary:hover { background: #000; }
+.temper-settings-proposal-state { margin: 0; font-size: 13.5px; color: var(--gf-faint); }
+.temper-settings-proposal-state.temper-settings-proposal-ok { color: var(--gf-good); }
 
 /* Flow paths use Configure's crumbs (client/README.md, 3.5, The flows' paths). */
 .temper-main .temper-settings-path { min-width: 0; font: 400 14px/1.6 var(--gf-sans); }
@@ -1711,9 +1816,27 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-settings-body { display: flex; flex-direction: column; gap: 44px; }
 .temper-settings-setting { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 280px); align-items: center; gap: 6px 28px; padding: 14px 0; border-bottom: 1px solid var(--gf-line); }
 .temper-settings-setting > div > .temper-settings-detail { display: block; margin-top: 2px; font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-setting select, .temper-settings-setting .temper-settings-text { width: 100%; min-width: 0; min-height: 38px; padding: 6px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font-size: 14px; }
+.temper-settings-setting select:disabled { color: var(--gf-faint); background: transparent; }
+.temper-settings-checks { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.temper-settings-checks label { display: flex; align-items: baseline; gap: 10px; }
+.temper-settings-checks input { accent-color: var(--gf-ink); }
+.temper-settings-checks :disabled + label { color: var(--gf-faint); }
+.temper-settings .temper-settings-switch { appearance: none; position: relative; flex: none; width: 34px; height: 20px; margin: 0; padding: 0; border: 0; border-radius: 10px; background: var(--gf-line-2); cursor: pointer; transition: background .15s; }
+.temper-settings-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.temper-settings .temper-settings-switch:checked { background: var(--gf-ink); }
+.temper-settings-switch:checked::after { left: 16px; }
+.temper-settings-switch:disabled { cursor: default; }
+.temper-settings-switch + label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.temper-settings-toggle-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-size: 14px; color: var(--gf-muted); }
+.temper-settings-toggle-row input[type=radio] { width: auto; height: auto; margin: revert; accent-color: auto; }
+.temper-settings .temper-settings-facts { margin: 0; font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-refusal { grid-column: 1 / -1; }
+.temper-settings :is(input, select):focus-visible { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
 .temper-settings-end { display: flex; justify-content: flex-end; }
 .temper-settings-section { display: flex; flex-direction: column; gap: 14px; }
 .temper-settings-body > .temper-settings-section { gap: 0; }
+.temper-settings-body > .temper-settings-section > .temper-settings-section-title { margin-bottom: 6px; }
 .temper-settings-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .temper-settings .temper-settings-section-title { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
 .temper-settings-section-head a { font-size: 13px; }

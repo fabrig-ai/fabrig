@@ -50,6 +50,8 @@ impl Bindings {
                         filter.goal = if value.is_empty() { None } else { Some(skein_ui::number(&value)?) };
                         Act::Filter { filter }
                     }
+                    (Act::StartWay { template }, skein_ui::Act::Toggle) => Act::StartWay { template: *template },
+                    (Act::StartName { .. }, skein_ui::Act::Input { value }) => Act::StartName { words: value },
                     (Act::AmendWords { .. }, skein_ui::Act::Input { value }) => Act::AmendWords { words: value },
                     (Act::AmendPriority { .. }, skein_ui::Act::Input { value }) => {
                         Act::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }
@@ -512,7 +514,7 @@ pub(crate) fn rail(
     switcher(b, root, w, bindings, Some(project), Place::Rail);
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    entries(b, root, w, bindings, project, true);
+    entries(b, root, w, bindings, project, shown(root, project));
     b.close();
     crate::link(b, &w.say(Word::NewChat, &[]), bindings.insert(Act::Go { address: Address::NewChat }));
     b.style(crate::look::RAIL_NEW);
@@ -561,15 +563,11 @@ pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bi
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project, false);
+    entries(b, root, w, bindings, project, Shown { changes: false, ..shown(root, project) });
     if !goals_shown(root, project) {
         settings_link(b, root, w, bindings, project);
     }
     b.close();
-}
-
-fn goals_shown(root: &Domain, project: u32) -> bool {
-    root.has_goals(project) || root.pages().goals().is_some()
 }
 
 fn goals_current(root: &Domain) -> bool {
@@ -584,15 +582,23 @@ fn goals_current(root: &Domain) -> bool {
     false
 }
 
-fn entries(
-    b: &mut Builder,
-    root: &Domain,
-    w: &crate::words::Words,
-    bindings: &mut Bindings,
-    project: u32,
+fn goals_shown(root: &Domain, project: u32) -> bool {
+    let shown = match root.forge().ways(project) {
+        Some(ways) => ways.goals,
+        None => false,
+    };
+    shown || goals_current(root)
+}
+
+#[expect(clippy::struct_excessive_bools, reason = "the frame keeps each entry’s visibility or current state together")]
+struct Shown {
+    home: bool,
+    inbox: bool,
+    chats: bool,
     changes: bool,
-) {
-    use crate::words::Word;
+}
+// Navigation follows project ways and keeps the open page (client/README.md, 5.3).
+fn shown(root: &Domain, project: u32) -> Shown {
     let (home, inbox, chats) = match root.pages().address() {
         Address::Home { .. } => (true, false, false),
         Address::Inbox { .. } => (false, true, false),
@@ -612,6 +618,22 @@ fn entries(
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
+    let changes = match root.forge().ways(project) {
+        Some(ways) => ways.changes,
+        None => false,
+    } || root.pages().address() == &(Address::Changes { project });
+    Shown { home, inbox, chats, changes }
+}
+fn entries(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: u32,
+    shown: Shown,
+) {
+    use crate::words::Word;
+    let Shown { home, inbox, chats, changes } = shown;
     action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
     let count = root.pages().needs().count(root.client(), project);
     let name = if count.count == 0 {
@@ -693,8 +715,8 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         | Address::Adopt { .. } => true,
         Address::Chat { .. } => crate::pages::chat::configuring(root),
         Address::Goals { .. }
-        | Address::Home { .. }
         | Address::Changes { .. }
+        | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat
@@ -954,14 +976,89 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
             (w.say(Word::ToastAnswered, &[skein_ui::phrases::Hole::Name(label)]), Some(*object))
         }
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
+        Toasted::Paused => (w.say(Word::ToastPaused, &[]), None),
+        Toasted::Resumed => (w.say(Word::ToastResumed, &[]), None),
+        Toasted::Proposed { .. } | Toasted::Refused { .. } => (Box::default(), None),
     };
     b.open(Role::Status);
     b.style(crate::look::TOAST);
-    b.text(Run::Plain, &said);
+    match toast {
+        Toasted::Proposed { to } => {
+            proposed(b, w, to);
+        }
+        Toasted::Refused { outcome } => {
+            crate::confirm::outcome_words(b, w, outcome);
+            if let jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+                refusal: jig_client::contract::Refusal::Moved { .. },
+                ..
+            })) = outcome
+            {
+                action(b, Role::Button, &w.say(Word::LookAgain, &[]), Act::Needs(needs::Act::Dismiss), false, bindings);
+            }
+        }
+        Toasted::Answered { .. } | Toasted::Later | Toasted::Paused | Toasted::Resumed => b.text(Run::Plain, &said),
+    }
     if let Some(object) = undo
         && session.held(object)
     {
         action(b, Role::Button, &w.say(Word::ToastUndo, &[]), Act::Needs(needs::Act::Undo { object }), false, bindings);
     }
     b.close();
+}
+
+fn proposed(b: &mut Builder, w: &crate::words::Words, to: &jig_client::contract::Recipient) {
+    use crate::{
+        cards::{P, words::say},
+        words::Word,
+    };
+    use jig_client::contract::Recipient;
+    use skein_ui::phrases::Hole;
+    w.text(b, Word::ToastProposed, &[]);
+    match to {
+        Recipient::Party(number) => b.text(Run::Plain, &say(w, P::ToPerson, &[Hole::Number(*number)])),
+        Recipient::Task(number) => b.text(Run::Plain, &say(w, P::ToTask, &[Hole::Number(*number)])),
+        Recipient::Role { project, role } => {
+            b.text(
+                Run::Plain,
+                &say(w, P::ToRole, &[Hole::Number(u64::from(*role)), Hole::Number(u64::from(*project))]),
+            );
+        }
+        Recipient::Roles { project, roles } => {
+            for role in roles {
+                b.text(
+                    Run::Plain,
+                    &say(w, P::ToRole, &[Hole::Number(u64::from(*role)), Hole::Number(u64::from(*project))]),
+                );
+            }
+        }
+    }
+    w.text(b, Word::ToastProposedEnd, &[]);
+}
+
+#[cfg(test)]
+mod start_goal_tests {
+    use super::*;
+    use crate::tests::fixtures as f;
+    use jig_client::contract::Recipient;
+    #[test]
+    fn proposed_toast_names_the_recipient_and_waits_for_acceptance() {
+        for w in [f::words(), f::browser_words()] {
+            for (to, expected) in [
+                (Recipient::Party(4), "Proposed to Person 4: it starts once accepted."),
+                (Recipient::Task(4), "Proposed to Task 4: it starts once accepted."),
+                (Recipient::Role { project: 1, role: 2 }, "Proposed to Role 2 in project 1: it starts once accepted."),
+                (
+                    Recipient::Roles { project: 1, roles: List::from_boxed(Box::new([2])) },
+                    "Proposed to Role 2 in project 1: it starts once accepted.",
+                ),
+            ] {
+                let mut b = Builder::new(&f::tree_limits());
+                b.open(Role::Status);
+                proposed(&mut b, &w, &to);
+                b.close();
+                let tree = b.finish();
+                assert_eq!(f::text(&tree).as_ref(), expected.as_bytes());
+            }
+        }
+    }
 }

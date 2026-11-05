@@ -215,6 +215,9 @@ impl Story {
     }
 
     fn watch(&mut self, who: ClientId) {
+        // Observers use no settings; keep the shared engine watch table for Home's facts.
+        let handle = self.probes[who.0].root.person().forge().settings_handle();
+        self.event(who, Event::Client { event: jig_client::Event::Unwatch { handle } }.into());
         self.event(
             who,
             Event::Client {

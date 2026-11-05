@@ -1,7 +1,7 @@
 use super::fixtures;
 use skein_ui::{Act, Role};
+use temper_client_domain::ChatsFilter;
 use temper_client_domain::{Action, pages};
-use temper_client_domain::{ChatsFilter, PlanFilter};
 
 #[test]
 fn the_navigation_is_named_main_navigation() {
@@ -382,7 +382,7 @@ fn the_navigation_marks_only_the_current_page() {
         (Address::Adopt { project: fixtures::PROJECT }, Some(b"Settings".as_slice())),
         (Address::Accounts, Some(b"Settings".as_slice())),
         (Address::Chat { task: 9 }, Some(b"Chats".as_slice())),
-        (Address::Task { task: 9, filter: PlanFilter::All }, None),
+        (Address::Task { task: 9 }, None),
     ] {
         let root = fixtures::root_at(address, &fixtures::domain_limits()).0;
         let view = fixtures::page_view(&root);
@@ -1544,7 +1544,24 @@ fn goals_opens_in_its_projects_frame() {
                 Event::Went { place: Place::Address(address.clone()) },
                 &mut out,
             );
-            assert!(out.is_empty(), "opening Goals asks for no reads or watches");
+            // Switching projects reads its kind-7 ways; Goals has no page watch without a template.
+            assert_eq!(out.len(), 1, "only the new project’s ways are read: {out:?}");
+            let Some(Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { what: jig_client::Readable::Family { record, .. }, .. },
+                    },
+            }) = out.pop()
+            else {
+                panic!("project ways read")
+            };
+            let reading =
+                temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+                    .unwrap();
+            let temper_client_protocol_wire::v1::Read::Setting(setting) = reading.read() else {
+                panic!("project ways setting")
+            };
+            assert_eq!((setting.kind(), setting.scope()), (7, fixtures::PROJECT));
             assert_eq!(root.pages().address(), &address);
             assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
             fixtures::build(&mut view, &root);

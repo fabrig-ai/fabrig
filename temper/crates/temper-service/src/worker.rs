@@ -187,6 +187,11 @@ impl Worker {
             aborted: None,
         })
     }
+    pub(crate) fn reuse_workspaces(&mut self) {
+        self.root.reuse_workspaces();
+        self.git.component.keep_workspaces();
+    }
+
     pub fn configure_program_sources(
         &mut self,
         resources: crate::program_sources::Resources,
