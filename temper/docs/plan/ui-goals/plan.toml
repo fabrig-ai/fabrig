@@ -55,3 +55,91 @@ id = 3
 story = "a stock goal is told to write its report and may, and it knows its numbers"
 parts = ["brief-numbers", "report-stock"]
 walk = false
+
+[[part]]
+id = "goals-address"
+title = "the Goals address, its path and its arms, a heading in the project's frame"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.3"
+
+[[part]]
+id = "goals-look"
+title = "Goals' rules and tokens, and IBM Plex Mono bundled"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[part]]
+id = "goals-domain"
+title = "the domain's Goals: its query, a report per row, its needs, a goal's state"
+mode = "direct"
+needs = ["goals-address", "report-parse", "delegate-counts"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "goals-row"
+title = "goals::row and goals::ways"
+mode = "direct"
+needs = ["goals-domain", "goals-look"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "goals-page"
+title = "the Goals page in both shells, and goals.txt"
+mode = "direct"
+needs = ["goals-row"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "goals-gallery"
+title = "Goals' gallery states; Solo and Reference gain goals, notes and a selection"
+mode = "direct"
+needs = ["goals-page"]
+design = "temper/docs/design/client/browser.md, 7.2"
+
+[[part]]
+id = "has-goals"
+title = "Domain::has_goals, kept whatever the page"
+mode = "direct"
+needs = ["goals-domain"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[part]]
+id = "goals-rail"
+title = "Goals in the rail and the tab bar"
+mode = "direct"
+needs = ["goals-gallery", "has-goals"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[part]]
+id = "box-goal"
+title = "a goal on the fake box writes its report and the client shows it"
+mode = "direct"
+needs = ["goals-rail", "report-stock"]
+design = "temper/docs/design/domain/agent.md, 8.3"
+
+[[part]]
+id = "goals-proof"
+title = "renders beside the mock at three widths, the box walk, the status closed"
+mode = "direct"
+needs = ["box-goal"]
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[slice]]
+id = 4
+story = "a project's goals are listed with their state and report, in both shells and the gallery"
+parts = ["goals-address", "goals-look", "goals-domain", "goals-row", "goals-page", "goals-gallery"]
+walk = false
+
+[[slice]]
+id = 5
+story = "the rail and the tab bar offer Goals where the project has one"
+parts = ["has-goals", "goals-rail"]
+walk = false
+
+[[slice]]
+id = 6
+story = "a chat's goal on the fake box appears in the rail and the list with its report's headline, beside the mock"
+parts = ["box-goal", "goals-proof"]
+walk = true

@@ -355,7 +355,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Inbox` (the root) | `inbox.html` | what needs the person, across projects, filtered by project, kind and goal (its root): proposals, questions, held tasks, person tasks; then updates (results, replies); "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | accept ("Accept"), reject with a reason, answer, release, leave held, take, hand back |
 | `Chats` | `chats.html`; the playground's start at the first run's first step, which `first-run.html` opens | a pane at the head of its main, a complementary region named "Project" (`browser.md`, 2.5): the new chat's bar (below), in the playground's project while the playground starts or runs the playground's start (4.8, 5.6), then the person's chats under the level-1 heading "Chats", as one list, "Your chats", live and ended together, newest first, under All, Live or Closed (below), each with its project and number, title, status, own spend and live delegates, and last the playground's banner while it runs or is leaving (5.1); beside the pane, the composer to start a chat alone: its text area "Start a chat", showing "Describe a change" while it is empty, and its button "Start chat", with the hint "enter to start · shift+enter for newline", then its line and its chooser (5.5) under it, and in the playground's start its suggested requests under them (5.6) | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; choose the list's filter; more closed chats |
 | `Chat { task }` | `chat.html` | its chatbar: its number and title, its status, its spend and acts; after it, the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate` or a `change`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); its status and spend; Stop and Close; the composer, while the chat lives: its line and its chooser (5.5), its text area "Message" with the placeholder "Message T6…", T6 the chat's number, shown while it is empty and never its name, and the hint "Enter to send · Shift+Enter for newline", and "Send", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, its line and chooser alone; an ended chat draws no composer and no composer's line | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7) | message, stop, close, accept or reject a proposal in place |
-| `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report and delegates, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
+| `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
 | `Task { task }` | `task.html` | a goal: its header, what was asked and the result it gives, its result once ended, its plan as a tree of its delegates, live and ended, with their counts and its filter, each task's state, spend and dependencies, its latest activity and history, its budget and authority (5.8), with Amend, Stop and Cancel (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Stop and its composer (5.11); either's own held card while it is held | `task`, `tree`, `activity` a page at a time, older pages on an agent's task's "Older"; `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change | a goal's plan's filter (5.8); as its document offers them (5.11): on a goal amend, stop, cancel; on an agent's task message, amend, stop; release its own held task or one of its plan |
 | `Changes { project }` | `changes.html` | the forge's changes and landing queues (`forge.md`, section 3) | the forge's, through the forge's side (4.2) | the forge's |
 | `Adopt { project }` | none: 4.4 | the adoption form, into `project` (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
@@ -565,7 +565,7 @@ keeps (`../protocol/configuration.md`, section 2).
   among them, and a change's task its panel (5.10); a person
   task shows a tracked task's header and plan only (section 11).
 - **The forge's parts** of a page (a goal's issue and changes on its
-  page; changes in flight and the project's health on the board) are
+  page; changes in flight and the project's health on `Changes`) are
   `forge.md`'s, and "Shown on the forge." while the forge's side does
   not read them (4.2).
 - **Links are by number:** a chip, an entry or a line naming a task
@@ -1305,8 +1305,8 @@ keeps (`../protocol/configuration.md`, section 2).
   `?state=live` or `?state=ended` (`browser.md`, 2.3). Choosing one is a move.
   A goal is a tracked agent's task (5.8) at its own `Task` address, so that
   Goals is the list and draws no goal page. Its parts, in order:
-  - **Its intro:** "fabrig · goals", the project's name in lower case as
-    drawn; the level-1 heading: "5 goals, 3 under way.", the first number
+  - **Its intro:** "fabrig · goals", the project's name then the word in
+    lower case; the level-1 heading: "5 goals, 3 under way.", the first number
     every row and the second those live and those needing the person; "1 goal,
     1 under way." in the singular; "No goals yet." with none; "More than N
     goals, M under way." while rows remain unread. Then "A goal turns a draft
@@ -1317,7 +1317,8 @@ keeps (`../protocol/configuration.md`, section 2).
     "Under way" running, planning and paused, "Ended" landed, stopped and
     failed.
   - **"More goals",** a quiet button after the rows while the ended page has
-    more, as "more closed chats".
+    more, reading the next ended page in its place as "more closed chats"; the
+    heading's numbers keep counting the rows read before it.
 
   What it reads: the query `TaskQuery { project, label: the template's,
   tracked, by priority }`, the label template `shapes::GOAL`'s, its live group
@@ -1331,8 +1332,9 @@ keeps (`../protocol/configuration.md`, section 2).
   Home's area will reuse it: its top line the chip's title (its spec's first
   line) at the left and at the right "6 / 9 · " and its state's word; then its
   headline. "6 / 9" is done, then total, of the goal's direct delegates, not
-  counting cancelled ones, true past one page; it is left out, with its " · ",
-  while there are none. An ended row is marked.
+  counting cancelled ones, as its task line counts them (jig's
+  `client/domain/contract.md`, 5.1), true past one page; it is left out, with
+  its " · ", while there are none. An ended row is marked.
 
   **A goal's state** is a pure function, `goals::state`, the first that matches:
 
@@ -4695,7 +4697,7 @@ own tests:
   kept as files beside the tests and changed only by hand: the inbox
   with entries of each kind, the chats, a chat with its conversation and
   a proposal in place, a chat with a delegation's card running and one
-  landed (5.7), a board, a goal's page with its plan, a row's spend
+  landed (5.7), a project's goals, a goal's page with its plan, a row's spend
   and dependency line, an ended row, its counts and its filter, and its
   budget (5.8), an agent's
   task with its brief, run, conversation and result (5.9), the
