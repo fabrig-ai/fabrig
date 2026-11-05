@@ -7,6 +7,21 @@ use skein_lib::{
     stream::{Fault, Read, Up},
 };
 use skein_world::stream::Wire;
+
+/// Admit stderr in seeded cuts, without involving another decoder.
+#[must_use]
+pub fn tail(stderr: &[u8], limits: &Limits, seed: u64) -> Box<[Box<[u8]>]> {
+    let mut machine = hearth_protocol_git::tail::Tail::new(limits);
+    let mut rng = skein_lib::Rng::new(seed);
+    let mut rest = stderr;
+    while !rest.is_empty() {
+        let count = usize::try_from(rng.between(1, u64::from(limits.chunk.max(1)))).expect("cut fits").min(rest.len());
+        let (cut, remaining) = rest.split_at(count);
+        machine.admit(cut);
+        rest = remaining;
+    }
+    machine.lines()
+}
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
     pub seed: u64,
@@ -168,6 +183,9 @@ pub fn read(
                 other @ (Up::Bytes(_) | Up::Room | Up::End | Up::Failed(_)) => other,
             };
             batch::up(&mut machine, &env, event, &mut above, &mut below);
+            if above.iter().any(|event| matches!(event, Event::Piece(_))) {
+                assert!(below.is_empty(), "a piece is taken before the next read is demanded");
+            }
             calls += 1;
         }
     }
