@@ -89,7 +89,8 @@ heading nor filters for a project with no goal template
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
-GitHub proof has yet run on `fabrig-ai` alone, and the live scripts
+GitHub proof has yet run on `fabrig-ai` alone, the held record's guard
+is shown on the fake issuer alone, and the live scripts
 default to a scratch layout of whoever runs fabrig's development, in a
 form the outward check does not match (`domain/testing.md`). temper's one story on macOS has not run green
 on the runner, so `draft/macos.md`'s acceptance stands open
