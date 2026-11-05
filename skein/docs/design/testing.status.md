@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-04. Where skein's code lags or departs from [testing.md](testing.md).
+2026-11-05. Where skein's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,

@@ -765,11 +765,6 @@ sources in its holder's order. temper configures the LLM providers
 - **Rows of a forge with no record.** Default: left as they are and
   named once in the log at start; a kept forge's are erased by its
   removal (2.1).
-- **A restored secret of the wrong kind.** Its meaning is the owner's
-  (jig's `protocol/service.md`, 11.1). Whether temper stops the engine,
-  as jig's reference service does, or fails that one source so that a
-  sign-in replaces it (skein's `oauth.md`, 6.4), is the user's: no
-  default.
 - **Backups of the secrets' store.** Default: none; a deployment moved
   elsewhere takes its secrets' directory with its store, since its
   forges' records are there, or sets up and connects its forges

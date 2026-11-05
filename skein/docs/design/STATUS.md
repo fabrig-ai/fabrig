@@ -12,8 +12,7 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 pinned Forgejo (`forge.md`), as are a copy's facts, one of them not
 recorded at all (`forge-setup.md`); the fake Forgejo leaves no repository
 at a refused copy and asks a delete the wrong scope, and the fake GitHub
-refuses no push as `GH013` and names bare media types on its peer's
-connections (`fake-forge.md`).
+refuses no push as `GH013` (`fake-forge.md`).
 No macOS runner runs skein's suites (`shell.md`). json, tls and http's collector have no fuzz target
 (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
 `examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live
@@ -24,7 +23,8 @@ in three crates' `tests/` directories (`testing.md`) and in
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
 `browser.md` have no gap. The state machines of io, channel,
-forge-connection, Forgejo's plans, oauth and its accounts, llm,
+forge-connection, Forgejo's plans, the fake forge's connection, oauth
+and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
