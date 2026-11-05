@@ -456,6 +456,7 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
+    (owner(), skein_ui::Role::List, WELCOME_NUMBERED, "ol"),
     (owner(), skein_ui::Role::Slot, WELCOME_SPIN, "span"),
     (owner(), skein_ui::Role::Slot, WELCOME_OK, "span"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
@@ -477,6 +478,14 @@ pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
 pub const TABBAR: Style = Style { owner: owner(), token: 179 };
 /// Forge status in the welcome's column (client/README.md, 3.5).
 pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 248 };
+/// A Model way’s panel (client/README.md, 3.5).
+pub const WELCOME_PANEL: Style = Style { owner: owner(), token: 253 };
+/// A Model sign-in’s note (client/README.md, 3.5).
+pub const WELCOME_AWAY: Style = Style { owner: owner(), token: 254 };
+/// The paste’s numbered instructions (client/README.md, 3.5).
+pub const WELCOME_NUMBERED: Style = Style { owner: owner(), token: 255 };
+/// A Model panel’s full-width secret field (client/README.md, 3.5).
+pub const WELCOME_FIELD: Style = Style { owner: owner(), token: 256 };
 /// The forge's spinning status marker.
 pub const WELCOME_SPIN: Style = Style { owner: owner(), token: 249 };
 /// The welcome's primary continuation.
@@ -744,6 +753,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-acts",
         b"temper-welcome-ok",
         b"temper-welcome-sep",
+        b"temper-welcome-panel",
+        b"temper-welcome-away",
+        b"temper-welcome-numbered",
+        b"temper-welcome-field",
     ],
     regions: &[b"temper-link"],
 };
