@@ -3,7 +3,7 @@ id = "forge-kit"
 part = "skein-kits"
 kind = "migration"
 needs = ["tls-kit", "hand-face"]
-files = ["skein/testing/skein-forge-kit/**", "skein/tests/forge/machine/src/**", "skein/tests/forge/machine/Cargo.toml", "skein/tests/forge/client/src/world.rs", "skein/tests/forge/client/src/translate.rs", "skein/tests/forge/client/src/lib.rs", "skein/tests/forge/protocol/Cargo.toml", "skein/tests/forge/protocol/src/**", "skein/tests/forge/protocol/tests/suite/protocol.rs", "skein/tests/forge/setup/Cargo.toml", "skein/tests/forge/setup/src/**", "skein/tests/forge/setup/tests/**", "Cargo.lock"]
+files = ["skein/testing/skein-forge-kit/**", "skein/tests/forge/machine/src/**", "skein/tests/forge/machine/Cargo.toml", "skein/tests/forge/client/src/world.rs", "skein/tests/forge/client/src/translate.rs", "skein/tests/forge/client/src/lib.rs", "skein/tests/forge/protocol/Cargo.toml", "skein/tests/forge/protocol/src/**", "skein/tests/forge/protocol/tests/suite/protocol.rs", "skein/tests/forge/protocol/tests/suite/fake_protocol.rs", "skein/tests/forge/protocol/tests/suite/github.rs", "skein/tests/forge/protocol/tests/suite/fuzzy/protocol.rs", "skein/tests/forge/protocol/tests/suite/fuzzy/github.rs", "skein/tests/forge/setup/Cargo.toml", "skein/tests/forge/setup/src/**", "skein/tests/forge/setup/tests/**", "Cargo.lock"]
 effort = "medium"
 minutes = 45
 +++
@@ -42,3 +42,16 @@ The recipe; `cargo fmt`; `(cd skein && python3 -I -B scripts/old_forms.py)`; `he
 ## Report
 
 The common note's items, the kits note's lines. A pure move: no rule to break by hand.
+
+## Answers
+
+### 2026-11-05: May the four protocol suite files the header omits take crate-path-only edits? (debt-24/forge-kit-1, foreman debt-24/forge-kit/foreman-1)
+
+Yes. `skein-forge-protocol-world` is a reader this spec names, and the edge can't go without them; fabrig/debt's answer on `protocol-parties` allows crate-path-only edits a task's own change requires. The header now lists them. On the pushed branch seven lines are left:
+
+- `tests/suite/fake_protocol.rs`:3, and `:80`, `:100` (`skein_forge_client_world::translate::commit` becomes `skein_forge_kit::client::commit`);
+- `tests/suite/github.rs`:79, `:118`;
+- `tests/suite/fuzzy/protocol.rs`:3;
+- `tests/suite/fuzzy/github.rs`:3.
+
+Only the crate path changes there, `skein_forge_machine_world` to `skein_forge_kit`: assertions, test names and counts stay, and `rustfmt` may rewrap a line it shortens. Finish on the pushed branch, then run the acceptance's five-package nextest and clippy, which the first run couldn't build: the protocol suite's 35 tests are still unobserved.
