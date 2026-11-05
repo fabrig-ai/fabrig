@@ -9,7 +9,7 @@ use jig_client::contract as c;
 use skein_lib::List;
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
-    Address, Domain, GoalsFilter, PlanFilter,
+    Address, Domain, GoalsFilter,
     pages::{
         Act,
         goals::{self, State},
@@ -29,7 +29,7 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::GOALS);
     intro(b, root, words, project);
-    list(b, root, words, bindings, times);
+    list(b, root, words, bindings, project, times);
     b.close();
 }
 
@@ -108,7 +108,7 @@ fn lowercase(name: &[u8]) -> Box<[u8]> {
     String::from_utf8_lossy(name).to_lowercase().into_bytes().into_boxed_slice()
 }
 
-fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times) {
+fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
     let me = root.pages().me(root.client());
     let page = root.pages().goals();
     if me.is_some()
@@ -136,6 +136,19 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             b.close();
         }
         b.close();
+        if let Some(me) = me
+            && !ways(me, project, words).is_empty()
+        {
+            let name = words.say(Word::GoalsStartDraft, &[]);
+            crate::link(
+                b,
+                &name,
+                bindings.insert(Act::Go { address: Address::Chats { filter: temper_client_domain::ChatsFilter::All } }),
+            );
+            b.style(look::SHEET_LINK);
+            b.text(Run::Plain, &name);
+            b.close();
+        }
         b.close();
         let mut any = false;
         for line in live.rows.iter().chain(page.ended()) {
@@ -221,6 +234,20 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
     result
 }
 
+/// A goal's state word and token (client/README.md, 3.5, 5.8).
+pub(crate) fn state_word(state: State) -> (Word, skein_ui::Style) {
+    match state {
+        State::Needs { funds: true } => (Word::GoalNeedsFunds, look::GOALS_STATE_NEEDS),
+        State::Needs { funds: false } => (Word::GoalNeedsYou, look::GOALS_STATE_NEEDS),
+        State::Paused => (Word::GoalPaused, look::GOALS_STATE_PAUSED),
+        State::Planning => (Word::GoalPlanning, look::GOALS_STATE_PLANNING),
+        State::Running => (Word::Running, look::GOALS_STATE_RUNNING),
+        State::Landed => (Word::GoalLandedAlone, look::GOALS_STATE_LANDED),
+        State::Stopped => (Word::GoalStopped, look::GOALS_STATE_STOPPED),
+        State::Failed => (Word::GoalFailed, look::GOALS_STATE_STOPPED),
+    }
+}
+
 /// One goal links its title, state and report to its task (client/README.md, 3.5).
 pub(crate) fn row(
     b: &mut Builder,
@@ -234,16 +261,7 @@ pub(crate) fn row(
     if words.shell == Shell::Terminal {
         b.open(Role::Slot);
     }
-    let (word, token) = match state {
-        State::Needs { funds: true } => (Word::GoalNeedsFunds, look::GOALS_STATE_NEEDS),
-        State::Needs { funds: false } => (Word::GoalNeedsYou, look::GOALS_STATE_NEEDS),
-        State::Paused => (Word::GoalPaused, look::GOALS_STATE_PAUSED),
-        State::Planning => (Word::GoalPlanning, look::GOALS_STATE_PLANNING),
-        State::Running => (Word::Running, look::GOALS_STATE_RUNNING),
-        State::Landed => (Word::GoalLandedAlone, look::GOALS_STATE_LANDED),
-        State::Stopped => (Word::GoalStopped, look::GOALS_STATE_STOPPED),
-        State::Failed => (Word::GoalFailed, look::GOALS_STATE_STOPPED),
-    };
+    let (word, token) = state_word(state);
     let status = if state == State::Landed {
         match line.ended_at {
             Some(at) => words.say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, at))]),
@@ -265,11 +283,7 @@ pub(crate) fn row(
     };
     let title = line.chip.title.bytes();
     let name = crate::accounts::words::join(&[title, &words.say(Word::ToolSeparator, &[]), &count, &status]);
-    crate::link(
-        b,
-        &name,
-        bindings.insert(Act::Go { address: Address::Task { task: line.chip.task, filter: PlanFilter::All } }),
-    );
+    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: line.chip.task } }));
     b.style(look::GOALS_ROW);
     match state {
         State::Landed | State::Stopped | State::Failed => b.style(look::GOALS_ROW_ENDED),

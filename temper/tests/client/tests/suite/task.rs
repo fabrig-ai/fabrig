@@ -113,17 +113,27 @@ fn a_goal_cancelled_from_its_page_ends_its_delegates() {
     let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
     world.person(
         person,
-        vec![
-            Step::See { find: Find::named(Role::Button, b"Cancel"), within: fixtures::WITHIN },
-            Step::Press { find: Find::named(Role::Button, b"Cancel") },
-            Step::See { find: Find::named(Role::Dialog, b"Cancel"), within: fixtures::WITHIN },
-            Step::See { find: Find::text(b"Dangerous action: review its consequences"), within: fixtures::WITHIN },
-            Step::See { find: Find::text(b"1 running tasks"), within: fixtures::WITHIN },
-            Step::See { find: Find::text(b"1 waiting tasks"), within: fixtures::WITHIN },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
-            Step::See { find: Find::named(Role::Status, b"Cancelled"), within: fixtures::WITHIN },
-        ],
+        vec![Step::See { find: Find::named(Role::Heading { level: 2 }, b"Tasks"), within: fixtures::WITHIN }],
     );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    // Close asks for confirmation before cancelling the goal and its delegates.
+    world.event(
+        person,
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Close),
+        }
+        .into(),
+    );
+    assert!(world.root(person).person().pages().confirmation().is_some(), "Stop awaits confirmation");
+    world.event(
+        person,
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Confirm),
+        }
+        .into(),
+    );
+    world.person(person, vec![Step::See { find: Find::text(b"Stopped before it landed."), within: fixtures::WITHIN }]);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     for task in [first, second] {
@@ -198,47 +208,24 @@ fn a_goals_plan_says_which_task_a_delegate_waits_for() {
     world.person(
         person,
         vec![
+            Step::See { find: Find::text(format!("0 of {delegates} tasks").as_bytes()), within: fixtures::WITHIN },
             Step::See {
-                find: Find::named(Role::Status, format!("waiting on {delegates} delegates").as_bytes()).within(
-                    Box::new([Target::ExactRole { role: Role::Region, name: b"Task details".as_slice().into() }]),
-                ),
+                find: goal_task_line(b"Use the findings", Find::text(b"waits on Investigate the change")),
                 within: fixtures::WITHIN,
             },
             Step::See {
-                find: fixtures::plan_item(second, format!("waiting on task {first}").as_bytes()),
+                find: Find::text(format!("{} of {} spent", budget.numbers.spent, budget.numbers.budget).as_bytes()),
                 within: fixtures::WITHIN,
             },
+            Step::Gone { find: goal_task_link(fixtures::GOAL_BRIEF), within: fixtures::WITHIN },
+            Step::Press { find: goal_task_link(b"Investigate the change") },
+            Step::See { find: Find::text(format!("{spent} spent").as_bytes()), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, format!("Task {goal}").as_bytes()) },
+            Step::See { find: goal_task_link(b"Use the findings"), within: fixtures::WITHIN },
+            Step::Press { find: goal_task_link(b"Use the findings") },
+            Step::See { find: Find::text(format!("{second_spent} spent").as_bytes()), within: fixtures::WITHIN },
             Step::See {
-                find: Find::text(format!("{spent} spent").as_bytes()).within(Box::new([Target::ExactRole {
-                    role: Role::TreeItem,
-                    name: format!("Task {first}").into_bytes().into(),
-                }])),
-                within: fixtures::WITHIN,
-            },
-            Step::See {
-                find: Find::text(format!("{second_spent} spent").as_bytes()).within(Box::new([Target::ExactRole {
-                    role: Role::TreeItem,
-                    name: format!("Task {second}").into_bytes().into(),
-                }])),
-                within: fixtures::WITHIN,
-            },
-            Step::See {
-                find: fixtures::dependency_item(second, Find::named(Role::Link, format!("Task {first}").as_bytes())),
-                within: fixtures::WITHIN,
-            },
-            Step::See {
-                find: Find::text(
-                    format!("{} spent · {} left of {}", budget.numbers.spent, budget.left, budget.numbers.budget)
-                        .as_bytes(),
-                )
-                .within(Box::new([Target::ExactRole {
-                    role: Role::Region,
-                    name: b"Budget and authority".as_slice().into(),
-                }])),
-                within: fixtures::WITHIN,
-            },
-            Step::Gone {
-                find: Find::exactly_named(Role::TreeItem, format!("Task {goal}").as_bytes()),
+                find: own_dependency(second, Find::named(Role::Link, format!("Task {first}").as_bytes())),
                 within: fixtures::WITHIN,
             },
         ],
@@ -258,25 +245,14 @@ fn a_finished_dependency_says_completed_in_its_dependants_line() {
     world.person(
         person,
         vec![
+            Step::See { find: goal_task_link(b"Use the findings"), within: fixtures::WITHIN },
+            Step::Press { find: goal_task_link(b"Use the findings") },
             Step::See {
-                find: fixtures::dependency_item(second, Find::named(Role::Link, format!("Task {first}").as_bytes())),
+                find: own_dependency(second, Find::named(Role::Link, format!("Task {first}").as_bytes())),
                 within: fixtures::WITHIN,
             },
             Step::See {
-                find: fixtures::dependency_item(second, Find::named(Role::Status, b"Completed")),
-                within: fixtures::WITHIN,
-            },
-            Step::See {
-                find: Find::named(Role::Term, b"Delegates spent").within(Box::new([Target::ExactRole {
-                    role: Role::Region,
-                    name: b"Budget and authority".as_slice().into(),
-                }])),
-                within: fixtures::WITHIN,
-            },
-            Step::See {
-                find: Find::exactly_named(Role::Description, format!("{spent_below}").as_bytes()).within(Box::new([
-                    Target::ExactRole { role: Role::Region, name: b"Budget and authority".as_slice().into() },
-                ])),
+                find: own_dependency(second, Find::named(Role::Status, b"Completed")),
                 within: fixtures::WITHIN,
             },
         ],
@@ -303,17 +279,8 @@ fn a_delegates_page_shows_its_brief_run_and_report() {
 
 fn open_delegate_and_return_to_goal(goal: u64, first: u64, attempt: u64) -> Vec<Step<temper_client_domain::Address>> {
     vec![
-        Step::See {
-            find: Find::exactly_named(Role::Link, format!("Task {first}").as_bytes()).within(Box::new([
-                Target::ExactRole { role: Role::TreeItem, name: format!("Task {first}").into_bytes().into() },
-            ])),
-            within: fixtures::WITHIN,
-        },
-        Step::Press {
-            find: Find::exactly_named(Role::Link, format!("Task {first}").as_bytes()).within(Box::new([
-                Target::ExactRole { role: Role::TreeItem, name: format!("Task {first}").into_bytes().into() },
-            ])),
-        },
+        Step::See { find: goal_task_link(b"Investigate the change"), within: fixtures::WITHIN },
+        Step::Press { find: goal_task_link(b"Investigate the change") },
         Step::See {
             find: Find::named(Role::Heading { level: 1 }, format!("T{first} · Investigate the change").as_bytes()),
             within: fixtures::WITHIN,
@@ -340,7 +307,7 @@ fn open_delegate_and_return_to_goal(goal: u64, first: u64, attempt: u64) -> Vec<
         Step::Gone { find: Find::named(Role::Region, b"Task details"), within: fixtures::WITHIN },
         Step::Gone { find: Find::named(Role::Region, b"Result"), within: fixtures::WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, format!("Task {goal}").as_bytes()) },
-        Step::See { find: Find::named(Role::Region, b"Task details"), within: fixtures::WITHIN },
+        Step::See { find: Find::named(Role::Heading { level: 2 }, b"Tasks"), within: fixtures::WITHIN },
     ]
 }
 
@@ -412,14 +379,11 @@ fn a_finished_goals_page_shows_its_report() {
     world.person(
         person,
         vec![
-            Step::See {
-                find: Find::named(Role::Status, b"Completed")
-                    .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Result".as_slice().into() }])),
-                within: fixtures::WITHIN,
-            },
+            Step::See { find: Find::text(" · landed · ".as_bytes()), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Heading { level: 1 }, &words), within: fixtures::WITHIN },
             Step::See {
                 find: Find::text(&words)
-                    .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Result".as_slice().into() }])),
+                    .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Report".as_slice().into() }])),
                 within: fixtures::WITHIN,
             },
         ],
@@ -431,13 +395,13 @@ fn a_finished_goals_page_shows_its_report() {
 #[test]
 fn a_goals_page_shows_its_plan_with_the_held_task_marked() {
     let mut world = fixtures::world(fixtures::SEED);
-    let (goal, held) = fixtures::goal_with_held_delegate(world.front());
+    let (goal, _) = fixtures::goal_with_held_delegate(world.front());
     let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
     world.person(
         person,
         vec![
-            Step::See { find: Find::named(Role::Heading { level: 2 }, b"Plan"), within: fixtures::WITHIN },
-            Step::See { find: fixtures::plan_item(held, b"held"), within: fixtures::WITHIN },
+            Step::See { find: Find::named(Role::Heading { level: 2 }, b"Tasks"), within: fixtures::WITHIN },
+            Step::See { find: goal_task_line(b"Review the change", Find::text(b"held")), within: fixtures::WITHIN },
         ],
     );
     let outcome = world.run(Until::Done);
@@ -452,7 +416,7 @@ fn a_task_with_the_chat_label_opens_as_its_chat() {
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
 }
 #[test]
-fn a_forge_panel_on_a_goals_page_says_shown_on_the_forge() {
+fn a_changes_page_says_the_forge_knows_no_change() {
     let mut world = fixtures::world(fixtures::SEED);
     let goal = fixtures::goal_with_forge_panel(world.front());
     let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
@@ -471,6 +435,8 @@ fn a_held_task_released_from_a_goals_plan_runs_again() {
     world.person(
         person,
         vec![
+            Step::See { find: goal_task_link(b"Review the change"), within: fixtures::WITHIN },
+            Step::Press { find: goal_task_link(b"Review the change") },
             Step::See { find: Find::named(Role::Button, b"Release task"), within: fixtures::WITHIN },
             Step::Press { find: Find::named(Role::Button, b"Release task") },
             Step::See { find: Find::named(Role::Dialog, b"Release task"), within: fixtures::WITHIN },
@@ -479,12 +445,14 @@ fn a_held_task_released_from_a_goals_plan_runs_again() {
                 within: fixtures::WITHIN,
             },
             Step::Press { find: Find::named(Role::Button, b"Confirm") },
-            Step::See { find: fixtures::plan_item(held, b"running"), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Status, b"running"), within: fixtures::WITHIN },
         ],
     );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
-    assert_eq!(world.front().engine.task(held).expect("released delegate").tries, jig_domain_tasks::Tries::NONE);
+    let delegate = world.front().engine.task(held).expect("released delegate");
+    assert_eq!(delegate.tries, jig_domain_tasks::Tries::NONE);
+    assert!(matches!(delegate.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Running { .. })));
 }
 
 #[test]
@@ -552,7 +520,9 @@ fn a_client_closed_on_a_tasks_page_opens_at_the_inbox_again() {
     world.person(
         person,
         vec![
-            Step::See { find: Find::named(Role::Heading { level: 2 }, b"Plan"), within: fixtures::WITHIN },
+            Step::See { find: goal_task_link(b"Review the change"), within: fixtures::WITHIN },
+            Step::Press { find: goal_task_link(b"Review the change") },
+            Step::See { find: Find::named(Role::Region, b"Task brief"), within: fixtures::WITHIN },
             Step::Reload,
             Step::See { find: Find::named(Role::Heading { level: 1 }, b"Inbox"), within: fixtures::WITHIN },
         ],
@@ -640,4 +610,22 @@ fn an_unknown_task_address_explains_its_missing_document() {
     );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+}
+
+fn goal_task_link(title: &[u8]) -> Find {
+    Find::exactly_named(Role::Link, title)
+        .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Tasks".as_slice().into() }]))
+}
+
+fn goal_task_line(title: &[u8], find: Find) -> Find {
+    find.within(Box::new([
+        Target::ExactRole { role: Role::Region, name: b"Tasks".as_slice().into() },
+        Target::Role { role: Role::Paragraph, name: title.into() },
+    ]))
+}
+fn own_dependency(task: u64, find: Find) -> Find {
+    find.within(Box::new([Target::ExactRole {
+        role: Role::List,
+        name: format!("Dependencies of task {task}").into_bytes().into(),
+    }]))
 }

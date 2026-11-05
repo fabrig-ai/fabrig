@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use jig_client::contract::{InboxGroup, ReadValue};
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
-    Address, Domain, PlanFilter,
+    Address, Domain,
     pages::{Act, inbox::Card, needs},
 };
 
@@ -161,7 +161,7 @@ pub(crate) fn meta(
     b.name(&crate::accounts::words::join(&[&prefix, &asked.title, &suffix]));
     b.text(Run::Plain, &prefix);
     if let Some(task) = super::inbox::source_task(asked.card.object) {
-        link(b, bindings, &asked.title, Address::Task { task, filter: PlanFilter::All });
+        link(b, bindings, &asked.title, Address::Task { task });
     } else {
         b.text(Run::Plain, &asked.title);
     }
@@ -197,7 +197,7 @@ pub(crate) fn answered_lines(
         }
         b.open(Role::Text);
         if let Some(task) = super::inbox::source_task(line.object) {
-            link(b, bindings, &title, Address::Task { task, filter: PlanFilter::All });
+            link(b, bindings, &title, Address::Task { task });
         } else {
             b.text(Run::Plain, &title);
         }
@@ -368,7 +368,7 @@ pub(crate) fn home_body(
                     b,
                     bindings,
                     &w.say(Word::HomeOpen, &[]),
-                    Act::Go { address: Address::Task { task, filter: PlanFilter::All } },
+                    Act::Go { address: Address::Task { task } },
                     look::ASK_QUIET,
                 );
             }
