@@ -3,7 +3,7 @@ use jig_client_domain::contract::{ObjectKey, ReadValue};
 use jig_client_kit::{Until, harness::App};
 use jig_client_view::address::{Address as JigAddress, TaskSection};
 use jig_ops_client_domain::{Address, observability as obs};
-use jig_ops_world::client::{Ops, stories};
+use jig_ops_world::{PARTY, PROJECT, client::{Ops, stories}};
 use jig_ops_world::joint::fixture::{press, see};
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;

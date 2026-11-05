@@ -8,6 +8,9 @@ use skein_world::domain::heap;
 #[global_allocator]
 static HEAP: heap::Counting = heap::Counting;
 
+pub const PROJECT: u32 = 1;
+pub const PARTY: u64 = 7;
+
 mod infrastructure_world;
 mod world;
 

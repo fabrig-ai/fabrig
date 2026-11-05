@@ -2,12 +2,11 @@
 use jig_client::{Event as ClientEvent, Message, Streamed};
 use jig_client_protocol_wire::v19 as w;
 use jig_client_view::address::Address as JigAddress;
+use jig_ops_world::{PARTY, PROJECT};
 use jig_ops_client_domain::{self as root, Address, Event, Place, Request, infrastructure, observability};
 use skein_lib::{Duration, Env, List, Queue, Reader, Time, Token, Wall, Writer};
 
 const SEED: u64 = 9211;
-const PARTY: u64 = 7;
-const PROJECT: u32 = 1;
 const STREAM: [u8; 16] = [11; 16];
 const HEARTBEAT: Duration = Duration::from_secs(1);
 // The fixture serves jig plus both Ops connector owners.
