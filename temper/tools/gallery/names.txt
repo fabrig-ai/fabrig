@@ -33,6 +33,9 @@ needs-second-answered
 needs-later
 needs-last
 needs-done
+needs-proposal
+needs-held
+needs-funds
 needs-plain-words
 settings
 task-solo-T3

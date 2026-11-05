@@ -119,6 +119,43 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Link, name: "Home" }],
     },
     Holds {
+        name: "needs-proposal",
+        heading: "Accept how temper will run your work.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Accept" },
+            Part::Named { role: Role::Disclosure, name: "Reject" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Funding after: 34" },
+        ],
+    },
+    Holds {
+        name: "needs-held",
+        heading: "first-run-projects",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Both halves of the store task run. The Ready page waits for this decision." },
+        ],
+    },
+    Holds {
+        name: "needs-funds",
+        heading: "31 of 40 used.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Absent { role: Role::Button, name: "Add $10" },
+            Part::Text { text: "first-run-projects" },
+        ],
+    },
+    Holds {
         name: "needs-plain-words",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[

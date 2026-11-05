@@ -38,7 +38,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         .min();
     }
     if let Some(card) = session.shown(inbox) {
-        flow(b, root, w, bindings, times, card, &lines);
+        flow(b, root, w, bindings, times, card, &lines, rows);
     } else {
         b.open(Role::Slot);
         b.style(look::NEEDS_INTRO);
@@ -72,6 +72,7 @@ fn home_project(root: &Domain, filter: Option<u32>) -> Option<u32> {
     Some(root.pages().me(root.client())?.projects.get(0)?.project)
 }
 
+#[expect(clippy::too_many_arguments, reason = "the flow passes the view's row bound to its card facts")]
 fn flow(
     b: &mut Builder,
     root: &Domain,
@@ -80,6 +81,7 @@ fn flow(
     times: &mut Times,
     card: &temper_client_domain::pages::inbox::Card,
     lines: &[&needs::Answered],
+    rows: u32,
 ) {
     let inbox = root.pages().inbox().expect("flow inbox");
     let session = root.pages().needs();
@@ -109,7 +111,7 @@ fn flow(
     b.close();
     ask::text(b, Role::Paragraph, &head, look::HOME_KICKER);
     b.close();
-    card_main(b, root, w, bindings, times, card);
+    card_main(b, root, w, bindings, times, card, rows);
     let mut next = None;
     for other in &open {
         if other.object != card.object {
@@ -138,6 +140,7 @@ fn card_main(
     bindings: &mut Bindings,
     times: &mut Times,
     card: &temper_client_domain::pages::inbox::Card,
+    rows: u32,
 ) {
     let inbox = root.pages().inbox().expect("card inbox");
     let session = root.pages().needs();
@@ -153,7 +156,12 @@ fn card_main(
         None
     };
     ask::meta(b, &asked, project.as_deref(), session.later(card.object), w, bindings, times);
-    ask::text(b, Role::Heading { level: 1 }, &asked.short, look::FLOW_Q);
+    let question = match asked.kind {
+        ask::Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),
+        ask::Kind::Question | ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
+    };
+    ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
+    context(b, &asked, w, rows);
     if let Some(parsed) = &asked.parsed {
         if !parsed.context.is_empty() {
             ask::text(b, Role::Paragraph, &parsed.context, look::ASK_CONTEXT);
@@ -169,7 +177,20 @@ fn card_main(
     if let Some(outcome) = session.refused(card.object) {
         crate::confirm::outcome_words(b, w, outcome);
     }
-    choices(b, &asked, w, bindings);
+    if card.key.is_some() || card.outcome.is_some() {
+        crate::confirm::card_controls(b, root, card, w, bindings);
+        b.close();
+        return;
+    }
+    match asked.kind {
+        ask::Kind::Question => choices(b, &asked, w, bindings),
+        ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } | ask::Kind::PersonTask => {
+            b.open(Role::Slot);
+            b.style(look::ASK_CHOICES);
+            crate::confirm::needs_controls(b, root, card, w, bindings);
+            b.close();
+        }
+    }
     b.open(Role::Slot);
     b.style(look::PAIR);
     match asked.kind {
@@ -227,4 +248,27 @@ fn choices(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, bindings: &mut Bi
         }
         b.close();
     }
+}
+
+fn context(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, rows: u32) {
+    let Some(page) = &asked.card.page else { return };
+    match asked.kind {
+        ask::Kind::Question => return,
+        ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } | ask::Kind::PersonTask => {}
+    }
+    b.open(Role::Slot);
+    b.style(look::ASK_CONTEXT);
+    if let jig_client::contract::ReadValue::Escalation(held) = page {
+        crate::cards::specification(b, &held.task.spec, w);
+    }
+    if let jig_client::contract::ReadValue::PersonTask(task) = page {
+        crate::cards::specification(b, &task.spec, w);
+    }
+    match asked.kind {
+        ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } => {
+            crate::confirm::facts_at(b, page, w, rows, crate::cards::Place::Inbox);
+        }
+        ask::Kind::Question | ask::Kind::PersonTask => {}
+    }
+    b.close();
 }
