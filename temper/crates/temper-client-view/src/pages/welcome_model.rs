@@ -1,0 +1,313 @@
+//! The welcome's Model shapes (temper/docs/design/client/README.md, 3.5).
+use super::{accounts, connect_model as model};
+use crate::{
+    accounts::{Bindings, Meaning},
+    flow::{self, Control},
+    look,
+    words::{Shell, Word, Words},
+};
+use alloc::boxed::Box;
+use skein_ui::{Builder, Role, Run, phrases::Hole};
+use temper_client_domain::{
+    Address, Domain, Step,
+    pages::{
+        accounts::{self as domain_accounts, SignInState, Way},
+        connect_model::{Act, ProgramCheck},
+        welcome::{self, ModelStep},
+    },
+};
+
+fn said(w: &Words, root: &Domain, word: Word) -> Box<[u8]> {
+    let Some(page) = root.pages().connect_model() else { return w.say(word, &[]) };
+    if [
+        Word::WelcomePasteTitle,
+        Word::WelcomePasteOpen,
+        Word::WelcomePasteCopy,
+        Word::WelcomeAwayTitle,
+        Word::WelcomeAwayBody,
+    ]
+    .contains(&word)
+    {
+        w.say(word, &[Hole::Name(crate::choice::shown(accounts::paste_plan(root, &page.request), w))])
+    } else {
+        w.say(word, &[])
+    }
+}
+fn text(b: &mut Builder, root: &Domain, w: &Words, role: Role, word: Word) {
+    crate::cards::text(b, role, &said(w, root, word));
+}
+fn acts(b: &mut Builder) {
+    b.open(Role::Slot);
+    b.style(look::WELCOME_ACTS);
+}
+fn all_ways(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
+    if let Some(to) = bindings.insert(Meaning::Go(Address::Welcome { step: Step::Model { way: None } })) {
+        b.open(Role::Link);
+        b.style(look::FLOW_QUIET);
+        let name = w.say(Word::WelcomeAllWays, &[]);
+        b.name(&name);
+        b.text(Run::Plain, &name);
+        b.link(to);
+        b.close();
+    }
+}
+fn panel(b: &mut Builder) {
+    b.open(Role::Slot);
+    b.style(look::WELCOME_PANEL);
+}
+fn note(b: &mut Builder, root: &Domain, w: &Words, finishing: bool) {
+    b.open(Role::Slot);
+    b.style(look::WELCOME_AWAY);
+    if w.shell == Shell::Browser {
+        b.open(Role::Slot);
+        b.style(look::WELCOME_SPIN);
+        b.close();
+    }
+    b.open(Role::Slot);
+    let title = said(w, root, if finishing { Word::WelcomeFinishing } else { Word::WelcomeAwayTitle });
+    b.open(Role::Status);
+    b.name(&title);
+    b.open(Role::Text);
+    b.run(Run::Strong, &title);
+    b.close();
+    b.close();
+    if !finishing {
+        b.open(Role::Paragraph);
+        b.style(look::FLOW_MUTED);
+        let body = said(w, root, Word::WelcomeAwayBody);
+        b.name(&body);
+        b.text(Run::Plain, &body);
+        b.close();
+    }
+    b.close();
+    b.close();
+}
+fn usable(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+    text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
+    b.open(Role::Slot);
+    b.style(look::WELCOME_FORGE_STATUS);
+    b.style(look::FLOW_DONE);
+    let account = match accounts::first_usable_short(root, w) {
+        Some(account) => account,
+        None => crate::choice::new_chat_model(root, w),
+    };
+    b.open(Role::Status);
+    b.name(&account);
+    if w.shell == Shell::Browser {
+        b.open(Role::Slot);
+        b.style(look::WELCOME_OK);
+        b.text(Run::Plain, "✓".as_bytes());
+        b.close();
+    } else {
+        b.text(Run::Plain, "✓ ".as_bytes());
+    }
+    if w.shell == Shell::Browser {
+        let kind = match accounts::first_usable_kind(root, w) {
+            Some(kind) => kind,
+            None => account.clone(),
+        };
+        b.open(Role::Text);
+        b.run(Run::Strong, &kind);
+        b.close();
+        if let Some(rest) = account.strip_prefix(kind.as_ref())
+            && !rest.is_empty()
+        {
+            b.open(Role::Slot);
+            b.style(look::FLOW_MUTED);
+            b.text(Run::Plain, rest);
+            b.close();
+        }
+    } else {
+        b.text(Run::Plain, &account);
+    }
+    b.close();
+    b.close();
+    acts(b);
+    if let Some(to) = bindings.insert(Meaning::Go(Address::Welcome { step: Step::Ready })) {
+        flow::control(b, Control::PrimaryLink { name: &w.say(Word::WelcomeContinue, &[]), to });
+    }
+    b.close();
+}
+fn key(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
+    let Some(page) = root.pages().connect_model() else { return };
+    let busy = page.request.busy(root.client());
+    text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeKeyTitle);
+    panel(b);
+    text(b, root, w, Role::Paragraph, Word::WelcomeKeyBody);
+    b.open(Role::Form);
+    b.style(look::WELCOME_FIELD);
+    model::key_field(b, root, bindings, busy, &w.say(Word::WelcomeKeyField, &[]));
+    b.close();
+    acts(b);
+    model::button(
+        b,
+        bindings,
+        &w.say(Word::ModelAddKey, &[]),
+        Act::Submit { name: root.pages().account_name() },
+        busy || !page.request.has_key(),
+        true,
+    );
+    all_ways(b, w, bindings);
+    b.close();
+    b.open(Role::Paragraph);
+    b.style(look::FLOW_FACTS);
+    w.text(b, Word::WelcomeKeyFacts, &[]);
+    b.close();
+    accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
+    b.close();
+}
+fn numbered(b: &mut Builder, root: &Domain, w: &Words) {
+    let Some(page) = root.pages().connect_model() else { return };
+    b.open(Role::List);
+    b.style(look::WELCOME_NUMBERED);
+    b.open(Role::Item);
+    b.open(Role::Paragraph);
+    if let Some(address) = page.request.sign_in_address(root.client())
+        && skein_ui::markdown::safe_url(address)
+    {
+        b.open(Role::Link);
+        b.external(address);
+        let label = said(w, root, Word::WelcomePasteOpen);
+        b.name(&label);
+        b.text(Run::Plain, &label);
+        b.close();
+    }
+    w.text(b, Word::WelcomePasteOpenRest, &[]);
+    b.close();
+    b.close();
+    for word in [Word::WelcomePasteCopy, Word::WelcomePasteHere] {
+        b.open(Role::Item);
+        text(b, root, w, Role::Paragraph, word);
+        b.close();
+    }
+    b.close();
+}
+fn paste(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way) {
+    let Some(page) = root.pages().connect_model() else { return };
+    text(b, root, w, Role::Heading { level: 1 }, Word::WelcomePasteTitle);
+    panel(b);
+    if let SignInState::Ended { source } = page.request.sign_in_state(root.client())
+        && let Some(doc) = domain_accounts::document(root.client())
+        && let Some(last) = &doc.last_end
+        && last.source == source
+    {
+        let Some(me) = domain_accounts::current_me(root.client()) else { return };
+        let ways = domain_accounts::ways(&me.providers, root.forge().playground_provider(), page.holder);
+        model::ready_body(b, root, w, bindings, way, &ways);
+    } else {
+        numbered(b, root, w);
+    }
+    let ended = accounts::paste_ending(b, root, w, bindings, &page.request);
+    if !ended {
+        b.open(Role::Form);
+        b.style(look::WELCOME_FIELD);
+        accounts::paste_field(b, root, w, bindings, &page.request, true);
+        b.close();
+    }
+    acts(b);
+    if !ended {
+        accounts::paste_finish(b, root, w, bindings, &page.request, true);
+    }
+    all_ways(b, w, bindings);
+    b.close();
+    b.close();
+}
+fn sign_in(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way, text_per_node: u32) {
+    let Some(page) = root.pages().connect_model() else { return };
+    let Some(me) = domain_accounts::current_me(root.client()) else { return };
+    crate::cards::text(b, Role::Heading { level: 1 }, &model::signing_heading(root, w, way));
+    panel(b);
+    let ways = domain_accounts::ways(&me.providers, root.forge().playground_provider(), page.holder);
+    if model::ready(root, way) {
+        model::ready_body(b, root, w, bindings, way, &ways);
+    } else {
+        model::choice(b, root, w, bindings, way, &ways);
+        if model::request_for_way(page, way) {
+            accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
+        }
+    }
+    acts(b);
+    all_ways(b, w, bindings);
+    b.close();
+    b.close();
+}
+fn program(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way, text_per_node: u32) {
+    let Some(page) = root.pages().connect_model() else { return };
+    text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeClaudeTitle);
+    let checking = match page.check {
+        ProgramCheck::Declaring | ProgramCheck::Checking { .. } => true,
+        ProgramCheck::Idle | ProgramCheck::NotYet => false,
+    };
+    if checking {
+        b.open(Role::Slot);
+        b.style(look::WELCOME_AWAY);
+        if w.shell == Shell::Browser {
+            b.open(Role::Slot);
+            b.style(look::WELCOME_SPIN);
+            b.close();
+        }
+        let checking = w.say(Word::WelcomeClaudeChecking, &[]);
+        b.open(Role::Status);
+        b.name(&checking);
+        b.open(Role::Text);
+        b.run(Run::Strong, &checking);
+        b.close();
+        b.close();
+        b.close();
+        return;
+    }
+    panel(b);
+    text(b, root, w, Role::Paragraph, Word::WelcomeClaudeBody);
+    model::command(b, w, &page.program_name(root.client()), true);
+    b.open(Role::Paragraph);
+    b.style(look::FLOW_MUTED);
+    w.text(b, Word::WelcomeClaudeNote, &[]);
+    b.close();
+    if page.check == ProgramCheck::NotYet {
+        text(b, root, w, Role::Alert, Word::WelcomeClaudeNotYet);
+    } else {
+        accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
+    }
+    acts(b);
+    model::button(
+        b,
+        bindings,
+        &w.say(Word::WelcomeClaudeSignedIn, &[]),
+        Act::SignedIn { name: root.pages().account_name(), way },
+        page.request.busy(root.client()),
+        true,
+    );
+    all_ways(b, w, bindings);
+    b.close();
+    b.close();
+}
+
+pub(super) fn step(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
+    let Some(state) = welcome::model_step(root) else { return };
+    let Some(page) = root.pages().connect_model() else { return };
+    match state {
+        ModelStep::Usable => usable(b, root, w, bindings),
+        ModelStep::Choose => {
+            text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
+            b.open(Role::Paragraph);
+            b.style(look::WELCOME_LEAD);
+            b.name(&w.say(Word::WelcomeModelLead, &[]));
+            w.text(b, Word::WelcomeModelLead, &[]);
+            b.close();
+            model::choose_body(b, root, w, bindings, text_per_node);
+        }
+        ModelStep::Away { .. } => {
+            text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
+            note(b, root, w, false);
+            accounts::paste(b, root, w, bindings, &page.request, true);
+        }
+        ModelStep::Finishing { .. } => {
+            text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
+            note(b, root, w, true);
+        }
+        ModelStep::Paste { way } => paste(b, root, w, bindings, way),
+        ModelStep::Key { .. } => key(b, root, w, bindings, text_per_node),
+        ModelStep::SignIn { way } => sign_in(b, root, w, bindings, way, text_per_node),
+        ModelStep::Program { way } => program(b, root, w, bindings, way, text_per_node),
+    }
+}

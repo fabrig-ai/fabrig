@@ -82,6 +82,31 @@ pub(super) fn limits() -> engine::Limits {
     limits
 }
 
+/// Two projects retain distinct repositories; only the caller's is discoverable.
+pub(super) fn repository_projects() -> World {
+    let mut config = config();
+    let other = core::SeedProject {
+        number: 2,
+        name: "Other project".into(),
+        policy: config.core.seed_projects[0].policy.clone(),
+    };
+    let mut projects = config.core.seed_projects.into_vec();
+    projects.push(other);
+    config.core.seed_projects = projects.into_boxed_slice();
+    let mut owners = config.core.owners.into_vec();
+    let mut owner = owners[1].clone();
+    owner.project = 2;
+    owners.push(owner);
+    config.core.owners = owners.into_boxed_slice();
+    let mut bounds = limits();
+    bounds.authority.segments = 8; // A charter document names a six-segment forge branch.
+    bounds.authority.projects = 2;
+    bounds.people.projects = 3; // Two projects and the deployment roster.
+    bounds.people.initial_owners = 3;
+    bounds.people.holdings = 4; // The owner holds deployment and both projects.
+    World::with_limits(config, &bounds)
+}
+
 pub(super) fn member_config() -> engine::Config {
     config()
 }

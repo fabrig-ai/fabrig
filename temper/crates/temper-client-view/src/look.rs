@@ -2,85 +2,85 @@
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
 /// The goal column (client/browser.md, 2.5).
-pub const GOAL: Style = Style { owner: owner(), token: 326 };
+pub const GOAL: Style = Style { owner: owner(), token: 339 };
 /// The goal heading (client/browser.md, 2.5).
-pub const GOAL_HEAD: Style = Style { owner: owner(), token: 327 };
+pub const GOAL_HEAD: Style = Style { owner: owner(), token: 340 };
 /// The goal metadata (client/browser.md, 2.5).
-pub const GOAL_META: Style = Style { owner: owner(), token: 328 };
+pub const GOAL_META: Style = Style { owner: owner(), token: 341 };
 /// The goal byline (client/browser.md, 2.5).
-pub const GOAL_BYLINE: Style = Style { owner: owner(), token: 329 };
+pub const GOAL_BYLINE: Style = Style { owner: owner(), token: 342 };
 /// The goal actions (client/browser.md, 2.5).
-pub const GOAL_ACTS: Style = Style { owner: owner(), token: 330 };
+pub const GOAL_ACTS: Style = Style { owner: owner(), token: 343 };
 /// A goal button (client/browser.md, 2.5).
-pub const GOAL_BTN: Style = Style { owner: owner(), token: 331 };
+pub const GOAL_BTN: Style = Style { owner: owner(), token: 344 };
 /// A small goal button (client/browser.md, 2.5).
-pub const GOAL_SMALL: Style = Style { owner: owner(), token: 332 };
+pub const GOAL_SMALL: Style = Style { owner: owner(), token: 345 };
 /// A quiet goal button (client/browser.md, 2.5).
-pub const GOAL_QUIET: Style = Style { owner: owner(), token: 333 };
+pub const GOAL_QUIET: Style = Style { owner: owner(), token: 346 };
 /// A primary goal button or its recommendation (client/browser.md, 2.5).
-pub const GOAL_PRIMARY: Style = Style { owner: owner(), token: 334 };
+pub const GOAL_PRIMARY: Style = Style { owner: owner(), token: 347 };
 /// The goal needs band (client/browser.md, 2.5).
-pub const GOAL_BAND: Style = Style { owner: owner(), token: 335 };
+pub const GOAL_BAND: Style = Style { owner: owner(), token: 348 };
 /// The goal needs band tag (client/browser.md, 2.5).
-pub const GOAL_BAND_TAG: Style = Style { owner: owner(), token: 336 };
+pub const GOAL_BAND_TAG: Style = Style { owner: owner(), token: 349 };
 /// The goal needs choices (client/browser.md, 2.5).
-pub const GOAL_CHOICES: Style = Style { owner: owner(), token: 337 };
+pub const GOAL_CHOICES: Style = Style { owner: owner(), token: 350 };
 /// The goal report and side columns (client/browser.md, 2.5).
-pub const GOAL_TWO: Style = Style { owner: owner(), token: 338 };
+pub const GOAL_TWO: Style = Style { owner: owner(), token: 351 };
 /// The goal report (client/browser.md, 2.5).
-pub const GOAL_REPORT: Style = Style { owner: owner(), token: 339 };
+pub const GOAL_REPORT: Style = Style { owner: owner(), token: 352 };
 /// A goal section title (client/browser.md, 2.5).
-pub const GOAL_TITLE: Style = Style { owner: owner(), token: 340 };
+pub const GOAL_TITLE: Style = Style { owner: owner(), token: 353 };
 /// The goal typing indicator (client/browser.md, 2.5).
-pub const GOAL_TYPING: Style = Style { owner: owner(), token: 341 };
+pub const GOAL_TYPING: Style = Style { owner: owner(), token: 354 };
 /// The goal side column (client/browser.md, 2.5).
-pub const GOAL_SIDE: Style = Style { owner: owner(), token: 342 };
+pub const GOAL_SIDE: Style = Style { owner: owner(), token: 355 };
 /// A goal side section (client/browser.md, 2.5).
-pub const GOAL_SECTION: Style = Style { owner: owner(), token: 343 };
+pub const GOAL_SECTION: Style = Style { owner: owner(), token: 356 };
 /// The goal facts (client/browser.md, 2.5).
-pub const GOAL_FACTS: Style = Style { owner: owner(), token: 344 };
+pub const GOAL_FACTS: Style = Style { owner: owner(), token: 357 };
 /// The goal task progress bar (client/browser.md, 2.5).
-pub const GOAL_BAR: Style = Style { owner: owner(), token: 345 };
+pub const GOAL_BAR: Style = Style { owner: owner(), token: 358 };
 /// A landed goal task segment (client/browser.md, 2.5).
-pub const GOAL_BAR_LANDED: Style = Style { owner: owner(), token: 346 };
+pub const GOAL_BAR_LANDED: Style = Style { owner: owner(), token: 359 };
 /// A running goal task segment (client/browser.md, 2.5).
-pub const GOAL_BAR_RUNNING: Style = Style { owner: owner(), token: 347 };
+pub const GOAL_BAR_RUNNING: Style = Style { owner: owner(), token: 360 };
 /// A goal task line (client/browser.md, 2.5).
-pub const GOAL_LINE: Style = Style { owner: owner(), token: 348 };
+pub const GOAL_LINE: Style = Style { owner: owner(), token: 361 };
 /// A running goal task line (client/browser.md, 2.5).
-pub const GOAL_LINE_RUNNING: Style = Style { owner: owner(), token: 349 };
+pub const GOAL_LINE_RUNNING: Style = Style { owner: owner(), token: 362 };
 /// A goal task needing the person (client/browser.md, 2.5).
-pub const GOAL_LINE_NEEDS: Style = Style { owner: owner(), token: 350 };
+pub const GOAL_LINE_NEEDS: Style = Style { owner: owner(), token: 363 };
 /// The landed goal tasks fold (client/browser.md, 2.5).
-pub const GOAL_LANDED_FOLD: Style = Style { owner: owner(), token: 351 };
+pub const GOAL_LANDED_FOLD: Style = Style { owner: owner(), token: 364 };
 /// The goal messages (client/browser.md, 2.5).
-pub const GOAL_SENT: Style = Style { owner: owner(), token: 352 };
+pub const GOAL_SENT: Style = Style { owner: owner(), token: 365 };
 /// A message from the person (client/browser.md, 2.5).
-pub const GOAL_YOU: Style = Style { owner: owner(), token: 353 };
+pub const GOAL_YOU: Style = Style { owner: owner(), token: 366 };
 /// The goal composer box (client/browser.md, 2.5).
-pub const GOAL_COMPOSER_BOX: Style = Style { owner: owner(), token: 354 };
+pub const GOAL_COMPOSER_BOX: Style = Style { owner: owner(), token: 367 };
 /// The goal composer (client/browser.md, 2.5).
-pub const GOAL_COMPOSER: Style = Style { owner: owner(), token: 355 };
+pub const GOAL_COMPOSER: Style = Style { owner: owner(), token: 368 };
 /// The goal composer hint (client/browser.md, 2.5).
-pub const GOAL_HINT: Style = Style { owner: owner(), token: 356 };
+pub const GOAL_HINT: Style = Style { owner: owner(), token: 369 };
 /// A goal sheet field (client/browser.md, 2.5).
-pub const GOAL_FIELD: Style = Style { owner: owner(), token: 357 };
+pub const GOAL_FIELD: Style = Style { owner: owner(), token: 370 };
 /// A goal sheet text input (client/browser.md, 2.5).
-pub const GOAL_TEXT: Style = Style { owner: owner(), token: 358 };
+pub const GOAL_TEXT: Style = Style { owner: owner(), token: 371 };
 /// The start goal sheet (client/browser.md, 2.5).
-pub const SHEET: Style = Style { owner: owner(), token: 359 };
+pub const SHEET: Style = Style { owner: owner(), token: 372 };
 /// The sheet muted words (client/browser.md, 2.5).
-pub const SHEET_MUTED: Style = Style { owner: owner(), token: 360 };
+pub const SHEET_MUTED: Style = Style { owner: owner(), token: 373 };
 /// The sheet ways fieldset (client/browser.md, 2.5).
-pub const SHEET_FIELDSET: Style = Style { owner: owner(), token: 361 };
+pub const SHEET_FIELDSET: Style = Style { owner: owner(), token: 374 };
 /// A sheet way option (client/browser.md, 2.5).
-pub const SHEET_OPTION: Style = Style { owner: owner(), token: 362 };
+pub const SHEET_OPTION: Style = Style { owner: owner(), token: 375 };
 /// The sheet ways link (client/browser.md, 2.5).
-pub const SHEET_LINK: Style = Style { owner: owner(), token: 363 };
+pub const SHEET_LINK: Style = Style { owner: owner(), token: 376 };
 /// The sheet actions (client/browser.md, 2.5).
-pub const SHEET_FOOT: Style = Style { owner: owner(), token: 364 };
+pub const SHEET_FOOT: Style = Style { owner: owner(), token: 377 };
 /// The sheet error (client/browser.md, 2.5).
-pub const SHEET_ERROR: Style = Style { owner: owner(), token: 365 };
+pub const SHEET_ERROR: Style = Style { owner: owner(), token: 378 };
 
 /// The session toast (client/README.md, 3.5).
 pub const TOAST: Style = Style { owner: owner(), token: 300 };
@@ -264,6 +264,10 @@ pub const HOME_TAG: Style = Style { owner: owner(), token: 229 };
 pub const HOME_SKIP: Style = Style { owner: owner(), token: 231 };
 /// Home’s lede and Accounts link (client/README.md, 3.5).
 pub const HOME_LEDES: Style = Style { owner: owner(), token: 233 };
+/// Home’s small repository actions (client/README.md, 3.5).
+pub const HOME_SMALL: Style = Style { owner: owner(), token: 337 };
+/// A repository’s progress line (client/README.md, 3.5).
+pub const HOME_COPY: Style = Style { owner: owner(), token: 336 };
 /// To begin’s remaining steps note (client/README.md, 3.5).
 pub const HOME_NOTE: Style = Style { owner: owner(), token: 232 };
 /// Home's first needs card (client/README.md, 3.5).
@@ -624,6 +628,9 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Heading { level: 3 }, SHEET_FIELDSET, "legend"),
     (owner(), skein_ui::Role::Text, SHEET_MUTED, "small"),
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
+    (owner(), skein_ui::Role::List, WELCOME_NUMBERED, "ol"),
+    (owner(), skein_ui::Role::Slot, WELCOME_SPIN, "span"),
+    (owner(), skein_ui::Role::Slot, WELCOME_OK, "span"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
     (owner(), skein_ui::Role::Heading { level: 3 }, WELCOME_LEGEND, "legend"),
     (owner(), skein_ui::Role::Slot, MODEL_FACTS, "dl"),
@@ -641,6 +648,28 @@ pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
 /// The browser's phone navigation.
 pub const TABBAR: Style = Style { owner: owner(), token: 179 };
+/// Forge status in the welcome's column (client/README.md, 3.5).
+pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 338 };
+/// A Model way’s panel (client/README.md, 3.5).
+pub const WELCOME_PANEL: Style = Style { owner: owner(), token: 330 };
+/// A Model sign-in’s note (client/README.md, 3.5).
+pub const WELCOME_AWAY: Style = Style { owner: owner(), token: 331 };
+/// The paste’s numbered instructions (client/README.md, 3.5).
+pub const WELCOME_NUMBERED: Style = Style { owner: owner(), token: 332 };
+/// A Model panel’s full-width secret field (client/README.md, 3.5).
+pub const WELCOME_FIELD: Style = Style { owner: owner(), token: 333 };
+/// The welcome’s terminal command (client/README.md, 3.5).
+pub const WELCOME_CMD: Style = Style { owner: owner(), token: 334 };
+/// A checklist line under way (client/README.md, 3.5, Ready).
+pub const WELCOME_CURRENT: Style = Style { owner: owner(), token: 335 };
+/// The forge's spinning status marker.
+pub const WELCOME_SPIN: Style = Style { owner: owner(), token: 326 };
+/// The welcome's primary continuation.
+pub const WELCOME_ACTS: Style = Style { owner: owner(), token: 327 };
+/// The forge's connected tick.
+pub const WELCOME_OK: Style = Style { owner: owner(), token: 328 };
+/// The separator between the forge's name and its status.
+pub const WELCOME_SEP: Style = Style { owner: owner(), token: 329 };
 /// The look's names (skein's ui.md, 8): styles by token, regions by number.
 pub const NAMES: Names<'static> = Names {
     owner: owner(),
@@ -972,6 +1001,19 @@ pub const NAMES: Names<'static> = Names {
         b"temper-by-delegate",
         b"temper-turn-tool",
         b"temper-tool-file",
+        b"temper-welcome-spin",
+        b"temper-welcome-acts",
+        b"temper-welcome-ok",
+        b"temper-welcome-sep",
+        b"temper-welcome-panel",
+        b"temper-welcome-away",
+        b"temper-welcome-numbered",
+        b"temper-welcome-field",
+        b"temper-welcome-cmd",
+        b"temper-welcome-current",
+        b"temper-home-copy",
+        b"temper-home-small",
+        b"temper-welcome-forge-status",
         b"temper-goal",
         b"temper-goal-head",
         b"temper-goal-meta",

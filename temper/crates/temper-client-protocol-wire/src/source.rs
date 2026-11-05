@@ -2,6 +2,9 @@
 use alloc::boxed::Box;
 use skein_lib::bytes;
 
+/// A public copy address's maximum byte length.
+pub const ADDRESS_BYTES: usize = 512;
+
 /// The checked address's borrowed components, with the optional suffix removed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Source<'a> {

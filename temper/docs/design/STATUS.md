@@ -76,7 +76,10 @@ scripted upstreams rather than temper's service
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
-managed (`protocol/setup.md`); a kept GitHub forge whose base ends
+managed (`protocol/setup.md`); `temper forge sign-in` prints an owned
+Forgejo's command without its binary and paths
+(`protocol/setup.md`), and a held task names no run's failure, which
+is the user's to decide (`domain/worker.md`); a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
@@ -86,7 +89,9 @@ at a start, which the user's request counts a bug
 which waits on jig's account-facts draft, and draws no words for a
 sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
-nor filters for a project with no goal template; and under a kind or
+nor filters for a project with no goal template; `NewChat` draws its
+layout with no project, and says a project has no repository while
+the forges' rows are unknown; and under a kind or
 goal filter Needs you's answered lines and head count what the filter
 leaves out (`client/README.md`). The
 case library's purpose is retired, the fake

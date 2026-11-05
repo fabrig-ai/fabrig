@@ -413,6 +413,13 @@ impl Task {
             | Act::AmendAgain
             | Act::MakeDefault
             | Act::AdoptFirst
+            | Act::CopyAgain { .. }
+            | Act::AddOpen { .. }
+            | Act::AddChoose { .. }
+            | Act::AddWrite { .. }
+            | Act::AddClose
+            | Act::AddSubmit
+            | Act::CopyOffered
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
@@ -455,7 +462,10 @@ impl Task {
         }
     }
     /// The task page's amendment acts (client/README.md, 5.11).
-    #[expect(clippy::too_many_lines, reason = "amendment dispatch lists every page act, including start goal")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "amendment dispatch lists every page act, including start goal and Home’s repository sheet"
+    )]
     pub(crate) fn amend(
         &mut self,
         env: &Env<Limits>,
@@ -526,6 +536,13 @@ impl Task {
             Act::SendAmendment => self.send(env, client, Sending::Amend, serial, out),
             Act::MakeDefault
             | Act::AdoptFirst
+            | Act::CopyAgain { .. }
+            | Act::AddOpen { .. }
+            | Act::AddChoose { .. }
+            | Act::AddWrite { .. }
+            | Act::AddClose
+            | Act::AddSubmit
+            | Act::CopyOffered
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }

@@ -405,21 +405,57 @@ pub(crate) fn person_escalation_decide(
     revision: u64,
     decision: people::EscalationDecision,
 ) {
-    let Party { request, person, project, .. } = party;
+    let context = match escalation_admit(core, env, party, task, revision, &decision) {
+        Ok(context) => context,
+        Err(why) => return pool_refused(&mut routed.work, party.request, why),
+    };
+    let notice = match escalation_notice(core, env, party, &context, &decision) {
+        Ok(notice) => notice,
+        Err(outcome) => {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided { request: party.request, outcome })));
+            return;
+        }
+    };
+    let Some((semantic, entry)) = escalation_choice(core, routed, party, &decision) else { return };
+    let request = core.fly(crate::routing::flight::Flight::PersonEscalation(PersonEscalation {
+        request: party.request,
+        requester: context.requester,
+        person: party.person,
+        project: party.project,
+        task,
+        revision,
+        decision,
+        notice,
+    }));
+    routed.work.push(Work::Event(Event::Tasks(tasks::Event::DecideEscalation {
+        reply_to: ReplyTo::new(request),
+        task,
+        revision,
+        by: party.person,
+        entry,
+        decision: semantic,
+    })));
+}
 
-    if let people::EscalationDecision::Reject { reason } = &decision
+fn escalation_admit(
+    core: &Core,
+    env: &Env<Limits>,
+    party: Party,
+    task: u64,
+    revision: u64,
+    decision: &people::EscalationDecision,
+) -> Result<Box<tasks::EscalationContext>, Refusal> {
+    let Party { person, project, .. } = party;
+    if let people::EscalationDecision::Reject { reason } = decision
         && reason.len() > skein_lib::length::usize_of(env.limits.escalation_reason_bytes)
     {
-        pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Words });
-        return;
+        return Err(Refusal::Limit { which: LimitKind::Words });
     }
     let Some(context) = core.tasks.escalation(task) else {
-        pool_refused(&mut routed.work, request, Refusal::Unknown);
-        return;
+        return Err(Refusal::Unknown);
     };
     if context.project != project {
-        pool_refused(&mut routed.work, request, Refusal::Unknown);
-        return;
+        return Err(Refusal::Unknown);
     }
     let pending = match context.escalation {
         tasks::Escalation::Waiting { revision: current, .. } => current == revision,
@@ -428,25 +464,30 @@ pub(crate) fn person_escalation_decide(
         }
     };
     if !pending {
-        pool_refused(&mut routed.work, request, Refusal::NotWaiting);
-        return;
+        return Err(Refusal::NotWaiting);
     }
-    let act = match &decision {
+    let act = match decision {
         people::EscalationDecision::Release => crate::acts::Act::Release,
         people::EscalationDecision::Reject { .. } => crate::acts::Act::LeaveHeld,
         people::EscalationDecision::Pass => crate::acts::Act::PassUp,
     };
-    if let Err(why) = crate::acts::escalation(core, &env.limits, person, act, task) {
-        pool_refused(&mut routed.work, request, why);
-        return;
-    }
-    let semantic = match &decision {
+    crate::acts::escalation(core, &env.limits, person, act, task)?;
+    Ok(context)
+}
+
+fn escalation_choice(
+    core: &mut Core,
+    routed: &mut Routed,
+    party: Party,
+    decision: &people::EscalationDecision,
+) -> Option<(tasks::EscalationDecision, Option<u64>)> {
+    let semantic = match decision {
         people::EscalationDecision::Release => tasks::EscalationDecision::Release,
         people::EscalationDecision::Reject { reason } => tasks::EscalationDecision::Reject { reason: reason.clone() },
         people::EscalationDecision::Pass => {
-            let Some(holder) = core.escalation_fallback(project) else {
-                pool_refused(&mut routed.work, request, Refusal::NoFurther);
-                return;
+            let Some(holder) = core.escalation_fallback(party.project) else {
+                pool_refused(&mut routed.work, party.request, Refusal::NoFurther);
+                return None;
             };
             tasks::EscalationDecision::Pass { holder }
         }
@@ -455,29 +496,53 @@ pub(crate) fn person_escalation_decide(
         tasks::EscalationDecision::Pass { .. } => match crate::fresh(&mut core.counters, crate::Family::Message) {
             Some(entry) => Some(entry),
             None => {
-                pool_refused(&mut routed.work, request, Refusal::Limit { which: LimitKind::Arithmetic });
-                return;
+                pool_refused(&mut routed.work, party.request, Refusal::Limit { which: LimitKind::Arithmetic });
+                return None;
             }
         },
         tasks::EscalationDecision::Release | tasks::EscalationDecision::Reject { .. } => None,
     };
-    let request = core.fly(crate::routing::flight::Flight::PersonEscalation(PersonEscalation {
-        request,
-        requester: context.requester,
-        person,
-        project,
+    Some((semantic, entry))
+}
+
+fn escalation_notice(
+    core: &mut Core,
+    env: &Env<Limits>,
+    party: Party,
+    context: &tasks::EscalationContext,
+    decision: &people::EscalationDecision,
+) -> Result<Option<tasks::Message>, people::Outcome> {
+    let people::EscalationDecision::Reject { reason } = decision else { return Ok(None) };
+    let tasks::Party::Task(task) = context.immediate else { return Ok(None) };
+    let number = crate::fresh(&mut core.counters, crate::Family::Message)
+        .ok_or(people::Outcome::Refused(Refusal::Limit { which: LimitKind::Arithmetic }))?;
+    let notice = tasks::Message {
         task,
-        revision,
-        decision,
-    }));
-    routed.work.push(Work::Event(Event::Tasks(tasks::Event::DecideEscalation {
-        reply_to: ReplyTo::new(request),
-        task,
-        revision,
-        by: person,
-        entry,
-        decision: semantic,
-    })));
+        word: tasks::Word {
+            number,
+            from: tasks::Party::Person(party.person),
+            kind: tasks::MessageKind::Words,
+            words: reason.clone(),
+            at: env.wall,
+            hits: 1,
+            eligible: false,
+        },
+    };
+    let context = tasks::CompoundContext {
+        by: tasks::Party::Person(party.person),
+        project: party.project,
+        period: core.period(party.project),
+        pool_budget: core.pool_budget(party.project, party.person),
+        period_budget: core.period_budget(party.project),
+    };
+    if let Err(problem) = tasks::CompoundAdmission::new(&core.tasks, 1).check(
+        &env.with(env.limits.tasks),
+        context,
+        tasks::Operation::Message(notice.clone()),
+    ) {
+        return Err(crate::routing::refusals::person_problem_refusal(core, *problem));
+    }
+    Ok(Some(notice))
 }
 
 pub(crate) fn current_person_escalation(core: &Core, task: u64, revision: u64) -> bool {

@@ -404,8 +404,8 @@ keeps (`../protocol/configuration.md`, section 2).
   4. *Its own spend,* "N spent · of B", in the view and hidden in the
      browser.
 
-  The next plan adds the mode group and "Start goal…" after the byline, so
-  the bar's right part is a flex row that takes them.
+  The bar's right part is a flex row, which takes what the draft beside a
+  chat adds after the byline (section 11).
 - **A conversation's turns** are named "You" when the turn is the
   person's own, "Temper" when it is the agent's, and by the party's
   name otherwise (`chat.html`), on every page that draws a
@@ -883,8 +883,9 @@ keeps (`../protocol/configuration.md`, section 2).
   to add (4.8).
 - **The welcome** (`welcome.html`) is one page, `Welcome { step }`, its
   step Welcome, Forge, Model or Ready, at `/welcome` and
-  `/welcome?at=forge`, `model` or `ready` (`browser.md`, 2.3); its
-  words are its mockup's (5.6).
+  `/welcome?at=welcome`, `forge`, `model` or `ready` (`browser.md`, 2.3); its
+  words are its mockup's (5.6). The tab's title is "Welcome · first run ·
+  temper" on every step (`browser.md`, 2.5).
   - *Whether it shows* is the document's
     (`../protocol/configuration.md`, section 3), which the domain learns
     from the deployment's read (4.6): the forge's side reads it when a
@@ -897,8 +898,8 @@ keeps (`../protocol/configuration.md`, section 2).
     alike, moves on to the inbox, its address replacing the welcome's,
     and the store's state is not judged: the rest of this entry holds
     where the document shows it.
-  - *Its frame* is temper's brand link to Chats (named "temper chats"),
-    temper box's line and the steps alone: no person's name or "Sign
+  - *Its frame* is temper's brand link to the welcome, `/welcome`
+    (named "temper"), temper box's line and the steps alone: no person's name or "Sign
     out", no project, navigation or link state, and no accounts' banner
     (5.1); the playground's line while the playground is leaving, as on
     every page but `Chats` and `NewChat` (4.8, 5.1, 5.6). temper box's line says what this
@@ -906,10 +907,25 @@ keeps (`../protocol/configuration.md`, section 2).
     to try it · more later, from Settings · Run temper on a server ↗",
     the last an external link to temper's help on running a server
     (`temper/docs/help/server.md`), the welcome being a quick way to
-    try temper, not a deployment's wizard (the user, 2026-11-04). The
-    steps (5.2, A flow's parts) are the frame's, at its end. Each
+    try temper, not a deployment's wizard (the user, 2026-11-04). Each
     step's heading is the page's level-1 heading.
-  - *The store's state* is judged at its Welcome step, once each time
+  - *Its steps,* at the frame's end, are a list named Steps of four links,
+    each to its own step in every state: Welcome to `/welcome?at=welcome`,
+    Forge, Model and Ready to their `?at=`, with no choice or way. They
+    are the welcome's own, not the flows' list (5.2, A flow's parts), which
+    `ConnectForge` and `ConnectModel` keep. Each draws its number or its
+    tick in a ring, then its label; below 760 px only the current step's
+    label shows. The step at the address is current, always, a choice or a
+    way in it among them: Ready stays current, its "4" black, when its
+    forge and model are done. A step is ticked when it is done and not
+    current: Welcome is done at any other step or once a real forge is
+    kept; Forge once a real forge is kept, even under way; Model once a
+    model is usable; Ready never. The terminal prints the list as text,
+    its links as the acts it offers any link (section 6).
+  - *`/welcome?at=welcome`* opens the Welcome step, its link's address,
+    whatever the store's state, once its facts are in; only a whole state
+    moves on, to the chats page, as `/welcome` does.
+  - *The store's state* is judged at `/welcome`, once each time
     the page opens, when its facts are in, from the forges the store
     keeps, the accounts and `me`'s projects (`../protocol/setup.md`,
     6.7 and 8.4; `../draft/first-run-projects.md`, 4). A
@@ -921,7 +937,7 @@ keeps (`../protocol/configuration.md`, section 2).
     and the person has a project when `me` lists one in which they hold
     a role. No adoption is read.
     - *Empty:* no real forge kept and no model usable. The step shows
-      its two cards, "Try the playground" and "Set up temper".
+      its cards (*The Welcome step,* below).
     - *Unfinished:* neither: a real forge kept, but none connected, or
       no model usable, or a model usable with no real forge, or no
       project. The page opens at the step left undone, Forge while no
@@ -960,6 +976,12 @@ keeps (`../protocol/configuration.md`, section 2).
     (`../protocol/setup.md`, 8.4): an unfinished forge is started over
     first (below), and a whole one never. A real account alone does not
     end it (4.8).
+  - *The Welcome step* draws "Set up temper"'s card, then, while the
+    playground is offered, "Try the playground"'s and the note under them;
+    not offered, both are left out. With a real forge kept, the card's
+    button reads "Go on setting up" and goes to Ready when a model is
+    usable, else to Model; with none, it reads "Set up temper" and goes to
+    Forge.
   - *"Try the playground"* sends `StartPlayground` while no playground
     is read (4.8) and opens `NewChat`, in the playground's project
     once its read names it, which the start's acts make
@@ -983,8 +1005,8 @@ keeps (`../protocol/configuration.md`, section 2).
     Back" returns to Forge's Choose. The welcome has no "‹ All
     forges"; `ConnectForge` keeps it. Its foot, on Forge and Model, is
     "‹ Back" and, while the playground is offered, "Try the playground
-    instead": no way to leave set up half done but the brand's link to
-    Chats (the user, 2026-11-04). The step connects a forge and
+    instead": a set up half done is left by no act of the foot's
+    (the user, 2026-11-04). The step connects a forge and
     nothing more, on every kind: it adopts no repository and asks no
     project's name (`../draft/first-run-projects.md`, 4).
     *Forgejo's sheet* (the user, 2026-11-04) is Forgejo on this
@@ -1005,12 +1027,24 @@ keeps (`../protocol/configuration.md`, section 2).
       yourself.".
 
     Its foot is "Cancel", also Escape, back to Choose, then the primary
-    "Run on this machine". Run, on an empty repository, sends the
-    `SetUp` that makes the forge (`forge.md`, 5.4) with the names
-    written, an empty one required in the set up's words (4.6), the
-    repository made unadopted (`../protocol/setup.md`, 6.7). Copies and
-    nothing are not made yet: Run then says "Not available yet: for
-    now, Forgejo starts with an empty repository." and sends nothing.
+    "Run on this machine". Run sends the `SetUp` that makes the forge
+    (`forge.md`, 5.4), its first repository as the choice says
+    (`../protocol/setup.md`, 6.7):
+    - an empty repository, with the names written, the repository made
+      unadopted; with either blank, one alert, "Both an organization and a
+      name.", and nothing sent;
+    - copies, each non-empty line read as an address: `http://` or
+      `https://`, `.git` and trailing `/` stripped; `HOST/OWNER/NAME`, or
+      `OWNER/NAME` meaning `github.com`; then the source's own check
+      (`../draft/repository-copies.md`, 5.4). A line that does not read
+      alerts `Not an address: LINE. Write it as github.com/owner/name.`;
+      none at all alerts `At least one address, as
+      github.com/owner/name.`; more than 16 alerts `At most 16 addresses.`.
+      Nothing is sent until they read. The forge connects with no
+      repository made, and the copies wait for Ready;
+    - nothing for now, which makes none. Ready offers "My project" and the
+      plain lead.
+
     Refused, the refusal shows above the foot, in the set up's words
     (4.6); while a set up is pending, or the page is out of date, Run
     is disabled. Once the `SetUp` is accepted, the welcome moves on to
@@ -1034,8 +1068,8 @@ keeps (`../protocol/configuration.md`, section 2).
     GitHub stays the person's to delete. While the removal is out, both
     are disabled. An account added before stays: it is the person's,
     not the set up's, and the Model step shows it ready.
-    A forge connected is no choice either: the step says it, "FORGE ·
-    CONNECTION", with "View", to `ConnectForge` at it; but a GitHub
+    A forge of the person's under way or connected is no choice either
+    (*The Forge step with a forge,* below); but a GitHub
     forge with no accepted installation, or a Forgejo connecting
     as its admin, shows `ConnectForge`'s step for it in the step, its
     `back` the welcome's Forge step, `/welcome?at=forge&forge=N`, so
@@ -1046,6 +1080,18 @@ keeps (`../protocol/configuration.md`, section 2).
     `/welcome?at=forge`, stays on Forge. Its first repository, made on
     an owned or managed Forgejo, waits unadopted: the person adopts it
     later, from the project's "Adopt a repository" (4.4).
+    *The Forge step with a forge:* for a personal forge under way or
+    connected, GitHub with an accepted installation among them, the step
+    is the heading "Connect a forge"; the lead "One forge is enough to
+    begin; add others later, from Settings."; the forge's status, in the
+    column, not the Model step's pane: under way a spinner, the forge's
+    name, a muted line of `welcome_line`'s words and the disclosure "Each
+    step"; connected a tick, the name and "connected as LOGIN · ORG/NAME
+    made", on GitHub "temper’s App on ACCOUNT", ACCOUNT the first accepted
+    installation's, with no count of repositories; then the primary
+    "Continue", to Ready when a model is usable, else to Model; then the
+    foot. A set up failed, a forge cut short, GitHub's installation and
+    Forgejo's admin steps keep what this entry says of them.
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
     (above), its way in the welcome's address (`browser.md`, 2.3).
     Its lead is "temper’s agents run on a plan you sign in to.". Its
@@ -1065,16 +1111,59 @@ keeps (`../protocol/configuration.md`, section 2).
     model among them, and no card offers "This browser isn't on
     temper's computer ›"; with neither provider's plan offered, the
     step shows Choose's cards as `ConnectModel` does. Entering from a deployment
-    chooser resets the holder to the person's own. Inside a way, "‹ All
-    ways" and the foot's "‹ Back" both return to Model Choose; on Choose
-    the foot's returns to Forge. Standalone `ConnectModel` keeps its
-    holder controls. An account added there is the accounts page's too; a sign-in sends the browser back to the
+    chooser resets the holder to the person's own. Inside a way, the
+    foot's "‹ Back" and a quiet "All ways", after the primary, return to
+    Model Choose; on Choose the foot's returns to Forge. Standalone
+    `ConnectModel` keeps its holder controls, "‹ All ways", its cards and
+    its Ready. An account added there is the accounts page's too; a
+    sign-in sends the browser back to the
     welcome at its Ready, `/welcome?at=ready` (`ConnectModel`, The
-    tab's departure). Until it does (`ConnectModel`, Signing in),
-    the step's body draws the sign-in as `ConnectModel`'s does, its
-    address and then its end, and an account made there `ConnectModel`'s
-    Ready, its "Start a chat" replaced by "Continue", to the welcome's
-    Ready (`/welcome?at=ready`), whose act makes the project. After
+    tab's departure).
+    *A model usable,* at any way or none: the heading "Connect a model",
+    no lead; a status, ticked, "✓ ACCOUNT", in the words of Ready's Model
+    line (below); the primary "Continue", to Ready; the foot. On the
+    welcome it stands in for the choices and for a made sign-in's card,
+    with its facts, "Continue with ChatGPT", "Manage usage" and "…is on
+    the Accounts page".
+    *A way's page* has its own level-1 heading, no lead, then one panel:
+    - *Key,* "An OpenAI API key": "From OpenAI’s platform, under API keys.
+      What temper’s agents use is billed to the key’s organization."; the
+      field "Key, pasted once", the panel's width; "Add key", disabled
+      until typed; "All ways"; and "Nothing checks a key when it is added:
+      a wrong one shows once OpenAI refuses a run."
+    - *Paste,* a sign-in `elsewhere`, "Signing in to ChatGPT from another
+      computer": a numbered list, "Open ChatGPT’s sign-in › and approve
+      temper.", its first words the sign-in's link, "When ChatGPT is done,
+      its tab shows a page that can’t be reached. Copy that page’s whole
+      address from the address bar." and "Paste it here."; the field
+      "Address of the page that couldn’t be reached", a secret's entry;
+      "Finish connecting", disabled until typed; "All ways". Its refusals
+      and endings keep their words (5.5, A sign-in), in the panel.
+    - *Claude,* "Your Claude subscription": "temper sets Claude Code up on
+      this machine in an environment of its own: its settings, sessions
+      and sign-in stay apart from your own Claude Code. In a terminal
+      here:"; the command `temper program-login NAME`, NAME the program's
+      default name (5.5), with no field for it; the muted "It makes that
+      environment, then Claude Code asks you to sign in to your
+      subscription there. temper never reads its login."; the primary "I’ve
+      signed in"; "All ways". "I’ve signed in" sends `DeclareProgram` under
+      NAME unless an account of the person's has that source, then the
+      accounts page's `CheckProgram { source }`, as `temper ctl account
+      verify` does. While either is out, in the panel's place, a spinner
+      and "Checking Claude Code’s sign-in on this machine…". Once a model
+      is usable, the step moves on to Ready, its address replacing the
+      step's. Answered with the source not usable, the page stays with the
+      alert "Claude Code isn’t signed in here yet. Run the command above,
+      then press I’ve signed in.", and a second press checks again.
+
+    *The sign-in under way,* its tab not gone yet, is a note in the card's
+    place: a spinner, "ChatGPT’s sign-in, in this tab", the muted "You sign
+    in and approve temper; ChatGPT sends this tab back to temper’s listener
+    on this machine, and on to Ready.", and under it the disclosure
+    "Signed in, but the page couldn't be reached?". *Finishing a paste* is
+    the same note, a spinner and "Finishing your sign-in…". A sign-in's
+    other endings (declined, held, refused, the port taken) keep their
+    words and acts, drawn as `ConnectModel`'s are (5.5, A sign-in). After
     the choices and before the foot, once a forge is acted on, a region
     named "Forge" holds the forge's line and its steps, so that Model
     says what Forge did: while it sets up or connects, "FORGE ·
@@ -1125,29 +1214,34 @@ keeps (`../protocol/configuration.md`, section 2).
     is connected and a model usable, then "Ready", with "Everything is
     connected. Create your first project, with ORG/NAME in it, and
     start working.", ORG/NAME the first repository its act will adopt
-    (below), or, with none to adopt, "Everything is connected. Create
-    your first project and start working."; then a
-    checklist, Model then Forge while either is under way, Forge then
-    Model once both are done, each line its name, strong, then what it
-    says of it, as the greenfield mockup draws them. Forge reads
-    "Forge FORGE · connected as LOGIN" once connected, as *The store's
-    state* says, or
+    or the first copy its act will ask, "with 2 repositories in it" for
+    more than one copy (below), or, with none, "Everything is connected.
+    Create your first project and start working."; then a
+    checklist, Forge then Model, always, each line its name, strong, then
+    what it says of it, muted, at 15 px, as the greenfield mockup draws
+    them. A line under way, Forge while it sets up, Model while signing
+    in, has its ring spinning. Forge reads
+    "Forge FORGE · connected as LOGIN · ORG/NAME made" once connected, as
+    *The store's state* says, the last part while a first repository was
+    made, and no such part for copies, which run at Ready's act, or
     "Forge FORGE · CONNECTION" (with its "Each step" folded), or
-    "Forge none yet" with "Connect a forge", to the Forge step; while
+    "Forge none yet · Connect a forge", one line, the link, to the Forge
+    step, after " · ", as Model's is; while
     a model is usable, as *The store's state* says (the one test Ready and
     the welcome share), "Model ACCOUNT", the first usable account of
     the `accounts` document but the playground's (4.8), by the kind of
     its usable source and who it is: "PLAN plan · DISPLAY" for a
     signed-in plan ("ChatGPT plan · owner@example.com"), "PLAN
-    subscription · PROGRAM" for a program's, "BRAND API key" for a
+    subscription · PROGRAM, signed in on this machine" for a program's,
+    "BRAND API key · billed to the key’s organization" for a
     key, an account of no named provider by its whole heading (5.5,
     An account); no model or effort, which are chosen apart from the
     welcome (5.5; the user, 2026-11-04); or "Model MODEL" where no such
     account is usable (the configured model), MODEL a new chat's as
     the composer's line names it (5.5); or, while
     a sign-in of the person's is under way on the `accounts` document
-    and no model is usable, "Model PROVIDER · signing in", PROVIDER
-    its LLM provider's name (5.5), with no act, so that a person come
+    and no model is usable, "Model PLAN plan · signing in…", PLAN
+    its LLM provider's plan (5.5), with no act, so that a person come
     back from the sign-in reads it as under way; or "Model none yet"
     with "Connect a model", to the Model step, and under it, where the
     person's last sign-in (the `accounts` document's `last_end`) ended
@@ -1173,10 +1267,11 @@ keeps (`../protocol/configuration.md`, section 2).
     it and opens it, not waiting for the adoption, so that nothing is
     half made. With no name written, it makes nothing and says "A name
     for it: NAME, or one of yours.", NAME the offered name:
-    - *The offered name:* the first repository's (below) with its first
-      letter in capital, "Hello" for `work/hello`, its bytes otherwise
-      as they stand; "My project" when the rows name no first repository
-      to adopt (GitHub, "Nothing for now"), or the name is past jig's 64
+    - *The offered name:* the first repository's (below) or the first
+      copy's with its first letter in capital, "Hello" for `work/hello`,
+      "Widget" for `github.com/acme/widget`, its bytes otherwise
+      as they stand; "My project" when the rows name neither
+      (GitHub, "Nothing for now"), or the name is past jig's 64
       bytes. It follows the `forges` watch until the person writes in
       the field; what they wrote, even emptied, is theirs from then on.
     - *Its request:* jig's `MakeProject`, named as written, on policy 1,
@@ -1210,18 +1305,29 @@ keeps (`../protocol/configuration.md`, section 2).
       refusal has answered, each attempt names a key of its own, since
       the engine answers a named request's repeat with its first
       answer.
+    - *Its copies:* with a row whose `starts_with` names copies, the act
+      sends, in the project's scope, one `MakeRepository` (4.6;
+      `forge/making.rs`) per address in the order given, its org and name
+      the source's, `into { project, home }`, `home` true for the first,
+      each under a key of its own, `welcome-copy-N`, N the address's place.
+      All are sent at once, not waiting for the project's page: the
+      engine's rows queue them. A taken name's project takes them the same
+      way. Home says how they run (*Home,* below).
     - *Any other refusal, or no answer* (unknown past the retention):
       nothing is made; under the act, "Your project was not made: WHY",
       WHY jig's words for its refusal, or "It is not known whether your
       project was made.", and the act is offered again, a new attempt
       under a new key.
 
+    Under the form, while a forge is under way and not ready, "Forgejo is
+    still setting up; this page moves on by itself."; then the foot, "‹
+    Back" to Model and, while the playground is offered, "Try the
+    playground instead", as on Forge and Model. "Set up again" keeps its
+    place, at its natural width.
     On a connected owned Forgejo whose page facts offer sign-in through
     temper (`forge.md`, 5.4), "Open Forgejo ↗" ends the Forge line, with
     the same `ROOT/user/oauth2/temper` address as Forges; no other
-    forge's link is drawn. Ready is
-    done, not current, along the top once its forge and model both
-    are.
+    forge's link is drawn.
 - **With no project yet** (`../draft/first-run-projects.md`, 2 and 4): until the
   playground's start or the welcome's Ready makes one, the
   Chats page's head and list and `NewChat`'s layout give way to the level-1
@@ -1312,7 +1418,21 @@ keeps (`../protocol/configuration.md`, section 2).
        `repositories` names the project), done, "ORG/NAME is in PROJECT",
        "temper can change its code now; checked changes land on main
        through temper's merge queue.", ORG/NAME the project's first
-       adopted (5.3), one line on a laptop; while Ready's adoption is
+       adopted (5.3), one line on a laptop; with the rows' copies all in,
+       done, "acme/widget is in Widget", or "acme/widget, acme/other are in
+       Widget", its line "Chats can change its code now, on your Forgejo;
+       nothing goes back where it was copied from.", or "…their code…
+       where they were copied from."; while a row's `makings` holds a copy
+       into the project, not done, a line per copy in the order asked:
+       "Copying acme/widget from github.com…" for the one running, "Waiting
+       to copy" for one after it, "acme/widget is in Widget", ticked, for
+       one in, and for one failed the forge's words and "Copy again", which
+       asks it once more; an empty one the sheet below asked says "Making
+       ORG/NAME…" in the same way; with the rows' copies not all asked, after a
+       restart between Ready's project and its copies, not done, "Copy
+       ADDRESSES" with "Copy", filled, one act for them all, an address
+       being asked once a making row or the forge's repositories holds its
+       org and name; while Ready's adoption is
        out, not done, with no act, "Adopting ORG/NAME into PROJECT…",
        "Chats can change its code once it is in."; with a first
        repository to adopt, not done, "Adopt a repository", "ORG/NAME,
@@ -1322,12 +1442,29 @@ keeps (`../protocol/configuration.md`, section 2).
        on GitHub, not done, "Adopt a repository", "temper’s App reaches
        its repositories on ACCOUNT.", ACCOUNT the first accepted
        installation's, with "Adopt", filled, to `Adopt { project }`,
-       whose picker is the mock's; otherwise, not done, "Adopt a
+       whose picker is the mock's; with none, on an owned or managed
+       Forgejo connected, not done, "Add a repository", "Your Forgejo has
+       none yet. Until one is in, chats talk and plan but change no code.",
+       with "Make an empty one" and "Copy a public one", small, and the
+       quiet "Adopt another…", to `Adopt { project }`; otherwise, not done, "Adopt a
        repository", "Until one is in, chats talk and plan but change no
        code.", with "Adopt", the same. The adoption being out is the
        session's fact: after a reload it reads as a first repository to
        adopt until the rows say it is in, and a first "Adopt" names
        Ready's key, so that the engine answers the one adoption.
+       *The sheet of "Make an empty one" and "Copy a public one"* is the
+       page's state, not an address: a modal sheet with the look of
+       Forgejo's on the welcome (*Forge,* above), "Add a repository to
+       PROJECT", the muted "Made or copied on your Forgejo, then in this
+       project at once.", the legend "A repository", "An empty repository"
+       with its two fields and "Copies of public repositories" with its
+       addresses, opened at the one pressed; "Cancel", also Escape; and the
+       primary "Add it". Its fields are read and its alerts said as the
+       welcome's are. It sends `MakeRepository` `into { project, home: true
+       }`, the first of several the home, under keys of its own; the step's
+       lines above say the rest, with no toast. It is for this state alone:
+       `../draft/repository-copies.md`, 9's "Add repositories" stays
+       Settings'.
     3. "Start a chat", "Ask a question or ask for a change.", with "New
        chat", to `NewChat`. Done once the project holds a chat
        other than a configuring one, live or ended, as `Chats` reads
@@ -1339,8 +1476,8 @@ keeps (`../protocol/configuration.md`, section 2).
     Refused, or lost, the card comes back with "temper couldn't keep
     that. Try Skip again." under its line; *unknown,* the subject
     answers it, and nothing is said. A skip is never undone, and nothing
-    is lost by it: the first step's act stays on the Chats page, the
-    second's in Settings, the third's in the rail.
+    is lost by it: the first and second steps' acts stay in Settings, the
+    third's in the rail.
   - *Until it is known:* To begin waits for the facts it reads. Until the
     person's dismissals, the `forges` rows, the project's chats and the
     `settings` document are delivered, it is left out, so that a project
@@ -1639,16 +1776,13 @@ keeps (`../protocol/configuration.md`, section 2).
   the scripted model finds the cue there (`../protocol/setup.md`, 8.4), so
   the chat plays the cue's script; the composer's text is left as it
   was.
-- **The first chat** (`../draft/configuring.md`, 5.1): on the chats
-  page of a project that is not the playground's and holds no chat
-  yet, live or ended, under "All", the offer "Tell temper how you
-  work", a button after the chats list. Pressed, it opens `Configure {
-  project }` (below). Home's first step makes the same offer, its
-  "Start" the same act: a step says what the person does, so both keep
-  these words, and what they open is named "Configure temper". "How work
-  runs" makes the same offer (5.13). The chat starts with the person's
-  own words, never with canned ones. Once the project holds a chat, the
-  chats page's offer goes.
+- **The first chat** (`../draft/configuring.md`, 5.1): Home's first step
+  offers "Tell temper how you work", and its "Start" opens `Configure {
+  project }` (below): a step says what the person does, and what it opens
+  is named "Configure temper". Settings keeps its "Configure temper"
+  (*Settings,* below), and "How work runs" makes the same offer (5.13). The
+  chat starts with the person's own words, never with canned ones. The
+  Chats page makes no such offer.
 - **The configuring chat's page** (the mock's
   `chat.html?id=new&configure=1`, in the project's frame):
   `Configure { project }`, at `/projects/<project>/settings/configure`,
@@ -2204,12 +2338,15 @@ for its kind, its user's login and its installations. Its nodes:
   (`../protocol/forge.md`, 2.1 and 2.2); the client finds its number
   on the `forges` watch's rows once the request is answered.
 - **`SetUp`:** of the deployment's scope (section 8): the forge,
-  `Making`, a kept owned Forgejo or a new one; its first repository's org and name (byte strings,
-  bounded as `Adopt`'s owner and name), and no project: the repository
-  is made unadopted (`../protocol/setup.md`, 6.7); and `playground`, a bool,
-  the first repository made as the playground's copy, `playground/widget`
-  with its files, the org and name then `playground` and `widget`
-  (`../protocol/setup.md`, 6.7). Its outcome, `Answer`'s: *setting up*, the box asked
+  `Making`, a kept owned Forgejo or a new one; and `first`, `SetUpFirst`,
+  with no project (`../protocol/setup.md`, 6.7): `empty`, `FirstEmpty`, the
+  org and the name (byte strings, bounded as `Adopt`'s owner and name), made
+  unadopted, and `playground`, a bool, the repository made as the
+  playground's copy, `playground/widget` with its files, the org and name then
+  `playground` and `widget`; `copies`, `CopyAddresses`, at most
+  `FIRST_COPIES` (16) addresses, each at most 512 bytes in the form the
+  client's check gives (`../draft/repository-copies.md`, 5.4), which make no
+  repository at set up; or `nothing`. Its outcome, `Answer`'s: *setting up*, the box asked
   for the forge's group; *set up refused*, with why: not offered (the
   forge's connection does not offer it, or no such forge), not under
   the box, busy (`../protocol/forge.md`, 2.8),
@@ -2428,6 +2565,9 @@ for its kind, its user's login and its installations. Its nodes:
   making; made, with the repository's id (u64);
   or failed, with its step, `CreateStep`: admin, org, repository (its
   bot's access with it) or file (`../protocol/setup.md`, 6.7); its
+  intent, `starts_with`, `StartsWith`: `repository`, that `first` or none
+  known yet; `copies`, `CopyAddresses`, the set up's, kept after they are asked;
+  or `nothing`; its
   installations, `installations`, on GitHub, at most
   `INSTALLATIONS` (64, the configuration's `forges.installations` at
   most it) in id order, empty on Forgejo, each
@@ -2825,8 +2965,8 @@ client removes no account and closes no chat of its own.
   - *a progress,* a list of lines, each with its state in words
     ("done", "under way", "failed", or none for one to come);
   - *a card,* the step's one card, holding the rest.
-  A flow's page builds its main from them; the welcome's own steps are
-  the same list, in its frame (3.5, The welcome).
+  A flow's page builds its main from them; the welcome's steps are its
+  own links, in its frame (3.5, The welcome).
 - **Bindings:** writing a field, choosing a role, toggling home or ci,
   choosing a picker's installation or row, its "Next" and "First page",
   pressing Adopt, each of the forges' page's actions, and going to
@@ -4099,7 +4239,7 @@ On both:
 - **The look:** on a goal, `browser.md`, 2.5, *A goal's look*. On an agent's
   task's page, AGENT_STEER on the composer's note, the mockup's
   `.agent-steer-note`; TASK_AMEND on the editor's region. The taskbar's
-  acts and the composer keep the chat's tokens. `task-pages.css` draws
+  acts and the composer keep the agent's page's tokens (5.9). `task-pages.css` draws
   them (`browser.md`, 2.5).
 
 ### 5.12 Times
@@ -5277,6 +5417,13 @@ own tests:
   Chats."; a command in the composer ("/clear") once the composer takes
   commands. It waits for the look request `configure-chat-draft`, held,
   which draws it. Default: a configuring chat is closed with its "Close".
+- **The draft beside a chat** (3.5; the greenfield mock's `chat.html?id=T4`):
+  a chat writes a draft beside its conversation, its bar adds a mode group
+  and "Start goal…" after the byline, and the Chats page's lede reads "A chat
+  answers a question or changes the code, and can write a draft beside it. A
+  draft becomes a goal for bigger work." It waits for the user's request
+  `ui-chat-draft`. Default: no chat has a draft, and the lede stops at "changes
+  the code."
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings` and `temper ctl
   forge list` says them. Home's line for a copy, the sheet "Add
