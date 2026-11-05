@@ -502,7 +502,7 @@ impl Owner {
         } else {
             self.party_account()
         };
-        providers.insert(1, account).ok().expect("provider fits");
+        providers.insert(1, account).expect("provider fits");
         let crypto = skein_lib::CryptoRng::new(&skein_world::crypto_seed(17), 0).expect("seed");
         self.component = Some(Component::new(
             bytes::copy_of(fixtures::MOVE_APPLICATION),
