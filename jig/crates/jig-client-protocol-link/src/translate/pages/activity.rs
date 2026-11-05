@@ -1,6 +1,6 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
-    Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, piece_problem, text, too_large, w,
+    Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, text, too_large, w,
 };
 
 pub(crate) fn message_proposal_kind_fields(value: &w::MessageProposalKind) -> c::MessageProposalKind {
@@ -225,21 +225,7 @@ pub(crate) fn activity_line_piece(
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
     for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(too_large());
-        }
+        let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::DecodedActivityLine::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = decoded_activity_line_fields(&row, limits)?;
         if rows.push(row).is_err() {
