@@ -1490,7 +1490,7 @@ running and default and `b` the slot in question:
   the slot's parameters into `/run/systemd/nspawn/<container>.nspawn`:
 
   ```
-  # /run/systemd/nspawn/chat-prod.nspawn, written by rhi-prod's activator for slot b (domain/slots.md, 12.1)
+  # /run/systemd/nspawn/chat-prod.nspawn, written by east-prod's activator for slot b (domain/slots.md, 12.1)
   [Exec]
   PrivateUsers=327680
   LinkJournal=try-host
@@ -1542,7 +1542,7 @@ and no one-shot. A change to the container's parameters is never live
 
 - **The unit must be stably active:** two consecutive
   `systemctl is-active` answers of `active`, polled within 30 seconds;
-  `failed` fails at once. This is the bash fleet's `vul-host-control
+  `failed` fails at once. This is the bash fleet's `south-host-control
   switch-container`, its only working trial and fall back.
 - **Then the minimal criterion, read from the host:** the container's
   boot reached its default target with no failed unit but those its

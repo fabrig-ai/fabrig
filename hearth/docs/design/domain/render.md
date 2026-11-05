@@ -1026,7 +1026,7 @@ rebuild
 
 ### 6.3 Printed
 
-A commit changes ion-prod's public endpoint, in `hosts/ion/ion-prod.json`:
+A commit changes west-prod's public endpoint, in `hosts/west/west-prod.json`:
 
 ```
 $ hearth diff main HEAD
@@ -1034,12 +1034,12 @@ carbon-prod                                         rebuild from config
   config   ~ /etc/systemd/network/wg0.netdev        0644 root:root
                @@ -9,5 +9,5 @@ ListenPort=51820
                 [WireGuardPeer]
-                PublicKey=m3NY8…=
+                PublicKey=AAAA…=
                 AllowedIPs=10.0.0.1/32
                -Endpoint=203.0.113.157:51820
                +Endpoint=203.0.113.158:51820
                 PersistentKeepalive=25
-ion-prod                                            nothing to build
+west-prod                                           nothing to build
   exports  ~ vpn.endpoint   "203.0.113.157" → "203.0.113.158"
 
 2 of 11 targets change; 9 are unchanged.
@@ -1047,7 +1047,7 @@ ion-prod                                            nothing to build
 
 - The client prints it as text, or as JSON for agents
   (hearth/docs/design/client/README.md, section 3). The typed diff is the same either way.
-- The coupling is visible: carbon-prod changes because it reads ion-prod's
+- The coupling is visible: carbon-prod changes because it reads west-prod's
   exports, and carbon-lab does not, because exports stay in their
   environment.
 - **Hunks print as git gives them,** three lines of context and each
@@ -1137,11 +1137,11 @@ error
 ### 7.3 Printed
 
 ```
-hosts/ion/ion-prod.json:4:5: ion-prod: vpn: undeclared setting "adress"; vpn declares address, endpoint, hub, port, public_key
+hosts/west/west-prod.json:4:5: west-prod: vpn: undeclared setting "adress"; vpn declares address, endpoint, hub, port, public_key
 tasks/mail/tree/etc/postfix/main.cf.j2:60:42: mail: exports.mail is not in mail's reads
-tasks/hardening/task.json:9:7: rhi-prod: /etc/ssh/sshd_config.d/local.conf is given by hardening and by ssh (tasks/ssh/tree/etc/ssh/sshd_config.d/local.conf.j2)
+tasks/hardening/task.json:9:7: east-prod: /etc/ssh/sshd_config.d/local.conf is given by hardening and by ssh (tasks/ssh/tree/etc/ssh/sshd_config.d/local.conf.j2)
 tasks/boot/task.json:22:7: carbon-lab: boot: requires modules: no initramfs modules for this hardware
-tasks/users/task.json:14:9: rhi-prod: users: the key "ops" is made twice (tasks/users/task.json:9:9)
+tasks/users/task.json:14:9: east-prod: users: the key "ops" is made twice (tasks/users/task.json:9:9)
 ```
 
 - **An undeclared setting lists the declared ones,** so an agent fixes a
@@ -1159,7 +1159,7 @@ tasks/users/task.json:14:9: rhi-prod: users: the key "ops" is made twice (tasks/
   can see in the declarations, render refuses first, at its line:
 
   ```
-  tasks/serial/task.json:12:7: rhi-prod: boot: "rootwait" is reserved: tiny-initramfs would wait for ever for a missing root (domain/machine.md, 6.2)
+  tasks/serial/task.json:12:7: east-prod: boot: "rootwait" is reserved: tiny-initramfs would wait for ever for a missing root (domain/machine.md, 6.2)
   tasks/web/task.json:30:9: mail-prod: web: /etc/ssl/private/mx1.key is a secret's path; declare it under secrets (protocol/format.md, 9.1)
   ```
 - **The errors left out are counted:** the text prints `<n> more errors`
@@ -1362,7 +1362,7 @@ room check that remains, and what it keeps.
   expected errors. The fake git serves a directory; one test in the real
   tier builds a real repository from it and renders through real git.
 - **The repositories:** `fleet` (a miniature of the fleet: x1-prod,
-  rhi-prod, ion-prod, carbon-prod, carbon-lab, chat-prod), `merge`
+  east-prod, west-prod, carbon-prod, carbon-lab, chat-prod), `merge`
   (presence, defaults, removal, maps, lists), `templates` (each
   statement, filter and whitespace rule), `exports` (the VPN, the mail
   pair, two environments), `cluster` (stoa's members), `errors` (one case
