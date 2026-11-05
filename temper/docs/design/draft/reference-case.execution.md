@@ -378,7 +378,7 @@ section 14 it adds.
   pages are rung W's.
 - **After the case:** fabrig's own drafts carried out by temper, on
   fabrig's forge, GitHub, a rung behind (`v0.1.0.md`, 2.2 and section 6).
-  It gets a story of its own once M10 passes.
+  It gets a story of its own once rung C passes.
 
 ## 7. Open questions
 
