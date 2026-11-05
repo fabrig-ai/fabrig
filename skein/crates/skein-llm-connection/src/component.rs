@@ -10,7 +10,7 @@
 use alloc::boxed::Box;
 
 use skein_io::{Event as IoEvent, Request as IoRequest};
-use skein_lib::{Env, Id, Lifecycle, List, Queue, Slab, Token, earliest};
+use skein_lib::{Env, Id, Lifecycle, List, Queue, Slab, Token, earliest, usize_of};
 use skein_llm::{self as llm, Call, Credential, Prompt};
 use skein_tls::client as tls;
 
@@ -435,7 +435,7 @@ impl Component {
                         let bound =
                             self.endpoints.get(waiting.endpoint).expect("admitted endpoint").limits.detail_bytes;
                         let detail = b"timed out waiting for the whole call";
-                        let take = detail.len().min(usize::try_from(bound).expect("u32 fits usize"));
+                        let take = detail.len().min(usize_of(bound));
                         up.push(Event::Failed {
                             call: waiting.call,
                             measures: waiting.deadlines.measures(),

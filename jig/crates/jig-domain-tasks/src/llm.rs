@@ -32,6 +32,12 @@ pub struct ModelEffort {
     pub effort: Option<u8>,
 }
 
+impl ModelEffort {
+    /// The index of a kept choice whose model, or the effort it named, left the catalogue:
+    /// no configured model has it (jig/docs/design/protocol/store.md, 5.1).
+    pub const GONE: u8 = u8::MAX;
+}
+
 /// What an agent task's runs' LLMs are, including its creator's optional account preference
 /// (domain/tasks.md, section 3; domain/accounts.md, section 4.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

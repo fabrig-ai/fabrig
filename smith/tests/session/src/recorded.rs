@@ -45,7 +45,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
             model: b"model".as_slice().into(),
             system: b"instructions".as_slice().into(),
             authority: Authority {
-                cwd: Box::default(),
+                cwd: None,
                 repos: Box::default(),
                 grants: Grants { inspect: false, modify: false, shell: false },
             },

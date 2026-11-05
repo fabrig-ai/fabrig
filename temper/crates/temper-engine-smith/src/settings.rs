@@ -204,8 +204,7 @@ pub fn settings_text(
     Ok(settings_form::settings_text(&value, requested, &limits))
 }
 
-/// A bounded host page. Offsets count original text bytes; JSON escaping is
-/// priced as `read_docs` prices it, with a line cut before a long-line cut.
+/// Render a settings page with the default documentation-sized host allowance.
 #[must_use]
 pub fn settings_answer(
     answer: &SettingsAnswer,
@@ -214,6 +213,41 @@ pub fn settings_answer(
     models: &[engine::Model],
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
 ) -> run::HostAnswer {
+    settings_answer_bounded(answer, from, requested, models, application, crate::DOC_ANSWER)
+}
+
+/// Render settings within the supplied host body allowance, reserving escaped
+/// framing and continuation markers. Offsets count original UTF-8 text bytes.
+#[must_use]
+pub fn settings_answer_bounded(
+    answer: &SettingsAnswer,
+    from: u32,
+    requested: Option<u64>,
+    models: &[engine::Model],
+    application: Option<&temper_engine_domain_forge::settings::SizedValue>,
+    max_bytes: u32,
+) -> run::HostAnswer {
+    let maximum = skein_lib::usize_of(max_bytes).min(run::HostAnswer::CAPACITY);
+    let result =
+        settings_page(answer, from, requested, models, application, u32::try_from(maximum).expect("host bound"));
+    match result {
+        Ok(answer) => answer,
+        Err(message) => run::HostAnswer::new(
+            skein_lib::bytes::copy_of(message.get(..maximum.min(message.len())).expect("bounded refusal")),
+            true,
+        )
+        .expect("host feedback fits"),
+    }
+}
+
+fn settings_page(
+    answer: &SettingsAnswer,
+    from: u32,
+    requested: Option<u64>,
+    models: &[engine::Model],
+    application: Option<&temper_engine_domain_forge::settings::SizedValue>,
+    maximum: u32,
+) -> Result<run::HostAnswer, &'static [u8]> {
     let enriched;
     let answer = if let (SettingsAnswer::Setting(document), Some(value)) = (answer, application) {
         let mut document = document.clone();
@@ -224,7 +258,7 @@ pub fn settings_answer(
         answer
     };
     match settings_text(answer, requested, models) {
-        Ok(text) => match settings_form::page::page(&text, from) {
+        Ok(text) => match settings_form::page::page_bounded(&text, from, maximum) {
             Ok(body) => {
                 let error = match answer {
                     SettingsAnswer::Unknown => true,
@@ -233,14 +267,12 @@ pub fn settings_answer(
                     | SettingsAnswer::Revision(_)
                     | SettingsAnswer::Revisions(_) => false,
                 };
-                run::HostAnswer::new(body, error).expect("settings page bound")
+                Ok(run::HostAnswer::new(body, error).expect("settings page bound"))
             }
-            Err(_) => run::HostAnswer::new(Box::from(b"from: not a UTF-8 text offset".as_slice()), true)
-                .expect("fixed feedback"),
+            Err(settings_form::page::Error::Offset) => Err(b"from: not a UTF-8 text offset"),
+            Err(settings_form::page::Error::TooLarge) => Err(b"settings: host answer limit cannot hold a page"),
         },
-        Err(_) => {
-            run::HostAnswer::new(Box::from(b"settings: document limit".as_slice()), true).expect("fixed feedback")
-        }
+        Err(_) => Err(b"settings: document limit"),
     }
 }
 

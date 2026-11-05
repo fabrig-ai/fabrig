@@ -7,7 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_fake_forge_domain as domain;
-use skein_lib::{Decimal, Duration, Env, ReplyTo, Wall, bytes};
+use skein_lib::{Decimal, Duration, Env, ReplyTo, Wall, bytes, usize_of};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Heads {
     pub expires: Option<Wall>,
@@ -44,7 +44,7 @@ impl core::fmt::Debug for Admission {
 impl Admission {
     pub(crate) fn new(route: Route, bearer: Bearer, request: &Request<'_>, now: Wall, body_bound: u32) -> Self {
         // One excess byte preserves the oversize decision without retaining arbitrary input.
-        let cap = usize::try_from(body_bound).expect("u32 fits").saturating_add(1).min(request.body.len());
+        let cap = usize_of(body_bound).saturating_add(1).min(request.body.len());
         Self {
             route,
             bearer,

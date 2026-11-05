@@ -167,20 +167,7 @@ impl Host for Browser {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-        }
-        while let Some(complete) = self.completions.pop() {
-            io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
-        }
-        for _ in 0..8 {
-            if self.io.is_ready() {
-                io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-            }
-            if self.io.is_due(now) {
-                io::fire(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-            }
-        }
+        io::stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             match event {
                 io::Event::Connecting { socket, .. } => self.socket = Some(socket),

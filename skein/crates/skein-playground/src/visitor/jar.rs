@@ -1,5 +1,5 @@
 //! The visit's bounded, same-origin cookie jar (skein/docs/design/playground.md, 4).
-use skein_lib::Wall;
+use skein_lib::{Wall, usize_of};
 
 struct Cookie {
     name: Box<[u8]>,
@@ -29,11 +29,7 @@ pub(super) struct Jar {
 
 impl Jar {
     pub(super) fn new(count: u32, bytes: u32) -> Self {
-        Self {
-            cookies: Vec::new(),
-            count: usize::try_from(count).expect("cookie count fits"),
-            bytes: usize::try_from(bytes).expect("cookie bytes fit"),
-        }
+        Self { cookies: Vec::new(), count: usize_of(count), bytes: usize_of(bytes) }
     }
 
     fn expire(&mut self, wall: Wall) {

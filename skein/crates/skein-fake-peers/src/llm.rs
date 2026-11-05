@@ -10,7 +10,7 @@ use skein_fake_llm_domain::{self as domain, api};
 use skein_fake_llm_protocol::provider;
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Up};
-use skein_lib::{Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall, len_u64, usize_of};
 use skein_llm::Credential;
 use skein_shell::Host;
 
@@ -88,10 +88,10 @@ impl Peer {
         if !valid(&limits, &protocol_limits) {
             return Err(Error::Limits);
         }
-        if credential.value.len() > usize::try_from(protocol_limits.http.head).expect("u32 fits") {
+        if credential.value.len() > usize_of(protocol_limits.http.head) {
             return Err(Error::Limits);
         }
-        let mut credentials = Vec::with_capacity(usize::try_from(provider::MAX_CREDENTIALS).expect("u32 fits"));
+        let mut credentials = Vec::with_capacity(usize_of(provider::MAX_CREDENTIALS));
         credentials.push(credential);
         let mut face = Face::new(address, limits)?;
         let mut requests = core::mem::replace(&mut face.requests, Queue::uncapped());
@@ -110,9 +110,9 @@ impl Peer {
             domain_limits,
             replies: Queue::uncapped(),
             releases: Queue::with_capacity(domain_limits.calls),
-            connections: Vec::with_capacity(usize::try_from(limits.connections).expect("u32 fits")),
+            connections: Vec::with_capacity(usize_of(limits.connections)),
             next: 1,
-            observations: Vec::with_capacity(usize::try_from(limits.observations).expect("u32 fits")),
+            observations: Vec::with_capacity(usize_of(limits.observations)),
             observed_bytes: 0,
             recording: true,
             ignore_half_close: false,
@@ -129,9 +129,7 @@ impl Peer {
         for accepted in &self.credentials {
             bytes = bytes.checked_add(accepted.value.len()).ok_or(Error::Limits)?;
         }
-        if index == provider::MAX_CREDENTIALS
-            || bytes > usize::try_from(self.protocol_limits.http.head).expect("u32 fits")
-        {
+        if index == provider::MAX_CREDENTIALS || bytes > usize_of(self.protocol_limits.http.head) {
             return Err(Error::Limits);
         }
         self.credentials.push(credential);
@@ -186,7 +184,7 @@ impl Peer {
 
     fn reserve_observation(&self, bytes: u64) {
         assert!(
-            self.observations.len() < usize::try_from(self.face.limits.observations).expect("u32 fits"),
+            self.observations.len() < usize_of(self.face.limits.observations),
             "the world's referee observation count fits its configured cap"
         );
         assert!(
@@ -216,9 +214,7 @@ impl Peer {
             }
             io::Event::Accepted { owner, socket, .. } => {
                 assert_eq!(owner, LISTENER, "one listener accepts");
-                if self.face.stopping
-                    || self.connections.len() == usize::try_from(self.face.limits.connections).expect("u32 fits")
-                {
+                if self.face.stopping || self.connections.len() == usize_of(self.face.limits.connections) {
                     self.face.requests.push(io::Request::Reject { socket });
                     return;
                 }
@@ -495,30 +491,29 @@ pub fn valid(limits: &Limits, peer: &provider::Limits) -> bool {
 }
 
 fn query_bytes(query: &api::Query) -> Option<u64> {
-    let mut bytes = u64::try_from(query.model.len().checked_add(query.system.len())?).ok()?;
+    let mut bytes = len_u64(query.model.len().checked_add(query.system.len())?);
     bytes = bytes
-        .checked_add(u64::try_from(query.messages.len().checked_mul(size_of::<api::Message>())?).ok()?)?
-        .checked_add(u64::try_from(query.tools.len().checked_mul(size_of::<api::ToolSpec>())?).ok()?)?;
+        .checked_add(len_u64(query.messages.len().checked_mul(size_of::<api::Message>())?))?
+        .checked_add(len_u64(query.tools.len().checked_mul(size_of::<api::ToolSpec>())?))?;
     match &query.choice {
         api::ToolChoice::Auto | api::ToolChoice::None => {}
         api::ToolChoice::Only(names) => {
-            bytes = bytes.checked_add(u64::try_from(names.len().checked_mul(size_of::<Box<[u8]>>())?).ok()?)?;
+            bytes = bytes.checked_add(len_u64(names.len().checked_mul(size_of::<Box<[u8]>>())?))?;
             for name in names {
-                bytes = bytes.checked_add(u64::try_from(name.len()).ok()?)?;
+                bytes = bytes.checked_add(len_u64(name.len()))?;
             }
         }
     }
     if let api::Caching::Marks(marks) = &query.caching {
-        bytes = bytes.checked_add(u64::try_from(marks.len().checked_mul(size_of::<api::Mark>())?).ok()?)?;
+        bytes = bytes.checked_add(len_u64(marks.len().checked_mul(size_of::<api::Mark>())?))?;
     }
     for tool in &query.tools {
-        bytes = bytes.checked_add(
-            u64::try_from(tool.name.len().checked_add(tool.description.len())?.checked_add(tool.parameters.len())?)
-                .ok()?,
-        )?;
+        bytes = bytes.checked_add(len_u64(
+            tool.name.len().checked_add(tool.description.len())?.checked_add(tool.parameters.len())?,
+        ))?;
     }
     for message in &query.messages {
-        bytes = bytes.checked_add(u64::try_from(message.parts.len().checked_mul(size_of::<api::Part>())?).ok()?)?;
+        bytes = bytes.checked_add(len_u64(message.parts.len().checked_mul(size_of::<api::Part>())?))?;
         for part in &message.parts {
             let size = match part {
                 api::Part::Text { text } | api::Part::Opaque { bytes: text } => text.len(),
@@ -527,7 +522,7 @@ fn query_bytes(query: &api::Query) -> Option<u64> {
                 }
                 api::Part::ToolOutput { id, output, .. } => id.len().checked_add(output.len())?,
             };
-            bytes = bytes.checked_add(u64::try_from(size).ok()?)?;
+            bytes = bytes.checked_add(len_u64(size))?;
         }
     }
     Some(bytes)

@@ -2,6 +2,7 @@
 use crate::{Condition, Delivery, Echo, Effect, Stored, What, Writer};
 use alloc::boxed::Box;
 use skein_forge::{api::Answer, measure};
+use skein_lib::{len_u64, usize_of};
 
 /// Fixed bytes of a saved delivery or echo stamp.
 pub const STAMP_BYTES: usize = 16;
@@ -27,7 +28,7 @@ pub fn stored(row: &Stored) -> Option<u64> {
         Stored::Repository(_) | Stored::Writer(_) => Some(0),
         Stored::Live(row) => {
             let mut held = match &row.watch.resource.what {
-                What::Branch(branch) => u64::try_from(branch.len()).ok()?,
+                What::Branch(branch) => len_u64(branch.len()),
                 What::Repository | What::Pull(_) | What::Issue(_) => 0,
             };
             for count in [row.comments.len(), row.reviews.len(), row.echoes.len()] {
@@ -49,7 +50,7 @@ pub fn stored(row: &Stored) -> Option<u64> {
 pub fn effect(effect: &Effect) -> Option<u64> {
     let held = measure::write(&effect.write)?;
     match &effect.condition {
-        Condition::Merge { base } => held.checked_add(u64::try_from(base.len()).ok()?),
+        Condition::Merge { base } => held.checked_add(len_u64(base.len())),
         Condition::None | Condition::Update { .. } | Condition::Review { .. } => Some(held),
     }
 }
@@ -57,7 +58,7 @@ pub fn effect(effect: &Effect) -> Option<u64> {
 /// Check every answer list, including nested lists, independently of bytes.
 #[must_use]
 pub fn answer_rows(value: &Answer, rows: u32) -> bool {
-    let rows = usize::try_from(rows).expect("row limit fits");
+    let rows = usize_of(rows);
     match value {
         Answer::Commits { commits, .. } => {
             if commits.len() > rows { return false; }

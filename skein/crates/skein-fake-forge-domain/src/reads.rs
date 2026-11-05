@@ -26,7 +26,7 @@
 use alloc::boxed::Box;
 
 use skein_lib::bytes::copy_of;
-use skein_lib::{Id, List, Time};
+use skein_lib::{Id, List, Time, len_u64};
 
 use crate::api::{Answer, Error, File, Kind, Order, Read, State, Summary, What};
 use crate::domain::{self, Config, Domain};
@@ -49,7 +49,7 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
                 Some(artifact) => Box::from([crate::api::ArtifactInfo {
                     id: *run,
                     name: artifact.name.clone(),
-                    size_in_bytes: u64::try_from(artifact.bytes.len()).expect("bounded report"),
+                    size_in_bytes: len_u64(artifact.bytes.len()),
                 }]),
                 None => Box::new([]),
             };

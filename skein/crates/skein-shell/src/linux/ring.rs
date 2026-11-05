@@ -64,7 +64,7 @@ use std::mem::{self, size_of};
 
 use io_uring::{EnterFlags, IoUring, Probe, opcode, squeue, types};
 use skein_io::kernel::{Complete, Done, Error, Family, Fd, Op, OpenHow, Submit};
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, Token, usize_of};
 
 use super::opens::{Fields, fields};
 use super::process::{signal_child, spawn};
@@ -602,13 +602,13 @@ fn prepare(
             opcode::Read::new(types::Fd(fd.raw()), buf.as_mut_ptr(), len).offset(u64::MAX).build()
         }
         Op::Send { fd, bytes, from } => {
-            let from = usize::try_from(*from).expect("a u32 fits in a usize");
+            let from = usize_of(*from);
             let left = bytes.get(from..).expect("a valid Send has bytes left from its offset");
             let len = u32::try_from(left.len()).expect("a valid Send's length is a count");
             opcode::Send::new(types::Fd(fd.raw()), left.as_ptr(), len).flags(libc::MSG_NOSIGNAL).build()
         }
         Op::PipeWrite { fd, bytes, from } => {
-            let start = usize::try_from(*from).expect("a u32 fits in a usize");
+            let start = usize_of(*from);
             let left = bytes.get(start..).expect("a valid pipe write has bytes left");
             let len = u32::try_from(left.len()).expect("a valid pipe write's length is a count");
             opcode::Write::new(types::Fd(fd.raw()), left.as_ptr(), len).offset(u64::MAX).build()
@@ -625,13 +625,13 @@ fn prepare(
             opcode::Read::new(types::Fd(fd.raw()), buf.as_mut_ptr(), len).offset(*at).build()
         }
         Op::Write { fd, bytes, from, at } => {
-            let from = usize::try_from(*from).expect("a u32 fits in a usize");
+            let from = usize_of(*from);
             let left = bytes.get(from..).expect("a valid Write has bytes left from its offset");
             let len = u32::try_from(left.len()).expect("a valid Write's length is a count");
             opcode::Write::new(types::Fd(fd.raw()), left.as_ptr(), len).offset(*at).build()
         }
         Op::Append { fd, bytes, from } => {
-            let from = usize::try_from(*from).expect("a u32 fits in a usize");
+            let from = usize_of(*from);
             let left = bytes.get(from..).expect("a valid Append has bytes left");
             let len = u32::try_from(left.len()).expect("a valid Append counts bytes");
             opcode::Write::new(types::Fd(fd.raw()), left.as_ptr(), len).offset(u64::MAX).build()
@@ -789,7 +789,7 @@ fn split(user_data: u64) -> (u32, u32) {
 }
 
 fn slot_index(index: u32) -> usize {
-    usize::try_from(index).expect("a u32 fits in a usize")
+    usize_of(index)
 }
 
 // The synchronous calls: what is not a ring operation, done when the record

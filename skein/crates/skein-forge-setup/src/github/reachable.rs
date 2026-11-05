@@ -13,7 +13,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
 use skein_forge::github::{document, request};
-use skein_lib::{Decimal, List, Queue};
+use skein_lib::{Decimal, List, Queue, usize_of};
 
 #[derive(Debug)]
 enum State {
@@ -156,7 +156,7 @@ impl Reachable {
     }
 
     fn rows(&mut self, rows: Box<[document::Row]>) -> Result<Need, Why> {
-        let limit = usize::try_from(self.limit).expect("u32 fits");
+        let limit = usize_of(self.limit);
         if rows.len() > limit {
             return Err(Why::Unexpected);
         }

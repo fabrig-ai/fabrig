@@ -6,12 +6,12 @@ use crate::{
     store::Repository,
 };
 use alloc::boxed::Box;
-use skein_lib::{List, bytes::copy_of};
+use skein_lib::{List, bytes::copy_of, usize_of};
 
 type Ids = Box<[Box<[u8]>]>;
 
 pub(crate) fn normalize(values: &[Box<[u8]>], limits: &Limits) -> Result<Box<[Box<[u8]>]>, Error> {
-    if values.len() > usize::try_from(limits.content_bytes).expect("id count fits") {
+    if values.len() > usize_of(limits.content_bytes) {
         return Err(Error::TooLarge);
     }
     let mut bytes = 0u32;
@@ -40,7 +40,7 @@ pub(crate) fn normalize(values: &[Box<[u8]>], limits: &Limits) -> Result<Box<[Bo
 }
 
 pub(crate) fn lines(text: &[u8], limits: &Limits) -> Result<Box<[Box<[u8]>]>, Error> {
-    if text.len() > usize::try_from(limits.content_bytes).expect("content bound fits") {
+    if text.len() > usize_of(limits.content_bytes) {
         return Err(Error::TooLarge);
     }
     let mut values = List::with_capacity(u32::try_from(text.len()).or(Err(Error::TooLarge))?);

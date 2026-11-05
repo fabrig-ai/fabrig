@@ -76,7 +76,10 @@ scripted upstreams rather than temper's service
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
-managed (`protocol/setup.md`); a kept GitHub forge whose base ends
+managed (`protocol/setup.md`); `temper forge sign-in` prints an owned
+Forgejo's command without its binary and paths
+(`protocol/setup.md`), and a held task names no run's failure, which
+is the user's to decide (`domain/worker.md`); a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off

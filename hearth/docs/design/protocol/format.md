@@ -2384,3 +2384,9 @@ hearth/docs/design/domain/artifacts.md (7.3) cite it.
   or its `ConfigurationDirectory=` could name its consumers without a
   `live` entry (5.14); it depends on how many entries the fleet's tasks
   need once written.
+- **The example fleet's SSH port and zone:** whether `10127` (3.7, 5.10)
+  and `Europe/Lisbon` (3.7, 5.3, 5.10; hearth/docs/design/domain/build.md, 14;
+  hearth/docs/design/domain/render.md, 9.2;
+  hearth/docs/design/draft/brainstorm.md, 6.2) stay, or give way to plainer
+  values as the examples' hosts and providers did. No step code holds
+  either, only the fixtures and goldens; it is the user's to decide.

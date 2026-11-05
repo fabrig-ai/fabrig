@@ -6,7 +6,7 @@ use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_forge_http::git::{self, Call, Name};
 use skein_http::{Method, server as http};
 use skein_json::tokenizer as json;
-use skein_lib::{Env, Queue, ReplyTo, bytes, stream::Down};
+use skein_lib::{Env, Queue, ReplyTo, bytes, stream::Down, usize_of};
 
 pub(super) fn entrance(
     server: &mut Server,
@@ -80,7 +80,7 @@ pub(super) fn decoded(
 ) {
     match &call {
         Call::Objects { commits } => {
-            if commits.len() > usize::try_from(service.config.max_response_items).expect("u32 fits") {
+            if commits.len() > usize_of(service.config.max_response_items) {
                 fail(server, &env.limits, 422);
                 return;
             }

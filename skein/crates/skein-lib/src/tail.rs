@@ -70,7 +70,7 @@ impl Tail {
     /// A copy of the retained bytes in arrival order, at exactly their length.
     #[must_use]
     pub fn to_boxed(&self) -> Box<[u8]> {
-        let mut output = Writer::new(usize::try_from(self.len()).expect("u32 fits usize"));
+        let mut output = Writer::new(crate::usize_of(self.len()));
         for index in 0..self.len() {
             output.put(&[*self.get(index).expect("retained index")]).expect("sized tail");
         }
@@ -81,7 +81,7 @@ impl Tail {
     #[must_use]
     pub fn into_boxed(self) -> Box<[u8]> {
         let mut bytes = self.bytes.into_boxed();
-        bytes.rotate_left(usize::try_from(self.next).expect("bounded position"));
+        bytes.rotate_left(crate::usize_of(self.next));
         bytes
     }
 
@@ -118,21 +118,18 @@ mod tests {
             for split in 0..=input.len() {
                 let mut tail = Tail::with_capacity(capacity);
                 tail.put(&input[..split]);
-                let prefix_start = split.saturating_sub(usize::try_from(capacity).expect("small capacity"));
+                let prefix_start = split.saturating_sub(crate::usize_of(capacity));
                 assert_eq!(tail.to_boxed().as_ref(), &input[prefix_start..split]);
                 tail.put(&[]);
                 tail.put(&input[split..]);
-                let start = input.len().saturating_sub(usize::try_from(capacity).expect("small capacity"));
+                let start = input.len().saturating_sub(crate::usize_of(capacity));
                 assert_eq!(tail.to_boxed().as_ref(), &input[start..]);
                 assert_eq!(tail.get(tail.len()), None);
                 assert_eq!(tail.capacity(), capacity);
                 tail.clear();
                 assert!(tail.is_empty());
                 tail.put(b"xy");
-                assert_eq!(
-                    tail.to_boxed().as_ref(),
-                    &b"xy"[2_usize.saturating_sub(usize::try_from(capacity).expect("small capacity"))..]
-                );
+                assert_eq!(tail.to_boxed().as_ref(), &b"xy"[2_usize.saturating_sub(crate::usize_of(capacity))..]);
             }
         }
     }

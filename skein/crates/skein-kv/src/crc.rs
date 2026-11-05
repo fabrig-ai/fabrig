@@ -29,7 +29,7 @@ const TABLE: [u32; 256] = table();
 pub(crate) fn crc32c(bytes: &[u8]) -> u32 {
     let mut value = !0_u32;
     for &byte in bytes {
-        let index = usize::try_from((value ^ u32::from(byte)) & 0xff).expect("a byte fits usize");
+        let index = skein_lib::usize_of((value ^ u32::from(byte)) & 0xff);
         value = (value >> 8_u32) ^ TABLE.get(index).copied().expect("CRC table has 256 entries");
     }
     !value

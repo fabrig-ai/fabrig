@@ -1,7 +1,7 @@
 //! Bounded schema tables and layout checks (codec.md, section 7).
 
 use alloc::boxed::Box;
-use skein_lib::{List, Map, bytes};
+use skein_lib::{List, Map, bytes, usize_of};
 
 mod fingerprint;
 mod grammar;
@@ -383,7 +383,7 @@ impl Schema {
 
 /// Copies, parses and checks one version of a codec family.
 pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
-    if text.len() > usize::try_from(MAX_TEXT).expect("text ceiling fits usize") {
+    if text.len() > usize_of(MAX_TEXT) {
         return Err(SchemaError { line: 1, at: Span { start: 0, end: 0 }, wrong: Wrong::Long });
     }
     let (count, final_line) = tokens::scan(text, None)?;
@@ -418,8 +418,8 @@ pub(crate) fn schema_bound(text: u32) -> Option<u64> {
 }
 
 fn spelled(text: &[u8], span: Span) -> &[u8] {
-    let start = usize::try_from(span.start).expect("text offset fits usize");
-    let end = usize::try_from(span.end).expect("text offset fits usize");
+    let start = usize_of(span.start);
+    let end = usize_of(span.end);
     text.get(start..end).expect("span belongs to the schema text")
 }
 

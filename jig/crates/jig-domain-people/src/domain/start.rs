@@ -2,7 +2,7 @@
 mod fit;
 use super::{Answered, Domain, SignIn, Start, answer_expiry, deadline};
 use crate::{
-    Key, LimitKind, Limits, Outcome, Refusal, Request, RestoreBound, RestoreFailure, RestoreProjection, Stored,
+    Key, LimitKind, Limits, OutcomeFamily, Refusal, Request, RestoreBound, RestoreFailure, RestoreProjection, Stored,
 };
 use skein_lib::{Env, Queue, Time, Wall};
 
@@ -73,56 +73,20 @@ impl Domain {
         for (key, answer) in &self.answers {
             let source = Key::Answer(*key);
             link(self, source, key.person);
-            match &answer.outcome {
-                Outcome::ServiceMade { person } => link(self, source, *person),
-                Outcome::RolesSet { project } => {
-                    assert!(self.roles.contains_key(project), "{source:?} links missing roster {project}");
+            match answer.outcome.family() {
+                OutcomeFamily::ServiceMade(person) => link(self, source, person),
+                OutcomeFamily::RolesSet(project) => {
+                    assert!(self.roles.contains_key(&project), "{source:?} links missing roster {project}");
                     // Only successful roster asks retain their members as required references.
                     link_roster(self, source, &answer.ask);
                 }
-                Outcome::Restored { .. }
-                | Outcome::Again(_)
-                | Outcome::SignedOut
-                | Outcome::Compound { .. }
-                | Outcome::CompoundRefused { .. }
-                | Outcome::MarkedSeen { .. }
-                | Outcome::Applied { .. }
-                | Outcome::NoteEdited { .. }
-                | Outcome::Adopted { .. }
-                | Outcome::PolicyChanged { .. }
-                | Outcome::Renamed { .. }
-                | Outcome::ProjectMade { .. }
-                | Outcome::ProjectRemoved { .. }
-                | Outcome::VisibilitySet { .. }
-                | Outcome::SettingsChanged { .. }
-                | Outcome::MovedToNewest { .. }
-                | Outcome::PoolSet { .. }
-                | Outcome::Said { .. }
-                | Outcome::QuestionAnswered { .. }
-                | Outcome::Amended { .. }
-                | Outcome::Moved { .. }
-                | Outcome::PersonTaken { .. }
-                | Outcome::PersonHandedBack { .. }
-                | Outcome::PersonAnswered { .. }
-                | Outcome::Stopped { .. }
-                | Outcome::Cancelled { .. }
-                | Outcome::Lifted { .. }
-                | Outcome::Released { .. }
-                | Outcome::Created { .. }
-                | Outcome::Proposed { .. }
-                | Outcome::Withdrawn { .. }
-                | Outcome::EscalationDecided { .. }
-                | Outcome::ProposalDecided { .. }
-                | Outcome::AccountSignInStarted { .. }
-                | Outcome::AccountProgramDeclared { .. }
-                | Outcome::AccountKeyKept { .. }
-                | Outcome::AccountMovingOut { .. }
-                | Outcome::AccountFinishing { .. }
-                | Outcome::AccountMovedIn { .. }
-                | Outcome::AccountChanged
-                | Outcome::AccountRemoved { .. }
-                | Outcome::AccountSignedOut { .. }
-                | Outcome::Refused(_) => {}
+                OutcomeFamily::Again(_)
+                | OutcomeFamily::SignedOut
+                | OutcomeFamily::Compound
+                | OutcomeFamily::Refused
+                | OutcomeFamily::CompoundRefused
+                | OutcomeFamily::ProjectMade(_)
+                | OutcomeFamily::Settled => {}
             }
         }
         for (party, _) in &self.results_seen {
@@ -264,46 +228,10 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
 }
 
 fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
-    match ask {
-        crate::Ask::SetRoles { holdings, .. } => {
-            for holding in holdings {
-                link(domain, source, holding.person);
-            }
+    if let Some((_, holdings)) = ask.roster() {
+        for holding in holdings {
+            link(domain, source, holding.person);
         }
-        crate::Ask::Restore { .. }
-        | crate::Ask::Compound { .. }
-        | crate::Ask::MarkSeen { .. }
-        | crate::Ask::Application { .. }
-        | crate::Ask::EditNote { .. }
-        | crate::Ask::MakeService { .. }
-        | crate::Ask::Adopt { .. }
-        | crate::Ask::ChangePolicy { .. }
-        | crate::Ask::RemoveProject { .. }
-        | crate::Ask::SetVisibility { .. }
-        | crate::Ask::Rename { .. }
-        | crate::Ask::MakeProject { .. }
-        | crate::Ask::ChangeSettings { .. }
-        | crate::Ask::MoveToNewest { .. }
-        | crate::Ask::SetPool { .. }
-        | crate::Ask::DecideEscalation { .. }
-        | crate::Ask::DecideProposal { .. }
-        | crate::Ask::Say { .. }
-        | crate::Ask::AnswerQuestion { .. }
-        | crate::Ask::Amend { .. }
-        | crate::Ask::Move { .. }
-        | crate::Ask::TakePerson { .. }
-        | crate::Ask::HandBackPerson { .. }
-        | crate::Ask::AnswerPerson { .. }
-        | crate::Ask::Stop { .. }
-        | crate::Ask::Cancel { .. }
-        | crate::Ask::Lift { .. }
-        | crate::Ask::Release { .. }
-        | crate::Ask::Create { .. }
-        | crate::Ask::Propose { .. }
-        | crate::Ask::Withdraw { .. }
-        | crate::Ask::AccountSignIn { .. }
-        | crate::Ask::AccountSignOut { .. }
-        | crate::Ask::AccountChange { .. } => {}
     }
 }
 

@@ -27,6 +27,7 @@ FORMS = {
     ),
     'hex_decimal_fn': re.compile(r'\bfn\s+(?:hex|decimal)\b'),
     'host_forwarder': re.compile(r'\bimpl\s+(?:\w+::)*Host\s+for\s+Process\b'),
+    'widening': re.compile(r'usize::try_from\(.*\)\.expect\(|u64::try_from\([^)]*\.len\(\)\)'),
 }
 # Text without spaces that every match of a form holds, which stripping
 # comments never makes: a file holding none of a form's markers is not
@@ -43,11 +44,14 @@ MARKERS = {
     'pop_loop': ('.pop',),
     'hex_decimal_fn': ('hex', 'decimal'),
     'host_forwarder': ('Process',),
+    'widening': ('try_from',),
 }
 # The forms that match one identifier, searched among the words holding one
 # of their markers: over the whole source they would backtrack through every
 # unrelated word in the tree.
 WORDS = ('max_out', 'JournalRoom', 'worst_case')
+# A `u32` widens with `usize_of` and a native length with `len_u64` (lib.md, 6): step code, not tests.
+INCLUDE = {'widening': re.compile(r'^(crates|examples)/(?!.*(/tests/|/tests\.rs$|_tests\.rs$))')}
 # Path prefixes, relative to skein/, whose files a form does not count: the
 # crate that owns the shared item.
 EXCLUDE = {
@@ -55,6 +59,7 @@ EXCLUDE = {
     'earliest_helper': ('crates/skein-lib/',),
     'lifecycle_enum': ('crates/skein-lib/',),
     'hex_decimal_fn': ('crates/skein-lib/',),
+    'widening': ('crates/skein-lib/src/length.rs',),
 }
 EXEMPT = {
     'worst_case': (

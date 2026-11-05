@@ -16,6 +16,15 @@
   playground's stories, in and out and a reset the box's death cut, and
   GitHub gone on after a restart, as `../protocol/setup.status.md` records
   them.
+  2.6: Forgejo signing in through temper: the story's connect gives no
+  `--web`, its `redirect_uri` being at `git`, where `temper help server`'s
+  gives one, and no test takes a connect's `--web` through to the page's
+  meta: a `web` apart from `git` is shown on a kept record alone
+  (`temper-service/src/tests/forge_sign_in.rs`). The bullet's figures are
+  those from before its bundle and its connect; whether they still hold
+  is unknown. No test reaches a host's units, a proxy or a
+  redeploy, as the user's request of 2026-11-05 says, and its plan ran no
+  walk, so the page's steps on a host stand on these stories alone.
   2.7: the ladder's live stories but B0's: `scripts/proof-live.sh` takes
   `rung-b0` alone, on ChatGPT with an owned Forgejo, and
   `crates/temper/tests/live.rs` holds no other rung.
@@ -47,11 +56,7 @@
   and that red closed recovered. Nothing offline runs its lines in
   `crates/temper/tests/live.rs`, and whether a live store's box, with its
   owned Forgejo, answers the guard within its 240 s is unknown.
-  2.8: the one story has not run green
-  on macOS yet: no recorded run has passed the box's check of its held
-  listeners (`skein/docs/design/shell.md`, 6.6), and that the bottles'
-  first lines name the pins stands unproved. No builder runs macOS, and
-  the workflow's runs show them. 4.3: the shell subset;
+  4.3: the shell subset;
   skein's fake machine runs no `sh` and no `rg`. 6.4: of
   temper's kinds' stories, the forge's world's (`forge.md`'s status,
   18); the domain world's project's rule refused to another project's
