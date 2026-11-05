@@ -201,9 +201,10 @@ pub(crate) fn exchange(
     auth: Option<&str>,
     cap: usize,
     process: Option<u32>,
+    patience: skein_lib::Duration,
 ) -> Result<Exchange, Attempt> {
     let mut exchange = ExchangeHost::new(port, outgoing, auth, cap);
-    host::exchange(port, &mut exchange, process)?;
+    host::exchange(port, &mut exchange, process, patience)?;
     exchange.result().map_err(Attempt::Failed)
 }
 #[cfg(test)]

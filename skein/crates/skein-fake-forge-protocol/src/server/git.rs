@@ -126,6 +126,12 @@ pub(super) fn decoded(
             return;
         }
     };
+    for source in &service.config.sources {
+        if source.repository == repository {
+            error_reply(server, env, api::Error::Missing(api::What::Repository));
+            return;
+        }
+    }
     let Ok(id) = service.calls.insert(service::Call { server: server.owner, active: true }) else {
         fail(server, &env.limits, 503);
         return;
@@ -176,7 +182,8 @@ pub(super) fn down(
         Ok(api::Answer::Pushed(pushed)) => Ok(git::Answer::Pushed(pushed)),
         Err(error) => Err(error),
         Ok(
-            api::Answer::Located { .. }
+            api::Answer::Copied { .. }
+            | api::Answer::Located { .. }
             | api::Answer::Items { .. }
             | api::Answer::Item { .. }
             | api::Answer::Pull(_)

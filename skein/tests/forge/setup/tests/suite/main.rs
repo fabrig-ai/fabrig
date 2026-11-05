@@ -3,6 +3,7 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 mod access;
 mod check;
+mod copy;
 mod create;
 mod github;
 mod github_convert;

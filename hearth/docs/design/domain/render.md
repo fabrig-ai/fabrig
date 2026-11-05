@@ -1475,3 +1475,10 @@ Over generated repositories, valid by construction and then mutated:
 - **Fetching a single commit** rather than a branch, which needs the
   forge to allow fetching an object by id; it depends on the forges the
   fleet uses.
+- **Where a resolution's closure is made:** 8.2's `Resolved` carries the
+  closure, while 5.3 has the domain match `Inst` triples to `Packages`
+  stanzas; one of the two is to change.
+- **The worst case of 8.4:** its layer peak formulas and builder-wide
+  sum stand against `skein/docs/foundation/programming-model.md`, 6.3's
+  edge bounds and measured ceilings; it changes with
+  hearth/docs/design/domain/testing.md, section 11's newer model.

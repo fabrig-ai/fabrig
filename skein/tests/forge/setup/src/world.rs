@@ -21,6 +21,7 @@ pub struct World {
     service: Service,
     env: Env<skein_fake_forge_protocol::Limits>,
     files: Vec<(Item, Secret)>,
+    copying: Option<Secret>,
     repositories: Vec<skein_fake_forge_protocol::Repository>,
     rng: Rng,
     trace: Vec<String>,
@@ -63,6 +64,7 @@ impl World {
             service,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             files: vec![(Item::AdminToken, fixtures::secret(fixtures::ADMIN))],
+            copying: None,
             rng: Rng::new(seed),
             trace: Vec::new(),
             requests: Vec::new(),
@@ -116,9 +118,17 @@ impl World {
     }
     #[must_use]
     pub fn file(&self, file: Item) -> Option<&Secret> {
-        self.files.iter().find(|(f, _)| *f == file).map(|(_, value)| value)
+        if file == Item::Copying {
+            self.copying.as_ref()
+        } else {
+            self.files.iter().find(|(f, _)| *f == file).map(|(_, value)| value)
+        }
     }
     pub fn put(&mut self, file: Item, bytes: Secret) {
+        if file == Item::Copying {
+            self.copying = Some(bytes);
+            return;
+        }
         if matches!(file, Item::AdminToken | Item::ApiToken | Item::GitToken | Item::WebhookSecret) {
             self.secrets.push(bytes.clone());
         }
@@ -129,6 +139,9 @@ impl World {
         }
     }
     pub fn forget(&mut self, item: Item) {
+        if item == Item::Copying {
+            self.copying = None;
+        }
         self.files.retain(|(file, _)| *file != item);
     }
     #[must_use]

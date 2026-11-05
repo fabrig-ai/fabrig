@@ -12,11 +12,13 @@ pub struct Limits {
     pub files: u32,
     /// Bytes in each creation file.
     pub file_bytes: u32,
-    pub deadline: Duration,    // Whole reconcile run.
+    pub deadline: Duration, // Whole reconcile run.
+    /// Whole copy run (forge-setup.md, 4.10).
+    pub copy_deadline: Duration,
     pub backoff: Duration,     // First retry delay.
     pub backoff_max: Duration, // Largest retry delay.
 }
-/// Checks both relationships, naming the offending pair.
+/// Checks the positive limits and timing relationships, naming the offending pair.
 pub fn check(limits: &Limits) -> Result<(), Refused> {
     for (zero, place) in [
         (limits.orgs == 0, Place::OrgsLimit),
@@ -25,6 +27,7 @@ pub fn check(limits: &Limits) -> Result<(), Refused> {
         (limits.files == 0, Place::FilesLimit),
         (limits.file_bytes == 0, Place::FileBytesLimit),
         (limits.deadline == Duration::ZERO, Place::Deadline),
+        (limits.copy_deadline == Duration::ZERO, Place::CopyDeadline),
         (limits.backoff == Duration::ZERO, Place::Backoff),
         (limits.backoff_max == Duration::ZERO, Place::BackoffMax),
     ] {
@@ -37,6 +40,9 @@ pub fn check(limits: &Limits) -> Result<(), Refused> {
     }
     if limits.backoff_max >= limits.deadline {
         return Err(Refused { place: Place::BackoffMax, other: Some(Place::Deadline) });
+    }
+    if limits.deadline > limits.copy_deadline {
+        return Err(Refused { place: Place::Deadline, other: Some(Place::CopyDeadline) });
     }
     Ok(())
 }

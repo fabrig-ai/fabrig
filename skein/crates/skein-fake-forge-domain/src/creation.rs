@@ -1,4 +1,7 @@
 //! Repository and contents creation in the shared git store (fake-forge.md, 4).
+#[path = "copy.rs"]
+pub(crate) mod copy;
+
 use crate::{
     Config, Domain, Signature,
     api::{Checks, Error, What},

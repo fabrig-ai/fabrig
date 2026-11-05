@@ -166,6 +166,8 @@ fn each_act_parses_into_its_call_and_prints_back() {
     }
 }
 const KEY_REQUIRED: &[&[&str]] = &[
+    &["repository", "make", "--project", "shop", "team/widget"],
+    &["repository", "copy", "--project", "shop", "source.invalid/team/widget"],
     &["chat", "start", "hello", "--project", "shop"],
     &["task", "message", "41", "hello"],
     &["chat", "close", "41"],

@@ -22,7 +22,7 @@ import threading
 import time
 from urllib.parse import urlencode, urlsplit
 
-OWNER = 'freeekanayaka'
+OWNER = 'fabrig-ai'
 NAME = 'temper-probe-2'
 REPOSITORY = OWNER + '/' + NAME
 BASE = '/repos/' + REPOSITORY
@@ -216,11 +216,12 @@ def app_records(directory):
 
 
 class Sitting:
-    def __init__(self, mode, port, scratch, evidence):
+    def __init__(self, mode, port, scratch, evidence, person):
         # Fail before starting a peer or creating an App if signing support is absent.
         from cryptography.hazmat.primitives.serialization import load_der_private_key
         require(callable(load_der_private_key))
         require(mode in ('fake', 'fake-wide', 'live'))
+        self.person = person
         self.wide = mode == 'fake-wide'
         self.mode = 'fake' if self.wide else mode
         self.wait_secs = int(os.environ.get('TEMPER_SITTING_WAIT_SECS', '0')) if self.mode == 'fake' else 0
@@ -350,7 +351,8 @@ class Sitting:
                                      {'owner': OWNER, 'name': 'temper-probe', 'landing': 'main',
                                       'ci': None, 'id': 2}],
                     'github': {'app': {'id': 4242, 'slug': 'temper-test', 'bot': 4243, 'key': 0},
-                               'accounts': [{'login': OWNER, 'id': 10, 'kind': 'user', 'installation': None},
+                               'accounts': [{'login': self.person, 'id': 10, 'kind': 'user', 'installation': None},
+                                            {'login': OWNER, 'id': 30, 'kind': 'organization', 'installation': None},
                                             {'login': 'managed-other', 'id': 20, 'kind': 'user',
                                              'installation': {'id': 1, 'repositories': 'all'}}],
                                'token_life_seconds': 3600}}
@@ -667,7 +669,7 @@ class Sitting:
         relay = self.start([self.harness, '--ignored', '--exact', 'managed_relay', '--nocapture'], 'relay',
                            {'TEMPER_MANAGED_MODE': self.mode, 'TEMPER_MANAGED_SCRATCH': str(self.scratch),
                             'TEMPER_MANAGED_UPSTREAM': upstream, 'TEMPER_MANAGED_PREFIX': self.prefix,
-                            'TEMPER_MANAGED_EVIDENCE': str(self.evidence)})
+                            'TEMPER_MANAGED_EVIDENCE': str(self.evidence), 'TEMPER_MANAGED_PERSON': self.person})
         self.relay = relay
         until = time.monotonic() + 30
         ready = self.scratch/'relay-ready.json'
@@ -684,7 +686,7 @@ class Sitting:
         else:
             self.mark('ssh -L ' + str(self.port) + ':127.0.0.1:' + str(self.port) + ' hetzner')
             self.mark('one-time sign-in: ' + link)
-            self.mark('Connect GitHub; create the App; install on freeekanayaka/temper-probe-2 alone; in Ready choose Start here')
+            self.mark('Connect GitHub as ' + self.person + '; create the App; install on ' + REPOSITORY + ' alone; in Ready choose Start here')
         self.step = 'waiting for the exact installation'
         try:
             self.wait_ready()
@@ -694,7 +696,7 @@ class Sitting:
             self.check_wide_refusal()
             return
         require(not self.wide)  # A wide installation must never reach adoption or writes.
-        self.mark('installation reaches exactly freeekanayaka/temper-probe-2')
+        self.mark('installation reaches exactly ' + REPOSITORY)
         if self.mode == 'fake':
             self.ready_client(link, 'adopt')
         # Owner confirms the UI has reached the adopted card; a blank line has no authority value.

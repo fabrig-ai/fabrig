@@ -1640,9 +1640,6 @@ VM tier its one real machine relies on.
 - **The conformance tier's budget and its runs** (5.5, 9.2):
   whether it takes a budget and a place after landing
   depends on the user, and on a runner holding its prerequisites (6.4).
-- **The fail-stop check:** whether the gate takes
-  `hearth/scripts/fail_stop.py` over the workspace depends on two of
-  temper's binaries, `temper-stage-one` and `playground-serve`.
 - **The newer model:** `worst_case` and `MAX_OUT` stay in hearth as
   allowed old forms, which may only fall
   (`skein/docs/foundation/programming-model.md`, 6.3). Moving to the

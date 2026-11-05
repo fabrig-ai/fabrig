@@ -136,6 +136,10 @@ pub(crate) fn notify(domain: &mut Domain, env: &Env<Config>, repository: Id<Repo
 pub(crate) fn deliver(domain: &mut Domain, id: Id<Delivery>, out: &mut Queue<Request>) {
     let delivery = domain.deliveries.get(id).expect("a delivery lives until its timer fires");
     let repository = domain.repositories.get(delivery.repository).expect("a repository of the forge");
+    if repository.gone {
+        domain.deliveries.retire(id);
+        return;
+    }
     let Hook { queue, change, number, branch, commit, by, body, ended } = &delivery.hook;
     let hook = Request::Hook {
         queue: *queue,
