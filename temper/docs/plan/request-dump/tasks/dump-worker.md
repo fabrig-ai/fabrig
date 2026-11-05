@@ -32,7 +32,7 @@ Acceptance:
 
 - `temper/docs/plan/request-dump/notes/contracts.md`, its `temper` section and the `smith_agent_shell` signatures.
 - `temper/docs/plan/request-dump/notes/common.md`.
-- `temper/docs/design/draft/dogfood-hacks.md`, 2.10; `temper/docs/design/domain/worker.status.md`, the `TEMPER_DUMP_LLM` lines under **Departs**; `temper/docs/design/domain/worker.md`, 6.
+- `temper/docs/design/draft/dogfood-hacks.md`, 2.13; `temper/docs/design/domain/worker.status.md`, the `TEMPER_DUMP_LLM` lines under **Departs**; `temper/docs/design/domain/worker.md`, 6.
 
 ## Owns and may change
 
@@ -55,7 +55,7 @@ Acceptance:
 1. In `lib.rs`:
 
    ```rust
-   /// Where a worker's agents keep each model request (docs/design/draft/dogfood-hacks.md, 2.10).
+   /// Where a worker's agents keep each model request (docs/design/draft/dogfood-hacks.md, 2.13).
    pub(crate) fn dump_llm() -> Option<PathBuf> {
        dump_directory(std::env::var_os("TEMPER_DUMP_LLM"))
    }

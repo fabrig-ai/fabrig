@@ -1,6 +1,6 @@
 # request-dump: contracts
 
-The run's binding calls: what crosses between `dump-kit` and `dump-worker`, and between the kit's layers. Their design is `temper/docs/design/draft/dogfood-hacks.md`, 2.10.
+The run's binding calls: what crosses between `dump-kit` and `dump-worker`, and between the kit's layers. Their design is `temper/docs/design/draft/dogfood-hacks.md`, 2.13.
 
 ## skein
 

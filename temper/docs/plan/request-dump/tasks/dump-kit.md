@@ -45,7 +45,7 @@ Acceptance:
 
 - `temper/docs/plan/request-dump/notes/contracts.md`: every signature and file form here is binding.
 - `temper/docs/plan/request-dump/notes/common.md`.
-- `temper/docs/design/draft/dogfood-hacks.md`, 2.10.
+- `temper/docs/design/draft/dogfood-hacks.md`, 2.13.
 - `skein/docs/design/llm.status.md`, `skein/docs/design/llm-connection.status.md`, `smith/docs/design/protocol/agent.status.md`, `smith/docs/design/protocol/programs.status.md`: the departures this builds, and what your comments cite.
 - `smith/docs/design/protocol/agent.md`, 6 (standard error is the agent's log); `smith/docs/design/protocol/programs.md`, 5.1 (the command and its files).
 

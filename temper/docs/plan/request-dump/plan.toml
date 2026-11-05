@@ -13,14 +13,14 @@ id = "dump-kit"
 title = "an agent can write each model request's rendered body, and what a program was given, to a private directory"
 mode = "direct"
 needs = []
-design = "temper/docs/design/draft/dogfood-hacks.md, 2.10"
+design = "temper/docs/design/draft/dogfood-hacks.md, 2.13"
 
 [[part]]
 id = "dump-worker"
 title = "TEMPER_DUMP_LLM on a worker reaches each agent and turns the dump on"
 mode = "direct"
 needs = ["dump-kit"]
-design = "temper/docs/design/draft/dogfood-hacks.md, 2.10"
+design = "temper/docs/design/draft/dogfood-hacks.md, 2.13"
 
 [[slice]]
 id = 1

@@ -1,6 +1,6 @@
 # request-dump: the plan
 
-A worker can keep each model request in a file, for the comparison: `temper/docs/design/draft/dogfood-hacks.md`, 2.10, written by this cut with its status lines.
+A worker can keep each model request in a file, for the comparison: `temper/docs/design/draft/dogfood-hacks.md`, 2.13, written by this cut with its status lines.
 
 ## Parts and tasks
 
