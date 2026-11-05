@@ -119,8 +119,9 @@ git --git-dir=/dev/null diff --no-index --no-color --no-ext-diff --no-textconv -
   3.3).
 - **A failed git command is a `tool` error** with its exit and the tail
   of its standard error: the last 20 lines, each cut at 160 bytes with
-  no marker, as mmdebstrap's (5.5). Output git should not give is one
-  too. git runs with no deadline in M1: it reads a local repository,
+  no marker, as mmdebstrap's (5.5). The oldest line leaves first, a line
+  keeps its first bytes, and a last line with no line feed counts as the
+  newest. Output git should not give is one too. git runs with no deadline in M1: it reads a local repository,
   which answers or fails, and the person may interrupt the client; a
   daemon's render is bounded by its job's deadline (hearth/docs/design/domain/steward.md, 5.2).
 - **`hearth-protocol-git` builds the vectors and parses the outputs** into
@@ -1299,6 +1300,37 @@ every request                                          Failed { request, class, 
   fails the command. Static files and rendered files live in the store's
   cache, never in the domain, so a small VM's builder renders what a
   large one does.
+
+### 8.5 What keeps its order
+
+No order here rests on a queue's room
+(`skein/docs/foundation/programming-model.md`, 7.2). A machine's state
+or a named predicate keeps each one, and a test holds it.
+`hearth/docs/development/debt/D001-room-checks-and-max-out.md` lists every
+room check that remains, and what it keeps.
+
+- **One read at a time.** A git machine has at most one demand out, and
+  makes the next once the last is answered.
+- **A blob's piece is taken before the next is read.** `cat-file`'s
+  machine stops after each piece until it is told `Next`. A body waits in
+  git's pipe, never in the builder, so a static file of 64 MiB is held a
+  chunk at a time, however slowly the cache writes.
+- **An outcome answers a request.** A stream's end or fault that comes
+  before a request, or while a piece is still being taken, overtakes
+  nothing: the machine holds it and gives it to the next request.
+- **Resumed work goes before the next event.** While the protocol layer
+  has work to resume, no io or file event enters it (`work_pending`).
+- **One record at a time.** The client's printer takes the next record
+  once the last has gone out, on standard output and standard error alike
+  (`takes`), so answers print in the order render gave them.
+- **An answer follows its resources' close.** Render hears from a git
+  child once the process and its pipes are closed, so its next request
+  finds none open.
+- **A build's report comes whole.** Its layers print first, then the step
+  it failed on, if it failed, and its reply last: the builder's root holds
+  render's reply until the report is out (`holds`, `reporting`).
+- **The domain takes a store step's answer before the store's next
+  step,** so nothing waits in the queue above a step of the store.
 
 ## 9. Its world
 

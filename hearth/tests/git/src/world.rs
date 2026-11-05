@@ -7,6 +7,21 @@ use skein_lib::{
     stream::{Fault, Read, Up},
 };
 use skein_world::stream::Wire;
+
+/// Admit stderr in seeded cuts, without involving another decoder.
+#[must_use]
+pub fn tail(stderr: &[u8], limits: &Limits, seed: u64) -> Box<[Box<[u8]>]> {
+    let mut machine = hearth_protocol_git::tail::Tail::new(limits);
+    let mut rng = skein_lib::Rng::new(seed);
+    let mut rest = stderr;
+    while !rest.is_empty() {
+        let count = usize::try_from(rng.between(1, u64::from(limits.chunk.max(1)))).expect("cut fits").min(rest.len());
+        let (cut, remaining) = rest.split_at(count);
+        machine.admit(cut);
+        rest = remaining;
+    }
+    machine.lines()
+}
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
     pub seed: u64,
@@ -37,8 +52,8 @@ pub fn list(stdout: &[u8], limits: &Limits, settings: &Settings) -> Outcome {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut machine = Listing::new(limits);
     let mut wire = Source::new(stdout, settings);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     if settings.close == Some(0) {
         assert_closed(&mut machine, &env, &mut wire);
         return Outcome::Closed;
@@ -74,8 +89,8 @@ pub fn list(stdout: &[u8], limits: &Limits, settings: &Settings) -> Outcome {
     panic!("listing did not settle for {settings:?}")
 }
 fn assert_closed(machine: &mut Listing, env: &Env<Limits>, wire: &mut Source) {
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     listing::down(machine, env, Request::Close, &mut above, &mut below);
     assert_eq!(above.pop(), Some(Event::Closed), "Close answers Closed");
     while let Some(down) = below.pop() {
@@ -108,8 +123,8 @@ pub fn read(
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut machine = Batch::START;
     let mut wire = Source::new(stdout, settings);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut requests = requests.iter();
     let mut pending = requests.next().copied();
     let mut result = Vec::new();
@@ -168,6 +183,9 @@ pub fn read(
                 other @ (Up::Bytes(_) | Up::Room | Up::End | Up::Failed(_)) => other,
             };
             batch::up(&mut machine, &env, event, &mut above, &mut below);
+            if above.iter().any(|event| matches!(event, Event::Piece(_))) {
+                assert!(below.is_empty(), "a piece is taken before the next read is demanded");
+            }
             calls += 1;
         }
     }
@@ -175,8 +193,8 @@ pub fn read(
 }
 fn batch_closed(machine: &mut hearth_protocol_git::batch::Batch, env: &Env<Limits>, wire: &mut Source) {
     use hearth_protocol_git::batch::{self, Event, Request};
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     batch::down(machine, env, Request::Close, &mut above, &mut below);
     assert_eq!(above.pop(), Some(Event::Closed), "Close answers Closed");
     while let Some(down) = below.pop() {
@@ -226,13 +244,13 @@ impl Stepped {
             batch: None,
             diff: None,
             tail: None,
-            diff_events: Queue::with_capacity(1),
+            diff_events: Queue::uncapped(),
             held: skein_lib::stream::Held::new(case.stdout.clone().into_boxed_slice()),
             feed: case.stdout.clone().into_boxed_slice(),
             requests: Vec::from(case.requests.clone()).into_iter(),
-            listing_events: Queue::with_capacity(1),
-            batch_events: Queue::with_capacity(1),
-            below: Queue::with_capacity(1),
+            listing_events: Queue::uncapped(),
+            batch_events: Queue::uncapped(),
+            below: Queue::uncapped(),
             read: None,
             action: None,
             closed: false,

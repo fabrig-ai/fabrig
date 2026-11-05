@@ -1,5 +1,5 @@
 //! ls-tree's NUL records, with carry held below (hearth/docs/design/domain/render.md, 2.2–2.3).
-use crate::{MaxOut, limits::Limits, oid::Oid};
+use crate::{limits::Limits, oid::Oid};
 use alloc::boxed::Box;
 use core::mem;
 use skein_lib::{
@@ -8,8 +8,6 @@ use skein_lib::{
 };
 /// Fixed fields' allowance before a path.
 pub const RECORD: u32 = 100;
-pub const UP_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
-pub const DOWN_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Mode {
     File,
