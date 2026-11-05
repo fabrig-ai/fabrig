@@ -2426,8 +2426,8 @@ section 9): the foreman and the requester decide, and the change relays
   question N goes no further: LINE`, at the step that takes or holds
   the answer to one that had. LINE is the question's first line, as its
   record keeps it. These words share the step's `tasks.batch`, and a
-  question with no room for them stays on the record until a step has
-  (below).
+  question with no room for them stays on the record, its foreman
+  running on, until a step has (below).
 - **On its record and its panel.** Its open questions, in the order
   taken, each with its asker and number, its words whole and their
   first line, and where it stands (taken; with foreman task F; asked of the
@@ -3262,3 +3262,8 @@ whole.
   `goal` tool's refusal is, where a decided call's answer is kept
   (`root.md`, 5.2). So a call asked again decides again, from the change as
   it then stands. Default: so.
+- **A passed-up question whose asker ends** (8.11): its requester hears of the
+  end when it answers, not before, since saying so once at the end would need a
+  stored mark beside where the question stands. One that never answers hears
+  nothing of it, and the question stays until the change ends. Default: so; it
+  did reach someone.

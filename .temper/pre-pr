@@ -1,9 +1,20 @@
 #!/bin/sh
 # The project's checks at delivery (temper/docs/design/protocol/configuration.md, 13.9;
 # smith/docs/design/domain/run.md, 8.1): the format check and the counted baselines.
+# A tree that passed here passes again: a run's finish repeats its deliver's checks on the same tree.
 set -eu
 cd "$(dirname "$0")/.."
+git_dir=$(git rev-parse --absolute-git-dir)
+index=$(mktemp)
+trap 'rm -f "$index"' EXIT
+cp "$git_dir/index" "$index"
+GIT_INDEX_FILE=$index git add -A
+tree=$(GIT_INDEX_FILE=$index git write-tree)
+if [ "$(cat "$git_dir/pre-pr-passed" 2>/dev/null || true)" = "$tree" ]; then
+    exit 0
+fi
 cargo fmt --all --check
-for tree in skein smith jig temper hearth; do
-    (cd "$tree" && python3 -I -B scripts/old_forms.py)
+for tree_name in skein smith jig temper hearth; do
+    (cd "$tree_name" && python3 -I -B scripts/old_forms.py)
 done
+echo "$tree" > "$git_dir/pre-pr-passed"

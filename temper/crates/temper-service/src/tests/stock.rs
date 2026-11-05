@@ -41,6 +41,7 @@ fn single_model() -> Box<[u8]> {
     let mut document = generated();
     for (path, first) in [
         (b"engine.llm.providers".as_slice(), b"engine.llm.providers[0]".as_slice()),
+        (b"engine.llm.providers[0].models", b"engine.llm.providers[0].models[0]"),
         (b"engine.llm.endpoints", b"engine.llm.endpoints[0]"),
         (b"engine.llm.models", b"engine.llm.models[0]"),
     ] {
@@ -293,7 +294,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 4253);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 4807);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -353,7 +354,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
         (b"documents.text_bytes", 11, Setting::Template(3), "the stock's template 3 needs 11 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
-        (b"core.settings.alternatives", 2, Setting::Charter(1), "the stock's charter 1 needs 2 alternatives"),
+        (b"core.settings.alternatives", 3, Setting::Charter(1), "the stock's charter 1 needs 3 alternatives"),
         (b"core.settings.permissions", 3, Setting::Policy(1), "the stock's policy 1 needs 3 permissions"),
     ];
     // Every positive scalar bound reached by jig's whole-set check is at its
@@ -665,8 +666,8 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
 #[test]
 fn each_charter_offers_every_configured_model() {
     for (document, names) in [
-        (single_model(), [b"gpt-6-luna".as_slice()].as_slice()),
-        (generated(), [b"gpt-6-luna".as_slice(), b"claude-opus-5-5", b"demo"].as_slice()),
+        (single_model(), [b"gpt-6.1-sol".as_slice()].as_slice()),
+        (generated(), [b"gpt-6.1-sol".as_slice(), b"gpt-6-luna", b"claude-opus-5-5", b"demo"].as_slice()),
     ] {
         let engine = engine(&document);
         let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
@@ -1247,14 +1248,19 @@ fn assert_document_rule(words: &str) {
     for phrase in [
         "scope goal, project P and goal T from your brief's [This task: T, in project P]",
         "description its title",
-        "whole Markdown body each time: # TITLE",
+        "Write its first version whole, in Markdown: # TITLE",
         "muted line _Draft, DATE, with the user._",
         "one ## section per topic",
         "open questions under ## Open questions",
-        "Revise the same note, naming the note and the revision you read from your brief or recall",
+        "Then change it by lines",
+        "revision you read from your brief, recall or your last write's answer",
+        "To append, first is the note's lines + 1 and remove 0",
+        "Never rewrite it whole past a few KB",
+        "build a long document in parts",
+        "A refused note says the revision or the line count to use",
+        "Use join true to continue the line before first without a newline when a line exceeds one call",
         "Say in one sentence what changed; do not repeat the document in your reply",
         "Mermaid is not drawn, so do not draw diagrams",
-        "If a write is too large, shorten it",
     ] {
         assert!(words.contains(phrase), "missing document instruction: {phrase}");
     }

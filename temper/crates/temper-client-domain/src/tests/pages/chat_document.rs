@@ -9,10 +9,14 @@ fn a_first_write_parses() {
 }
 #[test]
 fn a_later_write_parses() {
-    assert_eq!(
-        document::note_write("Note 12 revision 3 written · +18 −6 · line 31".as_bytes()),
-        Some(NoteWrite { note: 12, revision: 3, change: NoteChange::Later { added: 18, removed: 6, first: 31 } })
-    );
+    for words in
+        ["Note 12 revision 3 written · +18 −6 · line 31", "Note 12 revision 3 written · +18 −6 · line 31 · 76 lines"]
+    {
+        assert_eq!(
+            document::note_write(words.as_bytes()),
+            Some(NoteWrite { note: 12, revision: 3, change: NoteChange::Later { added: 18, removed: 6, first: 31 } })
+        );
+    }
 }
 #[test]
 fn a_recall_never_parses() {
@@ -31,6 +35,8 @@ fn a_refusal_never_parses() {
         "Note 12 revision X written · 64 lines",
         "Note 12 revision 1 written · 64 lines trailing",
         "Note 12 revision 3 written · +18 −6 · line bad",
+        "Note 12 revision 3 written · +18 −6 · line 31 · bad lines",
+        "Note 12 revision 3 written · +18 −6 · line 31 · 76 lines trailing",
     ] {
         assert_eq!(document::note_write(words.as_bytes()), None);
     }

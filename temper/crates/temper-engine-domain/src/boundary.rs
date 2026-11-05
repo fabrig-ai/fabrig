@@ -154,6 +154,8 @@ pub enum Tool {
     },
     /// Write or correct one scoped note by the revision this run recalled.
     Note { entry: jig_domain_notes::New, recalled: Option<u32> },
+    /// Replace a range of a note's body lines by the revision this run recalled.
+    NoteLines { entry: jig_domain_notes::New, recalled: u32, range: jig_domain_notes::LineRange },
     /// Read one bounded page of notes by name or description.
     Recall { by: jig_domain_notes::Recall, page: u32 },
     /// Queue one checked forge write with a root-derived idempotency key.

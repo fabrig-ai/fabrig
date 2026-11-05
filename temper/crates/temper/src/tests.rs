@@ -178,7 +178,7 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
     let example = include_bytes!("../../../docs/examples/owned.json");
     let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
     value["engine"]["llm"]["providers"] = serde_json::json!([{
-        "name":"OpenAI", "number":1, "signed_in_plan":false, "models":["gpt-6-luna"], "sources":{
+        "name":"OpenAI", "number":1, "signed_in_plan":false, "models":["gpt-6.1-sol"], "sources":{
             "sign_in": {"issuer":"https://issuer.example", "client":"client", "scopes":[],
                 "authorization":"https://issuer.example/auth", "token":"https://issuer.example/token",
                 "keys":"https://issuer.example/keys", "transport":"tls", "server_name":"issuer.example",

@@ -3,10 +3,10 @@
 use super::{Act, Call, Ended, Walk, ctl};
 
 const FIRST: &str = "Note 1 revision 1 written · 29 lines";
-const SECOND: &str = "Note 1 revision 2 written · +7 −0 · line 14";
+const SECOND: &str = "Note 1 revision 2 written · +7 −0 · line 14 · 36 lines";
 
 /// Find the committed turn through activity, then read its complete tool result.
-fn written_turn(seen: &[Ended], expected: &str) -> Call {
+pub(super) fn written_turn(seen: &[Ended], expected: &str) -> Call {
     let activity = String::from_utf8_lossy(&seen.last().expect("task activity").stdout);
     let written = activity.find(expected).unwrap_or_else(|| panic!("missing {expected}: {activity}"));
     let turn = activity[..written]

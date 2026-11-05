@@ -1273,7 +1273,7 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   change in place (jig's `protocol/configuration.md`, section 9).
 - **A brief past the host part's room** (13.4). The same request sizes a
   run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
-  357,328, is what the host part leaves charter 1 at init's models, a
+  356,270, is what the host part leaves charter 1 at init's models, a
   whole spec among it, past the largest fabrig's development has had,
   200 kB. 1 MB needs a window of about 2.7M tokens or a larger share of
   it for the host. Default: as it stands. The user's to choose, with no
@@ -2195,7 +2195,10 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   `checkout.message_bytes` equals it, so the checkout accepts the
   agent's largest call, and the engine's message and result bounds are
   the payload less two (13.4). A deployment whose models' output is
-  larger raises them with its T.
+  larger raises them with its T. A note's body is not bound by it: a
+  run builds a body past one call in parts, by line ranges, up to
+  `notes.body_bytes` (jig's `domain/engine.md`, section 10;
+  `../domain/agent.md`, 8.3).
 - **Memory:** `engine.memory_bytes` is the engine's byte budget
   (`../domain/root.md`, 4.1), independent of a model's edge bounds.
   The start checks those bounds, without comparing memory with a sum
@@ -2270,7 +2273,8 @@ that changes the stock changes nothing of them.
     removing the mark; where its change's words, the design and the
     code leave it a choice it cannot make, push what it has and ask its
     change in the question form, its options and its recommendation in
-    its words, then end its run (`../domain/forge.md`, 8.11); its run
+    its words, then call `wait`, the answer reaching this run
+    (`../domain/forge.md`, 8.11); its run
     sized for a change's work;
   - *charter 6, the foreman's:* the stock's, at gpt-6.1-sol, its
     instructions adding the reference's rules: the change's words and

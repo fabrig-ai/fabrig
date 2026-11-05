@@ -113,7 +113,6 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.owned_record = document_bytes;
     // Retained connector accounts fit beside text previews (client/domain/contract.md, 5.3).
     wire.document_text_bytes = client.long_text.clamp(HOLD_ACCOUNT_BYTES, w::CEILINGS.document_text_bytes);
-    narrow(client.long_text, &mut [&mut wire.specification_words, &mut wire.edit_note_body]);
     #[rustfmt::skip]
     narrow(client.text, &mut [
         &mut wire.task_text_words, &mut wire.placed_line_reason, &mut wire.model_set_names_names_item,
@@ -136,6 +135,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.setting_model_effort_some, &mut wire.setting_model_efforts_item,
         &mut wire.charter_document_name_item,
     ]);
+    narrow(client.long_text, &mut [&mut wire.specification_words, &mut wire.edit_note_body]);
     #[rustfmt::skip]
     narrow(document_bytes, &mut [
         &mut wire.me_providers, &mut wire.accounts_readiness, &mut wire.deployment_providers,

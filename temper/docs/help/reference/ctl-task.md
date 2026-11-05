@@ -304,3 +304,19 @@ Prints: `done: task N, hand-back`
 Key: --key KEY, optional.
 Only the current holder may hand it back.
 ```
+
+## task notes
+
+```
+task notes TASK --project PROJECT [--after CURSOR]
+  TASK (task): a number; required. The task's number
+  --project PROJECT: a project's name or number; required. The task's project
+  --after CURSOR: a cursor, as a read prints it; optional. The cursor a page printed, to read on
+Read a task's notes, each body whole
+Prints: Each note's number, revision, description and whole body; `body cut; report it` when supplied cut, `read on with: task notes TASK --project PROJECT --after CURSOR` for a further page, or `no notes`
+--json: the record notes.
+Key: none.
+Reads the task's own note scope, as a chat's document pane does.
+Bodies print whole, including those longer than a turn's part.
+An unknown task or an empty scope answers `no notes`.
+```

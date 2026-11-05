@@ -31,7 +31,7 @@ pub const FIELDS: &[(&[u8], &[&[u8]])] = &[
     (b"unsubscribe", &[b"subscription"]),
     (b"amend", &[b"target", b"revision", b"amendment"]),
     (b"propose", &[b"action", b"reason", b"batch", b"target", b"revision", b"amendment", b"authority"]),
-    (b"note", &[b"name", b"recalled", b"scope", b"description", b"body", b"references"]),
+    (b"note", &[b"first", b"remove", b"join", b"name", b"recalled", b"scope", b"description", b"body", b"references"]),
     (b"recall", &[b"kind", b"name", b"page", b"scopes", b"query"]),
 ];
 

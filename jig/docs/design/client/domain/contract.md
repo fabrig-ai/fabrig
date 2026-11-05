@@ -1106,7 +1106,9 @@ party reads is therefore never lost by a crash.
   It is for reads alone: an edit or a deletion naming it is refused. It takes no
   description. Its visibility is the project's, as any of its notes' is, and it
   pages as any. A client's `long_text` bounds a note's body and a task's words
-  on its side (`client.md`, section 14).
+  on its side (`client.md`, section 14). A body is whole however its run wrote
+  it, at once or by line ranges (`../../domain/engine.md`, section 10): a read
+  sees no parts, and nothing of a range reaches the wire.
 - **Pages** are within a row and a byte limit, and carry a cursor for the
   next, or say there is none (`../../domain/engine.md`, 5.3).
 - **Refused** for what the party may not see, as unknown; when the

@@ -159,6 +159,7 @@ mod chat_document;
 mod copy;
 mod goal;
 mod here_key;
+mod note_parts;
 mod open_default;
 mod program_here;
 mod sign_in;

@@ -166,16 +166,19 @@ A write.
 
 ## note
 
-Write a note in a scope for later runs to recall, or revise one, naming the revision you recalled.
+Write a note in a scope for later runs to recall, or revise one, whole or by a line range, naming the revision you read.
 
 A write.
 
 - `scope`: an object; required. {kind}: deployment; project, with project; goal, with project and goal; resources, with project, connector, pattern.
 - `description`: text; required. What the note is about: a search reads it.
-- `body`: text; required. The note's text.
+- `body`: text; required. The note's text, or the text that replaces the range.
 - `references`: a list; optional. The numbers of the tasks it refers to.
 - `name`: an integer of at least 1; optional. To revise a note: its name. Leave it out for a new note.
-- `recalled`: an integer of at least 1; optional. To revise a note: its revision, as recall answered it.
+- `recalled`: an integer of at least 1; optional. To revise a note: the revision you read, from your brief, recall or your last write's answer.
+- `first`: an integer of at least 1; optional. To change lines, with name, recalled and remove: the 1-based first line replaced; the note's lines + 1 to append.
+- `remove`: an integer of at least 0; optional. With first: how many lines go; 0 to insert.
+- `join`: true or false; optional. With first and remove: true continues the line before first without a newline, for long lines.
 
 ## recall
 
