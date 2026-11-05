@@ -883,6 +883,7 @@ mod validity {
             for native in [
                 io::Limits { sockets: u32::MAX, ..base.io },
                 io::Limits { sockets: u32::MAX / 8 + 1, ..base.io },
+                io::Limits { sockets: 1 << 24, ..base.io },
                 io::Limits { sockets: 1, ..base.io },
                 io::Limits { sockets: 2, ..base.io },
                 io::Limits { intake: base.io.intake + 1, ..base.io },
