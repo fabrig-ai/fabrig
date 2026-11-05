@@ -16,6 +16,7 @@ pub mod connect_model;
 pub mod delegation;
 pub mod home;
 pub mod inbox;
+pub mod report;
 pub mod switcher;
 pub mod task;
 pub mod welcome;

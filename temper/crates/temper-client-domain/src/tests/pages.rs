@@ -10,6 +10,7 @@ mod inbox;
 mod paste;
 mod project_pages;
 mod ready_adoption;
+mod report;
 mod switcher;
 mod task;
 mod welcome;
