@@ -208,9 +208,9 @@ replay says the same clocks (`README.md`, 5.12).
 - **Ordinary calls wait for jig's mapping's room** (jig's
   `protocol/client.md`, 17.4). Each waiting head stays under the listener's
   connection bound and stall deadline, with no body read until admitted;
-  a closed connection drops its head. The small profile's four calls,
-  streams included, therefore serve one page's concurrent requests in
-  turn. Public reads retain their separate busy response (jig's
+  a closed connection drops its head. The small profile's six calls,
+  four ordinary exchanges beside its two streams, therefore serve one
+  page's concurrent requests in turn. Public reads retain their separate busy response (jig's
   `protocol/client.md`, 17.5); stopping refuses waiting ordinary calls.
 - **The bundle** is skein's bundler's output (skein's `ui-web.md`,
   section 4): the shell's module, skein's stylesheet and temper's
@@ -1114,6 +1114,13 @@ Not in the tier, each in the lowest world that shows it:
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
+- **A press a render can lose:** the diff matches unkeyed children by
+  position among siblings of the same role (skein's `ui.md`, section 7),
+  so a section arriving before a control's group gives the control a new
+  element, and a press between its mouse down and up does nothing, with
+  nothing shown. Default: a group that sections arrive beside takes a
+  role of its own, as Accounts' Sign out does, page by page; skein's
+  diff stays.
 
 ## 7. The gallery
 

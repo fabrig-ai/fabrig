@@ -74,7 +74,9 @@ and its drafts, which no chat offers yet, and many of ctl's tools (`client/READM
 browser, whose story A walks in the browser tier but not yet by hand
 and whose download is past its bar (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). Forges kept in the store, a forge's removal and the
+(`release.md`). The browser tier's CPU against its budget awaits the
+user, and no test shows a head waiting for room ended by the stall
+deadline (`client/browser.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where
 the box's group file holds a forge's kind alone
 (`protocol/setup.md`, `protocol/forge.md`, `protocol/README.md`) and
