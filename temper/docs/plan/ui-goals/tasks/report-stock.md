@@ -125,3 +125,33 @@ Verify the limits resolution with the focused `temper-service` library test `tes
 ## Answers
 
 2026-11-05 (fabrig/ui). Yes: regenerate story-a.log from the combined code in this task. Regenerating a fixture your change makes stale is always the task's own.
+
+## Rebase (2026-11-05, step merge, foreman ui-goals/report-stock/foreman-2)
+
+combine the landing’s limits and model framing with report-stock, then regenerate Story A
+Rebase onto the landing, resolving these three conflicts:
+- `temper/crates/temper-service/src/tests/limits.rs`
+- `temper/crates/temper-service/src/tests/stock_brief.rs`
+- `temper/tests/playground/tests/fixtures/story-a.log`
+
+In `the_standard_profile_holds_fabrig_scale_work`, preserve both changes:
+- `brief_bytes` and `result_bytes`: `359_435` from report-stock.
+- `transcript_bytes`: `22_467_648` from `9ef746a800` (“Count direct delegate endings on task lines”).
+Check the automatically merged `src/limits.rs` agrees.
+
+In `stock_brief.rs`, preserve `8587fad695` (“Merge always-offered with updated stock brief framing”): three source slots, inert program-free measurements, and `MARGIN = 567`.
+Combine its 21-byte model declaration increase with report-stock’s 840-byte charter increase. Expected charter-1 rows:
+- `(1, false, 38_661, 361_474)`
+- `(1, true, 36_571, 363_564)`
+Keep the landing’s charter-2 row `(2, false, 33_355, 366_780)` and its other rows.
+Set the whole-spec room expectation to `361_474`; confirm these figures by running the tests.
+Update `src/limits.rs`’s comment to room `361,474` less framing `1,472` and margin `567`; the brief limit remains `359_435`.
+Report that charter 2 moved because of the landing’s third model declaration.
+
+Verify with `TEMPER_BUNDLE=none heavy cargo nextest run -p temper-service --lib -E 'test(=tests::limits::the_standard_profile_holds_fabrig_scale_work) | test(=tests::stock_brief::every_stock_charter_admits_its_whole_maximal_brief) | test(=tests::stock_brief::the_stock_brief_with_a_whole_spec_fits_every_charter_whole)'`.
+
+Regenerate Story A from the combined code; selecting either fixture version loses changes.
+The supplied answer authorizes this regeneration; no further scope question is needed.
+Record with `TEMPER_BUNDLE=none SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=suite::walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`.
+Then replay without the write variable: `TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=suite::walk::story_a_kept_log_replays_natively)'`.
+The recorder is `temper/tests/playground/tests/suite/walk.rs`; `temper/docs/design/playground.md`, section 9, requires recording again when replay changes.
