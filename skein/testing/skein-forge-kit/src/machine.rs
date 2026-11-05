@@ -1,5 +1,5 @@
 //! Scripted HTTP responses, seeded streams and the forge component's io.
-use crate::{fixtures, github, peer::Peer};
+use crate::{fixtures, github, peer::Peer, sockets::Sockets};
 use skein_forge::api;
 use skein_forge_connection::{Answered, Component, Event, Limits, Request, Settings, Stopped};
 use skein_lib::{
@@ -87,7 +87,7 @@ pub struct Machine {
     env: Env<Limits>,
     above: Queue<Event>,
     below: Queue<skein_io::Request>,
-    peers: BTreeMap<Token, Peer>,
+    peers: Sockets<Peer>,
     script: VecDeque<Answer>,
     connects: VecDeque<Connect>,
     answers: BTreeMap<u64, Answered>,
@@ -192,7 +192,7 @@ impl Machine {
             env: Env { now: Time::ZERO, wall, limits },
             above: Queue::with_capacity(256),
             below: Queue::with_capacity(256),
-            peers: BTreeMap::new(),
+            peers: Sockets::default(),
             script: script.into(),
             connects: VecDeque::new(),
             answers: BTreeMap::new(),
@@ -625,31 +625,25 @@ impl Machine {
             skein_io::Request::Connect { owner, addr } => {
                 self.opened += 1;
                 self.remember_connection_generation(owner, addr);
-                self.peers.insert(
-                    owner,
-                    Peer::new(
-                        self.seed.wrapping_add(owner.raw()),
-                        addr,
-                        self.tls_addresses.contains(&addr),
-                        self.handshake_cut,
-                    ),
+                let mut peer = Peer::new(
+                    self.seed.wrapping_add(owner.raw()), addr,
+                    self.tls_addresses.contains(&addr), self.handshake_cut,
                 );
-                self.up(skein_io::Event::Connecting { owner, socket: owner });
-                match self.connects.pop_front().unwrap_or(Connect::Made) {
+                let made = match self.connects.pop_front().unwrap_or(Connect::Made) {
                     Connect::Made => {
                         if self.pause.is_some_and(|(_, pause)| matches!(pause, Pause::Connecting)) {
                             self.paused = Some(owner);
-                            return;
+                        } else {
+                            peer.connected = true;
                         }
-                        self.peers.get_mut(&owner).expect("peer").connected = true;
-                        self.up(skein_io::Event::Connected { owner });
+                        Some(peer)
                     }
-                    Connect::Refused => {
-                        self.up(skein_io::Event::Failed { owner, error: skein_io::Error::Refused });
-                        self.peers.remove(&owner);
-                        self.up(skein_io::Event::Closed { owner });
-                    }
-                }
+                    Connect::Refused => None,
+                };
+                let mut made = made;
+                let mut events = Queue::with_capacity(3);
+                self.peers.request(request, |_| made.take(), &mut events);
+                while let Some(event) = events.pop() { self.up(event); }
             }
             skein_io::Request::Stream { stream, down } => {
                 let peer = self.peers.get_mut(&stream).expect("stream peer");
@@ -659,7 +653,11 @@ impl Machine {
                 };
                 let sending = sent > 0;
                 let writing = matches!(&down, Down::Demand { room, .. } if *room > 0);
-                let plain = peer.take(down);
+                let before = peer.pending_bytes();
+                let mut events = Queue::with_capacity(0);
+                self.peers.request(skein_io::Request::Stream { stream, down }, |_| unreachable!("stream"), &mut events);
+                let peer = self.peers.get_mut(&stream).expect("stream peer");
+                let plain = peer.pending_bytes() - before;
                 self.flight_length = peer.flight_length.or(self.flight_length);
                 self.flight_status = peer.flight_status.or(self.flight_status);
                 if let Some(reset) = peer.failure.take() {
@@ -728,10 +726,9 @@ impl Machine {
             self.closes += 1;
             return;
         }
-        if self.peers.remove(&owner).is_some() {
-            self.closes += 1;
-            self.up(skein_io::Event::Closed { owner });
-        }
+        let mut events = Queue::with_capacity(1);
+        if self.peers.close(owner, &mut events).is_some() { self.closes += 1; }
+        while let Some(event) = events.pop() { self.up(event); }
     }
     fn respond(&mut self, owner: Token, request: Vec<u8>) {
         let taken = self.installation_events.len() + self.facts.len() + self.git_tokens.len();
@@ -878,4 +875,10 @@ impl Cut {
     fn end(self) -> Up {
         if self.reset { Up::Failed(Fault::Reset) } else { Up::End }
     }
+}
+
+impl crate::sockets::Peer for Peer {
+    fn take(&mut self, down: Down) { self.take(down); }
+    fn answer(&mut self) -> Option<Up> { self.answer() }
+    fn connected(&self) -> bool { self.connected }
 }

@@ -7,5 +7,6 @@ pub mod hooks;
 pub mod joint;
 pub mod machine;
 mod peer;
+pub mod sockets;
 pub mod pipe;
 pub mod tls;
