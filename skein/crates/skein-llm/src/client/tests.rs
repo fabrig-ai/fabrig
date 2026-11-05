@@ -120,7 +120,7 @@ impl World {
                     Down::Finish => {}
                 }
             }
-            if !room || self.client.state == State::Closing || self.client.state == State::Closed {
+            if !room || self.client.stopped() {
                 return;
             }
             up(&mut self.client, &self.env, Up::Room, &mut self.above, &mut self.below);
@@ -341,7 +341,7 @@ fn dispatch_without_next(world: &mut World, source: &[u8], activity: u64) -> boo
         &mut world.above,
         &mut world.below,
     );
-    assert!(!world.client.asked, "the caller has not demanded its next output");
+    assert!(!world.client.asked(), "the caller has not demanded its next output");
     assert!(world.above.is_empty(), "dispatch holds output until Next");
     assert_eq!(world.client.activity(), activity, "activity is counted before output is drained: {source:?}");
     let mut completed = false;

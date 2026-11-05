@@ -8,6 +8,8 @@
 //! it knows no socket, credential store or reason to retry. Admission and
 //! receiving failures retain their configured cap (llm.md, section 2.5).
 
+use self::State::{Closed, Closing, Draining, ErrorBody, Head, Idle, Prepared, Streaming};
+
 use alloc::boxed::Box;
 use core::mem;
 
@@ -235,17 +237,31 @@ pub enum Waiting {
     Nothing,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+// The prepared HTTP call owns the credential header (llm.md, section 3).
 enum State {
-    Prepared,
-    Head,
-    Streaming,
-    ErrorBody,
+    Prepared { call: http::Call, receiving: Receiving },
+    Head { receiving: Receiving },
+    Streaming { answer: Answer, receiving: Receiving },
+    ErrorBody { answer: Answer, error: List<u8> },
     Draining,
     Idle,
     Closing,
     Closed,
 }
+
+struct Receiving {
+    decoder: dialect::Decoder,
+    content: List<Block>,
+    content_bytes: u64,
+    asked: bool,
+}
+
+struct Answer {
+    status: u16,
+    request: Box<[u8]>,
+    rate: openai::RateLimit,
+}
+
 
 enum Upload {
     Sending { body: Box<[u8]>, offset: usize },
@@ -280,10 +296,6 @@ pub struct Client {
     outcome: Outcome,
     http: http::Client,
     sse: sse::Reader,
-    decoder: Option<dialect::Decoder>,
-    content: Option<List<Block>>,
-    content_bytes: u64,
-    call: Option<http::Call>,
     upload: Upload,
     kept_body: Option<Box<[u8]>>,
     /// The end of the bytes sent within `upload`: the compressed member
@@ -298,11 +310,6 @@ pub struct Client {
     collector_events: Queue<collector::Event>,
     collector_below: Queue<Down>,
     event_data: EventData,
-    error: List<u8>,
-    status: u16,
-    request: Box<[u8]>,
-    rate: openai::RateLimit,
-    asked: bool,
     evidence: Evidence,
     activity: u64,
     measured: Measured,
@@ -449,6 +456,21 @@ fn check_preparation(limits: &Limits) -> Result<(), Error> {
 }
 
 impl Client {
+    fn stopped(&self) -> bool {
+        match &self.state {
+            Closing | Closed => true,
+            Prepared { .. } | Head { .. } | Streaming { .. }
+            | ErrorBody { .. } | Draining | Idle => false,
+        }
+    }
+
+    fn asked(&self) -> bool {
+        match &self.state {
+            Prepared { receiving, .. } | Head { receiving } | Streaming { receiving, .. } => receiving.asked,
+            ErrorBody { .. } | Draining | Idle | Closing | Closed => false,
+        }
+    }
+
     /// Takes the body before compression, once (skein/docs/design/llm.status.md).
     pub fn take_kept_body(&mut self) -> Option<Box<[u8]>> {
         self.kept_body.take()
@@ -528,14 +550,18 @@ impl Client {
             provider: input.endpoint.provider,
             authority: input.endpoint.authority,
             limits: *limits,
-            state: State::Prepared,
+            state: Prepared {
+                call,
+                receiving: Receiving {
+                    decoder: dialect::Decoder::new(provider, &limits.native(), enabled),
+                    content: List::with_capacity(limits.output_items),
+                    content_bytes: 0,
+                    asked: false,
+                },
+            },
             outcome: Outcome::Pending,
             http: http::Client::new(&limits.http),
             sse: sse::Reader::new(&event_stream(limits)),
-            decoder: Some(dialect::Decoder::new(provider, &limits.native(), enabled)),
-            content: Some(List::with_capacity(limits.output_items)),
-            content_bytes: 0,
-            call: Some(call),
             upload: Upload::Sending { body, offset: 0 },
             kept_body,
             upload_end: end,
@@ -553,11 +579,6 @@ impl Client {
             collector_events: Queue::uncapped(),
             collector_below: Queue::uncapped(),
             event_data: EventData::Idle,
-            error: List::with_capacity(limits.error_bytes),
-            status: 0,
-            request: Box::new([]),
-            rate: openai::RateLimit { retry_after: None, reset: None, exhausted: false },
-            asked: false,
             evidence: Evidence::Unsent,
             activity: 0,
             measured,
@@ -604,24 +625,20 @@ impl Client {
     /// True only for runnable work, never for output blocked on `Next`.
     #[must_use]
     pub fn has_work(&self) -> bool {
-        if self.state == State::Closing || self.state == State::Closed {
+        if self.stopped() {
             return false;
         }
         if !self.outputs.is_empty() {
-            return self.asked;
+            return self.asked();
         }
         if !self.http_events.is_empty() || !self.sse_events.is_empty() || !self.requests.is_empty() {
             return true;
         }
-        if self.state == State::Streaming && self.asked {
-            if let Some(decoder) = &self.decoder
-                && decoder.has_ready()
-            {
-                return true;
-            }
-            return self.sse.waiting() == sse::Waiting::Next || self.sse.waiting() == sse::Waiting::Above;
+        match &self.state {
+            Streaming { receiving, .. } => receiving.asked && (receiving.decoder.has_ready()
+                    || self.sse.waiting() == sse::Waiting::Next || self.sse.waiting() == sse::Waiting::Above),
+            Prepared { .. } | Head { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => false,
         }
-        false
     }
 
     #[must_use]
@@ -629,16 +646,16 @@ impl Client {
         if self.has_work() {
             return Waiting::Ready;
         }
-        match self.state {
-            State::Prepared => Waiting::Start,
-            State::Head => Waiting::Http(self.http.waiting()),
-            State::Streaming if self.asked => Waiting::Response,
-            State::Streaming => Waiting::Next,
-            State::ErrorBody => Waiting::Response,
-            State::Draining => Waiting::Draining,
-            State::Idle => Waiting::Idle,
-            State::Closing => Waiting::Closing,
-            State::Closed => Waiting::Nothing,
+        match &self.state {
+            Prepared { .. } => Waiting::Start,
+            Head { .. } => Waiting::Http(self.http.waiting()),
+            Streaming { receiving, .. } if receiving.asked => Waiting::Response,
+            Streaming { .. } => Waiting::Next,
+            ErrorBody { .. } => Waiting::Response,
+            Draining => Waiting::Draining,
+            Idle => Waiting::Idle,
+            Closing => Waiting::Closing,
+            Closed => Waiting::Nothing,
         }
     }
 
@@ -646,14 +663,17 @@ impl Client {
     /// provider, only after `Reusable`. Refusal returns the prepared owner.
     #[expect(clippy::result_large_err, reason = "the owned admitted call is returned intact on refusal")]
     pub fn next_call(&mut self, mut prepared: Client) -> Result<(), Client> {
-        if self.state != State::Idle
-            || self.has_work()
-            || self.http.waiting() != http::Waiting::Call
-            || prepared.state != State::Prepared
-            || self.provider != prepared.provider
-            || self.authority != prepared.authority
-            || self.limits != prepared.limits
-        {
+        match &self.state {
+            Idle => {}
+            Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. }
+            | Draining | Closing | Closed => { return Err(prepared); }
+        }
+        match &prepared.state {
+            Prepared { .. } => {}
+            Head { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => { return Err(prepared); }
+        }
+        if self.has_work() || self.http.waiting() != http::Waiting::Call
+            || self.provider != prepared.provider || self.authority != prepared.authority || self.limits != prepared.limits {
             return Err(prepared);
         }
         mem::swap(&mut self.http, &mut prepared.http);
@@ -672,22 +692,22 @@ pub fn down(
     check_env(client, env);
     match request {
         Request::Start => {
-            if client.state == State::Prepared {
-                let call = client.call.take().expect("a prepared client holds its request");
-                client.state = State::Head;
-                http_down(client, env, http::Request::Call(call), below);
-                client
-                    .requests
-                    .push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: env.limits.http.send }));
-            }
+            client.state = match mem::replace(&mut client.state, Closed) {
+                Prepared { call, receiving } => {
+                    http_down(client, env, http::Request::Call(call), below);
+                    client.requests.push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: env.limits.http.send }));
+                    Head { receiving }
+                }
+                state @ (Head { .. } | Streaming { .. } | ErrorBody { .. }
+                | Draining | Idle | Closing | Closed) => state,
+            };
         }
-        Request::Next => {
-            if client.outcome == Outcome::Pending
-                && (client.state == State::Prepared || client.state == State::Head || client.state == State::Streaming)
-            {
-                client.asked = true;
+        Request::Next => match &mut client.state {
+            Prepared { receiving, .. } | Head { receiving } | Streaming { receiving, .. } => {
+                receiving.asked = true;
             }
-        }
+            ErrorBody { .. } | Draining | Idle | Closing | Closed => {}
+        },
         Request::Cancel | Request::Close => {
             if client.outcome == Outcome::Pending {
                 client.outcome = Outcome::Cancelled;
@@ -701,8 +721,8 @@ pub fn down(
 pub fn up(client: &mut Client, env: &Env<Limits>, event: Up, above: &mut Queue<Event>, below: &mut Queue<Down>) {
     check_env(client, env);
     match client.state {
-        State::Prepared | State::Closing | State::Closed => return,
-        State::Head | State::Streaming | State::ErrorBody | State::Draining | State::Idle => {}
+        Prepared { .. } | Closing | Closed => return,
+        Head { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle => {}
     }
     let transport_failed = match &event {
         Up::Failed(_) => true,
@@ -733,8 +753,12 @@ pub fn up(client: &mut Client, env: &Env<Limits>, event: Up, above: &mut Queue<E
         return;
     }
     resume(client, env, above, below);
-    if client.state == State::Idle && client.http.waiting() == http::Waiting::Close {
-        closing(client, env, above, below);
+    match client.state {
+        Idle => {
+            if client.http.waiting() == http::Waiting::Close { closing(client, env, above, below); }
+        }
+        Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. }
+        | Draining | Closing | Closed => {}
     }
 }
 
@@ -742,12 +766,10 @@ pub fn up(client: &mut Client, env: &Env<Limits>, event: Up, above: &mut Queue<E
 /// `has_work` is true; an undemanded output stays bounded in the client.
 pub fn resume(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Down>) {
     check_env(client, env);
-    if client.state == State::Closing || client.state == State::Closed {
-        return;
-    }
     for _route in 0..ROUTES {
+        if client.stopped() { break; }
         if !client.outputs.is_empty() {
-            if !client.asked {
+            if !client.asked() {
                 break;
             }
             let event = client.outputs.pop().expect("the output queue is nonempty");
@@ -758,10 +780,14 @@ pub fn resume(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>, 
             http_event(client, event, env, above, below);
         } else if let Some(request) = client.requests.pop() {
             http_down(client, env, request, below);
-        } else if client.state == State::Streaming && client.asked {
-            let decoder = client.decoder.as_mut().expect("a streaming client has its decoder");
-            if decoder.has_ready() {
-                decoder.ready(&env.limits.native(), &mut client.outputs);
+        } else {
+            let receiving = match &mut client.state {
+                Streaming { receiving, .. } => receiving,
+                Prepared { .. } | Head { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed => break,
+            };
+            if !receiving.asked { break; }
+            if receiving.decoder.has_ready() {
+                receiving.decoder.ready(&env.limits.native(), &mut client.outputs);
             } else if client.sse.waiting() == sse::Waiting::Next {
                 sse_down(client, env, sse::Request::Next);
             } else if client.sse.waiting() == sse::Waiting::Above {
@@ -774,11 +800,6 @@ pub fn resume(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>, 
             } else {
                 break;
             }
-        } else {
-            break;
-        }
-        if client.state == State::Closing || client.state == State::Closed {
-            break;
         }
     }
 }
@@ -815,8 +836,10 @@ pub fn abort(
 /// Actual lower settlement, not merely the HTTP/SSE machines saying closed.
 pub fn closed(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Down>) {
     check_env(client, env);
-    if client.state == State::Closed {
-        return;
+    match client.state {
+        Closed => return,
+        Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. }
+        | Draining | Idle | Closing => {}
     }
     if client.outcome == Outcome::Pending {
         fail(client, Failure::Unavailable, bytes::copy_of(b"stream closed before completion"), above);
@@ -826,7 +849,7 @@ pub fn closed(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>, 
         above.push(Event::Cancelled { owner: client.owner });
         client.outcome = Outcome::Terminal;
     }
-    client.state = State::Closed;
+    client.state = Closed;
     above.push(Event::Closed);
 }
 
@@ -901,21 +924,25 @@ fn http_event(
         http::Event::Body(event) => body_event(client, event, env, above, below),
         http::Event::Done(reuse) => {
             if client.outcome == Outcome::Pending {
-                if client.state == State::ErrorBody {
-                    error_end(client, env, above);
-                } else {
-                    fail(client, Failure::Protocol, bytes::copy_of(b"provider stream has no terminal"), above);
+                match client.state {
+                    ErrorBody { .. } => error_end(client, env, above),
+                    Prepared { .. } | Head { .. } | Streaming { .. }
+                    | Draining | Idle | Closing | Closed =>
+                        fail(client, Failure::Protocol, bytes::copy_of(b"provider stream has no terminal"), above),
                 }
             }
-            match reuse {
-                http::Reuse::Keep
-                    if client.state == State::Draining && client.http.waiting() == http::Waiting::Call =>
-                {
-                    client.state = State::Idle;
-                    above.push(Event::Reusable);
+            match client.state {
+                Draining => {
+                    if reuse == http::Reuse::Keep && client.http.waiting() == http::Waiting::Call {
+                        client.state = Idle;
+                        above.push(Event::Reusable);
+                        return;
+                    }
                 }
-                http::Reuse::Keep | http::Reuse::Close => closing(client, env, above, below),
+                Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. }
+                | Idle | Closing | Closed => {}
             }
+            closing(client, env, above, below);
         }
         http::Event::Failed(error) => {
             let failure = http_failure(error, &env.limits);
@@ -994,38 +1021,46 @@ fn response_head(
     below: &mut Queue<Down>,
 ) {
     client.evidence = Evidence::Response { status: response.status };
-    client.status = response.status;
-    client.request = request_id(client.provider, &response.headers);
+    let mut answer = Answer {
+        status: response.status,
+        request: request_id(client.provider, &response.headers),
+        rate: openai::RateLimit { retry_after: None, reset: None, exhausted: false },
+    };
     for header in &response.headers {
-        client.rate.observe(&header.name, &header.value);
+        answer.rate.observe(&header.name, &header.value);
     }
-    if !identity_encoding(&response.headers) {
-        fail(client, Failure::Protocol, bytes::copy_of(b"unsupported content encoding"), above);
-        closing(client, env, above, below);
-    } else if (200..300).contains(&response.status) {
+    let success = (200..300).contains(&answer.status);
+    let detail = if !identity_encoding(&response.headers) {
+        Some(bytes::copy_of(b"unsupported content encoding"))
+    } else if success {
         // Public Responses can omit Content-Type on valid SSE.
         // The event decoder still requires a terminal event (llm.md, 4.8).
-        let allow_missing = match client.provider {
-            Provider::OpenAi => true,
-            Provider::Anthropic => false,
-        };
         let media = media_type(&response.headers);
         let accepted = match media {
             Ok(Some(value)) => value.eq_ignore_ascii_case(b"text/event-stream"),
-            Ok(None) => allow_missing,
+            Ok(None) => match client.provider {
+                Provider::OpenAi => true,
+                Provider::Anthropic => false,
+            },
             Err(()) => false,
         };
-        if accepted {
-            client.state = State::Streaming;
-        } else {
-            fail(client, Failure::Protocol, stream_type_detail(media), above);
-            closing(client, env, above, below);
-        }
-    } else {
-        client.state = State::ErrorBody;
+        if accepted { None } else { Some(stream_type_detail(media)) }
+    } else { None };
+    if let Some(detail) = detail {
+        let report = Report { request: answer.request, ..Report::none() };
+        fail_report(client, Failure::Protocol, report, detail, above);
+        closing(client, env, above, below);
+        return;
+    }
+    client.state = match mem::replace(&mut client.state, Closed) {
+        Head { receiving } if success => Streaming { answer, receiving },
+        Head { .. } => ErrorBody { answer, error: List::with_capacity(env.limits.error_bytes) },
+        Prepared { .. } | Streaming { .. } | ErrorBody { .. } | Draining | Idle | Closing | Closed =>
+            unreachable!("a response answers the pending head"),
+    };
+    if !success {
         client.requests.push(http::Request::Body(Down::Demand {
-            read: Read::Arrived { max: client.error.room().saturating_add(1) },
-            room: 0,
+            read: Read::Arrived { max: env.limits.error_bytes.saturating_add(1) }, room: 0,
         }));
     }
 }
@@ -1046,24 +1081,26 @@ fn request_id(provider: Provider, headers: &[Header]) -> Box<[u8]> {
 }
 
 fn body_event(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Down>) {
-    match client.state {
-        State::Streaming => {
+    match &mut client.state {
+        Streaming { .. } => {
             let child = env.with(event_stream(&env.limits));
             sse::up(&mut client.sse, &child, event, &mut client.sse_events, &mut client.sse_below);
             route_sse_down(client);
         }
-        State::ErrorBody => match event {
+        ErrorBody { answer, error } => match event {
             Up::Bytes(data) => {
-                let room = usize_of(client.error.room());
+                let room = usize_of(error.room());
                 for &byte in data.iter().take(room) {
-                    client.error.push(byte).expect("error bytes are within their cap");
+                    error.push(byte).expect("error bytes are within their cap");
                 }
                 if data.len() > room {
-                    error_cut(client, env, above);
+                    let failure = openai::classify(client.provider, answer.status, None, answer.rate, env.wall);
+                    let detail = error_cut(error.as_slice(), env.limits.detail_bytes);
+                    fail(client, failure, detail, above);
                     closing(client, env, above, below);
                 } else {
                     client.requests.push(http::Request::Body(Down::Demand {
-                        read: Read::Arrived { max: client.error.room().saturating_add(1) },
+                        read: Read::Arrived { max: error.room().saturating_add(1) },
                         room: 0,
                     }));
                 }
@@ -1074,7 +1111,7 @@ fn body_event(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
                 closing(client, env, above, below);
             }
         },
-        State::Prepared | State::Head | State::Draining | State::Idle | State::Closing | State::Closed => {}
+        Prepared { .. } | Head { .. } | Draining | Idle | Closing | Closed => {}
     }
 }
 
@@ -1089,9 +1126,11 @@ fn sse_event(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    if client.state != State::Streaming {
-        return;
-    }
+    let (answer, receiving) = match &mut client.state {
+        Streaming { answer, receiving } => (answer, receiving),
+        Prepared { .. } | Head { .. } | ErrorBody { .. }
+        | Draining | Idle | Closing | Closed => return,
+    };
     match event {
         sse::Event::Opened => {
             client.event_data = EventData::First;
@@ -1102,15 +1141,15 @@ fn sse_event(
         sse::Event::Dispatched(dispatch) => {
             let before = usize_of(client.outputs.len());
             let data = mem::replace(&mut client.event_data, EventData::Idle);
-            let decoder = client.decoder.as_mut().expect("the streaming state has its decoder");
+            let decoder = &mut receiving.decoder;
             let parsed = match data {
                 EventData::Collected(document) => decoder.event(
                     &dispatch.name,
                     document,
                     &env.limits.native(),
                     env.wall,
-                    client.status,
-                    client.rate,
+                    answer.status,
+                    answer.rate,
                     &mut client.outputs,
                 ),
                 EventData::SentinelEnd => {
@@ -1148,10 +1187,7 @@ fn sse_event(
                 }
             }
         }
-        sse::Event::Ended => {
-            let decoder = client.decoder.as_mut().expect("the streaming state has its decoder");
-            decoder.end(&env.limits.native(), &mut client.outputs);
-        }
+        sse::Event::Ended => receiving.decoder.end(&env.limits.native(), &mut client.outputs),
         sse::Event::Failed(error) => {
             let failure = match error {
                 sse::Error::LineTooLong | sse::Error::EventTooLong => {
@@ -1271,16 +1307,18 @@ fn output(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    if client.state != State::Streaming {
-        return;
-    }
+    let receiving = match &mut client.state {
+        Streaming { receiving, .. } => receiving,
+        Prepared { .. } | Head { .. } | ErrorBody { .. }
+        | Draining | Idle | Closing | Closed => return,
+    };
     match event {
         dialect::Output::Part(part) => match part {
             Ok(block) => {
                 let size = block_size(&block);
-                let next = client.content_bytes.checked_add(size);
+                let next = receiving.content_bytes.checked_add(size);
                 match next {
-                    Some(next) if next <= u64::from(env.limits.receiving) => client.content_bytes = next,
+                    Some(next) if next <= u64::from(env.limits.receiving) => receiving.content_bytes = next,
                     Some(_) | None => {
                         fail(
                             client,
@@ -1292,8 +1330,7 @@ fn output(
                         return;
                     }
                 }
-                let content = client.content.as_mut().expect("a pending call holds its completion");
-                if content.push(block.clone()).is_err() {
+                if receiving.content.push(block.clone()).is_err() {
                     fail(
                         client,
                         Failure::Limit { which: crate::Cap::OutputItems, bound: u64::from(env.limits.output_items) },
@@ -1302,7 +1339,7 @@ fn output(
                     );
                     closing(client, env, above, below);
                 } else {
-                    client.asked = false;
+                    receiving.asked = false;
                     above.push(Event::Block { owner: client.owner, block });
                 }
             }
@@ -1316,31 +1353,30 @@ fn output(
             }
         },
         dialect::Output::TextDelta { index, content_index, text } => {
-            client.asked = false;
+            receiving.asked = false;
             above.push(Event::Delta { owner: client.owner, delta: Delta::Text { index, content_index, text } });
         }
         dialect::Output::ToolStart { index, id, name } => {
-            client.asked = false;
+            receiving.asked = false;
             above.push(Event::Delta { owner: client.owner, delta: Delta::ToolStart { index, id, name } });
         }
         dialect::Output::ArgumentsDelta { index, delta } => {
-            client.asked = false;
+            receiving.asked = false;
             above.push(Event::Delta { owner: client.owner, delta: Delta::ToolArguments { index, delta } });
         }
         dialect::Output::ReasoningDelta { index, summary_index, text } => {
-            client.asked = false;
+            receiving.asked = false;
             above.push(Event::Delta { owner: client.owner, delta: Delta::Reasoning { index, summary_index, text } });
         }
         dialect::Output::Completed { stop, usage } => {
-            let content = client.content.take().expect("a pending call holds its completion");
+            let content = mem::replace(&mut receiving.content, List::with_capacity(0));
             client.outcome = Outcome::Terminal;
-            client.asked = false;
             above.push(Event::Completed {
                 owner: client.owner,
                 completion: Completion { content: content.into_boxed(), stop, usage },
             });
             close_sse(client, env);
-            client.state = State::Draining;
+            client.state = Draining;
             client.requests.clear();
             client.requests.push(http::Request::Discard);
         }
@@ -1360,13 +1396,20 @@ fn fail_report(client: &mut Client, failure: Failure, mut report: Report, detail
     if client.outcome != Outcome::Pending {
         return;
     }
+    match &mut client.state {
+        Streaming { answer, receiving } => {
+            receiving.content = List::with_capacity(0);
+            report.request = mem::replace(&mut answer.request, Box::new([]));
+        }
+        ErrorBody { answer, .. } => report.request = mem::replace(&mut answer.request, Box::new([])),
+        Prepared { .. } | Head { .. } | Draining | Idle | Closing | Closed => {}
+    }
     // A decoded head can be queued when an unsolicited lower failure wins
     // over undemanded provider output. Its status is still observed evidence.
     for event in &client.http_events {
         match event {
             http::Event::Response(response) => {
-                client.status = response.status;
-                client.request = request_id(client.provider, &response.headers);
+                report.request = request_id(client.provider, &response.headers);
                 client.evidence = Evidence::Response { status: response.status };
             }
             http::Event::Upload(_)
@@ -1377,8 +1420,6 @@ fn fail_report(client: &mut Client, failure: Failure, mut report: Report, detail
         }
     }
     client.outcome = Outcome::Terminal;
-    client.asked = false;
-    client.content = None;
     let detail = match failure {
         Failure::Limit { which, bound } => openai::limit_detail(which, bound),
         Failure::TimedOut { phase } => openai::clip_detail(timeout_detail(phase), client.limits.detail_bytes),
@@ -1395,7 +1436,6 @@ fn fail_report(client: &mut Client, failure: Failure, mut report: Report, detail
         | Failure::Cancelled => detail,
     };
     let detail = openai::clip_detail(&detail, client.limits.detail_bytes);
-    report.request = mem::replace(&mut client.request, Box::new([]));
     above.push(Event::Failed { owner: client.owner, failure, evidence: client.evidence, report, detail });
 }
 
@@ -1411,59 +1451,60 @@ fn timeout_detail(phase: crate::Phase) -> &'static [u8] {
 }
 
 fn error_end(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>) {
+    let (answer, body) = match &mut client.state {
+        ErrorBody { answer, error } => (answer, error),
+        Prepared { .. } | Head { .. } | Streaming { .. }
+        | Draining | Idle | Closing | Closed => return,
+    };
     let limits = env.limits.native();
-    let decoded = match openai::Json::from_bytes(client.error.as_slice(), &error_document(&env.limits)) {
+    let document = crate::DocumentLimits {
+        bytes: env.limits.error_bytes,
+        strings: env.limits.error_bytes,
+        tokens: env.limits.error_bytes,
+        depth: env.limits.depth,
+    };
+    let decoded = match openai::Json::from_bytes(body.as_slice(), &document) {
         Ok(json) => openai::decode_error(&json, &limits),
         Err(error) => Err(error),
     };
     let error = decoded.ok();
-    let failure = openai::classify(client.provider, client.status, error.as_ref(), client.rate, env.wall);
+    let failure = openai::classify(client.provider, answer.status, error.as_ref(), answer.rate, env.wall);
     let report = match &error {
         Some(error) => dialect::error_report(client.provider, error),
         None => Report::none(),
     };
     let detail = match error {
         Some(error) => error.message,
-        None => openai::clip_detail(client.error.as_slice(), env.limits.detail_bytes),
+        None => openai::clip_detail(body.as_slice(), env.limits.detail_bytes),
     };
-    client.error.clear();
+    body.clear();
     fail_report(client, failure, report, detail, above);
 }
 
-fn error_document(limits: &Limits) -> crate::DocumentLimits {
-    crate::DocumentLimits {
-        bytes: limits.error_bytes,
-        strings: limits.error_bytes,
-        tokens: limits.error_bytes,
-        depth: limits.depth,
-    }
-}
 
 // An oversized body contributes bounded, unparsed detail. Status and head
 // classify it; closing immediately leaves the remaining proxy page unread.
-fn error_cut(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>) {
+fn error_cut(body: &[u8], detail_bytes: u32) -> Box<[u8]> {
     let marker = b"error body cut: ";
     let maximum = marker
         .len()
-        .checked_add(client.error.as_slice().len())
+        .checked_add(body.len())
         .expect("marker and u32-bounded body fit usize")
-        .min(usize_of(env.limits.detail_bytes));
+        .min(usize_of(detail_bytes));
     let mut detail = Writer::new(maximum);
     let label = marker.get(..marker.len().min(maximum)).expect("bounded marker prefix");
     detail.put(label).expect("marker within measured detail");
     let room = maximum.checked_sub(label.len()).expect("marker fits detail");
     let prefix =
-        client.error.as_slice().get(..client.error.as_slice().len().min(room)).expect("bounded unparsed body prefix");
+        body.get(..body.len().min(room)).expect("bounded unparsed body prefix");
     detail.put(prefix).expect("prefix within measured detail");
-    let failure = openai::classify(client.provider, client.status, None, client.rate, env.wall);
-    client.error.clear();
-    fail(client, failure, detail.finish(), above);
+    detail.finish()
 }
 
 fn close_sse(client: &mut Client, env: &Env<Limits>) {
     match client.state {
-        State::Draining | State::Idle | State::Closing | State::Closed => return,
-        State::Prepared | State::Head | State::Streaming | State::ErrorBody => {}
+        Draining | Idle | Closing | Closed => return,
+        Prepared { .. } | Head { .. } | Streaming { .. } | ErrorBody { .. } => {}
     }
     client.sse_events.clear();
     client.requests.clear();
@@ -1484,31 +1525,24 @@ fn close_sse(client: &mut Client, env: &Env<Limits>) {
 }
 
 fn close_machines(client: &mut Client, env: &Env<Limits>, below: &mut Queue<Down>) {
-    match client.state {
-        State::Closing | State::Closed => return,
-        State::Prepared | State::Head | State::Streaming | State::ErrorBody | State::Draining | State::Idle => {}
+    if client.stopped() {
+        return;
     }
     close_sse(client, env);
     client.requests.clear();
     client.http_events.clear();
     client.outputs.clear();
     client.upload = Upload::Done;
-    client.call = None;
-    client.content = None;
-    client.decoder = None;
-    client.error.clear();
-    client.state = State::Closing;
+    client.state = Closing;
     http_down(client, env, http::Request::Close, below);
     client.http_events.clear();
-    client.asked = false;
 }
 
 fn closing(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Down>) {
-    if client.state == State::Closing || client.state == State::Closed {
+    if client.stopped() {
         return;
     }
     close_machines(client, env, below);
-    client.state = State::Closing;
     above.push(Event::Close);
 }
 
