@@ -332,7 +332,11 @@ fn world_in_layout(
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
-                        w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Changes(_) | w::Watch::Dismissed => {
+                        w::Watch::Landing(_)
+                        | w::Watch::Landings(_)
+                        | w::Watch::Status(_)
+                        | w::Watch::Changes(_)
+                        | w::Watch::Dismissed => {
                             continue;
                         }
                     };
