@@ -525,6 +525,9 @@ pub enum Word {
     SignedProjectOwner,
     SignedName,
     NewChat,
+    NewChatIn,
+    NewChatNoRepository,
+    NewChatWords,
     ProjectPane,
     DescribeChange,
     NewChatLink,
@@ -845,7 +848,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
-const PHRASES: u32 = 1346;
+// New chat adds three phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1349;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -857,8 +861,9 @@ const PHRASES: u32 = 1346;
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
-const SEGMENTS: u32 = 2325;
-const ALL: [Word; 750] = [
+// New chat adds nine literal and hole segments (client/README.md, 3.5).
+const SEGMENTS: u32 = 2334;
+const ALL: [Word; 753] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1359,6 +1364,9 @@ const ALL: [Word; 750] = [
     Word::SignedProjectOwner,
     Word::SignedName,
     Word::NewChat,
+    Word::NewChatIn,
+    Word::NewChatNoRepository,
+    Word::NewChatWords,
     Word::ProjectPane,
     Word::DescribeChange,
     Word::NewChatLink,
@@ -2143,6 +2151,9 @@ impl Word {
             Self::SignedProjectOwner => 284,
             Self::SignedName => 285,
             Self::NewChat => 286,
+            Self::NewChatIn => 3200,
+            Self::NewChatNoRepository => 3201,
+            Self::NewChatWords => 3202,
             Self::ProjectPane => 2192,
             Self::DescribeChange => 2193,
             Self::WelcomeContinue => 2194,
@@ -2581,8 +2592,8 @@ impl Words {
             holes: 4,
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
-            // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11,
+            // Everyday Home adds 288 bytes; More accounts 149; Configure 401, its tag 11 and New chat 157 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 157,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3232,7 +3243,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ProposalInbox => (&[b"Open in inbox \xe2\x86\x97"], &[]),
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
         Word::ChoiceProvider => (&[b"", b""], &[Name]),
-        Word::ChatSendHint => (&[b"Enter to send \xc2\xb7 Shift+Enter for newline"], &[]),
+        Word::ChatSendHint => (&[b"Enter sends \xc2\xb7 Shift+Enter for a new line"], &[]),
         Word::ConnectForge => (&[b"Connect a forge"], &[]),
         Word::ChatTitle => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
         Word::PlaygroundModelName => (&[b"Scripted model"], &[]),
@@ -3248,6 +3259,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ProjectPane => (&[b"Project"], &[]),
         Word::DescribeChange => (&[b"Describe a change"], &[]),
         Word::NewChat => (&[b"New chat"], &[]),
+        Word::NewChatIn => (&[b"Say what you want; the agent works in ", b"/", b"."], &[Name, Name]),
+        Word::NewChatNoRepository => (&[b"Say what you want. ", b" has no repository yet, so the agent can talk and plan but not change code."], &[Name]),
+        Word::NewChatWords => (&[b"What do you want done?"], &[]),
         Word::NewChatLink => (&[b"+ New chat"], &[]),
         Word::Ready => (&[b"Ready"], &[]),
         Word::Playground => (&[b"Playground"], &[]),

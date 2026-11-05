@@ -1444,7 +1444,7 @@ fn assert_refusal_under_field(view: &crate::View, form_name: &[u8], field_name: 
 fn opening_rename_on_the_start_address_focuses_its_field_and_cancel_restores_the_composer() {
     let mut root = switcher_owner(true);
     let mut view = fixtures::page_view(&root);
-    assert_eq!(switcher_node(&view, Role::TextArea, b"Start a chat").focus, Some(0));
+    assert_eq!(switcher_node(&view, Role::TextArea, b"What do you want done?").focus, Some(0));
     let rename = switcher_node(&view, Role::Button, b"Rename Shop").id;
     let action = crate::act(&mut view, rename, Act::Press).unwrap();
     fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
@@ -1458,7 +1458,7 @@ fn opening_rename_on_the_start_address_focuses_its_field_and_cancel_restores_the
     let action = crate::act(&mut view, cancel, Act::Press).unwrap();
     fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
     fixtures::build(&mut view, &root);
-    assert_eq!(switcher_node(&view, Role::TextArea, b"Start a chat").focus, Some(0));
+    assert_eq!(switcher_node(&view, Role::TextArea, b"What do you want done?").focus, Some(0));
     assert!(fixtures::person_find(view.tree(), Role::TextField, b"Rename").is_none());
 }
 

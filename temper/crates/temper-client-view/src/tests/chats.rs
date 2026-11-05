@@ -892,34 +892,6 @@ fn done_and_failed_chats_say_closed_in_the_list_and_bar() {
 }
 
 #[test]
-fn only_the_starts_address_focuses_its_composer_including_the_playground() {
-    for playground in [false, true] {
-        for start in [false, true] {
-            let address = if start {
-                temper_client_domain::Address::NewChat
-            } else {
-                temper_client_domain::Address::Chats { filter: ChatsFilter::All }
-            };
-            let root = if playground {
-                fixtures::playground_root(address, fixtures::PROJECT, true)
-            } else {
-                fixtures::root_at(address, &fixtures::domain_limits()).0
-            };
-            let view = fixtures::page_view(&root);
-            let mut focused = 0_usize;
-            for node in view.tree().nodes() {
-                if node.focus.is_some() {
-                    assert_eq!(node.role, Role::TextArea);
-                    assert_eq!(node.name.as_deref(), Some(b"Start a chat".as_slice()));
-                    focused = focused.checked_add(1).expect("focus requests fit");
-                }
-            }
-            assert_eq!(focused, usize::from(start), "playground={playground}, start={start}");
-        }
-    }
-}
-
-#[test]
 fn unavailable_models_leave_an_editable_draft_but_no_submission() {
     let root = super::choice::no_model_root(false);
     let mut view = fixtures::page_view(&root);

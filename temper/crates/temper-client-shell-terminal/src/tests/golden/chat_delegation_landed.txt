@@ -47,5 +47,5 @@ Conversation:
     wait
 Using Scripted model · Default
 [13] Message: (empty) (enter sends)
-Enter to send · Shift+Enter for newline
+Enter sends · Shift+Enter for a new line
 [14] Send

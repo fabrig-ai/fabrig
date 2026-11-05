@@ -23,6 +23,8 @@ configure-sending
 configure-refused
 configure-chat
 configure-chats-tag
+chat-new
+chat-new-no-repository
 chats-solo
 chat-solo-T10
 inbox-solo

@@ -48,9 +48,17 @@ pub(crate) fn main(
             &[Hole::Number(chat.task), Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],
         );
         if configuring {
-            super::configure::top(b, root, words, bindings, task.project, &title);
-            b.open(Role::Slot);
-            b.style(look::SESSION_ACTIONS);
+            super::session::top(
+                b,
+                root,
+                words,
+                bindings,
+                Some(task.project),
+                super::session::Path::Settings,
+                super::session::Heading::Words(&title),
+            );
+            super::session::right(b);
+            super::configure::byline(b, root, words, task.project);
             bar_status(b, root, task, words, times);
             bar_actions(b, task, words, bindings);
             b.close();
@@ -177,7 +185,7 @@ fn session_composer(
     {
         return;
     }
-    super::configure::foot(b, &words.say(Word::Message, &[]));
+    super::session::foot(b, &words.say(Word::Message, &[]));
     b.open(Role::TextArea);
     b.name(&words.say(Word::Message, &[]));
     b.placeholder(&words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]));
@@ -194,7 +202,7 @@ fn session_composer(
     }
     b.bind(bindings.insert(Act::Send));
     b.close();
-    super::configure::hint(b, words);
+    super::session::hint(b, words);
     if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome
         && !super::chats::accepted(outcome)

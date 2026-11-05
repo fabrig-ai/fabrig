@@ -138,7 +138,13 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
         }
     }
     let title = escape(&skein_ui_web::title::text(&heading(view.tree()), b"temper"));
-    let html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
+    let mut html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
+    for op in &ops {
+        if let skein_ui_web::page::Op::Focus { node } = op {
+            let attribute = format!("data-node=\"{}\"", node.0);
+            html = html.replacen(&attribute, &format!("{attribute} autofocus"), 1);
+        }
+    }
     let mut styles = String::new();
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");

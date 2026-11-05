@@ -10,6 +10,8 @@ pub(crate) mod configure;
 pub(crate) mod connect_model;
 pub mod home;
 pub(crate) mod inbox;
+pub(crate) mod new_chat;
+pub(crate) mod session;
 pub(crate) mod task;
 pub(crate) mod welcome;
 

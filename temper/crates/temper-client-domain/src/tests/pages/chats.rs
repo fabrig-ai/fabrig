@@ -119,7 +119,13 @@ fn configure_and_new_chat_start_their_template_and_open_the_chat() {
                 }))),
             },
         });
-        assert_eq!(page.out.pop(), Some(Request::Show { address: Address::Chat { task: fixtures::acts::TASK } }));
+        let address = Address::Chat { task: fixtures::acts::TASK };
+        let expected = if *page.pages.address() == Address::NewChat {
+            Request::Replace { address }
+        } else {
+            Request::Show { address }
+        };
+        assert_eq!(page.out.pop(), Some(expected));
         assert!(page.out.is_empty());
         assert!(page.pages.chats().expect("chats").start.is_none());
     }
@@ -312,6 +318,7 @@ fn closed_chats_are_read_a_page_at_a_time() {
                 ended: EndedGroup::Rows { rows: List::with_capacity(0), after: Some(cursor.clone()), cut: false },
             })))),
         },
+        &crate::Address::Chats { filter: ChatsFilter::All },
         &mut out,
     );
     chats.older(&mut out);
@@ -529,7 +536,7 @@ fn live_updates_do_not_replace_an_older_closed_page() {
     });
     chats.older(&mut out);
     out.pop();
-    chats.told(Told::Changed { handle: chats.live }, &mut out);
+    chats.told(Told::Changed { handle: chats.live }, &crate::Address::Chats { filter: ChatsFilter::All }, &mut out);
     assert!(out.is_empty(), "an older page stays put");
 }
 

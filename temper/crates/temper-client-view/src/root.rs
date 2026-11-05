@@ -225,9 +225,17 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         );
     } else if let temper_client_domain::Address::Inbox { .. } = root.pages().address() {
         crate::pages::inbox::main(&mut builder, root, &view.forge_words, &mut view.pages, view.rows, &mut times);
-    } else if let temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat =
-        root.pages().address()
-    {
+    } else if *root.pages().address() == temper_client_domain::Address::NewChat {
+        crate::pages::new_chat::main(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            &mut view.forge,
+            view.limits.tree.text_per_node,
+            &mut times,
+        );
+    } else if let temper_client_domain::Address::Chats { .. } = root.pages().address() {
         crate::pages::chats::main(
             &mut builder,
             root,

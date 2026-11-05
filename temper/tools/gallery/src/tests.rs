@@ -641,6 +641,26 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "chat-new",
+        heading: "New chat",
+        parts: &[
+            Part::Text { text: "Say what you want; the agent works in work/hello." },
+            Part::Named { role: Role::TextArea, name: "What do you want done?" },
+            Part::Named { role: Role::Button, name: "Send" },
+            Part::Absent { role: Role::Button, name: "Start chat" },
+        ],
+    },
+    Holds {
+        name: "chat-new-no-repository",
+        heading: "New chat",
+        parts: &[
+            Part::Text {
+                text: "Say what you want. Hello has no repository yet, so the agent can talk and plan but not change code.",
+            },
+            Part::Named { role: Role::TextArea, name: "What do you want done?" },
+        ],
+    },
+    Holds {
         name: "chats-solo",
         heading: "Chats",
         parts: &[
@@ -967,7 +987,9 @@ const SPENDS: [(&str, Role, &str); 11] = [
 #[test]
 fn each_chat_reads_its_allotment() {
     for sample in samples::samples() {
-        if sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo") {
+        if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
+            && sample.address != temper_client_domain::Address::NewChat
+        {
             let (_, role, spend) = SPENDS.iter().find(|row| row.0 == sample.name).expect("sample's spend row");
             let view = view(&sample);
             find(view.tree(), *role, spend, sample.name);
@@ -1392,4 +1414,19 @@ fn configuring_gallery_states_list_the_template_and_send_readiness() {
             .expect("send");
         assert_eq!(send.states.as_slice().contains(&skein_ui::State::Disabled), disabled, "{name}");
     }
+}
+
+#[test]
+fn new_chat_focuses_the_composer_in_its_print() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-new").expect("new chat");
+    let view = view(&sample);
+    let entry = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::TextArea && n.name.as_deref() == Some(b"What do you want done?"))
+        .expect("composer");
+    assert_eq!(entry.focus, Some(0));
+    let page = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(page.contains(&format!("data-node=\"{}\" autofocus", entry.id.0)));
 }

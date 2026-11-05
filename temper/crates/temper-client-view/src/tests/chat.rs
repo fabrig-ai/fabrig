@@ -550,7 +550,7 @@ fn the_chat_entry_has_the_true_hint_between_message_and_send() {
     assert_eq!(nodes[send].name.as_deref(), Some(b"Send".as_slice()));
     assert_eq!(
         fixtures::words().say(crate::words::Word::ChatSendHint, &[]).as_ref(),
-        b"Enter to send \xc2\xb7 Shift+Enter for newline"
+        b"Enter sends \xc2\xb7 Shift+Enter for a new line"
     );
 }
 #[test]
@@ -1968,7 +1968,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MAIN, look::SESSION]);
         assert_eq!(style_position(tree.nodes(), look::CHAT), None);
         let top = styled(tree, look::SESSION_TOP);
-        let bar = styled(tree, look::SESSION_ACTIONS);
+        let bar = styled(tree, look::SESSION_RIGHT);
         assert!(top < bar && bar < top + usize::try_from(tree.nodes()[top].size).unwrap());
         let top_nodes = subtree(tree, top);
         for (role, name) in [
@@ -2014,7 +2014,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         assert!(entry < hint && hint < foot + usize::try_from(tree.nodes()[foot].size).unwrap());
         assert_eq!(
             tree.nodes()[hint].name.as_deref(),
-            Some(b"Enter to send \xc2\xb7 Shift+Enter for newline".as_slice())
+            Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line".as_slice())
         );
         for style in [look::ACCOUNT_LINE, look::CHOICE, look::COMPOSER_AREA, look::STARTERS] {
             assert_eq!(style_position(tree.nodes(), style), None);
@@ -2037,7 +2037,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
     skein_ui_text::render(view.tree(), b"temper", None, &mut print);
     let printed = print.text.as_slice();
     for words in
-        ["Settings", "T9 · Hello", "Conversation:", "Message", "Send", "Enter to send · Shift+Enter for newline"]
+        ["Settings", "T9 · Hello", "Conversation:", "Message", "Send", "Enter sends · Shift+Enter for a new line"]
     {
         assert!(skein_lib::bytes::find(printed, words.as_bytes()).is_some(), "{words}");
     }
