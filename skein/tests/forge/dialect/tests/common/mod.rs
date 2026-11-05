@@ -1,9 +1,6 @@
 pub mod cases;
 pub mod forgejo;
-use skein_forge::forgejo::{document::User, limits::Limits};
 use skein_lib::Rng;
-// The dialect's unit tests share admitted document fixtures with this suite.
-#[path = "../../../../../crates/skein-forge/src/forgejo/tests/fixtures/admitted.rs"]
 pub mod admitted;
 pub use crate::fixtures;
 pub fn mutated(rng: &mut Rng, golden: &[u8]) -> Vec<u8> {
