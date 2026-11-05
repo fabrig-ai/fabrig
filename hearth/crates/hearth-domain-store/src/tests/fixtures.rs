@@ -156,6 +156,12 @@ pub fn full() -> Harness {
     store.store.usable = false;
     store
 }
+pub fn failed_entry() -> Harness {
+    let mut store = ready(crate::limits::SHIPPED, &[]);
+    drop(store.step(Time::ZERO, blob(ARRIVAL, MOTD)));
+    drop(store.step(Time::ZERO, Event::Failed));
+    store
+}
 
 pub fn resolving(limits: Limits, key: hearth_lib::encode::Digest) -> Harness {
     let mut store = Harness::new(limits, MIN_UID);
