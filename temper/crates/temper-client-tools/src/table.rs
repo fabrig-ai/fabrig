@@ -111,6 +111,7 @@ pub const TOOLS: &[&Tool] = &[
     &crate::making::COPY,
     &rows::TAKE,
     &rows::HAND_BACK,
+    &rows::TASK_NOTES,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())
