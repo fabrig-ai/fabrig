@@ -18,6 +18,7 @@ fn seeded_connector_sizes_and_priorities_never_exceed_the_budget_or_leak_a_token
             deadline: Time::ZERO.saturating_add(Duration::from_secs(10)),
             sections: Box::new([
                 Planned::Connector {
+                    name: b"section",
                     connector: 3,
                     kind: 7,
                     token,

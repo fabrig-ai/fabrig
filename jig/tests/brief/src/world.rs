@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use jig_domain_brief::{GatherDomain, GatherEvent, GatherPlaced, GatherRequest, Limits, gather_fire, gather_step};
+use jig_domain_brief::{
+    GatherDomain, GatherEvent, GatherFailure, GatherFate, GatherPlaced, GatherRequest, Limits, gather_fire, gather_step,
+};
 use skein_lib::{Env, Queue, Time, Token, Wall};
 
 pub const LIMITS: Limits = Limits { briefs: 3, sections: 5, read_bytes: 128, brief_bytes: 192 };
@@ -93,7 +95,15 @@ impl World {
                             section,
                             size: u32::try_from(bytes.len()).expect("bounded fake bytes"),
                         },
-                        None => GatherEvent::Missing { brief: self.brief, section },
+                        None => GatherEvent::Missing {
+                            brief: self.brief,
+                            section,
+                            why: GatherFailure {
+                                fate: GatherFate::Transient,
+                                section: b"section",
+                                words: b"unavailable",
+                            },
+                        },
                     }
                 }
                 GatherRequest::CutTo { section, size, .. } => {

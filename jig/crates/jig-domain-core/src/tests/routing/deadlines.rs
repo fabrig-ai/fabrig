@@ -11,6 +11,7 @@ fn arm_brief(core: &mut Core, limits: &Limits, deadline: Time) {
             budget: 32,
             deadline,
             sections: Box::new([brief::Planned::Connector {
+                name: b"section",
                 connector: 1,
                 kind: 1,
                 token: Token::new(8),

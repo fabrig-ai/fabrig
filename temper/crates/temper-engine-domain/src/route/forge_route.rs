@@ -4332,7 +4332,15 @@ pub(crate) fn outputs(
                 let event = match size {
                     Some(size) if row.cutting => brief::GatherEvent::Cut { brief, section, size },
                     Some(size) => brief::GatherEvent::Ready { brief, section, size },
-                    None => brief::GatherEvent::Missing { brief, section },
+                    None => brief::GatherEvent::Missing {
+                        brief,
+                        section,
+                        why: brief::GatherFailure {
+                            fate: brief::GatherFate::Capacity,
+                            section: crate::assemble::forge_brief_name(&row.kind),
+                            words: b"could not be gathered",
+                        },
+                    },
                 };
                 domain.work.push(Work::Brief(event));
             }

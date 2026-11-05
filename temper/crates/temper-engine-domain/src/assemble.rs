@@ -25,9 +25,15 @@ pub(crate) fn brief_outputs(
                     continue;
                 }
                 if !connector.gatherable {
-                    domain
-                        .work
-                        .push(Work::Brief(brief::GatherEvent::Missing { brief: Token::new(connector.task), section }));
+                    domain.work.push(Work::Brief(brief::GatherEvent::Missing {
+                        brief: Token::new(connector.task),
+                        section,
+                        why: brief::GatherFailure {
+                            fate: brief::GatherFate::Capacity,
+                            section: forge_brief_name(&connector.kind),
+                            words: b"could not be gathered",
+                        },
+                    }));
                     continue;
                 }
                 domain.work.push(Work::Forge(forge::Event::GatherPlanned {
@@ -363,6 +369,7 @@ fn plan_home_access(
         .token();
     domain.work.push(Work::Forge(forge::Event::PlanBrief { section: token, source }));
     let section = brief::Planned::Connector {
+        name: forge_brief_name(&kind),
         connector: 0,
         kind: forge_kind_number(&kind),
         token,
@@ -426,6 +433,7 @@ fn plan_forge_section(
     domain.work.push(Work::Forge(forge::Event::PlanBrief { section: token, source }));
     wanted
         .push(brief::Planned::Connector {
+            name: forge_brief_name(&kind),
             connector: 0,
             kind: forge_kind_number(&kind),
             token,
@@ -521,6 +529,16 @@ pub(crate) fn forge_brief_kind(source: forge::BriefSource) -> ForgeBriefKind {
         forge::BriefSource::Ci { .. } => ForgeBriefKind::Ci,
         forge::BriefSource::Reviews { .. } => ForgeBriefKind::Reviews,
         forge::BriefSource::Pull { .. } => ForgeBriefKind::Pull,
+    }
+}
+
+pub(crate) fn forge_brief_name(kind: &ForgeBriefKind) -> &'static [u8] {
+    match kind {
+        ForgeBriefKind::Pull => b"pull",
+        ForgeBriefKind::Ci => b"ci",
+        ForgeBriefKind::Reviews => b"reviews",
+        ForgeBriefKind::Home => b"home",
+        ForgeBriefKind::Document(_) => b"document",
     }
 }
 

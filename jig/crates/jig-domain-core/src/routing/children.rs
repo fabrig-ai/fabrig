@@ -66,7 +66,7 @@ pub(crate) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
                 Request::Ask { connector, ask: Ask::CutTo { section, size } }
             }
             brief::GatherRequest::Drop { connector, section } => Request::Ask { connector, ask: Ask::Drop { section } },
-            brief::GatherRequest::Failed { brief, .. } | brief::GatherRequest::Refused { brief } => {
+            brief::GatherRequest::Failed { brief, .. } | brief::GatherRequest::Refused { brief, .. } => {
                 let task = brief.raw();
                 super::run::results::clear(core, task);
                 drop(core.contexts.remove(&task));
