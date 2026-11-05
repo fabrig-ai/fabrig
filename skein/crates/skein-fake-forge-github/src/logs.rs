@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api as a};
 use skein_forge::github::request::Method;
-use skein_lib::{Decimal, Queue, ReplyTo, Rng, Secret, Wall, Writer, bytes, sha256::Hmac};
+use skein_lib::{usize_of, Decimal, Queue, ReplyTo, Rng, Secret, Wall, Writer, bytes, sha256::Hmac};
 
 const LIFE: u64 = 600_000_000_000;
 // u32 repository, u64 job/expiry, u32 attempt, separators and 64 hex digits.
@@ -85,7 +85,7 @@ impl Service {
         if self.logs.records.room() == 0 {
             drop(self.logs.records.pop());
         }
-        let cap = usize::try_from(self.limits.http.head).expect("u32 fits");
+        let cap = usize_of(self.limits.http.head);
         let path = bytes::copy_of(target.get(..target.len().min(cap)).expect("bounded prefix"));
         self.logs.records.push(Record { path, authorization, range });
         if method != Method::Get || !target.starts_with(b"/logs/") {
@@ -122,12 +122,12 @@ pub(crate) fn optional_origin_fits(origin: Option<&[u8]>, limits: &Limits) -> bo
     }
 }
 pub(crate) fn origin_fits(origin: &[u8], limits: &Limits) -> bool {
-    let Some(length) = origin.len().checked_add(usize::try_from(SIGNED_MAX).expect("small constant")) else {
+    let Some(length) = origin.len().checked_add(usize_of(SIGNED_MAX)) else {
         return false;
     };
     crate::service::valid_origin(origin, limits.github.target_bytes)
-        && length <= usize::try_from(limits.github.target_bytes).expect("u32 fits")
-        && length <= usize::try_from(limits.response).expect("u32 fits")
+        && length <= usize_of(limits.github.target_bytes)
+        && length <= usize_of(limits.response)
 }
 
 pub(crate) fn redirect(service: &Service, repository: u32, answer: a::Answer, now: Wall) -> Response {
@@ -224,7 +224,7 @@ pub(crate) fn finish(result: Result<a::Answer, a::Error>, limits: &Limits) -> Re
     let a::Answer::File(body) = answer else {
         return answers::failed();
     };
-    if body.len() > usize::try_from(limits.response).expect("u32 fits") {
+    if body.len() > usize_of(limits.response) {
         return answers::failed();
     }
     Response { body, ..empty(200) }

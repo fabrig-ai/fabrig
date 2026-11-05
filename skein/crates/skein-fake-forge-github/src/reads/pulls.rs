@@ -7,13 +7,13 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api as a;
 use skein_forge::github::document as d;
-use skein_lib::List;
+use skein_lib::{List, usize_of};
 
 pub(super) fn commits(answer: a::Answer, target: &[u8], page: u32, size: u32, limits: &Limits) -> Response {
     let a::Answer::Commits { commits } = answer else {
         return answers::failed();
     };
-    let total = u64::try_from(commits.len()).expect("bounded history");
+    let total = skein_lib::len_u64(commits.len());
     let Some(page) = answers::Page::new(page, size, total) else {
         return answers::failed();
     };
@@ -102,11 +102,9 @@ pub(super) fn compare(answer: a::Answer, size: u32, limits: &Limits) -> Response
     let a::Answer::Comparison { merge_base, contains_base, files, commits, .. } = answer else {
         return answers::failed();
     };
-    let Ok(total_commits) = u64::try_from(commits.len()) else {
-        return answers::failed();
-    };
+    let total_commits = skein_lib::len_u64(commits.len());
     let mut ids = List::with_capacity(size);
-    for id in commits.iter().take(usize::try_from(size).expect("page bound")) {
+    for id in commits.iter().take(usize_of(size)) {
         ids.push(commit(*id)).expect("page capacity");
     }
     // GitHub caps the comparison's file array at 300; the dialect detects

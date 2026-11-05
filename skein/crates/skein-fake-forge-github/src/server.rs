@@ -12,7 +12,7 @@ use skein_fake_forge_http::{
 };
 use skein_forge::github::request::Method;
 use skein_http::{Header, Method as HttpMethod, server as http};
-use skein_lib::{
+use skein_lib::{usize_of, 
     Env, Intake, List, Queue, ReplyTo, Token, bytes,
     stream::{Down, Read, Up},
 };
@@ -516,8 +516,8 @@ fn respond(server: &mut Server, limits: &Limits, mut reply: Response, mut locati
         Some(value) => value.len(),
         None => 0,
     };
-    if reply.body.len() > usize::try_from(limits.response).expect("u32 fits")
-        || location_bytes > usize::try_from(limits.response).expect("u32 fits")
+    if reply.body.len() > usize_of(limits.response)
+        || location_bytes > usize_of(limits.response)
     {
         reply = answers::failed();
         location = None;

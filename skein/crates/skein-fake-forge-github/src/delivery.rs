@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use skein_forge::github::{self, delivery::Delivery, log, request, server};
-use skein_lib::{Decimal, Duration, List, Rng, Secret, Wall, Writer, bytes};
+use skein_lib::{usize_of, Decimal, Duration, List, Rng, Secret, Wall, Writer, bytes};
 
 /// A scenario's loopback destination; the App's advertised hook URL need not resolve.
 #[derive(Debug)]
@@ -124,8 +124,8 @@ impl Store {
             Delivery::Issue { body, .. } | Delivery::Comment { body, .. } | Delivery::Review { body, .. } => match body
             {
                 skein_forge::text::Body::Kept(text) => {
-                    if text.len() < usize::try_from(self.config.payload_size).expect("u32 fits") {
-                        let mut padded = Writer::new(usize::try_from(self.config.payload_size).expect("u32 fits"));
+                    if text.len() < usize_of(self.config.payload_size) {
+                        let mut padded = Writer::new(usize_of(self.config.payload_size));
                         padded.put(text).expect("payload size");
                         for _ in 0..padded.room() {
                             padded.put(b"x").expect("payload size");
@@ -263,7 +263,7 @@ impl Store {
                 rows.push(entry.row.clone()).expect("page room");
             }
         }
-        let mut out = Writer::new(usize::try_from(limits.response).expect("u32 fits"));
+        let mut out = Writer::new(usize_of(limits.response));
         if server::deliveries(rows.as_slice(), &mut out).is_err() {
             return answers::failed();
         }
@@ -278,7 +278,7 @@ impl Store {
                 &limits.github,
             );
             let Ok(target) = target else { return answers::failed() };
-            let mut link = Writer::new(usize::try_from(limits.response).expect("u32 fits"));
+            let mut link = Writer::new(usize_of(limits.response));
             for part in [b"<".as_slice(), base, &target.target, b">; rel=\"next\""] {
                 if link.put(part).is_err() {
                     return answers::failed();
@@ -304,7 +304,7 @@ impl Store {
     pub(crate) fn get(&self, id: u64, limits: &crate::Limits) -> Response {
         for entry in self.entries.as_slice().iter().flatten() {
             if entry.row.id == id && entry.listed {
-                let mut out = Writer::new(usize::try_from(limits.response).expect("u32 fits"));
+                let mut out = Writer::new(usize_of(limits.response));
                 if server::logged(&entry.row, &entry.payload, &entry.signature, &mut out).is_err() {
                     return answers::failed();
                 }
@@ -400,7 +400,7 @@ fn post(
     signature: &[u8],
     endpoint: &Endpoint,
 ) -> Result<Post, Problem> {
-    let length = Decimal::of(u64::try_from(body.len()).or(Err(Problem::Limits))?);
+    let length = Decimal::of(skein_lib::len_u64(body.len()));
     let parts = [
         b"POST ".as_slice(),
         &endpoint.target,
@@ -450,8 +450,8 @@ pub(crate) fn valid(config: &Config, limits: Limits, string: u32) -> bool {
             }
             address.ip().is_loopback()
                 && address.port() != 0
-                && endpoint.host.len() <= usize::try_from(string).expect("u32 fits")
-                && endpoint.target.len() <= usize::try_from(string).expect("u32 fits")
+                && endpoint.host.len() <= usize_of(string)
+                && endpoint.target.len() <= usize_of(string)
                 && endpoint.target.starts_with(b"/")
         }
     }

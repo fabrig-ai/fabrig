@@ -3,7 +3,7 @@ use crate::{Config, routes, setup::Store};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api as a;
 use skein_forge::forgejo::{document as d, id::ObjectFormat, request::Request, server::Answer};
-use skein_lib::{Decimal, List, Wall, Writer, bytes};
+use skein_lib::{usize_of, Decimal, List, Wall, Writer, bytes};
 
 #[must_use]
 pub fn state(state: a::State) -> d::IssueState {
@@ -191,7 +191,7 @@ fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pul
                 .reviews
                 .iter()
                 .skip(usize::try_from(skip).unwrap_or(usize::MAX))
-                .take(usize::try_from(limit).expect("u32 fits"))
+                .take(usize_of(limit))
             {
                 out.push(review(config, setup, value)).expect("page cap");
             }
@@ -369,7 +369,7 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
     let (page, limit) = routes::page(config, page);
     let skip = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(limit));
     let start = usize::try_from(skip).unwrap_or(usize::MAX).min(values.len());
-    let end = start.saturating_add(usize::try_from(limit).expect("u32 fits")).min(values.len());
+    let end = start.saturating_add(usize_of(limit)).min(values.len());
     // Forgejo 17 combines only the requested page: a walk against it, recorded on
     // 2026-10-27, saw a success hide a job still pending on a later page.
     let values = values.get(start..end).expect("bounded page");

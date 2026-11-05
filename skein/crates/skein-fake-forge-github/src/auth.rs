@@ -15,7 +15,7 @@ use skein_fake_forge_domain::{
     self as fake,
     api::{Answer, Error, Op, Permission, Read},
 };
-use skein_lib::{List, ReplyTo, Wall};
+use skein_lib::{usize_of, List, ReplyTo, Wall};
 
 /// A resolved credential, valid while the owner completes this request.
 #[derive(Clone, Copy, Debug)]
@@ -200,7 +200,7 @@ pub(crate) fn check(config: &crate::Config, limits: &crate::Limits) -> Result<()
             }
         }
         if secret.expose().is_empty()
-            || secret.expose().len() > usize::try_from(limits.github.string_bytes).expect("u32 fits")
+            || secret.expose().len() > usize_of(limits.github.string_bytes)
             || !person
         {
             return Err(crate::Problem::Config);

@@ -7,7 +7,7 @@ use skein_forge::forgejo::{
     request::{Page, Request},
     server,
 };
-use skein_lib::{Decimal, List, Writer, bytes};
+use skein_lib::{usize_of, Decimal, List, Writer, bytes};
 #[derive(PartialEq, Eq, Debug)]
 pub enum Select {
     Document,
@@ -686,7 +686,7 @@ fn raw(limits: &Limits, body: &[u8], range: Option<Range>) -> Result<Reply, a::E
     } else {
         body
     };
-    if bytes.len() > usize::try_from(limits.raw_bytes).expect("u32 fits") {
+    if bytes.len() > usize_of(limits.raw_bytes) {
         return Err(a::Error::TooLarge);
     }
     Ok(Reply { status, headers: headers.into_boxed(), body: bytes::copy_of(bytes) })
@@ -764,7 +764,7 @@ fn branches(
     for branch in branches
         .iter()
         .skip(usize::try_from(skip).unwrap_or(usize::MAX))
-        .take(usize::try_from(limit).expect("u32 fits"))
+        .take(usize_of(limit))
     {
         out.push(answers::branch(config, request, &branch.branch, branch.commit)).expect("page cap");
     }

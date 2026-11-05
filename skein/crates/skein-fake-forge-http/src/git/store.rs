@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 use core::cmp::Reverse;
 use skein_fake_forge_domain::{self as domain, api};
 use skein_json::writer::Encoder;
-use skein_lib::{List, Set};
+use skein_lib::{usize_of, List, Set};
 
 pub fn answer(hosted: &mut Hosted<'_>, call: Call, limits: &Limits, cap: u32) -> Result<Box<[u8]>, api::Error> {
     let answer = match call {
@@ -64,7 +64,7 @@ fn object(json: &mut Encoder, commit: u64, object: &domain::Object) -> Result<()
     Ok(())
 }
 fn objects(domain: &domain::Domain, asked: &[u64], limits: &Limits, cap: u32) -> Result<Box<[u8]>, api::Error> {
-    if asked.len() > usize::try_from(cap).expect("u32 fits") {
+    if asked.len() > usize_of(cap) {
         return Err(api::Error::Refused);
     }
     for commit in asked {

@@ -6,7 +6,7 @@ use crate::{
     store::Repository,
 };
 use alloc::boxed::Box;
-use skein_lib::{List, Map, bytes::copy_of, sha256::Sha256};
+use skein_lib::{usize_of, List, Map, bytes::copy_of, sha256::Sha256};
 
 // A prefix is a file's ordered position and the byte after a directory slash.
 // A zero length names the root, including when the tree has no files.
@@ -49,7 +49,7 @@ fn paged(entries: Box<[TreeEntry]>, page: u32, limit: u32, limits: &Limits) -> A
     let size = if limit == 0 { limits.page_size } else { limit.min(limits.page_size) };
     let skip = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(size));
     let mut out = List::with_capacity(size);
-    let exceeds_page = entries.len() > usize::try_from(size).expect("page size fits");
+    let exceeds_page = entries.len() > usize_of(size);
     for (index, entry) in entries.into_iter().enumerate() {
         if u64::try_from(index).expect("bounded entries") < skip {
             continue;
@@ -167,8 +167,8 @@ fn prefix(tree: &Tree, key: Prefix) -> &[u8] {
     if key.1 == 0 {
         return b"";
     }
-    let (path, _) = tree.iter().nth(usize::try_from(key.0).expect("bounded file position")).expect("indexed file");
-    path.get(..usize::try_from(key.1).expect("bounded prefix")).expect("directory prefix")
+    let (path, _) = tree.iter().nth(usize_of(key.0)).expect("indexed file");
+    path.get(..usize_of(key.1)).expect("directory prefix")
 }
 fn directory_id(tree: &Tree, directories: &Directories, wanted: &[u8]) -> [u8; 20] {
     for (&key, &id) in directories {

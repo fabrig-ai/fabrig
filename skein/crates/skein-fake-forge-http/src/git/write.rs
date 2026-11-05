@@ -3,7 +3,7 @@ use super::{Answer, Call, Object, Parents};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api;
 use skein_json::writer::{self, Encoder};
-use skein_lib::{Writer, base64};
+use skein_lib::{usize_of, Writer, base64};
 
 pub(super) fn finish(measure: Encoder, limits: &Limits) -> Result<Encoder, writer::Refusal> {
     let length = measure.measured()?;
@@ -31,7 +31,7 @@ fn optional(json: &mut Encoder, key: &[u8], value: Option<u64>) {
 pub(crate) fn content(json: &mut Encoder, key: &[u8], value: &[u8]) -> Result<(), writer::Refusal> {
     let count = u32::try_from(value.len()).or(Err(writer::Refusal::TooLong))?;
     let length = base64::encoded_len(base64::Alphabet::Standard, count).ok_or(writer::Refusal::TooLong)?;
-    let mut encoded = Writer::new(usize::try_from(length).expect("u32 fits"));
+    let mut encoded = Writer::new(usize_of(length));
     base64::encode(base64::Alphabet::Standard, value, &mut encoded).or(Err(writer::Refusal::TooLong))?;
     text(json, key, &encoded.finish());
     Ok(())

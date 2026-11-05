@@ -9,7 +9,7 @@
 use alloc::boxed::Box;
 
 use skein_lib::bytes::copy_of;
-use skein_lib::{Duration, Env};
+use skein_lib::{usize_of, Duration, Env};
 
 use crate::api::{Cue, Error, File, Permission, Setup, What};
 use crate::domain::{Config, Domain};
@@ -49,7 +49,7 @@ pub fn repository(domain: &mut Domain, config: &Config, setup: Setup) -> u64 {
         fit_names(&protection.contexts, limits.contexts, limits).expect("contexts within the limits");
     }
     assert!(
-        workflows.len() <= usize::try_from(limits.workflows).expect("workflow bound fits"),
+        workflows.len() <= usize_of(limits.workflows),
         "workflows within the limits"
     );
     let mut workflow_files = skein_lib::Set::with_capacity(limits.workflows);

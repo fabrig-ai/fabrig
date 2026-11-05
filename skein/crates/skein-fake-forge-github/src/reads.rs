@@ -10,7 +10,7 @@ use skein_fake_forge_domain::{
     api::{self as a, Answer, Error, Op},
 };
 use skein_forge::{api, github::document as d};
-use skein_lib::{List, ReplyTo, Wall, bytes};
+use skein_lib::{usize_of, len_u64, List, ReplyTo, Wall, bytes};
 
 mod checks;
 mod issues;
@@ -400,9 +400,7 @@ fn branches(answer: Answer, page: u32, size: u32, target: &[u8], limits: &Limits
     let Answer::Cloned { branches, .. } = answer else {
         return answers::failed();
     };
-    let Ok(total) = u64::try_from(branches.len()) else {
-        return answers::failed();
-    };
+    let total = len_u64(branches.len());
     let Some(page) = Page::new(page, size, total) else {
         return answers::failed();
     };
@@ -623,7 +621,7 @@ fn contents_answer(answer: Answer, limits: &Limits) -> Response {
     let Answer::File(body) = answer else {
         return answers::failed();
     };
-    if body.len() > usize::try_from(limits.response).expect("response bound") {
+    if body.len() > usize_of(limits.response) {
         return answers::failed();
     }
     Response {

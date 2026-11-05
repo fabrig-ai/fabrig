@@ -11,7 +11,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain as fake;
 use skein_forge::github::{self, document as d, request, server};
-use skein_lib::{List, Map, Overflow, ReplyTo, Rng, Secret, Wall, Writer};
+use skein_lib::{usize_of, List, Map, Overflow, ReplyTo, Rng, Secret, Wall, Writer};
 
 /// GitHub's repository metadata absent from the shared domain.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -364,7 +364,7 @@ impl Service {
     /// Manifest conversion replaces it with the new App's callback.
     pub fn set_setup_url(&mut self, url: Option<Box<[u8]>>) -> Result<(), Problem> {
         if let Some(url) = &url
-            && (url.len() > usize::try_from(self.limits.github.string_bytes).expect("URL bound fits")
+            && (url.len() > usize_of(self.limits.github.string_bytes)
                 || !crate::manifest::absolute(url))
         {
             return Err(Problem::Config);
@@ -667,7 +667,7 @@ impl Service {
         if let Some(link) = response.link.take() {
             // The dialect renders its pinned public origin. The fake's Config
             // supplies the origin for every link, including continuation replies.
-            let mut out = Writer::new(usize::try_from(self.limits.response).expect("bounded response"));
+            let mut out = Writer::new(usize_of(self.limits.response));
             let mut rest = link.as_ref();
             // A numbered page has at most next and last links.
             for _ in 0..2u32 {
