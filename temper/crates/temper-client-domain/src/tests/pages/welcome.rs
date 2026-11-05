@@ -203,7 +203,8 @@ fn shown(mut out: Queue<Request>) -> Option<(Address, bool)> {
 }
 #[test]
 fn no_welcome_moves_each_step_on_to_the_inbox() {
-    for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
         let (mut root, _, _, _) = opened(true, step);
         crate::tests::deployment::answer(&mut root, false, false);
         let Some((address, _)) = shown(go(&mut root, step)) else { panic!("{step:?} moves on") };
@@ -966,4 +967,86 @@ pub(super) fn ready_without_first() -> Domain {
     account(&mut root, accounts, 18, true);
     forge_rows(&mut root, forges.unwrap(), Some(3), true);
     root
+}
+
+#[test]
+fn step_marks_tick_facts_and_keep_the_address_current() {
+    // Each row gives the ticks for no facts, model alone, forge alone, and both.
+    for (step, current, ticks) in [
+        (
+            Step::Welcome,
+            0_u8,
+            [
+                [false, false, false, false],
+                [false, false, true, false],
+                [false, true, false, false],
+                [false, true, true, false],
+            ],
+        ),
+        (
+            Step::Forge { forge: None },
+            1,
+            [
+                [true, false, false, false],
+                [true, false, true, false],
+                [true, false, false, false],
+                [true, false, true, false],
+            ],
+        ),
+        (
+            Step::Model { way: None },
+            2,
+            [
+                [true, false, false, false],
+                [true, false, false, false],
+                [true, true, false, false],
+                [true, true, false, false],
+            ],
+        ),
+        (
+            Step::Ready,
+            3,
+            [
+                [true, false, false, false],
+                [true, false, true, false],
+                [true, true, false, false],
+                [true, true, true, false],
+            ],
+        ),
+    ] {
+        for ((forge, model), expected) in
+            [(false, false), (false, true), (true, false), (true, true)].into_iter().zip(ticks)
+        {
+            let marks = pages::welcome::step_marks(step, forge, model);
+            assert_eq!(marks.map(|mark| mark.ticked), expected, "{step:?}, forge {forge}, model {model}");
+            assert_eq!(marks.map(|mark| mark.current), [current == 0, current == 1, current == 2, current == 3]);
+        }
+    }
+    for (step, equivalent) in [
+        (Step::WelcomeAsked, Step::Welcome),
+        (Step::Forge { forge: Some(crate::Choice::Owned) }, Step::Forge { forge: None }),
+        (
+            Step::Model { way: Some(crate::ModelWay { provider: 17, kind: crate::WayKind::Key, source: None }) },
+            Step::Model { way: None },
+        ),
+    ] {
+        assert_eq!(pages::welcome::step_marks(step, true, true), pages::welcome::step_marks(equivalent, true, true));
+    }
+}
+
+#[test]
+fn the_asked_welcome_stays_until_the_store_is_whole() {
+    for (forge, model, whole) in [(false, false, false), (false, true, false), (true, false, false), (true, true, true)]
+    {
+        let (mut root, _, accounts, forges) = opened(true, Step::WelcomeAsked);
+        answer(&mut root, false);
+        account(&mut root, accounts, 18, model);
+        let out = forge_rows(&mut root, forges.unwrap(), if forge { Some(3) } else { None }, false);
+        assert_eq!(
+            shown(out),
+            if whole { Some((Address::Chats { filter: ChatsFilter::All, start: false }, true)) } else { None }
+        );
+        assert!(decided(&root));
+        assert_eq!(root.pages().address(), &Address::Welcome { step: Step::WelcomeAsked });
+    }
 }
