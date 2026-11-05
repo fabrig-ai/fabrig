@@ -19,6 +19,8 @@
   5.13: `pages/chats.rs`'s `drafts_offered` reads kind 7, but the chat's
   draft offer has no view calling it yet. A goal's start preselecting the
   stored way awaits a goal-start page; `pages/goals.rs` draws the list alone.
+  3.5, 5.13, 10: `Proposal { proposal }` and the fuller page's sections, with a review's
+  "Change something"; ctl supplies the review groups and running-work effect (`tools.md`, 5.2).
   5.3: the banner's "Changes", on a page that is no project's:
   the request of 2026-11-05 asked for the rail, and its mock has no banner.
   3.5, *Goals*: a project whose `me` lists no goal template opens no watch

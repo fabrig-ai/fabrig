@@ -415,14 +415,15 @@ and `connect-forge.html`.
 - **The Forges page** lists the person's forges: each forge the store
   keeps (`../protocol/forge.md`, 2.1), fakes aside, in number order,
   whatever its connection; a fresh deployment lists none until one is
-  set up or connected. After the page's level-1 heading
-  "Forges", the level-2 heading "Your forges", with their count, the
-  line "Each forge temper is connected to, or setting up. Add one to
-  bring its repositories to temper." and "+ Add a forge", a link to
-  `ConnectForge`; with none, "No forge of yours yet." and "Connect a
-  forge", the same link. While the playground runs, neither link is
-  drawn: there is nothing to add (`README.md`, 4.8). Each row is a disclosure, folded to its
-  summary: its name, "forge N · KIND · WEB" (its number, its kind and
+  set up or connected. It is Settings' `Forges` tab (`README.md`, 3.5,
+  *The `Forges` tab*), whose lede says "Each forge temper is connected to,
+  or setting up. Add one to bring its repositories to temper.": the
+  level-2 heading "Your forges · N", with "+ Add a forge", a link to
+  `ConnectForge`, in its head; with none, a quiet band: the tag "No forge
+  yet", "No forge of yours yet." and "Connect a forge", the same link. With
+  no project its level-1 heading is "Forges", and the lede follows it. While the playground runs, neither link is
+  drawn: there is nothing to add (`README.md`, 4.8). Each row is a disclosure, in the rows' look
+  (`README.md`, 3.5, *The rows*), folded to its summary: its name, "forge N · KIND · WEB" (its number, its kind and
   its `web` address), its connection's words (below) and its line:
   connected, its repositories, "OWNER/NAME · project PROJECT" each;
   setting up, its set up's first repository, "ORG/NAME";
@@ -504,8 +505,10 @@ and `connect-forge.html`.
   the playground's forge, is Choose; at Choose, a forge of the
   person's cut short is shown in the choices' place, "FORGE · not
   finished", with "Start over" and, on GitHub, "Go on", as the
-  welcome's Forge step shows it (`README.md`, 3.5, The welcome). The page's level-1 heading is "Connect a
-  forge", above the steps, and each step's content is in one card,
+  welcome's Forge step shows it (`README.md`, 3.5, The welcome); once
+  removed, "Start over" returns to `Forges`. The page's level-1 heading is
+  "Connect a forge", under its path (`README.md`, 3.5, *The flows' paths*)
+  and above the steps, and each step's content is in one card,
   under its level-2 heading.
   Leaving the flow leaves what runs running; the Forges entry's dot
   then says it (Elsewhere, below).

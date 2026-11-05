@@ -6,7 +6,7 @@ use crate::{
     words::{Word, Words},
 };
 use alloc::boxed::Box;
-use skein_ui::{Builder, Role, Run, State, Style, phrases::Hole};
+use skein_ui::{Binding, Builder, Role, Run, State, Style, phrases::Hole};
 use temper_client_domain::{
     Address, ChatsFilter, Domain,
     forge::{
@@ -22,6 +22,60 @@ pub(crate) enum Tab {
     Repositories,
     Forges,
     Accounts,
+    Builders,
+}
+
+/// A flow's return tab (temper/docs/design/client/README.md, 3.5, The flows' paths).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum FlowTab {
+    Forges,
+    Accounts,
+    Repositories,
+}
+
+/// A flow's path at its head (README.md, 3.5, The flows' paths): nothing with no project, or in the terminal.
+pub(crate) fn path(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: Option<u32>,
+    tab: FlowTab,
+    here: Word,
+) {
+    if w.shell == crate::words::Shell::Terminal {
+        return;
+    }
+    let Some(project) = project else { return };
+    let (word, address) = match tab {
+        FlowTab::Forges => (Word::ForgesTitle, Address::Forges),
+        FlowTab::Accounts => (Word::SettingsAccountsTab, Address::Accounts),
+        FlowTab::Repositories => (Word::SettingsRepositoriesTab, Address::Repositories { project }),
+    };
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_PATH);
+    b.open(Role::Navigation);
+    b.name(&w.say(Word::ConfigureWhere, &[]));
+    b.style(look::CRUMBS);
+    crate::link(b, &w.say(word, &[]), bindings.insert(Act::Go { address: address.clone() }));
+    b.style(look::BACK);
+    b.text(Run::Plain, &w.say(word, &[]));
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::TRAIL);
+    for (name, address) in [
+        (project_name(root, w, project), Address::Home { project }),
+        (w.say(Word::RailSettings, &[]), Address::Settings { project }),
+        (w.say(word, &[]), address),
+    ] {
+        crate::link(b, &name, bindings.insert(Act::Go { address }));
+        b.text(Run::Plain, &name);
+        b.close();
+    }
+    text(b, Role::Text, &w.say(here, &[]), look::SETTINGS_DETAIL);
+    b.close();
+    b.close();
+    b.close();
 }
 
 /// Opens the tab's column; the caller draws its body and closes it (README.md, 3.5, Settings).
@@ -37,15 +91,16 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         Tab::Repositories => (Word::SettingsRepositoriesHeading, Word::SettingsRepositoriesLede),
         Tab::Forges => (Word::SettingsForgesHeading, Word::SettingsForgesLede),
         Tab::Accounts => (Word::SettingsAccountsHeading, Word::SettingsAccountsLede),
+        Tab::Builders => (Word::SettingsBuildersHeading, Word::SettingsBuildersLede),
     };
     let title = match tab {
         Tab::HowWorkRuns | Tab::Repositories => w.say(heading, &[Hole::Name(name.clone())]),
-        Tab::Forges | Tab::Accounts => w.say(heading, &[]),
+        Tab::Forges | Tab::Accounts | Tab::Builders => w.say(heading, &[]),
     };
     text(b, Role::Heading { level: 1 }, &title, look::SETTINGS_HEADLINE);
     let lede = match tab {
         Tab::Repositories => w.say(lede, &[Hole::Name(name)]),
-        Tab::HowWorkRuns | Tab::Forges | Tab::Accounts => w.say(lede, &[]),
+        Tab::HowWorkRuns | Tab::Forges | Tab::Accounts | Tab::Builders => w.say(lede, &[]),
     };
     text(b, Role::Paragraph, &lede, look::SETTINGS_LEDE);
     b.close();
@@ -57,6 +112,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         (Tab::Repositories, Word::SettingsRepositoriesTab, Address::Repositories { project }),
         (Tab::Forges, Word::ForgesTitle, Address::Forges),
         (Tab::Accounts, Word::SettingsAccountsTab, Address::Accounts),
+        (Tab::Builders, Word::SettingsBuildersTab, Address::Builders { project }),
     ] {
         let name = w.say(word, &[]);
         crate::link(b, &name, bindings.insert(Act::Go { address }));
@@ -67,10 +123,51 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         match item {
             Tab::Forges => crate::frame::forge_mark(b, root, w, false),
             Tab::Accounts => crate::frame::account_mark(b, root, w, false),
-            Tab::HowWorkRuns | Tab::Repositories => {}
+            Tab::HowWorkRuns | Tab::Repositories | Tab::Builders => {}
         }
         b.close();
     }
+    b.close();
+}
+/// Opens the column without a project's kicker or tabs (README.md, 3.5, Settings).
+pub(crate) fn open_alone(b: &mut Builder, heading: &[u8], lede: &[u8]) {
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_COL);
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_INTRO);
+    text(b, Role::Heading { level: 1 }, heading, look::SETTINGS_HEADLINE);
+    text(b, Role::Paragraph, lede, look::SETTINGS_LEDE);
+    b.close();
+}
+/// Opens the section and its head; the caller adds the act and closes both.
+pub(crate) fn section_head(b: &mut Builder, title: &[u8]) {
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION);
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION_HEAD);
+    text(b, Role::Heading { level: 2 }, title, look::SETTINGS_SECTION_TITLE);
+}
+/// Opens a quiet band; the caller adds its act and closes it.
+pub(crate) fn quiet_band(b: &mut Builder, tag: &[u8], words: &[u8]) {
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_BAND);
+    b.style(look::SETTINGS_QUIET_BAND);
+    b.open(Role::Paragraph);
+    b.name(words);
+    text(b, Role::Text, tag, look::SETTINGS_TAG);
+    b.text(Run::Plain, words);
+    b.close();
+}
+/// A link in the settings button's look, primary or small.
+pub(crate) fn button_to(b: &mut Builder, name: &[u8], to: Binding, primary: bool) {
+    crate::link(b, name, to);
+    if primary {
+        b.style(look::SETTINGS_PRIMARY);
+    } else {
+        b.style(look::SETTINGS_BTN);
+        b.style(look::SETTINGS_SMALL);
+    }
+    b.text(Run::Plain, name);
     b.close();
 }
 fn project_name(root: &Domain, w: &Words, project: u32) -> Box<[u8]> {
@@ -79,12 +176,12 @@ fn project_name(root: &Domain, w: &Words, project: u32) -> Box<[u8]> {
         None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
     }
 }
-fn main(b: &mut Builder) {
+pub(super) fn main(b: &mut Builder) {
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::SETTINGS);
 }
-fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) -> bool {
+pub(super) fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) -> bool {
     if root.pages().me(root.client()).is_some()
         && crate::pages::project_name(root.pages().me(root.client()), project).is_none()
     {
@@ -382,26 +479,20 @@ fn repository_section(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
             }
         }
     }
-    b.open(Role::Slot);
-    b.style(look::SETTINGS_SECTION);
-    b.open(Role::Slot);
-    b.style(look::SETTINGS_SECTION_HEAD);
     let title = if known {
         w.say(Word::SettingsRepositoriesCount, &[Hole::Number(count)])
     } else {
         w.say(Word::SettingsRepositoriesTab, &[])
     };
-    text(b, Role::Heading { level: 2 }, &title, look::SETTINGS_SECTION_TITLE);
+    section_head(b, &title);
     button_link(b, w, bindings, Word::Adoption, Address::Adopt { project }, false);
     b.close();
     if known && count == 0 {
-        b.open(Role::Slot);
-        b.style(look::SETTINGS_BAND);
-        b.style(look::SETTINGS_QUIET_BAND);
-        b.open(Role::Paragraph);
-        text(b, Role::Text, &w.say(Word::SettingsNoneTag, &[]), look::SETTINGS_TAG);
-        w.text(b, Word::SettingsNoneBody, &[Hole::Name(project_name(root, w, project))]);
-        b.close();
+        quiet_band(
+            b,
+            &w.say(Word::SettingsNoneTag, &[]),
+            &w.say(Word::SettingsNoneBody, &[Hole::Name(project_name(root, w, project))]),
+        );
         button_link(b, w, bindings, Word::Adoption, Address::Adopt { project }, false);
         b.close();
     } else if known {
@@ -477,8 +568,8 @@ fn link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, address
 fn button_link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, address: Address, primary: bool) {
     let name = w.say(word, &[]);
     crate::link(b, &name, bindings.insert(Act::Go { address }));
-    b.style(look::SETTINGS_BTN);
-    b.style(if primary { look::SETTINGS_PRIMARY } else { look::SETTINGS_SMALL });
+    b.style(if primary { look::SETTINGS_PRIMARY } else { look::SETTINGS_BTN });
+    b.style(look::SETTINGS_SMALL);
     b.text(Run::Plain, &name);
     b.close();
 }

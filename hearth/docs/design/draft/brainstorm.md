@@ -339,7 +339,7 @@ same wire. Inside, hearth is Debian on btrfs, and says so.
 7. **The fleet leaves the code.** Four details of one fleet are in os's
    code and move into tasks (with the magic task names of 7.9):
    - `host.hardware == "7th-gen"` switching on non-free components;
-   - the Europe/Lisbon timezone and en_US locale preseeds;
+   - the Etc/UTC timezone and en_US locale preseeds;
    - the persistent `@<target>.srv.core/journal` and `iwd` directories;
    - masking gettys in containers.
 8. **Little of os's code ports.** Step crates are `no_std`, so

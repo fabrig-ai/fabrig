@@ -12,7 +12,7 @@ fn empty_own_accounts_offer_a_model_connection() {
         &mut world,
         client,
         vec![
-            see(Role::Heading { level: 2 }, b"Your accounts"),
+            see(Role::Heading { level: 2 }, "Your accounts · 0".as_bytes()),
             see(Role::Paragraph, b"No model of yours yet."),
             see(Role::Link, b"Connect a model"),
         ],

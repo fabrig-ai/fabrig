@@ -610,6 +610,7 @@ fn shown(root: &Domain, project: u32) -> Shown {
         | Address::Adopt { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
@@ -702,6 +703,7 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     b.text(Run::Plain, &name);
     let current = match root.pages().address() {
         Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Configure { .. }
         | Address::Accounts
@@ -737,6 +739,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
@@ -797,6 +800,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Goals { .. }
             | Address::Configure { .. }
@@ -869,6 +873,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
@@ -905,6 +910,7 @@ pub(crate) fn accounts_link(
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
