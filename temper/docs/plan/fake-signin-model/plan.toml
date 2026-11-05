@@ -1,0 +1,29 @@
+draft = "fake-signin-model"
+repo = "fabrig"
+sources = ["temper/docs/plan/fake-signin-model/inputs/request.md", "temper/docs/design/client/journeys/project-landing/README.md", "AGENTS.md", "DESIGN.md"]
+
+# Two tasks, in order: the fault and Ready's words, then the recording it unblocks. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "signin-model"
+title = "A fake box's ChatGPT sign-in leaves a usable model, and Ready never stays silent"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "record-landing"
+title = "project-landing is walked anew to Home in Hello, and reprinted"
+mode = "direct"
+needs = ["signin-model"]
+design = "temper/docs/design/client/journeys.md, 8"
+
+[[slice]]
+id = 1
+story = "A fresh fake box walks Forgejo and the ChatGPT plan through Ready to Home in Hello, with work/hello adopted"
+parts = ["signin-model", "record-landing"]
+walk = false

@@ -12,7 +12,7 @@ use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 const HOME_HEADLINE: &[u8] = "You’re set up. Nothing has run yet.".as_bytes();
 
 /// The browser's client bounds over the native transport (client/README.md, 2).
-fn browser_bounds() -> temper_client_shell_terminal::limits::Limits {
+pub(super) fn browser_bounds() -> temper_client_shell_terminal::limits::Limits {
     temper_client_shell_terminal::limits::Limits {
         client: temper_client_shell_web::limits::client(),
         ..temper_client_shell_terminal::limits::native()
@@ -34,7 +34,7 @@ struct Judge {
     press: bool,
     until: Time,
 }
-fn named<'a>(client: &'a NativeClient, role: Role, name: &[u8]) -> Option<&'a skein_ui::Node> {
+pub(super) fn named<'a>(client: &'a NativeClient, role: Role, name: &[u8]) -> Option<&'a skein_ui::Node> {
     client.tree().nodes().iter().find(|node| node.role == role && node.name.as_deref() == Some(name))
 }
 fn live(client: &NativeClient) -> bool {
