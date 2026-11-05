@@ -11,6 +11,7 @@ mod dismissed;
 mod playground;
 mod public;
 mod question;
+mod status;
 
 pub(crate) mod fixtures;
 mod forge_words;

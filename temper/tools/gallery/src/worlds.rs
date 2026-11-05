@@ -353,7 +353,11 @@ fn world_in_layout(
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
-                        w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Changes(_) | w::Watch::Dismissed => {
+                        w::Watch::Landing(_)
+                        | w::Watch::Landings(_)
+                        | w::Watch::Status(_)
+                        | w::Watch::Changes(_)
+                        | w::Watch::Dismissed => {
                             continue;
                         }
                     };
@@ -3177,6 +3181,7 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Changes samples use the mock's landed clocks and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        "home-morning" => Wall::from_nanos(1_792_483_440_000_000_000),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
         "changes-landed-only" => offset(Reference, 2),
         _ => now(world),
@@ -3375,6 +3380,45 @@ fn builders() -> List<c::Host> {
         .expect("three builders");
     }
     rows
+}
+
+/// Home's computed facts (client/README.md, 3.5), delivered by its status watch.
+pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1::ProjectStatus> {
+    use temper_client_protocol_wire::v1 as w;
+    let (landed, seen, queued, red, previous, last) = match name {
+        "home-computed" => (3, 1, 3, false, Some(540), Some(6)),
+        "home-last-looked-none" => (3, 1, 3, false, None, Some(6)),
+        "home-landing-none" => (0, 0, 0, false, Some(540), None),
+        "home-landing-red" => (3, 1, 0, true, Some(540), Some(60)),
+        "home-chats-sentence" => (0, 0, 0, false, None, None),
+        _ => return None,
+    };
+    let now = now(FirstRun { step: 7 });
+    Some(
+        w::ProjectStatus::new(
+            &w::CEILINGS,
+            w::ProjectStatusParts {
+                project: PROJECT,
+                landed,
+                seen,
+                queued,
+                red,
+                previous: previous.map(|minutes: u64| {
+                    now.as_nanos()
+                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
+                        .expect("Home previous follows epoch")
+                }),
+                last_landed: last.map(|minutes: u64| {
+                    now.as_nanos()
+                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
+                        .expect("Home landing follows epoch")
+                }),
+                brief: None,
+                branch: b"main".as_slice().into(),
+            },
+        )
+        .expect("Home status fits"),
+    )
 }
 
 /// Home's copies share Ready's intent; the watch supplies progress and adoptions (client/README.md, 3.5).

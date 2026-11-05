@@ -245,6 +245,18 @@ pub enum Word {
     HomeChatDetail,
     HomeNewChat,
     HomeAdoptLink,
+    HomeLooked,
+    HomeLandedOne,
+    HomeLandedMany,
+    HomeByline,
+    HomeLanding,
+    HomeChatsSentence,
+    LookedMinute,
+    LookedMinutes,
+    LookedHour,
+    LookedHours,
+    LookedDay,
+    LookedDays,
     HomeDayTime,
     HomeDone,
     HomeNumber,
@@ -1086,7 +1098,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Byline forms add six phrases (client/README.md, 5.5).
 // The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
 // Delegation lines add seven literal phrases (client/README.md, 5.7).
-const PHRASES: u32 = 1566;
+// Home's status, last-look words and byline add twelve phrases (3.5).
+const PHRASES: u32 = 1578;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1116,8 +1129,9 @@ const PHRASES: u32 = 1566;
 // Goal rows, ways and page add sixty-three segments (client/README.md, 3.5).
 // Byline forms add twenty-eight segments (client/README.md, 5.5).
 // Delegation lines add seven literal segments (client/README.md, 5.7).
-const SEGMENTS: u32 = 2754;
-const ALL: [Word; 969] = [
+// Home's status, last-look words and byline add twenty-six segments (3.5).
+const SEGMENTS: u32 = 2780;
+const ALL: [Word; 981] = [
     Word::SettingsBuildersTab,
     Word::SettingsBuildersHeading,
     Word::SettingsBuildersLede,
@@ -1348,6 +1362,18 @@ const ALL: [Word; 969] = [
     Word::HomeChatDetail,
     Word::HomeNewChat,
     Word::HomeAdoptLink,
+    Word::HomeLooked,
+    Word::HomeLandedOne,
+    Word::HomeLandedMany,
+    Word::HomeByline,
+    Word::HomeLanding,
+    Word::HomeChatsSentence,
+    Word::LookedMinute,
+    Word::LookedMinutes,
+    Word::LookedHour,
+    Word::LookedHours,
+    Word::LookedDay,
+    Word::LookedDays,
     Word::HomeDayTime,
     Word::HomeDone,
     Word::HomeNumber,
@@ -2324,6 +2350,18 @@ impl Word {
             Self::HomeChatDetail => 3132,
             Self::HomeNewChat => 3133,
             Self::HomeAdoptLink => 3141,
+            Self::HomeLooked => 3388,
+            Self::HomeLandedOne => 3389,
+            Self::HomeLandedMany => 3390,
+            Self::HomeByline => 3391,
+            Self::HomeLanding => 3392,
+            Self::HomeChatsSentence => 3393,
+            Self::LookedMinute => 3394,
+            Self::LookedMinutes => 3395,
+            Self::LookedHour => 3396,
+            Self::LookedHours => 3397,
+            Self::LookedDay => 3398,
+            Self::LookedDays => 3399,
             Self::HomeDayTime => 3142,
             Self::HomeDone => 3143,
             Self::HomeNumber => 3144,
@@ -3347,7 +3385,8 @@ impl Words {
             // Home’s copy phrases add 254 literal bytes (client/README.md, 3.5).
             // Home’s repository sheet adds 289 literal bytes (client/README.md, 3.5).
             // Agent check refusal adds 53 literal bytes (5.13).
-            text_bytes: 1154
+            // Home's status, last-look words and byline add 310 literal bytes (3.5).
+            text_bytes: 1464
                 + 157
                 + 141
                 + 419
@@ -3659,7 +3698,19 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeChatDetail => (&[b"Ask a question or ask for a change."], &[]),
         Word::HomeNewChat => (&[b"New chat"], &[]),
         Word::HomeAdoptLink => (&[b"Adopt"], &[]),
-        Word::HomeDayTime => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::HomeLooked => (&[b"", b" \xc2\xb7 you last looked ", b" ago"], &[Name, Name]),
+        Word::HomeLandedOne => (&[b"One change landed since you last looked."], &[]),
+        Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
+        Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),
+        Word::HomeLanding => (&[b"Landing: "], &[]),
+        Word::HomeChatsSentence => (&[b"A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing."], &[]),
+        Word::LookedMinute => (&[b"a minute"], &[]),
+        Word::LookedMinutes => (&[b"", b" minutes"], &[Number]),
+        Word::LookedHour => (&[b"an hour"], &[]),
+        Word::LookedHours => (&[b"", b" hours"], &[Number]),
+        Word::LookedDay => (&[b"a day"], &[]),
+        Word::LookedDays => (&[b"", b" days"], &[Number]),
+        Word::HomeDayTime => (&[b"", b", ", b""], &[Name, Name]),
         Word::HomeDone => (&[b"Done. "], &[]),
         Word::HomeNumber => (&[b"", b". "], &[Number]),
         Word::PublicUnknown => (&[b"Not public, or not here."], &[]),
@@ -4505,12 +4556,14 @@ mod clock_tests {
     }
 }
 
-/// The four forms of client/README.md, 5.12, against the shell's wall clock.
+/// Client times (client/README.md, 5.12) and Home's last-look span (3.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TimeForm {
     Ago,
+    Looked,
     Span,
     Clock,
+    Weekday,
     Day,
 }
 const MINUTE: u64 = 60_000_000_000;
@@ -4545,18 +4598,29 @@ impl Words {
         let minutes = elapsed / MINUTE;
         let unit = match form {
             TimeForm::Ago if minutes < 720 => Some(MINUTE),
-            TimeForm::Span if elapsed < DAY => Some(MINUTE),
-            TimeForm::Span => Some(DAY),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day => None,
+            TimeForm::Span | TimeForm::Looked if elapsed < DAY => Some(MINUTE),
+            TimeForm::Span | TimeForm::Looked => Some(DAY),
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => None,
         };
         let next = next_tick(at, now, elapsed, unit);
         let said = match form {
+            TimeForm::Looked => self.looked_span(minutes),
             TimeForm::Span => self.time_span(minutes),
             TimeForm::Ago if minutes == 0 => self.say(Word::TimeJustNow, &[]),
             TimeForm::Ago if minutes < 720 => self.say(Word::TimeAgo, &[Hole::Name(self.time_span(minutes))]),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day => self.calendar_time(form, at, now),
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => self.calendar_time(form, at, now),
         };
         (said, next)
+    }
+    fn looked_span(&self, minutes: u64) -> Box<[u8]> {
+        match minutes {
+            0 | 1 => self.say(Word::LookedMinute, &[]),
+            2..60 => self.say(Word::LookedMinutes, &[Hole::Number(minutes)]),
+            60..120 => self.say(Word::LookedHour, &[]),
+            120..1440 => self.say(Word::LookedHours, &[Hole::Number(minutes / 60)]),
+            1440..2880 => self.say(Word::LookedDay, &[]),
+            2880..=u64::MAX => self.say(Word::LookedDays, &[Hole::Number(minutes / 1440)]),
+        }
     }
     fn time_span(&self, minutes: u64) -> Box<[u8]> {
         match minutes {
@@ -4586,6 +4650,7 @@ impl Words {
                 };
                 self.say(Word::TimePair, &[Hole::Name(date), Hole::Name(clock)])
             }
+            TimeForm::Weekday => self.time_weekday(day, true),
             TimeForm::Day => {
                 let date = self.say(
                     Word::TimePair,
@@ -4597,7 +4662,7 @@ impl Words {
                     _ => date,
                 }
             }
-            TimeForm::Span => unreachable!("spans have no calendar words"),
+            TimeForm::Span | TimeForm::Looked => unreachable!("spans have no calendar words"),
         }
     }
     /// A turn under a day line has a fixed clock and needs no wake of its own.
