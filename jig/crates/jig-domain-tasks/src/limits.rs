@@ -113,8 +113,10 @@ pub struct Limits {
     pub room_refusals: u32,
 }
 
-#[expect(clippy::missing_assert_message, reason = "the const assertion spells out the fixed-text invariant")]
-const _: () = assert!(crate::questions::OWED_WORDS.len() < crate::run::NOTHING_AWAITED_WORDS.len());
+const _: () = assert!(
+    crate::questions::OWED_WORDS.len() < crate::run::NOTHING_AWAITED_WORDS.len(),
+    "the nothing-awaited notice must bound the question-owed notice's word bytes"
+);
 
 impl Limits {
     /// The largest retained word, including fixed notices (jig/docs/design/protocol/store.md, 5.1).
