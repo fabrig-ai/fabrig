@@ -574,42 +574,48 @@ fn task_read(record: &tasks::RunContext, parts: u32, bytes: u32) -> BriefRead {
     let first = text_part(&record.spec.words, b"\n", &contract, b"", bytes);
     let remaining =
         bytes.checked_sub(u32::try_from(first.bytes.len()).expect("bounded task part")).expect("part within read");
-    let part = match record.requester {
-        tasks::Party::Person(person) => {
-            let person = Decimal::of(person);
-            text_part(b"[Requested by person ", person.as_bytes(), b"]\n", b"", remaining)
-        }
-        tasks::Party::Task(task) => {
-            let task = Decimal::of(task);
-            text_part(b"[Requested by task ", task.as_bytes(), b"]\n", b"", remaining)
-        }
+    let (requester_label, requester) = match record.requester {
+        tasks::Party::Person(person) => (b"[Requested by person ".as_slice(), person),
+        tasks::Party::Task(task) => (b"[Requested by task ".as_slice(), task),
         tasks::Party::Deployment { project } => {
-            let project = Decimal::of(u64::from(project));
-            text_part(b"[Requested by deployment for project ", project.as_bytes(), b"]\n", b"", remaining)
+            (b"[Requested by deployment for project ".as_slice(), u64::from(project))
         }
     };
-    let remaining = remaining
-        .checked_sub(u32::try_from(part.bytes.len()).expect("bounded requester part"))
-        .expect("part within read");
     let task = Decimal::of(record.task);
     let project = Decimal::of(u64::from(record.project));
-    let mut ending = Writer::new(project.as_bytes().len().saturating_add(b"]\n".len()));
-    ending.put(project.as_bytes()).expect("measured project");
-    ending.put(b"]\n").expect("measured identity end");
-    let identity = text_part(b"[You are task ", task.as_bytes(), b" in project ", &ending.finish(), remaining);
+    let requester = Decimal::of(requester);
+    let fragments = [
+        b"[This task: ".as_slice(),
+        task.as_bytes(),
+        b", in project ",
+        project.as_bytes(),
+        b"]\n",
+        requester_label,
+        requester.as_bytes(),
+        b"]\n",
+    ];
+    let mut length = 0;
+    for fragment in fragments {
+        add_text_len(&mut length, fragment);
+    }
+    let mut writer = Writer::new(length);
+    for fragment in fragments {
+        writer.put(fragment).expect("measured task and requester lines");
+    }
+    let text = writer.finish();
+    let part = text_part(&text, b"", b"", b"", remaining);
     let mut gathered = List::with_capacity(parts);
-    for fragment in [first, part, identity] {
-        if gathered.len() < parts {
-            gathered.push(fragment).expect("part room");
-        } else {
-            let last = gathered.get_mut(parts.checked_sub(1).expect("positive parts")).expect("last part");
-            last.left = last
-                .left
-                .checked_add(u64::try_from(fragment.bytes.len()).expect("usize fits u64"))
-                .expect("bounded omitted bytes")
-                .checked_add(fragment.left)
-                .expect("bounded omitted bytes");
-        }
+    gathered.push(first).expect("positive part room");
+    if parts > 1 {
+        gathered.push(part).expect("requester part room");
+    } else {
+        let last = gathered.get_mut(0).expect("first part");
+        last.left = last
+            .left
+            .checked_add(u64::try_from(part.bytes.len()).expect("usize fits u64"))
+            .expect("bounded omitted bytes")
+            .checked_add(part.left)
+            .expect("bounded omitted bytes");
     }
     BriefRead::Got(gathered.into_boxed())
 }

@@ -39,7 +39,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.loads.transcript_bytes`: bytes, 65,536. Bounds a row's owned bytes, including transcripts and wrapped child rows, before the prefix is cut.
 - `root.brief.briefs`: count, 2. Bounds briefs the root gathers at once.
 - `root.brief.sections`: count, 8. Bounds brief sections the root gathers at once.
-- `root.brief.parts`: count, 3. Bounds parts in one gathered brief section.
+- `root.brief.parts`: count, 2. Bounds parts in one gathered brief section.
 - `root.brief.read_bytes`: bytes, 4,608. Bounds bytes read for one gathered brief section.
 - `root.brief.brief_bytes`: bytes, 14,592. Bounds the body of a gathered brief.
 - `root.brief.gather_ms`: milliseconds, 30,000. Bounds the time spent gathering a brief.

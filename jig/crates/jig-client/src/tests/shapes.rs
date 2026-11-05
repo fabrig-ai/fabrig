@@ -413,7 +413,7 @@ fn me_with_note_scopes() -> Me {
 }
 
 #[test]
-fn a_goal_is_filled_with_no_note_scopes() {
+fn a_goal_keeps_its_note_scopes() {
     let me = me_with_note_scopes();
     let Judged::Propose { ask: Ask::Propose { action: ProposeAction::Batch { tasks }, .. }, .. } =
         set_goal(&me, PROJECT, draft(), words())
@@ -421,8 +421,9 @@ fn a_goal_is_filled_with_no_note_scopes() {
         panic!("proposed goal")
     };
     let authority = &tasks.get(0).unwrap().authority;
-    assert_eq!(authority.notes, 0);
-    assert!(authority.note_resources.is_empty());
+    let offered = &me.projects.get(0).unwrap().creating.as_ref().unwrap().within.authority.authority;
+    assert_eq!(authority.notes, offered.notes);
+    assert_eq!(authority.note_resources, offered.note_resources);
 }
 
 #[test]

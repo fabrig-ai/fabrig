@@ -19,12 +19,12 @@ fn the_briefs_spec_shows_the_contract_only_when_the_result_ends_the_task() {
     for (ended_by, expected) in [
         (
             tasks::EndedBy::Result,
-            b"What does this project hold? Answer in two sentences.\n[Report: at most 32 bytes]\n[Requested by person 1]\n[You are task 1 in project 1]\n"
+            b"What does this project hold? Answer in two sentences.\n[Report: at most 32 bytes]\n[This task: 1, in project 1]\n[Requested by person 1]\n"
                 .as_slice(),
         ),
         (
             tasks::EndedBy::Requester,
-            b"What does this project hold? Answer in two sentences.\n[Requested by person 1]\n[You are task 1 in project 1]\n".as_slice(),
+            b"What does this project hold? Answer in two sentences.\n[This task: 1, in project 1]\n[Requested by person 1]\n".as_slice(),
         ),
     ] {
         let mut context = settings::charters::context(PARENT, CHARTER);
@@ -34,7 +34,7 @@ fn the_briefs_spec_shows_the_contract_only_when_the_result_ends_the_task() {
         core.contexts.insert(PARENT, context).expect("context room");
         let text = read_brief_part(
             &core,
-            BriefTextLimits { parts: 3, read_bytes: 256, brief_bytes: 256 },
+            BriefTextLimits { parts: 2, read_bytes: 256, brief_bytes: 256 },
             PARENT,
             BriefPart::Spec,
         )
@@ -74,7 +74,7 @@ fn a_brief_names_its_task_and_project() {
     context.ended_by = tasks::EndedBy::Requester;
     core.contexts.insert(CHILD, context).expect("context room");
     let text =
-        read_brief_part(&core, BriefTextLimits { parts: 3, read_bytes: 256, brief_bytes: 256 }, CHILD, BriefPart::Spec)
+        read_brief_part(&core, BriefTextLimits { parts: 2, read_bytes: 256, brief_bytes: 256 }, CHILD, BriefPart::Spec)
             .expect("spec section");
-    assert_eq!(text.as_ref(), b"Keep the task words first\n[Requested by person 1]\n[You are task 7 in project 23]\n");
+    assert_eq!(text.as_ref(), b"Keep the task words first\n[This task: 7, in project 23]\n[Requested by person 1]\n");
 }

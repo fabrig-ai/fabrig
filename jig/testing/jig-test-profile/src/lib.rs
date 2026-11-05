@@ -178,7 +178,7 @@ fn profile() -> root::Limits {
             people,
             fleet,
             brief: jig_domain_brief::Limits { briefs: 2, sections: 3, read_bytes: 256, brief_bytes: 384 },
-            brief_parts: 3,
+            brief_parts: 2,
             brief_core_budgets: core::CoreBriefBudgets {
                 tail: 128,
                 task: 128,

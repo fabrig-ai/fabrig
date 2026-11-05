@@ -13,8 +13,8 @@ use temper_fake::{forge, llm};
 
 const OTHERWISE: &str = "I am the scripted model of temper's playground, running in your browser: I answer only its three suggested requests: Add CSV export to widget, Add a dark theme to widget and Fix widget's empty search state. A real model comes with temper itself: download it to connect yours.";
 const DESCRIPTION: &str = "Try the playground, then ask the three suggested requests: the CSV export is delegated, pushed, passed by CI and landed on main; the dark theme and the empty search are answered in text.";
-const CODING: &str = "Read only what the change needs, then write it in its files.\n\n## Task\n\nExport widget's table as CSV\n[Change connector 1, kind 2, at most 4096 bytes]\n[Requested by task 2]\n[You are task 3 in project 1]\n";
-const REVIEW: &str = "Review the change with read-only authority.\n\n## Task\n\nReview this change at the named head\nChange words:\nExport widget's table as CSV\n[Requested by task 2]\n[You are task 4 in project 1]\n";
+const CODING: &str = "Read only what the change needs, then write it in its files.\n\n## Task\n\nExport widget's table as CSV\n[Change connector 1, kind 2, at most 4096 bytes]\n[This task: 3, in project 1]\n[Requested by task 2]\n";
+const REVIEW: &str = "Review the change with read-only authority.\n\n## Task\n\nReview this change at the named head\nChange words:\nExport widget's table as CSV\n[This task: 4, in project 1]\n[Requested by task 2]\n";
 const BRIEFS: [(&str, &str, usize, run::Mode); 5] = [
     ("Add CSV export to widget", "asked", 0, run::Mode::Open),
     ("Add a dark theme to widget", "asked", 1, run::Mode::Open),

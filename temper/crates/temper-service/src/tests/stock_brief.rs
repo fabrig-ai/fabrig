@@ -144,8 +144,8 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
 fn the_stock_brief_with_a_whole_spec_fits_every_charter_whole() {
     use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
     const FRAMING: u32 = 64 * (16 + 7);
-    // Task words and contract, requester, and task identity.
-    const TASK_PARTS: u32 = 3;
+    // Task words and contract, then the task identity and requester.
+    const TASK_PARTS: u32 = 2;
     // Three model declarations leave this margin beyond the framed brief.
     const MARGIN: u32 = 567;
     const OTHER: u32 = 768;
@@ -161,7 +161,7 @@ fn the_stock_brief_with_a_whole_spec_fits_every_charter_whole() {
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
     let spec = vec![b's'; 131_072];
     let mut task = spec.clone();
-    task.extend_from_slice(b"\nContract: Change\nRequester: task 1\n[You are task 1 in project 1]\n");
+    task.extend_from_slice(b"\nContract: Change\n[This task: 1, in project 1]\nRequester: task 1\n");
     task.resize(usize::try_from(brief.budgets.task).unwrap(), b' ');
     assert_eq!(&task[..spec.len()], spec);
     // Gathering keeps the whole task and pull, then the reviews within the total.
