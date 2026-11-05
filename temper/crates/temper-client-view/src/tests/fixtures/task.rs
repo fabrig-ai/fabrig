@@ -399,7 +399,15 @@ pub fn root_with_ended_and_held(
             if let Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) },
+                        down:
+                            jig_client::Down::Read {
+                                read,
+                                what:
+                                    jig_client::Readable::Jig(c::Read::Tasks {
+                                        query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), .. },
+                                        ..
+                                    }),
+                            },
                     },
             } = request
             {
