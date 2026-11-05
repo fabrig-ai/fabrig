@@ -1,0 +1,3 @@
+draft = "debt-15"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-15/inputs/request.md", "temper/docs/plan/debt-15/inputs/held-temper-wrong-kind.md", "temper/docs/plan/debt-15/inputs/held-github-media-type.md", "skein/docs/development/debt/D011-fake-github-on-forgejo-fake.md", "temper/docs/development/debt/D001-reference-service-copy.md"]
