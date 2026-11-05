@@ -398,6 +398,9 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b" of allowance ")),
                 Segment::Hole { index: 1, kind: HoleKind::Number },
             ]),
+            JigPhrase::RunRetryReason => {
+                Box::new([Segment::Text(copy_of(b"Why: ")), Segment::Hole { index: 0, kind: HoleKind::Name }])
+            }
             JigPhrase::RunRetryRefused => Box::new([
                 Segment::Text(copy_of(b"Activation refusal count ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },

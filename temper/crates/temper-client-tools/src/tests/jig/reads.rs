@@ -955,3 +955,34 @@ fn connector_hold_words_reach_ctl_text_and_json_with_an_explicit_uncertainty_dec
         }
     }
 }
+
+#[test]
+fn task_json_includes_only_supplied_retry_reasons() {
+    use jig_client::contract as c;
+    const REASON_PREFIX_BYTES: u32 = 5; // The expected prefix, `pull:`.
+    for (retry, room, expected) in [
+        (c::RetryNotice::OwnerFailed { class: c::HoldFailure::Permanent, count: 2, allowance: 3,
+            reason: Some(fixtures::document_text(b"pull: unavailable")) },
+            crate::limits::TEXT, br#""retry":{"owner_failed":{"class":"permanent","count":2,"reason":{"bytes":"pull: unavailable","cut":false},"allowance":3}}"#.as_slice()),
+        (c::RetryNotice::Failed { class: c::FailureClass::Temporary, count: 2, allowance: 3,
+            reason: Some(fixtures::document_text(b"pull: unavailable")) },
+            crate::limits::TEXT, br#""retry":{"failed":{"class":"temporary","count":2,"reason":{"bytes":"pull: unavailable","cut":false},"allowance":3}}"#),
+        (c::RetryNotice::Refused { count: 2, reason: Some(fixtures::document_text(b"pull: unavailable")) },
+            crate::limits::TEXT, br#""retry":{"refused":{"count":2,"reason":{"bytes":"pull: unavailable","cut":false}}}"#),
+        (c::RetryNotice::Refused { count: 2, reason: None },
+            crate::limits::TEXT, br#""retry":{"refused":{"count":2}}"#),
+        (c::RetryNotice::Refused { count: 2, reason: Some(fixtures::document_text(b"")) },
+            crate::limits::TEXT, br#""retry":{"refused":{"count":2,"reason":{"bytes":"","cut":false}}}"#),
+        (c::RetryNotice::Refused { count: 2, reason: Some(fixtures::document_text(b"pull: unavailable")) },
+            REASON_PREFIX_BYTES, br#""retry":{"refused":{"count":2,"reason":{"bytes":"pull:","cut":false}}}"#),
+    ] {
+        let (_, _, mut task) = fixtures::task_read();
+        task.chip.details.details.retry = Some(retry);
+        let (mut root, call) = fixtures::read_call(fixtures::TASK_JSON_CALL);
+        root.limits.tools.text = room;
+        root.serve(call, fixtures::task_result(task));
+        let printed = root.answer(call).expect("JSON task answered");
+        assert_eq!(printed.status, 0);
+        assert!(skein_lib::bytes::find(&printed.stdout, expected).is_some(), "{printed:?}");
+    }
+}
