@@ -1467,3 +1467,7 @@ What the steward must keep across restarts and reboots lives in
 - **A reconciled layer's base:** 6.2 lets it be collected while its
   descendants are kept, while 7.1 holds it as an ancestor under a
   descendant's pin; one of the two is to change.
+- **A scan's and a chain's lifecycles** (4, 8.2): `Scan` and `Working` keep
+  theirs in flags and `Option`s beside `Pass` and `Next`
+  (`skein/docs/foundation/programming-model.md`, 5.4). Default: as they stand,
+  until a debt item names them.

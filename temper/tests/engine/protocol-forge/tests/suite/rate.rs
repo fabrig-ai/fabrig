@@ -84,6 +84,9 @@ impl Scheduler {
                         | change::Decision::CancelProducer
                         | change::Decision::Delegate(_)
                         | change::Decision::CancelGates { .. }
+                        | change::Decision::CancelRepair { .. }
+                        | change::Decision::EndHold
+                        | change::Decision::RepairEnded { .. }
                         | change::Decision::Effect(_)
                         | change::Decision::Ready
                         | change::Decision::QueueRepair
@@ -112,6 +115,7 @@ impl Scheduler {
                         task: 51 + u64::try_from(index).expect("task index"),
                         entry: self.entry,
                         heard: change::Heard {
+                            delegate_running: false,
                             start_conflict: None,
                             lacking: None,
                             spend: None,

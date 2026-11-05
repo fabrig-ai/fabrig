@@ -443,6 +443,9 @@ Each within jig's suites' budgets.
   `skein_ui_bundle::types`, a build tool step code can't link. Default:
   they stay in `jig-protocol-engine-clients-http` until skein has a
   server to offer.
+- **`sources::Component::start`'s arguments** (11.2): a public seam kept whole,
+  past clippy's count, since an application's service reads it. Default: as it
+  stands, until its signature changes for another reason.
 
 ## 10. One process
 

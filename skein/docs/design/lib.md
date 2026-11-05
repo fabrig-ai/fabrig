@@ -220,7 +220,8 @@ where it holds it.
 - **A carrier prints lengths.** A record carrying a peer's bytes prints them
   as their length in `Debug`, never a byte of them, and a header prints its
   name and its value's length, so a credential passing through prints and
-  traces without its bytes (http.md, 2; channel.md, 3).
+  traces without its bytes (http.md, 2; channel.md, 3). Only what oauth.md, 4
+  names as no credential prints as it came.
 - **Widening:** `length::usize_of` widens a `u32` count to an index and `length::len_u64` a length to a count, so no step writes `try_from` for either.
 
 ### 6.1 Base64

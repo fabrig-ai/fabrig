@@ -83,6 +83,7 @@ fn heard() -> Heard {
         lacking: None,
         spend: None,
         delegate: Status::Pending,
+        delegate_running: false,
         effect: EffectResult::None,
         released: false,
         cancelled: false,
@@ -961,6 +962,7 @@ fn every_delegate_checks_authority_before_becoming_pending() {
     let mut standing = heard();
     standing.lacking = Some(cause);
     let mut f = facts();
+    f.ci.status = Status::Failed;
     for state in [
         State::Producing { requested: false },
         State::Repairing { requested: false, why: Repair::Ci },
@@ -1089,6 +1091,7 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
     assert_eq!(decide(&c, &f, &heard()).decision, Decision::CancelGates { head: HEAD });
 }
 
+mod green;
 mod merge;
 mod relay;
 mod verifying;

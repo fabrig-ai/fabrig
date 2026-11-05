@@ -18,7 +18,7 @@ pub(crate) fn render(inputs: &Inputs, digest: Digest) -> Result<Vec<u8>, Refusal
         return replace_marker(&bytes, directory.as_bytes()).ok_or_else(|| Refusal::NoMarker { page: path.clone() });
     }
     let mut page = format!(
-        "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{}</title>\n",
+        "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n<title>{}</title>\n",
         escape(&inputs.name)
     );
     for name in std::iter::once("skein-ui.css").chain(

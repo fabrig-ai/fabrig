@@ -22,11 +22,7 @@
   and a bearer's token in `Reply::Record`'s encoded `SignedIn`. Of the rest,
   a `FrameWriter` holds a body as it is written, a local in the same way, and
   none has a known credential path.
-- **Departs:** 6: `skein-oauth`'s records print a `subject`, `metadata`,
-  `granted_scopes` and an `issued_client_id`, and a redirect its `error`, as
-  they came, though a peer sent them, because none is a credential under
-  oauth.md, 4, and the request of 2026-11-05 takes that in writing rather
-  than a hand-written `Debug` for each. 6: a step widens with `usize_of` and `len_u64`, but `try_from`
+- **Departs:** 6: a step widens with `usize_of` and `len_u64`, but `try_from`
   still stands for them in three places. What the schema compiler prints
   holds `usize::try_from(limit).expect("u32 fits usize")`, 13 sites in
   `skein-oauth` and `skein/examples/ui/view`, which the debt item the request

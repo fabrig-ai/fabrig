@@ -55,8 +55,8 @@ with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a spec
 reads in pieces of it (`protocol/setup.md`). A repair goes on at a head CI has
-since passed, and a release there makes a fresh one, where that request reads
-the design otherwise, which the user has not answered, and `change show`'s
+since passed, and a release there makes a fresh one, where the design ends it
+(`domain/forge.md`), and `change show`'s
 `held:` line calls a cancelled delegate failed (`domain/forge.md`). A repair
 whose brief can't be read ends held naming why on the fake forge alone: the walk
 on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not
@@ -74,7 +74,9 @@ and its drafts, which no chat offers yet, and many of ctl's tools (`client/READM
 browser, whose story A walks in the browser tier but not yet by hand
 and whose download is past its bar (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). Forges kept in the store, a forge's removal and the
+(`release.md`). The browser tier's CPU against its budget awaits the
+user, and no test shows a head waiting for room ended by the stall
+deadline (`client/browser.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where
 the box's group file holds a forge's kind alone
 (`protocol/setup.md`, `protocol/forge.md`, `protocol/README.md`) and
@@ -134,7 +136,12 @@ last looked and the status agent is built, but on the stock policy a
 person's pool leaves it no funding, the reference names no charter 9, no
 walk on a box reaches a brief, and a project's first run counts its span
 from the epoch (`client/README.md`,
-`domain/forge.md`, `protocol/configuration.md`). The
+`domain/forge.md`, `protocol/configuration.md`). The Away switch, a goal's
+`decided`, Home's away form, Overturn and Settings' section are built, but the
+switch still offers its act with its watch refused or ended, an Overturn or its
+message gone astray reads as overturned already or as ended, where a live task
+then hears nothing, no page starts a goal that always asks (`client/README.md`),
+and `decided` is declared past charter 1 (`domain/agent.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither

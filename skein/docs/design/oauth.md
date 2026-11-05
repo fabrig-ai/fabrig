@@ -377,8 +377,9 @@ contain state, challenge and nonce, and when signing in again an ID token,
 and are handed only to the person's visit flow;
 the URL is not a durable record. Error descriptions and JWT claims are
 untrusted metadata. A record's `subject`, `metadata`, `granted_scopes` and
-`issued_client_id`, and a redirect's `error`, are none of these, and print
-as they came. Only an authenticated TLS token endpoint, or an
+`issued_client_id`, and a redirect's address without its query, its `error`
+and its `client_id`, are no credential, and print as they came. Only an
+authenticated TLS token endpoint, or an
 `http` one on loopback (section 1), can supply a usable bearer token.
 
 ## 5. Bounds and verification
