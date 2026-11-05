@@ -1,7 +1,7 @@
 use super::fixtures::{self, ERROR, KEY, Layer, OUTPUT, REQUEST};
 use crate::{
     Asked,
-    builder::vocabulary::Event as RootEvent,
+    builder::vocabulary::{Event as RootEvent, Request as RootRequest},
     render::{
         errors::{Command, Ended, Limit, Tool},
         resolution::{Cause, Inst},
@@ -90,6 +90,24 @@ fn renders_deadline_ends_a_run_that_still_speaks() {
     let events = layer.resolve_answers(b"", b"", Exit::Code(0));
     let Failure::Run { tool, .. } = fixtures::resolution_failure(&events) else { panic!("run") };
     assert_eq!(tool.ended, Ended::Timeout);
+}
+#[test]
+fn a_deadline_during_an_index_keep_waits_then_fails_timed_out() {
+    use crate::builder::store::vocabulary::{Origin, Request as StoreRequest};
+    let (mut layer, _) = Layer::index_arriving();
+    let record = fixtures::cache_record(Origin::Index { resolution: KEY });
+    layer.client(RootRequest::Store(StoreRequest::Keep { arrival: crate::resolve::OWNER, record }));
+    let Some(Asked::Beneath(crate::Beneath::Rename { owner, .. })) = layer.asked() else { panic!("keep") };
+    layer.advance_resolve(Duration::from_secs(60));
+    layer.file_up(file::Event::Renamed { owner });
+    let Some(Asked::File(file::Request::SyncDirectory { owner, .. })) = layer.asked() else { panic!("sync") };
+    layer.file_up(file::Event::Synced { owner });
+    let Some(Asked::File(file::Request::Store { owner, .. })) = layer.asked() else { panic!("record") };
+    layer.file_up(file::Event::Stored { owner, digest: io::digest::digest(b"record") });
+    assert_eq!(layer.told(), Some(RootEvent::Store(crate::builder::store::vocabulary::Event::Done)));
+    let events = layer.resolve_answers(b"", b"", Exit::Code(0));
+    let Failure::Run { tool, cause } = fixtures::resolution_failure(&events) else { panic!("run") };
+    assert_eq!((&tool.ended, cause.as_ref()), (&Ended::Timeout, None));
 }
 #[test]
 fn a_failed_run_answers_its_cause_and_stderrs_tail() {
