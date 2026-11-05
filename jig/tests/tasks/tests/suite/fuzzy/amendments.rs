@@ -1,6 +1,7 @@
+use jig_domain_tasks::Operation as TaskOperation;
 use jig_domain_tasks::{
-    Accepted, Active, Amendment, Control, DependencyPlace, End, Ending, Event, Funder, Hold, HoldKind, Holding, Key,
-    Kind, Line, Name, Party, Phase, Refusal, Status, Stored, Taken, TaskResult,
+    Accepted, Active, Amendment, Cancel, DependencyPlace, End, Ending, Event, Funder, Hold, HoldKind, Holding, Key,
+    Kind, Line, Name, Party, Phase, Refusal, Release, Status, Stored, Taken, TaskResult,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{ReplyTo, Rng, Token};
@@ -42,7 +43,7 @@ enum Operation {
     End { task: u64, failed: bool },
     Cancel { task: u64 },
     Restart,
-    Compound(Vec<jig_domain_tasks::Operation>),
+    Compound(Vec<TaskOperation>),
 }
 
 fn name(value: u8) -> Name {
@@ -215,7 +216,7 @@ fn draw(world: &World, random: &mut Rng) -> Operation {
                     if random.chance(500) {
                         dependencies.pop();
                     }
-                    operations.push(jig_domain_tasks::Operation::Amend {
+                    operations.push(TaskOperation::Amend {
                         task: number,
                         message: row.last_message + at + 1,
                         stop_run: false,
@@ -233,7 +234,7 @@ fn draw(world: &World, random: &mut Rng) -> Operation {
                         }),
                     });
                 } else {
-                    operations.push(jig_domain_tasks::Operation::Release { task: number, again: None, message: None });
+                    operations.push(TaskOperation::Release(Release { task: number, again: None, message: None }));
                 }
             }
             Operation::Compound(operations)
@@ -358,11 +359,15 @@ fn drain(world: &mut World) {
     }
 }
 
-fn control(world: &mut World, task: u64, control: Control) {
+fn control(world: &mut World, operation: TaskOperation) {
     let reply_to = world.to();
     let call = reply_to.into_token().raw();
     let reply_to = ReplyTo::new(Token::new(call));
-    world.send(Event::Control { reply_to, by: PERSON, task, control });
+    world.send(match operation {
+        TaskOperation::Cancel(operation) => Event::Cancel { reply_to, by: PERSON, operation },
+        TaskOperation::Release(operation) => Event::Release { reply_to, by: PERSON, operation },
+        _ => unreachable!("control operation"),
+    });
     match world.replies.get(&call).expect("control reply") {
         Reply::Done => {}
         Reply::Refused(problem) if problem.why == Refusal::State => {}
@@ -377,10 +382,10 @@ fn control(world: &mut World, task: u64, control: Control) {
     }
 }
 
-fn compound(world: &mut World, operations: Vec<jig_domain_tasks::Operation>, seen: &mut BTreeSet<Reached>) {
+fn compound(world: &mut World, operations: Vec<TaskOperation>, seen: &mut BTreeSet<Reached>) {
     let mut amended = false;
     for operation in &operations {
-        if matches!(operation, jig_domain_tasks::Operation::Amend { .. }) {
+        if matches!(operation, TaskOperation::Amend { .. }) {
             amended = true;
         }
     }
@@ -438,7 +443,7 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
             world.send(Event::Hold { task, why: Hold::Budget });
             drain(world);
             if world.records.contains_key(&Key::Live(task)) {
-                control(world, task, Control::Release { again: None, message: None });
+                control(world, TaskOperation::Release(Release { task, again: None, message: None }));
             }
         }
         Operation::Claim { task } => {
@@ -497,7 +502,7 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
             }
         }
         Operation::Cancel { task } => {
-            control(world, task, Control::Cancel { reason: Box::new([1]), grace: None, message: None });
+            control(world, TaskOperation::Cancel(Cancel { task, reason: Box::new([1]), grace: None, message: None }));
         }
         Operation::Restart => world.restart(),
         Operation::Compound(operations) => compound(world, operations, seen),
@@ -558,7 +563,10 @@ fn sweep() {
         }
         for task in live(&world) {
             if world.records.contains_key(&Key::Live(task)) {
-                control(&mut world, task, Control::Cancel { reason: Box::new([1]), grace: None, message: None });
+                control(
+                    &mut world,
+                    TaskOperation::Cancel(Cancel { task, reason: Box::new([1]), grace: None, message: None }),
+                );
                 drain(&mut world);
             }
         }

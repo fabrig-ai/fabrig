@@ -379,11 +379,10 @@ pub(crate) fn person_proposal_accept(
             }
         }
         tasks::ProposalAction::ReleasePlaced { task, .. } | tasks::ProposalAction::Release { task } => {
-            tasks::Event::Control {
+            tasks::Event::Release {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
-                task,
-                control: tasks::Control::Release { again: None, message: None },
+                operation: tasks::Release { task, again: None, message: None },
             }
         }
     };

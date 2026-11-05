@@ -1,5 +1,5 @@
 use jig_domain_tasks::{
-    Active, Amendment, Class, Control, End, Event, Hold, Key, Operation, Party, Phase, Refusal, Stored,
+    Active, Amendment, Class, End, Event, Hold, Key, Operation, Party, Phase, Refusal, Release, Stored,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{List, ReplyTo};
@@ -80,11 +80,10 @@ fn a_held_kept_agent_releases_idle_without_a_claim() {
     world.send(Event::Hold { task: KEPT, why: Hold::Budget });
     keep(&mut world, false);
     world.activations.clear();
-    response(&mut world, |reply_to| Event::Control {
+    response(&mut world, |reply_to| Event::Release {
         reply_to,
         by: Party::Person(PERSON),
-        task: KEPT,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: KEPT, again: None, message: None },
     });
     unclaimable(&mut world);
 }
@@ -113,7 +112,7 @@ fn a_compound_amendment_then_release_keeps_the_agent_idle() {
             amendment: Box::new(amendment(&world, false)),
         })
         .expect("amendment fixture");
-    operations.push(Operation::Release { task: KEPT, again: None, message: None }).expect("release fixture");
+    operations.push(Operation::Release(Release { task: KEPT, again: None, message: None })).expect("release fixture");
     assert_eq!(
         response(&mut world, |reply_to| Event::Compound {
             reply_to,

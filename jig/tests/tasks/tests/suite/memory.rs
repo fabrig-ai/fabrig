@@ -475,11 +475,10 @@ fn measure_the_complete_maximum_recurring_batch_and_retained_ids_fit_the_owner_b
     );
     for number in 2..=5 {
         let reply_to = measured.to();
-        measured.event(Event::Control {
+        measured.event(Event::Cancel {
             reply_to,
             by: Party::Task(1),
-            task: number,
-            control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+            operation: tasks::Cancel { task: number, reason: Box::new([]), grace: None, message: None },
         });
         measured.event(Event::EffectsSettled { task: number });
         measured.event(Event::Settled { task: number });
@@ -742,11 +741,10 @@ fn measure_saturated_placed_records_reasons_and_exemptions_fit_and_measure_exact
     for task in 2..=4 {
         for _ in 100..104 {
             let reply_to = source.to();
-            source.send(Event::Control {
+            source.send(Event::Release {
                 reply_to,
                 by: Party::Person(1),
-                task,
-                control: tasks::Control::Release { again: None, message: None },
+                operation: tasks::Release { task, again: None, message: None },
             });
         }
     }

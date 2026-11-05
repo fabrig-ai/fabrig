@@ -1,6 +1,6 @@
 //! Open resumes as Finite; only the next finish differs (domain/tasks.md, 5.5–5.8, 6.7 and 7–9).
 use super::*;
-use jig_domain_tasks::{Class, EscalationDecision, EscalationHolder, Operation, ReplyHint};
+use jig_domain_tasks::{Class, EscalationDecision, EscalationHolder, Operation, Release, ReplyHint};
 use skein_lib::{List, ReplyTo};
 
 const CHAT: u64 = 1;
@@ -175,7 +175,7 @@ fn hold(w: &mut World) {
 }
 
 fn release(w: &mut World) {
-    assert_eq!(control(w, Control::Release { again: None, message: None }), Reply::Done);
+    assert_eq!(control(w, Operation::Release(Release { task: 1, again: None, message: None })), Reply::Done);
 }
 
 #[test]
@@ -312,7 +312,7 @@ fn staged_release(w: &mut World) {
     compound(
         w,
         vec![
-            Operation::Release { task: CHAT, again: None, message: None },
+            Operation::Release(Release { task: CHAT, again: None, message: None }),
             Operation::Amend { task: CHAT, message, stop_run: false, amendment: Box::new(amendment(&[], None)) },
         ],
     );

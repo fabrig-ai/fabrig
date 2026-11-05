@@ -195,11 +195,10 @@ pub(crate) fn named_proposal_accept(
             }
         }
         tasks::ProposalAction::ReleasePlaced { task, .. } | tasks::ProposalAction::Release { task } => {
-            tasks::Event::Control {
+            tasks::Event::Release {
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
-                task,
-                control: tasks::Control::Release { again: None, message: None },
+                operation: tasks::Release { task, again: None, message: None },
             }
         }
     };
@@ -623,15 +622,14 @@ pub(crate) fn named_action(
             };
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
-            work.push(Work::Event(Event::Tasks(tasks::Event::Control {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Release {
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
-                task: target,
-                control: tasks::Control::Release { again, message },
+                operation: tasks::Release { task: target, again, message },
             })));
         }
-        NamedAction::Control { target, control } => {
-            return super::controls::control(core, work, ReplyTo::new(token), key, target, control);
+        NamedAction::Control { cancel } => {
+            return super::controls::control(core, work, ReplyTo::new(token), key, cancel);
         }
         NamedAction::Amend { keep_parameters, target, revision, amendment } => {
             return named_amend(

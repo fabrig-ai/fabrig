@@ -1,5 +1,5 @@
 use jig_domain_tasks::{
-    Accepted, Active, Added, Amendment, Control, End, EndKind, Ending, Event, Funder, Key, Line, MessageKind, Party,
+    Accepted, Active, Added, Amendment, Cancel, End, EndKind, Ending, Event, Funder, Key, Line, MessageKind, Party,
     Phase, Refusal, Stored,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
@@ -112,11 +112,10 @@ fn a_running_repin_given_a_dependency_lands_after_the_other_and_starts_its_depen
         world.claim(task, 1);
     }
     assert_eq!(
-        response(&mut world, |reply_to| Event::Control {
+        response(&mut world, |reply_to| Event::Cancel {
             reply_to,
             by: DIRECTOR,
-            task: FIRST_RUN,
-            control: Control::Cancel { reason: Box::new([1]), grace: None, message: None },
+            operation: Cancel { task: FIRST_RUN, reason: Box::new([1]), grace: None, message: None }
         }),
         Reply::Done
     );

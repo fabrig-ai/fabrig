@@ -1,4 +1,4 @@
-use jig_domain_tasks::{Event, Operation, Party};
+use jig_domain_tasks::{Cancel, Event, Operation, Party, Release};
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, List};
 const ROOT: u64 = 1;
@@ -16,12 +16,12 @@ fn a_compound_closing_a_task_and_moving_its_delegate_survives_a_restart() {
     world.make(Party::Task(ROOT), vec![child]);
     let mut operations = List::with_capacity(2);
     operations
-        .push(Operation::Cancel {
+        .push(Operation::Cancel(Cancel {
             task: ROOT,
             reason: b"finish".as_slice().into(),
             grace: Some(Duration::from_secs(5)),
             message: Some(FINISH),
-        })
+        }))
         .expect("compound fixture");
     operations.push(Operation::Move { task: CHILD, reason: b"keep".as_slice().into() }).expect("compound fixture");
     let reply_to = world.to();
@@ -56,7 +56,7 @@ fn deployment(world: &mut World, by: Party, operations: Vec<Operation>) -> Reply
     world.replies[&to.raw()].clone()
 }
 fn cancel(task: u64) -> Operation {
-    Operation::Cancel { task, reason: b"closed".as_slice().into(), grace: None, message: None }
+    Operation::Cancel(Cancel { task, reason: b"closed".as_slice().into(), grace: None, message: None })
 }
 #[test]
 fn the_deployments_compound_cancels_its_projects_tasks() {
@@ -78,12 +78,12 @@ fn the_deployments_compound_cancels_its_projects_tasks() {
 fn the_deployments_grace_and_its_ask_to_finish_survive_a_restart() {
     let mut world = World::new(206, LIMITS);
     world.make(Party::Person(REQUESTER), vec![task(ROOT, &[])]);
-    let close = Operation::Cancel {
+    let close = Operation::Cancel(Cancel {
         task: ROOT,
         reason: b"closed".as_slice().into(),
         grace: Some(Duration::from_secs(5)),
         message: Some(FINISH),
-    };
+    });
     assert_eq!(deployment(&mut world, Party::Deployment { project: PROJECT }, vec![close]), Reply::Done);
     world.restart();
     let grace = world.record(ROOT).grace.as_ref().expect("the deployment's grace is kept");
@@ -133,7 +133,7 @@ fn the_deployments_compound_refuses_any_other_operation_or_project_whole() {
         (
             "release",
             Party::Deployment { project: PROJECT },
-            Operation::Release { task: CHILD, again: None, message: None },
+            Operation::Release(Release { task: CHILD, again: None, message: None }),
             PROJECT,
         ),
         ("message", Party::Deployment { project: PROJECT }, Operation::Message { task: CHILD, word: message }, PROJECT),

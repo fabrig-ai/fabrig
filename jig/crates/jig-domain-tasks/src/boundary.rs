@@ -379,7 +379,7 @@ pub struct ProcedureDecision {
     pub words: Option<Box<[u8]>>,
     pub batch: Box<[New]>,
     pub amendments: Box<[ProcedureAmendment]>,
-    pub cancels: Box<[ProcedureCancel]>,
+    pub cancels: Box<[crate::Cancel]>,
     pub messages: Box<[ProcedureMessage]>,
     pub proposals: Box<[crate::Proposal]>,
     /// Dependencies the procedure's work started from (domain/connectors.md, 6.1).
@@ -393,14 +393,6 @@ pub struct ProcedureAmendment {
     pub message: u64,
     pub stop_run: bool,
     pub amendment: crate::Amendment,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ProcedureCancel {
-    pub task: u64,
-    pub reason: Box<[u8]>,
-    pub grace: Option<Duration>,
-    pub message: Option<u64>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -1582,7 +1574,9 @@ pub enum Event {
         holder: crate::ProposalHolder,
     },
     /// Root-checked live ancestor controls a delegate and its subtree.
-    Control { reply_to: ReplyTo, by: Party, task: u64, control: crate::Control },
+    Cancel { reply_to: ReplyTo, by: Party, operation: crate::Cancel },
+    /// Root-checked release of a live task.
+    Release { reply_to: ReplyTo, by: Party, operation: crate::Release },
     /// Root-checked amendment of a live delegate, with a fresh commit-order message number.
     Amend {
         /// Ended dependencies and the ended requesters used to judge their reach.

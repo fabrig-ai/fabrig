@@ -1,8 +1,8 @@
 //! Open and finite runs after the same committed turn (domain/tasks.md, 5.8).
 use jig_domain_tasks::{
-    Accepted, Active, Amendment, Closing, Control, End, EndKind, EndedBy, Ending, Event, Executor, Flags, Hold,
-    InvalidResult, Key, Line, MessageKind, Models, New, Party, PersonAddress, Phase, Problem, Refusal, Stage, Stored,
-    TaskResult, Tries, Was, Word,
+    Accepted, Active, Amendment, Cancel, Closing, End, EndKind, EndedBy, Ending, Event, Executor, Flags, Hold,
+    InvalidResult, Key, Line, MessageKind, Models, New, Operation, Party, PersonAddress, Phase, Problem, Refusal,
+    Release, Stage, Stored, TaskResult, Tries, Was, Word,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::Duration;
@@ -198,7 +198,7 @@ fn an_open_task_held_from_active_keeps_open_and_rewraps_the_hold() {
     assert_eq!(w.record(CHAT).flags.ended_by, EndedBy::Requester);
     assert!(w.results.is_empty());
     assert_eq!(w.activations(CHAT), 1);
-    assert_eq!(control(&mut w, Control::Release { again: None, message: None }), Reply::Done);
+    assert_eq!(control(&mut w, Operation::Release(Release { task: 1, again: None, message: None })), Reply::Done);
     assert_eq!(w.record(CHAT).phase, Phase::Active(Active::Due));
     assert_eq!(w.activations(CHAT), 2);
     assert_eq!(w.record(CHAT).tries, Tries::NONE);
@@ -216,14 +216,15 @@ fn an_open_task_held_from_active_keeps_open_and_rewraps_the_hold() {
     assert!(w.results.is_empty());
 }
 
-fn control(w: &mut World, control: Control) -> Reply {
+fn control(w: &mut World, operation: Operation) -> Reply {
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
-    w.send(Event::Control {
-        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
-        by: Party::Person(1),
-        task: 1,
-        control,
+    let reply_to = skein_lib::ReplyTo::new(skein_lib::Token::new(call));
+    let by = Party::Person(1);
+    w.send(match operation {
+        Operation::Cancel(operation) => Event::Cancel { reply_to, by, operation },
+        Operation::Release(operation) => Event::Release { reply_to, by, operation },
+        _ => unreachable!("control operation"),
     });
     w.replies[&call].clone()
 }
@@ -306,7 +307,10 @@ fn an_open_task_held_from_closing_drops_open() {
     commit_turn(&mut w, ATTEMPT, None);
     let at = w.env.wall;
     assert_eq!(
-        control(&mut w, Control::Cancel { reason: b"stop".as_slice().into(), grace: None, message: None }),
+        control(
+            &mut w,
+            Operation::Cancel(Cancel { task: 1, reason: b"stop".as_slice().into(), grace: None, message: None })
+        ),
         Reply::Done
     );
     assert!(matches!(w.record(CHAT).phase, Phase::Closing(Closing { stage: Stage::Run { attempt: ATTEMPT }, .. })));
@@ -333,7 +337,7 @@ fn an_open_task_held_from_closing_drops_open() {
     committed_turn(&w);
     assert!(w.results.is_empty());
     assert_eq!(w.activations(CHAT), 1);
-    assert_eq!(control(&mut w, Control::Release { again: None, message: None }), Reply::Done);
+    assert_eq!(control(&mut w, Operation::Release(Release { task: 1, again: None, message: None })), Reply::Done);
     w.settle(CHAT);
     cancelled(&w, &w.results[&CHAT], at, Some(partial));
     let Stored::Ended(row) = &w.records[&Key::Ended(CHAT)] else { panic!("ended task record") };
@@ -391,7 +395,8 @@ fn a_finish_grace_cancels_an_idle_open_task_at_once() {
     let mut open = replied(Flags { conversation: true, ended_by: EndedBy::Requester, ..Flags::PLAIN });
     let at = open.env.wall;
     let now = open.env.now;
-    let cancel = Control::Cancel { reason: b"stop".as_slice().into(), grace: Some(GRACE), message: Some(1) };
+    let cancel =
+        Operation::Cancel(Cancel { task: 1, reason: b"stop".as_slice().into(), grace: Some(GRACE), message: Some(1) });
     assert_eq!(control(&mut open, cancel.clone()), Reply::Done);
     assert!(open.record(CHAT).grace.is_none());
     open.settle(CHAT);
