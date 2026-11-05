@@ -1,7 +1,7 @@
 //! Makes or copies a repository, sharing org, access and file steps (skein/docs/design/forge-setup.md, 4.9 and 4.10).
 use crate::{
-    access::{Access, Fail, Move, Shared},
     call::Auth,
+    forgejo::access::{Access, Fail, Move, Shared},
     given::{self, Given, Refused},
     host::File,
     item::Item,
