@@ -167,7 +167,7 @@ impl Host {
         view::event(&self.view, node, act)
     }
     fn act(&mut self, node: NodeId, act: Act) {
-        if let Some(event) = self.event_of(node, act) {
+        if let Some(event) = view::act_event(&mut self.view, node, act) {
             self.event(event);
         }
     }

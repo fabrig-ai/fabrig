@@ -73,6 +73,12 @@ pub const GOALS_STATE_PAUSED: Style = Style { owner: owner(), token: 296 };
 pub const GOALS_STATE_LANDED: Style = Style { owner: owner(), token: 297 };
 /// A stopped or failed goal (client/README.md, 3.5).
 pub const GOALS_STATE_STOPPED: Style = Style { owner: owner(), token: 298 };
+pub const SETTINGS_CHECKS: Style = Style { owner: owner(), token: 299 };
+pub const SETTINGS_SWITCH: Style = Style { owner: owner(), token: 300 };
+pub const SETTINGS_TOGGLE_ROW: Style = Style { owner: owner(), token: 301 };
+pub const SETTINGS_TEXT: Style = Style { owner: owner(), token: 302 };
+pub const SETTINGS_FACTS: Style = Style { owner: owner(), token: 303 };
+pub const SETTINGS_REFUSAL: Style = Style { owner: owner(), token: 304 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
 pub const CHANGES: Style = Style { owner: owner(), token: 180 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
@@ -548,6 +554,7 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
+    (owner(), skein_ui::Role::Text, SETTINGS_DETAIL, "small"),
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
     (owner(), skein_ui::Role::Heading { level: 3 }, WELCOME_LEGEND, "legend"),
@@ -871,6 +878,12 @@ pub const NAMES: Names<'static> = Names {
         b"temper-goals-state-paused",
         b"temper-goals-state-landed",
         b"temper-goals-state-stopped",
+        b"temper-settings-checks",
+        b"temper-settings-switch",
+        b"temper-settings-toggle-row",
+        b"temper-settings-text",
+        b"temper-settings-facts",
+        b"temper-settings-refusal",
     ],
     regions: &[b"temper-link"],
 };

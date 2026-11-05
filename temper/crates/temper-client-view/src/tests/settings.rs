@@ -373,3 +373,506 @@ fn sign_out_lost_moves_with_it() {
         assert!(styled(view.tree(), look::RAIL_FOOT).iter().any(|n| n.role == Role::Alert));
     }
 }
+
+use d::forge::ways::{Asked, Control, Route, Ways};
+use skein_lib::Token;
+const SHOWN: Ways = Ways { drafts: true, goals: true, changes: true, away: true, way: 11 };
+const SWITCHES: [(&str, &str, &str); 4] = [
+    (
+        "Chats can write drafts",
+        "A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.",
+        "On",
+    ),
+    ("Goals", "Bigger work from a draft: a plan, tasks, landing.", "Shown"),
+    ("Changes", "The landing queue, as a page.", "Shown"),
+    ("Away switch", "Lets agents decide within limits while you’re away.", "Shown"),
+];
+const QUESTIONS: &str = "Questions a goal can answer from its plan";
+fn settings() -> Address {
+    Address::Settings { project: f::PROJECT }
+}
+fn how(ways: Option<Ways>) -> d::Domain {
+    let (mut root, watch, ..) = f::root_at_with_values(
+        settings(),
+        &f::domain_limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        ways,
+        false,
+        true,
+    );
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let stock = f::chat::messaging_root();
+    let template = stock.pages().me(stock.client()).unwrap().projects.get(0).unwrap().templates.get(0).unwrap();
+    let project = me.projects.get_mut(0).unwrap();
+    project.templates = List::with_capacity(2);
+    for (number, name) in [(11, "One agent, one branch"), (4, "goal for a draft")] {
+        let mut template = template.clone();
+        template.number = number;
+        template.name = c::DocumentText::complete(c::Text::new(name.as_bytes().into(), 32).unwrap());
+        template.tracked = Some(1);
+        project.templates.push(template).unwrap();
+    }
+    f::deliver_me(&mut root, watch, me);
+    root
+}
+fn how_view(root: &d::Domain, browser: bool) -> crate::View {
+    let words = if browser { f::browser_words() } else { f::words() };
+    let limits = crate::Limits::of(&f::domain_limits(), &words).unwrap();
+    let mut view = crate::View::new(&limits, &f::domain_limits(), words, f::FORGE);
+    f::build(&mut view, root);
+    view
+}
+fn setting_row<'a>(tree: &'a Tree, name: &[u8]) -> &'a [Node] {
+    main(tree)
+        .iter()
+        .filter(|n| n.styles.as_slice().contains(&look::SETTINGS_SETTING))
+        .map(|n| subtree(tree, n.id))
+        .find(|nodes| nodes.iter().any(|n| n.role == Role::Text && n.name.as_deref() == Some(name)))
+        .unwrap()
+}
+fn section_nodes<'a>(tree: &'a Tree, title: &[u8]) -> &'a [Node] {
+    main(tree)
+        .iter()
+        .filter(|n| n.styles.as_slice().contains(&look::SETTINGS_SECTION))
+        .map(|n| subtree(tree, n.id))
+        .find(|nodes| nodes.iter().any(|n| n.role == Role::Heading { level: 2 } && n.name.as_deref() == Some(title)))
+        .unwrap()
+}
+fn node(tree: &Tree, id: skein_ui::NodeId) -> &Node {
+    tree.nodes().iter().find(|n| n.id == id).unwrap()
+}
+fn selected(tree: &Tree, name: &[u8]) -> Vec<u8> {
+    let id = find(tree, Role::Select, name);
+    subtree(tree, id)
+        .iter()
+        .find(|n| n.role == Role::Option && n.states.as_slice().contains(&State::Selected))
+        .unwrap()
+        .name
+        .as_deref()
+        .unwrap()
+        .to_vec()
+}
+fn send(root: &mut d::Domain, view: &mut crate::View, id: skein_ui::NodeId, act: Act) -> (Token, c::ChangeSettings) {
+    let event = crate::act_event(view, id, act).expect("offered act");
+    let mut out = drive(root, event);
+    let mut stored = drive(root, d::Event::Client { event: jig_client::Event::Stored });
+    while let Some(request) = stored.pop() {
+        out.push(request);
+    }
+    let sent: Vec<_> = out
+        .iter()
+        .filter_map(|request| {
+            if let d::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Send { attempt, request: jig_client::Ask::Jig(ask), .. },
+                    },
+            } = request
+            {
+                let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("change settings") };
+                Some((*attempt, change.clone()))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(sent.len(), 1, "one act sends one request");
+    sent.into_iter().next().unwrap()
+}
+fn refused_answer(root: &mut d::Domain, attempt: Token, refusal: c::Refusal) -> Queue<d::Request> {
+    drive(
+        root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused { refusal, at: None })),
+                    why: None,
+                },
+            },
+        },
+    )
+}
+fn sent_value(change: &c::ChangeSettings, kind: u32) -> &[u8] {
+    assert_eq!(change.items.len(), 1);
+    assert_eq!(change.running, c::Running::Stays);
+    let item = change.items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Application { kind, scope: f::PROJECT, number: 1 });
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }) = &item.edit else {
+        panic!("whole application value")
+    };
+    bytes
+}
+fn changed_ways(change: &c::ChangeSettings) -> Ways {
+    let mut reader = skein_lib::Reader::new(sent_value(change, 7));
+    let value = w::ProjectWays::decode(&w::CEILINGS, &mut reader).unwrap();
+    assert!(reader.is_empty());
+    Ways {
+        drafts: value.drafts(),
+        goals: value.goals(),
+        changes: value.changes(),
+        away: value.away(),
+        way: value.way(),
+    }
+}
+#[test]
+fn the_shows_section_reads_kind_seven() {
+    for shown in [Ways::STOCK, SHOWN] {
+        let root = how(Some(shown));
+        for browser in [false, true] {
+            let view = how_view(&root, browser);
+            assert_eq!(skein_ui::outline::check(view.tree()), None);
+            let section = section_nodes(view.tree(), b"What the project shows");
+            assert_eq!(section.iter().filter(|n| n.role == Role::Check).count(), 4);
+            for (index, (label, small, on)) in SWITCHES.iter().enumerate() {
+                let row = setting_row(view.tree(), label.as_bytes());
+                assert!(row.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)
+                    && n.name.as_deref() == Some(small.as_bytes())));
+                let check = node(view.tree(), find(view.tree(), Role::Check, label.as_bytes()));
+                assert_eq!(check.states.as_slice().contains(&State::Pressed), shown == SHOWN, "{label}");
+                assert!(!check.states.as_slice().contains(&State::Disabled));
+                assert!(check.styles.as_slice().contains(&look::SETTINGS_SWITCH));
+                let toggle = row.iter().find(|n| n.styles.as_slice().contains(&look::SETTINGS_TOGGLE_ROW)).unwrap();
+                let text = f::nodes_text(subtree(view.tree(), toggle.id));
+                assert_eq!(
+                    text.as_ref(),
+                    if shown == SHOWN {
+                        on.as_bytes()
+                    } else if index == 0 {
+                        b"Off".as_slice()
+                    } else {
+                        b"Hidden".as_slice()
+                    }
+                );
+            }
+        }
+    }
+}
+#[test]
+fn a_switch_sends_the_whole_record_with_its_part_changed() {
+    for browser in [false, true] {
+        for (index, (label, ..)) in SWITCHES.iter().enumerate() {
+            let mut root = how(Some(SHOWN));
+            let mut view = how_view(&root, browser);
+            let id = find(view.tree(), Role::Check, label.as_bytes());
+            let (_, change) = send(&mut root, &mut view, id, Act::Toggle);
+            let mut expected = SHOWN;
+            match index {
+                0 => expected.drafts = false,
+                1 => expected.goals = false,
+                2 => expected.changes = false,
+                3 => expected.away = false,
+                _ => unreachable!(),
+            }
+            assert_eq!(changed_ways(&change), expected);
+            assert_eq!(change.against, 0);
+        }
+    }
+}
+#[test]
+fn the_way_is_chosen_and_sends_the_whole_record() {
+    for browser in [false, true] {
+        let mut root = how(Some(SHOWN));
+        let mut view = how_view(&root, browser);
+        let row = setting_row(view.tree(), b"Plan, tasks, land whole");
+        let id = row.iter().find(|n| n.role == Role::Choice).unwrap().id;
+        let (_, change) = send(&mut root, &mut view, id, Act::Toggle);
+        assert_eq!(changed_ways(&change), Ways { way: 4, ..SHOWN });
+    }
+}
+#[test]
+fn the_questions_select_sends_its_route() {
+    for browser in [false, true] {
+        for (label, route, value) in [
+            ("Answered by the goal, kept in its decisions", w::QuestionsRoute::Foreman, b"foreman".as_slice()),
+            ("Asked of me too", w::QuestionsRoute::Up, b"up".as_slice()),
+            ("Not asked: each agent decides alone", w::QuestionsRoute::None, b"none".as_slice()),
+        ] {
+            let mut root = how(Some(SHOWN));
+            let mut view = how_view(&root, browser);
+            let id = find(view.tree(), Role::Option, label.as_bytes());
+            let (_, change) = send(&mut root, &mut view, id, Act::Press);
+            let decoded =
+                w::ProjectQuestions::decode(&w::CEILINGS, &mut skein_lib::Reader::new(sent_value(&change, 6))).unwrap();
+            assert_eq!(*decoded.route(), route);
+            // The binding table also accepts a route supplied as whole select input.
+            let mut bindings = crate::forge::bindings::Bindings::new(1, 1, f::FORGE);
+            let bound = bindings.insert(crate::forge::bindings::Meaning::Ways(d::forge::ways::Act::Set {
+                project: f::PROJECT,
+                asked: Asked::Questions(Route::None),
+            }));
+            let expected = match route {
+                w::QuestionsRoute::Foreman => Route::Foreman,
+                w::QuestionsRoute::Up => Route::Up,
+                w::QuestionsRoute::None => Route::None,
+            };
+            assert_eq!(
+                crate::forge::bindings::decode(&bindings, bound.token, Act::Input { value: value.into() }),
+                Some(d::Action::Forge(d::forge::Act::Ways(d::forge::ways::Act::Set {
+                    project: f::PROJECT,
+                    asked: Asked::Questions(expected)
+                })))
+            );
+            assert_eq!(
+                crate::forge::bindings::decode(
+                    &bindings,
+                    bound.token,
+                    Act::Input { value: b"invalid".as_slice().into() }
+                ),
+                None
+            );
+        }
+    }
+}
+#[test]
+fn kinds_of_seven_are_disabled_together_while_one_is_out() {
+    for browser in [false, true] {
+        let mut root = how(Some(SHOWN));
+        let mut view = how_view(&root, browser);
+        let id = find(view.tree(), Role::Check, b"Changes");
+        send(&mut root, &mut view, id, Act::Toggle);
+        f::build(&mut view, &root);
+        let controls: Vec<_> =
+            main(view.tree()).iter().filter(|n| [Role::Check, Role::Choice].contains(&n.role)).collect();
+        assert_eq!(controls.len(), 6);
+        let ids: Vec<_> = controls
+            .iter()
+            .map(|n| {
+                assert!(n.states.as_slice().contains(&State::Disabled));
+                n.id
+            })
+            .collect();
+        for id in ids {
+            assert_eq!(crate::act(&mut view, id, Act::Toggle), None);
+        }
+        assert!(
+            !node(view.tree(), find(view.tree(), Role::Select, QUESTIONS.as_bytes()))
+                .states
+                .as_slice()
+                .contains(&State::Disabled)
+        );
+    }
+}
+#[test]
+fn the_value_asked_shows_while_out() {
+    for browser in [false, true] {
+        let mut root = how(Some(Ways::STOCK));
+        let mut view = how_view(&root, browser);
+        let id = find(view.tree(), Role::Check, b"Goals");
+        send(&mut root, &mut view, id, Act::Toggle);
+        f::build(&mut view, &root);
+        let goals = node(view.tree(), find(view.tree(), Role::Check, b"Goals"));
+        assert!(goals.states.as_slice().contains(&State::Pressed));
+        assert!(goals.states.as_slice().contains(&State::Disabled));
+        section_nodes(view.tree(), b"Ways of working");
+        let id = find(view.tree(), Role::Option, b"Asked of me too");
+        send(&mut root, &mut view, id, Act::Press);
+        f::build(&mut view, &root);
+        assert_eq!(selected(view.tree(), QUESTIONS.as_bytes()), b"Asked of me too");
+        assert!(
+            node(view.tree(), find(view.tree(), Role::Select, QUESTIONS.as_bytes()))
+                .states
+                .as_slice()
+                .contains(&State::Disabled)
+        );
+        let id = find(view.tree(), Role::Option, b"Answered by the goal, kept in its decisions");
+        assert_eq!(crate::act(&mut view, id, Act::Press), None);
+    }
+}
+#[test]
+fn a_refusal_is_said_under_its_row_and_the_control_goes_back() {
+    for browser in [false, true] {
+        for (label, ..) in SWITCHES {
+            for refusal in [
+                c::Refusal::NotOffered,
+                c::Refusal::Role { held: None },
+                c::Refusal::Full(c::RefusalFull { revision: 0, tasks: List::with_capacity(0), more: 0 }),
+            ] {
+                let mut root = how(Some(SHOWN));
+                let mut view = how_view(&root, browser);
+                let id = find(view.tree(), Role::Check, label.as_bytes());
+                let (attempt, _) = send(&mut root, &mut view, id, Act::Toggle);
+                refused_answer(&mut root, attempt, refusal.clone());
+                f::build(&mut view, &root);
+                let row = setting_row(view.tree(), label.as_bytes());
+                let holes = if let c::Refusal::Full(full) = &refusal {
+                    vec![skein_ui::phrases::Hole::Number(u64::from(full.revision))]
+                } else {
+                    vec![]
+                };
+                let said = f::words().say_word(jig_client::words::Word::refusal(&refusal), &holes);
+                assert!(row.iter().any(|n| n.role == Role::Status && n.name.as_deref() == Some(said.as_ref())));
+                let check = node(view.tree(), find(view.tree(), Role::Check, label.as_bytes()));
+                assert!(check.states.as_slice().contains(&State::Pressed));
+                assert!(!check.states.as_slice().contains(&State::Disabled));
+                assert_eq!(
+                    main(view.tree()).iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_REFUSAL)).count(),
+                    1
+                );
+            }
+        }
+    }
+}
+#[test]
+fn stale_goes_unseen() {
+    let mut root = how(Some(SHOWN));
+    let mut view = how_view(&root, true);
+    let id = find(view.tree(), Role::Check, b"Changes");
+    let (attempt, _) = send(&mut root, &mut view, id, Act::Toggle);
+    let mut out = refused_answer(&mut root, attempt, c::Refusal::Stale(c::RefusalStale { newest: 8 }));
+    f::build(&mut view, &root);
+    assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_REFUSAL)));
+    assert!(root.forge().ways_asked(Control::Ways).is_some());
+    let mut stored = drive(&mut root, d::Event::Client { event: jig_client::Event::Stored });
+    while let Some(request) = stored.pop() {
+        out.push(request);
+    }
+    let (attempt, change) = out
+        .iter()
+        .find_map(|request| {
+            if let d::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Send { attempt, request: jig_client::Ask::Jig(ask), .. },
+                    },
+            } = request
+            {
+                let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("retry") };
+                Some((*attempt, change.clone()))
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    assert_eq!(change.against, 8);
+    assert_eq!(changed_ways(&change), Ways { changes: false, ..SHOWN });
+    refused_answer(&mut root, attempt, c::Refusal::Stale(c::RefusalStale { newest: 9 }));
+    f::build(&mut view, &root);
+    assert!(setting_row(view.tree(), b"Changes").iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_REFUSAL)));
+    assert!(root.forge().ways_asked(Control::Ways).is_none());
+}
+#[test]
+fn ways_of_working_only_while_goals_shown() {
+    for value in [Ways::STOCK, SHOWN] {
+        let root = how(Some(value));
+        for browser in [false, true] {
+            let view = how_view(&root, browser);
+            assert_eq!(
+                main(view.tree())
+                    .iter()
+                    .any(|n| n.role == Role::Heading { level: 2 } && n.name.as_deref() == Some(b"Ways of working")),
+                value.goals
+            );
+        }
+    }
+}
+#[test]
+fn the_stored_way_or_the_first_is_the_default() {
+    for (way, expected) in [
+        (11, "One agent, one branch"),
+        (4, "Plan, tasks, land whole"),
+        (0, "Plan, tasks, land whole"),
+        (99, "Plan, tasks, land whole"),
+    ] {
+        let root = how(Some(Ways { way, ..SHOWN }));
+        for browser in [false, true] {
+            let view = how_view(&root, browser);
+            let group = section_nodes(view.tree(), b"Ways of working");
+            assert_eq!(group.iter().filter(|n| n.role == Role::ChoiceGroup).count(), 1);
+            assert_eq!(
+                group
+                    .iter()
+                    .filter(|n| n.role == Role::Choice && n.states.as_slice().contains(&State::Selected))
+                    .count(),
+                1
+            );
+            assert!(
+                setting_row(view.tree(), expected.as_bytes())
+                    .iter()
+                    .any(|n| n.role == Role::Choice && n.states.as_slice().contains(&State::Selected))
+            );
+            let names: Vec<_> = group
+                .iter()
+                .filter(|n| n.role == Role::Text && n.name.is_some())
+                .map(|n| n.name.as_deref().unwrap())
+                .collect();
+            assert_eq!(names[0], b"Plan, tasks, land whole");
+        }
+    }
+}
+#[test]
+fn no_used_by_with_no_template_recorded() {
+    let root = how(Some(SHOWN));
+    let view = how_view(&root, true);
+    let text = String::from_utf8_lossy(&f::nodes_text(section_nodes(view.tree(), b"Ways of working"))).into_owned();
+    assert!(
+        text.contains("A plan from the draft, its tasks on a goal branch, landed as one change once all are checked.")
+    );
+    let custom = setting_row(view.tree(), b"One agent, one branch");
+    assert!(!custom.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)));
+    assert!(!text.contains("Used by"));
+}
+#[test]
+fn disabled_sections_say_so_once_and_their_controls_are_disabled() {
+    let root = how(Some(SHOWN));
+    for browser in [false, true] {
+        let view = how_view(&root, browser);
+        for (title, labels, values) in [
+            (
+                "Status",
+                vec!["Status lines and reports", "Rewritten", "The brief on Home"],
+                vec!["Written by each goal’s agent", "When someone opens it", "Off"],
+            ),
+            ("Telling you", vec!["Notifications", "Quiet hours"], vec!["Off", "None"]),
+        ] {
+            let section = section_nodes(view.tree(), title.as_bytes());
+            let facts: Vec<_> =
+                section.iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_FACTS)).collect();
+            assert_eq!(facts.len(), 1);
+            assert_eq!(facts[0].name.as_deref(), Some(b"Not built yet: this is what temper does today.".as_slice()));
+            assert_eq!(section.last().unwrap().id, subtree(view.tree(), facts[0].id).last().unwrap().id);
+            for (label, value) in labels.into_iter().zip(values) {
+                let id = find(view.tree(), Role::Select, label.as_bytes());
+                assert!(node(view.tree(), id).states.as_slice().contains(&State::Disabled));
+                assert_eq!(selected(view.tree(), label.as_bytes()), value.as_bytes());
+                assert_eq!(subtree(view.tree(), id).iter().filter(|n| n.role == Role::Option).count(), 1);
+            }
+        }
+    }
+}
+#[test]
+fn funds_says_so_in_its_small() {
+    let root = how(Some(SHOWN));
+    let view = how_view(&root, true);
+    let row = setting_row(view.tree(), b"Funds");
+    assert!(row.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)
+        && n.name.as_deref() == Some(b"Not built yet: this is what temper does today.")));
+    assert_eq!(selected(view.tree(), b"Funds"), b"Ask when a budget is used up");
+    assert!(node(view.tree(), find(view.tree(), Role::Select, b"Funds")).states.as_slice().contains(&State::Disabled));
+}
+#[test]
+fn until_read_the_switches_are_disabled_and_unchecked() {
+    for root in f::pair(how(None), f::root_with_refused_ways(settings())) {
+        for browser in [false, true] {
+            let mut view = how_view(&root, browser);
+            for (label, ..) in SWITCHES {
+                let id = find(view.tree(), Role::Check, label.as_bytes());
+                let check = node(view.tree(), id);
+                assert!(check.states.as_slice().contains(&State::Disabled));
+                assert!(!check.states.as_slice().contains(&State::Pressed));
+                assert_eq!(crate::act(&mut view, id, Act::Toggle), None);
+            }
+            assert!(
+                node(view.tree(), find(view.tree(), Role::Select, QUESTIONS.as_bytes()))
+                    .states
+                    .as_slice()
+                    .contains(&State::Disabled)
+            );
+        }
+    }
+}
