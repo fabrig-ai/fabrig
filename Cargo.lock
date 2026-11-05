@@ -1204,7 +1204,7 @@ dependencies = [
  "jig-protocol-engine-clients",
  "jig-protocol-transcript",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",
@@ -2011,12 +2011,17 @@ dependencies = [
 [[package]]
 name = "jig-test-connector-kit"
 version = "0.0.0"
+dependencies = [
+ "jig-test-connector",
+ "skein-lib",
+]
 
 [[package]]
 name = "jig-test-connector-world"
 version = "0.0.0"
 dependencies = [
  "jig-test-connector",
+ "jig-test-connector-kit",
  "jig-test-system",
  "sha2",
  "skein-heap",
@@ -2043,7 +2048,7 @@ dependencies = [
  "jig-protocol-store",
  "jig-protocol-tools",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "skein-lib",
 ]
 
@@ -2152,7 +2157,7 @@ dependencies = [
  "jig-protocol-store",
  "jig-protocol-transcript",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "jig-test-domain",
  "skein-codec",
  "skein-kv",
@@ -2170,7 +2175,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-protocol-store",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",

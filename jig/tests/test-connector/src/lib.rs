@@ -7,8 +7,7 @@
 //! restarts are injected; replaying the same seed produces the same trace.
 #![forbid(unsafe_code)]
 
-mod fixtures;
 mod world;
 
-pub use fixtures::{LIMITS, config, kind, path};
+pub use jig_test_connector_kit::*;
 pub use world::World;

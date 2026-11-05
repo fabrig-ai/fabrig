@@ -85,7 +85,7 @@ pub fn env() -> Env<Limits> {
         wall: Wall::from_nanos(1),
         limits: Limits {
             core: profile.core,
-            connector: jig_test_connector_world::LIMITS,
+            connector: jig_test_connector_kit::LIMITS,
             routes: 512,
             watermark: crate::default_watermark(&journal),
             public_watermark: crate::default_watermark(&journal).checked_div(2).expect("half the watermark"),
@@ -110,8 +110,8 @@ pub fn domain() -> Domain {
     .expect("bounded authority");
     Domain::new(
         Config {
-            first: jig_test_connector_world::config(1),
-            second: jig_test_connector_world::config(2),
+            first: jig_test_connector_kit::config(1),
+            second: jig_test_connector_kit::config(2),
             core: core::Config {
                 jobs: Box::new([]),
                 kept_starts: Box::new([]),

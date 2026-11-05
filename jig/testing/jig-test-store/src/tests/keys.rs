@@ -26,7 +26,7 @@ fn a_decoded_key_is_the_key_encoded() {
 }
 #[test]
 fn a_shorter_path_sorts_before_its_extensions() {
-    let shorter = jig_test_connector_world::path(1, 0);
+    let shorter = jig_test_connector_kit::path(1, 0);
     let longer = fixtures::path();
     assert!(
         keys::encode(fixtures::FIRST, &RecordKey::Pool(shorter))

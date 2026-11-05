@@ -27,7 +27,7 @@ jig-test-connector.workspace = true
 
 [dev-dependencies]
 jig-protocol-config.workspace = true
-jig-test-connector-world = { path = "../../tests/test-connector" }
+jig-test-connector-kit.workspace = true
 
 [lints]
 workspace = true

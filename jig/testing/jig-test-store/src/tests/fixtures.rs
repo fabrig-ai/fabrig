@@ -2,9 +2,9 @@ use jig_test_connector as d;
 use skein_lib::{Rng, Token, Wall};
 pub const FIRST: u16 = 1;
 pub const SECOND: u16 = 2;
-pub use jig_test_connector_world::LIMITS;
+pub use jig_test_connector_kit::LIMITS;
 pub fn path() -> d::Path {
-    jig_test_connector_world::path(1, 1)
+    jig_test_connector_kit::path(1, 1)
 }
 pub fn key() -> d::Key {
     d::Key {

@@ -24,7 +24,7 @@ skein-sim.workspace = true
 jig-domain-people.workspace = true
 jig-domain-notes.workspace = true
 jig-domain-tasks.workspace = true
-jig-test-connector-world.workspace = true
+jig-test-connector-kit.workspace = true
 jig-test-profile.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
