@@ -1,8 +1,6 @@
 use jig_domain_notes::{Author, Event, Recall, Refusal, Scope};
-use jig_notes_world::{Answer, World, correction, one_scope, search, task_entry};
+use jig_notes_world::{Answer, PROJECT_SCOPE as PROJECT, World, correction, one_scope, search, task_entry};
 use skein_lib::{List, Token};
-
-const PROJECT: Scope = Scope::Project { project: 7 };
 
 #[test]
 fn a_revision_of_an_entry_changed_since_it_was_recalled_is_refused_as_moved() {

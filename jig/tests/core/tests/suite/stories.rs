@@ -1,5 +1,5 @@
-pub(crate) use jig_core_world::fixtures::{configure_resources, resource_member};
-use jig_core_world::fixtures::{delegate, live_row, member};
+use jig_core_world::fixtures::{ask, delegate, live_row, member};
+pub(crate) use jig_core_world::fixtures::{ask_as, configure_resources, resource_member};
 use jig_core_world::world::Setup;
 use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
@@ -14,19 +14,8 @@ use skein_lib::{List, Queue, ReplyTo, Token};
 #[path = "../stories/address.rs"]
 mod address;
 
-fn ask(world: &mut World, request: u8, ask: people::Ask) {
-    ask_as(world, world.sign_in.expect("signed-in person"), request, ask);
-}
-
-pub(crate) fn ask_as(world: &mut World, sign_in: u64, request: u8, ask: people::Ask) {
-    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(6000 + u64::from(request))),
-        sign_in,
-        key: [request; 16],
-        ask,
-    })));
-}
+const FIRST_CONNECTOR: u16 = 1;
+const SECOND_CONNECTOR: u16 = 2;
 
 fn action(world: &mut World, completion: u32, action: core::NamedAction) {
     world.send(root::Event::Core(core::Event::NamedAction {
@@ -1686,7 +1675,7 @@ fn approval_delegate_results_preserve_absent_and_explicitly_empty_explanations()
 
 #[test]
 fn an_approval_reaches_its_asking_procedure_connector_as_the_whole_durable_input() {
-    let (mut world, parent) = procedure_world(456, 1);
+    let (mut world, parent) = procedure_world(456, FIRST_CONNECTOR);
     let (step, connector, code, context) = world.procedure_inputs.last().expect("first procedure input");
     assert_eq!(context.task, parent);
     let mut child = member(&world, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"approve this state");
@@ -1867,7 +1856,7 @@ fn procedure_world(seed: u64, number: u16) -> (World, u64) {
 
 #[test]
 fn a_procedure_delegate_identity_is_committed_with_its_child_by_the_actual_connector() {
-    let (mut world, parent) = procedure_world(458, 2);
+    let (mut world, parent) = procedure_world(458, SECOND_CONNECTOR);
     let (step, number, code, _) = world.procedure_inputs.last().expect("procedure input");
     let (step, number, code) = (*step, *number, *code);
     let mut child = member(&world, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"child");
@@ -1906,7 +1895,7 @@ fn a_procedure_delegate_identity_is_committed_with_its_child_by_the_actual_conne
 
 #[test]
 fn a_refused_procedure_delegation_retains_the_exact_none_outcome() {
-    let (mut world, parent) = procedure_world(459, 2);
+    let (mut world, parent) = procedure_world(459, SECOND_CONNECTOR);
     let (step, number, code, _) = world.procedure_inputs.last().expect("procedure input");
     let (step, number, code) = (*step, *number, *code);
     let mut child = member(&world, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"over budget");
