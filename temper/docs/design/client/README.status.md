@@ -2,6 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, 3.6, 5.8, 5.11, 5.14, 10: a goal's page, its acts and Start goal as these sections say them: plan `ui-goal-page`; a tracked task still draws the old page (`temper-client-view`'s `pages/task.rs`).
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
