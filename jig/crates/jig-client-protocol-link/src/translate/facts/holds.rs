@@ -1,175 +1,80 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
-use super::{
-    Child, active_run, chip_phase, closing_stage, document_text, failure_class, hold_category, person_address,
-    run_stage, take_closing, take_ending, take_owner_chip_details, take_owner_chip_ending,
-};
+use super::{Child, active_run, document_text, part, party, prior_phase, take_closing, take_ending};
+use super::parties::escalation_holder;
 use crate::Limits;
-use crate::translate::text_problem;
-use alloc::boxed::Box;
+use crate::translate::{text_problem};
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::Map;
-use skein_lib::{List, Wall, bytes};
-pub(crate) fn chip_phase_fields(
-    value: &w::ChipPhaseOwnerFields,
-    _limits: &Limits,
-    index: u32,
-    children: &mut Map<u32, Child>,
-) -> Result<c::ChipPhaseFacts, w::Problem> {
-    let phase = chip_phase(value.phase());
-    let details = take_owner_chip_details(value.details(), index, children)?;
-    let required_missing = match &phase {
-        c::ChipPhase::Ended => details.ended_at.is_none(),
-        c::ChipPhase::Active(c::RunStage::BackingOff { .. }) => details.retry.is_none(),
-        c::ChipPhase::Waiting { .. }
-        | c::ChipPhase::Person { .. }
-        | c::ChipPhase::Closing(_)
-        | c::ChipPhase::Held { .. }
-        | c::ChipPhase::Active(
-            c::RunStage::Idle
-            | c::RunStage::Due
-            | c::RunStage::Preparing
-            | c::RunStage::Claimed { .. }
-            | c::RunStage::Running { .. },
-        ) => false,
-    };
-    if required_missing {
-        return Err(crate::translate::piece_problem(skein_codec::Reason::Malformed));
-    }
-    Ok(c::ChipPhaseFacts { phase, details: Box::new(details) })
-}
+use skein_lib::{Map, List, Wall, bytes};
 
-pub(crate) fn closing_fields(
-    value: &w::ClosingFields,
-    index: u32,
-    children: &mut Map<u32, Child>,
-) -> Result<c::Closing, w::Problem> {
-    let opt0 = match &value.connectors() {
-        Some(item) => {
-            let mut list0 = List::with_capacity((item).len());
-            for item in item {
-                list0.push(*item).expect("reserved supplied list");
-            }
-            Some(list0)
-        }
-        None => None,
-    };
-    let opt1 = match &value.stage() {
-        Some(item) => Some(closing_stage(item)),
-        None => None,
-    };
-    let opt2 = match &value.ending() {
-        Some(item) => Some(take_ending(*item, index, children)?),
-        None => None,
-    };
-    Ok(c::Closing { delegates: value.delegates(), connectors: opt0, stage: opt1, ending: opt2 })
-}
-
-pub(crate) fn actor(value: &w::Actor) -> c::Actor {
+pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {
     match value {
-        w::Actor::Party(row) => c::Actor::Party(row.value()),
-        w::Actor::Task(row) => c::Actor::Task(row.value()),
-        w::Actor::Deployment => c::Actor::Deployment,
-        w::Actor::ProjectDeployment(row) => c::Actor::ProjectDeployment { project: row.project() },
+        w::HoldFailure::Transient => c::HoldFailure::Transient,
+        w::HoldFailure::Permanent => c::HoldFailure::Permanent,
+        w::HoldFailure::Run => c::HoldFailure::Run,
+        w::HoldFailure::Agent => c::HoldFailure::Agent,
+        w::HoldFailure::Lost => c::HoldFailure::Lost,
+        w::HoldFailure::Invalid => c::HoldFailure::Invalid,
     }
 }
 
-pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
+pub(crate) fn hold_category(value: &w::HoldCategory) -> c::HoldCategory {
     match value {
-        w::PartyKind::Person => c::PartyKind::Person,
-        w::PartyKind::Service => c::PartyKind::Service,
+        w::HoldCategory::Exceeded(value) => c::HoldCategory::Exceeded(c::Exceeded {
+            bound: match value.bound() {
+                w::Bound::Reasoning => c::Bound::Reasoning,
+                w::Bound::Metadata => c::Bound::Metadata,
+                w::Bound::Items => c::Bound::Items,
+                w::Bound::Answer => c::Bound::Answer,
+                w::Bound::Tools => c::Bound::Tools,
+                w::Bound::HistoryItems => c::Bound::HistoryItems,
+                w::Bound::History => c::Bound::History,
+                w::Bound::Window => c::Bound::Window,
+                w::Bound::Output => c::Bound::Output,
+            },
+            value: value.value(),
+        }),
+        w::HoldCategory::Failures(row) => c::HoldCategory::Failures { class: hold_failure(row.class()) },
+        w::HoldCategory::Stalled => c::HoldCategory::Stalled,
+        w::HoldCategory::Dependency(row) => c::HoldCategory::Dependency { task: row.task() },
+        w::HoldCategory::Stopped => c::HoldCategory::Stopped,
+        w::HoldCategory::Placed(row) => c::HoldCategory::Placed { hold: row.hold() },
+        w::HoldCategory::Drift => c::HoldCategory::Drift,
+        w::HoldCategory::Effects => c::HoldCategory::Effects,
+        w::HoldCategory::EffectFailed => c::HoldCategory::EffectFailed,
+        w::HoldCategory::Uncertain(row) => c::HoldCategory::Uncertain { entry: row.entry() },
+        w::HoldCategory::Budget => c::HoldCategory::Budget,
+        w::HoldCategory::Deadline => c::HoldCategory::Deadline,
+        w::HoldCategory::HoldsWaited => c::HoldCategory::HoldsWaited,
+        w::HoldCategory::ResourceUnavailable => c::HoldCategory::ResourceUnavailable,
+        w::HoldCategory::ResourceAccess => c::HoldCategory::ResourceAccess,
+        w::HoldCategory::PoolLost(row) => c::HoldCategory::PoolLost { pool: row.pool() },
+        w::HoldCategory::Procedure => c::HoldCategory::Procedure,
+        w::HoldCategory::Circle => c::HoldCategory::Circle,
     }
 }
 
-pub(crate) fn party(value: &w::Party, limits: &Limits) -> Result<c::Party, w::Problem> {
-    Ok(c::Party {
-        number: value.number(),
-        kind: party_kind(value.kind()),
-        name: match c::Text::new(bytes::copy_of(value.name()), limits.client().text) {
-            Ok(value) => value,
-            Err(_) => return Err(text_problem()),
-        },
-    })
+pub(crate) fn failure_class(value: &w::FailureClass) -> c::FailureClass {
+    match value {
+        w::FailureClass::HostLost => c::FailureClass::HostLost,
+        w::FailureClass::Temporary => c::FailureClass::Temporary,
+        w::FailureClass::Permanent => c::FailureClass::Permanent,
+        w::FailureClass::Stall => c::FailureClass::Stall,
+    }
 }
 
-pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decision, w::Problem> {
-    Ok(match value {
-        w::Decision::Accepted => c::Decision::Accepted,
-        w::Decision::Rejected(row) => c::Decision::Rejected {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
-                Ok(value) => value,
-                Err(_) => return Err(text_problem()),
-            },
+pub(crate) fn retry_notice(value: &w::RetryNotice) -> c::RetryNotice {
+    match value {
+        w::RetryNotice::OwnerFailed(row) => c::RetryNotice::OwnerFailed {
+            class: hold_failure(row.class()),
+            count: row.count(),
+            allowance: row.allowance(),
         },
-        w::Decision::PassedUp => c::Decision::PassedUp,
-        w::Decision::Released(row) => {
-            let opt0 = match row.again() {
-                Some(item) => Some(*item),
-                None => None,
-            };
-            c::Decision::Released { again: opt0 }
+        w::RetryNotice::Failed(row) => {
+            c::RetryNotice::Failed { class: failure_class(row.class()), count: row.count(), allowance: row.allowance() }
         }
-        w::Decision::LeftHeld(row) => c::Decision::LeftHeld {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
-                Ok(value) => value,
-                Err(_) => return Err(text_problem()),
-            },
-        },
-    })
-}
-
-pub(crate) fn ending_fields(
-    value: &w::EndingFields,
-    limits: &Limits,
-    index: u32,
-    children: &mut Map<u32, Child>,
-) -> Result<c::Ending, w::Problem> {
-    Ok(match value {
-        w::EndingFields::Task(row) => c::Ending::Task(Box::new(take_owner_chip_ending(row.value(), index, children)?)),
-        w::EndingFields::Done => c::Ending::Done,
-        w::EndingFields::Failed(row) => {
-            let opt0 = match &row.reason() {
-                Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client().text) {
-                    Ok(value) => value,
-                    Err(_) => return Err(text_problem()),
-                }),
-                None => None,
-            };
-            c::Ending::Failed { reason: opt0 }
-        }
-        w::EndingFields::Cancelled(row) => {
-            let opt0 = match &row.reason() {
-                Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client().text) {
-                    Ok(value) => value,
-                    Err(_) => return Err(text_problem()),
-                }),
-                None => None,
-            };
-            let opt1 = match row.at() {
-                Some(item) => Some(Wall::from_nanos(*item)),
-                None => None,
-            };
-            c::Ending::Cancelled { by: actor(row.by()), reason: opt0, at: opt1 }
-        }
-        w::EndingFields::Withdrawn(row) => c::Ending::Withdrawn {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
-                Ok(value) => value,
-                Err(_) => return Err(text_problem()),
-            },
-        },
-        w::EndingFields::Decided(row) => {
-            let opt0 = match &row.party() {
-                Some(item) => Some(party(item, limits)?),
-                None => None,
-            };
-            let opt1 = match &row.how() {
-                Some(item) => Some(decision(item, limits)?),
-                None => None,
-            };
-            c::Ending::Decided { by: row.by(), party: opt0, how: opt1, at: Wall::from_nanos(row.at()) }
-        }
-        w::EndingFields::Deleted => c::Ending::Deleted,
-    })
+        w::RetryNotice::Refused(row) => c::RetryNotice::Refused { count: row.count() },
+    }
 }
 
 pub(crate) fn held_runtime_fields(
@@ -227,106 +132,6 @@ pub(crate) fn hold_reason_fields(
             c::HoldReason::Stopped { by: party(row.by(), limits)?, at: Wall::from_nanos(row.at()) }
         }
     })
-}
-
-pub(crate) fn executor(value: &w::Executor) -> c::Executor {
-    match value {
-        w::Executor::Job(row) => c::Executor::Job { kind: row.kind() },
-        w::Executor::Agent(row) => c::Executor::Agent { charter: row.charter() },
-        w::Executor::Procedure(row) => c::Executor::Procedure { connector: row.connector(), code: row.code() },
-        w::Executor::Person(row) => c::Executor::Person(person_address(row.value())),
-    }
-}
-
-pub(crate) fn wake_rule(value: &w::WakeRule) -> c::WakeRule {
-    match value {
-        w::WakeRule::Never => c::WakeRule::Never,
-        w::WakeRule::Immediate => c::WakeRule::Immediate,
-        w::WakeRule::Batch(row) => c::WakeRule::Batch { count: row.count(), age: row.age() },
-        w::WakeRule::Paced(row) => c::WakeRule::Paced { span: row.span() },
-    }
-}
-
-pub(crate) fn results_wake(value: &w::ResultsWake) -> c::ResultsWake {
-    match value {
-        w::ResultsWake::Never => c::ResultsWake::Never,
-        w::ResultsWake::Each => c::ResultsWake::Each,
-        w::ResultsWake::LastOrFailure => c::ResultsWake::LastOrFailure,
-    }
-}
-
-pub(crate) fn wake_policy(value: &w::WakePolicy) -> c::WakePolicy {
-    c::WakePolicy {
-        words: wake_rule(value.words()),
-        notices: wake_rule(value.notices()),
-        news: wake_rule(value.news()),
-        results: results_wake(value.results()),
-        questions: value.questions(),
-        answers: value.answers(),
-        timers: value.timers(),
-    }
-}
-
-pub(crate) fn person_stall_notice(value: &w::PersonStallNotice) -> c::PersonStallNotice {
-    c::PersonStallNotice { message: value.message(), at: Wall::from_nanos(value.at()), activity: value.activity() }
-}
-
-pub(crate) fn person_wait(value: &w::PersonWait) -> c::PersonWait {
-    let opt0 = match &value.notice() {
-        Some(item) => Some(person_stall_notice(item)),
-        None => None,
-    };
-    c::PersonWait {
-        since: Wall::from_nanos(value.since()),
-        stall: value.stall(),
-        deadline: Wall::from_nanos(value.deadline()),
-        notice: opt0,
-    }
-}
-
-pub(crate) fn part_kind(value: &w::PartKind) -> c::PartKind {
-    match value {
-        w::PartKind::Resource => c::PartKind::Resource,
-        w::PartKind::Pool => c::PartKind::Pool,
-        w::PartKind::Result => c::PartKind::Result,
-        w::PartKind::Procedure => c::PartKind::Procedure,
-        w::PartKind::Effect => c::PartKind::Effect,
-        w::PartKind::Outbox => c::PartKind::Outbox,
-        w::PartKind::Hold => c::PartKind::Hold,
-    }
-}
-
-pub(crate) fn part_key(value: &w::PartKey) -> c::PartKey {
-    match value {
-        w::PartKey::Path(row) => {
-            let mut list0 = List::with_capacity(row.value().len());
-            for item in row.value() {
-                list0.push(bytes::copy_of(item)).expect("reserved supplied list");
-            }
-            c::PartKey::Path(list0)
-        }
-        w::PartKey::Number(row) => c::PartKey::Number(row.value()),
-    }
-}
-
-pub(crate) fn part(value: &w::Part) -> c::Part {
-    c::Part { connector: value.connector(), kind: part_kind(value.kind()), key: part_key(value.key()) }
-}
-
-pub(crate) fn prior_phase(value: &w::PriorPhase) -> c::PriorPhase {
-    match value {
-        w::PriorPhase::Waiting => c::PriorPhase::Waiting,
-        w::PriorPhase::Active(row) => c::PriorPhase::Active(run_stage(row.value())),
-        w::PriorPhase::Closing(row) => c::PriorPhase::Closing(closing_stage(row.value())),
-    }
-}
-
-pub(crate) fn escalation_holder(value: &w::EscalationHolder) -> c::EscalationHolder {
-    match value {
-        w::EscalationHolder::Task(row) => c::EscalationHolder::Task(row.value()),
-        w::EscalationHolder::Person(row) => c::EscalationHolder::Person(row.value()),
-        w::EscalationHolder::Role(row) => c::EscalationHolder::Role { project: row.project(), role: row.role() },
-    }
 }
 
 pub(crate) fn hold_escalation(value: &w::HoldEscalation, limits: &Limits) -> Result<c::HoldEscalation, w::Problem> {
@@ -396,13 +201,4 @@ pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipH
         tries: failure_tries(value.tries()),
         hold_wait_since: opt3,
     })
-}
-
-pub(crate) fn numbers(value: &w::Numbers) -> c::Numbers {
-    c::Numbers {
-        budget: value.budget(),
-        spent: value.spent(),
-        spent_below: value.spent_below(),
-        reserved: value.reserved(),
-    }
 }

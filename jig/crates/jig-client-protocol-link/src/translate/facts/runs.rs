@@ -1,65 +1,10 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
-use super::{Child, take_chip_phase};
+use super::{retry_notice};
 use crate::Limits;
-use crate::translate::text_problem;
-use alloc::boxed::Box;
+use crate::translate::{text_problem};
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::Map;
-use skein_lib::{List, Wall, bytes};
-pub(crate) fn document_text(value: &w::DocumentText, limits: &Limits) -> Result<c::DocumentText, w::Problem> {
-    Ok(c::DocumentText {
-        bytes: match c::Text::new(bytes::copy_of(value.bytes()), limits.client().text) {
-            Ok(value) => value,
-            Err(_) => return Err(text_problem()),
-        },
-        cut: value.cut(),
-    })
-}
-
-pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {
-    match value {
-        w::ChipExecutor::Job(row) => c::ChipExecutor::Job { kind: row.kind() },
-        w::ChipExecutor::Agent(row) => c::ChipExecutor::Agent { charter: row.charter() },
-        w::ChipExecutor::Procedure(row) => c::ChipExecutor::Procedure { connector: row.connector(), kind: row.kind() },
-        w::ChipExecutor::Party(row) => c::ChipExecutor::Party { party: row.party() },
-        w::ChipExecutor::Role(row) => c::ChipExecutor::Role { project: row.project(), role: row.role() },
-    }
-}
-
-pub(crate) fn phase(value: &w::Phase) -> c::Phase {
-    match value {
-        w::Phase::Waiting => c::Phase::Waiting,
-        w::Phase::Idle => c::Phase::Idle,
-        w::Phase::Due => c::Phase::Due,
-        w::Phase::Preparing => c::Phase::Preparing,
-        w::Phase::Claimed => c::Phase::Claimed,
-        w::Phase::Running => c::Phase::Running,
-        w::Phase::BackingOff => c::Phase::BackingOff,
-        w::Phase::Active => c::Phase::Active,
-        w::Phase::Closing => c::Phase::Closing,
-        w::Phase::Held => c::Phase::Held,
-        w::Phase::Ended => c::Phase::Ended,
-        w::Phase::Done => c::Phase::Done,
-        w::Phase::Failed => c::Phase::Failed,
-        w::Phase::Cancelled => c::Phase::Cancelled,
-    }
-}
-
-pub(crate) fn chip_fields(
-    value: &w::ChipFields,
-    limits: &Limits,
-    index: u32,
-    children: &mut Map<u32, Child>,
-) -> Result<c::Chip, w::Problem> {
-    Ok(c::Chip {
-        task: value.task(),
-        title: document_text(value.title(), limits)?,
-        executor: executor(value.executor()),
-        phase: phase(value.phase()),
-        details: Box::new(take_chip_phase(value.details(), index, children)?),
-    })
-}
+use skein_lib::{Wall, bytes};
 
 pub(crate) fn run_stage(value: &w::RunStage) -> c::RunStage {
     match value {
@@ -69,120 +14,6 @@ pub(crate) fn run_stage(value: &w::RunStage) -> c::RunStage {
         w::RunStage::Claimed(row) => c::RunStage::Claimed { attempt: row.attempt() },
         w::RunStage::Running(row) => c::RunStage::Running { attempt: row.attempt() },
         w::RunStage::BackingOff(row) => c::RunStage::BackingOff { until: Wall::from_nanos(row.until()) },
-    }
-}
-
-pub(crate) fn person_address(value: &w::PersonAddress) -> c::PersonAddress {
-    match value {
-        w::PersonAddress::Party(row) => c::PersonAddress::Party(row.value()),
-        w::PersonAddress::Role(row) => c::PersonAddress::Role(row.value()),
-    }
-}
-
-pub(crate) fn closing_stage(value: &w::ClosingStage) -> c::ClosingStage {
-    match value {
-        w::ClosingStage::Run(row) => c::ClosingStage::Run { attempt: row.attempt() },
-        w::ClosingStage::Delegates => c::ClosingStage::Delegates,
-        w::ClosingStage::Effects => c::ClosingStage::Effects,
-        w::ClosingStage::Releases => c::ClosingStage::Releases,
-        w::ClosingStage::Settled => c::ClosingStage::Settled,
-    }
-}
-
-pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {
-    match value {
-        w::HoldFailure::Transient => c::HoldFailure::Transient,
-        w::HoldFailure::Permanent => c::HoldFailure::Permanent,
-        w::HoldFailure::Run => c::HoldFailure::Run,
-        w::HoldFailure::Agent => c::HoldFailure::Agent,
-        w::HoldFailure::Lost => c::HoldFailure::Lost,
-        w::HoldFailure::Invalid => c::HoldFailure::Invalid,
-    }
-}
-
-pub(crate) fn hold_category(value: &w::HoldCategory) -> c::HoldCategory {
-    match value {
-        w::HoldCategory::Exceeded(value) => c::HoldCategory::Exceeded(c::Exceeded {
-            bound: match value.bound() {
-                w::Bound::Reasoning => c::Bound::Reasoning,
-                w::Bound::Metadata => c::Bound::Metadata,
-                w::Bound::Items => c::Bound::Items,
-                w::Bound::Answer => c::Bound::Answer,
-                w::Bound::Tools => c::Bound::Tools,
-                w::Bound::HistoryItems => c::Bound::HistoryItems,
-                w::Bound::History => c::Bound::History,
-                w::Bound::Window => c::Bound::Window,
-                w::Bound::Output => c::Bound::Output,
-            },
-            value: value.value(),
-        }),
-        w::HoldCategory::Failures(row) => c::HoldCategory::Failures { class: hold_failure(row.class()) },
-        w::HoldCategory::Stalled => c::HoldCategory::Stalled,
-        w::HoldCategory::Dependency(row) => c::HoldCategory::Dependency { task: row.task() },
-        w::HoldCategory::Stopped => c::HoldCategory::Stopped,
-        w::HoldCategory::Placed(row) => c::HoldCategory::Placed { hold: row.hold() },
-        w::HoldCategory::Drift => c::HoldCategory::Drift,
-        w::HoldCategory::Effects => c::HoldCategory::Effects,
-        w::HoldCategory::EffectFailed => c::HoldCategory::EffectFailed,
-        w::HoldCategory::Uncertain(row) => c::HoldCategory::Uncertain { entry: row.entry() },
-        w::HoldCategory::Budget => c::HoldCategory::Budget,
-        w::HoldCategory::Deadline => c::HoldCategory::Deadline,
-        w::HoldCategory::HoldsWaited => c::HoldCategory::HoldsWaited,
-        w::HoldCategory::ResourceUnavailable => c::HoldCategory::ResourceUnavailable,
-        w::HoldCategory::ResourceAccess => c::HoldCategory::ResourceAccess,
-        w::HoldCategory::PoolLost(row) => c::HoldCategory::PoolLost { pool: row.pool() },
-        w::HoldCategory::Procedure => c::HoldCategory::Procedure,
-        w::HoldCategory::Circle => c::HoldCategory::Circle,
-    }
-}
-
-pub(crate) fn chip_phase(value: &w::ChipPhase) -> c::ChipPhase {
-    match value {
-        w::ChipPhase::Waiting(row) => {
-            let mut list0 = List::with_capacity(row.dependencies().len());
-            for item in row.dependencies() {
-                list0.push(*item).expect("reserved supplied list");
-            }
-            c::ChipPhase::Waiting { dependencies: list0, more: row.more(), holds: row.holds() }
-        }
-        w::ChipPhase::Active(row) => c::ChipPhase::Active(run_stage(row.value())),
-        w::ChipPhase::Person(row) => {
-            let opt0 = match row.taken_by() {
-                Some(item) => Some(*item),
-                None => None,
-            };
-            let opt1 = match row.since() {
-                Some(item) => Some(Wall::from_nanos(*item)),
-                None => None,
-            };
-            c::ChipPhase::Person { address: person_address(row.address()), taken_by: opt0, since: opt1 }
-        }
-        w::ChipPhase::Closing(row) => c::ChipPhase::Closing(closing_stage(row.value())),
-        w::ChipPhase::Held(row) => c::ChipPhase::Held { reason: hold_category(row.reason()), revision: row.revision() },
-        w::ChipPhase::Ended => c::ChipPhase::Ended,
-    }
-}
-
-pub(crate) fn failure_class(value: &w::FailureClass) -> c::FailureClass {
-    match value {
-        w::FailureClass::HostLost => c::FailureClass::HostLost,
-        w::FailureClass::Temporary => c::FailureClass::Temporary,
-        w::FailureClass::Permanent => c::FailureClass::Permanent,
-        w::FailureClass::Stall => c::FailureClass::Stall,
-    }
-}
-
-pub(crate) fn retry_notice(value: &w::RetryNotice) -> c::RetryNotice {
-    match value {
-        w::RetryNotice::OwnerFailed(row) => c::RetryNotice::OwnerFailed {
-            class: hold_failure(row.class()),
-            count: row.count(),
-            allowance: row.allowance(),
-        },
-        w::RetryNotice::Failed(row) => {
-            c::RetryNotice::Failed { class: failure_class(row.class()), count: row.count(), allowance: row.allowance() }
-        }
-        w::RetryNotice::Refused(row) => c::RetryNotice::Refused { count: row.count() },
     }
 }
 
@@ -255,30 +86,4 @@ pub(crate) fn active_run(value: &w::ActiveRun, limits: &Limits) -> Result<c::Act
         retry: opt2,
         observation: opt3,
     })
-}
-
-pub(crate) fn proposer(value: &w::Proposer) -> c::Proposer {
-    match value {
-        w::Proposer::Task(row) => c::Proposer::Task(row.value()),
-        w::Proposer::Party(row) => c::Proposer::Party(row.value()),
-    }
-}
-
-pub(crate) fn proposal_key(value: &w::ProposalKey) -> c::ProposalKey {
-    c::ProposalKey { proposer: proposer(value.proposer()), number: value.number() }
-}
-
-pub(crate) fn recipient(value: &w::Recipient) -> c::Recipient {
-    match value {
-        w::Recipient::Task(row) => c::Recipient::Task(row.value()),
-        w::Recipient::Party(row) => c::Recipient::Party(row.value()),
-        w::Recipient::Role(row) => c::Recipient::Role { project: row.project(), role: row.role() },
-        w::Recipient::Roles(row) => {
-            let mut list0 = List::with_capacity(row.roles().len());
-            for item in row.roles() {
-                list0.push(*item).expect("reserved supplied list");
-            }
-            c::Recipient::Roles { project: row.project(), roles: list0 }
-        }
-    }
 }

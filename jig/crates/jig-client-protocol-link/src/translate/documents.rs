@@ -9,25 +9,36 @@ use skein_lib::{List, Reader, Wall, bytes};
 mod accounts;
 #[path = "catalogue.rs"]
 mod catalogue;
-mod frame;
 pub(crate) use accounts::*;
-pub(crate) use frame::*;
+
 mod authority;
 pub(crate) use authority::*;
-mod offered;
-pub(crate) use offered::*;
-mod task;
-pub(crate) use task::*;
-mod lines;
-pub(crate) use lines::*;
-mod hosts;
-pub(crate) use hosts::*;
 mod capacity;
 pub(crate) use capacity::*;
+mod chips;
+pub(crate) use chips::*;
+mod deployment;
+pub(crate) use deployment::*;
+mod frame;
+pub(crate) use frame::*;
+mod hosts;
+pub(crate) use hosts::*;
+mod lines;
+pub(crate) use lines::*;
+mod offered;
+pub(crate) use offered::*;
 mod project;
 pub(crate) use project::*;
+mod results;
+pub(crate) use results::*;
 mod runs;
 pub(crate) use runs::*;
+mod specification;
+pub(crate) use specification::*;
+mod task;
+pub(crate) use task::*;
+mod task_links;
+pub(crate) use task_links::*;
 
 fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     match c::Text::new(bytes::copy_of(value), limits.client().text) {

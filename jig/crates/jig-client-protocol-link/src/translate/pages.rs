@@ -24,24 +24,25 @@ fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     }
 }
 
+
 mod activity;
 pub(crate) use activity::*;
-mod history_changes;
-pub(crate) use history_changes::*;
-mod history;
-pub(crate) use history::*;
-mod notes;
-pub(crate) use notes::*;
-mod inbox;
-pub(crate) use inbox::*;
-mod spend;
-pub(crate) use spend::*;
-mod proposals;
-pub(crate) use proposals::*;
 mod decisions;
 pub(crate) use decisions::*;
 mod ended;
 pub(crate) use ended::*;
+mod history;
+pub(crate) use history::*;
+mod inbox;
+pub(crate) use inbox::*;
+mod notes;
+pub(crate) use notes::*;
+mod person;
+pub(crate) use person::*;
+mod proposals;
+pub(crate) use proposals::*;
+mod spend;
+pub(crate) use spend::*;
 
 pub fn history_page(record: w::HistoryPage, limits: &Limits) -> Result<c::HistoryPage, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {

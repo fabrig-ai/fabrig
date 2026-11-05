@@ -1,8 +1,6 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
-use super::{
-    Limits, List, Reader, Wall, authority_fields, c, message_proposal_kind_fields, opaque, piece_problem,
-    specification_fields, task_contract_document_fields, text, too_large, w,
-};
+use super::{Limits, List, Reader, Wall, authority_fields, c, message_proposal_kind_fields, opaque, piece_problem, specification_fields, task_contract_document_fields, text, too_large, w};
+
 pub(crate) fn goal_holding_fields(value: &w::GoalHolding, limits: &Limits) -> Result<c::GoalHolding, w::Problem> {
     Ok(match value {
         w::GoalHolding::Write(row) => {
@@ -150,5 +148,20 @@ pub(crate) fn escalation_decision_fields(
         w::EscalationDecision::Release => c::EscalationDecision::Release,
         w::EscalationDecision::Reject(row) => c::EscalationDecision::Reject { reason: text(row.reason(), limits)? },
         w::EscalationDecision::Pass => c::EscalationDecision::Pass,
+    })
+}
+
+pub(crate) fn escalation_decision_record_fields(
+    value: &w::EscalationDecisionRecord,
+    limits: &Limits,
+) -> Result<c::EscalationDecisionRecord, w::Problem> {
+    Ok(c::EscalationDecisionRecord {
+        project: value.project(),
+        requester: value.requester(),
+        task: value.task(),
+        revision: value.revision(),
+        by: value.by(),
+        at: Wall::from_nanos(value.at()),
+        decision: escalation_decision_fields(value.decision(), limits)?,
     })
 }

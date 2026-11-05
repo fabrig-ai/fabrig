@@ -1,5 +1,6 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
 use super::{Limits, List, Reader, Wall, c, piece_problem, task_link_fields, too_large, w};
+
 pub(crate) fn store_fill_fields(value: &w::StoreFill) -> c::StoreFill {
     c::StoreFill { bytes: value.bytes(), mark: value.mark() }
 }
@@ -153,43 +154,4 @@ pub(crate) fn host_piece(
         rows.push(host_fields(&row, limits, room)?).expect("counted host pieces");
     }
     Ok(rows)
-}
-
-pub(crate) fn account_place_fields(value: &w::AccountPlace) -> c::AccountPlace {
-    match value {
-        w::AccountPlace::Directory => c::AccountPlace::Directory,
-        w::AccountPlace::File => c::AccountPlace::File,
-    }
-}
-
-pub(crate) fn account_unread_fields(value: &w::AccountUnread) -> c::AccountUnread {
-    match value {
-        w::AccountUnread::Unreadable => c::AccountUnread::Unreadable,
-        w::AccountUnread::Refused => c::AccountUnread::Refused,
-        w::AccountUnread::Failed => c::AccountUnread::Failed,
-        w::AccountUnread::Stalled => c::AccountUnread::Stalled,
-        w::AccountUnread::TooLarge => c::AccountUnread::TooLarge,
-    }
-}
-
-pub(crate) fn account_state_fields(value: &w::AccountState) -> c::AccountState {
-    match value {
-        w::AccountState::Asking => c::AccountState::Asking,
-        w::AccountState::Granted => c::AccountState::Granted,
-        w::AccountState::Later(row) => {
-            let opt0 = match row.until() {
-                Some(item) => Some(Wall::from_nanos(*item)),
-                None => None,
-            };
-            c::AccountState::Later { until: opt0 }
-        }
-        w::AccountState::SignInAgain => c::AccountState::SignInAgain,
-        w::AccountState::Misconfigured => c::AccountState::Misconfigured,
-        w::AccountState::Unloaded(row) => {
-            c::AccountState::Unloaded { at: account_place_fields(row.at()), why: account_unread_fields(row.why()) }
-        }
-        w::AccountState::Cancelled => c::AccountState::Cancelled,
-        w::AccountState::Closing => c::AccountState::Closing,
-        w::AccountState::Moving => c::AccountState::Moving,
-    }
 }

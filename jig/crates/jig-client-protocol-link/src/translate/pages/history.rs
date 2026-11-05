@@ -1,9 +1,118 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
-use super::{
-    Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_ending_fields, cursor_fields,
-    history_change_fields, message_proposal_kind_fields, piece_problem, retained_action_fields,
-    specification_document_fields, too_large, w,
-};
+use super::{Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_ending_fields, cursor_fields, message_proposal_kind_fields, piece_problem, proposed_task_piece, specification_document_fields, too_large, w};
+
+pub(crate) fn history_change_fields(value: &w::HistoryChange) -> c::HistoryChange {
+    match value {
+        w::HistoryChange::Cancelled => c::HistoryChange::Cancelled,
+        w::HistoryChange::Released => c::HistoryChange::Released,
+        w::HistoryChange::Amended => c::HistoryChange::Amended,
+        w::HistoryChange::Moved => c::HistoryChange::Moved,
+        w::HistoryChange::Proposed => c::HistoryChange::Proposed,
+        w::HistoryChange::ProposalPassed => c::HistoryChange::ProposalPassed,
+        w::HistoryChange::ProposalAccepted => c::HistoryChange::ProposalAccepted,
+        w::HistoryChange::ProposalRejected => c::HistoryChange::ProposalRejected,
+        w::HistoryChange::ProposalWithdrawn => c::HistoryChange::ProposalWithdrawn,
+    }
+}
+
+pub(crate) fn address_change_fields(value: &w::AddressChange) -> c::AddressChange {
+    c::AddressChange {
+        revision: crate::translate::answers::revision(value.revision()),
+        address: crate::translate::facts::person_address(value.address()),
+    }
+}
+
+pub(crate) fn retained_amendment_fields(
+    value: &w::RetainedAmendment,
+    limits: &Limits,
+) -> Result<c::RetainedAmendment, w::Problem> {
+    let opt0 = match value.addressed() {
+        Some(item) => Some(address_change_fields(item)),
+        None => None,
+    };
+    let opt1 = match value.instructions() {
+        Some(item) => Some(crate::translate::facts::document_text(item, limits)?),
+        None => None,
+    };
+    let opt2 = match value.release() {
+        Some(item) => Some(*item),
+        None => None,
+    };
+    let opt3 = match value.spec() {
+        Some(item) => Some(specification_document_fields(item, limits)?),
+        None => None,
+    };
+    let opt4 = match value.authority() {
+        Some(item) => Some(authority_document_fields(item, limits)?),
+        None => None,
+    };
+    let opt5 = match value.wake() {
+        Some(item) => Some(crate::translate::facts::wake_policy(item)),
+        None => None,
+    };
+    let opt6 = match value.dependencies() {
+        Some(item) => {
+            if (item).len() > limits.client().rows {
+                return Err(too_large());
+            }
+            let mut list0 = List::with_capacity((item).len());
+            for item in item {
+                list0.push(*item).expect("reserved supplied list");
+            }
+            Some(list0)
+        }
+        None => None,
+    };
+    Ok(c::RetainedAmendment {
+        addressed: opt0,
+        instructions: opt1,
+        release: opt2,
+        spec: opt3,
+        authority: opt4,
+        wake: opt5,
+        dependencies: opt6,
+        reason: crate::translate::facts::document_text(value.reason(), limits)?,
+        cut: value.cut(),
+    })
+}
+
+pub(crate) fn retained_action_fields(
+    value: &w::RetainedAction,
+    limits: &Limits,
+) -> Result<c::RetainedAction, w::Problem> {
+    Ok(match value {
+        w::RetainedAction::Settings(row) => c::RetainedAction::Settings(
+            crate::translate::settings_proposals::restore_owner_retained_action_settings(row, limits)?,
+        ),
+        w::RetainedAction::Batch(row) => {
+            c::RetainedAction::Batch(proposed_task_piece(row.value(), limits, limits.client().rows)?)
+        }
+        w::RetainedAction::Effect(row) => c::RetainedAction::Effect {
+            part: crate::translate::facts::part(row.part()),
+            authority: authority_document_fields(row.authority(), limits)?,
+            attempt: row.attempt(),
+            completion: row.completion(),
+            position: row.position(),
+            purpose: row.purpose(),
+        },
+        w::RetainedAction::ProcedureEffect(row) => c::RetainedAction::ProcedureEffect {
+            part: crate::translate::facts::part(row.part()),
+            authority: authority_document_fields(row.authority(), limits)?,
+            step: row.step(),
+            purpose: row.purpose(),
+        },
+        w::RetainedAction::Amend(row) => c::RetainedAction::Amend {
+            task: row.task(),
+            change: Box::new(retained_amendment_fields(row.change(), limits)?),
+        },
+        w::RetainedAction::Widen(row) => c::RetainedAction::Widen {
+            task: row.task(),
+            authority: authority_document_fields(row.authority(), limits)?,
+        },
+        w::RetainedAction::Release(row) => c::RetainedAction::Release { task: row.task() },
+    })
+}
+
 pub(crate) fn history_holder_fields(value: &w::HistoryHolder) -> c::HistoryHolder {
     match value {
         w::HistoryHolder::Task(row) => c::HistoryHolder::Task(row.value()),

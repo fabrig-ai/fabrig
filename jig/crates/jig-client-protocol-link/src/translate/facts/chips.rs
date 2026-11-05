@@ -1,75 +1,210 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
-use super::{
-    Child, chip_hold, document_text, executor, numbers, part, party, person_wait, proposal_key, retry_notice,
-    take_chip, take_owner_chip_ending, take_result_value, wake_policy,
-};
+use super::{Child, budget, chip_hold, dependencies, document_text, hold_category, part, party, person_address, person_wait, proposal_key, requester, retry_notice, run_stage, take_chip, take_chip_phase, take_ending, take_owner_chip_details, take_owner_chip_ending, take_result_value, wake_policy};
+use super::parties::{actor, decision};
+use super::parts::resource_line_piece;
 use crate::Limits;
-use crate::translate::{piece_problem, too_large};
+use crate::translate::text_problem;
+use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::Map;
-use skein_lib::{List, Reader, Wall, bytes};
-pub(crate) fn funder(value: &w::Funder) -> c::Funder {
+use skein_lib::{Map, List, Wall, bytes};
+
+pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {
     match value {
-        w::Funder::Task(row) => c::Funder::Task(row.value()),
-        w::Funder::Pool(row) => c::Funder::Pool { project: row.project(), person: row.person(), period: row.period() },
-        w::Funder::Recurring(row) => {
-            c::Funder::Recurring { project: row.project(), task: row.task(), period: row.period() }
-        }
-        w::Funder::Period(row) => c::Funder::Period { project: row.project(), period: row.period() },
+        w::ChipExecutor::Job(row) => c::ChipExecutor::Job { kind: row.kind() },
+        w::ChipExecutor::Agent(row) => c::ChipExecutor::Agent { charter: row.charter() },
+        w::ChipExecutor::Procedure(row) => c::ChipExecutor::Procedure { connector: row.connector(), kind: row.kind() },
+        w::ChipExecutor::Party(row) => c::ChipExecutor::Party { party: row.party() },
+        w::ChipExecutor::Role(row) => c::ChipExecutor::Role { project: row.project(), role: row.role() },
     }
 }
 
-pub(crate) fn budget(value: &w::Budget) -> c::Budget {
-    let opt0 = match value.deadline() {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    c::Budget { numbers: numbers(value.numbers()), left: value.left(), funder: funder(value.funder()), deadline: opt0 }
-}
-
-pub(crate) fn resource_writer(value: &w::ResourceWriter) -> c::ResourceWriter {
+pub(crate) fn phase(value: &w::Phase) -> c::Phase {
     match value {
-        w::ResourceWriter::Run(row) => c::ResourceWriter::Run { task: row.task(), attempt: row.attempt() },
-        w::ResourceWriter::Effect(row) => c::ResourceWriter::Effect { entry: row.entry() },
+        w::Phase::Waiting => c::Phase::Waiting,
+        w::Phase::Idle => c::Phase::Idle,
+        w::Phase::Due => c::Phase::Due,
+        w::Phase::Preparing => c::Phase::Preparing,
+        w::Phase::Claimed => c::Phase::Claimed,
+        w::Phase::Running => c::Phase::Running,
+        w::Phase::BackingOff => c::Phase::BackingOff,
+        w::Phase::Active => c::Phase::Active,
+        w::Phase::Closing => c::Phase::Closing,
+        w::Phase::Held => c::Phase::Held,
+        w::Phase::Ended => c::Phase::Ended,
+        w::Phase::Done => c::Phase::Done,
+        w::Phase::Failed => c::Phase::Failed,
+        w::Phase::Cancelled => c::Phase::Cancelled,
     }
 }
 
-pub(crate) fn resource_line(value: &w::ResourceLine) -> c::ResourceLine {
-    let opt0 = match value.holder() {
-        Some(item) => Some(*item),
-        None => None,
-    };
-    let opt1 = match &value.writer() {
-        Some(item) => Some(resource_writer(item)),
-        None => None,
-    };
-    c::ResourceLine {
-        part: part(value.part()),
-        kind: value.kind(),
-        taken: value.taken(),
-        holder: opt0,
-        writer: opt1,
-        writer_lost: value.writer_lost(),
+pub(crate) fn chip_fields(
+    value: &w::ChipFields,
+    limits: &Limits,
+    index: u32,
+    children: &mut Map<u32, Child>,
+) -> Result<c::Chip, w::Problem> {
+    Ok(c::Chip {
+        task: value.task(),
+        title: document_text(value.title(), limits)?,
+        executor: executor(value.executor()),
+        phase: phase(value.phase()),
+        details: Box::new(take_chip_phase(value.details(), index, children)?),
+    })
+}
+
+pub(crate) fn closing_stage(value: &w::ClosingStage) -> c::ClosingStage {
+    match value {
+        w::ClosingStage::Run(row) => c::ClosingStage::Run { attempt: row.attempt() },
+        w::ClosingStage::Delegates => c::ClosingStage::Delegates,
+        w::ClosingStage::Effects => c::ClosingStage::Effects,
+        w::ClosingStage::Releases => c::ClosingStage::Releases,
+        w::ClosingStage::Settled => c::ClosingStage::Settled,
     }
 }
 
-pub(crate) fn resource_line_piece(bytes: &[u8], limits: &Limits) -> Result<List<c::ResourceLine>, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(limits.client().rows);
-    for _ in 0..=limits.client().rows {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(problem) => return Err(piece_problem(problem)),
-        };
-        let Some(item) = item else { return Ok(rows) };
-        let row = w::ResourceLine::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = resource_line(&row);
-        if rows.push(row).is_err() {
-            return Err(too_large());
+pub(crate) fn chip_phase(value: &w::ChipPhase) -> c::ChipPhase {
+    match value {
+        w::ChipPhase::Waiting(row) => {
+            let mut list0 = List::with_capacity(row.dependencies().len());
+            for item in row.dependencies() {
+                list0.push(*item).expect("reserved supplied list");
+            }
+            c::ChipPhase::Waiting { dependencies: list0, more: row.more(), holds: row.holds() }
         }
+        w::ChipPhase::Active(row) => c::ChipPhase::Active(run_stage(row.value())),
+        w::ChipPhase::Person(row) => {
+            let opt0 = match row.taken_by() {
+                Some(item) => Some(*item),
+                None => None,
+            };
+            let opt1 = match row.since() {
+                Some(item) => Some(Wall::from_nanos(*item)),
+                None => None,
+            };
+            c::ChipPhase::Person { address: person_address(row.address()), taken_by: opt0, since: opt1 }
+        }
+        w::ChipPhase::Closing(row) => c::ChipPhase::Closing(closing_stage(row.value())),
+        w::ChipPhase::Held(row) => c::ChipPhase::Held { reason: hold_category(row.reason()), revision: row.revision() },
+        w::ChipPhase::Ended => c::ChipPhase::Ended,
     }
-    Err(too_large())
+}
+
+pub(crate) fn chip_phase_fields(
+    value: &w::ChipPhaseOwnerFields,
+    _limits: &Limits,
+    index: u32,
+    children: &mut Map<u32, Child>,
+) -> Result<c::ChipPhaseFacts, w::Problem> {
+    let phase = chip_phase(value.phase());
+    let details = take_owner_chip_details(value.details(), index, children)?;
+    let required_missing = match &phase {
+        c::ChipPhase::Ended => details.ended_at.is_none(),
+        c::ChipPhase::Active(c::RunStage::BackingOff { .. }) => details.retry.is_none(),
+        c::ChipPhase::Waiting { .. }
+        | c::ChipPhase::Person { .. }
+        | c::ChipPhase::Closing(_)
+        | c::ChipPhase::Held { .. }
+        | c::ChipPhase::Active(
+            c::RunStage::Idle
+            | c::RunStage::Due
+            | c::RunStage::Preparing
+            | c::RunStage::Claimed { .. }
+            | c::RunStage::Running { .. },
+        ) => false,
+    };
+    if required_missing {
+        return Err(crate::translate::piece_problem(skein_codec::Reason::Malformed));
+    }
+    Ok(c::ChipPhaseFacts { phase, details: Box::new(details) })
+}
+
+pub(crate) fn closing_fields(
+    value: &w::ClosingFields,
+    index: u32,
+    children: &mut Map<u32, Child>,
+) -> Result<c::Closing, w::Problem> {
+    let opt0 = match &value.connectors() {
+        Some(item) => {
+            let mut list0 = List::with_capacity((item).len());
+            for item in item {
+                list0.push(*item).expect("reserved supplied list");
+            }
+            Some(list0)
+        }
+        None => None,
+    };
+    let opt1 = match &value.stage() {
+        Some(item) => Some(closing_stage(item)),
+        None => None,
+    };
+    let opt2 = match &value.ending() {
+        Some(item) => Some(take_ending(*item, index, children)?),
+        None => None,
+    };
+    Ok(c::Closing { delegates: value.delegates(), connectors: opt0, stage: opt1, ending: opt2 })
+}
+
+pub(crate) fn ending_fields(
+    value: &w::EndingFields,
+    limits: &Limits,
+    index: u32,
+    children: &mut Map<u32, Child>,
+) -> Result<c::Ending, w::Problem> {
+    Ok(match value {
+        w::EndingFields::Task(row) => c::Ending::Task(Box::new(take_owner_chip_ending(row.value(), index, children)?)),
+        w::EndingFields::Done => c::Ending::Done,
+        w::EndingFields::Failed(row) => {
+            let opt0 = match &row.reason() {
+                Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client().text) {
+                    Ok(value) => value,
+                    Err(_) => return Err(text_problem()),
+                }),
+                None => None,
+            };
+            c::Ending::Failed { reason: opt0 }
+        }
+        w::EndingFields::Cancelled(row) => {
+            let opt0 = match &row.reason() {
+                Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client().text) {
+                    Ok(value) => value,
+                    Err(_) => return Err(text_problem()),
+                }),
+                None => None,
+            };
+            let opt1 = match row.at() {
+                Some(item) => Some(Wall::from_nanos(*item)),
+                None => None,
+            };
+            c::Ending::Cancelled { by: actor(row.by()), reason: opt0, at: opt1 }
+        }
+        w::EndingFields::Withdrawn(row) => c::Ending::Withdrawn {
+            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
+                Ok(value) => value,
+                Err(_) => return Err(text_problem()),
+            },
+        },
+        w::EndingFields::Decided(row) => {
+            let opt0 = match &row.party() {
+                Some(item) => Some(party(item, limits)?),
+                None => None,
+            };
+            let opt1 = match &row.how() {
+                Some(item) => Some(decision(item, limits)?),
+                None => None,
+            };
+            c::Ending::Decided { by: row.by(), party: opt0, how: opt1, at: Wall::from_nanos(row.at()) }
+        }
+        w::EndingFields::Deleted => c::Ending::Deleted,
+    })
+}
+
+pub(crate) fn prior_phase(value: &w::PriorPhase) -> c::PriorPhase {
+    match value {
+        w::PriorPhase::Waiting => c::PriorPhase::Waiting,
+        w::PriorPhase::Active(row) => c::PriorPhase::Active(run_stage(row.value())),
+        w::PriorPhase::Closing(row) => c::PriorPhase::Closing(closing_stage(row.value())),
+    }
 }
 
 pub(crate) fn chip_work(value: &w::ChipWork) -> c::ChipWork {
@@ -155,7 +290,7 @@ pub(crate) fn chip_details_fields(
     Ok(c::ChipDetails {
         dependencies: dependencies(value.dependencies()),
         project: value.project(),
-        executor: executor(value.executor()),
+        executor: super::executor(value.executor()),
         phase_since: Wall::from_nanos(value.phase_since()),
         run_since: opt0,
         attempt: opt1,
@@ -175,14 +310,6 @@ pub(crate) fn chip_details_fields(
         ended_at: opt8,
         observation: opt9,
     })
-}
-
-pub(crate) fn requester(value: &w::Requester) -> c::Requester {
-    match value {
-        w::Requester::Task(row) => c::Requester::Task(row.value()),
-        w::Requester::Person(row) => c::Requester::Person(row.value()),
-        w::Requester::Deployment(row) => c::Requester::Deployment { project: row.project() },
-    }
 }
 
 pub(crate) fn chip_ending_fields(
@@ -273,30 +400,4 @@ pub(crate) fn result_value_fields(
         w::ResultValueFields::Failure(row) => c::ResultValue::Failure(document_text(row.value(), limits)?),
         w::ResultValueFields::Words(row) => c::ResultValue::Words(document_text(row.value(), limits)?),
     })
-}
-
-pub(crate) fn dependencies(values: &List<w::Dependency>) -> List<c::Dependency> {
-    let mut rows = List::with_capacity(values.len());
-    for value in values {
-        let added = match value.added() {
-            Some(added) => Some(c::DependencyAdded { at: Wall::from_nanos(added.at()), by: requester(added.by()) }),
-            None => None,
-        };
-        rows.push(c::Dependency {
-            number: value.number(),
-            pending: value.pending(),
-            added,
-            keeps: value.keeps(),
-            status: match value.status() {
-                Some(value) => Some(match value {
-                    w::TaskStatus::Done => c::TaskStatus::Done,
-                    w::TaskStatus::Failed => c::TaskStatus::Failed,
-                    w::TaskStatus::Cancelled => c::TaskStatus::Cancelled,
-                }),
-                None => None,
-            },
-        })
-        .expect("same dependency count");
-    }
-    rows
 }
