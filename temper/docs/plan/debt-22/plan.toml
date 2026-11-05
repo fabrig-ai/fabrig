@@ -33,3 +33,16 @@ id = 2
 story = "each oauth test's events stay as they were, no credential reaches Debug, and the flags and parallel lists have gone"
 parts = ["oauth-states"]
 walk = false
+
+[[part]]
+id = "forgejo-states"
+title = "each Forgejo plan's states hold their data, matched per state, and the plans measure an answer with one function (skein D021)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge.md, 4.2"
+
+[[slice]]
+id = 3
+story = "every Forgejo call answers as it did, with no stage comparison left, and size.rs adds nothing of its own"
+parts = ["forgejo-states"]
+walk = false
