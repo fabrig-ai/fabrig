@@ -8,79 +8,62 @@
 //! way an exchange can fail, each way a stream can end or fail, a close in
 //! each state, and every refusal of the side above's.
 
-use std::collections::BTreeMap;
-
 use skein_http::client::Error;
 use skein_http_world::client_world::{self, Exchange, Run, Settings};
 use skein_http_world::reference::Outcome;
 use skein_http_world::{generate, transcript};
 use skein_lib::Rng;
+use skein_protocol_kit::seen::Seen;
 
 const ROUNDS: u64 = 20_000;
 
 /// The transcripts, longer, are swept fewer times.
 const TRANSCRIPT_ROUNDS: u64 = 2_000;
 
-/// How often each thing a sweep injects or reaches fell.
-#[derive(Default)]
-struct Seen(BTreeMap<String, u32>);
-
-impl Seen {
-    fn note(&mut self, what: String) {
-        *self.0.entry(what).or_default() += 1;
-    }
-
-    fn record(&mut self, run: &Run, settings: &Settings) {
-        for seen in &run.exchanges {
-            match seen.outcome {
-                Some(Outcome::Failed(Error::Stream(_))) => self.note("failed Stream".into()),
-                Some(Outcome::Failed(Error::Closed(Some(_)))) => self.note("failed Closed with a fault".into()),
-                Some(outcome) => self.note(format!("{outcome:?}")),
-                None => self.note("closed before the outcome".into()),
-            }
-            if seen.discarded {
-                self.note("a body discarded".into());
-            }
-            if seen.upload_failed.is_some() {
-                self.note(format!("the upload failed with {:?}", seen.upload_failed));
-            }
-            if seen.body_failed.is_some() {
-                self.note("the body failed".into());
-            }
+fn record(tally: &mut Seen, run: &Run, settings: &Settings) {
+    for seen in &run.exchanges {
+        match seen.outcome {
+            Some(Outcome::Failed(Error::Stream(_))) => tally.note("failed Stream".into()),
+            Some(Outcome::Failed(Error::Closed(Some(_)))) => tally.note("failed Closed with a fault".into()),
+            Some(outcome) => tally.note(format!("{outcome:?}")),
+            None => tally.note("closed before the outcome".into()),
         }
-        self.note(format!("closed while waiting for {:?}", run.closed_while));
-        let fell = run.fell;
-        for (flag, what) in [
-            (fell.idle_end, "an end with nothing demanded"),
-            (fell.crossed_end, "a demand crossed the end"),
-            (fell.room_first, "room granted while a response waited"),
-            (fell.early_response, "a response line read mid-upload"),
-            (fell.withdrew, "a body demand withdrawn"),
-            (fell.crossed_withdrawal, "a withdrawal crossed its answer"),
-            (fell.crossed_end_of_body, "a withdrawal or a discard crossed the end of the body"),
-            (fell.late_answer, "an answer after the withdrawal"),
-            (fell.failed_after_end, "a failure after the end"),
-            (fell.reused, "a connection reused"),
-        ] {
-            if flag {
-                self.note(what.into());
-            }
+        if seen.discarded {
+            tally.note("a body discarded".into());
         }
-        if let Some(waiting) = fell.failed_while {
-            self.note(format!("failed while waiting for {waiting:?}"));
+        if seen.upload_failed.is_some() {
+            tally.note(format!("the upload failed with {:?}", seen.upload_failed));
         }
-        if let Some(fault) = run.failed {
-            self.note(format!("failed with {fault:?}"));
-        }
-        if settings.cut.is_some() {
-            self.note("a stream ended early".into());
+        if seen.body_failed.is_some() {
+            tally.note("the body failed".into());
         }
     }
-
-    fn assert_fell(&self, expected: &[&str]) {
-        for what in expected {
-            assert!(self.0.contains_key(*what), "{what} fell: {:#?}", self.0);
+    tally.note(format!("closed while waiting for {:?}", run.closed_while));
+    let fell = run.fell;
+    for (flag, what) in [
+        (fell.idle_end, "an end with nothing demanded"),
+        (fell.crossed_end, "a demand crossed the end"),
+        (fell.room_first, "room granted while a response waited"),
+        (fell.early_response, "a response line read mid-upload"),
+        (fell.withdrew, "a body demand withdrawn"),
+        (fell.crossed_withdrawal, "a withdrawal crossed its answer"),
+        (fell.crossed_end_of_body, "a withdrawal or a discard crossed the end of the body"),
+        (fell.late_answer, "an answer after the withdrawal"),
+        (fell.failed_after_end, "a failure after the end"),
+        (fell.reused, "a connection reused"),
+    ] {
+        if flag {
+            tally.note(what.into());
         }
+    }
+    if let Some(waiting) = fell.failed_while {
+        tally.note(format!("failed while waiting for {waiting:?}"));
+    }
+    if let Some(fault) = run.failed {
+        tally.note(format!("failed with {fault:?}"));
+    }
+    if settings.cut.is_some() {
+        tally.note("a stream ended early".into());
     }
 }
 
@@ -171,7 +154,7 @@ fn generated_and_mutated_exchanges_read_as_the_reference_reads_them_whatever_the
         let limits = client_world::limits(&mut rng);
         let settings = Settings::chaotic(&mut rng, limits, server.len());
         let run = client_world::check(&exchanges, &server, &settings, seed);
-        tally.record(&run, &settings);
+        record(&mut tally, &run, &settings);
     }
     tally.assert_fell(&EVERY_OUTCOME);
     tally.assert_fell(&EVERY_NEIGHBOUR);
@@ -192,7 +175,7 @@ fn transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them() {
         let exchanges = [Exchange { call: transcript.call(), upload: Vec::new() }];
         let settings = Settings::chaotic(&mut rng, transcript.limits, server.len());
         let run = client_world::check(&exchanges, &server, &settings, seed);
-        tally.record(&run, &settings);
+        record(&mut tally, &run, &settings);
     }
     tally.assert_fell(&[
         "Done(Keep)",
