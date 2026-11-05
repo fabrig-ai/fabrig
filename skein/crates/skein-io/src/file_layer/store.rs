@@ -9,9 +9,9 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use skein_lib::{Queue, Token};
+use skein_lib::{Env, Queue, Token};
 
-use super::{Contents, FileIo, Pending, Work};
+use super::{Contents, FileIo, Limits, Pending, Work};
 use crate::digest::{Digest, digest};
 use crate::file::{Event, Expect, Residue};
 use crate::kernel::{Complete, Done, Error, Fd, Kind, Op, OpenHow, Submit, is_name};
@@ -164,6 +164,7 @@ pub(super) fn split_path(path: &[u8]) -> Option<SplitPath> {
 #[expect(clippy::too_many_arguments, reason = "the store request carries its complete bounded input")]
 pub(super) fn start(
     io: &mut FileIo,
+    env: &Env<Limits>,
     owner: Token,
     root: Token,
     path: Box<[u8]>,
@@ -178,7 +179,7 @@ pub(super) fn start(
         return Work::Idle;
     };
     if io.random.is_none()
-        || bytes.len() > usize::try_from(io.max_file).expect("u32 fits usize")
+        || bytes.len() > usize::try_from(env.limits.whole).expect("u32 fits usize")
         || path.len() >= 4096
         || path.contains(&0)
     {
@@ -302,8 +303,8 @@ fn rename(io: &mut FileIo, mut store: Store, subs: &mut Queue<Submit>) -> Work {
     issue(io, store, Op::Rename { from_dir: dir, from, to_dir: dir, to, no_replace }, subs)
 }
 
-fn read_check(io: &mut FileIo, mut store: Store, subs: &mut Queue<Submit>) -> Work {
-    let buffer = alloc::vec![0_u8; usize::try_from(io.max_read).expect("u32 fits usize")].into_boxed_slice();
+fn read_check(io: &mut FileIo, env: &Env<Limits>, mut store: Store, subs: &mut Queue<Submit>) -> Work {
+    let buffer = alloc::vec![0_u8; usize::try_from(env.limits.read).expect("u32 fits usize")].into_boxed_slice();
     let fd = store.check.expect("the checked file is open");
     store.phase = Phase::CheckReading;
     let op = Op::read(fd, buffer, store.seen_bytes).expect("positive bounded read");
@@ -412,6 +413,7 @@ fn finish_cleanup(
 
 pub(super) fn up(
     io: &mut FileIo,
+    env: &Env<Limits>,
     store: Store,
     complete: Complete,
     events: &mut Queue<Event>,
@@ -436,7 +438,7 @@ pub(super) fn up(
         | Phase::Renaming
         | Phase::DirectorySyncing
         | Phase::ParentClosing => match complete.result {
-            Ok(done) => success(io, store, complete.kind, done, events, subs),
+            Ok(done) => success(io, env, store, complete.kind, done, events, subs),
             Err(error) => failed_operation(io, store, error, events, subs),
         },
     }
@@ -753,6 +755,7 @@ pub(super) fn read_buffer(kind: Op) -> Box<[u8]> {
 #[expect(clippy::too_many_lines, reason = "each store phase handles its own one kernel completion")]
 fn success(
     io: &mut FileIo,
+    env: &Env<Limits>,
     mut store: Store,
     kind: Op,
     done: Done,
@@ -853,7 +856,7 @@ fn success(
         Phase::CheckStating => {
             let stat = done_stat(done);
             if stat.kind == Kind::File {
-                return read_check(io, store, subs);
+                return read_check(io, env, store, subs);
             }
             store.failure = Some(Failure::Kernel(Error::IsADirectory));
             store.phase = Phase::CheckClosing;
@@ -883,7 +886,7 @@ fn success(
                 let fd = store.check.expect("checked file is open");
                 return issue(io, store, Op::Close { fd }, subs);
             }
-            return read_check(io, store, subs);
+            return read_check(io, env, store, subs);
         }
         Phase::CheckClosing => {
             done_nothing(done);
