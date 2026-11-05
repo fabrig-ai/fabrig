@@ -23,6 +23,9 @@ chat-change-held
 chat-change-landed
 chat-change-running
 chat-closing
+chat-draft-chat
+chat-draft-draft
+chat-draft-split
 chat-first-run-2-T1
 chat-first-run-3-T1
 chat-first-run-4-T4

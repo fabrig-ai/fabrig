@@ -1026,6 +1026,8 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(
             if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 }) {
                 configuring_note(scope)
+            } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 1 }) {
+                chat_note(scope)
             } else {
                 goal_notes(w, scope)
             },
@@ -1059,6 +1061,8 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         c::Read::Activity { task: number, before } => {
             Some(c::ReadValue::Activity(Box::new(if matches!(then, Then::Mode(_)) && *number == 10 {
                 configuring_activity()
+            } else if matches!(then, Then::Mode(_)) && *number == 1 {
+                chat_activity()
             } else {
                 activity_window(w, *number, before.as_ref())
             })))
@@ -3013,6 +3017,24 @@ fn activity_window(w: World, task: u64, before: Option<&c::Cursor>) -> c::Activi
 }
 fn shown_task(w: World, task: u64, then: Then) -> c::Task {
     let mut t = document(w, task);
+    if matches!(then, Then::Mode(_)) && task == 1 {
+        t.chip.title = doc("Away mode, draft");
+        t.chip.phase = c::Phase::Idle;
+        let (phase, details) = owner(&mut t.chip);
+        *phase = c::ChipPhase::Active(c::RunStage::Idle);
+        details.ending = None;
+        details.ended_at = None;
+        t.result = None;
+        t.acts = offers(&[c::ActKind::Message, c::ActKind::Stop, c::ActKind::Cancel]);
+        t.waits_on = c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: 1, kind: c::WaitedFor::Question };
+        t.activity = 2;
+        t.spec = c::SpecificationDocument::complete(c::Specification {
+            asks: false,
+            words: text("Let’s draft away mode: a setting, limits I set, and decided for you with an overturn."),
+            parameters: List::with_capacity(0),
+            inputs: List::with_capacity(0),
+        });
+    }
     if matches!(then, Then::Mode(_)) && task == 10 {
         t.chip.title = doc("Configure temper");
         t.activity = 1;
@@ -3532,4 +3554,86 @@ pub(super) fn home_add_sheet(root: &mut Domain, copies: bool) {
         },
         &mut Queue::uncapped(),
     );
+}
+
+fn chat_note(scope: &c::NoteScope) -> c::NotePage {
+    let mut page = configuring_note(scope);
+    let note = page.rows.get_mut(0).expect("one document");
+    note.description = doc("Away mode");
+    note.revision = c::Revision { value: 2 };
+    note.writer = c::NoteAuthor::Task { task: 1, attempt: 1 };
+    note.body = c::DocumentText::complete(c::Text::new(Box::from("# Away mode
+
+Draft, 2026-11-03, with the user.
+
+## 1. In one page
+
+- A setting, per project or for all: away until a time, or until turned off.
+- While away, agents decide what they would ask, within the kinds the project allows (section 3).
+- Each decision shows as decided for you, with Overturn while it is cheap (section 4).
+- Coming back opens on what was decided (section 5).
+
+## 2. The setting
+
+The switch sits beside the person’s name, on the laptop and on the phone. On, it reads “Away until 08:00”; the time comes from the quiet hours, or one the person picks.
+
+## 3. What agents may decide
+
+- Implementation choices within a task’s spec.
+- Retries, and splitting a failing task.
+- A design document’s wording, not its decisions.
+- Adding a dependency: off unless turned on.
+- Always wait, fixed: budgets, sign-ins, machines, what is hard to reverse.
+
+## 4. Decided for you
+
+Each decision keeps the question, the choice taken and why. It shows in Needs you as decided, with Overturn while overturning is cheap: before its change lands. Overturning asks the question again.
+
+## 5. Coming back
+
+Home opens on what was decided, then what still needs you. Turning away off is the person’s; it never turns itself off.
+
+## Open questions
+
+1. How long can a decision be overturned after its change landed?
+".as_bytes()), limits().client.domain.long_text).expect("chat document"));
+    page
+}
+
+fn chat_activity() -> c::ActivityPage {
+    let mut rows = List::with_capacity(2);
+    for (number, reply, outcome) in [
+        (
+            1,
+            "Outline: in one page, the setting, what agents may decide, decided for you, coming back. Writing it now.",
+            "Note 1 revision 1 written · 64 lines",
+        ),
+        (
+            2,
+            "Done: section 3 is a list of kinds, with the fixed waits underneath. One question remains open in section 6.",
+            "Note 1 revision 2 written · +18 −6 · line 17",
+        ),
+    ] {
+        let mut blocks = List::with_capacity(2);
+        blocks.push(c::Block::Text(text(reply))).expect("reply");
+        blocks
+            .push(c::Block::Call(c::Call {
+                number,
+                tool: text("note"),
+                input: text(""),
+                outcome: Some(text(outcome)),
+                failed: false,
+                objects: List::with_capacity(0),
+                parts: List::with_capacity(0),
+            }))
+            .expect("write");
+        let mut line = turn_line(&blocks, u32::try_from(number).expect("two turns"), None, false);
+        line.source.task = 1;
+        line.source.position = number;
+        if let Some(decoded) = &mut line.decoded {
+            decoded.task = 1;
+        }
+        rows.push(line).expect("two turns");
+    }
+    c::ActivityPage { rows, before: None, after: None, cut: false }
 }
