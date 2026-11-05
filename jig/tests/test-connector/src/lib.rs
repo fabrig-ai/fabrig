@@ -7,6 +7,8 @@
 //! restarts are injected; replaying the same seed produces the same trace.
 #![forbid(unsafe_code)]
 
+mod fixtures;
 mod world;
 
-pub use world::{LIMITS, World, config, kind, path};
+pub use fixtures::{LIMITS, config, kind, path};
+pub use world::World;
