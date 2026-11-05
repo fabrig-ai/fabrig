@@ -29,6 +29,11 @@ pub enum Control {
     Questions,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Proposed {
+    Ways { project: u32, ways: Ways },
+    Questions { project: u32, route: Route },
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Asked {
     Ways(Ways),
     Questions(Route),
@@ -46,6 +51,7 @@ enum Watch {
 }
 #[derive(Debug)]
 pub(super) struct State {
+    proposals: List<ProposalRead>,
     watch: Watch,
     document: Option<Box<c::SettingsDocument>>,
     project: Option<u32>,
@@ -53,6 +59,13 @@ pub(super) struct State {
     live: bool,
     ways: Slot,
     questions: Slot,
+}
+#[derive(Debug)]
+struct ProposalRead {
+    key: u64,
+    pending: Option<Handle>,
+    values: Option<List<Proposed>>,
+    again: bool,
 }
 #[derive(Debug)]
 struct Slot {
@@ -88,8 +101,9 @@ impl Slot {
     }
 }
 impl State {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
+            proposals: List::with_capacity(super::forges::ROWS),
             watch: Watch::Unknown,
             document: None,
             project: None,
@@ -113,6 +127,17 @@ impl State {
     }
 }
 impl Side {
+    /// Kinds 6 and 7 from a proposal's deployment-scoped items read.
+    #[must_use]
+    pub fn proposed(&self, key: u64) -> Option<&[Proposed]> {
+        for read in &self.ways.proposals {
+            if read.key == key {
+                return Some(read.values.as_ref()?.as_slice());
+            }
+        }
+        None
+    }
+
     #[must_use]
     pub fn ways(&self, project: u32) -> Option<Ways> {
         if self.ways.project != Some(project) {
@@ -262,6 +287,11 @@ pub(crate) fn told(
     match told {
         Told::Link { link } => {
             if *link == Link::Live && !side.ways.live {
+                for index in 0..side.ways.proposals.len() {
+                    let read = side.ways.proposals.get_mut(index).expect("bounded proposal read");
+                    read.again = true;
+                    read.values = None;
+                }
                 side.ways.ways.again = true;
                 side.ways.questions.again = true;
             }
@@ -290,6 +320,15 @@ pub(crate) fn told(
             true
         }
         Told::Page { handle, page } => {
+            for index in 0..side.ways.proposals.len() {
+                let read = side.ways.proposals.get_mut(index).expect("bounded proposal read");
+                if read.pending == Some(*handle) {
+                    read.pending = None;
+                    read.values = proposal_values(page, limits);
+                    side.changed();
+                    return true;
+                }
+            }
             for control in [Control::Ways, Control::Questions] {
                 if let Some(pending) = side.ways.slot(control).pending
                     && pending.handle == *handle
@@ -515,4 +554,127 @@ pub fn default_way(me: &c::Me, project: u32, ways: &Ways) -> Option<u32> {
         }
     }
     first
+}
+
+/// Reconcile only proposals on the current chat or inbox page (client/README.md, 5.13).
+pub(crate) fn proposals(
+    side: &mut Side,
+    cards: Option<&List<crate::pages::inbox::Card>>,
+    limits: Limits,
+    out: &mut Queue<Request>,
+) {
+    let Some(cards) = cards else { return };
+    let skip = cards.len().saturating_sub(super::forges::ROWS);
+    for card in cards.iter().skip(usize::try_from(skip).expect("bounded cards")) {
+        let (key, items) = if let Some(c::ReadValue::Proposal(proposal)) = &card.page {
+            let c::ProposalAction::Settings(settings) = &proposal.action else { continue };
+            (proposal.key.number, &settings.items)
+        } else if let Some(c::ReadValue::Ended(ended)) = &card.page {
+            let c::EndedValue::Proposal(proposal) = &ended.value else { continue };
+            let c::RetainedAction::Settings(settings) = &proposal.action else { continue };
+            (proposal.number, &settings.items)
+        } else {
+            continue;
+        };
+        let mut needed = false;
+        for item in items {
+            if let c::Setting::Application { kind: 6 | 7, .. } = item.setting {
+                needed = true;
+            }
+        }
+        if !needed {
+            continue;
+        }
+        let mut found = None;
+        for (index, read) in side.ways.proposals.iter().enumerate() {
+            if read.key == key {
+                found = Some(u32::try_from(index).expect("bounded proposal index"));
+            }
+        }
+        let index = match found {
+            Some(index) => index,
+            None => {
+                if side.ways.proposals.len() == side.ways.proposals.capacity() {
+                    let old = core::mem::replace(&mut side.ways.proposals, List::with_capacity(super::forges::ROWS));
+                    for (index, read) in old.into_boxed().into_iter().enumerate() {
+                        if index != 0 {
+                            side.ways.proposals.push(read).expect("retained proposals fit");
+                        }
+                    }
+                }
+                let index = side.ways.proposals.len();
+                side.ways
+                    .proposals
+                    .push(ProposalRead { key, pending: None, values: None, again: true })
+                    .expect("bounded proposals");
+                index
+            }
+        };
+        let read = side.ways.proposals.get(index).expect("retained proposal");
+        if !read.again || read.pending.is_some() || side.party.is_none() {
+            continue;
+        }
+        let Some(bounds) = wire_limits(&limits) else { continue };
+        let record = w::Reading::new(
+            &bounds,
+            w::ReadingParts {
+                read: w::Read::ProposalItems(
+                    w::ProposalItemsRead::new(&bounds, w::ProposalItemsReadParts { key }).expect("fixed proposal read"),
+                ),
+            },
+        )
+        .expect("fixed reading");
+        side.serial = side.serial.checked_add(1).expect("forge handles fit");
+        let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
+        let read = side.ways.proposals.get_mut(index).expect("retained proposal");
+        read.pending = Some(handle);
+        read.again = false;
+        out.push(Request::Client {
+            asked: jig_client::Event::Read {
+                handle,
+                read: Readable::Family {
+                    scope: c::Scope::Deployment,
+                    window: c::Window { rows: 1, after: None },
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::reading(&record),
+                    },
+                },
+            },
+        });
+    }
+}
+fn proposal_values(page: &Readout, limits: Limits) -> Option<List<Proposed>> {
+    let Readout::Family { family: wire::FORGE, record: Some(bytes) } = page else { return None };
+    let bounds = wire_limits(&limits)?;
+    let answer = wire::decode_proposal_items_answer(bytes, &bounds)?;
+    let mut values = List::with_capacity(answer.items().len());
+    for item in answer.into_parts().items.into_boxed() {
+        let item = item.into_parts();
+        let control = if item.kind == 6 {
+            Control::Questions
+        } else if item.kind == 7 {
+            Control::Ways
+        } else {
+            continue;
+        };
+        let decoded = match item.edit {
+            w::SettingEdit::Set(set) => {
+                let bytes = wire::setting_answer(
+                    &w::SettingAnswer::new(&bounds, w::SettingAnswerParts { value: Some(set.into_parts().value) })
+                        .ok()?,
+                );
+                value(&Readout::Family { family: wire::FORGE, record: Some(bytes) }, control, limits)?
+            }
+            w::SettingEdit::Removed | w::SettingEdit::Reset => stock(control),
+        };
+        values
+            .push(match decoded {
+                Asked::Ways(ways) => Proposed::Ways { project: item.scope, ways },
+                Asked::Questions(route) => Proposed::Questions { project: item.scope, route },
+            })
+            .expect("one value per item");
+    }
+    Some(values)
 }

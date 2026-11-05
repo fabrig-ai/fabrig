@@ -130,7 +130,8 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
             }
         }
         Act::Cancel => pages.confirm = None,
-        Act::MessageWords { .. }
+        Act::FocusComposer
+        | Act::MessageWords { .. }
         | Act::Send
         | Act::Stop
         | Act::Close
@@ -189,7 +190,13 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) {
             project,
             on: DecideOn::Proposal {
                 proposal,
-                running: None,
+                running: if let ReadValue::Proposal(proposal) = page
+                    && let contract::ProposalAction::Settings(_) = proposal.action
+                {
+                    Some(contract::Running::Stays)
+                } else {
+                    None
+                },
                 decision: if open.act == ActKind::Accept {
                     Decision::Accepted
                 } else {
