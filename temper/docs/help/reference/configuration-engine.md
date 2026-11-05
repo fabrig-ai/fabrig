@@ -69,22 +69,22 @@ Shape: `act`. Paths: `engine.acts[]`. A connector's permitted deployment acts.
 
 Shape: `llm`. Paths: `engine.llm`. The endpoints, models and providers available for runs.
 
-- `endpoints`: list of endpoint; required; init writes list (2 entries). Declares the endpoints serving the configured models.
-- `models`: list of model, 64 models; required; init writes list (2 entries). Declares models in the order used by authority's model bits.
-- `providers`: list of llm-provider; optional; init writes list (2 entries). Assigns each configured model to exactly one LLM provider.
+- `endpoints`: list of endpoint; required; init writes list (3 entries). Declares the endpoints serving the configured models.
+- `models`: list of model, 64 models; required; init writes list (3 entries). Declares models in the order used by authority's model bits.
+- `providers`: list of llm-provider; optional; init writes list (3 entries). Assigns each configured model to exactly one LLM provider.
 
 ## engine.llm.endpoints[]
 
 Shape: `endpoint`. Paths: `engine.llm.endpoints[]`. A model endpoint and its transport.
 
-- `name`: text, 4096 bytes; required; init writes "openai" | "demo". Names the endpoint for configured models to refer to.
-- `number`: integer, 0 to 4294967295; required; init writes 1 | 3. Gives the endpoint's number, unique among endpoints.
-- `dialect`: integer, 2 or 3; required; init writes 3. Chooses the endpoint's model protocol dialect.
-- `provider`: text, 4096 bytes; required; init writes "openai" | "demo". Names the endpoint's provider for the model protocol.
-- `program`: text, 32 bytes; optional; init leaves it out. Names a program offered by every provider whose models use this endpoint.
-- `address`: address, network address; required; init writes {"host":"api.openai.com","port":443} | {"socket":"127.0.0.1:8370"}. Gives the endpoint's socket address or host and port.
+- `name`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the endpoint for configured models to refer to.
+- `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the endpoint's number, unique among endpoints.
+- `dialect`: integer, 2 or 3; required; init writes 3 | 2. Chooses the endpoint's model protocol dialect.
+- `provider`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the endpoint's provider for the model protocol.
+- `program`: text, 32 bytes; optional; init writes "claude_code". Names a program offered by every provider whose models use this endpoint.
+- `address`: address, network address; required; init writes {"host":"api.openai.com","port":443} | {"host":"api.anthropic.com","port":443} | {"socket":"127.0.0.1:8370"}. Gives the endpoint's socket address or host and port.
 - `transport`: text, tls or plaintext; required; init writes "tls" | "plaintext". Selects TLS or plaintext, with plaintext restricted to loopback.
-- `server_name`: text, 4096 bytes; required for tls; optional; init writes "api.openai.com". Names the server authenticated by TLS.
+- `server_name`: text, 4096 bytes; required for tls; optional; init writes "api.openai.com" | "api.anthropic.com". Names the server authenticated by TLS.
 - `trust`: text, 4096 bytes; configuration path; tls only; optional; init leaves it out. Names trusted roots for TLS, with the system roots used when absent.
 - `headers`: list of header; required; init writes []. Adds the configured headers to endpoint requests.
 - `connect_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 10000. Bounds the wait to connect to the endpoint.
@@ -95,7 +95,7 @@ Shape: `endpoint`. Paths: `engine.llm.endpoints[]`. A model endpoint and its tra
 Shape: `address`. Paths: `engine.llm.endpoints[].address` `engine.hosts.listener[]` `workers[].engine` `application.clients.listener` `application.webhooks.listener` `application.machine.owned.listen` `application.machine.fake.listen` `application.machine.github.api` `application.demo.llm.listen`. One socket address, host and port, or in-process name.
 
 - `socket`: text, 128 bytes; exclusive with host and in_process; optional; init writes "127.0.0.1:8370" | "127.0.0.1:8367" | "127.0.0.1:8371" | "127.0.0.1:8368" | "127.0.0.1:8369". Gives an IPv4 or IPv6 socket address.
-- `host`: text, 253 bytes; exclusive with socket and in_process; optional; init writes "api.openai.com". Names a host the shell resolves at startup.
+- `host`: text, 253 bytes; exclusive with socket and in_process; optional; init writes "api.openai.com" | "api.anthropic.com". Names a host the shell resolves at startup.
 - `port`: integer, 0 to 65535; required with host; optional; init writes 443. Gives the named host's port.
 - `in_process`: text, 32 bytes; exclusive with socket and host; optional; init writes "workers". Names an in-process endpoint within the process.
 
@@ -110,8 +110,8 @@ Shape: `header`. Paths: `engine.llm.endpoints[].headers[]`. One header added to 
 
 Shape: `model`. Paths: `engine.llm.models[]`. A model, its context bounds, efforts and prices.
 
-- `name`: text, 4096 bytes; required; init writes "gpt-6-luna" | "demo". Names the model for charters, templates and authorities.
-- `endpoint`: text, 4096 bytes; required; init writes "openai" | "demo". Names the configured endpoint serving this model.
+- `name`: text, 4096 bytes; required; init writes "gpt-6-luna" | "claude-opus-5-5" | "demo". Names the model for charters, templates and authorities.
+- `endpoint`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the configured endpoint serving this model.
 - `window`: integer, 0 to 4294967295 tokens; required; init writes 1048576. Gives the model's context window.
 - `output`: integer, 0 to 4294967295 tokens; required; init writes 8192. Gives the model's maximum output.
 - `efforts`: list of text, 16 efforts; 32 bytes each; optional; init leaves it out. Lists the efforts the model takes, in order, with none when absent.
@@ -125,19 +125,19 @@ Shape: `prices`. Paths: `engine.llm.models[].prices`. Model prices and their tok
 - `input`: integer, 1 to 18446744073709551615; required; init writes 1. Prices input tokens per price unit.
 - `cached`: integer, 1 to 18446744073709551615; required; init writes 1. Prices cached input tokens per price unit.
 - `output`: integer, 1 to 18446744073709551615; required; init writes 1. Prices output tokens per price unit.
-- `unit`: integer, 1 to 4294967295 tokens; required; init writes 1000. Gives the token count each price applies to.
+- `unit`: integer, 1 to 4294967295 tokens; required; init writes 1000 | 1000000. Gives the token count each price applies to.
 - `cache_write`: integer, 1 to 18446744073709551615; optional; init leaves it out. Prices cache writes separately when the provider charges for them.
 
 ## engine.llm.providers[]
 
 Shape: `llm-provider`. Paths: `engine.llm.providers[]`. An LLM provider, the models it serves and the sources it offers.
 
-- `name`: text, 1 to 256 bytes; public text; required; init writes "openai" | "demo". Gives the provider's name for showing.
-- `number`: integer, 0 to 4294967295; required; init writes 1 | 3. Gives the provider's number, unique among LLM providers.
-- `models`: list of text, 4096 bytes per name; required; init writes ["gpt-6-luna"] | ["demo"]. Names configured models served by this provider alone.
+- `name`: text, 1 to 256 bytes; public text; required; init writes "openai" | "anthropic" | "demo". Gives the provider's name for showing.
+- `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the provider's number, unique among LLM providers.
+- `models`: list of text, 4096 bytes per name; required; init writes ["gpt-6-luna"] | ["claude-opus-5-5"] | ["demo"]. Names configured models served by this provider alone.
 - `sources`: sources; required; init writes object. Declares the sign-in, key and program sources the provider offers.
 - `signed_in_plan`: true or false, required with sign_in; optional; init writes true | false. Says whether the provider's signed-in source is a plan.
-- `manage_usage`: text, 2048 ASCII bytes; public HTTPS address; required for plans and programs; optional; init writes "https://chatgpt.com/settings/usage". Gives the public address where a holder manages usage.
+- `manage_usage`: text, 2048 ASCII bytes; public HTTPS address; required for plans and programs; optional; init writes "https://chatgpt.com/settings/usage" | "https://claude.ai/settings/usage". Gives the public address where a holder manages usage.
 
 ## engine.llm.providers[].sources
 
@@ -145,7 +145,7 @@ Shape: `sources`. Paths: `engine.llm.providers[].sources`. The sources an LLM pr
 
 - `sign_in`: registration; optional; init writes object. Offers a sign-in with its public registration.
 - `keys`: true or false; optional; init writes true. Offers an API key source when true.
-- `programs`: list of text, 32 bytes per name; optional; init leaves it out. Names offered program sources, such as claude_code.
+- `programs`: list of text, 32 bytes per name; optional; init writes ["claude_code"]. Names offered program sources, such as claude_code.
 
 ## engine.llm.providers[].sources.sign_in
 

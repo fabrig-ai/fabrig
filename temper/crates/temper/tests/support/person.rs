@@ -109,6 +109,19 @@ pub fn welcome_sign_in() -> Script {
         ]),
     }
 }
+/// Every fresh deployment offers both subscriptions before either is chosen.
+#[must_use]
+pub fn welcome_model_offers() -> Script {
+    use skein_ui::Role;
+    Script {
+        begin: Begin::Link,
+        steps: Box::new([
+            Step::Go { address: Address::Welcome { step: temper_client_domain::Step::Model { way: None } } },
+            Step::See { find: Find::exactly_named(Role::Button, b"Continue with ChatGPT"), within: START_WITHIN },
+            Step::See { find: Find::exactly_named(Role::Link, b"Use your Claude subscription"), within: START_WITHIN },
+        ]),
+    }
+}
 /// The same account's source is still signed in after a healthy service restart,
 /// its card found by words of its heading.
 #[must_use]
@@ -454,7 +467,7 @@ impl Person {
             signing_retry: None,
             signing_backoff: SIGN_IN_FIRST,
             finished: false,
-            project: if matches!(script.begin, Begin::Playground | Begin::RunningPlayground) {
+            project: if matches!(script.begin, Begin::Link | Begin::Playground | Begin::RunningPlayground) {
                 ProjectSelection::Selected
             } else {
                 ProjectSelection::Pending
