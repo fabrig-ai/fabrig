@@ -62,6 +62,22 @@ fn each_page_keeps_its_head_template_links_and_voice() {
 }
 
 #[test]
+fn task_help_explains_refused_invalid_results() {
+    let found = search(&PAGES, b"invalid results", 20).expect("search words");
+    assert!(found.hits.as_slice().iter().any(|hit| hit.page == "task"), "invalid results must find task help");
+    let text = find(b"task").expect("task page").text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "invalid results",
+        "assignment was refused before any model turn",
+        "serve's stderr",
+        "`DATA/box/logs/serve.log`",
+        "precise refusal reason",
+    ] {
+        assert!(text.contains(instruction), "task help must explain: {instruction}");
+    }
+}
+
+#[test]
 fn tier_help_explains_that_clearance_waits_through_verifying_and_red() {
     let text = find(b"tier").expect("tier page").text;
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
