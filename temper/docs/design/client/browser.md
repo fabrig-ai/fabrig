@@ -465,8 +465,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   `.forge-status`, `.spin`, `.acts`, `.panel`, `.away-note`, `.numbered`,
   `.field-v`, `.cmd` and `.checklist .current .mark`.
 - **The welcome's look** (the user's greenfield pass, 2026-11-04;
-  `README.md`, 3.5 and 5.6), at its own scale, in `temper.css`'s last
-  block, every rule scoped to the welcome's frame
+  `README.md`, 3.5 and 5.6), at its own scale, in a block of its own in
+  `temper.css`, every rule scoped to the welcome's frame
   (`#app:has(> .temper-welcome)`), so that no other page changes: IBM
   Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
   1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's

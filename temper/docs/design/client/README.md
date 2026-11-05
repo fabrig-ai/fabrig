@@ -1156,6 +1156,11 @@ keeps (`../protocol/configuration.md`, section 2).
       step's. Answered with the source not usable, the page stays with the
       alert "Claude Code isn’t signed in here yet. Run the command above,
       then press I’ve signed in.", and a second press checks again.
+    - *A plan's sign-in,* its way at its address with none asked, or one
+      ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
+      for the way, or its ending's words and acts, in the panel; "All ways".
+      The card's "This browser isn't on temper's computer ›" is how the
+      welcome reaches the paste, its Choose offering none.
 
     *The sign-in under way,* its tab not gone yet, is a note in the card's
     place: a spinner, "ChatGPT’s sign-in, in this tab", the muted "You sign
@@ -1208,8 +1213,8 @@ keeps (`../protocol/configuration.md`, section 2).
     person's forge, its connection and its first repository, or the
     set up's request until the row names it), and every line but the
     ticked one keeps "Each step". *The seam:* the Model step's
-    body is `ConnectModel`'s, the step's frame, heading, lead, set up
-    line and foot the welcome's.
+    state, acts and Choose are `ConnectModel`'s; the step's frame, heading,
+    lead, ways' pages, notes, set up line and foot the welcome's.
     *Ready* is headed "Almost ready", with "Your first project can be
     created once your forge and model are ready.", until a real forge
     is connected and a model usable, then "Ready", with "Everything is
@@ -1424,16 +1429,22 @@ keeps (`../protocol/configuration.md`, section 2).
        Widget", its line "Chats can change its code now, on your Forgejo;
        nothing goes back where it was copied from.", or "…their code…
        where they were copied from."; while a row's `makings` holds a copy
-       into the project, not done, a line per copy in the order asked:
-       "Copying acme/widget from github.com…" for the one running, "Waiting
-       to copy" for one after it, "acme/widget is in Widget", ticked, for
-       one in, and for one failed the forge's words and "Copy again", which
-       asks it once more; an empty one the sheet below asked says "Making
-       ORG/NAME…" in the same way; with the rows' copies not all asked, after a
-       restart between Ready's project and its copies, not done, "Copy
-       ADDRESSES" with "Copy", filled, one act for them all, an address
-       being asked once a making row or the forge's repositories holds its
-       org and name; while Ready's adoption is
+       into the project, not done, "Copy" and a line per copy in the order
+       asked: "Copying acme/widget from github.com…" for the one running,
+       "Waiting to copy" for one after it, "Adopting acme/widget into
+       Widget…" for one made, "acme/widget is in Widget", ticked, for one of
+       the rows' in, and for one failed the forge's words and "Copy again",
+       which asks it once more; an empty one the sheet below asked says "Add
+       a repository" and "Making ORG/NAME…" in the same way, and a repository
+       the sheet asked leaves the lines once in and reads as any in the
+       project, since the rows' intent alone names copies; with the rows'
+       copies not all asked, after a restart between Ready's project and its
+       copies, not done, on the Home that is open, since the rows don't say
+       which project Ready made, "Copy ADDRESSES" with "Copy", filled, one act
+       for them all, under Ready's keys so that the engine answers a copy
+       already asked with its first answer, an address being asked once a
+       making row or the forge's repositories holds its org and name; while
+       Ready's adoption is
        out, not done, with no act, "Adopting ORG/NAME into PROJECT…",
        "Chats can change its code once it is in."; with a first
        repository to adopt, not done, "Adopt a repository", "ORG/NAME,
@@ -5573,10 +5584,27 @@ own tests:
   `ui-chat-draft`. Default: no chat has a draft, and the lede stops at "changes
   the code."
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
-  sections 7, 9 and 10): the forges' rows carry `makings` and `temper ctl
-  forge list` says them. Home's line for a copy, the sheet "Add
-  repositories" and a failed row's dismissal wait for their look.
-  Default: no page shows a row.
+  sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl
+  forge list` says them, and Home's second step says a project's while To
+  begin shows (3.5, *Home*). The sheet "Add repositories" and a failed row's
+  dismissal wait for their look. Default: with To begin skipped, or on any
+  other page, no line says a row, and a failed row stays until asked again.
+- **A copy Home's sheet asked, once in** (3.5, *Home*): the request `ui-welcome`
+  of 2026-11-05 has it ticked, then "Chats can change its code now…". Its
+  making row is erased with its adoption, and the rows' intent names the set
+  up's copies alone, so saying it takes a fact that a repository was copied.
+  Default: it reads as any repository in the project.
+- **Ready's note on a forge not Forgejo's** (3.5, *Ready*): "Forgejo is still
+  setting up; this page moves on by itself." shows while any forge is under
+  way and not ready, so a GitHub forge connecting or waiting for its
+  installation reads as Forgejo. That request has those words alone.
+  Default: as it stands.
+- **The first run walked whole, kept** (3.5, *The welcome*; `journeys.md`, 9):
+  that request has Forgejo then Claude or ChatGPT then Create, and "Nothing for
+  now" then "Make an empty one", walked in a browser by a throwaway driver.
+  `welcome-set-up` stops at Model, within `again`'s 40 seconds, and
+  `project-landing` starts on Home; the process tier and the client's world
+  hold what lies between, apart. Default: so.
 - **A project's age and a first CI run on Home** (*Home,* 3.5; the
   user's, each a new fact of a protocol): the user's greenfield mock's
   kicker says "PROJECT · made just now" and its repository's step "its
