@@ -10,6 +10,7 @@ const DESIGNER: u32 = 7;
 const CODER: u32 = 2;
 const FOREMAN: u32 = 6;
 const TRIAGE: u32 = 8;
+const STATUS: u32 = 9;
 const GOAL: u32 = 4;
 // The reference supplies five charters, one template and two landing rules.
 const ITEMS: u32 = 8;
@@ -359,7 +360,7 @@ fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
 
 fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] {
     use jig_client::contract::AuthorityExecutor as Executor;
-    let ten = vec![
+    let eleven = vec![
         Executor::Charter(1),
         Executor::Charter(2),
         Executor::Charter(3),
@@ -367,14 +368,15 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] 
         Executor::Charter(COORDINATOR),
         Executor::Charter(FOREMAN),
         Executor::Charter(DESIGNER),
+        Executor::Charter(STATUS),
         Executor::Procedure(2),
         Executor::Procedure(3),
         Executor::Procedure(4),
     ];
-    let nine = ten.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
-    let mut twelve = ten.clone();
-    twelve.extend([Executor::Job(3), Executor::Role(0)]);
-    [ten.clone(), nine, ten, twelve]
+    let ten = eleven.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
+    let mut thirteen = eleven.clone();
+    thirteen.extend([Executor::Job(3), Executor::Role(0)]);
+    [eleven.clone(), ten, eleven, thirteen]
 }
 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {

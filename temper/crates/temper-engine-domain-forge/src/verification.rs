@@ -213,7 +213,7 @@ pub(crate) fn released(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     let subject = crate::views::changes_mark(d, row.repository);
     if row.changes.len() == 1 {
         if let Some(subject) = subject {
-            out.push(Request::Marked { tasks: Box::new([subject]) });
+            out.push(Request::Marked { tasks: Box::new(subject) });
         }
         out.push(Request::Erase { key: Key::Verification { repository: row.repository, commit: row.commit } });
     } else {
@@ -229,9 +229,9 @@ pub(crate) fn released(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     }
 }
 
-fn save(row: Verification, subject: Option<u64>, out: &mut Queue<Request>) {
+fn save(row: Verification, subject: Option<[u64; 2]>, out: &mut Queue<Request>) {
     if let Some(subject) = subject {
-        out.push(Request::Marked { tasks: Box::new([subject]) });
+        out.push(Request::Marked { tasks: Box::new(subject) });
     }
     out.push(Request::Save { read_afresh: None, release: None, record: Stored::Verification(row) });
 }

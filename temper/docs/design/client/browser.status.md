@@ -17,6 +17,12 @@
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.
+- **Departs:** 2.5: Home uses the greenfield mock's own scale, as the
+  project's frame and Goals do, where the general main's scale says
+  14/12: its column is 720 px, body 15 px, headline 32 px (25 px on a
+  phone), facts 13.5 px and byline 12 px. The greenfield target is the
+  user's look (`greenfield/README.md`); `temper.css` scopes these rules
+  under `temper-home`.
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,

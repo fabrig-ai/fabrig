@@ -88,8 +88,9 @@ listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
-(`domain/root.md`). Ready names no email for a ChatGPT sign-in,
-which waits on jig's account-facts draft, and draws no words for a
+(`domain/root.md`). Ready and the Model step name no email for a
+ChatGPT sign-in, which waits on jig's account-facts draft, and Ready
+draws no words for a
 sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
 nor filters for a project with no goal template; `NewChat` draws its
@@ -106,9 +107,7 @@ is shown on the fake issuer alone, and the live scripts
 default to a scratch layout of whoever runs fabrig's development, in a
 form the outward check does not match (`domain/testing.md`). temper's one story on macOS has not run green
 on the runner, so `draft/macos.md`'s acceptance stands open
-(`domain/testing.md`). The `project-landing` journey has no Home
-recording: its browser walk reaches Home and is still to be recorded
-(`client/journeys.md`). The forge's connect refusals that
+(`domain/testing.md`). The forge's connect refusals that
 ctl renders name no remedy (`protocol/documentation.md`). Six
 hand-written widenings stand beside skein's `len_u64` and
 `usize_of`, two of them in the worker's steps (`README.md`). Of the
@@ -125,7 +124,12 @@ repository's "Adopt" sending its adoption and an adoption under way the
 session's alone, beside a lag, any project's change of settings marking
 its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
-bound on a migration, and its welcome and sheet are unbuilt; the others
+bound on a migration, and its sheet, "Add repositories", is unbuilt;
+`draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a
+repository" where they have "Adopt a repository";
+`draft/dogfood-hacks.md`'s holds one a plan's requester decided, with no
+record of the user weighing it, Forgejo's link page keeping an empty signup
+form; the others
 record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap.
@@ -170,6 +174,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
+- [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
