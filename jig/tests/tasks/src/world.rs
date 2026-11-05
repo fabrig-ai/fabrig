@@ -601,10 +601,10 @@ impl World {
             | Event::NothingAwaitedNotice { message, .. } => {
                 self.message = self.message.max(*message);
             }
-            Event::Message { word, .. }
+            Event::Message { operation: tasks::Message { word, .. }, .. }
             | Event::PersonQuestion { word, .. }
             | Event::PersonQuestionAnswer { word, .. }
-            | Event::AuthorizedMessage { word, .. }
+            | Event::AuthorizedMessage { operation: tasks::Message { word, .. }, .. }
             | Event::DelegateResult { word, .. }
             | Event::Notice { word, .. } => {
                 self.message = self.message.max(word.number);

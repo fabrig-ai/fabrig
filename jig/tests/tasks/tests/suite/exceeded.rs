@@ -65,15 +65,17 @@ fn a_bound_hold_clears_an_earlier_retry_notice_and_keeps_committed_work() {
     w.send(Event::Message {
         reply_to,
         project: 1,
-        task: TASK,
-        word: Word {
-            number: MESSAGE,
-            from: REQUESTER,
-            kind: MessageKind::Words,
-            words: b"hello".as_slice().into(),
-            at: w.env.wall,
-            hits: 1,
-            eligible: true,
+        operation: jig_domain_tasks::Message {
+            task: TASK,
+            word: Word {
+                number: MESSAGE,
+                from: REQUESTER,
+                kind: MessageKind::Words,
+                words: b"hello".as_slice().into(),
+                at: w.env.wall,
+                hits: 1,
+                eligible: true,
+            },
         },
     });
     let reply_to = w.to();

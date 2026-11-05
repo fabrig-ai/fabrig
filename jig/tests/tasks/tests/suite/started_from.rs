@@ -114,7 +114,7 @@ fn a_mark_naming_no_dependency_refuses_the_step_whole() {
             ProcedureDecision {
                 started_from: Box::new([DEPENDENCY, OTHER]),
                 batch: Box::new([task(4, &[])]),
-                messages: Box::new([tasks::ProcedureMessage {
+                messages: Box::new([tasks::Message {
                     task: DEPENDENCY,
                     word: tasks::Word {
                         number: 1,

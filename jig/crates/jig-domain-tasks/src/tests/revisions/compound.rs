@@ -169,7 +169,7 @@ fn words_then_a_stop_release_in_one_request_wake_the_task() {
     compound(
         &mut test,
         vec![
-            Operation::Message { task: FIRST, word },
+            Operation::Message(crate::Message { task: FIRST, word }),
             Operation::Release(Release { task: FIRST, again: None, message: None }),
         ],
         1_000,
@@ -215,15 +215,17 @@ fn words_alone_keep_the_hold_and_its_revision() {
         let out = test.send(Event::AuthorizedMessage {
             reply_to: to(),
             project: PROJECT,
-            task: FIRST,
-            word: crate::Word {
-                number: FIRST_MESSAGE,
-                from: Party::Person(REQUESTER),
-                kind: MessageKind::Words,
-                words: b"continue".as_slice().into(),
-                at: test.env.wall,
-                hits: 1,
-                eligible: true,
+            operation: crate::Message {
+                task: FIRST,
+                word: crate::Word {
+                    number: FIRST_MESSAGE,
+                    from: Party::Person(REQUESTER),
+                    kind: MessageKind::Words,
+                    words: b"continue".as_slice().into(),
+                    at: test.env.wall,
+                    hits: 1,
+                    eligible: true,
+                },
             },
         });
         let row = test.domain.task(FIRST).unwrap();

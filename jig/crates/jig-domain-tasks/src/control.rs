@@ -807,7 +807,7 @@ pub(crate) fn apply(
                 None => false,
             },
             Operation::Release(_) => false,
-            Operation::Move(_) | Operation::Amend(_) | Operation::Message { .. } | Operation::Stop { .. } => {
+            Operation::Move(_) | Operation::Amend(_) | Operation::Message(_) | Operation::Stop { .. } => {
                 unreachable!("single control operation")
             }
         },
@@ -840,7 +840,7 @@ pub(crate) fn apply(
                 return out.push(Request::Refused { reply_to: to, problem });
             }
         },
-        Operation::Move(_) | Operation::Amend(_) | Operation::Message { .. } | Operation::Stop { .. } => {
+        Operation::Move(_) | Operation::Amend(_) | Operation::Message(_) | Operation::Stop { .. } => {
             unreachable!("single control operation")
         }
     }

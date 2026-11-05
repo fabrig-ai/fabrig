@@ -512,15 +512,17 @@ pub(crate) fn named_action(
             work.push(Work::Event(Event::Tasks(tasks::Event::Message {
                 reply_to: ReplyTo::new(token),
                 project,
-                task: target,
-                word: tasks::Word {
-                    number,
-                    from: tasks::Party::Task(key.task),
-                    kind,
-                    words,
-                    at: env.wall,
-                    hits: 1,
-                    eligible: false,
+                operation: tasks::Message {
+                    task: target,
+                    word: tasks::Word {
+                        number,
+                        from: tasks::Party::Task(key.task),
+                        kind,
+                        words,
+                        at: env.wall,
+                        hits: 1,
+                        eligible: false,
+                    },
                 },
             })));
         }

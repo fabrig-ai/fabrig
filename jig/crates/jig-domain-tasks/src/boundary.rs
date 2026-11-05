@@ -380,15 +380,16 @@ pub struct ProcedureDecision {
     pub batch: Box<[New]>,
     pub amendments: Box<[crate::Amend]>,
     pub cancels: Box<[crate::Cancel]>,
-    pub messages: Box<[ProcedureMessage]>,
+    pub messages: Box<[Message]>,
     pub proposals: Box<[crate::Proposal]>,
     /// Dependencies the procedure's work started from (domain/connectors.md, 6.1).
     pub started_from: Box<[u64]>,
     pub end: ProcedureEnd,
 }
 
+/// One addressed word admitted to a task inbox (jig/docs/design/domain/tasks.md, 8.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ProcedureMessage {
+pub struct Message {
     pub task: u64,
     pub word: Word,
 }
@@ -1593,7 +1594,7 @@ pub enum Event {
     /// Give two live tasks referenced by the introducer reciprocal references.
     Introduce { reply_to: ReplyTo, by: u64, left: u64, right: u64 },
     /// Admit authenticated person words to a live chat and wake or relay after their commit.
-    Message { reply_to: ReplyTo, project: u32, task: u64, word: Word },
+    Message { reply_to: ReplyTo, project: u32, operation: Message },
     /// Admit a question offered to the addressed task's person (domain/people.md, 6).
     PersonQuestion { reply_to: ReplyTo, project: u32, task: u64, person: u64, word: Word },
     /// Deliver an authenticated inbox answer and its notice in one decision.
@@ -1607,7 +1608,7 @@ pub enum Event {
         word: Word,
     },
     /// A person's words whose project standing was admitted by the core; retains that actor.
-    AuthorizedMessage { reply_to: ReplyTo, project: u32, task: u64, word: Word },
+    AuthorizedMessage { reply_to: ReplyTo, project: u32, operation: Message },
     /// Root delivers a just-ended delegate's result to its task requester in
     /// the same decision that archived the delegate.
     DelegateResult { task: u64, word: Word },

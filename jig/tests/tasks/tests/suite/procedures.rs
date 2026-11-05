@@ -115,8 +115,8 @@ fn amendment() -> tasks::Amend {
     }
 }
 
-fn message(words: &[u8]) -> tasks::ProcedureMessage {
-    tasks::ProcedureMessage {
+fn message(words: &[u8]) -> tasks::Message {
+    tasks::Message {
         task: CHILD,
         word: tasks::Word {
             number: MESSAGE,

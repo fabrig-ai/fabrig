@@ -402,15 +402,17 @@ fn write(test: &mut Harness, number: u64, message: u64) {
     test.send(Event::Message {
         reply_to: to(),
         project: 1,
-        task: number,
-        word: crate::Word {
-            number: message,
-            from: Party::Person(9),
-            kind: MessageKind::Words,
-            words: Box::from(&b"Whole words"[..]),
-            at: test.env.wall,
-            hits: 1,
-            eligible: true,
+        operation: crate::Message {
+            task: number,
+            word: crate::Word {
+                number: message,
+                from: Party::Person(9),
+                kind: MessageKind::Words,
+                words: Box::from(&b"Whole words"[..]),
+                at: test.env.wall,
+                hits: 1,
+                eligible: true,
+            },
         },
     });
 }
@@ -602,7 +604,7 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     let out = compound::compound(
         &mut test,
         vec![
-            crate::Operation::Message { task: STOPPED_TASK, word },
+            crate::Operation::Message(crate::Message { task: STOPPED_TASK, word }),
             crate::Operation::Release(Release { task: STOPPED_TASK, again: None, message: None }),
         ],
         10_000,
@@ -815,15 +817,17 @@ fn pending_task_proposal_room_keeps_original_action_and_excludes_wrong_project()
     let denied = h.send(Event::Message {
         reply_to: to(),
         project: 1,
-        task: 1,
-        word: crate::Word {
-            number: 9,
-            from: Party::Person(9),
-            kind: MessageKind::Words,
-            words: Box::new([1]),
-            at: Wall::EPOCH,
-            hits: 1,
-            eligible: true,
+        operation: crate::Message {
+            task: 1,
+            word: crate::Word {
+                number: 9,
+                from: Party::Person(9),
+                kind: MessageKind::Words,
+                words: Box::new([1]),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: true,
+            },
         },
     });
     assert!(denied.iter().any(|r| match r {

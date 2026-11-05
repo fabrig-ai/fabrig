@@ -225,7 +225,7 @@ pub(crate) fn route_tasks(
 }
 // Direct-answer authority stays inside the core's question admission.
 fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
-    if let tasks::Event::Message { reply_to, project, task, word } = event {
+    if let tasks::Event::Message { reply_to, project, operation: tasks::Message { task, word } } = event {
         let person = match core.tasks.task(task) {
             Some(row) => core.conversation_requester(row),
             None => None,
@@ -236,7 +236,7 @@ fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
         {
             tasks::Event::PersonQuestion { reply_to, project, task, person, word }
         } else {
-            tasks::Event::Message { reply_to, project, task, word }
+            tasks::Event::Message { reply_to, project, operation: tasks::Message { task, word } }
         }
     } else {
         event

@@ -42,7 +42,7 @@ pub(crate) fn parts(
             return Err(problem(task, tasks::Refusal::Busy));
         };
         if messages
-            .push(tasks::ProcedureMessage {
+            .push(tasks::Message {
                 task: part.target,
                 word: tasks::Word {
                     number,

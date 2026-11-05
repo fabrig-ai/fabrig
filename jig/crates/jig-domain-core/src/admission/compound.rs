@@ -188,7 +188,7 @@ fn check(
         }
         people::Operation::Message { words, .. } => {
             crate::acts::write_in(core, &env.limits, route.person, task, admission)?;
-            Ok(tasks::Operation::Message {
+            Ok(tasks::Operation::Message(tasks::Message {
                 task,
                 word: tasks::Word {
                     number: 0,
@@ -199,7 +199,7 @@ fn check(
                     hits: 1,
                     eligible: false,
                 },
-            })
+            }))
         }
     }
 }
@@ -211,7 +211,7 @@ fn issue(counters: &mut Counters, operation: &mut tasks::Operation) -> Result<u6
         tasks::Operation::Cancel(tasks::Cancel { message: Some(message), .. })
         | tasks::Operation::Release(tasks::Release { message: Some(message), .. })
         | tasks::Operation::Amend(tasks::Amend { message, .. }) => *message = number,
-        tasks::Operation::Message { word, .. } => word.number = number,
+        tasks::Operation::Message(tasks::Message { word, .. }) => word.number = number,
         tasks::Operation::Stop { hold, .. } => *hold = number,
         tasks::Operation::Cancel(tasks::Cancel { message: None, .. })
         | tasks::Operation::Release(tasks::Release { message: None, .. })

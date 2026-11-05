@@ -87,15 +87,17 @@ fn say(w: &mut World, number: u64) -> Reply {
     w.send(Event::Message {
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         project: 1,
-        task: 1,
-        word: Word {
-            number,
-            from: Party::Person(1),
-            kind: MessageKind::Words,
-            words: b"again".as_slice().into(),
-            at: w.env.wall,
-            hits: 1,
-            eligible: true,
+        operation: tasks::Message {
+            task: 1,
+            word: Word {
+                number,
+                from: Party::Person(1),
+                kind: MessageKind::Words,
+                words: b"again".as_slice().into(),
+                at: w.env.wall,
+                hits: 1,
+                eligible: true,
+            },
         },
     });
     w.replies[&call].clone()

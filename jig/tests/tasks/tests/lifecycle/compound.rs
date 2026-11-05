@@ -138,7 +138,12 @@ fn the_deployments_compound_refuses_any_other_operation_or_project_whole() {
             Operation::Release(Release { task: CHILD, again: None, message: None }),
             PROJECT,
         ),
-        ("message", Party::Deployment { project: PROJECT }, Operation::Message { task: CHILD, word: message }, PROJECT),
+        (
+            "message",
+            Party::Deployment { project: PROJECT },
+            Operation::Message(tasks::Message { task: CHILD, word: message }),
+            PROJECT,
+        ),
         ("another project", Party::Deployment { project: PROJECT }, cancel(CHILD), PROJECT + 1),
         ("task maker", Party::Task(ROOT), cancel(CHILD), PROJECT),
         ("another deployment project", Party::Deployment { project: PROJECT + 1 }, cancel(CHILD), PROJECT),
