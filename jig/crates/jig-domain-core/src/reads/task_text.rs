@@ -100,11 +100,10 @@ pub(super) fn report(row: &tasks::TaskRecord) -> Option<&[u8]> {
         | tasks::Phase::Held { .. } => return None,
     };
     match result {
-        tasks::TaskResult::Report { words } | tasks::TaskResult::NoChange { words } => Some(words),
-        tasks::TaskResult::Job { .. }
-        | tasks::TaskResult::Approved { .. }
-        | tasks::TaskResult::Verdict { .. }
-        | tasks::TaskResult::Change { .. }
-        | tasks::TaskResult::Failure { .. } => None,
+        tasks::TaskResult::Report { words }
+        | tasks::TaskResult::NoChange { words }
+        | tasks::TaskResult::Change { words, .. }
+        | tasks::TaskResult::Verdict { words, .. } => Some(words),
+        tasks::TaskResult::Job { .. } | tasks::TaskResult::Approved { .. } | tasks::TaskResult::Failure { .. } => None,
     }
 }
