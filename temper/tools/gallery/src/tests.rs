@@ -1539,6 +1539,35 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "chat-start-goal",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Start goal…" },
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Value { role: Role::TextField, name: "Name", value: "away-mode" },
+            Part::Named { role: Role::Button, name: "Start goal" },
+        ],
+    },
+    Holds {
+        name: "chat-start-goal-refused",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Text { text: "This act is not offered" },
+            Part::Named { role: Role::Button, name: "Start goal" },
+        ],
+    },
+    Holds {
+        name: "chat-goal-linked",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Goal Away mode →" },
+            Part::Named { role: Role::Paragraph, name: "Started goal" },
+            Part::Named { role: Role::Link, name: "Open" },
+            Part::Absent { role: Role::Button, name: "Start goal…" },
+        ],
+    },
+    Holds {
         name: "chat-draft-split",
         heading: "T1 · Away mode, draft",
         parts: &[
@@ -2181,7 +2210,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 22] = [
+const SPENDS: [(&str, Role, &str); 25] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
@@ -2191,6 +2220,9 @@ const SPENDS: [(&str, Role, &str); 22] = [
     ("chat-draft-empty", Role::Paragraph, "1 spent · of 40"),
     ("chat-draft-split", Role::Paragraph, "1 spent · of 40"),
     ("chat-draft-draft", Role::Paragraph, "1 spent · of 40"),
+    ("chat-start-goal", Role::Paragraph, "1 spent · of 40"),
+    ("chat-start-goal-refused", Role::Paragraph, "1 spent · of 40"),
+    ("chat-goal-linked", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
     ("chat-working", Role::Paragraph, "1 spent · of 40"),
     ("chat-change-running", Role::Paragraph, "0 spent · of 20"),

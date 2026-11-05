@@ -1109,6 +1109,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-add-draft",
         b"temper-home-facts",
         b"temper-home-byline",
+        b"temper-chat-goal",
     ],
     regions: &[b"temper-link"],
 };
@@ -1255,6 +1256,9 @@ pub const ADD_DRAFT: Style = Style { owner: owner(), token: 433 };
 pub const HOME_FACTS: Style = Style { owner: owner(), token: 434 };
 /// Home brief attribution (temper/docs/design/client/README.md, 3.5).
 pub const HOME_BYLINE: Style = Style { owner: owner(), token: 435 };
+
+/// A chat starts a goal or links its start (client/README.md, 3.5).
+pub const CHAT_GOAL: Style = Style { owner: owner(), token: 436 };
 
 #[cfg(test)]
 mod tests {

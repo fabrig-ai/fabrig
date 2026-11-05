@@ -233,6 +233,18 @@ fn configure_frame(me: &mut c::Me) {
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, false, None, None, false)
 }
+pub(super) fn linked_chat_world(w: World, address: Address) -> Domain {
+    world_in_layout(
+        w,
+        address,
+        Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+        false,
+        Some("chat-goal-linked"),
+        None,
+        false,
+    )
+    .0
+}
 pub(super) fn configuring_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, true, None, None, false)
 }
@@ -340,6 +352,21 @@ fn world_in_layout(
                             held: List::with_capacity(0),
                             pending: List::with_capacity(0),
                         }))),
+                        c::Subject::Chips { tasks } if goals == Some("chat-goal-linked") => {
+                            let mut chips = List::with_capacity(tasks.len());
+                            for number in &tasks {
+                                let mut chip = document(w, 1).chip;
+                                chip.task = *number;
+                                chip.phase = c::Phase::Running;
+                                chip.title = doc("Away mode");
+                                let (phase, details) = owner(&mut chip);
+                                *phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+                                details.ending = None;
+                                details.ended_at = None;
+                                chips.push(chip).expect("linked goal chip");
+                            }
+                            Some(c::Delivery::Chips(chips))
+                        }
                         c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
                     };
                     if let Some(document) = document {
@@ -419,6 +446,44 @@ fn world_in_layout(
                             } else {
                                 forges_watched(&mut root, w, watch, &mut out);
                             }
+                            continue;
+                        }
+                        w::Watch::Dismissed if goals == Some("chat-goal-linked") => {
+                            let mut dismissed = List::with_capacity(1);
+                            dismissed
+                                .push(w::PersonFact::GoalFrom(
+                                    w::GoalFrom::new(
+                                        &w::CEILINGS,
+                                        w::GoalFromParts {
+                                            project: PROJECT,
+                                            chat: 1,
+                                            goal: 2,
+                                            at: offset(w, -1).as_nanos(),
+                                        },
+                                    )
+                                    .expect("goal start"),
+                                ))
+                                .expect("one start");
+                            let bytes = wire::dismissals(
+                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed })
+                                    .expect("person facts"),
+                            );
+                            step(
+                                &mut root,
+                                Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::FamilyDelivered {
+                                            watch,
+                                            record: jig_client::Family {
+                                                family: wire::FORGE,
+                                                version: wire::CLIENT_VERSION,
+                                                bytes,
+                                            },
+                                        },
+                                    },
+                                },
+                                &mut out,
+                            );
                             continue;
                         }
                         w::Watch::Change(subject) => subject,

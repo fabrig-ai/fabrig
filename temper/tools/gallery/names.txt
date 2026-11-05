@@ -31,6 +31,7 @@ chat-first-run-2-T1
 chat-first-run-3-T1
 chat-first-run-4-T4
 chat-goal
+chat-goal-linked
 chat-held-task
 chat-new
 chat-new-draft
@@ -41,6 +42,8 @@ chat-rejecting
 chat-solo-T1
 chat-solo-T10
 chat-solo-T6
+chat-start-goal
+chat-start-goal-refused
 chat-working
 chats-closed
 chats-empty

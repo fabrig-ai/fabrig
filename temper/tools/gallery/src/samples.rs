@@ -75,7 +75,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 236;
+pub const N: usize = 239;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -419,6 +419,9 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "configure-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-draft-empty", world: Solo, address: Address::Chat { task: 1 }, then: Then::DraftEmpty },
+        Sample { name: "chat-start-goal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-start-goal-refused", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-goal-linked", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-new-draft", world: Solo, address: Address::NewChat { draft: true }, then: Shown },
         Sample {
             name: "chat-new",
@@ -1039,7 +1042,7 @@ fn start_domain(sample: &Sample) -> Domain {
             },
             &mut out,
         );
-        if sample.name == "start-goal-refused" {
+        if sample.name.ends_with("-refused") {
             step(&mut root, Event::Act { action: Action::Pages(Act::StartGoal) }, &mut out);
             step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
             while let Some(request) = out.pop() {
@@ -1094,8 +1097,11 @@ pub fn domain(sample: &Sample) -> Domain {
         );
         return root;
     }
-    if sample.name.starts_with("start-goal") {
+    if sample.name.starts_with("start-goal") || sample.name.starts_with("chat-start-goal") {
         return start_domain(sample);
+    }
+    if sample.name == "chat-goal-linked" {
+        return crate::worlds::linked_chat_world(sample.world, sample.address.clone());
     }
     if sample.name.starts_with("needs-") {
         return crate::needs::domain(sample.name);
