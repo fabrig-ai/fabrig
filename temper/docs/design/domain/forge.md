@@ -1838,8 +1838,9 @@ delegate's terminal wakes it to offer the landed result.
   was cancelled`, with the cancel's reason where it gave one, within the
   hold's bytes (`its resolution`, `its merge job`, `its producer`). A
   cancelled repair, resolution or merge job holds as a decision of the
-  procedure, not as a failed effect; a cancelled producer keeps a failed
-  producer's hold, carrying those words.
+  procedure, not as a failed effect; a cancelled producer, a catch-up's
+  first merge job among them, keeps a failed producer's hold, carrying
+  those words.
   A change is a procedure, with no run of its own to repeat: a
   release asking to run it again is refused saying so, never as
   missing authority.
@@ -2993,6 +2994,13 @@ whole.
   the client should also be posted on the forge as the person, so that
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people.md`, section 12).
+- **A repair whose reason no longer holds at its head** (8.4): a running
+  repair goes on, and a released one asks afresh, though CI has since passed
+  at the head, as after a person ran it again. The request `first-goal-fixes`
+  of 2026-11-05 has such a repair end without an agent's work and the change
+  go on, reading 8.4 so, and no repair task made for a green head. Whether
+  that reaches a gate's and a base's reasons is part of the answer. Default: as
+  built. The user's to choose, with no answer yet.
 - **A failing check's repair brief:** a check gate that says no is
   repaired as a review that says no is, and its repair's brief carries
   the pull request's reviews section (8.4). A check's verdict is not a
