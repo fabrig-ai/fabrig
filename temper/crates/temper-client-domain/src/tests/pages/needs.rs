@@ -531,3 +531,124 @@ fn repeated_choice_joins_the_held_answer() {
     assert_eq!(sent(&mut fire(&mut pages, HOLD_DUE)).1, expected(FIRST, CHOICE, fixtures::PROJECT));
     assert!(fire(&mut pages, SECOND_HOLD).is_empty());
 }
+
+fn root_event(root: &mut crate::Domain, event: crate::Event) -> Queue<crate::Request> {
+    super::welcome::event(root, event)
+}
+fn opens(out: &Queue<crate::Request>) -> List<skein_lib::Token> {
+    let mut watches = List::with_capacity(out.len());
+    for request in out {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) },
+                },
+        } = request
+        {
+            watches.push(*watch).unwrap();
+        }
+    }
+    watches
+}
+fn standing(out: &Queue<Request>, watching: bool) -> u32 {
+    let mut count = 0_u32;
+    for request in out {
+        if let Request::Client(event) = request {
+            if watching {
+                if let jig_client::Event::Watch {
+                    handle,
+                    subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }),
+                } = event
+                    && *handle == needs::handle()
+                {
+                    count = count.checked_add(1).unwrap();
+                }
+            } else if *event == (jig_client::Event::Unwatch { handle: needs::handle() }) {
+                count = count.checked_add(1).unwrap();
+            }
+        }
+    }
+    count
+}
+fn page_event(pages: &mut Pages, client: &jig_client::Client, event: pages::Event) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    pages::step(pages, &fixtures::env(&fixtures::limits()), client, event, &mut out);
+    out
+}
+fn count_root() -> (crate::Domain, skein_lib::Token) {
+    let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+    let me = fixtures::start(&mut root, List::with_capacity(0));
+    let out = super::welcome::deliver(&mut root, me, c::Delivery::Me(Box::new(fixtures::chats::me())));
+    let watches = opens(&out);
+    assert_eq!(watches.len(), 1);
+    (root, *watches.get(0).unwrap())
+}
+#[test]
+fn standing_watch_opens_once_for_project_closes_on_welcome_and_signout_and_reopens() {
+    let (root, _) = count_root();
+    let mut pages = Pages::new();
+    let client = root.client();
+    let project = pages::Act::Project { project: fixtures::PROJECT };
+    let welcome = Address::Welcome { step: crate::Step::Ready };
+    assert_eq!(needs::handle().number, u64::MAX - 1);
+    assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Link { link: jig_client::Link::Live }), true), 0);
+    assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Act { act: project.clone() }), true), 1);
+    assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Act { act: project.clone() }), true), 0);
+    assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Went { address: welcome.clone() }), false), 1);
+    assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Act { act: project.clone() }), true), 0);
+    for link in [jig_client::Link::SignedOut, jig_client::Link::OutOfDate] {
+        assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Went { address: chats() }), true), 1);
+        assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Link { link }), false), 1);
+        assert_eq!(
+            standing(&page_event(&mut pages, client, pages::Event::Link { link: jig_client::Link::Live }), true),
+            0
+        );
+        assert_eq!(standing(&page_event(&mut pages, client, pages::Event::Act { act: project.clone() }), true), 1);
+        page_event(&mut pages, client, pages::Event::Went { address: welcome.clone() });
+    }
+}
+#[test]
+fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cut_and_end() {
+    let (mut root, watch) = count_root();
+    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT), needs::Count::default());
+    let mut rows = List::with_capacity(4);
+    for (object, project) in [
+        (FIRST, fixtures::PROJECT),
+        (SECOND, fixtures::PROJECT),
+        (THIRD, OTHER_PROJECT),
+        (ObjectKey::Result(f::TASK), fixtures::PROJECT),
+    ] {
+        rows.push(crate::tests::documents::entry(object, project, 1, Wall::EPOCH, None)).unwrap();
+    }
+    let inbox = crate::tests::documents::inbox(rows, 99, c::Count { value: 1, limited: false }, 0, true);
+    let before = pages::shown(root.pages());
+    super::welcome::deliver(&mut root, watch, c::Delivery::Inbox(Box::new(inbox)));
+    assert!(pages::shown(root.pages()) > before);
+    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT), needs::Count { count: 2, cut: true });
+    let mut cards = fixture();
+    add(&mut cards, SECOND, fixtures::PROJECT);
+    root.pages.inbox = cards.inbox.take();
+    root_event(
+        &mut root,
+        crate::Event::Act { action: crate::Action::Pages(pages::Act::Needs(Act::Later { object: FIRST })) },
+    );
+    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT).count, 2);
+    root_event(
+        &mut root,
+        crate::Event::Act {
+            action: crate::Action::Pages(pages::Act::Needs(Act::Choose { object: FIRST, words: Box::from(CHOICE) })),
+        },
+    );
+    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT).count, 1);
+    let before = pages::shown(root.pages());
+    let out = root_event(
+        &mut root,
+        crate::Event::Client {
+            event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded } },
+        },
+    );
+    assert!(pages::shown(root.pages()) > before);
+    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT), needs::Count::default());
+    assert!(opens(&out).is_empty());
+}

@@ -220,6 +220,10 @@ fn the_frame_requires_me_and_a_project_and_yields_to_welcome_and_sign_in() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the same assertions check each page in both shells and both rail navigations"
+)]
 fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
     let addresses = [
         Address::Home { project: f::PROJECT },
@@ -235,11 +239,12 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         Address::Settings { project: f::PROJECT },
     ];
     for address in addresses {
-        let (mut root, watch, _) = f::root_at(address.clone(), &f::domain_limits());
-        for count in [0, 3] {
+        let (mut root, watch, _, inbox) = f::root_at_with_needs(address.clone(), &f::domain_limits());
+        for (count, cut) in [(0, false), (3, false), (3, true)] {
             let mut me = root.pages().me(root.client()).unwrap().clone();
             me.needs_total = count;
             f::deliver_me(&mut root, watch, me);
+            deliver_count(&mut root, inbox, count, cut);
             for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
                 assert_eq!(skein_ui::outline::check(view.tree()), None, "{address:?}");
                 assert!(!view.tree().nodes().iter().any(|n| n.role == Role::Banner));
@@ -260,7 +265,13 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 let new_chat = parts[3].id;
                 assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/projects/1".as_slice()));
                 assert_eq!(crate::href(&mut view, new_chat).as_deref(), Some(b"/chats?at=start".as_slice()));
-                let needs = if count == 0 { b"Needs you".as_slice() } else { b"Needs you 3" };
+                let needs: &[u8] = if count == 0 {
+                    b"Needs you".as_slice()
+                } else if cut {
+                    b"Needs you 3+"
+                } else {
+                    b"Needs you 3"
+                };
                 let current = match address {
                     Address::Home { .. } => Some(b"Home".as_slice()),
                     Address::Inbox { .. } => Some(needs),
@@ -293,13 +304,27 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                         vec![b"Home".as_slice(), needs, b"Chats"]
                     };
                     assert_eq!(links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(), expected);
+                    let count_nodes = styled(view.tree(), style)
+                        .iter()
+                        .filter(|n| n.styles.as_slice().contains(&look::NAV_COUNT))
+                        .collect::<Vec<_>>();
+                    assert_eq!(count_nodes.len(), usize::from(count > 0));
+                    if count > 0 {
+                        assert_eq!(
+                            count_nodes[0].text.get(0).unwrap().text.as_ref(),
+                            if cut { b"3+".as_slice() } else { b"3" }
+                        );
+                    }
                     let ids = links
                         .iter()
                         .map(|n| (n.id, n.name.clone(), n.states.as_slice().contains(&State::Current)))
                         .collect::<Vec<_>>();
-                    for ((id, name, marked), href) in
-                        ids.into_iter().zip([b"/projects/1".as_slice(), b"/", b"/chats", b"/projects/1/settings"])
-                    {
+                    for ((id, name, marked), href) in ids.into_iter().zip([
+                        b"/projects/1".as_slice(),
+                        b"/?project=1",
+                        b"/chats",
+                        b"/projects/1/settings",
+                    ]) {
                         assert_eq!(marked, name.as_deref() == current && current.is_some());
                         assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
                     }
@@ -481,4 +506,36 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
     }
     assert!(!text.contains("Sections:"));
     assert!(!text.contains("Sign out"));
+}
+
+fn deliver_count(root: &mut d::Domain, watch: skein_lib::Token, count: u32, cut: bool) {
+    use jig_client::contract as c;
+    let mut rows = skein_lib::List::with_capacity(count);
+    for number in 0..count {
+        rows.push(super::documents::entry(
+            c::ObjectKey::PersonTask(u64::from(number)),
+            f::PROJECT,
+            1,
+            skein_lib::Wall::EPOCH,
+            None,
+        ))
+        .unwrap();
+    }
+    f::root_event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
+                        rows,
+                        count,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        cut,
+                    )))),
+                },
+            },
+        },
+    );
 }
