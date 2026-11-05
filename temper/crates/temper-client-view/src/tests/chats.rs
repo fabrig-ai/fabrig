@@ -735,7 +735,7 @@ fn delegate_counts_are_plural_and_absent_at_zero() {
 #[test]
 fn an_accepted_start_draws_no_applied_status() {
     use temper_client_domain::{self as d, Action, Event, pages::Act};
-    let mut root = fixtures::playground_root(d::Address::NewChat, fixtures::PROJECT, true);
+    let mut root = fixtures::playground_root(d::Address::NewChat { draft: false }, fixtures::PROJECT, true);
     let limits = fixtures::domain_limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
@@ -985,7 +985,7 @@ fn the_playgrounds_project_keeps_its_context_instead_of_no_repository() {
     use temper_client_domain as d;
     for start in [false, true] {
         let root = fixtures::playground_root(
-            if start { d::Address::NewChat } else { d::Address::Chats { filter: ChatsFilter::All } },
+            if start { d::Address::NewChat { draft: false } } else { d::Address::Chats { filter: ChatsFilter::All } },
             fixtures::PROJECT,
             true,
         );

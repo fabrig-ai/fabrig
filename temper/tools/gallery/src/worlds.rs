@@ -1058,15 +1058,17 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             ended: c::EndedGroup::Rows { rows: ended_rows(w), after: None, cut: false },
         }))),
         c::Read::Task { task: number } => Some(c::ReadValue::Task(Box::new(shown_task(w, *number, then)))),
-        c::Read::Activity { task: number, before } => {
-            Some(c::ReadValue::Activity(Box::new(if matches!(then, Then::Mode(_)) && *number == 10 {
+        c::Read::Activity { task: number, before } => Some(c::ReadValue::Activity(Box::new(
+            if matches!(then, Then::Mode(_) | Then::DraftEmpty) && *number == 10 {
                 configuring_activity()
+            } else if then == Then::DraftEmpty && *number == 1 {
+                c::ActivityPage { rows: List::with_capacity(0), before: None, after: None, cut: false }
             } else if matches!(then, Then::Mode(_)) && *number == 1 {
                 chat_activity()
             } else {
                 activity_window(w, *number, before.as_ref())
-            })))
-        }
+            },
+        ))),
         c::Read::Proposal { .. } => {
             let mut value = proposal();
             if then == Then::HeldTask
@@ -2681,6 +2683,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
             }),
             Then::Hosts { .. }
             | Then::Shown
+            | Then::DraftEmpty
             | Then::Mode(_)
             | Then::Working
             | Then::DelegatedGoal
@@ -3017,7 +3020,7 @@ fn activity_window(w: World, task: u64, before: Option<&c::Cursor>) -> c::Activi
 }
 fn shown_task(w: World, task: u64, then: Then) -> c::Task {
     let mut t = document(w, task);
-    if matches!(then, Then::Mode(_)) && task == 1 {
+    if matches!(then, Then::Mode(_) | Then::DraftEmpty) && task == 1 {
         t.chip.title = doc("Away mode, draft");
         t.chip.phase = c::Phase::Idle;
         let (phase, details) = owner(&mut t.chip);
@@ -3027,7 +3030,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
         t.result = None;
         t.acts = offers(&[c::ActKind::Message, c::ActKind::Stop, c::ActKind::Cancel]);
         t.waits_on = c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: 1, kind: c::WaitedFor::Question };
-        t.activity = 2;
+        t.activity = if then == Then::DraftEmpty { 0 } else { 2 };
         t.spec = c::SpecificationDocument::complete(c::Specification {
             asks: false,
             words: text("Let’s draft away mode: a setting, limits I set, and decided for you with an overturn."),
@@ -3035,7 +3038,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             inputs: List::with_capacity(0),
         });
     }
-    if matches!(then, Then::Mode(_)) && task == 10 {
+    if matches!(then, Then::Mode(_) | Then::DraftEmpty) && task == 10 {
         t.chip.title = doc("Configure temper");
         t.activity = 1;
         t.spec = c::SpecificationDocument::complete(c::Specification {

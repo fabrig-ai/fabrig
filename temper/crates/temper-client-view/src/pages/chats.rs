@@ -141,7 +141,11 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
         b.close();
     }
     b.close();
-    crate::link(b, &words.say(Word::NewChatLink, &[]), bindings.insert(Act::Go { address: Address::NewChat }));
+    crate::link(
+        b,
+        &words.say(Word::NewChatLink, &[]),
+        bindings.insert(Act::Go { address: Address::NewChat { draft: false } }),
+    );
     b.style(crate::look::CHATS_ACT);
     words.text(b, Word::NewChatLink, &[]);
     b.close();

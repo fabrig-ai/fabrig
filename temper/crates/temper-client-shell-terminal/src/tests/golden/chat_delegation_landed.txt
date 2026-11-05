@@ -20,6 +20,7 @@ Where:
   [14] demo
   [15] Chats
 T1 · Scripted model · Default
+[16] + Draft
 * waiting on your words
 0 spent · of 1
 Conversation:
@@ -43,7 +44,7 @@ Conversation:
         - Pull request opened (completed)
         - CI passed (completed)
         - Landed (completed)
-      [16] Task 2 ↗
+      [17] Task 2 ↗
     1 tool call: wait
       wait
     Temper
@@ -52,6 +53,6 @@ Conversation:
     1 tool call: wait
       wait
   Message:
-    [17] Message: (empty) (enter sends)
+    [18] Message: (empty) (enter sends)
     [-] Send (disabled)
     Enter sends · Shift+Enter for a new line

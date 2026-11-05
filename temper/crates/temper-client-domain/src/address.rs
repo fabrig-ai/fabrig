@@ -5,7 +5,7 @@ use skein_lib::{Decimal, Writer};
 pub enum Address {
     Inbox { filter: Filter },
     Chats { filter: ChatsFilter },
-    NewChat,
+    NewChat { draft: bool },
     Accounts,
     Forges,
     ConnectForge { forge: Option<Choice> },
@@ -132,7 +132,9 @@ pub fn print(address: &Address) -> Box<[u8]> {
                 ChatsFilter::Closed => b"/chats?state=closed".as_slice().into(),
             };
         }
-        Address::NewChat => return b"/chats/new".as_slice().into(),
+        Address::NewChat { draft } => {
+            return if *draft { b"/chats/new?draft=1".as_slice().into() } else { b"/chats/new".as_slice().into() };
+        }
         Address::Chat { task } => (b"chats".as_slice(), Some(*task), b"".as_slice()),
         Address::Task { task, .. } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
         Address::Home { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"".as_slice()),
@@ -222,7 +224,7 @@ pub fn parse(path: &[u8]) -> Place {
         (b"accounts", b"connect", b"") => Address::ConnectModel { way: parse_way(fields) },
         (b"welcome", b"", b"") => Address::Welcome { step: welcome_step(fields) },
         (b"chats", b"", b"") => Address::Chats { filter: parse_chats(fields) },
-        (b"chats", b"new", b"") => Address::NewChat,
+        (b"chats", b"new", b"") => Address::NewChat { draft: draft_query(fields) },
         (b"chats", _, b"") => {
             let Some(task) = decimal(number) else {
                 return Place::Missing;
@@ -660,4 +662,20 @@ fn public_digits(id: u64) -> [u8; 16] {
         }
     }
     digits
+}
+
+fn draft_query(query: &[u8]) -> bool {
+    let mut rest = query;
+    for _ in 0..query.len() {
+        if rest.is_empty() {
+            break;
+        }
+        let end = skein_lib::bytes::find(rest, b"&").unwrap_or(rest.len());
+        let field = rest.get(..end).expect("separator in query");
+        if field == b"draft=1" {
+            return true;
+        }
+        rest = rest.get(end..).expect("separator in query").strip_prefix(b"&").unwrap_or(b"");
+    }
+    false
 }

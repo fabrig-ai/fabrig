@@ -450,6 +450,7 @@ impl Task {
             | Act::Again { .. }
             | Act::Confirm
             | Act::Cancel
+            | Act::AddDraft
             | Act::Mode { .. }
             | Act::ShowSection { .. }
             | Act::Go { .. } => unreachable!("only composer and older acts routed here"),
@@ -569,6 +570,7 @@ impl Task {
             | Act::Again { .. }
             | Act::Confirm
             | Act::Cancel
+            | Act::AddDraft
             | Act::Mode { .. }
             | Act::ShowSection { .. }
             | Act::Go { .. } => unreachable!("only amendment acts routed here"),

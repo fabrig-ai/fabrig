@@ -710,7 +710,11 @@ fn the_offline_rail_keeps_its_choices() {
 fn the_qa_controls_keep_their_accessible_names_with_the_menu_closed() {
     for (root, controls) in [
         (
-            Box::new(fixtures::playground_root(temper_client_domain::Address::NewChat, fixtures::PROJECT, true)),
+            Box::new(fixtures::playground_root(
+                temper_client_domain::Address::NewChat { draft: false },
+                fixtures::PROJECT,
+                true,
+            )),
             &[(Role::Link, b"Chats".as_slice()), (Role::TextArea, b"What do you want done?"), (Role::Button, b"Send")]
                 [..],
         ),
@@ -1179,7 +1183,7 @@ fn switcher_owner(start: bool) -> temper_client_domain::Domain {
     use jig_client::contract as c;
     let (mut root, watch, _) = fixtures::root_at(
         if start {
-            temper_client_domain::Address::NewChat
+            temper_client_domain::Address::NewChat { draft: false }
         } else {
             temper_client_domain::Address::Chats { filter: ChatsFilter::All }
         },

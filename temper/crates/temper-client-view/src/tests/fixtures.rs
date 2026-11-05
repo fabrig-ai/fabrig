@@ -350,7 +350,7 @@ pub(super) fn root_at_with_dismissals_and_needs(
         temper_client_domain::Address::Forges
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Chats { .. }
-        | temper_client_domain::Address::NewChat
+        | temper_client_domain::Address::NewChat { .. }
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }

@@ -818,8 +818,23 @@ impl Chat {
                 self.shown_count = self.shown_count.checked_add(1).expect("shown count fits");
             }
             Act::Older => ask_activity(&mut self.asking, self.activity, self.thread.older(), out),
-            Act::Send => self.send(env, client, Sending::Message, serial, out),
-            Act::Stop => self.send(env, client, Sending::Stop, serial, out),
+            Act::AddDraft => {
+                let Some(task) = self.task(client) else { return };
+                let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return };
+                if self.draft.is_some()
+                    || self.writing
+                    || task.result.is_some()
+                    || super::chats::ended(&task.chip)
+                    || !document::drafts_offered(me, task.project)
+                {
+                    return;
+                }
+                self.writing = true;
+                self.mode = Mode::Split;
+                self.send(env, client, Sending::Message, Some(document::WRITE_THIS_UP), serial, out);
+            }
+            Act::Send => self.send(env, client, Sending::Message, None, serial, out),
+            Act::Stop => self.send(env, client, Sending::Stop, None, serial, out),
             Act::Switcher(_)
             | Act::Needs(_)
             | Act::Choice(_)
@@ -893,14 +908,22 @@ impl Chat {
             })),
         }));
     }
-    fn send(&mut self, _env: &Env<Limits>, client: &Client, kind: Sending, serial: &mut u64, out: &mut Queue<Request>) {
+    fn send(
+        &mut self,
+        _env: &Env<Limits>,
+        client: &Client,
+        kind: Sending,
+        supplied: Option<&[u8]>,
+        serial: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
+        let message = supplied.unwrap_or(&self.words);
         let Some(task) = self.task(client) else { return };
         let ask = match kind {
-            Sending::Message if !self.words.is_empty() && allowed(task, c::ActKind::Message) => c::Ask::Message {
+            Sending::Message if !message.is_empty() && allowed(task, c::ActKind::Message) => c::Ask::Message {
                 project: task.project,
                 task: self.task,
-                words: c::Text::new(self.words.clone(), temper_client_protocol_wire::CUE_BYTES)
-                    .expect("composer bounded"),
+                words: c::Text::new(message.into(), temper_client_protocol_wire::CUE_BYTES).expect("composer bounded"),
             },
             Sending::Stop if allowed(task, c::ActKind::Stop) => c::Ask::Stop { project: task.project, task: self.task },
             Sending::Message | Sending::Stop | Sending::Seen | Sending::Close => return,
@@ -919,7 +942,9 @@ impl Chat {
             if !self.thread.sending(key, me.party.number, words.clone(), 0) {
                 return;
             }
-            self.words = Box::default();
+            if supplied.is_none() {
+                self.words = Box::default();
+            }
         }
         self.pending.push((key, kind)).expect("one request per chat act fits");
         self.outcome = None;

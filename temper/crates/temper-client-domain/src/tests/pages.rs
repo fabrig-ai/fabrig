@@ -157,7 +157,7 @@ fn arriving_at_chats_or_a_task_sets_its_address_filter() {
     let limits = fixtures::limits();
     let root = crate::unlinked(&limits, fixtures::SEED);
     for address in [
-        Address::NewChat,
+        Address::NewChat { draft: false },
         Address::Chats { filter: ChatsFilter::Live },
         Address::Chats { filter: ChatsFilter::Closed },
         Address::Task { task: 7, filter: PlanFilter::Live },

@@ -421,7 +421,7 @@ impl Person {
         };
         let steps = match scenario {
             Story::Chat { words } | Story::ChatReadThenWait { words } => vec![
-                Step::Go { address: temper_client_domain::Address::NewChat },
+                Step::Go { address: temper_client_domain::Address::NewChat { draft: false } },
                 Step::See {
                     find: Find::named(skein_ui::Role::TextArea, b"What do you want done?"),
                     within: CHAT_WITHIN,

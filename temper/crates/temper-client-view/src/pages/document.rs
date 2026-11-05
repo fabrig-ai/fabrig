@@ -22,7 +22,7 @@ use temper_client_domain::{
 
 pub(crate) fn mode(chat: Option<&Chat>) -> skein_ui::Style {
     let mode = match chat {
-        Some(chat) if chat.draft.is_some() => chat.mode,
+        Some(chat) if chat.draft.is_some() || chat.writing => chat.mode,
         Some(_) | None => Mode::Chat,
     };
     match mode {
@@ -33,7 +33,7 @@ pub(crate) fn mode(chat: Option<&Chat>) -> skein_ui::Style {
 }
 
 pub(crate) fn seg(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bindings) {
-    if chat.draft.is_none() {
+    if chat.draft.is_none() && !chat.writing {
         return;
     }
     b.open(Role::Group);
@@ -65,7 +65,12 @@ pub(crate) fn seg(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bi
 }
 
 pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, words: &Words, times: &mut Times) {
-    let Some(draft) = &chat.draft else { return };
+    let Some(draft) = &chat.draft else {
+        if chat.writing && chat.mode != Mode::Chat {
+            empty(b, words);
+        }
+        return;
+    };
     if chat.mode == Mode::Chat {
         return;
     }
@@ -267,5 +272,37 @@ pub(crate) fn tool_line(b: &mut Builder, call: &c::Call, chat: Option<&Chat>, wo
     b.name(&words.say(Word::DraftShow, &[]));
     b.bind(bindings.insert(Act::ShowSection { line }));
     b.close();
+    b.close();
+}
+
+/// The same empty document beside a new chat and a chat already started.
+pub(crate) fn empty(b: &mut Builder, words: &Words) {
+    let name = words.say(Word::DraftFile, &[Hole::Name(document::slug(b""))]);
+    b.open(Role::Region);
+    b.name(&name);
+    b.style(look::DOC);
+    b.open(Role::Slot);
+    b.style(look::DOC_INNER);
+    b.open(Role::Paragraph);
+    b.style(look::DOC_PATH);
+    b.text(Run::Plain, &name);
+    if words.shell == Shell::Terminal {
+        b.text(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+    }
+    b.text(Run::Plain, &words.say(Word::DraftWriting, &[]));
+    b.close();
+    b.open(Role::Paragraph);
+    b.style(look::DOC_EMPTY);
+    b.text(Run::Plain, &words.say(Word::DraftEmpty, &[]));
+    b.close();
+    b.close();
+    b.close();
+}
+
+pub(crate) fn add(b: &mut Builder, words: &Words, bindings: &mut Bindings, act: Act) {
+    b.open(Role::Button);
+    b.name(&words.say(Word::PlusDraft, &[]));
+    b.style(look::ADD_DRAFT);
+    b.bind(bindings.insert(act));
     b.close();
 }

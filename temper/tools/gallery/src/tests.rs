@@ -104,6 +104,23 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "chat-draft-empty",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Region, name: "untitled.md" },
+            Part::Named { role: Role::Paragraph, name: "The draft appears here as you write it together." },
+            Part::Absent { role: Role::Button, name: "+ Draft" },
+        ],
+    },
+    Holds {
+        name: "chat-new-draft",
+        heading: "New chat",
+        parts: &[
+            Part::Named { role: Role::Region, name: "untitled.md" },
+            Part::Named { role: Role::TextArea, name: "What should this draft hold?" },
+        ],
+    },
+    Holds {
         name: "builders",
         heading: "Where agents work.",
         parts: &[
@@ -1875,13 +1892,14 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 21] = [
+const SPENDS: [(&str, Role, &str); 22] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
     ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
     ("chat-draft-chat", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-empty", Role::Paragraph, "1 spent · of 40"),
     ("chat-draft-split", Role::Paragraph, "1 spent · of 40"),
     ("chat-draft-draft", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
@@ -1902,7 +1920,7 @@ const SPENDS: [(&str, Role, &str); 21] = [
 fn each_chat_reads_its_allotment() {
     for sample in samples::samples() {
         if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
-            && sample.address != temper_client_domain::Address::NewChat
+            && !matches!(sample.address, temper_client_domain::Address::NewChat { .. })
         {
             let (_, role, spend) = SPENDS.iter().find(|row| row.0 == sample.name).expect("sample's spend row");
             let view = view(&sample);

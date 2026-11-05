@@ -360,7 +360,7 @@ fn try_the_playground_opens_new_chat_without_a_playground_row() {
     forge_rows(&mut root, forges.unwrap(), None, false);
     assert_eq!(
         shown(event(&mut root, Event::Act { action: Action::Pages(Act::Playground) })),
-        Some((Address::NewChat, false))
+        Some((Address::NewChat { draft: false }, false))
     );
     assert!(root.forge().playground_starting());
 }

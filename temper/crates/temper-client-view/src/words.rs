@@ -11,6 +11,12 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    PlusDraft,
+    DraftEmpty,
+    DraftWriting,
+    DraftWords,
+    ChatWrites,
+    DraftName,
     DraftGroup,
     DraftChat,
     DraftSplit,
@@ -1113,7 +1119,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The document’s mode controls, path, attribution and rail add nine phrases (3.5).
 // Start over and the proposal line add six phrases (3.5).
 // Note tool lines and the draft shortcut hint add seven phrases (3.5).
-const PHRASES: u32 = 1588;
+const PHRASES: u32 = 1594;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1146,8 +1152,14 @@ const PHRASES: u32 = 1588;
 // The document adds twenty-one literal and hole segments (3.5).
 // Start over and the proposal line add fourteen segments (3.5).
 // Note tool lines and the draft shortcut hint add fifteen segments (3.5).
-const SEGMENTS: u32 = 2804;
-const ALL: [Word; 991] = [
+const SEGMENTS: u32 = 2812;
+const ALL: [Word; 997] = [
+    Word::PlusDraft,
+    Word::DraftEmpty,
+    Word::DraftWriting,
+    Word::DraftWords,
+    Word::ChatWrites,
+    Word::DraftName,
     Word::DraftGroup,
     Word::DraftChat,
     Word::DraftSplit,
@@ -2807,6 +2819,12 @@ impl Word {
             Self::DelegateMove => 156,
             Self::ToolCalls => 1040,
             Self::ToolSeparator => 1041,
+            Self::PlusDraft => 3443,
+            Self::DraftEmpty => 3444,
+            Self::DraftWriting => 3445,
+            Self::DraftWords => 3446,
+            Self::ChatWrites => 3447,
+            Self::DraftName => 3448,
             Self::DraftGroup => 3421,
             Self::DraftChat => 3422,
             Self::DraftSplit => 3423,
@@ -3452,7 +3470,9 @@ impl Words {
                 + 468
                 + 88
                 + 148
-                + 99,
+                + 99
+                // The draft action, empty pane and first-message words (3.5).
+                + 142,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4147,6 +4167,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Milestone => (&[b"Milestone ", b""], &[Number]),
         Word::ToolCalls => (&[b"", b" tool calls"], &[Number]),
         Word::ToolSeparator => (&[b" \xc2\xb7 "], &[]),
+        Word::PlusDraft => (&[b"+ Draft"], &[]),
+        Word::DraftEmpty => (&[b"The draft appears here as you write it together."], &[]),
+        Word::DraftWriting => (&[b"writing"], &[]),
+        Word::DraftWords => (&[b"What should this draft hold?"], &[]),
+        Word::ChatWrites => (&[b"A chat that writes ", b". Say what it should hold."], &[Name]),
+        Word::DraftName => (&[b"a draft"], &[]),
         Word::DraftGroup => (&[b"The draft"], &[]),
         Word::DraftChat => (&[b"Chat"], &[]),
         Word::DraftSplit => (&[b"Split"], &[]),

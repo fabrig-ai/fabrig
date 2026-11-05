@@ -1255,6 +1255,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+#app > .temper-session .temper-session-right > button.temper-add-draft { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
+#app > .temper-session .temper-session-right > button.temper-add-draft:hover { border-color: #b4b4ae; background: var(--gf-surface); color: var(--gf-ink); }
+#app > .temper-session .temper-doc-empty { color: var(--gf-muted); }
+
 #app > .temper-session .temper-doc-sec { border-radius: 8px; transition: background .8s; }
 #app > .temper-session .temper-doc-sec:focus { outline: none; }
 #app > .temper-session .temper-doc-flash { border-radius: 8px; animation: flash 1.8s ease-out; }

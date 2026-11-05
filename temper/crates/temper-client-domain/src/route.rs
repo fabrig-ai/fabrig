@@ -164,7 +164,7 @@ pub(crate) fn route_forge(
                     }
                     Address::Inbox { .. }
                     | Address::Chats { .. }
-                    | Address::NewChat
+                    | Address::NewChat { .. }
                     | Address::Accounts
                     | Address::Forges
                     | Address::ConnectForge { .. }
@@ -375,7 +375,7 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     root.pages.playground_choice = crate::pages::PlaygroundChoice::Waiting;
     forge(root, env, forge::Event::Act { act: forge::Act::StartPlayground }, out);
     playground_facts(root);
-    out.push(Request::Show { address: Address::NewChat, replace: false });
+    out.push(Request::Show { address: Address::NewChat { draft: false }, replace: false });
 }
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {

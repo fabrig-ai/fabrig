@@ -2,6 +2,9 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
+/// The person's request to write beside the conversation.
+pub const WRITE_THIS_UP: &[u8] = b"Write this up as a draft beside us.";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     Chat,

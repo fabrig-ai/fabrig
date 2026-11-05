@@ -20,6 +20,7 @@ pub enum World {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Then {
     Shown,
+    DraftEmpty,
     Mode(temper_client_domain::pages::chat::document::Mode),
     Hosts { role: bool, connected: bool },
     Working,
@@ -74,7 +75,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 200;
+pub const N: usize = 202;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -378,8 +379,20 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
-        Sample { name: "chat-new", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
-        Sample { name: "chat-new-no-repository", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample { name: "chat-draft-empty", world: Solo, address: Address::Chat { task: 1 }, then: Then::DraftEmpty },
+        Sample { name: "chat-new-draft", world: Solo, address: Address::NewChat { draft: true }, then: Shown },
+        Sample {
+            name: "chat-new",
+            world: FirstRun { step: 7 },
+            address: Address::NewChat { draft: false },
+            then: Shown,
+        },
+        Sample {
+            name: "chat-new-no-repository",
+            world: FirstRun { step: 7 },
+            address: Address::NewChat { draft: false },
+            then: Shown,
+        },
         Sample { name: "chats-no-repository", world: FirstRun { step: 7 }, address: CHATS, then: Shown },
         Sample { name: "chats-live", world: Solo, address: Address::Chats { filter: ChatsFilter::Live }, then: Shown },
         Sample {
@@ -463,7 +476,12 @@ pub fn samples() -> [Sample; N] {
             address: Address::Welcome { step: temper_client_domain::Step::WelcomeAsked },
             then: Shown,
         },
-        Sample { name: "chat-new-first-run-1", world: FirstRun { step: 1 }, address: Address::NewChat, then: Shown },
+        Sample {
+            name: "chat-new-first-run-1",
+            world: FirstRun { step: 1 },
+            address: Address::NewChat { draft: false },
+            then: Shown,
+        },
         Sample { name: "chats-first-run-1", world: FirstRun { step: 1 }, address: CHATS, then: Shown },
         owned_sample("connect-forge-first-run-6", 6, false),
         Sample { name: "forges-first-run-7", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
@@ -541,7 +559,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
-        Sample { name: "chat-byline-open", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample {
+            name: "chat-byline-open",
+            world: FirstRun { step: 7 },
+            address: Address::NewChat { draft: false },
+            then: Shown,
+        },
         Sample { name: "chat-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
         Sample { name: "chat-held-task", world: Solo, address: Address::Chat { task: 10 }, then: Then::HeldTask },
@@ -771,6 +794,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::SignInRefused => "#other-states-refused",
             Then::Hosts { .. }
             | Then::Shown
+            | Then::DraftEmpty
             | Then::Mode(_)
             | Then::Working
             | Then::DelegatedGoal
@@ -799,7 +823,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         World::Bare => return None,
     };
     let (page, task) = match sample.address {
-        Address::NewChat => return Some("chat.html?id=new".to_owned()),
+        Address::NewChat { draft } => {
+            return Some(if draft { "chat.html?id=new&draft=1" } else { "chat.html?id=new" }.to_owned());
+        }
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::Inbox { .. } => ("inbox", None),
@@ -830,7 +856,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         }
         Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
@@ -886,7 +912,7 @@ pub fn domain(sample: &Sample) -> Domain {
         let mut root = home_domain(if sample.name == "chat-new" { "home-ready" } else { "home-no-repository" });
         step(
             &mut root,
-            Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+            Event::Went { place: temper_client_domain::Place::Address(Address::NewChat { draft: false }) },
             &mut Queue::uncapped(),
         );
         return root;
@@ -972,6 +998,9 @@ pub fn domain(sample: &Sample) -> Domain {
         claude(&mut root, sample.name, accounts_watch.expect("Claude accounts watch"), &mut out);
         return root;
     }
+    if sample.name == "chat-draft-empty" {
+        step(&mut root, Event::Act { action: Action::Pages(Act::AddDraft) }, &mut out);
+    }
     match sample.then {
         Then::Mode(mode) => {
             step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut out);
@@ -980,6 +1009,7 @@ pub fn domain(sample: &Sample) -> Domain {
             }
         }
         Then::Hosts { .. }
+        | Then::DraftEmpty
         | Then::Shown
         | Then::Working
         | Then::Held

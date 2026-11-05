@@ -97,7 +97,7 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 116] = [
+    let named: [(skein_ui::Style, &[u8]); 118] = [
         (MODE_CHAT, b"temper-mode-chat"),
         (MODE_SPLIT, b"temper-mode-split"),
         (MODE_DRAFT, b"temper-mode-draft"),
@@ -108,6 +108,8 @@ fn each_style_or_region_is_named_under_temper() {
         (DOC_CHANGED, b"temper-doc-changed"),
         (DOC_NOTE, b"temper-doc-note"),
         (DOC_FLASH, b"temper-doc-flash"),
+        (DOC_EMPTY, b"temper-doc-empty"),
+        (ADD_DRAFT, b"temper-add-draft"),
         (DOC_MUTED, b"temper-doc-muted"),
         (SEG, b"temper-seg"),
         (SEG_SPLIT, b"temper-seg-split"),
@@ -453,7 +455,11 @@ fn the_task_tokens_stay_on_their_roles() {
 fn the_choice_token_stays_on_the_composer_slot() {
     let mut roots = skein_lib::List::with_capacity(3);
     roots
-        .push(fixtures::playground_root(temper_client_domain::Address::NewChat, fixtures::PROJECT, true))
+        .push(fixtures::playground_root(
+            temper_client_domain::Address::NewChat { draft: false },
+            fixtures::PROJECT,
+            true,
+        ))
         .expect("new chat");
     roots.push(fixtures::chat::messaging_root()).expect("chat");
     roots.push(fixtures::task::root(jig_client::contract::ChipExecutor::Agent { charter: 1 }, Some(1))).expect("task");

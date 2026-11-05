@@ -2,7 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.3: `NewChat`'s `?draft=1` and `Chats`' `?state=drafts`. 2.5: a
+- **Not yet:** 2.3: `Chats`' `?state=drafts`. 2.5: a
   chat's document, its sheet and `Ctrl+\`. 7.2: `chat-draft-*`, `chat-new-draft`,
   `chat-start-goal*`, `chat-goal-linked`, `chats-drafts`, `configure-chat-document*`
   and `rail-new-menu`.
