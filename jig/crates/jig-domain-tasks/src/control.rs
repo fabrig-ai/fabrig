@@ -797,16 +797,44 @@ fn control_entrance(
 ) -> Result<ReplyTo, (ReplyTo, Refusal)> {
     let to = entrance(domain, to, number)?;
     let permitted = match by {
-        Party::Deployment { project } => {
-            cancelling
-                && match record(domain, number) {
-                    Some(task) => task.project == project,
-                    None => false,
-                }
-        }
+        Party::Deployment { project } => match record(domain, number) {
+            Some(task) => task.project == project && (cancelling || own_hold(task)),
+            None => false,
+        },
         Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
     };
     if permitted { Ok(to) } else { Err((to, Refusal::Reference)) }
+}
+
+// A procedure's own hold, which its connector may find gone (jig/docs/design/domain/tasks.md, 7).
+fn own_hold(task: &crate::TaskRecord) -> bool {
+    match task.executor {
+        crate::Executor::Procedure { .. } => {}
+        crate::Executor::Agent { .. } | crate::Executor::Job { .. } | crate::Executor::Person(_) => return false,
+    }
+    if task.placed.is_some() {
+        return false;
+    }
+    match task.phase {
+        Phase::Held { why, .. } => match why {
+            crate::Hold::Procedure | crate::Hold::EffectFailed | crate::Hold::Stalled | crate::Hold::Budget => true,
+            crate::Hold::Exceeded(_)
+            | crate::Hold::Failures(_)
+            | crate::Hold::Dependency(_)
+            | crate::Hold::Stopped
+            | crate::Hold::Placed { .. }
+            | crate::Hold::Drift
+            | crate::Hold::Effects
+            | crate::Hold::Uncertain { .. }
+            | crate::Hold::Deadline
+            | crate::Hold::HoldsWaited
+            | crate::Hold::ResourceUnavailable
+            | crate::Hold::ResourceAccess
+            | crate::Hold::PoolLost { .. }
+            | crate::Hold::Circle => false,
+        },
+        Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => false,
+    }
 }
 
 pub(crate) fn cancel(
