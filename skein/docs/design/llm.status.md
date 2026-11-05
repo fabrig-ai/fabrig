@@ -1,8 +1,11 @@
 # llm: status
 
-2026-11-04. Where skein's code lags or departs from [llm.md](llm.md).
+2026-11-05. Where skein's code lags or departs from [llm.md](llm.md).
 
-- **Not yet:** 5: `skein-live`, the live suite's logins on the routes that
+- **Not yet:** 2: the dialects' shared vocabulary: `Stop`, `Usage`, `Failure`
+  and `Output` have copies, and Anthropic's modules stand on `openai`, with no
+  `wire` (`skein/docs/development/debt/D012-anthropic-on-openai.md`).
+  5: `skein-live`, the live suite's logins on the routes that
   stay, has no design: the suite calls the public route with a lent login's
   access token and Anthropic with a lent key file, but five of its provider
   stories are ignored, manual stories run by the owner; how the owner runs

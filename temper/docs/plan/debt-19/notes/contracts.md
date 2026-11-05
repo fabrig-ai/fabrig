@@ -46,3 +46,14 @@ pub struct Fault {
   `Setup(step)`, and a stream fault a `Fault` of kind `Stream`.
 - `task::Refusal` stays, as what a document's reader returns: its `file` and `key` are read by its callers and its tests,
   and it reaches a `Fault` by `From`.
+
+## 2. The io worlds' schedule digest (skein D032)
+
+The three `io-*` tasks each prove that no world's schedule moved, with throwaway code, untracked and gone before the push. That departs from no rule
+(`AGENTS.md`, 4), and the task lacks no tool: this section is the tool's spec.
+
+- `skein/tests/io/tests/probe.rs`, untracked: cargo finds it without a tracked edit, since the package's manifest has no `[[test]]`.
+- For each world, configuration and seed the suites use (`CALM`, `CHAOS`, `SEEDS`, `0..64`, `0..150`), it prints one line: the world's name, the seed and
+  `skein_io::digest::digest(format!("{:?}", (trace, logs, marks, held_back, iterations)).as_bytes())`. `either` returns only `Seen`: digest that, since the same `Proc` runs through `World`.
+- Run it at your base and again at your tip, through `heavy`, and `diff` the two outputs. **They are the same, or you stop.** A line that differs is a `Question:`, naming the world and the seed: never retime a test, rewrite an assertion or change a seed.
+- A task that changes what a digest can read (a removed field, say) reads the same values by their new path, so the lines stay comparable.

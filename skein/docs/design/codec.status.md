@@ -2,4 +2,4 @@
 
 2026-11-05. Where skein's code lags or departs from [codec.md](codec.md).
 
-No gap.
+- **Not yet:** 3: `piece::split_within` and `piece::count`.
