@@ -1,5 +1,6 @@
 //! A task's retention class decides what its reading erases (people.md, 6).
 
+use jig_core_world::fixtures::PARTY;
 const CONVERSATION_MARK: u8 = 63;
 use crate::read_support::forgettable_world;
 use crate::read_support::request;
@@ -13,7 +14,6 @@ use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 
 const TURN: u32 = 1;
-const PARTY: u64 = 1;
 const MARK_TURNS: u8 = 61;
 const MARK_RESULTS: u8 = 62;
 

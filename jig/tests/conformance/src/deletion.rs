@@ -28,14 +28,15 @@ pub const FAMILIES: [Family; 6] =
 fn drain(world: &mut World) {
     world.drain().unwrap_or_else(|error| panic!("deletion story: {error:?}"));
 }
+const PARTY_REPLY_BASE: u64 = 9000;
+
 fn ask(world: &mut World, key: u8, ask: people::Ask) {
-    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(9000 + u64::from(key))),
-        sign_in: world.peers.peers.parties[0].sign_in.expect("owner signed in"),
-        key: [key; 16],
+    world.send(jig_core_kit::fixtures::party_ask(
+        PARTY_REPLY_BASE,
+        world.peers.peers.parties[0].sign_in.expect("owner signed in"),
+        key,
         ask,
-    })));
+    ));
     drain(world);
 }
 fn act(world: &mut World, key: u8, act: people::Act) {

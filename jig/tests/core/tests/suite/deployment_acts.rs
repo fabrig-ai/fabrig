@@ -1,4 +1,4 @@
-use jig_core_world::fixtures::live_row;
+use jig_core_world::fixtures::{PROJECT, live_row};
 use jig_core_world::stories::delegates::delegate_pair;
 use jig_core_world::world::Cut;
 use jig_core_world::world::Setup;
@@ -10,7 +10,6 @@ use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
-const PROJECT: u32 = 1;
 const CONNECTOR: u16 = 1;
 const KEY: u8 = 91;
 const PROVIDER: u32 = 1;

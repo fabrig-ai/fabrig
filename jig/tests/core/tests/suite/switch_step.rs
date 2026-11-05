@@ -1,5 +1,6 @@
 //! The start's switch and mark follow durable restores (engine.md, 6).
 
+use jig_core_world::fixtures::PROJECT;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
@@ -268,7 +269,6 @@ fn refuses_before_switch(mut world: World) {
     std::panic::resume_unwind(linked.expect_err("required project link"));
 }
 
-const PROJECT: u32 = 1;
 const ORPHAN_SOURCE: u32 = 97;
 
 fn orphan_source() -> root::Record {

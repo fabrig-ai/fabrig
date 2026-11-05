@@ -1,4 +1,4 @@
-use jig_core_world::fixtures::two_projects;
+use jig_core_world::fixtures::{ask, two_projects};
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_authority as authority;
@@ -6,17 +6,6 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
-use skein_lib::{ReplyTo, Token};
-
-fn ask(world: &mut World, key: u8, ask: people::Ask) {
-    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(8000 + u64::from(key))),
-        sign_in: world.sign_in.expect("signed in owner"),
-        key: [key; 16],
-        ask,
-    })));
-}
 
 fn ledger(world: &World, funder: tasks::Funder) -> &tasks::FundingRecord {
     let root::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(row))) =

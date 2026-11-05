@@ -1,5 +1,6 @@
 //! A project's policy beside deployment settings (jig/docs/design/domain/engine.md, 17.2 and 17.6).
 use crate::settings_support::*;
+use jig_core_world::fixtures::PROJECT;
 use jig_core_world::{
     client_peer::ClientPeer,
     world::{Boot, Setup, World},
@@ -11,7 +12,6 @@ use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
 const HISTORY: u32 = 64;
-const PROJECT: u32 = 1;
 const SPEND: u64 = 100;
 const CHANGED_SPEND: u64 = 120;
 const INSTRUCTIONS: &[u8] = b"Set up the project and its charter together.";

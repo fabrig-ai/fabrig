@@ -1,5 +1,5 @@
 use crate::read_support::{request, world};
-use jig_core_world::fixtures::live_row;
+use jig_core_world::fixtures::{PROJECT, live_row};
 use jig_core_world::stories::delegates::delegate_pair;
 use jig_core_world::world::Setup;
 use jig_domain_core as core;
@@ -9,7 +9,6 @@ use jig_test_domain as root;
 use jig_test_profile::fixtures::person_unchanged;
 use skein_lib::Duration;
 
-const PROJECT: u32 = 1;
 const OWNER: u64 = 1;
 const CANCEL: u8 = 1;
 const AMEND: u8 = 2;

@@ -39,13 +39,12 @@ fn ask(world: &mut World, key: u8, ask: people::Ask) {
 }
 
 pub(crate) fn party_ask(peers: &crate::Neighbours, key: u8, ask: people::Ask) -> root::Event {
-    root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(PARTY_REPLY_BASE + u64::from(key))),
-        sign_in: peers.peers.parties[0].sign_in.expect("scripted sign-in"),
-        key: [key; 16],
+    jig_core_kit::fixtures::party_ask(
+        PARTY_REPLY_BASE,
+        peers.peers.parties[0].sign_in.expect("scripted sign-in"),
+        key,
         ask,
-    }))
+    )
 }
 
 fn effect(world: &mut World, completion: u32, proposal: bool) {
