@@ -3,19 +3,19 @@ use crate::tests::fixtures;
 fn packages_json_lists_added_and_removed_names() {
     let record = fixtures::change_record(fixtures::requested_packages_change());
     assert_eq!(fixtures::diff_json(&record).as_deref(), Ok(concat!(
-        r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"packages","packages":{"request":{"added":["vim"],"removed":["nano"]},"seeds":{"groups":[],"users":[]},"resolution":{"kind":"same"}}}],"rebuild":{"kind":"nothing"}}}"#, "\n").as_bytes()));
+        r#"{"record":"change","target":"west-prod","kind":"changed","changed":{"parts":[{"kind":"packages","packages":{"request":{"added":["vim"],"removed":["nano"]},"seeds":{"groups":[],"users":[]},"resolution":{"kind":"same"}}}],"rebuild":{"kind":"nothing"}}}"#, "\n").as_bytes()));
 }
 #[test]
 fn an_equal_request_is_left_out_of_the_json() {
     let record = fixtures::change_record(fixtures::unchanged_packages_change());
     assert_eq!(fixtures::diff_json(&record).as_deref(), Ok(concat!(
-        r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"packages","packages":{"seeds":{"groups":[],"users":[]},"resolution":{"kind":"same"}}}],"rebuild":{"kind":"nothing"}}}"#, "\n").as_bytes()));
+        r#"{"record":"change","target":"west-prod","kind":"changed","changed":{"parts":[{"kind":"packages","packages":{"seeds":{"groups":[],"users":[]},"resolution":{"kind":"same"}}}],"rebuild":{"kind":"nothing"}}}"#, "\n").as_bytes()));
 }
 #[test]
 fn boot_json_keeps_the_before_and_after() {
     let record = fixtures::change_record(fixtures::boot_change());
     assert_eq!(fixtures::diff_json(&record).as_deref(), Ok(concat!(
-        r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"boot","boot":{"after":{"mutable":true,"params":[]},"before":{"mutable":false,"params":["quiet"]}}}],"rebuild":{"kind":"nothing"}}}"#, "\n").as_bytes()));
+        r#"{"record":"change","target":"west-prod","kind":"changed","changed":{"parts":[{"kind":"boot","boot":{"after":{"mutable":true,"params":[]},"before":{"mutable":false,"params":["quiet"]}}}],"rebuild":{"kind":"nothing"}}}"#, "\n").as_bytes()));
 }
 #[test]
 fn boot_text_keeps_the_before_and_after() {
@@ -23,7 +23,7 @@ fn boot_text_keeps_the_before_and_after() {
     assert_eq!(
         fixtures::diff_text(&record).as_deref(),
         Ok(concat!(
-            "ion-prod                                            nothing to build\n",
+            "west-prod                                           nothing to build\n",
             "  boot     ~ {\"mutable\":false,\"params\":[\"quiet\"]} → {\"mutable\":true,\"params\":[]}\n"
         )
         .as_bytes())
@@ -35,7 +35,7 @@ fn packages_text_lists_added_and_removed_names() {
     assert_eq!(
         fixtures::diff_text(&record).as_deref(),
         Ok(concat!(
-            "ion-prod                                            nothing to build\n",
+            "west-prod                                           nothing to build\n",
             "  packages   resolution same\n",
             "  packages + vim\n",
             "  packages - nano\n"
@@ -48,7 +48,7 @@ fn packages_text_lists_added_and_removed_names() {
 fn a_preseed_only_change_prints_preseeds() {
     let record = fixtures::change_record(fixtures::preseed_change());
     assert_eq!(fixtures::diff_text(&record).as_deref(), Ok(concat!(
-        "ion-prod                                            nothing to build\n",
+        "west-prod                                           nothing to build\n",
         "  packages   resolution same\n",
         r#"  packages ~ preseeds {} → {"a/answer":{"owner":"a","type":"string","value":"word"},"tzdata/Areas":{"owner":"other","type":"select","value":"Europe"}}"#, "\n").as_bytes()));
 }
@@ -58,7 +58,7 @@ fn an_initramfs_only_change_prints_initramfs() {
     assert_eq!(
         fixtures::diff_text(&record).as_deref(),
         Ok(concat!(
-            "ion-prod                                            nothing to build\n",
+            "west-prod                                           nothing to build\n",
             "  packages   resolution same\n",
             r#"  packages ~ initramfs null → {"microcode":"generic","modules":["nvme"]}"#,
             "\n"

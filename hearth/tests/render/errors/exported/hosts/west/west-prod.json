@@ -1,1 +1,1 @@
-{"placement": {"kind": "vm", "firmware": "bios", "hardware": "ionos"}, "vpn": {"endpoint": 7}}
+{"placement": {"kind": "vm", "firmware": "bios", "hardware": "provider-b"}, "vpn": {"endpoint": 7}}

@@ -7,7 +7,7 @@ pub struct Example {
 #[must_use]
 pub fn all() -> &'static [Example] {
     &[
-        Example { name: "ion-prod", bytes: include_bytes!("../examples/ion-prod.json") },
+        Example { name: "west-prod", bytes: include_bytes!("../examples/west-prod.json") },
         Example { name: "chat-prod", bytes: include_bytes!("../examples/chat-prod.json") },
         Example { name: "stoa", bytes: include_bytes!("../examples/stoa.json") },
         Example { name: "fleet", bytes: include_bytes!("../examples/fleet.json") },

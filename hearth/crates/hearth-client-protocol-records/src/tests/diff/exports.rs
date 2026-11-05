@@ -5,7 +5,7 @@ const TEXT: &[Row] = &[
         Some(b"203.0.113.157"),
         Some(b"203.0.113.158"),
         concat!(
-            "ion-prod                                            nothing to build\n",
+            "west-prod                                           nothing to build\n",
             "  exports  ~ vpn.endpoint   \"203.0.113.157\" → \"203.0.113.158\"\n"
         ),
     ),
@@ -13,7 +13,7 @@ const TEXT: &[Row] = &[
         None,
         Some(b"a"),
         concat!(
-            "ion-prod                                            nothing to build\n",
+            "west-prod                                           nothing to build\n",
             "  exports  + vpn.endpoint   \"a\"\n"
         ),
     ),
@@ -21,7 +21,7 @@ const TEXT: &[Row] = &[
         Some(b"a"),
         None,
         concat!(
-            "ion-prod                                            nothing to build\n",
+            "west-prod                                           nothing to build\n",
             "  exports  - vpn.endpoint   \"a\"\n"
         ),
     ),
@@ -41,7 +41,7 @@ const JSON: &[Row] = &[
         Some(b"a"),
         Some(b"b"),
         concat!(
-            r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"exports","exports":[{"after":"b","before":"a","name":"endpoint","task":"vpn"}]}],"rebuild":{"kind":"nothing"}}}"#,
+            r#"{"record":"change","target":"west-prod","kind":"changed","changed":{"parts":[{"kind":"exports","exports":[{"after":"b","before":"a","name":"endpoint","task":"vpn"}]}],"rebuild":{"kind":"nothing"}}}"#,
             "\n"
         ),
     ),
@@ -49,7 +49,7 @@ const JSON: &[Row] = &[
         None,
         Some(b"a"),
         concat!(
-            r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"exports","exports":[{"after":"a","name":"endpoint","task":"vpn"}]}],"rebuild":{"kind":"nothing"}}}"#,
+            r#"{"record":"change","target":"west-prod","kind":"changed","changed":{"parts":[{"kind":"exports","exports":[{"after":"a","name":"endpoint","task":"vpn"}]}],"rebuild":{"kind":"nothing"}}}"#,
             "\n"
         ),
     ),
@@ -57,7 +57,7 @@ const JSON: &[Row] = &[
         Some(b"a"),
         None,
         concat!(
-            r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"exports","exports":[{"before":"a","name":"endpoint","task":"vpn"}]}],"rebuild":{"kind":"nothing"}}}"#,
+            r#"{"record":"change","target":"west-prod","kind":"changed","changed":{"parts":[{"kind":"exports","exports":[{"before":"a","name":"endpoint","task":"vpn"}]}],"rebuild":{"kind":"nothing"}}}"#,
             "\n"
         ),
     ),

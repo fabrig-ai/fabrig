@@ -1,6 +1,6 @@
-target       ion-lab   base ion   environment lab
+target       west-lab   base west   environment lab
 placement    vm efi incus
-spec         5e63f1479de6
+spec         279884fe2e45
 boot         part bc6cab417252
   mutable    false
 packages     part 5f69bb2a41f1   resolution 4ee22520f418 needed

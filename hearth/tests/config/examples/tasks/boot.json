@@ -13,9 +13,9 @@
       "type": { "map": { "list": "string" } },
       "default": {
         "7th-gen": ["btrfs", "nvme"],
-        "ionos": ["btrfs", "virtio_blk", "virtio", "virtio_pci", "virtio_rng", "scsi_mod", "vmw_pvscsi"],
-        "serverhino": ["btrfs", "scsi_mod", "sd_mod", "virtio_scsi", "virtio_pci", "virtio_mmio"],
-        "vultr": ["btrfs", "virtio_blk", "virtio_pci"]
+        "provider-b": ["btrfs", "virtio_blk", "virtio", "virtio_pci", "virtio_rng", "scsi_mod", "vmw_pvscsi"],
+        "provider-a": ["btrfs", "scsi_mod", "sd_mod", "virtio_scsi", "virtio_pci", "virtio_mmio"],
+        "provider-c": ["btrfs", "virtio_blk", "virtio_pci"]
       },
       "doc": "Initramfs modules, by hardware profile."
     }
