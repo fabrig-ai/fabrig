@@ -1,6 +1,6 @@
 # programs: status
 
-2026-11-04. Where smith's code lags or departs from [programs.md](programs.md).
+2026-11-05. Where smith's code lags or departs from [programs.md](programs.md).
 
 - **Not yet:** 5.1, 5.5: what the program offers is not read from
   `system/init`'s `capabilities`: `checked_init`
@@ -17,4 +17,7 @@
   8: no live walk establishes that the stream rejection seen in the advisor
   and the earlier read-only/review sightings is resolved. The step regression
   exercises a reachable `StructuredOutput` boundary; the rejected live record
-  is unknown.
+  is unknown. The unknown top-level notice regression is synthetic: it
+  checks that an outstanding built-in result and a finishing completion
+  survive such notices, but does not identify the record refused in the
+  live coding-producer sightings or establish their resolution.

@@ -1,5 +1,5 @@
 //! Bounded deb822 Packages stanzas (hearth/docs/design/domain/render.md, 5.3).
-use crate::{MaxOut, limits::Limits, vector::Name};
+use crate::{limits::Limits, vector::Name};
 use alloc::boxed::Box;
 use skein_lib::{
     Env, List, Queue, bytes,
@@ -86,7 +86,6 @@ impl Stanzas {
         }
     }
 }
-pub const UP_MAX_OUT: MaxOut = MaxOut { above: 2, below: 1 };
 #[must_use]
 pub fn largest_demand(limits: &Limits) -> u32 {
     limits.chunk.max(1)
