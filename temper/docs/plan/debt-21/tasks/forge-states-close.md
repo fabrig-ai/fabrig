@@ -17,7 +17,7 @@ The item's **Paid when** holds, so it goes, with what the status says of it.
 Acceptance:
 
 - `skein/docs/development/debt/D020-forge-connection-states.md` is deleted.
-- The item's **Measure** reads 4: each `follow`'s line, and the two locals `let deadline = waiting.deadline` at `component/calls.rs` and `component/github_calls.rs`, a legitimate use of the word. If either `follow` isn't one line, or another line is listed, that's a `Question:`.
+- The item's **Measure** reads 5: each `follow`'s line, the two locals `let deadline = waiting.deadline` at `component/calls.rs` and `component/github_calls.rs`, and the local `let deadline = env.now.saturating_add(env.limits.deadline)` in `component.rs`'s `open_call_origin`, legitimate uses of the word. If either `follow` isn't one line, or another line is listed, that's a `Question:`.
 - `rg -n '\b(self|c)\.deadline =' skein/crates/skein-forge-connection/src -g '!**/tests/**'` lists two lines, each in a `follow`.
 - `skein/docs/design/forge-connection.status.md`, its first **Departs**, is edited as below. No other entry changes.
 - `skein/docs/design/link.md`, 5's line reads `(`D022`, `D023` of `skein/docs/development/debt/`)`.
@@ -54,3 +54,7 @@ Acceptance:
 ## Report
 
 The common note's items; the searches' results; the final text of the entry.
+
+## Answers
+
+- 2026-11-05. **Accept Measure 5, with `component.rs`'s `open_call_origin` local exempted, or keep 4?** Accept 5; no production code changes, and `connection-deadlines` isn't reopened. That local computes the start deadline `Connection::at_origin` takes for `Connecting { until }`, and the constructor's `follow` writes it: it's not an assignment to a connection's deadline, so 8.1's one place and the item's **Paid when** hold. The request exempts code that legitimately uses the word. Acceptance above now reads 5 and names the line; the second search, two lines each in a `follow`, is what pins the rule. Carry on with the edits and the deletion.
