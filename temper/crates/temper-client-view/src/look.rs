@@ -86,6 +86,8 @@ pub const SESSION_RIGHT: Style = Style { owner: owner(), token: 246 };
 /// A chat's scrolling column and working indicator (client/README.md, 3.5).
 pub const THREAD_INNER: Style = Style { owner: owner(), token: 321 };
 pub const TYPING: Style = Style { owner: owner(), token: 322 };
+pub const TURN_TOOL: Style = Style { owner: owner(), token: 324 };
+pub const TOOL_FILE: Style = Style { owner: owner(), token: 325 };
 pub const BY_DELEGATE: Style = Style { owner: owner(), token: 323 };
 /// A new chat's centred repository context (client/README.md, 3.5).
 pub const META_LINE: Style = Style { owner: owner(), token: 253 };
@@ -894,6 +896,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-thread-inner",
         b"temper-typing",
         b"temper-by-delegate",
+        b"temper-turn-tool",
+        b"temper-tool-file",
     ],
     regions: &[b"temper-link"],
 };

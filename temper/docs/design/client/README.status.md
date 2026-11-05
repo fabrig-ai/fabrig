@@ -2,8 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, A chat's conversation, its tool lines and cards, and 5.7, In the browser it is one line:
-  no pen; tool lines and cards keep their shared look. 3.4, 5.5: the composer's
+- **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries.
   5.3: the banner's "Board" and "Changes", on a page that is no project's:

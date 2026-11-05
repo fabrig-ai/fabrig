@@ -97,12 +97,14 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 99] = [
+    let named: [(skein_ui::Style, &[u8]); 101] = [
         (PROPOSAL_FACTS, b"temper-proposal-facts"),
         (SESSION_RIGHT, b"temper-session-right"),
         (META_LINE, b"temper-meta-line"),
         (THREAD_INNER, b"temper-thread-inner"),
         (TYPING, b"temper-typing"),
+        (TURN_TOOL, b"temper-turn-tool"),
+        (TOOL_FILE, b"temper-tool-file"),
         (BY_DELEGATE, b"temper-by-delegate"),
         (NAV_COUNT, b"temper-nav-count"),
         (BANNER, b"temper-banner"),
