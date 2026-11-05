@@ -60,3 +60,11 @@ Acceptance:
 ## Report
 
 The common note's items; the search's count; the rule broken and what failed; the pins an existing test already held.
+
+## Answers
+
+2026-11-05. May `STATE_BYTES` in `accounts_tests.rs` change from 208 to the measured 192, for `a_wanted_name_and_earliest_time_fit_the_account_table_bound`?
+
+Yes (fabrig/debt, the plan's owner, in the user's answer): a smaller `State` from this task's own change is no change in behaviour. Removing `rejection` takes 16 bytes. Set the literal to 192, and its comment to what is true now (a 176-byte record state plus the 16-byte earliest `Time`; check it against the layout). Leave the assertion and `NAME_BYTES` as they are, add no padding, and say so in the report. If the size moves to anything but 192, or any visible event or refusal changes, stop and ask.
+
+The run's other work stands: keep `dc12539f2d`'s pins and `ff47e3540e`, and continue from them. The production is at net +69 against the cap of 60, so compact it first. No raise is given here; if the cap still can't be met without losing wanted behaviour, report the measured size and why, as the common note says. Then run what the run left unobserved: clippy and the whole of `skein-oauth-accounts` and `skein-oauth-accounts-world`, the two ceilings included.
