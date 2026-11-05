@@ -500,7 +500,7 @@ pub(crate) fn write_signal(writer: Fd, signal: skein_io::kernel::ServiceSignal) 
     };
     let bytes = number.to_ne_bytes();
     let count = super::write(writer, &bytes).map_err(map_error)?;
-    if usize::try_from(count).expect("u32 fits usize") == bytes.len() { Ok(()) } else { Err(Error::Other(libc::EIO)) }
+    if skein_lib::usize_of(count) == bytes.len() { Ok(()) } else { Err(Error::Other(libc::EIO)) }
 }
 
 pub(crate) fn signal_current_thread(signal: skein_io::kernel::ServiceSignal) -> Result<(), Error> {
@@ -666,7 +666,7 @@ fn fork_terminal(
             Ok(0) => break Err(libc::EIO),
             Ok(count) => {
                 used = used
-                    .checked_add(usize::try_from(count).expect("u32 fits usize"))
+                    .checked_add(skein_lib::usize_of(count))
                     .expect("read fits the remaining buffer");
                 if used == bytes.len() {
                     break Err(i32::from_ne_bytes(bytes));

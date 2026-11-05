@@ -8,7 +8,7 @@
 use alloc::rc::Rc;
 use core::cell::RefCell;
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Submit};
-use skein_lib::{Map, Queue, Time, Token, Wall, bytes};
+use skein_lib::{Map, Queue, Time, Token, Wall, bytes, usize_of};
 use std::io::{self, Write};
 
 use crate::Host;
@@ -53,7 +53,7 @@ impl Write for PipeWriter {
         if bytes.is_empty() {
             return Ok(0);
         }
-        let count = bytes.len().min(usize::try_from(captured.bytes.room()).expect("capacity fits"));
+        let count = bytes.len().min(usize_of(captured.bytes.room()));
         if count == 0 {
             return Err(io::ErrorKind::WouldBlock.into());
         }
@@ -187,7 +187,7 @@ impl<P: Host> PipeHost<P> {
         }
         if self.failure.is_none() && !self.capture.captured.borrow().bytes.is_empty() {
             let mut captured = self.capture.captured.borrow_mut();
-            let mut bytes = bytes::zeroed(usize::try_from(captured.bytes.len()).expect("capture capacity fits"));
+            let mut bytes = bytes::zeroed(usize_of(captured.bytes.len()));
             for byte in &mut bytes {
                 *byte = captured.bytes.pop().expect("counted capture bytes");
             }
@@ -233,10 +233,10 @@ impl<P: Host> PipeHost<P> {
                         }
                         let end = from.checked_add(count).expect("bounded pipe progress");
                         assert!(
-                            count > 0 && usize::try_from(end).expect("bounded count") <= bytes.len(),
+                            count > 0 && usize_of(end) <= bytes.len(),
                             "pipe write makes bounded progress"
                         );
-                        if usize::try_from(end).expect("bounded count") < bytes.len() {
+                        if usize_of(end) < bytes.len() {
                             self.writing = true;
                             self.submit(Op::PipeWrite { fd, bytes, from: end }, Binding::Write);
                         }

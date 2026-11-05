@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use core::fmt::{self, Debug, Write};
 
 use skein_io::kernel::{Done, Exit, Fd, Op};
-use skein_lib::{Queue, Time};
+use skein_lib::{Queue, Time, usize_of};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Program, Reply, Sim};
 
 use crate::Host;
@@ -428,7 +428,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
                         .filter(|(hosted, finished)| **hosted == Some(program_at) && !**finished)
                         .count();
                     assert!(
-                        active < usize::try_from(entry.instances).expect("instances fit"),
+                        active < usize_of(entry.instances),
                         "hosted program fits its instance provision"
                     );
                     let make = entry.make;
@@ -624,7 +624,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
                     .and_then(|count| count.checked_add(spawn.pipes.len()))
                     .and_then(|count| count.checked_add(1));
                 if descriptors.is_none_or(|count| {
-                    count > usize::try_from(self.sim.config().max_fds).expect("descriptor limit fits")
+                    count > usize_of(self.sim.config().max_fds)
                 }) {
                     self.answers
                         .push(Answer { ticket: call.ticket, result: Err(skein_io::kernel::Error::TooManyOpenFiles) });
