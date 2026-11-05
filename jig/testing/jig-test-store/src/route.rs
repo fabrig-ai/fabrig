@@ -66,7 +66,10 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
                 let write = match write {
                     root::Write::DropTranscript { task } => store::Write::DropTranscript { task },
                     root::Write::Wires => store::Write::Wires,
-                    root::Write::CopySettingsRevision(number) => store::Write::CopySettingsRevision(number),
+                    root::Write::CopySettingsRevision(number) => {
+                        let (from, to) = core::settings::history_copy(number);
+                        store::Write::Copy { from, to }
+                    }
                     root::Write::Save(root::Record::Core(row)) => store::Write::Save(row),
                     root::Write::Erase(root::Key::Core(key)) => store::Write::Erase(key),
                     root::Write::Save(root::Record::Connector { number, record }) => {
