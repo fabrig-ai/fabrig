@@ -51,6 +51,11 @@ and unread-tail retry guard in 7.1 and 7.2.
   excluding the remaining state writes, closing the project and cancellation
   operations. No reason is recorded.
 
+- **Not yet:** 17.7: a release's withdrawal of a task's proposal panics
+  at `Phase::Link`: people's `assert_projection_event` takes no event
+  before it is open, and the withdrawal's activation or relay reaches
+  the root before the switch.
+
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a
