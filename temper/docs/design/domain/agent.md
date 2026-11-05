@@ -842,8 +842,8 @@ agents must do stays text its runs read.
   `domain/engine.md`, 17.6). A member's configuring chat proposes as
   an owner's does, and its proposal waits for an owner.
 - **Started from ctl** with `chat start --project PROJECT --template 3
-  TEXT` (`../client/tools.md`, 5.3), and, once the user's pages land,
-  from "Tell temper how you work".
+  TEXT` (`../client/tools.md`, 5.3), and from the client's `Configure`,
+  which "Tell temper how you work" opens (`../client/README.md`, 3.5).
 - **Its tests** are `testing.md`, 6.4's: scripted runs in the engine's
   domain world for its flows, and one story through ctl in the joined
   client world (`testing.md`, 6.3).

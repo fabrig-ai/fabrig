@@ -6,15 +6,12 @@
 - **Not yet:** 3.5, *Needs you*, *By its kind*: proposal, held, funds and
   person-task card bodies and decisions; these draw their question, mono line
   and pair alone.
-  3.5, *Home*: its card, lines, answered lines, number words and phone
-  block by the line form.
   3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
-  `Changes { project }`: no address in `temper-client-domain`'s
-  `address.rs`. 3.5: *Goals*, *A goal's report*: plan `ui-goals`. 3.5, 5.13, 10:
+  *Goals*, *A goal's report*: plan `ui-goals`. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
-  with their tests, and with them How work runs' offer of `Configure` and
+  with their tests, and with them How work runs' "Configure temper" entry and
   a review's "Change something"; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
@@ -53,7 +50,13 @@
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
-- **Departs:** 3.5, With no project yet, and 5.3: where the document
+- **Departs:** 3.5, Settings: "Configure temper" chooses among the rows
+  `temper-client-domain`'s `Chats::open_configuring` is delivered, whose
+  live watch holds a window of `limits.client.domain.rows` by latest
+  activity, so a configuring chat not closed but past that window isn't
+  seen and the link opens `Configure { project }`; `configure-temper-name`'s
+  landing accepted it, raising no bound for one link.
+  3.5, With no project yet, and 5.3: where the document
   shows the welcome, with no project, the banner's place for it reads "No project yet" followed by the new
   project's form, "New project" and "Create" (`temper-client-view`'s
   `frame.rs`, `switcher`), where 5.3 ends the switcher's list with that

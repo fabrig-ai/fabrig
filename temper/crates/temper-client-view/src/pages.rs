@@ -5,6 +5,7 @@ pub(crate) mod accounts;
 pub(crate) mod agent;
 pub(crate) mod ask;
 pub(crate) mod change;
+pub(crate) mod changes;
 pub(crate) mod chat;
 pub(crate) mod chats;
 pub(crate) mod configure;

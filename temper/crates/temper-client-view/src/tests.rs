@@ -1,3 +1,4 @@
+mod changes;
 mod chats;
 mod choice;
 mod configure;

@@ -40,6 +40,8 @@ pub mod items;
 mod judge;
 mod kinds;
 mod landing;
+mod landing_log;
+pub use landing_log::LOGGED_TITLE_BYTES;
 mod limits;
 mod making;
 pub use making::{
@@ -93,7 +95,8 @@ pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
 pub use verification::LandingRed;
 pub use views::{
-    Document, GateProof, LandingGate, LandingLine, LandingMember, LandingView, LandingsView, landings_subject,
+    ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, Document, GateProof, LandingGate, LandingLine,
+    LandingMember, LandingView, LandingsView, changes_subject, landings_subject,
 };
 /// Connector-owned access to one exact effect on an adopted resource.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -260,6 +263,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Playground(_) => Key::Playground,
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
+        Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -400,6 +404,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         },
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
+        Stored::LandingLog(row) => landing_log::row_bytes(row),
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {

@@ -2,7 +2,7 @@
 use crate::{
     frame::Bindings,
     look,
-    words::{TimeForm, Times, Word, Words},
+    words::{Shell, TimeForm, Times, Word, Words},
 };
 use alloc::boxed::Box;
 use jig_client::contract::{InboxGroup, ReadValue};
@@ -111,7 +111,15 @@ pub(crate) fn need_kind(group: InboxGroup) -> Word {
     }
 }
 pub(crate) fn need_when(card: &Card, w: &Words, times: &mut Times) -> Box<[u8]> {
-    when(card, need_kind(card.group), w, times)
+    let kind = if let Some(ReadValue::Escalation(held)) = &card.page
+        && let Some(hold) = &held.task.hold
+        && hold.reason == jig_client::contract::HoldCategory::Budget
+    {
+        Word::NeedsKindFunds
+    } else {
+        need_kind(card.group)
+    };
+    when(card, kind, w, times)
 }
 fn when(card: &Card, kind: Word, w: &Words, times: &mut Times) -> Box<[u8]> {
     let kind = w.say(kind, &[]);
@@ -184,15 +192,21 @@ pub(crate) fn answered_lines(
         } else {
             line.title.clone()
         };
+        if w.shell == Shell::Terminal {
+            b.open(Role::Paragraph);
+        }
         b.open(Role::Text);
         if let Some(task) = super::inbox::source_task(line.object) {
             link(b, bindings, &title, Address::Task { task, filter: PlanFilter::All });
         } else {
             b.text(Run::Plain, &title);
         }
-        b.text(Run::Plain, b":");
+        b.text(Run::Plain, if w.shell == Shell::Terminal { b": " } else { b":" });
         b.close();
         text(b, Role::Text, &answered_label(w, &line.label), look::ANSWERED_LABEL);
+        if w.shell == Shell::Terminal {
+            b.close();
+        }
         if root.pages().needs().held(line.object) {
             button(
                 b,
@@ -265,4 +279,108 @@ fn first_sentence(words: &[u8]) -> Box<[u8]> {
     };
     let line = skein_lib::bytes::find(words, b"\n").unwrap_or(words.len());
     words.get(..sentence.min(line)).expect("sentence in words").into()
+}
+
+/// Home's parsed card and in-place controls (client/README.md, 3.5).
+pub(crate) fn home_body(
+    b: &mut Builder,
+    root: &Domain,
+    asked: &Asked<'_>,
+    w: &Words,
+    bindings: &mut Bindings,
+    rows: u32,
+) {
+    let card = asked.card;
+    let question = match asked.kind {
+        Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),
+        Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => asked.short.clone(),
+    };
+    text(b, Role::Paragraph, &question, look::ASK_QUESTION);
+    if let Some(parsed) = &asked.parsed {
+        if !parsed.context.is_empty() {
+            text(b, Role::Paragraph, &parsed.context, look::ASK_CONTEXT);
+        }
+        if let Some(saw) = &parsed.saw {
+            b.open(Role::Disclosure);
+            b.style(look::ASK_SAW);
+            b.name(&w.say(Word::NeedsSaw, &[]));
+            text(b, Role::Paragraph, saw, look::ASK_CONTEXT);
+            b.close();
+        }
+    } else if let Some(page) = &card.page {
+        b.open(Role::Slot);
+        b.style(look::ASK_CONTEXT);
+        if let ReadValue::Escalation(held) = page {
+            crate::cards::specification(b, &held.task.spec, w);
+        }
+        if let ReadValue::PersonTask(task) = page {
+            crate::cards::specification(b, &task.spec, w);
+        }
+        match asked.kind {
+            Kind::Proposal | Kind::Held | Kind::Funds { .. } => {
+                crate::confirm::facts_at(b, page, w, rows, crate::cards::Place::Inbox);
+            }
+            Kind::Question | Kind::PersonTask => {}
+        }
+        b.close();
+    }
+    if let Some(outcome) = root.pages().needs().refused(card.object) {
+        crate::confirm::outcome_words(b, w, outcome);
+    }
+    if card.key.is_some() || card.outcome.is_some() {
+        crate::confirm::card_controls(b, root, card, w, bindings);
+        return;
+    }
+    b.open(Role::Slot);
+    b.style(look::ASK_CHOICES);
+    if let Some(parsed) = &asked.parsed {
+        for (i, choice) in parsed.choices.iter().enumerate() {
+            b.open(Role::Button);
+            b.name(&choice.words);
+            b.bind(
+                bindings.insert(Act::Needs(needs::Act::Choose { object: card.object, words: choice.words.clone() })),
+            );
+            if parsed.primary() == Some(i) {
+                b.style(look::RECOMMENDED);
+            }
+            if choice.recommended {
+                if w.shell == Shell::Terminal {
+                    b.text(Run::Plain, &choice.words);
+                    b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
+                }
+                text(b, Role::Text, &w.say(Word::NeedsRecommended, &[]), look::REC);
+            }
+            b.close();
+        }
+    }
+    match asked.kind {
+        Kind::Question => button(
+            b,
+            bindings,
+            &w.say(Word::Reply, &[]),
+            Act::Needs(needs::Act::OpenReply { object: card.object }),
+            look::ASK_QUIET,
+        ),
+        Kind::Proposal | Kind::Held | Kind::Funds { .. } | Kind::PersonTask => {
+            crate::confirm::needs_controls(b, root, card, w, bindings);
+            if let Some(task) = super::inbox::source_task(card.object) {
+                button(
+                    b,
+                    bindings,
+                    &w.say(Word::HomeOpen, &[]),
+                    Act::Go { address: Address::Task { task, filter: PlanFilter::All } },
+                    look::ASK_QUIET,
+                );
+            }
+        }
+    }
+    button(
+        b,
+        bindings,
+        &w.say(Word::NeedsLater, &[]),
+        Act::Needs(needs::Act::Later { object: card.object }),
+        look::ASK_QUIET,
+    );
+    b.close();
+    reply_form(b, root, asked, w, bindings);
 }

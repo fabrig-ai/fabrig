@@ -2,8 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [forge.md](forge.md).
 
-- **Not yet:** 2.1, 3: the `Changes` page, its queues and a queued
-  change's place (no `Changes` address in `temper-client-domain`). 2.3:
+- **Not yet:** 2.1: a queued change's place in its own panel. 2.3:
   amending a change's gates from its panel. 4: approvals, a person
   task's card at a head and the browser panel's counted forge reviews;
   ctl's `change show` carries the counted people and heads, the rules'

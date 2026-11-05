@@ -1,3 +1,7 @@
+changes
+changes-empty
+changes-one
+changes-landed-only
 home-three-left
 home-two-left
 home-accounts-claude
@@ -26,6 +30,9 @@ goals-ended
 goals-filter-empty
 goals-more
 home-github
+home-morning-card
+home-answered
+home-one-need
 configure
 configure-typing
 configure-sending
