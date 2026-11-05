@@ -83,7 +83,10 @@ bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
 managed (`protocol/setup.md`); `temper forge sign-in` prints an owned
 Forgejo's command without its binary and paths
-(`protocol/setup.md`), and a held task names no run's failure, which
+(`protocol/setup.md`), a preparation keeps a runner's row when its
+configuration names a `uuid`, reading no row, where the `runner-labels`
+request of 2026-11-05 has the uuid match (`protocol/setup.md`), and a
+held task names no run's failure, which
 is the user's to decide (`domain/worker.md`); with
 `TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
