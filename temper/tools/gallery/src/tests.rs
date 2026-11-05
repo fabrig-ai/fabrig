@@ -92,6 +92,39 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-accounts-claude",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Your agents run on your Claude subscription, and Forgejo on this machine.",
+            },
+            Part::Named { role: Role::Link, name: "Add ChatGPT or another plan" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-accounts-both",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Your agents run on your ChatGPT plan, and Forgejo on this machine.",
+            },
+            Part::Named { role: Role::Link, name: "Add another account" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-accounts-key",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Your agents run on an API key, and Forgejo on this machine." },
+            Part::Named { role: Role::Link, name: "Add another account" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
         name: "home-one-left",
         heading: "Hello is ready.",
         parts: &[

@@ -1611,3 +1611,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-steps > li > p { margin: 0; font-size: 14px; line-height: 1.55; }
 /* A refused adoption keeps its outcome under the repository's line. */
 #app > .temper-home .temper-home-steps > li > [role=alert] { grid-column: 2 / -1; }
+
+/* to-begin-more-accounts: the lede says agents can run on more accounts, a link to Accounts after it. */
+#app > .temper-home .temper-home-ledes { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 4px; }
+#app > .temper-home .temper-home-ledes > a { font-size: 15px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
