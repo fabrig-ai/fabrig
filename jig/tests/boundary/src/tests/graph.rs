@@ -407,7 +407,10 @@ fn application_breaches(manifests: &[CrateManifest]) -> Vec<String> {
     let first_application = ["tem", "per"].concat();
     for manifest in manifests {
         if !manifest.name.as_deref().is_some_and(|name| {
-            name.starts_with("jig-protocol-") || (name.starts_with("jig-client-protocol-") && !name.ends_with("-world"))
+            name.starts_with("jig-protocol-")
+                || (name.starts_with("jig-client-protocol-")
+                    && !name.ends_with("-world")
+                    && name != "jig-client-protocol-kit")
         }) {
             continue;
         }
@@ -432,7 +435,9 @@ fn smith_breaches(manifests: &[CrateManifest]) -> Vec<String> {
             || name.starts_with("jig-protocol-")
             || name == "jig-client-view"
             || name.starts_with("jig-client-shell-")
-            || (name.starts_with("jig-client-protocol-") && !name.ends_with("-world")))
+            || (name.starts_with("jig-client-protocol-")
+                && !name.ends_with("-world")
+                && name != "jig-client-protocol-kit"))
         {
             continue;
         }

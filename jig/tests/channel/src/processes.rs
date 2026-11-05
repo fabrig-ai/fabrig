@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) enum Proc {
     Auth(Box<dyn Host>),
-    Client(Box<jig_client_protocol_world::native::NativeClient>),
+    Client(Box<jig_client_protocol_kit::native::NativeClient>),
     Engine(Box<ServiceHost>),
     Worker(Box<ServiceHost>),
     Agent { host: Box<PipeHost<smith_agent_shell::Agent>>, errors: agent_fixture::AgentErrors },

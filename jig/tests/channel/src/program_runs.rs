@@ -321,7 +321,7 @@ impl skein_world::Referee<Proc> for Judge {
                 use jig_client::contract::{Answer, DocumentOutcome, Outcome};
                 matches!(
                     received,
-                    jig_client_protocol_world::native::Received::Answer {
+                    jig_client_protocol_kit::native::Received::Answer {
                         answer: Answer::Done(Outcome::Document(DocumentOutcome::AccountSignedOut {
                             confirmed: true, failed_hosts,
                         })), ..
@@ -489,7 +489,7 @@ impl Judge {
                         .received
                         .iter()
                         .filter_map(|received| {
-                            if let jig_client_protocol_world::native::Received::Delivery(
+                            if let jig_client_protocol_kit::native::Received::Delivery(
                                 jig_client::contract::Delivery::Task(task),
                             ) = received
                             {
@@ -599,12 +599,12 @@ pub fn run(case: Case, story: &smith_fake_claude::Story) -> Run {
         if case == Case::Open { worker_open } else { processes::worker_program_runs },
     );
     world.spawn_root(skein_sim::Handle::new(client.raw()), |root| {
-        let mut client = jig_client_protocol_world::native::NativeClient::new(
-            jig_client_protocol_world::native::settings(),
+        let mut client = jig_client_protocol_kit::native::NativeClient::new(
+            jig_client_protocol_kit::native::settings(),
             root,
             1000,
             fixtures::SEED,
-            jig_client_protocol_world::native::Script::account_sign_in(),
+            jig_client_protocol_kit::native::Script::account_sign_in(),
         );
         client.hold_for_account_sign_in();
         Proc::Client(Box::new(client))

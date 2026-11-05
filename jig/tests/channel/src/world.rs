@@ -113,12 +113,12 @@ fn run_at(mut settings: Settings, script: Script, held_turn: Option<u32>) -> Out
         .with_machine(Machine(machine));
     launch(&mut harness, root, &script, held_turn);
     harness.spawn_root(skein_sim::Handle::new(client_root.raw()), |root| {
-        let mut client = jig_client_protocol_world::native::NativeClient::new(
-            jig_client_protocol_world::native::settings(),
+        let mut client = jig_client_protocol_kit::native::NativeClient::new(
+            jig_client_protocol_kit::native::settings(),
             root,
             1000,
             settings.seed,
-            jig_client_protocol_world::native::Script::account_sign_in(),
+            jig_client_protocol_kit::native::Script::account_sign_in(),
         );
         client.hold_for_account_sign_in();
         Proc::Client(Box::new(client))

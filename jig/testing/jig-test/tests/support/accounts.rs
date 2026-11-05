@@ -1,8 +1,8 @@
 //! LLM account sign-in against the shipped process and the existing independent issuer/browser.
 use crate::support::{Person, Process, issuer, private, start};
 use jig_client::{Asker, Key, contract as c};
-use jig_client_protocol_world::native::Received;
-use jig_client_protocol_world::native::{NativeClient, Script};
+use jig_client_protocol_kit::native::Received;
+use jig_client_protocol_kit::native::{NativeClient, Script};
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Queue, Time};
 use skein_shell::{Clock, Host};

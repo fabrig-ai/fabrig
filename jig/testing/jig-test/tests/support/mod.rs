@@ -2,7 +2,7 @@
 pub mod ports;
 pub mod trace;
 use crate::account_sign_in_visitor::Visitor;
-use jig_client_protocol_world::native::{NativeClient, Script};
+use jig_client_protocol_kit::native::{NativeClient, Script};
 use jig_protocol_accounts_world::{fixtures as accounts, world::Story};
 use skein_fake_peers::{Transport, oauth};
 use skein_io::kernel::{Complete, Done, Fd, Op, Signal, Submit};
@@ -96,7 +96,7 @@ pub(super) fn client_settings(address: std::net::SocketAddr) -> jig_client_shell
     jig_client_shell_native::Settings {
         engine: skein_io::Addr::Ip(address),
         directory: b"private".as_slice().into(),
-        limits: jig_client_protocol_world::fixtures::connections_limits(),
+        limits: jig_client_protocol_kit::fixtures::connections_limits(),
         io: skein_io::Limits {
             sockets: 32,
             names: 1,
@@ -204,7 +204,7 @@ impl Host for Person {
             if client.received.iter().any(|r| {
                 matches!(
                     r,
-                    jig_client_protocol_world::native::Received::Answer {
+                    jig_client_protocol_kit::native::Received::Answer {
                         answer: jig_client::contract::Answer::Done(jig_client::contract::Outcome::Document(
                             jig_client::contract::DocumentOutcome::AccountKeyKept { .. }
                         )),

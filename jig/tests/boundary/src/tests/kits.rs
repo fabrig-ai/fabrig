@@ -11,13 +11,9 @@ const WORLD_KITS: [&str; 2] = ["skein-world", "smith-agent-process-world"];
 
 // Each remaining world edge has a reason; removing an edge also removes its entry.
 const PENDING: &[(&str, &str, &str)] = &[
-    ("jig-channel-world", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-one-process-world", "jig-channel-world", "The process fixture composes the channel world."),
-    ("jig-one-process-world", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-one-process-world", "jig-protocol-accounts-world", "The fixture uses the accounts protocol peer."),
-    ("jig-ops-world", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-test", "jig-channel-world", "The process fixture composes the channel world."),
-    ("jig-test", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-test", "jig-protocol-accounts-world", "The fixture uses the accounts protocol peer."),
 ];
 

@@ -1,7 +1,7 @@
 //! A real client keeps the fixture's LLM key before its task is admitted.
 use crate::{processes::Proc, stories::Story};
 use jig_client::{Asker, Key, accounts, contract as c};
-use jig_client_protocol_world::native::Received;
+use jig_client_protocol_kit::native::Received;
 use skein_lib::Secret;
 
 #[derive(Default)]
@@ -268,7 +268,7 @@ fn text(value: &[u8]) -> c::Text {
     c::Text::new(value.into(), 512).expect("bounded fixture value")
 }
 
-fn observe(client: &jig_client_protocol_world::native::NativeClient, views: &mut crate::world::Views) {
+fn observe(client: &jig_client_protocol_kit::native::NativeClient, views: &mut crate::world::Views) {
     if let Some(text) = client.text(crate::live_text::RUN) {
         views.text_bytes = views.text_bytes.max(text.text.bytes().len());
     }

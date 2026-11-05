@@ -2,7 +2,7 @@
 use crate::world::{self, Proc, ServiceHost};
 use crate::world_signals::SignalHost;
 use jig_client::{Asker, Handle, Key, contract as c};
-use jig_client_protocol_world::native::{NativeClient, Received, Script};
+use jig_client_protocol_kit::native::{NativeClient, Received, Script};
 use jig_protocol_accounts_world::{fixtures, world::Story as AccountStory};
 use skein_fake_peers::{Transport, llm, oauth};
 use skein_io::kernel::{Complete, Fd, Submit};

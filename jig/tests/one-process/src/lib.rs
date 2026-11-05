@@ -4,4 +4,4 @@ pub mod fixtures;
 pub mod referee;
 pub mod world;
 mod world_signals;
-pub use jig_client_protocol_world::native::Script;
+pub use jig_client_protocol_kit::native::Script;
