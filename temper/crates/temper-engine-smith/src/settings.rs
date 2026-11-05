@@ -49,10 +49,13 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         let kind = setting.required(b"kind")?.text(b"kind")?;
         let number = setting.field(b"number")?;
         let project = setting.field(b"project")?;
-        if project.is_some() && kind.as_ref() != b"landing-rule" && kind.as_ref() != b"project-policy" {
+        if project.is_some()
+            && kind.as_ref() != b"landing-rule"
+            && ![b"project-policy".as_slice(), b"project-ways", b"project-questions"].contains(&kind.as_ref())
+        {
             return Err(Problem::Range(b"project"));
         }
-        if kind.as_ref() == b"rules" || kind.as_ref() == b"project-policy" {
+        if [b"rules".as_slice(), b"project-policy", b"project-ways", b"project-questions"].contains(&kind.as_ref()) {
             if number.is_some() {
                 return Err(Problem::Range(b"number"));
             }
@@ -61,7 +64,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         }
         if let Some(project) = project {
             positive(project, b"project")?;
-        } else if kind.as_ref() == b"project-policy" {
+        } else if [b"project-policy".as_slice(), b"project-ways", b"project-questions"].contains(&kind.as_ref()) {
             return Err(Problem::Missing(b"project"));
         }
         let setting = settings_form::file::read_setting(bytes, &settings_form::Limits::standard())
@@ -150,7 +153,10 @@ pub(super) fn kind_values(items: &[s::Item]) -> Result<Box<[engine::KindValue]>,
     };
     let mut values = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for item in items {
-        let s::Setting::Application { kind: kind @ 1..=3, scope, number } = item.setting else { continue };
+        let s::Setting::Application { kind, scope, number } = item.setting else { continue };
+        if !temper_client_protocol_wire::settings_kind(kind) {
+            continue;
+        }
         let bytes = match &item.edit {
             s::Edit::Set(s::Value::Application(bytes)) => bytes,
             s::Edit::Set(_) => return Err(Problem::Range(b"items")),
