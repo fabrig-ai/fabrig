@@ -63,4 +63,4 @@ Section 4.3's failed and refused answer diagnostics reach serve's stderr and the
   log's lines also go to `dump.log` there; unset, which is the default and the
   only shipped form, section 6 holds exactly. Because the deployment's
   comparison with another pipeline must read what each run was sent
-  (`../draft/dogfood-hacks.md`, 2.10). It carries no credential.
+  (`../draft/dogfood-hacks.md`, 2.13). It carries no credential.
