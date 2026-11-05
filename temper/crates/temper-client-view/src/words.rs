@@ -644,6 +644,7 @@ pub enum Word {
     RejectProposal,
     ChatDelegates,
     ChatSendHint,
+    ChatWorking,
     ConnectForge,
     ChatTitle,
     PlaygroundModelName,
@@ -982,7 +983,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Goal rows, ways and page add thirty-five phrases (client/README.md, 3.5).
 // Byline forms add six phrases (client/README.md, 5.5).
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
-const PHRASES: u32 = 1475;
+// The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
+const PHRASES: u32 = 1476;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1000,8 +1002,8 @@ const PHRASES: u32 = 1475;
 // Goal rows, ways and page add sixty-three segments (client/README.md, 3.5).
 // Byline forms add twenty-eight segments (client/README.md, 5.5).
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
-const SEGMENTS: u32 = 2591;
-const ALL: [Word; 879] = [
+const SEGMENTS: u32 = 2592;
+const ALL: [Word; 880] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1619,6 +1621,7 @@ const ALL: [Word; 879] = [
     Word::RejectProposal,
     Word::ChatDelegates,
     Word::ChatSendHint,
+    Word::ChatWorking,
     Word::ConnectForge,
     Word::ChatTitle,
     Word::PlaygroundModelName,
@@ -2533,6 +2536,7 @@ impl Word {
             Self::RejectProposal => 1405,
             Self::ChatDelegates => 145,
             Self::ChatSendHint => 186,
+            Self::ChatWorking => 3287,
             Self::ConnectForge => 275,
             Self::ChatTitle => 276,
             Self::PlaygroundModelName => 277,
@@ -3809,6 +3813,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ProposalInbox => (&[b"Open in inbox \xe2\x86\x97"], &[]),
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
         Word::ChoiceProvider => (&[b"", b""], &[Name]),
+        Word::ChatWorking => (&[b"Writing"], &[]),
         Word::ChatSendHint => (&[b"Enter sends \xc2\xb7 Shift+Enter for a new line"], &[]),
         Word::ConnectForge => (&[b"Connect a forge"], &[]),
         Word::ChatTitle => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
