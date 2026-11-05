@@ -96,3 +96,7 @@ Commit one cause per commit, each saying why. Push.
 ## Report
 
 Per the implementer's text. Its first section answers acceptance 5, plainly, for someone who hasn't read this plan. Then: each failure's caught words, with its log path and machine; the cause; the fix and its tier; the test, what you broke and what it said; the runs and how many failed before and after; the tier's CPU and wall against its budget; and which leads above the evidence dropped. dev.fabrig.ai's build isn't known and it isn't probed: say what the user would check there, if your finding gives them something.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Keep 85 and change no budget. Don't hold these fixes for it: measure the same full tier on this branch's base, once. If the base costs about the same, the excess isn't yours: finish with eight whole-tier passes judged on everything but that CPU line, report base and branch figures, and I'll take the budget to the user as its own item. If your fixes added real cost, profile and cut that part here. Good diagnosis.
