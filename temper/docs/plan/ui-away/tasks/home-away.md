@@ -71,3 +71,11 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: the render's check, on which builder.
+
+## Rebase (2026-11-05, step merge, foreman ui-away/home-away/foreman-1)
+
+resolve both merge conflicts by combining phrase counts and preserving the trunk’s status corrections.
+Rebase onto the landing trunk containing `5cb4f0e8f2` (“Merge main to retain adoption phrases alongside Away UI”).
+- `temper/crates/temper-client-view/src/words.rs`: retain all thirteen Home-away words, their IDs, English forms and `ALL` entries. Combine the trunk’s +2 phrases/+6 segments with this task’s +13/+29: `PHRASES = 1697`, `SEGMENTS = 2957`, and `ALL` length 1098.
+- `temper/docs/design/client/browser.status.md`: preserve the corrected Start goal departure from main’s `bf111565a8`, including `Chats { filter: All }` and the unbuilt Drafts filter. Remove only `home-away` and `home-away-one` from the 7.2 gaps; retain `home-away-overturned`, `settings-away`, and the 7.1 title gap.
+Validate the combined phrase declarations and run the task’s required package checks through heavy with `TEMPER_BUNDLE=none`.
