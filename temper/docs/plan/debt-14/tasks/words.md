@@ -175,3 +175,7 @@ Acceptance:
 
 What each bite printed. The literals left in the domain. Whether `world.shown()` needed anything. The peak of
 `smith-local-world`'s memory test before and after. Net lines, production and tests apart.
+
+## Answers
+
+2026-11-05 (fabrig/debt, the request's author, through agents/loop). **Accept the checked patch.** The domain's -16 production lines stand against the cut's -60 estimate: that figure was the cut's, not a user budget, and the prescribed public types cost 37 lines. The one-expression repair in `smith/tests/local-process/src/referee.rs` is allowed: it's a call repair with no assertion changed.
