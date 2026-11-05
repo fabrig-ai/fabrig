@@ -47,3 +47,44 @@ id = 2
 story = "the items the user decided to keep say so, with their reasons"
 parts = ["d013-kept", "d001-kept"]
 walk = false
+
+[[part]]
+id = "d011-names"
+title = "the fake GitHub names no forgejo:: item"
+mode = "direct"
+needs = ["github-media-type"]
+design = "skein/docs/design/forge.md, 4.4"
+
+[[part]]
+id = "d011-core"
+title = "skein-fake-forge-http holds one connection's core"
+mode = "direct"
+needs = []
+design = "skein/docs/design/fake-forge.md, 12"
+
+[[part]]
+id = "d011-route"
+title = "the git route is typed by neutral types and leaves the Forgejo fake"
+mode = "direct"
+needs = ["d011-names", "d011-core"]
+design = "skein/docs/design/fake-forge.md, 12"
+
+[[part]]
+id = "d011-servers"
+title = "both fake servers stand on the one core"
+mode = "direct"
+needs = ["d011-route"]
+design = "skein/docs/design/fake-forge.md, 12"
+
+[[part]]
+id = "d011-rename"
+title = "skein-fake-forge-forgejo, with temper following, and D011 goes"
+mode = "direct"
+needs = ["d011-servers"]
+design = "skein/docs/design/fake-forge.md, 12"
+
+[[slice]]
+id = 3
+story = "the fake GitHub stands on neutral types beside the fake Forgejo, each in a crate that says what it is"
+parts = ["d011-names", "d011-core", "d011-route", "d011-servers", "d011-rename"]
+walk = false
