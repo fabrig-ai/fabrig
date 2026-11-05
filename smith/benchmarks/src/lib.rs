@@ -18,6 +18,10 @@ mod summary;
 mod task;
 mod tokens;
 
+pub mod fault;
+
+pub use fault::{Fault, FaultKind};
+
 pub mod agent;
 
 pub mod arm;
