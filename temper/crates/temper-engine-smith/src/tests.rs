@@ -2390,6 +2390,27 @@ fn file_and_pull_files_over_host_bound_name_limit_and_recovery() {
     fitting_file_and_pull_feedback();
     file_and_pull_rendering_boundaries();
     pull_inventory_limits();
+    many_pull_paths_fit_the_text_fragments();
+}
+
+fn many_pull_paths_fit_the_text_fragments() {
+    use skein_forge::api;
+    let mut files = skein_lib::List::with_capacity(200);
+    for n in 0_u32..200 {
+        files
+            .push(api::File { path: format!("{n}").into_bytes().into(), before: Some(vec![0; 32].into()), after: None })
+            .expect("fixture files fit");
+    }
+    let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(api::Answer::PullFiles {
+        head: [0x11; 32],
+        files: files.into_boxed(),
+        more: false,
+    })));
+    let feedback = crate::answer_bounded(&recorded, 10_240);
+    assert!(feedback.error());
+    assert!(feedback.text().len() <= 10_240);
+    assert!(skein_lib::bytes::find(feedback.text(), b"[changed paths omitted:").is_some());
+    assert!(skein_lib::bytes::find(feedback.text(), b"list directories").is_some());
 }
 
 fn oversized_file_and_pull_feedback() {
