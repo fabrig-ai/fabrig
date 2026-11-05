@@ -168,3 +168,25 @@ Then `connect` runs as it does, on the restarted Forgejo. Add the leg's time to 
 ## Report
 
 `Done:` or `Question:` as above. For each of (1), (2) and (3): what Forgejo answered, in statuses and addresses. Whether Forgejo's forms needed a CSRF field. The story's figures before and after, and the machine. The bites. Which options you took. Anything the entry in `temper/docs/design/draft/dogfood-hacks.md`, 2.8 says that the run showed otherwise: it isn't yours to edit, so the report says it.
+
+## Answers
+
+### 2026-11-05
+
+**Question:** Forgejo 17.0.1 still serves a form for `/user/link_account_signup` on its link page; investigate a stronger configuration, or change the required no-signup-form behaviour?
+
+**Answer:** Neither yet. What the expectation becomes is the user's, and they can't weigh it on what run 1 saw: the story stopped at a string match on the form's `action`, so whether that form can register anyone is unobserved. This run gets those facts, changes no expectation, and ends with `Question:`, as the spec's own ending says, unless the form is gone.
+
+Start from the pushed branch `forge-no-registration/no-registration`. The links-only block, the variable and every other acceptance line stand. Add no setting to the block.
+
+1. **The assertion stays, and moves last.** In `support/forgejo_sign_in.rs`, `link_page` keeps its other asserts and prints what it found, and drops `assert!(!signup, "link page offers no registration")`. The form's presence is kept from each link page, and the same assert, with the same message, is the last statement of `no_registration` before `Ok(instance)`. The story stays red while the form is served; the rest of the leg now runs ahead of it.
+2. **What the form holds.** `link_page` prints, for the form whose `action` is `/user/link_account_signup`: the `name` of each `input`, `button`, `select` and `textarea` in it, and its text with the tags stripped. Print no `value`: `_csrf` and the like stay out of logs.
+3. **Registration's POSTs and the linking.** With step 1 done, the leg's existing asserts decide: `POST /user/link_account_signup` and `POST /user/sign_up` answer 403, `sam` stays 404, the admin makes `sam`, the wrong password links nothing, the right one links, and linking happens once. Change none of them. If one fails, that is the finding: stop there and report it, with the status, the address and the log's lines. Whichever way it goes, say whether each POST needed a CSRF field, or that it is unobserved.
+4. **What gates the form, by reading and not by trying.** Run `"$TEMPER_FORGEJO" embedded view templates/user/auth/link_account.tmpl`, and the same for `templates/user/auth/signup_inner.tmpl`; `embedded list` finds them if those names differ. This reaches no host. Report the conditions around the signup tab and form, and which settings they read, verbatim. If the binary has no such subcommand, say so and leave it `unknown`. Try no other `app.ini` setting: a stronger configuration is the user's call once this is known.
+
+End with `Question:` for the user unless the form is gone, naming the test `an_owned_forgejo_signs_its_member_in_through_temper`, the assertion `link page offers no registration`, and the request's line "with no way to register" (`temper/docs/plan/forge-no-registration/inputs/request.md`, Tests, 3). Give what 2, 3 and 4 showed, then these options, with your recommendation:
+
+- **Accept:** the assertion becomes what the request's line asks: the form has no field a registration needs, and both POSTs answer 403 with no account made. `draft/dogfood-hacks.md`, 2.8's "closes the form" is reworded to match.
+- **Stronger:** a setting or template that the reading in 4 shows removes the form, with its cost.
+
+This is the expected ending of this run, not a failure of it: the foreman takes the `Question:` as it stands. Leave `temper/docs/design/draft/dogfood-hacks.md` as it is, and report what the run showed against it.
