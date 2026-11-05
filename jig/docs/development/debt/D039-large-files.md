@@ -16,7 +16,7 @@
 Eight hand-written production files are over 1,500 lines: `jig-client-view/src/words/phrases/jig.rs`
 3,075 (D021); `jig-protocol-config/src/members.rs` 2,659, new since the backfill's first
 count; `jig-protocol-store/src/codec/settings.rs` 2,254 (D025); `jig-domain-tasks/src/boundary.rs`
-2,252 (D012); `jig-domain-core/src/reads/rows.rs` 1,837; `jig-client-view/src/words/phrases/english.rs`
+2,252; `jig-domain-core/src/reads/rows.rs` 1,837; `jig-client-view/src/words/phrases/english.rs`
 1,630 (D021); `jig-domain-tasks/src/domain.rs` 1,588; `jig-domain-core/src/effects.rs` 1,507.
 
 Test files are not counted, but the largest are of the same kind: `jig-domain-core/src/tests.rs`
@@ -31,5 +31,5 @@ branches collide.
 
 ## What pays it back
 
-Split by concept as the items above pay off (D012, D021, D025), and the others by the
+Split by concept as the items above pay off (D021, D025), and the others by the
 design's parts; split the unit-test files by the module they test.

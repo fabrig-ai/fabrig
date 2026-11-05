@@ -170,11 +170,10 @@ fn a_persons_wait_starts_after_dependencies_and_notifies_its_requester_once_acro
     assert_eq!(world.record(2).person_wait, Some(wait), "held tasks do not send a stall notice");
     world.restart();
     assert_eq!(
-        response(&mut world, |reply_to| Event::Control {
+        response(&mut world, |reply_to| Event::Release {
             reply_to,
             by: Party::Person(9),
-            task: 2,
-            control: tasks::Control::Release { again: None, message: None },
+            operation: tasks::Release { task: 2, again: None, message: None }
         }),
         Reply::Done
     );
@@ -228,15 +227,17 @@ fn person_stall_news_and_the_result_keep_room_before_ordinary_words() {
     let got = response(&mut world, |reply_to| Event::Message {
         reply_to,
         project: 1,
-        task: 1,
-        word: tasks::Word {
-            number: 50,
-            from: Party::Person(9),
-            kind: tasks::MessageKind::Words,
-            words: Box::new([1]),
-            at: skein_lib::Wall::EPOCH,
-            hits: 1,
-            eligible: true,
+        operation: tasks::Message {
+            task: 1,
+            word: tasks::Word {
+                number: 50,
+                from: Party::Person(9),
+                kind: tasks::MessageKind::Words,
+                words: Box::new([1]),
+                at: skein_lib::Wall::EPOCH,
+                hits: 1,
+                eligible: true,
+            },
         },
     });
     assert!(matches!(got, Reply::Refused(tasks::Problem { why: tasks::Refusal::Busy, .. })));

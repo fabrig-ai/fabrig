@@ -102,7 +102,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
     tasks::step(
         &mut core.tasks,
         &env.with(limits.tasks),
-        tasks::Event::Message { reply_to: to(), project: 1, task: 1, word: word.clone() },
+        tasks::Event::Message { reply_to: to(), project: 1, operation: tasks::Message { task: 1, word: word.clone() } },
         &mut words_out,
     );
     while let Some(request) = words_out.pop() {
@@ -214,15 +214,17 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
         tasks::Event::Message {
             reply_to: to(),
             project: 1,
-            task: 1,
-            word: tasks::Word {
-                number: 3,
-                from: tasks::Party::Person(1),
-                kind: tasks::MessageKind::Words,
-                words: Box::from(&b"continue"[..]),
-                at: env.wall,
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: 1,
+                word: tasks::Word {
+                    number: 3,
+                    from: tasks::Party::Person(1),
+                    kind: tasks::MessageKind::Words,
+                    words: Box::from(&b"continue"[..]),
+                    at: env.wall,
+                    hits: 1,
+                    eligible: true,
+                },
             },
         },
     );
@@ -263,15 +265,17 @@ fn cumulative_read_core() -> (Core, Env<Limits>) {
             tasks::Event::Message {
                 reply_to: to(),
                 project: 1,
-                task: 1,
-                word: tasks::Word {
-                    number,
-                    from: tasks::Party::Person(1),
-                    kind: tasks::MessageKind::Words,
-                    words: b"word".as_slice().into(),
-                    at: env.wall,
-                    hits: 1,
-                    eligible: true,
+                operation: tasks::Message {
+                    task: 1,
+                    word: tasks::Word {
+                        number,
+                        from: tasks::Party::Person(1),
+                        kind: tasks::MessageKind::Words,
+                        words: b"word".as_slice().into(),
+                        at: env.wall,
+                        hits: 1,
+                        eligible: true,
+                    },
                 },
             },
         );
@@ -338,15 +342,17 @@ fn answer_refusal_core() -> (Core, Env<Limits>) {
         tasks::Event::Message {
             reply_to: ReplyTo::new(Token::new(1)),
             project: 1,
-            task: 1,
-            word: tasks::Word {
-                number: 3,
-                from: tasks::Party::Person(1),
-                kind: tasks::MessageKind::Words,
-                words: b"new word".as_slice().into(),
-                at: env.wall,
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: 1,
+                word: tasks::Word {
+                    number: 3,
+                    from: tasks::Party::Person(1),
+                    kind: tasks::MessageKind::Words,
+                    words: b"new word".as_slice().into(),
+                    at: env.wall,
+                    hits: 1,
+                    eligible: true,
+                },
             },
         },
     );

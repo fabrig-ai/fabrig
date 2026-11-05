@@ -364,25 +364,27 @@ fn accepted_amendment(world: &mut World, funder: Funder, budget: u64) -> Reply {
     authority.budget.spend = budget;
     let message = world.record(1).last_message + 1;
     send(world, |reply_to| Event::Amend {
+        operation: tasks::Amend {
+            task: 1,
+            message,
+            stop_run: false,
+            amendment: Box::new(tasks::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: Some(authority),
+                llm: None,
+                reason: b"more work".as_slice().into(),
+            }),
+        },
         places: Box::new([]),
         reply_to,
         by: Party::Person(9),
-        task: 1,
-        message,
-        stop_run: false,
         funder: Some(funder),
-        amendment: tasks::Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: None,
-            authority: Some(authority),
-            llm: None,
-            reason: b"more work".as_slice().into(),
-        },
     })
 }
 

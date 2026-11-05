@@ -60,6 +60,11 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     }
 }
 impl Domain {
+    /// The open project's live or ended goals (temper/docs/design/client/README.md, 5.3).
+    #[must_use]
+    pub fn has_goals(&self, project: u32) -> bool {
+        self.pages.has_goals(&self.client, project)
+    }
     #[must_use]
     pub const fn authorization(&self) -> Option<&crate::authorize::Authorization> {
         self.authorization.as_ref()

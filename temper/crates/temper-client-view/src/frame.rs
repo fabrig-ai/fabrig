@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Token};
 use skein_ui::{Binding, Builder, Region, Role, Run};
 use temper_client_domain::{Address, Domain, pages::Act};
-use temper_client_domain::{ChatsFilter, pages::switcher};
+use temper_client_domain::{ChatsFilter, GoalsFilter, pages::switcher};
 #[must_use]
 pub const fn owner() -> skein_ui::Owner {
     skein_ui::Owner { number: temper_client_domain::owner::Owner::Pages.asker().0 }
@@ -556,8 +556,26 @@ pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bi
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
     entries(b, root, w, bindings, project, false);
-    settings_link(b, root, w, bindings, project);
+    if !goals_shown(root, project) {
+        settings_link(b, root, w, bindings, project);
+    }
     b.close();
+}
+
+fn goals_shown(root: &Domain, project: u32) -> bool {
+    root.has_goals(project) || root.pages().goals().is_some()
+}
+
+fn goals_current(root: &Domain) -> bool {
+    if root.pages().goals().is_some() {
+        return true;
+    }
+    if let Some(page) = root.pages().task()
+        && let Some(task) = page.document(root.client())
+    {
+        return page.shape == temper_client_domain::pages::task::Shape::Tracked || task.goal.is_some();
+    }
+    false
 }
 
 fn entries(
@@ -582,6 +600,7 @@ fn entries(
         | Address::Adopt { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
@@ -612,6 +631,16 @@ fn entries(
         b.close();
     }
     b.close();
+    if goals_shown(root, project) {
+        action(
+            b,
+            Role::Link,
+            &w.say(Word::Goals, &[]),
+            Act::Go { address: Address::Goals { project, filter: GoalsFilter::All } },
+            goals_current(root),
+            bindings,
+        );
+    }
     action(
         b,
         Role::Link,
@@ -639,7 +668,8 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     let current = match root.pages().address() {
         Address::Settings { .. } | Address::Configure { .. } => true,
         Address::Chat { .. } => crate::pages::chat::configuring(root),
-        Address::Home { .. }
+        Address::Goals { .. }
+        | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
@@ -670,6 +700,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::ConnectForge { .. }
         | Address::Forges
@@ -728,6 +759,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Goals { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. }
             | Address::ConnectModel { .. }
@@ -798,6 +830,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     };
@@ -832,6 +865,7 @@ pub(crate) fn accounts_link(
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     } {

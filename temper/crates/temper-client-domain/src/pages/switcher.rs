@@ -89,6 +89,7 @@ impl Switcher {
             Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Goals { .. }
             | Address::Configure { .. }
             | Address::Chats { .. }
             | Address::NewChat

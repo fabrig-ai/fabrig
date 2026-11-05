@@ -542,6 +542,18 @@ fn prepare_account(
         *selected = true;
     }
     let Some(actor) = provision else { return false };
+    // The goal fact adds a Watch and Read during sign-in; let them finish before carrying the key.
+    if actor.at() == 5 {
+        let pending = client.pending();
+        if pending.shell.active > 1
+            || pending.shell.queued != 0
+            || pending.shell.held != 0
+            || pending.admission.attempts != 0
+            || pending.admission.deferred_reads != 0
+        {
+            return true;
+        }
+    }
     match actor.next(&mut TreeFace::new(client.tree()), now) {
         Next::Do(Doing::Act { node, act }) => assert!(client.act(node, act), "offered account setup act"),
         Next::Do(Doing::Go { address }) => client.go(address),

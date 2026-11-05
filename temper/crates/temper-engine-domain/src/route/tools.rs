@@ -296,8 +296,7 @@ pub(crate) fn relay_payload(
                         to: reply_to,
                         key,
                         action: core::NamedAction::Control {
-                            target,
-                            control: tasks::Control::Cancel { reason, grace: None, message: None },
+                            cancel: tasks::Cancel { task: target, reason, grace: None, message: None },
                         },
                     }));
                 }

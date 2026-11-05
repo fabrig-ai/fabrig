@@ -3,6 +3,7 @@
 2026-11-05. Where temper's code lags or departs from [agent.md](agent.md).
 The remaining gaps concern settings reads, verdict follow-up tasks,
 change-refusal model wording and shell authority for runs that cannot deliver.
+Section 4.3 has no gap in combined charter and workspace ownership fitting.
 
 - **Not yet:** 8.3: a chat's document: its authority's note scope, its
   instructions and its tool's answer's words.

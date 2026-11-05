@@ -48,8 +48,9 @@ user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). Much of a change's own
-bounds and gates, the forge's merge queue and a goal's issue lag
-(`domain/forge.md`); so do the client's Board, Changes and How work
+bounds and gates, the forge's merge queue and a goal's issue lag, and
+the queue's first can lose its turn to a change stepped during it
+(`domain/forge.md`); so do the client's Goals and How work
 runs pages and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
@@ -65,7 +66,8 @@ box (`domain/forge.md`), a project's Delete (`client/README.md`),
 a failure of the secrets' store on an accounts' request, which stops
 no engine (`protocol/credentials.md`), and
 a forge's Start over with no welcome, which ends at the inbox
-(`client/forge.md`);
+(`client/forge.md`), and a closed change whose repository a removal
+erased leaves no project the Changes document (`client/README.md`);
 public reading still lacks a deployment's proxy configuration and
 figures, and its negative walk plays the proxy's own rules against
 scripted upstreams rather than temper's service

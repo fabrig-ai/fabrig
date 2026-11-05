@@ -557,6 +557,8 @@ pub(super) fn chat_line() -> TaskLine {
         budget,
         waits_on: WaitsOn::Nothing,
         phases: PhaseCounts::ZERO,
+        delegates_done: 0,
+        delegates_total: 0,
         held_below: 0,
         conversation: None,
     }

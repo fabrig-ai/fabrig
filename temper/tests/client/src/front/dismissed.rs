@@ -133,6 +133,10 @@ fn configurations(seed: u64) -> [engine::Config; 2] {
     std::array::from_fn(|_| {
         let mut config = walking::config(seed);
         config.core.connectors = Box::new([fixtures::FORGE]);
+        // These three-device stories use no goals; reserve the fixed engine watch table for dismissal facts.
+        let mut templates = config.core.defaults.templates.into_vec();
+        templates.retain(|template| template.number != jig_client::shapes::GOAL);
+        config.core.defaults.templates = templates.into_boxed_slice();
         config
     })
 }

@@ -1,5 +1,5 @@
 //! Requester question keeps and task-batched exits (domain/tasks.md, 5.7 and 7).
-use jig_domain_tasks::{self as tasks, *};
+use jig_domain_tasks::{self as tasks, Cancel, *};
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Queue, ReplyTo, Token, Wall};
 
@@ -23,15 +23,17 @@ fn message(world: &mut World, source: Party, target: u64, number: u64, kind: Mes
     response(world, |reply_to| Event::Message {
         reply_to,
         project: 1,
-        task: target,
-        word: Word {
-            number,
-            from: source,
-            kind,
-            words: b"proceed?".as_slice().into(),
-            at: Wall::EPOCH,
-            hits: 1,
-            eligible: false,
+        operation: tasks::Message {
+            task: target,
+            word: Word {
+                number,
+                from: source,
+                kind,
+                words: b"proceed?".as_slice().into(),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: false,
+            },
         },
     })
 }
@@ -117,11 +119,10 @@ fn a_question_keep_permits_failure() {
 #[test]
 fn a_question_keep_permits_cancellation() {
     let mut world = parked();
-    response(&mut world, |reply_to| Event::Control {
+    response(&mut world, |reply_to| Event::Cancel {
         reply_to,
         by: Party::Person(PERSON),
-        task: ASKER,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: ASKER, reason: Box::new([]), grace: None, message: None },
     });
     world.settle(ASKER);
     assert!(matches!(world.results[&ASKER], Ending::Cancelled { .. }));
@@ -150,13 +151,12 @@ fn a_question_through_a_person_task_keeps_nothing() {
 fn moved() -> World {
     let mut world = parked();
     response(&mut world, |reply_to| Event::Move {
+        operation: tasks::Move { task: ASKER, reason: Box::new([]) },
         reply_to,
-        task: ASKER,
         person: PERSON,
         period: 0,
         pool_budget: 1_000,
         period_budget: 10_000,
-        reason: Box::new([]),
     });
     world.restart();
     world
@@ -286,13 +286,12 @@ fn moving_full_credit_lists_publishes_each_affected_task_once() {
             &mut domain,
             &env,
             Event::Move {
+                operation: tasks::Move { task: asker, reason: Box::new([]) },
                 reply_to: ReplyTo::new(Token::new(1)),
-                task: asker,
                 person: PERSON,
                 period: 0,
                 pool_budget: 10_000,
                 period_budget: 100_000,
-                reason: Box::new([]),
             },
         );
         let row = domain.task(asker).expect("moved asker");
@@ -320,11 +319,10 @@ fn ending_full_credit_lists_emits_one_batch_per_asker_and_one_publication() {
     step(
         &mut domain,
         &env,
-        Event::Control {
+        Event::Cancel {
             reply_to: ReplyTo::new(Token::new(1)),
             by: Party::Task(REQUESTER),
-            task: FIRST_PEER,
-            control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+            operation: Cancel { task: FIRST_PEER, reason: Box::new([]), grace: None, message: None },
         },
     );
     step(&mut domain, &env, Event::EffectsSettled { task: FIRST_PEER });
@@ -526,13 +524,12 @@ fn the_current_person_answers_after_the_asked_task_moves() {
     const NEXT_PERSON: u64 = PERSON + 1;
     let mut world = person_asked();
     response(&mut world, |reply_to| Event::Move {
+        operation: tasks::Move { task: REQUESTER, reason: Box::new([]) },
         reply_to,
-        task: REQUESTER,
         person: NEXT_PERSON,
         period: 0,
         pool_budget: 1_000,
         period_budget: 10_000,
-        reason: Box::new([]),
     });
     assert_eq!(world.record(ASKER).questions[0].answerer, Party::Person(NEXT_PERSON));
     person_reply(&mut world, PERSON);
@@ -639,14 +636,11 @@ fn asks_cannot_be_amended() {
             reason: Box::new([]),
         };
         let reply = response(&mut world, |reply_to| Event::Amend {
+            operation: tasks::Amend { task: ASKER, stop_run: false, amendment: Box::new(amendment), message: ANSWER },
             reply_to,
             by: Party::Task(REQUESTER),
-            task: ASKER,
             places: Box::new([]),
             funder: None,
-            stop_run: false,
-            amendment,
-            message: ANSWER,
         });
         assert!(matches!(reply, Reply::Refused(problem) if problem.why == Refusal::Spec));
         assert_eq!(world.record(ASKER).spec.asks, old);

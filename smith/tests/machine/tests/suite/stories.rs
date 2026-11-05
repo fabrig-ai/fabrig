@@ -2,10 +2,10 @@
 
 use skein_fake_machine::Item;
 use skein_lib::{Time, Token};
-use smith_domain::tools::Outcome;
 use smith_domain::{run, tools};
 use smith_machine_world::World;
 use smith_protocol_machine::{FromDomain, ToDomain};
+use smith_tools_world::fixture::{ALL, exited};
 
 fn place(root: Token, path: &[u8]) -> tools::Place {
     tools::Place { root, path: Box::from(path) }
@@ -515,13 +515,9 @@ fn removal_checks_versions_and_confines_one_file_or_empty_directory() {
     }
 }
 
-const ALL: tools::Grants = tools::Grants { inspect: true, modify: true, shell: true };
-
 #[test]
 fn a_command_whose_child_outlives_it_ends_with_its_group_at_the_deadline() {
-    use self::ALL;
-    use skein_lib::{Duration, Env, Queue, Token, Wall};
-    use smith_protocol_machine::{FromDomain, ToDomain};
+    use skein_lib::{Duration, Env, Queue, Wall};
     use smith_tools_world::{Settings, calls::shell, fixture::Fixture};
     let calm = Settings::calm(101);
     let limits = tools::Limits {
@@ -576,15 +572,4 @@ fn a_command_whose_child_outlives_it_ends_with_its_group_at_the_deadline() {
     assert_eq!(out.pop(), Some(tools::Request::Closed { session: Token::new(1) }));
     domain.reclaim();
     assert_eq!((domain.kits(), domain.flights()), (0, 0));
-}
-
-fn exited(exit: tools::Exit, head: &[u8], tail: &[u8], dropped: u64) -> Outcome {
-    Outcome::Exited {
-        exit,
-        head: head.into(),
-        tail: tail.into(),
-        dropped,
-        timeout: tools::TimeoutClamp::Within,
-        output: tools::BytesClamp::Within,
-    }
 }

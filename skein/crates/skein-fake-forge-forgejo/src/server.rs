@@ -42,6 +42,7 @@ pub struct Server {
     user: u64,
     scopes: Scopes,
     request: Option<Request>,
+    requests: Queue<Request>,
     select: response::Select,
     range: Result<Option<response::Range>, api::Error>,
     call: Option<Id<Call>>,
@@ -73,6 +74,7 @@ impl Server {
             user: 0,
             scopes: Scopes { user: false, repository: false, admin: false, organization: false, writing: false },
             request: None,
+            requests: Queue::uncapped(),
             select: response::Select::Document,
             range: Ok(None),
             call: None,
@@ -83,6 +85,10 @@ impl Server {
     /// Takes the sanitized head captured at the last request entrance.
     pub fn take_head(&mut self) -> Option<http::Call> {
         self.connection.take_head()
+    }
+    /// Takes decoded API requests in entrance order, including refused requests.
+    pub fn take_request(&mut self) -> Option<Request> {
+        self.requests.pop()
     }
     /// Whether no accepted request remains to be answered on this connection.
     #[must_use]
@@ -439,6 +445,19 @@ fn entrance(
     service.tally.count(None, user);
     server.range = response::range(call.header(b"range"));
     let Some(user) = user else {
+        let method = match call.method {
+            Method::Get => Some(request::Method::Get),
+            Method::Post => Some(request::Method::Post),
+            Method::Put => Some(request::Method::Put),
+            Method::Patch => Some(request::Method::Patch),
+            Method::Delete => Some(request::Method::Delete),
+            Method::Head | Method::Options => None,
+        };
+        if let Some(method) = method
+            && let Ok(documents::Route::Ready(request)) = documents::route(method, &call.target, &env.limits.documents)
+        {
+            server.requests.push(request);
+        }
         server.connection.requests.push(http::Request::Discard);
         fail(server, &env.limits, 401);
         return;
@@ -500,7 +519,12 @@ fn decoded(
     request: Request,
     above: &mut Queue<Event>,
 ) {
+    server.requests.push(request.clone());
     let route = crate::route(&request);
+    if service.refused == Some(route) {
+        fail(server, &env.limits, 403);
+        return;
+    }
     service.tally.unrouted = service.tally.unrouted.saturating_sub(1);
     let count = service.tally.routes.get(&route).copied().unwrap_or(0).saturating_add(1);
     service.tally.routes.insert(route, count).expect("route capacity");

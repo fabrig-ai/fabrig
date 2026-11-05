@@ -57,7 +57,7 @@ fn route_proposal(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Qu
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    if let tasks::Event::Amend { task, amendment, funder, .. } = &event
+    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, funder, .. } = &event
         && let Err(why) = core.amendment_account(*task, amendment, *funder)
     {
         let problem = tasks::Problem::new(Some(*task), why);
@@ -136,7 +136,7 @@ pub(crate) fn route_tasks(
         return super::effect::procedure::apply(core, env, *task, *step, event);
     }
     let mut out = Queue::uncapped();
-    if let tasks::Event::Amend { task, amendment, funder, .. } = &event
+    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, funder, .. } = &event
         && let Err(why) = core.amendment_account(*task, amendment, *funder)
     {
         let problem = tasks::Problem::new(Some(*task), why);
@@ -144,13 +144,15 @@ pub(crate) fn route_tasks(
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    if let tasks::Event::Amend { task, amendment, .. } = &event
+    if let tasks::Event::Amend { operation: tasks::Amend { task, amendment, .. }, .. } = &event
         && let Some(tasks::Tracking::Tracked { .. }) = amendment.tracked
         && let Some(row) = core.tasks.task(*task)
         && row.tracked.is_none()
         && core.projections.len() >= env.limits.tasks.tasks
     {
-        let tasks::Event::Amend { task, reply_to, .. } = event else { unreachable!("checked amendment") };
+        let tasks::Event::Amend { operation: tasks::Amend { task, .. }, reply_to, .. } = event else {
+            unreachable!("checked amendment")
+        };
         out.push(tasks::Request::Refused { reply_to, problem: tasks::Problem::new(Some(task), tasks::Refusal::Goals) });
         return tag_task_outputs(core, env, out);
     }
@@ -223,7 +225,7 @@ pub(crate) fn route_tasks(
 }
 // Direct-answer authority stays inside the core's question admission.
 fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
-    if let tasks::Event::Message { reply_to, project, task, word } = event {
+    if let tasks::Event::Message { reply_to, project, operation: tasks::Message { task, word } } = event {
         let person = match core.tasks.task(task) {
             Some(row) => core.conversation_requester(row),
             None => None,
@@ -234,7 +236,7 @@ fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
         {
             tasks::Event::PersonQuestion { reply_to, project, task, person, word }
         } else {
-            tasks::Event::Message { reply_to, project, task, word }
+            tasks::Event::Message { reply_to, project, operation: tasks::Message { task, word } }
         }
     } else {
         event
