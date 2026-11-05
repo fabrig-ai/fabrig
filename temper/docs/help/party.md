@@ -84,6 +84,15 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
   `account import` read a model's key or an account's record (temper
   help account); `forge connect` and `forge replace` read a forge's key or
   tokens (temper help forge).
+- **Forge people for approvals:** add the human collaborator on the forge,
+  configure the existing project's project-policy permissions if needed,
+  re-adopt with `repository adopt`, and check the required role with
+  `project show`; then propose the approval rule against the newest revision.
+  Stock maps admin to maintainer (1), write to member (2), read to observer (3).
+  Policy 1 affects future projects; re-adoption keeps existing roles.
+  temper's own writer is excluded. Imported parties can have blank login and
+  name: the collaborator listing supplies only user id and permission;
+  display names cannot establish an approval identity. Steps: temper help configure.
 - **People:** a person joins a deployment that signs in with Google by
   a change of its configuration and a restart (temper help server).
 
