@@ -21,30 +21,23 @@ fn the_playground_project_is_named_playground() {
             }
         }
         let context = context.expect("chat context");
+        assert_eq!(context, styled(tree, crate::look::THREAD) + 1);
+        assert!(tree.nodes()[context].styles.as_slice().contains(&crate::look::META_LINE));
         assert!(skein_lib::bytes::find(&fixtures::node_text(tree, context), "Shop · acme/shop".as_bytes()).is_some());
     }
 }
 
 #[test]
-fn the_chatbar_region_is_named_by_its_heading() {
-    use skein_fake_person::{Face, Find, Found};
-
+fn the_session_heading_keeps_its_name_and_shows_the_title_in_the_browser() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
-    let view = fixtures::page_view(&root);
-    let heading =
-        named_position(view.tree().nodes(), Role::Heading { level: 1 }, Some("T9 · Ship the update".as_bytes()))
-            .expect("heading");
-    let children = subtree(view.tree(), heading);
-    assert_eq!(children.len(), 3);
-    for (child, name) in children.iter().zip([b"T9".as_slice(), " · ".as_bytes(), b"Ship the update"]) {
-        assert_eq!(child.role, Role::Text);
-        assert_eq!(child.name.as_deref(), Some(name));
-    }
-    let id = fixtures::person_find(view.tree(), Role::Region, "T9 · Ship the update".as_bytes()).expect("chatbar");
-    let mut face = skein_fake_person::TreeFace::subtree(view.tree(), id).expect("chatbar subtree");
-    match face.find(&Find::exactly_named(Role::Heading { level: 1 }, "T9 · Ship the update".as_bytes())) {
-        Found::Node(_) => {}
-        Found::Absent | Found::Pending => panic!("chatbar heading"),
+    for (view, shown) in
+        [(fixtures::page_view(&root), "T9 · Ship the update"), (fixtures::browser_page_view(&root), "Ship the update")]
+    {
+        let heading =
+            named_position(view.tree().nodes(), Role::Heading { level: 1 }, Some("T9 · Ship the update".as_bytes()))
+                .expect("heading");
+        assert_eq!(fixtures::node_text(view.tree(), heading).as_ref(), shown.as_bytes());
+        assert!(fixtures::person_find(view.tree(), Role::Region, "T9 · Ship the update".as_bytes()).is_none());
     }
 }
 
@@ -413,7 +406,7 @@ fn the_message_composer_keeps_its_name_and_has_a_numbered_placeholder() {
     let composer = view.tree().find(id).expect("composer node");
     assert_eq!(composer.name.as_deref(), Some(b"Message".as_slice()));
     // messaging_root's chat is TASK, T9.
-    assert_eq!(composer.placeholder.as_deref(), Some("Message T9…".as_bytes()));
+    assert_eq!(composer.placeholder.as_deref(), Some(b"Reply to T9".as_slice()));
 }
 
 #[test]
@@ -510,8 +503,8 @@ fn the_chat_bar_contains_identity_spend_and_acts() {
         },
     );
     let view = fixtures::page_view(&fresh);
-    let bar = styled(view.tree(), crate::look::TASKBAR);
-    assert_eq!(view.tree().nodes()[bar].role, Role::Region);
+    let bar = styled(view.tree(), crate::look::SESSION_TOP);
+    assert_eq!(view.tree().nodes()[bar].role, Role::Slot);
     let nodes = subtree(view.tree(), bar);
     let heading = fixtures::words().say(
         crate::words::Word::ChatTitle,
@@ -533,30 +526,27 @@ fn the_chat_bar_contains_identity_spend_and_acts() {
     assert!(fixtures::find(view.tree(), Role::Button, b"Mark seen").is_none());
 }
 #[test]
-fn the_chat_entry_has_the_true_hint_between_message_and_send() {
+fn the_chat_entry_has_the_shared_hint_after_message_and_send() {
     let view = fixtures::page_view(&messaging_root());
     let tree = view.tree();
-    let area = styled(tree, crate::look::COMPOSER_AREA);
-    let entry = styled(tree, crate::look::ENTRY);
-    assert_eq!(tree.nodes()[area].role, Role::Slot);
+    let area = styled(tree, crate::look::SESSION_FOOT);
+    let entry = styled(tree, crate::look::SESSION_COMPOSER);
+    assert_eq!(tree.nodes()[area].role, Role::Form);
     assert!(entry > area);
     let nodes = subtree(tree, entry);
     assert_eq!(nodes[0].role, Role::TextArea);
     assert!(nodes[0].states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
-    assert_eq!(nodes[1].role, Role::Paragraph);
-    assert!(nodes[1].styles.as_slice().contains(&crate::look::HINT));
-    let send = 1_usize.checked_add(usize::try_from(nodes[1].size).expect("hint size")).expect("send index");
-    assert_eq!(nodes[send].role, Role::Button);
-    assert_eq!(nodes[send].name.as_deref(), Some(b"Send".as_slice()));
-    assert_eq!(
-        fixtures::words().say(crate::words::Word::ChatSendHint, &[]).as_ref(),
-        b"Enter sends \xc2\xb7 Shift+Enter for a new line"
-    );
+    assert_eq!(nodes[1].role, Role::Button);
+    assert_eq!(nodes[1].name.as_deref(), Some(b"Send".as_slice()));
+    let hint = styled(tree, crate::look::SESSION_HINT);
+    assert_eq!(hint, entry + usize::try_from(tree.nodes()[entry].size).unwrap());
+    assert_eq!(tree.nodes()[hint].name.as_deref(), Some("Enter sends · Shift+Enter for a new line".as_bytes()));
 }
+
 #[test]
 fn a_chat_without_message_has_no_composer_area() {
     let view = fixtures::page_view(&chat_root());
-    assert!(style_position(view.tree().nodes(), crate::look::COMPOSER_AREA).is_none());
+    assert!(style_position(view.tree().nodes(), crate::look::SESSION_FOOT).is_none());
 }
 #[test]
 fn chat_cards_are_items_of_the_cards_list_after_the_log() {
@@ -872,7 +862,7 @@ fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
     let pending = fixtures::page_view(&root);
     assert!(fixtures::find(pending.tree(), Role::Status, b"Being sent").is_some());
     let thread = styled(pending.tree(), crate::look::THREAD);
-    let area = styled(pending.tree(), crate::look::COMPOSER_AREA);
+    let area = styled(pending.tree(), crate::look::SESSION_FOOT);
     let log = named_position(pending.tree().nodes(), Role::Log, None).expect("log");
     let end = log.checked_add(usize::try_from(pending.tree().nodes()[log].size).expect("log size")).expect("log end");
     assert!(named_position(&pending.tree().nodes()[end..area], Role::Status, None).is_none());
@@ -939,7 +929,7 @@ fn a_refused_message_draws_its_refusal_after_send() {
     let send = named_position(nodes, Role::Button, Some(b"Send")).unwrap();
     let status = named_position(nodes, Role::Status, Some(b"This act is not offered")).unwrap();
     assert!(send < status);
-    let area = styled(view.tree(), crate::look::COMPOSER_AREA);
+    let area = styled(view.tree(), crate::look::SESSION_FOOT);
     assert!(status < area + usize::try_from(nodes[area].size).unwrap());
 }
 
@@ -973,7 +963,10 @@ fn the_chatbar_counts_the_delegates_it_waits_on() {
     for (live, expected) in [(1, b"waiting on 1 delegate".as_slice()), (2, b"waiting on 2 delegates")] {
         let view = header_with_status(c::WaitsOn::Delegates, live, c::WakeRule::Never, c::Requester::Person(PARTY));
         let status = fixtures::find(view.tree(), Role::Status, expected).expect("delegate status");
-        assert_eq!(view.tree().find(status).unwrap().styles.as_slice(), [crate::look::STATUS_WAITING]);
+        assert_eq!(
+            view.tree().find(status).unwrap().styles.as_slice(),
+            [crate::look::STATUS_WAITING, crate::look::STATE_NEEDS]
+        );
     }
 }
 
@@ -988,7 +981,10 @@ fn the_chatbar_waits_on_the_requesting_persons_words() {
     {
         let view = header_with_status(c::WaitsOn::News, 0, rule, c::Requester::Person(requester));
         let status = fixtures::find(view.tree(), Role::Status, b"waiting on your words").expect("words status");
-        assert_eq!(view.tree().find(status).unwrap().styles.as_slice(), [crate::look::STATUS_WAITING]);
+        assert_eq!(
+            view.tree().find(status).unwrap().styles.as_slice(),
+            [crate::look::STATUS_WAITING, crate::look::STATE_NEEDS]
+        );
     }
 }
 
@@ -1335,8 +1331,7 @@ fn every_chat_end_line_carries_ended_and_omits_the_whole_composer() {
         let view = result_view(result);
         let end = fixtures::find(view.tree(), Role::Paragraph, expected.as_bytes()).expect("end line");
         assert_eq!(view.tree().find(end).expect("end").styles.as_slice(), [crate::look::ENDED]);
-        for token in [crate::look::CHOICE, crate::look::ACCOUNT_LINE, crate::look::COMPOSER_AREA, crate::look::COMPOSER]
-        {
+        for token in [crate::look::CHOICE, crate::look::SESSION_FOOT, crate::look::SESSION_COMPOSER] {
             assert!(style_position(view.tree().nodes(), token).is_none(), "ended foot: {token:?}");
         }
         assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
@@ -1406,9 +1401,7 @@ fn a_chats_end_line_says_who_ended_it() {
         ] {
             let view = result_view_at(result, clock);
             assert!(fixtures::find(view.tree(), Role::Paragraph, expected.as_bytes()).is_some(), "{name}");
-            for token in
-                [crate::look::COMPOSER_AREA, crate::look::CHOICE, crate::look::ACCOUNT_LINE, crate::look::COMPOSER]
-            {
+            for token in [crate::look::SESSION_FOOT, crate::look::CHOICE, crate::look::SESSION_COMPOSER] {
                 assert!(style_position(view.tree().nodes(), token).is_none(), "{name}");
             }
             assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
@@ -1908,13 +1901,13 @@ fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
 }
 
 #[test]
-fn the_playground_chats_bar_has_no_model_word() {
+fn the_playground_chats_bar_names_the_default_model() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
     let view = fixtures::page_view(&root);
-    let bar = styled(view.tree(), crate::look::TASKBAR);
-    for node in subtree(view.tree(), bar) {
-        assert_ne!(node.name.as_deref(), Some(b"Scripted model".as_slice()));
-    }
+    let bar = styled(view.tree(), crate::look::SESSION_TOP);
+    let byline = style_position(subtree(view.tree(), bar), crate::look::BYLINE).expect("byline");
+    let line = fixtures::node_text(view.tree(), bar + 1 + byline);
+    assert!(skein_lib::bytes::find(&line, "Using Scripted model · Default".as_bytes()).is_some());
 }
 
 #[test]
@@ -1938,6 +1931,7 @@ fn configuring_task_root(mut task: c::Task, template: bool, charter: u32) -> tem
     if template {
         me = fixtures::configuring_me(me);
     }
+    me.projects.get_mut(0).unwrap().models = super::choice::line_models(true);
     fixtures::deliver_me(&mut root, me_watch, me);
     task.chip.executor = c::ChipExecutor::Agent { charter };
     deliver_chat(&mut root, task_watch.expect("task watch"), c::Delivery::Task(Box::new(task)));
@@ -1984,9 +1978,9 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         let controls = subtree(tree, bar);
         let positions = [
             named_position(controls, Role::Status, Some(b"Parked")).unwrap(),
-            named_position(controls, Role::Paragraph, Some(b"7 spent \xc2\xb7 of 7")).unwrap(),
             named_position(controls, Role::Button, Some(b"Stop")).unwrap(),
             named_position(controls, Role::Button, Some(b"Close")).unwrap(),
+            named_position(controls, Role::Paragraph, Some(b"7 spent \xc2\xb7 of 7")).unwrap(),
         ];
         for pair in positions.windows(2) {
             assert!(pair[0] < pair[1]);
@@ -2002,7 +1996,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         let entry = styled(tree, look::SESSION_COMPOSER);
         let area = named_position(tree.nodes(), Role::TextArea, Some(b"Message")).unwrap();
         assert_eq!(area, entry + 1);
-        assert_eq!(tree.nodes()[area].placeholder.as_deref(), Some(b"Message T9\xe2\x80\xa6".as_slice()));
+        assert_eq!(tree.nodes()[area].placeholder.as_deref(), Some(b"Reply to T9".as_slice()));
         assert_eq!(tree.nodes()[area].value.as_ref().unwrap().text.as_ref(), b"My words");
         assert!(tree.nodes()[area].states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
         let send = fixtures::find(tree, Role::Button, b"Send").unwrap();
@@ -2045,14 +2039,14 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
 }
 
 #[test]
-fn only_a_delivered_template_three_executor_changes_chat_layout_and_navigation() {
+fn only_a_delivered_template_three_executor_changes_chat_path_and_navigation() {
     use crate::look;
     for (listed, charter, configuring) in [(true, 37, true), (true, 1, false), (false, 37, false), (false, 1, false)] {
         let root = configuring_task_root(configuring_task(), listed, charter);
         for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
             let tree = view.tree();
-            assert_eq!(style_position(tree.nodes(), look::SESSION).is_some(), configuring);
-            assert_eq!(style_position(tree.nodes(), look::AGENT_PAGE).is_some(), !configuring);
+            assert!(style_position(tree.nodes(), look::SESSION).is_some());
+            assert_eq!(style_position(tree.nodes(), look::AGENT_PAGE), None);
             for style in [look::RAIL, look::TABBAR] {
                 if let Some(at) = style_position(tree.nodes(), style) {
                     for name in [b"Settings".as_slice(), b"Chats"] {
@@ -2065,38 +2059,44 @@ fn only_a_delivered_template_three_executor_changes_chat_layout_and_navigation()
                     }
                 }
             }
-            assert_eq!(style_position(tree.nodes(), look::COMPOSER_AREA).is_some(), !configuring);
+            assert!(style_position(tree.nodes(), look::SESSION_FOOT).is_some());
+            assert_eq!(style_position(tree.nodes(), look::CHOICE).is_none(), configuring);
         }
     }
     let (root, _, _) =
         fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &fixtures::domain_limits());
     let view = fixtures::browser_page_view(&root);
-    assert!(style_position(view.tree().nodes(), look::SESSION).is_none(), "no delivered task");
-    assert!(style_position(view.tree().nodes(), look::AGENT_PAGE).is_some());
+    assert!(style_position(view.tree().nodes(), look::SESSION).is_some(), "shared layout before delivery");
+    assert!(style_position(view.tree().nodes(), look::AGENT_PAGE).is_none());
 }
 
 #[test]
-fn configuring_chats_omit_the_foot_when_ended_or_message_is_not_offered() {
-    for (offered, ended, result) in [(false, false, false), (true, true, false), (true, false, true)] {
-        let mut task = configuring_task();
-        if ended {
-            task.chip.phase = c::Phase::Ended;
-            task.chip.details.phase = c::ChipPhase::Ended;
-        }
-        if !offered {
-            task.acts.clear();
-        }
-        if result {
-            task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Report(
-                c::DocumentText::complete(fixtures::first_run::text(b"Configured")),
-            )))));
-        }
-        let root = configuring_task_root(task, true, 37);
-        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
-            for style in [crate::look::SESSION_FOOT, crate::look::ACCOUNT_LINE, crate::look::CHOICE] {
-                assert_eq!(style_position(view.tree().nodes(), style), None);
+fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
+    for configuring in [false, true] {
+        for (offered, ended, result) in [(false, false, false), (true, true, false), (true, false, true)] {
+            let mut task = configuring_task();
+            if ended {
+                task.chip.phase = c::Phase::Ended;
+                task.chip.details.phase = c::ChipPhase::Ended;
             }
-            assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
+            if !offered {
+                task.acts.clear();
+            }
+            if result {
+                task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Report(
+                    c::DocumentText::complete(fixtures::first_run::text(b"Configured")),
+                )))));
+            }
+            let root = configuring_task_root(task, true, if configuring { 37 } else { 1 });
+            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                assert_eq!(style_position(view.tree().nodes(), crate::look::SESSION_FOOT), None);
+                assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
+                assert!(fixtures::find(view.tree(), Role::Button, b"Send").is_none());
+                assert_eq!(
+                    style_position(view.tree().nodes(), crate::look::CHOICE).is_some(),
+                    !configuring && !ended && !result
+                );
+            }
         }
     }
 }
@@ -2177,7 +2177,7 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
         let plain_tree = fixtures::build(&mut plain_view, &plain);
         let configuring_tree = fixtures::build(&mut configuring_view, &configuring);
         assert!(style_position(configuring_tree.nodes(), crate::look::SESSION).is_some());
-        assert!(style_position(plain_tree.nodes(), crate::look::AGENT_PAGE).is_some());
+        assert!(style_position(plain_tree.nodes(), crate::look::SESSION).is_some());
         let original = subtree(plain_tree, styled(plain_tree, crate::look::THREAD));
         let session = subtree(configuring_tree, styled(configuring_tree, crate::look::THREAD));
         assert_eq!(original.len(), session.len());
@@ -2189,5 +2189,99 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
         assert_eq!(named_count(configuring_tree, Role::Button, b"Accept"), 1);
         assert!(fixtures::find(configuring_tree, Role::Disclosure, b"1 tool call").is_some());
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Here is my proposal").is_some());
+    }
+}
+
+#[test]
+fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_path() {
+    use crate::look;
+    use temper_client_domain::Address;
+    for configuring in [false, true] {
+        for allowed in [false, true] {
+            let mut task = configuring_task();
+            if !allowed {
+                task.acts.clear();
+            }
+            let root = configuring_task_root(task, true, if configuring { 37 } else { 1 });
+            for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                let tree = view.tree();
+                let top = styled(tree, look::SESSION_TOP);
+                let right = styled(tree, look::SESSION_RIGHT);
+                let controls = subtree(tree, right);
+                let byline = style_position(controls, look::BYLINE).expect("byline in the right part");
+                let status = named_position(controls, Role::Status, Some(b"Parked")).expect("status");
+                let spend =
+                    named_position(controls, Role::Paragraph, Some("7 spent · of 7".as_bytes())).expect("spend");
+                assert!(byline < status && status < spend);
+                for name in [b"Stop".as_slice(), b"Close"] {
+                    assert_eq!(named_position(controls, Role::Button, Some(name)).is_some(), allowed);
+                }
+                if allowed {
+                    let stop = named_position(controls, Role::Button, Some(b"Stop")).unwrap();
+                    let close = named_position(controls, Role::Button, Some(b"Close")).unwrap();
+                    assert!(status < stop && stop < close && close < spend);
+                }
+                let path = if configuring { b"Settings".as_slice() } else { b"Chats" };
+                let mut links = List::with_capacity(2);
+                for node in subtree(tree, top) {
+                    if node.role == Role::Link && node.name.as_deref() == Some(path) {
+                        links.push(node.id).expect("phone back and desktop path");
+                    }
+                }
+                assert_eq!(links.len(), 2, "phone back and desktop path");
+                let address = if configuring {
+                    Address::Settings { project: fixtures::PROJECT }
+                } else {
+                    Address::Chats { filter: temper_client_domain::ChatsFilter::All }
+                };
+                for link in &links {
+                    assert_eq!(
+                        crate::href(&mut view, *link).as_deref(),
+                        Some(temper_client_domain::address::print(&address).as_ref())
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn the_chat_bar_marks_yours_and_waiting_states_as_needing_the_person() {
+    use crate::look;
+    for (line, token) in super::chats::status_rows() {
+        let mut task = configuring_task();
+        task.chip = line.chip;
+        task.waits_on = line.waits_on;
+        let root = configuring_task_root(task, true, 1);
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let controls = subtree(view.tree(), styled(view.tree(), look::SESSION_RIGHT));
+            let status = &controls[named_position(controls, Role::Status, None).expect("bar status")];
+            assert_eq!(
+                status.styles.as_slice().contains(&look::STATE_NEEDS),
+                token == look::STATUS_YOURS || token == look::STATUS_WAITING
+            );
+            assert!(status.styles.as_slice().contains(&token));
+        }
+    }
+}
+
+#[test]
+fn the_session_send_arrow_waits_for_words_in_every_chat() {
+    use temper_client_domain::{self as d, pages::Act};
+    for configuring in [false, true] {
+        let mut root = configuring_task_root(configuring_task(), true, if configuring { 37 } else { 1 });
+        for (words, disabled) in [(b"".as_slice(), true), (b"Hello", false)] {
+            fixtures::root_event(
+                &mut root,
+                d::Event::Act { action: d::Action::Pages(Act::MessageWords { words: words.into() }) },
+            );
+            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                let send = fixtures::find(view.tree(), Role::Button, b"Send").expect("send arrow");
+                assert_eq!(
+                    view.tree().find(send).unwrap().states.as_slice().contains(&skein_ui::State::Disabled),
+                    disabled
+                );
+            }
+        }
     }
 }

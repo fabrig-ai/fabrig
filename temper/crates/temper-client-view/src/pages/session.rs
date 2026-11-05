@@ -13,7 +13,6 @@ pub(crate) enum Path {
     Settings,
 }
 /// A chat retains its numbered name while the browser shows its title.
-#[expect(dead_code, reason = "the shared heading contract also serves the chat layout")]
 pub(crate) enum Heading<'a> {
     Words(&'a [u8]),
     Chat { whole: &'a [u8], title: &'a [u8] },

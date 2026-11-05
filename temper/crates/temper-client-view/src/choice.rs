@@ -384,7 +384,7 @@ fn selected_account(doc: &c::Accounts, viewer: u64, provider: Option<u32>, progr
     }
     None
 }
-fn using(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words) {
+pub(crate) fn using(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words) {
     let draft = root.pages().choice();
     let choice = match task {
         Some(_) => draft.original.as_ref(),

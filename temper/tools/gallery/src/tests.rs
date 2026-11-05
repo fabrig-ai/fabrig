@@ -793,6 +793,16 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Paragraph, name: "Check · two-hour timer" }],
     },
     Holds {
+        name: "chat-solo-T1",
+        heading: "T1 · Make tally sum stream its input",
+        parts: &[
+            Part::Named { role: Role::Status, name: "Closed" },
+            Part::Absent { role: Role::TextArea, name: "Message" },
+            Part::Absent { role: Role::Button, name: "Send" },
+            Part::Absent { role: Role::Disclosure, name: "Change model" },
+        ],
+    },
+    Holds {
         name: "chat-solo-T6",
         heading: "T6 · Why is tally sum slow on big files?",
         parts: &[Part::Named { role: Role::Paragraph, name: "T7 found it" }],
@@ -1006,10 +1016,11 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 11] = [
+const SPENDS: [(&str, Role, &str); 12] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
+    ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
     ("chat-first-run-2-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-3-T1", Role::Paragraph, "0 spent · of 20"),

@@ -2,12 +2,11 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, One layout for every chat, A chat's bar,
-  and 5.5: a chat that is not a configuring chat draws `CHAT` and `CHATBAR`,
-  with the composer's line and chooser under its composer. 3.5, A chat's
+- **Not yet:** 3.5, A chat's bar, and 5.5: the chooser stays above a
+  chat's composer; its byline uses the composer's words until the chooser
+  moves to the bar. 3.5, A chat's
   conversation, its look, and 5.7, In the browser it is one line: the
-  conversation's old look; no three dots, no pen. 5.9: `AGENT_PAGE` and
-  `TASKBAR` are `CHAT` and `CHATBAR`. 3.4, 5.5: the composer's
+  conversation's old look; no three dots, no pen. 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no

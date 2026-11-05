@@ -884,7 +884,7 @@ const PHRASES: u32 = 1367;
 // New chat adds nine literal and hole segments (client/README.md, 3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Chats adds fourteen segments and removes two (client/README.md, 3.5).
-const SEGMENTS: u32 = 2362;
+const SEGMENTS: u32 = 2361;
 const ALL: [Word; 771] = [
     Word::ConfigureTitle,
     Word::ConfigureQuestion,
@@ -3261,7 +3261,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::RunEnded => (&[b"Run ", b" ended"], &[Number]),
         Word::LinesLeft => (&[b"Earlier lines omitted ", b""], &[Number]),
         Word::Message => (&[b"Message"], &[]),
-        Word::MessagePlaceholder => (&[b"Message T", b"\xe2\x80\xa6"], &[Number]),
+        Word::MessagePlaceholder => (&[b"Reply to T"], &[Number]),
         Word::Send => (&[b"Send"], &[]),
         Word::CancelDelegate => (&[b"Cancel delegate ", b""], &[Number]),
         Word::TakeDelegate => (&[b"Take delegate ", b""], &[Number]),

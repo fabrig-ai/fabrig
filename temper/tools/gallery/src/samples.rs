@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 117;
+pub const N: usize = 118;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -274,6 +274,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "adoption-refused", world: Reference, address: Address::Adopt { project: 1 }, then: Refused },
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
         first_chat("chat-first-run-2-T1", 2, 1),
         first_chat("chat-first-run-3-T1", 3, 1),
