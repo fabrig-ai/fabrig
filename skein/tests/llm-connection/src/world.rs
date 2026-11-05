@@ -128,9 +128,9 @@ struct Peer {
 
 impl Peer {
     fn new(owner: Token, seed: u64) -> Self {
-        let call = skein_llm_world::call(7);
-        let config = skein_llm_world::fake::config();
-        let limits = skein_llm_world::fake::limits(&skein_llm_world::limits());
+        let call = skein_llm_kit::call(7);
+        let config = skein_llm_kit::fake::config();
+        let limits = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
         let mut peer = Self {
             wire: Wire::new(seed),
             owner,
@@ -187,9 +187,9 @@ impl Peer {
         if self.settled {
             return;
         }
-        let limits = skein_llm_world::fake::limits(&skein_llm_world::limits());
+        let limits = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let domain_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: skein_llm_world::fake::config() };
+        let domain_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: skein_llm_kit::fake::config() };
         if self.wire.received.len() > self.received {
             self.input.append(&self.wire.received[self.received..]).expect("bounded input");
             self.received = self.wire.received.len();
@@ -319,7 +319,7 @@ impl World {
         limits.memory = memory;
         let mut endpoints = List::with_capacity(endpoint_count);
         for endpoint in 0..endpoint_count {
-            let mut client_limits = skein_llm_world::limits();
+            let mut client_limits = skein_llm_kit::limits();
             if endpoint > 0 {
                 client_limits.http.send = 47;
                 client_limits.http.read = 384;
@@ -360,7 +360,7 @@ impl World {
 
     /// Admit a call to a selected endpoint with its own whole-call bound.
     pub fn start_at(&mut self, token: u64, endpoint: u32, deadlines: Deadlines) {
-        let mut call = skein_llm_world::call(token);
+        let mut call = skein_llm_kit::call(token);
         call.prompt.instructions = b"close-world".as_slice().into();
         self.start_prompt(token, endpoint, call.prompt, call.credential, deadlines);
     }

@@ -42,7 +42,7 @@ fn limits() -> Limits {
 
 #[expect(clippy::too_many_lines, reason = "the protocol story drives the component, io and fake peer")]
 fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
-    let mut call = skein_llm_world::call(7);
+    let mut call = skein_llm_kit::call(7);
     match dialect {
         Provider::OpenAi => {}
         Provider::Anthropic => {
@@ -54,10 +54,10 @@ fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
     call.prompt.output_ceiling(dialect, 4096).expect("provider output ceiling");
     call.prompt.instructions = b"connection-world".as_slice().into();
     let peer_credential = Credential {
-        scheme: skein_llm_world::credential_of(&call).scheme,
-        value: skein_llm_world::credential_of(&call).value.clone(),
+        scheme: skein_llm_kit::credential_of(&call).scheme,
+        value: skein_llm_kit::credential_of(&call).value.clone(),
     };
-    let peer_limits = skein_llm_world::fake::limits(&skein_llm_world::limits());
+    let peer_limits = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     let provider_kind = match dialect {
         Provider::OpenAi => documents::Provider::OpenAi,
         Provider::Anthropic => documents::Provider::Anthropic,
@@ -75,7 +75,7 @@ fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
     )
     .expect("fake service");
     let mut peer = provider::Server::new(Token::new(2), &peer_limits).expect("fake server");
-    let fake_limits = skein_llm_world::fake::config();
+    let fake_limits = skein_llm_kit::fake::config();
     let scripts = Box::new([api::Script {
         cue: b"connection-world".as_slice().into(),
         turns: Box::new([api::Turn {
@@ -91,7 +91,7 @@ fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
             address: Addr::from((Ipv4Addr::LOCALHOST, 443)),
             transport: skein_llm_connection::Transport::Plaintext,
             llm: call.endpoint,
-            limits: skein_llm_world::limits(),
+            limits: skein_llm_kit::limits(),
             credential: skein_llm::client::CredentialLimits { value: 2048 },
         })
         .expect("one endpoint");

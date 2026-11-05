@@ -1,6 +1,6 @@
 use skein_fake_oauth as fake;
 use skein_llm::{Credential, Endpoint, Provider, Scheme, client};
-use skein_llm_world::{fake::Exchange, limits_for, public_call};
+use skein_llm_kit::{fake::Exchange, limits_for, public_call};
 use skein_oauth as oauth;
 use skein_oauth_world::*;
 
