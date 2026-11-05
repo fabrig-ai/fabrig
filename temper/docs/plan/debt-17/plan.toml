@@ -1,3 +1,36 @@
 draft = "debt-17"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-17/inputs/request.md", "skein/docs/development/debt/D003-env-rewraps.md", "skein/docs/development/debt/D005-civil-calendars.md", "skein/docs/development/debt/D006-lru-tables.md", "skein/docs/development/debt/D008-http-head-parsing.md", "skein/docs/development/debt/D019-channel-machine-flags.md", "skein/docs/development/debt/D026-crate-tests-directories.md", "skein/docs/development/debt/D034-codec-double-generation.md", "skein/docs/development/debt/D044-io-token-tags.md", "jig/docs/development/debt/D027-engine-clients-cursor-format.md", "hearth/docs/development/debt/D008-path-modules.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "hearth-path"
+title = "hearth's last two #[path]s become plain modules of their suite (hearth D008)"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/testing.md, 2.4"
+
+[[part]]
+id = "codec-once"
+title = "tests/codec generates its fixtures once, and skein-codec compiles none (skein D034)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/codec.md, 6"
+
+[[part]]
+id = "terminal-namespace"
+title = "the terminal names its operations through Token::tagged (skein D044)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/io.md, 5"
+
+[[slice]]
+id = 1
+story = "three small items land: no #[path] in hearth, one codec generation, no hand tag in the terminal"
+parts = ["hearth-path", "codec-once", "terminal-namespace"]
+walk = false
