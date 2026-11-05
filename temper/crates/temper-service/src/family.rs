@@ -1355,6 +1355,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
+        forge::Document::Aways(_) | forge::Document::Decisions(_) => None, // away-route supplies the wire documents.
         forge::Document::Status(value) => project_status(value, limits),
         forge::Document::Changes(value) => changes_panel(value, limits),
         forge::Document::Landings(value) => {

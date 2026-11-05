@@ -4235,6 +4235,8 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
+            forge::Request::Decided { .. } => {} // decided-tool supplies the named call answer.
+
             forge::Request::MakingCopied { key } => {
                 assert!(super::now(domain, Request::MakingCopied { key }), "making copy door reserved");
             }

@@ -6,6 +6,7 @@ use temper_engine_domain_forge as d;
 mod answers;
 mod api;
 mod application;
+mod away;
 mod change;
 mod client;
 #[cfg(test)]
@@ -29,6 +30,8 @@ const FITS: &str = "admitted fields fit the schema";
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
+        d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
+        d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
         d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),
         d::Stored::Making(row) => w::Value::Making(making::encode(row)),
         d::Stored::Setting(row) => w::Value::Setting(settings::encode(row)),
@@ -91,6 +94,8 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
     Ok(match row.into_parts().value {
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
+        w::Value::Away(row) => d::Stored::Away(away::decode_away(row)?),
+        w::Value::Decided(row) => d::Stored::Decided(away::decode_decided(row)?),
         w::Value::Looked(row) => d::Stored::Looked(status::decode_looked(row)),
         w::Value::Making(row) => d::Stored::Making(making::decode(row)),
         w::Value::Setting(row) => d::Stored::Setting(settings::decode(row, bounds)?),

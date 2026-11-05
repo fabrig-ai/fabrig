@@ -165,6 +165,7 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::Install(answer)) => Some(ApplicationAnswer::Install(answer)),
         Some(forge::Answered::Dismiss(answer)) => Some(ApplicationAnswer::Dismiss(answer)),
         Some(forge::Answered::Looked(answer)) => Some(ApplicationAnswer::Looked(answer)),
-        None => None,
+        // away-route supplies the application answers.
+        Some(forge::Answered::SetAway(_) | forge::Answered::Overturn(_)) | None => None,
     }
 }
