@@ -712,7 +712,10 @@ impl Task {
     }
     fn answered(&mut self, key: Key, outcome: jig_client::Outcome) {
         if self.pending_kind(key) == Some(Sending::Message) {
-            if let jig_client::Outcome::Answered(jig_client::Answered::Jig(answer)) = &outcome {
+            // Goals restore durable words from their latest activity page (5.8).
+            if self.shape == Shape::Tracked {
+                self.thread.words.refused(key);
+            } else if let jig_client::Outcome::Answered(jig_client::Answered::Jig(answer)) = &outcome {
                 self.thread.answered(key, answer);
             } else {
                 self.thread.words.refused(key);

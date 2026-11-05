@@ -800,3 +800,24 @@ fn a_refused_goal_message_uses_the_toast() {
     assert!(page.pending.is_empty());
     assert!(page.thread.words.rows.is_empty());
 }
+
+#[test]
+fn answered_goal_messages_release_the_pending_word_room() {
+    let mut h = messenger();
+    // One more acknowledgment than the pending-word capacity must still send.
+    let attempts = h.pages.task().unwrap().thread.words.rows.capacity() + 1;
+    for message in 1..=attempts {
+        page_act(&mut h, Act::MessageWords { words: Box::from(MESSAGE_WORDS) });
+        assert_eq!(page_act(&mut h, Act::Send).len(), usize::try_from(SENT_MESSAGES).unwrap());
+        let key = h.pages.task().unwrap().pending.get(0).unwrap().0;
+        h.event(Event::Told {
+            told: Told::Answered {
+                key,
+                outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                    c::Outcome::Document(c::DocumentOutcome::Said { task: f::TASK, message: u64::from(message) }),
+                ))),
+            },
+        });
+        assert!(h.pages.task().unwrap().thread.words.rows.is_empty());
+    }
+}
