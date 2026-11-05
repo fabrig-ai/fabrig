@@ -2,7 +2,7 @@
 use super::{Bounds, Plan, Request, Stage, Step, Tables, api};
 use crate::github::{document, request};
 use alloc::boxed::Box;
-use skein_lib::List;
+use skein_lib::{List, len_u64};
 
 #[derive(Debug)]
 pub(super) struct Reviewers {
@@ -126,7 +126,7 @@ impl Plan {
     fn reviewers_login(&mut self, login: &[u8], bounds: Bounds) -> Result<(), api::Error> {
         let reviewers = self.reviewers.as_mut().ok_or(api::Error::InvalidAnswer)?;
         let width = u64::try_from(crate::measure::STRING_BYTES).ok().ok_or(api::Error::TooLarge)?;
-        let length = u64::try_from(login.len()).ok().ok_or(api::Error::TooLarge)?;
+        let length = len_u64(login.len());
         reviewers.bytes = reviewers
             .bytes
             .checked_add(width)

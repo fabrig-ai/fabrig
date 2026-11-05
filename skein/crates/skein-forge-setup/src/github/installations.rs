@@ -7,7 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_forge::github::{document::Row, pin::PAGE_CAP, request::Request};
-use skein_lib::{Decimal, Duration, List, Queue, Set, Wall};
+use skein_lib::{Decimal, Duration, List, Queue, Set, Wall, usize_of};
 
 #[derive(Debug)]
 struct Reading {
@@ -169,7 +169,7 @@ impl Sweep {
 fn rows(event: Event) -> Result<Box<[Row]>, Why> {
     match reply(event)? {
         Reply::Rows(rows) => {
-            if rows.len() > usize::try_from(PAGE_CAP).expect("page cap fits usize") {
+            if rows.len() > usize_of(PAGE_CAP) {
                 return Err(Why::Unexpected);
             }
             Ok(rows)

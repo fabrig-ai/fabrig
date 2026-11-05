@@ -1,6 +1,7 @@
 //! Admission validation and payload caps (forge-client.md, section 2.3).
 use crate::Limits;
 use skein_forge::api::{Answer, Op, Read, Write};
+use skein_lib::{len_u64, usize_of};
 pub(crate) fn op(value: &Op, l: &Limits) -> bool {
     match value {
         Op::Read(Read::Job { max_bytes, .. } | Read::File { max_bytes, .. } | Read::Artifact { max_bytes, .. }) => {
@@ -70,7 +71,7 @@ pub(crate) fn write(value: &Write, l: &Limits) -> Option<u64> {
             }
         }
         Write::SetReviewers { reviewers, .. } => {
-            if u64::try_from(reviewers.len()).ok()? > u64::from(l.rows) {
+            if len_u64(reviewers.len()) > u64::from(l.rows) {
                 return None;
             }
         }
@@ -95,15 +96,13 @@ pub(crate) fn answer(value: &Answer, l: &Limits) -> bool {
 pub(crate) fn cached(value: &crate::Cached, l: &Limits) -> bool {
     let item = match &value.item {
         Some(item) => {
-            item.labels.len() <= usize::try_from(l.rows).expect("row limit fits")
-                && within(skein_forge::measure::summary(item), l.answer_bytes)
+            item.labels.len() <= usize_of(l.rows) && within(skein_forge::measure::summary(item), l.answer_bytes)
         }
         None => true,
     };
     let pull = match &value.pull {
         Some(pull) => {
-            pull.reviewers.len() <= usize::try_from(l.rows).expect("row limit fits")
-                && within(skein_forge::measure::pull(pull), l.answer_bytes)
+            pull.reviewers.len() <= usize_of(l.rows) && within(skein_forge::measure::pull(pull), l.answer_bytes)
         }
         None => true,
     };

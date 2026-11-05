@@ -109,7 +109,10 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
                     engine::Write::DropTranscript { task } => store::Write::DropTranscript { task },
                     engine::Write::Wires => store::Write::Wires,
                     engine::Write::Erase(engine::Key::Wires) => return None,
-                    engine::Write::CopySettingsRevision(number) => store::Write::CopySettingsRevision(number),
+                    engine::Write::CopySettingsRevision(number) => {
+                        let (from, to) = core::settings::history_copy(number);
+                        store::Write::Copy { from, to }
+                    }
                     engine::Write::Save(engine::Record::Core(row)) => store::Write::Save(row),
                     engine::Write::Erase(engine::Key::Core(key)) => store::Write::Erase(key),
                     engine::Write::Save(engine::Record::Forge { row }) => store::Write::Put {

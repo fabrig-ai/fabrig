@@ -2514,3 +2514,308 @@ fn deployment_act_status_preserves_retry_and_actionable_refusals() {
         assert_eq!(outcome.act_status(), status);
     }
 }
+
+pub(crate) use crate::OutcomeFamily as OutcomeClass;
+
+pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeClass, ActStatus, Option<Refusal>)> {
+    use ActStatus::{Again as Retry, Closed, Ended, NoOwner, NotOffered, Refused};
+    use OutcomeClass as F;
+    let limit = Refusal::Limit { which: LimitKind::Projects };
+    Vec::from([
+        (Outcome::Restored { proposal: 9, to: 4, left_out: Box::new([]) }, F::Settled, Refused, None),
+        (Outcome::ProjectRemoved { project: 7 }, F::Settled, Refused, None),
+        (Outcome::AccountFinishing { source: 9 }, F::Settled, Refused, None),
+        (Outcome::SettingsChanged { revision: 9 }, F::Settled, Refused, None),
+        (Outcome::MovedToNewest { newest: 9, moved: 2, stayed: 3 }, F::Settled, Refused, None),
+        (Outcome::Compound { project: 7, operations: 2, first_message: 9 }, F::Compound, Closed, None),
+        (Outcome::CompoundRefused { at: 2, why: limit.clone() }, F::CompoundRefused, Refused, Some(limit.clone())),
+        (
+            Outcome::CompoundRefused { at: 2, why: Refusal::NotOffered },
+            F::CompoundRefused,
+            Refused,
+            Some(Refusal::NotOffered),
+        ),
+        (Outcome::Created { first: 9, last: 10, given: None }, F::Settled, Refused, None),
+        (Outcome::MarkedSeen { seen: Seen::Results { through: 9 } }, F::Settled, Refused, None),
+        (Outcome::Applied { connector: 2, token: Token::new(9) }, F::Settled, Refused, None),
+        (Outcome::Again(Again::Busy), F::Again(Again::Busy), Retry, None),
+        (Outcome::Again(Again::NotReady), F::Again(Again::NotReady), Retry, None),
+        (
+            Outcome::Again(Again::Full { held: 3, room_at: Wall::from_nanos(9) }),
+            F::Again(Again::Full { held: 3, room_at: Wall::from_nanos(9) }),
+            Retry,
+            None,
+        ),
+        (Outcome::SignedOut, F::SignedOut, Refused, None),
+        (Outcome::NoteEdited { name: 9 }, F::Settled, Refused, None),
+        (Outcome::ServiceMade { person: 9 }, F::ServiceMade(9), Refused, None),
+        (Outcome::Adopted { project: 7 }, F::Settled, Refused, None),
+        (Outcome::Proposed { proposal: 9, to: 4 }, F::Settled, Refused, None),
+        (Outcome::Withdrawn { proposal: 9 }, F::Settled, Refused, None),
+        (Outcome::Stopped { task: 9 }, F::Settled, Refused, None),
+        (Outcome::Cancelled { task: 9 }, F::Settled, Refused, None),
+        (Outcome::Released { task: 9 }, F::Settled, Refused, None),
+        (Outcome::Lifted { hold: 9, released: 2 }, F::Settled, Refused, None),
+        (Outcome::PersonTaken { task: 9 }, F::Settled, Refused, None),
+        (Outcome::PersonHandedBack { task: 9 }, F::Settled, Refused, None),
+        (Outcome::PersonAnswered { task: 9 }, F::Settled, Refused, None),
+        (Outcome::Moved { task: 9 }, F::Settled, Refused, None),
+        (
+            Outcome::ProposalDecided {
+                proposer: Proposer::Party(8),
+                proposal: 9,
+                by: 8,
+                at: Wall::EPOCH,
+                choice: ProposalChoice::Passed,
+                repeated: false,
+            },
+            F::Settled,
+            Refused,
+            None,
+        ),
+        (Outcome::Said { task: 9, message: 10 }, F::Settled, Refused, None),
+        (Outcome::QuestionAnswered { task: 9, question: 8, message: 10 }, F::Settled, Refused, None),
+        (Outcome::Amended { task: 9, released: true }, F::Settled, Refused, None),
+        (Outcome::RolesSet { project: 7 }, F::RolesSet(7), Refused, None),
+        (Outcome::PolicyChanged { project: 7 }, F::Settled, Refused, None),
+        (Outcome::Renamed { project: 7 }, F::Settled, Refused, None),
+        (Outcome::ProjectMade { project: 7 }, F::ProjectMade(7), Refused, None),
+        (Outcome::PoolSet { project: 7, person: 9 }, F::Settled, Refused, None),
+        (
+            Outcome::EscalationDecided {
+                task: 9,
+                revision: 8,
+                by: 7,
+                at: Wall::EPOCH,
+                choice: EscalationChoice::Released,
+            },
+            F::Settled,
+            Refused,
+            None,
+        ),
+        (Outcome::AccountSignInStarted { source: 9, address: Box::new([]) }, F::Settled, Refused, None),
+        (Outcome::AccountSignedOut { confirmed: true, failed_hosts: Box::new([]) }, F::Settled, Refused, None),
+        (Outcome::AccountKeyKept { source: 9 }, F::Settled, Refused, None),
+        (Outcome::AccountProgramDeclared { source: 9, name: b"program".as_slice().into() }, F::Settled, Refused, None),
+        (Outcome::AccountChanged, F::Settled, Refused, None),
+        (Outcome::AccountMovingOut { account: 8, number: 9, source: 10 }, F::Settled, Refused, None),
+        (Outcome::AccountMovedIn { account: 9, renewed: true }, F::Settled, Refused, None),
+        (Outcome::AccountRemoved { confirmed: true, failed_hosts: Box::new([]) }, F::Settled, Refused, None),
+        (Outcome::Refused(limit.clone()), F::Refused, Refused, Some(limit)),
+        (Outcome::Refused(Refusal::NotOffered), F::Refused, NotOffered, Some(Refusal::NotOffered)),
+        (Outcome::Refused(Refusal::Role { held: None }), F::Refused, NoOwner, Some(Refusal::Role { held: None })),
+        (
+            Outcome::Refused(Refusal::Role { held: Some(Role::Owner) }),
+            F::Refused,
+            Refused,
+            Some(Refusal::Role { held: Some(Role::Owner) }),
+        ),
+        (
+            Outcome::Refused(Refusal::Ended { how: Ending::Done }),
+            F::Refused,
+            Ended,
+            Some(Refusal::Ended { how: Ending::Done }),
+        ),
+        (Outcome::VisibilitySet { project: 7, public: true }, F::Settled, Refused, None),
+    ])
+}
+
+pub(crate) use crate::AskFamily as AskClass;
+
+#[expect(clippy::too_many_lines, reason = "the table pins every request variant and application scope")]
+pub(crate) fn ask_classes() -> Vec<(Ask, AskClass)> {
+    use AskClass as F;
+    Vec::from([
+        (Ask::Restore { revision: 9, reason: Box::new([]) }, F::Restore),
+        (Ask::RemoveProject { project: 7, grace: None }, F::Project(7)),
+        (Ask::ChangeSettings { against: 9, digest: [8; 32], projects: Box::new([]) }, F::Deployment),
+        (Ask::MoveToNewest { revision: 9 }, F::Deployment),
+        (Ask::Compound { project: 7, operations: List::with_capacity(0) }, F::Project(7)),
+        (Ask::Create { project: 7, batch: Box::new([]) }, F::Project(7)),
+        (Ask::MarkSeen { seen: Seen::Results { through: 9 } }, F::Seen),
+        (Ask::MarkSeen { seen: Seen::Conversation { task: 8, through: 9 } }, F::Seen),
+        (
+            Ask::Application { scope: ApplicationScope::Own, connector: 2, digest: [8; 32] },
+            F::Application(ApplicationScope::Own),
+        ),
+        (
+            Ask::Application { scope: ApplicationScope::Project(7), connector: 2, digest: [8; 32] },
+            F::Application(ApplicationScope::Project(7)),
+        ),
+        (
+            Ask::Application { scope: ApplicationScope::Deployment, connector: 2, digest: [8; 32] },
+            F::Application(ApplicationScope::Deployment),
+        ),
+        (
+            Ask::EditNote {
+                project: 7,
+                name: 9,
+                scope: Box::new(NoteScope::Project),
+                change: Box::new(NoteChange::Delete { recalled: 1 }),
+            },
+            F::Project(7),
+        ),
+        (Ask::MakeService { project: 7, name: b"service".as_slice().into(), role: Role::Member }, F::Project(7)),
+        (
+            Ask::Adopt {
+                project: 7,
+                adoption: Adoption {
+                    resource: ResourceName { connector: 2, path: Box::new([]) },
+                    role: ResourceRole::Owned,
+                    options: Box::new([]),
+                },
+            },
+            F::Project(7),
+        ),
+        (Ask::Propose { project: 7, action: Action::Batch(Box::new([])), reason: Box::new([]) }, F::Project(7)),
+        (Ask::Withdraw { project: 7, proposal: 9 }, F::Project(7)),
+        (Ask::Stop { project: 7, task: 9 }, F::Project(7)),
+        (Ask::Cancel { project: 7, task: 9, reason: Box::new([]), grace: None }, F::Project(7)),
+        (Ask::Release { project: 7, task: 9, revision: 8, again: None }, F::Project(7)),
+        (Ask::Lift { hold: 9, revision: 8, with_tasks: true }, F::Lift),
+        (Ask::TakePerson { project: 7, task: 9 }, F::Project(7)),
+        (Ask::HandBackPerson { project: 7, task: 9 }, F::Project(7)),
+        (
+            Ask::AnswerPerson {
+                project: 7,
+                task: 9,
+                revision: 8,
+                result: PersonResult::Report { words: Box::new([]) },
+            },
+            F::Project(7),
+        ),
+        (Ask::Move { project: 7, task: 9, reason: Box::new([]) }, F::Project(7)),
+        (
+            Ask::DecideProposal {
+                project: 7,
+                proposer: Proposer::Party(8),
+                proposal: 9,
+                decision: ProposalDecision::Accept,
+                running: None,
+            },
+            F::Project(7),
+        ),
+        (Ask::Say { project: 7, task: 9, words: Box::new([]) }, F::Project(7)),
+        (Ask::AnswerQuestion { project: 7, task: 9, question: 8, words: Box::new([]) }, F::Project(7)),
+        (
+            Ask::Amend { project: 7, task: 9, revision: 8, amendment: fixtures::unchanged(b"work"), release: None },
+            F::Project(7),
+        ),
+        (
+            Ask::SetRoles {
+                project: 7,
+                holdings: Box::new([
+                    Holding { person: 9, role: Role::Owner },
+                    Holding { person: 8, role: Role::Member },
+                ]),
+            },
+            F::Project(7),
+        ),
+        (Ask::SetRoles { project: 7, holdings: Box::new([]) }, F::Project(7)),
+        (Ask::ChangePolicy { project: 7, change: PolicyChange::ProjectSpend { period_spend: 9 } }, F::Project(7)),
+        (Ask::Rename { project: 7, name: "project".into() }, F::Project(7)),
+        (Ask::MakeProject { name: "project".into(), policy: 9 }, F::Deployment),
+        (Ask::SetPool { project: 7, person: 9, budget: 8 }, F::Project(7)),
+        (
+            Ask::DecideEscalation { project: 7, task: 9, revision: 8, decision: EscalationDecision::Release },
+            F::Project(7),
+        ),
+        (Ask::AccountSignIn { holder: AccountHolder::Own, provider: 9 }, F::Account),
+        (Ask::AccountSignOut { holder: AccountHolder::Deployment, source: 9 }, F::Account),
+        (Ask::AccountChange { holder: AccountHolder::Own, change: AccountChange::MoveOut { account: 9 } }, F::Account),
+        (Ask::SetVisibility { project: 7, public: true }, F::Project(7)),
+    ])
+}
+
+#[test]
+fn model_selectors_fold_all_carriers_and_distinguish_omitted_all_and_empty() {
+    for selector in [
+        None,
+        Some(Models::ALL),
+        Some(Models::NONE),
+        Some(Models::Named(1)),
+        Some(Models::Named(3)),
+        Some(Models::Named(u64::MAX)),
+    ] {
+        let mut member = fixtures::member(b"work");
+        member.authority.models = selector;
+        let mut amendment = fixtures::unchanged(b"work");
+        amendment.authority = Some(member.authority.clone());
+        let mut operations = List::with_capacity(7);
+        for operation in [
+            Operation::Cancel { task: 9, reason: Box::new([]), grace: None },
+            Operation::Move { task: 9, reason: Box::new([]) },
+            Operation::Release { task: 9, revision: 8, again: None },
+            Operation::Message { task: 9, words: Box::new([]) },
+            Operation::Stop { task: 9 },
+            Operation::Amend { task: 9, revision: 8, amendment: Box::new(amendment.clone()), release: None },
+            Operation::Amend { task: 8, revision: 7, amendment: Box::new(fixtures::unchanged(b"work")), release: None },
+        ] {
+            operations.push(operation).unwrap();
+        }
+        for ask in [
+            Ask::Create { project: 7, batch: Box::new([fixtures::member(b"none"), member.clone()]) },
+            Ask::Amend { project: 7, task: 9, revision: 8, amendment: amendment.clone(), release: None },
+            Ask::Propose { project: 7, action: Action::Batch(Box::new([member.clone()])), reason: Box::new([]) },
+            Ask::Propose {
+                project: 7,
+                action: Action::Amend { task: 9, revision: 8, amendment: Box::new(amendment) },
+                reason: Box::new([]),
+            },
+            Ask::Compound { project: 7, operations },
+            Ask::ChangePolicy {
+                project: 7,
+                change: PolicyChange::Role(PolicyRole {
+                    number: 4,
+                    authority: member.authority,
+                    period_spend: 9,
+                    requests: 0,
+                    decides: 0,
+                }),
+            },
+        ] {
+            assert_eq!(models::has_model_selector(&ask), selector.is_some(), "{ask:?}");
+            for count in [0, 1, 2, 64] {
+                let names: Vec<Box<[u8]>> = (0..count).map(|at| Box::from([at])).collect();
+                let expected = match selector {
+                    Some(Models::Named(1)) => count == 1,
+                    Some(Models::Named(3)) => count == 2,
+                    Some(Models::Named(u64::MAX)) => count == 64,
+                    None | Some(Models::All | Models::Named(_)) => count == 0,
+                };
+                assert_eq!(valid_model_context(&ask, &names), expected, "{ask:?} {count}");
+            }
+        }
+    }
+    let mut operations = List::with_capacity(2);
+    for bit in [1, 2] {
+        let mut amendment = fixtures::unchanged(b"work");
+        let mut authority = fixtures::member(b"work").authority;
+        authority.models = Some(Models::Named(bit));
+        amendment.authority = Some(authority);
+        operations
+            .push(Operation::Amend { task: 9, revision: 8, amendment: Box::new(amendment), release: None })
+            .unwrap();
+    }
+    assert!(valid_model_context(&Ask::Compound { project: 7, operations }, &[Box::from([b'a']), Box::from([b'b'])]));
+    for (ask, _) in ask_classes() {
+        assert!(!models::has_model_selector(&ask), "{ask:?}");
+        assert!(valid_model_context(&ask, &[]), "{ask:?}");
+    }
+    for change in [
+        PolicyChange::RoleSpend { role: 4, period_spend: 9 },
+        PolicyChange::ProjectSpend { period_spend: 9 },
+        PolicyChange::Requirements { requirements: Box::new([]) },
+        PolicyChange::Projections { grants: Box::new([]) },
+        PolicyChange::Permissions { mappings: Box::new([]) },
+        PolicyChange::Templates { overrides: Box::new([]) },
+    ] {
+        let ask = Ask::ChangePolicy { project: 7, change };
+        assert!(!models::has_model_selector(&ask));
+        assert!(valid_model_context(&ask, &[]));
+    }
+    let ask =
+        Ask::Propose { project: 0, action: Action::Settings { against: 9, digest: [8; 32] }, reason: Box::new([]) };
+    assert!(!models::has_model_selector(&ask));
+    assert!(valid_model_context(&ask, &[]));
+}

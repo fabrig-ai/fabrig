@@ -326,6 +326,100 @@ pub enum Ask {
     SetVisibility { project: u32, public: bool },
 }
 
+/// The scope and admission family of a keyed request (domain/people.md, 5.1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum AskFamily {
+    Project(u32),
+    Application(crate::ApplicationScope),
+    Restore,
+    Deployment,
+    Account,
+    Lift,
+    Seen,
+}
+
+impl Ask {
+    /// Keep the request's project distinct from deployment and party-only admission.
+    #[must_use]
+    pub const fn family(&self) -> AskFamily {
+        match self {
+            Self::Compound { project, .. }
+            | Self::EditNote { project, .. }
+            | Self::MakeService { project, .. }
+            | Self::Adopt { project, .. }
+            | Self::SetRoles { project, .. }
+            | Self::RemoveProject { project, .. }
+            | Self::SetVisibility { project, .. }
+            | Self::Rename { project, .. }
+            | Self::ChangePolicy { project, .. }
+            | Self::SetPool { project, .. }
+            | Self::DecideEscalation { project, .. }
+            | Self::DecideProposal { project, .. }
+            | Self::Say { project, .. }
+            | Self::AnswerQuestion { project, .. }
+            | Self::Amend { project, .. }
+            | Self::Move { project, .. }
+            | Self::TakePerson { project, .. }
+            | Self::HandBackPerson { project, .. }
+            | Self::AnswerPerson { project, .. }
+            | Self::Stop { project, .. }
+            | Self::Cancel { project, .. }
+            | Self::Release { project, .. }
+            | Self::Create { project, .. }
+            | Self::Propose { project, .. }
+            | Self::Withdraw { project, .. } => AskFamily::Project(*project),
+            Self::Application { scope, .. } => AskFamily::Application(*scope),
+            Self::Restore { .. } => AskFamily::Restore,
+            Self::MakeProject { .. } | Self::ChangeSettings { .. } | Self::MoveToNewest { .. } => AskFamily::Deployment,
+            Self::AccountSignIn { .. } | Self::AccountSignOut { .. } | Self::AccountChange { .. } => AskFamily::Account,
+            Self::Lift { .. } => AskFamily::Lift,
+            Self::MarkSeen { .. } => AskFamily::Seen,
+        }
+    }
+
+    /// A roster replacement borrows the members checked and linked by people.
+    #[must_use]
+    pub fn roster(&self) -> Option<(u32, &[Holding])> {
+        match self {
+            Self::SetRoles { project, holdings } => Some((*project, holdings)),
+            Self::Restore { .. }
+            | Self::Compound { .. }
+            | Self::MarkSeen { .. }
+            | Self::Application { .. }
+            | Self::MakeService { .. }
+            | Self::EditNote { .. }
+            | Self::Adopt { .. }
+            | Self::ChangePolicy { .. }
+            | Self::RemoveProject { .. }
+            | Self::SetVisibility { .. }
+            | Self::Rename { .. }
+            | Self::MakeProject { .. }
+            | Self::ChangeSettings { .. }
+            | Self::MoveToNewest { .. }
+            | Self::SetPool { .. }
+            | Self::DecideEscalation { .. }
+            | Self::DecideProposal { .. }
+            | Self::Say { .. }
+            | Self::AnswerQuestion { .. }
+            | Self::Amend { .. }
+            | Self::Move { .. }
+            | Self::TakePerson { .. }
+            | Self::HandBackPerson { .. }
+            | Self::AnswerPerson { .. }
+            | Self::Stop { .. }
+            | Self::Cancel { .. }
+            | Self::Lift { .. }
+            | Self::Release { .. }
+            | Self::Create { .. }
+            | Self::Propose { .. }
+            | Self::Withdraw { .. }
+            | Self::AccountSignIn { .. }
+            | Self::AccountSignOut { .. }
+            | Self::AccountChange { .. } => None,
+        }
+    }
+}
+
 /// A person's answer to a report, choice or failure contract; root translates it for tasks.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PersonResult {
@@ -397,6 +491,20 @@ pub enum EscalationChoice {
     Rejected,
     /// Waiting moved to policy role.
     Passed,
+}
+
+/// The retry, refusal or retained fact carried by an answer (domain/people.md, 5.1–5.3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum OutcomeFamily {
+    Again(crate::Again),
+    SignedOut,
+    Compound,
+    Refused,
+    CompoundRefused,
+    ServiceMade(u64),
+    RolesSet(u32),
+    ProjectMade(u32),
+    Settled,
 }
 
 /// Root's answer for one routed flight; people replies to each bounded waiter and saves
@@ -1159,59 +1267,129 @@ pub enum ActStatus {
     Ended,
     Refused,
 }
+
 impl Outcome {
+    /// The answer's disposition and the identities needed when linking retained facts.
+    #[must_use]
+    pub const fn family(&self) -> OutcomeFamily {
+        match self {
+            Self::Again(why) => OutcomeFamily::Again(*why),
+            Self::SignedOut => OutcomeFamily::SignedOut,
+            Self::Compound { .. } => OutcomeFamily::Compound,
+            Self::Refused(_) => OutcomeFamily::Refused,
+            Self::CompoundRefused { .. } => OutcomeFamily::CompoundRefused,
+            Self::ServiceMade { person } => OutcomeFamily::ServiceMade(*person),
+            Self::RolesSet { project } => OutcomeFamily::RolesSet(*project),
+            Self::ProjectMade { project } => OutcomeFamily::ProjectMade(*project),
+            Self::Created { .. }
+            | Self::MarkedSeen { .. }
+            | Self::Applied { .. }
+            | Self::NoteEdited { .. }
+            | Self::Adopted { .. }
+            | Self::Restored { .. }
+            | Self::Proposed { .. }
+            | Self::Withdrawn { .. }
+            | Self::Stopped { .. }
+            | Self::Cancelled { .. }
+            | Self::Lifted { .. }
+            | Self::Released { .. }
+            | Self::PersonTaken { .. }
+            | Self::PersonHandedBack { .. }
+            | Self::PersonAnswered { .. }
+            | Self::Moved { .. }
+            | Self::ProposalDecided { .. }
+            | Self::Said { .. }
+            | Self::QuestionAnswered { .. }
+            | Self::Amended { .. }
+            | Self::PolicyChanged { .. }
+            | Self::PoolSet { .. }
+            | Self::Renamed { .. }
+            | Self::ProjectRemoved { .. }
+            | Self::VisibilitySet { .. }
+            | Self::SettingsChanged { .. }
+            | Self::MovedToNewest { .. }
+            | Self::EscalationDecided { .. }
+            | Self::AccountSignInStarted { .. }
+            | Self::AccountSignedOut { .. }
+            | Self::AccountKeyKept { .. }
+            | Self::AccountProgramDeclared { .. }
+            | Self::AccountChanged
+            | Self::AccountMovingOut { .. }
+            | Self::AccountFinishing { .. }
+            | Self::AccountMovedIn { .. }
+            | Self::AccountRemoved { .. } => OutcomeFamily::Settled,
+        }
+    }
+
+    /// Refusal facts, including the failed operation of a compound.
+    #[must_use]
+    pub const fn refusal(&self) -> Option<&Refusal> {
+        match self {
+            Self::Refused(why) | Self::CompoundRefused { why, .. } => Some(why),
+            Self::Again(_)
+            | Self::SignedOut
+            | Self::Compound { .. }
+            | Self::ServiceMade { .. }
+            | Self::RolesSet { .. }
+            | Self::ProjectMade { .. }
+            | Self::Created { .. }
+            | Self::MarkedSeen { .. }
+            | Self::Applied { .. }
+            | Self::NoteEdited { .. }
+            | Self::Adopted { .. }
+            | Self::Restored { .. }
+            | Self::Proposed { .. }
+            | Self::Withdrawn { .. }
+            | Self::Stopped { .. }
+            | Self::Cancelled { .. }
+            | Self::Lifted { .. }
+            | Self::Released { .. }
+            | Self::PersonTaken { .. }
+            | Self::PersonHandedBack { .. }
+            | Self::PersonAnswered { .. }
+            | Self::Moved { .. }
+            | Self::ProposalDecided { .. }
+            | Self::Said { .. }
+            | Self::QuestionAnswered { .. }
+            | Self::Amended { .. }
+            | Self::PolicyChanged { .. }
+            | Self::PoolSet { .. }
+            | Self::Renamed { .. }
+            | Self::ProjectRemoved { .. }
+            | Self::VisibilitySet { .. }
+            | Self::SettingsChanged { .. }
+            | Self::MovedToNewest { .. }
+            | Self::EscalationDecided { .. }
+            | Self::AccountSignInStarted { .. }
+            | Self::AccountSignedOut { .. }
+            | Self::AccountKeyKept { .. }
+            | Self::AccountProgramDeclared { .. }
+            | Self::AccountChanged
+            | Self::AccountMovingOut { .. }
+            | Self::AccountFinishing { .. }
+            | Self::AccountMovedIn { .. }
+            | Self::AccountRemoved { .. } => None,
+        }
+    }
+
     /// Classify an act's answer without interpreting it in an application's root.
     #[must_use]
     pub const fn act_status(&self) -> ActStatus {
-        match self {
-            Outcome::Compound { .. } => ActStatus::Closed,
-            Outcome::Again(_) => ActStatus::Again,
-            Outcome::Refused(Refusal::NotOffered) => ActStatus::NotOffered,
-            Outcome::Refused(Refusal::Role { held: None }) => ActStatus::NoOwner,
-            Outcome::Refused(Refusal::Ended { .. }) => ActStatus::Ended,
-            Outcome::CompoundRefused { .. }
-            | Outcome::Created { .. }
-            | Outcome::MarkedSeen { .. }
-            | Outcome::Applied { .. }
-            | Outcome::SignedOut
-            | Outcome::NoteEdited { .. }
-            | Outcome::ServiceMade { .. }
-            | Outcome::Adopted { .. }
-            | Outcome::Restored { .. }
-            | Outcome::Proposed { .. }
-            | Outcome::Withdrawn { .. }
-            | Outcome::Stopped { .. }
-            | Outcome::Cancelled { .. }
-            | Outcome::Lifted { .. }
-            | Outcome::Released { .. }
-            | Outcome::PersonTaken { .. }
-            | Outcome::PersonHandedBack { .. }
-            | Outcome::PersonAnswered { .. }
-            | Outcome::Moved { .. }
-            | Outcome::ProposalDecided { .. }
-            | Outcome::Said { .. }
-            | Outcome::QuestionAnswered { .. }
-            | Outcome::Amended { .. }
-            | Outcome::RolesSet { .. }
-            | Outcome::PolicyChanged { .. }
-            | Outcome::PoolSet { .. }
-            | Outcome::Renamed { .. }
-            | Outcome::ProjectMade { .. }
-            | Outcome::ProjectRemoved { .. }
-            | Outcome::VisibilitySet { .. }
-            | Outcome::SettingsChanged { .. }
-            | Outcome::MovedToNewest { .. }
-            | Outcome::EscalationDecided { .. }
-            | Outcome::AccountSignInStarted { .. }
-            | Outcome::AccountSignedOut { .. }
-            | Outcome::AccountKeyKept { .. }
-            | Outcome::AccountProgramDeclared { .. }
-            | Outcome::AccountChanged
-            | Outcome::AccountMovingOut { .. }
-            | Outcome::AccountFinishing { .. }
-            | Outcome::AccountMovedIn { .. }
-            | Outcome::AccountRemoved { .. }
-            | Outcome::Refused(_) => ActStatus::Refused,
+        match self.family() {
+            OutcomeFamily::Compound => ActStatus::Closed,
+            OutcomeFamily::Again(_) => ActStatus::Again,
+            OutcomeFamily::Refused => match self.refusal() {
+                Some(Refusal::NotOffered) => ActStatus::NotOffered,
+                Some(Refusal::Role { held: None }) => ActStatus::NoOwner,
+                Some(Refusal::Ended { .. }) => ActStatus::Ended,
+                Some(_) | None => ActStatus::Refused,
+            },
+            OutcomeFamily::SignedOut
+            | OutcomeFamily::CompoundRefused
+            | OutcomeFamily::ServiceMade(_)
+            | OutcomeFamily::RolesSet(_)
+            | OutcomeFamily::ProjectMade(_)
+            | OutcomeFamily::Settled => ActStatus::Refused,
         }
     }
 }

@@ -4,7 +4,7 @@
 
 use alloc::boxed::Box;
 
-use skein_lib::{Decimal, Writer};
+use skein_lib::{Decimal, Writer, usize_of};
 
 use super::Limits;
 use crate::header::{field_len, is_field_byte, is_token};
@@ -84,7 +84,7 @@ pub(super) fn write(call: &Call, limits: &Limits) -> Result<Box<[u8]>, Refusal> 
         Some(_) | None => return Err(Refusal::TooLong),
     };
     let length = framing(call.method, call.body);
-    let mut head = Writer::new(usize::try_from(len).expect("a u32 fits a usize"));
+    let mut head = Writer::new(usize_of(len));
     put(&mut head, call.method.as_bytes());
     put(&mut head, b" ");
     put(&mut head, &call.target);

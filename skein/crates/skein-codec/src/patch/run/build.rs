@@ -112,11 +112,11 @@ impl Build {
         let bytes = value.to_be_bytes();
         let start = 8_u32.checked_sub(width).expect("integer width at most eight");
         for at in 0..start {
-            if bytes.get(usize::try_from(at).expect("u32 fits usize")) != Some(&0) {
+            if bytes.get(skein_lib::usize_of(at)) != Some(&0) {
                 return Err(built(expected.path, Reason::Bound));
             }
         }
-        self.put(bytes.get(usize::try_from(start).expect("u32 fits usize")..).expect("integer suffix"))
+        self.put(bytes.get(skein_lib::usize_of(start)..).expect("integer suffix"))
     }
     /// Puts a boolean byte.
     pub fn put_bool(&mut self, value: bool) -> Result<(), Halt> {

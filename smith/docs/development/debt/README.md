@@ -5,7 +5,7 @@ there today, why it matters, and what pays it back.
 
 - **One file per item,** `Dnnn-<slug>.md`. IDs start at `D001` and are
   never reused.
-- **The highest ID used is D019.** The branch that adds an item raises it, so a paid ID isn't handed out again.
+- **The highest ID used is D020.** The branch that adds an item raises it, so a paid ID isn't handed out again.
 - **The branch that pays an item deletes its file;** there is no row to delete.
   Git keeps the history.
 - **An item we choose to keep** stays, with status `kept` and its reason,

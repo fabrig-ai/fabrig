@@ -1,6 +1,7 @@
 //! The deterministic mmdebstrap domain (hearth/docs/design/domain/testing.md, 3.6).
 #![forbid(unsafe_code)]
 extern crate alloc;
+pub mod apt;
 pub mod face;
 pub mod process;
 pub mod resolve;

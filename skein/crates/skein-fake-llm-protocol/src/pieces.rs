@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use skein_fake_llm_domain::api;
 use skein_http::{Header, server as http, sse::writer::Outgoing};
 use skein_lib::stream::Down;
-use skein_lib::{Env, Id, Queue, Token, bytes};
+use skein_lib::{Env, Id, Queue, Token, bytes, usize_of};
 use skein_llm::{anthropic, openai};
 
 pub(super) struct Stream {
@@ -96,7 +96,7 @@ pub(super) fn receive(
         Some(text) => text.len(),
         None => 0,
     };
-    let bound = usize::try_from(cap(&env.limits.documents)).expect("u32 fits usize");
+    let bound = usize_of(cap(&env.limits.documents));
     let written = match server.state {
         State::Pieces { written } => written,
         State::New

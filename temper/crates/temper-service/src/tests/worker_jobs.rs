@@ -248,6 +248,33 @@ fn a_result_file_past_its_bound_reads_as_none() {
     }
 }
 
+/// temper/docs/design/protocol/tooling.md, 4.1 and 6: a bounded result carries exactly the bytes read before EOF.
+#[test]
+fn a_result_file_shorter_than_its_bound_reads_exact_bytes() {
+    // Merge kind's small-profile result bound (temper/docs/design/domain/worker.md, 4.4).
+    const RESULT_BOUND: u32 = 512;
+    const CHUNK_BYTES: usize = br#"{"settled":"#.len();
+    for bytes in [
+        br#"{"settled":["CHANGES.txt"]}"#.as_slice(),
+        br#"{"settled":["CHANGES.txt"],"left":["src/main.rs"]}"#.as_slice(),
+        b"".as_slice(),
+    ] {
+        let mut stand = fixtures::started_worker();
+        let worker = &mut stand.worker;
+        read(worker, RESULT_BOUND);
+        for chunk in bytes.chunks(CHUNK_BYTES) {
+            read_bytes(worker, chunk);
+            assert!(worker.events.is_empty(), "a short read alone is not EOF");
+        }
+        assert_eq!(complete(worker, Ok(Done::Count(0))), FileOp::Read);
+        close_file(worker);
+        assert_eq!(event(worker), Event::Read { owner: JOB, bytes: Some(bytes.into()) });
+        assert!(worker.events.is_empty(), "one terminal event per read");
+        assert!(worker.submitted().is_empty(), "the file has no remaining operation");
+        assert!(worker.jobs.empty());
+    }
+}
+
 /// temper/docs/design/protocol/tooling.md, 2: a spec or workspace decode failure crosses as Undecodable.
 #[test]
 fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {

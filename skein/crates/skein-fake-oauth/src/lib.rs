@@ -5,7 +5,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use skein_json::Token;
-use skein_lib::{Duration, List, Queue, Time, Wall, Writer, bytes};
+use skein_lib::{Duration, List, Queue, Time, Wall, Writer, bytes, usize_of};
 use skein_oauth::{
     HttpEvidence, HttpRequest, HttpResponse, Json, Limits as DocumentLimits, OAuthError, TokenResponse, challenge,
     encode_error, encode_response,
@@ -161,17 +161,17 @@ pub struct Issuer {
 impl Issuer {
     pub fn new(config: Config, limits: Limits) -> Result<Issuer, Error> {
         let secret_too_large = match &config.client_secret {
-            Some(value) => value.len() > usize::try_from(limits.document.client_bytes).expect("u32 fits"),
+            Some(value) => value.len() > usize_of(limits.document.client_bytes),
             None => false,
         };
         if !valid(&limits)
             || config.client_id.is_empty()
             || config.refresh_token.is_empty()
-            || config.client_id.len() > usize::try_from(limits.document.client_bytes).expect("u32 fits")
-            || config.refresh_token.len() > usize::try_from(limits.document.token_bytes).expect("u32 fits")
-            || config.authorization_url.len() > usize::try_from(limits.uri_bytes).expect("u32 fits")
-            || config.token_endpoint.len() > usize::try_from(limits.uri_bytes).expect("u32 fits")
-            || config.redirect_uri.len() > usize::try_from(limits.uri_bytes).expect("u32 fits")
+            || config.client_id.len() > usize_of(limits.document.client_bytes)
+            || config.refresh_token.len() > usize_of(limits.document.token_bytes)
+            || config.authorization_url.len() > usize_of(limits.uri_bytes)
+            || config.token_endpoint.len() > usize_of(limits.uri_bytes)
+            || config.redirect_uri.len() > usize_of(limits.uri_bytes)
             || !terms::valid(config.terms.as_ref(), &limits)
             || secret_too_large
         {
@@ -206,7 +206,7 @@ impl Issuer {
         if openid::configured(&self.config).is_none() {
             return Err(Error::Plan);
         }
-        let cap = usize::try_from(self.limits.document.string_bytes).expect("u32 fits");
+        let cap = usize_of(self.limits.document.string_bytes);
         let email_too_large = match &account.email {
             Some(email) => email.address.len() > cap,
             None => false,
@@ -241,7 +241,7 @@ impl Issuer {
                 }
             }
             Body::Raw(value) => {
-                if value.len() > usize::try_from(self.limits.document.document_bytes).expect("u32 fits") {
+                if value.len() > usize_of(self.limits.document.document_bytes) {
                     return Err(Error::Plan);
                 }
             }
@@ -326,7 +326,7 @@ impl Issuer {
         }
         let redirect = field(&fields, b"redirect_uri");
         if let Some(nonce) = field(&fields, b"nonce")
-            && nonce.len() > usize::try_from(self.limits.document.string_bytes).expect("u32 fits")
+            && nonce.len() > usize_of(self.limits.document.string_bytes)
         {
             out.push(Request::Refused);
             return;
@@ -344,7 +344,7 @@ impl Issuer {
             out.push(Request::Refused);
             return;
         };
-        if state.len() < 16 || state.len() > usize::try_from(self.limits.document.string_bytes).expect("u32 fits") {
+        if state.len() < 16 || state.len() > usize_of(self.limits.document.string_bytes) {
             out.push(Request::Refused);
             return;
         }
@@ -399,7 +399,7 @@ impl Issuer {
         self.posts = posts;
         let revocation = terms::revocation(&self.config, &request.endpoint);
         if (!revocation && request.endpoint != self.config.token_endpoint)
-            || request.body.len() > usize::try_from(self.limits.request_bytes).expect("u32 fits")
+            || request.body.len() > usize_of(self.limits.request_bytes)
         {
             self.refuse(request.id, now, wall, out);
             return;
@@ -638,7 +638,7 @@ fn json_fields(body: &[u8], limits: &Limits) -> Result<List<Field>, Error> {
 }
 
 fn form_fields(body: &[u8], limits: &Limits) -> Result<List<Field>, Error> {
-    if body.len() > usize::try_from(limits.request_bytes).expect("u32 fits") {
+    if body.len() > usize_of(limits.request_bytes) {
         return Err(Error::Plan);
     }
     let mut fields = List::with_capacity(10_u32.checked_add(limits.carried).ok_or(Error::Limits)?);
@@ -664,7 +664,7 @@ fn form_fields(body: &[u8], limits: &Limits) -> Result<List<Field>, Error> {
 }
 
 fn percent_decode(value: &[u8], cap: u32) -> Result<Box<[u8]>, Error> {
-    if value.len() > usize::try_from(cap).expect("u32 fits") {
+    if value.len() > usize_of(cap) {
         return Err(Error::Plan);
     }
     let mut size = 0_usize;

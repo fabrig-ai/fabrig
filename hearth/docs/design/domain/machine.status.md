@@ -1,6 +1,6 @@
 # machine: status
 
-2026-11-04. Where hearth's code lags or departs from [machine.md](machine.md).
+2026-11-05. Where hearth's code lags or departs from [machine.md](machine.md).
 
 - **Not yet:** 3, 4, 8: the machine's layout, EFI boot and bootstrap (M3),
   with the BIOS path in M3b and containers and pool hosts in M5.

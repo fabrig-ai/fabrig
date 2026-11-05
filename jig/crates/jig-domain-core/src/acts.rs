@@ -74,6 +74,50 @@ pub enum Act {
     Withdraw,
 }
 
+/// Proposal and escalation decisions (`client/domain/contract.md`, section 5.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Decision {
+    Accept,
+    Reject,
+    PassUp,
+    Release,
+    LeaveHeld,
+}
+
+impl Act {
+    /// Select a decision without changing the act's object-specific admission.
+    #[must_use]
+    pub fn decision(self) -> Option<Decision> {
+        match self {
+            Self::Accept => Some(Decision::Accept),
+            Self::Reject => Some(Decision::Reject),
+            Self::PassUp => Some(Decision::PassUp),
+            Self::Release => Some(Decision::Release),
+            Self::LeaveHeld => Some(Decision::LeaveHeld),
+            Self::RemoveProject
+            | Self::Message
+            | Self::Answer
+            | Self::Take
+            | Self::HandBack
+            | Self::Amend
+            | Self::Stop
+            | Self::Cancel
+            | Self::Move
+            | Self::Reorder
+            | Self::Seen
+            | Self::EditNote
+            | Self::DeleteNote
+            | Self::Adopt
+            | Self::ChangePolicy
+            | Self::Rename
+            | Self::SetRoles
+            | Self::MakeService
+            | Self::SetPool
+            | Self::Withdraw => None,
+        }
+    }
+}
+
 /// What a current engine judgment says about an act.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Admission {

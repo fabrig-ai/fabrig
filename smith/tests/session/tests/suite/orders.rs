@@ -43,10 +43,10 @@ fn machine() -> (Scripted, Checkout) {
     let root = checkout.root(b"/repo");
     let mut opening = recorded::opening(None, u64::MAX);
     opening.spec.authority = tools::Authority {
-        cwd: io::names(b"/repo"),
+        cwd: io::names(b"/repo").into_vec().pop(),
         repos: Box::new([tools::Directory {
             host: Box::default(),
-            mount: io::names(b"/repo"),
+            mount: io::names(b"/repo").into_vec().pop().expect("mount name"),
             root: io::token(root),
             writable: true,
         }]),

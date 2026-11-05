@@ -4,7 +4,7 @@ use crate::domain::{self, Config, Domain};
 use crate::store::Repository;
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
-use skein_lib::{Decimal, Env, Id, List, Time};
+use skein_lib::{Decimal, Env, Id, List, Time, usize_of};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RunEvent {
@@ -205,8 +205,7 @@ pub(crate) fn jobs(repository: &Repository, id: u64) -> Result<Answer, Error> {
                 Some(Conclusion::Failure) => Check::Failed,
                 None => unreachable!("a completed CI job has a conclusion"),
             };
-            let failing =
-                *repository.failing.get(usize::try_from(job.index).expect("bounded context")).expect("CI context");
+            let failing = *repository.failing.get(usize_of(job.index)).expect("CI context");
             view.steps =
                 outcome_steps(&job.name, state, failing, crate::ci::cue(&repository.checks, &job.name), kept.pull);
         }

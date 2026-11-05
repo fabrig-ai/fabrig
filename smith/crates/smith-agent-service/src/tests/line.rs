@@ -293,10 +293,10 @@ fn opening(line: u64, budget: session::Budget) -> session::record::Opening {
         effort: None,
         system: b"read files".as_slice().into(),
         authority: tools::Authority {
-            cwd: Box::new([named(b"work")]),
+            cwd: Some(named(b"work")),
             repos: Box::new([tools::Directory {
                 host: Box::new([named(b"host")]),
-                mount: Box::new([named(b"work")]),
+                mount: named(b"work"),
                 root: ROOT,
                 writable: false,
             }]),

@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use core::mem;
 use skein_io::file;
 use skein_io::kernel::{Error, Fd};
-use skein_lib::{Env, List, Queue, Token};
+use skein_lib::{Env, List, Queue, Token, usize_of};
 
 use super::{Dir, IO_OWNER, Log, Phase, Repair, State, Step, Store, announce_recovered, commits_failed, log_number};
 use crate::Limits;
@@ -168,7 +168,7 @@ fn chunk(
     limits: &Limits,
     below: &mut Queue<file::Request>,
 ) -> Compaction {
-    let target = usize::try_from(limits.chunk_target()).expect("target fits usize");
+    let target = usize_of(limits.chunk_target());
     let mut rows = List::with_capacity(limits.chunk_target() / 8);
     let mut size: usize = 12;
     let mut payload: u64 = 0;

@@ -4,7 +4,7 @@ use super::{Component, Lifecycle, Name, State, Unusable, failed, held, set_held}
 use crate::accounts::Source;
 use crate::keeper::{Operation, Private, Store};
 use crate::{Account, Asked, Event, Failure, Keeper, Limits, Lower, Refusal, Transport};
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Env, List, Queue, usize_of};
 use skein_oauth as oauth;
 
 pub(super) fn admit(account: u32, configuration: Account, limits: &Limits) -> Result<(Source, State, Store), Unusable> {
@@ -32,7 +32,7 @@ pub(super) fn admit(account: u32, configuration: Account, limits: &Limits) -> Re
             }
             let mut bounded = List::with_capacity(crate::limits::MAX_ORIGINS);
             for origin in origins.into_boxed() {
-                if origin.uri.len() > usize::try_from(limits.client.uri_bytes).expect("u32 fits")
+                if origin.uri.len() > usize_of(limits.client.uri_bytes)
                     || uri_origin(&origin.uri) != Some(origin.uri.as_ref())
                 {
                     return Err(Unusable::Origin { account });

@@ -14,7 +14,7 @@ use alloc::format;
 use alloc::vec::Vec;
 
 use skein_io::kernel::{Done, Error, Exit, Fd, Op, Pipe, Resources, Signal, Target, Way};
-use skein_lib::Token;
+use skein_lib::{Token, usize_of};
 
 use super::{Pid, Sim};
 use crate::machine::{Ask, Call, Program, Reply, Ticket};
@@ -309,7 +309,7 @@ impl Sim {
     /// Feeds at most the available buffer room to a process's inherited read pipe.
     /// Returns zero when the process has closed its reader.
     pub fn peer_feed(&mut self, pid: Pid, fd: Fd, bytes: &[u8]) -> usize {
-        let room = usize::try_from(self.config.buffer).expect("buffer fits");
+        let room = usize_of(self.config.buffer);
         let pipe = self.inherited_peer(pid, fd, true);
         let count = if pipe.process_open { bytes.len().min(room.saturating_sub(pipe.bytes.len())) } else { 0 };
         pipe.bytes.extend(bytes[..count].iter().copied());
@@ -360,7 +360,7 @@ impl Sim {
         let ready = if pipe.readable {
             !pipe.bytes.is_empty() || !pipe.peer_open
         } else {
-            !pipe.peer_open || pipe.bytes.len() < usize::try_from(self.config.buffer).expect("buffer fits")
+            !pipe.peer_open || pipe.bytes.len() < usize_of(self.config.buffer)
         };
         if ready
             && let Some(token) =
@@ -391,14 +391,14 @@ impl Sim {
     }
 
     fn send_inherited(&mut self, pid: Pid, token: Token, op: Op, fd: Fd) {
-        let room = usize::try_from(self.config.buffer).expect("buffer fits");
+        let room = usize_of(self.config.buffer);
         let pipe = self.process_mut(pid).inherited_pipes.get_mut(&fd).expect("an inherited pipe");
         if !pipe.peer_open {
             self.complete(pid, token, op, Err(Error::BrokenPipe));
             return;
         }
         let Op::PipeWrite { ref bytes, from, .. } = op else { self.bug("a pipe write holds bytes") };
-        let left = &bytes[usize::try_from(from).expect("from fits")..];
+        let left = &bytes[usize_of(from)..];
         let count = left.len().min(room.saturating_sub(pipe.bytes.len()));
         if count == 0 && !left.is_empty() {
             pipe.waiting = Some(token);
@@ -845,11 +845,11 @@ impl Sim {
             return;
         }
         let Op::PipeWrite { ref bytes, from, .. } = op else { self.bug("Send has bytes") };
-        let left = &bytes[usize::try_from(from).expect("from fits")..];
+        let left = &bytes[usize_of(from)..];
         let (n, output) = match program {
             Program::Service => {
                 let pipe = &self.process(pid).children[&end.child].pipes[end.index];
-                let room = usize::try_from(self.config.buffer).expect("buffer fits").saturating_sub(pipe.bytes.len());
+                let room = usize_of(self.config.buffer).saturating_sub(pipe.bytes.len());
                 (left.len().min(room), Some(end.index))
             }
             Program::Echo { input, output }
@@ -861,14 +861,13 @@ impl Sim {
                 };
                 let target = &child.pipes[index];
                 if target.open {
-                    let room =
-                        usize::try_from(self.config.buffer).expect("buffer fits").saturating_sub(target.bytes.len());
+                    let room = usize_of(self.config.buffer).saturating_sub(target.bytes.len());
                     (left.len().min(room), Some(index))
                 } else {
-                    (left.len().min(usize::try_from(self.config.buffer).expect("buffer fits")), None)
+                    (left.len().min(usize_of(self.config.buffer)), None)
                 }
             }
-            _ => (left.len().min(usize::try_from(self.config.buffer).expect("buffer fits")), None),
+            _ => (left.len().min(usize_of(self.config.buffer)), None),
         };
         if n == 0 {
             self.process_mut(pid).children.get_mut(&end.child).expect("child").pipes[end.index].waiting = Some(token);
@@ -929,8 +928,8 @@ impl Sim {
             return;
         }
         let Op::PipeWrite { ref bytes, from, .. } = op else { self.bug("a pipe write holds bytes") };
-        let left = &bytes[usize::try_from(from).expect("from fits")..];
-        let room = usize::try_from(self.config.buffer).expect("buffer fits").saturating_sub(pipe.bytes.len());
+        let left = &bytes[usize_of(from)..];
+        let room = usize_of(self.config.buffer).saturating_sub(pipe.bytes.len());
         let count = left.len().min(room);
         if count == 0 && !left.is_empty() {
             self.process_mut(pid).inherited_pipes.get_mut(&fd).expect("bound pipe").waiting = Some(token);
@@ -962,7 +961,7 @@ impl Sim {
                 !shared.open
                     || shared.ended
                     || child.exit.is_some()
-                    || shared.bytes.len() < usize::try_from(self.config.buffer).expect("buffer fits")
+                    || shared.bytes.len() < usize_of(self.config.buffer)
             }
         };
         if !ready {
@@ -1055,8 +1054,7 @@ impl Sim {
         let (input, output) = match child.program {
             Program::Echo { input, output } => (input, Some(output)),
             Program::Service => {
-                return child.pipes[input_index].bytes.len()
-                    < usize::try_from(self.config.buffer).expect("buffer fits");
+                return child.pipes[input_index].bytes.len() < usize_of(self.config.buffer);
             }
             Program::Exit(_) | Program::Never | Program::Fork { .. } => return true,
         };
@@ -1066,7 +1064,7 @@ impl Sim {
         let Some(target) = child.pipes.iter().find(|pipe| Some(pipe.spec.child) == output) else {
             return true;
         };
-        !target.open || target.bytes.len() < usize::try_from(self.config.buffer).expect("buffer fits")
+        !target.open || target.bytes.len() < usize_of(self.config.buffer)
     }
 }
 
