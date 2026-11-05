@@ -575,7 +575,19 @@ process has exited and its tree is empty. temper's choices:
   hang.
 - **Its limits** are smith's host limits, and the bounds the hello
   states, from the agent's configuration (`../protocol/configuration.md`,
-  section 5).
+  section 5). The one number that isn't the agent's is how many agents
+  the host holds at once: a run is one agent process, so that number is
+  the worker's slots, set where the worker composes its limits, and
+  nothing in the agent's configuration raises it. Each of the host's
+  other limits is one agent's, whatever the slots; an agent process
+  holds one run.
+- **What rises with its slots:** the worker's `hub.slots`, the engine's
+  `fleet.slots` and the checkout's `checkout.workspaces` are each at
+  least the slots, and `git_component.operations` at least the
+  workspaces. A start refuses a worker past any of them it can see,
+  naming the limit to raise. An engine alone can't see a worker's slots:
+  it uses them up to `fleet.slots` and turns away a hello listing more
+  runs than that (jig's `domain/engine.md`, section 8).
 - **Its program endpoints,** in the hello's bounds: the endpoint numbers
   the agent's configuration serves by a program, its `program_endpoints`,
   as jig's reference launcher declares them (jig's
