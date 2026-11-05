@@ -39,15 +39,12 @@
   alone deciding;
   `temper-client-domain`'s `pages/welcome.rs` `decision` reads a
   refused `forges` watch as no forge, so a usable model opens Forge.
-  The playground offered on Forge's and Model's foot while a real
-  account alone is kept; `temper-client-view`'s `pages/welcome.rs`
-  `main` offers it only while the store is empty. FORGE in "FORGE · not
+  FORGE in "FORGE · not
   finished" as the forge's name; `forge/connect.rs` `unfinished` prints
   "FORGE" itself. "Go on" after a restart: the row's `app` is the forge
   domain's memory alone (`temper-engine-domain-forge`'s `domain.rs`
   `apps`), so a GitHub forge found unfinished after a restart offers
-  "Start over" alone. The Model step showing an account added before
-  as ready, where it shows `ConnectModel`'s Choose.
+  "Start over" alone.
   3.5, With no project
   yet, where the document shows the welcome: its heading, words and acts; `pages/chats.rs` draws its page
   alone. There too, with a welcome or without one, `NewChat` at its address

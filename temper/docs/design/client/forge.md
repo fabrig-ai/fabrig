@@ -729,7 +729,9 @@ and `connect-forge.html`.
   names the one under way (fetch, prepare or run); none named yet, no
   individual step is marked. Connecting is the fourth, making the
   fifth, done once the first repository is made, unadopted. Before the
-  target is known, the fifth reads "Making the first repository".
+  target is known, the fifth reads "Making the first repository". A set up
+  asked with copies or nothing has four steps, the row's `starts_with`
+  saying so (`../protocol/setup.md`, 6.7).
   GitHub rows never list Forgejo's steps. The first and the Details
   name the versions the row's `owned` pins, "Fetching Forgejo 17.0.1
   and its runner 13.2.1"; the person's login stays off until the row
