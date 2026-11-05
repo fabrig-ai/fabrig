@@ -138,3 +138,7 @@ If `queue_first` lets the next ready change take `First` while the first is at `
 `queue_ready`, which leaves `Updating` out), say so with a test's evidence: it departs from
 `temper/docs/design/domain/forge.md`, 9. Don't change it here: the document then has two rows that own the
 queue, and only the queue's first carries `checks_since`.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Keep ChangeRow retention, and revise the world test: the proof is that the landed entry and its title come from the log, surviving release and a restoration, without depending on ChangeRow. Don't erase closed panels here. Decide such things yourself from now on; say so in the report.
