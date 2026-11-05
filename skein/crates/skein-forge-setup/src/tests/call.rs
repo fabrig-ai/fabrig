@@ -3,6 +3,7 @@ use crate::{
     call::{Auth, Call},
     reconcile::Need,
 };
+use alloc::boxed::Box;
 use skein_forge::{forgejo, github};
 
 #[test]
@@ -42,5 +43,24 @@ fn a_need_send_debug_holds_no_credential_byte() {
     for (auth, expected) in credentials().into_iter().zip(expected) {
         let need = Need::Send { request: github::request::Request::App.into(), auth };
         assert_eq!(format!("{need:?}"), expected);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test renders plan sends and replies to check secret redaction")]
+fn plan_send_and_reply_debug_hold_no_secret_bytes() {
+    let send = super::fixtures::send(forgejo::request::Request::CreateUser {
+        login: b"kit".as_slice().into(),
+        email: Box::new([]),
+        full_name: Box::new([]),
+        password: secret(b"bot-password"),
+        must_change_password: false,
+    });
+    let reply = super::fixtures::token_event();
+    for rendered in [format!("{send:?}"), format!("{reply:?}")] {
+        for value in [super::fixtures::ADMIN, b"bot-password", b"new-token"] {
+            assert!(skein_lib::bytes::find(rendered.as_bytes(), value).is_none());
+            assert!(!rendered.contains(&format!("{value:?}")));
+        }
     }
 }

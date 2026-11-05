@@ -4,8 +4,8 @@ use skein_forge_setup::{
     item::Item,
     reconcile::{Failure, Stage, Why},
 };
-use skein_forge_setup_world::{Ended, World, fixtures};
-fn world() -> World {
+use skein_forge_setup_world::{Ended, HostWorld, fixtures};
+fn world() -> HostWorld {
     fixtures::repositories(7, false, &[b"alice/specimen"])
 }
 fn at() -> Repo {
