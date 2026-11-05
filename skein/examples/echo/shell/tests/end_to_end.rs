@@ -2,19 +2,55 @@
 //! loopback, stderr and its ring exit (testing-strategy.md, section 2.9).
 //! This test belongs to the shell package so Cargo supplies its actual binary.
 
-use skein_echo_world::proc::Proc;
-use skein_echo_world::scenarios::{client_limits, plan};
+use skein_echo_client::{self as client, Client, client_limits, plan};
 use skein_io::Addr;
-use skein_io::kernel::{Exit, Signal};
-use skein_lib::{Duration, Time};
+use skein_io::kernel::{Complete, Exit, Signal, Submit};
+use skein_lib::{Duration, Queue, Time, Wall};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Command, Mode, StartError};
 use skein_world::{Deadline, Delegate, Expired, Host, Referee, real};
 
 #[derive(Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "The dispatcher keeps the binary observer inline beside its smaller fake client."
+)]
 enum Process {
     Echo(Binary),
-    Client(Proc),
+    Client(ClientHost),
+}
+
+#[derive(Debug)]
+struct ClientHost {
+    client: Box<Client>,
+    limits: client::Limits,
+}
+
+impl Host for ClientHost {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        client::iterate(&mut self.client, now, wall);
+    }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        self.client.completions()
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        self.client.submissions()
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        self.client.work_pending(now)
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.client.next_deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.client.next_policy_deadline()
+    }
+    fn is_empty(&self) -> bool {
+        self.client.is_empty()
+    }
+    fn operations(&self) -> u32 {
+        client::operations(&self.limits).expect("a small ring")
+    }
 }
 
 impl Delegate for Process {
@@ -57,8 +93,7 @@ impl Referee<Process> for Judge {
         {
             for process in &mut *procs {
                 match process {
-                    Process::Client(Proc::Client { client, .. }) => client.dial(addr),
-                    Process::Client(Proc::Echo { .. }) => unreachable!("the binary is the only echo"),
+                    Process::Client(host) => host.client.dial(addr),
                     Process::Echo(_) => {}
                 }
             }
@@ -99,7 +134,7 @@ impl Referee<Process> for Judge {
         let mut ready = true;
         for process in procs.get(1..).expect("the two fake clients") {
             let Process::Client(client) = process else { panic!("a fake client") };
-            let client = client.as_client().expect("a fake client");
+            let client = &client.client;
             let seen = client.seen(0);
             assert_eq!(seen.broken, 0, "loopback did not break");
             if seen.done.is_some() {
@@ -178,7 +213,10 @@ fn sigterm_with_idle_clients_exits_at_once_with_success() {
     world.spawn_with_fds(binary.descriptors(), || Process::Echo(binary));
     for seed in [7, 11] {
         let plans = [skein_echo_client::Plan { then: skein_echo_client::Then::Linger, ..plan(start, seed) }];
-        world.spawn(|| Process::Client(Proc::client(client_limits(1), &plans)));
+        world.spawn(|| {
+            let limits = client_limits(1);
+            Process::Client(ClientHost { client: Box::new(Client::new(&limits, &plans)), limits })
+        });
     }
     let outcome = world.run(&clock, Duration::from_secs(4));
     let Process::Echo(binary) = outcome.procs.first().expect("the binary observer") else {

@@ -52,13 +52,7 @@ dbg_macro = "deny"
 missing_assert_message = "deny"
 iter_over_hash_type = "deny"
 
-# The shipped executable, driven from tests/echo beside the other tiers.
-[[test]]
-name = "end_to_end"
-path = "../../../tests/echo/tests/end_to_end.rs"
-
 [dev-dependencies]
 skein-scratch.workspace = true
 skein-world.workspace = true
 skein-echo-client.workspace = true
-skein-echo-world = { path = "../../../tests/echo" }
