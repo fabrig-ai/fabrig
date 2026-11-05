@@ -220,6 +220,7 @@ fn a_reprint_keeps_a_journeys_readme() {
         now: Time::ZERO,
         wall: Wall::EPOCH,
         primary: Primary::Control,
+        zone_minutes: 0,
         ways: None,
         forges: Vec::new(),
         path: b"/welcome".as_slice().into(),

@@ -16,7 +16,7 @@ fn exchange(host: &mut Host) -> (u32, Box<[u8]>) {
 }
 
 pub(super) fn linked() -> Host {
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, temper_client_view::sign_in::Ways::NONE);
+    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     host.start(b"/accounts/connect", Vec::new(), None);
     host.requests();
     host.heard(Heard::StreamOpened);

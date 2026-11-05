@@ -2,7 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *Away*, whole, and its requests and subjects in 4.6 and section 8: `ui-away`'s tasks build them. 5.12: the zone, which every form reads as universal time. 3.5, *Home on any project*: the stock owner pool may
+- **Not yet:** 3.5, *Away*, whole, and its requests and subjects in 4.6 and section 8: `ui-away`'s tasks build them. 3.5, *Home on any project*: the stock owner pool may
   reserve the whole project period, leaving no funding for the status
   agent (`temper-service`'s `stock.rs`, `project_policy`;
   `jig-domain-core`'s `connector_repair_authority`). Returning then keeps

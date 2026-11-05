@@ -3133,6 +3133,8 @@ pub enum Shell {
 }
 #[derive(Clone, Debug)]
 pub struct Words {
+    /// The shell's minutes east of universal time (temper/docs/design/client/README.md, 5.12).
+    pub zone_minutes: i32,
     pub shell: Shell,
     pub book: Phrasebook,
     pub language: u16,
@@ -3351,6 +3353,19 @@ pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 2] {
 }
 
 impl Words {
+    /// The shell's minutes east of universal time (temper/docs/design/client/README.md, 5.12).
+    pub(crate) fn set_zone_minutes(&mut self, zone_minutes: i32) {
+        self.zone_minutes = zone_minutes;
+    }
+    fn local_nanos(&self, at: skein_lib::Wall) -> i128 {
+        let offset = i128::from(self.zone_minutes).checked_mul(i128::from(MINUTE)).expect("i32 minutes fit i128");
+        i128::from(at.as_nanos()).checked_add(offset).expect("wall and i32 minutes fit i128")
+    }
+    /// The calendar day in the person's zone, including before the epoch.
+    pub(crate) fn calendar_day(&self, at: skein_lib::Wall) -> i64 {
+        i64::try_from(self.local_nanos(at).div_euclid(i128::from(DAY))).expect("wall and i32 minutes' days fit i64")
+    }
+
     /// The configured playground model's identifier has its own display name (client/README.md, 5.6).
     pub(crate) fn model_name(&self, name: &[u8]) -> Box<[u8]> {
         if name == SCRIPTED_MODEL { self.say(Word::PlaygroundModelName, &[]) } else { copy_of(name) }
@@ -3427,7 +3442,7 @@ impl Words {
                 .max(temper_client_domain::forge::change::ADDRESS_BYTES),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { shell, book, language: 0, connector, name_bytes: joined })
+        Ok(Words { zone_minutes: 0, shell, book, language: 0, connector, name_bytes: joined })
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
@@ -4602,7 +4617,7 @@ impl Words {
             TimeForm::Span | TimeForm::Looked => Some(DAY),
             TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => None,
         };
-        let next = next_tick(at, now, elapsed, unit);
+        let next = next_tick(at, now, elapsed, unit, self.zone_minutes);
         let said = match form {
             TimeForm::Looked => self.looked_span(minutes),
             TimeForm::Span => self.time_span(minutes),
@@ -4632,8 +4647,8 @@ impl Words {
         }
     }
     fn calendar_time(&self, form: TimeForm, at: skein_lib::Wall, now: skein_lib::Wall) -> Box<[u8]> {
-        let day = at.as_nanos() / DAY;
-        let today = now.as_nanos() / DAY;
+        let day = self.calendar_day(at);
+        let today = self.calendar_day(now);
         let days = today.checked_sub(day);
         let clock = self.turn_clock(at);
         match form {
@@ -4667,13 +4682,14 @@ impl Words {
     }
     /// A turn under a day line has a fixed clock and needs no wake of its own.
     pub(crate) fn turn_clock(&self, at: skein_lib::Wall) -> Box<[u8]> {
-        let minute = at.as_nanos() / MINUTE;
+        let minute = self.local_nanos(at).div_euclid(i128::from(MINUTE));
+        let minute = u64::try_from(minute.rem_euclid(1440)).expect("minute in day");
         self.say(
             Word::TimeClock,
             &[Hole::Name(copy_of(&two_digits((minute / 60) % 24))), Hole::Name(copy_of(&two_digits(minute % 60)))],
         )
     }
-    fn time_weekday(&self, day: u64, full: bool) -> Box<[u8]> {
+    fn time_weekday(&self, day: i64, full: bool) -> Box<[u8]> {
         let short = [
             Word::TimeSundayShort,
             Word::TimeMondayShort,
@@ -4692,11 +4708,11 @@ impl Words {
             Word::TimeFriday,
             Word::TimeSaturday,
         ];
-        let index = usize::try_from(day.checked_add(4).expect("epoch day fits") % 7).expect("weekday fits");
+        let index = usize::try_from(day.checked_add(4).expect("epoch day fits").rem_euclid(7)).expect("weekday fits");
         self.say(*if full { long.get(index) } else { short.get(index) }.expect("weekday in week"), &[])
     }
     fn time_date(&self, at: skein_lib::Wall, now: skein_lib::Wall) -> Box<[u8]> {
-        let (year, month, day) = civil_date(at);
+        let (year, month, day) = civil_date(self.calendar_day(at));
         let months = [
             Word::TimeJanuary,
             Word::TimeFebruary,
@@ -4715,10 +4731,10 @@ impl Words {
             .get(usize::try_from(month.checked_sub(1).expect("months start at one")).expect("month fits"))
             .expect("month in year");
         let date = self.say(Word::TimeDate, &[Hole::Number(day), Hole::Name(self.say(*month, &[]))]);
-        if year == civil_date(now).0 {
+        if year == civil_date(self.calendar_day(now)).0 {
             date
         } else {
-            self.say(Word::TimeDateYear, &[Hole::Name(date), Hole::Number(year)])
+            self.say(Word::TimeDateYear, &[Hole::Name(date), Hole::Number(year.unsigned_abs())])
         }
     }
 }
@@ -4727,27 +4743,45 @@ fn two_digits(value: u64) -> [u8; 2] {
     let value = u8::try_from(value).expect("clock field fits");
     [b'0' + value / 10, b'0' + value % 10]
 }
-// Gregorian civil date; u64 nanoseconds bound the year to 2554.
-#[expect(clippy::arithmetic_side_effects, reason = "epoch days and Gregorian era intermediates fit u64")]
-fn civil_date(at: skein_lib::Wall) -> (u64, u64, u64) {
-    let days = at.as_nanos() / DAY + 719_468;
-    let era = days / 146_097;
-    let doe = days % 146_097;
+// Gregorian civil date; wall nanoseconds and i32 zone minutes bound all intermediates.
+#[expect(
+    clippy::arithmetic_side_effects,
+    reason = "wall nanoseconds and i32 zone minutes bound Gregorian era intermediates within i64"
+)]
+fn civil_date(day: i64) -> (i64, u64, u64) {
+    let days = day + 719_468;
+    let era = days.div_euclid(146_097);
+    let doe = days.rem_euclid(146_097);
     let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     let mp = (5 * doy + 2) / 153;
     let day = doy - (153 * mp + 2) / 5 + 1;
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    (era * 400 + yoe + u64::from(month <= 2), month, day)
+    (
+        era * 400 + yoe + i64::from(month <= 2),
+        u64::try_from(month).expect("month is positive"),
+        u64::try_from(day).expect("day is positive"),
+    )
 }
 
-fn next_tick(at: skein_lib::Wall, now: skein_lib::Wall, elapsed: u64, unit: Option<u64>) -> Option<skein_lib::Wall> {
+fn next_tick(
+    at: skein_lib::Wall,
+    now: skein_lib::Wall,
+    elapsed: u64,
+    unit: Option<u64>,
+    zone_minutes: i32,
+) -> Option<skein_lib::Wall> {
     let nanos = match unit {
         Some(unit) => {
             let delta = elapsed.checked_div(unit)?.checked_add(1)?.checked_mul(unit)?;
             at.as_nanos().checked_add(delta)?
         }
-        None => (now.as_nanos() / DAY).checked_add(1)?.checked_mul(DAY)?,
+        None => {
+            let offset = i128::from(zone_minutes).checked_mul(i128::from(MINUTE))?;
+            let local = i128::from(now.as_nanos()).checked_add(offset)?;
+            let midnight = local.div_euclid(i128::from(DAY)).checked_add(1)?.checked_mul(i128::from(DAY))?;
+            u64::try_from(midnight.checked_sub(offset)?).ok()?
+        }
     };
     Some(skein_lib::Wall::from_nanos(nanos))
 }

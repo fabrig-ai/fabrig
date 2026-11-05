@@ -2,7 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.1: the zone, the shell's input. 7.2: `home-away`, `home-away-one`, `home-away-overturned`, `rail-away-on`, `settings-away`. 7.1: a `home-*` state's title is its headline, then
+- **Not yet:** 7.2: `home-away`, `home-away-one`, `home-away-overturned`, `rail-away-on`, `settings-away`. 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.

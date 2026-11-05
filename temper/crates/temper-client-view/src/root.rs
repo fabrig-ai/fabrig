@@ -141,6 +141,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     } else {
         shown
     };
+    view.forge_words.set_zone_minutes(root.zone_minutes());
     let mut times = crate::words::Times::new(wall);
     view.forge.begin();
     view.pages.begin();
