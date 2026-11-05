@@ -65,7 +65,7 @@ fn start_adoption(
             },
         )
         .unwrap();
-    start(service, 1, host::Plan::Adopt { forge: 1, repository });
+    start(service, 1, host::Plan::Adopt { forge: 1, repository: host::Repository::Id(repository) });
 }
 
 #[test]

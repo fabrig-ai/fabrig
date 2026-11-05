@@ -1,6 +1,6 @@
 use core::num::NonZeroU64;
 use skein_forge_setup::{
-    host::{Need, Plan},
+    host::{Need, Plan, Repository},
     item::{self, Item},
     reconcile::{Failure, Outcome, Stage, Why},
 };
@@ -204,7 +204,10 @@ fn the_host_adopts_a_repository_and_hands_up_nothing() {
     use skein_forge::forgejo::request::Grant;
     let mut world = HostWorld::with_config(7, &[], fixtures::repository_config(&[b"alice/specimen"]));
     fixtures::seed_bot_tokens(world.store_mut());
-    world.run_plan(1, Plan::Adopt { forge: 1, repository: NonZeroU64::new(1).unwrap() });
+    world.run_plan(
+        1,
+        Plan::Adopt { forge: 1, repository: skein_forge_setup::host::Repository::Id(NonZeroU64::new(1).unwrap()) },
+    );
     world.finish();
     assert_eq!(world.store().collaborator(1, b"kit"), Some(Grant::Write));
     assert_eq!(world.heard(), &[done(1)]);
@@ -213,13 +216,59 @@ fn the_host_adopts_a_repository_and_hands_up_nothing() {
 fn an_adopt_of_a_repository_the_forge_lacks_stops_missing_naming_its_id() {
     let mut world = HostWorld::new(7, &[]);
     fixtures::seed_bot_tokens(world.store_mut());
-    world.run_plan(1, Plan::Adopt { forge: 1, repository: NonZeroU64::new(99).unwrap() });
+    world.run_plan(
+        1,
+        Plan::Adopt { forge: 1, repository: skein_forge_setup::host::Repository::Id(NonZeroU64::new(99).unwrap()) },
+    );
     world.finish();
     assert_eq!(
         world.heard(),
         &[Heard::Stop {
             run: Token::new(1),
             failure: Failure { forge: 1, step: Stage::Repository, subject: b"99".as_slice().into(), why: Why::Missing },
+            at: Duration::ZERO,
+        }]
+    );
+}
+
+#[test]
+fn the_host_adopts_a_repository_by_its_path_and_hands_up_nothing() {
+    use skein_forge::forgejo::request::Grant;
+    let mut world = HostWorld::with_config(7, &[], fixtures::repository_config(&[b"alice/specimen"]));
+    fixtures::seed_bot_tokens(world.store_mut());
+    world.run_plan(
+        1,
+        Plan::Adopt {
+            forge: 1,
+            repository: Repository::Path { owner: b"alice".as_slice().into(), name: b"specimen".as_slice().into() },
+        },
+    );
+    world.finish();
+    assert_eq!(world.store().collaborator(1, b"kit"), Some(Grant::Write));
+    assert_eq!(world.heard(), &[done(1)]);
+}
+#[test]
+fn an_adopt_by_a_path_the_forge_lacks_stops_missing_naming_the_path() {
+    let mut world = HostWorld::new(7, &[]);
+    fixtures::seed_bot_tokens(world.store_mut());
+    world.run_plan(
+        1,
+        Plan::Adopt {
+            forge: 1,
+            repository: Repository::Path { owner: b"alice".as_slice().into(), name: b"absent".as_slice().into() },
+        },
+    );
+    world.finish();
+    assert_eq!(
+        world.heard(),
+        &[Heard::Stop {
+            run: Token::new(1),
+            failure: Failure {
+                forge: 1,
+                step: Stage::Repository,
+                subject: b"alice/absent".as_slice().into(),
+                why: Why::Missing,
+            },
             at: Duration::ZERO,
         }]
     );
