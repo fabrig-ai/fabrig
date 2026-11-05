@@ -337,19 +337,24 @@ mod classifiers {
     fn result_shapes_keep_payload_and_owned_byte_accounting() {
         let fields = Box::new([crate::ResultField { name: Box::new([1]), value: Box::new([2]) }]);
         let field_storage = u64::try_from(size_of::<crate::ResultField>()).expect("field size fits");
-        for (kind, payload, owned) in [
-            (MessageKind::Words, Some(1), Some(1)),
-            (MessageKind::Result(ResultKind::Job), Some(1), Some(1)),
-            (MessageKind::Result(ResultKind::Approved { state: Box::new([2, 3, 4]), words_present: true }), Some(4), Some(4)),
-            (MessageKind::Result(ResultKind::Approved { state: Box::new([]), words_present: false }), None, None),
-            (MessageKind::Result(ResultKind::NoChange), Some(1), Some(1)),
-            (MessageKind::Result(ResultKind::Report), Some(1), Some(1)),
-            (MessageKind::Result(ResultKind::Verdict { code: 1, fields }), Some(3), Some(3 + field_storage)),
-            (MessageKind::Result(ResultKind::Change { connector: 1, kind: 2, resource: 3 }), Some(1), Some(1)),
-            (MessageKind::Result(ResultKind::Failed), Some(1), Some(1)),
-            (MessageKind::Result(ResultKind::Cancelled), Some(1), Some(1)),
+        for (result, payload, owned) in [
+            (None, Some(1), Some(1)),
+            (Some(ResultKind::Job), Some(1), Some(1)),
+            (Some(ResultKind::Approved { state: Box::new([2, 3, 4]), words_present: true }), Some(4), Some(4)),
+            (Some(ResultKind::Approved { state: Box::new([]), words_present: false }), None, None),
+            (Some(ResultKind::NoChange), Some(1), Some(1)),
+            (Some(ResultKind::Report), Some(1), Some(1)),
+            (Some(ResultKind::Verdict { code: 1, fields }), Some(3), Some(3 + field_storage)),
+            (Some(ResultKind::Change { connector: 1, kind: 2, resource: 3 }), Some(1), Some(1)),
+            (Some(ResultKind::Failed), Some(1), Some(1)),
+            (Some(ResultKind::Cancelled), Some(1), Some(1)),
         ] {
+            let kind = match &result {
+                Some(result) => MessageKind::Result(result.clone()),
+                None => MessageKind::Words,
+            };
             let word = message_word(kind);
+            assert_eq!(word.kind.result(), result.as_ref(), "{:?}: result", word.kind);
             assert_eq!(word.payload_bytes(), payload, "{:?}: payload", word.kind);
             let record = Stored::Activity(crate::ActivityLine { task: TASK, position: 1, at: word.at, line: crate::Line::Heard(word.clone()) });
             assert_eq!(crate::stored_bytes(&record), owned, "{:?}: owned", word.kind);

@@ -220,17 +220,17 @@ impl Word {
     /// Whole admitted payload, including the opaque state of an approval result.
     #[must_use]
     pub fn payload_bytes(&self) -> Option<usize> {
-        match &self.kind {
-            MessageKind::Result(ResultKind::Approved { state, words_present }) => {
+        match self.kind.result() {
+            Some(ResultKind::Approved { state, words_present }) => {
                 if !words_present && !self.words.is_empty() {
                     return None;
                 }
                 state.len().checked_add(self.words.len())
             }
-            MessageKind::Result(ResultKind::Verdict { fields, .. }) => {
+            Some(ResultKind::Verdict { fields, .. }) => {
                 crate::verdict::fields_bytes(fields)?.checked_add(self.words.len())
             }
-            MessageKind::Result(
+            Some(
                 ResultKind::Job
                 | ResultKind::NoChange
                 | ResultKind::Report
@@ -238,27 +238,10 @@ impl Word {
                 | ResultKind::Failed
                 | ResultKind::Cancelled,
             )
-            | MessageKind::Escalation { .. }
-            | MessageKind::Proposal { .. }
-            | MessageKind::PersonStalled { .. }
-            | MessageKind::SettingsDecision { .. }
-            | MessageKind::ProposalDecision { .. }
-            | MessageKind::Words
-            | MessageKind::EffectNotMade { .. }
-            | MessageKind::FinishRequested { .. }
-            | MessageKind::Amendment { .. }
-            | MessageKind::Met { .. }
-            | MessageKind::QuestionAnswered { .. }
-            | MessageKind::QuestionOwed
-            | MessageKind::NothingAwaited
-            | MessageKind::QuestionEnded { .. }
-            | MessageKind::Question
-            | MessageKind::Answer { .. }
-            | MessageKind::Notice { .. }
-            | MessageKind::Timer { .. }
-            | MessageKind::News { .. } => Some(self.words.len()),
+            | None => Some(self.words.len()),
         }
     }
+
 }
 
 /// A connector resource on which a run left state for its next activation.
@@ -2212,6 +2195,33 @@ pub enum ProcedureInput {
     Result(ResultKind),
 }
 impl MessageKind {
+    /// Borrow the delegate's terminal shape, when this is a result message.
+    #[must_use]
+    pub fn result(&self) -> Option<&ResultKind> {
+        match self {
+            Self::Result(result) => Some(result),
+            Self::Escalation { .. }
+            | Self::Proposal { .. }
+            | Self::PersonStalled { .. }
+            | Self::ProposalDecision { .. }
+            | Self::SettingsDecision { .. }
+            | Self::Words
+            | Self::EffectNotMade { .. }
+            | Self::Amendment { .. }
+            | Self::FinishRequested { .. }
+            | Self::Question
+            | Self::Answer { .. }
+            | Self::Notice { .. }
+            | Self::Timer { .. }
+            | Self::News { .. }
+            | Self::Met { .. }
+            | Self::QuestionEnded { .. }
+            | Self::QuestionAnswered { .. }
+            | Self::QuestionOwed
+            | Self::NothingAwaited => None,
+        }
+    }
+
     /// Select connector news and delegate results from a procedure's inbox.
     #[must_use]
     pub fn procedure_input(self) -> Option<ProcedureInput> {

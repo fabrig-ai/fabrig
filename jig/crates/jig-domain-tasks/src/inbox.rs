@@ -582,27 +582,8 @@ pub(crate) fn delegate_result(
     let Some(task) = record(domain, number) else {
         return;
     };
-    match word.kind {
-        MessageKind::Result(_) => {}
-        MessageKind::EffectNotMade { .. }
-        | MessageKind::Words
-        | MessageKind::Proposal { .. }
-        | MessageKind::Escalation { .. }
-        | MessageKind::SettingsDecision { .. }
-        | MessageKind::ProposalDecision { .. }
-        | MessageKind::FinishRequested { .. }
-        | MessageKind::Amendment { .. }
-        | MessageKind::Met { .. }
-        | MessageKind::QuestionAnswered { .. }
-        | MessageKind::QuestionOwed
-        | MessageKind::NothingAwaited
-        | MessageKind::QuestionEnded { .. }
-        | MessageKind::Question
-        | MessageKind::Answer { .. }
-        | MessageKind::Notice { .. }
-        | MessageKind::Timer { .. }
-        | MessageKind::PersonStalled { .. }
-        | MessageKind::News { .. } => return,
+    if word.kind.result().is_none() {
+        return;
     }
     let Some(payload_bytes) = word.payload_bytes() else { return };
     if !match word.from {

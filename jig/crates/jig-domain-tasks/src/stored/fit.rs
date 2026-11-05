@@ -366,15 +366,15 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
 }
 
 fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
-    match &word.kind {
-        MessageKind::Result(ResultKind::Approved { state, .. }) => {
+    match word.kind.result() {
+        Some(ResultKind::Approved { state, .. }) => {
             state.len().checked_add(word.words.len()).ok_or(RestoreCause::Accounting)
         }
-        MessageKind::Result(ResultKind::Verdict { fields: values, .. }) => {
+        Some(ResultKind::Verdict { fields: values, .. }) => {
             count(RestoreBound::ResultFields, values.len(), limits.result_bytes)?;
             fields(values)?.checked_add(word.words.len()).ok_or(RestoreCause::Accounting)
         }
-        MessageKind::Result(
+        Some(
             ResultKind::Job
             | ResultKind::NoChange
             | ResultKind::Report
@@ -382,25 +382,7 @@ fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
             | ResultKind::Failed
             | ResultKind::Cancelled,
         )
-        | MessageKind::Words
-        | MessageKind::Question
-        | MessageKind::Answer { .. }
-        | MessageKind::EffectNotMade { .. }
-        | MessageKind::Proposal { .. }
-        | MessageKind::Escalation { .. }
-        | MessageKind::SettingsDecision { .. }
-        | MessageKind::ProposalDecision { .. }
-        | MessageKind::Amendment { .. }
-        | MessageKind::FinishRequested { .. }
-        | MessageKind::Met { .. }
-        | MessageKind::QuestionAnswered { .. }
-        | MessageKind::QuestionOwed
-        | MessageKind::NothingAwaited
-        | MessageKind::QuestionEnded { .. }
-        | MessageKind::Notice { .. }
-        | MessageKind::Timer { .. }
-        | MessageKind::News { .. }
-        | MessageKind::PersonStalled { .. } => Ok(word.words.len()),
+        | None => Ok(word.words.len()),
     }
 }
 
