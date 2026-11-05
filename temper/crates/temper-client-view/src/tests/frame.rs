@@ -1504,14 +1504,16 @@ fn goals_opens_in_its_projects_frame() {
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Second");
-            assert_eq!(fixtures::main_text(view.tree()).as_ref(), b"Goals");
-            assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Goals").is_some());
+            assert_eq!(
+                fixtures::main_text(view.tree()).as_ref(),
+                "Second · goalsA goal turns a draft into landed work.".as_bytes()
+            );
+            assert!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).is_empty());
             assert!(fixtures::find(view.tree(), Role::Link, b"Goals").is_none(), "no rail entry yet");
             assert_eq!(skein_ui::outline::check(view.tree()), None);
             for node in view.tree().nodes() {
                 if node.role == Role::Main {
-                    assert_eq!(node.styles.as_slice(), [crate::look::MAIN]);
-                    assert_eq!(node.size, 3, "main contains only its heading and text");
+                    assert_eq!(node.styles.as_slice(), [crate::look::MAIN, crate::look::GOALS]);
                 }
             }
             let project = fixtures::person_find(view.tree(), Role::Button, project_name).expect("other project");
@@ -1543,7 +1545,10 @@ fn goals_opens_in_its_projects_frame() {
             assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Shop");
-            assert_eq!(fixtures::main_text(view.tree()).as_ref(), b"Goals");
+            assert_eq!(
+                fixtures::main_text(view.tree()).as_ref(),
+                "Shop · goalsA goal turns a draft into landed work.".as_bytes()
+            );
         }
     }
 }

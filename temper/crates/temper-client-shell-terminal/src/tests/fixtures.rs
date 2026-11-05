@@ -854,6 +854,8 @@ pub fn chats_page() -> skein_ui::Tree {
 
 pub mod chat;
 
+pub mod goals;
+
 mod task;
 
 pub mod golden_cards;
