@@ -6,6 +6,17 @@
   with Split displayed as Draft. The 2026-11-05 answer to
   `ui-chat-draft/document-pane` accepts this cycle without viewport state;
   only the visible buttons omit Split (`README.md`, 3.5).
+- **Design departs:** 2.5, from the request `ui-phone` of 2026-11-05, decided by
+  its plan's cut and its sweep. A chat's foot stands 16 px in, where the
+  request's check has the mock's 12: the look request `configure-temper-name`
+  moved it for every chat, and the request keeps look requests made. A chat's
+  foot and the toast take the home bar's inset, which the request asks of the
+  tab bar alone: a covered page leaves them under it. "Every tab and primary
+  button at least 44 tall" holds where the mock draws no shorter: the welcome's
+  primaries stand 40 px, Home's acts 34, and a goal's primary outside its
+  choices, the sheet's among them, 40, as the mock's `.btn` and `.btn.small` do.
+  The mock's `box.html` draws a terminal, what `temper box` prints, and no page
+  of the client's draws it.
 - **Departs:** 7.2: the gallery's comparison pages do not hold one copy of
   the greenfield scenario. `home-morning` is Hello with no goals or Away
   switch, `home-with-goals` has the Solo world's goals, and `home-away`
