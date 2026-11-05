@@ -11,6 +11,25 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    SettingsProposalTitle,
+    SettingsProposalDrafts,
+    SettingsProposalGoals,
+    SettingsProposalChanges,
+    SettingsProposalAway,
+    SettingsProposalWay,
+    SettingsProposalOn,
+    SettingsProposalOff,
+    SettingsProposalShown,
+    SettingsProposalHidden,
+    SettingsProposalForeman,
+    SettingsProposalUp,
+    SettingsProposalNone,
+    SettingsProposalChange,
+    SettingsProposalWaiting,
+    SettingsProposalOwners,
+    SettingsProposalAccepted,
+    SettingsProposalReplaced,
+
     SettingsShows,
     SettingsDrafts,
     SettingsDraftsLine,
@@ -1031,7 +1050,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Goal rows and ways add eighteen phrases; the page adds sixteen (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1527;
+const PHRASES: u32 = 1545;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1046,8 +1065,26 @@ const PHRASES: u32 = 1527;
 // Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
-const SEGMENTS: u32 = 2622;
-const ALL: [Word; 931] = [
+const SEGMENTS: u32 = 2654;
+const ALL: [Word; 949] = [
+    Word::SettingsProposalTitle,
+    Word::SettingsProposalDrafts,
+    Word::SettingsProposalGoals,
+    Word::SettingsProposalChanges,
+    Word::SettingsProposalAway,
+    Word::SettingsProposalWay,
+    Word::SettingsProposalOn,
+    Word::SettingsProposalOff,
+    Word::SettingsProposalShown,
+    Word::SettingsProposalHidden,
+    Word::SettingsProposalForeman,
+    Word::SettingsProposalUp,
+    Word::SettingsProposalNone,
+    Word::SettingsProposalChange,
+    Word::SettingsProposalWaiting,
+    Word::SettingsProposalOwners,
+    Word::SettingsProposalAccepted,
+    Word::SettingsProposalReplaced,
     Word::SettingsShows,
     Word::SettingsDrafts,
     Word::SettingsDraftsLine,
@@ -1984,6 +2021,24 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::SettingsProposalTitle => 3400,
+            Self::SettingsProposalDrafts => 3401,
+            Self::SettingsProposalGoals => 3402,
+            Self::SettingsProposalChanges => 3403,
+            Self::SettingsProposalAway => 3404,
+            Self::SettingsProposalWay => 3405,
+            Self::SettingsProposalOn => 3406,
+            Self::SettingsProposalOff => 3407,
+            Self::SettingsProposalShown => 3408,
+            Self::SettingsProposalHidden => 3409,
+            Self::SettingsProposalForeman => 3410,
+            Self::SettingsProposalUp => 3411,
+            Self::SettingsProposalNone => 3412,
+            Self::SettingsProposalChange => 3413,
+            Self::SettingsProposalWaiting => 3414,
+            Self::SettingsProposalOwners => 3415,
+            Self::SettingsProposalAccepted => 3416,
+            Self::SettingsProposalReplaced => 3417,
             Self::SettingsShows => 3322,
             Self::SettingsDrafts => 3323,
             Self::SettingsDraftsLine => 3324,
@@ -3159,7 +3214,24 @@ impl Words {
             // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
             // How work runs adds 1181 bytes; agent-written reports add thirteen (5.13).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 771 + 1181 + 13 + 87 + 225 + 15 + 54,
+            // The settings proposal adds 279 literal bytes (5.13).
+            text_bytes: 32768
+                + 288
+                + 149
+                + 401
+                + 11
+                + 367
+                + 419
+                + 250
+                + 476
+                + 771
+                + 1181
+                + 13
+                + 87
+                + 225
+                + 15
+                + 54
+                + 279,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3892,6 +3964,24 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsChangesLine => (&[b"The landing queue, as a page."], &[]),
         Word::SettingsAway => (&[b"Away switch"], &[]),
         Word::SettingsAwayLine => (&[b"Lets agents decide within limits while you\xe2\x80\x99re away."], &[]),
+        Word::SettingsProposalTitle => (&[b"How temper will run ", b""], &[Name]),
+        Word::SettingsProposalDrafts => (&[b"Drafts: ", b""], &[Name]),
+        Word::SettingsProposalGoals => (&[b"Goals: ", b""], &[Name]),
+        Word::SettingsProposalChanges => (&[b"Changes page: ", b""], &[Name]),
+        Word::SettingsProposalAway => (&[b"Away switch: ", b""], &[Name]),
+        Word::SettingsProposalWay => (&[b"Way: ", b""], &[Name]),
+        Word::SettingsProposalOn => (&[b"on"], &[]),
+        Word::SettingsProposalOff => (&[b"off"], &[]),
+        Word::SettingsProposalShown => (&[b"shown"], &[]),
+        Word::SettingsProposalHidden => (&[b"hidden"], &[]),
+        Word::SettingsProposalForeman => (&[b"Questions: answered by the goal"], &[]),
+        Word::SettingsProposalUp => (&[b"Questions: asked of me too"], &[]),
+        Word::SettingsProposalNone => (&[b"Questions: not asked"], &[]),
+        Word::SettingsProposalChange => (&[b"Change something"], &[]),
+        Word::SettingsProposalWaiting => (&[b"Waiting for an owner"], &[]),
+        Word::SettingsProposalOwners => (&[b"Owners of project ", b""], &[Name]),
+        Word::SettingsProposalAccepted => (&[b"\xe2\x9c\x93 Accepted \xc2\xb7 new work follows it"], &[]),
+        Word::SettingsProposalReplaced => (&[b"Replaced by the proposal below"], &[]),
         Word::SettingsOn => (&[b"On"], &[]),
         Word::SettingsOff => (&[b"Off"], &[]),
         Word::SettingsShown => (&[b"Shown"], &[]),

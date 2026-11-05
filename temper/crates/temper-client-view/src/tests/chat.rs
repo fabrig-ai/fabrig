@@ -2191,3 +2191,40 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Here is my proposal").is_some());
     }
 }
+
+fn goals_navigation(root: &temper_client_domain::Domain) {
+    let view = fixtures::browser_page_view(root);
+    // The rail and the phone's tab bar each carry Goals.
+    for style in [crate::look::RAIL_NAV, crate::look::TABBAR] {
+        let mut at = None;
+        for (index, node) in view.tree().nodes().iter().enumerate() {
+            if node.styles.as_slice().contains(&style) {
+                at = Some(index);
+                break;
+            }
+        }
+        let children = subtree(view.tree(), at.unwrap());
+        let mut found = false;
+        for node in children {
+            found |= node.role == Role::Link && node.name.as_deref() == Some(b"Goals");
+        }
+        assert!(found);
+    }
+}
+#[test]
+fn goals_navigation_shows_when_the_setting_is_on() {
+    let root = fixtures::root_with_ways(
+        temper_client_domain::Address::Home { project: fixtures::PROJECT },
+        Some(temper_client_domain::forge::ways::Ways { goals: true, ..temper_client_domain::forge::ways::Ways::STOCK }),
+    );
+    goals_navigation(&root);
+}
+#[test]
+fn goals_navigation_keeps_an_existing_goal_when_hidden() {
+    let (mut root, me, _) = fixtures::root_at(
+        temper_client_domain::Address::Home { project: fixtures::PROJECT },
+        &fixtures::domain_limits(),
+    );
+    super::rail::with_goal_fact(&mut root, me, Some(true));
+    goals_navigation(&root);
+}
