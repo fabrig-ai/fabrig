@@ -86,7 +86,9 @@ GitHub proof has yet run on `fabrig-ai` alone, and the live scripts
 default to a scratch layout of whoever runs fabrig's development, in a
 form the outward check does not match (`domain/testing.md`). temper's one story on macOS has not run green
 on the runner, so `draft/macos.md`'s acceptance stands open
-(`domain/testing.md`). The forge's connect refusals that
+(`domain/testing.md`). The `project-landing` journey has no Home
+recording: its browser walk stops at Ready with no usable model, for
+a reason unknown (`client/journeys.md`). The forge's connect refusals that
 ctl renders name no remedy (`protocol/documentation.md`). Six
 hand-written widenings stand beside skein's `len_u64` and
 `usize_of`, two of them in the worker's steps (`README.md`). Of the
@@ -100,8 +102,7 @@ status holds a departure the user has not answered, the deployment's
 read's `owned`, and `draft/to-begin.md`'s another, a dismissal erased
 with its project alone; the others record what the
 design carries of them and where it lags or departs.
-`domain/README.md`, `protocol/llm.md` and `client/journeys.md` have
-no gap.
+`domain/README.md` and `protocol/llm.md` have no gap.
 
 Design documents:
 - [`README.md`](README.status.md)
