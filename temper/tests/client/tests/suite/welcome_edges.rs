@@ -70,7 +70,7 @@ fn repeated_step_keeps_first_readable_value() {
 }
 
 #[test]
-fn unfinished_later_steps_never_offer_the_playground() {
+fn an_account_alone_keeps_the_playground_on_forge_and_model() {
     for (step, heading) in [
         (Step::Forge { forge: None }, b"Connect a forge".as_slice()),
         (Step::Model { way: None }, b"Connect a model"),
@@ -81,19 +81,14 @@ fn unfinished_later_steps_never_offer_the_playground() {
         follow(&mut world, client, vec![see(Role::Heading { level: 1 }, heading)]);
         for role in [Role::Link, Role::Button] {
             follow(&mut world, client, vec![gone(role, b"Later")]);
-            if step == Step::Ready {
-                follow(&mut world, client, vec![gone(role, "‹ Back".as_bytes())]);
-            }
         }
-        if step != Step::Ready {
-            follow(&mut world, client, vec![see(Role::Link, "‹ Back".as_bytes())]);
-        }
+        follow(&mut world, client, vec![see(Role::Link, "‹ Back".as_bytes())]);
         follow(
             &mut world,
             client,
             vec![
                 gone(Role::Link, b"Try the playground instead"),
-                gone(Role::Button, b"Try the playground instead"),
+                see(Role::Button, b"Try the playground instead"),
                 gone(Role::Region, b"Playground"),
             ],
         );
@@ -123,15 +118,7 @@ fn later_welcome_steps_do_not_redirect_on_their_own() {
         let mut world = f::world(f::SEED);
         let client = open_from_chats(&mut world, step);
         follow(&mut world, client, vec![see(Role::Heading { level: 1 }, heading)]);
-        follow(
-            &mut world,
-            client,
-            vec![if step == Step::Ready {
-                gone(Role::Link, "‹ Back".as_bytes())
-            } else {
-                see(Role::Link, "‹ Back".as_bytes())
-            }],
-        );
+        follow(&mut world, client, vec![see(Role::Link, "‹ Back".as_bytes())]);
     }
 }
 

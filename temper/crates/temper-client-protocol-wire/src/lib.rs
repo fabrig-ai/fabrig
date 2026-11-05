@@ -74,6 +74,8 @@ pub const DISMISSED: u32 = 8192;
 pub const INSTALLATIONS: u32 = 64;
 /// The maximum repository makings per forge (temper/docs/design/client/README.md, 4.6).
 pub const MAKINGS: u32 = 64;
+/// The set up's maximum number of deferred copies (protocol/setup.md, 6.7).
+pub const FIRST_COPIES: u32 = 16;
 /// The last connect's maximum stop reason length (client/README.md, 4.6).
 pub const CONNECT_WHY_BYTES: u32 = 256;
 /// The box's maximum setup failure line length (client/README.md, 4.6).
@@ -154,8 +156,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         playground_answer_cues_item: CUE_BYTES,
         first_ask_org: bounds.field_bytes,
         first_ask_repository: bounds.field_bytes,
-        set_up_org: bounds.field_bytes,
-        set_up_repository: bounds.field_bytes,
+        first_empty_org: bounds.field_bytes,
+        first_empty_repository: bounds.field_bytes,
         first_repository_org: bounds.field_bytes,
         first_repository_repository: bounds.field_bytes,
         adopt_owner: bounds.field_bytes,

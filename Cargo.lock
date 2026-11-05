@@ -4476,6 +4476,7 @@ dependencies = [
  "temper-box",
  "temper-client-bundle",
  "temper-client-domain",
+ "temper-client-protocol-wire",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-client-shell-web",

@@ -403,6 +403,11 @@ fn playground_facts(root: &mut Domain) {
         Some((forge, org, name)) => Some(crate::pages::welcome::First { forge, org: org.into(), name: name.into() }),
         None => None,
     };
+    let playground = match root.forge.playground() {
+        Some(playground) => Some(playground.forge),
+        None => None,
+    };
+    root.pages.welcome_copies = forge::making::copies(root.forges(), playground);
     root.pages.welcome_decision = crate::pages::welcome::decision(root);
     root.pages.playground_provider = root.forge.playground_provider();
     crate::pages::project_changed(&mut root.pages, &root.client);
@@ -440,5 +445,33 @@ pub(crate) fn welcome_progress(root: &mut Domain, _env: &Env<Limits>, out: &mut 
                 return;
             }
         }
+    }
+}
+
+/// Complete a pressed Claude check only from the accounts observation (client/README.md, 3.5).
+pub(crate) fn welcome_program_progress(root: &mut Domain, out: &mut Queue<Request>) {
+    use crate::pages::connect_model::ProgramCheck;
+    let Address::Welcome { step: crate::Step::Model { way: Some(way) } } = root.pages.address() else { return };
+    if way.kind != crate::WayKind::Program {
+        return;
+    }
+    let usable = crate::pages::welcome::model_usable(root) == Some(true);
+    let Some(page) = &mut root.pages.connect_model else { return };
+    if page.check == ProgramCheck::Idle {
+        return;
+    }
+    if usable {
+        page.check = ProgramCheck::Idle;
+        out.push(Request::Show { address: Address::Welcome { step: crate::Step::Ready }, replace: true });
+        return;
+    }
+    if let ProgramCheck::Checking { .. } = page.check
+        && let Some(pending) = &page.request.pending
+        && pending.outcome.is_some()
+        && let Some(accounts) = crate::pages::accounts::document(&root.client)
+        && accounts.settled
+        && !accounts.cut
+    {
+        page.check = ProgramCheck::NotYet;
     }
 }
