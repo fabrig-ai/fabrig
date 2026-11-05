@@ -506,7 +506,7 @@ pub(crate) fn rail(
     switcher(b, root, w, bindings, Some(project), Place::Rail);
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    entries(b, root, w, bindings, project);
+    entries(b, root, w, bindings, project, true);
     b.close();
     crate::link(
         b,
@@ -559,12 +559,19 @@ pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bi
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project);
+    entries(b, root, w, bindings, project, false);
     settings_link(b, root, w, bindings, project);
     b.close();
 }
 
-fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
+fn entries(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: u32,
+    changes: bool,
+) {
     use crate::words::Word;
     let (home, inbox, chats) = match root.pages().address() {
         Address::Home { .. } => (true, false, false),
@@ -617,6 +624,16 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
         chats,
         bindings,
     );
+    if changes {
+        action(
+            b,
+            Role::Link,
+            &w.say(Word::Changes, &[]),
+            Act::Go { address: Address::Changes { project } },
+            root.pages().address() == &(Address::Changes { project }),
+            bindings,
+        );
+    }
 }
 
 fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {

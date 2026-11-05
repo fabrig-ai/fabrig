@@ -56,6 +56,16 @@ pub(crate) fn main(
     {
         b.open(Role::Slot);
         b.style(look::PAGEBAR);
+        if let Some(panel) = root.forge().panel() {
+            let label = words.say(Word::Changes, &[]);
+            crate::link(
+                b,
+                &label,
+                bindings.insert(Act::Go { address: Address::Changes { project: panel.subject.project } }),
+            );
+            b.text(Run::Plain, &label);
+            b.close();
+        }
         if let c::Requester::Task(number) = task.requester {
             task_link(b, number, words, bindings);
         }

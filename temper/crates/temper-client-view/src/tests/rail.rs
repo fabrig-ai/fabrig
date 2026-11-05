@@ -291,16 +291,19 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     let expected = if style == look::TABBAR {
                         vec![b"Home".as_slice(), needs, b"Chats", b"Settings"]
                     } else {
-                        vec![b"Home".as_slice(), needs, b"Chats"]
+                        vec![b"Home".as_slice(), needs, b"Chats", b"Changes"]
                     };
                     assert_eq!(links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(), expected);
                     let ids = links
                         .iter()
                         .map(|n| (n.id, n.name.clone(), n.states.as_slice().contains(&State::Current)))
                         .collect::<Vec<_>>();
-                    for ((id, name, marked), href) in
-                        ids.into_iter().zip([b"/projects/1".as_slice(), b"/", b"/chats", b"/projects/1/settings"])
-                    {
+                    for ((id, name, marked), href) in ids.into_iter().zip([
+                        b"/projects/1".as_slice(),
+                        b"/",
+                        b"/chats",
+                        if style == look::TABBAR { b"/projects/1/settings" } else { b"/projects/1/changes" },
+                    ]) {
                         assert_eq!(marked, name.as_deref() == current && current.is_some());
                         assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
                     }
@@ -477,7 +480,8 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
     skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
     let text = String::from_utf8_lossy(print.text.as_slice());
     assert_eq!(text.lines().next(), Some("== Inbox == Offline; Behind"));
-    for line in ["[7] Home", "[8] Needs you (current)", "[9] Chats", "[10] + New chat", "[11] Settings"] {
+    for line in ["[7] Home", "[8] Needs you (current)", "[9] Chats", "[10] Changes", "[11] + New chat", "[12] Settings"]
+    {
         assert!(text.lines().any(|s| s.trim() == line), "{line}: {text}");
     }
     assert!(!text.contains("Sections:"));
