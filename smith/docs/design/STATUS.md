@@ -20,7 +20,9 @@ protocol crates (`testing.md`). Two step
 crates drive skein's JSON tokenizer over a whole buffer by hand
 (`domain/tools.md`, `protocol/events.md`). The system text keeps
 "checkout" for the workspace (`domain/run.md`), and two effective limits keep `adapter`
-in their names (`protocol/limits.md`). `domain/session.md`,
+in their names (`protocol/limits.md`). A host may have the shell keep
+each model request and what a program was given in a private directory
+(`protocol/agent.md`, `protocol/programs.md`). `domain/session.md`,
 `protocol/channel.md`,
 `protocol/charter.md`, `protocol/llm.md` and
 `protocol/transcript.md` have no gap. smith has no drafts.

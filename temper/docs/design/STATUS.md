@@ -97,6 +97,8 @@ is the user's to decide (`domain/worker.md`); with
 `TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
 for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
+with `TEMPER_DUMP_LLM` set, never a shipped default, an agent's
+environment holds that directory (`domain/worker.md`);
 a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
