@@ -88,13 +88,9 @@ impl Plan {
         match heard {
             Heard::Head { status, fields } => {
                 if status != 200 {
-                    let failure =
-                        super::failure::classify(super::failure::Asked::Leaf, status, None, fields.retry_after);
-                    match failure.drop {
-                        super::failure::Drop::Nothing => {}
-                        super::failure::Drop::Path | super::failure::Drop::Row => tables.drop_repository(repository),
-                    }
-                    return Err(failure.error);
+                    return Err(super::failure::refused(
+                        super::failure::Asked::Leaf, status, None, fields.retry_after, repository, tables,
+                    ));
                 }
                 Ok(None)
             }

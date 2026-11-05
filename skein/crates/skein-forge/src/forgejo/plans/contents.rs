@@ -174,12 +174,7 @@ impl Plan {
                     return Ok(None);
                 }
                 if status != 200 && !(raw && status == 206) {
-                    let classified = super::failure::classify(asked, status, None, fields.retry_after);
-                    match classified.drop {
-                        super::failure::Drop::Nothing => {}
-                        super::failure::Drop::Path | super::failure::Drop::Row => tables.drop_repository(repository),
-                    }
-                    return Err(classified.error);
+                    return Err(super::failure::refused(asked, status, None, fields.retry_after, repository, tables));
                 }
                 Ok(None)
             }

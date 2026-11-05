@@ -3,7 +3,7 @@
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
-    failure::{self, Asked, Drop},
+    failure::{self, Asked},
     plan::{Bounds, Exchange, Step},
     reading,
     tables::{Repository, Tables},
@@ -208,11 +208,8 @@ impl Plan {
                 },
                 Body::Document(_) | Body::Empty | Body::Raw { .. } | Body::Malformed(_) => None,
             };
-            let classified = failure::classify(self.asked(), self.status, refusal, self.retry);
-            if classified.drop != Drop::Nothing {
-                tables.drop_repository(self.repository);
-            }
-            return Ok(Some(Step::Done(Err(self.error(classified.error)))));
+            let error = failure::refused(self.asked(), self.status, refusal, self.retry, self.repository, tables);
+            return Ok(Some(Step::Done(Err(self.error(error)))));
         }
         let document = match body {
             Body::Document(document) => Some(document),
