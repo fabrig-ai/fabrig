@@ -3,8 +3,7 @@
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
 - **Not yet:** 2.3: `Builders { project }`'s path. 2.5: the rows' look on
-  `Forges` and `Accounts`, `Adopt`'s and a flow's path, the old rules still
-  standing in `temper.css`. 7.2: `builders`, `builders-not-owner`,
+  `Forges` and `Accounts`. 7.2: `builders`, `builders-not-owner`,
   `builders-none`. 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not

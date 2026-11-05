@@ -741,45 +741,6 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > button { align-self: flex-end; width: auto; min-height: 0; padding: 0; border: 0; background: none; color: var(--temper-muted); font-size: 11px; }
 .temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > button:hover { color: var(--temper-accent-dark); text-decoration: underline; }
 
-/* Adoption's page and cards. */
-.temper-main.temper-page > .temper-adoption-page { width: 100%; margin: 0; color: var(--temper-ink); }
-.temper-adoption-page > :not(.temper-pagebar) { width: min(886.67px, calc(100% - 56px)); margin-inline: auto; }
-.temper-adoption-page .temper-pagebar { height: auto; min-height: 43.17px; padding-block: 10.5px; }
-.temper-adoption-page .temper-pagebar h1 { margin: 0; font: 700 12.83px/1.58 var(--temper-mono); }
-/* .first-run-panel: supplied regions and the standalone form are cards. */
-.temper-adoption-page section { border: 1px solid #dbd4ca; border-radius: 10.5px; background: #fffefd; padding: 23.33px; margin-block: 14px; min-width: 0; }
-.temper-adoption-page :is(p, [role=status]) { margin-block: 7px 0; font-size: 12.83px; color: #756e65; overflow-wrap: anywhere; }
-.temper-adoption-page [role=alert] { margin-top: 14px; font-size: 12.83px; color: var(--temper-red); overflow-wrap: anywhere; }
-.temper-adoption-page section .temper-card { padding: 0; border: 0; border-radius: 0; background: transparent; }
-.temper-adoption-page div:has(> input:not([type=radio]):not([type=checkbox])) { min-width: 0; }
-/* The forges form's .forge-field, with the renderer's sibling label. */
-.temper-adoption-page label[for]:has(+ input:not([type=radio], [type=checkbox])) { display: block; margin: 14px 0 4.67px; color: #77756e; font: 11.67px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
-.temper-adoption-page input:not([type=radio]):not([type=checkbox]) { display: block; width: 100%; min-width: 0; border: 1px solid #dcd4c9; background: #fffefd; color: var(--temper-ink); border-radius: 5.83px; padding: 7px 9.33px; font: 12.83px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-/* Existing model validation marks both the field and its adjacent explanation. */
-.temper-adoption-page input[aria-invalid=true]:not([type=radio]):not([type=checkbox]) { border-color: var(--temper-red); }
-.temper-adoption-page input[aria-invalid=true] + [role=status] { color: var(--temper-red); }
-/* .stack and .kv: one radio or check and its existing words on each row. */
-.temper-adoption-page [role=radiogroup] { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10.5px; margin-top: 21px; }
-.temper-adoption-page [role=radiogroup] > label { display: block; padding: 9.33px 0; margin: 0; border-bottom: 1px solid #f0ede8; color: var(--temper-ink); font-size: 12.83px; overflow-wrap: anywhere; }
-.temper-adoption-page [role=radiogroup] > label:last-child { border-bottom: 0; }
-.temper-adoption-page input:is([type=radio], [type=checkbox]) { flex: none; margin: 0; accent-color: var(--temper-accent); }
-/* The pinned renderer emits the input and its label as siblings. */
-.temper-adoption-page [role=radiogroup] > input { align-self: center; }
-/* Adoption actions. */
-.temper-page .temper-adoption-page button { min-height: 32.67px; max-width: 100%; border: 1px solid #d8d0c5; border-radius: 5.83px; background: #fffefd; color: var(--temper-ink); padding: 7px 11.67px; margin: 0; font: 600 12.83px/1.3 var(--temper-mono); overflow-wrap: anywhere; }
-/* The form's checks on the radios' grid, each check and the act on the fields' 14px rhythm. */
-.temper-adoption-page section { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10.5px; }
-.temper-adoption-page section > :not(input[type=checkbox], input[type=checkbox] + label) { grid-column: 1 / -1; }
-.temper-adoption-page section > input[type=checkbox] { grid-column: 1; align-self: center; margin-top: 14px; }
-.temper-adoption-page section > input[type=checkbox] + label { grid-column: 2; margin: 14px 0 0; }
-.temper-page .temper-adoption-page section > button { justify-self: start; margin-top: 14px; }
-.temper-adoption-page button:disabled { opacity: .55; cursor: default; }
-/* .first-run-panel on a phone: adoption's 18.67px edges and one field per row. */
-@media (max-width: 600px) {
-  .temper-adoption-page > :not(.temper-pagebar) { width: calc(100% - 37.33px); }
-  .temper-adoption-page .temper-pagebar { padding-inline: 18.67px; }
-}
-
 /* Supplied refusals keep Status semantics and share the Accounts alert colour. */
 .temper-main:where(:not(.temper-settings)) [role=status].temper-refusal { color: var(--temper-red); font-size: 12.83px; overflow-wrap: anywhere; }
 
@@ -1581,6 +1542,37 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: settings ==== */
+
+/* Flow paths use Configure's crumbs (client/README.md, 3.5, The flows' paths). */
+.temper-main .temper-settings-path { min-width: 0; font: 400 14px/1.6 var(--gf-sans); }
+.temper-settings-path .temper-crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; color: var(--gf-muted); }
+.temper-settings-path .temper-crumbs > .temper-back { display: none; }
+.temper-settings-path .temper-trail { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.temper-settings-path .temper-trail > a::after { content: '/'; margin-left: 4px; color: var(--gf-muted); }
+.temper-settings-path .temper-crumbs a { color: inherit; text-decoration: none; }
+.temper-settings-path .temper-crumbs a:hover { color: var(--gf-ink); }
+.temper-settings-path .temper-trail > .temper-settings-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 14px/1.6 var(--gf-sans); color: var(--gf-ink); }
+
+/* Adoption's fields and choices take the mock's text, checks and button values. */
+.temper-settings .temper-settings-text { display: block; width: 100%; min-width: 0; min-height: 38px; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: inherit; }
+.temper-settings label[for]:has(+ .temper-settings-text) { display: block; margin-top: 14px; font-size: 14px; font-weight: 600; }
+.temper-settings .temper-settings-text[aria-invalid=true] { border-color: var(--gf-signal); }
+.temper-settings .temper-settings-col > section { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; min-width: 0; }
+.temper-settings .temper-settings-col > section > :not(input[type=checkbox], input[type=checkbox] + label) { grid-column: 1 / -1; }
+.temper-settings .temper-settings-col > section > input[type=checkbox] { align-self: center; margin: 14px 0 0; accent-color: var(--gf-ink); }
+.temper-settings .temper-settings-col > section > input[type=checkbox] + label { margin-top: 14px; font-size: 14px; }
+.temper-settings [role=radiogroup] { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; margin-top: 14px; font-size: 14px; }
+.temper-settings [role=radiogroup] > input { align-self: baseline; margin-top: 4px; accent-color: var(--gf-ink); }
+.temper-settings .temper-settings-col > section > .temper-settings-btn { justify-self: start; margin-top: 14px; font-family: var(--gf-sans); }
+.temper-settings .temper-settings-btn:disabled { opacity: .45; cursor: default; }
+.temper-settings .temper-settings-col > section > [role=status] { margin: 6px 0; color: var(--gf-muted); overflow-wrap: anywhere; }
+.temper-settings .temper-settings-col > section > [role=alert] { color: var(--gf-signal); overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .temper-settings-path .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
+  .temper-settings-path .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
+  .temper-settings-path .temper-trail { display: none; }
+}
 
 /* The settings column, head, tabs and rows, from greenfield/mock.css. */
 #app > .temper-settings { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; font: 400 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }

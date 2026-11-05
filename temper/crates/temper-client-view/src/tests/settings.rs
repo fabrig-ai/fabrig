@@ -399,3 +399,65 @@ fn alone_it_keeps_its_heading_and_lede_with_no_tabs() {
         }
     }
 }
+
+#[test]
+fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
+    for (address, tab, to, here) in [
+        (Address::ConnectForge { forge: None }, b"Forges".as_slice(), b"/forges".as_slice(), b"Add a forge".as_slice()),
+        (
+            Address::ConnectModel { way: None },
+            b"Accounts".as_slice(),
+            b"/accounts".as_slice(),
+            b"Connect an account".as_slice(),
+        ),
+        (
+            Address::Adopt { project: f::PROJECT },
+            b"Repositories".as_slice(),
+            b"/projects/1/settings/repositories".as_slice(),
+            b"Adopt a repository".as_slice(),
+        ),
+    ] {
+        let root = root(address);
+        let terminal = f::page_view(&root);
+        assert!(!terminal.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_PATH)));
+        let mut browser = f::browser_page_view(&root);
+        let path = styled(browser.tree(), look::SETTINGS_PATH);
+        assert!(path.iter().any(|n| n.role == Role::Navigation && n.name.as_deref() == Some(b"Where")));
+        let links: Vec<_> = path.iter().filter(|n| n.role == Role::Link).map(|n| (n.id, n.name.clone())).collect();
+        let expected = [
+            (tab, to),
+            (b"Shop".as_slice(), b"/projects/1".as_slice()),
+            (b"Settings".as_slice(), b"/projects/1/settings".as_slice()),
+            (tab, to),
+        ];
+        assert_eq!(links.len(), expected.len());
+        let last = path.iter().find(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)).unwrap();
+        assert_eq!(last.role, Role::Text);
+        assert_eq!(last.name.as_deref(), Some(here));
+        assert_eq!(f::nodes_text(subtree(browser.tree(), last.id)).as_ref(), here);
+        assert!(last.binding.is_none() && last.external.is_none());
+        assert!(path.iter().find(|n| n.styles.as_slice().contains(&look::BACK)).unwrap().role == Role::Link);
+        for ((id, name), (label, to)) in links.into_iter().zip(expected) {
+            assert_eq!(name.as_deref(), Some(label));
+            assert_eq!(crate::href(&mut browser, id).as_deref(), Some(to));
+        }
+        assert!(
+            styled(browser.tree(), look::RAIL)
+                .iter()
+                .any(|n| n.name.as_deref() == Some(b"Settings") && n.states.as_slice().contains(&State::Current))
+        );
+    }
+}
+
+#[test]
+fn no_project_draws_no_path() {
+    for address in [Address::ConnectForge { forge: None }, Address::ConnectModel { way: None }] {
+        let (mut root, watch, _) = f::root_at(address, &f::domain_limits());
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.projects.clear();
+        f::deliver_me(&mut root, watch, me);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_PATH)));
+        }
+    }
+}

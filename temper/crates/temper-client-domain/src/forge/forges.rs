@@ -328,6 +328,12 @@ pub enum RemovalEffect {
     GitHubAppStays,
     Playground,
 }
+/// Where a removed unfinished forge returns (client/README.md, 3.5, The flows' paths).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum StartOverEnd {
+    Welcome,
+    Forges,
+}
 #[derive(Debug)]
 pub struct Removal {
     pub forge: u16,
@@ -336,7 +342,7 @@ pub struct Removal {
     pub effect: RemovalEffect,
     pub request: Option<skein_lib::Token>,
     pub outcome: Option<jig_client::Outcome>,
-    pub start_over: bool,
+    pub start_over: Option<StartOverEnd>,
 }
 /// Actions whose words and confirmation are rendered by the view.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -356,7 +362,7 @@ pub enum Act {
     Remove { forge: u16 },
     ConfirmRemove,
     CancelRemove,
-    StartOver { forge: u16 },
+    StartOver { forge: u16, end: StartOverEnd },
     GoOn { forge: u16, back: Box<[u8]> },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -434,7 +440,7 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
             side.setup_form.removal = None;
             side.changed();
         }
-        Act::StartOver { forge } => start_over(side, limits, forge, out),
+        Act::StartOver { forge, end } => start_over(side, limits, forge, end, out),
         Act::GoOn { forge, back } => {
             let Some(row) = super::connect::row(forge, &side.forges, super::connect::playground(side)) else { return };
             if row.kind != Kind::GitHub {
@@ -570,7 +576,7 @@ pub fn remove(side: &mut super::Side, forge: u16) {
             effect,
             request: None,
             outcome: None,
-            start_over: false,
+            start_over: None,
         });
         side.changed();
         return;
@@ -580,6 +586,7 @@ pub fn start_over(
     side: &mut super::Side,
     limits: super::Limits,
     forge: u16,
+    end: StartOverEnd,
     out: &mut skein_lib::Queue<super::Request>,
 ) {
     if super::connect::row(forge, &side.forges, super::connect::playground(side)).is_none() {
@@ -590,7 +597,7 @@ pub fn start_over(
     if removal.forge != forge || removal.request.is_some() {
         return;
     }
-    removal.start_over = true;
+    removal.start_over = Some(end);
     confirm_remove(side, limits, out);
 }
 pub fn confirm_remove(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib::Queue<super::Request>) {
@@ -644,7 +651,9 @@ fn removal_told(
             return true;
         }
         removal.outcome = Some(outcome.clone());
-        if removed(outcome, limits) && removal.start_over {
+        if removed(outcome, limits)
+            && let Some(end) = removal.start_over
+        {
             side.set_up = None;
             side.setup_form.making = None;
             side.app = None;
@@ -652,7 +661,11 @@ fn removal_told(
             side.replacements.clear();
             side.tokens_form.clear();
             side.tokens = None;
-            out.push(super::Request::Leave { to: Box::from(b"/welcome?at=forge".as_slice()) });
+            let to: &[u8] = match end {
+                StartOverEnd::Welcome => b"/welcome?at=forge",
+                StartOverEnd::Forges => b"/forges",
+            };
+            out.push(super::Request::Leave { to: Box::from(to) });
         }
         side.changed();
         return true;
