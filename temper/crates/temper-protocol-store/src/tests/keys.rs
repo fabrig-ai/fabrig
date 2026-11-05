@@ -265,9 +265,9 @@ fn setting_keys_use_family_twenty_and_refuse_unknown_tags_widths_and_trailing_by
 
 #[test]
 fn dismissed_keys_use_family_thirty_four_and_round_trip() {
-    use temper_engine_domain_forge::Dismissal;
+    use temper_engine_domain_forge::PersonFact;
     for (party, project) in [(0, 0), (7, 3), (u64::MAX, u32::MAX)] {
-        let key = Key::Dismissed { party, what: Dismissal::ToBegin { project } };
+        let key = Key::Dismissed { party, what: PersonFact::ToBegin { project } };
         let bytes = keys::encode(&key, u32::MAX).expect("dismissed key fits");
         let mut expected = skein_kv::KeyWriter::new(u32::MAX);
         expected.tag(34).u64(party).tag(0).u64(u64::from(project));
@@ -279,7 +279,7 @@ fn dismissed_keys_use_family_thirty_four_and_round_trip() {
 #[test]
 fn dismissed_key_decoder_refuses_unknown_kind_width_and_trailing_bytes() {
     let mut unknown = skein_kv::KeyWriter::new(u32::MAX);
-    unknown.tag(34).u64(7).tag(1).u64(3);
+    unknown.tag(34).u64(7).tag(2).u64(3);
     let mut wide = skein_kv::KeyWriter::new(u32::MAX);
     wide.tag(34).u64(7).tag(0).u64(4_294_967_296);
     let mut trailing = skein_kv::KeyWriter::new(u32::MAX);
@@ -299,7 +299,33 @@ fn landing_log_keys_use_family_thirty_and_repository_order() {
     assert_eq!(bytes, expected.finish().unwrap());
     assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
     assert!(Key::Verification { repository, commit: [255; 32] } < key);
-    assert!(key < Key::Dismissed { party: 0, what: temper_engine_domain_forge::Dismissal::ToBegin { project: 0 } });
+    assert!(key < Key::Dismissed { party: 0, what: temper_engine_domain_forge::PersonFact::ToBegin { project: 0 } });
+}
+
+#[test]
+fn person_facts_sort_by_party_then_kind_and_fields() {
+    use temper_engine_domain_forge::PersonFact;
+    let mut previous = None;
+    for (party, what) in [
+        (0, PersonFact::GoalFrom { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX }),
+        (7, PersonFact::ToBegin { project: 0 }),
+        (7, PersonFact::ToBegin { project: u32::MAX }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: 0, at: 0 }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: 0, at: u64::MAX }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: u64::MAX, at: u64::MAX }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 1, goal: 0, at: 0 }),
+        (7, PersonFact::GoalFrom { project: 1, chat: 0, goal: 0, at: 0 }),
+        (u64::MAX, PersonFact::ToBegin { project: 0 }),
+    ] {
+        let key = Key::Dismissed { party, what };
+        let bytes = keys::encode(&key, u32::MAX).unwrap();
+        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
+        if let Some((prior_key, prior_bytes)) = previous {
+            assert!(key > prior_key);
+            assert!(bytes > prior_bytes);
+        }
+        previous = Some((key, bytes));
+    }
 }
 
 #[test]

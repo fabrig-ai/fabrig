@@ -358,9 +358,9 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the fifth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root). In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
-| `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended | choose the list's filter; more closed chats |
-| `NewChat` | the greenfield mock's `chat.html?id=new`; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request |
-| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Stop and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7) | message, stop, close, change the next run's model, accept or reject a proposal in place |
+| `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
+| `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
+| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Stop and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, stop, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
 | `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
 | `Task { task }` | the greenfield mock's `goal.html`, for a goal; `task.html` otherwise | a goal: its header, its needs as bands, its report, its tasks, landing, how it runs and what it decided, what the person sent (5.8), with Amend, Pause or Resume, Stop and its composer (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Stop and its composer (5.11), and its own held card while it is held | `task`, `tree`, `activity` a page at a time, older pages on an agent's task's "Older"; `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change; a goal's report, its own line and its needs (5.8) | as its document offers them (5.11): on a goal amend, pause, resume, stop, message, and answer its needs; on an agent's task message, amend, stop, release its own held task or one of its plan |
 | `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
@@ -408,8 +408,10 @@ keeps (`../protocol/configuration.md`, section 2).
   4. *Its own spend,* "N spent · of B", in the view and hidden in the
      browser.
 
-  The bar's right part is a flex row, which takes what the draft beside a
-  chat adds after the byline (section 11).
+  The bar's right part is a flex row.
+  After the byline, once a chat has a document, its mode group; with none,
+  "+ Draft"; then "Start goal…" or its goal's link; on a configuring chat
+  "Start over" (*A chat's document,* below).
 - **A conversation's turns** are named "You" when the turn is the
   person's own, "Temper" when it is the agent's, and by the party's
   name otherwise (`chat.html`), on every page that draws a
@@ -559,6 +561,130 @@ keeps (`../protocol/configuration.md`, section 2).
   - *The playground's start* (4.8, 5.6): its status, its failure and "Try
     again" and its context line draw above the `.meta-line`'s place, and its
     suggestions as `.starters` under it.
+  - *With a draft,* `NewChat { draft: true }`, `/chats/new?draft=1`: "+ Draft" in
+    the bar (`.btn.small`, while `drafts_offered`, *A chat's document,* below)
+    moves there. The empty document in Split, `.meta-line` "A chat that writes a
+    draft. Say what it should hold.", the placeholder "What should this draft
+    hold?". The first message starts the chat with, under the person's words
+    after a blank line, "Write this up as a draft beside us."; those words are
+    visible as sent. The chat opens in Split.
+- **A chat's document** (the greenfield mock's `chat.html`; the look request
+  `configure-chat-draft`, for every chat): a chat keeps one Markdown document
+  beside its conversation, which its agent writes (`../domain/agent.md`, 8.3).
+  It is the lowest-numbered note in the chat's own scope, its description its
+  title, its body Markdown, its name the mock's `slug` of the title, 28
+  characters, plus `.md`: `away-mode.md`. There are no file drafts: a document
+  is always a chat's.
+  - *Offered:* `pages::drafts_offered(me, project)` is true while `me` lists a
+    template of that project with `tracked` and no conversation flag. It gates
+    "+ Draft", the Drafts filter, the Chats lede's words, "Start goal…" and the
+    rail's "Goal".
+  - *Read live, with no new watch:* `Read::Notes { scope: NoteScope::Task {
+    project, task }, description: None, after: None }`, on the same retries as an
+    activity read, once the task's document has arrived, and again when the
+    thread shows a `note` call not seen before and when the run's state moves off
+    a call to `note`. One read is out at a time; a read wanted while one is out
+    is asked once more on its answer. The page watches the task and its run, and
+    only the task's own run writes the note, so nothing else moves it. The newest
+    answer replaces the document, and a read refused or empty leaves it as it
+    was.
+  - *Its mode:* `Mode { Chat, Split, Draft }`, the page's state for that chat, kept
+    while the page is open; a chat opened again starts in Chat, unless `NewChat {
+    draft }` opened it in Split. Nothing stores it.
+  - *The tool line:* a `note` call whose answer parses (`../domain/agent.md`,
+    8.3) is a `.turn-tool` in the conversation: the pen, "Wrote" for a first
+    write, else "Edited"; `.file` NAME; a `.turn-tool` detail, "64 lines" or "+18
+    −6"; "Show", a button. It isn't counted in the "N tool calls" disclosure; a
+    failed one stays in the disclosure. The domain parses the words, as
+    `delegation::results` does. "Show" moves to Split (on a phone, Draft) unless
+    already in Split or Draft, and moves the focus to the section holding that
+    call's `first`, which brings it into view and flashes it (`.doc-sec.flash`,
+    `@keyframes flash`).
+  - *The bar,* after the byline, once a document exists: `.seg`, a group named "The
+    draft", "Chat", "Split" and "Draft", each its icon (`chat.svg`, `split.svg`,
+    `doc.svg`), the chosen `aria-pressed`. `Ctrl+\`, skein's primary key (⌘ on a Mac), steps through
+    those shown, the next mode's button carrying the shortcut. On
+    a phone, Chat and Draft alone; Split left on a wide screen shows as Draft. With
+    no document, while `drafts_offered` and the chat hasn't ended: `.btn.small`
+    "+ Draft". `.btn.primary.small` "Start goal…" once the document has a section,
+    on a chat of a project with a home repository with no goal linked; with a
+    linked goal, a link `.btn.small` "Goal TITLE →" to `Task { task }`. Not on a
+    configuring chat, which has "Start over": it asks "Start a new configuring
+    chat? This one stays in Chats." through `crate::confirm`, closes the chat with
+    the chat's own close, which stays in Chats, Closed, its conversation and
+    document kept, and opens `Configure { project }`. The composer's hint gains
+    " · Ctrl+\ switches the draft" while a document shows.
+  - *The layout,* one for both kinds of chat, from `configure-chat-draft`'s rules:
+    `temper-mode-chat`, `-split` and `-draft` on the session. Chat: the
+    conversation alone. Split: the conversation and the document in two halves, the
+    document on white behind a rule, the rail folded to a 56-pixel strip holding the
+    star, a link to `Home`, and "Show the rail", drawn as `files/menu.svg`, which
+    opens the rail over the page until a press outside it or Escape. Draft: the
+    document alone, the rail back, the composer kept at the foot on white. The pane
+    keeps a scrollbar's gutter on both edges, so that its column and the composer
+    share a centre. On a phone the document takes the screen's width. In the
+    terminal, in Chat, the conversation alone; in Split or Draft, the document after
+    it as a region named its title.
+  - *The pane,* `.temper-doc`, `.temper-doc-inner`: a column of at most 640 pixels.
+    Its line, `.temper-doc-path`: at its left `docs/design/draft/NAME.md`, or on a
+    configuring chat "T7 · not proposed yet", "Proposal 12 · waits for an owner" or
+    "Accepted at 14:03", from its proposal cards; at its right "edited 1 min ago",
+    `TimeForm::Ago`, lower case. The body is split at each `#` and `##` line, each
+    section read by `skein_ui::markdown::read(.., 1, b)` into a slot, `.temper-doc-sec`, keyed
+    by its heading and its place among its namesakes, so that a change keeps the others'
+    nodes. `#`, level 2, is drawn as the mock's `.doc-inner h1`, and `##`, level 3, as its `h2`; the first section's first
+    paragraph as `.doc-muted`. Tables as `configure-chat-draft`'s. A fenced block
+    reads as code: nothing is drawn from it.
+  - *The tint,* `.temper-doc-changed`: the section holding the newest `note` call's
+    `first`, or for a first write the first `##` section; under it `.temper-doc-note`
+    "Added by T4 3 min ago" or "Changed by T4 just now".
+  - *Empty,* "+ Draft" pressed and nothing written: `.doc-empty` "The draft appears
+    here as you write it together.", the path's left the mock's `untitled.md`, its
+    right "writing".
+  - *"+ Draft" on a chat:* goes to Split with the empty pane, and sends the chat
+    the message "Write this up as a draft beside us." The `.meta-line`, when the
+    thread is empty: "A chat that writes NAME. Say what it should hold."
+- **Starting a goal from a chat's document** (the greenfield mock's `startSheet` and
+  `startGoal`): "Start goal…" opens a `Role::Dialog` named "Start a goal from NAME",
+  `dialog.sheet`, its state the page's; Escape and "Cancel" close it; on a phone,
+  the mock's width rule.
+  - `h2` "Start a goal from NAME", muted "The goal takes the draft as it is now.
+    Later edits reach it through Amend."
+  - `.field` "Name", `.text`, the slug without `.md`, focused.
+  - Fieldset "How it runs", `.option` radios, from what exists, in this order, the
+    first checked, its small line ending " PROJECT’s default.": each offered template
+    with `tracked`, no conversation flag and a symbolic resource, its own goal branch:
+    "Plan, tasks, land whole", "A plan from the draft, its tasks on a goal branch,
+    landed as one change once all are checked."; stock template 2: "Task by task",
+    "The same plan; each task lands on its own once checked."; stock template 2
+    agreed: "Plan, then wait for me", "Proposes the plan and its tasks, and starts
+    nothing until you approve." Then a muted link "The project’s ways of working", to
+    `Settings { project }`. Its "When it needs you" waits for the away switch.
+  - `.field` "Budget", `.text` 7em, a number, in the deployment's unit, no `$`, its
+    default `me`'s creating bound's `within.budget`, the most that creates with no
+    proposal, since `temper ctl goal start` has no default of its own; beside it,
+    muted, "asks you before going over".
+  - `.foot`: `.btn.quiet` "Cancel", `.btn.primary` "Start goal", disabled while the
+    name is empty or one is out.
+  - *Sent:* `shapes::set_goal_from(me, project, template, GoalDraft { words, executor,
+    budget, deadline: None, priority: None, llm: None }, reason)`, its executor charter
+    1 where the template lets the creator choose. The words, within `tasks.spec_bytes`
+    and refused in place if over, are "NAME", a blank line, "Implement this draft.
+    First commit it, as it stands, at docs/design/draft/SLUG.md.", a blank line and
+    the body, a snapshot, followed by the line `goal`'s root gives a goal, so that
+    charter 1's instructions read it as a goal (`../domain/agent.md`, 4.3.2), and for
+    "Plan, then wait for me" its agreed line too (8.2), sent by
+    `shapes::set_agreed_goal_from`, whose `asks` holds the root's rail (`../domain/agent.md`,
+    8.2). Both lines are one constant the root and the client reach, in
+    `temper-client-protocol-wire`. `long_text` bounds them on the client's side, and
+    `tasks.spec_bytes` on the engine's.
+  - *Answered:* `Judged::Create`: the fact `GoalFrom` is sent (4.6) and the goal's
+    `Task { task }` opens. `Judged::Propose`: the sheet closes with a line above the
+    composer, "Asked RECIPIENT to approve it; it waits in Needs you." `Judged::Refused`,
+    `NotOffered` or a refused answer: jig's words under the form, the form kept.
+  - *After:* the fact's chat shows `.turn-tool`: pen, "Started goal", `.file` TITLE, its
+    state, "Open", placed among the turns by the fact's `at`. Goals an
+    agent started with the `goal` tool keep their line in the conversation (5.7).
 - **The Chats page** (the greenfield mock's `chats.html`): `Chats { filter }`,
   a page of the frame and no pane, a main with the token `CHATS_PAGE`,
   drawn as the mock's `.main` and `.col`, in this order:
@@ -566,22 +692,29 @@ keeps (`../protocol/configuration.md`, section 2).
     `.headline` "Talk to an agent about OWNER/NAME.", OWNER/NAME the
     project's home repository, read as Home reads it, or "Talk to an
     agent." with none; `.lede` "A chat answers a question or changes the
-    code."
+    code.", or, while `drafts_offered`, "A chat answers a question or changes
+    the code, and can write a draft beside it. A draft becomes a goal for bigger
+    work."
   - *With no repository* (*A project with no repository,* below), `.band.quiet-band`:
     `.tag` "No repository yet", "Chats in PROJECT talk and plan, but change
     no code until a repository is in." and a `.btn.small` link "Adopt a
     repository", to `Adopt { project }`.
   - *The list,* `.section`: `.section-head` with `.filters` at its left,
-    "All", "Live" and "Closed", three pressed-or-not buttons that filter
-    in the page, reading nothing, the filter being in the page's address
-    (`browser.md`, 2.3), a filter chosen a move, as the inbox's; and
-    `.btn.small` "+ New chat" at its right, a link to `NewChat`.
+    "All", "Live", "Drafts" while `drafts_offered`, and "Closed",
+    pressed-or-not buttons that filter in the page, reading nothing, the filter
+    being in the page's address (`browser.md`, 2.3), a filter chosen a move, as
+    the inbox's; and `.btn.small` "+ New chat" at its right, a link to `NewChat`.
+    Drafts holds the rows whose chat has a document. The page reads
+    `NoteScope::Tasks { project }` as it opens, bodies left out, and watches the
+    person's facts; a note written later is seen on the next open.
   - *Its rows,* `.goal-rows` and `.goal-row`: the live group's lines by last
     activity and the ended page's by when each ended, merged newest first,
     a tie by the lower number first, each row one link: its number's, whose
     `::after` covers the row. A row's top line, `.top.mono`, holds at its
-    left "T9", then for a configuring chat " · Configuring", and at its right
-    its status, " · " and its age. The status is the bar's (one word for
+    left "T9", then for a configuring chat " · Configuring", for a chat with a
+    document " · writes away-mode.md", then for a goal the person started from it
+    " · started goal TITLE", TITLE from the goal's chip by `Subject::Chips`, and at
+    its right its status, " · " and its age. The status is the bar's (one word for
     one state in both places, and "Closed" for every ended chat, as the
     filter says it; the user's pick, 10-23), in lower case by the look
     alone (the terminal keeps its words), `.state-needs` while it waits on
@@ -601,7 +734,8 @@ keeps (`../protocol/configuration.md`, section 2).
   On a phone, as the mock: `.headline` 25 px, `.goal-row { padding: 12px 0
   }`, `.goal-row .line { font-size: 15px }`; the frame's top bar and tab bar
   stay.
-- **The inbox in the terminal** (`inbox.html`; the browser’s is *Needs you,* below) shows what needs the person, then the
+- **The inbox in the terminal** (`inbox.html`; the browser's is *Needs
+  you,* below) shows what needs the person, then the
   updates, each entry its card (section 1), under two headings, each
   with how many entries it lists beside it, the updates' as new ones
   since what is read leaves them (below): "Needs you 2", "Updates 2
@@ -2639,10 +2773,13 @@ for its kind, its user's login and its installations. Its nodes:
   `already` or `unknown`; or *unknown*, no longer held, which the subject
   `decided` answers.
 - **`Dismiss`:** of the project it names, from any party with a role
-  there (`../domain/forge.md`, 5.5): `what`, `Dismissal`, what the party
-  has done with: `to_begin`, `ToBegin`, the project (u32), "Skip" on
-  that project's "To begin", the one kind for now. The root names the
-  project as the request's scope, whatever scope the record came under.
+  there (`../domain/forge.md`, 5.5): `what`, `PersonFact`, a fact the party
+  keeps: `to_begin`, `ToBegin`, the project (u32), "Skip" on that project's
+  "To begin"; or `goal_from`, `GoalFrom`, the project (u32), the chat (u64), the
+  goal (u64) and `at` (u64), that the person started that goal from that chat's
+  document, at the client's clock.
+  The root names the project as the request's scope, whatever scope the record
+  came under.
   Its outcome: *dismissed*, `dismissed`, no fields, once the row has
   committed, and the same for a second, under any key, from any device;
   *forge refused*, `too large`, the family's bound reached (the forge
@@ -2865,7 +3002,7 @@ for its kind, its user's login and its installations. Its nodes:
 - **A person's Away switch, the subject `away`:** of the party's own scope,
   with no fields, its window unused; on the wire `Watching`'s `away`, one
   subject for the deployment and each watcher's own rows, as `dismissed`
-  (below). Its document, `Aways`: `rows`, at most `DISMISSED` (1024), each
+  (below). Its document, `Aways`: `rows`, at most 1,024, each
   `AwayRow { project, since, until, kinds, landed, off }`. *The client's forge
   side watches it once,* for the session, as it does `dismissed`, a watch
   refused or ended kept as such, with no rows: then the switch draws off and
@@ -2876,16 +3013,21 @@ for its kind, its user's login and its installations. Its nodes:
   `Decision { number, task, at, question, took, why, overturned }`, the asking
   party's alone, `took` the option's words (`../domain/forge.md`, 5.9). Home
   watches it while open, as it does `status`.
-- **A person's dismissals, the subject `dismissed`:** of the party's own
+- **A person's facts, the subject `dismissed`:** of the party's own
   scope (jig's `client/domain/contract.md`, 7.5), with no fields, its
   window unused; on the wire `Watching`'s `dismissed`. One subject for
   the deployment: the core names each watcher's party, and each
   watcher gets its own party's document (`../domain/forge.md`, 5.5). Its
   document, `Dismissals`: `dismissed`, the party's rows in their key's
-  order, at most `DISMISSED` (1024), each a `Dismissal`; a start whose
-  `forge.judge_projects` is past that bound is refused, a party holding at most
-  one row a project (`../protocol/configuration.md`, section 7). A
-  dismissal reaches the watch of every client of the party's once it
+  order, at most `DISMISSED` (8,192), each a `PersonFact`: `ToBegin {
+  project }`, or `GoalFrom { project, chat, goal, at }`, that the person started
+  goal `goal` from chat `chat`'s document at the client's clock's `at`. A start whose
+  `forge.judge_projects` is past an eighth of that bound is refused, a party
+  holding at most one `ToBegin` a project (`../protocol/configuration.md`,
+  section 7). A party's rows are bounded by `DISMISSED` too, and all rows by
+  `limits.dismissed()`: over either, `Dismiss` answers too large, and the link
+  alone is lost: the goal has started, and the client draws no refusal for it. A
+  fact reaches the watch of every client of the party's once it
   commits. *The client's forge side watches it once,* for the session, as
   it does `forges`, from when `me` is first delivered while the link
   is live, for every party: a watch refused or ended is kept as such,
@@ -3271,22 +3413,32 @@ page (5.1): a navigation named by the open project, in this order:
 - the switcher (*Projects in the rail,* below);
 - "Home", to the open project's `Home`; "Needs you", to *Needs you*
   filtered by the open project, with the count of what needs the person
-  there (*What the client keeps,* 3.5), omitted when zero; "Goals", to
-  the project's `Goals` with the filter All, only while the project's kind
-  7 shows them; "Chats", to `Chats`; and "Changes", to
-  `Changes { project }`, only while kind 7 shows them;
-  current on `Home`, on `Inbox`, on `Goals`, on a goal (a tracked agent's
-  `Task`) and on a task whose document names a goal, and on `Changes`,
-  on `Chats`, `NewChat` and `Chat`, but a configuring chat's, whose current entry is
-  "Settings". On Goals, on a goal and on Changes their entry stays
-  shown, so that nothing goes from under the person; a hidden page keeps
-  its address, hiding removing the way in and not the page. Until kind 7
-  is read, or if its read is refused, the optional entries are hidden (5.13).
+  there (*What the client keeps,* 3.5), omitted when zero; "Goals", to the project's `Goals` with the filter All, only while the project's
+  kind 7 shows them; "Chats", to `Chats`; and "Changes", to `Changes { project }`, only while
+  kind 7 shows them; current on `Home`, on `Inbox`, on Goals, a tracked goal and a task whose document names a goal, on
+  `Chats`, `NewChat` and `Chat`, but a configuring chat's, whose current entry is
+  "Settings", and on Changes. On Goals, on a goal and on Changes their
+  entry stays shown, so that nothing goes from under the person; a hidden
+  page keeps its address, hiding removing the way in and not the page.
+  Until kind 7 is read, or if its read is refused, the optional entries
+  are hidden (5.13);
   Whether a project has a goal is `Domain::has_goals(project)`, a fact the
   domain keeps whatever the rail does, from a live watch and one ended
   read of the goals' query with window 1, per open project;
-- "+ New chat", named "New chat", to `NewChat`
-  (`/chats/new`);
+- `div.temper-rail-new`, one dashed box split in two: "+ New chat", named "New
+  chat", a link to `NewChat` (`/chats/new`); and at its right a 36-pixel button
+  behind a dashed line, named "More ways to start work", drawn as a chevron, its
+  name hidden by style, opening skein-ui's menu (`Role::Menu`; skein's `ui-web.md`,
+  section 6), a panel under the entry 288 pixels wide, past the rail's edge and
+  over the page. Its items, a name and a line each: "Chat", "Ask a question or ask
+  for a change.", to `NewChat`; "Goal", "Agents plan a larger change and land it.",
+  to `NewChat { draft: true }`, a goal being started from a draft, while
+  `drafts_offered` (3.5); then, after a rule, "All ways to start work", muted, one
+  line, to `Settings { project }`, or `HowWorkRuns` once it has an address. Each
+  half takes the hover's grey; open, the button keeps it and its chevron turns ink.
+  Skein's keys, arrows and Escape; a press on an item closes it; a focused item
+  takes the hover's grey. A phone doesn't show the entry. Which templates it offers
+  is fixed until `../draft/template-places.md` is taken up;
 - at its foot: the Away switch, while 3.5's *Away* shows it; while the
   playground runs and is not leaving (4.8),
   "Set up temper", as the banner has it (5.1); the link's state, as
@@ -3407,6 +3559,10 @@ it. Their patches are four a node, the most a diff emits (skein's
 `ui.md`, section 7). skein's text shell counts its worst-case print from these limits,
 and reserves for each print only what that page's tree may print
 (6.8).
+
+A note's body and a task's words are `long_text`, 131,072 on each of temper's
+clients, past a field's `text` (jig's `client/domain/client.md`, section 14), and
+a chat's document's section is read within the view's `text_bytes`, which prices one.
 
 temper's client takes every document within the bounds the engine's
 configuration gives its documents. A path's segments have a bound of
@@ -3537,7 +3693,8 @@ The words for each offered source are:
   only member"; a key's or a program's login's with no uses given,
   "Your own work" (jig's `domain/accounts.md`, 4.2).
 - **The composer's line** names the account and model the work's next
-  run takes, on a chat as its bar's byline, with the chooser behind it
+  run takes, on a chat as its bar's byline, before its mode group (3.5, *A chat's
+  document*), with the chooser behind it
   (3.5), and just above its field on an agent's task's page, from what
   jig gives every page: `me`, the accounts document
   and its readiness. When the welcome's model usability is known false

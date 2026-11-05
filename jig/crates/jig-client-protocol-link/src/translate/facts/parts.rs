@@ -9,7 +9,7 @@ use skein_lib::{List, Reader, Wall, bytes};
 
 pub(crate) fn document_text(value: &w::DocumentText, limits: &Limits) -> Result<c::DocumentText, w::Problem> {
     Ok(c::DocumentText {
-        bytes: match c::Text::new(bytes::copy_of(value.bytes()), limits.client().text) {
+        bytes: match c::Text::new(bytes::copy_of(value.bytes()), limits.client().long_text) {
             Ok(value) => value,
             Err(_) => return Err(text_problem()),
         },

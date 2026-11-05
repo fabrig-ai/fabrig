@@ -267,3 +267,44 @@ fn a_markdown_table_prints_each_row_with_its_cells() {
     render(&tree, b"ops", None, &mut print);
     assert_eq!(print.text.as_slice(), include_bytes!("tests/golden/markdown-table.txt"));
 }
+
+#[test]
+fn a_menu_item_prints_its_description_on_its_own_line() {
+    let tree = fixtures::page(|b| {
+        b.open(Role::MenuItem);
+        b.name(b"Chat");
+        b.description(b"Ask a question.");
+        b.bind(fixtures::binding());
+        b.close();
+    });
+    let mut print = Print::new(&fixtures::LIMITS).unwrap();
+    render(&tree, b"ops", None, &mut print);
+    assert_eq!(print.text.as_slice(), b"== ops == \n[1] Chat\n  Ask a question.\n");
+}
+
+#[test]
+fn an_ordinary_group_prints_its_children_as_a_slot_does() {
+    let mut expected = None;
+    for role in [Role::Slot, Role::Group] {
+        let mut b = skein_ui::Builder::new(&fixtures::LIMITS);
+        b.open(Role::Page);
+        b.open(Role::Main);
+        b.open(role);
+        b.name(b"The draft");
+        fixtures::button(&mut b, b"Chat", true);
+        fixtures::button(&mut b, b"Draft", true);
+        b.close();
+        b.close();
+        b.close();
+        let tree = b.finish();
+        let mut print = Print::new(&fixtures::LIMITS).unwrap();
+        render(&tree, b"ops", None, &mut print);
+        assert_eq!(print.numbers.len(), 2);
+        let text = skein_lib::bytes::copy_of(print.text.as_slice());
+        if let Some(expected) = &expected {
+            assert_eq!(&text, expected);
+        } else {
+            expected = Some(text);
+        }
+    }
+}

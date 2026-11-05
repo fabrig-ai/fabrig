@@ -191,7 +191,7 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[AwayRow]>> {
         return None;
     }
     let document = wire::decode_aways(&record.bytes, &wire_limits(&limits)?)?;
-    let mut rows = List::with_capacity(wire::DISMISSED);
+    let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
     for row in document.into_parts().rows.into_boxed() {
         let row = row.into_parts();
         let until = match row.until {

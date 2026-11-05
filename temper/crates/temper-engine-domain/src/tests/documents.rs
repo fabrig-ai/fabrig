@@ -415,7 +415,7 @@ fn dismissal_root() -> (Domain, Env<Limits>) {
         .unwrap();
     records
         .push(crate::Record::Forge {
-            row: Box::new(forge::Stored::Dismissed { party: 2, what: forge::Dismissal::ToBegin { project: 2 } }),
+            row: Box::new(forge::Stored::Dismissed { party: 2, what: forge::PersonFact::ToBegin { project: 2 } }),
         })
         .unwrap();
     resume_fixture::root_with_records(config, &limits, records.as_slice())
@@ -445,7 +445,7 @@ fn settle_dismissals(domain: &mut Domain, env: &Env<Limits>) -> Box<[crate::Requ
 fn dismissal_document(watcher: Token, projects: &[u32]) -> crate::Request {
     let mut rows = List::with_capacity(u32::try_from(projects.len()).unwrap());
     for project in projects {
-        rows.push(forge::Dismissal::ToBegin { project: *project }).unwrap();
+        rows.push(forge::PersonFact::ToBegin { project: *project }).unwrap();
     }
     crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::ForgeDocument {
         watcher,
@@ -487,7 +487,7 @@ fn commit_dismissal(domain: &mut Domain, env: &Env<Limits>) -> Box<[crate::Reque
             key: [1; 16],
             digest: [1; 32],
             carried: None,
-            request: crate::Application::Dismiss { what: forge::Dismissal::ToBegin { project: 1 } },
+            request: crate::Application::Dismiss { what: forge::PersonFact::ToBegin { project: 1 } },
         }),
     )
     .unwrap();
@@ -500,7 +500,7 @@ fn commit_dismissal(domain: &mut Domain, env: &Env<Limits>) -> Box<[crate::Reque
                 panic!("dismissal delivered before commit: {request:?}");
             };
             assert!(writes.contains(&crate::Write::Save(crate::Record::Forge {
-                row: Box::new(forge::Stored::Dismissed { party: 1, what: forge::Dismissal::ToBegin { project: 1 } })
+                row: Box::new(forge::Stored::Dismissed { party: 1, what: forge::PersonFact::ToBegin { project: 1 } })
             })));
             assert!(commit.replace(number).is_none());
         }

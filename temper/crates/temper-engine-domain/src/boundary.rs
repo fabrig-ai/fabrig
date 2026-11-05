@@ -533,7 +533,7 @@ pub enum WorkerInput {
 pub enum Application {
     Forge(forge::Ask),
     Return { source: u32, path: Box<[u8]> },
-    Dismiss { what: forge::Dismissal },
+    Dismiss { what: forge::PersonFact },
     Looked { project: u32 },
     SetAway { project: u32, on: bool, until: Option<Wall>, kinds: u8 },
     Overturn { project: u32, number: u32 },

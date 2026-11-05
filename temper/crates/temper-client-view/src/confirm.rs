@@ -257,7 +257,10 @@ fn close(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings)
     let Some(chat) = root.pages().chat() else { return };
     let Some(Ask::Compound { operations, .. }) = &chat.closing else { return };
     b.open(Role::Dialog);
-    b.name(&words.say(Word::Close, &[]));
+    b.name(&words.say(if chat.restarting { Word::StartOver } else { Word::Close }, &[]));
+    if chat.restarting {
+        words.text(b, Word::StartOverQuestion, &[]);
+    }
     if let Some(task) = chat.task(root.client())
         && let Some(Effect::Cancel(_)) = jig_client::facts::effect(task.acts.as_slice(), ActKind::Cancel)
     {

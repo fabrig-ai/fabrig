@@ -284,7 +284,7 @@ fn a_key_has_details_then_ready_with_its_account_and_chat_link() {
     let node = fixtures::find(tree, Role::Link, b"Start a chat").unwrap();
     assert_eq!(
         crate::act(&mut view, node, Act::Press),
-        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::NewChat }))
+        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::NewChat { draft: false } }))
     );
 }
 #[test]

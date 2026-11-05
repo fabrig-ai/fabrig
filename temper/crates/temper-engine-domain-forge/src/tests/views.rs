@@ -202,12 +202,12 @@ fn a_landed_queue_change_is_a_change_document_and_has_no_turn_landing() {
 fn dismissed_is_each_watchers_own_rows() {
     let mut d = domain();
     for (party, project) in [(1, 7), (2, 9), (1, 3)] {
-        outputs(&mut d, Event::Restore { record: Stored::Dismissed { party, what: Dismissal::ToBegin { project } } });
+        outputs(&mut d, Event::Restore { record: Stored::Dismissed { party, what: PersonFact::ToBegin { project } } });
     }
     for (party, projects) in [(1, [3, 7].as_slice()), (2, [9].as_slice()), (3, [].as_slice())] {
         let mut rows = List::with_capacity(2);
         for project in projects {
-            rows.push(Dismissal::ToBegin { project: *project }).unwrap();
+            rows.push(PersonFact::ToBegin { project: *project }).unwrap();
         }
         let rows = rows.into_boxed();
         let expected = Document::Dismissals(rows);
@@ -215,7 +215,7 @@ fn dismissed_is_each_watchers_own_rows() {
             d.document(DISMISSED_SUBJECT, ApplicationScope::Own, party, env().wall, &LIMITS),
             Some(expected.clone())
         );
-        assert_eq!(expected.owned_bytes(), size_of::<Document>() + size_of::<Dismissal>() * d.dismissals(party).len());
+        assert_eq!(expected.owned_bytes(), size_of::<Document>() + size_of::<PersonFact>() * d.dismissals(party).len());
     }
 }
 

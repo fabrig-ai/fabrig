@@ -11,6 +11,7 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
+jig-protocol-config.workspace = true
 jig-test-profile.workspace = true
 jig-client-test-protocol-wire.workspace = true
 jig-client.workspace = true

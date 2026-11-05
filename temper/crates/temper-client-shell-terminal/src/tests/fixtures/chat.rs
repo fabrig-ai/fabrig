@@ -47,7 +47,7 @@ pub fn settings() -> skein_ui::Tree {
     first_run_page(client::Address::Settings { project: 1 }, true)
 }
 pub fn first_run() -> skein_ui::Tree {
-    first_run_page(client::Address::NewChat, true)
+    first_run_page(client::Address::NewChat { draft: false }, true)
 }
 #[expect(clippy::too_many_lines, reason = "one fixture answers the chat's documents and the session's demo and forges")]
 fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {

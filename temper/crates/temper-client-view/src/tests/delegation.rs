@@ -47,6 +47,7 @@ fn limits() -> temper_client_domain::Limits {
     let mut limits = fixtures::domain_limits();
     limits.client.domain.rows = 8;
     limits.client.domain.text = 256;
+    limits.client.domain.long_text = 256;
     limits.client.domain.turn_text = 256;
     limits
 }
@@ -668,6 +669,7 @@ fn first_run_view(dark: bool, landed_change: bool) -> crate::View {
     let mut receiving = limits();
     receiving.client.domain.rows = 3;
     receiving.client.domain.text = 512;
+    receiving.client.domain.long_text = 512;
     receiving.client.domain.turn_text = 2048;
     let mut chat = change();
     chat.chip.task = if dark { 4 } else { CHAT };
@@ -764,6 +766,7 @@ fn csv_chat_hears_its_result(turn_text: u32) {
     let mut receiving = limits();
     receiving.client.domain.rows = 3;
     receiving.client.domain.text = 512;
+    receiving.client.domain.long_text = 512;
     receiving.client.domain.turn_text = turn_text;
     let mut activity = run::activity(false, true, receiving.client.domain.turn_text);
     let mut rows = List::with_capacity(6);
@@ -850,6 +853,7 @@ fn the_csv_chat_stops_waiting_when_its_card_lands_before_the_chat_document() {
     let mut receiving = limits();
     receiving.client.domain.rows = 3;
     receiving.client.domain.text = 512;
+    receiving.client.domain.long_text = 512;
     receiving.client.domain.turn_text = 2048;
     let mut chat = change();
     chat.chip.task = CHAT;

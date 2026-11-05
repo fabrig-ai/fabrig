@@ -1157,7 +1157,7 @@ pub enum Stored {
     /// A person's dismissals (temper/docs/design/domain/forge.md, 5.5).
     Dismissed {
         party: u64,
-        what: crate::Dismissal,
+        what: crate::PersonFact,
     },
     ProjectFacts(crate::ProjectFacts),
     Looked(crate::Looked),
@@ -1204,7 +1204,7 @@ pub enum Key {
     Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
     Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
     LandingLog { repository: skein_forge::api::Repository },
-    Dismissed { party: u64, what: crate::Dismissal },
+    Dismissed { party: u64, what: crate::PersonFact },
     Making(crate::MakingKey),
     ProjectFacts { project: u32 },
     Looked { party: u64, project: u32 },
@@ -1530,7 +1530,7 @@ pub enum Event {
         request: Token,
         token: Token,
         party: u64,
-        what: crate::Dismissal,
+        what: crate::PersonFact,
     },
     /// The core's answer to the application's adoption part.
     ApplicationAnswered {

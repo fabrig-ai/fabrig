@@ -613,6 +613,7 @@ pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
 #[must_use]
 pub fn document_with_context_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
     document_bound(&limits.documents)?
+        .max(project_note::note_bound(limits)?)
         .checked_add(List::<LiveDelegate>::price(limits.tasks.delegates)?)?
         .checked_add(u64::from(limits.tasks.delegates).checked_mul(chip_phase::heap_bound(&limits.documents)?)?)?
         .checked_add(settings::document_bound(limits, kinds)?)?

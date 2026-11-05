@@ -108,12 +108,12 @@ fn one_row(world: &mut Clients) {
         [(
             Key::Forge(forge::Key::Dismissed {
                 party: fixtures::PARTY,
-                what: forge::Dismissal::ToBegin { project: PROJECT },
+                what: forge::PersonFact::ToBegin { project: PROJECT },
             }),
             Record::Forge {
                 row: Box::new(forge::Stored::Dismissed {
                     party: fixtures::PARTY,
-                    what: forge::Dismissal::ToBegin { project: PROJECT },
+                    what: forge::PersonFact::ToBegin { project: PROJECT },
                 })
             },
         )]

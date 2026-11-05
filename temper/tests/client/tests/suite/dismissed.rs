@@ -5,7 +5,7 @@ use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, RequestEnvelope, Time, Wall};
 use temper_client_domain::{
     Event, Request,
-    forge::dismissed::{self, Dismissal},
+    forge::dismissed::{self, PersonFact},
     owner::Owner,
 };
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -25,7 +25,7 @@ const OTHER_CLIENT: ClientId = ClientId(2);
 const OTHER_PARTY: u64 = 4;
 const OTHER_SUBJECT: u64 = 8;
 const PROJECT: u32 = 1;
-const WHAT: Dismissal = Dismissal::ToBegin { project: PROJECT };
+const WHAT: PersonFact = PersonFact::ToBegin { project: PROJECT };
 const FIRST: Key = Key { asker: Owner::Forge.asker(), number: 2102 };
 const SECOND: Key = Key { asker: Owner::Forge.asker(), number: 2103 };
 // The same restart interval as agent_recovery.rs, within the story's one second.
@@ -99,7 +99,9 @@ impl Story {
                             request:
                                 jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, request, .. } },
                         } = &request
-                            && Some(request) == dismissed::ask(WHAT, &self.env.limits.forge).as_ref()
+                            && [WHAT, GOAL_FROM]
+                                .iter()
+                                .any(|fact| Some(request) == dismissed::ask(*fact, &self.env.limits.forge).as_ref())
                         {
                             probe.attempt = Some(*attempt);
                         }
@@ -138,6 +140,9 @@ impl Story {
         panic!("dismissal clients and engine did not settle");
     }
     fn dismiss(&mut self, who: ClientId, key: Key) {
+        self.dismiss_fact(who, key, WHAT);
+    }
+    fn dismiss_fact(&mut self, who: ClientId, key: Key, fact: PersonFact) {
         let probe = &mut self.probes[who.0];
         probe.sent = Some(key);
         Temper::step(
@@ -147,7 +152,7 @@ impl Story {
                 event: jig_client::Event::Send {
                     key,
                     name: None,
-                    request: dismissed::ask(WHAT, &self.env.limits.forge).expect("dismissal request"),
+                    request: dismissed::ask(fact, &self.env.limits.forge).expect("dismissal request"),
                 },
             }
             .into(),
@@ -210,12 +215,12 @@ fn a_second_dismissal_is_answered_as_the_first() {
         [(
             StoreKey::Forge(forge::Key::Dismissed {
                 party: fixtures::PARTY,
-                what: forge::Dismissal::ToBegin { project: PROJECT },
+                what: forge::PersonFact::ToBegin { project: PROJECT },
             }),
             Record::Forge {
                 row: Box::new(forge::Stored::Dismissed {
                     party: fixtures::PARTY,
-                    what: forge::Dismissal::ToBegin { project: PROJECT },
+                    what: forge::PersonFact::ToBegin { project: PROJECT },
                 })
             }
         )]
@@ -262,4 +267,18 @@ fn a_party_with_no_role_is_refused() {
     );
     assert!(story.probes[OTHER_CLIENT.0].root.person().client().pending(FIRST).is_none());
     assert!(story.rows().is_empty());
+}
+
+const GOAL_FROM: PersonFact = PersonFact::GoalFrom { project: PROJECT, chat: 7, goal: 11, at: 0 };
+#[test]
+fn a_goal_from_reaches_another_client_of_the_party() {
+    let mut story = Story::new();
+    story.other_person(true);
+    story.dismiss_fact(CLIENT, FIRST, GOAL_FROM);
+    story.answered_dismissed(CLIENT);
+    assert_eq!(
+        story.probes[INBOX_CLIENT.0].root.person().forge().goals_from(PROJECT, 7).collect::<Vec<_>>(),
+        [(11, 0)]
+    );
+    assert_eq!(story.probes[OTHER_CLIENT.0].root.person().forge().goals_from(PROJECT, 7).collect::<Vec<_>>(), []);
 }

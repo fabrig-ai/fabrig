@@ -179,7 +179,7 @@ A change batch reserves one task per member and shares the descendant allowance 
 - `notes.entries_per_scope`: count, 16. Bounds entries admitted in one scope.
 - `notes.pattern_bytes`: bytes, 256. Bounds bytes in one connector pattern.
 - `notes.description_bytes`: bytes, 256. Bounds bytes in one note description line.
-- `notes.body_bytes`: bytes, 4,096. Bounds bytes in one note body.
+- `notes.body_bytes`: bytes, 32,768. Bounds bytes in one note body.
 - `notes.references`: count, 8. Bounds task references in one entry.
 - `notes.load_rows`: count, 4. Bounds records in one store load page.
 - `notes.lines`: count, 4. Bounds index lines in one answer.
@@ -198,7 +198,7 @@ A change batch reserves one task per member and shares the descendant allowance 
 - `hub.detail_bytes`: bytes, 4,096. Bounds bytes of detail an answer carries for operators: the tail of what it is given.
 - `hub.held`: count, 8. Bounds inbound events a run holds until it is live.
 - `hub.inbox`: count, 8. Bounds messages a run starts with and refusals a turn or answer carries.
-- `hub.event_bytes`: bytes, 65,536. Bounds bytes of an inbound event.
+- `hub.event_bytes`: bytes, 69,632. Bounds bytes of an inbound event.
 - `hub.run_calls`: count, 8. Bounds host calls a run has in flight at once, including delivery.
 - `hub.facts`: count, 64. Bounds facts kept until the parent drains them.
 - `hub.told`: count, 64. Bounds activity and live pieces kept for the core while the link cannot take it.
@@ -233,7 +233,7 @@ A change batch reserves one task per member and shares the descendant allowance 
 - `core.load_slots`: count, 4. Bounds concurrent authenticated read loads, including retained result reads.
 - `core.load_bytes`: bytes, 65,536. Bounds owned bytes brought by one authenticated store read.
 - `core.call_records`: count, 32. Bounds named call replay and in-flight route slots.
-- `core.call_answer_bytes`: bytes, 32,768. Bounds total bytes of a retained opaque call name, tool name and settled answer.
+- `core.call_answer_bytes`: bytes, 69,632. Bounds total bytes of a retained opaque call name, tool name and settled answer.
 - `core.brief_parts`: count, 8. Bounds fragments when rendering a core-owned brief section.
 - `core.brief_core_budgets.tail`: bytes, 2,048. Bounds transcript tail text bytes in a fresh run's brief.
 - `core.brief_core_budgets.task`: bytes, 4,096. Bounds task section text bytes in one brief.

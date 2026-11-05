@@ -1922,14 +1922,14 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
                 w::Dismiss::new(
                     &w::CEILINGS,
                     w::DismissParts {
-                        what: w::Dismissal::ToBegin(
+                        what: w::PersonFact::ToBegin(
                             w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: 2 }).unwrap(),
                         ),
                     },
                 )
                 .unwrap(),
             ),
-            root::Application::Dismiss { what: forge::Dismissal::ToBegin { project: 2 } },
+            root::Application::Dismiss { what: forge::PersonFact::ToBegin { project: 2 } },
         ),
         (
             w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 9 }).unwrap()),
@@ -2736,7 +2736,7 @@ fn dismissals_encode_the_partys_rows() {
     for projects in [[].as_slice(), [3, 7].as_slice()] {
         let mut rows = List::with_capacity(2);
         for project in projects {
-            rows.push(forge::Dismissal::ToBegin { project: *project }).unwrap();
+            rows.push(forge::PersonFact::ToBegin { project: *project }).unwrap();
         }
         let rows = rows.into_boxed();
         let bytes =
@@ -2745,7 +2745,7 @@ fn dismissals_encode_the_partys_rows() {
         let mut expected = List::with_capacity(wire::DISMISSED);
         for project in projects {
             expected
-                .push(w::Dismissal::ToBegin(
+                .push(w::PersonFact::ToBegin(
                     w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap(),
                 ))
                 .unwrap();
@@ -3103,6 +3103,22 @@ fn repeated(byte: u8, count: u32) -> Box<[u8]> {
     bytes.into_boxed()
 }
 
+#[test]
+fn a_whole_party_document_fits_the_wire() {
+    let mut rows = List::with_capacity(wire::DISMISSED);
+    for goal in 0..u64::from(wire::DISMISSED) {
+        rows.push(forge::PersonFact::GoalFrom { project: 1, chat: 7, goal, at: 0 }).unwrap();
+    }
+    let bytes =
+        family::document(forge::Document::Dismissals(rows.into_boxed()), &fixtures::forge_table(&[]), &w::CEILINGS)
+            .unwrap();
+    let document = wire::decode_dismissals(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!(document.dismissed().len(), wire::DISMISSED);
+    for (goal, fact) in document.dismissed().iter().enumerate() {
+        let w::PersonFact::GoalFrom(value) = fact else { panic!("goal fact") };
+        assert_eq!((value.project(), value.chat(), value.goal()), (1, 7, u64::try_from(goal).unwrap()));
+    }
+}
 fn away_family(exchange: kit::ToApplication) -> root::Event {
     family::to_root(
         &jig_protocol_config::Directories::working(),

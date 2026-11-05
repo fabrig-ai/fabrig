@@ -173,7 +173,7 @@ impl Core {
                     notes::Scope::Deployment => authority::NoteScope::Deployment,
                     notes::Scope::Project { project } if project == task.project => authority::NoteScope::Project,
                     notes::Scope::Goal { project, goal }
-                        if project == task.project && Some(goal) == self.goal_of(task) =>
+                        if project == task.project && Some(goal) == self.note_goal(task) =>
                     {
                         authority::NoteScope::Goal
                     }
@@ -270,7 +270,7 @@ impl Core {
         match scope {
             notes::Scope::Deployment => true,
             notes::Scope::Project { project } | notes::Scope::Resources { project, .. } => *project == row.project,
-            notes::Scope::Goal { project, goal } => *project == row.project && Some(*goal) == self.goal_of(row),
+            notes::Scope::Goal { project, goal } => *project == row.project && Some(*goal) == self.note_goal(row),
         }
     }
 }

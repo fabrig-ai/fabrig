@@ -1,20 +1,24 @@
-//! A person's dismissal facts (temper/docs/design/client/README.md, 4.6).
+//! A person's facts (temper/docs/design/client/README.md, 4.6).
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Dismissal {
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+/// Facts the party keeps (temper/docs/design/client/README.md, 4.6).
+pub enum PersonFact {
+    /// "Skip" on the project's "To begin".
     ToBegin { project: u32 },
+    /// The person started `goal` from `chat`'s document.
+    GoalFrom { project: u32, chat: u64, goal: u64, at: u64 },
 }
 
 /// An ended watch stays ended until the next sign-in.
 #[derive(Debug)]
 pub enum State {
     Unknown,
-    Rows(Box<[Dismissal]>),
+    Rows(Box<[PersonFact]>),
     Ended,
 }
 
@@ -29,12 +33,19 @@ pub fn watch(limits: &Limits) -> Option<Watchable> {
     })
 }
 
-/// The request "Skip" will send: of `what`'s project's scope.
+/// Save a fact in its project's scope.
 #[must_use]
-pub fn ask(what: Dismissal, limits: &Limits) -> Option<Ask> {
+pub fn ask(what: PersonFact, limits: &Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
-    let Dismissal::ToBegin { project } = what;
-    let what = w::Dismissal::ToBegin(w::ToBegin::new(&bounds, w::ToBeginParts { project }).ok()?);
+    let (project, what) = match what {
+        PersonFact::ToBegin { project } => {
+            (project, w::PersonFact::ToBegin(w::ToBegin::new(&bounds, w::ToBeginParts { project }).ok()?))
+        }
+        PersonFact::GoalFrom { project, chat, goal, at } => (
+            project,
+            w::PersonFact::GoalFrom(w::GoalFrom::new(&bounds, w::GoalFromParts { project, chat, goal, at }).ok()?),
+        ),
+    };
     let dismiss = w::Dismiss::new(&bounds, w::DismissParts { what }).ok()?;
     let record = w::Requesting::new(&bounds, w::RequestingParts { request: w::Request::Dismiss(dismiss) }).ok()?;
     Some(Ask::Family {
@@ -55,11 +66,30 @@ impl Side {
 
     /// `None` until the first document, or once the watch is refused or ended.
     #[must_use]
-    pub fn dismissed(&self, what: Dismissal) -> Option<bool> {
+    pub fn dismissed(&self, what: PersonFact) -> Option<bool> {
         match &self.dismissed {
             State::Rows(rows) => Some(rows.contains(&what)),
             State::Unknown | State::Ended => None,
         }
+    }
+    /// Goals started from this chat, in the party's key order.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the person facts contract exposes a filtered iterator over the party's rows"
+    )]
+    pub fn goals_from(&self, project: u32, chat: u64) -> impl Iterator<Item = (u64, u64)> {
+        let rows = match &self.dismissed {
+            State::Rows(rows) => rows.as_ref(),
+            State::Unknown | State::Ended => &[],
+        };
+        rows.iter().filter_map(move |fact| match *fact {
+            PersonFact::GoalFrom { project: held_project, chat: held_chat, goal, at }
+                if held_project == project && held_chat == chat =>
+            {
+                Some((goal, at))
+            }
+            PersonFact::ToBegin { .. } | PersonFact::GoalFrom { .. } => None,
+        })
     }
 }
 
@@ -134,7 +164,7 @@ pub(crate) fn told(
     true
 }
 
-fn rows(record: &Family, limits: Limits) -> Option<Box<[Dismissal]>> {
+fn rows(record: &Family, limits: Limits) -> Option<Box<[PersonFact]>> {
     if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
         return None;
     }
@@ -142,7 +172,13 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[Dismissal]>> {
     let mut rows = List::with_capacity(wire::DISMISSED);
     for what in document.into_parts().dismissed.into_boxed() {
         let what = match what {
-            w::Dismissal::ToBegin(value) => Dismissal::ToBegin { project: value.project() },
+            w::PersonFact::ToBegin(value) => PersonFact::ToBegin { project: value.project() },
+            w::PersonFact::GoalFrom(value) => PersonFact::GoalFrom {
+                project: value.project(),
+                chat: value.chat(),
+                goal: value.goal(),
+                at: value.at(),
+            },
         };
         rows.push(what).expect("wire bounds dismissal rows");
     }

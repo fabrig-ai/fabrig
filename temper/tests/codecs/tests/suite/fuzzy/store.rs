@@ -56,11 +56,19 @@ fn making_row(rng: &mut Rng) -> forge::Stored {
         }),
     })
 }
+fn person_fact(rng: &mut Rng) -> forge::PersonFact {
+    if rng.below(2) == 0 {
+        forge::PersonFact::ToBegin { project: u32::try_from(rng.below(4_294_967_296)).expect("u32") }
+    } else {
+        forge::PersonFact::GoalFrom {
+            project: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+            chat: rng.next_u64(),
+            goal: rng.next_u64(),
+            at: rng.next_u64(),
+        }
+    }
+}
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the seeded corpus mutates named decision answers beside the other store records"
-)]
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
@@ -72,10 +80,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         row_and_key(&binding, &mut rng, &bounds);
         let making = making_row(&mut rng);
         row_and_key(&making, &mut rng, &bounds);
-        let dismissed = forge::Stored::Dismissed {
-            party: rng.next_u64(),
-            what: forge::Dismissal::ToBegin { project: u32::try_from(rng.below(4_294_967_296)).expect("u32") },
-        };
+        let dismissed = forge::Stored::Dismissed { party: rng.next_u64(), what: person_fact(&mut rng) };
         row_and_key(&dismissed, &mut rng, &bounds);
         record(&temper_codecs_world::drawn(&mut rng, 512), &bounds);
         key(&temper_codecs_world::drawn(&mut rng, 512));

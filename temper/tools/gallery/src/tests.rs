@@ -61,7 +61,10 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_domain::pages::needs::Act::Open { object },
             ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
-                assert!(sample.name.starts_with("home-") || matches!(sample.name, "rail-away-on" | "rail-away-off"));
+                assert!(
+                    matches!(sample.address, temper_client_domain::Address::Home { .. })
+                        || matches!(sample.name, "rail-away-on" | "rail-away-off")
+                );
                 assert!(
                     samples::domain(&sample)
                         .pages()
@@ -102,6 +105,20 @@ enum Part {
     Plan { live: u32, title: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "rail-new-menu",
+        heading: "tally",
+        parts: &[
+            Part::Named { role: Role::Menu, name: "More ways to start work" },
+            Part::Described { role: Role::MenuItem, name: "Chat", description: "Ask a question or ask for a change." },
+            Part::Described {
+                role: Role::MenuItem,
+                name: "Goal",
+                description: "Agents plan a larger change and land it.",
+            },
+            Part::Named { role: Role::MenuItem, name: "All ways to start work" },
+        ],
+    },
     Holds {
         name: "home-away",
         heading: "57 changes landed. Four things were decided for you.",
@@ -147,10 +164,10 @@ const HOLDS: [Holds; samples::N] = [
     Holds { name: "start-goal", heading: "Talk to an agent", parts: &[Part::NoRole { role: Role::Dialog }] },
     Holds {
         name: "start-goal-draft",
-        heading: "T1 · Director",
+        heading: "T1 · Away mode, draft",
         parts: &[
-            Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
-            Part::Value { role: Role::TextField, name: "Name", value: "first-run-projects" },
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Value { role: Role::TextField, name: "Name", value: "away-mode" },
             Part::Named { role: Role::ChoiceGroup, name: "How it runs" },
             Part::Named { role: Role::ChoiceGroup, name: "When it needs you" },
             Part::Named { role: Role::Choice, name: "Follow the away switch" },
@@ -160,9 +177,9 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "start-goal-refused",
-        heading: "T1 · Director",
+        heading: "T1 · Away mode, draft",
         parts: &[
-            Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
             Part::Text { text: "This act is not offered" },
         ],
     },
@@ -272,6 +289,23 @@ const HOLDS: [Holds; samples::N] = [
         name: "goal-no-report",
         heading: "6 of 9 tasks landed.",
         parts: &[Part::Text { text: "running" }, Part::Named { role: Role::Figure, name: "6 landed of 9" }],
+    },
+    Holds {
+        name: "chat-draft-empty",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Region, name: "untitled.md" },
+            Part::Named { role: Role::Paragraph, name: "The draft appears here as you write it together." },
+            Part::Absent { role: Role::Button, name: "+ Draft" },
+        ],
+    },
+    Holds {
+        name: "chat-new-draft",
+        heading: "New chat",
+        parts: &[
+            Part::Named { role: Role::Region, name: "untitled.md" },
+            Part::Named { role: Role::TextArea, name: "What should this draft hold?" },
+        ],
     },
     Holds {
         name: "builders",
@@ -1533,6 +1567,97 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure-chat-document",
+        heading: "T10 · Configure temper",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "T10 · Claude subscription · Opus" },
+            Part::Named { role: Role::Button, name: "Start over" },
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Absent { role: Role::Region, name: "How Hello works" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-document-split",
+        heading: "T10 · Configure temper",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Start over" },
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Region, name: "How Hello works" },
+        ],
+    },
+    Holds {
+        name: "chat-draft-chat",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Away mode" },
+        ],
+    },
+    Holds {
+        name: "chat-start-goal",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Start goal…" },
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Value { role: Role::TextField, name: "Name", value: "away-mode" },
+            Part::Named { role: Role::Button, name: "Start goal" },
+        ],
+    },
+    Holds {
+        name: "chat-start-goal-refused",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal from away-mode.md" },
+            Part::Text { text: "This act is not offered" },
+            Part::Named { role: Role::Button, name: "Start goal" },
+        ],
+    },
+    Holds {
+        name: "chat-goal-linked",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Goal Away mode →" },
+            Part::Named { role: Role::Paragraph, name: "Started goal" },
+            Part::Named { role: Role::Link, name: "Open" },
+            Part::Absent { role: Role::Button, name: "Start goal…" },
+        ],
+    },
+    Holds {
+        name: "chat-draft-split",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Named { role: Role::Region, name: "Away mode" },
+        ],
+    },
+    Holds {
+        name: "chat-draft-draft",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Named { role: Role::Region, name: "Away mode" },
+        ],
+    },
+    Holds {
         name: "configure-chat",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
@@ -1611,6 +1736,16 @@ const HOLDS: [Holds; samples::N] = [
             Part::Text { text: "No repository yet" },
             Part::Text { text: "Chats in Hello talk and plan, but change no code until a repository is in." },
             Part::Named { role: Role::Link, name: "Adopt a repository" },
+        ],
+    },
+    Holds {
+        name: "chats-drafts",
+        heading: "Talk to an agent",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Drafts" },
+            Part::Text { text: "writes away-mode.md" },
+            Part::Named { role: Role::Link, name: "Away mode" },
+            Part::Chats { live: 1, closed: 1 },
         ],
     },
     Holds { name: "chats-live", heading: "Talk to an agent", parts: &[Part::Chats { live: SOLO_LIVE, closed: 0 }] },
@@ -2158,12 +2293,19 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 18] = [
+const SPENDS: [(&str, Role, &str); 25] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
     ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-chat", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-empty", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-split", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-draft", Role::Paragraph, "1 spent · of 40"),
+    ("chat-start-goal", Role::Paragraph, "1 spent · of 40"),
+    ("chat-start-goal-refused", Role::Paragraph, "1 spent · of 40"),
+    ("chat-goal-linked", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
     ("chat-working", Role::Paragraph, "1 spent · of 40"),
     ("chat-change-running", Role::Paragraph, "0 spent · of 20"),
@@ -2182,7 +2324,7 @@ const SPENDS: [(&str, Role, &str); 18] = [
 fn each_chat_reads_its_allotment() {
     for sample in samples::samples() {
         if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
-            && sample.address != temper_client_domain::Address::NewChat
+            && !matches!(sample.address, temper_client_domain::Address::NewChat { .. })
         {
             let (_, role, spend) = SPENDS.iter().find(|row| row.0 == sample.name).expect("sample's spend row");
             let view = view(&sample);
@@ -2804,6 +2946,17 @@ fn the_byline_sample_opens_only_the_model_disclosure() {
     let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
     assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)));
     assert_eq!(html.matches(" open").count(), 1);
+}
+
+#[test]
+fn the_rail_menu_sample_opens_the_menu() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "rail-new-menu").unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains("aria-expanded=\"true\""));
+    let menu = html.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
+    assert!(!menu.contains("hidden"), "{menu}");
+    assert!(html.contains("Ask a question or ask for a change."));
+    assert!(html.contains("Agents plan a larger change and land it."));
 }
 
 #[test]

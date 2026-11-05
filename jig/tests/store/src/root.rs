@@ -104,6 +104,7 @@ pub const PEOPLE_LIMITS: people::Limits = people::Limits {
     act_grants: 2,
     identity_bytes: 32,
     words: 32,
+    spec_bytes: 32,
     amendment_bytes: 32,
     sign_in_lifetime: skein_lib::Duration::from_nanos(1_000),
     request_retention: skein_lib::Duration::from_nanos(1_000),

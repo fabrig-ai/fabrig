@@ -31,6 +31,8 @@ pub struct Limits {
     pub segments: u32,
     pub authority: u32,
     pub text: u32,
+    /// A note's body, a document's text, a task's words.
+    pub long_text: u32,
     /// A committed turn's shared text budget in the transcript: its texts, its
     /// calls' names, inputs and outcomes, and its results' summaries. At least
     /// `text` and at most `turn_bytes`.
@@ -47,6 +49,14 @@ pub struct Limits {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
+    if limits.long_text < limits.text || u64::from(limits.long_text) > limits.document_bytes {
+        return false;
+    }
+    let Ok(record) = u64::try_from(size_of::<crate::contract::Ask>()) else { return false };
+    let Some(ask_bytes) = u64::from(limits.long_text).checked_add(record) else { return false };
+    if ask_bytes > limits.ask_bytes {
+        return false;
+    }
     if limits.turn_text < limits.text || limits.turn_text > limits.turn_bytes {
         return false;
     }

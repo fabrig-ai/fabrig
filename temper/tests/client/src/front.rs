@@ -39,6 +39,8 @@ pub struct Joint {
     pub playground_starts: Vec<skein_lib::RequestKey>,
     pub playground_removals: Vec<skein_lib::RequestKey>,
     pub playground_reads: usize,
+    pub note_reads: usize,
+    pub note_read_ends: VecDeque<jig_client::contract::ReadNone>,
     /// Terminal replies for successive task-document attempts, before the real engine serves one.
     pub task_read_ends: VecDeque<jig_client::contract::ReadNone>,
     pub reachable_reads: Vec<(u16, Option<u64>, u32)>,
@@ -387,6 +389,38 @@ impl Joint {
             &engine_limits,
             1,
         )
+    }
+    /// A chat with authority to write its document, read through the real client component.
+    #[must_use]
+    pub fn with_chat_draft(seed: u64, limits: client::Limits) -> Self {
+        let configs = std::array::from_fn(|_| {
+            let mut config = walking::config(seed);
+            config.core.connectors = Box::new([fixtures::FORGE]);
+            for permission in &mut config.core.seed_projects[0].policy.permissions {
+                permission.connector = fixtures::FORGE;
+            }
+            config.core.defaults.rules.ceiling.notes = jig_domain_authority::Scopes(1);
+            let policy = &mut config.core.seed_projects[0].policy.policy;
+            policy.ceiling.notes = jig_domain_authority::Scopes(1);
+            policy.roles[0].authority.notes = jig_domain_authority::Scopes(1);
+            for template in &mut config.core.defaults.templates {
+                if template.tracked.is_some() {
+                    template.deadline = jig_domain_people::TemplateDeadline::None;
+                }
+            }
+            config
+        });
+        // The chat snapshot includes its instructions, goal line and provenance.
+        let mut engine_limits = engine_limits();
+        // One slot for the chat and one for its goal.
+        engine_limits.fleet.slots = 2;
+        engine_limits.tasks.spec_bytes = 1024;
+        engine_limits.people.words = 1024;
+        engine_limits.tasks.message_bytes = engine_limits.people.words;
+        engine_limits.tasks.inbox_bytes = engine_limits.people.words;
+        engine_limits.journal.result_bytes = engine_limits.journal.result_bytes.max(engine_limits.people.words);
+        engine_limits.watermark = engine::default_watermark(&engine_limits.journal);
+        Self::with_engine(seed, &limits, Store::new(), configs, &engine_limits, 2)
     }
     /// Temper's stock kinds through the joined client and engine roots.
     #[must_use]
@@ -1029,6 +1063,8 @@ impl Joint {
             playground_starts: Vec::new(),
             playground_removals: Vec::new(),
             playground_reads: 0,
+            note_reads: 0,
+            note_read_ends: VecDeque::new(),
             task_read_ends: VecDeque::new(),
             reachable_reads: Vec::new(),
             reachable_empty: false,
@@ -1275,6 +1311,37 @@ impl Joint {
         }
         false
     }
+    fn note_read_end(&mut self, who: ClientId, request: &Request) -> bool {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Read {
+                            read,
+                            what: jig_client::Readable::Jig(jig_client::contract::Read::Notes { .. }),
+                        },
+                },
+        } = request
+        {
+            self.note_reads += 1;
+            if let Some(why) = self.note_read_ends.pop_front() {
+                self.callbacks.push((
+                    who,
+                    RootEvent::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Jig(jig_client::contract::ReadResult::None(why)),
+                            },
+                        },
+                    }
+                    .into(),
+                ));
+                return true;
+            }
+        }
+        false
+    }
     fn task_read_end(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Unlinked {
             request:
@@ -1438,7 +1505,8 @@ impl Joint {
         if self.reachable(who, &request) || self.start_playground(who, &request) {
             return;
         }
-        if self.playground_read(who, &request) || self.task_read_end(who, &request) {
+        if self.playground_read(who, &request) || self.note_read_end(who, &request) || self.task_read_end(who, &request)
+        {
             return;
         }
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {

@@ -177,30 +177,30 @@ Shape: `demo-llm`. Paths: `application.demo.llm`. The scripted provider’s fake
 - `provider`: integer, configured LLM provider; at most 4,294,967,295; required; init writes 3. The provider whose account the playground makes.
 - `key`: text, data path; at most 4,096 bytes; required; init writes "demo/llm.key". The private file holding the scripted provider’s key.
 - `asked`: list of demo-script, at most 16 scripts; required; init writes list (3 entries). The scripts offered as playground prompts.
-- `cued`: list of demo-script, at most 16 scripts; optional; init writes list (2 entries). The scripts matched by their cues without being offered as prompts.
+- `cued`: list of demo-script, at most 16 scripts; optional; init writes list (4 entries). The scripts matched by their cues without being offered as prompts.
 - `otherwise`: list of demo-turn or text, nonempty; at most 16 turns; required; init writes list (1 entry). The fallback script for a prompt matching no cue.
 
 ## application.demo.llm.asked[]
 
 Shape: `demo-script`. Paths: `application.demo.llm.asked[]` `application.demo.llm.cued[]`. One cue and its scripted turns.
 
-- `cue`: text, 1 to 256 bytes; unique across scripts; required; init writes "Add CSV export to widget" | "Add a dark theme to widget" | "Fix widget's empty search state" | "## Task\n\nExport widget's table as CSV" | "Review this change at the named head". The prompt cue matching this script.
-- `turns`: list of demo-turn or text, nonempty; at most 16 turns; required; init writes list (3 entries) | list (1 entry) | list (1 entry) | list (3 entries) | list (1 entry). The model turns played for this cue.
+- `cue`: text, 1 to 256 bytes; unique across scripts; required; init writes "Add CSV export to widget" | "Add a dark theme to widget" | "Fix widget's empty search state" | "## Task\n\nExport widget's table as CSV" | "Review this change at the named head" | "Write this up as a draft beside us." | "Add what happens to a running goal.". The prompt cue matching this script.
+- `turns`: list of demo-turn or text, nonempty; at most 16 turns; required; init writes list (3 entries) | list (1 entry) | list (1 entry) | list (3 entries) | list (1 entry) | list (2 entries) | list (2 entries). The model turns played for this cue.
 
 ## application.demo.llm.asked[].turns[]
 
 Shape: `demo-turn`. Paths: `application.demo.llm.asked[].turns[]` `application.demo.llm.cued[].turns[]` `application.demo.llm.otherwise[]`. One scripted model turn, or text for a plain answer.
 
-- `lines`: list of demo-line, 1 to 16 lines; required; init writes list (2 entries) | list (1 entry) | list (2 entries) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry). The text or tool call making up this turn.
+- `lines`: list of demo-line, 1 to 16 lines; required; init writes list (2 entries) | list (1 entry) | list (2 entries) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry). The text or tool call making up this turn.
 - `finish`: text, stop, tool_calls, length or content_filter; required; init writes "tool_calls" | "stop". The reason this model turn ends.
-- `tokens`: integer, 1 to 18,446,744,073,709,551,615; required; init writes 269 | 2 | 30 | 68 | 70 | 7 | 116 | 47 | 24 | 51. The number of tokens charged for the turn.
+- `tokens`: integer, 1 to 18,446,744,073,709,551,615; required; init writes 269 | 2 | 30 | 68 | 70 | 7 | 116 | 47 | 24 | 242 | 19 | 317 | 17 | 51. The number of tokens charged for the turn.
 
 ## application.demo.llm.asked[].turns[].lines[]
 
 Shape: `demo-line`. Paths: `application.demo.llm.asked[].turns[].lines[]` `application.demo.llm.cued[].turns[].lines[]` `application.demo.llm.otherwise[].lines[]`. One text answer or tool call.
 
-- `text`: text, text alone, or call with arguments; optional; init writes "I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge." | "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change." | "I would give widget a dark theme that follows the system's preference, with its colours as variables in one place so both themes stay in step. I am the scripted model and play this from a script, so nothing is changed: connect a model from Accounts to have the work done." | "I would have widget say when a search finds nothing, name the words searched for and offer to clear them, in place of an empty table that looks broken. I am the scripted model and play this from a script, so nothing is changed: connect a model from Accounts to have the work done." | "I am the scripted model, the playground’s: I answer only the suggested requests, from a script. To ask for other work, connect a model from Accounts: a ChatGPT plan, a Claude subscription or an API key.". The text returned by a plain answer.
-- `call`: text, at most 64 bytes; call with arguments; optional; init writes "delegate" | "wait" | "read" | "edit" | "finish". The tool called by this scripted answer.
+- `text`: text, text alone, or call with arguments; optional; init writes "I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge." | "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change." | "I would give widget a dark theme that follows the system's preference, with its colours as variables in one place so both themes stay in step. I am the scripted model and play this from a script, so nothing is changed: connect a model from Accounts to have the work done." | "I would have widget say when a search finds nothing, name the words searched for and offer to clear them, in place of an empty table that looks broken. I am the scripted model and play this from a script, so nothing is changed: connect a model from Accounts to have the work done." | "I wrote an Away mode draft with its purpose, return flow and open questions." | "I added how a running goal continues and waits for your decisions." | "I am the scripted model, the playground’s: I answer only the suggested requests, from a script. To ask for other work, connect a model from Accounts: a ChatGPT plan, a Claude subscription or an API key.". The text returned by a plain answer.
+- `call`: text, at most 64 bytes; call with arguments; optional; init writes "delegate" | "wait" | "read" | "edit" | "finish" | "note". The tool called by this scripted answer.
 - `arguments`: JSON value, tool input schema; optional; init writes object. The tool call’s input, interpreted by the named tool.
 
 ## application.machine

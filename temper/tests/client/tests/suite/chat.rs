@@ -207,7 +207,7 @@ fn chat_from_new_chat(world: &mut ChatWorld, task: u64) -> jig_client_kit::harne
     world.person(person, vec![press(Role::Link, b"+ New chat"), see(composer())]);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
-    assert_eq!(world.root(person).person().pages().address(), &Address::NewChat);
+    assert_eq!(world.root(person).person().pages().address(), &Address::NewChat { draft: false });
     assert!(printed(world, person).contains("What do you want done?"));
     world.person(
         person,

@@ -101,6 +101,7 @@ pub(super) fn encode_made(value: &jig_client::contract::Made, out: &mut Encoder,
 
 pub(super) fn encode_note_scope(value: &jig_client::contract::NoteScope, out: &mut Encoder, budget: &mut super::Cut) {
     match value {
+        jig_client::contract::NoteScope::Tasks { .. } => out.string(b"goals' notes"),
         jig_client::contract::NoteScope::Deployment => out.string(b"deployment"),
         jig_client::contract::NoteScope::Project(field_0) => {
             out.object_start();

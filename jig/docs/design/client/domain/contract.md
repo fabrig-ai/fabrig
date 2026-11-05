@@ -1096,6 +1096,17 @@ party reads is therefore never lost by a crash.
   waits for the preceding commits to be durable and checks current
   sign-in and visibility when it completes; it never restores a retired
   row into the live set (`../../domain/engine.md`, 5.2 and 5.3).
+- **Notes are read by scope.** A note's scope on the client's side is
+  `Deployment`, `Project`, `Resource` or `Task { project, task }`, the last
+  the engine's goal scope, which also holds a chat's own
+  (`../../domain/engine.md`, section 10), each answered whole. `Tasks {
+  project }` is a read of its own: every note of the project in a goal's
+  scope, so that a client lists a project's documents with no read per task,
+  each `Note`'s `body` empty and its `cut` set, a row's `scope` its own `Task`.
+  It is for reads alone: an edit or a deletion naming it is refused. It takes no
+  description. Its visibility is the project's, as any of its notes' is, and it
+  pages as any. A client's `long_text` bounds a note's body and a task's words
+  on its side (`client.md`, section 14).
 - **Pages** are within a row and a byte limit, and carry a cursor for the
   next, or say there is none (`../../domain/engine.md`, 5.3).
 - **Refused** for what the party may not see, as unknown; when the

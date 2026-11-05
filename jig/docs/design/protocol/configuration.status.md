@@ -7,5 +7,4 @@
   and a `u32` byte ceiling (`jig/crates/jig-protocol-config/src/clients.rs`,
   `public_index_bytes`), rather than the process's fit check, because
   configuration has no per-process estimate.
-- **Departs:** 6: `standard` holds a spec of 131,072 bytes (`tasks.spec_bytes`), but a spec a person writes stops at `people.words`, 8,192 (`jig-domain-people/src/batch.rs`), people-v14's ceiling, because `standard` took the most that format holds (section 9).
 - **Departs:** 5: the reference service's first periods come from its engine's routing, which hands the core each `Period` (`jig/testing/jig-test-service/src/engine.rs`), not from a child of its root, because jig's test root composes no period child.

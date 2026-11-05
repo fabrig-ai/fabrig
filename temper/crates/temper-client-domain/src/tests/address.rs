@@ -353,7 +353,7 @@ fn chats_filters_and_new_chat_round_trip() {
         (Address::Chats { filter: Chats::All }, b"/chats"),
         (Address::Chats { filter: Chats::Live }, b"/chats?state=live"),
         (Address::Chats { filter: Chats::Closed }, b"/chats?state=closed"),
-        (Address::NewChat, b"/chats/new"),
+        (Address::NewChat { draft: false }, b"/chats/new"),
     ];
     for (address, path) in cases {
         assert_eq!(print(address).as_ref(), *path);
@@ -445,8 +445,8 @@ fn a_neighbour_of_repositories_is_missing() {
 #[test]
 fn new_chat_has_its_own_canonical_address() {
     for (path, address, canonical) in [
-        (b"/chats/new".as_slice(), Address::NewChat, b"/chats/new".as_slice()),
-        (b"/chats/new?x=1", Address::NewChat, b"/chats/new"),
+        (b"/chats/new".as_slice(), Address::NewChat { draft: false }, b"/chats/new".as_slice()),
+        (b"/chats/new?x=1", Address::NewChat { draft: false }, b"/chats/new"),
         (b"/chats?at=start", Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (b"/chats?state=live&at=start", Address::Chats { filter: ChatsFilter::Live }, b"/chats?state=live"),
         (b"/chats/7", Address::Chat { task: 7 }, b"/chats/7"),
@@ -486,4 +486,26 @@ fn goals_drops_unread_state_and_prints_the_canonical_address() {
         let Place::Address(address) = parse(path) else { panic!("goals address") };
         assert_eq!(print(&address).as_ref(), canonical, "{path:?}");
     }
+}
+
+#[test]
+fn the_address_round_trips() {
+    for (address, path) in [
+        (Address::NewChat { draft: false }, b"/chats/new".as_slice()),
+        (Address::NewChat { draft: true }, b"/chats/new?draft=1".as_slice()),
+    ] {
+        assert_eq!(print(&address).as_ref(), path);
+        assert_eq!(parse(path), Place::Address(address));
+    }
+    for query in [b"/chats/new?other=1".as_slice(), b"/chats/new?draft=0"] {
+        assert_eq!(parse(query), Place::Address(Address::NewChat { draft: false }));
+    }
+    assert_eq!(parse(b"/chats/new?x=1&draft=1&y=2"), Place::Address(Address::NewChat { draft: true }));
+}
+
+#[test]
+fn the_filter_round_trips() {
+    let address = Address::Chats { filter: ChatsFilter::Drafts };
+    assert_eq!(print(&address).as_ref(), b"/chats?state=drafts");
+    assert_eq!(parse(&print(&address)), Place::Address(address));
 }

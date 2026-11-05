@@ -16,7 +16,7 @@ const ENTRY: &[u8] = b"What do you want done?";
 const DRAFT: &[u8] = b"Make the change";
 
 fn root() -> d::Domain {
-    f::playground_root(Address::NewChat, f::PROJECT, true)
+    f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true)
 }
 fn input(root: &mut d::Domain, act: pages::Act) {
     f::root_event(root, d::Event::Act { action: d::Action::Pages(act) });
@@ -123,7 +123,7 @@ fn meta_line_uses_the_home_repository_or_the_project_name() {
         }
         let mut rows = List::with_capacity(1);
         rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-        let root = f::forge_root(Address::NewChat, rows);
+        let root = f::forge_root(Address::NewChat { draft: false }, rows);
         let expected = if adopted {
             "Say what you want; the agent works in owner/repo."
         } else {
@@ -139,7 +139,7 @@ fn meta_line_uses_the_home_repository_or_the_project_name() {
 fn path_links_lead_through_chats_with_or_without_a_project() {
     for project in [None, Some(f::PROJECT)] {
         let mut root = if project.is_some() { f::root_in_project(project) } else { f::no_project_root() };
-        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat) });
+        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat { draft: false }) });
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let tree = view.tree();
             let trail = children(styled(tree, look::TRAIL));
@@ -162,7 +162,7 @@ fn path_links_lead_through_chats_with_or_without_a_project() {
 
 #[test]
 fn opening_focuses_the_entry_except_while_renaming() {
-    let (mut root, watch, _) = f::root_at(Address::NewChat, &f::domain_limits());
+    let (mut root, watch, _) = f::root_at(Address::NewChat { draft: false }, &f::domain_limits());
     let mut me = root.pages().me(root.client()).unwrap().clone();
     me.projects.get_mut(0).unwrap().role = c::HeldRole::Owner;
     f::deliver_me(&mut root, watch, me);
@@ -188,7 +188,7 @@ fn empty_not_ready_and_pending_disable_send_but_keep_the_draft_editable() {
             root()
         } else {
             let mut root = super::choice::no_model_root(false);
-            f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat) });
+            f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat { draft: false }) });
             root
         };
         input(&mut root, pages::Act::ChatWords { words: words.into() });
@@ -308,9 +308,12 @@ fn refused_start_keeps_the_words_and_feedback_under_the_composer() {
 
 #[test]
 fn made_chat_replaces_only_the_new_chat_address() {
-    for from in
-        [Address::NewChat, Address::Configure { project: f::PROJECT }, Address::Chats { filter: d::ChatsFilter::All }]
-    {
+    for from in [
+        Address::NewChat { draft: false },
+        Address::NewChat { draft: true },
+        Address::Configure { project: f::PROJECT },
+        Address::Chats { filter: d::ChatsFilter::All },
+    ] {
         for document in [false, true] {
             let mut root = f::playground_root(from.clone(), f::PROJECT, true);
             let attempt = start(&mut root);
@@ -332,7 +335,8 @@ fn made_chat_replaces_only_the_new_chat_address() {
                     }
                 })
                 .collect();
-            assert_eq!(shows, [(Address::Chat { task: 42 }, from == Address::NewChat)]);
+            let replaces = from == (Address::NewChat { draft: false }) || from == (Address::NewChat { draft: true });
+            assert_eq!(shows, [(Address::Chat { task: 42 }, replaces)]);
         }
     }
 }
@@ -341,7 +345,8 @@ fn made_chat_replaces_only_the_new_chat_address() {
 fn only_the_starts_address_focuses_its_composer_including_the_playground() {
     for playground in [false, true] {
         for start in [false, true] {
-            let address = if start { Address::NewChat } else { Address::Chats { filter: d::ChatsFilter::All } };
+            let address =
+                if start { Address::NewChat { draft: false } } else { Address::Chats { filter: d::ChatsFilter::All } };
             let root = if playground {
                 f::playground_root(address, f::PROJECT, true)
             } else {
@@ -359,4 +364,37 @@ fn only_the_starts_address_focuses_its_composer_including_the_playground() {
             assert_eq!(focused, usize::from(start), "playground={playground}, start={start}");
         }
     }
+}
+
+#[test]
+fn the_placeholder_and_the_meta_line() {
+    let root = f::playground_root(Address::NewChat { draft: true }, f::PROJECT, true);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let tree = view.tree();
+        assert_eq!(skein_ui::outline::check(tree), None);
+        let field = named(tree, Role::TextArea, b"What should this draft hold?");
+        assert_eq!(field.placeholder.as_deref(), Some(b"What should this draft hold?".as_slice()));
+        assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&look::MODE_SPLIT)));
+        assert!(
+            tree.nodes().iter().any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"untitled.md"))
+        );
+        assert!(tree.nodes().iter().any(|node| {
+            node.text.iter().any(|run| run.text.as_ref() == b"A chat that writes a draft. Say what it should hold.")
+        }));
+    }
+}
+
+#[test]
+fn the_bar_offers_a_draft_when_the_setting_offers_it() {
+    let mut root = super::document::offered(None, false);
+    f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat { draft: false }) });
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let button = named(view.tree(), Role::Button, b"+ Draft").id;
+        assert_eq!(
+            crate::act(&mut view, button, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::NewChat { draft: true } }))
+        );
+    }
+    let plain = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
+    assert!(!f::browser_page_view(&plain).tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"+ Draft")));
 }

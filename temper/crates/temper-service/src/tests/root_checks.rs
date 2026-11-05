@@ -295,11 +295,8 @@ fn the_small_engine_watermark_counts_commits_and_door_outputs() {
 fn judge_projects_past_the_wires_dismissals_name_both() {
     let mut limits = crate::limits::profile(crate::limits::Profile::Small);
     for (projects, expected) in [
-        (temper_client_protocol_wire::DISMISSED, b"".as_slice()),
-        (
-            temper_client_protocol_wire::DISMISSED + 1,
-            b"application.limits.overrides.forge.judge_projects: must agree with wire::DISMISSED\n".as_slice(),
-        ),
+        (1024, b"".as_slice()),
+        (1025, b"application.limits.overrides.forge.judge_projects: must agree with wire::DISMISSED / 8\n".as_slice()),
     ] {
         limits.forge.judge_projects = projects;
         let mut found = Problems::empty();

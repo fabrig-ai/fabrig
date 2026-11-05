@@ -275,3 +275,82 @@ fn a_stale_configuring_proposal_is_withdrawn() {
         "the run hears withdrawn as stale at revision 2"
     );
 }
+
+#[test]
+fn start_over_closes_and_opens_a_fresh_configure() {
+    use jig_client::contract as c;
+    let mut limits = fixtures::domain_limits();
+    // The stock configuring task includes its settings authority and charter words.
+    limits.client.domain.text = 4096;
+    limits.client.domain.long_text = 4096;
+    limits.client.domain.turn_text = 4096;
+    let mut front = Joint::with_configuring(fixtures::SEED, limits, false);
+    let mut root =
+        temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, fixtures::SEED)));
+    front.bind(ClientId(0), fixtures::PARTY);
+    account_acts::event(&mut front, &mut root, Temper::start(Address::Configure { project: PROJECT }, Vec::new(), 0));
+    account_acts::event(
+        &mut front,
+        &mut root,
+        Event::Act { action: Action::Pages(Act::Starter { words: WORKFLOW.into() }) }.into(),
+    );
+    let assignment = front.assignments.last().expect("configuring run").clone();
+    let task = assignment.task;
+    let body = b"# How this project works\n\nOne checked change at a time.\n";
+    let input = format!(
+        "{{\"scope\":{{\"kind\":\"goal\",\"project\":{PROJECT},\"goal\":{task}}},\"description\":\"How this project works\",\"body\":\"# How this project works\\n\\nOne checked change at a time.\\n\"}}"
+    );
+    let (written, failed) =
+        temper_engine_domain_world::host_tool::host_tool(&mut front.engine, &assignment, 1, b"note", input.as_bytes());
+    assert!(!failed, "{}", String::from_utf8_lossy(&written));
+    let reply = b"I have written how we work.";
+    front.configuring_reply(task, reply);
+    // Reopening reads the durable document and committed conversation together.
+    account_acts::event(&mut front, &mut root, Temper::went(Address::Settings { project: PROJECT }));
+    account_acts::event(&mut front, &mut root, Temper::went(Address::Chat { task }));
+    let document = root.person().pages().chat().unwrap().draft.clone().expect("written document");
+    assert_eq!(document.body.as_ref(), body);
+    account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(Act::StartOver) }.into());
+    assert!(root.person().pages().confirmation().is_some());
+    assert!(front.engine.task(task).is_some(), "asking has not closed it");
+    account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(Act::Confirm) }.into());
+    assert_eq!(root.person().pages().address(), &Address::Configure { project: PROJECT });
+    assert!(root.person().pages().chat().is_none());
+    assert!(front.engine.task(task).is_none(), "the old chat has closed");
+    account_acts::event(
+        &mut front,
+        &mut root,
+        Event::Act { action: Action::Pages(Act::Starter { words: b"A fresh way of working".as_slice().into() }) }
+            .into(),
+    );
+    let fresh = front.assignments.last().expect("fresh configuring run");
+    assert_ne!(fresh.task, task);
+    assert_eq!(fresh.charter, 3);
+    let fresh = root.person().pages().chat().expect("fresh chat");
+    assert!(fresh.draft.is_none());
+    assert!(
+        !fresh.thread.lines().iter().any(|line| matches!(line, jig_client::thread::Line::Turn { .. })),
+        "a fresh conversation has no old turns"
+    );
+    account_acts::event(
+        &mut front,
+        &mut root,
+        Temper::went(Address::Chats { filter: temper_client_domain::ChatsFilter::Closed }),
+    );
+    let closed = root.person().pages().chats().unwrap().page.as_ref().expect("closed chats");
+    let c::EndedGroup::Rows { rows, .. } = &closed.ended else { panic!("closed rows") };
+    assert!(rows.iter().any(|row| row.chip.task == task), "the old chat stays in Closed");
+    account_acts::event(&mut front, &mut root, Temper::went(Address::Chat { task }));
+    let person = root.person();
+    let old = person.pages().chat().expect("closed chat page");
+    assert_eq!(old.draft.as_ref(), Some(&document));
+    assert_eq!(old.task(person.client()).unwrap().spec.specification.words.bytes(), WORKFLOW);
+    assert!(
+        old.thread.lines().iter().any(|line| {
+            matches!(line, jig_client::thread::Line::Turn { turn, .. }
+            if turn.messages.iter().any(|message| message.blocks.iter().any(|block|
+                matches!(block, c::Block::Text(text) if text.bytes() == reply))))
+        }),
+        "the old conversation stays with its document"
+    );
+}

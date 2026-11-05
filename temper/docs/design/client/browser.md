@@ -247,7 +247,7 @@ replay says the same clocks (`README.md`, 5.12).
   | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter }` | `/chats`, and its filter's query |
-  | `NewChat` | `/chats/new` |
+  | `NewChat { draft }` | `/chats/new`, and `?draft=1` with a draft |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
   | `Task { task }` | `/tasks/<task>` |
@@ -284,8 +284,8 @@ replay says the same clocks (`README.md`, 5.12).
   replaced with `/chats/7`.
 - **The chats list's filter is its query,**
   as the inbox's (the user's pick, 10-23): none for "All", so that
-  `/chats` is the list whole; `?state=live` for "Live" and
-  `?state=closed` for "Closed". A `state` that
+  `/chats` is the list whole; `?state=live` for "Live",
+  `?state=drafts` for "Drafts" and `?state=closed` for "Closed". A `state` that
   doesn't read as one of the page's, or a field of another name, is dropped,
   and the address replaced with the printed one. `/tasks/9?state=live` reads as
   `/tasks/9`. A filter chosen is a move (below).
@@ -614,6 +614,14 @@ replay says the same clocks (`README.md`, 5.12).
   `NewChat`'s. An agent's task's page keeps its own look, `AGENT_PAGE` and
   `TASKBAR`, with `ENTRY`, `COMPOSER_AREA`, `COMPOSER` and `HINT` for its
   composer.
+- **A chat's document** (`README.md`, 3.5) is `configure-chat-draft`'s rules, in
+  `temper.css` under the same marker: `temper-mode-chat`, `-split` and `-draft` on
+  the session, `.temper-doc`, `.temper-doc-inner`, `.temper-doc-path`,
+  `.temper-doc-sec`, `.temper-doc-changed`, `.temper-doc-note`, `.temper-seg`, and
+  the rail's strip with `.temper-rail-unfold` and `files/menu.svg`. What those
+  name is drawn, and the look of its flow's tokens isn't, since nothing draws a
+  flow yet. The sheet to start a goal is the mock's `dialog.sheet`, `.option`,
+  `.field` and `.text`, and `Ctrl+\` steps through the modes.
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.
@@ -1321,6 +1329,18 @@ from the engine's own answers, is where the look is tuned.
 | `chat-change-held` | the first run's chat T1 at step 2, its change held: its one line says so |
 | `chat-goal` | a chat with a goal it started: its one line |
 | `chat-byline-open` | a new chat with its byline pressed: the chooser's panel |
+| `chat-draft-chat` | a chat with a document, in Chat: its group and tool line |
+| `chat-draft-split` | the same chat in Split: the strip, the pane and a tinted section |
+| `chat-draft-draft` | the same chat in Draft: the composer at the foot on white |
+| `chat-draft-empty` | "+ Draft" pressed and nothing written: the empty pane |
+| `chat-new-draft` | `NewChat { draft: true }`: the empty pane in Split |
+| `chat-start-goal` | a chat's sheet to start a goal, open |
+| `chat-start-goal-refused` | the same sheet, refused in jig's words |
+| `chat-goal-linked` | a chat with its goal started: "Goal TITLE →", and its line |
+| `chats-drafts` | the Chats page under Drafts: "writes away-mode.md" |
+| `configure-chat-document` | a configuring chat in Chat, its document written |
+| `configure-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
+| `rail-new-menu` | the rail's "+ New chat" with its menu open |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |

@@ -92,6 +92,9 @@ pub(super) fn activity_reads(host: &mut NativeClient) -> Vec<(skein_lib::Token, 
         {
             let envelope = w::Owned::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record)).expect("read envelope");
             let read = w::Read::decode(&w::CEILINGS, &mut skein_lib::Reader::new(envelope.record())).expect("jig read");
+            if matches!(read, w::Read::Notes(_)) {
+                continue;
+            }
             assert!(matches!(read, w::Read::Activity(_)), "chat asks for activity");
             found.push((exchange, credential));
         }

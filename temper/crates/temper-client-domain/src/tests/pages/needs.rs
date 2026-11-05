@@ -104,6 +104,7 @@ fn repeated(count: u32, suffix: &[u8]) -> Box<[u8]> {
 fn reply(pages: &mut Pages, words: &[u8]) -> Queue<Request> {
     let mut limits = fixtures::limits();
     limits.client.domain.text = temper_client_protocol_wire::CUE_BYTES;
+    limits.client.domain.long_text = temper_client_protocol_wire::CUE_BYTES;
     limits.client.domain.turn_text = temper_client_protocol_wire::CUE_BYTES;
     let env = fixtures::env(&limits);
     let client = crate::unlinked(&limits, fixtures::SEED);
@@ -671,6 +672,7 @@ fn reply_past_choice_bound_is_held_whole_for_the_engine() {
     let words = repeated(temper_client_protocol_wire::CUE_BYTES.checked_add(1).unwrap(), b"");
     let mut limits = fixtures::limits();
     limits.client.domain.text = 2048;
+    limits.client.domain.long_text = 2048;
     limits.client.domain.turn_text = 2048;
     let env = fixtures::env(&limits);
     let client = crate::unlinked(&limits, fixtures::SEED);
