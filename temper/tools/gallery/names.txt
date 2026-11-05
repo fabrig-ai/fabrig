@@ -37,6 +37,8 @@ configure
 configure-typing
 configure-sending
 configure-refused
+configure-chat-document
+configure-chat-document-split
 configure-chat
 configure-chats-tag
 chat-new

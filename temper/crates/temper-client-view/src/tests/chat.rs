@@ -1973,7 +1973,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
     for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
         let tree = view.tree();
         let main = styled(tree, look::SESSION);
-        assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MAIN, look::SESSION]);
+        assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MODE_CHAT, look::SESSION]);
         assert_eq!(style_position(tree.nodes(), look::AGENT_PAGE), None);
         let top = styled(tree, look::SESSION_TOP);
         let bar = styled(tree, look::SESSION_RIGHT);

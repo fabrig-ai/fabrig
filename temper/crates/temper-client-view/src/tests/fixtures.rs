@@ -274,7 +274,7 @@ pub(super) fn root_at_with_playground(
         None,
     )
 }
-fn root_at_with_activity(
+pub(super) fn root_at_with_activity(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
