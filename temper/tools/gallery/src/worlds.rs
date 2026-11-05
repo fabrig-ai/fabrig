@@ -781,6 +781,8 @@ fn task_line(t: c::Task) -> c::TaskLine {
         budget: t.budget,
         waits_on: t.waits_on,
         phases: c::PhaseCounts::ZERO,
+        delegates_done: 0,
+        delegates_total: 0,
         held_below: 0,
         conversation: None,
     }
