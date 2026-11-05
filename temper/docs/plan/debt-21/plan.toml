@@ -33,3 +33,16 @@ id = 2
 story = "the debt record says who has decided what"
 parts = ["d004-record"]
 walk = false
+
+[[part]]
+id = "oauth-secrets"
+title = "the oauth crates hold credentials as Secret and derive Debug, with a canary (skein D009)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth.md, 4"
+
+[[slice]]
+id = 3
+story = "a canary in every credential of the three crates reaches no Debug, and every stored byte stays as it was"
+parts = ["oauth-secrets"]
+walk = false
