@@ -1,6 +1,6 @@
 # llm-connection: status
 
-2026-11-04. Where skein's code lags or departs from [llm-connection.md](llm-connection.md).
+2026-11-05. Where skein's code lags or departs from [llm-connection.md](llm-connection.md).
 
 - **Departs:** 5: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly

@@ -30,6 +30,8 @@ check (`protocol/configuration.md`). The test root is not in `ops`'s
 shape, which awaits the user, and temper keeps its own message words and
 its admission's yes or no, where the user's request of 2026-11-05 has it
 use jig's (`domain/root.md`, `domain/hosts.md`).
+A transcript's load refused for want of a slot counts as a failure, where
+room should pause its task (`domain/engine.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`). `domain/core.md`,

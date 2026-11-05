@@ -3002,6 +3002,14 @@ whole.
   go on, reading 8.4 so, and no repair task made for a green head. Whether
   that reaches a gate's and a base's reasons is part of the answer. Default: as
   built. The user's to choose, with no answer yet.
+- **A repair held for its brief** (8.4): the repair's task is held, naming
+  its reason, while the change stays `Repairing` and its panel shows no hold:
+  a person reads why on the task, and releases it there. Default: so; whether
+  the panel says it too stays open.
+- **A forge out of reach or not connected** (8.4): `Unavailable` counts as
+  transient, so a long outage holds each repair preparing through it, naming
+  why; `NotConnected` pauses with no bound and no hold, its notice naming why.
+  Default: so; the allowance is the user's.
 - **A failing check's repair brief:** a check gate that says no is
   repaired as a review that says no is, and its repair's brief carries
   the pull request's reviews section (8.4). A check's verdict is not a
