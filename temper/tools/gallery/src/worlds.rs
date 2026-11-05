@@ -3387,7 +3387,15 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
         let all = shown && name != "settings-goals";
         let ways = v::ProjectWays::new(
             &v::CEILINGS,
-            v::ProjectWaysParts { skein_bools: [all, shown, all, all], way: if shown { 4 } else { 0 } },
+            v::ProjectWaysParts {
+                skein_bools: [
+                    all && name != "settings-drafts-off",
+                    shown && name != "settings-goals-off",
+                    all && name != "settings-changes-off",
+                    all && name != "settings-away-off",
+                ],
+                way: if shown { 4 } else { 0 },
+            },
         )
         .expect("settings ways");
         let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));

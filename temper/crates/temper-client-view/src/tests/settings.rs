@@ -199,6 +199,8 @@ fn repositories_lists_the_projects_and_no_others() {
     let root = f::forge_root(repositories(), forge_rows());
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         find(view.tree(), Role::Heading { level: 2 }, "Repositories · 2".as_bytes());
+        let adopt = find(view.tree(), Role::Link, b"Adopt a repository");
+        assert_eq!(node(view.tree(), adopt).styles.as_slice(), [look::SETTINGS_BTN, look::SETTINGS_SMALL]);
         let rows = styled(view.tree(), look::SETTINGS_LINES);
         assert_eq!(f::nodes_text(rows).as_ref(), b"work/oneForgejo on this machinework/twoGitHub");
         assert_eq!(rows.iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_WHEN)).count(), 2);

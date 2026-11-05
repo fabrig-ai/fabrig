@@ -2192,9 +2192,9 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
     }
 }
 
-fn goals_navigation(root: &temper_client_domain::Domain) {
+fn goals_navigation(root: &temper_client_domain::Domain, shown: bool) {
     let view = fixtures::browser_page_view(root);
-    // The rail and the phone's tab bar each carry Goals.
+    // The rail and the phone's tab bar follow the same Goals visibility.
     for style in [crate::look::RAIL_NAV, crate::look::TABBAR] {
         let mut at = None;
         for (index, node) in view.tree().nodes().iter().enumerate() {
@@ -2208,7 +2208,7 @@ fn goals_navigation(root: &temper_client_domain::Domain) {
         for node in children {
             found |= node.role == Role::Link && node.name.as_deref() == Some(b"Goals");
         }
-        assert!(found);
+        assert_eq!(found, shown);
     }
 }
 #[test]
@@ -2217,14 +2217,14 @@ fn goals_navigation_shows_when_the_setting_is_on() {
         temper_client_domain::Address::Home { project: fixtures::PROJECT },
         Some(temper_client_domain::forge::ways::Ways { goals: true, ..temper_client_domain::forge::ways::Ways::STOCK }),
     );
-    goals_navigation(&root);
+    goals_navigation(&root, true);
 }
 #[test]
-fn goals_navigation_keeps_an_existing_goal_when_hidden() {
+fn goals_navigation_hides_an_existing_goal_until_kind_seven_shows_it() {
     let (mut root, me, _) = fixtures::root_at(
         temper_client_domain::Address::Home { project: fixtures::PROJECT },
         &fixtures::domain_limits(),
     );
     super::rail::with_goal_fact(&mut root, me, Some(true));
-    goals_navigation(&root);
+    goals_navigation(&root, false);
 }

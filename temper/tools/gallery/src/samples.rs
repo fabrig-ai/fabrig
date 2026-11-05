@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 149;
+pub const N: usize = 153;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -336,6 +336,10 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-drafts-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-goals-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-changes-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-away-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-all-hidden", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-goals", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-chat-open", world: Solo, address: Address::Settings { project: 1 }, then: Shown },

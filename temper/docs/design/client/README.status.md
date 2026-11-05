@@ -6,11 +6,19 @@
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering: no
-  address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
-  `Proposal { proposal }` and the fuller page's sections, with a review's
-  "Change something"; ctl supplies the review groups and running-work effect
-  (`tools.md`, 5.2).
-  5.3: the rail and tab bar by kind 7 await the Away switch.
+  address in `temper-client-domain`'s `address.rs`.
+  5.3, 5.13: the Away switch in the rail and phone's top bar, and
+  "While you're away, agents may decide", await Away's `SetAway`.
+  5.13: a person with a project's role alone can read kinds 6 and 7,
+  but cannot change them on the tab: jig's settings inventory requires
+  a deployment role (`jig-domain-core`'s `documents/settings.rs`, `make`),
+  so `temper-client-domain`'s `forge/ways.rs`, `act`, has no newest
+  revision and sends nothing. The controls appear enabled and give no
+  refusal. A project-scoped settings inventory needs a contract in jig
+  before the tab can use it.
+  5.13: `pages/chats.rs`'s `drafts_offered` reads kind 7, but the chat's
+  draft offer has no view calling it yet. A goal's start preselecting the
+  stored way awaits a goal-start page; `pages/goals.rs` draws the list alone.
   5.3: the banner's "Changes", on a page that is no project's:
   the request of 2026-11-05 asked for the rail, and its mock has no banner.
   3.5, *Goals*: a project whose `me` lists no goal template opens no watch
