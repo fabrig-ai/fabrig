@@ -867,7 +867,7 @@ fn remap_template_choices_follow_model_and_effort_names_and_mark_departures() {
             subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
         });
         let mut value = Value::Template(Box::new(template));
-        remap(&mut value, &kept, &names);
+        remap(&mut value, &moves(&kept, &names), &kept, &names);
         let Value::Template(template) = value else { panic!("template") };
         let choice = template.llm.unwrap();
         assert_eq!(choice.main, expected);
@@ -885,7 +885,7 @@ fn remap_named_masks_follow_names_and_drop_departures_while_all_stays() {
         let mut rules = config(1).defaults.rules;
         rules.ceiling.models = before;
         let mut value = Value::Rules(Box::new(rules));
-        remap(&mut value, &kept, &names);
+        remap(&mut value, &moves(&kept, &names), &kept, &names);
         let Value::Rules(rules) = value else { panic!("rules") };
         assert_eq!(rules.ceiling.models, after);
     }
