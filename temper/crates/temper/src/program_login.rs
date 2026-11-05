@@ -37,6 +37,13 @@ fn command(
         .iter()
         .find(|program| program.adapter == temper_service::settings::Adapter::ClaudeCode)
         .ok_or("workers[0].agent.configuration: programs.claude_code: not configured")?;
+    if super::agent::launcher(super::path(&program.directory)).as_deref() == Some(super::path(&program.path)) {
+        super::claude_code::place(
+            super::path(&program.path).parent().expect("launcher parent"),
+            super::path(&directories.cache),
+        )
+        .map_err(|why| format!("programs.claude_code: {why}"))?;
+    }
     let source = smith_agent_shell::program::prepare(super::path(&program.directory), name)
         .map_err(|why| super::agent::program_directory_refusal(&why))?;
     Ok(smith_agent_shell::program::sign_in(super::path(&program.path), &source, environment))
