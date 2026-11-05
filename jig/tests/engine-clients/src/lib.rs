@@ -1,3 +1,2 @@
-pub mod fixtures;
-mod peer;
-pub use peer::Peer;
+//! Native client exchanges against scripted HTTP peers.
+pub use jig_engine_clients_kit::*;

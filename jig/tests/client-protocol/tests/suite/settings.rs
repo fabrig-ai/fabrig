@@ -1,6 +1,6 @@
 //! Settings requests, reads and the watch reach the core.
 use jig_client_protocol_wire::v19 as w;
-use jig_engine_clients_world::fixtures::{self, Peer};
+use jig_engine_clients_kit::fixtures::{self, Peer};
 use skein_lib::{Reader, Writer};
 macro_rules! encoded {
     ($value:expr) => {{
