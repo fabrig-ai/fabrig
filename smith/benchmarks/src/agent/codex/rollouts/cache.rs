@@ -2,24 +2,26 @@
 //! The fixed-model probe stays within its declared window; child scopes join
 //! only by the native parent link, never by cumulative total subtraction.
 
+use crate::{Fault, FaultKind};
+
 use crate::{CacheObservation, Measure, Usage};
 
 use super::{Link, ResponseUsage, Rollouts};
 
-fn add(responses: &[ResponseUsage], value: &mut CacheObservation) -> Result<(), String> {
+fn add(responses: &[ResponseUsage], value: &mut CacheObservation) -> Result<(), Fault> {
     let mut previous = None;
     for response in responses {
         let Usage::Codex { input, cached_input, .. } = response.usage else {
-            return Err("named rollout has non-Codex usage".into());
+            return Err(Fault::new(FaultKind::Stream, "named rollout has non-Codex usage"));
         };
         if let Some(prompt) = previous
             && prompt >= 1152
         {
-            value.cache_read = value.cache_read.checked_add(cached_input).ok_or("cache read sum overflow")?;
-            value.predecessor_prompt = value.predecessor_prompt.checked_add(prompt).ok_or("prompt sum overflow")?;
-            value.eligible = value.eligible.checked_add(1).ok_or("eligible count overflow")?;
+            value.cache_read = value.cache_read.checked_add(cached_input).ok_or(Fault::new(FaultKind::Bound, "cache read sum overflow"))?;
+            value.predecessor_prompt = value.predecessor_prompt.checked_add(prompt).ok_or(Fault::new(FaultKind::Bound, "prompt sum overflow"))?;
+            value.eligible = value.eligible.checked_add(1).ok_or(Fault::new(FaultKind::Bound, "eligible count overflow"))?;
             if u128::from(cached_input) * 2 < u128::from(prompt) {
-                value.full_misses = value.full_misses.checked_add(1).ok_or("miss count overflow")?;
+                value.full_misses = value.full_misses.checked_add(1).ok_or(Fault::new(FaultKind::Bound, "miss count overflow"))?;
             }
         }
         previous = Some(input);
@@ -50,22 +52,22 @@ impl Rollouts {
                 match &child.link {
                     Link::Linked { parent } if parent == root => {}
                     Link::Linked { .. } | Link::Unlinked => {
-                        return Err("cache child lacks its direct parent link".into());
+                        return Err(Fault::new(FaultKind::Stream, "cache child lacks its direct parent link"));
                     }
                 }
                 if child.responses.is_empty() {
-                    return Err("cache child has no reported responses".into());
+                    return Err(Fault::new(FaultKind::Stream, "cache child has no reported responses"));
                 }
                 add(&child.responses, &mut value)?;
             }
             if value.eligible == 0 {
-                return Err("no reported cacheable predecessor".into());
+                return Err(Fault::new(FaultKind::Stream, "no reported cacheable predecessor"));
             }
-            Ok::<(), String>(())
+            Ok::<(), Fault>(())
         })();
         match measured {
             Ok(()) => Measure::Observed { value },
-            Err(reason) => Measure::unavailable(reason),
+            Err(reason) => Measure::unavailable(reason.detail),
         }
     }
 }

@@ -3,11 +3,13 @@
 //! explicit; its observer retains only root stream evidence until collection.
 //! Contracts: benchmarks.md, sections 6, 8.2, 10 and 14.
 
+use crate::{Fault, FaultKind};
+
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use crate::agent::{Context, HarnessFault, Invocation, Seen};
-use crate::isolate::{Setup, SetupStep};
+use crate::agent::{Context, Invocation, Seen};
+use crate::isolate::{SetupStep};
 use crate::{Agent, ModelChoice, Provider};
 
 use super::{Item, Observation, Observer};
@@ -38,57 +40,57 @@ pub struct Observing {
 }
 
 /// Prepare a version-matched Codex command without touching its existing login.
-pub fn prepare(context: &Context<'_>) -> Result<PreparedCodex, Setup> {
+pub fn prepare(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
     let configuration = (|| {
         if !context.task.person.is_empty() {
-            return Err("Codex does not accept later person lines".into());
+            return Err(Fault::new(FaultKind::Input, "Codex does not accept later person lines"));
         }
         if context.pin.pin.agent != Agent::Codex || context.pin.pin.provider != Provider::Codex {
-            return Err("Codex requires its own codex configuration pin".into());
+            return Err(Fault::new(FaultKind::Input, "Codex requires its own codex configuration pin"));
         }
         let installed =
             context.installed_version.trim().strip_prefix("codex-cli ").unwrap_or(context.installed_version.trim());
         if installed != context.pin.pin.version {
-            return Err(format!("installed Codex {installed} differs from pinned {}", context.pin.pin.version));
+            return Err(Fault::new(FaultKind::Mismatch, format!("installed Codex {installed} differs from pinned {}", context.pin.pin.version)));
         }
         if context.model.model.as_ref().is_none_or(String::is_empty)
             || context.model.effort.as_ref().is_none_or(String::is_empty)
         {
-            return Err("Codex model and effort must be explicitly selected".into());
+            return Err(Fault::new(FaultKind::Input, "Codex model and effort must be explicitly selected"));
         }
         let program = match context.arm {
             crate::arm::ArmRef::Installed { program } => program.clone(),
             crate::arm::ArmRef::Built(_) => {
-                return Err("Codex requires its installed executable, not a smith build".into());
+                return Err(Fault::new(FaultKind::Input, "Codex requires its installed executable, not a smith build"));
             }
         };
-        let reread = crate::read_configuration(context.pin_file).map_err(|error| error.to_string())?;
+        let reread = crate::read_configuration(context.pin_file)?;
         if reread != *context.pin {
-            return Err("Codex configuration changed since the attempt was planned".into());
+            return Err(Fault::new(FaultKind::Mismatch, "Codex configuration changed since the attempt was planned"));
         }
         let digest = crate::arm::binary_digest(&program)?;
         if Some(digest.as_str()) != context.pin.pin.sha256.as_deref() {
-            return Err(format!("Codex executable digest {digest} differs from its pin"));
+            return Err(Fault::new(FaultKind::Mismatch, format!("Codex executable digest {digest} differs from its pin")));
         }
         let overrides_path = context
             .pin_file
             .parent()
-            .ok_or("configuration pin needs a directory")?
+            .ok_or(Fault::new(FaultKind::Input, "configuration pin needs a directory"))?
             .join(&context.pin.pin.configuration);
-        let bytes = std::fs::read(&overrides_path).map_err(|error| error.to_string())?;
-        let text = std::str::from_utf8(&bytes).map_err(|error| error.to_string())?;
+        let bytes = std::fs::read(&overrides_path)?;
+        let text = std::str::from_utf8(&bytes)?;
         let document: std::collections::BTreeMap<String, toml::Value> =
-            toml::from_str(text).map_err(|error| error.to_string())?;
+            toml::from_str(text)?;
         let milliseconds = document
             .get("harness")
             .and_then(|value| value.get("teardown_ms"))
             .and_then(toml::Value::as_integer)
-            .ok_or("Codex pin requires harness.teardown_ms")?;
+            .ok_or(Fault::new(FaultKind::Input, "Codex pin requires harness.teardown_ms"))?;
         let nanos = u64::try_from(milliseconds)
             .ok()
             .and_then(|value| value.checked_mul(1_000_000))
             .filter(|value| *value > 0)
-            .ok_or("Codex teardown must fit a positive duration")?;
+            .ok_or(Fault::new(FaultKind::Input, "Codex teardown must fit a positive duration"))?;
         let teardown = skein_lib::Duration::from_nanos(nanos);
         let mut overrides: Vec<_> = document
             .into_iter()
@@ -123,16 +125,13 @@ pub fn prepare(context: &Context<'_>) -> Result<PreparedCodex, Setup> {
             teardown,
         })
     })();
-    let mut prepared = configuration.map_err(|reason| Setup { step: SetupStep::Configuration, reason })?;
+    let mut prepared = configuration.map_err(Fault::at(SetupStep::Configuration))?;
     let borrowed = crate::credential::codex(
         context.guard,
         context.home,
         &prepared.home,
         context.wall,
-        context.lifetime.checked_add(prepared.teardown).ok_or_else(|| Setup {
-            step: SetupStep::Configuration,
-            reason: "credential teardown lifetime overflow".into(),
-        })?,
+        context.lifetime.checked_add(prepared.teardown).ok_or_else(|| Fault { kind: FaultKind::Setup(SetupStep::Configuration), detail: "credential teardown lifetime overflow".into() })?,
     )?;
     prepared.credential.clone_from(&borrowed.credential);
     prepared.expires = borrowed.expires;
@@ -169,10 +168,10 @@ impl PreparedCodex {
 
 impl Observing {
     /// Observe known root records once, returning neutral timing cues.
-    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, HarnessFault> {
+    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, Fault> {
         let answered = self.observer.answer().is_some();
         let turns = self.observer.usages.len();
-        let record = self.observer.observe_line(line).map_err(|error| HarnessFault { what: error.to_string() })?;
+        let record = self.observer.observe_line(line).map_err(|error| Fault::new(FaultKind::Stream, error.to_string()))?;
         let mut seen = Vec::new();
         match record {
             Some(Observation::TurnCompleted { .. }) => {
@@ -236,17 +235,17 @@ impl Observing {
     }
 
     /// Read only this completed attempt's native root and child records.
-    pub fn collect(&mut self) -> Result<&super::Rollouts, HarnessFault> {
+    pub fn collect(&mut self) -> Result<&super::Rollouts, Fault> {
         let prepared = self
             .prepared
             .as_ref()
-            .ok_or_else(|| HarnessFault { what: "offline Codex replay has no preparation to collect".into() })?;
+            .ok_or_else(|| Fault::new(FaultKind::Stream, "offline Codex replay has no preparation to collect"))?;
         if let Some(what) = &self.collection_error {
-            return Err(HarnessFault { what: what.clone() });
+            return Err(Fault::new(FaultKind::Stream, what.clone()));
         }
         if self.collected.is_none() {
             let thread =
-                self.observer.thread().ok_or_else(|| HarnessFault { what: "Codex stream has no named root".into() })?;
+                self.observer.thread().ok_or_else(|| Fault::new(FaultKind::Stream, "Codex stream has no named root"))?;
             let mut children = Vec::new();
             for item in self.observer.completed_items() {
                 if let Item::CollabToolCall { tool, receiver_thread_ids, .. } = item
@@ -266,7 +265,7 @@ impl Observing {
             ) {
                 let what = error.to_string();
                 self.collection_error = Some(what.clone());
-                return Err(HarnessFault { what });
+                return Err(Fault::new(FaultKind::Stream, what));
             }
         }
         Ok(self.collected.as_ref().expect("collected above"))

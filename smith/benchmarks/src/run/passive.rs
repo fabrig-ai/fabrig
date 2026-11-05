@@ -3,6 +3,8 @@
 //! The shared kit owns all process discovery and settlement.
 //! Contract: benchmarks.md section11.2.
 
+use crate::Fault;
+
 use std::path::PathBuf;
 
 use crate::process::ProcessResult;
@@ -38,7 +40,7 @@ pub(super) fn scope(effects: &Measure<Vec<PathBuf>>) -> CheckVerdict {
     paths(Passive::NothingOutside, effects, "the selected stream does not show every filesystem effect")
 }
 
-pub(super) fn temporary(result: &mut crate::AttemptResult, changes: Result<Vec<(PathBuf, String)>, String>) {
+pub(super) fn temporary(result: &mut crate::AttemptResult, changes: Result<Vec<(PathBuf, String)>, Fault>) {
     let mut check = scope(&result.outcome.writes_outside_workspace);
     match changes {
         Ok(changes) => {

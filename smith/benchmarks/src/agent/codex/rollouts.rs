@@ -3,6 +3,8 @@
 //! unrelated sessions and credentials are never read. A missing parent remains
 //! an unavailable child scope (benchmarks.md, sections 6, 8.2, 10 and 14).
 
+use crate::{Fault, FaultKind};
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -73,9 +75,9 @@ struct NativeUsage {
 }
 
 impl NativeUsage {
-    fn usage(self) -> Result<Usage, String> {
+    fn usage(self) -> Result<Usage, Fault> {
         if self.input_tokens.checked_add(self.output_tokens) != Some(self.total_tokens) {
-            return Err("total_tokens differs from input plus output".into());
+            return Err(Fault::new(FaultKind::Mismatch, "total_tokens differs from input plus output"));
         }
         let usage = Usage::Codex {
             input: self.input_tokens,
@@ -169,7 +171,7 @@ pub fn parse_rollout(bytes: &[u8], thread: &str) -> Result<(Link, Vec<ResponseUs
                     payload.get("usage").cloned().ok_or_else(|| bad(kind, "payload.usage", "missing usage"))?,
                 )
                 .map_err(|error| bad(kind, "payload.usage", error.to_string()))?;
-                let usage = native.usage().map_err(|reason| bad(kind, "payload.usage", reason))?;
+                let usage = native.usage().map_err(|reason| bad(kind, "payload.usage", reason.detail))?;
                 if !responses.contains_key(&response) {
                     order.push(response.clone());
                 }
@@ -303,12 +305,12 @@ pub(super) fn collect_named(
 
 impl Rollouts {
     /// Replace root turn aggregates with immutable per-response scope evidence.
-    pub fn token_records(&self, root: &str) -> Result<Vec<TokenRecord>, String> {
+    pub fn token_records(&self, root: &str) -> Result<Vec<TokenRecord>, Fault> {
         self.token_ledger(root)?.records()
     }
 
     /// Retain response records with each rollout's resolved model.
-    pub fn token_ledger(&self, root: &str) -> Result<TokenLedger, String> {
+    pub fn token_ledger(&self, root: &str) -> Result<TokenLedger, Fault> {
         let mut ledger = TokenLedger::default();
         ledger.declare(root, ScopeKind::Root, Convention::Codex, "named root has no per-response usage")?;
         for response in &self.responses {
@@ -408,7 +410,7 @@ impl Rollouts {
                         if !usage.is_null() {
                             let native: NativeUsage = serde_json::from_value(usage.clone())
                                 .map_err(|error| bad("token_count", "total_token_usage", error.to_string()))?;
-                            native.usage().map_err(|reason| bad("token_count", "total_token_usage", reason))?;
+                            native.usage().map_err(|reason| bad("token_count", "total_token_usage", reason.detail))?;
                             totals.insert(usage.to_string());
                         }
                     }

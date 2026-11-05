@@ -3,6 +3,8 @@
 //! that changed (benchmarks.md, sections 6, 8.2 and 14). Login and rollouts are
 //! outside this observer; its version is pinned by the adapter configuration.
 
+use crate::{Fault, FaultKind};
+
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -270,7 +272,7 @@ fn decode<T: serde::de::DeserializeOwned>(
 }
 
 impl TurnUsage {
-    fn normalise(&self) -> Result<TokenCounts, String> {
+    fn normalise(&self) -> Result<TokenCounts, Fault> {
         Usage::Codex {
             input: self.input_tokens,
             cached_input: self.cached_input_tokens,
@@ -377,7 +379,7 @@ impl Observer {
                 if self.last != LastTurn::Active {
                     return Err(bad("turn.completed", "completion needs an active turn"));
                 }
-                usage.normalise().map_err(|reason| bad("usage", &reason))?;
+                usage.normalise().map_err(|reason| bad("usage", &reason.detail))?;
                 self.usages.insert(self.turn, usage.clone());
                 self.last = LastTurn::Completed;
             }
@@ -420,8 +422,8 @@ impl Observer {
 
     /// Root aggregate evidence and a total naming the absent non-root scopes.
     /// An identical repeated terminal does not add its aggregate again.
-    pub fn token_records(&self) -> Result<Vec<TokenRecord>, String> {
-        let scope = self.thread.as_ref().ok_or("Codex stream has no root thread")?;
+    pub fn token_records(&self) -> Result<Vec<TokenRecord>, Fault> {
+        let scope = self.thread.as_ref().ok_or(Fault::new(FaultKind::Stream, "Codex stream has no root thread"))?;
         let mut usages = self.usages.values();
         let mut root = usages
             .next()
@@ -449,7 +451,7 @@ impl Observer {
     }
 
     /// Apply the stream's counts and root usage before native collection.
-    pub(super) fn stream_measures(&self, result: &mut crate::AttemptResult) -> Result<(), String> {
+    pub(super) fn stream_measures(&self, result: &mut crate::AttemptResult) -> Result<(), Fault> {
         result.counts = self.counts();
         result.tokens = match self.thread() {
             Some(_) => self.token_records()?,

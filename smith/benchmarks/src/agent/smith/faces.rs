@@ -3,12 +3,14 @@
 //! `face` reads only Git's ancestry, not an agent's private state
 //! (benchmarks.md, section 6.2; reliability-plan 00, Interface sketches).
 
+use crate::{Fault, FaultKind};
+
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 use crate::arm::BuiltArm;
-use crate::isolate::{Setup, SetupStep};
+use crate::isolate::{SetupStep};
 
 /// Receiving bounds pinned with the face that writes the stream.
 /// The arm supplies semantic caps and the writer-derived aggregate line ceiling.
@@ -24,10 +26,10 @@ pub struct Receiving {
 
 impl Receiving {
     /// Preserve semantic caps exactly; the separate aggregate ceiling must be nonzero.
-    pub fn limits(self) -> Result<smith_events::Limits, String> {
+    pub fn limits(self) -> Result<smith_events::Limits, Fault> {
         let limits = smith_events::Limits { string: self.string, content: self.content, items: self.items };
         if self.string == 0 || self.content == 0 || self.items == 0 || self.encoded_line == 0 {
-            return Err("event receiving semantic caps and encoded-line ceiling must be positive".into());
+            return Err(Fault::new(FaultKind::Format, "event receiving semantic caps and encoded-line ceiling must be positive"));
         }
         Ok(limits)
     }
@@ -56,20 +58,20 @@ struct Registry {
 }
 
 /// Read the bounded, closed registry beside the configuration pin.
-pub fn read(path: &Path) -> Result<Vec<FaceSince>, Setup> {
-    let load: Result<Vec<FaceSince>, String> = (|| {
-        let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
+pub fn read(path: &Path) -> Result<Vec<FaceSince>, Fault> {
+    let load: Result<Vec<FaceSince>, Fault> = (|| {
+        let bytes = std::fs::read(path)?;
         if bytes.len() > 65_536 {
-            return Err("Smith face registry exceeds its bound".into());
+            return Err(Fault::new(FaultKind::Bound, "Smith face registry exceeds its bound"));
         }
-        let text = std::str::from_utf8(&bytes).map_err(|error| error.to_string())?;
-        let registry: Registry = toml::from_str(text).map_err(|error| error.to_string())?;
+        let text = std::str::from_utf8(&bytes)?;
+        let registry: Registry = toml::from_str(text)?;
         if registry.face.is_empty() || registry.face.len() > 64 {
-            return Err("Smith face registry has an invalid inventory".into());
+            return Err(Fault::new(FaultKind::Input, "Smith face registry has an invalid inventory"));
         }
         for entry in &registry.face {
             if !crate::formats::lowercase_hex(&entry.commit, 40) {
-                return Err("Smith face registry requires full source commits".into());
+                return Err(Fault::new(FaultKind::Input, "Smith face registry requires full source commits"));
             }
         }
         let mut faces = Vec::new();
@@ -79,12 +81,12 @@ pub fn read(path: &Path) -> Result<Vec<FaceSince>, Setup> {
         }
         Ok(faces)
     })();
-    load.map_err(|reason| Setup { step: SetupStep::Configuration, reason })
+    load.map_err(Fault::at(SetupStep::Configuration))
 }
 
 /// Choose the newest entry that is an ancestor of this verified built arm.
-pub fn face(arm: &BuiltArm, faces: &[FaceSince], repository: &Path) -> Result<FaceSince, Setup> {
-    let selection: Result<FaceSince, String> = (|| {
+pub fn face(arm: &BuiltArm, faces: &[FaceSince], repository: &Path) -> Result<FaceSince, Fault> {
+    let selection: Result<FaceSince, Fault> = (|| {
         let mut ancestry = Vec::new();
         for entry in faces.iter().rev() {
             let result = std::process::Command::new("git")
@@ -100,7 +102,7 @@ pub fn face(arm: &BuiltArm, faces: &[FaceSince], repository: &Path) -> Result<Fa
                 .env_remove("GIT_ALTERNATE_OBJECT_DIRECTORIES")
                 .stdin(std::process::Stdio::null())
                 .output()
-                .map_err(|error| error.to_string())?;
+                ?;
             let status = result.status.code();
             ancestry.push(status);
             if status != Some(1) {
@@ -109,19 +111,19 @@ pub fn face(arm: &BuiltArm, faces: &[FaceSince], repository: &Path) -> Result<Fa
         }
         select(arm, faces, &ancestry)
     })();
-    selection.map_err(|reason| Setup { step: SetupStep::Configuration, reason })
+    selection.map_err(Fault::at(SetupStep::Configuration))
 }
 
 // Git results arrive newest first; only a proved ancestor admits a product face.
-fn select(arm: &BuiltArm, faces: &[FaceSince], ancestry: &[Option<i32>]) -> Result<FaceSince, String> {
+fn select(arm: &BuiltArm, faces: &[FaceSince], ancestry: &[Option<i32>]) -> Result<FaceSince, Fault> {
     for (entry, status) in faces.iter().rev().zip(ancestry) {
         match status {
             Some(0) => return Ok(entry.clone()),
             Some(1) => {}
-            Some(_) | None => return Err("cannot establish Smith arm source ancestry".into()),
+            Some(_) | None => return Err(Fault::new(FaultKind::Input, "cannot establish Smith arm source ancestry")),
         }
     }
-    Err(format!("Smith arm {} predates the first supported product face", arm.commit))
+    Err(Fault::new(FaultKind::Format, format!("Smith arm {} predates the first supported product face", arm.commit)))
 }
 
 #[cfg(test)]
@@ -150,7 +152,7 @@ mod tests {
     #[test]
     fn all_false_ancestry_refuses_an_unsupported_source() {
         let refusal = select(&arm(), &registry(), &[Some(1), Some(1)]).expect_err("no supported ancestor");
-        assert_eq!(refusal, format!("Smith arm {} predates the first supported product face", "a".repeat(40)));
+        assert_eq!(refusal.detail, format!("Smith arm {} predates the first supported product face", "a".repeat(40)));
     }
 
     #[test]
@@ -172,7 +174,7 @@ mod tests {
     fn failed_ancestry_queries_never_admit_an_older_face() {
         for status in [None, Some(2), Some(128)] {
             assert_eq!(
-                select(&arm(), &registry(), &[status, Some(0)]).expect_err("unknown ancestry"),
+                select(&arm(), &registry(), &[status, Some(0)]).expect_err("unknown ancestry").detail,
                 "cannot establish Smith arm source ancestry"
             );
         }

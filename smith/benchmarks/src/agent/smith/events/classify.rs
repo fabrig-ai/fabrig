@@ -2,6 +2,8 @@
 //! Native failure metadata supplies budget and credential classes; codes alone
 //! never manufacture them (shell.md, section4.3; benchmarks.md, section8.3).
 
+use crate::{Fault, FaultKind};
+
 use smith_events::{AnswerClass, AnswerFailure, Event, FailureClass, Mode, Status};
 
 use crate::{BudgetLimit, Classification, End, Exit, FailureReason, Forced};
@@ -12,7 +14,7 @@ fn error(what: impl Into<String>) -> Classification {
     Classification { end: End::HarnessError { what: what.into() }, warnings: Vec::new() }
 }
 
-fn failed(failure: &AnswerFailure) -> Result<(End, i32), String> {
+fn failed(failure: &AnswerFailure) -> Result<(End, i32), Fault> {
     let detail = failure
         .reason
         .as_ref()
@@ -28,7 +30,7 @@ fn failed(failure: &AnswerFailure) -> Result<(End, i32), String> {
                 Some(b"turns") => BudgetLimit::Turns,
                 Some(b"time") => BudgetLimit::Time,
                 Some(b"spend") => BudgetLimit::Spend,
-                Some(_) | None => return Err("budget failure lacks a known which".into()),
+                Some(_) | None => return Err(Fault::new(FaultKind::Stream, "budget failure lacks a known which")),
             };
             (End::Budget { which }, 4)
         }
@@ -41,7 +43,7 @@ fn failed(failure: &AnswerFailure) -> Result<(End, i32), String> {
         AnswerClass::Busy => (End::Refused { setup: detail }, 1),
         AnswerClass::Invalid => (End::Refused { setup: detail }, 2),
         AnswerClass::Unknown(value) => {
-            return Err(format!("unknown answer failure class {}", String::from_utf8_lossy(value)));
+            return Err(Fault::new(FaultKind::Stream, format!("unknown answer failure class {}", String::from_utf8_lossy(value))));
         }
     };
     Ok((end, exit))
@@ -97,13 +99,13 @@ pub(super) fn classify(observer: &Observer, exit: Exit, forced: Forced) -> Class
         }
         Status::Failed | Status::Refused => match &run.failure {
             Some(failure) => failed(failure),
-            None => Err("failed or refused run has no typed answer failure".into()),
+            None => Err(Fault::new(FaultKind::Stream, "failed or refused run has no typed answer failure")),
         },
-        Status::Unknown(value) => Err(format!("unknown run status {}", String::from_utf8_lossy(value))),
+        Status::Unknown(value) => Err(Fault::new(FaultKind::Stream, format!("unknown run status {}", String::from_utf8_lossy(value)))),
     };
     let (end, mut expected) = match terminal {
         Ok(value) => value,
-        Err(what) => return error(what),
+        Err(what) => return error(what.detail),
     };
     match &session.started.mode {
         Mode::Agent | Mode::Exec | Mode::Chat => {}

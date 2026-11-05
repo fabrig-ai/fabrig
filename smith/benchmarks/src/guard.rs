@@ -4,6 +4,8 @@
 //! contents (testing.md, section 2.3; benchmarks.md, section 10). Callers check
 //! every destination immediately before writing; this guard never reads a login.
 
+use crate::{Fault, FaultKind};
+
 use std::path::{Component, Path, PathBuf};
 
 /// User tool locations supplied by the environment or a deterministic test.
@@ -14,7 +16,7 @@ pub struct Guard {
 
 impl Guard {
     /// Protect the user's default tool directories and explicitly named tool homes.
-    pub fn new(home: &Path, config: &Path, state: &Path, tool_homes: &[PathBuf]) -> Result<Self, String> {
+    pub fn new(home: &Path, config: &Path, state: &Path, tool_homes: &[PathBuf]) -> Result<Self, Fault> {
         let mut protected = vec![
             home.join(".codex"),
             home.join(".claude"),
@@ -32,9 +34,9 @@ impl Guard {
     }
 
     /// Read directory choices only, retaining custom XDG and tool home locations.
-    pub fn from_environment() -> Result<Self, String> {
+    pub fn from_environment() -> Result<Self, Fault> {
         let home =
-            std::env::var_os("HOME").filter(|value| !value.is_empty()).ok_or("HOME is required by the write guard")?;
+            std::env::var_os("HOME").filter(|value| !value.is_empty()).ok_or(Fault::new(FaultKind::Input, "HOME is required by the write guard"))?;
         let home = PathBuf::from(home);
         let config = environment_path("XDG_CONFIG_HOME").unwrap_or_else(|| home.join(".config"));
         let state = environment_path("XDG_STATE_HOME").unwrap_or_else(|| home.join(".local/state"));
@@ -43,11 +45,11 @@ impl Guard {
     }
 
     /// Resolve a destination and refuse writes inside any user tool location.
-    pub fn write_path(&self, path: &Path) -> Result<PathBuf, String> {
+    pub fn write_path(&self, path: &Path) -> Result<PathBuf, Fault> {
         let resolved = resolve(path)?;
         for protected in &self.protected {
             if resolved.starts_with(resolve(protected)?) {
-                return Err("write refused inside the user's tool directories".into());
+                return Err(Fault::new(FaultKind::Input, "write refused inside the user's tool directories"));
             }
         }
         Ok(resolved)
@@ -59,13 +61,13 @@ fn environment_path(name: &str) -> Option<PathBuf> {
 }
 
 /// Apply the shared guard to one live-test or harness destination.
-pub fn write_path(path: &Path) -> Result<PathBuf, String> {
+pub fn write_path(path: &Path) -> Result<PathBuf, Fault> {
     Guard::from_environment()?.write_path(path)
 }
 
-fn resolve(path: &Path) -> Result<PathBuf, String> {
+fn resolve(path: &Path) -> Result<PathBuf, Fault> {
     if !path.is_absolute() || path.components().any(|part| matches!(part, Component::ParentDir)) {
-        return Err("write destination must be absolute and contain no '..'".into());
+        return Err(Fault::new(FaultKind::Input, "write destination must be absolute and contain no '..'"));
     }
     let mut existing = path;
     let mut suffix = Vec::new();
@@ -73,14 +75,14 @@ fn resolve(path: &Path) -> Result<PathBuf, String> {
         match std::fs::symlink_metadata(existing) {
             Ok(_) => break,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                suffix.push(existing.file_name().ok_or("destination has no existing ancestor")?.to_owned());
-                existing = existing.parent().ok_or("destination has no existing ancestor")?;
+                suffix.push(existing.file_name().ok_or(Fault::new(FaultKind::Input, "destination has no existing ancestor"))?.to_owned());
+                existing = existing.parent().ok_or(Fault::new(FaultKind::Input, "destination has no existing ancestor"))?;
             }
-            Err(error) => return Err(format!("cannot inspect write destination: {}", error.kind())),
+            Err(error) => return Err(Fault::new(FaultKind::Io, format!("cannot inspect write destination: {}", error.kind()))),
         }
     }
     let mut resolved =
-        existing.canonicalize().map_err(|error| format!("cannot resolve write destination: {}", error.kind()))?;
+        existing.canonicalize().map_err(|error| Fault::new(FaultKind::Io, format!("cannot resolve write destination: {}", error.kind())))?;
     for name in suffix.into_iter().rev() {
         resolved.push(name);
     }
@@ -91,7 +93,7 @@ fn resolve(path: &Path) -> Result<PathBuf, String> {
 /// Empty and null refresh fields carry no token.
 /// Issuer refresh tests keep their separately signed-in token store; this check
 /// applies to conversion and copying, never to their issuer's own response.
-pub fn check_credential_record(record: &serde_json::Value) -> Result<(), String> {
+pub fn check_credential_record(record: &serde_json::Value) -> Result<(), Fault> {
     match record {
         serde_json::Value::Object(fields) => {
             for (name, value) in fields {
@@ -106,7 +108,7 @@ pub fn check_credential_record(record: &serde_json::Value) -> Result<(), String>
                         | serde_json::Value::Number(_)
                         | serde_json::Value::Array(_)
                         | serde_json::Value::Object(_) => {
-                            return Err("credential conversion cannot copy a refresh token".into());
+                            return Err(Fault::new(FaultKind::Credential, "credential conversion cannot copy a refresh token"));
                         }
                     }
                 }
@@ -227,7 +229,7 @@ mod tests {
             ] {
                 let record = serde_json::json!({"tokens":[{field:value}]});
                 let error = check_credential_record(&record).expect_err("refresh copy");
-                assert!(!error.contains("synthetic-private-value"));
+                assert!(!error.detail.contains("synthetic-private-value"));
             }
         }
         for value in [serde_json::Value::Null, serde_json::json!("")] {

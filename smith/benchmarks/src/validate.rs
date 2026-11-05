@@ -1,6 +1,8 @@
 //! Validate hidden graders on private seeds and reference overlays, without an
 //! agent or credentials (benchmarks.md, sections 3.1, 5.2 and 10).
 
+use crate::{Fault, FaultKind};
+
 use std::fs;
 use std::os::unix::fs::DirBuilderExt;
 use std::path::Path;
@@ -32,17 +34,17 @@ impl Validation {
 
 /// Check the credentials probe against accepted, unchanged and refused pair controls.
 /// No login or provider is used by these controls.
-pub fn credentials(tasks: &Path) -> Result<(), String> {
+pub fn credentials(tasks: &Path) -> Result<(), Fault> {
     let file = tasks.join("probes/credentials/task.toml");
     let design = Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/design");
-    let task = crate::check_task(&file, &design).map_err(|error| error.to_string())?;
+    let task = crate::check_task(&file, &design)?;
     crate::batch::validate_credentials(&task)
 }
 
 /// Run named graded tasks, or every graded task, in private command homes.
-pub fn validate(tasks: &Path, names: &[String]) -> Result<Vec<Validation>, String> {
+pub fn validate(tasks: &Path, names: &[String]) -> Result<Vec<Validation>, Fault> {
     let design = Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/design");
-    let catalogue = crate::catalogue(tasks, &design).map_err(|error| error.to_string())?;
+    let catalogue = crate::catalogue(tasks, &design)?;
     let guard = Guard::from_environment()?;
     let machine = Machine::from_environment()?;
     let state = crate::arm::state_root(&guard)?;
@@ -51,7 +53,7 @@ pub fn validate(tasks: &Path, names: &[String]) -> Result<Vec<Validation>, Strin
         .recursive(true)
         .mode(0o700)
         .create(guard.write_path(&scratch)?)
-        .map_err(|error| error.to_string())?;
+        ?;
     let root = crate::isolate::create_directory(&guard, &scratch.join(format!("validate-{}", std::process::id())))?;
     let result = validate_catalogue(&catalogue, names, &guard, &machine, &root);
     crate::isolate::remove_owned_tree(&guard, &root)?;
@@ -64,10 +66,10 @@ fn validate_catalogue(
     guard: &Guard,
     machine: &Machine,
     root: &Path,
-) -> Result<Vec<Validation>, String> {
+) -> Result<Vec<Validation>, Fault> {
     for name in names {
         if !tasks.iter().any(|entry| entry.name == *name && !entry.task.grade.is_empty()) {
-            return Err(format!("unknown graded task {name}"));
+            return Err(Fault::new(FaultKind::Format, format!("unknown graded task {name}")));
         }
     }
     let clock = Clock::new();
@@ -83,7 +85,7 @@ fn validate_catalogue(
     Ok(results)
 }
 
-fn overlay(guard: &Guard, source: &Path, destination: &Path) -> Result<(), String> {
+fn overlay(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault> {
     for (relative, entry) in crate::grade::snapshot_all(source)? {
         let target = guard.write_path(&destination.join(&relative))?;
         match entry {
@@ -93,9 +95,9 @@ fn overlay(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Strin
                 }
             }
             Entry::File { .. } => {
-                fs::copy(source.join(relative), target).map_err(|error| error.to_string())?;
+                fs::copy(source.join(relative), target)?;
             }
-            Entry::Link { .. } | Entry::Special => return Err("reference contains a link or special node".into()),
+            Entry::Link { .. } | Entry::Special => return Err(Fault::new(FaultKind::Input, "reference contains a link or special node")),
         }
     }
     Ok(())
@@ -108,11 +110,11 @@ fn candidate(
     entry: &CatalogueTask,
     root: &Path,
     reference: bool,
-) -> Result<GradeEnd, String> {
-    let task_root = entry.manifest.parent().ok_or("task has no directory")?;
+) -> Result<GradeEnd, Fault> {
+    let task_root = entry.manifest.parent().ok_or(Fault::new(FaultKind::Input, "task has no directory"))?;
     let bundles = crate::arm::state_root(guard)?.join("bundles");
-    let (seed, digest) = crate::seed_source(&entry.task, task_root, &bundles).map_err(|refusal| refusal.reason)?;
-    let private: Private = crate::isolate::prepare(guard, &seed, &digest, root).map_err(|error| error.reason)?;
+    let (seed, digest) = crate::seed_source(&entry.task, task_root, &bundles)?;
+    let private: Private = crate::isolate::prepare(guard, &seed, &digest, root)?;
     let before = crate::grade::snapshot(&private.workspace)?;
     if reference {
         let reference = task_root.join("reference");
@@ -145,11 +147,11 @@ fn candidate(
         let environment = &entry.task.environment;
         let result = crate::grade::command(clock, machine, &private, &private.workspace, &setup, bounds, environment)?;
         if result.end != GradeEnd::Passed {
-            return Err(format!(
+            return Err(Fault::new(FaultKind::Io, format!(
                 "validation setup failed: {:?}: {}",
                 result.end,
                 String::from_utf8_lossy(&result.stderr)
-            ));
+            )));
         }
     }
     for (index, grade) in entry.task.grade.iter().enumerate() {
@@ -186,13 +188,13 @@ fn candidate(
         }
     }
     if reference {
-        reference_checks(&entry.task, &private.workspace, &before).map_err(|refusal| refusal.to_string())?;
+        reference_checks(&entry.task, &private.workspace, &before)?;
     }
     Ok(end)
 }
 
 fn reference_checks(task: &crate::Task, settled: &Path, before: &Snapshot) -> Result<(), crate::Refusal> {
-    let after = crate::grade::snapshot(settled).map_err(|reason| crate::Refusal::new(settled, "reference", reason))?;
+    let after = crate::grade::snapshot(settled).map_err(|reason| crate::Refusal::new(settled, "reference", reason.detail))?;
     for path in &task.protected {
         if crate::grade::changed(before, &after, path) {
             return Err(crate::Refusal::new(settled, "protected", format!("reference changes {}", path.display())));
@@ -213,9 +215,9 @@ fn reference_checks(task: &crate::Task, settled: &Path, before: &Snapshot) -> Re
     Ok(())
 }
 
-fn apply_patch(clock: &Clock, guard: &Guard, machine: &Machine, private: &Private, patch: &Path) -> Result<(), String> {
+fn apply_patch(clock: &Clock, guard: &Guard, machine: &Machine, private: &Private, patch: &Path) -> Result<(), Fault> {
     let target = private.root.join("solution.patch");
-    fs::copy(patch, guard.write_path(&target)?).map_err(|error| error.to_string())?;
+    fs::copy(patch, guard.write_path(&target)?)?;
     let grade = crate::Grade {
         command: vec!["git".into(), "apply".into(), "../solution.patch".into()],
         deadline_seconds: 10,
@@ -240,7 +242,7 @@ fn apply_patch(clock: &Clock, guard: &Guard, machine: &Machine, private: &Privat
         &std::collections::BTreeMap::default(),
     )?;
     if result.end != GradeEnd::Passed {
-        return Err(format!("reference patch failed: {}", String::from_utf8_lossy(&result.stderr)));
+        return Err(Fault::new(FaultKind::Io, format!("reference patch failed: {}", String::from_utf8_lossy(&result.stderr))));
     }
     Ok(())
 }

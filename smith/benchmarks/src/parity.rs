@@ -5,6 +5,8 @@
 pub mod change;
 mod number;
 
+use crate::{Fault, FaultKind};
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
@@ -39,7 +41,7 @@ pub enum Verdict {
     OnPar,
     /// A complete run fails a criterion or smith solves no task in a pool.
     NotOnPar,
-    /// Setup, observation or reference evidence is missing.
+    /// observation or reference evidence is missing.
     Incomplete,
 }
 
@@ -121,7 +123,7 @@ fn fixture_criterion(
     seed: u64,
     subject: &ArmKey,
     reference: &ArmKey,
-) -> Result<Criterion, String> {
+) -> Result<Criterion, Fault> {
     let name = if cost { "FC" } else { "FT" };
     if rows.iter().any(|row| !matches!(row.end.as_str(), "completed" | "failed" | "timeout" | "budget")) {
         return Ok(criterion(name, f64::INFINITY, (f64::INFINITY, f64::INFINITY), 1.20));
@@ -148,7 +150,7 @@ fn repository_criterion(
     seed: u64,
     subject: &ArmKey,
     reference: &ArmKey,
-) -> Result<Criterion, String> {
+) -> Result<Criterion, Fault> {
     let name = if cost { "RC" } else { "RT" };
     let margin = if cost { 1.50 } else { 1.20 };
     let arms: Vec<_> = [reference, subject]
@@ -193,7 +195,7 @@ fn reported(rows: &[AttemptRow]) -> BTreeMap<String, BTreeMap<String, Measure<f6
                     .into_iter()
                     .map(|(name, samples)| {
                         let median = crate::median(&samples)
-                            .map_or_else(Measure::unavailable, |value| Measure::Observed { value });
+                            .map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value });
                         (name, median)
                     })
                     .collect(),
@@ -202,7 +204,7 @@ fn reported(rows: &[AttemptRow]) -> BTreeMap<String, BTreeMap<String, Measure<f6
         .collect()
 }
 
-fn criteria(rows: &[AttemptRow], subject: &ArmKey, reference: &ArmKey, seed: u64) -> Result<Vec<Criterion>, String> {
+fn criteria(rows: &[AttemptRow], subject: &ArmKey, reference: &ArmKey, seed: u64) -> Result<Vec<Criterion>, Fault> {
     let fixtures: Vec<_> = rows.iter().filter(|row| row.task != TASKS[3]).collect();
     let repository: Vec<_> = rows.iter().filter(|row| row.task == TASKS[3]).collect();
     let pass_count = |arm: &ArmKey| {
@@ -232,9 +234,9 @@ fn criteria(rows: &[AttemptRow], subject: &ArmKey, reference: &ArmKey, seed: u64
 }
 
 /// Recompute criteria from rows and the smith commit retained by the arm groups.
-pub fn recompute(rows: &[AttemptRow], seed: u64, priced_at: &str, smith_commit: &str) -> Result<Parity, String> {
+pub fn recompute(rows: &[AttemptRow], seed: u64, priced_at: &str, smith_commit: &str) -> Result<Parity, Fault> {
     if rows.len() > 68 {
-        return Err("parity has more than 68 attempts".into());
+        return Err(Fault::new(FaultKind::Input, "parity has more than 68 attempts"));
     }
     let mut arms: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     let mut ids = BTreeSet::new();
@@ -243,12 +245,12 @@ pub fn recompute(rows: &[AttemptRow], seed: u64, priced_at: &str, smith_commit: 
             || !["smith", "codex"].contains(&row.agent.as_str())
             || !ids.insert(&row.attempt)
         {
-            return Err("parity needs its four tasks, smith and Codex, and unique attempts".into());
+            return Err(Fault::new(FaultKind::Input, "parity needs its four tasks, smith and Codex, and unique attempts"));
         }
         arms.entry(&row.agent).or_default().insert(&row.arm);
     }
     if arms.values().any(|names| names.len() != 1) {
-        return Err("parity needs one arm per agent".into());
+        return Err(Fault::new(FaultKind::Input, "parity needs one arm per agent"));
     }
     let reference_arm = arms.get("codex").and_then(|names| names.first()).copied().unwrap_or("");
     let subject = ArmKey { agent: "smith".into(), commit: smith_commit.into() };
@@ -292,7 +294,7 @@ pub fn recompute(rows: &[AttemptRow], seed: u64, priced_at: &str, smith_commit: 
     })
 }
 
-fn identified_rows(summary: &RunSummary) -> Result<&[AttemptRow], String> {
+fn identified_rows(summary: &RunSummary) -> Result<&[AttemptRow], Fault> {
     let mut ids = BTreeSet::new();
     for row in &summary.attempts {
         if !ids.insert(&row.attempt)
@@ -304,16 +306,16 @@ fn identified_rows(summary: &RunSummary) -> Result<&[AttemptRow], String> {
                     && group.attempts.contains(&row.attempt)
             })
         {
-            return Err("parity attempt has no matching arm identity".into());
+            return Err(Fault::new(FaultKind::Input, "parity attempt has no matching arm identity"));
         }
     }
     Ok(&summary.attempts)
 }
 
 /// Build the section from attempt rows and their recorded arm identity.
-pub fn from_summary(summary: &RunSummary) -> Result<Parity, String> {
+pub fn from_summary(summary: &RunSummary) -> Result<Parity, Fault> {
     if summary.suite != "parity" || summary.tier != "working" || summary.design != crate::Design::Interleaved {
-        return Err("parity needs its working, interleaved suite".into());
+        return Err(Fault::new(FaultKind::Input, "parity needs its working, interleaved suite"));
     }
     identified_rows(summary)?;
     let commits: BTreeSet<_> = summary
@@ -323,23 +325,23 @@ pub fn from_summary(summary: &RunSummary) -> Result<Parity, String> {
         .map(|group| group.agent_version.as_str())
         .collect();
     if commits.len() != 1 {
-        return Err("parity needs one smith source commit".into());
+        return Err(Fault::new(FaultKind::Input, "parity needs one smith source commit"));
     }
     let commit = commits.first().expect("one commit");
     if commit.len() != 40 || !commit.bytes().all(|byte| skein_lib::bytes::hex_value(byte).is_some()) {
-        return Err("parity needs the smith arm's full source commit".into());
+        return Err(Fault::new(FaultKind::Input, "parity needs the smith arm's full source commit"));
     }
     recompute(&summary.attempts, summary.seed, &summary.priced_at, commits.first().expect("one commit"))
 }
 
 /// Refuse a conflicting committed section or an arm built from another commit.
-pub fn verify(summary: &RunSummary, commit: &str) -> Result<Parity, String> {
+pub fn verify(summary: &RunSummary, commit: &str) -> Result<Parity, Fault> {
     let parity = from_summary(summary)?;
     if parity.smith_commit != commit {
-        return Err("summary smith arm was built from another commit".into());
+        return Err(Fault::new(FaultKind::Input, "summary smith arm was built from another commit"));
     }
     if summary.parity.as_ref() != Some(&parity) {
-        return Err("committed parity section disagrees with attempt rows".into());
+        return Err(Fault::new(FaultKind::Mismatch, "committed parity section disagrees with attempt rows"));
     }
     Ok(parity)
 }

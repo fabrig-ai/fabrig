@@ -2,6 +2,8 @@
 //! An adapter owns request preparation, not this dispatcher. The shared kit owns
 //! the child tree and the suite wall bound (benchmarks.md, sections 5.3 and 10).
 
+use crate::{Fault, FaultKind};
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
 use std::path::Path;
@@ -18,7 +20,7 @@ use crate::{AttemptResult, Design, End, Measure, ScopeKind, Suite};
 
 mod credentials;
 
-pub(crate) fn validate_credentials(task: &crate::Task) -> Result<(), String> {
+pub(crate) fn validate_credentials(task: &crate::Task) -> Result<(), Fault> {
     credentials::validate(task)
 }
 
@@ -30,29 +32,29 @@ pub struct Batch {
     pub probes: BTreeMap<String, crate::ProbeVerdict>,
 }
 
-fn requests(directory: &Path) -> Result<Vec<Request>, String> {
+fn requests(directory: &Path) -> Result<Vec<Request>, Fault> {
     let mut paths = fs::read_dir(directory)
-        .map_err(|error| error.to_string())?
+        ?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| error.to_string())?;
+        ?;
     paths.sort_by_key(fs::DirEntry::file_name);
     paths.into_iter().map(|entry| read_prepared(&entry.path())).collect()
 }
 
-pub(crate) fn ordered(suite: &Suite, requests: Vec<Request>, seed: u64) -> Result<Vec<Request>, String> {
+pub(crate) fn ordered(suite: &Suite, requests: Vec<Request>, seed: u64) -> Result<Vec<Request>, Fault> {
     order(suite, requests, seed, false)
 }
 
-fn order(suite: &Suite, requests: Vec<Request>, seed: u64, logical: bool) -> Result<Vec<Request>, String> {
+fn order(suite: &Suite, requests: Vec<Request>, seed: u64, logical: bool) -> Result<Vec<Request>, Fault> {
     let mut groups: BTreeMap<String, BTreeMap<String, Vec<Request>>> = BTreeMap::new();
     let mut ids = BTreeSet::new();
     let run = requests.first().map(|request| request.identity.run.clone());
     for request in requests {
         if Some(&request.identity.run) != run.as_ref() {
-            return Err("prepared attempts must belong to one run".into());
+            return Err(Fault::new(FaultKind::Input, "prepared attempts must belong to one run"));
         }
         if !ids.insert((request.identity.run.clone(), request.identity.attempt.clone())) {
-            return Err("prepared attempts must have unique run/attempt ids".into());
+            return Err(Fault::new(FaultKind::Input, "prepared attempts must have unique run/attempt ids"));
         }
         groups
             .entry(request.identity.task.clone())
@@ -67,10 +69,10 @@ fn order(suite: &Suite, requests: Vec<Request>, seed: u64, logical: bool) -> Res
         for attempts in &mut arms {
             attempts.sort_by(|left, right| left.identity.attempt.cmp(&right.identity.attempt));
         }
-        let authored = crate::read_task(&arms[0][0].task).map_err(|error| error.to_string())?.repetitions;
+        let authored = crate::read_task(&arms[0][0].task)?.repetitions;
         let repetitions = suite.task_repetitions(&name, authored, logical)?;
         if arms.iter().any(|attempts| attempts.len() != usize::try_from(repetitions).expect("u32 fits usize")) {
-            return Err("each prepared task/arm must supply its declared repetition count".into());
+            return Err(Fault::new(FaultKind::Input, "each prepared task/arm must supply its declared repetition count"));
         }
         let order = match suite.design {
             Design::Single => (0..repetitions).map(|_| (0..arms.len()).collect()).collect(),
@@ -83,7 +85,7 @@ fn order(suite: &Suite, requests: Vec<Request>, seed: u64, logical: bool) -> Res
         }
     }
     if ordered.is_empty() {
-        return Err("prepared suite has no requests".into());
+        return Err(Fault::new(FaultKind::Input, "prepared suite has no requests"));
     }
     Ok(ordered)
 }
@@ -137,7 +139,7 @@ fn known_tokens(result: &AttemptResult) -> Option<u64> {
     Some(used)
 }
 
-fn configuration_matches(pin: &crate::PinnedConfiguration, request: &Request) -> Result<bool, String> {
+fn configuration_matches(pin: &crate::PinnedConfiguration, request: &Request) -> Result<bool, Fault> {
     if pin.pin.agent != request.identity.agent
         || pin.pin.provider != request.identity.provider
         || pin.sha256 != request.identity.configuration_sha256
@@ -159,7 +161,7 @@ fn selected_configuration_matches(
     agents: &[crate::SuiteAgent],
     pins: &[crate::PinnedConfiguration],
     request: &Request,
-) -> Result<bool, String> {
+) -> Result<bool, Fault> {
     let mut matched = false;
     for (agent, pin) in agents.iter().zip(pins) {
         if agent.tasks.is_empty() || agent.tasks.contains(&request.identity.task) {
@@ -187,7 +189,7 @@ fn allowed_agents(suite: &Suite) -> Vec<crate::SuiteAgent> {
     allowed
 }
 
-fn check_override(suite: &Suite, request: &Request) -> Result<(), String> {
+fn check_override(suite: &Suite, request: &Request) -> Result<(), Fault> {
     if !suite.arms.is_empty() && matches!(suite.arms[0], crate::Arm::Override { .. }) {
         let fields = suite
             .arms
@@ -196,39 +198,39 @@ fn check_override(suite: &Suite, request: &Request) -> Result<(), String> {
                 crate::Arm::Override { name, smith } if name == &request.identity.arm => Some(smith),
                 crate::Arm::Binary { .. } | crate::Arm::Override { .. } | crate::Arm::Agent { .. } => None,
             })
-            .ok_or("prepared request names an undeclared override arm")?;
+            .ok_or(Fault::new(FaultKind::Input, "prepared request names an undeclared override arm"))?;
         if request.arguments != crate::suite::override_arguments(fields) {
-            return Err("prepared override settings differ from the suite".into());
+            return Err(Fault::new(FaultKind::Input, "prepared override settings differ from the suite"));
         }
     }
     Ok(())
 }
 
-fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Result<(), String> {
+fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Result<(), Fault> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let catalogue =
-        crate::catalogue(&root.join("tasks"), &root.join("../docs/design")).map_err(|error| error.to_string())?;
-    let models = crate::read_model_tiers(&root.join("agents/models.toml")).map_err(|error| error.to_string())?;
+        crate::catalogue(&root.join("tasks"), &root.join("../docs/design"))?;
+    let models = crate::read_model_tiers(&root.join("agents/models.toml"))?;
     let selected = crate::validate_suite(suite_file, suite, &catalogue, &root.join("agents"), &models)
-        .map_err(|error| error.to_string())?;
+        ?;
     let asked: Vec<String> = requests
         .iter()
         .map(|request| &request.identity.task)
         .filter(|name| !selected.contains(name))
         .cloned()
         .collect();
-    let selected = crate::include(suite_file, suite, &selected, &asked).map_err(|error| error.to_string())?;
+    let selected = crate::include(suite_file, suite, &selected, &asked)?;
     let selected =
         if suite.name == "smoke" { crate::probe::gating::smoke_tasks(&catalogue, &selected)? } else { selected };
     let allowed = allowed_agents(suite);
     let mut pins = Vec::new();
     for agent in &allowed {
         let path = root.join("agents").join(agent.agent.directory()).join(format!("{}.pin.toml", agent.config));
-        pins.push(crate::read_configuration(&path).map_err(|error| error.to_string())?);
+        pins.push(crate::read_configuration(&path)?);
     }
     for request in requests {
         if !selected.contains(&request.identity.task) {
-            return Err("prepared request is not a selected suite task".into());
+            return Err(Fault::new(FaultKind::Input, "prepared request is not a selected suite task"));
         }
         check_override(suite, request)?;
         let entry = catalogue
@@ -236,18 +238,18 @@ fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Res
             .find(|entry| {
                 request.identity.task == entry.name || request.identity.task.starts_with(&format!("{}/", entry.name))
             })
-            .ok_or("prepared task is not in the catalogue")?;
-        if request.task.canonicalize().map_err(|error| error.to_string())?
-            != entry.manifest.canonicalize().map_err(|error| error.to_string())?
+            .ok_or(Fault::new(FaultKind::Input, "prepared task is not in the catalogue"))?;
+        if request.task.canonicalize()?
+            != entry.manifest.canonicalize()?
         {
-            return Err("prepared request names a different task manifest".into());
+            return Err(Fault::new(FaultKind::Input, "prepared request names a different task manifest"));
         }
         if !selected_configuration_matches(&allowed, &pins, request)? {
-            return Err("prepared agent configuration differs from the suite's pins".into());
+            return Err(Fault::new(FaultKind::Mismatch, "prepared agent configuration differs from the suite's pins"));
         }
         let model = models
             .lookup(&root.join("agents/models.toml"), &suite.tier, request.identity.provider)
-            .map_err(|error| error.to_string())?;
+            ?;
         let task = if request.identity.task == entry.name {
             entry.task.clone()
         } else {
@@ -255,15 +257,15 @@ fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Res
                 .identity
                 .task
                 .strip_prefix(&format!("{}/", entry.name))
-                .ok_or("task variant identity differs")?;
+                .ok_or(Fault::new(FaultKind::Mismatch, "task variant identity differs"))?;
             entry.task.with_variant(variant)?
         };
         let expected_model =
-            task.requested_model(request.identity.agent, model.model.as_deref().ok_or("suite tier has no model")?)?;
+            task.requested_model(request.identity.agent, model.model.as_deref().ok_or(Fault::new(FaultKind::Input, "suite tier has no model"))?)?;
         if expected_model != request.identity.model.requested_model
             || task.effort.as_ref().or(model.effort.as_ref()) != Some(&request.identity.model.requested_effort)
         {
-            return Err("prepared model/effort differs from the suite's tier".into());
+            return Err(Fault::new(FaultKind::Mismatch, "prepared model/effort differs from the suite's tier"));
         }
     }
     for task in &selected {
@@ -283,13 +285,13 @@ fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Res
                     && request.identity.provider == agent.provider
                     && request.identity.configuration_sha256 == pin.sha256
             }) {
-                return Err("prepared requests omit a selected task/configuration".into());
+                return Err(Fault::new(FaultKind::Input, "prepared requests omit a selected task/configuration"));
             }
         }
         if suite.change {
             for name in ["change", "parent"] {
                 if !requests.iter().any(|request| request.identity.task == *task && request.identity.arm == name) {
-                    return Err("prepared requests omit a change suite arm".into());
+                    return Err(Fault::new(FaultKind::Input, "prepared requests omit a change suite arm"));
                 }
             }
         }
@@ -300,7 +302,7 @@ fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Res
                 | crate::Arm::Agent { name, .. } => name,
             };
             if !requests.iter().any(|request| request.identity.task == *task && request.identity.arm == *name) {
-                return Err("prepared requests omit a selected comparison arm".into());
+                return Err(Fault::new(FaultKind::Input, "prepared requests omit a selected comparison arm"));
             }
         }
     }
@@ -313,20 +315,20 @@ fn dispatch_command(
     state: &Path,
     executable: &Path,
     request: &Request,
-) -> Result<(Command, bool), String> {
+) -> Result<(Command, bool), Fault> {
     let root = state.join("requests");
     crate::run::private_parent(guard, &root)?;
     let name = format!("{}-{}.request", request.identity.run, request.identity.attempt);
     // scratch_root validates ids before either the request or agent can write.
     let scratch = crate::run::scratch_root(state, request)?;
     let existed = scratch.exists();
-    let document = serde_json::to_vec_pretty(request).map_err(|error| error.to_string())?;
+    let document = serde_json::to_vec_pretty(request)?;
     crate::grade::archive(guard, &root, &name, &document)?;
-    let home = std::env::var_os("HOME").ok_or("suite requires the user's directory choices")?;
+    let home = std::env::var_os("HOME").ok_or(Fault::new(FaultKind::Input, "suite requires the user's directory choices"))?;
     let mut environment = vec![
         ("HOME".into(), home),
         ("PATH".into(), machine.path.clone()),
-        ("XDG_STATE_HOME".into(), state.parent().ok_or("state needs a parent")?.as_os_str().into()),
+        ("XDG_STATE_HOME".into(), state.parent().ok_or(Fault::new(FaultKind::Input, "state needs a parent"))?.as_os_str().into()),
     ];
     for name in ["XDG_CONFIG_HOME", "CODEX_HOME", "CLAUDE_CONFIG_DIR", "RUSTUP_HOME"] {
         if let Some(value) = std::env::var_os(name) {
@@ -350,7 +352,7 @@ fn dispatch_result(
     request: &Request,
     process: &crate::process::ProcessResult,
     existed: bool,
-) -> Result<AttemptResult, String> {
+) -> Result<AttemptResult, Fault> {
     let scratch = crate::run::scratch_root(state, request)?;
     let result_file =
         state.join("runs").join(&request.identity.run).join(&request.identity.attempt).join("result.json");
@@ -363,15 +365,15 @@ fn dispatch_result(
             process,
             format!("attempt ended {:?} without a result: {error}", process.exit),
         )?,
-        Err(error) => return Err(format!("attempt's existing result is invalid: {error}")),
+        Err(error) => return Err(Fault::new(FaultKind::Format, format!("attempt's existing result is invalid: {error}"))),
     };
     if !existed && scratch.exists() {
         let deletion =
-            guard.write_path(&scratch).and_then(|path| fs::remove_dir_all(path).map_err(|error| error.to_string()));
+            guard.write_path(&scratch).and_then(|path| fs::remove_dir_all(path).map_err(Fault::from));
         if let Err(error) = deletion {
             result.outcome.end = End::HarnessError { what: format!("dispatcher workspace deletion failed: {error}") };
             let path = guard.write_path(&result_file)?;
-            fs::write(path, crate::render_result(&result)?).map_err(|error| error.to_string())?;
+            fs::write(path, crate::render_result(&result)?)?;
         }
     }
     Ok(result)
@@ -385,7 +387,7 @@ fn dispatch(
     executable: &Path,
     request: &Request,
     remaining: u64,
-) -> Result<AttemptResult, String> {
+) -> Result<AttemptResult, Fault> {
     let (command, existed) = dispatch_command(guard, machine, state, executable, request)?;
     let process = execute(
         clock,
@@ -407,8 +409,8 @@ fn dispatch(
 
 /// Dispatch adapter-prepared requests under the suite's aggregate wall budget.
 /// Requests are immutable JSON documents; agent adapters add them when ready.
-pub fn run(suite_file: &Path, prepared_directory: &Path, seed: u64) -> Result<Batch, String> {
-    let suite = crate::read_suite(suite_file).map_err(|error| error.to_string())?;
+pub fn run(suite_file: &Path, prepared_directory: &Path, seed: u64) -> Result<Batch, Fault> {
+    let suite = crate::read_suite(suite_file)?;
     run_suite(suite_file, &suite, prepared_directory, seed, false, None)
 }
 
@@ -419,7 +421,7 @@ pub fn run_probe(
     seed: u64,
     probe: &str,
     repetitions: u32,
-) -> Result<Batch, String> {
+) -> Result<Batch, Fault> {
     let suite = probe_suite(suite_file, probe, repetitions)?;
     run_suite(suite_file, &suite, prepared_directory, seed, true, None)
 }
@@ -432,17 +434,17 @@ pub fn run_calibration(
     probe: &str,
     required: u32,
     ceiling: u32,
-) -> Result<Batch, String> {
+) -> Result<Batch, Fault> {
     let mut suite = probe_suite(suite_file, probe, ceiling)?;
     suite.rerun_failed = 0;
     run_suite(suite_file, &suite, prepared_directory, seed, true, Some((required, ceiling)))
 }
 
-fn probe_suite(suite_file: &Path, probe: &str, repetitions: u32) -> Result<Suite, String> {
+fn probe_suite(suite_file: &Path, probe: &str, repetitions: u32) -> Result<Suite, Fault> {
     if !probe.starts_with("probes/") || repetitions == 0 {
-        return Err("probe dispatch requires a probe selector and positive repetitions".into());
+        return Err(Fault::new(FaultKind::Input, "probe dispatch requires a probe selector and positive repetitions"));
     }
-    let mut suite = crate::read_suite(suite_file).map_err(|error| error.to_string())?;
+    let mut suite = crate::read_suite(suite_file)?;
     suite.agents.retain(|agent| agent.tasks.is_empty() || agent.tasks.iter().any(|name| name == probe));
     for agent in &mut suite.agents {
         agent.tasks = vec![probe.into()];
@@ -459,7 +461,7 @@ pub(crate) fn probe_requests(
     seed: u64,
     probe: &str,
     repetitions: u32,
-) -> Result<Vec<Request>, String> {
+) -> Result<Vec<Request>, Fault> {
     let suite = probe_suite(suite_file, probe, repetitions)?;
     let requests = requests(prepared_directory)?;
     check_requests(suite_file, &suite, &requests)?;
@@ -471,7 +473,7 @@ fn dispatch_order(
     requests: Vec<Request>,
     seed: u64,
     logical: bool,
-) -> Result<(VecDeque<Request>, usize), String> {
+) -> Result<(VecDeque<Request>, usize), Fault> {
     let ordered = if logical { order(suite, requests, seed, true)? } else { ordered(suite, requests, seed)? };
     let physical = ordered.first().map_or(Ok(1), |request| {
         if credentials::selected(request) {
@@ -479,7 +481,7 @@ fn dispatch_order(
         }
         crate::read_task(&request.task)
             .map(|task| usize::try_from(task.repetitions.unwrap_or(1)).expect("u32 fits usize"))
-            .map_err(|error| error.to_string())
+            .map_err(Fault::from)
     })?;
     let mut requests: VecDeque<_> = ordered.into();
     if requests.iter().any(|request| {
@@ -488,7 +490,7 @@ fn dispatch_order(
                 .iter()
                 .any(|candidate| candidate.identity.attempt == format!("{}-peer", request.identity.attempt))
     }) {
-        return Err("prepared attempt ids collide with the reserved credentials peer".into());
+        return Err(Fault::new(FaultKind::Input, "prepared attempt ids collide with the reserved credentials peer"));
     }
     if requests.iter().any(|request| {
         requests.iter().any(|candidate| {
@@ -496,7 +498,7 @@ fn dispatch_order(
                 && candidate.identity.attempt == format!("{}-rerun", request.identity.attempt)
         })
     }) {
-        return Err("prepared attempt ids collide with the reserved failure rerun".into());
+        return Err(Fault::new(FaultKind::Input, "prepared attempt ids collide with the reserved failure rerun"));
     }
     let disk = requests
         .iter()
@@ -505,7 +507,7 @@ fn dispatch_order(
             sum.checked_add(request.disk_estimate_bytes.checked_mul(multiplier)?)
         })
         .and_then(|bytes| bytes.checked_mul(u64::from(suite.rerun_failed) + 1))
-        .ok_or("suite disk estimate overflow")?;
+        .ok_or(Fault::new(FaultKind::Bound, "suite disk estimate overflow"))?;
     if let Some(first) = requests.front_mut() {
         first.disk_estimate_bytes = disk;
     }
@@ -519,7 +521,7 @@ fn run_suite(
     seed: u64,
     logical: bool,
     calibration: Option<(u32, u32)>,
-) -> Result<Batch, String> {
+) -> Result<Batch, Fault> {
     let requests = requests(prepared_directory)?;
     let uncalibrated = crate::probe::gating::suite_tasks(suite, logical, &requests)?;
     check_requests(suite_file, suite, &requests)?;
@@ -527,15 +529,15 @@ fn run_suite(
     let guard = Guard::from_environment()?;
     let machine = Machine::from_environment()?;
     let state = crate::arm::state_root(&guard)?;
-    let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+    let executable = std::env::current_exe()?;
     let clock = Clock::new();
     let deadline = clock
         .now()
         .now
         .checked_add(Duration::from_nanos(
-            suite.max_wall_seconds.checked_mul(1_000_000_000).ok_or("suite deadline overflow")?,
+            suite.max_wall_seconds.checked_mul(1_000_000_000).ok_or(Fault::new(FaultKind::Bound, "suite deadline overflow"))?,
         ))
-        .ok_or("suite deadline overflow")?;
+        .ok_or(Fault::new(FaultKind::Bound, "suite deadline overflow"))?;
     let mut results = Vec::new();
     let mut incomplete = false;
     let mut used = 0_u64;
@@ -599,7 +601,7 @@ fn run_suite(
             println!("{}", crate::probe::line(&result));
             results.push(result);
             if let Some(count) = tokens {
-                used = used.checked_add(count).ok_or("suite token count overflow")?;
+                used = used.checked_add(count).ok_or(Fault::new(FaultKind::Bound, "suite token count overflow"))?;
                 incomplete |= used > suite.max_tokens;
             } else if !zero_charge {
                 println!("suite token usage unavailable: incomplete");

@@ -1,12 +1,14 @@
 //! Calibration gates smoke selection and probe regressions, keeping raw results.
 //! Contract: benchmarks.md, sections 3.1, 9 and 11.5.
 
+use crate::Fault;
+
 use std::collections::BTreeSet;
 
 use crate::{CatalogueTask, Judgment, batch::Batch, run::Request};
 
 /// Select smoke tasks whose effective calibration digests still match.
-pub fn smoke_tasks(entries: &[CatalogueTask], names: &[String]) -> Result<Vec<String>, String> {
+pub fn smoke_tasks(entries: &[CatalogueTask], names: &[String]) -> Result<Vec<String>, Fault> {
     let mut selected = Vec::new();
     for name in names {
         if super::task(entries, name)?.task.calibrated()? {
@@ -18,7 +20,7 @@ pub fn smoke_tasks(entries: &[CatalogueTask], names: &[String]) -> Result<Vec<St
     Ok(selected)
 }
 
-pub(crate) fn uncalibrated(requests: &[Request]) -> Result<BTreeSet<String>, String> {
+pub(crate) fn uncalibrated(requests: &[Request]) -> Result<BTreeSet<String>, Fault> {
     let mut names = BTreeSet::new();
     for request in requests {
         if request.identity.task.starts_with("probes/")
@@ -34,7 +36,7 @@ pub(crate) fn suite_tasks(
     suite: &crate::Suite,
     logical: bool,
     requests: &[Request],
-) -> Result<BTreeSet<String>, String> {
+) -> Result<BTreeSet<String>, Fault> {
     if suite.name == "probes" && !logical { uncalibrated(requests) } else { Ok(BTreeSet::new()) }
 }
 

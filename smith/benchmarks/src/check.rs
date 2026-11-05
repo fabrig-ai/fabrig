@@ -39,9 +39,9 @@ pub struct ManifestCounts {
 
 /// Validate a benchmark tree's tasks, suites, model tiers and configuration pins.
 pub fn check_benchmark_tree(root: &Path, design: &Path) -> Result<ManifestCounts, Refusal> {
-    let guard = crate::guard::Guard::from_environment().map_err(|reason| Refusal::new(root, "bundle", reason))?;
+    let guard = crate::guard::Guard::from_environment().map_err(|reason| Refusal::new(root, "bundle", reason.detail))?;
     let bundles =
-        crate::arm::state_root(&guard).map_err(|reason| Refusal::new(root, "bundle", reason))?.join("bundles");
+        crate::arm::state_root(&guard).map_err(|reason| Refusal::new(root, "bundle", reason.detail))?.join("bundles");
     check_benchmark_tree_with_bundles(root, design, &bundles)
 }
 
@@ -99,11 +99,11 @@ pub fn check_benchmark_tree_with_bundles(
                     let summary = crate::read_summary(&file.path())?;
                     if summary.suite == "parity-change" {
                         crate::parity::change::verify(&summary)
-                            .map_err(|reason| Refusal::new(&file.path(), "change", reason))?;
+                            .map_err(|reason| Refusal::new(&file.path(), "change", reason.detail))?;
                     }
                     if let Some(parity) = &summary.parity {
                         crate::parity::verify(&summary, &parity.smith_commit)
-                            .map_err(|reason| Refusal::new(&file.path(), "parity", reason))?;
+                            .map_err(|reason| Refusal::new(&file.path(), "parity", reason.detail))?;
                     }
                 } else {
                     crate::read_baseline(&file.path())?;
@@ -212,7 +212,7 @@ pub fn check_task(file: &Path, design: &Path) -> Result<Task, Refusal> {
     }
     calibration(file, "calibration", &task)?;
     for (index, variant) in task.variant.iter().enumerate() {
-        let selected = task.with_variant(&variant.name).map_err(|reason| Refusal::new(file, "variant", reason))?;
+        let selected = task.with_variant(&variant.name).map_err(|reason| Refusal::new(file, "variant", reason.detail))?;
         calibration(file, &format!("variant[{index}].calibration"), &selected)?;
     }
     for (index, guard) in task.guards.iter().enumerate() {
@@ -282,7 +282,7 @@ pub(crate) fn calibration(file: &Path, key: &str, task: &Task) -> Result<(), Ref
             "requires ten distinct passes within twelve, deviations only, binary and control evidence, and input digests",
         ));
     }
-    if !task.calibrated().map_err(|reason| Refusal::new(file, key, reason))? {
+    if !task.calibrated().map_err(|reason| Refusal::new(file, key, reason.detail))? {
         eprintln!("{}: {key}: input digests differ; gates nothing", file.display());
     }
     Ok(())

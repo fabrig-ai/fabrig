@@ -2,6 +2,8 @@
 //! Aggregated conversation, child-tool and run totals never charge a response.
 //! Contract: benchmarks.md, section8.2; protocol/events.md, sections3.5/3.10.
 
+use crate::{Fault, FaultKind};
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use smith_events::{ConversationKind, Event, Evidence, Outcome, ResponseCompleted, ResponseStarted};
@@ -31,7 +33,7 @@ fn run_tokens(
     index: usize,
     run: u64,
     priced: &mut Vec<crate::ResponseTokens>,
-) -> Result<Vec<TokenRecord>, String> {
+) -> Result<Vec<TokenRecord>, Fault> {
     let prefix = format!("session-{index}/run-{run}");
     let mut ledger = TokenLedger::default();
     let mut scopes = BTreeMap::new();
@@ -48,10 +50,10 @@ fn run_tokens(
                 },
                 ConversationKind::Compaction => match conversation.parent {
                     Some(parent) => ScopeKind::Compaction { parent: format!("{prefix}/conversation-{parent}") },
-                    None => return Err("compaction scope has no native parent".into()),
+                    None => return Err(Fault::new(FaultKind::Stream, "compaction scope has no native parent")),
                 },
                 ConversationKind::Unknown(value) => {
-                    return Err(format!("unknown conversation kind {}", String::from_utf8_lossy(value)));
+                    return Err(Fault::new(FaultKind::Stream, format!("unknown conversation kind {}", String::from_utf8_lossy(value))));
                 }
             };
             models.insert(
@@ -63,7 +65,7 @@ fn run_tokens(
                 ),
             );
             match scopes.insert(conversation.conversation, role.clone()) {
-                Some(previous) if previous != role => return Err("conversation scope changed its role".into()),
+                Some(previous) if previous != role => return Err(Fault::new(FaultKind::Stream, "conversation scope changed its role")),
                 Some(_) | None => {}
             }
         }
@@ -90,7 +92,7 @@ fn run_tokens(
         {
             match responses.insert(response.response, response.conversation) {
                 Some(previous) if previous != response.conversation => {
-                    return Err("response changed its conversation scope".into());
+                    return Err(Fault::new(FaultKind::Stream, "response changed its conversation scope"));
                 }
                 Some(_) | None => {}
             }
@@ -174,7 +176,7 @@ fn retried_failure(
 pub(super) fn tokens(
     sessions: &[Session],
     priced: &mut Vec<crate::ResponseTokens>,
-) -> Result<Vec<TokenRecord>, String> {
+) -> Result<Vec<TokenRecord>, Fault> {
     let mut result = Vec::new();
     let mut total: Option<crate::TokenCounts> = None;
     for (index, session) in sessions.iter().enumerate() {

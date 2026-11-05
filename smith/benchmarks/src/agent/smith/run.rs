@@ -1,12 +1,14 @@
 //! Adapter collection and archives retain the attempt's evidence in runner order.
 //! Source selection checks the planned identity (benchmarks.md, sections 6 and 10).
 
+use crate::{Fault, FaultKind};
+
 use crate::agent::Ended;
 use crate::run::{Archive, Work};
 use crate::{AttemptResult, Identity, Measure};
 
-pub(in crate::agent) fn home(source: &std::path::Path) -> Result<std::path::PathBuf, String> {
-    Ok(source.parent().ok_or("source login needs its harness parent")?.join("smith"))
+pub(in crate::agent) fn home(source: &std::path::Path) -> Result<std::path::PathBuf, Fault> {
+    Ok(source.parent().ok_or(Fault::new(FaultKind::Credential, "source login needs its harness parent"))?.join("smith"))
 }
 
 pub(in crate::agent) fn takes_arguments(arguments: &[String]) -> bool {
@@ -16,41 +18,41 @@ pub(in crate::agent) fn takes_arguments(arguments: &[String]) -> bool {
 pub(in crate::agent) fn source_arm(
     work: Work<'_>,
     identity: &Identity,
-) -> Result<(crate::arm::ArmRef, String), String> {
+) -> Result<(crate::arm::ArmRef, String), Fault> {
     let build = crate::arm::read_build(&work.prepared.program)?;
     if build.arm.commit != identity.agent_version || !matches!(identity.smith_face, Some(crate::SmithFace::Events)) {
-        return Err("Smith built arm differs from the planned full source version".into());
+        return Err(Fault::new(FaultKind::Mismatch, "Smith built arm differs from the planned full source version"));
     }
     let version = build.arm.commit.clone();
     Ok((crate::arm::ArmRef::Built(build), version))
 }
 
 impl super::Prepared {
-    pub(crate) fn archive(&self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), String> {
+    pub(crate) fn archive(&self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), Fault> {
         if let Some(check) = self.check_document() {
             for (path, name) in
                 [(check.clone(), "check.json"), (check.with_file_name("check-stderr.log"), "check-stderr.log")]
             {
-                archive.put(result, name, &std::fs::read(path).map_err(|error| error.to_string())?)?;
+                archive.put(result, name, &std::fs::read(path)?)?;
             }
         }
         result.identity.user_configuration_sha256 = Measure::unavailable("Smith uses frozen harness settings only");
         archive.put(
             result,
             "settings.json",
-            &serde_json::to_vec_pretty(&self.rendered).map_err(|error| error.to_string())?,
+            &serde_json::to_vec_pretty(&self.rendered)?,
         )?;
         archive.put(
             result,
             "face.json",
-            &serde_json::to_vec_pretty(&self.registry).map_err(|error| error.to_string())?,
+            &serde_json::to_vec_pretty(&self.registry)?,
         )?;
         Ok(())
     }
 
-    pub(crate) fn check_identity(identity: &Identity) -> Result<(), String> {
+    pub(crate) fn check_identity(identity: &Identity) -> Result<(), Fault> {
         if identity.smith_face != Some(crate::SmithFace::Events) {
-            return Err("Smith identity names a different face than its source registry".into());
+            return Err(Fault::new(FaultKind::Input, "Smith identity names a different face than its source registry"));
         }
         Ok(())
     }
@@ -65,13 +67,13 @@ impl super::Observing {
         result.outcome.checks.extend(self.checks_in_workspace(&task.event, &task.prompt, workspace));
     }
 
-    pub(crate) fn collect(&mut self, result: &mut AttemptResult) -> Result<(), String> {
+    pub(crate) fn collect(&mut self, result: &mut AttemptResult) -> Result<(), Fault> {
         self.events().resolve_model(&mut result.identity.model);
         self.events().timing(&mut result.timing);
         result.tokens = self.tokens()?;
         result.spend = self.spend(&result.tokens)?;
         result.spend.priced =
-            crate::result::priced_spend(result, &self.events().response_tokens().map_err(|error| error.what)?);
+            crate::result::priced_spend(result, &self.events().response_tokens()?);
         result.resources.own_peak_rss_bytes = self.observer.own_peak_rss_bytes();
         result.counts = self.counts();
         result.delegation = self.delegation();

@@ -4,6 +4,8 @@
 //! task variables (benchmarks.md, sections 6.1 and 10). Setup and measurement
 //! belong to the runner; this module reads no clock or agent configuration.
 
+use crate::{Fault, FaultKind};
+
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
@@ -24,18 +26,18 @@ pub(crate) struct TemporaryEntry {
 }
 
 /// List the user's entries directly under /tmp, outside this attempt's private root.
-pub(crate) fn temporary_entries(private: &Path) -> Result<BTreeMap<PathBuf, TemporaryEntry>, String> {
-    let owner = fs::metadata("/proc/self").map_err(|error| error.to_string())?.uid();
+pub(crate) fn temporary_entries(private: &Path) -> Result<BTreeMap<PathBuf, TemporaryEntry>, Fault> {
+    let owner = fs::metadata("/proc/self")?.uid();
     let mut entries = BTreeMap::new();
-    for entry in fs::read_dir("/tmp").map_err(|error| error.to_string())? {
-        let path = entry.map_err(|error| error.to_string())?.path();
+    for entry in fs::read_dir("/tmp")? {
+        let path = entry?.path();
         if path.starts_with(private) {
             continue;
         }
         let metadata = match fs::symlink_metadata(&path) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(error) => return Err(error.to_string()),
+            Err(error) => return Err(error.into()),
         };
         if metadata.uid() == owner {
             entries.insert(
@@ -54,9 +56,9 @@ pub(crate) fn temporary_entries(private: &Path) -> Result<BTreeMap<PathBuf, Temp
 
 /// Retain the path and both metadata records for each new or changed user entry.
 pub(crate) fn temporary_changes(
-    before: Result<BTreeMap<PathBuf, TemporaryEntry>, String>,
+    before: Result<BTreeMap<PathBuf, TemporaryEntry>, Fault>,
     private: &Path,
-) -> Result<Vec<(PathBuf, String)>, String> {
+) -> Result<Vec<(PathBuf, String)>, Fault> {
     let before = before?;
     let after = temporary_entries(private)?;
     Ok(after
@@ -86,13 +88,6 @@ pub enum SetupStep {
     Credentials,
 }
 
-/// A preparation refusal, rendered by the runner into the result's setup end.
-#[derive(Debug)]
-pub struct Setup {
-    pub step: SetupStep,
-    pub reason: String,
-}
-
 /// The machine's tool paths, supplied once to attempt preparation.
 #[derive(Clone, Debug)]
 pub struct Machine {
@@ -102,8 +97,8 @@ pub struct Machine {
 
 impl Machine {
     /// Read only the allow-listed directory choices, never an inherited login.
-    pub fn from_environment() -> Result<Self, String> {
-        let path = std::env::var_os("PATH").filter(|value| !value.is_empty()).ok_or("PATH is required")?;
+    pub fn from_environment() -> Result<Self, Fault> {
+        let path = std::env::var_os("PATH").filter(|value| !value.is_empty()).ok_or(Fault::new(FaultKind::Input, "PATH is required"))?;
         let rustup_home = std::env::var_os("RUSTUP_HOME")
             .map(PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".rustup")));
@@ -113,7 +108,7 @@ impl Machine {
 
 /// Resolve an author's command through the exact machine PATH before spawn.
 /// Skein executes the supplied path directly; no inherited PATH is consulted.
-pub fn program(machine: &Machine, working_directory: &Path, name: &Path) -> Result<PathBuf, String> {
+pub fn program(machine: &Machine, working_directory: &Path, name: &Path) -> Result<PathBuf, Fault> {
     let candidates = if name.components().count() > 1 || name.is_absolute() {
         vec![working_directory.join(name)]
     } else {
@@ -125,7 +120,7 @@ pub fn program(machine: &Machine, working_directory: &Path, name: &Path) -> Resu
             return Ok(path);
         }
     }
-    Err(format!("command not found in the exact PATH: {}", name.display()))
+    Err(Fault::new(FaultKind::Format, format!("command not found in the exact PATH: {}", name.display())))
 }
 
 /// The writable paths supplied to one agent and its commands.
@@ -144,34 +139,34 @@ pub struct Private {
 }
 
 /// Resolve an authored seed-relative working directory before credentials.
-pub fn working_directory(guard: &Guard, private: &Private, task: &crate::Task) -> Result<PathBuf, String> {
+pub fn working_directory(guard: &Guard, private: &Private, task: &crate::Task) -> Result<PathBuf, Fault> {
     let Some(path) = &task.working_directory else {
         return Ok(private.workspace.clone());
     };
     if path.as_os_str().is_empty() || path.components().any(|part| !matches!(part, Component::Normal(_))) {
-        return Err("task working_directory must be a seed-relative path without traversal".into());
+        return Err(Fault::new(FaultKind::Input, "task working_directory must be a seed-relative path without traversal"));
     }
-    let workspace = private.workspace.canonicalize().map_err(|error| error.to_string())?;
-    let directory = guard.write_path(&workspace.join(path))?.canonicalize().map_err(|error| error.to_string())?;
+    let workspace = private.workspace.canonicalize()?;
+    let directory = guard.write_path(&workspace.join(path))?.canonicalize()?;
     if !directory.is_dir() || !directory.starts_with(&workspace) {
-        return Err("task working_directory must be an existing directory inside the private seed".into());
+        return Err(Fault::new(FaultKind::Input, "task working_directory must be an existing directory inside the private seed"));
     }
     Ok(directory)
 }
 
 /// Delete settled owned scratch, restoring read-only directory modes without following links.
-pub fn remove_owned_tree(guard: &Guard, root: &Path) -> Result<(), String> {
-    fn writable(guard: &Guard, directory: &Path) -> Result<(), String> {
-        let metadata = fs::symlink_metadata(directory).map_err(|error| error.to_string())?;
+pub fn remove_owned_tree(guard: &Guard, root: &Path) -> Result<(), Fault> {
+    fn writable(guard: &Guard, directory: &Path) -> Result<(), Fault> {
+        let metadata = fs::symlink_metadata(directory)?;
         if !metadata.is_dir() || metadata.is_symlink() {
-            return Err("owned scratch root must be an ordinary directory".into());
+            return Err(Fault::new(FaultKind::Input, "owned scratch root must be an ordinary directory"));
         }
         guard.write_path(directory)?;
         fs::set_permissions(directory, fs::Permissions::from_mode(metadata.permissions().mode() | 0o700))
-            .map_err(|error| error.to_string())?;
-        for entry in fs::read_dir(directory).map_err(|error| error.to_string())? {
-            let entry = entry.map_err(|error| error.to_string())?;
-            if entry.file_type().map_err(|error| error.to_string())?.is_dir() {
+            ?;
+        for entry in fs::read_dir(directory)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
                 writable(guard, &entry.path())?;
             }
         }
@@ -179,7 +174,7 @@ pub fn remove_owned_tree(guard: &Guard, root: &Path) -> Result<(), String> {
     }
     writable(guard, root)?;
     guard.write_path(root)?;
-    fs::remove_dir_all(root).map_err(|error| error.to_string())
+    fs::remove_dir_all(root).map_err(Fault::from)
 }
 
 impl Private {
@@ -199,32 +194,32 @@ impl Private {
     }
 }
 
-fn directory(guard: &Guard, path: &Path) -> Result<(), String> {
+fn directory(guard: &Guard, path: &Path) -> Result<(), Fault> {
     let destination = guard.write_path(path)?;
-    fs::DirBuilder::new().mode(0o700).create(destination).map_err(|error| format!("private directory: {error}"))
+    fs::DirBuilder::new().mode(0o700).create(destination).map_err(|error| Fault::new(FaultKind::Format, format!("private directory: {error}")))
 }
 
-fn copy_seed(guard: &Guard, source: &Path, destination: &Path) -> Result<(), String> {
+fn copy_seed(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault> {
     let mut entries = fs::read_dir(source)
-        .map_err(|error| error.to_string())?
+        ?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| error.to_string())?;
+        ?;
     entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
         if entry.file_name() == ".git" {
             continue;
         }
-        let metadata = fs::symlink_metadata(entry.path()).map_err(|error| error.to_string())?;
+        let metadata = fs::symlink_metadata(entry.path())?;
         let destination = guard.write_path(&destination.join(entry.file_name()))?;
         if metadata.is_dir() {
             directory(guard, &destination)?;
             copy_seed(guard, &entry.path(), &destination)?;
         } else if metadata.is_file() && !metadata.is_symlink() {
-            fs::copy(entry.path(), &destination).map_err(|error| error.to_string())?;
+            fs::copy(entry.path(), &destination)?;
             let mode = if metadata.permissions().mode() & 0o111 == 0 { 0o600 } else { 0o700 };
-            fs::set_permissions(&destination, fs::Permissions::from_mode(mode)).map_err(|error| error.to_string())?;
+            fs::set_permissions(&destination, fs::Permissions::from_mode(mode))?;
         } else {
-            return Err("seed contains a link or special file".into());
+            return Err(Fault::new(FaultKind::Input, "seed contains a link or special file"));
         }
     }
     Ok(())
@@ -232,26 +227,20 @@ fn copy_seed(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Str
 
 /// Materialise a fresh guarded attempt after verifying the frozen seed digest.
 /// The caller supplies an existing private scratch parent outside repositories.
-pub fn prepare(guard: &Guard, seed: &Path, sha256: &str, root: &Path) -> Result<Private, Setup> {
-    let mut step = SetupStep::Seed;
-    let materialised = (|| {
-        if crate::seed_digest(seed).map_err(|error| error.to_string())? != sha256 {
-            return Err("seed digest differs; setup refused before materialisation".into());
-        }
-        step = SetupStep::Scratch;
-        let paths = empty(guard, root)?;
-        step = SetupStep::Seed;
-        copy_seed(guard, seed, &paths.workspace)?;
-        if crate::seed_digest(&paths.workspace).map_err(|error| error.to_string())? != sha256 {
-            return Err("materialised seed digest differs; setup refused".into());
-        }
-        Ok(paths)
-    })();
-    materialised.map_err(|reason| Setup { step, reason })
+pub fn prepare(guard: &Guard, seed: &Path, sha256: &str, root: &Path) -> Result<Private, Fault> {
+    if crate::seed_digest(seed).map_err(Fault::from).map_err(Fault::at(SetupStep::Seed))? != sha256 {
+        return Err(Fault::new(FaultKind::Setup(SetupStep::Seed), "seed digest differs; setup refused before materialisation"));
+    }
+    let paths = empty(guard, root).map_err(Fault::at(SetupStep::Scratch))?;
+    copy_seed(guard, seed, &paths.workspace).map_err(Fault::at(SetupStep::Seed))?;
+    if crate::seed_digest(&paths.workspace).map_err(Fault::from).map_err(Fault::at(SetupStep::Seed))? != sha256 {
+        return Err(Fault::new(FaultKind::Setup(SetupStep::Seed), "materialised seed digest differs; setup refused"));
+    }
+    Ok(paths)
 }
 
 /// Create fresh private command paths with an initially empty workspace.
-pub fn empty(guard: &Guard, root: &Path) -> Result<Private, String> {
+pub fn empty(guard: &Guard, root: &Path) -> Result<Private, Fault> {
     let paths = Private::paths(&guard.write_path(root)?);
     directory(guard, &paths.root)?;
     for path in [
@@ -271,20 +260,20 @@ pub fn empty(guard: &Guard, root: &Path) -> Result<Private, String> {
 }
 
 /// Populate a caller-created private workspace without following links.
-pub fn copy_into(guard: &Guard, source: &Path, destination: &Path) -> Result<(), String> {
+pub fn copy_into(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault> {
     guard.write_path(destination)?;
-    if fs::read_dir(destination).map_err(|error| error.to_string())?.next().is_some() {
-        return Err("copy destination must be empty".into());
+    if fs::read_dir(destination)?.next().is_some() {
+        return Err(Fault::new(FaultKind::Input, "copy destination must be empty"));
     }
     copy_seed(guard, source, destination)
 }
 
 /// Restore the machine PATH when a login shell reads this private home.
 /// No inherited profile or instruction file is copied (benchmarks.md, section 6.1).
-pub(crate) fn login_profile(guard: &Guard, machine: &Machine, private: &Private) -> Result<(), String> {
+pub(crate) fn login_profile(guard: &Guard, machine: &Machine, private: &Private) -> Result<(), Fault> {
     let path = machine.path.as_bytes();
     if path.contains(&0) {
-        return Err("machine PATH contains a NUL".into());
+        return Err(Fault::new(FaultKind::Input, "machine PATH contains a NUL"));
     }
     let mut contents = b"export PATH='".to_vec();
     for byte in path {
@@ -302,7 +291,7 @@ pub(crate) fn login_profile(guard: &Guard, machine: &Machine, private: &Private)
         .mode(0o600)
         .open(destination)
         .and_then(|mut file| file.write_all(&contents))
-        .map_err(|error| format!("private login profile: {error}"))
+        .map_err(|error| Fault::new(FaultKind::Credential, format!("private login profile: {error}")))
 }
 
 /// Construct an exact allow-listed environment, refusing private-path overrides.
@@ -310,7 +299,7 @@ pub fn environment(
     machine: &Machine,
     private: &Private,
     task: &BTreeMap<String, String>,
-) -> Result<Vec<(OsString, OsString)>, String> {
+) -> Result<Vec<(OsString, OsString)>, Fault> {
     let mut values = BTreeMap::new();
     values.insert(OsString::from("PATH"), machine.path.clone());
     values.insert("LANG".into(), "C.UTF-8".into());
@@ -330,13 +319,13 @@ pub fn environment(
     }
     for (name, value) in task {
         if name.is_empty() || name.contains(['=', '\0']) || value.contains('\0') {
-            return Err("task environment names/values must be valid process entries".into());
+            return Err(Fault::new(FaultKind::Input, "task environment names/values must be valid process entries"));
         }
         if values.contains_key(&OsString::from(name))
             || matches!(name.as_str(), "CODEX_HOME" | "CLAUDE_CONFIG_DIR" | "RUSTUP_HOME")
             || name.starts_with("GIT_CONFIG_")
         {
-            return Err(format!("task variable {name} would override harness isolation"));
+            return Err(Fault::new(FaultKind::Format, format!("task variable {name} would override harness isolation")));
         }
         values.insert(name.into(), value.into());
     }
@@ -345,35 +334,35 @@ pub fn environment(
 
 /// Copy a settled directory into a fresh guarded destination, without links.
 /// Grading and cache copies are private writable files, never hard links.
-pub fn copy_directory(guard: &Guard, source: &Path, destination: &Path) -> Result<(), String> {
+pub fn copy_directory(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault> {
     directory(guard, destination)?;
     copy_seed(guard, source, destination)
 }
 
 /// Create a new private archive or scratch parent behind the common guard.
-pub fn create_directory(guard: &Guard, path: &Path) -> Result<PathBuf, String> {
+pub fn create_directory(guard: &Guard, path: &Path) -> Result<PathBuf, Fault> {
     let path = guard.write_path(path)?;
     directory(guard, &path)?;
     Ok(path)
 }
 
 /// Make a settled writable copy private, rejecting links before changing modes.
-pub fn restrict_tree(guard: &Guard, path: &Path) -> Result<(), String> {
+pub fn restrict_tree(guard: &Guard, path: &Path) -> Result<(), Fault> {
     let path = guard.write_path(path)?;
-    let metadata = fs::symlink_metadata(&path).map_err(|error| error.to_string())?;
+    let metadata = fs::symlink_metadata(&path)?;
     let mode = if metadata.is_symlink() {
-        return Err("private copy contains a link".into());
+        return Err(Fault::new(FaultKind::Input, "private copy contains a link"));
     } else if metadata.is_dir() {
         0o700
     } else if metadata.is_file() {
         if metadata.permissions().mode() & 0o111 == 0 { 0o600 } else { 0o700 }
     } else {
-        return Err("private copy contains a special node".into());
+        return Err(Fault::new(FaultKind::Input, "private copy contains a special node"));
     };
-    fs::set_permissions(&path, fs::Permissions::from_mode(mode)).map_err(|error| error.to_string())?;
+    fs::set_permissions(&path, fs::Permissions::from_mode(mode))?;
     if metadata.is_dir() {
-        for child in fs::read_dir(&path).map_err(|error| error.to_string())? {
-            restrict_tree(guard, &child.map_err(|error| error.to_string())?.path())?;
+        for child in fs::read_dir(&path)? {
+            restrict_tree(guard, &child?.path())?;
         }
     }
     Ok(())
@@ -416,8 +405,8 @@ mod tests {
         let guard = Guard::new(&fake_home, &fake_home.join("config"), &fake_home.join("state"), &[]).expect("guard");
         let attempt = fake_home.join("attempt");
         let refused = prepare(&guard, &seed, &"0".repeat(64), &attempt).expect_err("digest");
-        assert_eq!(refused.step, SetupStep::Seed);
-        assert!(refused.reason.contains("digest"));
+        assert_eq!(refused.kind, crate::FaultKind::Setup(SetupStep::Seed));
+        assert!(refused.detail.contains("digest"));
         assert!(!fake_home.exists());
     }
 }

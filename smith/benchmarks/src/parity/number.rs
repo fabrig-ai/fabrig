@@ -1,4 +1,6 @@
 //! JSON retains infinite bootstrap ratios as a named value, never null.
+use crate::{Fault, FaultKind};
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Deserialize, Serialize)]
@@ -12,11 +14,11 @@ fn encode(value: f64) -> Number {
     if value.is_finite() { Number::Finite(value) } else { Number::Named("infinite".into()) }
 }
 
-fn decode(value: Number) -> Result<f64, String> {
+fn decode(value: Number) -> Result<f64, Fault> {
     match value {
         Number::Finite(value) if value.is_finite() => Ok(value),
         Number::Named(value) if value == "infinite" => Ok(f64::INFINITY),
-        Number::Finite(_) | Number::Named(_) => Err("expected finite number or infinite".into()),
+        Number::Finite(_) | Number::Named(_) => Err(Fault::new(FaultKind::Input, "expected finite number or infinite")),
     }
 }
 

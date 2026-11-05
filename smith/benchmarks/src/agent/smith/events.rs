@@ -3,10 +3,12 @@
 //! `feed` accepts chunks; `finish` checks framing, and measures retain loss gaps
 //! (protocol/events.md, sections2/6; benchmarks.md, sections6.2/8/11.2).
 
+use crate::{Fault, FaultKind};
+
 use serde::{Deserialize, Serialize};
 use smith_events::{Event, Reader, Record, SessionEnded, SessionStarted};
 
-use crate::agent::{HarnessFault, Seen};
+use crate::agent::{Seen};
 use crate::{Classification, Counts, Exit, Forced, TokenRecord};
 
 mod delegation;
@@ -84,11 +86,11 @@ pub struct Observer {
     finished: bool,
 }
 
-fn fault(error: impl Into<String>) -> HarnessFault {
-    HarnessFault { what: error.into() }
+fn fault(error: impl Into<String>) -> Fault {
+    Fault::new(FaultKind::Stream, error.into())
 }
 
-fn codec(error: smith_events::Error) -> HarnessFault {
+fn codec(error: smith_events::Error) -> Fault {
     match error {
         smith_events::Error::Version(version) => {
             fault(format!("events version {version} is not {}", smith_events::VERSION))
@@ -122,7 +124,7 @@ impl Observer {
     }
 
     /// Reserve the codec's bounded line before reading; invalid limits refuse.
-    pub fn new(limits: &smith_events::Limits) -> Result<Self, HarnessFault> {
+    pub fn new(limits: &smith_events::Limits) -> Result<Self, Fault> {
         Ok(Self {
             reader: Reader::new(limits).map_err(codec)?,
             sessions: Vec::new(),
@@ -134,7 +136,7 @@ impl Observer {
 
     /// Reserve the arm's writer-derived byte ceiling, including the final newline.
     /// Semantic field and list caps remain checked by the codec independently.
-    pub fn with_ceiling(limits: &smith_events::Limits, encoded_line: u32) -> Result<Self, HarnessFault> {
+    pub fn with_ceiling(limits: &smith_events::Limits, encoded_line: u32) -> Result<Self, Fault> {
         Ok(Self {
             reader: Reader::with_ceiling(limits, encoded_line).map_err(codec)?,
             sessions: Vec::new(),
@@ -146,7 +148,7 @@ impl Observer {
 
     /// Consume complete lines in order, retaining a partial line across chunks.
     /// Unknown records and fields remain subject to the codec's version check.
-    pub fn feed(&mut self, mut bytes: &[u8]) -> Result<Vec<Seen>, HarnessFault> {
+    pub fn feed(&mut self, mut bytes: &[u8]) -> Result<Vec<Seen>, Fault> {
         self.finished = false;
         if let Some(error) = &self.fault {
             return Err(fault(error.clone()));
@@ -170,7 +172,7 @@ impl Observer {
             match result {
                 Ok(cues) => seen.extend(cues),
                 Err(error) => {
-                    self.fault = Some(error.what.clone());
+                    self.fault = Some(error.detail.clone());
                     return Err(error);
                 }
             }
@@ -179,13 +181,13 @@ impl Observer {
     }
 
     /// End an append stream only after a complete newline-terminated line.
-    pub fn finish(&mut self) -> Result<(), HarnessFault> {
+    pub fn finish(&mut self) -> Result<(), Fault> {
         if let Some(error) = &self.fault {
             return Err(fault(error.clone()));
         }
         self.reader.finish().map_err(|error| {
             let error = codec(error);
-            self.fault = Some(error.what.clone());
+            self.fault = Some(error.detail.clone());
             error
         })?;
         self.finished = true;
@@ -204,7 +206,7 @@ impl Observer {
         &self.sessions
     }
 
-    fn record(&mut self, record: Record) -> Result<Vec<Seen>, HarnessFault> {
+    fn record(&mut self, record: Record) -> Result<Vec<Seen>, Fault> {
         if let Event::SessionStarted(started) = &record.event {
             self.sessions.push(Session {
                 started: started.clone(),
@@ -254,14 +256,14 @@ impl Observer {
     }
 
     /// Count per-response usage once within each session and run's scope.
-    pub fn tokens(&self) -> Result<Vec<TokenRecord>, HarnessFault> {
-        usage::tokens(&self.sessions, &mut Vec::new()).map_err(fault)
+    pub fn tokens(&self) -> Result<Vec<TokenRecord>, Fault> {
+        usage::tokens(&self.sessions, &mut Vec::new())
     }
 
     /// Retain each complete response's usage and conversation model for pricing.
-    pub fn response_tokens(&self) -> Result<Vec<crate::ResponseTokens>, HarnessFault> {
+    pub fn response_tokens(&self) -> Result<Vec<crate::ResponseTokens>, Fault> {
         let mut responses = Vec::new();
-        usage::tokens(&self.sessions, &mut responses).map_err(fault)?;
+        usage::tokens(&self.sessions, &mut responses)?;
         Ok(responses)
     }
 
@@ -379,9 +381,9 @@ fn run(event: &Event) -> Option<u64> {
     }
 }
 
-pub(super) fn reported_spend(observer: &Observer, currency: u64) -> Result<crate::Spend, String> {
+pub(super) fn reported_spend(observer: &Observer, currency: u64) -> Result<crate::Spend, Fault> {
     if currency == 0 {
-        return Err("notional currency unit must be positive".into());
+        return Err(Fault::new(FaultKind::Stream, "notional currency unit must be positive"));
     }
     let mut total = 0_u128;
     let mut saw_spend = false;
@@ -391,18 +393,18 @@ pub(super) fn reported_spend(observer: &Observer, currency: u64) -> Result<crate
         for record in &session.records {
             if let Event::RunCompleted(value) = &record.event {
                 if !runs.insert(value.run) {
-                    return Err("duplicate authoritative run spend".into());
+                    return Err(Fault::new(FaultKind::Stream, "duplicate authoritative run spend"));
                 }
                 saw_spend = true;
-                total = total.checked_add(u128::from(value.spent)).ok_or("reported spend overflow")?;
+                total = total.checked_add(u128::from(value.spent)).ok_or(Fault::new(FaultKind::Bound, "reported spend overflow"))?;
             }
         }
         if let Some(reason) = usage::incomplete(session) {
             missing.push(reason);
         }
     }
-    let value = total.to_string().parse::<f64>().map_err(|error| error.to_string())?
-        / currency.to_string().parse::<f64>().map_err(|error| error.to_string())?;
+    let value = total.to_string().parse::<f64>()?
+        / currency.to_string().parse::<f64>()?;
     let usd = if !saw_spend {
         crate::Measure::unavailable("no authoritative run spend was reported")
     } else if missing.is_empty() {

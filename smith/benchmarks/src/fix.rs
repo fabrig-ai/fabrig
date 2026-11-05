@@ -2,6 +2,8 @@
 //! Builds are an explicit build step; live dispatch never builds or
 //! reads agent credentials itself (benchmarks.md sections4.2/10).
 
+use crate::{Fault, FaultKind};
+
 use std::path::Path;
 
 use crate::arm::{ArmRef, Build};
@@ -89,19 +91,19 @@ pub fn body(report: &FixReport) -> String {
 }
 
 /// Admit one complete prepared arm before either comparison phase dispatches.
-pub(crate) fn prepared(suite: &Path, requests: &Path, seed: u64, probe: &str, attempts: u32) -> Result<Build, String> {
+pub(crate) fn prepared(suite: &Path, requests: &Path, seed: u64, probe: &str, attempts: u32) -> Result<Build, Fault> {
     let prepared = crate::batch::probe_requests(suite, requests, seed, probe, attempts)?;
     prepare::one_arm(&prepared, prepared.len())
 }
 
-pub(crate) fn collected(build: &Build, results: &[AttemptResult], batch: &Batch) -> Result<ProbeRun, String> {
+pub(crate) fn collected(build: &Build, results: &[AttemptResult], batch: &Batch) -> Result<ProbeRun, Fault> {
     if results.is_empty() {
-        return Err("probe arm produced no results".into());
+        return Err(Fault::new(FaultKind::Input, "probe arm produced no results"));
     }
     if results.iter().any(|result| {
         result.identity.agent_version != build.arm.commit || result.identity.binary_sha256 != build.arm.sha256
     }) {
-        return Err("probe result differs from its verified binary".into());
+        return Err(Fault::new(FaultKind::Mismatch, "probe result differs from its verified binary"));
     }
     let run = results
         .iter()

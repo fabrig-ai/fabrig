@@ -3,6 +3,8 @@
 //! counts; eligibility, the threshold and full-miss rate follow
 //! benchmarks.md, section 11.1.
 
+use crate::{Fault, FaultKind};
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use smith_events::{Event, Outcome, Usage};
@@ -15,7 +17,7 @@ fn prompt(usage: &Usage) -> Option<u128> {
     Some(u128::from(usage.input_tokens?) + u128::from(usage.cache_read_tokens?) + u128::from(usage.cache_write_tokens?))
 }
 
-fn measured(observer: &Observer) -> Result<(u128, u128, u64, u64), String> {
+fn measured(observer: &Observer) -> Result<(u128, u128, u64, u64), Fault> {
     let mut reads = 0_u128;
     let mut predecessors = 0_u128;
     let mut eligible = 0_u64;
@@ -32,15 +34,15 @@ fn measured(observer: &Observer) -> Result<(u128, u128, u64, u64), String> {
             if let Event::ResponseStarted(value) = &record.event {
                 let opening = openings
                     .get(&(value.run, value.conversation))
-                    .ok_or("cache request lacks its conversation opening")?;
+                    .ok_or(Fault::new(FaultKind::Stream, "cache request lacks its conversation opening"))?;
                 if opening.model != value.model || value.window == 0 {
-                    return Err("cache request lacks a valid matching model/window".into());
+                    return Err(Fault::new(FaultKind::Stream, "cache request lacks a valid matching model/window"));
                 }
                 let scope = (value.run, value.conversation, opening.thread, value.window);
                 if let Some(existing) = requests.insert((value.run, value.conversation, value.response), scope)
                     && existing != scope
                 {
-                    return Err("repeated request changed its cache scope".into());
+                    return Err(Fault::new(FaultKind::Stream, "repeated request changed its cache scope"));
                 }
             }
             if let Event::ResponseCompleted(value) = &record.event {
@@ -48,30 +50,30 @@ fn measured(observer: &Observer) -> Result<(u128, u128, u64, u64), String> {
                 if !completed.insert(identity) {
                     continue;
                 }
-                let scope = requests.get(&identity).ok_or("cache response lacks its request")?;
+                let scope = requests.get(&identity).ok_or(Fault::new(FaultKind::Stream, "cache response lacks its request"))?;
                 // A failed attempt without reported prompt usage cannot supply a
                 // known predecessor; do not bridge across it to an older request.
                 if let Some(predecessor) = previous.insert(*scope, prompt(&value.usage)) {
-                    let predecessor = predecessor.ok_or("provider did not report the predecessor's prompt counts")?;
+                    let predecessor = predecessor.ok_or(Fault::new(FaultKind::Stream, "provider did not report the predecessor's prompt counts"))?;
                     if predecessor < 1152 {
                         continue;
                     }
                     if value.outcome != Outcome::Completed {
-                        return Err("cacheable request did not complete with usage".into());
+                        return Err(Fault::new(FaultKind::Stream, "cacheable request did not complete with usage"));
                     }
-                    let read = u128::from(value.usage.cache_read_tokens.ok_or("provider did not report cache reads")?);
-                    reads = reads.checked_add(read).ok_or("cache read sum overflow")?;
-                    predecessors = predecessors.checked_add(predecessor).ok_or("cache predecessor sum overflow")?;
-                    eligible = eligible.checked_add(1).ok_or("cache request count overflow")?;
-                    if read.checked_mul(2).ok_or("cache miss comparison overflow")? < predecessor {
-                        misses = misses.checked_add(1).ok_or("cache miss count overflow")?;
+                    let read = u128::from(value.usage.cache_read_tokens.ok_or(Fault::new(FaultKind::Stream, "provider did not report cache reads"))?);
+                    reads = reads.checked_add(read).ok_or(Fault::new(FaultKind::Bound, "cache read sum overflow"))?;
+                    predecessors = predecessors.checked_add(predecessor).ok_or(Fault::new(FaultKind::Bound, "cache predecessor sum overflow"))?;
+                    eligible = eligible.checked_add(1).ok_or(Fault::new(FaultKind::Bound, "cache request count overflow"))?;
+                    if read.checked_mul(2).ok_or(Fault::new(FaultKind::Bound, "cache miss comparison overflow"))? < predecessor {
+                        misses = misses.checked_add(1).ok_or(Fault::new(FaultKind::Bound, "cache miss count overflow"))?;
                     }
                 }
             }
         }
     }
     if eligible == 0 {
-        return Err("no request has a reported cacheable predecessor in its window".into());
+        return Err(Fault::new(FaultKind::Stream, "no request has a reported cacheable predecessor in its window"));
     }
     Ok((reads, predecessors, eligible, misses))
 }
@@ -82,8 +84,8 @@ pub(super) fn observation(
     full_misses_per_ten_at_most: u32,
 ) -> Measure<CacheObservation> {
     let counts = measured(observer).and_then(|(reads, prompts, eligible, full_misses)| {
-        let cache_read = u64::try_from(reads).map_err(|_| "cache reads exceed serialized count bound")?;
-        let predecessor_prompt = u64::try_from(prompts).map_err(|_| "cache prompts exceed serialized count bound")?;
+        let cache_read = u64::try_from(reads).map_err(|_| Fault::new(FaultKind::Bound, "cache reads exceed serialized count bound"))?;
+        let predecessor_prompt = u64::try_from(prompts).map_err(|_| Fault::new(FaultKind::Bound, "cache prompts exceed serialized count bound"))?;
         Ok(CacheObservation {
             cache_read,
             predecessor_prompt,
@@ -95,7 +97,7 @@ pub(super) fn observation(
     });
     match counts {
         Ok(value) => Measure::Observed { value },
-        Err(reason) => Measure::unavailable(reason),
+        Err(reason) => Measure::unavailable(reason.detail),
     }
 }
 

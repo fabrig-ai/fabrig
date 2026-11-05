@@ -2,6 +2,8 @@
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
 //! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
 
+use crate::{Fault, FaultKind};
+
 use super::{Order, Planned, calibration_attempts, count, judgment};
 use crate::{AttemptResult, Judgment};
 use std::{fs, path::Path};
@@ -13,7 +15,7 @@ pub(super) fn finish_calibration(
     before: Option<&(crate::arm::Build, Planned, crate::batch::Batch)>,
     required: u32,
     seed: u64,
-) -> Result<Judgment, String> {
+) -> Result<Judgment, Fault> {
     let task = selected_task(&planned.requests[0].task, &order.probe)?;
     let batch = crate::batch::run_calibration(
         &planned.suite,
@@ -77,7 +79,7 @@ pub(super) fn finish_calibration(
             checks_sha256: task.checks_sha256()?,
         };
         record_calibration(repository, &planned.requests[0].task, &order.probe, &block, &results, seed)?;
-        println!("{}", toml::to_string(&block).map_err(|error| error.to_string())?);
+        println!("{}", toml::to_string(&block)?);
         Ok(Judgment::Pass)
     } else if counted.unjudged > 0
         || batch.incomplete
@@ -89,8 +91,8 @@ pub(super) fn finish_calibration(
     }
 }
 
-pub(super) fn selected_task(file: &Path, name: &str) -> Result<crate::Task, String> {
-    let task = crate::read_task(file).map_err(|error| error.to_string())?;
+pub(super) fn selected_task(file: &Path, name: &str) -> Result<crate::Task, Fault> {
+    let task = crate::read_task(file)?;
     name.splitn(3, '/').nth(2).map_or(Ok(task.clone()), |variant| task.with_variant(variant))
 }
 
@@ -102,28 +104,28 @@ pub fn record_calibration(
     block: &crate::Calibration,
     results: &[AttemptResult],
     seed: u64,
-) -> Result<(), String> {
-    let mut document: toml::Value = crate::formats::read_document(file).map_err(|error| error.to_string())?;
+) -> Result<(), Fault> {
+    let mut document: toml::Value = crate::formats::read_document(file)?;
     let target = if let Some(name) = name.splitn(3, '/').nth(2) {
         document
             .get_mut("variant")
             .and_then(toml::Value::as_array_mut)
             .and_then(|variants| variants.iter_mut().find(|variant| variant["name"].as_str() == Some(name)))
-            .ok_or("missing calibration variant")?
+            .ok_or(Fault::new(FaultKind::Input, "missing calibration variant"))?
     } else {
         &mut document
     };
     target
         .as_table_mut()
-        .ok_or("task table required")?
-        .insert("calibration".into(), toml::Value::try_from(block).map_err(|error| error.to_string())?);
-    let text = toml::to_string(&document).map_err(|error| error.to_string())?;
+        .ok_or(Fault::new(FaultKind::Input, "task table required"))?
+        .insert("calibration".into(), toml::Value::try_from(block)?);
+    let text = toml::to_string(&document)?;
     let task = selected_task(file, name)?;
     let summary = crate::summarise(results, "calibrate", &task.tier, crate::Design::Single, seed, None, None)?;
     let path = repository.join("benchmarks").join(&block.summary);
-    fs::create_dir_all(path.parent().ok_or("summary directory required")?).map_err(|error| error.to_string())?;
+    fs::create_dir_all(path.parent().ok_or(Fault::new(FaultKind::Input, "summary directory required"))?)?;
     crate::write_summary(&path, &summary)?;
-    fs::write(file, text).map_err(|error| error.to_string())
+    fs::write(file, text).map_err(Fault::from)
 }
 
 #[cfg(test)]

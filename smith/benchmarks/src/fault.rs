@@ -54,41 +54,23 @@ impl std::fmt::Display for Fault {
 
 impl std::error::Error for Fault {}
 
-impl From<std::io::Error> for Fault {
-    fn from(error: std::io::Error) -> Self {
-        Self::new(FaultKind::Io, error.to_string())
-    }
+macro_rules! from_errors {
+    ($kind:ident: $($error:ty),+ $(,)?) => {
+        $(impl From<$error> for Fault {
+            fn from(error: $error) -> Self {
+                Self::new(FaultKind::$kind, error.to_string())
+            }
+        })+
+    };
 }
 
-impl From<serde_json::Error> for Fault {
-    fn from(error: serde_json::Error) -> Self {
-        Self::new(FaultKind::Format, error.to_string())
-    }
-}
-
-impl From<toml::de::Error> for Fault {
-    fn from(error: toml::de::Error) -> Self {
-        Self::new(FaultKind::Format, error.to_string())
-    }
-}
-
-impl From<toml::ser::Error> for Fault {
-    fn from(error: toml::ser::Error) -> Self {
-        Self::new(FaultKind::Format, error.to_string())
-    }
-}
-
-impl From<std::string::FromUtf8Error> for Fault {
-    fn from(error: std::string::FromUtf8Error) -> Self {
-        Self::new(FaultKind::Format, error.to_string())
-    }
-}
-
-impl From<crate::Refusal> for Fault {
-    fn from(error: crate::Refusal) -> Self {
-        Self::new(FaultKind::Input, error.to_string())
-    }
-}
+from_errors!(Io: std::io::Error);
+from_errors!(Format: serde_json::Error, toml::de::Error, toml::ser::Error,
+    std::string::FromUtf8Error, std::str::Utf8Error, std::num::ParseIntError, std::num::ParseFloatError,
+    time::error::ComponentRange, time::error::Format);
+from_errors!(Bound: std::num::TryFromIntError);
+from_errors!(Input: crate::Refusal);
+from_errors!(Stream: crate::agent::codex::ParseError);
 
 #[cfg(test)]
 mod tests {

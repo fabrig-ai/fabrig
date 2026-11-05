@@ -20,6 +20,8 @@ pub const SUMMARY_VERSION: u32 = 4;
 /// The one baseline format understood by this harness.
 pub const BASELINE_VERSION: u32 = 1;
 
+use crate::{Fault, FaultKind};
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -349,11 +351,11 @@ fn observations(results: &[&AttemptResult], metric: &str) -> (Vec<f64>, Vec<Stri
     (values, missing)
 }
 
-fn metric_summary(results: &[&AttemptResult], metric: &str) -> Result<MetricSummary, String> {
+fn metric_summary(results: &[&AttemptResult], metric: &str) -> Result<MetricSummary, Fault> {
     let (values, missing) = observations(results, metric);
-    let n = u32::try_from(values.len()).map_err(|_| "too many observations")?;
-    let total = u32::try_from(results.len()).map_err(|_| "too many attempts")?;
-    let median = median(&values).map_or_else(Measure::unavailable, observed);
+    let n = u32::try_from(values.len()).map_err(|_| Fault::new(FaultKind::Bound, "too many observations"))?;
+    let total = u32::try_from(results.len()).map_err(|_| Fault::new(FaultKind::Bound, "too many attempts"))?;
+    let median = median(&values).map_or_else(|fault| Measure::unavailable(fault.detail), observed);
     let range = if values.is_empty() {
         Measure::unavailable("no observed values")
     } else {
@@ -364,10 +366,10 @@ fn metric_summary(results: &[&AttemptResult], metric: &str) -> Result<MetricSumm
             },
         }
     };
-    let cv = coefficient_of_variation(&values).map_or_else(Measure::unavailable, observed);
+    let cv = coefficient_of_variation(&values).map_or_else(|fault| Measure::unavailable(fault.detail), observed);
     let mde = coefficient_of_variation(&values)
         .and_then(|cv| minimum_detectable_effect(cv, n))
-        .map_or_else(Measure::unavailable, observed);
+        .map_or_else(|fault| Measure::unavailable(fault.detail), observed);
     Ok(MetricSummary { observed: n, total_attempts: total, missing, median, range, cv, minimum_detectable_effect: mde })
 }
 
@@ -425,10 +427,10 @@ pub(crate) fn same_inputs(left: &Identity, right: &Identity) -> bool {
         && left.harness_commit == right.harness_commit
 }
 
-fn group_summary(results: &[&AttemptResult]) -> Result<ArmSummary, String> {
+fn group_summary(results: &[&AttemptResult]) -> Result<ArmSummary, Fault> {
     let first = &results[0].identity;
     if results.iter().any(|result| !same_inputs(first, &result.identity)) {
-        return Err(format!("{} / {} mixes task versions or arm inputs", first.task, first.arm));
+        return Err(Fault::new(FaultKind::Format, format!("{} / {} mixes task versions or arm inputs", first.task, first.arm)));
     }
     let mut counts = BTreeMap::new();
     let mut passes = PassCounts {
@@ -468,7 +470,7 @@ fn group_summary(results: &[&AttemptResult]) -> Result<ArmSummary, String> {
     }
     if passes.unavailable == 0 {
         passes.interval_95 = pass_interval(passes.passed, passes.passed + passes.failed)
-            .map_or_else(Measure::unavailable, |value| Measure::Observed { value });
+            .map_or_else(|fault| Measure::unavailable(fault.detail), |value| Measure::Observed { value });
     } else {
         passes.interval_95 = Measure::unavailable("some eligible attempt checks are unavailable");
     }
@@ -507,9 +509,9 @@ pub fn summarise(
     seed: u64,
     reference: Option<&Baseline>,
     reference_arm: Option<&str>,
-) -> Result<RunSummary, String> {
+) -> Result<RunSummary, Fault> {
     if results.is_empty() || suite.is_empty() || tier.is_empty() || results.len() > u32::MAX as usize {
-        return Err("summary needs attempts, suite and tier".into());
+        return Err(Fault::new(FaultKind::Input, "summary needs attempts, suite and tier"));
     }
     let run = &results[0].identity.run;
     let mut ordered: Vec<&AttemptResult> = results.iter().collect();
@@ -523,7 +525,7 @@ pub fn summarise(
             || result.identity.harness_commit != results[0].identity.harness_commit
             || !ids.insert(&result.identity.attempt)
         {
-            return Err("summary mixes runs/versions or duplicate attempts".into());
+            return Err(Fault::new(FaultKind::Input, "summary mixes runs/versions or duplicate attempts"));
         }
         if let Some(Measure::Observed { value: grade }) = result.outcome.grade
             && let Some(checks) = checks_passed(result)
@@ -571,7 +573,7 @@ pub fn summarise(
             .groups
             .iter()
             .find(|group| Some(group.arm.as_str()) == reference_arm)
-            .ok_or("change needs its parent reference arm")?
+            .ok_or(Fault::new(FaultKind::Input, "change needs its parent reference arm"))?
             .agent_version
             .clone();
         summary.change = Some(crate::parity::change::from_summary(&summary, &parent)?);
@@ -579,13 +581,13 @@ pub fn summarise(
     Ok(summary)
 }
 
-fn drift(groups: &[ArmSummary], suite: &str, tier: &str, reference: &Baseline) -> Result<Vec<String>, String> {
+fn drift(groups: &[ArmSummary], suite: &str, tier: &str, reference: &Baseline) -> Result<Vec<String>, Fault> {
     if reference.version != BASELINE_VERSION
         || reference.result_version != RESULT_VERSION
         || reference.suite != suite
         || reference.tier != tier
     {
-        return Err("baseline version, suite or tier differs".into());
+        return Err(Fault::new(FaultKind::Mismatch, "baseline version, suite or tier differs"));
     }
     let mut notices = Vec::new();
     for group in groups {
@@ -627,8 +629,8 @@ fn drift(groups: &[ArmSummary], suite: &str, tier: &str, reference: &Baseline) -
 }
 
 /// Freeze a suite for one configuration and tier; comparisons use separate baselines.
-pub fn baseline(summary: &RunSummary) -> Result<Baseline, String> {
-    let first = summary.groups.first().ok_or("baseline needs a task")?;
+pub fn baseline(summary: &RunSummary) -> Result<Baseline, Fault> {
+    let first = summary.groups.first().ok_or(Fault::new(FaultKind::Input, "baseline needs a task"))?;
     if summary.version != SUMMARY_VERSION
         || summary.result_version != RESULT_VERSION
         || summary.groups.iter().any(|group| {
@@ -640,7 +642,7 @@ pub fn baseline(summary: &RunSummary) -> Result<Baseline, String> {
                 || group.binary_sha256 != first.binary_sha256
         })
     {
-        return Err("baseline needs one supported agent configuration, model tier and binary".into());
+        return Err(Fault::new(FaultKind::Input, "baseline needs one supported agent configuration, model tier and binary"));
     }
     Ok(Baseline {
         version: BASELINE_VERSION,
@@ -660,7 +662,7 @@ pub fn baseline_group(
     configuration: &str,
     model: &str,
     effort: &str,
-) -> Result<Baseline, String> {
+) -> Result<Baseline, Fault> {
     let mut selected = summary.clone();
     selected.groups.retain(|group| {
         group.agent == agent
@@ -672,16 +674,16 @@ pub fn baseline_group(
 }
 
 /// Read raw result.json files recursively, without following links or other logs.
-pub fn read_results(path: &Path) -> Result<Vec<AttemptResult>, Refusal> {
+pub fn read_results(path: &Path) -> Result<Vec<AttemptResult>, Fault> {
     let metadata = std::fs::symlink_metadata(path).map_err(|error| Refusal::new(path, "results", error.to_string()))?;
     if metadata.is_symlink() {
-        return Err(Refusal::new(path, "results", "result paths must not be symlinks"));
+        return Err(Refusal::new(path, "results", "result paths must not be symlinks").into());
     }
     if metadata.is_file() {
         return Ok(vec![read_result(path)?]);
     }
     if !metadata.is_dir() {
-        return Err(Refusal::new(path, "results", "expected a file or directory"));
+        return Err(Refusal::new(path, "results", "expected a file or directory").into());
     }
     let mut entries = std::fs::read_dir(path)
         .map_err(|error| Refusal::new(path, "results", error.to_string()))?
@@ -752,12 +754,12 @@ pub fn read_baseline(file: &Path) -> Result<Baseline, Refusal> {
 }
 
 /// Write a committed summary or baseline without overwriting an existing record.
-pub fn write_summary<T: Serialize>(file: &Path, document: &T) -> Result<(), String> {
+pub fn write_summary<T: Serialize>(file: &Path, document: &T) -> Result<(), Fault> {
     use std::io::Write;
-    let text = serde_json::to_string_pretty(document).map_err(|error| error.to_string())?;
+    let text = serde_json::to_string_pretty(document)?;
     let mut output =
-        std::fs::OpenOptions::new().write(true).create_new(true).open(file).map_err(|error| error.to_string())?;
-    output.write_all(format!("{text}\n").as_bytes()).map_err(|error| error.to_string())
+        std::fs::OpenOptions::new().write(true).create_new(true).open(file)?;
+    output.write_all(format!("{text}\n").as_bytes()).map_err(Fault::from)
 }
 
 fn rounded_cost(value: f64) -> Option<u64> {
@@ -807,21 +809,21 @@ pub fn committed_costs(
     summaries: &[RunSummary],
     agents: &Path,
     models: &crate::ModelTiers,
-) -> Result<BTreeMap<String, crate::Estimate>, String> {
+) -> Result<BTreeMap<String, crate::Estimate>, Fault> {
     use sha2::{Digest, Sha256};
     let mut pins = Vec::new();
     for agent in &suite.agents {
         let file = agents.join(agent.agent.directory()).join(format!("{}.pin.toml", agent.config));
-        let pin = crate::read_configuration(&file).map_err(|error| error.to_string())?;
+        let pin = crate::read_configuration(&file)?;
         let choice = models
             .lookup(&agents.join("models.toml"), &suite.tier, agent.provider)
-            .map_err(|error| error.to_string())?;
+            ?;
         pins.push((pin, choice, agent));
     }
     let mut latest: BTreeMap<(String, String), (String, crate::Estimate)> = BTreeMap::new();
     for summary in summaries {
         if summary.version != SUMMARY_VERSION || summary.result_version != RESULT_VERSION {
-            return Err("committed summary has unsupported summary or result version".into());
+            return Err(Fault::new(FaultKind::Input, "committed summary has unsupported summary or result version"));
         }
         if summary.tier != suite.tier {
             continue;

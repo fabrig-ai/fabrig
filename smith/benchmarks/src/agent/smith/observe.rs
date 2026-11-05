@@ -2,7 +2,9 @@
 //! Receiving bounds follow the selected product writer;
 //! no running domain state is known (benchmarks.md, sections 6 and 8).
 
-use crate::agent::{HarnessFault, Seen};
+use crate::Fault;
+
+use crate::agent::{Seen};
 use crate::{Counts, Spend, TokenRecord};
 
 use super::Prepared;
@@ -62,9 +64,9 @@ pub struct Observing {
 
 impl Observing {
     /// Retain an outside observer with no knowledge of the running domains.
-    pub fn new(prepared: Prepared) -> Result<Self, HarnessFault> {
+    pub fn new(prepared: Prepared) -> Result<Self, Fault> {
         let receiving = prepared.registry.receiving;
-        let limits = receiving.limits().map_err(|what| HarnessFault { what })?;
+        let limits = receiving.limits()?;
         let observer = super::events::Observer::with_ceiling(&limits, receiving.encoded_line)?;
         let agent = prepared
             .program_source()
@@ -80,16 +82,16 @@ impl Observing {
     }
 
     /// Retain a settled agent capture or its missing evidence without borrowing host facts.
-    pub fn agent_trace(&mut self, bytes: Result<&[u8], String>) {
+    pub fn agent_trace(&mut self, bytes: Result<&[u8], Fault>) {
         if let Some(agent) = self.agent.as_mut() {
             let parsed =
-                bytes.and_then(|bytes| agent.feed(bytes).and_then(|_| agent.finish()).map_err(|error| error.what));
-            self.agent_error = parsed.err();
+                bytes.and_then(|bytes| agent.feed(bytes).and_then(|_| agent.finish()));
+            self.agent_error = parsed.err().map(|error| error.detail);
         }
     }
 
     /// Consume one complete event line and report its script cues.
-    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, HarnessFault> {
+    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, Fault> {
         self.observer.feed(format!("{line}\n").as_bytes())
     }
 
@@ -249,12 +251,12 @@ impl Observing {
     }
 
     /// Count scoped response usage once.
-    pub fn tokens(&self) -> Result<Vec<TokenRecord>, String> {
-        self.events().tokens().map_err(|error| error.what)
+    pub fn tokens(&self) -> Result<Vec<TokenRecord>, Fault> {
+        self.events().tokens()
     }
 
     /// Read the producer's notional spend in micro-dollars.
-    pub fn spend(&self, _records: &[TokenRecord]) -> Result<Spend, String> {
+    pub fn spend(&self, _records: &[TokenRecord]) -> Result<Spend, Fault> {
         super::events::reported_spend(self.events(), 1_000_000)
     }
 }
@@ -311,7 +313,7 @@ pub(crate) mod tests {
                 .any(|check| check.check == "stream-whole" && check.passed == (Measure::Observed { value: true }))
         );
         for error in ["agent trace open: missing", "agent trace read: denied"] {
-            observing.agent_trace(Err(error.into()));
+            observing.agent_trace(Err(crate::Fault::new(crate::FaultKind::Stream, error)));
             assert!(
                 observing
                     .health(Exit::Code(0), Forced::No)

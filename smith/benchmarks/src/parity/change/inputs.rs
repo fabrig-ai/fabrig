@@ -1,5 +1,7 @@
 //! Named run inputs retain their path and content hash for offline recomputation.
 
+use crate::{Fault, FaultKind};
+
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -63,13 +65,13 @@ fn record(path: &Path) -> Input {
     Input { path: absolute.strip_prefix(repository()).unwrap_or(&absolute).into(), sha256 }
 }
 
-fn read(input: &Input) -> Result<RunSummary, String> {
+fn read(input: &Input) -> Result<RunSummary, Fault> {
     let path = repository().join(&input.path);
     let digest = crate::arm::binary_digest(&path)?;
     if input.sha256.as_ref() != Some(&digest) {
-        return Err(format!("input SHA-256 differs: {}", input.path.display()));
+        return Err(Fault::new(FaultKind::Mismatch, format!("input SHA-256 differs: {}", input.path.display())));
     }
-    crate::read_summary(&path).map_err(|error| error.to_string())
+    crate::read_summary(&path).map_err(Fault::from)
 }
 
 fn evaluate(
@@ -77,29 +79,29 @@ fn evaluate(
     original: &ChangeSection,
     baseline: &Input,
     landed: &[Input],
-) -> Result<ChangeSection, String> {
+) -> Result<ChangeSection, Fault> {
     let baseline = read(baseline)?;
     let landed = landed.iter().map(read).collect::<Result<Vec<_>, _>>()?;
     Ok(super::project_report(summary, original.clone(), &baseline, &landed).unwrap_or_else(|why| {
         let mut report = original.clone();
-        report.stop = Some(Stop::Incomplete { why });
+        report.stop = Some(Stop::Incomplete { why: why.detail });
         report
     }))
 }
 
 /// Attach named inputs and retain an incomplete report when any input is refused.
-pub fn attach(summary: &mut RunSummary, inputs: &Inputs) -> Result<(), String> {
-    let parent = &summary.change.as_ref().ok_or("change section missing")?.parent_commit;
+pub fn attach(summary: &mut RunSummary, inputs: &Inputs) -> Result<(), Fault> {
+    let parent = &summary.change.as_ref().ok_or(Fault::new(FaultKind::Input, "change section missing"))?.parent_commit;
     let original = super::from_summary(summary, parent)?;
     let baseline_run = inputs.baseline_run.as_deref().map(record);
     let landed: Vec<_> = inputs.landed.iter().map(|path| record(path)).collect();
     let mut report = baseline_run
         .as_ref()
-        .ok_or_else(|| "baseline run missing".into())
+        .ok_or_else(|| Fault::new(FaultKind::Input, "baseline run missing"))
         .and_then(|baseline| evaluate(summary, &original, baseline, &landed))
         .unwrap_or_else(|why| {
             let mut report = original.clone();
-            report.stop = Some(Stop::Incomplete { why });
+            report.stop = Some(Stop::Incomplete { why: why.detail });
             report
         });
     report.baseline_run = baseline_run;
@@ -109,15 +111,15 @@ pub fn attach(summary: &mut RunSummary, inputs: &Inputs) -> Result<(), String> {
 }
 
 /// Refuse changed inputs or a stored section that disagrees with its rows and inputs.
-pub fn verify(summary: &RunSummary) -> Result<ChangeSection, String> {
-    let stored = summary.change.as_ref().ok_or("change section missing")?;
-    let baseline = stored.baseline_run.as_ref().ok_or("baseline run missing")?;
+pub fn verify(summary: &RunSummary) -> Result<ChangeSection, Fault> {
+    let stored = summary.change.as_ref().ok_or(Fault::new(FaultKind::Input, "change section missing"))?;
+    let baseline = stored.baseline_run.as_ref().ok_or(Fault::new(FaultKind::Input, "baseline run missing"))?;
     let original = super::from_summary(summary, &stored.parent_commit)?;
     let mut report = evaluate(summary, &original, baseline, &stored.landed)?;
     report.baseline_run.clone_from(&stored.baseline_run);
     report.landed.clone_from(&stored.landed);
     if stored != &report {
-        return Err("committed change section disagrees with rows or inputs".into());
+        return Err(Fault::new(FaultKind::Mismatch, "committed change section disagrees with rows or inputs"));
     }
     Ok(report)
 }
@@ -125,7 +127,7 @@ pub fn verify(summary: &RunSummary) -> Result<ChangeSection, String> {
 /// Verify and print a change report, returning the offline command's exit code.
 #[must_use]
 pub fn command(file: &Path) -> u8 {
-    let result = crate::read_summary(file).map_err(|error| error.to_string()).and_then(|summary| verify(&summary));
+    let result = crate::read_summary(file).map_err(Fault::from).and_then(|summary| verify(&summary));
     match result {
         Ok(report) => {
             for ratio in &report.ratios {

@@ -3,6 +3,8 @@
 //! guarded tasks from estimates until summaries supply medians
 //! (benchmarks.md, sections 4.2 and 5.3).
 
+use crate::{Fault, FaultKind};
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -103,13 +105,13 @@ impl Suite {
         if self.change { Some("parent") } else { self.reference.as_deref() }
     }
 
-    pub(crate) fn task_repetitions(&self, name: &str, authored: Option<u32>, logical: bool) -> Result<u32, String> {
+    pub(crate) fn task_repetitions(&self, name: &str, authored: Option<u32>, logical: bool) -> Result<u32, Fault> {
         if let Some(attempts) = self.attempts {
             return Ok(attempts);
         }
         let repetitions = self.repetitions_by_task.get(name).copied().unwrap_or(self.repetitions);
         if logical {
-            repetitions.checked_mul(authored.unwrap_or(1)).ok_or_else(|| "probe repetition count overflow".into())
+            repetitions.checked_mul(authored.unwrap_or(1)).ok_or_else(|| Fault::new(FaultKind::Bound, "probe repetition count overflow"))
         } else {
             Ok(self.repetitions_by_task.get(name).copied().or(authored).unwrap_or(repetitions))
         }

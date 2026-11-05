@@ -495,7 +495,7 @@ fn impossible_and_overflowing_token_records_are_errors() {
     let mut ledger = ledger();
     ledger.record("root", "one", codex_usage(u64::MAX)).expect("first response");
     ledger.record("root", "two", codex_usage(100)).expect("second response");
-    assert!(ledger.records().expect_err("sum must not wrap").contains("overflow"));
+    assert!(ledger.records().expect_err("sum must not wrap").detail.contains("overflow"));
 }
 
 fn usage_counts_once_per_response_even_when_repeated_in_another_scope() {
@@ -516,7 +516,7 @@ fn usage_counts_once_per_response_even_when_repeated_in_another_scope() {
         ledger
             .record("root", "response-a", codex_usage(101))
             .expect_err("conflicting duplicate")
-            .contains("conflicting")
+            .detail.contains("conflicting")
     );
     let records = ledger.records().expect("scoped tokens");
     assert_eq!(records.len(), 3);
@@ -632,7 +632,7 @@ fn measurements_require_reasons_and_the_ledger_requires_a_root_and_one_conventio
     ledger
         .declare("child", ScopeKind::Child { parent: "root".into() }, Convention::SmithEvents, "not observed")
         .expect("scope");
-    assert!(ledger.records().expect_err("mixed conventions").contains("mix"));
+    assert!(ledger.records().expect_err("mixed conventions").detail.contains("mix"));
 }
 
 fn result_readers_refuse_versions_unknown_shapes_and_trailing_documents() {

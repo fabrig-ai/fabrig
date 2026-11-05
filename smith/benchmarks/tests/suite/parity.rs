@@ -104,7 +104,7 @@ fn parity_refuses_a_summary_of_another_smith_commit() {
     let summary = common::parity_summary(Rows::equal());
     assert_eq!(
         parity::verify(&summary, &"1".repeat(40)),
-        Err("summary smith arm was built from another commit".into())
+        Err(smith_bench::Fault::new(smith_bench::FaultKind::Input, "summary smith arm was built from another commit"))
     );
 }
 
@@ -164,7 +164,7 @@ fn parity_refuses_a_section_that_disagrees_with_attempts() {
     summary.parity.as_mut().expect("section").criteria[0].holds = false;
     assert_eq!(
         parity::verify(&summary, &"0".repeat(40)),
-        Err("committed parity section disagrees with attempt rows".into())
+        Err(smith_bench::Fault::new(smith_bench::FaultKind::Mismatch, "committed parity section disagrees with attempt rows"))
     );
 }
 
@@ -488,7 +488,7 @@ fn a_landed_input_that_is_not_a_change_summary_is_refused() {
             &common::change_baseline(),
             &[common::change_baseline()]
         ),
-        Err("landed input must be a parity-change summary with a change section".into())
+        Err(smith_bench::Fault::new(smith_bench::FaultKind::Input, "landed input must be a parity-change summary with a change section"))
     );
 }
 
@@ -520,7 +520,7 @@ fn the_change_command_refuses_a_section_that_disagrees() {
     smith_bench::write_summary(&file, &summary).expect("changed section");
     let code = parity::change::command(&file);
     assert_eq!(code, 3);
-    assert_eq!(parity::change::verify(&summary), Err("committed change section disagrees with rows or inputs".into()));
+    assert_eq!(parity::change::verify(&summary), Err(smith_bench::Fault::new(smith_bench::FaultKind::Mismatch, "committed change section disagrees with rows or inputs")));
 }
 
 #[test]

@@ -1,6 +1,8 @@
 //! Both phases must be admitted before dispatch; frozen inputs cannot silently differ.
 //! No private workspace or credential is created by these checks (benchmarks.md3.2/4.2).
 
+use crate::{Fault, FaultKind};
+
 use crate::Identity;
 use crate::arm::Build;
 use crate::run::Request;
@@ -20,31 +22,31 @@ pub(super) fn same_input(left: &Identity, right: &Identity) -> bool {
         && left.cpus == right.cpus
 }
 
-pub(super) fn inputs(requests: &[Request]) -> Result<(), String> {
-    let first = requests.first().ok_or("probe has no prepared requests")?;
+pub(super) fn inputs(requests: &[Request]) -> Result<(), Fault> {
+    let first = requests.first().ok_or(Fault::new(FaultKind::Input, "probe has no prepared requests"))?;
     if requests.iter().any(|request| !same_input(&first.identity, &request.identity)) {
-        return Err("before/after must use the same frozen task, seed, prompt, configuration, model and host".into());
+        return Err(Fault::new(FaultKind::Input, "before/after must use the same frozen task, seed, prompt, configuration, model and host"));
     }
     Ok(())
 }
 
-pub(super) fn build(request: &Request) -> Result<Build, String> {
+pub(super) fn build(request: &Request) -> Result<Build, Fault> {
     let build = crate::arm::read_build(&request.program)?;
     if build.arm.commit != request.identity.agent_version || build.arm.sha256 != request.identity.binary_sha256 {
-        return Err("prepared probe differs from its verified built arm".into());
+        return Err(Fault::new(FaultKind::Mismatch, "prepared probe differs from its verified built arm"));
     }
     Ok(build)
 }
 
-pub(super) fn one_arm(requests: &[Request], repetitions: usize) -> Result<Build, String> {
+pub(super) fn one_arm(requests: &[Request], repetitions: usize) -> Result<Build, Fault> {
     inputs(requests)?;
     if requests.len() != repetitions {
-        return Err(format!("calibration requires {repetitions} physical requests for this logical repetition count"));
+        return Err(Fault::new(FaultKind::Format, format!("calibration requires {repetitions} physical requests for this logical repetition count")));
     }
     let first = build(&requests[0])?;
     for request in &requests[1..] {
         if build(request)?.arm != first.arm || request.identity.arm != requests[0].identity.arm {
-            return Err("one calibration phase must name one immutable arm".into());
+            return Err(Fault::new(FaultKind::Input, "one calibration phase must name one immutable arm"));
         }
     }
     Ok(first)
