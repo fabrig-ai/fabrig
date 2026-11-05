@@ -270,7 +270,9 @@ fn home_owns_and_releases_its_settings_and_chat_reads() {
         assert!(f.root.client().document(handle).is_none(), "released {handle:?}");
     }
     assert!(f.root.pages().home().is_none());
-    assert!(f.root.pages().chats().is_none());
+    let chats = f.root.pages().chats().expect("Settings holds its own chats");
+    assert_ne!(chats.live, handles[1]);
+    assert!(f.root.client().document(chats.live).is_some());
     let mut closed = false;
     for request in &out {
         if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
@@ -550,9 +552,10 @@ fn home_reads_its_projects_needs_and_releases_them() {
         for handle in &handles {
             last = last.max(handle.number);
         }
+        let keeps_chats = place == Place::Address(Address::Settings { project: f::PROJECT });
         let out = event(&mut f.root, Event::Went { place });
         assert!(f.root.pages().inbox().is_none());
-        assert!(f.root.pages().chats().is_none());
+        assert_eq!(f.root.pages().chats().is_some(), keeps_chats);
         for handle in &handles {
             assert!(f.root.client().document(*handle).is_none(), "released {handle:?}");
         }
