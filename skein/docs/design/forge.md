@@ -1026,6 +1026,10 @@ Notes on the table:
   as `Original` (section 12).
 - **Markers** at the head of a body, a comment or a review are decoded
   into its `key` (section 6).
+- **A changed file's `status`** is `added`, `deleted` or `removed`,
+  `modified` or `changed`, `renamed` or `copied`; `removed` is what a real
+  Forgejo's comparison says of a file gone, and reads as `deleted` does. Any
+  other word is a malformed answer.
 - **What may follow** is told by the page coming full, `X-HasMore`, or
   `total_count`. For a call made of several requests, `more` is its
   listing's.
@@ -1572,6 +1576,15 @@ the suites (testing.md, section 6).
 
 ## 12. Open questions
 
+- **A real Forgejo's refused reads, unexplained** (3.4, 5.3): on a deployment,
+  an agent's `PullFor` was refused `InvalidAnswer`. The answers captured there
+  show a comparison's `removed` (5.3), and no cause for that: none is a by-branch
+  answer, and none was read with CI red. What would settle it is that answer,
+  with its request path and the head and base asked, and a section's reads at a
+  red head. A comparison whose `commits` come shorter than its `total_commits`
+  is refused the same way (`skein-forge/src/forgejo/plans/commits.rs`); whether
+  Forgejo answers one on a long range is unknown. Default: as they stand, until
+  an answer shows a fault.
 - **Long threads, read whole.** Each `Item` read of a participating
   object streams its whole thread, since Forgejo does not page comments.
   Its timeline is paged (`issues/{n}/timeline?since&page&limit`) but

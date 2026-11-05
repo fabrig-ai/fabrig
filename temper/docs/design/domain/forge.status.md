@@ -42,6 +42,16 @@
     (`temper-client-domain/src/forge/words.rs`, `FailedHold`), and the plan
     `first-goal-fixes` edits neither, the ui drafts holding them, so a cancel
     is said by `task show` and not by this line.
+  - 8.4: the walk the request `brief-failure` of 2026-11-05 ends with has not
+    passed: on a real Forgejo, a change whose CI goes red gets a repair that
+    starts, and a repair whose brief can't be read ends held with the reason in
+    `temper ctl`. Its QA rung is not drafted yet, so both stand on the fake
+    forge's stories alone
+    (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`).
+  - 8.4: `[the reviews could not be read: REASON]`, a gate's repair standing on
+    its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
+    `brief_answer`), but those stories run a CI repair's pair alone and no test
+    holds its words.
   - 8.4, 8.5: a goal's landing held past its repairs, then released after
     a change into its goal branch (`../draft/reference-landing.md`,
     section 9's second story), is built, but its story is ignored: after
@@ -140,6 +150,17 @@
   (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`,
   `repairing` and `repair_due`, none reading CI), which opens `Repair CI at HEAD:
   no failed check named`. No such test exists, and the empty name alone is gone.
+- **Design departs:** 8.4, from the request `brief-failure` of 2026-11-05, each
+  decided by its plan's cut, for the user to see:
+  - The request's true capacity is a place, an account or a brief slot. 8.4 also
+    pauses, with no bound, for a forge client `Busy` at the brief's deadline, a
+    forge not connected and a connector with no room, so a repair waits out a
+    disconnected forge unheld, though saying why, rather than making a person
+    release each.
+  - The request has a CI repair's stories in the forge world. They run in the
+    engine's domain world (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`),
+    where the core and the connector meet; the forge world
+    (`tests/engine/forge/tests/suite/brief.rs`) tells a lone section's failure.
 - **Departs:** 9: the first keeps its turn only until the next ready change
   steps: `queue_first` (`temper-engine-domain-forge/src/domain.rs`) chooses
   among `queue_ready`'s changes, which leave out one at `Updating`, `Checking`,
