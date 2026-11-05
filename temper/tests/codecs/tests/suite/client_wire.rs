@@ -90,6 +90,7 @@ fn setup_and_every_first_repository_state_round_trip_at_version_fourteen() {
         let row = v1::ForgeRow::new(
             &v1::CEILINGS,
             v1::ForgeRowParts {
+                starts_with: v1::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
                 number: 3,
@@ -126,12 +127,20 @@ fn setup_request() -> v1::Requesting {
                 v1::SetUp::new(
                     &v1::CEILINGS,
                     v1::SetUpParts {
-                        playground: false,
                         forge: v1::Making::Kept(
                             v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge"),
                         ),
-                        org: b"work".as_slice().into(),
-                        repository: b"hello".as_slice().into(),
+                        first: v1::SetUpFirst::Empty(
+                            v1::FirstEmpty::new(
+                                &v1::CEILINGS,
+                                v1::FirstEmptyParts {
+                                    playground: false,
+                                    org: b"work".as_slice().into(),
+                                    repository: b"hello".as_slice().into(),
+                                },
+                            )
+                            .expect("setup names fit wire ceilings"),
+                        ),
                     },
                 )
                 .expect("record within schema ceilings"),
@@ -147,23 +156,22 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
     for size in [2, 3] {
         let name = vec![b'x'; size].into_boxed_slice();
         let mut limits = v1::CEILINGS;
-        limits.set_up_org = 2;
-        limits.set_up_repository = 2;
+        limits.first_empty_org = 2;
+        limits.first_empty_repository = 2;
         limits.first_repository_org = 2;
         limits.first_repository_repository = 2;
         for field in 0..2 {
-            let parts = v1::SetUpParts {
+            let parts = v1::FirstEmptyParts {
                 playground: false,
-                forge: v1::Making::Kept(v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge")),
                 org: if field == 0 { name.clone() } else { b"o".as_slice().into() },
                 repository: if field == 1 { name.clone() } else { b"r".as_slice().into() },
             };
-            assert_eq!(v1::SetUp::new(&limits, parts.clone()).is_ok(), size == 2, "setup field {field}");
-            let record = v1::SetUp::new(&v1::CEILINGS, parts).expect("record within schema ceilings");
+            assert_eq!(v1::FirstEmpty::new(&limits, parts.clone()).is_ok(), size == 2, "setup field {field}");
+            let record = v1::FirstEmpty::new(&v1::CEILINGS, parts).expect("record within schema ceilings");
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
             record.encode(&mut writer).expect("measured room");
             assert_eq!(
-                v1::SetUp::decode(&limits, &mut Reader::new(&writer.finish())).is_ok(),
+                v1::FirstEmpty::decode(&limits, &mut Reader::new(&writer.finish())).is_ok(),
                 size == 2,
                 "setup field {field}"
             );
@@ -190,13 +198,12 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
     for size in [1024, 1025] {
         let name = vec![b'x'; size].into_boxed_slice();
         for org in [true, false] {
-            let parts = v1::SetUpParts {
+            let parts = v1::FirstEmptyParts {
                 playground: false,
-                forge: v1::Making::Kept(v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge")),
                 org: if org { name.clone() } else { b"o".as_slice().into() },
                 repository: if org { b"r".as_slice().into() } else { name.clone() },
             };
-            assert_eq!(v1::SetUp::new(&v1::CEILINGS, parts).is_ok(), size == 1024);
+            assert_eq!(v1::FirstEmpty::new(&v1::CEILINGS, parts).is_ok(), size == 1024);
             let parts = v1::FirstRepositoryParts {
                 playground: false,
                 org: if org { name.clone() } else { b"o".as_slice().into() },

@@ -104,6 +104,7 @@ fn settings(fixture: &mut Fixture, follows: c::SettingFollows) {
 }
 fn row(number: u16) -> w::ForgeRowParts {
     w::ForgeRowParts {
+        starts_with: w::StartsWith::Repository,
         host: b"git.example:3000".as_slice().into(),
         number,
         kind: w::Kind::Forgejo,

@@ -1281,6 +1281,7 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                starts_with: w::StartsWith::Repository,
                 host: b"forge.example:3000".as_slice().into(),
                 number: if github { 2 } else { 3 },
                 kind: if github { w::Kind::Github } else { w::Kind::Forgejo },

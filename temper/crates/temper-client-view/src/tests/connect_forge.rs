@@ -16,6 +16,7 @@ pub(super) fn row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
             number,
@@ -574,6 +575,7 @@ pub(super) fn first_rows(connection: w::Connection, state: w::FirstState) -> Lis
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
                 number: HERE,
@@ -727,7 +729,8 @@ fn setting_up_uses_the_sent_fields_until_the_row_carries_them() {
     let mut root = here(w::Connection::NotSetUp);
     act(&mut root, d::forge::Act::SetUp { forge: HERE });
     // The flow keeps the submitted fields even when it is showing Details.
-    assert_eq!(root.forge().set_up().unwrap().org.as_ref(), b"work");
+    let w::SetUpFirst::Empty(first) = &root.forge().set_up().unwrap().first else { panic!("empty setup") };
+    assert_eq!(first.org(), b"work");
     let (mut root, watch) = f::forge_root_watch(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         rows(w::Connection::NotSetUp, w::Offer::Offered),
@@ -1973,4 +1976,32 @@ fn bot_tokens_connected_refusal_is_under_the_button_and_clears_the_fields() {
         &["Connect with its tokens", "Forge 3 is connected already: replace its tokens on Forges."],
     );
     assert!(!root.forge().tokens_form().has(d::forge::tokens::Field::Api));
+}
+
+#[test]
+fn deferred_setups_have_four_steps_and_finish_at_connected() {
+    let mut copies = List::with_capacity(1);
+    copies.push(Box::from(b"https://source.example/owner/repo".as_slice())).unwrap();
+    let copies = w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: copies }).unwrap();
+    for starts_with in [w::StartsWith::Nothing, w::StartsWith::Copies(copies)] {
+        for (connection, done) in [(w::Connection::Connecting, 3), (connected(), 4)] {
+            let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered).into_parts();
+            parts.starts_with = starts_with.clone();
+            let mut rows = List::with_capacity(1);
+            rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+            let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }, rows);
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                let tree = view.tree();
+                let list = node(tree, Role::List, b"Each step");
+                let start = tree.nodes().iter().position(|n| n.id == list).unwrap();
+                let size = usize::try_from(tree.nodes()[start].size).unwrap();
+                let items: Vec<_> = tree.nodes()[start..][..size].iter().filter(|n| n.role == Role::Item).collect();
+                assert_eq!(items.len(), 4);
+                assert_eq!(
+                    items.iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_DONE)).count(),
+                    done
+                );
+            }
+        }
+    }
 }

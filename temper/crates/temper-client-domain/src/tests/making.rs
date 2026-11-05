@@ -90,6 +90,7 @@ fn a_rows_makings_are_delivered_in_order() {
                 w::ForgeRow::new(
                     &limits,
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         number,
                         host: b"git.example:3000".as_slice().into(),
                         kind: w::Kind::Forgejo,

@@ -174,9 +174,7 @@ pub enum Ask {
     Adopt(Adoption),
     SetUp {
         forge: Making,
-        org: Box<[u8]>,
-        repository: Box<[u8]>,
-        playground: bool,
+        first: SetUpFirst,
     },
     RemoveForge {
         forge: u16,
@@ -412,11 +410,32 @@ pub struct Bot {
 }
 /// The first repository's intent (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct FirstIntent {
+pub struct EmptyIntent {
     pub playground: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
+}
+/// The set up's durable choice (temper/docs/design/protocol/setup.md, 6.7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum FirstIntent {
+    Empty(EmptyIntent),
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
+}
+/// The set up's admitted input (temper/docs/design/client/README.md, 4.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum SetUpFirst {
+    Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool },
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
+}
+/// The row's first-repository choice (temper/docs/design/protocol/setup.md, 6.7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum StartsWith {
+    Repository,
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
 }
 /// A forge kept in the connector's store (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -571,6 +590,7 @@ pub struct Row {
     pub fetched: Option<SetUpFetched>,
     pub offer: Offer,
     pub first: Option<First>,
+    pub starts_with: StartsWith,
     pub installations: Box<[(u64, Installation)]>,
     pub ended: Option<Box<[u8]>>,
     pub app: Option<AppWay>,
@@ -1824,9 +1844,7 @@ pub enum Request {
     SetUp {
         forge: u16,
         request: Token,
-        org: Box<[u8]>,
-        repository: Box<[u8]>,
-        playground: bool,
+        first: SetUpFirst,
     },
     Connect {
         forge: u16,
