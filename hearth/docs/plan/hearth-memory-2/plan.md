@@ -21,7 +21,7 @@ The critical path is `service-orders`, `machine`, `close`: about 120 implementer
   8.5, and the one gap to `render.status.md`.
 - **No room check alone keeps an order, by reading.** A queue is first in, first out, so a check only delays: an order could only break across two
   queues, or at an entry no predicate guards, and a survey traced both. Five orders stand beside the checks, held by predicates or machine state,
-  and 8.5 states them. The checks keep capacities, one (`protocol_room` before `fire`) keeps nothing, and six hand-grown lists keep nothing.
+  and 8.5 states them. The checks keep capacities, one (`protocol_room` before `fire`) keeps nothing, and seven hand-grown lists keep nothing.
 - **A reading isn't a test, so `service-orders` runs it.** `what_a_call_prints_and_stores_does_not_depend_on_its_queues` runs four scenarios at
   `queue` 3, 32 and 4,096 and compares what they print and store. That is the request's test of an order, turned around: any order only room keeps
   shows as a difference. Five bites then show which test holds which order. A difference is a finding, and `close` stops on it and asks.
