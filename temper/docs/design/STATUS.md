@@ -104,7 +104,12 @@ layout with no project, and says a project has no repository while
 the forges' rows are unknown; an account's sources are a list, not
 `.setting` rows; and under a kind or
 goal filter Needs you's answered lines and head count what the filter
-leaves out (`client/README.md`). The
+leaves out (`client/README.md`). Home says what changed since the person
+last looked and the status agent is built, but on the stock policy a
+person's pool leaves it no funding, the reference names no charter 9, no
+walk on a box reaches a brief, and a project's first run counts its span
+from the epoch (`client/README.md`,
+`domain/forge.md`, `protocol/configuration.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
