@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 use skein_fake_llm_domain::api;
 use skein_http::sse::writer::Outgoing;
 use skein_json::{Document, Kind};
-use skein_lib::{Decimal, List, Writer, bytes};
+use skein_lib::{Decimal, List, Writer, bytes, usize_of};
 use skein_llm::anthropic;
 use skein_llm::openai;
 
@@ -362,7 +362,7 @@ fn anthropic_event(
     }
     let at = sequence.saturating_sub(1).div_euclid(3);
     let phase = sequence.saturating_sub(1).rem_euclid(3);
-    if let Some(part) = answer.parts.get(usize::try_from(at).expect("u32 fits usize")) {
+    if let Some(part) = answer.parts.get(usize_of(at)) {
         let (name, event) = match phase {
             0 => {
                 let block = match part {
