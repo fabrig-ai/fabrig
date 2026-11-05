@@ -8,6 +8,7 @@ home-accounts-claude
 home-accounts-both
 home-accounts-key
 home-one-left
+home-with-goals
 home-at-work
 home-needs-several
 home-nothing-needs
@@ -20,6 +21,14 @@ home-skip-refused
 home-needs-under-begin
 home-begin-settings-left
 home-begin-one-chats
+goals-solo
+goals-reference
+goals-none
+goals-needs
+goals-under-way
+goals-ended
+goals-filter-empty
+goals-more
 home-github
 home-morning-card
 home-answered

@@ -919,8 +919,8 @@ have one, an engine alone none. Each:
   holds its place until the engine has ended it, so a deployment allows
   each party, and each stream, at least the watches one client opens at
   its limit, `me`'s included (jig's `client/domain/contract.md`, 7.2;
-  jig's `protocol/client.md`, section 13). temper's client opens 16, so
-  its engine allows 16 a party, 16 a stream and 16 in all, temper's own
+  jig's `protocol/client.md`, section 13). temper's client opens 17, so
+  its engine allows 17 a party, 17 a stream and 17 in all, temper's own
   numbers above jig's profiles' 4, which the root holds whatever
   `engine.limits` says (`../domain/root.md`, section 10). It checks none
   of this at start, as for documents (above); the same test holds these
@@ -1270,7 +1270,7 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   change in place (jig's `protocol/configuration.md`, section 9).
 - **A brief past the host part's room** (13.4). The same request sizes a
   run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
-  360,045, is what the host part leaves charter 1 at init's models, a
+  359,205, is what the host part leaves charter 1 at init's models, a
   whole spec among it, past the largest fabrig's development has had,
   200 kB. 1 MB needs a window of about 2.7M tokens or a larger share of
   it for the host. Default: as it stands. The user's to choose, with no
@@ -1771,7 +1771,7 @@ init`'s document carries none of them (`setup.md`, 8.3).
 
 | Setting | Its value |
 |---|---|
-| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`; this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 64 turns and 3,600 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect and agents tool families, no modify, no shell; a call's timeout 10 s |
+| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`, a goal's part among them asking for its report (`../domain/agent.md`, 8.3); this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 64 turns and 3,600 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect and agents tool families, no modify, no shell; a call's timeout 10 s |
 | charter 2, a coding agent's | as charter 1, with the `stock` module's `coding.txt` and the modify family, but a run of 800 turns and 28,800 s (8 hours), a reserve of 1 turn and 60 s: five times the longest run fabrig's development has had, 156 turns and 76 minutes; K is unmoved, its floor of 4 units a run turn counting the chat's 64, so a coding agent's run is held by its spend, a run's own, its person funding more (`../domain/forge.md`, 8.4), long before its turns |
 | charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 800 turns and 8 hours; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
 | charter 6, a foreman's | as charter 4, with the `stock` module's `foreman.txt`: settle the question its brief carries from the change's words, the design in its checkout and the change's pushed head, read through the forge's reads; `answer` only what they settle, `finish` where the work done holds and the rest is the asker's Left list, `escalate` with its reasons otherwise, never guessing past them; a foreman's verdict as its contract (`../domain/forge.md`, 8.11) |
@@ -1779,8 +1779,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its `tools` the settings and read families, 1,536, so that its runs alone in the stock are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads and `read_docs`; no workspace (it names no repository), and its instructions delegate nothing and effect nothing |
 | template 2, a goal | jig's goal, its executor chosen; its report as template 1's |
 | template 3, the configuring chat | a chat named `configuring`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 3 |
-| policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,543, delegation, messages, control, reads and settings (jig's `ToolFamilies` Delegate, Message, Control, Read and Settings), so that a chat reads the forge it works on and answers its delegates' questions, a goal's `change` names its plan's members (`../domain/agent.md`, 4.3.1), and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
-| the rules | today's: tools 1,543, delegation, messages, control, reads and settings, the forge's grants under `forge`, delegation to charters 1, 2, 3, 4 and 6 and the change procedure, 384 tasks 32 deep, a spend and a period's spend of 1,920K, a run's spend from 2C to K (below); and 13.3's two requirements |
+| policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,671, delegation, messages, control, note, reads and settings (jig's `ToolFamilies` Delegate, Message, Control, Note, Read and Settings), and note scope goal, so that a chat reads the forge it works on and answers its delegates' questions, a goal's `change` names its plan's members (`../domain/agent.md`, 4.3.1), a goal writes its report (`../domain/agent.md`, 8.3), and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
+| the rules | today's: tools 1,671, delegation, messages, control, note, reads and settings, note scope goal, the forge's grants under `forge`, delegation to charters 1, 2, 3, 4 and 6 and the change procedure, 384 tasks 32 deep, a spend and a period's spend of 1,920K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
 | kind 6 | none for every project: a change asks no one unless its maker names a route |
@@ -2345,7 +2345,8 @@ that changes the stock changes nothing of them.
   makes a repair change into main, small, with `repairs` naming the
   red landing's commit, its words the failing tests and what the triage
   found; a failure it finds a flake or inherited gets no repair, but a
-  note on the tier's tests. It notes what it learns (a slow check, a
+  note on the tier's tests. It writes its report (`../domain/agent.md`, 8.3),
+  and notes what it learns (a slow check, a
   dead end, a trap in the code) with jig's `note`, in the goal's or the
   repository's scope, and reads the notes before it triages. Its
   goal's end waits for the landing's result at cleared, repaired or

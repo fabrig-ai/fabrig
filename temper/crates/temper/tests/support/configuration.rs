@@ -94,7 +94,7 @@ pub fn use_stock(value: &mut serde_json::Value) {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
     value["engine"]["limits"]["overrides"]["authority.roles"] = 4.into();
-    value["engine"]["limits"]["overrides"]["core.run_bytes"] = 4325.into();
+    value["engine"]["limits"]["overrides"]["core.run_bytes"] = 8192.into();
 }
 
 /// All directories are explicit and belong to this fixture's scratch.
