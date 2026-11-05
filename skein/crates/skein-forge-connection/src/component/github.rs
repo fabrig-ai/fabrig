@@ -509,7 +509,7 @@ impl Common {
         let state = Self::github_state(base, gh).expect("active own work");
         let log = Self::github_log_active(gh);
         let c = self.connection_slab.get_mut(id).expect("own connection");
-        if c.phase == Phase::Idle {
+        if c.phase() == Phase::Idle {
             if !log && gh.state.stale_read() {
                 gh.state.read = Read::Idle;
                 gh.state.reread = true;
@@ -567,7 +567,7 @@ impl Common {
                     return false;
                 };
                 let authorization = github::credential::bearer(&secret).expect("bounded bearer");
-                c.deadline = Some(env.now.saturating_add(env.limits.deadline));
+                c.hold(env.now.saturating_add(env.limits.deadline));
                 if gh.exchange.start(c, env, forge, &self.owner.user_agent, exchange, Some(authorization)).is_err() {
                     Self::github_wait(base, gh, env);
                     return false;
@@ -843,7 +843,7 @@ impl Common {
     ) -> bool {
         let log = Self::github_log_active(gh);
         let c = self.connection_slab.get_mut(id).expect("own connection");
-        let unsent = match c.phase {
+        let unsent = match c.phase() {
             Phase::Sending { written } => !written && !c.written,
             Phase::Connecting | Phase::Handshaking | Phase::Closed | Phase::Reading | Phase::Idle => false,
         };
@@ -915,18 +915,18 @@ impl Common {
             let id = *self.connections.get(&token).expect("own connection");
             let c = self.connection_slab.get_mut(id).expect("own connection");
             if self.lifecycle != Lifecycle::Live || !active {
-                if c.deadline.is_none() && c.phase == Phase::Idle {
-                    c.deadline = Some(env.now.saturating_add(env.limits.idle));
+                if c.deadline.is_none() && c.phase() == Phase::Idle {
+                    c.rest(Some(env.now.saturating_add(env.limits.idle)));
                 }
-                if self.lifecycle != Lifecycle::Live || c.phase != Phase::Idle || c.deadline <= Some(env.now) {
+                if self.lifecycle != Lifecycle::Live || c.phase() != Phase::Idle || c.deadline <= Some(env.now) {
                     c.close(env, c.in_flight(), io);
                 }
                 break;
             }
-            if c.closing {
+            if c.closing() {
                 break;
             }
-            if c.phase != Phase::Idle
+            if c.phase() != Phase::Idle
                 && let Some(deadline) = c.deadline
                 && deadline <= env.now
             {
@@ -948,12 +948,12 @@ impl Common {
                     if c.in_flight() {
                         c.close(env, true, io);
                     } else {
-                        c.deadline = None;
+                        c.rest(None);
                     }
                 }
                 continue;
             }
-            if c.phase == Phase::Closed {
+            if c.phase() == Phase::Closed {
                 c.close(env, c.in_flight(), io);
                 break;
             }

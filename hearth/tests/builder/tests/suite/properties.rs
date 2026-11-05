@@ -1,5 +1,5 @@
 use hearth_builder_world::fixtures;
-use hearth_render_world::fixtures::properties as inputs;
+use hearth_test_render::properties as inputs;
 #[test]
 fn a_generated_repository_renders_the_worlds_digests_through_real_git() {
     for case in inputs::PROCESS_CASES {

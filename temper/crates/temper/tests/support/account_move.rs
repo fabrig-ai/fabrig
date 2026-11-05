@@ -327,8 +327,8 @@ fn rotation() -> skein_fake_oauth::Plan {
     skein_fake_oauth::Plan {
         status: 200,
         body: skein_fake_oauth::Body::Token(skein_oauth::TokenResponse {
-            access_token: sign_in::ACCESS.as_ref().into(),
-            refresh_token: Some(ROTATED_REFRESH.into()),
+            access_token: skein_lib::Secret::new(sign_in::ACCESS.as_ref().into()),
+            refresh_token: Some(skein_lib::Secret::new(ROTATED_REFRESH.into())),
             expires_in: 300,
             scope: None,
             id_token: None,

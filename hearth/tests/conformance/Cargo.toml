@@ -14,7 +14,7 @@ hearth-fake-mmdebstrap.workspace = true
 hearth-fake-machine.workspace = true
 hearth-protocol-git.workspace = true
 hearth-recordings.workspace = true
-hearth-git-world.workspace = true
+hearth-test-git.workspace = true
 skein-scratch.workspace = true
 skein-lib.workspace = true
 

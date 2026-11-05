@@ -33,7 +33,7 @@ pub(crate) fn peer(address: std::net::SocketAddr, registration: &serde_json::Val
             client_id: bytes("client"),
             client_secret: None,
             redirect_uri: b"http://127.0.0.1:0/auth/callback".as_slice().into(),
-            refresh_token: b"fake-refresh".as_slice().into(),
+            refresh_token: skein_lib::Secret::new(b"fake-refresh".as_slice().into()),
             terms: Some(skein_fake_oauth::Terms {
                 issued: Box::new([b"issued-client".as_slice().into()]),
                 omit_issued: false,
@@ -67,8 +67,8 @@ pub(crate) fn peer(address: std::net::SocketAddr, registration: &serde_json::Val
     peer.queue(skein_fake_oauth::Plan {
         status: 200,
         body: skein_fake_oauth::Body::Token(skein_oauth::TokenResponse {
-            access_token: b"real-loop-access".as_slice().into(),
-            refresh_token: Some(b"fake-refresh".as_slice().into()),
+            access_token: skein_lib::Secret::new(b"real-loop-access".as_slice().into()),
+            refresh_token: Some(skein_lib::Secret::new(b"fake-refresh".as_slice().into())),
             expires_in: 300,
             scope: Some(scopes.into_bytes().into()),
             id_token: None,

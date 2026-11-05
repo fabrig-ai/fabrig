@@ -1063,7 +1063,7 @@ Held by skein's `forge-connection.md`, section 8: a forge connection
 | not connected | start with no access, an incomplete, unreadable or mismatched set (2.1); a setup run's `Stop` on a forge with none | `NotConnected` |
 | not set up | start, an owned forge with neither its handover file nor an `AdminToken` record (setup.md, 6.5) | `NotConnected` |
 | setting up | the box's link's `start` written, for an owned forge's `SetUp` or the playground's fake forge, then each `step` line, with its step (2.8) | `NotConnected` |
-| set up failed | the box's `failed`, or its pipe closed during the ask (2.8) | `NotConnected` |
+| set up failed | the box's `failed`, or its pipe closed during the ask (2.8); a managed forge's start whose plan stopped (setup.md, 5.1) | `NotConnected` |
 | connecting | a run that connects begins (2.6) | `NotConnected` |
 | connected | `Event::Connected` (2.2) | served |
 | stopped | `Event::Stopped` (2.3) | `NotConnected` |
@@ -1073,9 +1073,11 @@ A connecting forge goes back to what it was when its run stops; a
 stopped one is connected again by its next `Connected`, after a Replace
 or, on a connected Forgejo, a `Connect` with its tokens.
 A setting up forge, at the box's `started`, connects as 2.2 says; set up
-failed, it is asked again from the client, as not set up is. Only a
-forge the box runs, owned or fake, is ever setting up or set up failed,
-and only an owned one not set up. An ended forge stays ended until its
+failed, it is asked again from the client, as not set up is, and a
+managed one is connected again as its admin (setup.md, 5.5). Only a
+forge the box runs, owned or fake, is ever setting up, only one of those
+or a managed one set up failed, and only an owned one not set up. An
+ended forge stays ended until its
 removal is whole and its record erased (2.3): the routing's events for
 it change nothing, the setup host runs nothing for it, a webhook's hint
 for it is dropped, and no list shows it (`../domain/forge.md`, 4.1).

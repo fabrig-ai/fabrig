@@ -18,11 +18,12 @@ fn openid() -> (Component, Limits) {
         registration.scope = bytes::copy_of(b"openid");
     }
     let mut accounts = List::with_capacity(1);
-    accounts.push(account).ok().expect("one account");
+    accounts.push(account).expect("one account");
     (Component::new(accounts, &profile, crypto(17)).expect("OpenID account"), profile)
 }
 
 #[test]
+#[expect(clippy::manual_map, reason = "step crate uses exhaustive matches without closures")]
 fn the_nonce_is_drawn_from_the_seeded_generator() {
     let (mut component, limits) = openid();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -36,7 +37,10 @@ fn the_nonce_is_drawn_from_the_seeded_generator() {
     let id = component.bindings.get(0).copied().flatten().expect("sign-in bound");
     let exchange = component.exchanges.get(id).expect("admitted exchange");
     let nonce = match &exchange.sign_in {
-        Some(oauth::Event::SignIn { nonce, .. }) => nonce.as_deref(),
+        Some(oauth::Event::SignIn { nonce, .. }) => match nonce {
+            Some(nonce) => Some(nonce.expose()),
+            None => None,
+        },
         Some(
             oauth::Event::Redirected { .. }
             | oauth::Event::Refresh { .. }

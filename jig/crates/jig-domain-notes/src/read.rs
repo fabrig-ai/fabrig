@@ -17,27 +17,34 @@ pub(crate) struct Cached {
     pub(crate) used: u64,
 }
 
-/// One read waiting for the store, or ready to answer from cached indexes.
+/// One named entry or scoped read waiting for the store.
 #[derive(Debug)]
 pub(crate) struct ReadPending {
+    tokens: ReadTokens,
+    pending: Pending,
+}
+
+#[derive(Debug)]
+struct ReadTokens {
     owner: Token,
     load_owner: Token,
-    kind: Kind,
-    stage: Stage,
+}
+
+#[derive(Debug)]
+enum Pending {
+    Named { name: u64 },
+    Scoped { kind: Kind, stage: Stage },
 }
 
 #[derive(Debug)]
 enum Kind {
     Index { scopes: List<Scope>, most: u32 },
-    Name { name: u64 },
     Search { scopes: List<Scope>, query: Box<[u8]>, page: u32 },
 }
 
 #[derive(Debug)]
 enum Stage {
-    Ready,
     Lines { scope: Scope, after: Option<u64>, lines: Map<u64, Line> },
-    Name,
     Entries { names: List<u64>, at: u32, entries: List<Entry>, more: bool },
 }
 
@@ -54,13 +61,8 @@ pub(crate) fn index(
     } else if !valid_scopes(&scopes, limits) {
         push(out, Request::Refused { owner, why: Refusal::Oversized });
     } else {
-        domain.read = Some(ReadPending {
-            owner,
-            load_owner: domain.next_load_token(),
-            kind: Kind::Index { scopes, most },
-            stage: Stage::Ready,
-        });
-        drive(domain, limits, out);
+        let load_owner = domain.next_load_token();
+        drive(domain, limits, ReadTokens { owner, load_owner }, Kind::Index { scopes, most }, out);
     }
 }
 
@@ -82,7 +84,8 @@ pub(crate) fn recall(
                 push(out, Request::Recalled { owner, entries: List::with_capacity(0), more: false });
             } else {
                 let load_owner = domain.next_load_token();
-                domain.read = Some(ReadPending { owner, load_owner, kind: Kind::Name { name }, stage: Stage::Name });
+                domain.read =
+                    Some(ReadPending { tokens: ReadTokens { owner, load_owner }, pending: Pending::Named { name } });
                 push(out, Request::Load { owner: load_owner, range: Range::Entry { name } });
             }
         }
@@ -95,13 +98,7 @@ pub(crate) fn recall(
                 push(out, Request::Refused { owner, why: Refusal::Oversized });
             } else {
                 let load_owner = domain.next_load_token();
-                domain.read = Some(ReadPending {
-                    owner,
-                    load_owner,
-                    kind: Kind::Search { scopes, query, page },
-                    stage: Stage::Ready,
-                });
-                drive(domain, limits, out);
+                drive(domain, limits, ReadTokens { owner, load_owner }, Kind::Search { scopes, query, page }, out);
             }
         }
     }
@@ -134,46 +131,47 @@ pub fn valid_recall(by: &Recall, limits: &Limits) -> bool {
     }
 }
 
-fn drive(domain: &mut Domain, limits: &Limits, out: &mut Queue<Request>) {
-    let mut read = domain.read.take().expect("a read is ready to advance");
-    match &read.kind {
-        Kind::Name { name: _ } => unreachable!("name recall starts its entry load directly"),
+fn drive(domain: &mut Domain, limits: &Limits, mut tokens: ReadTokens, kind: Kind, out: &mut Queue<Request>) {
+    match &kind {
         Kind::Index { scopes, most: _ } | Kind::Search { scopes, query: _, page: _ } => {
             if let Some(scope) = first_missing(domain, scopes) {
-                read.stage = Stage::Lines {
+                let stage = Stage::Lines {
                     scope: scope.clone(),
                     after: None,
                     lines: Map::with_capacity(limits.entries_per_scope),
                 };
-                read.load_owner = domain.next_load_token();
-                push(out, Request::Load { owner: read.load_owner, range: Range::Lines { scope, after: None } });
-                domain.read = Some(read);
+                tokens.load_owner = domain.next_load_token();
+                push(out, Request::Load { owner: tokens.load_owner, range: Range::Lines { scope, after: None } });
+                domain.read = Some(ReadPending { tokens, pending: Pending::Scoped { kind, stage } });
                 return;
             }
         }
     }
-    match &read.kind {
+    match &kind {
         Kind::Index { scopes, most } => {
             let (lines, more) = collect_index(domain, scopes, (*most).min(limits.lines));
-            push(out, Request::Indexed { owner: read.owner, lines, more });
+            push(out, Request::Indexed { owner: tokens.owner, lines, more });
         }
         Kind::Search { scopes, query, page } => {
             let (names, more) = select_names(domain, scopes, query, *page, limits.recalled);
             match names.get(0) {
                 None => push(
                     out,
-                    Request::Recalled { owner: read.owner, entries: List::with_capacity(limits.recalled), more: false },
+                    Request::Recalled {
+                        owner: tokens.owner,
+                        entries: List::with_capacity(limits.recalled),
+                        more: false,
+                    },
                 ),
                 Some(name) => {
                     let name = *name;
-                    read.stage = Stage::Entries { names, at: 0, entries: List::with_capacity(limits.recalled), more };
-                    read.load_owner = domain.next_load_token();
-                    push(out, Request::Load { owner: read.load_owner, range: Range::Entry { name } });
-                    domain.read = Some(read);
+                    let stage = Stage::Entries { names, at: 0, entries: List::with_capacity(limits.recalled), more };
+                    tokens.load_owner = domain.next_load_token();
+                    push(out, Request::Load { owner: tokens.load_owner, range: Range::Entry { name } });
+                    domain.read = Some(ReadPending { tokens, pending: Pending::Scoped { kind, stage } });
                 }
             }
         }
-        Kind::Name { name: _ } => unreachable!("name recall starts its entry load directly"),
     }
 }
 
@@ -243,51 +241,75 @@ pub(crate) fn loaded(
     out: &mut Queue<Request>,
 ) {
     let mut read = domain.read.take().expect("a store page answers a read");
-    assert!(read.load_owner == owner, "a store page echoes its load token");
+    assert!(read.tokens.load_owner == owner, "a store page echoes its load token");
     assert!(rows.records.capacity() <= limits.load_rows, "the store page fits its bound");
-    match read.stage {
-        Stage::Lines { scope, mut after, mut lines } => {
-            assert!(!rows.records.is_empty() || !more, "a continued page advances");
-            for record in rows.records.as_slice() {
-                match record {
-                    Record::Line(line) => {
-                        assert!(line.scope == scope, "scope load returns its own lines");
-                        match after {
-                            None => {}
-                            Some(last) => assert!(line.name > last, "scope lines are ordered"),
+    match read.pending {
+        Pending::Scoped { kind, stage } => match stage {
+            Stage::Lines { scope, mut after, mut lines } => {
+                assert!(!rows.records.is_empty() || !more, "a continued page advances");
+                for record in rows.records.as_slice() {
+                    match record {
+                        Record::Line(line) => {
+                            assert!(line.scope == scope, "scope load returns its own lines");
+                            match after {
+                                None => {}
+                                Some(last) => assert!(line.name > last, "scope lines are ordered"),
+                            }
+                            after = Some(line.name);
+                            match lines.insert(line.name, line.clone()) {
+                                Ok(None) => {}
+                                Ok(Some(_)) => unreachable!("scope line keys are unique"),
+                                Err(_) => unreachable!("entries per scope stay within their limit"),
+                            }
                         }
-                        after = Some(line.name);
-                        match lines.insert(line.name, line.clone()) {
-                            Ok(None) => {}
-                            Ok(Some(_)) => unreachable!("scope line keys are unique"),
-                            Err(_) => unreachable!("entries per scope stay within their limit"),
-                        }
+                        Record::Entry(_) => unreachable!("scope load returns lines"),
                     }
-                    Record::Entry(_) => unreachable!("scope load returns lines"),
+                }
+                if more {
+                    let stage = Stage::Lines { scope: scope.clone(), after, lines };
+                    read.pending = Pending::Scoped { kind, stage };
+                    read.tokens.load_owner = domain.next_load_token();
+                    push(out, Request::Load { owner: read.tokens.load_owner, range: Range::Lines { scope, after } });
+                    domain.read = Some(read);
+                } else {
+                    let required = match &kind {
+                        Kind::Index { scopes, most: _ } | Kind::Search { scopes, query: _, page: _ } => scopes,
+                    };
+                    insert_cached(domain, limits, required, scope, lines);
+                    drive(domain, limits, read.tokens, kind, out);
                 }
             }
-            if more {
-                read.stage = Stage::Lines { scope: scope.clone(), after, lines };
-                read.load_owner = domain.next_load_token();
-                push(out, Request::Load { owner: read.load_owner, range: Range::Lines { scope, after } });
-                domain.read = Some(read);
-            } else {
-                let required = match &read.kind {
-                    Kind::Index { scopes, most: _ } | Kind::Search { scopes, query: _, page: _ } => scopes,
-                    Kind::Name { name: _ } => unreachable!("name recall does not load scope lines"),
-                };
-                insert_cached(domain, limits, required, scope, lines);
-                read.stage = Stage::Ready;
-                domain.read = Some(read);
-                drive(domain, limits, out);
+            Stage::Entries { names, at, mut entries, more: has_more } => {
+                assert!(!more, "a named entry fits one page");
+                let name = *names.get(at).expect("outstanding entry name exists");
+                for record in rows.records.as_slice() {
+                    match record {
+                        Record::Entry(entry) => {
+                            assert!(entry.name == name, "entry lookup returns its named entry");
+                            entries.push(entry.clone()).expect("recall page has room");
+                        }
+                        Record::Line(_) => unreachable!("entry lookup returns entries"),
+                    }
+                }
+                let next = at.checked_add(1).expect("recall page fits u32");
+                match names.get(next) {
+                    None => push(out, Request::Recalled { owner: read.tokens.owner, entries, more: has_more }),
+                    Some(next_name) => {
+                        let next_name = *next_name;
+                        let stage = Stage::Entries { names, at: next, entries, more: has_more };
+                        read.pending = Pending::Scoped { kind, stage };
+                        read.tokens.load_owner = domain.next_load_token();
+                        push(
+                            out,
+                            Request::Load { owner: read.tokens.load_owner, range: Range::Entry { name: next_name } },
+                        );
+                        domain.read = Some(read);
+                    }
+                }
             }
-        }
-        Stage::Name => {
+        },
+        Pending::Named { name } => {
             assert!(!more, "a named entry fits one page");
-            let name = match read.kind {
-                Kind::Name { name } => name,
-                Kind::Index { .. } | Kind::Search { .. } => unreachable!("name stage belongs to name recall"),
-            };
             let mut entries = List::with_capacity(1);
             for record in rows.records.as_slice() {
                 match record {
@@ -298,33 +320,8 @@ pub(crate) fn loaded(
                     Record::Line(_) => unreachable!("entry lookup returns entries"),
                 }
             }
-            push(out, Request::Recalled { owner: read.owner, entries, more: false });
+            push(out, Request::Recalled { owner: read.tokens.owner, entries, more: false });
         }
-        Stage::Entries { names, at, mut entries, more: has_more } => {
-            assert!(!more, "a named entry fits one page");
-            let name = *names.get(at).expect("outstanding entry name exists");
-            for record in rows.records.as_slice() {
-                match record {
-                    Record::Entry(entry) => {
-                        assert!(entry.name == name, "entry lookup returns its named entry");
-                        entries.push(entry.clone()).expect("recall page has room");
-                    }
-                    Record::Line(_) => unreachable!("entry lookup returns entries"),
-                }
-            }
-            let next = at.checked_add(1).expect("recall page fits u32");
-            match names.get(next) {
-                None => push(out, Request::Recalled { owner: read.owner, entries, more: has_more }),
-                Some(next_name) => {
-                    let next_name = *next_name;
-                    read.stage = Stage::Entries { names, at: next, entries, more: has_more };
-                    read.load_owner = domain.next_load_token();
-                    push(out, Request::Load { owner: read.load_owner, range: Range::Entry { name: next_name } });
-                    domain.read = Some(read);
-                }
-            }
-        }
-        Stage::Ready => unreachable!("ready reads have no load outstanding"),
     }
 }
 
@@ -332,7 +329,9 @@ pub(crate) fn loaded(
 pub(crate) fn failed(domain: &mut Domain, owner: Token, out: &mut Queue<Request>) {
     let pending = domain.read.take();
     match pending {
-        Some(read) if read.load_owner == owner => push(out, Request::Refused { owner: read.owner, why: Refusal::Busy }),
+        Some(read) if read.tokens.load_owner == owner => {
+            push(out, Request::Refused { owner: read.tokens.owner, why: Refusal::Busy });
+        }
         Some(read) => domain.read = Some(read),
         None => {}
     }
