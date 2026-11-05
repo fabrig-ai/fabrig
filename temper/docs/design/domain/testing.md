@@ -1405,22 +1405,23 @@ section 8; testing-strategy.md, 2.9).
     (../client/tools.md, 8.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
-- **The held record's guard,** for the landing story, whose two sittings
-  leave the record in the store across a stopped box: the second proves
-  the restart on it. The runner's return and the story's own each need a
-  box up, so a panic between the sittings finds none. `Lent`
-  (`tests/support/held_login.rs`) stands from before the first sitting to
-  the test's end. On every ending, a panic anywhere, a failed assertion
-  or an early return, its `Drop` settles what is owed, by `stat` alone,
-  the record never read:
+- **The held record's guard,** for the landing story, whose box can stop
+  with the record still in the store: a panic through a sitting kills the
+  box before its return, and a return that fails stops it all the same.
+  The runner's return and the story's own each need a box up, so neither
+  answers then. `Lent` (`tests/support/held_login.rs`) stands from before
+  the first sitting to the test's end. On every ending, a panic anywhere,
+  a failed assertion or an early return, its `Drop` settles what is owed,
+  by `stat` alone, the record never read:
   - **The record at its lent path,** a private regular file with bytes
     in it: nothing. The import has not run, or the story's return has;
     that is what disarms the guard, so it exports once. The same path
     holding anything else is reported, never overwritten.
   - **Moved in, a box up:** `give-back`, within its 60 seconds.
   - **Moved in, no box up:** a box started over the store for this alone,
-    a new client signed in by the box's link, then `give-back`; the box
-    stops on any ending.
+    a new client signed in by the box's link, then `give-back`, installed
+    for that client with later imports still excluded; the box stops on
+    any ending.
   - **Still not back:** the notice `LOGIN NOT BACK`, naming the store,
     which stays for recovery. The guard never panics while the test
     unwinds; a test that would otherwise pass, it fails.
@@ -2711,10 +2712,12 @@ scripts/proof-live.sh               the live tier
   invocation within profile `live-temper`'s 50 minutes, each story
   bounding itself at 40 (2.7). The profile's figure is set from the
   pair's first after-landing wall times, and is the user's.
-- **A signal between the landing story's sittings.** A signal to the test
-  process runs no `Drop`, and the runner's `give-back` finds no box up:
-  the record stays in the store and the notice says so (2.7). Closing it
-  is a return that starts its own box, in the runner's part.
+- **A signal to the landing story with its box gone.** A signal to the
+  test process runs no `Drop`. Between the sittings the record is back at
+  its path and nothing is owed; moved in with no box left up, the runner's
+  `give-back` fails: the record stays in the store and the notice says so
+  (2.7). Closing it is a return that starts its own box, in the runner's
+  part.
 - **A managed sitting by a member who isn't an owner.**
   `scripts/proof-live-github-managed.sh live` takes
   `TEMPER_MANAGED_PERSON`, the login that makes the App under its own

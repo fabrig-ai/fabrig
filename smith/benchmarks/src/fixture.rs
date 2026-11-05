@@ -1,0 +1,9 @@
+//! Replay requests, recorded JSON edits and synthetic event records for benchmark tests.
+//! Fixtures retain explicit inputs and expose no running agent state
+//! (smith/docs/design/benchmarks.md, section 14).
+
+pub mod events;
+
+pub mod json;
+
+pub mod request;

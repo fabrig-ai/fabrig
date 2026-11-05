@@ -11,11 +11,7 @@ pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
     charge(room, List::<c::ProviderOffer>::price(rows.capacity()))?;
     let mut reader = Reader::new(bytes);
     for _ in 0..count {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(item) => item,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else { return Err(piece_problem(skein_codec::Reason::Malformed)) };
+        let item = skein_codec::piece::counted(&mut reader);
         let value = w::ProviderOffer::decode(limits.receiving(), &mut Reader::new(&item))?;
         if value.key_bytes() > limits.receiving().keyed_value_some {
             return Err(too_large());
@@ -66,11 +62,7 @@ pub(super) fn readiness(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result
     charge(room, List::<c::PayerReadiness>::price(rows.capacity()))?;
     let mut reader = Reader::new(bytes);
     for _ in 0..count {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(item) => item,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else { return Err(piece_problem(skein_codec::Reason::Malformed)) };
+        let item = skein_codec::piece::counted(&mut reader);
         let value = w::PayerReadiness::decode(limits.receiving(), &mut Reader::new(&item))?;
         let payer = super::accounts::account_use(value.payer());
         for old in &rows {

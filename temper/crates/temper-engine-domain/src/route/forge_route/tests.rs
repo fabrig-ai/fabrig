@@ -3239,7 +3239,14 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         ),
     ] {
         let (mut domain, env) = two_forges();
-        domain.core.tasks = tasks::Domain::new(&env.limits.tasks, 7, 0, Box::new([]), Box::new([]));
+        domain.core.tasks = tasks::Domain::new(
+            &env.limits.tasks,
+            tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
+            7,
+            0,
+            Box::new([]),
+            Box::new([]),
+        );
         let mut row = template.clone();
         row.number = 7;
         row.dependencies = Box::new([8]);

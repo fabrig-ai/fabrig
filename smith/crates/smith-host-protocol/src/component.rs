@@ -531,5 +531,4 @@ mod tests {
 }
 
 #[cfg(test)]
-#[path = "component/tests.rs"]
 mod grant_tests;
