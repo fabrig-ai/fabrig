@@ -5051,11 +5051,6 @@ own tests:
   nothing queued"; the same request): the line is *Changes*' (3.5), from
   the subject `changes` (4.6), and one function serves both. Default: Home
   draws no such line until it moves to that function.
-- **A question answered on Home** (the same request): choices, a
-  recommended one, a context line, "Later", an answer in place and its
-  "Undo" wait on the question card's upstream change (below) and on a
-  retraction jig has not. Default: "Reply" opens the inbox, which
-  answers in words.
 - **Goals on Home** (the same request): Goals in place of Chats where
   goals are on. Whether they are is the default configuration, still the
   user's, and no fact says so; the private `Board` is not built either.
