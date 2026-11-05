@@ -139,9 +139,9 @@ impl Limits {
             .checked_add(1)?
             // Task amendment region, fields, buttons and explanatory text leaves (5.11).
             .checked_add(16)?
-            // Your chats replaces two headings with a heading, filters and empty words.
-            // The merge retains only scalar keys and borrowed lines on the stack.
-            .checked_add(4)?
+            // Chats adds its intro (seven nodes), section head and repository tag
+            // above the filters and empty words; rows retain borrowed lines and scalar keys.
+            .checked_add(16)?
             // Start a chat heading and its text outside the playground start (2), and
             // a failed playground start's alert, its text leaf and Try again (3).
             .checked_add(5)?

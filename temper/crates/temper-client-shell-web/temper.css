@@ -158,15 +158,6 @@ a { color: inherit; text-decoration: none; }
 .temper-entry button { position: relative; width: 29.17px; height: 32.67px; margin-block: -1.17px -2.33px; flex: none; padding: 1.17px 0 2.33px; border: 0; border-radius: 4.67px / 5.83px 5.83px 7px 7px; background: #ba694e content-box; color: transparent; overflow: hidden; }
 .temper-entry button::before { content: ''; position: absolute; inset: 7px 5.83px 8.17px; background: url(files/send.svg) center / contain no-repeat; }
 .temper-entry button:hover { background-color: var(--temper-accent-dark); }
-/* The prompt: a bare box, its hint and model on the line below. */
-.temper-main:has(> .temper-sidebar) > .temper-entry { position: relative; min-height: 44px; margin-top: 22px; margin-bottom: 0; padding: 9px 9px 9px 14px; border: 1px solid #d6cfc4; border-radius: 6px; box-shadow: none; background: transparent; }
-.temper-main:has(> .temper-sidebar) > .temper-entry:focus-within { border-color: #b9a99a; box-shadow: none; }
-.temper-main:has(> .temper-sidebar) > .temper-entry textarea { font-size: 13px; }
-.temper-main:has(> .temper-sidebar) > .temper-entry textarea::placeholder { color: #aaa49a; }
-.temper-main:has(> .temper-sidebar) > .temper-entry .temper-hint { position: absolute; left: 16px; top: calc(100% + 6px); font-size: 11px; color: var(--temper-faint); }
-.temper-main:has(> .temper-sidebar) > .temper-entry button { background-color: transparent; }
-.temper-main:has(> .temper-sidebar) > .temper-entry button::before { filter: brightness(0) saturate(100%) invert(48%) sepia(35%) saturate(700%) hue-rotate(330deg); }
-.temper-main:has(> .temper-sidebar) > .temper-entry button:hover { background-color: var(--temper-accent-pale); }
 
 /* .entry-hint: the start composer's true keyboard instruction. */
 .temper-hint { align-self: center; color: #aaa399; font-size: 11.67px; white-space: nowrap; margin: 0; }
@@ -448,63 +439,6 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
   .temper-main.temper-page > .temper-choice { width: min(886.67px, calc(100% - 32.67px)); margin-left: 16.33px; }
 }
 
-/* The chats page's pane: a narrow left pane, the prompt the rest. */
-.temper-main:has(> .temper-sidebar) { display: grid; grid-template-columns: 264px minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; width: 100%; margin: 0; padding: 0; font-size: 13px; }
-.temper-main:has(> .temper-sidebar) > .temper-sidebar { grid-column: 1; grid-row: 1 / span 2; position: sticky; top: 40px; height: calc(100vh - 41px); overflow-y: auto; padding: 22px 20px 24px 24px; border-right: 1px solid #efebe4; display: flex; flex-direction: column; }
-.temper-main:has(> .temper-sidebar) > :not(.temper-sidebar) { grid-column: 2; width: auto; margin-inline: 32px; }
-
-/* The pane's head: the chat bar and its context, as lines. */
-.temper-sidebar > .temper-chatbar { display: block; height: auto; min-height: 0; padding: 0; border: 0; background: none; font-size: 13px; }
-.temper-sidebar > .temper-chatbar > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; white-space: normal; }
-.temper-sidebar > .temper-chatbar > div:first-child::before { content: '✻'; color: var(--temper-accent); font-size: 14px; line-height: 1; }
-.temper-sidebar > .temper-chatbar > div:first-child > p { font-size: 13px; color: var(--temper-ink); }
-.temper-sidebar > .temper-chatbar .temper-status-quiet { color: #4c8067; font-size: 12px; }
-.temper-sidebar > .temper-chatbar > div:last-child:not(:first-child) { margin-top: 10px; color: var(--temper-muted); font-size: 12px; }
-.temper-sidebar > .temper-context { display: block; margin: 2px 0 0; padding: 0; color: var(--temper-faint); font-size: 12px; line-height: 1.6; }
-.temper-sidebar > .temper-context p { margin: 0; }
-.temper-sidebar > .temper-context .temper-repository { color: var(--temper-muted); }
-
-/* The pane's chats: a heading, plain-word filters, the list flat. */
-.temper-sidebar > .temper-heading { display: block; margin: 26px 0 0; padding-top: 18px; border-top: 1px solid #efebe4; }
-.temper-sidebar > .temper-heading h1 { flex: none; margin: 0 0 6px; color: var(--temper-faint); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-.temper-sidebar > .temper-heading .temper-filters { justify-content: flex-start; gap: 0; margin-left: -6px; }
-.temper-sidebar > .temper-heading .temper-filters button { min-height: 0; padding: 1px 6px; border: 0; border-radius: 0; background: none; color: var(--temper-faint); font-weight: 400; font-size: 12px; }
-.temper-sidebar > .temper-heading .temper-filters button[aria-pressed=true] { color: var(--temper-ink); font-weight: 600; }
-.temper-sidebar > .temper-heading .temper-filters button:hover { color: var(--temper-ink); }
-.temper-sidebar > .temper-empty { margin-top: 10px; padding: 0; border: 0; border-radius: 0; text-align: left; font-size: 12px; color: var(--temper-faint); }
-/* A chat in the pane: its title and when, then status · TN, the whole line its link. */
-.temper-sidebar > .temper-rows { margin-top: 8px; border: 0; border-radius: 0; background: none; gap: 2px; }
-.temper-sidebar > .temper-rows > .temper-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; margin-inline: -8px; padding: 6px 8px; border: 0; border-radius: 4px; }
-.temper-sidebar > .temper-rows > .temper-row:hover { background: var(--gf-hover); }
-.temper-sidebar > .temper-rows > .temper-row > p:first-of-type { order: 1; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; color: var(--temper-ink); font-size: 13px; font-weight: 600; letter-spacing: 0; line-height: 1.4; }
-.temper-sidebar > .temper-rows > .temper-row > .temper-meta { order: 3; flex: 0 0 100%; flex-wrap: wrap; gap: 2px 6px; min-width: 0; font-size: 11.5px; }
-.temper-sidebar > .temper-rows > .temper-row > .temper-meta [role=status] { padding: 0; background: none; font-size: 11.5px; font-weight: 400; }
-.temper-sidebar > .temper-rows > .temper-row > .temper-meta > div:not([role]) > span { display: none; }
-.temper-sidebar > .temper-rows > .temper-row:has(> .temper-meta) > .temper-meta a[href] { position: static; z-index: auto; margin-left: 0; color: var(--temper-muted); }
-.temper-sidebar > .temper-rows > .temper-row > .temper-meta a::before { content: "· " / ""; margin-right: 0; }
-.temper-sidebar > .temper-rows > .temper-row > .temper-meta a:focus-visible { outline: none; }
-.temper-sidebar > .temper-rows > .temper-row > .temper-meta a:focus-visible::after { outline: 2px solid var(--temper-accent); outline-offset: 2px; }
-.temper-sidebar > .temper-rows > .temper-row > .temper-meta a::after { content: ''; position: absolute; inset: 0; border-radius: 4px; }
-.temper-sidebar > .temper-rows > .temper-row > p:not(:first-of-type):not(.temper-time) { display: none; }
-.temper-sidebar > .temper-rows > .temper-row > p.temper-time { order: 2; flex: none; margin: 0; color: var(--temper-faint); font-size: 11px; white-space: nowrap; }
-
-/* The playground's note: right after the chats. */
-.temper-sidebar > .temper-accounts { width: auto; margin: 22px 0 0; padding: 16px 0 0; border: 0; border-top: 1px solid #efebe4; background: none; display: block; }
-.temper-sidebar > .temper-accounts p { font-size: 12px; line-height: 1.6; color: var(--temper-faint); }
-.temper-sidebar > .temper-accounts a { display: inline; min-height: 0; padding: 0; border: 0; background: none; color: var(--temper-accent-dark); font: inherit; text-decoration: underline; text-underline-offset: 2px; }
-.temper-sidebar > .temper-accounts a:hover { color: var(--temper-accent); }
-
-/* Below 1100px the hint gives way to the model line. */
-@media (max-width: 1100px) { .temper-main:has(> .temper-sidebar) > .temper-entry .temper-hint { display: none; } }
-
-/* Narrow: the pane follows the prompt, as a section of its own. */
-@media (max-width: 760px) {
-  .temper-main:has(> .temper-sidebar) { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
-  .temper-main:has(> .temper-sidebar) > :not(.temper-sidebar) { grid-column: 1; margin-inline: 16px; }
-  .temper-main:has(> .temper-sidebar) > .temper-entry { margin-top: 16px; }
-  .temper-main:has(> .temper-sidebar) > .temper-sidebar { grid-row: 3; position: static; height: auto; min-height: 0; margin-top: 28px; padding: 18px 16px; border-right: 0; border-top: 1px solid #efebe4; }
-}
-
 /* .empty-state: an empty list's words in a dashed box. */
 .temper-empty { margin: 0; padding: 25.67px; border: 1px dashed #dcd5ca; border-radius: 14px; color: #77756e; font-size: 14px; text-align: center; }
 .temper-heading h2 { flex: none; margin: 0; font-size: 16.33px; }
@@ -724,22 +658,6 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
   .temper-chat > .temper-choice { width: min(1213.33px, calc(100% - 23.33px)); padding: 9.33px 11.67px; }
 }
 
-/* The model choice: the prompt's status line, right; its list drops below. */
-.temper-main:has(> .temper-sidebar) > .temper-choice { justify-content: flex-end; gap: 4px 10px; margin-top: 5px; font-size: 11px; color: var(--temper-faint); }
-.temper-main:has(> .temper-sidebar) > .temper-choice > .temper-account-line { width: auto; margin: 0; font-size: 11px; color: var(--temper-faint); }
-.temper-main:has(> .temper-sidebar) > .temper-choice > details > summary { list-style: none; cursor: pointer; color: var(--temper-muted); }
-.temper-main:has(> .temper-sidebar) > .temper-choice > details > summary::-webkit-details-marker { display: none; }
-.temper-main:has(> .temper-sidebar) > .temper-choice > details > summary::before { content: '· '; color: var(--temper-faint); }
-.temper-main:has(> .temper-sidebar) > .temper-choice > details > summary:hover { color: var(--temper-accent-dark); }
-.temper-main:has(> .temper-sidebar) > .temper-choice > details[open] { flex-basis: 100%; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > .temper-rows { width: min(480px, 100%); margin-top: 2px; padding: 4px 0; border-radius: 6px; }
-.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border: 0; border-radius: 0; }
-.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row > button { order: -1; min-height: 0; margin: 0 auto 0 0; padding: 0; border: 0; background: none; color: var(--temper-ink); font: 600 12px/1.6 var(--temper-mono); }
-.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row > button:hover { color: var(--temper-accent-dark); }
-.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row > p.temper-account-line { grid-column: auto; grid-row: auto; width: auto; margin: 0; font-size: 11px; font-weight: 400; color: var(--temper-faint); text-align: left; }
-.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row > p.temper-account-line:first-of-type { color: var(--temper-muted); }
-.temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > button { align-self: flex-end; width: auto; min-height: 0; padding: 0; border: 0; background: none; color: var(--temper-muted); font-size: 11px; }
-.temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > button:hover { color: var(--temper-accent-dark); text-decoration: underline; }
 
 /* accounts.html's page and cards; .welcome keeps adoption's own column. */
 .temper-main.temper-page > :is(.temper-accounts-page, .temper-adoption-page) { width: 100%; margin: 0; color: var(--temper-ink); }
@@ -1508,9 +1426,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-rail) > :is(main, section.temper-accounts) { grid-column: 2; min-width: 0; }
 #app:has(> .temper-rail) { grid-template-rows: auto auto minmax(0, 1fr); }
 #app:has(> .temper-rail) > main { grid-row: 3; align-self: start; }
-#app:has(> .temper-rail) .temper-sidebar { top: 0; height: 100vh; height: 100dvh; }
 #app:has(> .temper-rail) > .temper-chat { grid-row: 3; height: 100%; min-height: 0; }
-#app:has(> .temper-rail) .temper-sidebar > .temper-rows { flex: none; min-width: 0; border-inline: 0; border-radius: 0; background: none; }
 
 #app > :is(.temper-rail, .temper-tabbar) :is(.temper-nav-needs, .temper-nav-limited) { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; overflow: hidden; text-indent: 100%; white-space: nowrap; }
 #app > :is(.temper-rail, .temper-tabbar) .temper-nav-needs { background: var(--temper-red); }
@@ -1521,8 +1437,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app:has(> .temper-rail) > :is(main, section.temper-accounts) { grid-column: 1; }
   #app:has(> .temper-rail) { grid-template-rows: auto auto auto minmax(0, 1fr); }
   #app:has(> .temper-rail) > main { grid-row: 4; }
-  #app:has(> .temper-rail) > main:where(:not(.temper-home)) { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-  #app:has(> .temper-rail) .temper-sidebar { top: auto; height: auto; }
+  #app:has(> .temper-rail) > main:where(:not(.temper-home, .temper-chats-page)) { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   #app:has(> .temper-rail):has(> .temper-chat) { grid-template-rows: auto auto auto minmax(0, 1fr); padding-bottom: calc(63px + env(safe-area-inset-bottom)); }
   #app:has(> .temper-rail) > .temper-chat { grid-row: 4; padding-bottom: 0; }
 }
@@ -1623,13 +1538,60 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* ==== ui: chats ==== */
 
-:root:has(#app > .temper-session) {
+/* The Chats page takes the mock's .main and .col on the main itself. */
+#app > .temper-chats-page { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; display: flex; flex-direction: column; align-items: center; gap: 60px; font-size: 15px; letter-spacing: normal; }
+#app > .temper-chats-page > * { width: 100%; max-width: 720px; margin: 0; }
+#app > .temper-chats-page .temper-chats-intro { display: flex; flex-direction: column; gap: 16px; }
+#app > .temper-chats-page p { margin: 0; }
+#app > .temper-chats-page .temper-chats-kicker { font-size: 13px; color: var(--gf-muted); }
+#app > .temper-chats-page h1 { margin: 0; font: 500 32px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
+#app > .temper-chats-page .temper-chats-lede { font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }
+#app > .temper-chats-page .temper-chats-band { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; padding: 20px 24px; border-radius: 12px; background: #f1f1ee; }
+#app > .temper-chats-page .temper-chats-band > p { flex: 1 1 280px; }
+#app > .temper-chats-page .temper-chats-tag { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+#app > .temper-chats-page .temper-chats-section { display: flex; flex-direction: column; gap: 14px; }
+#app > .temper-chats-page .temper-chats-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#app > .temper-chats-page :is(.temper-chats-act, .temper-chats-more) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); text-decoration: none; text-align: left; }
+#app > .temper-chats-page .temper-chats-act:hover { border-color: #b4b4ae; }
+#app > .temper-chats-page .temper-chats-section-head > a { font-size: 13px; }
+#app > .temper-chats-page .temper-chats-band > a { border-color: var(--gf-signal-line); }
+#app > .temper-chats-page .temper-chats-more { align-self: flex-start; border-color: transparent; background: none; color: var(--gf-muted); }
+#app > .temper-chats-page .temper-chats-more:hover { background: var(--gf-hover); color: var(--gf-ink); }
+#app > .temper-chats-page .temper-filters { display: inline-flex; align-items: normal; flex-wrap: nowrap; justify-content: normal; gap: 2px; padding: 3px; border-radius: 9px; background: var(--gf-hover); }
+#app > .temper-chats-page .temper-filters button { min-height: 0; padding: 5px 12px; border: 0; border-radius: 7px; background: none; font: 400 13px/1.6 var(--gf-sans); color: var(--gf-muted); }
+#app > .temper-chats-page .temper-filters button[aria-pressed=true] { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+#app > .temper-chats-page .temper-empty { margin: 0; padding: 4px 0; border: 0; border-radius: 0; background: none; text-align: left; font: inherit; color: var(--gf-muted); }
+#app > .temper-chats-page .temper-chats-rows { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+#app > .temper-chats-page .temper-chats-row { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 18px 0; border-bottom: 1px solid var(--gf-line); }
+#app > .temper-chats-page .temper-chats-top { display: flex; justify-content: space-between; gap: 12px; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-chats-page .temper-chats-top a { color: inherit; text-decoration: none; }
+#app > .temper-chats-page .temper-chats-top a::after { content: ''; position: absolute; inset: 0; }
+#app > .temper-chats-page .temper-chats-top a:focus-visible { outline: none; }
+#app > .temper-chats-page .temper-chats-top a:focus-visible::after { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
+#app > .temper-chats-page .temper-chats-top [role=status] { display: inline; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; font: inherit; color: inherit; text-transform: lowercase; }
+#app > .temper-chats-page .temper-chats-top .temper-state-needs { color: var(--gf-signal); }
+#app > .temper-chats-page .temper-chats-top .temper-time { font: inherit; color: inherit; }
+#app > .temper-chats-page .temper-chats-line { font-size: 16px; }
+#app > .temper-chats-page .temper-chats-row:hover .temper-chats-line { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-chats-page .temper-chats-row-ended .temper-chats-line { color: var(--gf-muted); }
+#app > .temper-chats-page .temper-chats-row > .temper-details { display: none; }
+@media (max-width: 760px) {
+  #app > .temper-chats-page { padding: 8px 20px 112px; gap: 32px; }
+  #app > .temper-chats-page .temper-chats-intro { gap: 10px; }
+  #app > .temper-chats-page h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
+  #app > .temper-chats-page .temper-chats-lede { font-size: 15.5px; }
+  #app > .temper-chats-page .temper-chats-row { padding: 12px 0; }
+  #app > .temper-chats-page .temper-chats-line { font-size: 15px; }
+}
+
+
+:root:has(#app > :is(.temper-session, .temper-chats-page)) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73; --gf-hint: #8a8a93;
   --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-signal-pale: #fff7ed; --gf-signal-ink: #9a3412; --gf-signal-line: #f1d5bd; --gf-good: #15803d;
   --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
   --gf-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
 }
-:root:has(#app > .temper-session) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
+:root:has(#app > :is(.temper-session, .temper-chats-page)) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
 
 /* configure-chat-in-settings: "Tell temper how you work" opens a chat page of its own under Settings, as the greenfield mockup's chat.html?id=new&configure=1 draws it, in the project's frame: the rail, a top bar with the path back and the model, the configuring agent's line and three starters, the composer at the foot. */
 #app > .temper-session { width: auto; height: 100vh; height: 100dvh; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: 15px; letter-spacing: normal; }
@@ -1677,7 +1639,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-session-right > button:hover { border-color: #b4b4ae; }
 #app > .temper-session .temper-thread > [role=log] { flex: none; min-height: 0; padding: 0; overflow: visible; }
 #app > .temper-session .temper-thread > :not(.temper-cards) { width: 100%; }
-.temper-row > .temper-meta > .temper-configuring-tag { display: inline-flex; margin: 0; padding: 1px 8px; border: 1px solid var(--gf-line-2); border-radius: 999px; color: var(--gf-muted); font-size: 12px; line-height: 1.5; white-space: nowrap; }
 
 /* The new chat keeps the mock's centred context in the shared session column. */
 #app > .temper-session .temper-thread > .temper-meta-line { width: 100%; max-width: 720px; margin: 0 auto; text-align: center; font-size: 12px; color: var(--gf-faint); }

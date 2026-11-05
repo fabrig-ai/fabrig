@@ -491,11 +491,15 @@ pub enum Word {
     TakeDelegate,
     Older,
     FirstChat,
+    ChatsKicker,
+    ChatsHeadlineIn,
+    ChatsHeadline,
+    ChatsLede,
+    ChatsNoRepositoryLine,
+    ChatsNone,
     YourChats,
     AllChats,
     NoChats,
-    NoLiveChats,
-    NoClosedChats,
     LiveChats,
     ClosedChats,
     MoreClosedChats,
@@ -845,7 +849,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
 // New chat adds three phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1345;
+// Chats adds six phrases and removes two filter empty phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1349;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -858,8 +863,9 @@ const PHRASES: u32 = 1345;
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
 // New chat adds nine literal and hole segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 2330;
-const ALL: [Word; 749] = [
+// Chats adds fourteen segments and removes two (client/README.md, 3.5).
+const SEGMENTS: u32 = 2342;
+const ALL: [Word; 753] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1326,11 +1332,15 @@ const ALL: [Word; 749] = [
     Word::TakeDelegate,
     Word::Older,
     Word::FirstChat,
+    Word::ChatsKicker,
+    Word::ChatsHeadlineIn,
+    Word::ChatsHeadline,
+    Word::ChatsLede,
+    Word::ChatsNoRepositoryLine,
+    Word::ChatsNone,
     Word::YourChats,
     Word::AllChats,
     Word::NoChats,
-    Word::NoLiveChats,
-    Word::NoClosedChats,
     Word::LiveChats,
     Word::ClosedChats,
     Word::MoreClosedChats,
@@ -2109,11 +2119,15 @@ impl Word {
             Self::Stop => 148,
             Self::Older => 149,
             Self::FirstChat => 2183,
+            Self::ChatsKicker => 3210,
+            Self::ChatsHeadlineIn => 3211,
+            Self::ChatsHeadline => 3212,
+            Self::ChatsLede => 3213,
+            Self::ChatsNoRepositoryLine => 3214,
+            Self::ChatsNone => 3215,
             Self::YourChats => 347,
             Self::AllChats => 348,
             Self::NoChats => 349,
-            Self::NoLiveChats => 350,
-            Self::NoClosedChats => 351,
             Self::LiveChats => 140,
             Self::ClosedChats => 141,
             Self::MoreClosedChats => 142,
@@ -2581,7 +2595,8 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401, its tag 11 and New chat 157 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 157,
+            // Chats adds 141 net literal bytes (client/README.md, 3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 157 + 141,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3210,10 +3225,14 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Configuring => (&[b"Configuring"], &[]),
         Word::ConfigureWhere => (&[b"Where"], &[]),
         Word::FirstChat => (&[b"Tell temper how you work"], &[]),
+        Word::ChatsKicker => (&[b"", b" \xc2\xb7 chats"], &[Name]),
+        Word::ChatsHeadlineIn => (&[b"Talk to an agent about ", b"/", b"."], &[Name, Name]),
+        Word::ChatsHeadline => (&[b"Talk to an agent."], &[]),
+        Word::ChatsLede => (&[b"A chat answers a question or changes the code."], &[]),
+        Word::ChatsNoRepositoryLine => (&[b"Chats in ", b" talk and plan, but change no code until a repository is in."], &[Name]),
+        Word::ChatsNone => (&[b"None."], &[]),
         Word::YourChats => (&[b"Your chats"], &[]),
         Word::NoChats => (&[b"No chats yet."], &[]),
-        Word::NoLiveChats => (&[b"No live chats."], &[]),
-        Word::NoClosedChats => (&[b"No closed chats."], &[]),
         Word::LiveChats | Word::Live => (&[b"Live"], &[]),
         Word::MoreClosedChats => (&[b"More closed chats"], &[]),
         Word::Chat | Word::TaskWho => (&[b"T", b""], &[Number]),

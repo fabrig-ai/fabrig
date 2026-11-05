@@ -135,7 +135,9 @@ fn ready_adopts_the_first_repository_with_nothing_typed() {
     assert_eq!(root.person().pages().adopting().expect("Ready's adoption").ended, None);
     accounts::event(&mut front, &mut root, Temper::went(fixtures::chats_page()));
     let chats = super::connect_forge::view(&root);
-    assert!(!chats.tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"No repository yet")));
+    assert!(
+        !chats.tree().nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == b"No repository yet"))
+    );
 }
 
 fn press_adoption(

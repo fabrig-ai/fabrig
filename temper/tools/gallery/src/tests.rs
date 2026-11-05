@@ -309,11 +309,13 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "playground-resetting", heading: "Chats", parts: &[Part::Text { text: "Leaving the playground…" }]
+        name: "playground-resetting",
+        heading: "Talk to an agent",
+        parts: &[Part::Text { text: "Leaving the playground…" }],
     },
     Holds {
         name: "chats-first-run-5",
-        heading: "Chats",
+        heading: "Talk to an agent",
         parts: &[
             Part::Absent { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Region, name: "Playground" },
@@ -634,11 +636,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "configure-chats-tag",
-        heading: "Chats",
-        parts: &[
-            Part::Named { role: Role::Paragraph, name: "Configuring" },
-            Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED },
-        ],
+        heading: "Talk to an agent",
+        parts: &[Part::Text { text: "Configuring" }, Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED }],
     },
     Holds {
         name: "chat-new",
@@ -661,8 +660,19 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "chats-no-repository",
+        heading: "Talk to an agent.",
+        parts: &[
+            Part::Text { text: "No repository yet" },
+            Part::Text { text: "Chats in Hello talk and plan, but change no code until a repository is in." },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
+        ],
+    },
+    Holds { name: "chats-live", heading: "Talk to an agent", parts: &[Part::Chats { live: SOLO_LIVE, closed: 0 }] },
+    Holds { name: "chats-closed", heading: "Talk to an agent", parts: &[Part::Chats { live: 0, closed: SOLO_CLOSED }] },
+    Holds {
         name: "chats-solo",
-        heading: "Chats",
+        heading: "Talk to an agent",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Why is tally sum slow on big files?" },
             Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED },
@@ -721,10 +731,10 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-1",
-        heading: "Chats",
+        heading: "Talk to an agent",
         parts: &[
             Part::Absent { role: Role::List, name: "Suggested requests" },
-            Part::Named { role: Role::Paragraph, name: "No chats yet." },
+            Part::Named { role: Role::Paragraph, name: "None." },
             Part::Named { role: Role::Region, name: "Playground" },
         ],
     },
@@ -758,7 +768,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-reference",
-        heading: "Chats",
+        heading: "Talk to an agent",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Director" },
             Part::Chats { live: REFERENCE_LIVE, closed: REFERENCE_CLOSED },
@@ -834,8 +844,11 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-empty",
-        heading: "Chats",
-        parts: &[Part::Named { role: Role::Heading { level: 1 }, name: "Chats" }, Part::Chats { live: 0, closed: 0 }],
+        heading: "Talk to an agent",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 1 }, name: "Talk to an agent" },
+            Part::Chats { live: 0, closed: 0 },
+        ],
     },
     Holds {
         name: "inbox-empty",
@@ -1222,7 +1235,7 @@ fn print_writes_every_page_and_the_bundle() {
     let closing = fs::read_to_string(out.join("chat-closing.html")).expect("confirmation page");
     assert!(closing.contains("<dialog open "), "static confirmation opens");
     let chats = fs::read_to_string(out.join("chats-solo.html")).expect("chats page");
-    assert!(chats.contains("<title>Chats · temper</title>"), "shell heading title");
+    assert!(chats.contains("<title>Talk to an agent. · temper</title>"), "shell heading title");
     let signed_out = fs::read_to_string(out.join("signed-out.html")).expect("signed-out page");
     assert!(signed_out.contains("<title>temper</title>"), "shell title without heading");
     // Reprinting replaces the whole owned directory, including stale files.
@@ -1263,8 +1276,8 @@ fn print_refuses_a_directory_not_its_own() {
 #[test]
 fn times_read_against_each_mockup_worlds_fixed_now() {
     for (name, expected) in [
-        ("chats-solo", "1 h 28 min ago"),
-        ("chats-reference", "50 min ago"),
+        ("chats-solo", "1 h 28 min"),
+        ("chats-reference", "50 min"),
         ("inbox-solo", "Waiting 12 min"),
         ("inbox-solo", "Waiting 18 min"),
         ("chat-solo-T10", "waiting 12 min"),
