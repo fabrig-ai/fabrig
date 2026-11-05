@@ -1666,7 +1666,9 @@ delegate's terminal wakes it to offer the landed result.
   the base merged in and what landed in it; or, for
   a change the forge's merge queue ejected, the forge's reason, the
   pull request's `dequeued` (9.1). It pushes a new head, and the
-  change is checked again.
+  change is checked again. Where the head's failed checks are not
+  known, its words say so, `no failed check named`, in the name's place,
+  never an empty name.
   For each failed check, the brief carries its context, description and
   link, then the step that failed, by name, and the end of that step's
   log, where a step tells its failure; the job's whole log's end when no
@@ -1785,6 +1787,13 @@ delegate's terminal wakes it to offer the landed result.
   current authority, counted against the reset repair allowance. The
   replacement's result supersedes the failed delegate's, including
   after a restart; a pending replacement is not asked twice.
+  A delegate a person cancels holds at the same count and is released
+  the same way, and its hold says what happened: `its repair, task N,
+  was cancelled`, with the cancel's reason where it gave one, within the
+  hold's bytes (`its resolution`, `its merge job`, `its producer`). A
+  cancelled repair, resolution or merge job holds as a decision of the
+  procedure, not as a failed effect; a cancelled producer keeps a failed
+  producer's hold, carrying those words.
   A change is a procedure, with no run of its own to repeat: a
   release asking to run it again is refused saying so, never as
   missing authority.

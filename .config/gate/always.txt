@@ -8,3 +8,4 @@ temper-stage-one
 skein-oauth-world
 fabrig-boundary
 hearth-render-world hearth/
+hearth-builder-world hearth/tests/render/

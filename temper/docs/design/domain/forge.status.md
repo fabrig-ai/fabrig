@@ -35,6 +35,11 @@
   - 8.4: widening exhausted spend with ctl before release: `task amend`'s
     `--budget` is not implemented (`../client/tools.md`, 5.5). A spend
     hold offers cancellation or asking afresh instead.
+  - 8.4: `change show`'s `held:` line for a cancelled delegate reads `a
+    delegate or a write failed for good`: the panel's hold is the client
+    wire's `failed` (`temper-client-protocol-wire/schema/client-wire-v1.schema`,
+    `Hold`), and its words are the client's
+    (`temper-client-domain/src/forge/words.rs`, `FailedHold`).
   - 8.4, 8.5: a goal's landing held past its repairs, then released after
     a change into its goal branch (`../draft/reference-landing.md`,
     section 9's second story), is built, but its story is ignored: after

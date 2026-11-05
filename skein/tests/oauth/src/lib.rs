@@ -82,7 +82,7 @@ pub fn registration(public: bool) -> oauth::Registration {
         },
         scope: boxed(b"read profile"),
         wire: if public { oauth::WireFormat::Form } else { oauth::WireFormat::Json },
-        client_secret: if public { None } else { Some(boxed(b"secret")) },
+        client_secret: if public { None } else { Some(skein_lib::Secret::new(boxed(b"secret"))) },
         pkce_for_confidential: false,
         metadata_claim: None,
         terms: None,
@@ -109,7 +109,7 @@ pub fn configured_issuer(registration: &oauth::Registration, terms: Option<fake:
             client_id: registration.client_id.clone(),
             client_secret: registration.client_secret.clone(),
             redirect_uri: registration.redirect_uri.clone(),
-            refresh_token: boxed(b"seed"),
+            refresh_token: skein_lib::Secret::new(boxed(b"seed")),
             terms,
         },
         fake_limits(),
@@ -161,8 +161,8 @@ pub fn success(access: &[u8], refresh: Option<&[u8]>, delay: u64) -> fake::Plan 
     fake::Plan {
         status: 200,
         body: fake::Body::Token(oauth::TokenResponse {
-            access_token: boxed(access),
-            refresh_token: refresh.map(boxed),
+            access_token: skein_lib::Secret::new(boxed(access)),
+            refresh_token: refresh.map(boxed).map(skein_lib::Secret::new),
             expires_in: 30,
             scope: None,
             id_token: None,
@@ -301,7 +301,7 @@ fn start(
     seconds: u64,
 ) -> Option<oauth::Request> {
     let verifier = if registration.client_secret.is_none() || registration.pkce_for_confidential {
-        Some(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+        Some(skein_lib::Secret::new(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")))
     } else {
         None
     };
@@ -314,9 +314,9 @@ fn start(
             registration,
             key: 7,
             generation: 0,
-            state: boxed(b"0123456789abcdef"),
+            state: skein_lib::Secret::new(boxed(b"0123456789abcdef")),
             verifier,
-            nonce,
+            nonce: nonce.map(skein_lib::Secret::new),
             port,
             now: time(seconds),
         },

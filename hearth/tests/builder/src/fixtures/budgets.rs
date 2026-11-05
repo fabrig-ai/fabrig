@@ -3,7 +3,7 @@ use super::{File, Scenario};
 use crate::domain;
 use hearth_domain_builder::vocabulary::{Call, Request};
 use hearth_domain_render::{revision::Oid, vocabulary::Request as RenderRequest};
-use hearth_render_world::golden;
+use hearth_test_render::golden;
 use std::collections::BTreeSet;
 
 /// Session 47 compares three generated repositories through eight pipe schedules.

@@ -135,8 +135,8 @@ pub fn kept() -> oauth::SavedToken {
     oauth::SavedToken {
         key: ACCOUNT_CHAT,
         generation: 1,
-        access_token: bytes::copy_of(TOKEN_FIRST),
-        refresh_token: Some(bytes::copy_of(b"seed")),
+        access_token: skein_lib::Secret::new(bytes::copy_of(TOKEN_FIRST)),
+        refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"seed"))),
         metadata: None,
         expires_at: Wall::from_nanos(Duration::from_secs(300).as_nanos()),
         issued_client_id: None,
@@ -151,8 +151,8 @@ pub fn rotate() -> fake::Plan {
     fake::Plan {
         status: 200,
         body: fake::Body::Token(oauth::TokenResponse {
-            access_token: bytes::copy_of(TOKEN_SECOND),
-            refresh_token: Some(bytes::copy_of(b"next")),
+            access_token: skein_lib::Secret::new(bytes::copy_of(TOKEN_SECOND)),
+            refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"next"))),
             expires_in: 300,
             scope: None,
             id_token: None,

@@ -47,7 +47,7 @@ fn fixed_zero() -> Account {
 }
 fn new_refuses(account: Account) -> Option<Unusable> {
     let mut configured = List::with_capacity(1);
-    configured.push(account).ok().expect("one account");
+    configured.push(account).expect("one account");
     Component::new(configured, &limits(), crypto(17)).err()
 }
 fn add_refuses(account: Account) -> Option<Unusable> {
@@ -104,7 +104,7 @@ fn redirected(suffix: &[u8]) -> RedirectOutcome {
     let mut account = refresh_account(0, ADDRESS);
     if let Account::SignIn { registration, keeper, .. } = &mut account {
         registration.terms = Some(issued_terms());
-        registration.client_secret = Some(bytes::copy_of(b"secret"));
+        registration.client_secret = Some(skein_lib::Secret::new(bytes::copy_of(b"secret")));
         registration.redirect_uri = bytes::copy_of(b"https://service.example/callback");
         *keeper = Keeper::Owner { kept: None };
     }
@@ -276,7 +276,7 @@ fn signing_in_again_carries_the_held_records_hints() {
         registration.terms = Some(issued_terms());
         if let Keeper::Owner { kept: Some(record) } = keeper {
             record.issued_client_id = Some(bytes::copy_of(b"issued"));
-            record.id_token = Some(bytes::copy_of(b"token"));
+            record.id_token = Some(skein_lib::Secret::new(bytes::copy_of(b"token")));
             record.subject = Some(bytes::copy_of(b"person"));
         }
     }
@@ -306,7 +306,7 @@ fn restart_owner(accounts: u32, varying_port: bool, listeners: u32) -> Owner {
     let mut configured = List::with_capacity(accounts);
     for number in 0..accounts {
         let account = refresh_account(number, ADDRESS);
-        configured.push(if varying_port { varying(account, PREFERRED) } else { account }).ok().expect("account room");
+        configured.push(if varying_port { varying(account, PREFERRED) } else { account }).expect("account room");
     }
     Owner::configured(configured.into_boxed(), &profile)
 }

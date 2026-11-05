@@ -22,7 +22,7 @@ impl Accounts {
                                 renewable: account.scheme() == smith_host_domain::Scheme::Bearer,
                             },
                         },
-                        value: token,
+                        value: token.into_exposed(),
                     });
                 }
                 Some(oauth::Event::Expiring { account, .. }) => {

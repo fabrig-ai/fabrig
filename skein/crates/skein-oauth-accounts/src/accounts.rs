@@ -7,7 +7,7 @@ use skein_oauth::{Registration, SavedToken};
 use skein_tls::{Config, Name};
 
 /// One configured account, supplied by the owner before the loop.
-#[expect(missing_debug_implementations, reason = "configuration may hold credentials")]
+#[derive(Debug)]
 #[expect(
     clippy::large_enum_variant,
     reason = "bounded startup configuration follows oauth.md section 6.2 without an extra allocation"
@@ -43,7 +43,7 @@ pub enum Transport {
 }
 
 /// Who durably keeps this signed-in account's records.
-#[expect(missing_debug_implementations, reason = "the keeper holds token records")]
+#[derive(Debug)]
 pub enum Keeper {
     /// The owner's store; each candidate goes out as Keep and waits for Kept.
     Owner { kept: Option<SavedToken> },
