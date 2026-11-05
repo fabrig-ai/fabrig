@@ -2,9 +2,6 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.5: no page of temper's prints `viewport-fit=cover`, so
-  the tab bar's `env(safe-area-inset-bottom)` is 0 and a phone's home bar
-  covers it; a chat's foot and the toast take no safe area.
 - **Not yet:** 7.2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
   `goal-toast` answers Pause without delivering a paused task document, so
