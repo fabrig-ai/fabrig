@@ -146,3 +146,59 @@ fn a_moved_refusal_says_look_again_and_dismisses() {
     act(&mut root, pages::Act::Needs(needs::Act::Dismiss));
     assert!(toast_at(f::browser_page_view(&root).tree()).is_none());
 }
+
+fn away_answer(until: Option<Wall>, off: Option<Wall>, refused: bool) -> d::Domain {
+    let mut root = f::away_root(until, off);
+    let attempt = f::away_toggle(&mut root);
+    f::playground_start_answer(
+        &mut root,
+        attempt,
+        if refused {
+            temper_client_protocol_wire::v1::Outcome::Unknown
+        } else {
+            temper_client_protocol_wire::v1::Outcome::Away
+        },
+    );
+    root
+}
+#[test]
+fn on_says_until_and_offers_limits() {
+    for until in [Some(Wall::from_nanos(28_800_000_000_000)), None] {
+        let root = away_answer(until, Some(Wall::EPOCH), false);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let said = if until.is_some() {
+                "Away until 08:00: agents decide within Shop’s limits."
+            } else {
+                "Away: agents decide within Shop’s limits."
+            };
+            assert_eq!(f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(), said.as_bytes());
+            let limits = f::find(view.tree(), Role::Button, b"Limits").unwrap();
+            assert_eq!(
+                crate::act(&mut view, limits, Act::Press),
+                Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Limits { project: f::PROJECT })))
+            );
+        }
+    }
+}
+#[test]
+fn off_says_questions_wait() {
+    let root = away_answer(None, None, false);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(
+            f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
+            b"Away is off: questions wait for you again."
+        );
+        assert!(f::find(view.tree(), Role::Button, b"Limits").is_none());
+    }
+}
+#[test]
+fn refused_says_try_again() {
+    let root = away_answer(None, None, true);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(
+            f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
+            "Away didn’t change. Try again.".as_bytes()
+        );
+        assert!(f::find(view.tree(), Role::Button, b"Limits").is_none());
+    }
+}

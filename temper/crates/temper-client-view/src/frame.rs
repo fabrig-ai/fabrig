@@ -501,6 +501,7 @@ pub(crate) fn rail(
     bindings: &mut Bindings,
     forge: &mut crate::forge::bindings::Bindings,
     project: u32,
+    times: &mut crate::words::Times,
 ) {
     use crate::words::{Shell, Word};
     b.open(Role::Navigation);
@@ -512,6 +513,9 @@ pub(crate) fn rail(
     w.text(b, Word::Brand, &[]);
     b.close();
     switcher(b, root, w, bindings, Some(project), Place::Rail);
+    if w.shell == Shell::Browser {
+        away(b, root, w, bindings, times, project, crate::look::AWAY_CHIP);
+    }
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
     entries(b, root, w, bindings, project, shown(root, project));
@@ -547,6 +551,7 @@ pub(crate) fn rail(
     if behind && w.shell == Shell::Browser {
         text(b, Role::Status, &w.say(Word::Behind, &[]), Some(crate::look::BEHIND));
     }
+    away(b, root, w, bindings, times, project, crate::look::AWAY);
     settings_link(b, root, w, bindings, project);
     if let Some(me) = root.pages().me(root.client()) {
         text(b, Role::Status, me.party.name.bytes(), None);
@@ -555,6 +560,55 @@ pub(crate) fn rail(
         text(b, Role::Alert, &w.say(Word::SignOutLost, &[]), None);
     }
     b.close();
+    b.close();
+}
+
+/// The shared switch and browser chip (temper/docs/design/client/README.md, 3.5, Away).
+fn away(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    times: &mut crate::words::Times,
+    project: u32,
+    style: skein_ui::Style,
+) {
+    use crate::words::{TimeForm, Word};
+    if !root.away_shown(project, times.now) {
+        return;
+    }
+    let on = root.away_on(project, times.now);
+    let until = match root.forge().away(project) {
+        Some(row) => row.until,
+        None => None,
+    };
+    let said = if on {
+        match until {
+            Some(until) => {
+                times.next = [times.next, Some(until)].into_iter().flatten().min();
+                let clock = times.say(w, TimeForm::Clock, until);
+                w.say(Word::AwayUntil, &[skein_ui::phrases::Hole::Name(clock)])
+            }
+            None => w.say(Word::Away, &[]),
+        }
+    } else {
+        w.say(if style == crate::look::AWAY_CHIP { Word::AwayChipOff } else { Word::Away }, &[])
+    };
+    b.open(Role::Button);
+    b.style(style);
+    b.name(&said);
+    b.bind(bindings.insert(Act::Away(temper_client_domain::pages::away::Act::Toggle { project })));
+    if on {
+        b.state(skein_ui::State::Pressed);
+    }
+    if root.pages().away_busy() {
+        b.state(skein_ui::State::Disabled);
+    }
+    if style == crate::look::AWAY {
+        b.open(Role::Slot);
+        b.style(crate::look::AWAY_TRACK);
+        b.close();
+    }
     b.close();
 }
 
@@ -965,7 +1019,13 @@ pub(crate) fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::
 }
 
 /// The session's transient status and held answer's Undo (client/README.md, 3.5).
-pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
+pub(crate) fn toast(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    times: &mut crate::words::Times,
+) {
     use crate::words::Word;
     use temper_client_domain::pages::needs::{self, Toasted};
     let session = root.pages().needs();
@@ -978,7 +1038,23 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
         Toasted::Paused => (w.say(Word::ToastPaused, &[]), None),
         Toasted::Resumed => (w.say(Word::ToastResumed, &[]), None),
-        Toasted::AwayOn { .. } | Toasted::AwayOff | Toasted::AwayRefused => return,
+        Toasted::AwayOn { project, until } => {
+            let name =
+                crate::pages::project_name(root.pages().me(root.client()), *project).expect("Away project has a name");
+            let said = match until {
+                Some(until) => {
+                    let clock = times.say(w, crate::words::TimeForm::Clock, *until);
+                    w.say(
+                        Word::ToastAwayOnUntil,
+                        &[skein_ui::phrases::Hole::Name(clock), skein_ui::phrases::Hole::Name(name)],
+                    )
+                }
+                None => w.say(Word::ToastAwayOn, &[skein_ui::phrases::Hole::Name(name)]),
+            };
+            (said, None)
+        }
+        Toasted::AwayOff => (w.say(Word::ToastAwayOff, &[]), None),
+        Toasted::AwayRefused => (w.say(Word::ToastAwayRefused, &[]), None),
         Toasted::Proposed { .. } | Toasted::Refused { .. } => (Box::default(), None),
     };
     b.open(Role::Status);
@@ -1004,6 +1080,16 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
         | Toasted::Later
         | Toasted::Paused
         | Toasted::Resumed => b.text(Run::Plain, &said),
+    }
+    if let Toasted::AwayOn { project, .. } = toast {
+        action(
+            b,
+            Role::Button,
+            &w.say(Word::AwayLimits, &[]),
+            Act::Away(temper_client_domain::pages::away::Act::Limits { project: *project }),
+            false,
+            bindings,
+        );
     }
     if let Some(object) = undo
         && session.held(object)

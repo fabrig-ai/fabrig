@@ -1096,6 +1096,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-sheet-link",
         b"temper-sheet-foot",
         b"temper-sheet-error",
+        b"temper-away",
+        b"temper-away-chip",
+        b"temper-away-track",
     ],
     regions: &[b"temper-link"],
 };
@@ -1200,6 +1203,11 @@ pub const SETTINGS_REFUSAL: Style = Style { owner: owner(), token: 360 };
 pub const SETTINGS_ROW: Style = Style { owner: owner(), token: 374 };
 pub const SETTINGS_PATH: Style = Style { owner: owner(), token: 375 };
 pub const SETTINGS_EMPTY: Style = Style { owner: owner(), token: 376 };
+
+/// Away controls (temper/docs/design/client/README.md, 3.5).
+pub const AWAY: Style = Style { owner: owner(), token: 419 };
+pub const AWAY_CHIP: Style = Style { owner: owner(), token: 420 };
+pub const AWAY_TRACK: Style = Style { owner: owner(), token: 421 };
 
 #[cfg(test)]
 mod tests {

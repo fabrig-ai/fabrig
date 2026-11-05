@@ -127,12 +127,15 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (SHEET_FOOT, b"temper-sheet-foot"),
     (SHEET_ERROR, b"temper-sheet-error"),
 ];
-const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
+const RAIL_NAMES: [(skein_ui::Style, &[u8]); 8] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
     (RAIL_NEW, b"temper-rail-new"),
     (RAIL_FOOT, b"temper-rail-foot"),
     (TABBAR, b"temper-tabbar"),
+    (AWAY, b"temper-away"),
+    (AWAY_CHIP, b"temper-away-chip"),
+    (AWAY_TRACK, b"temper-away-track"),
 ];
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
