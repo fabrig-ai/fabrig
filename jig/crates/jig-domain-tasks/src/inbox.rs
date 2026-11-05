@@ -1,6 +1,6 @@
 //! Bounded task messages and atomic turn reads (domain/tasks.md, section 8.2).
 use crate::domain::{Domain, publish, record, task_mut};
-use crate::{Limits, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Word};
+use crate::{MessageFamily, Hint, Slot, Spoken, Limits, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Word};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
 
@@ -114,30 +114,16 @@ pub(crate) fn prepare_staged(
             word.hits = old.hits.saturating_add(1);
             word.eligible = old.eligible;
             // A later quiet hint cannot erase an earlier unread wake.
-            match old.kind {
-                MessageKind::News { subscription, class: NewsClass::Wakes } => {
+            match old.kind.family() {
+                MessageFamily::Hint(Hint::News { subscription, class: NewsClass::Wakes }) => {
                     word.kind = MessageKind::News { subscription, class: NewsClass::Wakes };
                 }
-                MessageKind::EffectNotMade { .. }
-                | MessageKind::Words
-                | MessageKind::Question
-                | MessageKind::Answer { .. }
-                | MessageKind::Proposal { .. }
-                | MessageKind::Escalation { .. }
-                | MessageKind::SettingsDecision { .. }
-                | MessageKind::ProposalDecision { .. }
-                | MessageKind::PersonStalled { .. }
-                | MessageKind::Result(_)
-                | MessageKind::Notice { .. }
-                | MessageKind::Timer { .. }
-                | MessageKind::FinishRequested { .. }
-                | MessageKind::Amendment { .. }
-                | MessageKind::Met { .. }
-                | MessageKind::QuestionAnswered { .. }
-                | MessageKind::QuestionOwed
-                | MessageKind::NothingAwaited
-                | MessageKind::QuestionEnded { .. }
-                | MessageKind::News { class: NewsClass::Kept | NewsClass::Dropped, .. } => {}
+                MessageFamily::Hint(Hint::News { class: NewsClass::Kept | NewsClass::Dropped, .. }
+                    | Hint::Notice { .. } | Hint::Timer { .. })
+                | MessageFamily::Spoken(_)
+                | MessageFamily::Slot(_)
+                | MessageFamily::Result
+                | MessageFamily::Virtual => {}
             }
         } else {
             inbox.push(old.clone()).expect("admitted inbox subset");
@@ -197,30 +183,13 @@ pub(crate) fn room_staged(
     let mut extra_count = 0_usize;
     let mut extra_bytes = 0_usize;
     for word in record.inbox {
-        match word.kind {
-            MessageKind::Amendment { .. }
-            | MessageKind::FinishRequested { .. }
-            | MessageKind::Met { .. }
-            | MessageKind::NothingAwaited => {
+        match word.kind.family() {
+            MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested | Slot::Met | Slot::NothingAwaited) => {
                 extra_count = extra_count.checked_add(1).expect("bounded merged slots");
                 extra_bytes = extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
             }
-            MessageKind::QuestionAnswered { .. }
-            | MessageKind::QuestionOwed
-            | MessageKind::QuestionEnded { .. }
-            | MessageKind::EffectNotMade { .. }
-            | MessageKind::Words
-            | MessageKind::Question
-            | MessageKind::Answer { .. }
-            | MessageKind::Proposal { .. }
-            | MessageKind::Escalation { .. }
-            | MessageKind::SettingsDecision { .. }
-            | MessageKind::ProposalDecision { .. }
-            | MessageKind::PersonStalled { .. }
-            | MessageKind::Result(_)
-            | MessageKind::Notice { .. }
-            | MessageKind::Timer { .. }
-            | MessageKind::News { .. } => {}
+            MessageFamily::Slot(Slot::EffectNotMade | Slot::SettingsDecision | Slot::ProposalDecision | Slot::QuestionAnswered | Slot::QuestionOwed | Slot::QuestionEnded | Slot::PersonStalled)
+            | MessageFamily::Spoken(_) | MessageFamily::Hint(_) | MessageFamily::Result | MessageFamily::Virtual => {}
         }
     }
     let total_count = total_count.saturating_sub(extra_count);
@@ -318,25 +287,9 @@ pub(crate) fn check_message(
         Party::Task(source) => crate::refs::allows(domain, source, number),
         Party::Deployment { .. } => false,
     };
-    let sendable = match word.kind {
-        MessageKind::Words | MessageKind::Question | MessageKind::Answer { .. } => true,
-        MessageKind::EffectNotMade { .. }
-        | MessageKind::Proposal { .. }
-        | MessageKind::Escalation { .. }
-        | MessageKind::FinishRequested { .. }
-        | MessageKind::Amendment { .. }
-        | MessageKind::Met { .. }
-        | MessageKind::QuestionAnswered { .. }
-        | MessageKind::QuestionOwed
-        | MessageKind::NothingAwaited
-        | MessageKind::QuestionEnded { .. }
-        | MessageKind::SettingsDecision { .. }
-        | MessageKind::ProposalDecision { .. }
-        | MessageKind::PersonStalled { .. }
-        | MessageKind::Result(_)
-        | MessageKind::Notice { .. }
-        | MessageKind::Timer { .. }
-        | MessageKind::News { .. } => false,
+    let sendable = match word.kind.family() {
+        MessageFamily::Spoken(_) => true,
+        MessageFamily::Hint(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => false,
     };
     if task.project != project || !requester || !sendable {
         return Err(Box::new(crate::Problem {
@@ -390,9 +343,9 @@ pub(crate) fn check_message(
             capacity: None,
         }));
     }
-    let answer = match word.kind {
-        MessageKind::Words | MessageKind::Question => None,
-        MessageKind::Answer { question } => {
+    let answer = match word.kind.family() {
+        MessageFamily::Spoken(Spoken::Words | Spoken::Question) => None,
+        MessageFamily::Spoken(Spoken::Answer { question }) => {
             let valid = match word.from {
                 Party::Task(answerer) => {
                     let mut found = false;
@@ -441,23 +394,7 @@ pub(crate) fn check_message(
                 Party::Deployment { .. } => None,
             }
         }
-        MessageKind::EffectNotMade { .. }
-        | MessageKind::Proposal { .. }
-        | MessageKind::Escalation { .. }
-        | MessageKind::FinishRequested { .. }
-        | MessageKind::Amendment { .. }
-        | MessageKind::Met { .. }
-        | MessageKind::QuestionAnswered { .. }
-        | MessageKind::QuestionOwed
-        | MessageKind::NothingAwaited
-        | MessageKind::QuestionEnded { .. }
-        | MessageKind::SettingsDecision { .. }
-        | MessageKind::ProposalDecision { .. }
-        | MessageKind::PersonStalled { .. }
-        | MessageKind::Result(_)
-        | MessageKind::Notice { .. }
-        | MessageKind::Timer { .. }
-        | MessageKind::News { .. } => {
+        MessageFamily::Hint(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => {
             unreachable!("root hints have reserved entrances")
         }
     };

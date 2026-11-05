@@ -1,5 +1,5 @@
 //! Configuration and retained-value bounds at load (jig/docs/design/domain/engine.md, 6).
-use crate::{
+use crate::{MessageFamily, Slot, 
     Amendment, Authority, Contract, Domain, Ending, Executor, HoldSource, Last, Limits, MessageKind, New, Numbers,
     Parameter, PersonAction, PersonProposal, Phase, ProposalAction, RestoreBound, RestoreCause, RestoreLlmWhy,
     ResultField, ResultKind, Spec, TaskRecord, TaskResult, Was,
@@ -387,27 +387,10 @@ fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
 }
 
 fn ordinary(kind: &MessageKind) -> bool {
-    match kind {
-        MessageKind::Amendment { .. }
-        | MessageKind::FinishRequested { .. }
-        | MessageKind::Met { .. }
-        | MessageKind::NothingAwaited => false,
-        MessageKind::Words
-        | MessageKind::Question
-        | MessageKind::Answer { .. }
-        | MessageKind::EffectNotMade { .. }
-        | MessageKind::Proposal { .. }
-        | MessageKind::Escalation { .. }
-        | MessageKind::SettingsDecision { .. }
-        | MessageKind::ProposalDecision { .. }
-        | MessageKind::QuestionAnswered { .. }
-        | MessageKind::QuestionOwed
-        | MessageKind::QuestionEnded { .. }
-        | MessageKind::Notice { .. }
-        | MessageKind::Timer { .. }
-        | MessageKind::News { .. }
-        | MessageKind::PersonStalled { .. }
-        | MessageKind::Result(_) => true,
+    match kind.family() {
+        MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested | Slot::Met | Slot::NothingAwaited) => false,
+        MessageFamily::Slot(Slot::EffectNotMade | Slot::SettingsDecision | Slot::ProposalDecision | Slot::QuestionAnswered | Slot::QuestionOwed | Slot::QuestionEnded | Slot::PersonStalled)
+        | MessageFamily::Spoken(_) | MessageFamily::Hint(_) | MessageFamily::Result | MessageFamily::Virtual => true,
     }
 }
 
@@ -481,29 +464,15 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
             ordinary_count = ordinary_count.checked_add(1).ok_or(RestoreCause::Accounting)?;
             bytes = bytes.checked_add(size).ok_or(RestoreCause::Accounting)?;
         } else {
-            match word.kind {
-                MessageKind::Met { .. } | MessageKind::NothingAwaited => {
+            match word.kind.family() {
+                MessageFamily::Slot(Slot::Met | Slot::NothingAwaited) => {
                     met = met.checked_add(1).ok_or(RestoreCause::Accounting)?;
                 }
-                MessageKind::Amendment { .. } | MessageKind::FinishRequested { .. } => {
+                MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested) => {
                     amendments = amendments.checked_add(1).ok_or(RestoreCause::Accounting)?;
                 }
-                MessageKind::Words
-                | MessageKind::Question
-                | MessageKind::Answer { .. }
-                | MessageKind::EffectNotMade { .. }
-                | MessageKind::Proposal { .. }
-                | MessageKind::Escalation { .. }
-                | MessageKind::SettingsDecision { .. }
-                | MessageKind::ProposalDecision { .. }
-                | MessageKind::QuestionAnswered { .. }
-                | MessageKind::QuestionOwed
-                | MessageKind::QuestionEnded { .. }
-                | MessageKind::Notice { .. }
-                | MessageKind::Timer { .. }
-                | MessageKind::News { .. }
-                | MessageKind::PersonStalled { .. }
-                | MessageKind::Result(_) => {}
+                MessageFamily::Slot(Slot::EffectNotMade | Slot::SettingsDecision | Slot::ProposalDecision | Slot::QuestionAnswered | Slot::QuestionOwed | Slot::QuestionEnded | Slot::PersonStalled)
+                | MessageFamily::Spoken(_) | MessageFamily::Hint(_) | MessageFamily::Result | MessageFamily::Virtual => {}
             }
         }
     }

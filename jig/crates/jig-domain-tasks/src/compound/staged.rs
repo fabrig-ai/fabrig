@@ -1,6 +1,6 @@
 //! Borrow unchanged fields and project only what admitted operations change.
 use super::{Plan, Staged};
-use crate::{Active, Executor, Funder, Grace, Numbers, Party, Phase, Revisions, Settings, TaskRecord, Tracking};
+use crate::{MessageFamily, Spoken, Active, Executor, Funder, Grace, Numbers, Party, Phase, Revisions, Settings, TaskRecord, Tracking};
 use alloc::boxed::Box;
 use core::ops::Deref;
 
@@ -79,27 +79,14 @@ impl CompoundTask<'_> {
     fn wake(&mut self, word: &crate::Word) {
         let wakes = match self.executor {
             Executor::Person(_) | Executor::Job { .. } => false,
-            Executor::Procedure { .. } | Executor::Agent { .. } => match word.kind {
-                crate::MessageKind::Answer { .. } => self.wake.answers,
-                crate::MessageKind::Question => self.wake.questions,
-                crate::MessageKind::EffectNotMade { .. }
-                | crate::MessageKind::Words
-                | crate::MessageKind::Proposal { .. }
-                | crate::MessageKind::Escalation { .. }
-                | crate::MessageKind::FinishRequested { .. }
-                | crate::MessageKind::Amendment { .. }
-                | crate::MessageKind::Met { .. }
-                | crate::MessageKind::QuestionAnswered { .. }
-                | crate::MessageKind::QuestionOwed
-                | crate::MessageKind::NothingAwaited
-                | crate::MessageKind::QuestionEnded { .. }
-                | crate::MessageKind::SettingsDecision { .. }
-                | crate::MessageKind::ProposalDecision { .. }
-                | crate::MessageKind::PersonStalled { .. }
-                | crate::MessageKind::Result(_)
-                | crate::MessageKind::Notice { .. }
-                | crate::MessageKind::Timer { .. }
-                | crate::MessageKind::News { .. } => true,
+            Executor::Procedure { .. } | Executor::Agent { .. } => match word.kind.family() {
+                MessageFamily::Spoken(Spoken::Answer { .. }) => self.wake.answers,
+                MessageFamily::Spoken(Spoken::Question) => self.wake.questions,
+                MessageFamily::Spoken(Spoken::Words)
+                | MessageFamily::Hint(_)
+                | MessageFamily::Slot(_)
+                | MessageFamily::Result
+                | MessageFamily::Virtual => true,
             },
         };
         let blocked = !crate::run::ends::pending(self.waiting_on, self.flags.ended_by)
