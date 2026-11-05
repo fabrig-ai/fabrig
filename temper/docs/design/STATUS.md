@@ -50,7 +50,14 @@ CI or tiers' workflows, and no walk applies the case's project file
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
-with has not passed (`protocol/setup.md`). Much of a change's own
+with has not passed (`protocol/setup.md`). `temper init`'s documents hold
+`documents.text_bytes` at 512, where the `first-goal-fixes` request of
+2026-11-05 has 8,192, which the web and terminal clients refuse, so a spec
+reads in pieces of it (`protocol/setup.md`). A repair goes on at a head CI has
+since passed, and a release there makes a fresh one, where that request reads
+the design otherwise, which the user has not answered, and `change show`'s
+`held:` line calls a cancelled delegate failed (`domain/forge.md`). No test runs
+real git on a dirty workspace (`protocol/git.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
 (`domain/forge.md`); so do Start goal's sheet, which no page opens, a live
