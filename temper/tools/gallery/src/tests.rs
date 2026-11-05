@@ -859,11 +859,51 @@ const HOLDS: [Holds; samples::N] = [
         name: "settings",
         heading: "How work runs in tally.",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
+            Part::Named { role: Role::Check, name: "Away switch" },
             Part::Named { role: Role::Text, name: "Configure temper" },
             Part::Named { role: Role::Link, name: "Forges" },
             Part::Named { role: Role::Link, name: "Accounts" },
             Part::Named { role: Role::Link, name: "Start" },
             Part::Named { role: Role::Navigation, name: "Settings" },
+        ],
+    },
+    Holds {
+        name: "settings-all-hidden",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Ways of working" },
+        ],
+    },
+    Holds {
+        name: "settings-goals",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
+            Part::Named { role: Role::Choice, name: "The default" },
+        ],
+    },
+    Holds {
+        name: "settings-chat-open",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Named { role: Role::Link, name: "Go on" },
+            Part::Absent { role: Role::Link, name: "Start" },
+        ],
+    },
+    Holds {
+        name: "settings-refused",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Chats can write drafts" },
+            Part::Named { role: Role::Status, name: "This act is not offered" },
         ],
     },
     Holds {
