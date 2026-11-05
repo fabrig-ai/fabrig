@@ -173,6 +173,7 @@ pub(crate) fn route_forge(
                     | Address::Chat { .. }
                     | Address::Task { .. }
                     | Address::Home { .. }
+                    | Address::Changes { .. }
                     | Address::Settings { .. }
                     | Address::Goals { .. }
                     | Address::Configure { .. }

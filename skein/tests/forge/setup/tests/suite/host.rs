@@ -34,13 +34,13 @@ fn the_host_runs_a_plan_that_names_adopted_repositories() {
     world.run_adopted(1, &[1, 2]);
     world.finish();
     assert_eq!(world.heard(), &[Heard::Done { run: Token::new(1), outcome: Outcome::Nothing, at: Duration::ZERO }]);
-    assert_eq!(world.requests().total, without.requests().total + 2);
-    assert_eq!(world.requests().routes.get(&Route::RepositoryById), Some(&2));
-    for (route, count) in &without.requests().routes {
-        assert_eq!(world.requests().routes.get(route), Some(count));
+    assert_eq!(world.tally().total, without.tally().total + 2);
+    assert_eq!(world.tally().routes.get(&Route::RepositoryById), Some(&2));
+    for (route, count) in &without.tally().routes {
+        assert_eq!(world.tally().routes.get(route), Some(count));
     }
-    assert_eq!(world.requests().routes.len(), without.requests().routes.len() + 1);
-    assert_eq!(world.requests().unrouted, 0);
+    assert_eq!(world.tally().routes.len(), without.tally().routes.len() + 1);
+    assert_eq!(world.tally().unrouted, 0);
 }
 #[test]
 fn refused_and_unavailable_first_tries_wait_doubling_then_converge() {
@@ -174,12 +174,12 @@ fn the_host_takes_over_the_handed_token_and_deletes_the_older_ones() {
     assert!(world.heard().is_empty());
     assert_eq!(world.file(Item::AdminToken).expect("old token").expose(), fixtures::ADMIN);
     assert_eq!(world.needs(), &[Need::Write { item: Item::AdminToken, bytes: fixtures::secret(fixtures::TAKEN) }]);
-    assert_eq!(world.requests().routes.get(&Route::DeleteToken), None);
+    assert_eq!(world.tally().routes.get(&Route::DeleteToken), None);
     world.write_pending();
     world.finish();
     assert_eq!(world.heard(), &[done(1)]);
     assert_eq!(world.file(Item::AdminToken).expect("taken token written").expose(), fixtures::TAKEN);
-    assert_eq!(world.requests().routes.get(&Route::DeleteToken), Some(&2));
+    assert_eq!(world.tally().routes.get(&Route::DeleteToken), Some(&2));
     for secret in older {
         assert_eq!(world.store().token_user(secret.expose()), None);
     }
@@ -274,7 +274,7 @@ fn the_host_pages_through_the_repositories_with_the_admins_token() {
         picker_page(heard, run, ids, more);
     }
     assert_eq!(world.needs(), &[ADMIN_READ; 3]);
-    assert_eq!(world.requests().routes.get(&skein_fake_forge_forgejo::Route::RepoSearch), Some(&3));
+    assert_eq!(world.tally().routes.get(&skein_fake_forge_forgejo::Route::RepoSearch), Some(&3));
 }
 #[test]
 fn a_repository_search_that_answered_ok_reaches_the_plan_as_its_rows() {
@@ -305,8 +305,8 @@ fn a_repository_search_that_answered_not_ok_reaches_the_plan_as_a_document() {
         }]
     );
     assert_eq!(world.connects(), &[Duration::ZERO; 3]);
-    assert_eq!(world.requests().routes.get(&Route::User), Some(&1));
-    assert_eq!(world.requests().routes.get(&Route::ApiSettings), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::User), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::ApiSettings), Some(&1));
     assert_eq!(world.needs(), &[Need::Read(Item::AdminToken)]);
 }
 #[test]

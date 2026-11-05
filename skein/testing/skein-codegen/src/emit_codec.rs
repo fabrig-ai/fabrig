@@ -2,6 +2,7 @@
 
 //! Measured, canonical wire operations for codec.md, section 4.
 
+use crate::emit_functions::{self, Member, Method, Statement, Tail};
 use crate::{Declaration, Enumeration, Record, Type, analysis::Context, emit_limits, emit_types};
 
 fn member(record: &Record, name: &str) -> String {
@@ -11,8 +12,8 @@ fn member(record: &Record, name: &str) -> String {
     }
 }
 
-fn add_size(size: &str, out: &mut String) {
-    out.push_str(&format!("        size = size.checked_add({size}).expect(\"schema ceilings fit u32\");\n"));
+fn add_size(size: &str, out: &mut Vec<String>) {
+    out.push(format!("        size = size.checked_add({size}).expect(\"schema ceilings fit u32\");\n"));
 }
 
 fn fixed_size(ty: &Type) -> Option<u32> {
@@ -26,7 +27,7 @@ fn fixed_size(ty: &Type) -> Option<u32> {
     }
 }
 
-fn measure_type(ty: &Type, value: &str, depth: usize, out: &mut String) {
+fn measure_type(ty: &Type, value: &str, depth: usize, out: &mut Vec<String>) {
     match ty {
         Type::U8 | Type::Bool => add_size("1", out),
         Type::U16 => add_size("2", out),
@@ -49,65 +50,62 @@ fn measure_type(ty: &Type, value: &str, depth: usize, out: &mut String) {
                 ),
                 None => {
                     let item_name = format!("item_{depth}");
-                    out.push_str(&format!("        for {item_name} in {value}.as_slice() {{\n"));
-                    measure_type(item, &item_name, depth.checked_add(1).expect("schema depth"), out);
-                    out.push_str("        }\n");
+                    let mut body = Vec::new();
+                    measure_type(item, &item_name, depth.checked_add(1).expect("schema depth"), &mut body);
+                    out.push(format!(
+                        "        for {item_name} in {value}.as_slice() {{\n{}        }}\n",
+                        body.concat()
+                    ));
                 }
             }
         }
         Type::Option(item) => {
             add_size("1", out);
-            match fixed_size(item) {
-                Some(fixed) => {
-                    out.push_str(&format!("        if {value}.is_some() {{\n"));
-                    add_size(&emit_limits::literal(fixed), out);
-                    out.push_str("        }\n");
-                }
-                None => {
-                    let item_name = format!("some_{depth}");
-                    out.push_str(&format!("        if let Some({item_name}) = {value} {{\n"));
-                    measure_type(item, &item_name, depth.checked_add(1).expect("schema depth"), out);
-                    out.push_str("        }\n");
-                }
-            }
+            let item_name = format!("some_{depth}");
+            let head = if fixed_size(item).is_some() {
+                format!("if {value}.is_some()")
+            } else {
+                format!("if let Some({item_name}) = {value}")
+            };
+            let mut body = Vec::new();
+            measure_type(item, &item_name, depth.checked_add(1).expect("schema depth"), &mut body);
+            out.push(format!("        {head} {{\n{}        }}\n", body.concat()));
         }
         Type::Named(_) => add_size(&format!("{value}.measure()"), out),
     }
 }
 
-fn encode_type(ty: &Type, value: &str, depth: usize, out: &mut String) {
+fn encode_type(ty: &Type, value: &str, depth: usize, out: &mut Vec<String>) {
     match ty {
-        Type::U8 => out.push_str(&format!("        writer.put(&[*{value}])?;\n")),
+        Type::U8 => out.push(format!("        writer.put(&[*{value}])?;\n")),
         Type::U16 | Type::U32 | Type::U64 => {
-            out.push_str(&format!("        writer.put(&{value}.to_be_bytes())?;\n"));
+            out.push(format!("        writer.put(&{value}.to_be_bytes())?;\n"));
         }
-        Type::Bool => out.push_str(&format!("        writer.put(&[u8::from(*{value})])?;\n")),
-        Type::Duration => out.push_str(&format!("        writer.put(&{value}.as_nanos().to_be_bytes())?;\n")),
-        Type::Fixed(_) => out.push_str(&format!("        writer.put({value})?;\n")),
+        Type::Bool => out.push(format!("        writer.put(&[u8::from(*{value})])?;\n")),
+        Type::Duration => out.push(format!("        writer.put(&{value}.as_nanos().to_be_bytes())?;\n")),
+        Type::Fixed(_) => out.push(format!("        writer.put({value})?;\n")),
         Type::Bytes(_) | Type::Secret(_) | Type::Text(_) => {
-            out.push_str(&format!(
+            out.push(format!(
                 "        writer.put(&u32::try_from({value}.len()).expect(\"field ceiling fits u32\").to_be_bytes())?;\n"
             ));
             let bytes =
                 if matches!(ty, Type::Secret(_)) { format!("{value}.expose()") } else { format!("{value}.as_ref()") };
-            out.push_str(&format!("        writer.put({bytes})?;\n"));
+            out.push(format!("        writer.put({bytes})?;\n"));
         }
         Type::List(_, item) => {
-            out.push_str(&format!("        writer.put(&{value}.len().to_be_bytes())?;\n"));
+            out.push(format!("        writer.put(&{value}.len().to_be_bytes())?;\n"));
             let item_name = format!("item_{depth}");
-            out.push_str(&format!("        for {item_name} in {value}.as_slice() {{\n"));
-            encode_type(item, &item_name, depth.checked_add(1).expect("schema depth"), out);
-            out.push_str("        }\n");
+            let mut body = Vec::new();
+            encode_type(item, &item_name, depth.checked_add(1).expect("schema depth"), &mut body);
+            out.push(format!("        for {item_name} in {value}.as_slice() {{\n{}        }}\n", body.concat()));
         }
         Type::Option(item) => {
             let item_name = format!("some_{depth}");
-            out.push_str(&format!(
-                "        match {value} {{\n            Some({item_name}) => {{\n                writer.put(&[1_u8])?;\n"
-            ));
-            encode_type(item, &item_name, depth.checked_add(1).expect("schema depth"), out);
-            out.push_str("            }\n            None => writer.put(&[0_u8])?,\n        }\n");
+            let mut body = Vec::new();
+            encode_type(item, &item_name, depth.checked_add(1).expect("schema depth"), &mut body);
+            out.push(format!("        match {value} {{\n            Some({item_name}) => {{\n                writer.put(&[1_u8])?;\n{}            }}\n            None => writer.put(&[0_u8])?,\n        }}\n", body.concat()));
         }
-        Type::Named(_) => out.push_str(&format!("        {value}.encode(writer)?;\n")),
+        Type::Named(_) => out.push(format!("        {value}.encode(writer)?;\n")),
     }
 }
 
@@ -190,36 +188,56 @@ fn decode_type(ty: &Type, schema: &Context<'_>, bound_name: &str, path: &str, de
     }
 }
 
+fn emit_fields(record: &Record, method: &mut Method, emit: fn(&Type, &str, usize, &mut Vec<String>)) {
+    for field in &record.fields {
+        if method.name != "measure" || fixed_size(&field.ty).is_none() {
+            method.body.push(Statement::new(
+                format!("        let field_{} = &{};\n", field.name, member(record, &field.name)),
+                true,
+            ));
+        }
+        let mut text = Vec::new();
+        emit(&field.ty, &format!("field_{}", field.name), 0, &mut text);
+        method.body.extend(text.into_iter().map(|text| Statement::new(text, false)));
+    }
+}
+
 fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
-    let start = out.len();
+    let mut helpers = String::new();
     if record.fields.is_empty() && !record.versioned {
         out.push_str(&format!("impl {} {{\n    /// Measures this empty record's wire encoding.\n    #[must_use]\n    pub fn measure(&self) -> u32 {{ 0_u32 }}\n\n", record.name));
     } else {
-        out.push_str(&format!("impl {} {{\n    /// Measures this record's wire encoding.\n    #[must_use]\n    pub fn measure(&self) -> u32 {{\n        let mut size = 0_u32;\n", record.name));
+        out.push_str(&format!(
+            "impl {} {{\n    /// Measures this record's wire encoding.\n    #[must_use]\n",
+            record.name
+        ));
+        let mut method = Method::new("measure", "    pub fn measure(&self) -> u32 {\n", "        size\n");
+        method.head.push("        let mut size = 0_u32;\n".into());
         if record.versioned {
-            add_size("2", out);
+            let mut text = Vec::new();
+            add_size("2", &mut text);
+            method.body.extend(text.into_iter().map(|text| Statement::new(text, false)));
         }
-        for field in &record.fields {
-            if fixed_size(&field.ty).is_none() {
-                out.push_str(&format!("        let field_{} = &{};\n", field.name, member(record, &field.name)));
-            }
-            measure_type(&field.ty, &format!("field_{}", field.name), 0, out);
-        }
-        out.push_str("        size\n    }\n\n");
+        emit_fields(record, &mut method, measure_type);
+        emit_functions::render(record, &method, out, &mut helpers);
+        out.push('\n');
     }
-    out.push_str("    /// Writes into a writer with room for the measured bytes.\n    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {\n");
+    out.push_str("    /// Writes into a writer with room for the measured bytes.\n");
+    let empty = record.fields.is_empty() && !record.versioned;
+    let mut method = Method::new(
+        "encode",
+        "    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {\n",
+        if empty { "        writer.put(&[])\n" } else { "        Ok(())\n" },
+    );
     if record.versioned {
-        out.push_str(&format!("        writer.put(&{}_u16.to_be_bytes())?;\n", emit_limits::literal(schema.version)));
+        method.body.push(Statement::new(
+            format!("        writer.put(&{}_u16.to_be_bytes())?;\n", emit_limits::literal(schema.version)),
+            false,
+        ));
     }
-    for field in &record.fields {
-        out.push_str(&format!("        let field_{} = &{};\n", field.name, member(record, &field.name)));
-        encode_type(&field.ty, &format!("field_{}", field.name), 0, out);
-    }
-    if record.fields.is_empty() && !record.versioned {
-        out.push_str("        writer.put(&[])\n    }\n\n    /// Reads a whole record and refuses trailing bytes.\n    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {\n");
-    } else {
-        out.push_str("        Ok(())\n    }\n\n    /// Reads a whole record and refuses trailing bytes.\n    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {\n");
-    }
+    emit_fields(record, &mut method, encode_type);
+    emit_functions::render(record, &method, out, &mut helpers);
+    out.push_str("\n    /// Reads a whole record and refuses trailing bytes.\n    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {\n");
     if record.fields.is_empty() && !record.versioned {
         out.push_str("        let value = Self::decode_from(limits, reader);\n");
     } else {
@@ -230,50 +248,57 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
         out.push_str("    fn decode_from(_limits: &Limits, _reader: &mut skein_lib::Reader<'_>) -> Self {\n        Self {}\n    }\n}\n\n");
         return;
     }
-    out.push_str(
-        "    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {\n",
+    let limits = if record.fields.iter().any(|field| uses_limits(&field.ty)) { "limits" } else { "_limits" };
+    let mut method = Method::new(
+        "decode_from",
+        &format!(
+            "    fn decode_from({limits}: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {{\n"
+        ),
+        "",
     );
     if record.versioned {
-        out.push_str(&format!("        let version = reader.u16().ok_or({})?;\n        if version != {} {{ return Err(Problem {{ path: Path::{}Version, reason: skein_codec::Reason::Version }}); }}\n", short(&format!("{}Version", record.name)), emit_limits::literal(schema.version), record.name));
+        method.head.push(format!(
+            "        let version = reader.u16().ok_or({})?;\n",
+            short(&format!("{}Version", record.name))
+        ));
+        method.head.push(format!("        if version != {} {{ return Err(Problem {{ path: Path::{}Version, reason: skein_codec::Reason::Version }}); }}\n", emit_limits::literal(schema.version), record.name));
     }
     for field in &record.fields {
         let bound_name = format!("{}_{}", emit_limits::snake(&record.name), field.name);
         let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
         let expr = decode_type(&field.ty, schema, &bound_name, &path, 0);
-        out.push_str(&format!("        let decoded_{} = {expr};\n", field.name));
+        method.body.push(Statement {
+            text: format!("        let decoded_{} = {expr};\n", field.name),
+            boundary: true,
+            decoded: Some(field.name.clone()),
+        });
     }
     let mut members = record
         .fields
         .iter()
         .filter(|field| !emit_types::grouped_bools(record) || !matches!(field.ty, Type::Bool))
-        .map(|field| format!("{}: decoded_{}", field.name, field.name))
+        .map(|field| Member::Field(field.name.clone()))
         .collect::<Vec<_>>();
     if emit_types::grouped_bools(record) {
-        let bools = record
-            .fields
-            .iter()
-            .filter(|field| matches!(field.ty, Type::Bool))
-            .map(|field| format!("decoded_{}", field.name))
-            .collect::<Vec<_>>()
-            .join(", ");
-        members.insert(0, format!("skein_bools: [{bools}]"));
+        members.insert(
+            0,
+            Member::Bools(
+                record
+                    .fields
+                    .iter()
+                    .filter(|field| matches!(field.ty, Type::Bool))
+                    .map(|field| field.name.clone())
+                    .collect(),
+            ),
+        );
     }
-    let members = members.join(", ");
-    out.push_str("        Ok(Self { ");
-    out.push_str(&members);
-    out.push_str(" })\n    }\n}\n\n");
-    if !record.fields.iter().any(|field| uses_limits(&field.ty)) {
-        let source =
-            out.get(start..).expect("record source").replace("fn decode_from(limits:", "fn decode_from(_limits:");
-        out.truncate(start);
-        out.push_str(&source);
-    }
-    let split = crate::emit_functions::split_record_functions(record, out.get(start..).expect("record source"));
-    out.truncate(start);
-    out.push_str(&split);
+    method.tail = Tail::Members(members);
+    emit_functions::render(record, &method, out, &mut helpers);
+    out.push_str("}\n\n");
+    out.push_str(&helpers);
 }
 
-fn uses_limits(ty: &Type) -> bool {
+pub(crate) fn uses_limits(ty: &Type) -> bool {
     match ty {
         Type::Bytes(_) | Type::Secret(_) | Type::Text(_) | Type::List(_, _) | Type::Named(_) => true,
         Type::Option(item) => uses_limits(item),

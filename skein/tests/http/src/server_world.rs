@@ -39,6 +39,9 @@ use skein_http::{Method, Version};
 use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
 use skein_lib::{Env, Intake, Queue, Rng, Time, Wall};
 
+use skein_protocol_kit::below::{delivers, meets};
+use skein_protocol_kit::random::{draw, fault};
+
 use crate::reference::{self, RequestEnding};
 use crate::requests;
 
@@ -211,14 +214,6 @@ pub fn limits(rng: &mut Rng) -> Limits {
         response: draw(rng, 512, 2048),
         send: draw(rng, 1, 256),
     }
-}
-
-fn fault(rng: &mut Rng) -> Fault {
-    [Fault::Reset, Fault::Invalid, Fault::Other][usize::try_from(rng.below(3)).expect("fits a usize")]
-}
-
-fn draw(rng: &mut Rng, low: u32, high: u32) -> u32 {
-    u32::try_from(rng.between(u64::from(low), u64::from(high))).expect("fits a u32")
 }
 
 /// What the side above does with one call: the response it gives, the
@@ -605,45 +600,6 @@ struct Bounds {
     head_end: usize,
     end: usize,
     expects: bool,
-}
-
-/// Whether `bytes` hold what `read` asks for, from their start.
-fn meets(read: Read, bytes: &[u8]) -> bool {
-    match read {
-        Read::Nothing => false,
-        Read::Fill(n) => bytes.len() >= usize::try_from(n).expect("fits a usize"),
-        Read::Arrived { .. } => !bytes.is_empty(),
-        Read::Scan { until, max } => {
-            let max = usize::try_from(max).expect("fits a usize");
-            let window = &bytes[..max.min(bytes.len())];
-            bytes.len() >= max || window.windows(until.as_bytes().len()).any(|found| found == until.as_bytes())
-        }
-        Read::Line { max } => {
-            let max = usize::try_from(max).expect("fits a usize");
-            bytes.len() >= max || bytes[..max.min(bytes.len())].iter().any(|&byte| byte == b'\r' || byte == b'\n')
-        }
-    }
-}
-
-/// Whether `bytes` meet `read` exactly, or with what has arrived.
-fn delivers(read: Read, bytes: &[u8]) -> bool {
-    match read {
-        Read::Nothing => false,
-        Read::Fill(n) => bytes.len() == usize::try_from(n).expect("fits a usize"),
-        Read::Arrived { max } => !bytes.is_empty() && bytes.len() <= usize::try_from(max).expect("fits a usize"),
-        Read::Scan { until, max } => {
-            let delimiter = until.as_bytes();
-            let first = bytes.windows(delimiter.len()).position(|window| window == delimiter);
-            match first {
-                Some(at) => at + delimiter.len() == bytes.len(),
-                None => bytes.len() == usize::try_from(max).expect("fits a usize"),
-            }
-        }
-        Read::Line { max } => match bytes.iter().position(|&byte| byte == b'\r' || byte == b'\n') {
-            Some(at) => at + 1 == bytes.len(),
-            None => bytes.len() == usize::try_from(max).expect("fits a usize"),
-        },
-    }
 }
 
 struct World<'a> {

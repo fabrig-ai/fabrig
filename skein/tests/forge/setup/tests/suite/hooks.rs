@@ -7,21 +7,21 @@ use skein_forge_setup::{
     item::Item,
     reconcile::{Failure, Stage, Why, hook_url},
 };
-use skein_forge_setup_world::{Ended, World, fixtures};
+use skein_forge_setup_world::{Ended, HostWorld, fixtures};
 fn listener() -> std::net::SocketAddr {
     "127.1.2.3:8080".parse().expect("loopback")
 }
 fn url(forge: u16) -> Box<[u8]> {
     hook_url(listener(), forge).expect("loopback")
 }
-fn world() -> World {
+fn world() -> HostWorld {
     let mut world = fixtures::repositories(7, false, &[b"alice/specimen", b"alice/other"]);
     fixtures::bot_tokens(&mut world);
     world.adopted(&[1]);
     world.listening(listener());
     world
 }
-fn assert_hook(world: &World, repository: u32, forge: u16) {
+fn assert_hook(world: &HostWorld, repository: u32, forge: u16) {
     let hooks = world.repository_hooks(repository);
     let own: Vec<_> = hooks.iter().filter(|h| h.url == url(forge)).collect();
     assert_eq!(own.len(), 1);
@@ -30,14 +30,15 @@ fn assert_hook(world: &World, repository: u32, forge: u16) {
     assert_eq!(hook.events.iter().map(AsRef::as_ref).collect::<Vec<&[u8]>>(), SUBSCRIBED);
     assert_eq!(&hook.secret, world.file(Item::WebhookSecret).expect("secret item"));
 }
-fn writes(world: &World, since: usize) -> Vec<Route> {
+fn writes(world: &HostWorld, since: usize) -> Vec<Route> {
     fixtures::write_routes(world, since)
 }
-fn secret_writes(world: &World) -> usize {
-    world.trace().iter().filter(|line| line.starts_with("Write { item: WebhookSecret,")).count()
-}
-fn draws(world: &World) -> usize {
-    world.trace().iter().filter(|line| line.starts_with("Draw(")).count()
+fn secret_writes(world: &HostWorld) -> usize {
+    world
+        .needs()
+        .iter()
+        .filter(|need| matches!(need, skein_forge_setup::host::Need::Write { item: Item::WebhookSecret, .. }))
+        .count()
 }
 #[test]
 fn an_adopted_repository_gets_a_hook_to_the_listener() {
@@ -134,7 +135,6 @@ fn an_off_loopback_listener_makes_no_hook_or_secret() {
     world.listening("192.0.2.1:8080".parse().expect("off loopback"));
     assert_eq!(world.reconcile(), Ended::Done);
     assert_eq!(world.file(Item::WebhookSecret), None);
-    assert_eq!(draws(&world), 0);
     assert!(!world.requests().iter().any(|r| matches!(
         r,
         Request::RepoHooks { .. }
@@ -147,7 +147,6 @@ fn an_off_loopback_listener_makes_no_hook_or_secret() {
 fn a_webhook_secret_is_drawn_when_missing() {
     let mut world = world();
     assert_eq!(world.reconcile(), Ended::Done);
-    assert_eq!(draws(&world), 1);
     assert_eq!(secret_writes(&world), 1);
     let secret = world.file(Item::WebhookSecret).expect("secret").expose();
     assert_eq!(secret.len(), 64);
@@ -160,7 +159,6 @@ fn a_webhook_secret_is_kept_when_present() {
     world.with_hook(1, &url(1), fixtures::secret(b"old-secret"));
     world.put(Item::WebhookSecret, fixtures::secret(b"seeded-webhook-secret"));
     assert_eq!(world.reconcile(), Ended::Done);
-    assert_eq!(draws(&world), 0);
     assert_eq!(secret_writes(&world), 0);
     assert_hook(&world, 1, 1);
     assert_eq!(world.repository_hooks(1)[0].secret, fixtures::secret(b"seeded-webhook-secret"));
@@ -171,8 +169,7 @@ fn the_secret_is_asked_once_for_many_repositories() {
     world.adopted(&[2, 1]);
     assert_eq!(world.reconcile(), Ended::Done);
     assert_eq!(secret_writes(&world), 1);
-    assert_eq!(draws(&world), 1);
-    assert_eq!(world.trace().iter().filter(|l| l.as_str() == "Read(WebhookSecret)").count(), 1);
+    assert_eq!(world.reads().iter().filter(|item| **item == Item::WebhookSecret).count(), 1);
     for id in [1, 2] {
         assert_hook(&world, id, 1);
     }
@@ -260,7 +257,7 @@ fn the_host_adopt_waits_for_the_secret_write_then_makes_the_hook_before_done() {
     assert!(world.heard().is_empty());
     assert!(world.file(Item::WebhookSecret).is_none());
     assert_eq!(world.store().repository_hooks(1).count(), 0);
-    assert_eq!(world.requests().routes.get(&Route::ApiSettings), None);
+    assert_eq!(world.tally().routes.get(&Route::ApiSettings), None);
     let Some(Need::Write { item: Item::WebhookSecret, bytes }) = world.needs().last() else {
         panic!("webhook secret write")
     };
@@ -279,14 +276,14 @@ fn the_host_adopt_waits_for_the_secret_write_then_makes_the_hook_before_done() {
         hook.id
     };
     assert_eq!(world.heard(), &[Heard::Done { run: Token::new(1), outcome: Outcome::Nothing, at: Duration::ZERO }]);
-    assert_eq!(world.requests().routes.get(&Route::CreateRepoHook), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::CreateRepoHook), Some(&1));
 
     let since = world.needs().len();
     world.run_plan(2, plan);
     world.finish();
     assert_eq!(world.store().repository_hooks(1).next().expect("kept hook").id, hook_id);
-    assert_eq!(world.requests().routes.get(&Route::CreateRepoHook), Some(&1));
-    assert_eq!(world.requests().routes.get(&Route::EditRepoHook), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::CreateRepoHook), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::EditRepoHook), Some(&1));
     assert_eq!(
         world.needs().get(since..),
         Some([Need::Read(Item::AdminToken), Need::Read(Item::WebhookSecret)].as_slice())

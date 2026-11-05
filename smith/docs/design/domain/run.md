@@ -276,6 +276,11 @@ that is not empty, or a message.
    (the empty guide's scaffolding included), and `brief_bytes` counts the
    brief's sections and framing as the run renders them, so a brief at
    the room fits the host part and one byte more is refused.
+   Separately, `charter_room` subtracts the prepared workspace's ownership
+   from `run_bytes`, using admission's accounting. The charter's
+   `owned_bytes()` must fit that remainder; rendered room does not replace
+   this combined ownership check. A workspace over the bound or an
+   overflowing count leaves no allowance.
 2. **Prepares:** reads each workspace directory's guide and looks for its
    checks (8.1).
 3. **Equips** its main session: prompt, tools, workspace authority, LLM,

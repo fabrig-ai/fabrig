@@ -2,8 +2,8 @@
 //! refused naming the model and why (domain/tasks.md, sections 3, 4 and 7; domain/authority.md,
 //! section 8.1).
 use jig_domain_tasks::{
-    Amendment, Authority, CharterModels, Domain, Event, Executor, LlmChoice, LlmFault, ModelEffort, Models, Party,
-    PersonAddress, Problem, Refusal,
+    self as tasks, Amendment, Authority, CharterModels, Domain, Event, Executor, LlmChoice, LlmFault, ModelEffort,
+    Models, Party, PersonAddress, Problem, Refusal,
 };
 use jig_tasks_world::{LIMITS, Reply, World, authority, domain, task};
 
@@ -32,25 +32,27 @@ fn amend(world: &mut World, task: u64, authority: Option<Authority>, llm: Option
     let reply_to = world.to();
     let message = world.record(task).last_message + 1;
     world.send(Event::Amend {
+        operation: tasks::Amend {
+            task,
+            message,
+            stop_run: false,
+            amendment: Box::new(Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority,
+                llm,
+                reason: b"another model".as_slice().into(),
+            }),
+        },
         places: Box::new([]),
         funder: None,
         reply_to,
         by: PERSON,
-        task,
-        message,
-        stop_run: false,
-        amendment: Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: None,
-            authority,
-            llm,
-            reason: b"another model".as_slice().into(),
-        },
     });
     world.replies.last_key_value().expect("amendment answered").1.clone()
 }

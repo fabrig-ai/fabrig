@@ -457,19 +457,25 @@ blamed landing's full commit (2026-11-04).
   12).
 - **The landing log,** a family of its own, `LandingLog`, per adopted
   repository: its last `landings_kept` landings, each with its commit,
-  the engine's wall time when it saw the move, its changes (none for a
-  push from outside temper), each with its pull request's number, so
-  that a late verdict's comment reaches it, its trailers within `trailers` and
+  the branch it moved, the engine's wall time when it saw the move, its
+  changes (none for a push from outside temper), each with its task, its
+  pull request's number, so that a late verdict's comment reaches it,
+  and its title, at most 256 bytes, since a change's close takes its row
+  and temper's `Changes` page still names it (`../client/forge.md`,
+  section 3), its trailers within `trailers` and
   `trailer_bytes`, and each tier's verdict (verifying, cleared, or red
   with its count); a ring, written at each move of a watched landing
-  branch (section 8), at each merge of temper's and at each verdict, so that a landing's record outlives its changes'
-  close and a range's judging.
+  branch (section 8), at each merge of temper's, when a change sees its
+  pull request merged by someone else or by the forge's own queue, and at
+  each verdict, so that a landing's record outlives its changes' close and
+  a range's judging. Every adopted repository logs, and its log is erased
+  with it. A commit logged already gains the change, within the forge's
+  `landing_members`, and no second landing.
 - **Limits,** the forge's: `landings_kept` per repository (16 in
   `small`); `trailers` per landing (8) and `trailer_bytes` per line
   (200); `tiers` per repository (2 in `small`),
   `failing_tests` per run (16), `test_id_bytes` (256), and a tier's
-  name at most 32 bytes. A main no tier or subscription follows has no
-  log (section 8).
+  name at most 32 bytes.
 
 A tier's record keeps at most `failing_tests` distinct flake IDs. Once full
 it keeps counting the IDs already retained and drops newly seen flake IDs,

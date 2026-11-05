@@ -1,6 +1,7 @@
 use crate::{Decoded, Problem, Why};
 use alloc::boxed::Box;
 use jig_domain_core as core;
+use jig_domain_tasks::Cancel;
 mod fixtures;
 mod llm;
 mod settings;
@@ -39,10 +40,7 @@ const SECOND_MADE: u64 = 8;
 #[test]
 fn a_cancel_call_decodes_to_its_named_action() {
     match crate::decode(b"cancel", fixtures::CANCEL, &fixtures::LIMITS) {
-        Decoded::Action(core::NamedAction::Control {
-            target: 3,
-            control: jig_domain_tasks::Control::Cancel { .. },
-        }) => {}
+        Decoded::Action(core::NamedAction::Control { cancel: Cancel { task: 3, .. } }) => {}
         other @ (Decoded::Action(_)
         | Decoded::Settings { .. }
         | Decoded::Delegate(_)
@@ -676,15 +674,16 @@ const SPEC_NO_REVISION: &[u8] = br#"{"target":3,"amendment":{"spec":{"words":"ne
 
 #[test]
 fn a_cancel_call_gives_a_grace() {
-    let Decoded::Action(core::NamedAction::Control { target, control }) =
+    let Decoded::Action(core::NamedAction::Control { cancel: control }) =
         crate::decode(b"cancel", CANCEL_GRACE, &fixtures::LIMITS)
     else {
         panic!("decoded cancellation")
     };
-    assert_eq!(target, fixtures::TARGET);
+    assert_eq!(control.task, fixtures::TARGET);
     assert_eq!(
         control,
-        jig_domain_tasks::Control::Cancel {
+        Cancel {
+            task: fixtures::TARGET,
             reason: b"wrap up".as_slice().into(),
             grace: Some(skein_lib::Duration::from_secs(5)),
             message: None,
@@ -693,15 +692,15 @@ fn a_cancel_call_gives_a_grace() {
 }
 #[test]
 fn a_cancel_call_without_a_grace_decodes_as_before() {
-    let Decoded::Action(core::NamedAction::Control { target, control }) =
+    let Decoded::Action(core::NamedAction::Control { cancel: control }) =
         crate::decode(b"cancel", fixtures::CANCEL, &fixtures::LIMITS)
     else {
         panic!("decoded cancellation")
     };
-    assert_eq!(target, fixtures::TARGET);
+    assert_eq!(control.task, fixtures::TARGET);
     assert_eq!(
         control,
-        jig_domain_tasks::Control::Cancel { reason: b"no longer needed".as_slice().into(), grace: None, message: None }
+        Cancel { task: fixtures::TARGET, reason: b"no longer needed".as_slice().into(), grace: None, message: None }
     );
 }
 #[test]
