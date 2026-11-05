@@ -1410,11 +1410,14 @@ branch. Its parameters:
   by the forge's. The producing task's successful result supplies the pull's
   explicit title, retained with that result and copied into the change before
   opening. A visible pushed branch waits for this metadata; it alone cannot
-  open the pull. This wait keeps the producing phase's stall deadline.
+  open the pull. This wait keeps the producing phase's stall deadline. A
+  failed producer supplies none, and holds whatever it pushed (8.4).
   The title is fitted to 256 UTF-8 bytes, preserving punctuation
   and marking a cut with “…”; it is never interpreted as sentences. A handed-in
   branch supplies its title as bytes parameter 10. A missing or empty title on
-  that path uses “Update repository”, never context from the brief. The body
+  that path uses “Update repository”, never context from the brief. An empty
+  title reaches no forge by any path: a pull request opened with none takes
+  that same default. The body
   holds the supplied body or the words whole, fitted to the forge client's
   operation bound and marked when cut. The complete production brief stays in
   the task spec, separately from the title and body. A goal's issue title uses
@@ -1918,14 +1921,19 @@ delegate's terminal wakes it to offer the landed result.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it, its stall is counted from it, and the change
   decides afresh. A producer that fails for good holds the change at
-  producing, the hold carrying its words whole within the hold's bytes,
+  producing, whatever it delivered first: its pushed work stays on its
+  branch, no pull request opens, and the hold carries its words whole
+  within the hold's bytes,
   so its requester hears why (its notice fitted to the requester's
   message bytes on its own, marked when cut) and its person decides:
   cancel it, or release it if the producer was wrong; a chat holds no
-  decision of its own here. At producing, with no head pushed
-  (its producer failed for good), deciding afresh makes a fresh producer, one more of its
-  tasks, holding by the rule above when its authority no longer covers
-  one. A repair that fails for good holds at its attempted count; this
+  decision of its own here. At producing (its producer failed for good),
+  deciding afresh makes a fresh producer, one more of its tasks, whatever
+  the last one pushed, holding by the rule above when its authority no
+  longer covers one. With a head pushed, its workspace starts from that
+  branch, and only its success gives the pull request its title (8.1). A
+  repair or a resolution that fails holds the same way, whatever it pushed
+  first: its head is not taken as the change's. A repair that fails for good holds at its attempted count; this
   is a delegate failure, not repair exhaustion. Released, it asks for a
   fresh repair with the same reason and current forge facts, under its
   current authority, counted against the reset repair allowance. The
@@ -2286,7 +2294,8 @@ section 9): the foreman and the requester decide, and the change relays
   from such an agent found in the change's inbox at a step receive those
   same words, as words, in place of the fallback feedback.
   A question of theirs past the open-queue ceiling keeps the fallback
-  feedback (below). The stock coding charter tells its run the same
+  feedback (below). The stock coding charter tells its run the same, and
+  to call `wait` after asking, never `finish`
   (`../protocol/configuration.md`, 13.4).
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,

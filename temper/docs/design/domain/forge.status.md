@@ -3,6 +3,13 @@
 2026-11-05. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 8.11: the stock coding charter does not say to call `wait` after asking
+    (`temper-service/src/stock/coding.txt`).
+  - 8.1, 8.4: a producer that delivered and then fails goes on to opening, with
+    no title, rather than holding at producing, and a release of that hold makes
+    no fresh producer (`temper-engine-domain-forge-change/src/domain.rs`,
+    `producing`, `released_state`); a pull request's write takes an empty title
+    (`temper-engine-domain-forge/src/domain.rs`, `change_write`).
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
