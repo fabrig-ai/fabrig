@@ -69,12 +69,17 @@ mod held_change;
 mod landing;
 #[path = "forge_routes/producer_failure.rs"]
 mod producer_failure;
+#[path = "forge_routes/repair_cancel.rs"]
+mod repair_cancel;
 
 #[path = "forge_routes/result.rs"]
 mod result;
 
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
+
+#[path = "forge_routes/brief_failure.rs"]
+mod brief_failure;
 
 #[path = "forge_routes/repairs.rs"]
 mod repairs;
@@ -954,7 +959,7 @@ fn an_unreadable_failed_job_log_is_named_and_repair_still_runs() {
 }
 
 #[test]
-fn a_required_section_missing_sends_the_task_back_to_due_without_spending_a_try() {
+fn a_required_section_past_its_deadline_counts_as_transient_without_an_attempt() {
     let (mut world, chat, producer) = failed_ci_with_delayed_brief();
     let mut repair = None;
     for _ in 0..150 {
@@ -964,7 +969,7 @@ fn a_required_section_missing_sends_the_task_back_to_due_without_spending_a_try(
             if row.number != chat
                 && row.number != producer
                 && matches!(row.executor, tasks::Executor::Agent { .. })
-                && row.refusals > 0
+                && row.tries.transient > 0
             {
                 repair = Some(row.clone());
                 break;
@@ -988,7 +993,11 @@ fn a_required_section_missing_sends_the_task_back_to_due_without_spending_a_try(
         )
     });
     assert_eq!(repair.attempt, 0, "no claim was made");
-    assert_eq!(repair.tries, tasks::Tries::NONE, "preparation consumed no try");
+    assert_eq!(repair.tries.transient, 1, "a late required section counts in its class");
+    assert_eq!(repair.tries.permanent, 0);
+    assert!(matches!(&repair.retry_notice,
+        Some(tasks::RetryNotice::Failed { class: tasks::Class::Transient, count: 1, reason: Some(reason), .. })
+        if reason.as_ref() == b"ci: not gathered by its deadline"));
     assert_eq!(world.assigned.len(), 2, "repair was never assigned");
     world.close();
 }

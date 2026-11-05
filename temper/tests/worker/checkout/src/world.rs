@@ -286,6 +286,7 @@ pub struct World {
     workspaces: BTreeSet<Token>,
     /// The commit each hold checked each repository out at.
     checked_out: BTreeMap<(Token, Vec<u8>), u64>,
+    checkouts: BTreeMap<u64, Vec<(Vec<u8>, bool)>>,
     touched: BTreeMap<(u64, Vec<u8>), BTreeSet<Vec<u8>>>,
     /// The pushes of each hold's push or save under way, by remote.
     attempts: BTreeMap<(Token, Vec<u8>), Attempt>,
@@ -346,6 +347,7 @@ impl World {
             held_by: BTreeMap::new(),
             workspaces: BTreeSet::new(),
             checked_out: BTreeMap::new(),
+            checkouts: BTreeMap::new(),
             touched: BTreeMap::new(),
             attempts: BTreeMap::new(),
             ops: Ledger::new("operation"),
@@ -376,6 +378,18 @@ impl World {
 
     pub fn write_disk(&mut self, path: &[u8], content: &[u8]) {
         self.disk.write(path, content);
+    }
+
+    /// Snapshot regular files beneath `path`, including git metadata.
+    #[must_use]
+    pub fn disk_tree(&self, path: &[u8]) -> Tree {
+        self.disk.tree(path)
+    }
+
+    /// Repositories checked out for this client, with the requested cleaning.
+    #[must_use]
+    pub fn checkouts(&self, client: u64) -> Vec<(Vec<u8>, bool)> {
+        self.checkouts.get(&client).cloned().unwrap_or_default()
     }
 
     #[must_use]
@@ -1140,7 +1154,9 @@ impl World {
             self.forge.set_refusing(name, refusing);
         }
         let before = match &op {
-            Op::CheckOut { at, commit, .. } => {
+            Op::CheckOut { at, commit, clean } => {
+                let client = *self.holds.get(&owner).expect("a hold's client");
+                self.checkouts.entry(client).or_default().push((at.repository.to_vec(), *clean));
                 self.checked_out.insert((owner, at.repository.to_vec()), translate::fake(*commit));
                 let path = translate::path(at);
                 let tree = self.disk.tree(&path);

@@ -1,11 +1,19 @@
 //! Workspace reuse is opt-in, and eviction keeps the workspace's path.
+//! Dirty holds follow temper/docs/design/domain/worker.md, 5 and
+//! temper/docs/design/protocol/git.md, 4.5.
 
 use std::collections::BTreeSet;
 
 use skein_lib::{Duration, Time, Token};
+use temper_fake_checkout::{
+    git::{Remote, Tree},
+    in_git,
+};
 use temper_worker_checkout_world::client::{Pick, Plan};
 use temper_worker_checkout_world::{LIMITS, Settings, World, noisy, submit_noisily};
+use temper_worker_checkout_world::{hosted, translate};
 use temper_worker_domain_checkout::{Failure, Landing, Limits, Prepared};
+use temper_worker_protocol_git::invocation::Command;
 
 const ITERATIONS: u32 = 100_000;
 
@@ -29,6 +37,136 @@ fn plan(workstream: u32) -> Plan {
 
 fn ready(world: &World, client: u64) {
     assert!(matches!(world.client(client).prepared, Some(Prepared::Ready { .. })));
+}
+
+fn dirty_files(tracked: &[u8]) -> Tree {
+    Tree::from([
+        (b"NEW".to_vec(), b"staged new file\n".to_vec()),
+        (b".git/temper-index/NEW".to_vec(), b"staged new file\n".to_vec()),
+        (tracked.to_vec(), b"unstaged edit\n".to_vec()),
+        (b".git/MERGE_HEAD".to_vec(), 1_u64.to_le_bytes().to_vec()),
+        (b".git/temper-conflicts/0".to_vec(), tracked.to_vec()),
+        (b".gitignore".to_vec(), b"target/\n".to_vec()),
+        (b"target/o".to_vec(), b"ignored build output\n".to_vec()),
+    ])
+}
+
+fn dirty(world: &mut World, at: &[u8]) {
+    for (path, content) in world.disk_tree(at).into_iter().filter(|(path, _)| !in_git(path)) {
+        world.write_disk(&[at, b"/.git/temper-index/", &path].concat(), &content);
+    }
+    for (path, content) in dirty_files(b"README") {
+        world.write_disk(&[at, b"/", &path].concat(), &content);
+    }
+}
+
+fn tree_without_merge(mut disk: Tree) -> Tree {
+    assert!(!disk.contains_key(b".git/MERGE_HEAD".as_slice()), "no merge in progress");
+    assert!(!disk.keys().any(|path| path.starts_with(b".git/temper-conflicts/")), "no conflict state");
+    disk.retain(|path, _| !in_git(path));
+    disk
+}
+
+fn clean_at(world: &World, client: u64, at: &[u8]) {
+    ready(world, client);
+    assert_eq!(world.checkouts(client), [(b"r0".to_vec(), true)], "the hold requests cleaning");
+    let commit = world.forge().branch(world.repository(0), b"main").expect("main exists");
+    assert_eq!(tree_without_merge(world.disk_tree(at)), world.forge().tree(commit));
+}
+
+#[test]
+fn a_kept_workspace_from_another_workstream_starts_from_exactly_its_commit() {
+    let mut world = World::new(settings(true, 1));
+    let first = world.submit(Time::ZERO, plan(0));
+    world.run(ITERATIONS);
+    ready(&world, first);
+    dirty(&mut world, b"ws/0/r0");
+    let before = world.told().0;
+    let next = world.submit(world.now(), plan(1));
+    world.run(ITERATIONS);
+    clean_at(&world, next, b"ws/0/r0");
+    assert_eq!(world.client(first).workspace, world.client(next).workspace);
+    let (after, lost) = world.told();
+    assert_eq!(lost, 0);
+    assert_eq!(after.kept, before.kept + 1, "Cached::Kept");
+    assert_eq!((after.makes, after.clones), (before.makes, before.clones));
+}
+
+#[test]
+fn the_same_workstreams_next_hold_starts_from_exactly_its_commit() {
+    for reuse in [true, false] {
+        let mut world = World::new(settings(reuse, 1));
+        let first = world.submit(Time::ZERO, plan(0));
+        world.run(ITERATIONS);
+        ready(&world, first);
+        dirty(&mut world, b"ws/0/r0");
+        let before = world.told().0;
+        let next = world.submit(world.now(), plan(0));
+        world.run(ITERATIONS);
+        clean_at(&world, next, b"ws/0/r0");
+        assert_eq!(world.client(first).workspace, world.client(next).workspace);
+        let (after, lost) = world.told();
+        assert_eq!(lost, 0);
+        assert_eq!(after.reused, before.reused + 1, "Cached::Reused");
+        assert_eq!((after.makes, after.clones), (before.makes, before.clones));
+    }
+}
+
+#[test]
+fn a_restart_with_a_dirty_clone_starts_from_exactly_its_commit() {
+    let mut world = World::new(settings(true, 1));
+    let first = world.submit(Time::ZERO, plan(0));
+    world.run(ITERATIONS);
+    ready(&world, first);
+    dirty(&mut world, b"ws/0/r0");
+    world.restart();
+    let before = world.told().0;
+    let next = world.submit(world.now(), plan(0));
+    world.run(ITERATIONS);
+    clean_at(&world, next, b"ws/0/r0");
+    assert_eq!(world.client(first).workspace, world.client(next).workspace);
+    let (after, lost) = world.told();
+    assert_eq!(lost, 0);
+    assert_eq!(after.looking, before.looking + 1, "Cached::Looking");
+    assert_eq!((after.makes, after.clones), (before.makes, before.clones));
+}
+
+#[test]
+fn a_saved_start_on_a_dirty_workspace_is_made_again() {
+    let mut world = World::new(settings(true, 1));
+    let saver = world.submit(Time::ZERO, Plan { save: true, ..plan(0) });
+    world.run(ITERATIONS);
+    ready(&world, saver);
+    let expected = world.client(saver).left[0].clone();
+    assert_ne!(world.client(saver).left, world.client(saver).start, "the saved tree has an edit");
+    dirty(&mut world, b"ws/0/r0");
+    let before = world.told().0;
+    let resumer = world.submit(world.now(), Plan { start: Some(Pick::Saved), ..plan(0) });
+    world.run(ITERATIONS);
+    ready(&world, resumer);
+    assert_eq!(world.client(resumer).start.as_slice(), std::slice::from_ref(&expected));
+    assert_eq!(tree_without_merge(world.disk_tree(b"ws/0/r0")), expected);
+    let (after, lost) = world.told();
+    assert_eq!(lost, 0);
+    assert_eq!(after.rebuilt, before.rebuilt + 1, "a saved start rebuilds its cached workspace");
+    assert_eq!((after.makes, after.clones), (before.makes + 1, before.clones + 1));
+    assert!(world.disk_tree(b"ws/0/r0/.git/temper-index").is_empty(), "the dirty index went with the workspace");
+}
+
+#[test]
+fn the_two_commands_leave_the_commits_tree_and_nothing_staged() {
+    let mut scenario = hosted::scenario();
+    let expected = scenario.transport.tree(scenario.base);
+    for (path, content) in dirty_files(b"conflict.txt") {
+        scenario.checkout.write(&[scenario.at.as_slice(), b"/", &path].concat(), &content);
+    }
+    let commit = translate::commit(scenario.base);
+    for command in [Command::CheckOut { commit }, Command::Clean] {
+        let answer = hosted::apply(&mut scenario, &command);
+        assert_eq!(answer.exit, 0, "{command:?}: {answer:?}");
+    }
+    assert_eq!(tree_without_merge(scenario.checkout.tree(&scenario.at)), expected);
+    assert_eq!(scenario.checkout.tree(&[scenario.at.as_slice(), b"/.git/temper-index"].concat()), expected);
 }
 
 #[test]

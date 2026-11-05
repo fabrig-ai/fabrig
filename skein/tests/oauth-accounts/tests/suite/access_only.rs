@@ -25,8 +25,8 @@ fn signed_in() -> oauth::SavedToken {
             registration,
             key: 0,
             generation: 0,
-            state: bytes::copy_of(b"0123456789abcdef"),
-            verifier: Some(bytes::copy_of(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")),
+            state: skein_lib::Secret::new(bytes::copy_of(b"0123456789abcdef")),
+            verifier: Some(skein_lib::Secret::new(bytes::copy_of(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))),
             nonce: None,
             port: None,
             issued_client_id: None,
@@ -40,8 +40,8 @@ fn signed_in() -> oauth::SavedToken {
         oauth::Event::Redirected {
             client_id: None,
             uri,
-            state: bytes::copy_of(b"0123456789abcdef"),
-            code: Some(bytes::copy_of(b"code")),
+            state: skein_lib::Secret::new(bytes::copy_of(b"0123456789abcdef")),
+            code: Some(skein_lib::Secret::new(bytes::copy_of(b"code"))),
             error: None,
             now: time(0),
         },
@@ -87,7 +87,6 @@ impl Owner {
                 shared: false,
                 origins: List::with_capacity(0),
             })
-            .ok()
             .expect("account");
         let mut owner = Self {
             component: accounts::Component::new(
@@ -129,7 +128,7 @@ impl Owner {
             panic!("granted")
         };
         assert_eq!((generation, remaining), (1, Duration::from_secs(valid)));
-        assert!(token.as_ref() == b"access");
+        assert!(token.expose() == b"access");
     }
 }
 

@@ -382,7 +382,7 @@ pub(crate) fn decide_person(
     if decision != ProposalDecision::Accept && revision.is_some() {
         return refused(to, None, Refusal::Read, out);
     }
-    let outcome = match &decision {
+    let (outcome, state) = match decision {
         ProposalDecision::Accept => {
             let settings = match old.action {
                 PersonAction::Settings { .. } => true,
@@ -399,7 +399,11 @@ pub(crate) fn decide_person(
             {
                 return refused(to, None, Refusal::State, out);
             }
-            ProposalOutcome::Accepted
+            let state = match revision {
+                Some(revision) => PersonProposalState::SettingsAccepted { by, revision },
+                None => PersonProposalState::Accepted { by },
+            };
+            (ProposalOutcome::Accepted, state)
         }
         ProposalDecision::Reject { reason } => {
             if reason.len() > skein_lib::length::usize_of(env.limits.message_bytes)
@@ -410,7 +414,15 @@ pub(crate) fn decide_person(
             {
                 return refused(to, None, Refusal::Read, out);
             }
-            ProposalOutcome::Rejected
+            (
+                ProposalOutcome::Rejected,
+                PersonProposalState::Rejected {
+                    by,
+                    reason,
+                    message: message.expect("checked rejection message"),
+                    at: env.wall,
+                },
+            )
         }
         ProposalDecision::Pass { .. } => return refused(to, None, Refusal::State, out),
     };
@@ -419,19 +431,7 @@ pub(crate) fn decide_person(
         PersonAction::Settings { .. } => true,
         PersonAction::Batch(_) | PersonAction::Amend { .. } => false,
     };
-    proposal.state = match decision {
-        ProposalDecision::Accept => match revision {
-            Some(revision) => PersonProposalState::SettingsAccepted { by, revision },
-            None => PersonProposalState::Accepted { by },
-        },
-        ProposalDecision::Reject { reason } => PersonProposalState::Rejected {
-            by,
-            reason,
-            message: message.expect("checked rejection message"),
-            at: env.wall,
-        },
-        ProposalDecision::Pass { .. } => unreachable!("person proposal has final policy holder"),
-    };
+    proposal.state = state;
     out.push(Request::Erase { key: crate::Key::PersonProposal(number) });
     out.push(Request::Save {
         record: Stored::Update(crate::Update {
@@ -819,7 +819,6 @@ fn install(domain: &mut Domain, env: &Env<Limits>, proposal: Proposal, result: b
 /// Advance the checked holder or finish the decision. Root executes an accepted
 /// action before calling this entry in the same synchronous decision.
 #[expect(clippy::too_many_arguments, reason = "one exact proposal decision carries its caller and message")]
-#[expect(clippy::too_many_lines, reason = "one proposal terminal preflights, persists, and notifies atomically")]
 pub(crate) fn decide(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -863,62 +862,36 @@ pub(crate) fn decide(
         ProposalDecision::Reject { reason } => reason.clone(),
         ProposalDecision::Accept | ProposalDecision::Pass { .. } => Box::new([]),
     };
-    let outcome = match decision {
+    let (outcome, change, passed) = match decision {
         ProposalDecision::Accept => {
             proposal.state = ProposalState::Accepted { by };
-            ProposalOutcome::Accepted
+            (ProposalOutcome::Accepted, Change::ProposalAccepted, None)
         }
         ProposalDecision::Reject { reason } => {
             if reason.len() > skein_lib::length::usize_of(env.limits.message_bytes) {
                 return refused(to, Some(proposer), Refusal::Read, out);
             }
             proposal.state = ProposalState::Rejected { by, reason };
-            ProposalOutcome::Rejected
+            (ProposalOutcome::Rejected, Change::ProposalRejected, None)
         }
         ProposalDecision::Pass { holder } => {
             proposal.state = ProposalState::Pending { holder, since: env.wall };
-            ProposalOutcome::Passed
+            (ProposalOutcome::Passed, Change::ProposalPassed, Some(holder))
         }
     };
     let task = task_mut(domain, proposer).expect("pending proposer live");
-    task.record.proposal = match outcome {
-        ProposalOutcome::Passed => Some(Box::new(proposal.clone())),
-        ProposalOutcome::Accepted | ProposalOutcome::Rejected | ProposalOutcome::Withdrawn | ProposalOutcome::Stale => {
-            None
-        }
+    task.record.proposal = match passed {
+        Some(_) => Some(Box::new(proposal.clone())),
+        None => None,
     };
-    if match outcome {
-        ProposalOutcome::Accepted | ProposalOutcome::Rejected => true,
-        ProposalOutcome::Passed | ProposalOutcome::Withdrawn | ProposalOutcome::Stale => false,
-    } {
+    if passed.is_none() {
         task.record.result_proposal = false;
     }
-    let change = match outcome {
-        ProposalOutcome::Accepted => Change::ProposalAccepted,
-        ProposalOutcome::Rejected => Change::ProposalRejected,
-        ProposalOutcome::Passed => Change::ProposalPassed,
-        ProposalOutcome::Withdrawn | ProposalOutcome::Stale => unreachable!("decision outcome"),
-    };
     crate::positions::history(domain, env, proposal, by, change, out);
     publish(domain, env, proposer, out);
-    match outcome {
-        ProposalOutcome::Passed => {
-            let pending = record(domain, proposer).expect("passed proposer live").proposal.as_ref().expect("pending");
-            match pending.state {
-                ProposalState::Pending { holder: ProposalHolder::Task(_) | ProposalHolder::Person(_), since } => {
-                    arm(domain, env, proposer, since);
-                }
-                ProposalState::Pending { holder: ProposalHolder::Policy { .. }, .. } => {
-                    domain.proposal_alarms.cancel(proposer);
-                }
-                ProposalState::Accepted { .. } | ProposalState::Rejected { .. } | ProposalState::Withdrawn => {
-                    unreachable!("passed pending")
-                }
-            }
-        }
-        ProposalOutcome::Accepted | ProposalOutcome::Rejected | ProposalOutcome::Withdrawn | ProposalOutcome::Stale => {
-            domain.proposal_alarms.cancel(proposer);
-        }
+    match passed {
+        Some(ProposalHolder::Task(_) | ProposalHolder::Person(_)) => arm(domain, env, proposer, env.wall),
+        Some(ProposalHolder::Policy { .. }) | None => domain.proposal_alarms.cancel(proposer),
     }
     match outcome {
         ProposalOutcome::Accepted | ProposalOutcome::Rejected => {

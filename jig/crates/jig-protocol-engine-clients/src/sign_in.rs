@@ -16,7 +16,7 @@ pub(crate) enum Waiting {
     SignOut { sign_in: u64, committed: bool },
     Watch { sign_in: u64, watcher: Token, opening: bool },
     Keep { sign_in: u64, owner: SecretOwner, answer: Answer },
-    Get { owner: SecretOwner, digest: Secret, body: Box<[u8]>, route: Route },
+    Get { owner: crate::component::services::GetOwner, digest: Secret, body: Box<[u8]>, route: Route },
     Made { sign_in: u64, party: u64 },
     Moving { sign_in: u64, account: u32, number: u32 },
     Read { sign_in: u64, what: Box<jig_domain_core::reads::Read> },
@@ -30,8 +30,20 @@ pub(crate) enum Waiting {
 /// An admitted value's request, without the value or a speculative carried number.
 #[derive(Debug)]
 pub(crate) enum CarriedRequest {
-    Application(crate::ToApplication),
-    AccountKey { key: [u8; 16], ask: Box<jig_domain_people::Ask>, digest: [u8; 32] },
+    Application {
+        key: [u8; 16],
+        family: u16,
+        version: u32,
+        scope: jig_domain_people::ApplicationScope,
+        record: Box<[u8]>,
+        digest: [u8; 32],
+        carried_digest: [u8; 32],
+    },
+    AccountKey {
+        key: [u8; 16],
+        ask: Box<jig_domain_people::Ask>,
+        digest: [u8; 32],
+    },
 }
 #[derive(Debug)]
 pub(crate) enum Answer {

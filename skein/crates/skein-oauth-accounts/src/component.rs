@@ -59,7 +59,7 @@ pub type LowerEvent = skein_io::Event;
 /// The owner handles controls while `FileIo` is busy. A cancelled request still
 /// queued by the owner is discarded with its one `file::Event::Cancelled`.
 /// Queued requests expire at their stated deadline as well as active requests.
-#[expect(missing_debug_implementations, reason = "file stores carry credential records")]
+#[derive(Debug)]
 pub enum FileLower {
     /// One file request, ending in its matching owner-token terminal.
     Request { request: skein_io::file::Request, deadline: Time },
@@ -119,7 +119,6 @@ pub(crate) enum State {
 }
 
 /// The owner's bounded accounts, exchanges and holds, ending with one Closed.
-#[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
 pub struct Component {
     accounts: List<State>,
     names: List<Name>,
@@ -132,6 +131,13 @@ pub struct Component {
     crypto: CryptoRng,
     keepers: List<Store>,
     file_owner: u64,
+}
+
+// skein/docs/design/oauth.md, 4: private exchanges carry credential bytes.
+impl core::fmt::Debug for Component {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Component").field("lifecycle", &self.lifecycle).finish_non_exhaustive()
+    }
 }
 
 impl Component {

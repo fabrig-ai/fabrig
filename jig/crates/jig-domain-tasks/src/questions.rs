@@ -1,6 +1,6 @@
 //! Question credits, requester moves and unanswered exits (domain/tasks.md, 5.7 and 7).
 use crate::domain::{Domain, publish, record, refused, task_mut};
-use crate::{Event, Limits, MessageKind, Party, Refusal, Request, Word};
+use crate::{Limits, MessageKind, Party, Refusal, Request, Word};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Env, List, Map, Queue, ReplyTo, Writer};
 
@@ -31,10 +31,20 @@ impl Domain {
     }
 }
 
-pub(crate) fn person_question(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    let Event::PersonQuestion { reply_to, project, task, person, word } = event else {
-        unreachable!("person question event")
-    };
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one person question carries its recipient, sender and terminal destination"
+)]
+pub(crate) fn person_question(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    reply_to: ReplyTo,
+    project: u32,
+    task: u64,
+    person: u64,
+    word: Word,
+    out: &mut Queue<Request>,
+) {
     let Some(recipient) = record(domain, task) else { return refused(reply_to, Some(task), Refusal::Unknown, out) };
     if recipient.requester != Party::Person(person) || word.kind != MessageKind::Question {
         return refused(reply_to, Some(task), Refusal::Reference, out);
@@ -50,26 +60,37 @@ pub(crate) fn person_question(domain: &mut Domain, env: &Env<Limits>, event: Eve
         Ok(plan) => plan,
         Err(problem) => return crate::capacity::refused(domain, env, reply_to, *problem, out),
     };
-    let source = match plan.prepared.word.from {
-        Party::Task(source) => source,
-        Party::Person(_) | Party::Deployment { .. } => unreachable!("question source checked"),
-    };
+    let source = plan.asked_by;
     let (task, word) = crate::inbox::apply_message(domain, env, plan, out);
-    for credit in &mut task_mut(domain, source).expect("admitted question owner").record.questions {
-        if credit.number == word.number {
-            credit.answerer = Party::Person(person);
+    if let Some(source) = source {
+        for credit in &mut task_mut(domain, source).expect("admitted question owner").record.questions {
+            if credit.number == word.number {
+                credit.answerer = Party::Person(person);
+            }
         }
+        changed(domain, source);
     }
-    changed(domain, source);
     out.push(Request::Sent { reply_to, task, word });
 }
 
-pub(crate) fn person_answer(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    let Event::PersonQuestionAnswer { reply_to, project, asked, person, question, mut word, notice } = event else {
-        unreachable!("person answer event")
-    };
-    let Some(asker) = domain.question_asker(asked, person, question) else {
-        return refused(reply_to, Some(asked), Refusal::Reference, out);
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one person answer carries its question, notice and terminal destination"
+)]
+pub(crate) fn person_answer(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    reply_to: ReplyTo,
+    project: u32,
+    recipient: u64,
+    person: u64,
+    question: u64,
+    mut word: Word,
+    notice: u64,
+    out: &mut Queue<Request>,
+) {
+    let Some(asker) = domain.question_asker(recipient, person, question) else {
+        return refused(reply_to, Some(recipient), Refusal::Reference, out);
     };
     let row = record(domain, asker).expect("credit owner live");
     if row.project != project
@@ -79,7 +100,7 @@ pub(crate) fn person_answer(domain: &mut Domain, env: &Env<Limits>, event: Event
         || word.words.is_empty()
         || word.words.len() > skein_lib::length::usize_of(env.limits.message_bytes)
     {
-        return refused(reply_to, Some(asked), Refusal::State, out);
+        return refused(reply_to, Some(recipient), Refusal::State, out);
     }
     let mut selected = None;
     for credit in &row.questions {
@@ -98,24 +119,24 @@ pub(crate) fn person_answer(domain: &mut Domain, env: &Env<Limits>, event: Event
     let (task, word) = crate::inbox::apply_message(
         domain,
         env,
-        crate::inbox::MessagePlan { number: asker, prepared, answer: Some(question) },
+        crate::inbox::MessagePlan { number: asker, prepared, answer: Some(question), asked_by: None },
         out,
     );
     // The inbox owner retains the answer's location even when its sender is a
     // person after a move. Its reserved notice replaces that open position.
     let heard = crate::AnswerLine { task: asker, position: record(domain, asker).expect("answered asker").activity };
-    crate::positions::sent_answer(domain, env, Party::Task(asked), question, heard, out);
-    if asked != asker
+    crate::positions::sent_answer(domain, env, Party::Task(recipient), question, heard, out);
+    if recipient != asker
         && let Some((previous, word)) = append_notice(
             domain,
             env,
-            asked,
+            recipient,
             Notice { message: notice, from: asker, kind: MessageKind::QuestionAnswered { question }, words },
             out,
         )
     {
-        changed(domain, asked);
-        crate::wake::after_message(domain, env, asked, previous, word, out);
+        changed(domain, recipient);
+        crate::wake::after_message(domain, env, recipient, previous, word, out);
     }
     out.push(Request::Sent { reply_to, task, word });
 }

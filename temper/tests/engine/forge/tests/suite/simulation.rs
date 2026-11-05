@@ -386,7 +386,13 @@ fn a_brief_section_refuses_a_head_that_moved_before_its_gather() {
         bytes: 128,
         max_job_bytes: 0,
     });
-    assert!(world.seen().contains(&top::Request::BriefReady { owner, read: top::BriefRead::Failed }));
+    assert!(world.seen().contains(&top::Request::BriefReady {
+        owner,
+        read: top::BriefRead::Failed(top::BriefUnread {
+            fate: top::BriefFate::Transient,
+            words: b"the change's head moved"
+        })
+    }));
     assert_eq!(world.calls(), before, "a stale pinned section does not read the provider");
     let section = Token::new(94);
     world.event(top::Event::GatherBriefHeld {
@@ -399,7 +405,10 @@ fn a_brief_section_refuses_a_head_that_moved_before_its_gather() {
         bytes: 128,
         max_job_bytes: 0,
     });
-    assert!(world.seen().contains(&top::Request::BriefSized { section, size: None }));
+    assert!(world.seen().contains(&top::Request::BriefSized {
+        section,
+        size: Err(top::BriefUnread { fate: top::BriefFate::Transient, words: b"the change's head moved" })
+    }));
     assert_eq!(world.calls(), before, "a stale held section does not read the provider");
 }
 
@@ -434,7 +443,7 @@ fn a_forge_brief_section_stays_with_its_connector_until_taken() {
         .iter()
         .find_map(|request| {
             if let top::Request::BriefSized { section: found, size } = request {
-                if *found == section { *size } else { None }
+                if *found == section { size.ok() } else { None }
             } else {
                 None
             }
@@ -448,7 +457,7 @@ fn a_forge_brief_section_stays_with_its_connector_until_taken() {
         .iter()
         .find_map(|request| {
             if let top::Request::BriefSized { section: found, size } = request {
-                if *found == section { *size } else { None }
+                if *found == section { size.ok() } else { None }
             } else {
                 None
             }
@@ -1153,6 +1162,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::Read { .. }
                 | top::Request::BriefClient { .. }
                 | top::Request::BriefReady { .. }
+                | top::Request::BriefReadRefused { .. }
                 | top::Request::BriefSized { .. }
                 | top::Request::BriefTaken { .. }
                 | top::Request::ApplicationPart { .. }
@@ -2487,7 +2497,7 @@ fn dropping_a_completed_section_frees_it_and_its_token_can_be_reused() {
     world.event(gather());
     world.run_for(5);
     assert!(world.seen().iter().any(|request| matches!(request,
-        top::Request::BriefSized { section: found, size: Some(_) } if *found == section)));
+        top::Request::BriefSized { section: found, size: Ok(_) } if *found == section)));
     world.take_seen();
     world.event(top::Event::DropBrief { section });
     world.event(top::Event::TakeBrief { section });
@@ -2496,7 +2506,7 @@ fn dropping_a_completed_section_frees_it_and_its_token_can_be_reused() {
     world.event(gather());
     world.run_for(5);
     assert!(world.seen().iter().any(|request| matches!(request,
-        top::Request::BriefSized { section: found, size: Some(_) } if *found == section)));
+        top::Request::BriefSized { section: found, size: Ok(_) } if *found == section)));
     world.take_seen();
     world.event(top::Event::TakeBrief { section });
     assert!(world.seen().iter().any(|request| matches!(request,

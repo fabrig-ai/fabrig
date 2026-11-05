@@ -94,7 +94,12 @@ fn make_before_ready_refuses() {
 #[test]
 fn unknown_preparation_notifications_are_ignored() {
     let (mut domain, env, mut out) = fresh();
-    step(&mut domain, &env, Event::PreparationFailed { task: UNNAMED }, &mut out);
+    step(
+        &mut domain,
+        &env,
+        Event::PreparationPaused { task: UNNAMED, reason: b"brief: no brief slot is free".as_slice().into() },
+        &mut out,
+    );
     assert!(out.is_empty());
     assert_eq!(domain.task(UNNAMED), None);
 }
@@ -168,7 +173,12 @@ fn kinds_and_charters_configure_restore() {
 #[test]
 fn configuration_follows_operational_reports() {
     let (mut domain, env, mut out) = fresh();
-    step(&mut domain, &env, Event::PreparationFailed { task: UNNAMED }, &mut out);
+    step(
+        &mut domain,
+        &env,
+        Event::PreparationPaused { task: UNNAMED, reason: b"brief: no brief slot is free".as_slice().into() },
+        &mut out,
+    );
     configure(&mut domain, &env, &mut out);
 }
 
