@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 132;
+pub const N: usize = 135;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -255,6 +255,9 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-accepted", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
@@ -675,6 +678,9 @@ pub fn domain(sample: &Sample) -> Domain {
     root
 }
 fn configure_domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("configure-chat-") {
+        return crate::worlds::settings_chat_world(sample.name);
+    }
     if matches!(sample.name, "configure-chat" | "configure-chats-tag") {
         return crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then).0;
     }

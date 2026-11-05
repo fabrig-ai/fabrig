@@ -583,7 +583,7 @@ fn goals_shown(root: &Domain, project: u32) -> bool {
         Some(ways) => ways.goals,
         None => false,
     };
-    shown || goals_current(root)
+    shown || root.has_goals(project) || goals_current(root)
 }
 
 #[expect(clippy::struct_excessive_bools, reason = "the frame keeps each entry’s visibility or current state together")]

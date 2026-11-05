@@ -1,6 +1,15 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+/// Settings proposal cards (temper/docs/design/client/README.md, 5.13).
+pub const SETTINGS_PROPOSAL: Style = Style { owner: owner(), token: 305 };
+pub const SETTINGS_PROPOSAL_TITLE: Style = Style { owner: owner(), token: 306 };
+pub const SETTINGS_PROPOSAL_STATE: Style = Style { owner: owner(), token: 307 };
+pub const SETTINGS_PROPOSAL_SUPERSEDED: Style = Style { owner: owner(), token: 308 };
+pub const SETTINGS_PROPOSAL_OK: Style = Style { owner: owner(), token: 309 };
+pub const SETTINGS_PROPOSAL_ITEMS: Style = Style { owner: owner(), token: 310 };
+pub const SETTINGS_PROPOSAL_REASON: Style = Style { owner: owner(), token: 311 };
+pub const SETTINGS_PROPOSAL_ACTS: Style = Style { owner: owner(), token: 312 };
 /// Settings frame and rows (temper/docs/design/client/README.md, 3.5, Settings).
 pub const SETTINGS_COL: Style = Style { owner: owner(), token: 253 };
 pub const SETTINGS_INTRO: Style = Style { owner: owner(), token: 254 };
@@ -555,6 +564,7 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Text, SETTINGS_DETAIL, "small"),
+    (owner(), skein_ui::Role::Region, SETTINGS_PROPOSAL, "article"),
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
     (owner(), skein_ui::Role::Heading { level: 3 }, WELCOME_LEGEND, "legend"),
@@ -884,6 +894,14 @@ pub const NAMES: Names<'static> = Names {
         b"temper-settings-text",
         b"temper-settings-facts",
         b"temper-settings-refusal",
+        b"temper-settings-proposal",
+        b"temper-settings-proposal-title",
+        b"temper-settings-proposal-state",
+        b"temper-settings-proposal-superseded",
+        b"temper-settings-proposal-ok",
+        b"temper-settings-proposal-items",
+        b"temper-settings-proposal-reason",
+        b"temper-settings-proposal-acts",
     ],
     regions: &[b"temper-link"],
 };

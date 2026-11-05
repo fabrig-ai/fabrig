@@ -785,6 +785,42 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure-chat-proposal",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Button, name: "Accept" },
+            Part::Named { role: Role::Button, name: "Change something" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-accepted",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Paragraph, name: "✓ Accepted · new work follows it" },
+            Part::Absent { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-replaced",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Paragraph, name: "Replaced by the proposal below" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
         name: "configure-chats-tag",
         heading: "Chats",
         parts: &[

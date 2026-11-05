@@ -229,7 +229,7 @@ const TEXT_BYTES: u32 = 64;
 // Four sections on a phone (client/README.md, 5.3).
 const TABS: usize = 4;
 
-fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: Option<bool>) {
+pub(super) fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: Option<bool>) {
     let mut me = root.pages().me(root.client()).unwrap().clone();
     let mut flags = super::chats::line().flags;
     flags.conversation = false;
@@ -323,7 +323,7 @@ fn goals_follows_kind_seven_or_keeps_its_open_page() {
     for (address, delivered, shown) in [
         (Address::Home { project: f::PROJECT }, None, false),
         (Address::Home { project: f::PROJECT }, Some(false), false),
-        (Address::Home { project: f::PROJECT }, Some(true), false),
+        (Address::Home { project: f::PROJECT }, Some(true), true),
         (Address::Goals { project: f::PROJECT, filter: GoalsFilter::Ended }, None, true),
         (Address::Goals { project: f::PROJECT, filter: GoalsFilter::All }, Some(false), true),
     ] {

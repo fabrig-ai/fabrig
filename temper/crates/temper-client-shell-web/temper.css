@@ -1716,6 +1716,24 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* ==== ui: settings ==== */
 
+/* Settings proposal cards, from greenfield/mock.css's .proposal rules. */
+.temper-settings-proposal { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; border-radius: 12px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
+.temper-settings-proposal.temper-settings-proposal-superseded { opacity: .5; }
+.temper-settings-proposal-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+.temper-settings-proposal-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.temper-settings-proposal-items li { display: flex; flex-direction: column; gap: 2px; }
+.temper-settings-proposal-items .temper-settings-proposal-reason { color: var(--gf-ink); }
+.temper-settings-proposal-items small { font: 12px var(--gf-mono); color: var(--gf-faint); }
+.temper-settings-proposal-acts { display: flex; flex-wrap: wrap; gap: 10px; }
+.temper-settings-proposal .temper-settings-btn { min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 13.5px var(--gf-sans); }
+.temper-settings-proposal .temper-settings-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+.temper-settings-proposal .temper-settings-small { border-color: transparent; background: none; color: var(--gf-muted); }
+.temper-settings-proposal .temper-settings-small:hover { background: var(--gf-hover); color: var(--gf-ink); }
+.temper-settings-proposal .temper-settings-primary:hover { background: #000; }
+.temper-settings-proposal-state { margin: 0; font-size: 13.5px; color: var(--gf-faint); }
+.temper-settings-proposal-state.temper-settings-proposal-ok { color: var(--gf-good); }
+
+
 /* The settings column, head, tabs and rows, from greenfield/mock.css. */
 #app > .temper-settings { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; font: 400 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
 .temper-settings-col { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 60px; }

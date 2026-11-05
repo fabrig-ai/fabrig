@@ -24,6 +24,9 @@ chats-reference
 chats-solo
 configure
 configure-chat
+configure-chat-accepted
+configure-chat-proposal
+configure-chat-replaced
 configure-chats-tag
 configure-refused
 configure-sending
