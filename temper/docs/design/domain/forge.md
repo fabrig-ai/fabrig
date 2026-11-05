@@ -2271,7 +2271,8 @@ section 9): the foreman and the requester decide, and the change relays
   foreman's reasons beneath it (*Passed up,* below), as words. An
   agent that asked is kept by its own question (jig's
   `domain/tasks.md`, 5.7): its run parks, no try spent, until the
-  change answers, and the change's wait for it is no stall (8.4). Its
+  change answers, a `finish` before then parking it too, whatever its
+  form, and the change's wait for it is no stall (8.4). Its
   reviews and its foremen are delegated without the Message family, as
   under `none`.
 - **Taken at its step.** Each step takes the questions its own agents
@@ -2366,11 +2367,20 @@ section 9): the foreman and the requester decide, and the change relays
   and relayed at the first step at which none is pending, the
   dependency having ended done or been amended away; a requester that
   adds a dependency as it answers so makes the work wait for it.
-- **An asker that ends first** ends its questions: a foreman still
+- **An asker that ends first** (cancelled, or its run failing for good:
+  its own `finish` parks it) ends its questions: a foreman still
   running for one is cancelled, and an answer to a question passed up
   for it is taken and dropped, the change's history naming it. The
   change's own question stays until its requester answers it or it
-  ends with the change.
+  ends with the change. No question goes silently: the change tells its
+  requester, in words and once, `Task A ended with its question N open;
+  it reached no one: LINE`, where it had not been asked of the requester
+  (taken, or with a foreman), and `Task A ended; your answer to its
+  question N goes no further: LINE`, at the step that takes or holds
+  the answer to one that had. LINE is the question's first line, as its
+  record keeps it. These words share the step's `tasks.batch`, and a
+  question with no room for them stays on the record until a step has
+  (below).
 - **On its record and its panel.** Its open questions, in the order
   taken, each with its asker and number, its words whole and their
   first line, and where it stands (taken; with foreman task F; asked of the
