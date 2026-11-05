@@ -15,11 +15,8 @@ use crate::boundary::{
 };
 use crate::chat::{Chat, HeadSurvey, Live, Starting, State};
 use crate::child::Child;
-#[path = "chat/machine.rs"]
 mod chat_machine;
-#[path = "delivery/machine.rs"]
 mod delivery;
-#[path = "reconcile.rs"]
 mod reconcile;
 use crate::person::Lines;
 use crate::turns::Turns;
@@ -691,13 +688,10 @@ impl Domain {
 }
 
 #[cfg(test)]
-#[path = "parent_tests.rs"]
 mod parent_tests;
 
 #[cfg(test)]
-#[path = "program_check_tests.rs"]
 mod program_check_tests;
 
 #[cfg(test)]
-#[path = "child_backlog_tests.rs"]
 mod child_backlog_tests;

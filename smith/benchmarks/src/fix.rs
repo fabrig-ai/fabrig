@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::arm::{ArmRef, Build};
 use crate::batch::Batch;
-use crate::{AttemptResult, End, Judgment, judge_suite};
+use crate::{AttemptResult, End, Fault, Input, Judgment, judge_suite, mismatch, refuse_if};
 
 mod prepare;
 
@@ -89,19 +89,17 @@ pub fn body(report: &FixReport) -> String {
 }
 
 /// Admit one complete prepared arm before either comparison phase dispatches.
-pub(crate) fn prepared(suite: &Path, requests: &Path, seed: u64, probe: &str, attempts: u32) -> Result<Build, String> {
+pub(crate) fn prepared(suite: &Path, requests: &Path, seed: u64, probe: &str, attempts: u32) -> Result<Build, Fault> {
     let prepared = crate::batch::probe_requests(suite, requests, seed, probe, attempts)?;
     prepare::one_arm(&prepared, prepared.len())
 }
 
-pub(crate) fn collected(build: &Build, results: &[AttemptResult], batch: &Batch) -> Result<ProbeRun, String> {
-    if results.is_empty() {
-        return Err("probe arm produced no results".into());
-    }
+pub(crate) fn collected(build: &Build, results: &[AttemptResult], batch: &Batch) -> Result<ProbeRun, Fault> {
+    refuse_if(results.is_empty(), Input, "probe arm produced no results")?;
     if results.iter().any(|result| {
         result.identity.agent_version != build.arm.commit || result.identity.binary_sha256 != build.arm.sha256
     }) {
-        return Err("probe result differs from its verified binary".into());
+        return Err(mismatch("probe result differs from its verified binary"));
     }
     let run = results
         .iter()

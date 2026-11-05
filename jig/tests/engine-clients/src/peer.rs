@@ -741,7 +741,9 @@ impl Peer {
     pub fn link_body(&self, link: &[u8]) -> Box<[u8]> {
         let secret = link.split(|byte| *byte == b'=').next_back().expect("link query");
         let secret = base64::decode(Alphabet::Url, secret, 32).expect("link secret");
-        let record = w::LinkSignIn::new(&self.env.limits.wire, w::LinkSignInParts { secret }).expect("bounded secret");
+        let record =
+            w::LinkSignIn::new(&self.env.limits.wire, w::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
+                .expect("bounded secret");
         let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut out).expect("encoded link");
         out.finish()

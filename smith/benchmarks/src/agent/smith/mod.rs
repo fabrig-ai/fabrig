@@ -31,6 +31,3 @@ pub use settings::product as product_settings;
 
 #[cfg(test)]
 pub(crate) use observe::tests::program as recorded_program;
-
-#[cfg(test)]
-pub(crate) use observe::test_events as recorded_events;

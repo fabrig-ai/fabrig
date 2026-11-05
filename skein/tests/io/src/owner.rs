@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, VecDeque};
 use skein_io::Addr;
 use skein_io::{Error, Event, Request};
 use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
-use skein_lib::{Rng, Time, Token};
+use skein_lib::{Queue, Rng, Time, Token};
 
 /// The addresses listeners were told, by name, shared by every process of a
 /// world, so that a client can dial a server by name.
@@ -347,15 +347,15 @@ impl Owner {
     }
 
     /// Its first requests: a listen for each listener.
-    pub fn start(&mut self, requests: &mut VecDeque<Request>) {
+    pub fn start(&mut self, requests: &mut Queue<Request>) {
         for (owner, listener) in &self.listeners {
-            requests.push_back(Request::Listen { owner: *owner, addr: listener.serve.addr });
+            requests.push(Request::Listen { owner: *owner, addr: listener.serve.addr });
         }
     }
 
     /// What it does at `now` by itself: the connects due, the closes due, the
     /// reads that start.
-    pub fn tick(&mut self, now: Time, directory: &Directory, requests: &mut VecDeque<Request>) {
+    pub fn tick(&mut self, now: Time, directory: &Directory, requests: &mut Queue<Request>) {
         let mut later = Vec::new();
         for dial in std::mem::take(&mut self.dials) {
             let addr = match dial.to {
@@ -366,7 +366,7 @@ impl Owner {
                 Some(addr) if dial.at <= now => {
                     let owner = self.token();
                     self.conns.insert(owner, Conn::new(dial.plan, None, Phase::Asked));
-                    requests.push_back(Request::Connect { owner, addr });
+                    requests.push(Request::Connect { owner, addr });
                 }
                 Some(_) | None => later.push(dial),
             }
@@ -384,7 +384,7 @@ impl Owner {
     }
 
     /// Takes one event io told.
-    pub fn on(&mut self, now: Time, event: Event, directory: &mut Directory, requests: &mut VecDeque<Request>) {
+    pub fn on(&mut self, now: Time, event: Event, directory: &mut Directory, requests: &mut Queue<Request>) {
         match event {
             Event::Output { .. }
             | Event::Spawned { .. }
@@ -445,7 +445,7 @@ impl Owner {
         }
     }
 
-    fn accepted(&mut self, listener: Token, socket: Token, now: Time, requests: &mut VecDeque<Request>) {
+    fn accepted(&mut self, listener: Token, socket: Token, now: Time, requests: &mut Queue<Request>) {
         let listening = self.listeners.get_mut(&listener).expect("a listener of this owner");
         let answer = listening.serve.answers.get(listening.answered).cloned().flatten();
         listening.answered += 1;
@@ -457,14 +457,14 @@ impl Owner {
             Some(plan) => {
                 let owner = self.token();
                 self.conns.insert(owner, Conn::new(plan, Some(socket), Phase::Open));
-                requests.push_back(Request::Bind { socket, owner });
+                requests.push(Request::Bind { socket, owner });
                 self.follow(owner, now, requests);
             }
-            None => requests.push_back(Request::Reject { socket }),
+            None => requests.push(Request::Reject { socket }),
         }
     }
 
-    fn stream(&mut self, owner: Token, up: Up, requests: &mut VecDeque<Request>) {
+    fn stream(&mut self, owner: Token, up: Up, requests: &mut Queue<Request>) {
         let conn = self.conns.get_mut(&owner).expect("a connection of this owner");
         let socket = conn.socket.expect("a stream told is bound or connected");
         // An answer on its way when it closed, which withdrew its demand:
@@ -499,7 +499,7 @@ impl Owner {
                     conn.echo.drain(..n).collect()
                 };
                 conn.handed += bytes.len() as u64;
-                requests.push_back(Request::Stream { stream: socket, down: Down::Send(bytes) });
+                requests.push(Request::Stream { stream: socket, down: Down::Send(bytes) });
             }
             Up::End => conn.ended = true,
             Up::Failed(fault) => conn.failed = Some(fault),
@@ -507,7 +507,7 @@ impl Owner {
     }
 
     /// What the connection's plan asks for now: a close, a finish, a demand.
-    fn follow(&mut self, owner: Token, now: Time, requests: &mut VecDeque<Request>) {
+    fn follow(&mut self, owner: Token, now: Time, requests: &mut Queue<Request>) {
         let conn = self.conns.get_mut(&owner).expect("a connection of this owner");
         let Some(socket) = conn.socket else {
             return;
@@ -533,7 +533,7 @@ impl Owner {
         }
         if conn.plan.finish && !conn.finished && conn.sent_all() {
             conn.finished = true;
-            requests.push_back(Request::Stream { stream: socket, down: Down::Finish });
+            requests.push(Request::Stream { stream: socket, down: Down::Finish });
             if conn.closes(now) {
                 close(conn, socket, requests);
                 return;
@@ -563,7 +563,7 @@ impl Owner {
         // A state that wants nothing more states nothing.
         if (read, room) != (Read::Nothing, 0) {
             conn.asked = (read, room);
-            requests.push_back(Request::Stream { stream: socket, down: Down::Demand { read, room } });
+            requests.push(Request::Stream { stream: socket, down: Down::Demand { read, room } });
         }
     }
 }
@@ -576,19 +576,15 @@ fn nowhere(addr: Addr) -> Addr {
     }
 }
 
-fn close(conn: &mut Conn, socket: Token, requests: &mut VecDeque<Request>) {
+fn close(conn: &mut Conn, socket: Token, requests: &mut Queue<Request>) {
     conn.phase = Phase::Closing;
-    requests.push_back(if conn.plan.abort {
-        Request::Abort { entity: socket }
-    } else {
-        Request::Close { entity: socket }
-    });
+    requests.push(if conn.plan.abort { Request::Abort { entity: socket } } else { Request::Close { entity: socket } });
 }
 
-fn close_listener(listener: &mut Listener, requests: &mut VecDeque<Request>) {
+fn close_listener(listener: &mut Listener, requests: &mut Queue<Request>) {
     let token = listener.token.expect("a listener is closed once it listens");
     listener.phase = Phase::Closing;
-    requests.push_back(Request::Close { entity: token });
+    requests.push(Request::Close { entity: token });
 }
 
 /// The next read a plan demands. Mixed reads pause now and then: no read

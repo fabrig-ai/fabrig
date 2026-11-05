@@ -9,6 +9,67 @@ use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
 #[test]
+fn a_short_send_completion_continues_sending_and_rearms_receiving() {
+    // A one-byte intake fills before the read is demanded. One of two sent
+    // bytes completes, so that up both continues the send and meets the read.
+    const INTAKE: u32 = 1;
+    const FD: kernel::Fd = kernel::Fd::new(42);
+    const OWNER: Token = Token::new(99);
+    const PAYLOAD: &[u8] = b"ab";
+    const ROOM: u32 = 2; // PAYLOAD's length.
+    const SENT: u32 = 1; // One byte short of PAYLOAD's length.
+    let limits = io::Limits { intake: INTAKE, receive: INTAKE, ..limits(1) };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut machine = io::Io::new(&limits);
+    let mut submissions = Queue::uncapped();
+    let mut completions = Queue::uncapped();
+    let mut told = Queue::uncapped();
+    io::down(&mut machine, &env, Request::Connect { owner: OWNER, addr: local(7) }, &mut submissions);
+    machine.reclaim();
+    stage::up(&mut machine, &env, &mut completions, &mut told, &mut submissions, Time::ZERO);
+    let Event::Connecting { socket, .. } = told.pop().expect("connect announced") else {
+        panic!("Connecting names the socket");
+    };
+    for done in [kernel::Done::Fd(FD), kernel::Done::Nothing] {
+        let submit = submissions.pop().expect("socket then connect");
+        let complete = kernel::Complete { op: submit.op, kind: submit.kind, result: Ok(done) };
+        io::up(&mut machine, &env, complete, &mut told, &mut submissions);
+    }
+    let mut recv = submissions.pop().expect("initial receive");
+    let kernel::Op::Recv { buf, .. } = &mut recv.kind else { panic!("receive buffer") };
+    buf.copy_from_slice(b"x");
+    let complete = kernel::Complete { op: recv.op, kind: recv.kind, result: Ok(kernel::Done::Count(INTAKE)) };
+    io::up(&mut machine, &env, complete, &mut told, &mut submissions);
+    io::down(
+        &mut machine,
+        &env,
+        Request::Stream { stream: socket, down: Down::Demand { read: Read::Nothing, room: ROOM } },
+        &mut submissions,
+    );
+    machine.reclaim();
+    stage::up(&mut machine, &env, &mut completions, &mut told, &mut submissions, Time::ZERO);
+    io::down(
+        &mut machine,
+        &env,
+        Request::Stream { stream: socket, down: Down::Send(Box::from(PAYLOAD)) },
+        &mut submissions,
+    );
+    io::down(
+        &mut machine,
+        &env,
+        Request::Stream { stream: socket, down: Down::Demand { read: Read::Fill(INTAKE), room: 0 } },
+        &mut submissions,
+    );
+    let send = submissions.pop().expect("initial send");
+    completions.push(kernel::Complete { op: send.op, kind: send.kind, result: Ok(kernel::Done::Count(SENT)) });
+    stage::up(&mut machine, &env, &mut completions, &mut told, &mut submissions, Time::ZERO);
+    let continued = submissions.pop().expect("continued send").kind;
+    let rearmed = submissions.pop().expect("rearmed receive").kind;
+    assert_eq!(continued, kernel::Op::Send { fd: FD, bytes: Box::from(PAYLOAD), from: SENT });
+    assert_eq!(rearmed, kernel::Op::Recv { fd: FD, buf: Box::new([0]) });
+}
+
+#[test]
 fn the_stage_drains_ready_work_before_completions_and_timers_with_the_kernel_queue_near_full() {
     // A held write leaves room for ready work, but completions and timers
     // still wait for their two kernel submissions.

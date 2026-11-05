@@ -1297,5 +1297,4 @@ fn a_saved_window_starts_at_its_recorded_place_and_keeps_its_affinity() {
     world.close();
 }
 
-#[path = "recorded/openings.rs"]
 mod openings;

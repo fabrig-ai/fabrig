@@ -6,6 +6,7 @@ use skein_lib::{Reader, Writer};
 use smith_local_domain::{Older, StoreFamily};
 
 #[rustfmt::skip]
+// The schema compiler writes this module to generated/layouts.rs.
 #[path = "generated/layouts.rs"]
 mod committed;
 
