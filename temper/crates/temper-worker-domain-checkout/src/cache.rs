@@ -5,14 +5,18 @@
 //! held by one hold at a time, or idle. A prepare finds its workstream's
 //! workspace, if the cache has one that no hold holds; otherwise it takes a
 //! new one while there is room, and then evicts the least recently used idle
-//! workspace, which is made again, empty, for the new workstream. A workspace is never
-//! removed from the cache once made: eviction gives it to another workstream,
+//! workspace, made again, empty, unless workspace reuse is enabled and it can
+//! keep its clone. With reuse enabled and no saved start, a new workspace
+//! first looks at each repository on disk, which may survive a restart.
+//! A workspace is never removed from the cache once made:
+//! eviction gives it to another workstream,
 //! so the cache holds at most `Limits::workspaces`, and a prepare that finds
 //! them all held is refused.
 //!
-//! Nothing local is authoritative: a workspace is reused only for its own
-//! workstream, and only when it holds exactly the repositories the spec names
-//! (each by its directory and its remote), all cloned; a prepare then fetches
+//! Nothing local is authoritative: a workspace is reused for its own
+//! workstream, or kept across eviction with reuse enabled, only when it holds
+//! exactly the repositories the spec names (each by its directory and remote),
+//! all cloned; a prepare then fetches
 //! and checks each out afresh. Otherwise what it holds is not known (it is
 //! being built, or an operation on it broke, ran out of time or was cancelled,
 //! so git may have left it damaged), and the next prepare makes it again,
@@ -20,6 +24,7 @@
 //! without what was asked, or refusing) keeps what it holds.
 
 use alloc::boxed::Box;
+use core::mem;
 
 use skein_lib::bytes::copy_of;
 use skein_lib::{Id, List, Map, Slab};
@@ -69,6 +74,7 @@ pub(crate) struct Cache {
     idle: Map<u64, Id<Workspace>>,
     /// Releases so far, which order the idle workspaces.
     releases: u64,
+    reuse: bool,
 }
 
 impl Cache {
@@ -78,7 +84,16 @@ impl Cache {
             keys: Map::with_capacity(workspaces),
             idle: Map::with_capacity(workspaces),
             releases: 0,
+            reuse: false,
         }
+    }
+
+    pub(crate) fn reuse_workspaces(&mut self) {
+        self.reuse = true;
+    }
+
+    pub(crate) const fn reuses_workspaces(&self) -> bool {
+        self.reuse
     }
 
     /// Workspaces made so far.
@@ -129,11 +144,7 @@ impl Cache {
             workspace.used = Use::Held;
             // Restoring a saved commit starts with an empty directory. Local untracked
             // leftovers never accompany the retained transcript into its saved tree.
-            let mut saved = false;
-            for repository in repositories {
-                saved |= repository.start.is_saved();
-            }
-            if !saved && holds_exactly(&workspace.disk, repositories) {
+            if !starts_saved(repositories) && holds_exactly(&workspace.disk, repositories) {
                 return Ok((id, Cached::Reused));
             }
             workspace.disk = Disk::Unknown;
@@ -144,7 +155,7 @@ impl Cache {
             let id = self.workspaces.insert(workspace).expect("checked for room above");
             let made = self.keys.insert(key, id).expect("a key for each workspace");
             assert!(made.is_none(), "a workstream has one workspace");
-            return Ok((id, Cached::New));
+            return Ok((id, if self.reuse && !starts_saved(repositories) { Cached::Looking } else { Cached::New }));
         }
         let Some((since, evicted)) = self.idle.first() else {
             return Err(Refusal::Full);
@@ -155,10 +166,12 @@ impl Cache {
         let workspace = self.workspaces.get_mut(id).expect("an idle workspace is of the cache");
         let gone = self.keys.remove(&*workspace.key);
         assert!(gone == Some(id), "a workspace is keyed by its workstream");
-        *workspace = Workspace { key: copy_of(&key), disk: Disk::Unknown, used: Use::Held };
+        let kept = self.reuse && !starts_saved(repositories) && holds_exactly(&workspace.disk, repositories);
+        let disk = if kept { mem::replace(&mut workspace.disk, Disk::Unknown) } else { Disk::Unknown };
+        *workspace = Workspace { key: copy_of(&key), disk, used: Use::Held };
         let made = self.keys.insert(key, id).expect("room for the key of the workspace evicted");
         assert!(made.is_none(), "a workstream has one workspace");
-        Ok((id, Cached::Evicted))
+        Ok((id, if kept { Cached::Kept } else { Cached::Evicted }))
     }
 
     /// The workspace `id` holds `repositories`, each cloned.
@@ -189,8 +202,17 @@ impl Cache {
     }
 }
 
-/// Whether `disk` holds exactly the repositories named, each in its directory
-/// and cloned from its remote. A spec names a directory once.
+/// Whether any repository restores saved work into an empty directory.
+fn starts_saved(repositories: &[Repository]) -> bool {
+    for repository in repositories {
+        if repository.start.is_saved() {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether the known clones match every directory and remote in the spec.
 fn holds_exactly(disk: &Disk, repositories: &[Repository]) -> bool {
     let cloned = match disk {
         Disk::Holds { repositories } => repositories,

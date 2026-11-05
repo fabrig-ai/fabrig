@@ -130,6 +130,13 @@ impl Service {
         }
     }
 
+    /// Keep matching workspace clones on the worker, when one is present.
+    pub fn reuse_workspaces(&mut self) {
+        if let Some(worker) = &mut self.worker {
+            worker.reuse_workspaces();
+        }
+    }
+
     pub fn configure_program_sources(
         &mut self,
         resources: crate::program_sources::Resources,
