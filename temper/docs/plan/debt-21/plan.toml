@@ -46,3 +46,29 @@ id = 3
 story = "a canary in every credential of the three crates reaches no Debug, and every stored byte stays as it was"
 parts = ["oauth-secrets"]
 walk = false
+
+[[part]]
+id = "forge-states"
+title = "a forge connection's and a webhook connection's phases hold their data, each following its deadline in one place (skein D020)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 8.1"
+
+[[slice]]
+id = 4
+story = "each connection's state is one enum with its data, and every test's events and times stay as they were"
+parts = ["forge-states"]
+walk = false
+
+[[part]]
+id = "hearth-kits"
+title = "no hearth package depends on a world: what a second crate needs lives in a kit (hearth D009)"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/testing.md, 2.9"
+
+[[slice]]
+id = 5
+story = "a change to the render world stops rebuilding the builder's, and every world's tests run as they did"
+parts = ["hearth-kits"]
+walk = false
