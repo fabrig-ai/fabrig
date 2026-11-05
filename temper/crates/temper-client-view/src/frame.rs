@@ -874,7 +874,7 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
     let Some(toast) = session.toast() else { return };
     let (said, undo) = match toast {
         Toasted::Answered { object, label } => {
-            let label = answered_label(w, label);
+            let label = crate::pages::ask::answered_label(w, label);
             (w.say(Word::ToastAnswered, &[skein_ui::phrases::Hole::Name(label)]), Some(*object))
         }
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
@@ -888,14 +888,4 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
         action(b, Role::Button, &w.say(Word::ToastUndo, &[]), Act::Needs(needs::Act::Undo { object }), false, bindings);
     }
     b.close();
-}
-/// The shared label for an answered line or its toast (client/README.md, 3.5).
-pub(crate) fn answered_label(w: &crate::words::Words, label: &temper_client_domain::pages::needs::Label) -> Box<[u8]> {
-    use temper_client_domain::pages::needs::Label;
-    match label {
-        Label::Choice(words) => words.clone(),
-        Label::Reply(words) => {
-            w.say(crate::words::Word::AnsweredReply, &[skein_ui::phrases::Hole::Name(words.clone())])
-        }
-    }
 }

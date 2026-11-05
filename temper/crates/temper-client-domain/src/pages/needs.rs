@@ -433,7 +433,8 @@ fn make_room(session: &mut Session) -> bool {
     false
 }
 fn answer(pages: &mut Pages, env: &Env<Limits>, object: ObjectKey, words: Box<[u8]>, reply: bool) {
-    let Ok(words) = Text::new(words, temper_client_protocol_wire::CUE_BYTES) else { return };
+    let bound = if reply { env.limits.client.domain.text } else { temper_client_protocol_wire::CUE_BYTES };
+    let Ok(words) = Text::new(words, bound) else { return };
     let Some(card) = answerable(pages, object) else { return };
     let Some(page) = &card.page else { return };
     let Some(question) = question(page) else { return };

@@ -102,10 +102,22 @@ fn repeated(count: u32, suffix: &[u8]) -> Box<[u8]> {
     words.into_boxed()
 }
 fn reply(pages: &mut Pages, words: &[u8]) -> Queue<Request> {
-    act(pages, 0, Act::OpenReply { object: FIRST });
-    f::act(pages, pages::Act::CardWords { object: FIRST, words: Box::from(words) });
-    act(pages, 0, Act::SendReply { object: FIRST })
+    let mut limits = fixtures::limits();
+    limits.client.domain.text = temper_client_protocol_wire::CUE_BYTES;
+    limits.client.domain.turn_text = temper_client_protocol_wire::CUE_BYTES;
+    let env = fixtures::env(&limits);
+    let client = crate::unlinked(&limits, fixtures::SEED);
+    let mut out = Queue::uncapped();
+    for act in [
+        pages::Act::Needs(Act::OpenReply { object: FIRST }),
+        pages::Act::CardWords { object: FIRST, words: Box::from(words) },
+        pages::Act::Needs(Act::SendReply { object: FIRST }),
+    ] {
+        pages::step(pages, &env, client.client(), pages::Event::Act { act }, &mut out);
+    }
+    out
 }
+
 fn chats() -> Address {
     Address::Chats { filter: ChatsFilter::All, start: false }
 }
@@ -651,4 +663,26 @@ fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cu
     assert!(pages::shown(root.pages()) > before);
     assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT), needs::Count::default());
     assert!(opens(&out).is_empty());
+}
+
+#[test]
+fn reply_past_choice_bound_is_held_whole_for_the_engine() {
+    let mut pages = fixture();
+    let words = repeated(temper_client_protocol_wire::CUE_BYTES.checked_add(1).unwrap(), b"");
+    let mut limits = fixtures::limits();
+    limits.client.domain.text = 2048;
+    limits.client.domain.turn_text = 2048;
+    let env = fixtures::env(&limits);
+    let client = crate::unlinked(&limits, fixtures::SEED);
+    let mut out = Queue::uncapped();
+    for act in [
+        pages::Act::CardWords { object: FIRST, words: words.clone() },
+        pages::Act::Needs(Act::SendReply { object: FIRST }),
+    ] {
+        pages::step(&mut pages, &env, client.client(), pages::Event::Act { act }, &mut out);
+    }
+    assert!(pages.needs().held(FIRST));
+    let (_, ask) = sent(&mut fire(&mut pages, HOLD_DUE));
+    let c::Ask::Answer { on: c::AnswerOn::Question { words: sent, .. }, .. } = ask else { panic!("question reply") };
+    assert_eq!(sent.bytes(), &*words);
 }

@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 111;
+pub const N: usize = 119;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -206,6 +206,54 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "needs-one",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-saw-open",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-reply-open",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-second-answered",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-later",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-last",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-done",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-plain-words",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
@@ -374,6 +422,9 @@ fn model_sample(name: &'static str, kind: temper_client_domain::WayKind, then: T
     Sample { name, world: World::Reference, address: Address::ConnectModel { way: Some(way) }, then }
 }
 fn special_mockup(name: &str) -> Option<String> {
+    if name.starts_with("needs-") || name == "inbox-solo" || name == "inbox-reference" || name == "inbox-empty" {
+        return Some("../greenfield/needs.html".to_owned());
+    }
     match name {
         "forges-github-install" => return Some("forges.html?world=first-run-github&step=3&bare".to_owned()),
         "forge-admin-details" => {
@@ -509,6 +560,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("needs-") {
+        return crate::needs::domain(sample.name);
+    }
     if sample.name.starts_with("configure") {
         return configure_domain(sample);
     }
