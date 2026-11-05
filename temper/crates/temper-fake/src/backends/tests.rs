@@ -176,7 +176,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
         effective["workers"][0]["agent"]["arguments"],
         json!(["internal", "agent", "/effective/config/agent.json"])
     );
-    assert_eq!(effective_agent["endpoints"][1], agent["endpoints"][1]);
+    assert_eq!(effective_agent["endpoints"][2], agent["endpoints"][2]);
     assert_eq!(docs, write(&temper, &agent, &paths, &peers).expect("deterministic rewrite"));
 }
 
@@ -259,12 +259,12 @@ fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
     let effective_agent = json(&docs.agent);
     assert_eq!(effective["engine"]["llm"]["providers"][0], temper["engine"]["llm"]["providers"][0]);
     assert!(effective["engine"]["llm"]["endpoints"][0].get("trust").is_none());
-    assert!(effective_agent["endpoints"][1].get("trust_der").is_none());
-    assert_eq!(effective_agent["endpoints"][1]["address"], "127.0.0.1:9103");
+    assert!(effective_agent["endpoints"][2].get("trust_der").is_none());
+    assert_eq!(effective_agent["endpoints"][2]["address"], "127.0.0.1:9103");
     for target in [
-        &effective["engine"]["llm"]["providers"][1]["sources"]["sign_in"],
+        &effective["engine"]["llm"]["providers"][2]["sources"]["sign_in"],
         &effective["engine"]["llm"]["endpoints"][0],
-        &effective_agent["endpoints"][1],
+        &effective_agent["endpoints"][2],
     ] {
         for member in TLS {
             assert!(target.get(member).is_none(), "removed {member}: {target}");
@@ -521,4 +521,25 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
         panic!("the ordinary picker finishes")
     };
     peer.shutdown();
+}
+
+#[test]
+fn written_anthropic_entries_are_replaced_once() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("rewrite written Anthropic route");
+    let effective = json(&docs.temper);
+    let effective_agent = json(&docs.agent);
+    let llm = &effective["engine"]["llm"];
+    assert_eq!(llm["providers"].as_array().unwrap().iter().filter(|p| p["name"] == "anthropic").count(), 1);
+    for endpoints in [&llm["endpoints"], &effective_agent["endpoints"]] {
+        let selected: Vec<_> = endpoints.as_array().unwrap().iter().filter(|e| e["number"] == 2).collect();
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0]["name"], "fake-claude");
+    }
+    let models: Vec<_> = llm["models"].as_array().unwrap().iter().filter(|m| m["endpoint"] == "fake-claude").collect();
+    assert_eq!(models.len(), 1);
+    assert_eq!(models[0]["name"], "fake-claude");
+    for document in [&effective, &effective_agent] {
+        assert!(!serde_json::to_string(document).unwrap().contains("claude-opus-5-5"));
+    }
 }

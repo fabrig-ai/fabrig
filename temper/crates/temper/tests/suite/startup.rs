@@ -2098,3 +2098,19 @@ fn box_logs_must_hold_one_whole_record_and_tails_at_least_one_line() {
         scratch.remove();
     }
 }
+
+#[test]
+fn a_fresh_box_offers_chatgpt_and_claude_with_no_claude_on_path() {
+    let scratch = support::Scratch::startup("box-both-models");
+    let clock = skein_shell::Clock::new();
+    let began = clock.now().now;
+    // run_box starts the shipped box with an empty environment. Its own init writes both documents.
+    let seen = support::run_box(scratch.path(), support::person::welcome_model_offers(), support::boxed::BOX_DEADLINE);
+    eprintln!("fresh box Model step: {} ms", clock.now().now.as_nanos().saturating_sub(began.as_nanos()) / 1_000_000);
+    assert!(seen.finished, "{}", String::from_utf8_lossy(&seen.stderr));
+    let agent: serde_json::Value =
+        serde_json::from_slice(&fs::read(scratch.path().join("agent.json")).expect("agent document"))
+            .expect("agent JSON");
+    assert_eq!(agent["programs"]["claude_code"]["path"], "fetched");
+    scratch.remove();
+}
