@@ -4,7 +4,7 @@ mod orgs;
 mod tokens;
 mod walk;
 use crate::forgejo::Reply as Answer;
-use crate::forgejo::{reply, unexpected};
+use crate::forgejo::{admin::{self, Admin, Move}, reply, unexpected};
 pub use crate::plan::{Event, Failure, Need, Outcome, Reply, Stage, Why};
 use crate::{
     call::Auth,
@@ -18,9 +18,7 @@ use skein_forge::forgejo::{document::Document, request::Request};
 use skein_lib::{Queue, Secret, Writer, bytes};
 #[derive(Debug)]
 enum State {
-    Begin,
-    AdminFile,
-    Admin,
+    Admin(Admin),
     Bot,
     Draw,
     Create,
@@ -66,7 +64,7 @@ impl Reconcile {
             git_name: given.git_name.clone(),
             marker: given::marker(&given.word),
             admin: None,
-            state: State::Begin,
+            state: State::Admin(Admin::Begin),
             tokens: None,
             orgs: orgs::Orgs::new(given),
             access: walk::Walk::new(given, url.clone()),
@@ -100,23 +98,7 @@ impl Reconcile {
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {
-            State::Begin => match event.begin() {
-                Ok(()) => {
-                    self.state = State::AdminFile;
-                    Need::Read(Item::AdminToken)
-                }
-                Err(why) => self.stop(Stage::Admin, why),
-            },
-            State::AdminFile => match event.read() {
-                Ok(Some(token)) if !token.is_empty() => {
-                    self.admin = Some(token);
-                    self.state = State::Admin;
-                    self.send(Request::User)
-                }
-                Ok(_) => self.stop(Stage::Admin, Why::Missing),
-                Err(why) => self.stop(Stage::Admin, why),
-            },
-            State::Admin => self.admin(event),
+            State::Admin(admin) => self.admin(admin, event),
             State::Bot => self.bot(event),
             State::Draw => self.draw(event),
             State::Create => match account(event) {
@@ -151,12 +133,16 @@ impl Reconcile {
             State::Ended => unreachable!("terminal machine is not advanced"),
         }
     }
-    fn admin(&mut self, event: Event) -> Need {
-        match account(event) {
-            Ok(user) => {
-                if !user.is_admin {
-                    return self.stop(Stage::Admin, Why::NotAdmin);
-                }
+    fn admin(&mut self, mut admin: Admin, event: Event) -> Need {
+        let movement = admin::step(&mut admin, event);
+        self.state = State::Admin(admin);
+        match movement {
+            Ok(Move::Read) => Need::Read(Item::AdminToken),
+            Ok(Move::Token(token)) => {
+                self.admin = Some(token);
+                self.send(Request::User)
+            }
+            Ok(Move::Passed(_)) => {
                 self.state = State::Bot;
                 self.send(Request::UserOf { login: self.bot_login.clone() })
             }
@@ -204,9 +190,7 @@ pub fn step(machine: &mut Reconcile, event: Event, out: &mut Queue<Need>) {
     let state = core::mem::replace(&mut machine.state, State::Ended);
     match state {
         State::Ended => (),
-        State::Begin
-        | State::AdminFile
-        | State::Admin
+        State::Admin(_)
         | State::Bot
         | State::Draw
         | State::Create
@@ -294,9 +278,8 @@ fn edge(byte: Option<&u8>) -> bool {
 /// Stops a live plan at its step with `why`; an ended plan pushes nothing.
 pub(crate) fn halt(machine: &mut Reconcile, why: Why, out: &mut Queue<Need>) {
     let event = match machine.state {
-        State::Begin => Event::Written,
-        State::AdminFile
-        | State::Admin
+        State::Admin(Admin::Begin) => Event::Written,
+        State::Admin(Admin::Read | Admin::Check)
         | State::Bot
         | State::Draw
         | State::Create
