@@ -611,6 +611,7 @@ dependencies = [
  "hearth-protocol-config",
  "hearth-protocol-template",
  "hearth-test-fixtures",
+ "hearth-test-render",
  "minijinja",
  "skein-heap",
  "skein-lib",
@@ -667,6 +668,17 @@ dependencies = [
 [[package]]
 name = "hearth-test-render"
 version = "0.0.0"
+dependencies = [
+ "hearth-domain-render",
+ "hearth-lib",
+ "hearth-protocol-builder",
+ "hearth-protocol-config",
+ "hearth-protocol-template",
+ "hearth-test-fixtures",
+ "skein-lib",
+ "skein-scratch",
+ "skein-world",
+]
 
 [[package]]
 name = "hearth-test-repository"
