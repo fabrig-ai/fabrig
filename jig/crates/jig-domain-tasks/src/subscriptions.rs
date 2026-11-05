@@ -4,33 +4,18 @@
 //! the same decision; connector topics are routed through the application.
 use crate::domain::{Domain, entrance, publish, record, refused, task_mut};
 use crate::{
-    Limits, MessageKind, NewsClass, NoticeState, Phase, Refusal, Request, Subscription, SubscriptionKind, Word,
+    Hint, Limits, MessageFamily, MessageKind, NewsClass, NoticeState, Phase, Refusal, Request, Subscription,
+    SubscriptionKind, Word,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Wall};
 
 fn hint_of(kind: &MessageKind) -> Option<u64> {
-    match kind {
-        MessageKind::Notice { subscription, .. }
-        | MessageKind::Timer { subscription }
-        | MessageKind::News { subscription, .. } => Some(*subscription),
-        MessageKind::EffectNotMade { .. }
-        | MessageKind::Words
-        | MessageKind::Proposal { .. }
-        | MessageKind::Escalation { .. }
-        | MessageKind::SettingsDecision { .. }
-        | MessageKind::ProposalDecision { .. }
-        | MessageKind::FinishRequested { .. }
-        | MessageKind::Amendment { .. }
-        | MessageKind::Met { .. }
-        | MessageKind::QuestionAnswered { .. }
-        | MessageKind::QuestionOwed
-        | MessageKind::NothingAwaited
-        | MessageKind::QuestionEnded { .. }
-        | MessageKind::Question
-        | MessageKind::Answer { .. }
-        | MessageKind::PersonStalled { .. }
-        | MessageKind::Result(_) => None,
+    match kind.family() {
+        MessageFamily::Hint(
+            Hint::Notice { subscription, .. } | Hint::Timer { subscription } | Hint::News { subscription, .. },
+        ) => Some(subscription),
+        MessageFamily::Spoken(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => None,
     }
 }
 
@@ -208,36 +193,20 @@ pub(crate) fn unsubscribe(
 }
 
 fn matches_kind(kind: &MessageKind, subscription: &SubscriptionKind) -> bool {
-    match kind {
-        MessageKind::Notice { target, .. } => match subscription {
-            SubscriptionKind::Task { target: watched, .. } => target == watched,
+    match kind.family() {
+        MessageFamily::Hint(Hint::Notice { target, .. }) => match subscription {
+            SubscriptionKind::Task { target: watched, .. } => target == *watched,
             SubscriptionKind::Timer { .. } | SubscriptionKind::Topic { .. } => false,
         },
-        MessageKind::Timer { .. } => match subscription {
+        MessageFamily::Hint(Hint::Timer { .. }) => match subscription {
             SubscriptionKind::Timer { .. } => true,
             SubscriptionKind::Task { .. } | SubscriptionKind::Topic { .. } => false,
         },
-        MessageKind::News { class, .. } => match subscription {
-            SubscriptionKind::Topic { .. } => *class != NewsClass::Dropped,
+        MessageFamily::Hint(Hint::News { class, .. }) => match subscription {
+            SubscriptionKind::Topic { .. } => class != NewsClass::Dropped,
             SubscriptionKind::Task { .. } | SubscriptionKind::Timer { .. } => false,
         },
-        MessageKind::EffectNotMade { .. }
-        | MessageKind::Words
-        | MessageKind::Proposal { .. }
-        | MessageKind::Escalation { .. }
-        | MessageKind::SettingsDecision { .. }
-        | MessageKind::ProposalDecision { .. }
-        | MessageKind::FinishRequested { .. }
-        | MessageKind::Amendment { .. }
-        | MessageKind::Met { .. }
-        | MessageKind::QuestionAnswered { .. }
-        | MessageKind::QuestionOwed
-        | MessageKind::NothingAwaited
-        | MessageKind::QuestionEnded { .. }
-        | MessageKind::Question
-        | MessageKind::Answer { .. }
-        | MessageKind::PersonStalled { .. }
-        | MessageKind::Result(_) => false,
+        MessageFamily::Spoken(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => false,
     }
 }
 

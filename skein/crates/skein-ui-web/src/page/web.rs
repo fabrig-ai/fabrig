@@ -69,9 +69,26 @@ impl Dom {
                 let Some(element) = event.target().and_then(|t| t.dyn_into::<Element>().ok()) else {
                     return;
                 };
-                if element.closest("[data-component]").expect("component selector").is_some()
-                    && event.type_() != "keydown"
+                if event.type_() == "click" {
+                    target.fold_away(Some(&element));
+                    if !target.mount.contains(Some(&element)) {
+                        return;
+                    }
+                }
+                let in_component = element.closest("[data-component]").expect("component selector").is_some();
+                let menu_open = model.borrow().menu.is_some();
+                if let Some(key) = event.dyn_ref::<KeyboardEvent>()
+                    && key.key() == "Escape"
+                    && !(key.ctrl_key() || key.meta_key() || key.alt_key() || key.shift_key())
+                    && !in_component
+                    && !menu_open
+                    && target.fold_away(None)
                 {
+                    event.prevent_default();
+                    event.stop_propagation();
+                    return;
+                }
+                if in_component && event.type_() != "keydown" {
                     return;
                 }
                 let node = target.nearest(&element);
@@ -103,8 +120,9 @@ impl Dom {
                     }
                 }
             });
-            document
-                .mount
+            let event_target: &web_sys::EventTarget =
+                if kind == "click" { document.document.as_ref() } else { document.mount.as_ref() };
+            event_target
                 .add_event_listener_with_callback_and_bool(kind, listener.as_ref().unchecked_ref(), true)
                 .expect("mount accepts its listener");
             listeners.push((kind.into(), listener));
@@ -138,8 +156,9 @@ impl Drop for Dom {
             observer.disconnect();
         }
         for (kind, listener) in &self.listeners {
-            self.document
-                .mount
+            let event_target: &web_sys::EventTarget =
+                if kind == "click" { self.document.document.as_ref() } else { self.document.mount.as_ref() };
+            event_target
                 .remove_event_listener_with_callback_and_bool(kind, listener.as_ref().unchecked_ref(), true)
                 .expect("registered listener can be removed");
         }
@@ -162,6 +181,26 @@ struct Mounted {
 }
 
 impl Mounted {
+    // The page owns panel folding, without an application report (ui-web.md, 7).
+    // A target is an outside press; no target is Escape, with focus restored inside.
+    fn fold_away(&self, target: Option<&Element>) -> bool {
+        let details = self.mount.query_selector_all("details[open][data-folds-away]").expect("panel selector");
+        let mut folded = false;
+        for index in (0..details.length()).rev() {
+            let detail: Element = details.item(index).expect("selected panel exists").unchecked_into();
+            if target.is_some_and(|target| detail.contains(Some(target))) {
+                continue;
+            }
+            let restore =
+                target.is_none() && self.document.active_element().is_some_and(|active| detail.contains(Some(&active)));
+            detail.remove_attribute("open").expect("panel can be folded");
+            if restore && let Some(summary) = detail.query_selector(":scope > summary").expect("summary selector") {
+                summary.unchecked_ref::<HtmlElement>().focus().expect("panel summary accepts focus");
+            }
+            folded = true;
+        }
+        folded
+    }
     fn group(&self, node: NodeId) -> Group {
         self.nodes.borrow().get(&node).expect("operation names a mounted node").clone()
     }

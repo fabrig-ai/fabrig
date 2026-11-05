@@ -7,7 +7,7 @@
 use crate::{Domain, Limits};
 use alloc::boxed::Box;
 use skein_forge::api;
-use skein_lib::List;
+use skein_lib::{List, usize_of};
 
 /// Frame the owner's namespace and opaque effect identity (forge-client.md, 7.1).
 #[must_use]
@@ -53,7 +53,7 @@ pub struct Config {
 pub(crate) fn valid(config: &Config, l: &Limits) -> bool {
     if config.namespace.is_empty()
         || config.namespace.len() > usize::from(u16::MAX)
-        || config.writers.len() > usize::try_from(l.repositories).expect("u32 fits usize")
+        || config.writers.len() > usize_of(l.repositories)
     {
         return false;
     }
@@ -63,7 +63,7 @@ pub(crate) fn valid(config: &Config, l: &Limits) -> bool {
         None => None,
     };
     match bytes {
-        Some(bytes) if bytes <= usize::try_from(l.op_bytes).expect("u32 fits usize") => {}
+        Some(bytes) if bytes <= usize_of(l.op_bytes) => {}
         Some(_) | None => return false,
     }
     for (index, writer) in config.writers.iter().enumerate() {

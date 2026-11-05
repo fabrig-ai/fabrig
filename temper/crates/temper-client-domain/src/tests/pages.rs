@@ -87,7 +87,7 @@ fn a_client_started_again_opens_at_the_inbox() {
         &mut pages,
         &fixtures::env(&fixtures::limits()),
         root.client(),
-        Event::Went { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+        Event::Went { address: Address::Chats { filter: ChatsFilter::All } },
         &mut out,
     );
     pages::step(&mut pages, &fixtures::env(&fixtures::limits()), root.client(), Event::Started, &mut out);
@@ -157,8 +157,9 @@ fn arriving_at_chats_or_a_task_sets_its_address_filter() {
     let limits = fixtures::limits();
     let root = crate::unlinked(&limits, fixtures::SEED);
     for address in [
-        Address::Chats { filter: ChatsFilter::Live, start: true },
-        Address::Chats { filter: ChatsFilter::Closed, start: false },
+        Address::NewChat,
+        Address::Chats { filter: ChatsFilter::Live },
+        Address::Chats { filter: ChatsFilter::Closed },
         Address::Task { task: 7, filter: PlanFilter::Live },
     ] {
         let mut pages = Pages::new();

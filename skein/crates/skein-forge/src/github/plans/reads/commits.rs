@@ -1,7 +1,7 @@
 //! A single oldest-first commit range page (forge-github.md, 4.5).
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document, size};
 use crate::github::plans::plan::{Comparison, Exchange};
-use skein_lib::List;
+use skein_lib::{List, len_u64, usize_of};
 
 impl Plan {
     pub(super) fn commits_admission(&mut self, bounds: Bounds) -> Result<(), api::Error> {
@@ -43,13 +43,10 @@ impl Plan {
         let document::Row::CommitMessage(commit) = row else {
             return Err(api::Error::InvalidAnswer);
         };
-        if commit.parents.len() > usize::try_from(bounds.rows).expect("row bound fits") {
+        if commit.parents.len() > usize_of(bounds.rows) {
             return Err(api::Error::TooLarge);
         }
-        let parents = u64::try_from(commit.parents.len())
-            .or(Err(api::Error::TooLarge))?
-            .checked_mul(32)
-            .ok_or(api::Error::TooLarge)?;
+        let parents = len_u64(commit.parents.len()).checked_mul(32).ok_or(api::Error::TooLarge)?;
         let width = u64::try_from(size_of::<api::CommitMessage>())
             .expect("commit width")
             .checked_add(parents)

@@ -2,7 +2,7 @@
 use crate::{Check, ClientLimits, Json, json};
 use alloc::boxed::Box;
 use skein_json::Token;
-use skein_lib::{List, base64, bytes};
+use skein_lib::{List, base64, bytes, usize_of};
 
 pub(crate) struct Key {
     pub(crate) kid: Option<Box<[u8]>>,
@@ -19,7 +19,7 @@ pub(crate) fn issuer_key_set(metadata: &[u8], issuer: &[u8], limits: &ClientLimi
     }
     let uri = text(tokens, b"jwks_uri")?;
     if uri.is_empty()
-        || uri.len() > usize::try_from(limits.uri_bytes).expect("u32 fits")
+        || uri.len() > usize_of(limits.uri_bytes)
         || uri.contains(&b'#')
         || !crate::redirect::issuer_endpoint(uri)
     {
@@ -52,7 +52,7 @@ pub(crate) fn fitting_keys(key_set: &[u8], limits: &ClientLimits) -> Result<Box<
 }
 
 fn document(input: &[u8], cap: u32, limits: &ClientLimits) -> Result<Json, Check> {
-    if input.len() > usize::try_from(cap).expect("u32 fits") {
+    if input.len() > usize_of(cap) {
         return Err(Check::Keys);
     }
     Json::from_bytes(input, &limits.document).or(Err(Check::Keys))

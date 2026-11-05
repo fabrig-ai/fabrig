@@ -111,12 +111,12 @@ fn paste(world: &mut Pages, client: ClientId, values: &[Box<[u8]>]) {
 fn your_forgejo_connects_with_bot_tokens_retries_a_stop_and_is_ready() {
     let mut world = new_world();
     let values = tokens();
-    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All, start: false });
+    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All });
     follow(
         &mut world,
         client,
         vec![
-            see(Role::Heading { level: 1 }, b"Chats"),
+            see(Role::Heading { level: 1 }, b"Talk to an agent."),
             PersonStep::Go { address: Address::ConnectForge { forge: None } },
             see(Role::Link, b"Your Forgejo"),
         ],

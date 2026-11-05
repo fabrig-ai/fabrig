@@ -10,7 +10,7 @@ use crate::pulls;
 use crate::store::Repository;
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
-use skein_lib::{Id, List, Map};
+use skein_lib::{Id, List, Map, usize_of};
 
 pub(crate) fn changed(
     domain: &Domain,
@@ -197,7 +197,7 @@ fn failed_job(
     ci_user: u64,
 ) -> Result<(crate::api::Job, &[u8], crate::api::Failing), Error> {
     let (commit, job) = crate::actions::latest(repository, id)?;
-    let index = usize::try_from(job.index).expect("a bounded context");
+    let index = usize_of(job.index);
     let context = repository.checks.contexts.get(index).expect("a configured context");
     let status = repository
         .statuses

@@ -11,7 +11,7 @@ use skein_fake_oauth as issuer;
 use skein_http::{Header, server as http};
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Decimal, Duration, Env, List, Queue, Time, Token, Wall, bytes};
+use skein_lib::{Decimal, Duration, Env, List, Queue, Time, Token, Wall, bytes, usize_of};
 use skein_oauth::HttpRequest;
 use skein_shell::Host;
 
@@ -140,11 +140,11 @@ impl Peer {
             metadata_url,
             key_set_url,
             outgoing: Queue::uncapped(),
-            connections: Vec::with_capacity(usize::try_from(limits.connections).expect("u32 fits")),
+            connections: Vec::with_capacity(usize_of(limits.connections)),
             rejected: 0,
             next: 1,
             exchange: 1,
-            observations: Vec::with_capacity(usize::try_from(limits.observations).expect("u32 fits")),
+            observations: Vec::with_capacity(usize_of(limits.observations)),
             observed_bytes: 0,
             recording: true,
         })
@@ -206,10 +206,7 @@ impl Peer {
     }
 
     fn reserve_observation(&self, payload_bytes: u64) {
-        assert!(
-            self.observations.len() < usize::try_from(self.face.limits.observations).expect("u32 fits"),
-            "world observation count cap"
-        );
+        assert!(self.observations.len() < usize_of(self.face.limits.observations), "world observation count cap");
         assert!(
             self.observed_bytes
                 .checked_add(payload_bytes)
@@ -228,7 +225,7 @@ impl Peer {
             }
             io::Event::Accepted { owner, socket, .. } => {
                 assert_eq!(owner, LISTENER, "one issuer listener accepts");
-                let full = self.connections.len() == usize::try_from(self.face.limits.connections).expect("u32 fits");
+                let full = self.connections.len() == usize_of(self.face.limits.connections);
                 if self.face.stopping || full {
                     if !self.face.stopping {
                         self.rejected = self.rejected.checked_add(1).expect("finite world connections");
@@ -304,7 +301,7 @@ impl Peer {
             http::Event::Call(call) => self.call(index, call, now, wall),
             http::Event::Body(Up::Bytes(bytes)) => {
                 let connection = &mut self.connections[index];
-                if bytes.len() > usize::try_from(connection.body.room()).expect("u32 fits") {
+                if bytes.len() > usize_of(connection.body.room()) {
                     self.close(index);
                     return;
                 }
@@ -322,7 +319,7 @@ impl Peer {
                 let response = connection.response.as_mut().expect("one HTTP response body");
                 let end = response
                     .offset
-                    .checked_add(usize::try_from(self.http_limits.send).expect("u32 fits"))
+                    .checked_add(usize_of(self.http_limits.send))
                     .expect("bounded response")
                     .min(response.body.len());
                 connection
@@ -362,7 +359,7 @@ impl Peer {
                 .authorization_url
                 .len()
                 .checked_add(call.target.len().checked_sub(target_base.len()).expect("target suffix"))
-                .is_none_or(|length| length > usize::try_from(self.issuer_limits.request_bytes).expect("u32 fits"))
+                .is_none_or(|length| length > usize_of(self.issuer_limits.request_bytes))
             {
                 self.respond(index, 400, Box::new([]), Box::new([]), Duration::ZERO);
                 return;
@@ -377,7 +374,7 @@ impl Peer {
             if let Some(query) = call.target.get(target_base.len()..) {
                 url.extend_from_slice(query);
             }
-            if url.len() > usize::try_from(self.issuer_limits.request_bytes).expect("u32 fits") {
+            if url.len() > usize_of(self.issuer_limits.request_bytes) {
                 self.respond(index, 400, Box::new([]), Box::new([]), Duration::ZERO);
                 return;
             }

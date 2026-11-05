@@ -232,7 +232,7 @@ impl Decoder {
                 Ok(Some(byte)) => self.bytes.push(byte),
                 Ok(None) => {}
                 Err(error) => {
-                    self.bytes.truncate(usize::try_from(start.len).expect("length of owned bytes"));
+                    self.bytes.truncate(crate::usize_of(start.len));
                     self.state = start;
                     self.failed = Some(error);
                     return Err(error);

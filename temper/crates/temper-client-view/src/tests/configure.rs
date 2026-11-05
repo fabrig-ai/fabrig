@@ -97,7 +97,7 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
         assert_eq!(styled(tree, look::SESSION)[0].styles.as_slice(), [look::MAIN, look::SESSION]);
         for (style, expected) in [
             (look::SESSION, vec![(Role::Slot, vec![look::SESSION_TOP]), (Role::Region, vec![look::CONVO])]),
-            (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Paragraph, vec![look::BYLINE])]),
+            (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Slot, vec![look::SESSION_RIGHT])]),
             (
                 look::CRUMBS,
                 vec![
@@ -178,7 +178,7 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
         assert_eq!(styled(tree, look::STARTER)[1].name.as_deref(), Some(QUESTION.as_bytes()));
         assert_eq!(
             styled(tree, look::SESSION_HINT)[0].name.as_deref(),
-            Some(b"Enter to send \xc2\xb7 Shift+Enter for newline".as_slice())
+            Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line".as_slice())
         );
         assert_eq!(starters(tree).len(), 4);
         for node in starters(tree) {
@@ -415,9 +415,7 @@ fn unlisted_project_says_what_home_says_in_both_shells() {
         let node = named(view.tree(), Role::Link, b"Chats").id;
         assert_eq!(
             crate::act(&mut view, node, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go {
-                address: Address::Chats { filter: d::ChatsFilter::All, start: false }
-            }))
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Chats { filter: d::ChatsFilter::All } }))
         );
         assert!(f::find(view.tree(), Role::TextArea, ENTRY).is_none());
         assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::STARTER)));

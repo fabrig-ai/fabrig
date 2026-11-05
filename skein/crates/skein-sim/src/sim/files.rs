@@ -8,7 +8,7 @@ use alloc::format;
 use alloc::vec::Vec;
 
 use skein_io::kernel::{Done, Entry, Error, Fd, Op, OpenHow};
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, Token, usize_of};
 
 use super::{Pid, Sim, cut};
 use crate::machine::{Answer, Ask, Call, Handle, Reply, Ticket};
@@ -451,8 +451,4 @@ fn fill(entries: &mut [Entry], names: &mut [u8], listed: &[(skein_io::kernel::Ki
         return None;
     }
     u32::try_from(listed.len()).ok()
-}
-
-fn usize_of(n: u32) -> usize {
-    usize::try_from(n).expect("a u32 fits a usize")
 }

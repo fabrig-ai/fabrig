@@ -1,4 +1,4 @@
-#![allow(clippy::disallowed_methods, reason = "view assertions inspect semantic trees and rendered UTF-8")]
+#![expect(clippy::disallowed_methods, reason = "view assertions inspect semantic trees and rendered UTF-8")]
 use super::fixtures as f;
 use jig_client::contract as c;
 use skein_ui::Role;
@@ -6,90 +6,46 @@ use temper_client_domain::Address;
 use temper_client_domain::ChatsFilter;
 
 #[test]
-fn the_start_draws_the_pane_before_the_composer_choice_and_suggestions() {
-    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+fn the_start_keeps_status_context_meta_and_suggestions_in_order() {
+    let root = f::playground_root(Address::NewChat, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
-    let mut main = None;
-    let mut chatbar = None;
-    let mut context = None;
-    for (index, node) in nodes.iter().enumerate() {
-        if node.role == Role::Main {
-            main = Some(index);
-        }
-        if node.styles.as_slice().contains(&crate::look::CHATBAR) {
-            chatbar = Some(index);
-        }
-        if node.styles.as_slice().contains(&crate::look::CONTEXT) {
-            context = Some(index);
-        }
-    }
-    assert!(main.unwrap() < chatbar.unwrap());
-    assert_eq!(nodes[context.unwrap()].role, Role::Slot);
-    let context = context.unwrap();
-    let end = context + usize::try_from(nodes[context].size).unwrap();
-    let mut paragraphs = 0_u32;
-    for node in &nodes[context..end] {
-        if node.role == Role::Paragraph {
-            paragraphs += 1;
-        }
-    }
-    assert_eq!(paragraphs, 1, "repository alone");
-    let mut after = 0;
-    for (role, name) in [
-        (Role::Navigation, b"Shop".as_slice()),
-        (Role::Main, b""),
-        (Role::Complementary, b"Project"),
-        (Role::Paragraph, b"New chat"),
-        (Role::Status, b"Ready"),
-        (Role::Paragraph, b"acme/shop"),
-        (Role::Heading { level: 1 }, b"Chats"),
-        (Role::Paragraph, b"No chats yet."),
-        (Role::Region, b"Playground"),
-        (Role::TextArea, b"Start a chat"),
-        (Role::Paragraph, "Using Scripted model · Default".as_bytes()),
-        (Role::List, b"Suggested requests"),
-    ] {
-        let mut found = None;
-        for (index, node) in nodes.iter().enumerate() {
-            let matches = if role == Role::Banner || role == Role::Main {
-                true
-            } else if role == Role::Paragraph {
-                f::node_text(view.tree(), index).as_ref() == name
-            } else {
-                node.name.as_deref() == Some(name)
-            };
-            if node.role == role && matches {
-                assert!(found.is_none(), "only one {name:?}");
-                found = Some(index);
-            }
-        }
-        let Some(at) = found else { panic!("missing {name:?}") };
-        assert!(at > after, "{name:?} follows the previous part");
-        after = at;
-    }
-    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some());
-    let ready = f::find(view.tree(), Role::Status, b"Ready").unwrap();
-    for node in nodes {
-        if node.id == ready {
-            assert_eq!(node.styles.as_slice(), [crate::look::STATUS_QUIET]);
-        }
-    }
+    let at = |role, name: &[u8]| {
+        nodes.iter().position(|node| node.role == role && node.name.as_deref() == Some(name)).expect("start part")
+    };
+    let ready = at(Role::Status, b"Ready");
+    let context = nodes
+        .iter()
+        .enumerate()
+        .position(|(index, node)| {
+            node.role == Role::Paragraph && f::node_text(view.tree(), index).as_ref() == b"acme/shop"
+        })
+        .expect("context");
+    let meta = nodes
+        .iter()
+        .position(|node| node.styles.as_slice().contains(&crate::look::META_LINE) && node.role == Role::Paragraph)
+        .expect("meta line");
+    let suggestions = at(Role::List, b"Suggested requests");
+    assert!(ready < context && context < meta && meta < suggestions);
+    assert_eq!(nodes[ready].styles.as_slice(), [crate::look::STATUS_QUIET]);
+    assert_eq!(nodes[suggestions].styles.as_slice(), [crate::look::STARTERS]);
+    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"New chat").is_some());
+    assert!(f::find(view.tree(), Role::TextArea, b"What do you want done?").is_some());
 }
 
 #[test]
-fn other_chats_keep_their_pane_and_no_suggestions() {
+fn other_chats_keep_their_page_and_no_suggestions() {
     for (row, project, model, playground) in
         [("other project", f::SECOND_PROJECT, true, true), ("no answer", f::PROJECT, true, false)]
     {
         let root = if playground {
-            f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
+            f::playground_root(Address::Chats { filter: ChatsFilter::All }, project, model)
         } else {
             f::chats_root()
         };
         let view = f::page_view(&root);
-        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{row}");
-        assert!(f::find(view.tree(), Role::Paragraph, b"New chat").is_some(), "{row}");
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Talk to an agent.").is_some(), "{row}");
+        assert!(f::find(view.tree(), Role::Status, b"Ready").is_none(), "{row}");
         assert!(f::find(view.tree(), Role::List, b"Suggested requests").is_none(), "{row}");
         for (at, node) in view.tree().nodes().iter().enumerate() {
             if node.styles.as_slice().contains(&crate::look::CONTEXT) {
@@ -164,7 +120,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
 }
 
 #[test]
-fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
+fn a_chats_context_is_first_in_the_thread_only_in_the_playground_project() {
     for (row, project, model, playground, shown) in [
         ("playground", f::PROJECT, true, true, true),
         ("forge alone", f::PROJECT, false, true, true),
@@ -180,7 +136,7 @@ fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
         let mut chatbar = None;
         let mut context = None;
         for (index, node) in view.tree().nodes().iter().enumerate() {
-            if node.styles.as_slice().contains(&crate::look::CHATBAR) {
+            if node.styles.as_slice().contains(&crate::look::THREAD_INNER) {
                 chatbar = Some(index);
             }
             if node.styles.as_slice().contains(&crate::look::CONTEXT) {
@@ -190,11 +146,7 @@ fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
         assert_eq!(context.is_some(), shown, "{row}");
         if shown {
             let chatbar = chatbar.unwrap();
-            assert_eq!(
-                context.unwrap(),
-                chatbar + usize::try_from(view.tree().nodes()[chatbar].size).unwrap(),
-                "{row}"
-            );
+            assert_eq!(context.unwrap(), chatbar + 1, "{row}");
         }
     }
 }
@@ -203,7 +155,7 @@ fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
 fn the_context_repository_has_its_own_node_and_style() {
     // Each page has exactly one playground repository in its context.
     const REPOSITORIES: u32 = 1;
-    for address in [Address::Chats { filter: ChatsFilter::All, start: false }, Address::Chat { task: f::chat::TASK }] {
+    for address in [Address::NewChat, Address::Chat { task: f::chat::TASK }] {
         let root = f::playground_root(address, f::PROJECT, true);
         let view = f::page_view(&root);
         let mut repositories = skein_lib::List::with_capacity(REPOSITORIES);
@@ -219,15 +171,13 @@ fn the_context_repository_has_its_own_node_and_style() {
 }
 
 #[test]
-fn the_suggestions_slot_holds_only_the_cue_list() {
-    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+fn the_suggestions_follow_the_meta_line_in_the_starter() {
+    let root = f::playground_root(Address::NewChat, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
-    let at = nodes.iter().position(|node| node.styles.as_slice().contains(&crate::look::INVITATION)).unwrap();
-    assert_eq!(nodes[at].role, Role::Slot);
-    assert_eq!(nodes[at + 1].role, Role::List);
-    assert_eq!(nodes[at + 1].name.as_deref(), Some(b"Suggested requests".as_slice()));
-    assert_eq!(nodes[at].size, nodes[at + 1].size + 1);
+    let at = nodes.iter().position(|node| node.styles.as_slice().contains(&crate::look::STARTERS)).unwrap();
+    assert_eq!(nodes[at].role, Role::List);
+    assert_eq!(nodes[at].name.as_deref(), Some(b"Suggested requests".as_slice()));
     assert!(f::find(view.tree(), Role::Region, b"What shall we change?").is_none());
 }
 
@@ -260,14 +210,20 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         let mut view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, b"Not started").is_some());
         assert!(f::find(view.tree(), Role::Alert, expected.as_bytes()).is_some(), "{expected}");
-        let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("editable draft after failure");
-        assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None);
-        assert!(crate::act(&mut view, field, skein_ui::Act::Input { value: Box::from(*b"kept draft") }).is_some());
         let again = f::find(view.tree(), Role::Button, b"Try again").unwrap();
         assert_eq!(
             crate::act(&mut view, again, skein_ui::Act::Press),
             Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::RetryPlayground))
         );
+        f::root_event(
+            &mut root,
+            temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+        );
+        let mut view = f::page_view(&root);
+        let field =
+            f::find(view.tree(), Role::TextArea, b"What do you want done?").expect("editable draft after failure");
+        assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None);
+        assert!(crate::act(&mut view, field, skein_ui::Act::Input { value: Box::from(*b"kept draft") }).is_some());
     }
 }
 #[test]
@@ -295,17 +251,21 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
 }
 
 #[test]
-fn enter_and_start_wait_for_the_playground_start_answer() {
+fn enter_and_send_wait_for_the_playground_start_answer() {
     use temper_client_domain::{Action, pages::Act};
     use temper_client_protocol_wire::v1 as w;
 
     let mut root = start_root();
     let attempt = f::playground_start_attempt(&mut root);
-    assert_eq!(f::type_into(&mut root, b"Start a chat", b"Add CSV export").as_ref(), b"Add CSV export");
+    f::root_event(
+        &mut root,
+        temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+    );
+    assert_eq!(f::type_into(&mut root, b"What do you want done?", b"Add CSV export").as_ref(), b"Add CSV export");
     assert!(root.forge().playground_starting());
     let mut view = f::page_view(&root);
-    let button = f::find(view.tree(), Role::Button, b"Start chat").expect("start button");
-    let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("editable composer");
+    let button = f::find(view.tree(), Role::Button, b"Send").expect("start button");
+    let field = f::find(view.tree(), Role::TextArea, b"What do you want done?").expect("editable composer");
     assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), None);
     assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None, "Enter waits as the button does");
 
@@ -313,15 +273,15 @@ fn enter_and_start_wait_for_the_playground_start_answer() {
     f::deliver_playground(&mut root, read, w::PlaygroundState::Running, f::FORGE, Some(f::PROJECT));
     assert_eq!(root.pages().chats().expect("kept draft").words.as_ref(), b"Add CSV export");
     let mut view = f::page_view(&root);
-    let button = f::find(view.tree(), Role::Button, b"Start chat").expect("ready start button");
-    let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("kept draft");
+    let button = f::find(view.tree(), Role::Button, b"Send").expect("ready start button");
+    let field = f::find(view.tree(), Role::TextArea, b"What do you want done?").expect("kept draft");
     assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), Some(Action::Pages(Act::StartChat)));
     let action = crate::act(&mut view, field, skein_ui::Act::Submit).expect("ready Enter");
     assert_eq!(action, Action::Pages(Act::StartChat));
 }
 
 fn start_root() -> temper_client_domain::Domain {
-    let address = Address::Chats { filter: ChatsFilter::All, start: false };
+    let address = Address::NewChat;
     let template = f::playground_root(address.clone(), f::PROJECT, true);
     let (mut root, me, _, _, accounts, _) = f::root_at_with_forges(
         address,

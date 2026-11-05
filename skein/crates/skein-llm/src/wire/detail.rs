@@ -1,10 +1,10 @@
 use super::DecodeError;
 use alloc::boxed::Box;
 use skein_json::writer;
-use skein_lib::{List, bytes};
+use skein_lib::{List, bytes, usize_of};
 
 pub(crate) fn append(out: &mut List<u8>, bytes: &[u8], cap: crate::Cap) -> Result<(), DecodeError> {
-    if bytes.len() > usize::try_from(out.room()).expect("u32 fits usize") {
+    if bytes.len() > usize_of(out.room()) {
         return Err(DecodeError::limit(cap, out.capacity()));
     }
     for &b in bytes {
@@ -15,7 +15,7 @@ pub(crate) fn append(out: &mut List<u8>, bytes: &[u8], cap: crate::Cap) -> Resul
     Ok(())
 }
 pub(crate) fn clipped(bytes: &[u8], limit: u32) -> Box<[u8]> {
-    let mut count = bytes.len().min(usize::try_from(limit).expect("u32 fits usize"));
+    let mut count = bytes.len().min(usize_of(limit));
     // Tokenizer strings are UTF-8. A prefix ends before a continuation byte,
     // so truncating diagnostics never creates a new malformed string.
     for _back in 0..4_u32 {

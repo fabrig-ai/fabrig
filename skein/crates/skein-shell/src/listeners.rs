@@ -67,7 +67,7 @@ pub fn inherited_listeners() -> Result<Box<[(Fd, SocketAddr)]>, ListenersRefusal
         None => 0,
         Some(value) => count(value.as_os_str().as_bytes())?,
     };
-    let mut listeners = Vec::with_capacity(usize::try_from(count).expect("bounded count fits usize"));
+    let mut listeners = Vec::with_capacity(skein_lib::usize_of(count));
     for offset in 0..count {
         let fd = Fd::new(i32::try_from(offset).expect("bounded offset fits i32").checked_add(3).expect("bounded fd"));
         let addr = listener_at(fd)?;

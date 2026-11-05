@@ -8,6 +8,10 @@ pub struct Limits {
 }
 impl Limits {
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the view envelope keeps each bounded page contribution in one derivation"
+    )]
     pub fn of(domain: &temper_client_domain::Limits, words: &Words) -> Option<Limits> {
         let receiving = &domain.client.domain;
         let text = words
@@ -24,10 +28,10 @@ impl Limits {
         let text = text.max(3400);
         let markdown = skein_ui::markdown::max_nodes(receiving.text)?;
         let cards = card_nodes(receiving, markdown)?;
-        // Each watched task has one card at its first anchor: fourteen structural
+        // Each watched task has one card at its first anchor: sixteen structural
         // nodes plus the result's markdown, and one region for live delegates.
         let delegations = temper_client_domain::pages::delegation::bound(domain);
-        let delegated = markdown.checked_add(14)?.checked_mul(delegations)?.checked_add(1)?;
+        let delegated = markdown.checked_add(16)?.checked_mul(delegations)?.checked_add(1)?;
         // Both chat and agent pages price a committed turn by turn_text; fields
         // and cards retain text. One turn node holds at most turn_text bytes.
         // A decoded turn shares text across texts, names, inputs, outcomes and
@@ -141,9 +145,11 @@ impl Limits {
             .checked_add(1)?
             // Task amendment region, fields, buttons and explanatory text leaves (5.11).
             .checked_add(16)?
-            // Your chats replaces two headings with a heading, filters and empty words.
-            // The merge retains only scalar keys and borrowed lines on the stack.
-            .checked_add(4)?
+            // Chats adds its intro (seven nodes), section head and repository tag
+            // above the filters and empty words; rows retain borrowed lines and scalar keys.
+            .checked_add(16)?
+            // A chat log holds its inner column and the working indicator with three dots.
+            .checked_add(5)?
             // Start a chat heading and its text outside the playground start (2), and
             // a failed playground start's alert, its text leaf and Try again (3).
             .checked_add(5)?
@@ -186,7 +192,8 @@ fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32
         .checked_add(authority)?
         .checked_add(receiving.rows.checked_mul(16)?)?
         .checked_add(32)?;
-    let card = proposed.checked_mul(receiving.rows)?.checked_add(128)?;
+    // Conversation controls share one slot.
+    let card = proposed.checked_mul(receiving.rows)?.checked_add(129)?;
     let cards = card.checked_mul(receiving.reads.checked_add(1)?)?;
     Some(cards)
 }

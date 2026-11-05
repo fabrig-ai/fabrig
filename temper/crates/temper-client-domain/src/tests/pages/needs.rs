@@ -119,7 +119,7 @@ fn reply(pages: &mut Pages, words: &[u8]) -> Queue<Request> {
 }
 
 fn chats() -> Address {
-    Address::Chats { filter: ChatsFilter::All, start: false }
+    Address::Chats { filter: ChatsFilter::All }
 }
 fn went(pages: &mut Pages, address: Address) {
     event(pages, 0, pages::Event::Went { address });

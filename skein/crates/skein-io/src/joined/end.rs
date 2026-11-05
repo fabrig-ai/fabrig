@@ -7,7 +7,7 @@ use crate::{Event, Limits};
 use alloc::boxed::Box;
 use core::mem;
 use skein_lib::stream::{Down, Fault, OutputDown, OutputOutcome, Read, Up};
-use skein_lib::{Env, Id, Intake, Queue, Token};
+use skein_lib::{Env, Id, Intake, Queue, Token, usize_of};
 
 #[derive(Debug)]
 pub(super) struct Open {
@@ -77,10 +77,9 @@ pub(crate) fn request(current: &mut End, id: Id<Entity>, down: Down, limits: &Li
                 match read {
                     Read::Nothing => {}
                     Read::Fill(n) => assert!(n <= limits.intake, "fill within intake"),
-                    Read::Scan { until, max } => assert!(
-                        max <= limits.intake && usize::try_from(max).expect("u32 index") >= until.as_bytes().len(),
-                        "scan within intake"
-                    ),
+                    Read::Scan { until, max } => {
+                        assert!(max <= limits.intake && usize_of(max) >= until.as_bytes().len(), "scan within intake");
+                    }
                     Read::Arrived { max } => assert!(max > 0, "a read of what has arrived has a positive maximum"),
                     Read::Line { max } => assert!(max > 0 && max <= limits.intake, "line within intake"),
                 }
@@ -303,14 +302,14 @@ fn advance(io: &mut Io, id: Id<Entity>, flow: &mut Flow) -> bool {
         flow.moving = Some((data, 0));
     }
     if let Some((data, from)) = flow.moving.take() {
-        let left = data.get(usize::try_from(from).expect("u32 index")..).expect("move offset within box");
+        let left = data.get(usize_of(from)..).expect("move offset within box");
         let moved = match io.entities.get_mut(flow.peer) {
             Some(Entity::Joined(peer)) => match &mut peer.state {
                 EndState::Established { reset: true, .. } => return false,
                 EndState::Open(peer) | EndState::Established { open: peer, reset: false } => {
                     let n = peer.intake.room().min(u32::try_from(left.len()).expect("bounded Send"));
                     peer.intake
-                        .append(left.get(..usize::try_from(n).expect("u32 index")).expect("move within box"))
+                        .append(left.get(..usize_of(n)).expect("move within box"))
                         .expect("move within intake room");
                     n
                 }
@@ -335,7 +334,7 @@ fn advance(io: &mut Io, id: Id<Entity>, flow: &mut Flow) -> bool {
         };
         let offset = from.checked_add(moved).expect("bounded move");
         flow.bytes = flow.bytes.checked_sub(moved).expect("move spends output");
-        if usize::try_from(offset).expect("u32 index") < data.len() {
+        if usize_of(offset) < data.len() {
             flow.moving = Some((data, offset));
         }
         if moved > 0 {

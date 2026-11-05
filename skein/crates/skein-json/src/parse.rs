@@ -21,7 +21,7 @@ pub enum ParseError {
 /// As for `Feed::new`, `limits.chunk` must be positive and
 /// `limits.length` must be less than `u32::MAX`.
 pub fn parse(input: &[u8], limits: &tokenizer::Limits, retained: &document::Limits) -> Result<Document, ParseError> {
-    if input.len() > usize::try_from(limits.length).expect("u32 fits usize") {
+    if input.len() > skein_lib::usize_of(limits.length) {
         return Err(ParseError::Tokenizer(tokenizer::Error::TooLong));
     }
     let mut feed = Feed::new(input, limits);

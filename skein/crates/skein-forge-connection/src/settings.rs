@@ -1,7 +1,7 @@
 //! Forge component settings (forge-connection.md, sections 2, 3.5, 7 and 8).
 use alloc::boxed::Box;
 use skein_io::Addr;
-use skein_lib::{List, Secret};
+use skein_lib::{List, Secret, len_u64};
 
 /// Owner inputs held by the component until close.
 #[derive(Debug)]
@@ -117,17 +117,16 @@ pub(crate) fn log_name(origin: &skein_forge::github::redirect::Origin) -> Option
 /// Newly retained owner slices, priced separately from bounded tables and credentials.
 #[must_use]
 pub fn owned_bytes(settings: &Settings) -> Option<u64> {
-    let mut total =
-        u64::try_from(settings.word.len()).ok()?.checked_add(u64::try_from(settings.user_agent.len()).ok()?)?;
+    let mut total = len_u64(settings.word.len()).checked_add(len_u64(settings.user_agent.len()))?;
     for forge in &settings.forges {
         match &forge.transport {
             Transport::Plaintext { name: Some(name) } => {
-                total = total.checked_add(u64::try_from(name.len()).ok()?)?;
+                total = total.checked_add(len_u64(name.len()))?;
             }
             Transport::Plaintext { name: None } => {}
             Transport::Tls { server_name, .. } => match server_name.server() {
                 skein_tls::Server::Dns(text) => {
-                    total = total.checked_add(u64::try_from(text.len()).ok()?)?;
+                    total = total.checked_add(len_u64(text.len()))?;
                 }
                 skein_tls::Server::Ip(_) => {}
             },

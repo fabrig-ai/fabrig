@@ -44,7 +44,7 @@ impl Plan {
             if more {
                 return Err(api::Error::TooLarge);
             }
-            if u64::try_from(bytes.len()).ok().ok_or(api::Error::TooLarge)? > u64::from(self.raw_cap) {
+            if skein_lib::len_u64(bytes.len()) > u64::from(self.raw_cap) {
                 return Err(api::Error::TooLarge);
             }
             self.keep_bytes(0, &[&bytes], bounds)?;
@@ -56,7 +56,7 @@ impl Plan {
         let Read::File { head, path, .. } = &self.read else {
             return Err(api::Error::InvalidAnswer);
         };
-        if u64::try_from(bytes.len()).ok().ok_or(api::Error::TooLarge)? > u64::from(self.raw_cap) {
+        if skein_lib::len_u64(bytes.len()) > u64::from(self.raw_cap) {
             return Err(api::Error::TooLarge);
         }
         if path.is_empty() {
@@ -154,8 +154,8 @@ impl Plan {
                     Some(path) => path.as_ref(),
                     None => &[],
                 };
-                let path_bytes = u64::try_from(file.path.len()).ok().ok_or(api::Error::TooLarge)?;
-                let previous_bytes = u64::try_from(previous.len()).ok().ok_or(api::Error::TooLarge)?;
+                let path_bytes = skein_lib::len_u64(file.path.len());
+                let previous_bytes = skein_lib::len_u64(previous.len());
                 let width = path_bytes
                     .checked_add(64)
                     .ok_or(api::Error::TooLarge)?

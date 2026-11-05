@@ -41,7 +41,7 @@ fn live(client: &NativeClient) -> bool {
     named(client, Role::Status, b"Live").is_some() && named(client, Role::Status, b"Behind").is_none()
 }
 fn chats() -> Address {
-    Address::Chats { filter: ChatsFilter::All, start: false }
+    Address::Chats { filter: ChatsFilter::All }
 }
 impl Referee<NativeClient> for Judge {
     fn act(&mut self, now: Time, clients: &mut [NativeClient]) {
@@ -73,7 +73,7 @@ impl Referee<NativeClient> for Judge {
                 self.page = Page::Done;
             }
             Page::Chats
-                if named(client, Role::Heading { level: 1 }, b"Chats").is_some()
+                if named(client, Role::Heading { level: 1 }, b"Talk to an agent.").is_some()
                     && named(client, Role::Button, b"My project")
                         .is_some_and(|node| !self.press || node.states.as_slice().contains(&State::Pressed))
                     && live(client) =>
@@ -110,7 +110,9 @@ impl Referee<NativeClient> for Judge {
             Page::Home => {
                 "Home: Heading My project is ready. level 1, pressed Button My project, Status Live and no Status Behind"
             }
-            Page::Chats => "Chats: Heading Chats level 1, Button My project, Status Live and no Status Behind",
+            Page::Chats => {
+                "Chats: Heading Talk to an agent. level 1, Button My project, Status Live and no Status Behind"
+            }
             Page::Forges => "Forges: Heading Forges level 1 and Disclosure Forgejo on this machine",
             Page::Accounts => {
                 "Accounts: Heading Accounts level 1, Disclosure OpenAI API key · held by the deployment, Status Live and no Status Behind"
