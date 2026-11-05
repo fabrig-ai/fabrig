@@ -1,7 +1,7 @@
 //! Git's direct store calls borrow the forge only for this pass.
 use crate::{
-    Hosted, Limits,
-    git::{self, Answer, Call, Parents},
+    Hosted,
+    git::{self, Answer, Call, Limits, Parents},
 };
 use alloc::boxed::Box;
 use core::cmp::Reverse;

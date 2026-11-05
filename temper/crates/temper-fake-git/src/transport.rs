@@ -13,7 +13,7 @@ pub trait Transport: Remote {
     /// Start a fresh replay cursor before running the scanned checkout again.
     fn begin(&mut self) {}
     /// Encoding bounds for a missing route call; typed transports miss none.
-    fn route_limits(&self) -> Option<skein_fake_forge_protocol::Limits> {
+    fn route_limits(&self) -> Option<skein_fake_forge_protocol::git::Limits> {
         None
     }
     /// Retain a missing call's terminal answer once, including an identity refusal.

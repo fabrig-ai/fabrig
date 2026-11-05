@@ -1,8 +1,5 @@
 use super::fixtures::{self, boxed};
-use crate::{
-    Limits,
-    git::{self, Answer, Call, Name, client, server},
-};
+use crate::git::{self, Answer, Call, Limits, Name, client, server};
 use skein_fake_forge_domain::api;
 use skein_json::tokenizer::{self as json, Tokenizer};
 use skein_lib::{
@@ -146,7 +143,7 @@ fn decoded(body: &[u8], name: Name, status: u16, limits: &Limits, piece: usize) 
 }
 #[test]
 fn git_calls_round_trip_whole_and_bytewise() {
-    let limits = fixtures::limits();
+    let limits = fixtures::limits().git();
     for call in calls() {
         let encoded = client::encode(&call, &limits).expect("call encoding");
         assert_eq!(git::name(&encoded.target), Some(Ok(call.name())));
@@ -162,7 +159,7 @@ fn git_calls_round_trip_whole_and_bytewise() {
 }
 #[test]
 fn git_answers_round_trip_whole_and_bytewise() {
-    let limits = fixtures::limits();
+    let limits = fixtures::limits().git();
     for (name, answer) in answers() {
         let body = server::encode(&answer, &limits).expect("answer encoding");
         for piece in [usize::MAX, 1] {
@@ -174,10 +171,8 @@ fn git_answers_round_trip_whole_and_bytewise() {
         }
     }
 }
-#[test]
-fn git_errors_round_trip_whole_and_bytewise() {
+fn errors() -> Box<[api::Error]> {
     use api::Error as E;
-    let limits = fixtures::limits();
     let mut errors = skein_lib::List::with_capacity(28);
     for error in [
         E::Unavailable,
@@ -215,7 +210,37 @@ fn git_errors_round_trip_whole_and_bytewise() {
     ] {
         errors.push(E::Missing(what)).expect("missing rows");
     }
-    for error in errors.into_boxed() {
+    errors.into_boxed()
+}
+#[test]
+fn git_status_matches_forgejo_for_every_error_and_call() {
+    for error in errors() {
+        for name in [
+            Name::Clone,
+            Name::Fetch,
+            Name::Create,
+            Name::Push,
+            Name::Branch,
+            Name::Objects,
+            Name::Commit,
+            Name::Merge,
+            Name::CommitTree,
+            Name::Ancestor,
+        ] {
+            for now in [Time::ZERO, Time::from_nanos(123), Time::from_nanos(456)] {
+                assert_eq!(
+                    git::status(error, name),
+                    crate::errors::answer(error, crate::Route::Git(name), now).status,
+                    "{error:?}/{name:?}/{now:?}"
+                );
+            }
+        }
+    }
+}
+#[test]
+fn git_errors_round_trip_whole_and_bytewise() {
+    let limits = fixtures::limits().git();
+    for error in errors() {
         let body = server::error(error, &limits).expect("error encoding");
         for status in [404, 403, 401, 422] {
             for piece in [usize::MAX, 1] {
@@ -264,7 +289,7 @@ fn git_fits_matches_real_encoding_at_each_bound() {
     let domain = fixtures::fake_config().limits;
     let bound = git::tree_bound(&domain).expect("representable");
     let (call, answer) = maximal_tree();
-    let limits = fixtures::limits();
+    let limits = fixtures::limits().git();
     assert_eq!(client::encode(&call, &limits).expect("call").body.len(), usize::try_from(bound.request).expect("size"));
     assert_eq!(server::encode(&answer, &limits).expect("answer").len(), usize::try_from(bound.answer).expect("size"));
     for delta in [0, 1] {
@@ -276,7 +301,7 @@ fn git_fits_matches_real_encoding_at_each_bound() {
         limits.http.body = u64::from(bound.request);
         assert_eq!(git::fits(&limits, &domain), delta == 0, "room delta {delta}");
         assert_eq!(server::encode(&answer, &limits).is_ok(), delta == 0, "encoding delta {delta}");
-        limits = fixtures::limits();
+        limits = fixtures::limits().git();
         limits.http.body = u64::from(bound.request.saturating_sub(delta));
         assert_eq!(git::fits(&limits, &domain), delta == 0, "request delta {delta}");
         assert_eq!(client::encode(&call, &limits).is_ok(), delta == 0, "call encoding delta {delta}");
@@ -324,11 +349,11 @@ fn ask_raw(h: &mut fixtures::Harness, method: &[u8], path: &[u8], body: &[u8], a
     h.run();
 }
 fn ask(h: &mut fixtures::Harness, call: &Call) {
-    let encoded = client::encode(call, &h.env.limits).expect("call");
+    let encoded = client::encode(call, &h.env.limits.git()).expect("call");
     ask_raw(h, b"POST", &encoded.target, &encoded.body, Some(&basic(b"engine", fixtures::TOKEN)));
 }
 fn answer(h: &fixtures::Harness, name: Name) -> Answer {
-    let client::Step::Decoded(Ok(answer)) = decode_answer(&h.body(), name, h.status(), &h.env.limits, usize::MAX)
+    let client::Step::Decoded(Ok(answer)) = decode_answer(&h.body(), name, h.status(), &h.env.limits.git(), usize::MAX)
     else {
         panic!("git answer: {} {:?}", h.status(), h.body());
     };
@@ -387,7 +412,7 @@ fn route_calls() -> [Call; 10] {
 fn git_method_and_unknown_route_statuses() {
     for call in route_calls() {
         let mut h = fixtures::Harness::new(fixtures::config());
-        let encoded = client::encode(&call, &h.env.limits).expect("call");
+        let encoded = client::encode(&call, &h.env.limits.git()).expect("call");
         ask_raw(&mut h, b"GET", &encoded.target, b"", None);
         assert_eq!(h.status(), 405, "{:?}", call.name());
         assert_eq!(h.domain_calls(), 0);
@@ -434,7 +459,7 @@ fn git_malformed_call_table() {
     for (name, body) in rows {
         for piece in [usize::MAX, 1] {
             assert_eq!(
-                decode_call(body, name, &fixtures::limits(), piece),
+                decode_call(body, name, &fixtures::limits().git(), piece),
                 server::BodyStep::Malformed,
                 "{name:?}/{body:?}/{piece}"
             );
@@ -458,7 +483,7 @@ fn git_members_arrive_in_any_order() {
         (Name::Fetch, br#"{"branch":"main","repository":"org/repo"}"#),
     ];
     for (name, body) in rows {
-        let server::BodyStep::Decoded(call) = decode_call(body, name, &fixtures::limits(), 1) else {
+        let server::BodyStep::Decoded(call) = decode_call(body, name, &fixtures::limits().git(), 1) else {
             panic!("order {name:?}")
         };
         let mut h = fixtures::Harness::new(fixtures::config());
@@ -521,7 +546,7 @@ fn git_basic_credentials_bind_login_and_scopes() {
         } else {
             Call::Fetch { repository: boxed(b"org/repo"), want: api::Want::Default }
         };
-        let encoded = client::encode(&call, &h.env.limits).expect("call");
+        let encoded = client::encode(&call, &h.env.limits.git()).expect("call");
         ask_raw(&mut h, b"POST", &encoded.target, &encoded.body, Some(&basic(login, token)));
         assert_eq!(h.status(), expected, "{label:?}");
         assert_eq!(h.domain_calls(), u32::from(expected == 200));
@@ -650,7 +675,7 @@ fn git_store_calls_ignore_credentials_latency_rate_and_domain_faults() {
             }
             h.fake_env.limits.latency_min = Duration::from_secs(100);
             h.fake_env.limits.latency_max = Duration::from_secs(100);
-            let encoded = client::encode(&call, &h.env.limits).expect("call");
+            let encoded = client::encode(&call, &h.env.limits.git()).expect("call");
             let before = h.fake_env.now;
             ask_raw(&mut h, b"POST", &encoded.target, &encoded.body, None);
             assert_eq!(h.status(), 200, "{:?}/{fault}", call.name());
@@ -793,7 +818,7 @@ fn git_objects_items_and_room_bound_table() {
         git::Parents { commit: 5, parent: Some(4), merge_parent: None },
         git::Parents { commit: 4, parent: Some(2), merge_parent: Some(3) },
     ]);
-    let encoded = server::encode(&Answer::Objects { objects: Box::new([whole.clone()]), graph }, &h.env.limits)
+    let encoded = server::encode(&Answer::Objects { objects: Box::new([whole.clone()]), graph }, &h.env.limits.git())
         .expect("reference answer");
     h.env.limits.documents.writer.length = u32::try_from(encoded.len()).expect("room");
     ask(&mut h, &Call::Objects { commits: Box::new([6]) });
@@ -803,7 +828,7 @@ fn git_objects_items_and_room_bound_table() {
     assert_eq!(ids(answer(&h, Name::Objects)), (boxed_ids(&[6]), boxed_ids(&[5])));
     // Selecting whole objects stops in asked order, even if a later one is smaller.
     let encoded =
-        server::encode(&Answer::Objects { objects: Box::new([whole]), graph: Box::new([]) }, &fixtures::limits())
+        server::encode(&Answer::Objects { objects: Box::new([whole]), graph: Box::new([]) }, &fixtures::limits().git())
             .expect("reference whole");
     h.env.limits.documents.writer.length = u32::try_from(encoded.len()).expect("room");
     ask(&mut h, &Call::Objects { commits: Box::new([6, 5]) });
@@ -865,7 +890,7 @@ fn git_encoder_refusal_uses_the_table_413_path() {
     ] {
         let mut h = fixtures::Harness::new(fixtures::config());
         h.env.limits.documents.writer.length = 1;
-        let encoded = client::encode(&call, &fixtures::limits()).expect("request outside tiny answer bound");
+        let encoded = client::encode(&call, &fixtures::limits().git()).expect("request outside tiny answer bound");
         ask_raw(&mut h, b"POST", &encoded.target, &encoded.body, Some(&basic(b"engine", fixtures::TOKEN)));
         assert_eq!(h.status(), 413);
     }
@@ -927,7 +952,11 @@ fn git_client_refuses_malformed_success() {
     ];
     for (name, body) in rows {
         for piece in [usize::MAX, 1] {
-            assert_eq!(decode_answer(body, name, 200, &fixtures::limits(), piece), client::Step::Malformed, "{name:?}");
+            assert_eq!(
+                decode_answer(body, name, 200, &fixtures::limits().git(), piece),
+                client::Step::Malformed,
+                "{name:?}"
+            );
         }
     }
 }
@@ -946,7 +975,7 @@ fn git_client_uses_unnamed_error_status() {
     ] {
         for body in [b"".as_slice(), b"{}", b"not json", br#"{"message":"Not Found"}"#] {
             assert_eq!(
-                decoded(body, Name::Fetch, status, &fixtures::limits(), 1),
+                decoded(body, Name::Fetch, status, &fixtures::limits().git(), 1),
                 (client::Step::Decoded(Err(error)), false),
                 "{status}/{body:?}"
             );

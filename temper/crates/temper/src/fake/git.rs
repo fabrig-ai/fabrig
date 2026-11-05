@@ -46,7 +46,7 @@ fn start(arguments: &[Box<[u8]>]) -> Result<(Git<Route>, skein_shell::Kernel), S
         pipes: Box::new([(0, Fd::new(0)), (1, Fd::new(1)), (2, Fd::new(2))]),
         owned: Box::new([root, Fd::new(0), Fd::new(1), Fd::new(2)]),
     };
-    let git = Git::new(&spawn, start, Route::new(temper_fake::forge::git_limits()));
+    let git = Git::new(&spawn, start, Route::new(temper_fake::forge::git_limits().git()));
     let kernel = skein_shell::Kernel::open(skein_shell::Config { operations: git.operations() }).map_err(|why| {
         skein_shell::close_keeper_fd(root);
         why.to_string()

@@ -53,13 +53,13 @@ mod tests {
                     0xfe,
                 ),
             };
-            let encoded = git::client::encode(&call, &h.env.limits).expect("largest request fits");
+            let encoded = git::client::encode(&call, &h.env.limits.git()).expect("largest request fits");
             h.ask(b"POST", &encoded.target, &encoded.body);
             assert_eq!(h.status(), 200);
             tip = tip.checked_add(1).expect("tiny history");
         }
         let call = git::Call::Objects { commits: Box::new([tip]) };
-        let encoded = git::client::encode(&call, &h.env.limits).expect("objects request");
+        let encoded = git::client::encode(&call, &h.env.limits.git()).expect("objects request");
         h.ask(b"POST", &encoded.target, &encoded.body);
         assert_eq!(h.status(), 200);
         assert!(skein_lib::bytes::find(&h.body(), b"\"graph\":[{\"commit\":15,").is_some());
@@ -75,7 +75,7 @@ mod tests {
     fn client_objects_decoder_fits_its_priced_scratch() {
         use skein_json::tokenizer as json;
         use skein_lib::Time;
-        let limits = fixtures::limits();
+        let limits = fixtures::limits().git();
         let domain = fixtures::fake_config().limits;
         let mut objects = List::with_capacity(5);
         for commit in 1..=5 {

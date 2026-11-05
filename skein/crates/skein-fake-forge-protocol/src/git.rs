@@ -1,5 +1,4 @@
 //! The private, two-sided git vocabulary (fake-forge.md, sections 3–4).
-use crate::Limits;
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api};
 use skein_lib::List;
@@ -9,7 +8,41 @@ pub mod server;
 pub(crate) mod store;
 pub(crate) mod write;
 
-pub use skein_forge::forgejo::server::Unrouted;
+/// What the route reads (fake-forge.md, section 12).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Limits {
+    pub http: skein_http::server::Limits,
+    pub documents: skein_forge::limits::Limits,
+}
+
+/// A segment under the route's prefix that names no call.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Unrouted {
+    NotFound,
+}
+
+/// A domain error's status on the route (fake-forge.md, section 12).
+#[must_use]
+pub fn status(error: api::Error, name: Name) -> u16 {
+    match error {
+        api::Error::Missing(_) => 404,
+        api::Error::Forbidden | api::Error::Protected | api::Error::Refused => 403,
+        api::Error::Full => match name {
+            Name::Commit | Name::Merge | Name::CommitTree => 507,
+            Name::Clone | Name::Fetch | Name::Create | Name::Push | Name::Branch | Name::Objects | Name::Ancestor => {
+                413
+            }
+        },
+        api::Error::TooLarge => 413,
+        api::Error::Unreachable => 502,
+        api::Error::RateLimited { .. } => 429,
+        api::Error::Exists | api::Error::AlreadyQueued(_) | api::Error::Stale | api::Error::Conflict => 409,
+        api::Error::Closed => 405,
+        api::Error::NothingToMerge | api::Error::Circular | api::Error::Empty => 422,
+        api::Error::Unavailable => 503,
+        api::Error::Timeout => 500,
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Name {

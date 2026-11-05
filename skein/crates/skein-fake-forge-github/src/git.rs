@@ -11,7 +11,7 @@ use skein_fake_forge_protocol::{
 };
 use skein_forge::github::request::Method;
 use skein_json::tokenizer as json;
-use skein_lib::{Queue, ReplyTo, Time, Wall, bytes};
+use skein_lib::{Queue, ReplyTo, Wall, bytes};
 
 /// One request on the private git route (fake-forge.md 10.1), never its credential.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -234,19 +234,16 @@ pub(crate) fn render(name: Name, result: Result<api::Answer, api::Error>, bounds
         Err(_) => crate::logs::empty(413),
     }
 }
-fn error(name: Name, why: api::Error, limits: &protocol::Limits) -> Response {
-    let status = protocol::errors::answer(why, protocol::Route::Git(name), Time::ZERO).status;
+fn error(name: Name, why: api::Error, limits: &git::Limits) -> Response {
+    let status = git::status(why, name);
     match git::server::error(why, limits) {
         Ok(body) => Response { body, content_type: crate::service::ContentType::Json, ..crate::logs::empty(status) },
         Err(_) => crate::logs::empty(413),
     }
 }
-pub(crate) fn limits(limits: &Limits) -> protocol::Limits {
-    protocol::Limits {
-        calls: 1,
-        connections: 1,
+pub(crate) fn limits(limits: &Limits) -> git::Limits {
+    git::Limits {
         http: limits.http,
-        raw_bytes: limits.body,
         documents: skein_forge::limits::Limits {
             json: json::Limits { length: limits.github.json.length.min(limits.body), ..limits.github.json },
             writer: skein_json::writer::Limits {
@@ -260,7 +257,7 @@ pub(crate) fn limits(limits: &Limits) -> protocol::Limits {
         },
     }
 }
-fn decode(name: Name, body: &[u8], limits: &protocol::Limits) -> Option<Call> {
+fn decode(name: Name, body: &[u8], limits: &git::Limits) -> Option<Call> {
     let mut decoder = git::server::decoder(name, limits);
     let mut feed = json::Feed::new(body, &limits.documents.json);
     let mut request = git::server::body_first(&decoder);
