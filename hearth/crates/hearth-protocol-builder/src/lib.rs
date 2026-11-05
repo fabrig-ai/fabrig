@@ -95,24 +95,37 @@ pub struct Roots {
     pub staging: Root,
 }
 #[derive(Debug)]
+#[expect(clippy::large_enum_variant, reason = "current work stays inline without another allocation")]
+enum Current {
+    Call(Call),
+    Idle,
+    Step(builder::build::Step),
+    Keeping(keep::Keep),
+    Resolving(resolve::Resolve),
+    Git { child: git::Child, mode: Mode },
+}
+impl Current {
+    fn is_idle(&self) -> bool {
+        match self {
+            Self::Idle => true,
+            Self::Call(_) | Self::Step(_) | Self::Keeping(_) | Self::Resolving(_) | Self::Git { .. } => false,
+        }
+    }
+}
+#[derive(Debug)]
 pub struct Protocol {
     roots: Roots,
     store: store::Store,
     form: Form,
     startup: Option<Box<[u8]>>,
     rng: skein_lib::Rng,
-    call: Option<Call>,
     client: client::Client,
     progress: client::Client,
     store_path: Box<[u8]>,
     next: u64,
-    child: Option<git::Child>,
-    mode: Option<Mode>,
-    keeping: Option<keep::Keep>,
-    resolving: Option<resolve::Resolve>,
+    current: Current,
     proxy: Option<Proxy>,
     file_read: u32,
-    ran: Option<builder::build::Step>,
 }
 impl Protocol {
     #[must_use]
@@ -123,18 +136,13 @@ impl Protocol {
             form,
             startup: None,
             rng: skein_lib::Rng::new(seed),
-            call: Some(call),
             client: client::Client::new(form, limits.printer),
             progress: client::Client::new(form, limits.printer),
             store_path: bytes::copy_of(store),
             next: 100,
-            child: None,
-            mode: None,
-            keeping: None,
-            resolving: None,
+            current: Current::Call(call),
             proxy: None,
             file_read: limits.mmdebstrap.chunk.max(1),
-            ran: None,
         }
     }
     #[must_use]
@@ -180,33 +188,19 @@ impl Protocol {
     }
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.resolving.is_none()
-            && self.ran.is_none()
-            && self.keeping.is_none()
-            && self.mode.is_none()
-            && self.child.is_none()
-            && self.call.is_none()
-            && self.client.is_empty()
-            && (!self.progress.bound() || self.progress.is_empty())
+        self.current.is_idle() && self.client.is_empty() && (!self.progress.bound() || self.progress.is_empty())
     }
     #[must_use]
     pub fn work_pending(&self) -> bool {
-        if self.store.ready()
-            || self.call.is_some()
-            || self.ran.is_some()
-            || self.client.work_pending()
-            || self.progress.work_pending()
-        {
+        if self.store.ready() || self.client.work_pending() || self.progress.work_pending() {
             return true;
         }
-        if let Some(resolve) = &self.resolving {
-            return resolve.ready();
-        }
-        if let Some(keep) = &self.keeping {
-            return keep.work_pending();
-        }
-        let Some(child) = &self.child else {
-            return false;
+        let (child, mode) = match &self.current {
+            Current::Call(_) | Current::Step(_) => return true,
+            Current::Resolving(resolve) => return resolve.ready(),
+            Current::Keeping(keep) => return keep.work_pending(),
+            Current::Idle => return false,
+            Current::Git { child, mode } => (child, mode),
         };
         if child.stage == Stage::Closing {
             return child.work_pending() || child.done();
@@ -214,7 +208,6 @@ impl Protocol {
         if child.failed && child.process.token().is_none() {
             return child.process == Held::Closed;
         }
-        let mode = self.mode.as_ref().expect("child has mode");
         let ready = match mode {
             Mode::Rev { ended, .. } => *ended,
             Mode::Listing { answer, .. } => answer.is_some(),
@@ -247,21 +240,15 @@ impl Protocol {
             Mode::Read(read) => read.failed() || (child.output.token().is_some() && read.work_pending()),
         }
     }
-    /// Every step is unavailable until the task that runs it (hearth/docs/design/domain/build.md, 4.3).
-    fn resume_run(&mut self, above: &mut Queue<Event>) -> bool {
-        let Some(step) = self.ran.take() else { return false };
-        above.push(Event::Build(builder::build::vocabulary::Event::Unavailable { step }));
-        true
-    }
     fn spawn(
         &mut self,
         command: invocation::Command<'_>,
         limits: &git_machine::limits::Limits,
         below: &mut Queue<Asked>,
-    ) {
+    ) -> git::Child {
         let owner = Token::new(self.next);
         self.next = self.next.checked_add(1).expect("bounded commands in one call");
-        self.child = Some(git::Child::spawn(owner, self.roots.store.fd, command, limits, below));
+        git::Child::spawn(owner, self.roots.store.fd, command, limits, below)
     }
 }
 pub fn down(
@@ -278,8 +265,8 @@ pub fn down(
             &protocol.store_path,
         ),
         Request::Run { step } => {
-            assert!(protocol.ran.is_none(), "one step at a time");
-            protocol.ran = Some(step);
+            assert!(protocol.current.is_idle(), "one step at a time");
+            protocol.current = Current::Step(step);
         }
         Request::Store(request) => protocol.store_request(request, &env.limits, below),
         Request::Unopened { to, why } => {
@@ -299,8 +286,7 @@ pub fn down(
             }
         }
         Request::Render(request) => {
-            assert!(protocol.mode.is_none() && protocol.child.is_none(), "one git request at a time");
-            assert!(protocol.keeping.is_none(), "one cache request at a time");
+            assert!(protocol.current.is_idle(), "one render request at a time");
             match request {
                 request @ render::vocabulary::Request::Resolve { .. } => protocol.resolve(request, env, below),
                 render::vocabulary::Request::Record { .. } | render::vocabulary::Request::Find { .. } => {
@@ -312,21 +298,22 @@ pub fn down(
                         above.push(Event::Render(RenderEvent::Unresolved { request }));
                         return;
                     };
-                    protocol.spawn(
+                    let child = protocol.spawn(
                         invocation::Command::RevParse { repository: &repository, revision: &revision },
                         &env.limits.git,
                         below,
                     );
-                    protocol.mode = Some(Mode::Rev {
+                    let mode = Mode::Rev {
                         request,
                         repository,
                         revision,
                         stdout: List::with_capacity(rev_parse::MAX_STDOUT.checked_add(1).expect("bounded stdout")),
                         ended: false,
-                    });
+                    };
+                    protocol.current = Current::Git { child, mode };
                 }
                 render::vocabulary::Request::Hunks { request, before, after } => {
-                    protocol.spawn(
+                    let child = protocol.spawn(
                         invocation::Command::Diff { store: b".", before: &before.0, after: &after.0 },
                         &env.limits.git,
                         below,
@@ -341,18 +328,14 @@ pub fn down(
                         &mut events,
                         &mut requests,
                     );
-                    protocol.mode =
-                        Some(Mode::Hunks { request, machine, above: events, below: requests, answer: None });
+                    let mode = Mode::Hunks { request, machine, above: events, below: requests, answer: None };
+                    protocol.current = Current::Git { child, mode };
                 }
                 render::vocabulary::Request::Read { request, repository, commit: _, blobs } => {
-                    protocol.spawn(invocation::Command::CatFile { repository: &repository }, &env.limits.git, below);
-                    protocol.mode = Some(Mode::Read(Box::new(read::Read::new(
-                        request,
-                        blobs,
-                        env,
-                        protocol.roots.cache.fd,
-                        protocol.rng.next_u64(),
-                    ))));
+                    let command = invocation::Command::CatFile { repository: &repository };
+                    let child = protocol.spawn(command, &env.limits.git, below);
+                    let read = read::Read::new(request, blobs, env, protocol.roots.cache.fd, protocol.rng.next_u64());
+                    protocol.current = Current::Git { child, mode: Mode::Read(Box::new(read)) };
                 }
             }
         }
@@ -371,35 +354,44 @@ pub fn down(
     }
 }
 pub fn up(protocol: &mut Protocol, env: &Env<Limits>, ev: Told, above: &mut Queue<Event>, below: &mut Queue<Asked>) {
-    if let Some(resolve) = &mut protocol.resolving {
-        let owned = match &ev {
-            Told::File(event) => event.owner() == resolve::OWNER,
-            Told::Io(event) => !protocol.client.owns(event) && !protocol.progress.owns(event),
-        };
-        if owned {
-            resolve.up(ev, protocol.roots, env, above, below);
-            return;
+    match &mut protocol.current {
+        Current::Resolving(resolve) => {
+            let owned = match &ev {
+                Told::File(event) => event.owner() == resolve::OWNER,
+                Told::Io(event) => !protocol.client.owns(event) && !protocol.progress.owns(event),
+            };
+            if owned {
+                resolve.up(ev, protocol.roots, env, above, below);
+                return;
+            }
         }
+        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Git { .. } => {}
     }
     let event = match ev {
         Told::Io(event) => event,
         Told::File(event) => {
             if event.owner() == store::OWNER {
-                protocol.store.up(event, &env.limits, &protocol.roots, read::current(&mut protocol.mode), above, below);
+                let read = read::current(&mut protocol.current);
+                protocol.store.up(event, &env.limits, &protocol.roots, read, above, below);
                 if !above.is_empty() {
-                    if let Some(resolve) = &mut protocol.resolving {
-                        resolve.index_settled();
+                    match &mut protocol.current {
+                        Current::Resolving(resolve) => resolve.index_settled(),
+                        Current::Keeping(_) => protocol.current = Current::Idle,
+                        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Git { .. } => {}
                     }
-                    protocol.keeping = None;
                 }
                 return;
             }
-            if let Some(keep) = &mut protocol.keeping {
-                keep.up(event);
-                return;
+            match &mut protocol.current {
+                Current::Keeping(keep) => keep.up(event),
+                current @ (Current::Call(_)
+                | Current::Step(_)
+                | Current::Idle
+                | Current::Resolving(_)
+                | Current::Git { .. }) => {
+                    read::current(current).expect("cache read exists").file_up(event);
+                }
             }
-            let Some(Mode::Read(read)) = &mut protocol.mode else { unreachable!("cache read exists") };
-            read.file_up(event);
             return;
         }
     };
@@ -414,13 +406,18 @@ fn io_up(protocol: &mut Protocol, env: &Env<Limits>, event: io::Event, below: &m
         protocol.client.up(&Env { now: env.now, wall: env.wall, limits: env.limits.printer }, event);
         return;
     }
-    let child = protocol.child.as_mut().expect("git event for a child");
+    let (child, mode) = match &mut protocol.current {
+        Current::Git { child, mode } => (child, mode),
+        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Resolving(_) => {
+            unreachable!("git event for a child")
+        }
+    };
     match event {
         io::Event::Spawned { owner, child: token, pipes } => {
             assert_eq!(owner, child.owner, "current child owner");
             child.spawned(token, &pipes);
-            if let Some(Mode::Rev { .. }) = &protocol.mode {
-                child.stream(
+            match mode {
+                Mode::Rev { .. } => child.stream(
                     Down::Demand {
                         read: StreamRead::Arrived {
                             max: rev_parse::MAX_STDOUT.checked_add(1).expect("bounded stdout"),
@@ -428,7 +425,8 @@ fn io_up(protocol: &mut Protocol, env: &Env<Limits>, event: io::Event, below: &m
                         room: 0,
                     },
                     below,
-                );
+                ),
+                Mode::Read(_) | Mode::Listing { .. } | Mode::Hunks { .. } => {}
             }
         }
         io::Event::Stream { owner, up } => {
@@ -437,17 +435,16 @@ fn io_up(protocol: &mut Protocol, env: &Env<Limits>, event: io::Event, below: &m
             };
             if child.input.token() == Some(owner) {
                 match up {
-                    Up::Room => {
-                        if let Some(Mode::Read(read)) = &mut protocol.mode {
-                            read.input_room();
-                        }
-                    }
+                    Up::Room => match mode {
+                        Mode::Read(read) => read.input_room(),
+                        Mode::Rev { .. } | Mode::Listing { .. } | Mode::Hunks { .. } => {}
+                    },
                     Up::Failed(_) => child.failed = true,
                     Up::Bytes(_) | Up::End => unreachable!("write-only stdin"),
                 }
             } else {
                 assert_eq!(child.output.token(), Some(owner), "current stdout");
-                match protocol.mode.as_mut().expect("child mode") {
+                match mode {
                     Mode::Rev { stdout, ended, .. } => revision_stdout(stdout, ended, up, child, below),
                     Mode::Listing { machine, above: events, below: requests, .. } => {
                         let env = Env { now: env.now, wall: env.wall, limits: env.limits.git };
@@ -480,7 +477,7 @@ fn io_up(protocol: &mut Protocol, env: &Env<Limits>, event: io::Event, below: &m
         io::Event::Exited { owner, exit } => {
             assert_eq!(owner, child.owner, "current child exit");
             child.exited(exit);
-            let valid = succeeded(protocol.mode.as_ref().expect("child mode"), child.exit.expect("exit recorded"));
+            let valid = succeeded(mode, child.exit.expect("exit recorded"));
             if !valid {
                 child.failed = true;
             }
@@ -529,11 +526,19 @@ fn succeeded(mode: &Mode, exit: invocation::Exit) -> bool {
     };
     invocation::succeeded(command, exit)
 }
+#[expect(clippy::too_many_lines, reason = "resume preserves call, client, step, store and git priority")]
 pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Asked>) {
-    if let Some(call) = protocol.call.take() {
-        above.push(Event::Call { reply_to: skein_lib::ReplyTo::new(Token::new(0)), call });
-        return;
-    }
+    protocol.current = match core::mem::replace(&mut protocol.current, Current::Idle) {
+        Current::Call(call) => {
+            above.push(Event::Call { reply_to: skein_lib::ReplyTo::new(Token::new(0)), call });
+            return;
+        }
+        current @ (Current::Idle
+        | Current::Step(_)
+        | Current::Keeping(_)
+        | Current::Resolving(_)
+        | Current::Git { .. }) => current,
+    };
     if protocol.progress.work_pending() {
         protocol.progress.resume(&Env { now: env.now, wall: env.wall, limits: env.limits.printer }, below);
         return;
@@ -542,20 +547,35 @@ pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
         protocol.client.resume(&Env { now: env.now, wall: env.wall, limits: env.limits.printer }, below);
         return;
     }
-    if protocol.resume_run(above) || protocol.resume_store(above) || protocol.resume_resolve(env, above, below) {
-        return;
-    }
-    if let Some(keep) = &mut protocol.keeping {
-        keep.resume(env, above, below);
-        if keep.failed() {
-            protocol.keeping = None;
+    // Every step is unavailable until the task that runs it (hearth/docs/design/domain/build.md, 4.3).
+    match protocol.current {
+        Current::Step(step) => {
+            protocol.current = Current::Idle;
+            above.push(Event::Build(builder::build::vocabulary::Event::Unavailable { step }));
+            return;
         }
+        Current::Call(_) | Current::Idle | Current::Keeping(_) | Current::Resolving(_) | Current::Git { .. } => {}
+    }
+    if protocol.resume_store(above) {
         return;
     }
-    let Some(child) = &mut protocol.child else {
-        return;
+    let (child, mode) = match &mut protocol.current {
+        Current::Resolving(resolve) => {
+            if resolve.resume(protocol.roots, env, above, below) {
+                protocol.current = Current::Idle;
+            }
+            return;
+        }
+        Current::Keeping(keep) => {
+            keep.resume(env, above, below);
+            if keep.failed() {
+                protocol.current = Current::Idle;
+            }
+            return;
+        }
+        Current::Git { child, mode } => (child, mode),
+        Current::Call(_) | Current::Step(_) | Current::Idle => return,
     };
-    let mode = protocol.mode.as_mut().expect("child has mode");
     let ready = match mode {
         Mode::Rev { ended, .. } => *ended,
         Mode::Listing { answer, .. } => {
@@ -670,8 +690,12 @@ fn resume_mode(
     }
 }
 fn finish(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Asked>) {
-    let child = protocol.child.take().expect("closed child");
-    let mode = protocol.mode.take().expect("closed mode");
+    let (child, mode) = match core::mem::replace(&mut protocol.current, Current::Idle) {
+        Current::Git { child, mode } => (child, mode),
+        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Resolving(_) => {
+            unreachable!("closed git child")
+        }
+    };
     let failure = failure(&mode, &child, &env.limits.git);
     let (request, event) = match mode {
         Mode::Rev { request, repository, revision: _, stdout, ended: _ } => {
@@ -684,13 +708,13 @@ fn finish(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, 
                     let mut requests = Queue::uncapped();
                     let git_env = Env { now: env.now, wall: env.wall, limits: env.limits.git };
                     listing::down(&mut machine, &git_env, listing::Request::List, &mut events, &mut requests);
-                    protocol.spawn(
+                    let child = protocol.spawn(
                         invocation::Command::LsTree { repository: &repository, commit },
                         &env.limits.git,
                         below,
                     );
-                    protocol.mode =
-                        Some(Mode::Listing { request, commit, machine, above: events, below: requests, answer: None });
+                    let mode = Mode::Listing { request, commit, machine, above: events, below: requests, answer: None };
+                    protocol.current = Current::Git { child, mode };
                     return;
                 }
                 if rev_parse::decode(stdout.as_slice(), child.exit.expect("exit observed"))
@@ -795,14 +819,15 @@ fn failure(
 mod tests;
 
 pub fn fire(protocol: &mut Protocol, env: &Env<Limits>, _above: &mut Queue<Event>, _below: &mut Queue<Asked>) {
-    if let Some(resolve) = &mut protocol.resolving {
-        resolve.fire(env);
+    match &mut protocol.current {
+        Current::Resolving(resolve) => resolve.fire(env),
+        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Git { .. } => {}
     }
 }
 #[must_use]
 pub fn next_deadline(protocol: &Protocol) -> Option<skein_lib::Time> {
-    match &protocol.resolving {
-        Some(resolve) => resolve.next_deadline(),
-        None => None,
+    match &protocol.current {
+        Current::Resolving(resolve) => resolve.next_deadline(),
+        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Git { .. } => None,
     }
 }
