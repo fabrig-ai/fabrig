@@ -1433,7 +1433,6 @@ fn the_kit_counts_the_label_separator_at_the_exact_message_bound_and_one_byte_ov
     finish(&mut world);
 }
 
-#[path = "simulation/inline.rs"]
 mod inline;
 
 #[test]

@@ -23,6 +23,7 @@ pub mod fixture;
 pub mod format;
 
 #[rustfmt::skip]
+// The schema compiler writes this module to generated/local_store_v1.rs.
 #[path = "generated/local_store_v1.rs"]
 pub mod local_store_v1;
 mod git;
