@@ -91,3 +91,18 @@ Options, each pre-approved:
 
 As `notes/common.md`, Your report: each file resolved other than by keeping both, each figure measured, and
 what each regeneration moved.
+
+## Rebase (2026-11-05, step merge, foreman ui-goal-page/needs-base/foreman-1)
+
+resolve the three design conflicts by retaining Needs changes alongside the newer goal-page contract.
+The merge conflicts with trunk commit `64b1133e5fb99d62ca544a90dedbcad5b59e5e98` (“ui-goal-page: the design and the rest of the chain”), incorporated by `f90bc9abbe`.
+Resolve these paths under `temper/docs/design/client/`:
+
+- `README.status.md`: keep the trunk’s separate `ui-goal-page` Not yet entry and the branch’s Needs/Home gaps; retain the remaining status text from both sides.
+- `browser.status.md`: keep the trunk’s `ui-goal-page` gaps for task-address filtering, A goal’s look and gallery states, alongside the branch’s Needs/Home gallery gaps.
+- `browser.md`, 2.3: retain “its unfiltered address undoes” from Needs, but remove “and a goal’s plan’s” from the query inventory as the trunk requires. Preserve the trunk’s chats-only filter paragraph and `/tasks/9?state=live` normalization contract.
+- `browser.md`, 7.2: retain the branch’s `inbox-solo` Needs description and every `needs-*` row; add all trunk `goal-*` and `start-goal*` rows. Keep one `task-solo-T3` row, using the trunk’s `goal.html` description.
+
+Preserve the automatic merges, including `README.md`, the goal stylesheet contract and the other updated gallery descriptions. Keep existing section numbers.
+These are design conflict resolutions; implementation gaps remain recorded for later tasks.
+Check for remaining conflict markers and run `python3 -I -B tools/citations/citations.py --base origin/main`, then complete the spec’s validation.
