@@ -9,7 +9,7 @@ use skein_lib::{Duration, Env, List, Queue, Time, Token};
 use skein_llm::{Failure, Phase, client::Evidence};
 use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
 use skein_llm_connection_world::plaintext::Wire;
-use skein_tls_world::{drive::Wire as TlsWire, pki, server::Server};
+use skein_tls_kit::{drive::Wire as TlsWire, pki, server::Server};
 use skein_world::domain::assert_replays;
 
 fn limits() -> Limits {

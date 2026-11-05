@@ -102,8 +102,8 @@ impl Client {
                 transport: match self.transport {
                     Transport::Plaintext => skein_llm_connection::Transport::Plaintext,
                     Transport::Tls => skein_llm_connection::Transport::Tls {
-                        server_name: skein_tls_world::pki::name(),
-                        trust: skein_tls_world::pki::client(&[]),
+                        server_name: skein_tls_kit::pki::name(),
+                        trust: skein_tls_kit::pki::client(&[]),
                     },
                 },
                 llm: call.endpoint,
@@ -542,7 +542,7 @@ fn run_configured(
         release_at,
     };
     let mut config = Config::calm();
-    config.wall = skein_tls_world::pki::VALID;
+    config.wall = skein_tls_kit::pki::VALID;
     config.buffer = if faulted { 256 } else { 1024 };
     if faulted {
         config.faults.short_recv = 300;

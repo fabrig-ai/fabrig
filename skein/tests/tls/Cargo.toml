@@ -8,8 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-# The counting allocator, shared by the memory worlds.
-skein-heap.workspace = true
+skein-tls-kit.workspace = true
 skein-lib.workspace = true
 skein-protocol-kit.workspace = true
 skein-tls.workspace = true
@@ -20,6 +19,8 @@ skein-sim.workspace = true
 rustls = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
+# The counting allocator, shared by the memory worlds.
+skein-heap.workspace = true
 skein-world.workspace = true
 skein-fake-peers.workspace = true
 skein-fake-llm-domain.workspace = true

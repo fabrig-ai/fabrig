@@ -23,15 +23,13 @@
 //! The focused tests are `tests/*.rs`; the sweeps over many seeds are
 //! `tests/fuzzy_*.rs` (testing-strategy.md, 8).
 
-pub mod drive;
-pub mod meter;
 /// Native TLS over io’s sockets on the simulator.
 pub mod native;
 /// Native TLS against a peer in memory.
 pub mod native_pair;
 /// A TLS 1.2 peer whose keys are taken out.
 pub mod native_peer;
-pub mod pki;
 pub mod records;
-pub mod server;
 pub mod world;
+
+pub use skein_tls_kit::*;

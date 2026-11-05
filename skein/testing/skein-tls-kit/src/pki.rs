@@ -29,23 +29,23 @@ pub const KEY_UPDATE_RECORD: usize = 27;
 pub const TLS12_ALERT_RECORD: usize = 31;
 
 /// The root the client trusts.
-pub const ROOT: &[u8] = include_bytes!("../fixtures/root.der");
+pub const ROOT: &[u8] = include_bytes!("../../../tests/tls/fixtures/root.der");
 /// The intermediate the root signed, which signed the server's certificates.
-pub const INTERMEDIATE: &[u8] = include_bytes!("../fixtures/intermediate.der");
+pub const INTERMEDIATE: &[u8] = include_bytes!("../../../tests/tls/fixtures/intermediate.der");
 /// The server's certificate, for skein.test and 127.0.0.1.
-pub const LEAF: &[u8] = include_bytes!("../fixtures/leaf.der");
+pub const LEAF: &[u8] = include_bytes!("../../../tests/tls/fixtures/leaf.der");
 /// The server's certificate for big.skein.test and 1,500 more names.
-pub const BIG: &[u8] = include_bytes!("../fixtures/big.der");
+pub const BIG: &[u8] = include_bytes!("../../../tests/tls/fixtures/big.der");
 /// A certificate for skein.test that a root no one trusts signed.
-pub const OTHER: &[u8] = include_bytes!("../fixtures/other.der");
+pub const OTHER: &[u8] = include_bytes!("../../../tests/tls/fixtures/other.der");
 /// A certificate for skein.test that signed itself.
-pub const SELF: &[u8] = include_bytes!("../fixtures/self.der");
+pub const SELF: &[u8] = include_bytes!("../../../tests/tls/fixtures/self.der");
 /// A CA's certificate for skein.test, which the root signed.
-pub const CA: &[u8] = include_bytes!("../fixtures/ca.der");
+pub const CA: &[u8] = include_bytes!("../../../tests/tls/fixtures/ca.der");
 /// A certificate for skein.test, for client authentication only.
-pub const CLIENT: &[u8] = include_bytes!("../fixtures/client.der");
+pub const CLIENT: &[u8] = include_bytes!("../../../tests/tls/fixtures/client.der");
 /// The key of every one of them.
-pub const KEY: &[u8] = include_bytes!("../fixtures/leaf.key");
+pub const KEY: &[u8] = include_bytes!("../../../tests/tls/fixtures/leaf.key");
 
 /// 2030-01-01: every certificate is valid.
 pub const VALID: Wall = Wall::from_nanos(1_893_456_000 * 1_000_000_000);

@@ -1,6 +1,6 @@
 //! One byte peer; it reads a complete request before answering its script.
 use skein_lib::stream::{Down, Up};
-use skein_tls_world::{pki, server::Server};
+use skein_tls_kit::{pki, server::Server};
 use skein_world::stream::Wire;
 #[derive(Debug)]
 pub(crate) struct Peer {
