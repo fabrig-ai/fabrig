@@ -16,7 +16,7 @@ Pay `jig/docs/development/debt/D025-store-codec-domain-rules.md`. The codec keep
 
 Acceptance:
 
-- `rg -n 'u8::MAX|fn remap|fn model_moves' jig/crates/jig-protocol-store/src/codec/settings.rs` lists only `model_moves`, whose loop body calls `settings::model_bit`, as does `codec/people.rs`'s and `codec/tasks/models.rs`'s `moves`. `rg -n 'fn remap|fn authority\b|fn members|fn proposal\b|fn amendment' jig/crates/jig-protocol-store/src/codec/tasks/models.rs` finds nothing.
+- `rg -n 'u8::MAX|fn remap|fn model_moves' jig/crates/jig-protocol-store/src/codec/settings.rs` finds nothing: `settings::remap` builds its own moves. The loop bodies of `codec/people.rs`'s `model_moves` and `codec/tasks/models.rs`'s `moves` call `settings::model_bit`. `rg -n 'fn remap|fn authority\b|fn members|fn proposal\b|fn amendment' jig/crates/jig-protocol-store/src/codec/tasks/models.rs` finds nothing.
 - `rg -n 'b"(Nothing more will come|You owe your requester)' jig/crates/jig-protocol-store/src -g '!**/tests/**'` finds nothing.
 - New tests in `jig-domain-core/src/settings/tests.rs` pin `remap`: a template's model that moved follows its name; one that left, or whose chosen effort left, reads `ModelEffort::GONE`; a named mask follows and loses what left; `Models::All` stays. `jig-domain-tasks`' pin `Limits::word_bytes` with a limit below and above each literal, and `Stored::remap_models` on a `Live` row's authority.
 - By hand: make the left arm keep the old index (`remap`'s test goes red); use `min` for `max` in `word_bytes` (its test goes red). Restore each. `jig-protocol-store`'s tests pass with what they assert unchanged, and its golden rows don't move.
@@ -49,3 +49,7 @@ Acceptance:
 ## Report
 
 The common note's items; whether `referenced` moved; what you broke and what failed.
+
+## Answers
+
+2026-11-05. May `codec/settings.rs`'s `model_moves` go when the codec calls `settings::remap`, or must it stay with a role? It goes: option 1. `temper/docs/plan/debt-20/notes/contracts.md`, 2 binds `settings::remap(value, kept, names)`, which takes no map and builds the moves itself with `settings::model_bit`, so the helper has no caller left, and keeping it would be dead code. The first acceptance bullet above is amended: the settings codec's search finds nothing. `codec/people.rs`'s `model_moves` and `codec/tasks/models.rs`'s `moves` stay, with `settings::model_bit` in their loops; they hand a map to `Models::remap` and `Stored::remap_models`, which do take one. The codec makes one `kept` list per decoder (the `Revision` and `Proposal` decoders' loops call `remap` with the same list). The rest of the task stands: finish the migration from `debt-20/store-remaps`' pushed work, then delete the item and the `5.1:` clause, with the production-lines cap measured at the end.
