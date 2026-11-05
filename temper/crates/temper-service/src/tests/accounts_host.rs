@@ -100,7 +100,7 @@ impl SignInWorld {
                 client_id: b"client".as_slice().into(),
                 client_secret: None,
                 redirect_uri: b"http://127.0.0.1:0/callback".as_slice().into(),
-                refresh_token: b"throwaway-refresh".as_slice().into(),
+                refresh_token: Secret::new(b"throwaway-refresh".as_slice().into()),
                 terms: Some(fake::Terms {
                     issued: Box::new([b"issued-client".as_slice().into()]),
                     omit_issued: false,
@@ -274,9 +274,9 @@ impl SignInWorld {
         };
         let mut callback = uri.to_vec();
         callback.extend_from_slice(b"?state=");
-        callback.extend_from_slice(&state);
+        callback.extend_from_slice(state.expose());
         callback.extend_from_slice(b"&code=");
-        callback.extend_from_slice(&code);
+        callback.extend_from_slice(code.expose());
         callback.extend_from_slice(b"&client_id=");
         callback.extend_from_slice(&client_id.expect("issued client"));
         callback.into_boxed_slice()

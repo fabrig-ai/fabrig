@@ -107,9 +107,9 @@ pub fn configured_issuer(registration: &oauth::Registration, terms: Option<fake:
             authorization_url: registration.authorization_url.clone(),
             token_endpoint: registration.token_endpoint.clone(),
             client_id: registration.client_id.clone(),
-            client_secret: registration.client_secret.clone().map(skein_lib::Secret::into_exposed),
+            client_secret: registration.client_secret.clone(),
             redirect_uri: registration.redirect_uri.clone(),
-            refresh_token: boxed(b"seed"),
+            refresh_token: skein_lib::Secret::new(boxed(b"seed")),
             terms,
         },
         fake_limits(),
@@ -245,14 +245,7 @@ pub fn visit(
 pub fn redirected(issuer: &mut fake::Issuer, url: Box<[u8]>) -> oauth::Event {
     let redirect = fake_step(issuer, fake::Event::Authorize { url, now: time(1) });
     let Some(fake::Request::Redirect { uri, state, code, client_id }) = redirect else { panic!("redirect expected") };
-    oauth::Event::Redirected {
-        client_id,
-        uri,
-        state: skein_lib::Secret::new(state),
-        code: Some(skein_lib::Secret::new(code)),
-        error: None,
-        now: time(2),
-    }
+    oauth::Event::Redirected { client_id, uri, state, code: Some(code), error: None, now: time(2) }
 }
 
 #[must_use]

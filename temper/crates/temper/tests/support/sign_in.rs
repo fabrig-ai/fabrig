@@ -166,7 +166,7 @@ pub(super) fn issuer(
             client_id: bytes("client"),
             client_secret: None,
             redirect_uri: redirect.into(),
-            refresh_token: b"fake-refresh".as_slice().into(),
+            refresh_token: skein_lib::Secret::new(b"fake-refresh".as_slice().into()),
             terms: Some(skein_fake_oauth::Terms {
                 issued: Box::new([b"issued-client".as_slice().into()]),
                 omit_issued: false,

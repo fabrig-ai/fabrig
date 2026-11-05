@@ -45,7 +45,7 @@ pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocat
                 }),
             }),
             redirect_uri: b"http://127.0.0.1:0/auth/callback".as_slice().into(),
-            refresh_token: b"refresh-for-work".as_slice().into(),
+            refresh_token: skein_lib::Secret::new(b"refresh-for-work".as_slice().into()),
         },
         limits,
         skein_http::server::Limits { head: 16384, headers: 32, body: 16384, read: 1024, response, send: 1024 },

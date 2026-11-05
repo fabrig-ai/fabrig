@@ -225,7 +225,7 @@ fn three_code_exchanges_and_a_refresh_keep_the_fixed_bearer() {
         let redirect = authorize(&mut issuer, &authorization);
         let issuer::Request::Redirect { code, client_id, .. } = redirect else { panic!("auto-granted authorization") };
         assert_eq!(client_id.as_deref(), Some(b"issued-client".as_slice()));
-        let body = read::joined(&[b"grant_type=authorization_code&client_id=issued-client&redirect_uri=http://127.0.0.1:1455/auth/callback&code=", &code, b"&code_verifier=", VERIFIER]);
+        let body = read::joined(&[b"grant_type=authorization_code&client_id=issued-client&redirect_uri=http://127.0.0.1:1455/auth/callback&code=", code.expose(), b"&code_verifier=", VERIFIER]);
         let response = post(&mut issuer, &endpoint, body);
         assert_eq!(
             response["access_token"],
