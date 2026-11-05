@@ -4,6 +4,12 @@ use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue};
 
+pub(crate) struct ProcedureCall {
+    pub(crate) task: u64,
+    pub(crate) step: u64,
+    pub(crate) connector: u16,
+}
+
 pub(crate) fn problem(task: u64, why: tasks::Refusal) -> StepRefusal {
     StepRefusal::Refused(tasks::Problem { task: Some(task), why, blocked_by: None, capacity: None })
 }

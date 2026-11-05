@@ -2,6 +2,7 @@
 //! (`domain/engine.md`, sections 4.4 and 7). Delegation and preparation
 //! are separate families so each route file stays under 1,500 lines.
 
+use super::{Call, Proposing};
 use crate::{
     CallKey, CallPart, CallRecord, Core, CoreRecord, EscalationChoice, Event, Held, Limits, NamedAction,
     PayloadRefusal, ProposalChoice, Record, Request, RoutedCall, ToolKind, Write,
@@ -210,17 +211,16 @@ pub(crate) fn named_proposal_accept(
     Queue::uncapped()
 }
 
-#[expect(clippy::too_many_arguments, reason = "one named proposal decision carries its call and proposal identity")]
 pub(crate) fn named_proposal_decide(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    to: ReplyTo,
-    key: CallKey,
+    call: Call,
     proposer: u64,
     proposal: u64,
     choice: ProposalChoice,
 ) -> Queue<Request> {
+    let Call { to, key } = call;
     let Some(pending) = core.tasks.proposal(proposer, proposal) else {
         return proposal_refused(core, to, key, tasks::Refusal::Unknown);
     };
@@ -268,18 +268,15 @@ pub(crate) fn named_proposal_decide(
     Queue::uncapped()
 }
 
-#[expect(clippy::too_many_arguments, reason = "one named proposal retains its action and call correlation")]
 pub(crate) fn named_propose(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    to: ReplyTo,
-    key: CallKey,
+    proposing: Proposing,
     mut action: tasks::ProposalAction,
-    reason: Box<[u8]>,
-    as_holder: bool,
     admitted: &mut Option<Token>,
 ) -> Queue<Request> {
+    let Proposing { to, key, reason, as_holder } = proposing;
     if reason.len() > skein_lib::length::usize_of(env.limits.tasks.message_bytes) {
         return proposal_refused(core, to, key, tasks::Refusal::Read);
     }
@@ -344,17 +341,16 @@ pub(crate) fn named_propose(
     Queue::uncapped()
 }
 
-#[expect(clippy::too_many_arguments, reason = "one named holder choice carries its call, task and revision")]
 pub(crate) fn named_escalation(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    to: ReplyTo,
-    key: CallKey,
+    call: Call,
     task: u64,
     revision: u64,
     choice: EscalationChoice,
 ) -> Queue<Request> {
+    let Call { to, key } = call;
     let Some(context) = core.tasks.escalation(task) else {
         return escalation_refused(core, to, key, task, tasks::Refusal::Unknown);
     };
@@ -637,16 +633,18 @@ pub(crate) fn named_action(
                 core,
                 env,
                 work,
-                token,
-                key,
-                target,
-                revision,
-                keep_spec_parameters(core, target, amendment, keep_parameters),
+                AgentAmend {
+                    token,
+                    key,
+                    target,
+                    revision,
+                    amendment: keep_spec_parameters(core, target, amendment, keep_parameters),
+                },
                 crate::routing::party::amendment_reads::Evidence::new(&env.limits.tasks),
             );
         }
         NamedAction::DecideEscalation { task, revision, choice } => {
-            return named_escalation(core, env, work, ReplyTo::new(token), key, task, revision, choice);
+            return named_escalation(core, env, work, Call { to: ReplyTo::new(token), key }, task, revision, choice);
         }
         NamedAction::WithdrawProposal { proposal } => {
             if core.tasks.proposal(key.task, proposal).is_none() {
@@ -667,16 +665,20 @@ pub(crate) fn named_action(
             })));
         }
         NamedAction::DecideProposal { proposer, proposal, choice } => {
-            return named_proposal_decide(core, env, work, ReplyTo::new(token), key, proposer, proposal, choice);
+            let call = Call { to: ReplyTo::new(token), key };
+            return named_proposal_decide(core, env, work, call, proposer, proposal, choice);
         }
         NamedAction::Propose { action, reason, as_holder } => {
-            return named_propose(core, env, work, ReplyTo::new(token), key, action, reason, as_holder, &mut None);
+            let proposing = Proposing { to: ReplyTo::new(token), key, reason, as_holder };
+            return named_propose(core, env, work, proposing, action, &mut None);
         }
         NamedAction::ProposeBatch { batch, reason, as_holder } => {
-            return propose_batch(core, env, ReplyTo::new(token), key, batch, reason, as_holder, None);
+            let proposing = Proposing { to: ReplyTo::new(token), key, reason, as_holder };
+            return propose_batch(core, env, proposing, batch, None);
         }
         NamedAction::ProposeGoal { goal, priority, reason } => {
-            return propose_batch(core, env, ReplyTo::new(token), key, Box::new([*goal]), reason, true, Some(priority));
+            let proposing = Proposing { to: ReplyTo::new(token), key, reason, as_holder: true };
+            return propose_batch(core, env, proposing, Box::new([*goal]), Some(priority));
         }
         NamedAction::Note { mut entry, recalled } => {
             if recalled.is_none() && entry.name != 0 {
@@ -785,18 +787,22 @@ pub(crate) fn route_refused_payload(
     Queue::uncapped()
 }
 
-#[expect(clippy::too_many_arguments, reason = "replay retains the original keyed amendment")]
+pub(crate) struct AgentAmend {
+    pub(crate) token: Token,
+    pub(crate) key: CallKey,
+    pub(crate) target: u64,
+    pub(crate) revision: u64,
+    pub(crate) amendment: tasks::Amendment,
+}
+
 pub(crate) fn named_amend(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    token: Token,
-    key: CallKey,
-    target: u64,
-    revision: u64,
-    mut amendment: tasks::Amendment,
+    amend: AgentAmend,
     evidence: crate::routing::party::amendment_reads::Evidence,
 ) -> Queue<Request> {
+    let AgentAmend { token, key, target, revision, mut amendment } = amend;
     let mut out = Queue::uncapped();
     if let Some(part) = core.authorize_tool(key, ToolKind::Control) {
         call_decision(core, &mut out, ReplyTo::new(token), key, part);

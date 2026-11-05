@@ -668,11 +668,16 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             delegate_holdings(core, env, work, request, connector, holdings, refused)
         }
         Event::ProcedureStep { task, step, connector, code, decision: action } => {
-            procedure_step(core, env, work, task, step, connector, code, action)
+            procedure_step(core, env, work, effect::procedure::ProcedureCall { task, step, connector }, code, action)
         }
-        Event::ProcedureHoldings { task, step, connector, holdings, refused } => {
-            procedure_holdings(core, env, work, task, step, connector, holdings, refused)
-        }
+        Event::ProcedureHoldings { task, step, connector, holdings, refused } => procedure_holdings(
+            core,
+            env,
+            work,
+            effect::procedure::ProcedureCall { task, step, connector },
+            holdings,
+            refused,
+        ),
         Event::Brief(event) => route_brief(core, env, event),
         Event::Account(event) => route_account(core, env, work, event),
         Event::View(event) => route_view(core, env, event),
