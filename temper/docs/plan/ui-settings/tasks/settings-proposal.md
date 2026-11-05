@@ -81,3 +81,26 @@ Pre-approved:
 ## Report
 
 As the implementer's text says.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling (coord/ui/report/rulings.md, 9), add here: the rail's and tab bar's Goals entry shows when the Goals setting is on OR the project has a goal, so that a goal an agent started never disappears. A test for each case.
+
+## Rebase (2026-11-05, step merge, foreman ui-settings/settings-proposal/foreman-1)
+
+resolve the vocabulary and gallery conflicts while retaining both settings proposals and Needs you.
+Rebase onto the landing trunk containing `337d6579fa` (“Merge main while preserving settings and Needs you session reads”), merged into integration by `8c485d61d7`.
+The merge reports content conflicts in:
+- `temper/crates/temper-client-view/src/words.rs`
+- `temper/tools/gallery/src/samples.rs`
+
+In `words.rs`, retain trunk’s Needs you vocabulary, corrected phrase IDs and hole bounds alongside all eighteen `SettingsProposal*` words, IDs 3400–3417, and their English entries.
+Combine the capacities: at the inspected integration tip, `PHRASES = 1545`, `SEGMENTS = 2654`, and `ALL` has 949 entries.
+Keep trunk’s literal-byte additions and the proposal’s additional 279 bytes.
+Regenerate declarations using `english_phrase_declarations_match_the_vocabulary` with `SKEIN_CODEGEN_WRITE=1` through heavy, then verify without write mode.
+
+In `samples.rs`, retain trunk’s Home and Needs you samples and all three new `configure-chat-{proposal,accepted,replaced}` samples.
+Set `N` to the combined sample count: 149 at the inspected integration tip.
+Preserve `configure_domain` dispatch to `settings_chat_world` for the new variants and `configuring_world` for the existing configuring samples.
+Keep `names.txt` in sample order and retain both sides’ gallery assertions.
+Run the focused vocabulary and gallery checks through heavy, followed by the spec’s required validation.
