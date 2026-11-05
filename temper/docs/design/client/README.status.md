@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-04. Where temper's code lags or departs from [README.md](README.md).
+2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
@@ -18,6 +18,10 @@
   3.5, Home: To begin is numbered steps, with no card, "Optional" tag or
   "Skip", no delivery or skip rule for when it shows, and no link to
   `Accounts` after the lede; Connected and its rename are still drawn.
+  3.5, Home: "landed" on a chat's line waits on the client's Home
+  chat-row reader: the list gives the chat's state, not what its
+  delegates landed. It needs one read per row; Home uses the supplied
+  chat state, including "closed", until that reader is built.
   3.5, The first chat, The configuring chat's page: no `Configure {
   project }`: the offers start the chat at once, its first message
   `FIRST_CHAT_WORDS`, and a configuring chat draws as any chat, with no
