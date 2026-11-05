@@ -1350,6 +1350,13 @@ pub fn configuring_world(seed: u64, member: bool) -> World<Temper, Joint> {
 pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Config {
     use jig_domain_authority as authority;
     let mut config = temper_engine_domain_world::walking::config(seed);
+    config.core.kinds =
+        temper_service::stock::kinds(&temper_engine_domain_world::walking::limits(), config.core.connectors[0])
+            .into_vec()
+            .into_iter()
+            .filter(|kind| kind.number == 6 || kind.number == 7)
+            .collect();
+    config.kinds_stock = Box::new([]);
     let llm = jig_protocol_config::Llm {
         endpoints: Box::new([]),
         models: config.core.settings.models.clone(),
