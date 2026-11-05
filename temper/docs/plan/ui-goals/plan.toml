@@ -35,3 +35,23 @@ id = 2
 story = "a list of tasks says how many of each task's direct delegates are done, past any page"
 parts = ["delegate-counts"]
 walk = false
+
+[[part]]
+id = "brief-numbers"
+title = "a run's brief names its task's number and project"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 9"
+
+[[part]]
+id = "report-stock"
+title = "the stock's note scope and family, a goal's own scope, and the charters ask for its report"
+mode = "direct"
+needs = ["brief-numbers"]
+design = "temper/docs/design/domain/agent.md, 8.3"
+
+[[slice]]
+id = 3
+story = "a stock goal is told to write its report and may, and it knows its numbers"
+parts = ["brief-numbers", "report-stock"]
+walk = false

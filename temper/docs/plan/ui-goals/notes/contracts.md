@@ -51,3 +51,20 @@ pub delegates_total: u32,
   `done` and `failed`.
 - A delegate closing as cancelled counts until it has ended. A moved delegate leaves the total.
 - Goals' rows read these alone: no row reads its delegates to draw "6 / 9".
+
+## A brief names its task
+
+The brief's task section (`jig-domain-core/src/runs/brief_text.rs`, `task_read`) gets one line before its
+`[Requested by …]` line: `[This task: 12, in project 3]`. A charter says "the task and project your brief's
+task section names".
+
+## The report note, as a run writes it
+
+```json
+{"scope":{"kind":"goal","project":P,"goal":G},
+ "description":"report: Six of nine tasks landed; the store task is split in two.",
+ "body":"I split the store task after two size failures.\n\nThe rest runs.\n\nLeft: the two halves.\nRisk: lazy loading touches every page.\nDecided: Split the store task, 05:40 · Retried it once, 05:12"}
+```
+
+A revision adds `"name":N,"recalled":R`, both from the brief's index. The stock's tool mask is 1,671 (1,543
+and note, 128), its `notes` `Scopes::GOAL`; `recall`, 256, stays off.

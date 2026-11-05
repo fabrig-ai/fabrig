@@ -525,8 +525,9 @@ it as any `delegate`:
   authority's;
 - **its authority, the run's own narrowed,** never wider in any part
   (jig's `domain/authority.md`, sections 3 and 5): the run's models and
-  deadline; its tool families (delegation, messages and reads, so that
-  it may call `change`, ask and read the forge); its grants of the kinds
+  deadline; its tool families (delegation, messages, notes and reads, so
+  that it may call `change`, ask, write its report and read the forge);
+  its grants of the kinds
   a change makes and its reads, so that `change` can narrow them again
   (4.3.1); its delegation kinds, with the tasks its subtree may still
   make, as jig counts them, less one for the goal itself, and a depth
@@ -941,8 +942,9 @@ needs no record, read or wire field of its own. The client reads and draws it
   are a paragraph's. Limits: jig's notes, 256 bytes of description and 8 KB of
   body in the standard profile.
 - **Revised in place:** the agent names the note and its revision from its
-  brief's index, so that one note stands. Where several answer, the client
-  takes the newest by `changed`.
+  brief's index, so that one note stands, its scope's numbers from the
+  brief's task section. Where several answer, the client takes the newest
+  by `changed`.
 - **When:** after planning, and whenever what is true of the goal changes: a
   task landed, failed or split, a decision taken, a risk found.
 - **Its words:** the headline says where the goal stands, in a sentence a person
