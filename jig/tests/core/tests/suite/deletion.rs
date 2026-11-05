@@ -1,6 +1,7 @@
 //! Project deletion on the real store (`jig/docs/design/domain/people.md`, 5.2 and 8).
 
 use super::read_support::request;
+use jig_core_world::fixtures::{PARTY, PROJECT};
 use jig_core_world::{
     fixtures::{self, live_row},
     reads,
@@ -21,9 +22,7 @@ use skein_lib::{Duration, List, Map, ReplyTo, Token};
 use std::collections::BTreeMap;
 
 const SEED: u64 = 1900;
-const PROJECT: u32 = 1;
 const UNKNOWN: u32 = 99;
-const PARTY: u64 = 1;
 const REMOVE: u8 = 91;
 const REMOVE_GRACED: u8 = 92;
 const GRACE: Duration = Duration::from_secs(5);

@@ -35,16 +35,33 @@ pub fn query_numbers(world: &crate::world::World) -> Vec<u64> {
     page.live.iter().map(|line| line.chip.number).collect()
 }
 
+/// The seeded project's owner and initial live chat.
+pub const PROJECT: u32 = 1;
+pub const PARTY: u64 = 1;
+pub const TASK: u64 = 1;
+
 const HOLDER_REQUEST_BASE: u64 = 8200;
-/// Submit an owner or member request with the fixture's request-token range.
-pub fn ask_as(world: &mut crate::world::World, sign_in: u64, key: u8, ask: jig_domain_people::Ask) {
-    world.send(jig_test_domain::Event::Core(jig_domain_core::Event::People(jig_domain_people::Event::Ask {
+
+/// A keyed party request with the caller's reply-token range.
+#[must_use]
+pub fn party_ask(reply_base: u64, sign_in: u64, request: u8, ask: people::Ask) -> root::Event {
+    root::Event::Core(core::Event::People(people::Event::Ask {
         models: Box::new([]),
-        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(HOLDER_REQUEST_BASE + u64::from(key))),
+        reply_to: ReplyTo::new(Token::new(reply_base + u64::from(request))),
         sign_in,
-        key: [key; 16],
+        key: [request; 16],
         ask,
-    })));
+    }))
+}
+
+/// Submit a request as the world's signed-in party.
+pub fn ask(world: &mut crate::world::World, request: u8, ask: people::Ask) {
+    ask_as(world, world.sign_in.expect("signed-in party"), request, ask);
+}
+
+/// Submit an owner or member request with the fixture's request-token range.
+pub fn ask_as(world: &mut crate::world::World, sign_in: u64, key: u8, ask: people::Ask) {
+    world.send(party_ask(HOLDER_REQUEST_BASE, sign_in, key, ask));
 }
 
 #[must_use]
@@ -178,7 +195,6 @@ pub fn two_projects(seed: u64) -> (root::Config, root::Limits) {
 
 const FIXTURE_INBOX_REQUEST: u64 = 8301;
 const FIXTURE_SIGN_IN_REQUEST: u64 = 8300;
-const FIXTURE_PROJECT: u32 = 1;
 
 /// Read every page of one party inbox group.
 pub fn inbox_objects(
@@ -196,7 +212,7 @@ pub fn inbox_objects(
             FIXTURE_INBOX_REQUEST + page_number,
             reads::Read::Inbox {
                 group,
-                filter: reads::Filter { project: Some(FIXTURE_PROJECT), goal: None },
+                filter: reads::Filter { project: Some(PROJECT), goal: None },
                 from: from.take(),
             },
         );
@@ -219,7 +235,7 @@ pub fn second_party(world: &mut crate::world::World, subject: &[u8], role: jig_d
     let mut holdings = match world
         .store
         .rows
-        .get(&jig_test_domain::Key::Core(jig_domain_core::Key::People(people::Key::Roles(FIXTURE_PROJECT))))
+        .get(&jig_test_domain::Key::Core(jig_domain_core::Key::People(people::Key::Roles(PROJECT))))
     {
         Some(jig_test_domain::Record::Core(jig_domain_core::Record::People(people::Stored::Roles {
             holdings,
@@ -242,7 +258,7 @@ pub fn second_party(world: &mut crate::world::World, subject: &[u8], role: jig_d
     holdings.retain(|holding| holding.person != person);
     holdings.push(people::Holding { person, role });
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Roles {
-        project: FIXTURE_PROJECT,
+        project: PROJECT,
         holdings: holdings.into_boxed_slice(),
     })));
     sign_in

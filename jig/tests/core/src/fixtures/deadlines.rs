@@ -3,7 +3,6 @@ use super::ask_as;
 use crate::world::World;
 use jig_domain_people as people;
 use skein_lib::{Time, Wall};
-const PARTY: u64 = 1;
 const OWNER_ROLE: u32 = 0;
 /// Five seconds makes the initial decision fit a twenty-second holder, then age beyond it.
 pub const SPAN: skein_lib::Duration = skein_lib::Duration::from_secs(5);
@@ -46,7 +45,7 @@ pub fn decide(world: &mut World, sign_in: u64, key: u8, proposal: u64, decision:
 
 /// The root fixture has one live chat; every story's first newly numbered member is two.
 pub const CREATED: u64 = 2;
-pub const PROJECT: u32 = 1;
+pub use super::{PARTY, PROJECT};
 #[must_use]
 pub fn span_member() -> people::Member {
     let mut member = super::people_member(b"span work", 20);

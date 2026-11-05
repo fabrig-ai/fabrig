@@ -1,3 +1,4 @@
+use jig_core_world::fixtures::{ask, ask_as};
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
@@ -5,20 +6,6 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
-
-fn ask(world: &mut World, request: u8, ask: people::Ask) {
-    ask_as(world, world.sign_in.expect("signed-in person"), request, ask);
-}
-
-fn ask_as(world: &mut World, sign_in: u64, request: u8, ask: people::Ask) {
-    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(8000 + u64::from(request))),
-        sign_in,
-        key: [request; 16],
-        ask,
-    })));
-}
 
 fn hold_revision(world: &World, task: u64) -> u64 {
     match world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))) {

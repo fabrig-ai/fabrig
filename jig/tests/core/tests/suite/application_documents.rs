@@ -1,5 +1,6 @@
 //! Connector values through the real root and independently observed store.
 
+use jig_core_world::fixtures::PROJECT;
 use jig_core_world::reads;
 use jig_core_world::watches;
 use jig_core_world::world::Cut;
@@ -11,7 +12,6 @@ use jig_test_connector::{self as connector, ClientDocument, ClientSubject};
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
-const PROJECT: u32 = 1;
 const CONNECTOR: u16 = 1;
 const OBJECT: u64 = 1;
 const OWN_REQUEST: u64 = 40001;
