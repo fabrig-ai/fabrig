@@ -166,25 +166,25 @@ answer ownership is checked before effects or payload copies.
 
 ### 2.4 Which script answers
 
-- **A script is chosen by a cue,** bytes it looks for in the query. A
-  script's cue is held in the system text: the script whose cue starts
-  earliest there answers, and of two at one position the first listed.
-  Its turns count the query's assistant messages; past its last turn it
-  answers "done". With no script cued, the domain answers at random:
-  tool calls from the menu, or "done".
+- **A system cue chooses first,** bytes the script looks for in the
+  query's system text. The cue that starts earliest there answers, and
+  of two at one position the first listed. Its turns count the query's
+  assistant messages; past its last turn it answers "done".
 - **A request may cue one too.** `Scripts { cued, asked, otherwise }`
-  holds the scripts cued by the system text, as above; those cued by
-  the request, `asked`; and the turns that answer when neither cues
-  one, `otherwise`. An asked cue is
-  looked for in the text of the last user message that holds text, the
-  person's latest request, and the earliest there wins, then the first
-  listed. Its turns count the assistant messages after that message, so
-  each new request starts its script again; `otherwise` counts the same
+  holds the scripts cued by the system text or the request, `cued`;
+  those cued by the request alone, `asked`; and the turns that answer
+  when neither cues one, `otherwise`. A request cue from either group
+  is looked for in each text part of the last user message that holds
+  text, the person's latest request. Parts are searched in order;
+  within each part the earliest cue wins, then the first listed, with
+  `cued` before `asked`. Its turns count the assistant messages after
+  that message, so each new request starts its script again, including
+  a `cued` script selected by the request; `otherwise` counts the same
   way. Past their last turn, both answer "done".
 - **In that order:** a system cue, then a request's, then `otherwise`
   when it holds a turn, then the random answer, each after the seeded
   chances (section 2.3). A world that gives neither `asked` nor
-  `otherwise` is answered by a system cue or at random alone.
+  `otherwise` is answered by a system or request cue, or at random.
 - **`Domain::played(&Config, seed, Scripts, Menu)`** checks and consumes
   them as `configured` does its scripts, all under one `script_bytes`,
   and `configured` is `played` with the other two empty. Their turns
