@@ -1,5 +1,5 @@
 //! Typed values retained by the local parent and its spawned child.
-use super::agent::{RunStart, answer_text, prepare_start, saved_reply_to_host};
+use super::agent::{RunStart, prepare_start, said, saved_reply_to_host};
 use alloc::boxed::Box;
 use smith_domain::run;
 use smith_host_domain as host;
@@ -7,18 +7,17 @@ use smith_host_domain as host;
 #[test]
 fn a_spawned_last_word_keeps_its_local_display_class() {
     assert_eq!(
-        answer_text(&host::Answer { read: None, turns: 3, spent: 29, result: host::RunResult::Parked }).as_ref(),
-        b"Chat parked"
+        said(&host::Answer { read: None, turns: 3, spent: 29, result: host::RunResult::Parked }),
+        crate::Said::Parked
     );
     assert_eq!(
-        answer_text(&host::Answer {
+        said(&host::Answer {
             read: None,
             turns: 1,
             spent: 7,
             result: host::RunResult::Failed { failure: host::RunFailure::Cancelled }
-        })
-        .as_ref(),
-        b""
+        }),
+        crate::Said::Text(Box::new([]))
     );
 }
 

@@ -47,5 +47,5 @@ pub use store::{
 };
 pub use terminal::{
     Entered, Event as TerminalEvent, Limits as TerminalLimits, Slash, Terminal, choice_text, entered, notice_text,
-    run_failure_text, valid as terminal_valid,
+    run_failure_text, said_text, tool_verdict_text, valid as terminal_valid,
 };

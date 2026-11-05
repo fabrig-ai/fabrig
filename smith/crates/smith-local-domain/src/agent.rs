@@ -265,17 +265,17 @@ pub(crate) struct RunStart {
     pub(crate) grants: Box<[host::Grant]>,
 }
 
-/// Separate accepted text from the typed failure notice the terminal renders.
-pub(crate) fn answer_text(answer: &host::Answer) -> Box<[u8]> {
+/// Separate what an accepted answer said from its typed failure notice.
+pub(crate) fn said(answer: &host::Answer) -> crate::Said {
     match &answer.result {
         host::RunResult::Accepted { outcome } => match outcome.value() {
-            run::outcome::Declared::Report(report) => report.text.clone(),
-            run::outcome::Declared::Failure(failure) => failure.reason.clone(),
-            run::outcome::Declared::Verdict(verdict) => verdict.text.clone(),
-            run::outcome::Declared::Change(_) => Box::from(&b"Change delivered"[..]),
+            run::outcome::Declared::Report(report) => crate::Said::Text(report.text.clone()),
+            run::outcome::Declared::Failure(failure) => crate::Said::Text(failure.reason.clone()),
+            run::outcome::Declared::Verdict(verdict) => crate::Said::Text(verdict.text.clone()),
+            run::outcome::Declared::Change(_) => crate::Said::Change,
         },
-        host::RunResult::Parked => Box::from(&b"Chat parked"[..]),
-        host::RunResult::Refused { .. } | host::RunResult::Failed { .. } => Box::new([]),
+        host::RunResult::Parked => crate::Said::Parked,
+        host::RunResult::Refused { .. } | host::RunResult::Failed { .. } => crate::Said::Text(Box::new([])),
     }
 }
 

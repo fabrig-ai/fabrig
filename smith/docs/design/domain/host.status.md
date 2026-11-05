@@ -17,9 +17,3 @@
     `no_credential`): with no request waiting it aborts ("one terminal
     per account request"), and with another account's waiting it is
     counted as that one's answer.
-  - 8: the local domain holds none of the person's words:
-    `smith-local-domain/src/person.rs`, `turn_text` and `tool_end`, and
-    `smith-local-domain/src/boundary.rs`, `Older::words`, compose them,
-    and `smith-local-service/src/service.rs`, `effort_notice`, patches
-    a notice's (the code's side is
-    `smith/docs/development/debt/D018-domain-formats-text.md`).
