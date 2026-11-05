@@ -1,0 +1,3 @@
+draft = "debt-17"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-17/inputs/request.md", "skein/docs/development/debt/D003-env-rewraps.md", "skein/docs/development/debt/D005-civil-calendars.md", "skein/docs/development/debt/D006-lru-tables.md", "skein/docs/development/debt/D008-http-head-parsing.md", "skein/docs/development/debt/D019-channel-machine-flags.md", "skein/docs/development/debt/D026-crate-tests-directories.md", "skein/docs/development/debt/D034-codec-double-generation.md", "skein/docs/development/debt/D044-io-token-tags.md", "jig/docs/development/debt/D027-engine-clients-cursor-format.md", "hearth/docs/development/debt/D008-path-modules.md"]
