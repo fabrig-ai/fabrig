@@ -1,5 +1,5 @@
 //! Accounts watch decoding and shared deployment source facts (contract.md, 5.1).
-use super::{Limits, List, Reader, Wall, c, piece_problem, too_large, w};
+use super::{Limits, List, Reader, Wall, c, chip_piece, piece_problem, too_large, w};
 use alloc::boxed::Box;
 pub(crate) fn account_use(value: &w::AccountUse) -> c::AccountUse {
     match value {
@@ -114,7 +114,7 @@ pub(crate) fn account_source(value: &w::AccountSource, room: &mut u64) -> Result
         place: value.place(),
         number: value.number(),
         kind: account_kind(value.kind()),
-        state: super::account_state_fields(value.state()),
+        state: account_state_fields(value.state()),
         usable: value.usable(),
         expiring: value.expiring(),
         attention: value.attention(),
@@ -287,4 +287,99 @@ pub(crate) fn checked_manage_usage(value: Option<&[u8]>, path: w::Path) -> Resul
         }
         None => Ok(None),
     }
+}
+
+pub(crate) fn account_place_fields(value: &w::AccountPlace) -> c::AccountPlace {
+    match value {
+        w::AccountPlace::Directory => c::AccountPlace::Directory,
+        w::AccountPlace::File => c::AccountPlace::File,
+    }
+}
+
+pub(crate) fn account_unread_fields(value: &w::AccountUnread) -> c::AccountUnread {
+    match value {
+        w::AccountUnread::Unreadable => c::AccountUnread::Unreadable,
+        w::AccountUnread::Refused => c::AccountUnread::Refused,
+        w::AccountUnread::Failed => c::AccountUnread::Failed,
+        w::AccountUnread::Stalled => c::AccountUnread::Stalled,
+        w::AccountUnread::TooLarge => c::AccountUnread::TooLarge,
+    }
+}
+
+pub(crate) fn account_state_fields(value: &w::AccountState) -> c::AccountState {
+    match value {
+        w::AccountState::Asking => c::AccountState::Asking,
+        w::AccountState::Granted => c::AccountState::Granted,
+        w::AccountState::Later(row) => {
+            let opt0 = match row.until() {
+                Some(item) => Some(Wall::from_nanos(*item)),
+                None => None,
+            };
+            c::AccountState::Later { until: opt0 }
+        }
+        w::AccountState::SignInAgain => c::AccountState::SignInAgain,
+        w::AccountState::Misconfigured => c::AccountState::Misconfigured,
+        w::AccountState::Unloaded(row) => {
+            c::AccountState::Unloaded { at: account_place_fields(row.at()), why: account_unread_fields(row.why()) }
+        }
+        w::AccountState::Cancelled => c::AccountState::Cancelled,
+        w::AccountState::Closing => c::AccountState::Closing,
+        w::AccountState::Moving => c::AccountState::Moving,
+    }
+}
+
+pub(crate) fn account_fields(value: &w::Account, limits: &Limits, room: &mut u64) -> Result<c::Account, w::Problem> {
+    charge_account(value.uses().as_ref(), value.display(), room)?;
+    // An account's runs and its waiting tasks stay lists bounded by the rows.
+    let chips = List::<c::Chip>::price(limits.client().rows);
+    charge(room, chips)?;
+    charge(room, chips)?;
+    let opt0 = match value.generation() {
+        Some(item) => Some(*item),
+        None => None,
+    };
+    let opt1 = match value.spent_until() {
+        Some(item) => Some(Wall::from_nanos(*item)),
+        None => None,
+    };
+    Ok(c::Account {
+        number: value.number(),
+        place: value.place(),
+        uses: account_uses(value.uses().as_ref()),
+        plan: value.plan(),
+        provider: *value.provider(),
+        provider_name: match value.provider_name() {
+            Some(name) => Some(crate::translate::facts::document_text(name, limits)?),
+            None => None,
+        },
+        manage_usage: checked_manage_usage(value.manage_usage().as_deref(), w::Path::AccountManageUsage)?,
+        display: crate::translate::facts::document_text(value.display(), limits)?,
+        holder: account_holder(value.holder()),
+        sources: account_source_piece(value.sources(), limits, room)?,
+        generation: opt0,
+        state: account_state_fields(value.state()),
+        usable: value.usable(),
+        expiring: value.expiring(),
+        attention: value.attention(),
+        spent_until: opt1,
+        runs: chip_piece(value.runs(), limits, limits.client().rows)?,
+        waiting: chip_piece(value.waiting(), limits, limits.client().rows)?,
+        cut: value.cut(),
+    })
+}
+
+pub(crate) fn account_piece(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::Account>, w::Problem> {
+    let count = piece_count(bytes)?;
+    if count > limits.client().accounts.accounts {
+        return Err(too_large());
+    }
+    charge(room, List::<c::Account>::price(count))?;
+    let mut reader = Reader::new(bytes);
+    let mut rows = List::with_capacity(count);
+    for _ in 0..count {
+        let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
+        let row = w::Account::decode(limits.receiving(), &mut Reader::new(&item))?;
+        rows.push(account_fields(&row, limits, room)?).expect("counted pieces fit");
+    }
+    Ok(rows)
 }

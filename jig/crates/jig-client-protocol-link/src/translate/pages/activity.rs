@@ -1,5 +1,8 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
-use super::{Limits, List, Wall, c, carried_turn_fields, text, too_large, w};
+use super::{
+    Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, piece_problem, text, too_large, w,
+};
+
 pub(crate) fn message_proposal_kind_fields(value: &w::MessageProposalKind) -> c::MessageProposalKind {
     match value {
         w::MessageProposalKind::Settings => c::MessageProposalKind::Settings,
@@ -194,4 +197,65 @@ pub(crate) fn archived_turn_fields(value: &w::ArchivedTurn, limits: &Limits) -> 
 
 pub(crate) fn turn_name_fields(value: &w::TurnName) -> c::TurnName {
     c::TurnName { attempt: value.attempt(), number: value.number() }
+}
+
+pub(crate) fn activity_page_fields(value: &w::ActivityPage, limits: &Limits) -> Result<c::ActivityPage, w::Problem> {
+    let opt0 = match value.before() {
+        Some(item) => Some(cursor_fields(item, limits)?),
+        None => None,
+    };
+    let opt1 = match value.after() {
+        Some(item) => Some(cursor_fields(item, limits)?),
+        None => None,
+    };
+    Ok(c::ActivityPage {
+        cut: value.cut(),
+        rows: activity_line_piece(value.rows(), limits, limits.client().rows)?,
+        before: opt0,
+        after: opt1,
+    })
+}
+
+pub(crate) fn activity_line_piece(
+    bytes: &[u8],
+    limits: &Limits,
+    bound: u32,
+) -> Result<List<c::DecodedActivityLine>, w::Problem> {
+    let mut reader = Reader::new(bytes);
+    let mut rows = List::with_capacity(bound);
+    let mut sum = 0_u64;
+    for _ in 0..=bound {
+        let item = match skein_codec::piece::split(&mut reader) {
+            Ok(value) => value,
+            Err(reason) => return Err(piece_problem(reason)),
+        };
+        let Some(item) = item else {
+            return Ok(rows);
+        };
+        sum = sum
+            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
+            .ok_or(too_large())?
+            .checked_add(4)
+            .ok_or(too_large())?;
+        if sum > limits.client().document_bytes {
+            return Err(too_large());
+        }
+        let row = w::DecodedActivityLine::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = decoded_activity_line_fields(&row, limits)?;
+        if rows.push(row).is_err() {
+            return Err(too_large());
+        }
+    }
+    Err(too_large())
+}
+
+pub(crate) fn decoded_activity_line_fields(
+    value: &w::DecodedActivityLine,
+    limits: &Limits,
+) -> Result<c::DecodedActivityLine, w::Problem> {
+    let decoded = match value.decoded() {
+        Some(item) => Some(archived_turn_fields(item, limits)),
+        None => None,
+    };
+    Ok(c::DecodedActivityLine { source: Box::new(activity_line_fields(value.source(), limits)?), decoded })
 }

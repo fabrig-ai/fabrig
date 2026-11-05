@@ -1,46 +1,9 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
     Box, Limits, List, Wall, address_change_fields, amendment_state_fields, authority_document_fields,
-    authority_fields, c, cursor_fields, history_holder_fields, period_times_fields, proposed_task_piece,
-    task_link_fields, text, too_large, w,
+    authority_fields, c, chip_fields, ending_fields, history_holder_fields, offered_piece, proposed_task_piece,
+    task_fields, task_link_fields, text, too_large, w,
 };
-pub(crate) fn funding_record_fields(value: &w::FundingRecord) -> c::FundingRecord {
-    let opt0 = match value.period() {
-        Some(item) => Some(period_times_fields(item)),
-        None => None,
-    };
-    let opt1 = match value.parent() {
-        Some(item) => Some(crate::translate::facts::funder(item)),
-        None => None,
-    };
-    c::FundingRecord {
-        period: opt0,
-        funder: crate::translate::facts::funder(value.funder()),
-        parent: opt1,
-        numbers: crate::translate::facts::numbers(value.numbers()),
-        made: value.made(),
-        closed: value.closed(),
-    }
-}
-
-pub(crate) fn spend_page_fields(value: &w::SpendPage, limits: &Limits) -> Result<c::SpendPage, w::Problem> {
-    if value.rows().len() > limits.client().rows {
-        return Err(too_large());
-    }
-    let mut list0 = List::with_capacity(value.rows().len());
-    for item in value.rows() {
-        list0.push(funding_record_fields(item)).expect("reserved supplied list");
-    }
-    let opt1 = match value.before() {
-        Some(item) => Some(cursor_fields(item, limits)?),
-        None => None,
-    };
-    let opt2 = match value.after() {
-        Some(item) => Some(cursor_fields(item, limits)?),
-        None => None,
-    };
-    Ok(c::SpendPage { rows: list0, before: opt1, after: opt2, cut: value.cut() })
-}
 
 pub(crate) fn parameter_fields(value: &w::Parameter, limits: &Limits) -> Result<c::Parameter, w::Problem> {
     Ok(match value {
@@ -179,4 +142,68 @@ pub(crate) fn proposal_action_fields(
 
 pub(crate) fn proposal_waiting_fields(value: &w::ProposalWaiting) -> c::ProposalWaiting {
     c::ProposalWaiting { holder: history_holder_fields(value.holder()), since: Wall::from_nanos(value.since()) }
+}
+
+pub(crate) fn funding_offer_fields(value: &w::FundingOffer) -> c::FundingOffer {
+    let opt0 = match value.left() {
+        Some(item) => Some(*item),
+        None => None,
+    };
+    let opt1 = match value.after() {
+        Some(item) => Some(*item),
+        None => None,
+    };
+    c::FundingOffer {
+        source: crate::translate::facts::funder(value.source()),
+        needed: value.needed(),
+        left: opt0,
+        after: opt1,
+    }
+}
+
+pub(crate) fn proposal_fields(value: &w::Proposal, limits: &Limits) -> Result<c::Proposal, w::Problem> {
+    if value.funding().len() > limits.client().rows {
+        return Err(too_large());
+    }
+    let mut list0 = List::with_capacity(value.funding().len());
+    for item in value.funding() {
+        list0.push(funding_offer_fields(item)).expect("reserved supplied list");
+    }
+    Ok(c::Proposal {
+        key: crate::translate::answers::proposal_key(value.key()),
+        project: value.project(),
+        reason: crate::translate::facts::document_text(value.reason(), limits)?,
+        action: proposal_action_fields(value.action(), limits)?,
+        as_holder: value.as_holder(),
+        waiting: proposal_waiting_fields(value.waiting()),
+        funding: list0,
+        acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
+    })
+}
+
+pub(crate) fn escalation_fields(value: &w::Escalation, limits: &Limits) -> Result<c::Escalation, w::Problem> {
+    Ok(c::Escalation {
+        acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
+        task: Box::new(task_fields(value.task(), limits)?),
+    })
+}
+
+pub(crate) fn question_fields(value: &w::Question, limits: &Limits) -> Result<c::Question, w::Problem> {
+    let opt0 = match value.from() {
+        Some(item) => Some(crate::translate::facts::requester(item)),
+        None => None,
+    };
+    let opt1 = match value.ending() {
+        Some(item) => Some(ending_fields(item, limits)?),
+        None => None,
+    };
+    Ok(c::Question {
+        task: chip_fields(value.task(), limits)?,
+        from: opt0,
+        message: value.message(),
+        words: crate::translate::facts::document_text(value.words(), limits)?,
+        since: Wall::from_nanos(value.since()),
+        acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
+        ending: opt1,
+    })
 }

@@ -6,23 +6,26 @@ use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::Map;
 use skein_lib::Reader;
-#[path = "facts_part0.rs"]
-mod part0;
-use part0::chip_fields;
-pub(crate) use part0::{
-    active_run, call_identity, chip_phase, closing_stage, document_text, failure_class, hold_category, person_address,
-    proposal_key, recipient, retry_notice, run_stage,
+mod chips;
+mod holds;
+mod parties;
+mod parts;
+mod runs;
+mod wake;
+use chips::{
+    chip_details_fields, chip_ending_fields, chip_fields, chip_phase_fields, closing_fields, ending_fields,
+    result_value_fields,
 };
-#[path = "facts_part1.rs"]
-mod part1;
-pub(crate) use part1::party;
-pub(crate) use part1::{chip_hold, executor, numbers, part, person_wait, wake_policy};
-use part1::{chip_phase_fields, closing_fields, ending_fields, held_runtime_fields, hold_reason_fields};
-#[path = "facts_part2.rs"]
-mod part2;
-pub(crate) use part2::dependencies;
-pub(crate) use part2::{budget, funder, requester, resource_line};
-use part2::{chip_details_fields, chip_ending_fields, result_value_fields};
+#[expect(unused_imports, reason = "The facts root keeps its translation names reachable.")]
+pub(crate) use chips::{chip_phase, closing_stage};
+pub(crate) use holds::{chip_hold, failure_class, hold_category, retry_notice};
+use holds::{held_runtime_fields, hold_reason_fields};
+pub(crate) use parties::{party, person_address, person_wait, recipient, requester};
+pub(crate) use parts::{
+    budget, dependencies, document_text, executor, funder, numbers, part, proposal_key, resource_line,
+};
+pub(crate) use runs::{active_run, call_identity, run_stage};
+pub(crate) use wake::wake_policy;
 
 #[derive(Debug)]
 struct Child {
@@ -284,5 +287,6 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
     root.ok_or(piece_problem(skein_codec::Reason::Malformed))
 }
 
-pub(crate) use part1::{failure_tries, prior_phase};
-pub(crate) use part2::result_field;
+pub(crate) use chips::prior_phase;
+pub(crate) use chips::result_field;
+pub(crate) use holds::failure_tries;

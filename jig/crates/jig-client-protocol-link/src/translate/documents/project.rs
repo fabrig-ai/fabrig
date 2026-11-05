@@ -1,8 +1,27 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
 use super::{
-    Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, piece_problem,
-    project_resource_fields, specification_document_fields, task_contract_document_fields, too_large, w,
+    Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, offered_piece, piece_problem,
+    pool_ledger_fields, specification_document_fields, task_contract_document_fields, too_large, w,
 };
+
+pub(crate) fn project_resource_role_fields(value: &w::ProjectResourceRole) -> c::ProjectResourceRole {
+    match value {
+        w::ProjectResourceRole::Fork => c::ProjectResourceRole::Fork,
+        w::ProjectResourceRole::Owned => c::ProjectResourceRole::Owned,
+        w::ProjectResourceRole::Participant => c::ProjectResourceRole::Participant,
+        w::ProjectResourceRole::Unavailable => c::ProjectResourceRole::Unavailable,
+        w::ProjectResourceRole::Context => c::ProjectResourceRole::Context,
+    }
+}
+
+pub(crate) fn project_resource_fields(value: &w::ProjectResource) -> c::ProjectResource {
+    c::ProjectResource {
+        part: crate::translate::facts::part(value.part()),
+        role: project_resource_role_fields(value.role()),
+        home: value.home(),
+    }
+}
+
 pub(crate) fn project_resource_piece(
     bytes: &[u8],
     limits: &Limits,
@@ -388,4 +407,48 @@ pub(crate) fn recurring_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
         }
     }
     Err(too_large())
+}
+
+pub(crate) fn project_fields(value: &w::Project, limits: &Limits) -> Result<c::Project, w::Problem> {
+    if value.members().len() > limits.client().rows {
+        return Err(too_large());
+    }
+    let mut list0 = List::with_capacity(value.members().len());
+    for item in value.members() {
+        list0.push(project_member_fields(item, limits)?).expect("reserved supplied list");
+    }
+    let opt1 = match value.current_period() {
+        Some(item) => Some(pool_ledger_fields(item)),
+        None => None,
+    };
+    if value.pools().len() > limits.client().rows {
+        return Err(too_large());
+    }
+    let mut list2 = List::with_capacity(value.pools().len());
+    for item in value.pools() {
+        list2.push(pool_ledger_fields(item)).expect("reserved supplied list");
+    }
+    if value.configured_pools().len() > limits.client().rows {
+        return Err(too_large());
+    }
+    let mut list3 = List::with_capacity(value.configured_pools().len());
+    for item in value.configured_pools() {
+        list3.push(pool_ledger_fields(item)).expect("reserved supplied list");
+    }
+    Ok(c::Project {
+        acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
+        number: value.number(),
+        name: crate::translate::facts::document_text(value.name(), limits)?,
+        resources: project_resource_piece(value.resources(), limits, limits.client().rows)?,
+        policy: project_policy_fields(value.policy(), limits)?,
+        members: list0,
+        current_period: opt1,
+        pools: list2,
+        configured_period: value.configured_period(),
+        configured_pools: list3,
+        configured_pools_cut: value.configured_pools_cut(),
+        spend: project_spend_piece(value.spend(), limits, limits.client().rows)?,
+        recurring: recurring_piece(value.recurring(), limits, limits.client().rows)?,
+        cut: value.cut(),
+    })
 }

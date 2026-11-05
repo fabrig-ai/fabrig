@@ -1,69 +1,5 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
-use super::{
-    Box, Limits, List, Reader, Wall, c, chip_ending_fields, chip_fields, cursor_fields, piece_problem,
-    task_link_fields, too_large, w,
-};
-pub(crate) fn ended_delegate_fields(value: &w::EndedDelegate, limits: &Limits) -> Result<c::EndedDelegate, w::Problem> {
-    let opt0 = match value.at() {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    Ok(c::EndedDelegate {
-        chip: chip_fields(value.chip(), limits)?,
-        ended: chip_ending_fields(value.ended(), limits)?,
-        at: opt0,
-    })
-}
-
-pub(crate) fn ended_delegate_piece(
-    bytes: &[u8],
-    limits: &Limits,
-    bound: u32,
-) -> Result<List<c::EndedDelegate>, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(bound);
-    let mut sum = 0_u64;
-    for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(too_large());
-        }
-        let row = w::EndedDelegate::decode(limits.wire(), &mut Reader::new(&item))?;
-        let row = ended_delegate_fields(&row, limits)?;
-        if rows.push(row).is_err() {
-            return Err(too_large());
-        }
-    }
-    Err(too_large())
-}
-
-pub(crate) fn ended_page_fields(value: &w::EndedPage, limits: &Limits) -> Result<c::EndedPage, w::Problem> {
-    let opt0 = match value.before() {
-        Some(item) => Some(cursor_fields(item, limits)?),
-        None => None,
-    };
-    let opt1 = match value.after() {
-        Some(item) => Some(cursor_fields(item, limits)?),
-        None => None,
-    };
-    Ok(c::EndedPage {
-        rows: ended_delegate_piece(value.rows(), limits, limits.client().rows)?,
-        before: opt0,
-        after: opt1,
-        cut: value.cut(),
-    })
-}
+use super::{Box, Limits, List, Reader, Wall, c, cursor_fields, piece_problem, task_link_fields, too_large, w};
 
 pub(crate) fn inbox_object_fields(value: &w::InboxObject) -> c::InboxObject {
     match value {
@@ -221,12 +157,4 @@ pub(crate) fn inbox_page_fields(value: &w::InboxPage, limits: &Limits) -> Result
         before: opt1,
         after: opt2,
     })
-}
-
-pub(crate) fn period_times_fields(value: &w::PeriodTimes) -> c::PeriodTimes {
-    let opt0 = match value.next() {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    c::PeriodTimes { began: Wall::from_nanos(value.began()), next: opt0 }
 }
