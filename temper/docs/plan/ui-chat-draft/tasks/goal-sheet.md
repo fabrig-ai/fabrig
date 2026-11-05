@@ -68,3 +68,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling (rulings.md, 3): the sheet is ui-goal-page's start-sheet; here only "Start goal…" in the chat's bar opening it, and "Goal TITLE →" and its line.
