@@ -89,12 +89,36 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
         assert_eq!(
             authority.tools,
             jig_domain_authority::Tools(
-                families.delegate.0 | families.message.0 | families.control.0 | families.read.0 | families.settings
+                families.delegate.0
+                    | families.message.0
+                    | families.control.0
+                    | families.note.0
+                    | families.read.0
+                    | families.settings
             )
         );
         assert_eq!(authority.delegation.tasks, 384);
         assert_eq!(authority.delegation.depth, 32);
     }
+}
+
+#[test]
+fn the_stock_holds_a_goals_note_scope_and_an_observer_none() {
+    use jig_domain_authority::{Scopes, Tools};
+    let engine = engine(&single_model());
+    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let policy = &stock.policies.get(&1).expect("stock policy 1").policy;
+    for authority in [&stock.rules.ceiling, &policy.ceiling]
+        .into_iter()
+        .chain(policy.roles.iter().filter(|role| role.authority.budget.spend != 0).map(|role| &role.authority))
+    {
+        assert_eq!(authority.notes, Scopes::GOAL);
+        assert_eq!(authority.tools, Tools(1671));
+        assert!(authority.note_resources.is_empty());
+    }
+    let observer = &policy.roles.iter().find(|role| role.number == 3).expect("observer").authority;
+    assert_eq!(observer.notes, Scopes(0));
+    assert!(observer.note_resources.is_empty());
 }
 
 // temper/docs/design/protocol/configuration.md, 13.9: reference settings widen stock authority.
@@ -105,7 +129,7 @@ fn configure_reference_authority_allows_coordinator_tools() {
     let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let policy = stock.policies.get(&1).unwrap().policy.clone();
     let before = reference_domain(stock.rules.clone(), policy.clone(), engine.limits.core.authority);
-    for family in [8, 32, 128, 256] {
+    for family in [8, 32, 256] {
         assert_eq!(reference_call(&before, &policy.roles[0].authority, family, Call::Tool), Answer::Refuse);
     }
     let required = reference_requirements();
@@ -135,7 +159,7 @@ fn configure_reference_authority_allows_coordinator_tools() {
         assert_eq!(reference_call(&after, &without_scope, 128, Call::Note(scope)), Answer::Propose);
     }
     // A live task retains its old authority even after its project's policy widens.
-    assert_eq!(reference_call(&after, &policy.roles[0].authority, 128, Call::Tool), Answer::Propose);
+    assert_eq!(reference_call(&after, &policy.roles[0].authority, 256, Call::Tool), Answer::Propose);
 }
 
 fn assert_reference_authority(old: &jig_domain_authority::Authority, new: &jig_domain_authority::Authority) {
@@ -466,6 +490,28 @@ fn the_chats_words_send_plain_changes_to_change() {
 }
 
 #[test]
+fn the_goals_charter_asks_for_one_report_revised_in_place() {
+    let words = include_str!("../stock/chat.txt");
+    let goal = words
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
+        .expect("goal paragraph");
+    for phrase in [
+        "After planning",
+        "report: ",
+        "Left: ",
+        "Risk: ",
+        "Decided: ",
+        "naming the task and project your brief's task section names",
+        "in the first person",
+        "Revise it in place, naming the note and its revision from your brief's index",
+        "A message that changes the plan becomes an amendment you show your person first.",
+    ] {
+        assert!(goal.contains(phrase), "{phrase}");
+    }
+}
+
+#[test]
 fn the_chats_words_tell_the_person_when_its_change_or_goal_holds() {
     let words = include_str!("../stock/chat.txt");
     let chat = words.split("\n\n").last().expect("chat paragraph");
@@ -499,6 +545,22 @@ fn the_chats_words_send_work_agreed_first_to_a_goal() {
 fn the_chats_words_mark_an_advisors_read_only_report() {
     let words = include_str!("../stock/chat.txt");
     assert!(words.split("\n\n").any(|paragraph| paragraph == "If your brief says you are an advisor, do only that: read what it asks with the forge's reads, change nothing, ask no one, and report what you found."), "the advisor has its own paragraph");
+}
+
+#[test]
+fn only_the_goals_paragraph_ends_with_the_questions_line_form() {
+    // domain/agent.md, 8.2: a goal writes its question in the client's line form.
+    const SENTENCE: &str = " Write a question to your requester as one line asking it, a blank line, what they need to know, then a line starting Saw: with what you saw, and a line starting Choice: for each option, the one you recommend ending (recommended).";
+    let words = include_str!("../stock/chat.txt");
+    for (role, expected) in [
+        ("If your brief says you are a goal", true),
+        ("If neither line is in your brief", false),
+        ("If your brief says you are an advisor", false),
+    ] {
+        let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(role)).expect("role instructions");
+        assert_eq!(paragraph.contains(SENTENCE.trim_start()), expected, "{role}: question line form");
+        assert_eq!(paragraph.ends_with(SENTENCE), expected, "{role}: question line form ends the paragraph");
+    }
 }
 
 #[test]

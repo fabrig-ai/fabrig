@@ -138,11 +138,15 @@ fn cancellation_during_closing_and_release_of_a_held_closing_task_keep_the_owner
     send_task(
         &mut core,
         &limits,
-        tasks::Event::Control {
+        tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(94)),
             by: tasks::Party::Person(1),
-            task: 3,
-            control: tasks::Control::Cancel { reason: b"cancel closing".as_slice().into(), grace: None, message: None },
+            operation: tasks::Cancel {
+                task: 3,
+                reason: b"cancel closing".as_slice().into(),
+                grace: None,
+                message: None,
+            },
         },
     );
     let tasks::Phase::Closing(closing) = &core.tasks.task(3).unwrap().phase else { panic!("closing cancellation") };
@@ -177,11 +181,10 @@ fn cancellation_during_closing_and_release_of_a_held_closing_task_keep_the_owner
     send_task(
         &mut core,
         &limits,
-        tasks::Event::Control {
+        tasks::Event::Release {
             reply_to: ReplyTo::new(Token::new(95)),
             by: tasks::Party::Person(1),
-            task: 3,
-            control: tasks::Control::Release { again: None, message: None },
+            operation: tasks::Release { task: 3, again: None, message: None },
         },
     );
     if let tasks::Phase::Closing(_) = core.tasks.task(3).unwrap().phase {

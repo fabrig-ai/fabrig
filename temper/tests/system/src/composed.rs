@@ -188,7 +188,8 @@ fn open_config(seed: u64) -> engine::Config {
 }
 
 fn configure(mut config: engine::Config) -> engine::Config {
-    let charter = crate::world::charter();
+    let mut charter = crate::world::charter();
+    charter.policy.model.window = 1_048_576;
     config.core.settings.models = Box::new([charter.policy.model.clone()]);
     config.core.defaults.charters = Box::new([charter]);
     config.core.settings.resume_bytes = 32768;
@@ -225,6 +226,7 @@ fn worker_limits() -> worker::Limits {
     limits.agent.path_bytes = 64;
     limits.agent.no_progress = Duration::from_secs(120);
     limits.bounds = crate::world::bounds();
+    limits.bounds.models[0].window = 1_048_576;
     limits.bounds.inbox = 4;
     limits.bounds.message_bytes = 1024;
     limits.bounds.unacknowledged = 2;
@@ -363,8 +365,21 @@ impl World {
     }
 
     fn configured_with(seed: u64, script: Script, repository: bool, config: fn(u64) -> engine::Config) -> Self {
-        let [(bootstrap, mut limits), (config, _)] =
-            std::array::from_fn(|_| configured_parts(config(seed), repository));
+        Self::configured_limits(seed, script, repository, config, |_| {})
+    }
+
+    fn configured_limits(
+        seed: u64,
+        script: Script,
+        repository: bool,
+        config: fn(u64) -> engine::Config,
+        limits: fn(&mut engine::Limits),
+    ) -> Self {
+        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
+            let (config, mut bounds) = configured_parts(config(seed), repository);
+            limits(&mut bounds);
+            (config, bounds)
+        });
         let forge = repository_forge(seed);
         let worker_limits =
             if config.core.defaults.charters.len() > 1 { agreement::worker_limits(&limits) } else { worker_limits() };
@@ -381,15 +396,7 @@ impl World {
             period_budget: config.core.defaults.rules.period_spend,
             goal_branch: false,
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
-            chat_ending: config
-                .core
-                .defaults
-                .templates
-                .iter()
-                .find(|template| template.number == 1)
-                .expect("chat template")
-                .flags
-                .ended_by,
+            chat_ending: chat_ending(&config),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             root_out: Queue::uncapped(),
@@ -1394,4 +1401,8 @@ fn repository_forge(seed: u64) -> Forge {
     forge.grant(b"org/repo", 1, fake::Permission::Admin);
     forge.grant(b"org/repo", 7, fake::Permission::Read);
     forge
+}
+
+fn chat_ending(config: &engine::Config) -> tasks::EndedBy {
+    config.core.defaults.templates.iter().find(|template| template.number == 1).expect("chat template").flags.ended_by
 }

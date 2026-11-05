@@ -47,13 +47,12 @@ fn a_moved_task_leaves_the_tree_it_left() {
         &mut core,
         &limits,
         tasks::Event::Move {
+            operation: tasks::Move { task: 2, reason: Box::new([]) },
             reply_to: reply(),
-            task: 2,
             person: 1,
             period: 1,
             pool_budget: 500,
             period_budget: 1000,
-            reason: Box::new([]),
         },
     );
     let project = ready(&core);

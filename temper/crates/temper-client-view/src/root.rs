@@ -158,6 +158,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Repositories { .. }
+        | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. } => {
             crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
@@ -177,6 +178,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Repositories { .. }
+        | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. } => {
             // Outside the chats pane the line shows only while the
@@ -241,7 +243,17 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     } else if let temper_client_domain::Address::Changes { project } = root.pages().address() {
         crate::pages::changes::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
     } else if let temper_client_domain::Address::Home { project } = root.pages().address() {
-        crate::pages::home::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
+        crate::pages::home::main(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            *project,
+            &mut times,
+            view.rows,
+        );
+    } else if let temper_client_domain::Address::Goals { project, .. } = root.pages().address() {
+        crate::pages::goals::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
     } else if let temper_client_domain::Address::Configure { project } = root.pages().address() {
         crate::pages::configure::main(
             &mut builder,
@@ -313,6 +325,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     {
         crate::frame::tabbar(&mut builder, root, &view.forge_words, &mut view.pages, project);
     }
+    crate::frame::toast(&mut builder, root, &view.forge_words, &mut view.pages);
     builder.close();
     view.next_change = times.next;
     view.render.finish(builder, shown, out);

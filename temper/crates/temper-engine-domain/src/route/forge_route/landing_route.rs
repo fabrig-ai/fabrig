@@ -369,11 +369,10 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
             StepEnd::Result(tasks::TaskResult::Report { words: landing_result_words(domain, env, task) })
         }
         landing::Decision::Cancel => {
-            domain.work.push(Work::Tasks(tasks::Event::Control {
+            domain.work.push(Work::Tasks(tasks::Event::Cancel {
                 reply_to: super::super::internal(u64::MAX),
                 by: tasks::Party::Deployment { project: domain.forge.landing(task).expect("landing").landing.project },
-                task,
-                control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+                operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
             }));
             StepEnd::Wait
         }

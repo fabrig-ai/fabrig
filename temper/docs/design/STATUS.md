@@ -40,17 +40,20 @@ settings family (`protocol/configuration.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
 (`domain/root.md`), and a change's refusal omits what authority it
 lacked and which model its charter refused (`domain/agent.md`). A
-run that cannot deliver keeps the shell its charter grants
+run that cannot deliver keeps the shell its charter grants, and on the
+fake box a fresh box's first goal alone writes its report
 (`domain/agent.md`). The reference is one profile a box is set up
-with, and the case's repository carries no CI or tiers' workflows
-(`protocol/configuration.md`). A fresh box holds the figures of the
+with, its rules hold no note scope but the goal's, where its charter 5
+also notes in the repository's, and the case's repository carries no
+CI or tiers' workflows (`protocol/configuration.md`). A fresh box holds the figures of the
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). Much of a change's own
-bounds and gates, the forge's merge queue and a goal's issue lag
-(`domain/forge.md`); so do the client's Board, Changes and How work
-runs pages and many of ctl's tools (`client/README.md`,
+bounds and gates, the forge's merge queue and a goal's issue lag, and
+the queue's first can lose its turn to a change stepped during it
+(`domain/forge.md`); so do the client's How work runs page
+and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
 and whose download is past its bar (`playground.md`), upgrades'
@@ -65,7 +68,8 @@ box (`domain/forge.md`), a project's Delete (`client/README.md`),
 a failure of the secrets' store on an accounts' request, which stops
 no engine (`protocol/credentials.md`), and
 a forge's Start over with no welcome, which ends at the inbox
-(`client/forge.md`);
+(`client/forge.md`), and a closed change whose repository a removal
+erased leaves no project the Changes document (`client/README.md`);
 public reading still lacks a deployment's proxy configuration and
 figures, and its negative walk plays the proxy's own rules against
 scripted upstreams rather than temper's service
@@ -79,7 +83,9 @@ design admits one with the printed link off
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
 (`domain/root.md`). Ready names no email for a ChatGPT sign-in,
-which waits on jig's account-facts draft (`client/README.md`). The
+which waits on jig's account-facts draft, and Goals draws neither
+heading nor filters for a project with no goal template
+(`client/README.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither

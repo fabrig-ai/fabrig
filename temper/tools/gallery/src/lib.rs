@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 mod driver;
+mod needs;
 pub mod samples;
 #[cfg(test)]
 mod tests;
@@ -139,6 +140,11 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     }
     let title = escape(&skein_ui_web::title::text(&heading(view.tree()), b"temper"));
     let html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
+    let html = if sample.name == "needs-saw-open" {
+        html.replace("class=\"temper-ask-saw\"", "open class=\"temper-ask-saw\"")
+    } else {
+        html
+    };
     let mut styles = String::new();
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");

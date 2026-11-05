@@ -354,6 +354,7 @@ fn stock_document(value: &mut serde_json::Value) {
     }
     for (name, count) in [
         ("core.policy_bytes", 8192),
+        ("core.run_bytes", 8192),
         ("authority.grants", 16),
         ("authority.executors", 8),
         ("tasks.executor_kinds", 8),

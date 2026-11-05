@@ -3915,11 +3915,10 @@ fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
 // (temper/docs/design/domain/forge.md, 4.1).
 fn cancel_change(domain: &mut Domain, task: u64) {
     let Some(row) = domain.core.tasks.task(task) else { return };
-    domain.work.push(Work::Tasks(tasks::Event::Control {
+    domain.work.push(Work::Tasks(tasks::Event::Cancel {
         reply_to: super::internal(u64::MAX),
         by: tasks::Party::Deployment { project: row.project },
-        task,
-        control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
     }));
 }
 

@@ -60,6 +60,33 @@ const HOME_NAMES: [(skein_ui::Style, &[u8]); 18] = [
     (ASK_CHOICES, b"temper-ask-choices"),
     (ASK_QUIET, b"temper-ask-quiet"),
 ];
+const GOALS_NAMES: [(skein_ui::Style, &[u8]); 25] = [
+    (GOALS, b"temper-goals"),
+    (GOALS_INTRO, b"temper-goals-intro"),
+    (GOALS_KICKER, b"temper-goals-kicker"),
+    (GOALS_HEADLINE, b"temper-goals-headline"),
+    (GOALS_LEDE, b"temper-goals-lede"),
+    (GOALS_BYLINE, b"temper-goals-byline"),
+    (GOALS_SECTION, b"temper-goals-section"),
+    (GOALS_SECTION_HEAD, b"temper-goals-section-head"),
+    (GOALS_SECTION_TITLE, b"temper-goals-section-title"),
+    (GOALS_SIGNAL, b"temper-goals-signal"),
+    (GOALS_EMPTY, b"temper-goals-empty"),
+    (GOALS_FACTS, b"temper-goals-facts"),
+    (GOALS_ROWS, b"temper-goals-rows"),
+    (GOALS_ROW, b"temper-goals-row"),
+    (GOALS_ROW_ENDED, b"temper-goals-row-ended"),
+    (GOALS_TOP, b"temper-goals-top"),
+    (GOALS_LINE, b"temper-goals-line"),
+    (GOALS_FILTERS, b"temper-goals-filters"),
+    (GOALS_MORE, b"temper-goals-more"),
+    (GOALS_STATE_NEEDS, b"temper-goals-state-needs"),
+    (GOALS_STATE_RUNNING, b"temper-goals-state-running"),
+    (GOALS_STATE_PLANNING, b"temper-goals-state-planning"),
+    (GOALS_STATE_PAUSED, b"temper-goals-state-paused"),
+    (GOALS_STATE_LANDED, b"temper-goals-state-landed"),
+    (GOALS_STATE_STOPPED, b"temper-goals-state-stopped"),
+];
 const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
@@ -165,7 +192,7 @@ fn each_style_or_region_is_named_under_temper() {
         (ENDED, b"temper-ended"),
         (MENU, b"temper-menu"),
     ];
-    for (style, name) in named.into_iter().chain(FLOW_NAMES).chain(RAIL_NAMES).chain(HOME_NAMES) {
+    for (style, name) in named.into_iter().chain(FLOW_NAMES).chain(RAIL_NAMES).chain(HOME_NAMES).chain(GOALS_NAMES) {
         assert_eq!(NAMES.style(style), Some(name));
     }
     assert_eq!(NAMES.region(crate::frame::link_region()), Some(&b"temper-link"[..]));
@@ -444,4 +471,49 @@ fn account_rows_and_sign_ins_have_distinct_style_names() {
     assert_eq!(NAMES.style(SETTINGS_ROW), Some(b"temper-settings-row".as_slice()));
     assert_eq!(NAMES.style(SIGN_IN), Some(b"temper-sign-in".as_slice()));
     assert_ne!(SETTINGS_ROW, SIGN_IN);
+}
+
+#[test]
+fn configuring_opening_and_needs_have_their_css_names() {
+    for (style, name) in [
+        (STARTER_LEDE, b"temper-starter-lede".as_slice()),
+        (STARTER_SETS, b"temper-starter-sets"),
+        (STARTER_NOTE, b"temper-starter-note"),
+        (STARTER_WAYS, b"temper-starter-ways"),
+        (STARTER_UNSURE, b"temper-starter-unsure"),
+        (TOAST, b"temper-toast"),
+        (NEEDS, b"temper-needs"),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+}
+
+#[test]
+fn settings_styles_keep_their_css_names_beside_main_pages() {
+    for (style, name) in [
+        (SETTINGS_COL, b"temper-settings-col".as_slice()),
+        (SETTINGS_INTRO, b"temper-settings-intro".as_slice()),
+        (SETTINGS_KICKER, b"temper-settings-kicker".as_slice()),
+        (SETTINGS_HEADLINE, b"temper-settings-headline".as_slice()),
+        (SETTINGS_LEDE, b"temper-settings-lede".as_slice()),
+        (SETTINGS_TABS, b"temper-settings-tabs".as_slice()),
+        (SETTINGS_BODY, b"temper-settings-body".as_slice()),
+        (SETTINGS_SETTING, b"temper-settings-setting".as_slice()),
+        (SETTINGS_SECTION, b"temper-settings-section".as_slice()),
+        (SETTINGS_SECTION_HEAD, b"temper-settings-section-head".as_slice()),
+        (SETTINGS_SECTION_TITLE, b"temper-settings-section-title".as_slice()),
+        (SETTINGS_LINES, b"temper-settings-lines".as_slice()),
+        (SETTINGS_WHEN, b"temper-settings-when".as_slice()),
+        (SETTINGS_BAND, b"temper-settings-band".as_slice()),
+        (SETTINGS_QUIET_BAND, b"temper-settings-quiet-band".as_slice()),
+        (SETTINGS_TAG, b"temper-settings-tag".as_slice()),
+        (SETTINGS_BTN, b"temper-settings-btn".as_slice()),
+        (SETTINGS_PRIMARY, b"temper-settings-primary".as_slice()),
+        (SETTINGS_SMALL, b"temper-settings-small".as_slice()),
+        (SETTINGS_DETAIL, b"temper-settings-detail".as_slice()),
+        (SETTINGS_END, b"temper-settings-end".as_slice()),
+        (SETTINGS_ROW, b"temper-settings-row".as_slice()),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
 }

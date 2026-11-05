@@ -415,6 +415,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::Switcher(_)
+            | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
@@ -430,6 +431,8 @@ impl Task {
             | Act::Close
             | Act::DelegateFate { .. }
             | Act::ClosedChats
+            | Act::MoreGoals
+            | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
             | Act::PlanFilter { .. }
             | Act::Filter { .. }
@@ -517,6 +520,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::Switcher(_)
+            | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
@@ -535,6 +539,8 @@ impl Task {
             | Act::DelegateFate { .. }
             | Act::Older
             | Act::ClosedChats
+            | Act::MoreGoals
+            | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
             | Act::PlanFilter { .. }
             | Act::Filter { .. }

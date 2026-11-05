@@ -44,6 +44,8 @@ pub(crate) fn line<'a>(
         ended_at: (task.chip.phase.class() == PhaseClass::Ended).then_some(task.changed),
         budget: task.budget.clone(),
         waits_on: task.waits_on.clone(),
+        delegates_done: 0,
+        delegates_total: 0,
         held_below: phases.held - u32::from(task.chip.phase == Phase::Held),
         phases,
         conversation,

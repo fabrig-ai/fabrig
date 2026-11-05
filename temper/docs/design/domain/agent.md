@@ -111,9 +111,11 @@ engine's routing encodes it (`../protocol/llm.md`, section 5).
   the sections about its own mechanics, and each repository's guide.
   The small profile admits 14,592 body bytes across at most 64 brief
   sections; the forge reviews budget is 4,608 bytes within that total;
-  `standard`, which `temper init`'s box runs, admits what its host part
+  `standard`, which `temper init`'s box runs, gathers what its host part
   leaves the largest stock charter, its task section a whole spec
-  (`../protocol/configuration.md`, section 7).
+  (`../protocol/configuration.md`, section 7). Assignment and receiving
+  fitting (4.3) may shorten those gathered sections to the charter and
+  workspace ownership bound; the durable specification stays whole.
 
 ### 4.2 Workspace
 
@@ -185,8 +187,12 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   framing, and its decoded ownership. Instructions, tools, contracts,
   models and run identity stay whole. The worker service also fits the
   brief after the workspace is prepared and before encoding the start,
-  using the receiving run's limits and measured schema costs, including
-  the prepared workspace's conflict paths. `temper-engine-smith` owns
+  using the receiving run's limits and measured schema costs. It fits both
+  rendered host room and the decoded charter ownership left after smith
+  charges the prepared workspace against `run_bytes`, including resolved
+  host paths and conflict paths. Smith supplies that remaining allowance
+  through `charter_room`; temper keeps the incoming charter allowance too.
+  `temper-engine-smith` owns
   the fitter; its typed start takes explicit receiving limits and fits
   the brief too. A brief already within each entrance's room is kept
   whole. Otherwise, fitting cuts bodies from the last
@@ -207,8 +213,8 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   text. If even that line cannot fit, it is left out, down to an empty
   brief at zero room. Fitting also keeps the charter within its admitted
   ownership allowance. No run is refused for its brief's size; if the
-  non-brief host part alone exceeds the bound, smith's declaration
-  refusal still applies.
+  non-brief host part or fixed declarations plus workspace alone exceed
+  their receiving bound, smith's declaration refusal still applies.
 - **Checked before a run meets it:** at start, and at temper's three
   entrances of a change of settings that touches a charter (the
   engine's `ChangeSettings` and `ProposeSettings` routes and a run's
@@ -527,12 +533,15 @@ it as any `delegate`:
   authority's;
 - **its authority, the run's own narrowed,** never wider in any part
   (jig's `domain/authority.md`, sections 3 and 5): the run's models and
-  deadline; its tool families (delegation, messages and reads, so that
-  it may call `change`, ask and read the forge); its grants of the kinds
+  deadline; its tool families (delegation, messages, notes and reads, so
+  that it may call `change`, ask, write its report and read the forge);
+  its grants of the kinds
   a change makes and its reads, so that `change` can narrow them again
   (4.3.1); its delegation kinds, with the tasks its subtree may still
   make, as jig counts them, less one for the goal itself, and a depth
-  one less, refused when either is spent; no notes; half of what its
+  one less, refused when either is spent; notes of the goal's own scope
+  alone, where the run's own authority holds that scope, so that it
+  writes its report (8.3); half of what its
   budget has left, refused when that is no more than a run's minimum, as
   `change`'s. A change the goal then makes has half of the goal's,
   so at most a quarter of the chat's: defaults, open to tuning;
@@ -632,8 +641,10 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   the host part and a quarter the offer (smith's `protocol/limits.md`,
   3.9): ⌊(⌊1,048,576 × 4/5⌋ − 2 × 8,192 − own) / 2⌋, about 400,000
   bytes; `temper-service`'s step tests hold the figure at init's agent.
-  Every stock charter retains it, and it holds the stock tools and the
-  authorised brief with a whole spec. A message offered a run is at
+  Every stock charter retains that rendered room, which holds the stock
+  tools and the gathered brief with a whole spec. Delivery also enforces
+  the separate combined ownership bound, shortening the brief when needed
+  (4.3). A message offered a run is at
   most an offer and the agent's tool payload, which the model's output
   bounds (`../protocol/configuration.md`, 13.8).
 - **Waiting and resuming:** the waiting time is the charter's; a
@@ -893,8 +904,46 @@ of `../draft/v0.1.0.md`, 2.1.
   the chat (jig's `domain/tasks.md`, 8.1; jig's `domain/people.md`,
   section 6). The chat cannot ask its own person: it says in its reply
   that a question waits for them.
+- **A question's line form.** jig's question carries words alone, so a
+  question's options and its recommendation are in its words; the stock
+  chat's instructions (charter 1, the goal's paragraph) have a goal
+  write them in one form, which temper's client draws as a question,
+  its context, what the agent saw and its choices (`../client/README.md`,
+  3.5, *Needs you*). No protocol, store or tool knows the form:
+
+  ```
+  Fix the dropped watch in jig’s store, or keep it alive in temper serve?
+
+  MakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local.
+
+  Saw: The box test reproduces it every time.
+  Choice: In jig’s store (recommended)
+  Choice: In temper serve
+  ```
+
+  - The first line is the **question**, and never a trailing line.
+  - The **trailing lines** are found walking up from the last line,
+    blank lines passed over: each line beginning `Saw: ` or `Choice: `
+    is one, and the first other line ends them. Such a line above that
+    point is context, words like any other.
+  - The lines between the question and the trailing lines are the
+    **context**, without its first and last blank lines.
+  - A trailing `Saw: ` line is **what the agent saw**, several joined by
+    a line break, in their order.
+  - A trailing `Choice: ` line is a **choice**, in its order, its words
+    what follows the prefix, trimmed; one with no words, or past what an
+    answer's words take in the client (`CUE_BYTES`, 256), is no choice.
+    One ending ` (recommended)` is recommended, that ending no part of
+    its words; past the first so marked, the ending is removed and
+    recommends nothing.
+  - **The fallback:** words with no choice, or words the read cut
+    (`question.words.cut`), have no trailing lines: the first paragraph
+    is the question, the rest the context, with nothing the agent saw
+    and no choices, and they are answered by a reply alone. Any question
+    a person, a change's relay or an older goal wrote draws this way.
 - **The person answers in the inbox,** `temper ctl task answer TASK
-  QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page, and
+  QUESTION TEXT` (`../client/tools.md`, 5.3), Home's card or the inbox's
+  page, and
   nobody else does: the answer reaches the goal itself, as its
   requester's, never through the chat's model, which may not answer a
   question that waits in its person's inbox (jig's `domain/people.md`,
@@ -926,6 +975,38 @@ of `../draft/v0.1.0.md`, 2.1.
   plan as its result, or changes first, is turned back to the inbox.
 - **Its stories:** `suite::fuzzy::green_light` on fakes (testing.md, 2.4), and
   rung B0 walked on real backends (`../draft/v0.1.0.md`, 2.1).
+
+### 8.3 A goal's report
+
+A goal tells its person where it stands in a **note**, one per goal, which
+needs no record, read or wire field of its own. The client reads and draws it
+(`../client/README.md`, 3.5, *A goal's report*); a person reads it first.
+
+- **Its shape:** scope goal (the tool's scope `goal`, the client's
+  `NoteScope::Task`). Its description is `report: ` then the headline, one line. Its body
+  is the report's paragraphs, separated by blank lines, then, each on its own
+  line and each optional: `Left: …`, `Risk: …`, `Decided: first, 05:40 ·
+  second, 05:12`. Only a line's start makes one of these; the words elsewhere
+  are a paragraph's. Limits: jig's notes, 256 bytes of description and 8 KB of
+  body in the standard profile.
+- **Revised in place:** the agent names the note and its revision from its
+  brief's index, so that one note stands, its scope's numbers from the
+  brief's task section. Where several answer, the client takes the newest
+  by `changed`.
+- **When:** after planning, and whenever what is true of the goal changes: a
+  task landed, failed or split, a decision taken, a risk found.
+- **Its words:** the headline says where the goal stands, in a sentence a person
+  reads first. The paragraphs say what happened and why, in the first person.
+  `Left:` what remains; `Risk:` what could go wrong; `Decided:` what it decided
+  itself, each with its time. A message that changes the plan becomes an
+  amendment the goal shows the person first.
+- **Who is told:** the goal's part of charter 1's instructions and the
+  reference's charter 5 (`../protocol/configuration.md`, 13.4 and 13.9). The
+  stock's authority holds the goal's scope (13.4); a charter that does not ask
+  for a report writes none, and no note yet is a normal state, never an error.
+- **Its story:** the scripted fake model writes a report in its goal script, so
+  that a walk on `temper box --fake-backends` shows one
+  (`../protocol/configuration.md`, 12.1).
 
 ## 9. The world
 

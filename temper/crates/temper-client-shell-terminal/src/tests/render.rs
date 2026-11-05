@@ -51,6 +51,7 @@ fn each_fixture_page_prints_as_its_golden_file() {
         ("chat_delegation_landed", fixtures::chat::delegation_page(true)),
         ("first_run", fixtures::chat::first_run()),
         ("task", fixtures::task_page()),
+        ("goals", fixtures::goals::page()),
         ("agent_task", fixtures::agent_task_page()),
         ("signed_out", fixtures::signed_out_page()),
         ("every_role", fixtures::every_role()),

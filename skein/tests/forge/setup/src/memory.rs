@@ -63,7 +63,8 @@ impl Metered {
         above: &mut Queue<Event>,
         below: &mut Queue<skein_io::Request>,
     ) {
-        self.start(request_bytes(&request));
+        let input = if self.measurement.is_some() { request_bytes(&request) } else { 0 };
+        self.start(input);
         self.host.down(env, request, &mut self.above, &mut self.below);
         self.finish(above, below);
     }

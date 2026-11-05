@@ -51,6 +51,11 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         attribute: Some(b"aria-pressed".as_slice().into()),
         name: b"pressed-filter".as_slice().into(),
     };
+    let needs_page = || Step::Keep {
+        selector: b"main.temper-needs".as_slice().into(),
+        attribute: Some(b"class".as_slice().into()),
+        name: b"needs-page".as_slice().into(),
+    };
     let mut steps = temper_client_browser_world::start_chat(b"Hello");
     steps.extend([
         press(Role::Link, b"Chats"),
@@ -65,7 +70,8 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Person(PersonStep::Go { address: b"/".as_slice().into() }),
         see(tier.states().live),
         temper_client_browser_world::connected(),
-        see(Find::exactly_named(Role::Heading { level: 1 }, b"Inbox")),
+        see(Find::exactly_named(Role::Main, b"")),
+        needs_page(),
         press(Role::Link, b"New chat"),
         see(Find::exactly_named(Role::TextArea, b"Start a chat")),
         Step::Focused(Find::exactly_named(Role::TextArea, b"Start a chat")),
@@ -81,7 +87,8 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Address(b"/chats?at=start".as_slice().into()),
         pressed(1),
         Step::Person(PersonStep::Go { address: b"/nowhere".as_slice().into() }),
-        see(Find::exactly_named(Role::Heading { level: 1 }, b"Inbox")),
+        see(Find::exactly_named(Role::Main, b"")),
+        needs_page(),
         Step::Address(b"/".as_slice().into()),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
