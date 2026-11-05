@@ -927,10 +927,14 @@ fn session_of(fact: &tools::Fact) -> Token {
     }
 }
 
-/// A repository of `checkout` at `mount`, made a root.
-pub fn repo(checkout: &mut Checkout, mount: &[u8], writable: bool) -> Directory {
-    let root = checkout.root(mount.strip_prefix(b"/").expect("a mount is absolute"));
-    crate::fixture::directory(mount, translate::token(root), writable)
+/// A repository of `checkout` at `host`, mounted under its last name.
+pub fn repo(checkout: &mut Checkout, host: &[u8], writable: bool) -> Directory {
+    let root = checkout.root(host.strip_prefix(b"/").expect("a host path is absolute"));
+    let names = translate::names(host);
+    let mount = names.last().expect("a repository has a name").as_bytes();
+    let mut directory = crate::fixture::directory(mount, translate::token(root), writable);
+    directory.host = names;
+    directory
 }
 
 /// An authority whose relative paths start at `cwd`; the fake machine owns
