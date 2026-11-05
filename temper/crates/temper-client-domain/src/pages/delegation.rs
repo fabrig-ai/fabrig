@@ -255,6 +255,6 @@ fn number(bytes: &[u8]) -> Option<u64> {
 }
 #[must_use]
 pub fn bound(limits: &Limits) -> u32 {
-    // Leave room for me, accounts, the chat's task and its run; other pages close first.
-    limits.client.domain.reads.min(limits.client.domain.watches.saturating_sub(4))
+    // Leave room for me, accounts, the goal fact, the chat's task and its run; other pages close first.
+    limits.client.domain.reads.min(limits.client.domain.watches.saturating_sub(5))
 }

@@ -212,6 +212,7 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         flags: tasks::Flags { conversation: true, ..tasks::Flags::PLAIN },
         last_activity: Wall::EPOCH,
         ended_below: tasks::Endings::ZERO,
+        ended_delegates: tasks::Endings::ZERO,
         question_lines: Box::new([]),
         hold: 0,
         proposal_rows: Box::new([]),

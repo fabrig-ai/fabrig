@@ -16,7 +16,7 @@
         "core.load_slots": 8,
         "core.policy_bytes": 8192,
         "core.resume_bytes": 1327735,
-        "core.run_bytes": 4096,
+        "core.run_bytes": 8192,
         "core.templates": 3,
         "documents.chips": 2,
         "documents.lines": 5,

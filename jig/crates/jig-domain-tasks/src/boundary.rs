@@ -1079,6 +1079,7 @@ pub struct TaskRecord {
     pub last_activity: Wall,
     /// Lifetime ended descendants, summed as each delegate ends; counts saturate.
     pub ended_below: crate::Endings,
+    pub ended_delegates: crate::Endings,
     /// Newest question and answer activity positions, at most `inbox_messages`.
     pub question_lines: Box<[crate::QuestionLine]>,
     /// Latest hold milestone; zero before the first hold.

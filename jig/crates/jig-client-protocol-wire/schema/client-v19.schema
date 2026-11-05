@@ -621,7 +621,7 @@ record WaitsOnDependencies { pending: list 32 u64 count: u32 }
 enum WaitsOn { party: WaitsOnParty, delegates, news, nothing, dependencies: WaitsOnDependencies }
 record ConversationRead { seen: u64 unread: Count }
 record PhaseCounts { waiting: u32 idle: u32 starting: u32 running: u32 backing_off: u32 closing: u32 held: u32 done: u32 failed: u32 cancelled: u32 }
-record TaskLine { chip: Chip project: u32 requester: Requester tracked: option u32 label: u32 flags: TaskFlags changed: u64 last_activity: u64 ended_at: option u64 budget: Budget waits_on: WaitsOn phases: PhaseCounts held_below: u32 conversation: option ConversationRead }
+record TaskLine { chip: Chip project: u32 requester: Requester tracked: option u32 label: u32 flags: TaskFlags changed: u64 last_activity: u64 ended_at: option u64 budget: Budget waits_on: WaitsOn phases: PhaseCounts delegates_done: u32 delegates_total: u32 held_below: u32 conversation: option ConversationRead }
 record NoteAuthorParty { party: u64 }
 record NoteAuthorTask { task: u64 attempt: u64 }
 enum NoteAuthor { party: NoteAuthorParty, task: NoteAuthorTask }
