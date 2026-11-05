@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-11-04. How far temper's client is from its mockups
+Revised 2026-11-05. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -23,10 +23,12 @@ Connect pages the journey passes through are other groups'.
 
 What the client doesn't draw yet:
 
-- **A sign-in's port taken on Ready:** declined, held and misconfigured
-  now draw their words and acts. "Try later" still needs the listener's
-  port-taken fact in the client (M-j); `OwnerAccounts.last_end` does
-  not carry it.
+- **A sign-in's port taken on Ready:** every refusal and failure draws
+  its words and acts (`../README.md`, 3.5). The mock's port-taken
+  variant, headed "Try later", still needs the listener's port-taken
+  fact in the client (M-j); `OwnerAccounts.last_end` does not carry it.
+  The client's own "Try later" is another thing, the words of a `Later`
+  failure.
 
 Where the client does otherwise:
 

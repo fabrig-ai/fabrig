@@ -1,8 +1,30 @@
 # README: status
 
-2026-11-04. Where temper's code lags or departs from [README.md](README.md).
+2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.4, 5.5: the composer's
+- **Not yet:** 3.5, The welcome, 5.5, A sign-in: on a fresh `temper box
+  --fake-backends`, the ChatGPT sign-in walked in Chromium with the
+  recording bundle leaves no model usable, so Ready stays at "Model
+  none yet" with "Create your project" disabled, and `journeys.md`,
+  9's walk stops there (`journeys.status.md`, 9). Ready's words give
+  its endings: `Failed` `Later` with no delay, "Try later", and on a
+  retry `Failed` `Misconfigured`, "OpenAI refused temper’s sign-in.
+  Check the configuration’s registration.". Each ending covers several
+  causes (`jig-protocol-accounts`'s `translate.rs`), and which one this
+  is, and so the fault, is not known. The native client's walks on the
+  fake box reach a usable model and an enabled Create
+  (`temper/crates/temper/tests/fake_backends/walk/sign_in.rs`), and
+  Chromium signs in at `/accounts/connect` against the browser
+  harness's own issuer and test provider
+  (`temper/tests/client-browser/tests/browser_all/browser_accounts.rs`);
+  no test joins Chromium and the fake box's issuer, so no test is red
+  for it.
+  3.5, Ready: a sign-in that ends `Made` or `Renewed`, not declined,
+  with no account usable leaves Ready silent, where the document says
+  no such sign-in does: `temper-client-view`'s `pages/connect_model.rs`,
+  `welcome_end`, draws nothing for them, and 5.5 has no words for it
+  (README.md, 11). No walk has reached this ending.
+  3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no

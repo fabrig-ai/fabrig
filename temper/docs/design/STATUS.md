@@ -78,7 +78,11 @@ design admits one with the printed link off
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
 (`domain/root.md`). Ready names no email for a ChatGPT sign-in,
-which waits on jig's account-facts draft (`client/README.md`). The
+which waits on jig's account-facts draft, and stays silent for a
+sign-in made with no account usable (`client/README.md`). A fresh
+fake box's ChatGPT sign-in in Chromium leaves no model usable, for a
+fault not yet known (`client/README.md`), so `project-landing` has no
+Home recording (`client/journeys.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
@@ -100,8 +104,7 @@ status holds a departure the user has not answered, the deployment's
 read's `owned`, and `draft/to-begin.md`'s another, a dismissal erased
 with its project alone; the others record what the
 design carries of them and where it lags or departs.
-`domain/README.md`, `protocol/llm.md` and `client/journeys.md` have
-no gap.
+`domain/README.md` and `protocol/llm.md` have no gap.
 
 Design documents:
 - [`README.md`](README.status.md)

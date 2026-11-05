@@ -4665,6 +4665,13 @@ own tests:
   time, and the step says "temper can change its code now; checked
   changes land on main through temper's merge queue.". Supplying a
   creation age or a first CI result needs its own protocol decision.
+- **A sign-in made with no account usable** (*The welcome,* 3.5; 5.5,
+  A sign-in): Ready says why for any refusal or failure, but `Made` or
+  `Renewed`, not declined, is neither, and 5.5's words for them say the
+  person is signed in. What Ready says when such a sign-in leaves no
+  model usable has no words yet, and they are the user's. Default: none
+  until a walk reaches this ending, Ready then reading "Model none yet"
+  and "Connect a model" alone.
 - **The mockups' question card:** the asker's lineage and its link
   ("Open T3 ↗"), and choices as buttons beside "Answer in words"
   (`world-solo.js`). jig's question carries words alone, so choices

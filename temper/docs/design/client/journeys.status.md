@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-04. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-05. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 - **Not yet:** 9: `project-landing` has no Home recording. The fresh
   walk reaches Ready after the fake ChatGPT sign-in, but says "Model
@@ -9,5 +9,6 @@
   configuration’s registration." Forgejo is connected and `work/hello`
   is made. Its kept recording prints Welcome; the gallery's `home-*` states draw Home from
   hand-made deliveries, not that walk. Recording Home waits for the
-  sign-in to supply a usable model, then the journey must be walked
+  sign-in to supply a usable model in Chromium, whose fault is not
+  known (`README.status.md`, 3.5), then the journey must be walked
   again (`journeys/project-landing/README.md`).
