@@ -3567,7 +3567,7 @@ fn an_answer_payload_for_a_replaced_attempt_is_dropped() {
     };
     let mut out = step(&mut core, &env, event);
     let Request::Now(answer) = out.pop().unwrap() else { panic!("payload drop") };
-    let Now::DropPayload { payload } = *answer else { panic!("drop stale answer") };
+    let Now::Link(LinkNow::DropPayload { payload }) = *answer else { panic!("drop stale answer") };
     assert_eq!(payload, Token::new(91));
     assert!(core.current_proof(1, 7), "the replacement proof remains current");
 }

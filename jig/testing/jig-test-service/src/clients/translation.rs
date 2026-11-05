@@ -63,7 +63,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         }
         core::Now::RelayBusy { .. }
         | core::Now::CallBusy { .. }
-        | core::Now::Relayed { .. }
+        | core::Now::Link(_)
         | core::Now::EffectAnswer { .. }
         | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }
@@ -76,12 +76,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::NotesRecalled { .. }
         | core::Now::NotesRefused { .. }
         | core::Now::NoteBusy { .. }
-        | core::Now::DropPayload { .. }
         | core::Now::DropAssignment { .. }
-        | core::Now::TurnPayload { .. }
-        | core::Now::AnswerPayload { .. }
-        | core::Now::AcceptedTurn { .. }
-        | core::Now::RefusedPayload { .. }
         | core::Now::Activate { .. }
         | core::Now::StartPreparation { .. }
         | core::Now::SeenConversation { .. }

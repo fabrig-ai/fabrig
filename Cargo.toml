@@ -195,6 +195,7 @@ members = [
     "jig/testing/jig-test-system",
     "jig/testing/jig-ops-fake-production",
     "jig/examples/ops/domain-connectors",
+    "jig/examples/ops/protocol-observability",
     "jig/examples/ops/client-domain",
     "jig/examples/ops/client-view",
     "jig/examples/ops/client-protocol-wire",
@@ -492,6 +493,7 @@ jig-ops-client-domain = { path = "jig/examples/ops/client-domain" }
 jig-ops-client-view = { path = "jig/examples/ops/client-view" }
 jig-ops-client-protocol-wire = { path = "jig/examples/ops/client-protocol-wire" }
 jig-ops-domain-connectors = { path = "jig/examples/ops/domain-connectors" }
+jig-ops-protocol-observability = { path = "jig/examples/ops/protocol-observability" }
 jig-ops-domain = { path = "jig/examples/ops/domain" }
 jig-ops-domain-observability = { path = "jig/examples/ops/domain-observability" }
 jig-ops-domain-infrastructure = { path = "jig/examples/ops/domain-infrastructure" }

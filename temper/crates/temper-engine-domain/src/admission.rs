@@ -4,7 +4,6 @@
 use crate::boundary::{Event, Link, PartyInput, StoreInput, WorkerInput};
 use crate::domain::{Domain, admits, step};
 use crate::limits::Limits;
-use jig_domain_host::LinkUp;
 use skein_lib::Env;
 use temper_engine_domain_forge as forge;
 
@@ -228,25 +227,7 @@ fn worker_completes(worker: &WorkerInput) -> bool {
         WorkerInput::DecodedHostCall { .. }
         | WorkerInput::RenderedHostCall { .. }
         | WorkerInput::ResultRead { .. }
-        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. }
-        | WorkerInput::Link {
-            link:
-                Link::Up {
-                    up:
-                        LinkUp::Piece { .. }
-                        | LinkUp::Logins { .. }
-                        | LinkUp::SignedOut { .. }
-                        | LinkUp::Activity { .. }
-                        | LinkUp::Unauthorized { .. }
-                        | LinkUp::Limited { .. }
-                        | LinkUp::AccountRefused { .. }
-                        | LinkUp::Turn { .. }
-                        | LinkUp::JobAnswer { .. }
-                        | LinkUp::Answer { .. },
-                    ..
-                },
-            ..
-        } => true,
-        WorkerInput::Link { link: Link::Up { up: LinkUp::Call { .. }, .. }, .. } => false,
+        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. } => true,
+        WorkerInput::Link { link: Link::Up { up, .. }, .. } => !up.new_work(),
     }
 }

@@ -8,9 +8,7 @@
   a task's message together itself, rendering its words by
   `jig_protocol_tools::words` (`jig/testing/jig-test-domain/src/link.rs`,
   `down`), because its manifest does not link `jig-protocol-charter`.
-  9: temper's `temper-engine-domain/src/link.rs` and
-  `temper/tests/system/src/composed/link.rs` each keep a `sender` beside
-  `Party::sender`. The code's side of both is
+  The code's side is
   `jig/docs/development/debt/D004-ops-root-jig-wiring.md`. 10: an agent
   process's tree contained.
 - **Departs:** 8: a run with no `deliver` keeps the shell its policy

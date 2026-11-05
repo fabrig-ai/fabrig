@@ -33,6 +33,16 @@ pub(crate) struct GitHubForge {
     pub plan: Option<OwnPlan>,
 }
 
+impl Dialect {
+    /// The forge's own exchange goes with its connection (forge-connection.md, 7.1).
+    pub(crate) fn forget_exchange(&mut self) {
+        match self {
+            Self::Forgejo { exchange, .. } => *exchange = crate::connection::forgejo::Exchange::new(),
+            Self::GitHub(gh) => gh.exchange = crate::connection::github::Exchange::new(),
+        }
+    }
+}
+
 impl ForgeEntry {
     /// A forge as it's added: its start from its access, its dialect from its kind.
     pub fn new(forge: Forge, limits: &Limits) -> Self {

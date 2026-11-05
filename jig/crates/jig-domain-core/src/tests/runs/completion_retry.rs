@@ -20,7 +20,7 @@ fn current_stream(out: &[Request]) -> &Request {
         match request {
             Request::Now(now) => match now.as_ref() {
                 Now::RunText { .. } => return request,
-                Now::Relayed { .. }
+                Now::Link(_)
                 | Now::EffectAnswer { .. }
                 | Now::TaskRead { .. }
                 | Now::SettingsAnswer { .. }
@@ -37,12 +37,7 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::NotesRecalled { .. }
                 | Now::NotesRefused { .. }
                 | Now::NoteBusy { .. }
-                | Now::DropPayload { .. }
                 | Now::DropAssignment { .. }
-                | Now::TurnPayload { .. }
-                | Now::AnswerPayload { .. }
-                | Now::AcceptedTurn { .. }
-                | Now::RefusedPayload { .. }
                 | Now::Activate { .. }
                 | Now::StartPreparation { .. }
                 | Now::SeenConversation { .. }
