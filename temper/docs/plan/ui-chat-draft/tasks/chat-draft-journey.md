@@ -61,3 +61,5 @@ As `notes/common.md`, Your report, naming the builder.
 2026-11-05 (fabrig/ui). Yes: the walk turns on Settings, How work runs, 'Chats can write drafts' first, as part of the recording; stock defaults stay. That setting decides + Draft (ruling 8, coord/ui/report/rulings.md).
 
 2026-11-05 (fabrig/ui). Addition, yours now: the recording goes the whole way: turn on 'Chats can write drafts', then + Draft, two document turns, Split, Draft, Start goal…, the one sheet, the goal page and its Draft button back to the chat. If the fake box's model has no draft-writing script (temper-fake's backends.rs model_document; fake-document put two in temper-init's template), add the scripts there; those files are yours. Stock defaults stay. Don't stop for this.
+
+2026-11-05 (fabrig/ui). Add the document cues to temper-fake's model_document and retry, as the spec's last answer says (it crossed with your run). Go through to the goal page and back.
