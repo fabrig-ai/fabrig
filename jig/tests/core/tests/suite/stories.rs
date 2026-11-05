@@ -259,7 +259,7 @@ fn a_policy_narrowed_while_a_proposal_waits_keeps_the_committed_entry_and_checks
 fn drift_holds_a_task_and_the_client_reads_why_it_needs_a_decision() {
     let mut world = World::new(Setup { seed: 127, ..Setup::default() });
     let task = world.call_key(1).task;
-    let resource = jig_test_connector_world::path(1, 1);
+    let resource = jig_test_connector_kit::path(1, 1);
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::Adopt { project: 1, resource: resource.clone(), role: connector::ResourceRole::Owned },
@@ -434,11 +434,11 @@ fn a_judges_observed_facts_may_change_after_a_verdict_but_new_effects_use_the_ne
     world.call(1, 8001);
     assert_eq!(world.pending_writes.len(), 1);
     let committed = world.store.applied;
-    world.systems[1].other_hand(&jig_test_connector_world::path(1, 1), 14);
+    world.systems[1].other_hand(&jig_test_connector_kit::path(1, 1), 14);
     world.send(root::Event::Connector {
         number: 2,
         event: connector::Event::System(connector::SystemEvent::Fact {
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
             fact: connector::Fact { state: Some(14), observed: world.wall_time(), pending: false },
             origin: connector::Origin::Other,
         }),
@@ -632,7 +632,7 @@ fn pool_size(world: &mut World, slots: u32) {
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::System(connector::SystemEvent::Pool {
-            path: jig_test_connector_world::path(1, 2),
+            path: jig_test_connector_kit::path(1, 2),
             slots,
             lost: Box::new([]),
         }),
@@ -805,7 +805,7 @@ fn an_exclusive_resource_that_refuses_waiting_refuses_the_second_batch() {
 fn a_batch_waits_without_creating_a_task_or_reserving_funding_until_its_resource_is_reported() {
     let mut world = plan_world(152);
     let parent = world.assignments[0];
-    let resource = jig_test_connector_world::path(1, 1);
+    let resource = jig_test_connector_kit::path(1, 1);
     let before = match world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(parent.0)))) {
         Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))) => row.numbers,
         row => panic!("parent row: {row:?}"),
@@ -860,7 +860,7 @@ fn a_batch_waits_without_creating_a_task_or_reserving_funding_until_its_resource
 #[test]
 fn re_adopting_a_resource_as_context_refuses_the_existing_tasks_next_effect() {
     let mut world = World::new(Setup { seed: 153, ..Setup::default() });
-    let resource = jig_test_connector_world::path(1, 1);
+    let resource = jig_test_connector_kit::path(1, 1);
     let task = world.call_key(1).task;
     world.send(root::Event::Connector {
         number: 1,
@@ -922,7 +922,7 @@ fn a_resource_becoming_unavailable_holds_its_waiter_and_refuses_a_new_hold() {
         number: 1,
         event: connector::Event::System(connector::SystemEvent::Unavailable {
             project: 1,
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
         }),
     });
     for task in [first, waiting] {
@@ -954,7 +954,7 @@ fn re_adopting_a_running_workspace_as_context_stops_its_writer() {
         number: 1,
         event: connector::Event::Adopt {
             project: 1,
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
             role: connector::ResourceRole::Context,
         },
     });
@@ -971,7 +971,7 @@ fn a_context_adoption_still_refuses_effects_after_a_cold_restart() {
         number: 1,
         event: connector::Event::Adopt {
             project: 1,
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
             role: connector::ResourceRole::Context,
         },
     });

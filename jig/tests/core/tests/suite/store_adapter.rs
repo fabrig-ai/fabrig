@@ -142,7 +142,7 @@ fn a_seeded_commit_keeps_the_header_in_step() {
     let mut store = committed();
     store.seed(Box::new([root::Record::Connector {
         number: 1,
-        record: jig_test_connector::Record::Pool { path: jig_test_connector_world::path(1, 1), slots: 2 },
+        record: jig_test_connector::Record::Pool { path: jig_test_connector_kit::path(1, 1), slots: 2 },
     }]));
     let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) =
         store.rows.get(&root::Key::Core(core::Key::Core(core::CoreKey::Deployment))).expect("header")

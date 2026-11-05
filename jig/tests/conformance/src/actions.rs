@@ -17,8 +17,7 @@ pub fn world(seed: u64, engine: bool) -> World {
 pub fn effect(world: &mut World, completion: u32) {
     let (task, attempt) = *world.peers.assignments.last().expect("scripted caller assigned");
     let mut effect = jig_core_world::world::World::effect();
-    effect.resources =
-        Box::new([jig_test_connector_world::path(1, u8::try_from(completion).expect("tiny call number"))]);
+    effect.resources = Box::new([jig_test_connector_kit::path(1, u8::try_from(completion).expect("tiny call number"))]);
     world.send(jig_test_domain::Event::EffectCall {
         to: ReplyTo::new(Token::new(77 + u64::from(completion))),
         key: jig_domain_core::CallKey { task, attempt, completion, position: 0 },

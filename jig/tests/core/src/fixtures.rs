@@ -256,7 +256,7 @@ pub fn long_resource_world(seed: u64) -> (crate::world::World, u64, jig_test_con
     limits.core.fleet.slots = 2;
     limits.connector.path_segments = limits.core.tasks.hold_segments;
     let mut path = skein_lib::List::with_capacity(limits.core.tasks.hold_segments);
-    for segment in jig_test_connector_world::path(1, 1).segments() {
+    for segment in jig_test_connector_kit::path(1, 1).segments() {
         path.push(segment.clone()).expect("prefix fits");
     }
     for segment in [b"third".as_slice(), b"last".as_slice()] {
@@ -404,7 +404,7 @@ pub fn configure_resources(world: &mut crate::world::World) {
             number: 1,
             event: jig_test_connector::Event::Adopt {
                 project: 1,
-                resource: jig_test_connector_world::path(1, id),
+                resource: jig_test_connector_kit::path(1, id),
                 role: jig_test_connector::ResourceRole::Owned,
             },
         });
