@@ -9,8 +9,6 @@ use jig_client::contract::{
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable};
 use skein_lib::{Env, Queue};
 
-/// The person's first message of the first chat (temper/docs/design/client/README.md, 3.5).
-pub const FIRST_CHAT_WORDS: &[u8] = b"Help me tell temper how I work.";
 /// The configuring agent's stock template (temper/docs/design/protocol/configuration.md, 13.4).
 const CONFIGURING_TEMPLATE: u32 = 3;
 
@@ -138,18 +136,6 @@ impl Chats {
         out: &mut Queue<Request>,
     ) {
         self.send(env, me, project, jig_client::shapes::CHAT, words.into(), Some(choice), serial, out);
-    }
-    pub(crate) fn first_chat(
-        &mut self,
-        env: &Env<Limits>,
-        me: Option<&Me>,
-        project: Option<u32>,
-        choice: &super::choice::Draft,
-        serial: &mut u64,
-        out: &mut Queue<Request>,
-    ) {
-        let template = configuring_template(me, project);
-        self.send(env, me, project, template, FIRST_CHAT_WORDS.into(), Some(choice), serial, out);
     }
     pub(crate) fn configure_chat(
         &mut self,

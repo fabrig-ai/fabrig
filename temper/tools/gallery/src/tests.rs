@@ -590,6 +590,38 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure",
+        heading: "Tell temper how you work",
+        parts: &[
+            Part::Named { role: Role::List, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "How do you work?", value: "" },
+        ],
+    },
+    Holds {
+        name: "configure-typing",
+        heading: "Tell temper how you work",
+        parts: &[
+            Part::Named { role: Role::List, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "How do you work?", value: "I work alone on small changes." },
+        ],
+    },
+    Holds {
+        name: "configure-sending",
+        heading: "Tell temper how you work",
+        parts: &[
+            Part::Named { role: Role::List, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "How do you work?", value: "I work alone on small changes." },
+        ],
+    },
+    Holds {
+        name: "configure-refused",
+        heading: "Tell temper how you work",
+        parts: &[
+            Part::Named { role: Role::List, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "How do you work?", value: "I work alone on small changes." },
+        ],
+    },
+    Holds {
         name: "chats-solo",
         heading: "Chats",
         parts: &[
@@ -1305,4 +1337,40 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     assert!(items[1].states.as_slice().contains(&skein_ui::State::Current));
     assert!(items[2].styles.is_empty());
     assert!(items[2].states.is_empty());
+}
+
+#[test]
+fn configuring_gallery_states_list_the_template_and_send_readiness() {
+    for (name, sending, disabled, refusal) in [
+        ("configure", false, true, false),
+        ("configure-typing", false, false, false),
+        ("configure-sending", true, true, false),
+        ("configure-refused", false, false, true),
+    ] {
+        let sample = samples::samples().into_iter().find(|s| s.name == name).expect("sample");
+        let root = samples::domain(&sample);
+        assert!(
+            root.pages()
+                .me(root.client())
+                .expect("me")
+                .projects
+                .get(0)
+                .expect("project")
+                .templates
+                .as_slice()
+                .iter()
+                .any(|t| t.number == 3)
+        );
+        let chats = root.pages().chats().expect("configure");
+        assert_eq!(chats.start.is_some(), sending, "{name}");
+        assert_eq!(chats.outcome.is_some(), refusal, "{name}");
+        let view = view(&sample);
+        let send = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Send"))
+            .expect("send");
+        assert_eq!(send.states.as_slice().contains(&skein_ui::State::Disabled), disabled, "{name}");
+    }
 }

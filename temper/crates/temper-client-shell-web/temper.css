@@ -1609,3 +1609,39 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 4px; }
 #app > .temper-home .temper-home-ledes > a { font-size: 15px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
+
+/* configure-chat-in-settings: "Tell temper how you work" opens a chat page of its own under Settings, as the greenfield mockup's chat.html?id=new&configure=1 draws it, in the project's frame: the rail, a top bar with the path back and the model, the configuring agent's line and three starters, the composer at the foot. */
+#app > .temper-session { width: auto; height: 100vh; height: 100dvh; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: 15px; letter-spacing: normal; }
+#app > .temper-session > .temper-session-top { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 12px 24px; border-bottom: 1px solid var(--gf-line); }
+#app > .temper-session .temper-crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; color: var(--gf-muted); }
+#app > .temper-session .temper-crumbs > .temper-back { display: none; }
+#app > .temper-session .temper-trail { display: flex; align-items: center; gap: 4px; }
+#app > .temper-session .temper-trail > a::after { content: '/'; margin-left: 4px; color: var(--gf-muted); }
+#app > .temper-session .temper-crumbs a:hover { color: var(--gf-ink); }
+#app > .temper-session .temper-crumbs > h1 { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 14px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > .temper-session .temper-byline { margin: 0 0 0 auto; font-size: 12px; white-space: nowrap; color: var(--gf-faint); }
+#app > .temper-session > .temper-convo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#app > .temper-session .temper-thread { flex: 1; min-height: 0; overflow-y: auto; padding: 36px 40px 24px; }
+#app > .temper-session .temper-starter { max-width: 720px; margin: 12vh auto 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+#app > .temper-session .temper-starter > p { max-width: 520px; margin: 0; text-align: center; font-size: 13.5px; line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-session .temper-starters { width: min(520px, 100%); margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; list-style: none; }
+#app > .temper-session .temper-starters button { width: 100%; min-height: 34px; display: flex; align-items: center; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); text-align: left; }
+#app > .temper-session .temper-starters button:hover { border-color: #b4b4ae; }
+#app > .temper-session .temper-session-foot { flex: none; width: 100%; max-width: 800px; margin: 0 auto; padding: 10px 40px 20px; }
+#app > .temper-session .temper-session-composer { display: flex; align-items: flex-end; gap: 10px; padding: 8px 8px 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 14px; background: var(--gf-surface); }
+#app > .temper-session .temper-session-composer:focus-within { border-color: #a8a8a2; box-shadow: 0 0 0 3px rgba(24, 24, 27, .05); }
+#app > .temper-session .temper-session-composer > textarea { flex: 1; min-width: 0; field-sizing: content; min-height: 26px; max-height: 220px; margin: 6px 0; padding: 0; border: 0; outline: none; resize: none; background: none; color: var(--gf-ink); font: 15px/1.55 var(--gf-sans); }
+#app > .temper-session .temper-session-composer > textarea::placeholder { color: #8a8a93; }
+#app > .temper-session .temper-session-composer > button { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--gf-ink) url(files/send.svg) center / 16px no-repeat; color: transparent; font-size: 0; overflow: hidden; }
+#app > .temper-session .temper-session-composer > button:disabled { background-color: var(--gf-line-2); cursor: default; }
+#app > .temper-session .temper-session-hint { margin: 6px 6px 0; font-size: 12px; color: var(--gf-faint); }
+@media (max-width: 760px) {
+  #app:has(> .temper-session) > :is(.temper-rail, .temper-tabbar) { display: none; }
+  #app > .temper-session > .temper-session-top { padding: 10px 12px; gap: 8px; }
+  #app > .temper-session .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
+  #app > .temper-session .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
+  #app > .temper-session :is(.temper-trail, .temper-byline, .temper-session-hint) { display: none; }
+  #app > .temper-session .temper-thread { padding: 20px 16px; }
+  #app > .temper-session .temper-starter { margin-top: 4vh; }
+  #app > .temper-session .temper-session-foot { padding: 8px 12px 14px; }
+}

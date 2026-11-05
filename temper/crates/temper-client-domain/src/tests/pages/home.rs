@@ -441,49 +441,13 @@ fn home_counts_live_and_ended_chats_as_asked() {
     }
 }
 #[test]
-fn home_starts_one_first_chat_and_opens_its_answer() {
+fn another_persons_project_cannot_start_a_configuring_chat() {
     let mut f = fixture();
-    let mut out = event(&mut f.root, Event::Act { action: Action::Pages(Act::FirstChat) });
-    let key = f.root.pages().chats().unwrap().start.unwrap();
-    let expected = jig_client::shapes::chat(
-        &f::chats::me(),
-        f::PROJECT,
-        c::Text::new(pages::chats::FIRST_CHAT_WORDS.into(), NAME_BYTES).unwrap(),
-    )
-    .unwrap();
-    let mut sent = List::with_capacity(ONE);
-    while let Some(request) = out.pop() {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, .. } } } =
-            request
-        {
-            sent.push(request).unwrap();
-        }
-    }
-    assert_eq!(sent.into_boxed().as_ref(), [jig_client::Ask::Jig(Box::new(expected))]);
-    assert_eq!(event(&mut f.root, Event::Act { action: Action::Pages(Act::FirstChat) }).len(), 0);
-    let mut out = Queue::uncapped();
-    crate::route::told(
+    event(&mut f.root, Event::Went { place: Place::Address(Address::Configure { project: OTHER_PROJECT }) });
+    let out = event(
         &mut f.root,
-        &f::env(&f::limits()),
-        Told::Answered {
-            key,
-            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
-                c::DocumentOutcome::Created { first: CHAT, last: CHAT, given: None },
-            )))),
-        },
-        &mut out,
+        Event::Act { action: Action::Pages(Act::Starter { words: b"My change".as_slice().into() }) },
     );
-    let mut shown = false;
-    for request in &out {
-        shown |= *request == Request::Show { address: Address::Chat { task: CHAT }, replace: false };
-    }
-    assert!(shown, "the first chat's answer opens it");
-}
-#[test]
-fn another_persons_project_cannot_start_a_chat_in_the_open_project() {
-    let mut f = fixture();
-    go(&mut f.root, OTHER_PROJECT);
-    let out = event(&mut f.root, Event::Act { action: Action::Pages(Act::FirstChat) });
     assert!(f.root.pages().chats().unwrap().start.is_none());
     let mut sent = false;
     for request in &out {
@@ -491,7 +455,7 @@ fn another_persons_project_cannot_start_a_chat_in_the_open_project() {
             sent = true;
         }
     }
-    assert!(!sent, "Home's address never falls back to another project");
+    assert!(!sent, "Configure's address never falls back to another project");
     assert!(!home::facts(&f.root, OTHER_PROJECT).chat_asked);
 }
 

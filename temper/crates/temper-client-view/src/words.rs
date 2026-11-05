@@ -11,6 +11,14 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    ConfigureAgent,
+    ConfigureWays,
+    ConfigureAlone,
+    ConfigureDesign,
+    ConfigureUnsure,
+    ConfigureWords,
+    ConfigureWhere,
+
     HomeOpen,
     HomeNeedsNone,
     HomeNeedsOne,
@@ -834,7 +842,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // To begin replaces seven phrases with nine for the card, notes and Skip (3.5).
 // More accounts adds six phrases (client/README.md, 3.5).
 // Removing Connected removes seven phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1337;
+// Configure adds seven literal phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1344;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -844,8 +853,16 @@ const PHRASES: u32 = 1337;
 // To begin removes four segments with its shorter words and new card phrases (3.5).
 // More accounts adds eight literal and hole segments (3.5).
 // Removing Connected removes twenty-three literal and hole segments (3.5).
-const SEGMENTS: u32 = 2316;
-const ALL: [Word; 742] = [
+// Configure adds seven literal segments (client/README.md, 3.5).
+const SEGMENTS: u32 = 2323;
+const ALL: [Word; 749] = [
+    Word::ConfigureAgent,
+    Word::ConfigureWays,
+    Word::ConfigureAlone,
+    Word::ConfigureDesign,
+    Word::ConfigureUnsure,
+    Word::ConfigureWords,
+    Word::ConfigureWhere,
     Word::HomeOpen,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
@@ -1593,6 +1610,13 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::ConfigureAgent => 3181,
+            Self::ConfigureWays => 3182,
+            Self::ConfigureAlone => 3183,
+            Self::ConfigureDesign => 3184,
+            Self::ConfigureUnsure => 3185,
+            Self::ConfigureWords => 3186,
+            Self::ConfigureWhere => 3187,
             Self::HomeOpen => 3165,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
@@ -2552,8 +2576,8 @@ impl Words {
             holes: 4,
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
-            // Everyday Home adds 288 bytes; More accounts adds 149 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149,
+            // Everyday Home adds 288 bytes; More accounts 149; Configure 401 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149 + 401,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3174,6 +3198,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
         Word::StartChat => (&[b"Start a chat"], &[]),
+        Word::ConfigureAgent => (&[b"temper\xe2\x80\x99s configuring agent. Describe how you work, in your own words or by pointing at a document. It proposes how temper will run that; nothing changes until you accept."], &[]),
+        Word::ConfigureWays => (&[b"Ways to begin"], &[]),
+        Word::ConfigureAlone => (&[b"I work alone on small changes: one chat per change, landed once CI passes."], &[]),
+        Word::ConfigureDesign => (&[b"I write a design draft first; agents plan its tasks and land them together once checked."], &[]),
+        Word::ConfigureUnsure => (&[b"Not sure yet. What can temper do?"], &[]),
+        Word::ConfigureWords => (&[b"How do you work?"], &[]),
+        Word::ConfigureWhere => (&[b"Where"], &[]),
         Word::FirstChat => (&[b"Tell temper how you work"], &[]),
         Word::Start => (&[b"Start chat"], &[]),
         Word::YourChats => (&[b"Your chats"], &[]),

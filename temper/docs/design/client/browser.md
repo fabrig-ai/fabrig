@@ -1137,6 +1137,10 @@ from the engine's own answers, is where the look is tuned.
 | `home-begin-settings-left` | hand-made Home deliveries: the first and second steps left; their acts stay in Settings |
 | `home-begin-one-chats` | hand-made Home deliveries: the third step alone left; its act stays in Chats |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
+| `configure` | the configuring page before its first words, template 3 listed |
+| `configure-typing` | words entered; Send enabled |
+| `configure-sending` | the configuring start out; starters and Send disabled, words kept |
+| `configure-refused` | the start refused; jig's words below the composer, the words kept |
 | `chats-solo` | the solo world's chats |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's inbox: a proposal, a question |
