@@ -752,6 +752,7 @@ pub fn encoding(settings: &settings::Engine) -> crate::assignment::Encoding {
         limits: wire_limits(),
         endpoints: smith_protocol_channel::Endpoints::new(entries),
         deployment: [7; 16],
+        charter_bytes: settings.jig.limits.hub.charter_bytes,
     }
 }
 pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
@@ -763,17 +764,22 @@ pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
 }
 
 pub const WORKER_DIGEST: &[u8] = b"0000000000000000000000000000000000000000000000000000000000000000";
-pub fn workers() -> crate::workers::Workers {
-    let settings = engine();
-    let mut entries = skein_lib::List::with_capacity(2);
+/// Inert digest contents for the workers named by these settings.
+pub fn worker_digests(settings: &settings::Engine) -> settings::Files {
+    let mut entries = skein_lib::List::with_capacity(u32::try_from(settings.jig.hosts.workers.len()).unwrap());
     for worker in &settings.jig.hosts.workers {
         entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
     }
+    settings::Files { entries }
+}
+
+pub fn workers() -> crate::workers::Workers {
+    let settings = engine();
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
     crate::workers::Workers::new(
         &settings.jig,
-        &settings::Files { entries },
+        &worker_digests(&settings),
         encoding,
         forges(),
         settings.limits.forge.forges,
