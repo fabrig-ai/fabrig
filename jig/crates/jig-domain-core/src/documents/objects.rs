@@ -573,7 +573,7 @@ pub(super) fn proposal(
     };
     let mut offers = List::with_capacity(limits.documents.lines);
     let source = holder_source(core, party, project, waiting.holder);
-    match &mut made {
+    let widening = match &mut made {
         ProposalAction::Batch(batch) => {
             let mut needed = 0_u64;
             for index in 0..batch.len() {
@@ -582,6 +582,7 @@ pub(super) fn proposal(
                 member.funder = source;
             }
             offers.push(funding(core, source, needed)).expect("one acceptance source");
+            None
         }
         ProposalAction::Settings { .. }
         | ProposalAction::Effect { .. }
@@ -589,31 +590,23 @@ pub(super) fn proposal(
         | ProposalAction::Release { .. } => {
             // Price belongs to the connector's effect description; authority's
             // budget is a ceiling, never a quoted effect price.
+            None
         }
-        ProposalAction::Amend { task, .. } | ProposalAction::Widen { task, .. } => {
-            let task = match task {
-                TaskLink::Live(chip) | TaskLink::Retained { chip, .. } => chip.number,
-                TaskLink::Stored { number, .. } => *number,
-            };
-            let row = core.tasks.task(task).ok_or(Missing::Ended)?;
-            let ceiling = match &made {
-                ProposalAction::Amend { after, .. } => after.authority.ceiling.spend,
-                ProposalAction::Widen { after, .. } => after.ceiling.spend,
-                ProposalAction::Settings { .. }
-                | ProposalAction::Batch(_)
-                | ProposalAction::Effect { .. }
-                | ProposalAction::ProcedureEffect { .. }
-                | ProposalAction::Release { .. } => {
-                    unreachable!("matched authority action")
-                }
-            };
-            let needed = if source == row.funder {
-                ceiling.saturating_sub(row.numbers.budget)
-            } else {
-                ceiling.saturating_sub(row.numbers.spent).saturating_sub(row.numbers.spent_below)
-            };
-            offers.push(funding(core, source, needed)).expect("one widening source");
-        }
+        ProposalAction::Amend { task, after, .. } => Some((task, after.authority.ceiling.spend)),
+        ProposalAction::Widen { task, after, .. } => Some((task, after.ceiling.spend)),
+    };
+    if let Some((task, ceiling)) = widening {
+        let task = match task {
+            TaskLink::Live(chip) | TaskLink::Retained { chip, .. } => chip.number,
+            TaskLink::Stored { number, .. } => *number,
+        };
+        let row = core.tasks.task(task).ok_or(Missing::Ended)?;
+        let needed = if source == row.funder {
+            ceiling.saturating_sub(row.numbers.budget)
+        } else {
+            ceiling.saturating_sub(row.numbers.spent).saturating_sub(row.numbers.spent_below)
+        };
+        offers.push(funding(core, source, needed)).expect("one widening source");
     }
     Ok(Proposal {
         acts: super::offers::subject(core, limits, party, &super::Subject::Proposal { proposer, number }, decision)?,

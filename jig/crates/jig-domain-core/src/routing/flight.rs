@@ -140,6 +140,10 @@ pub(crate) fn request_token(event: &mut jig_domain_tasks::Event) -> Option<Token
     Some(token)
 }
 
+pub(crate) fn take_reply(reply: &mut skein_lib::ReplyTo) -> skein_lib::ReplyTo {
+    core::mem::replace(reply, skein_lib::ReplyTo::new(Token::new(0)))
+}
+
 fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::ReplyTo> {
     use jig_domain_tasks as tasks;
     match event {
