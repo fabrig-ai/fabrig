@@ -1211,3 +1211,45 @@ fn connection_refusals_offer_replace_or_connect_in_words() {
         (b"not_connected".as_slice(), b"not connected: connect it first".as_slice())
     );
 }
+
+#[test]
+fn forge_status_keeps_recovery_installation_and_admin_details_separate() {
+    for (connection, kind, mode, admin, accepted, expected) in [
+        (C::NotSetUp, Kind::Forgejo, Mode::Owned, false, false, false),
+        (C::NotConnected, Kind::Forgejo, Mode::Connected, false, false, false),
+        (C::Stopped { reason: Box::default() }, Kind::Forgejo, Mode::Owned, false, false, false),
+        (C::SetUpFailed { why: Box::default(), at: None }, Kind::Forgejo, Mode::Owned, false, false, false),
+        (C::SettingUp { step: None }, Kind::Forgejo, Mode::Owned, false, false, true),
+        (C::Connecting, Kind::Forgejo, Mode::Owned, false, false, true),
+        (C::Connected { id: 1, login: Box::default() }, Kind::Forgejo, Mode::Owned, false, false, true),
+        (C::Connected { id: 1, login: Box::default() }, Kind::Forgejo, Mode::Fake, false, false, false),
+        (C::Connecting, Kind::Forgejo, Mode::Managed, true, false, false),
+        (C::Connected { id: 1, login: Box::default() }, Kind::Forgejo, Mode::Managed, true, false, true),
+        (C::Connecting, Kind::GitHub, Mode::Connected, false, false, false),
+        (C::Connected { id: 1, login: Box::default() }, Kind::GitHub, Mode::Connected, false, false, false),
+        (C::Connected { id: 1, login: Box::default() }, Kind::GitHub, Mode::Connected, false, true, true),
+    ] {
+        let mut candidate = row(HERE, kind, mode, connection, Offer::NotOffered);
+        candidate.admin = admin;
+        if accepted {
+            candidate.installations =
+                Box::new([forges::Installation { id: 1, account: None, suspended: false, stray: false }]);
+        }
+        assert_eq!(connect::status_shown(&candidate, None), expected, "{candidate:?}");
+        assert!(!connect::status_shown(&candidate, Some(HERE)));
+    }
+    for (state, shown) in [
+        (forges::FirstState::Making, true),
+        (forges::FirstState::Made { id: 42 }, true),
+        (forges::FirstState::Failed { step: forges::CreateStep::Repository }, false),
+    ] {
+        let rows = with_first(C::Connected { id: 7, login: Box::default() }, state);
+        let candidate = connect::personal(&rows, None).unwrap();
+        assert_eq!(connect::status_shown(candidate, None), shown);
+    }
+    let mut admin =
+        row(HERE, Kind::Forgejo, Mode::Managed, C::Connected { id: 1, login: Box::default() }, Offer::NotOffered);
+    admin.admin = true;
+    admin.ended_stop = Some(forges::AdminStop::NotAdmin);
+    assert!(!connect::status_shown(&admin, None));
+}

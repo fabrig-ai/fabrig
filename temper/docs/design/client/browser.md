@@ -1168,6 +1168,9 @@ from the engine's own answers, is where the look is tuned.
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
 | `welcome-forge-choose` | the welcome's Forge choices, before any forge is connected |
 | `welcome-forge-details` | the welcome's Forgejo Details, with organization and repository paired |
+| `welcome-forge-under-way` | the Forge step's status in the column, Each step, and Continue while Forgejo sets up |
+| `welcome-forge-connected` | the Forge step's connected Forgejo and first repository, with Continue |
+| `welcome-forge-github` | the Forge step's accepted GitHub installation, with Continue |
 | `github-app-details` | GitHub's own-App form, with masked key input |
 | `github-install` | GitHub's connected App, installed nowhere yet |
 | `github-picker` | the installation's reached repositories, ready to adopt |

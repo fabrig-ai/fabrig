@@ -303,7 +303,6 @@ pub enum Word {
     ForgeLeave,
     ForgeProgress,
     ForgeAdopt,
-    ForgeView,
     WelcomeNoForge,
     WelcomeNoModel,
 
@@ -333,6 +332,8 @@ pub enum Word {
     WelcomeAfter,
     WelcomeForgeTitle,
     WelcomeForgeLead,
+    WelcomeForgeLeadKept,
+    WelcomeForgeGitHubApp,
     WelcomeModelTitle,
     WelcomeModelLead,
     WelcomeReadyTitle,
@@ -847,7 +848,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
 // Welcome's resumed setup adds one literal phrase (client/README.md, 3.5).
-const PHRASES: u32 = 1347;
+// Forge status adds two phrases and removes View (client/README.md, 3.5).
+const PHRASES: u32 = 1348;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -860,8 +862,9 @@ const PHRASES: u32 = 1347;
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
 // Welcome's resumed setup adds one literal segment (client/README.md, 3.5).
-const SEGMENTS: u32 = 2326;
-const ALL: [Word; 751] = [
+// Forge status adds four segments and removes View (3.5).
+const SEGMENTS: u32 = 2329;
+const ALL: [Word; 752] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1146,7 +1149,6 @@ const ALL: [Word; 751] = [
     Word::ForgeLeave,
     Word::ForgeProgress,
     Word::ForgeAdopt,
-    Word::ForgeView,
     Word::WelcomeNoForge,
     Word::WelcomeNoModel,
     Word::FlowDone,
@@ -1174,6 +1176,8 @@ const ALL: [Word; 751] = [
     Word::WelcomeAfter,
     Word::WelcomeForgeTitle,
     Word::WelcomeForgeLead,
+    Word::WelcomeForgeLeadKept,
+    Word::WelcomeForgeGitHubApp,
     Word::WelcomeModelTitle,
     Word::WelcomeModelLead,
     Word::WelcomeReadyTitle,
@@ -1905,7 +1909,6 @@ impl Word {
             Self::ForgeLeave => 1761,
             Self::ForgeProgress => 1762,
             Self::ForgeAdopt => 1763,
-            Self::ForgeView => 1764,
             Self::WelcomeNoForge => 1765,
             Self::WelcomeNoModel => 1766,
 
@@ -1935,6 +1938,8 @@ impl Word {
             Self::WelcomeAfter => 1313,
             Self::WelcomeForgeTitle => 1314,
             Self::WelcomeForgeLead => 1315,
+            Self::WelcomeForgeLeadKept => 3189,
+            Self::WelcomeForgeGitHubApp => 3190,
             Self::WelcomeModelTitle => 1317,
             Self::WelcomeModelLead => 1318,
             Self::WelcomeReadyTitle => 1319,
@@ -2587,7 +2592,8 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11,
+            // Forge status adds 76 literal bytes after removing View (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 76,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2991,7 +2997,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeLeave => (&[b"You may leave this page: the steps go on, and the banner says where they are."], &[]),
         Word::ForgeProgress => (&[b"Each step"], &[]),
         Word::ForgeAdopt => (&[b"Adopt a repository"], &[]),
-        Word::ForgeView => (&[b"View"], &[]),
         Word::WelcomeNoForge => (&[b"none yet"], &[]),
         Word::WelcomeNoModel => (&[b"none yet"], &[]),
         Word::FlowDone => (&[b"done"], &[]),
@@ -3018,6 +3023,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeSetupTime => (&[b"About five minutes"], &[]),
         Word::WelcomeAfter => (&[b"Tried the playground first? Set up whenever you like; the playground then steps aside."], &[]),
         Word::WelcomeForgeTitle => (&[b"Connect a forge"], &[]),
+        Word::WelcomeForgeLeadKept => (&[b"One forge is enough to begin; add others later, from Settings."], &[]),
+        Word::WelcomeForgeGitHubApp => (&[b"temper\xe2\x80\x99s App on ", b""], &[Name]),
         Word::WelcomeForgeLead => (&[b"Where your code lives: you tell temper what you want, agents push and land code."], &[]),
         Word::WelcomeModelTitle => (&[b"Connect a model"], &[]),
         Word::WelcomeModelLead => (&[b"temper\xe2\x80\x99s agents run on a plan you sign in to."], &[]),

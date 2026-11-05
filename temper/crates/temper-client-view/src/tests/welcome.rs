@@ -390,10 +390,10 @@ fn model_ticks_a_connected_github_without_a_repository() {
 }
 
 #[test]
-fn an_installed_github_without_a_repository_shows_connected_and_view() {
+fn an_installed_github_without_a_repository_offers_continue() {
     let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, forge::github_rows(true));
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        node(view.tree(), Role::Link, "View");
+        node(view.tree(), Role::Link, "Continue");
         for name in [b"Go on".as_slice(), b"Start over"] {
             assert!(f::find(view.tree(), Role::Button, name).is_none());
         }
@@ -1725,5 +1725,173 @@ fn ready_names_its_first_project_in_a_form() {
         assert!(
             view.tree().nodes().iter().find(|n| n.id == field).unwrap().states.as_slice().contains(&State::Invalid)
         );
+    }
+}
+
+#[test]
+fn forge_step_draws_its_status_in_the_column_and_continues() {
+    let address = Address::Welcome { step: Step::Forge { forge: Some(d::Choice::Forge(HERE)) } };
+    let mut github = forge::github_rows(true);
+    let mut parts = github.get(0).unwrap().clone().into_parts();
+    let accepted = parts.installations.get(0).unwrap().clone();
+    *parts.installations.get_mut(0).unwrap() = parts.installations.get(1).unwrap().clone();
+    *parts.installations.get_mut(1).unwrap() = accepted;
+    *github.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    let mut no_first = forge::first_rows(forge::connected(), forge::made());
+    let mut parts = no_first.get(0).unwrap().clone().into_parts();
+    parts.first = None;
+    *no_first.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    for (rows, address, line, done) in [
+        (
+            forge::first_rows(w::Connection::Connecting, w::FirstState::Making),
+            address.clone(),
+            "Forgejo on this machine · Connecting",
+            false,
+        ),
+        (
+            forge::first_rows(forge::connected(), w::FirstState::Making),
+            address.clone(),
+            "Forgejo on this machine · Connected as temper (42)",
+            false,
+        ),
+        (
+            forge::first_rows(forge::connected(), forge::made()),
+            Address::Welcome { step: Step::Forge { forge: None } },
+            "Forgejo on this machine · connected as temper · work/hello made",
+            true,
+        ),
+        (
+            no_first,
+            Address::Welcome { step: Step::Forge { forge: None } },
+            "Forgejo on this machine · connected as temper",
+            true,
+        ),
+        (github, Address::Welcome { step: Step::Forge { forge: None } }, "GitHub · temper’s App on acme", true),
+    ] {
+        for usable in [false, true] {
+            let (mut root, accounts) = f::forge_root_accounts(address.clone(), rows.clone());
+            if usable {
+                f::welcome_account(&mut root, accounts);
+            }
+            for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
+                let tree = view.tree();
+                node(tree, Role::Heading { level: 1 }, "Connect a forge");
+                node(tree, Role::Paragraph, "One forge is enough to begin; add others later, from Settings.");
+                assert!(f::find(tree, Role::Link, b"View").is_none());
+                let status = tree
+                    .nodes()
+                    .iter()
+                    .find(|n| n.styles.as_slice().contains(&crate::look::WELCOME_FORGE_STATUS))
+                    .expect("status in the column");
+                assert_eq!(status.role, Role::Slot);
+                assert_eq!(status.styles.as_slice().contains(&crate::look::FLOW_DONE), done);
+                let main = tree.nodes().iter().find(|n| n.role == Role::Main).unwrap();
+                assert_eq!(forge::parent(tree, status.id), Some(main.id));
+                let paragraph = node(tree, Role::Paragraph, line);
+                assert_eq!(forge::parent(tree, paragraph), Some(status.id));
+                assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::WELCOME_FOOT)));
+                assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::WELCOME_STATUS)));
+                // The terminal has one joined run; the browser has decorative markers and styled words.
+                let text = tree.nodes().iter().position(|n| n.id == paragraph).unwrap();
+                if browser {
+                    let children = &tree.nodes()[text + 1..text + usize::try_from(tree.nodes()[text].size).unwrap()];
+                    assert!(children.iter().any(|n| n.styles.as_slice().contains(&if done {
+                        crate::look::WELCOME_OK
+                    } else {
+                        crate::look::WELCOME_SPIN
+                    })));
+                    assert!(children.iter().any(|n| n.text.iter().any(|r| r.run == skein_ui::Run::Strong)));
+                } else {
+                    let mut expected = if done { String::from("✓ ") } else { String::new() };
+                    expected.push_str(line);
+                    assert_eq!(f::node_text(tree, text).as_ref(), expected.as_bytes());
+                    assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::WELCOME_SPIN)));
+                }
+                each_step(tree, !done);
+                let continue_id = node(tree, Role::Link, "Continue");
+                assert!(
+                    tree.nodes()
+                        .iter()
+                        .find(|n| n.id == continue_id)
+                        .unwrap()
+                        .styles
+                        .as_slice()
+                        .contains(&crate::look::FLOW_PRIMARY)
+                );
+                assert_eq!(
+                    crate::act(&mut view, continue_id, Act::Press),
+                    Some(d::Action::Pages(pages::Act::Go {
+                        address: Address::Welcome {
+                            step: if usable { Step::Ready } else { Step::Model { way: None } }
+                        }
+                    }))
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn forge_step_keeps_recovery_installation_and_admin_steps_without_view() {
+    let mut cases = Vec::from([
+        (forge::rows(w::Connection::Connecting, w::Offer::Offered), None, "FORGE · not finished"),
+        (forge::github_rows(false), None, "FORGE · not finished"),
+        (forge::github_rows(false), Some(d::Choice::Forge(2)), "Install temper’s App"),
+    ]);
+    for (rows, _, _) in forge::failure_cases() {
+        cases.push((rows, Some(d::Choice::Forge(HERE)), "Set up failed"));
+    }
+    let admin = forge::rows(
+        w::Connection::Stopped(
+            w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+        ),
+        w::Offer::Offered,
+    );
+    let mut parts = admin.get(1).unwrap().clone().into_parts();
+    parts.admin = true;
+    let mut rows = skein_lib::List::with_capacity(1);
+    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+    cases.push((rows, Some(d::Choice::Forge(HERE)), "Connect as its admin"));
+    for (rows, choice, expected) in cases {
+        let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: choice } }, rows);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let tree = view.tree();
+            assert!(String::from_utf8_lossy(&f::main_text(tree)).contains(expected), "{expected}");
+            node(
+                tree,
+                Role::Paragraph,
+                "Where your code lives: you tell temper what you want, agents push and land code.",
+            );
+            assert!(f::find(tree, Role::Link, b"View").is_none());
+            assert!(f::find(tree, Role::Link, b"Continue").is_none());
+            assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::WELCOME_FORGE_STATUS)));
+        }
+    }
+}
+
+#[test]
+fn forge_status_keeps_the_complete_login_and_repository() {
+    // English fixtures accept a name of 64 bytes; an org/name occupies the joined 129-byte hole.
+    const NAME_BYTES: usize = 64;
+    let login = "l".repeat(NAME_BYTES);
+    let org = "o".repeat(NAME_BYTES);
+    let repository = "r".repeat(NAME_BYTES);
+    let mut rows = forge::first_rows(forge::connected(), forge::made());
+    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    parts.connection = w::Connection::Connected(
+        w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: login.as_bytes().into() }).unwrap(),
+    );
+    let mut first = parts.first.take().unwrap().into_parts();
+    first.org = org.as_bytes().into();
+    first.repository = repository.as_bytes().into();
+    parts.first = Some(w::FirstRepository::new(&w::CEILINGS, first).unwrap());
+    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, rows);
+    let mut expected = String::from("Forgejo on this machine · connected as ");
+    for part in [&login, " · ", &org, "/", &repository, " made"] {
+        expected.push_str(part);
+    }
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        node(view.tree(), Role::Paragraph, &expected);
     }
 }

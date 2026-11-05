@@ -226,7 +226,21 @@ pub(crate) fn welcome(
         return;
     }
     if let Some(row) = personal(root) {
-        if row.admin {
+        if connect::status_shown(row, connect::playground(root.forge())) {
+            forge_status(b, root, w, row);
+            b.open(Role::Slot);
+            b.style(look::WELCOME_ACTS);
+            flow::control(
+                b,
+                Control::PrimaryLink {
+                    name: &w.say(Word::WelcomeContinue, &[]),
+                    to: bindings.insert(Act::Go {
+                        address: Address::Welcome { step: temper_client_domain::pages::welcome::go_on(root) },
+                    }),
+                },
+            );
+            b.close();
+        } else if row.admin {
             match connect::step(
                 Some(Choice::Forge(row.number)),
                 root.forges(),
@@ -234,16 +248,7 @@ pub(crate) fn welcome(
                 owned(root),
             ) {
                 Shown::Details(_) => admin_details(b, root, w, forge, row),
-                Shown::Ready(_) => {
-                    status(b, root, w, row);
-                    link(
-                        b,
-                        w,
-                        bindings,
-                        Word::ForgeView,
-                        Address::ConnectForge { forge: Some(Choice::Forge(row.number)) },
-                    );
-                }
+                Shown::Ready(_) => status(b, root, w, row),
                 Shown::Unfinished(_) | Shown::SettingUp(_) => setting_up(b, root, w, forge, row),
                 Shown::Choose => {}
             }
@@ -255,7 +260,6 @@ pub(crate) fn welcome(
             if connect::failed(row) {
                 progress_in(b, Some(root), w, row);
             }
-            link(b, w, bindings, Word::ForgeView, Address::ConnectForge { forge: Some(Choice::Forge(row.number)) });
         }
     } else {
         body(b, root, w, bindings, forge, choice, Place::Welcome);
@@ -972,6 +976,77 @@ pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a 
         return Some((&first.org, &first.repository));
     }
     setup_target(root, row)
+}
+/// The Forge step's line in the column (client/README.md, 3.5, The Forge step with a forge).
+fn forge_status(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
+    let done = !connect::underway(row);
+    let forge = name(w, row, root);
+    let detail = if done { forge_done(w, row) } else { forge::words::forge_connection(row) };
+    let line = crate::accounts::words::join(&[&forge, " · ".as_bytes(), &detail]);
+    b.open(Role::Slot);
+    b.style(look::WELCOME_FORGE_STATUS);
+    if done {
+        b.style(look::FLOW_DONE);
+    }
+    b.open(Role::Paragraph);
+    b.name(&line);
+    match w.shell {
+        Shell::Browser => {
+            b.open(Role::Slot);
+            if done {
+                b.style(look::WELCOME_OK);
+                b.text(Run::Plain, "✓".as_bytes());
+            } else {
+                b.style(look::WELCOME_SPIN);
+            }
+            b.close();
+            b.open(Role::Text);
+            b.run(Run::Strong, &forge);
+            b.close();
+            b.open(Role::Text);
+            b.style(look::WELCOME_SEP);
+            b.run(Run::Plain, " · ".as_bytes());
+            b.close();
+            b.open(Role::Text);
+            b.style(look::FLOW_MUTED);
+            b.run(Run::Plain, &detail);
+            b.close();
+        }
+        Shell::Terminal => {
+            let words = if done { crate::accounts::words::join(&["✓ ".as_bytes(), &line]) } else { line };
+            b.text(Run::Plain, &words);
+        }
+    }
+    b.close();
+    if !done && row.kind != Kind::GitHub {
+        each_step(b, root, w, row);
+    }
+    b.close();
+}
+fn forge_done(w: &Words, row: &Row) -> Box<[u8]> {
+    if row.kind == Kind::GitHub {
+        for installation in &row.installations {
+            if !installation.stray && !installation.suspended {
+                let account = match &installation.account {
+                    Some(account) => copy_of(&account.login),
+                    None => forge::words::installation_words(installation),
+                };
+                return w.say(Word::WelcomeForgeGitHubApp, &[Hole::Name(account)]);
+            }
+        }
+    }
+    let Connection::Connected { login, .. } = &row.connection else { return forge::words::forge_connection(row) };
+    let login = w.say(Word::WelcomeForgeDoneDetail, &[Hole::Name(copy_of(login))]);
+    if let Some(first) = &row.first
+        && let FirstState::Made { .. } = first.state
+    {
+        let repository = w.say(
+            Word::WelcomeForgeDoneRepository,
+            &[Hole::Name(forge::words::full_name(&first.org, &first.repository))],
+        );
+        return crate::accounts::words::join(&[&login, " · ".as_bytes(), &repository]);
+    }
+    login
 }
 /// The welcome's Model step says what Forge did (client/README.md, 3.5).
 pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
