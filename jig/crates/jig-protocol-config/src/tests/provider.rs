@@ -1,5 +1,28 @@
 use super::fixtures;
 use crate::{Path, Problem, Segment, What, clients::provider_key};
+
+#[test]
+fn clients_settings_problems_name_engine_clients() {
+    for what in [What::Bound, What::Refers] {
+        let problems = crate::clients::invalid(what);
+        assert_eq!(problems.problems.as_slice(), &[Problem { path: fixtures::path(&[b"engine", b"clients"]), what }]);
+        assert_eq!(problems.past, 0);
+    }
+}
+
+#[test]
+fn the_printed_link_uses_the_first_owner_at_its_provider() {
+    use jig_domain_people::{IdentityKey, InitialOwner};
+    let mut engine = fixtures::engine(fixtures::ENGINE_SMALL).unwrap();
+    engine.owners = Box::new([
+        InitialOwner { project: 1, identity: IdentityKey { provider: 2, subject: Box::from(b"other".as_slice()) } },
+        InitialOwner { project: 1, identity: IdentityKey { provider: 1, subject: Box::from(b"first".as_slice()) } },
+        InitialOwner { project: 1, identity: IdentityKey { provider: 1, subject: Box::from(b"second".as_slice()) } },
+    ]);
+    assert_eq!(crate::clients::link_owner(&engine, 1), engine.owners.get(1));
+    assert_eq!(crate::clients::link_owner(&engine, 3), None);
+}
+
 const PROVIDER: &[u8] = br#""provider":{"key":"secrets/provider.pem","clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}],"addresses":[3]},"link":true"#;
 fn bytes() -> Box<[u8]> {
     let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""link": true"#, PROVIDER);
