@@ -1,5 +1,6 @@
 //! Forgejo's owner-provided values and plans (forge-setup.md, 4).
 mod access;
+mod admin;
 pub mod adopt;
 pub mod check;
 pub mod copy;

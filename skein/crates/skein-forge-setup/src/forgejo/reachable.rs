@@ -1,11 +1,11 @@
 //! One page of a forge's repositories for the picker (forge-setup.md, 4.8).
+use crate::forgejo::admin::{self, Admin};
 use crate::forgejo::{Reply, reply, unexpected};
 use crate::{
     call::Auth,
     given::{self, Given, Place, Refused},
     item::Item,
     plan::{self, Event, Need, Outcome, Stage, Why},
-    reconcile,
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::{
@@ -28,9 +28,8 @@ pub struct Reached {
 #[derive(Debug)]
 enum State {
     Begin,
-    Read,
     ApiRead,
-    Admin,
+    Admin(Admin),
     Settings,
     Search,
     Ended,
@@ -96,24 +95,11 @@ impl Reachable {
                         let subject = bytes::copy_of(Decimal::of(id).as_bytes());
                         return self.stop(Stage::Installation, subject, Why::Unexpected);
                     }
-                    self.state = State::Read;
-                    Need::Read(Item::AdminToken)
+                    self.admin(Admin::Begin, Event::Begin)
                 }
                 Err(why) => self.stop(Stage::Admin, self.admin_name.clone(), why),
             },
-            State::Read => match event.read() {
-                Ok(Some(token)) => {
-                    self.token = Some(token);
-                    self.state = State::Admin;
-                    self.send(Request::User)
-                }
-                Ok(None) => {
-                    self.listing = Token::Api;
-                    self.state = State::ApiRead;
-                    Need::Read(Item::ApiToken)
-                }
-                Err(why) => self.stop(Stage::Admin, self.admin_name.clone(), why),
-            },
+            State::Admin(admin) => self.admin(admin, event),
             State::ApiRead => match event.read() {
                 Ok(Some(token)) => {
                     self.token = Some(token);
@@ -122,16 +108,6 @@ impl Reachable {
                 }
                 Ok(None) => self.stop(Stage::Token, bytes::copy_of(b"api"), Why::Missing),
                 Err(why) => self.stop(Stage::Token, bytes::copy_of(b"api"), why),
-            },
-            State::Admin => match reconcile::account(event) {
-                Ok(user) => {
-                    if !user.is_admin {
-                        return self.stop(Stage::Admin, self.admin_name.clone(), Why::NotAdmin);
-                    }
-                    self.state = State::Settings;
-                    self.send(Request::ApiSettings)
-                }
-                Err(why) => self.stop(Stage::Admin, self.admin_name.clone(), why),
             },
             State::Settings | State::Search => match self.repositories(state, event) {
                 Ok(need) => need,
@@ -144,6 +120,32 @@ impl Reachable {
                 }
             },
             State::Ended => unreachable!("terminal machine is not advanced"),
+        }
+    }
+
+    fn admin(&mut self, mut admin: Admin, event: Event) -> Need {
+        let reading = match admin {
+            Admin::Read => true,
+            Admin::Begin | Admin::Check => false,
+        };
+        let movement = admin::step(&mut admin, event);
+        self.state = State::Admin(admin);
+        match movement {
+            Ok(admin::Move::Read) => Need::Read(Item::AdminToken),
+            Ok(admin::Move::Token(token)) => {
+                self.token = Some(token);
+                self.send(Request::User)
+            }
+            Ok(admin::Move::Passed(_)) => {
+                self.state = State::Settings;
+                self.send(Request::ApiSettings)
+            }
+            Err(Why::Missing) if reading => {
+                self.listing = Token::Api;
+                self.state = State::ApiRead;
+                Need::Read(Item::ApiToken)
+            }
+            Err(why) => self.stop(Stage::Admin, self.admin_name.clone(), why),
         }
     }
 
@@ -164,7 +166,7 @@ impl Reachable {
                 }
             },
             State::Search => self.rows(reply(event)?),
-            State::Begin | State::Read | State::ApiRead | State::Admin | State::Ended => {
+            State::Begin | State::ApiRead | State::Admin(_) | State::Ended => {
                 unreachable!("repository phases only")
             }
         }
@@ -240,7 +242,7 @@ pub fn step(machine: &mut Reachable, event: Event, out: &mut Queue<Need>) {
     let state = core::mem::replace(&mut machine.state, State::Ended);
     match state {
         State::Ended => (),
-        State::Begin | State::Read | State::ApiRead | State::Admin | State::Settings | State::Search => {
+        State::Begin | State::ApiRead | State::Admin(_) | State::Settings | State::Search => {
             let need = machine.advance(state, event);
             out.push(need);
         }

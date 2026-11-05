@@ -1,4 +1,5 @@
 //! Gives the bot access before its owner's first call (forge-setup.md, 4.5, steps 1 to 4).
+use crate::forgejo::admin::{self, Admin};
 use crate::{
     call::Auth,
     forgejo::access::{Access, Fail, Move, Shared},
@@ -13,9 +14,7 @@ use skein_lib::{Queue, Secret};
 
 #[derive(Debug)]
 enum State {
-    Begin,
-    AdminFile,
-    Admin,
+    Admin(Admin),
     Access,
     Ended,
 }
@@ -39,7 +38,7 @@ impl Adopt {
         Ok(Self {
             forge: given.forge,
             admin_name: given.admin_name.clone(),
-            state: State::Begin,
+            state: State::Admin(Admin::Begin),
             admin: None,
             shared: Shared { cap: None, secret: None },
             access: Access::new(
@@ -73,33 +72,23 @@ impl Adopt {
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {
-            State::Begin => match event.begin() {
-                Ok(()) => {
-                    self.state = State::AdminFile;
-                    Need::Read(Item::AdminToken)
-                }
-                Err(why) => self.stop(Stage::Admin, why),
-            },
-            State::AdminFile => match event.read() {
-                Ok(Some(token)) => {
-                    self.admin = Some(token);
-                    self.state = State::Admin;
-                    self.send(Request::User)
-                }
-                Ok(None) => self.stop(Stage::Admin, Why::Missing),
-                Err(why) => self.stop(Stage::Admin, why),
-            },
-            State::Admin => match reconcile::account(event) {
-                Ok(user) => {
-                    if !user.is_admin {
-                        return self.stop(Stage::Admin, Why::NotAdmin);
+            State::Admin(mut admin) => {
+                let movement = admin::step(&mut admin, event);
+                self.state = State::Admin(admin);
+                match movement {
+                    Ok(admin::Move::Read) => Need::Read(Item::AdminToken),
+                    Ok(admin::Move::Token(token)) => {
+                        self.admin = Some(token);
+                        self.send(Request::User)
                     }
-                    self.state = State::Access;
-                    let request = self.access.begin();
-                    self.send(request)
+                    Ok(admin::Move::Passed(_)) => {
+                        self.state = State::Access;
+                        let request = self.access.begin();
+                        self.send(request)
+                    }
+                    Err(why) => self.stop(Stage::Admin, why),
                 }
-                Err(why) => self.stop(Stage::Admin, why),
-            },
+            }
             State::Access => {
                 self.state = State::Access;
                 match self.access.event(&mut self.shared, event) {
@@ -127,7 +116,7 @@ pub fn step(machine: &mut Adopt, event: Event, out: &mut Queue<Need>) {
     let state = core::mem::replace(&mut machine.state, State::Ended);
     match state {
         State::Ended => (),
-        State::Begin | State::AdminFile | State::Admin | State::Access => {
+        State::Admin(_) | State::Access => {
             let need = machine.advance(state, event);
             out.push(need);
         }

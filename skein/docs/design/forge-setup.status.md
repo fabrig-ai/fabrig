@@ -2,10 +2,7 @@
 
 2026-11-05. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
 
-- **Not yet:** 4.2: a plan reads its own dialect's reply: plans match one `Reply`
-  of both dialects' bodies, in Forgejo's reconcile, and `reachable` speaks both
-  (`skein/docs/development/debt/D014-forge-setup-vocabulary.md`).
-  8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
+- **Not yet:** 8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
   stands `unchecked` in `skein/tests/forge/conformance/facts.txt`: the
   recording ran `--migrate` without `--runner`, so no run shows Actions
   reading `.forgejo/workflows` alone, which a copy's starter workflow

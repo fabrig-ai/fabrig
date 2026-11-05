@@ -1,4 +1,5 @@
 //! Makes or copies a repository, sharing org, access and file steps (skein/docs/design/forge-setup.md, 4.9 and 4.10).
+use crate::forgejo::admin::{self, Admin};
 use crate::forgejo::{Reply, reply, unexpected};
 use crate::{
     call::Auth,
@@ -19,9 +20,7 @@ use skein_lib::{Queue, Secret, Writer};
 
 #[derive(Debug)]
 enum State {
-    Begin,
-    AdminFile,
-    Admin,
+    Admin(Admin),
     Org,
     MakeOrg,
     Repository,
@@ -96,7 +95,7 @@ impl Create {
                 },
             ),
             shared: Shared { cap: None, secret: None },
-            state: State::Begin,
+            state: State::Admin(Admin::Begin),
         })
     }
     pub(crate) fn copying(
@@ -117,7 +116,7 @@ impl Create {
     }
     fn stage(&self) -> Stage {
         match self.state {
-            State::Begin | State::AdminFile | State::Admin => Stage::Admin,
+            State::Admin(_) => Stage::Admin,
             State::Org | State::MakeOrg => Stage::Org,
             State::Repository
             | State::MakeRepository
@@ -208,31 +207,18 @@ impl Create {
     }
     fn advance(&mut self, event: Event) -> Result<Need, Why> {
         match self.state {
-            State::Begin => match event.begin() {
-                Ok(()) => {
-                    self.state = State::AdminFile;
-                    Ok(Need::Read(Item::AdminToken))
-                }
-                Err(why) => Err(why),
-            },
-            State::AdminFile => match event.read() {
-                Ok(Some(token)) => {
+            State::Admin(ref mut admin) => match admin::step(admin, event)? {
+                admin::Move::Read => Ok(Need::Read(Item::AdminToken)),
+                admin::Move::Token(token) => {
                     self.admin = Some(token);
-                    self.state = State::Admin;
                     Ok(self.send(Request::User))
                 }
-                Ok(None) => Err(Why::Missing),
-                Err(why) => Err(why),
-            },
-            State::Admin => {
-                let admin = reconcile::account(event)?;
-                if !admin.is_admin {
-                    return Err(Why::NotAdmin);
+                admin::Move::Passed(user) => {
+                    self.admin_login = user.login;
+                    self.state = State::Org;
+                    Ok(self.send(Request::Org { name: self.at.owner.clone() }))
                 }
-                self.admin_login = admin.login;
-                self.state = State::Org;
-                Ok(self.send(Request::Org { name: self.at.owner.clone() }))
-            }
+            },
             State::CopyMark => match event.read() {
                 Ok(Some(_)) => Ok(self.copy_branch(true)),
                 Ok(None) => Err(Why::Taken),
@@ -331,13 +317,7 @@ impl Create {
             },
             State::Migrate | State::CopyBranch { .. } | State::Delete => self.copy_answer(answer),
             State::Branch | State::Raw | State::File => self.file_answer(answer),
-            State::Begin
-            | State::AdminFile
-            | State::Admin
-            | State::CopyMark
-            | State::Mark
-            | State::Access
-            | State::Ended => {
+            State::Admin(_) | State::CopyMark | State::Mark | State::Access | State::Ended => {
                 unreachable!("creation reply phases")
             }
         }
@@ -382,9 +362,7 @@ impl Create {
                     Err(unexpected(other))
                 }
             },
-            State::Begin
-            | State::AdminFile
-            | State::Admin
+            State::Admin(_)
             | State::Org
             | State::MakeOrg
             | State::Repository
@@ -426,9 +404,7 @@ impl Create {
                     Err(unexpected(other))
                 }
             },
-            State::Begin
-            | State::AdminFile
-            | State::Admin
+            State::Admin(_)
             | State::Org
             | State::MakeOrg
             | State::Repository
