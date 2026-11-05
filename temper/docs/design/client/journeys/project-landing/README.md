@@ -20,14 +20,10 @@ sign-in returns to Ready with "Model none yet" and "Try later" again.
 The last page reached is `/welcome?at=ready`, with "Hello" offered and
 "Create your project" disabled; `/projects/1` has not been reached.
 
-The kept recording starts at `/welcome` and holds no act. It has not
-been replaced with a Home recording.
-
-Home recording is deferred to temper's UI owner, who owns the Chromium
-sign-in fault and will record the journey again after fixing it. This
-recording task leaves the recording as it is and does not repeat or
-extend the sign-in investigation; the blocked walk above is the last
-observation, not a new walk.
+The kept recording starts at `/welcome` and holds no act. Home's
+recording is temper's UI owner's, with the Chromium sign-in fault, and
+comes once that fault is fixed; the blocked walk above is the last
+observation.
 
 - `01.html`: the welcome, as the kept recording ends; it does not show
   the intended project's Home or the fresh walk's blocked Ready page.

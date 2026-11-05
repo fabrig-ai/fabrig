@@ -100,8 +100,11 @@ decide, propose, subscribe and recall families, which the
 reference's profile does not grant and configuring's stage 1 follows
 (`draft/reference-code-production.md`); `draft/serve-without-box.md`'s
 status holds a departure the user has not answered, the deployment's
-read's `owned`, and `draft/to-begin.md`'s another, a dismissal erased
-with its project alone; `draft/repository-copies.md`'s holds two the
+read's `owned`, and `draft/to-begin.md`'s four, a dismissal erased
+with its project alone, a step's chats the person's own, the first
+repository's "Adopt" sending its adoption and an adoption under way the
+session's alone, beside a lag, any project's change of settings marking
+its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration, and its welcome and sheet are unbuilt; the others
 record what the
