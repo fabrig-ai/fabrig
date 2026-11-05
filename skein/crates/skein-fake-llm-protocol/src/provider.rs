@@ -376,7 +376,7 @@ pub fn up(
         State::New | State::Closing | State::Closed => return,
         State::Reading | State::Body | State::Waiting | State::Streaming | State::Pieces { .. } | State::Erring => {}
     }
-    let child = Env { now: env.now, wall: env.wall, limits: env.limits.http };
+    let child = env.with(env.limits.http);
     http::up(&mut server.http, &child, event, &mut server.events, below);
     resume(server, service, credentials, env, above, below);
 }
@@ -658,12 +658,12 @@ fn next_response(count: &mut u64) -> Option<u64> {
 }
 
 fn http_down(server: &mut Server, env: &Env<Limits>, request: http::Request, below: &mut Queue<Down>) {
-    let child = Env { now: env.now, wall: env.wall, limits: env.limits.http };
+    let child = env.with(env.limits.http);
     http::down(&mut server.http, &child, request, &mut server.events, below);
 }
 
 fn writer_down(server: &mut Server, env: &Env<Limits>, request: sse::Request) {
-    let child = Env { now: env.now, wall: env.wall, limits: env.limits.sse };
+    let child = env.with(env.limits.sse);
     let mut down = Queue::uncapped();
     sse::down(&mut server.writer, &child, request, &mut server.writer_events, &mut down);
     for _slot in 0..down.len() {
@@ -676,7 +676,7 @@ fn writer_down(server: &mut Server, env: &Env<Limits>, request: sse::Request) {
 // old writer explicitly before replacing it; its withdrawal belongs to that
 // completed response and must not be sent into HTTP's WaitingNext state.
 fn reset_writer(server: &mut Server, env: &Env<Limits>) {
-    let child = Env { now: env.now, wall: env.wall, limits: env.limits.sse };
+    let child = env.with(env.limits.sse);
     let mut down = Queue::uncapped();
     if !server.writer_closed {
         sse::down(&mut server.writer, &child, sse::Request::Close, &mut server.writer_events, &mut down);
@@ -719,7 +719,7 @@ fn http_event(
         http::Event::Body(Up::End) => requested(server, service, env, above),
         http::Event::Reply(event) => match server.state {
             State::Streaming | State::Pieces { .. } => {
-                let child = Env { now: env.now, wall: env.wall, limits: env.limits.sse };
+                let child = env.with(env.limits.sse);
                 let mut down = Queue::uncapped();
                 sse::up(&mut server.writer, &child, event, &mut server.writer_events, &mut down);
                 for _slot in 0..down.len() {
