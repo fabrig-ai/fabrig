@@ -41,3 +41,15 @@ One site, one commit, each with its tests; `cargo fmt`; `(cd skein && python3 -I
 ## Report
 
 The common note's items; `admitted.rs`'s lines before and after. A move: no rule to break by hand.
+
+## Rebase (2026-11-05, step merge, foreman debt-24/path-fixtures/foreman-1)
+
+reconcile the forge-kit extraction with the trunk’s forge-connection seam wiring
+The merge conflicts in three files; resolve them against the landing trunk.
+The overlapping trunk commits are `7c2a927c25` (rebased forge-kit extraction) and `38d49979da` (machine-world seam access).
+- `skein/testing/skein-forge-kit/src/lib.rs`: retain the extracted module declarations and this task’s `pub mod fake_github;`, each once.
+- `skein/tests/forge/machine/Cargo.toml`: retain the kit dependencies and dependency cleanup, with `skein-fake-forge-domain` under dev-dependencies. Preserve the trunk’s `skein-forge-connection = { workspace = true, features = ["seam"] }`.
+- `skein/tests/forge/machine/src/lib.rs`: retain `pub mod hand;`, `pub mod memory;`, `pub use skein_forge_connection::seam::GitHub;`, and `pub use skein_forge_kit::*;`. Keep the extracted modules in the kit.
+Preserve the installation transcript migration from trunk commit `1b752646a0`; its machine-world tests need the seam feature and GitHub re-export.
+Regenerate `Cargo.lock` through the prescribed tool if the combined manifests make it stale.
+Run the spec’s acceptance checks and the affected `skein-forge-machine-world` suite through heavy; retain test assertions and counts.
