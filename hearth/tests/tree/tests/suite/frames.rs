@@ -1,4 +1,5 @@
 use hearth_protocol_tree::frame::{self, Kind, Unreadable};
+use hearth_protocol_tree::tree::{Next, Reader};
 use hearth_tree_world::{check, fixtures, generate, mutate};
 use skein_lib::Rng;
 
@@ -61,12 +62,50 @@ fn no_cut_of_a_generated_frame_reads_as_a_record() {
     for &(seed, expected) in CUT_CASES {
         for record in generate::one_of_each(&mut Rng::new(0x7EE0_0000 + seed), &limits) {
             let frame = check::write(&record, &limits);
+            let mut tree = Reader::new(&limits);
+            let mut at = 24;
+            let length = if record.kind() == Kind::Tree {
+                tree.header(frame[..24].try_into().expect("a generated header")).expect("valid header")
+            } else {
+                0
+            };
             for cut in 0..frame.len() {
-                let refused = matches!(
-                    check::read(record.kind(), &frame[..cut], &limits),
-                    Err(Unreadable::Short | Unreadable::Length { .. })
-                );
+                // Increasing tree prefixes retain the items already decoded, as
+                // the pull reader does when more bytes arrive from a file.
+                let read = if record.kind() == Kind::Tree && cut >= 24 {
+                    tree_prefix(&mut tree, &mut at, length, &frame[..cut])
+                } else {
+                    check::read(record.kind(), &frame[..cut], &limits).map(|_| ())
+                };
+                let refused = matches!(read, Err(Unreadable::Short | Unreadable::Length { .. }));
                 assert_eq!(refused, expected, "seed {seed}, cut {cut}");
+            }
+            if record.kind() == Kind::Tree {
+                assert_eq!(tree_prefix(&mut tree, &mut at, length, &frame), Ok(()), "seed {seed}: complete tree");
+            }
+        }
+    }
+}
+
+fn tree_prefix(reader: &mut Reader, at: &mut usize, length: u64, bytes: &[u8]) -> Result<(), Unreadable> {
+    let after = u64::try_from(bytes.len() - 24).expect("a frame's length");
+    loop {
+        let fed = &bytes[*at..];
+        match reader.next(fed)? {
+            Next::Item(_, used) => {
+                let used = usize::try_from(used).expect("a bounded item");
+                assert!(used <= fed.len(), "an item takes only what it was fed");
+                *at += used;
+                if reader.ended() {
+                    return if *at == bytes.len() { Ok(()) } else { Err(Unreadable::Length { length, after }) };
+                }
+            }
+            Next::Need(need) => {
+                assert!(
+                    usize::try_from(need).expect("a bounded item") > fed.len(),
+                    "a reader asks for more than it was given"
+                );
+                return Err(Unreadable::Length { length, after });
             }
         }
     }

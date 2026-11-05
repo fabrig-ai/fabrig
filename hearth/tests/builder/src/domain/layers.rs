@@ -193,29 +193,9 @@ fn write(files: &Files, path: &str, bytes: &[u8]) -> Result<(), Error> {
     result.map(|_| ())
 }
 fn read(files: &Files, path: &str) -> Result<Box<[u8]>, Error> {
-    match files.load(WORLD_OWNER, files.store_root(), path.as_bytes(), u32::MAX, false)? {
-        file::Event::Loaded { bytes, .. } => Ok(bytes),
-        file::Event::TooLarge { .. }
-        | file::Event::Failed { .. }
-        | file::Event::Cancelled { .. }
-        | file::Event::Opened { .. }
-        | file::Event::Made { .. }
-        | file::Event::Refused { .. }
-        | file::Event::Conflict { .. }
-        | file::Event::Scanned { .. }
-        | file::Event::Stated { .. }
-        | file::Event::Read { .. }
-        | file::Event::Written { .. }
-        | file::Event::Cut { .. }
-        | file::Event::Synced { .. }
-        | file::Event::Renamed { .. }
-        | file::Event::Listed { .. }
-        | file::Event::Removed { .. }
-        | file::Event::Closed { .. }
-        | file::Event::Locked { .. }
-        | file::Event::Busy { .. }
-        | file::Event::Stored { .. } => unreachable!("Load loads"),
-    }
+    // The scripted helper reads the fixture's store at its domain face.
+    let path = [crate::fixtures::STORE, b"/", path.as_bytes()].concat();
+    files.shared.contents(&path).map(Vec::into_boxed_slice).ok_or(Error::NotFound)
 }
 /// The entries of a directory beneath the store's root, by name.
 fn entries(files: &Files, path: &str) -> Result<BTreeMap<String, Kind>, Error> {
