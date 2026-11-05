@@ -5,6 +5,8 @@ use alloc::boxed::Box;
 
 use skein_lib::{List, Token, Wall};
 
+use crate::LineChange;
+
 /// A connector's bounded resource pattern, preserving literal segment boundaries.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Pattern {
@@ -193,7 +195,7 @@ pub enum Request {
     /// Load one bounded page, echoing the owner in its answer.
     Load { owner: Token, range: Range },
     /// The write committed by this decision will put the entry at revision.
-    Written { owner: Token, name: u64, revision: u32 },
+    Written { owner: Token, name: u64, revision: u32, change: LineChange },
     /// The deletion committed by this decision will remove the entry.
     Deleted { owner: Token, name: u64 },
     /// A call changed nothing.

@@ -376,7 +376,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
             recalled: None,
         },
     );
-    let core::CallPart::NoteWritten { name, revision: 1 } = world.answers.last().expect("written answer").2 else {
+    let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2 else {
         panic!("note write was not admitted");
     };
     ask(

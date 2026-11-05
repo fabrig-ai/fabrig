@@ -114,7 +114,12 @@ fn a_new_entry_is_saved_with_its_scope_line_in_one_decision() {
     let [
         Request::Save { record: Record::Entry(saved) },
         Request::Save { record: Record::Line(_) },
-        Request::Written { owner, name: 20, revision: 1 },
+        Request::Written {
+            owner,
+            name: 20,
+            revision: 1,
+            change: crate::LineChange { lines: 1, added: 1, removed: 0, first: 1 },
+        },
     ] = &*got
     else {
         panic!("new entry writes: {got:?}");
@@ -381,4 +386,171 @@ fn a_project_drop_retries_busy_loads_and_answers_only_after_an_empty_page() {
         &[Request::ProjectDropped { owner: caller }]
     );
     assert!(!h.domain.busy());
+}
+
+#[test]
+fn a_first_write_counts_every_line() {
+    assert_eq!(crate::line_change(None, b"a\nb\nc"), crate::LineChange { lines: 3, added: 3, removed: 0, first: 1 });
+}
+
+#[test]
+fn an_empty_body_has_no_lines() {
+    assert_eq!(crate::line_change(None, b""), crate::LineChange { lines: 0, added: 0, removed: 0, first: 1 });
+    assert_eq!(crate::line_change(Some(b"a\nb"), b""), crate::LineChange { lines: 0, added: 0, removed: 2, first: 1 });
+}
+
+#[test]
+fn a_trailing_newline_adds_no_line() {
+    assert_eq!(crate::line_change(None, b"a\nb\n"), crate::LineChange { lines: 2, added: 2, removed: 0, first: 1 });
+    assert_eq!(crate::line_change(None, b"\n"), crate::LineChange { lines: 1, added: 1, removed: 0, first: 1 });
+    assert_eq!(crate::line_change(Some(b"a"), b"a\n"), crate::LineChange { lines: 1, added: 0, removed: 0, first: 1 });
+}
+
+#[test]
+fn a_middle_change_trims_both_ends() {
+    assert_eq!(
+        crate::line_change(Some(b"a\nx\ny\nz"), b"a\nb\nz"),
+        crate::LineChange { lines: 3, added: 1, removed: 2, first: 2 }
+    );
+}
+
+#[test]
+fn an_append_starts_after_the_old_body() {
+    assert_eq!(
+        crate::line_change(Some(b"a\nb\n"), b"a\nb\nc\nd"),
+        crate::LineChange { lines: 4, added: 2, removed: 0, first: 3 }
+    );
+}
+
+#[test]
+fn a_removal_at_the_end_points_at_the_last_line() {
+    assert_eq!(
+        crate::line_change(Some(b"a\nb\nc"), b"a\nb"),
+        crate::LineChange { lines: 2, added: 0, removed: 1, first: 2 }
+    );
+}
+
+#[test]
+fn an_unchanged_body_changes_nothing() {
+    assert_eq!(
+        crate::line_change(Some(b"a\nb"), b"a\nb"),
+        crate::LineChange { lines: 2, added: 0, removed: 0, first: 2 }
+    );
+    assert_eq!(crate::line_change(Some(b""), b""), crate::LineChange { lines: 0, added: 0, removed: 0, first: 1 });
+}
+
+#[test]
+fn prefix_and_suffix_never_overlap() {
+    assert_eq!(
+        crate::line_change(Some(b"a\nX\na"), b"a\nX\nX\na"),
+        crate::LineChange { lines: 4, added: 1, removed: 0, first: 3 }
+    );
+}
+
+fn generated_body(mut value: u32, trailing: bool) -> Box<[u8]> {
+    let mut writer = List::with_capacity(8);
+    while value > 1 {
+        if value & 1 == 0 {
+            writer.push(b'a').expect("four generated lines fit");
+        }
+        value >>= 1_u32;
+        if value > 1 || trailing {
+            writer.push(b'\n').expect("four generated lines fit");
+        }
+    }
+    writer.into_boxed()
+}
+
+fn logical_lines(body: &[u8]) -> List<&[u8]> {
+    let mut lines = List::with_capacity(8);
+    let mut start = 0;
+    for (at, byte) in body.iter().enumerate() {
+        if *byte == b'\n' {
+            lines.push(&body[start..at]).expect("generated lines fit");
+            start = at.checked_add(1).expect("delimiter within generated body");
+        }
+    }
+    if start < body.len() {
+        lines.push(&body[start..]).expect("generated lines fit");
+    }
+    lines
+}
+
+#[test]
+fn generated_changes_rebuild_the_new_body() {
+    for old_id in 1..32 {
+        for new_id in 1..32 {
+            for trailing in [false, true] {
+                let old = generated_body(old_id, trailing);
+                let new = generated_body(new_id, !trailing);
+                let old_lines = logical_lines(&old);
+                let new_lines = logical_lines(&new);
+                let change = crate::line_change(Some(&old), &new);
+                assert_eq!(change.lines, new_lines.len());
+                let added = usize::try_from(change.added).unwrap();
+                let removed = usize::try_from(change.removed).unwrap();
+                let old_lines = old_lines.as_slice();
+                let new_lines = new_lines.as_slice();
+                let mut prefix = 0;
+                for (old, new) in old_lines.iter().zip(new_lines) {
+                    if old != new {
+                        break;
+                    }
+                    prefix += 1;
+                }
+                assert_eq!(usize::try_from(change.first).unwrap(), (prefix + 1).min(new_lines.len().max(1)));
+                let suffix = new_lines.len() - prefix - added;
+                assert_eq!(old_lines.len() - prefix - removed, suffix);
+                let mut rebuilt = List::with_capacity(8);
+                for line in &old_lines[..prefix] {
+                    rebuilt.push(*line).expect("generated prefix fits");
+                }
+                for line in &new_lines[prefix..prefix + added] {
+                    rebuilt.push(*line).expect("generated replacement fits");
+                }
+                for line in &old_lines[prefix + removed..] {
+                    rebuilt.push(*line).expect("generated suffix fits");
+                }
+                assert_eq!(rebuilt.as_slice(), new_lines, "old={old:?}, new={new:?}, change={change:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn revisions_and_corrections_answer_from_the_loaded_body() {
+    for correction in [false, true] {
+        let mut h = Harness::new();
+        let mut updated = new(20, b"updated");
+        updated.body = b"body\nnew".as_slice().into();
+        let event = if correction {
+            Event::Edit {
+                owner: Token::new(41),
+                party: 2,
+                name: 20,
+                scope: updated.scope,
+                change: Change::Correct {
+                    description: updated.description,
+                    body: updated.body,
+                    references: updated.references,
+                    recalled: 1,
+                },
+            }
+        } else {
+            Event::Write { owner: Token::new(41), entry: updated, recalled: Some(1) }
+        };
+        let asked = h.step(event);
+        let [Request::Load { owner, .. }] = &*asked else {
+            panic!("old entry lookup");
+        };
+        let got =
+            h.step(Event::Loaded { owner: *owner, rows: rows(&[Record::Entry(entry(7, 20, b"old"))]), more: false });
+        let [Request::Save { .. }, Request::Save { .. }, Request::Written { owner, name: 20, revision: 2, change }] =
+            &*got
+        else {
+            panic!("revision writes: {got:?}");
+        };
+        assert_eq!(*owner, Token::new(41));
+        assert_eq!(*change, crate::LineChange { lines: 2, added: 1, removed: 0, first: 2 });
+    }
 }

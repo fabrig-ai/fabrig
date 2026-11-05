@@ -20,6 +20,7 @@ use crate::boundary::{Author, Change, Entry, Event, Key, Line, New, Range, Recor
 use crate::drop_project::{self, Dropping};
 use crate::limits::Limits;
 use crate::read::{self, Cached, ReadPending};
+use crate::{LineChange, line_change};
 
 /// One write waiting for the store.
 #[derive(Debug)]
@@ -202,7 +203,8 @@ fn loaded(domain: &mut Domain, env: &Env<Limits>, owner: Token, rows: Rows, more
                 match pending.action {
                     Action::Write { entry, recalled: None } => {
                         domain.invalidate(&entry.scope);
-                        save_new(pending.owner, entry, 1, env.wall, out);
+                        let change = line_change(None, &entry.body);
+                        save_new(pending.owner, entry, 1, env.wall, change, out);
                     }
                     Action::Write { entry: _, recalled: Some(_) } | Action::Edit { .. } => {
                         unreachable!("only a new entry counts a scope")
@@ -238,7 +240,8 @@ fn entry_loaded(domain: &mut Domain, mut pending: Pending, found: Option<Entry>,
                         );
                     } else if let Some(revision) = old.revision.checked_add(1) {
                         domain.invalidate(&entry.scope);
-                        save_new(pending.owner, entry, revision, wall, out);
+                        let change = line_change(Some(&old.body), &entry.body);
+                        save_new(pending.owner, entry, revision, wall, change, out);
                     } else {
                         push(out, Request::Refused { owner: pending.owner, why: Refusal::RevisionExhausted });
                     }
@@ -256,6 +259,7 @@ fn entry_loaded(domain: &mut Domain, mut pending: Pending, found: Option<Entry>,
                             Request::Refused { owner: pending.owner, why: Refusal::Moved { revision: old.revision } },
                         );
                     } else if let Some(revision) = old.revision.checked_add(1) {
+                        let change = line_change(Some(&old.body), &body);
                         old.description = description;
                         old.body = body;
                         old.references = references;
@@ -263,7 +267,7 @@ fn entry_loaded(domain: &mut Domain, mut pending: Pending, found: Option<Entry>,
                         old.revision = revision;
                         old.changed = wall;
                         domain.invalidate(&old.scope);
-                        save_entry(pending.owner, old, out);
+                        save_entry(pending.owner, old, change, out);
                     } else {
                         push(out, Request::Refused { owner: pending.owner, why: Refusal::RevisionExhausted });
                     }
@@ -287,7 +291,7 @@ fn entry_loaded(domain: &mut Domain, mut pending: Pending, found: Option<Entry>,
     }
 }
 
-fn save_new(owner: Token, new: New, revision: u32, changed: Wall, out: &mut Queue<Request>) {
+fn save_new(owner: Token, new: New, revision: u32, changed: Wall, change: LineChange, out: &mut Queue<Request>) {
     save_entry(
         owner,
         Entry {
@@ -300,11 +304,12 @@ fn save_new(owner: Token, new: New, revision: u32, changed: Wall, out: &mut Queu
             revision,
             changed,
         },
+        change,
         out,
     );
 }
 
-fn save_entry(owner: Token, entry: Entry, out: &mut Queue<Request>) {
+fn save_entry(owner: Token, entry: Entry, change: LineChange, out: &mut Queue<Request>) {
     let line = Line {
         scope: entry.scope.clone(),
         name: entry.name,
@@ -315,7 +320,7 @@ fn save_entry(owner: Token, entry: Entry, out: &mut Queue<Request>) {
     let revision = entry.revision;
     push(out, Request::Save { record: Record::Entry(entry) });
     push(out, Request::Save { record: Record::Line(line) });
-    push(out, Request::Written { owner, name, revision });
+    push(out, Request::Written { owner, name, revision, change });
 }
 
 /// Check a write's bounded shape before a parent retains its payload.

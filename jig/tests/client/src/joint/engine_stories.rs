@@ -67,7 +67,7 @@ fn a_note_written_corrected_by_a_person_and_recalled() {
         },
     );
     let name = match world.front().session.driver.world.answers.last().expect("committed note answer").2 {
-        jig_domain_core::CallPart::NoteWritten { name, revision: 1 } => name,
+        jig_domain_core::CallPart::NoteWritten { name, revision: 1, .. } => name,
         ref other => panic!("note write must be admitted: {other:?}"),
     };
     let within = Duration::from_secs(1);

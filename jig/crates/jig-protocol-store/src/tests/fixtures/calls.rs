@@ -76,7 +76,7 @@ pub fn call_parts() -> Box<[core::CallPart]> {
         ])),
         C::DelegationDenied { answer: Answer::Refuse, findings },
         C::DelegationRefused(problem()),
-        C::NoteWritten { name: 1, revision: 2 },
+        C::NoteWritten { name: 1, revision: 2, lines: 3, added: 2, removed: 1, first: 2 },
         C::NoteRecalled { entries: Box::new([super::note_entry()]), more: true },
         C::NoteRefused(jig_domain_notes::Refusal::Busy),
         C::Unavailable,

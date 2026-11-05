@@ -107,8 +107,8 @@ fn stored_parts_ignore_retained_counters_and_current_rules() {
         CallPart::EscalationDecided { task: 101, revision: 1, outcome: tasks::EscalationOutcome::Released },
         CallPart::EscalationDecided { task: 1, revision: 0, outcome: tasks::EscalationOutcome::Released },
         CallPart::Sent { message: 101 },
-        CallPart::NoteWritten { name: 101, revision: 1 },
-        CallPart::NoteWritten { name: 1, revision: 0 },
+        CallPart::NoteWritten { name: 101, revision: 1, lines: 3, added: 2, removed: 1, first: 2 },
+        CallPart::NoteWritten { name: 1, revision: 0, lines: 3, added: 2, removed: 1, first: 2 },
         CallPart::Subscribed { subscription: 101 },
         CallPart::Delegated(Box::new([])),
         CallPart::Delegated(Box::new([crate::Made { task: 101, revision: 1, given: None }])),
@@ -524,4 +524,16 @@ fn start_seed_policy_uses_restore_instead_of_current_admission() {
     let super::Action::Commit(_) = action else { panic!("started seed kept its policy") };
     assert_eq!(core.authority.policy(1).expect("seeded policy").period_spend, 1001);
     assert_eq!(core.start_failure(), None);
+}
+
+#[test]
+fn a_written_notes_counts_fit_the_new_body() {
+    let (core, limits) = loaded();
+    let deployment = core.counters.deployment();
+    for (lines, added, first, valid) in
+        [(0, 0, 1, true), (1, 1, 1, true), (3, 2, 3, true), (3, 2, 4, false), (3, 4, 1, false), (0, 1, 1, false)]
+    {
+        let part = CallPart::NoteWritten { name: 1, revision: 1, lines, added, removed: 9, first };
+        assert_eq!(part.valid(&deployment, &limits, &limits.authority), valid);
+    }
 }
