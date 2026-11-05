@@ -3,9 +3,10 @@
 //! machine sees query values; state authentication remains the machine's.
 
 use alloc::boxed::Box;
-use skein_lib::{Decimal, List, Writer, bytes};
+use skein_lib::{Decimal, List, Secret, Writer, bytes};
 use skein_oauth::{ClientLimits, Redirect};
 
+#[expect(clippy::manual_map, reason = "step code uses exhaustive matches without closures")]
 pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits) -> Option<Redirect> {
     if uri.len() > usize::try_from(limits.url_bytes).ok()? || uri.contains(&b'#') {
         return None;
@@ -32,8 +33,11 @@ pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits) -> Opt
     field(query.get(start..)?, limits, &mut fields)?;
     Some(Redirect {
         uri: bytes::copy_of(registered),
-        state: fields.state?,
-        code: fields.code,
+        state: Secret::new(fields.state?),
+        code: match fields.code {
+            Some(code) => Some(Secret::new(code)),
+            None => None,
+        },
         error: fields.error,
         client_id: fields.client_id,
     })
