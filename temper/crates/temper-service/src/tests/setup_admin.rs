@@ -829,7 +829,6 @@ pub(super) fn access_host(owned: bool) -> (crate::Service, Forge) {
             hooked: false,
         },
     );
-    git::grant(&mut forge.git, b"other/closed", admin, git::api::Permission::Admin);
     let mut config = if owned { local_config(true, false) } else { config() };
     config.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
