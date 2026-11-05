@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 112;
+pub const N: usize = 115;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -230,6 +230,9 @@ pub fn samples() -> [Sample; N] {
             "welcome-forge-details",
             temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
         ),
+        forge_status_sample("welcome-forge-under-way", 6, Some(temper_client_domain::Choice::Forge(3))),
+        forge_status_sample("welcome-forge-connected", 7, None),
+        forge_status_sample("welcome-forge-github", 21, None),
         welcome_sample("welcome-model-choose", temper_client_domain::Step::Model { way: None }),
         model_forge_sample("welcome-model-forge-under-way", 6),
         model_forge_sample("welcome-model-forge-fetching", 24),
@@ -335,6 +338,14 @@ fn github_sample(name: &'static str, step: u8) -> Sample {
 fn welcome_sample(name: &'static str, step: temper_client_domain::Step) -> Sample {
     Sample { name, world: World::FirstRun { step: 0 }, address: Address::Welcome { step }, then: Then::Shown }
 }
+fn forge_status_sample(name: &'static str, step: u8, forge: Option<temper_client_domain::Choice>) -> Sample {
+    Sample {
+        name,
+        world: World::FirstRun { step },
+        address: Address::Welcome { step: temper_client_domain::Step::Forge { forge } },
+        then: Then::Shown,
+    }
+}
 fn model_forge_sample(name: &'static str, step: u8) -> Sample {
     Sample {
         name,
@@ -400,6 +411,9 @@ fn special_mockup(name: &str) -> Option<String> {
         "github-install" => return Some("connect-forge.html?world=first-run-github&step=3&forge=2&bare".to_owned()),
         "github-picker" => return Some("connect-forge.html?world=first-run-github&step=4&forge=2&bare".to_owned()),
         "github-adopted" => return Some("connect-forge.html?world=first-run-github&step=5&forge=2&bare".to_owned()),
+        "welcome-forge-under-way" | "welcome-forge-connected" | "welcome-forge-github" => {
+            return Some("welcome.html?at=forge".to_owned());
+        }
         "welcome-forge-choose" => return Some("welcome.html?world=first-run&step=0&at=forge&bare".to_owned()),
         "welcome-forge-details" => return Some("welcome.html?world=first-run&step=0&at=forge&forge=3&bare".to_owned()),
         "welcome-model-choose" => return Some("welcome.html?world=first-run&step=0&at=model&bare".to_owned()),

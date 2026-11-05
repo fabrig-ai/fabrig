@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain, Step,
-    forge::{deployment, forges::Connection},
+    forge::{connect, deployment, forges::Connection},
     pages::Act,
 };
 
@@ -171,7 +171,14 @@ pub(crate) fn main(
         }
         Step::Forge { forge: forge_choice } => {
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeForgeTitle);
-            paragraph(b, w, Word::WelcomeForgeLead, look::WELCOME_LEAD);
+            let playground = connect::playground(root.forge());
+            let unfinished =
+                forge_choice.is_none() && connect::unfinished(connect::records(root.forges()), playground).is_some();
+            let kept = match crate::forge::connect::personal(root) {
+                Some(row) => !unfinished && connect::status_shown(row, playground),
+                None => false,
+            };
+            paragraph(b, w, if kept { Word::WelcomeForgeLeadKept } else { Word::WelcomeForgeLead }, look::WELCOME_LEAD);
             crate::forge::connect::welcome(b, root, w, bindings, forge, forge_choice, sign_in);
         }
         Step::Model { .. } => {

@@ -456,6 +456,8 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
+    (owner(), skein_ui::Role::Slot, WELCOME_SPIN, "span"),
+    (owner(), skein_ui::Role::Slot, WELCOME_OK, "span"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
     (owner(), skein_ui::Role::Heading { level: 3 }, WELCOME_LEGEND, "legend"),
     (owner(), skein_ui::Role::Slot, MODEL_FACTS, "dl"),
@@ -473,6 +475,16 @@ pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
 /// The browser's phone navigation.
 pub const TABBAR: Style = Style { owner: owner(), token: 179 };
+/// Forge status in the welcome's column (client/README.md, 3.5).
+pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 248 };
+/// The forge's spinning status marker.
+pub const WELCOME_SPIN: Style = Style { owner: owner(), token: 249 };
+/// The welcome's primary continuation.
+pub const WELCOME_ACTS: Style = Style { owner: owner(), token: 250 };
+/// The forge's connected tick.
+pub const WELCOME_OK: Style = Style { owner: owner(), token: 251 };
+/// The separator between the forge's name and its status.
+pub const WELCOME_SEP: Style = Style { owner: owner(), token: 252 };
 /// The look's names (skein's ui.md, 8): styles by token, regions by number.
 pub const NAMES: Names<'static> = Names {
     owner: owner(),
@@ -727,6 +739,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-starters",
         b"temper-session-actions",
         b"temper-configuring-tag",
+        b"temper-welcome-forge-status",
+        b"temper-welcome-spin",
+        b"temper-welcome-acts",
+        b"temper-welcome-ok",
+        b"temper-welcome-sep",
     ],
     regions: &[b"temper-link"],
 };

@@ -494,6 +494,39 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-forge-under-way",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Forgejo on this machine · Setting up: preparing" },
+            Part::Named { role: Role::Disclosure, name: "Each step" },
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
+        name: "welcome-forge-connected",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Disclosure, name: "Each step" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
+        name: "welcome-forge-github",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "GitHub · temper’s App on sam" },
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Disclosure, name: "Each step" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
         name: "welcome-model-choose",
         heading: "Connect a model",
         parts: &[
@@ -1326,6 +1359,9 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     for (name, expected) in [
         ("welcome-forge-choose", vec!["Run on this machine"]),
         ("welcome-forge-details", vec!["Run on this machine", "Run on this machine"]),
+        ("welcome-forge-under-way", vec!["Continue"]),
+        ("welcome-forge-connected", vec!["Continue"]),
+        ("welcome-forge-github", vec!["Continue"]),
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
         ("github-app-details", vec!["GitHub"]),
         ("github-install", vec!["Install on GitHub"]),
