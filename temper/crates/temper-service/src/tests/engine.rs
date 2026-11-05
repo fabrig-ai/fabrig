@@ -525,6 +525,7 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::Connect { .. }
                 | root::Request::Replace { .. }
                 | root::Request::Manifest { .. }
+                | root::Request::AdoptAccess { .. }
                 | root::Request::Reachable { .. }
                 | root::Request::Accept { .. }
                 | root::Request::Install { .. }

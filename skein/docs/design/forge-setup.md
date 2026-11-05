@@ -358,13 +358,18 @@ answers `204` with no body, `404` when the repository is not there.
 when the owner adopts it, by the admin's token, before the owner's
 first call to it; reconcile's step 6 runs the same for each adopted
 repository at each start, so access a person removed is repaired.
+`repository` is its id, or its path, for an owner who holds only the
+path a person gave, of a repository the bot may not see yet. Reconcile's
+are ids.
 
 1. **The admin's token,** as step 1 (4.3). Reconcile's run has it
    already. Steps 2 to 4 need its `write:repository`: a `403` on any
    of them stops the plan `Refused(403)` at `Repository`, naming the
    repository's id before step 2 has read its path, and its path
-   after.
-2. **The repository,** `GET /api/v1/repositories/{id}`: its path. A
+   after; one given by its path is named by that path throughout.
+2. **The repository,** `GET /api/v1/repositories/{id}`, or `GET
+   /api/v1/repos/{owner}/{repo}` when given its path, each encoded as
+   one path segment: its path, as the forge spells it. A
    `404` stops `Adopt` with `Missing`; reconcile passes over a
    repository the forge no longer has, which the owner's client finds
    gone.

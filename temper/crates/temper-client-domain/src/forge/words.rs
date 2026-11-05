@@ -59,10 +59,12 @@ pub enum Word {
     AnotherProject,
     HomeHeld,
     PrefixOccupied,
+    ReadOnly,
+    AdminScope,
 }
 use HoleKind::{Name, Number};
 pub type Row = (Word, &'static [&'static [u8]], &'static [HoleKind]);
-pub const ROWS: [Row; 54] = [
+pub const ROWS: [Row; 56] = [
     (Word::Title, &[b"Adopt a repository into ", b""], &[Name]),
     (Word::TitleNumber, &[b"Adopt a repository into project ", b""], &[Number]),
     (Word::Forge, &[b"Forge number"], &[]),
@@ -125,11 +127,13 @@ pub const ROWS: [Row; 54] = [
     (Word::AnotherProject, &[b"Another project writes ", b". Adopt it as context to read it, or use the project that writes it."], &[Name]),
     (Word::HomeHeld, &[b"The project has a home already. Adopt this repository without making it home, or choose a new project."], &[]),
     (Word::PrefixOccupied, &[b"Branches under ", b" are not this deployment's. Choose an unused branch prefix."], &[Name]),
+    (Word::ReadOnly, &[b"temper's forge user can only read ", b" on forge ", b": work there fails until it has write."], &[Name, Name]),
+    (Word::AdminScope, &[b"A managed or owned forge gives that access by its site admin's token, which needs write:repository: the server's log names the step."], &[]),
 ];
 fn phrase_id(connector: u16, index: usize) -> PhraseId {
     PhraseId {
         owner: owner(connector),
-        number: u16::try_from(index).expect("54 phrases").checked_add(1000).expect("phrase id fits"),
+        number: u16::try_from(index).expect("bounded forge phrases").checked_add(1000).expect("phrase id fits"),
     }
 }
 pub fn extend(connector: u16, text: u32, shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>) {
@@ -169,7 +173,7 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
             }
         }
         Word::May => 128,
-        Word::NotFound | Word::NoAccess | Word::Refused => {
+        Word::ReadOnly | Word::NotFound | Word::NoAccess | Word::Refused => {
             if index == 0 {
                 513
             } else {
@@ -178,7 +182,8 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
         }
         Word::InFlight | Word::Unknown | Word::AnotherProject => 513,
         Word::PrefixOccupied | Word::NoSuchForge | Word::Unreachable | Word::InvalidAnswer => 256,
-        Word::HomeHeld
+        Word::AdminScope
+        | Word::HomeHeld
         | Word::TitleNumber
         | Word::Forge
         | Word::Owner

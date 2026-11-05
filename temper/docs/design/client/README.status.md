@@ -2,12 +2,31 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *Home on any project*: the stock owner pool may
-  reserve the whole project period, leaving no funding for the status
-  agent (`temper-service`'s `stock.rs`, `project_policy`;
-  `jig-domain-core`'s `connector_repair_authority`). Returning then keeps
-  the computed sentence. The fake-box proof reduces the owner's pool
-  allowance to leave period funding, as the root's status world does.
+- **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
+- **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
+  is left no funding. Its roles' pools are as large as the project's period
+  (`temper-service`'s `stock.rs`, `project_policy`), so once a person's pool has
+  opened in a period, nothing of it is left: `jig-domain-core`'s
+  `connector_repair_authority` gives no seed, the run is refused
+  (`../domain/forge.md`, 5.7) and Home keeps the computed sentence, with no lede
+  or byline, at each sitting of that period. The request `ui-home-status` of 2026-11-05 has the
+  agent always run for now. Both the root's status world and the fake box's walk
+  shrink the owner's pool to leave funding, the box's by `project fund`
+  (`../domain/forge.md`, 20, holds the question).
+- **Not yet:** 10: the walk that request asks of a box: land a change, come back
+  past 30 minutes, see the count, the agent's words and the byline. A real box
+  has no fake clock, and the 31 minutes do not fit its tier, so
+  `temper/crates/temper/tests/fake_backends/walk/status.rs` stops inside a
+  sitting: the first look, then the count across a client's and a box's restart,
+  with the byline asserted absent and the charter's scripted words read from the
+  model's document alone. Whether the run by hand the plan allowed in its place
+  was made is unknown here: it left nothing in the repository. Each half is
+  shown apart: a new sitting on the client world's fake clock
+  (`temper/tests/client/tests/suite/status.rs`), the agent's brief in the root's
+  document (`temper/tests/engine/domain/tests/suite/forge_routes/status.rs`), and
+  the lede and byline from a hand-made document (`temper-client-view`'s
+  `tests/home.rs`, the gallery's `home-morning`); no test draws a brief an agent
+  wrote.
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
   delegate tasks, Pause, Resume, a message and Stop, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The

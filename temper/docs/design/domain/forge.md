@@ -537,10 +537,14 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **On a managed or owned Forgejo** the connector asks for access
   before the adoption's reads: `Adopt { forge, repository }`, through
   the root and the routing, which runs it on the setup's host with the
-  admin's token (`../protocol/forge.md`, 2.6). It makes temper's user a
+  admin's token (`../protocol/forge.md`, 2.6). The repository is the
+  path the request carries, since temper's user may not see it yet. It
+  makes temper's user a
   collaborator with write on the repository, and its hook when the
-  deployment has a webhooks' listener. Done, the adoption reads as any
-  other; refused, the adoption is refused, with the run's failure named.
+  deployment has a webhooks' listener and serves the forge one
+  (`../protocol/setup.md`, 5.5). Done, the adoption reads as any
+  other; refused, the adoption is refused, with the run's failure named
+  (`../protocol/setup.md`, 5.4).
 - **The connector never holds the admin's token,** and the forge
   component never does: the setup's host alone uses it, for reconcile,
   for access at adoption and for the picker's reads (4.3)
@@ -550,7 +554,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
   repairs each one's collaborator and hook (`../protocol/forge.md`,
   2.1).
 - **Elsewhere there is nothing to ask:** on a connected Forgejo a person
-  gives the access, and on GitHub the App's installation does (4.3).
+  gives the access, and on GitHub the App's installation does (4.3). A
+  repository this leaves temper's user only able to read is still
+  adopted, and its answer says so (`../client/README.md`, 4.7).
 
 ### 4.3 What the picker offers
 
@@ -2880,6 +2886,13 @@ whole.
 
 - **"The brief on Home" in Settings** (5.7): the status agent always runs
   for now; the switch is another plan's. Default: it runs.
+- **What funds a status run** (5.7): a run takes what its project's period has
+  unreserved, and the stock policy's pools are each as large as the period, so
+  once one opens the run is refused, at each sitting of that period
+  (`../client/README.status.md`, 3.5). Either the stock roles' pools leave room,
+  which changes what a person may spend; or a run draws on the pool of whoever
+  looked, which is no party's request; or a charge of its own beside the period.
+  Default: as built, a project whose pools leave funding has the agent's words.
 - **A status run's kept row** (5.7): a task made for the deployment is
   never forgotten, as jig forgets a result only for a person's request. At
   most one a sitting and an hour, each small. Default: kept, until jig

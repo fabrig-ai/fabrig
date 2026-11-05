@@ -1,6 +1,6 @@
 //! One bounded plan and its outstanding owner or forge need (6.3).
 use super::{
-    Answer, Forge, Kind, Need, Plan,
+    Answer, Forge, Kind, Need, Plan, Repository,
     states::{Purpose, States},
 };
 use crate::{
@@ -60,9 +60,12 @@ fn forgejo_machine(forge: &Forge, given: &Given, plan: Plan, bounds: &Bounds) ->
         Plan::Create { org, repository, files, .. } => Machine::Create(Box::new(
             Create::new(given, org, repository, files).expect("the owner checks the creation plan"),
         )),
-        Plan::Adopt { repository, .. } => Machine::Adopt(
-            Adopt::new(given, repository.get()).expect("host checks the given and the repository is nonzero"),
-        ),
+        Plan::Adopt { repository, .. } => Machine::Adopt(match repository {
+            Repository::Id(id) => {
+                Adopt::new(given, id.get()).expect("host checks the given and the repository is nonzero")
+            }
+            Repository::Path { owner, name } => Adopt::at(given, owner, name).expect("host checks the given"),
+        }),
         Plan::Reachable { installation, page, .. } => Machine::Reachable(
             Reachable::new(given, installation, page.get()).expect("host checks the given and the page is nonzero"),
         ),

@@ -1,0 +1,39 @@
+draft = "adopt-access"
+repo = "fabrig"
+sources = ["temper/docs/plan/adopt-access/inputs/request.md", "skein/docs/design/forge-setup.md", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "adopt-plan"
+title = "skein: Adopt given a repository's path"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-setup.md, 4.5"
+
+[[part]]
+id = "adopt-grant"
+title = "temper: a person's adoption runs Adopt, and a stop reaches them"
+mode = "direct"
+needs = ["adopt-plan"]
+design = "temper/docs/design/protocol/setup.md, 5.4"
+
+[[slice]]
+id = 1
+story = "A repository adopted on a Forgejo connected as its admin gives the bot write, at once and again after a restart, and a stop reaches the person"
+parts = ["adopt-plan", "adopt-grant"]
+walk = false
+
+[[question]]
+id = "managed-listener"
+parts = ["adopt-grant"]
+text = """Should a Forgejo connected as its admin get its hook? The request's step 4 expects one; the design says no, in one place. `temper/docs/design/protocol/setup.md`, 5.5, closes: "This form serves no organizations or organization owner and no listener: it polls", and section 1 says a forge on another host polls. The code follows it on purpose: `temper-service/src/setup/runtime.rs`, `forge` and `local`, and `string_managed_serves_no_listener_even_when_owned_forges_have_webhooks`. So step 4 is not a bug by the design, where step 3 is. 5.3, 5.4, 5.6 and skein's `forge-setup.md`, 4.5, read as if it had one, and setup.md, 16, now records the disagreement.
+
+Options:
+(a) Keep it: a managed forge polls, latency only, and 5.3 and 5.4 keep their clause naming that.
+(b) Serve the listener to a managed forge whose API is on loopback, so on this host, and keep polling for one elsewhere. One small follow-up: those two lines in `runtime.rs` read the forge's address, the pinning test and `setup_admin.rs`'s `repository_hooks(1)` check turn round, the process story's no-hook assertion becomes one hook at the listener's URL, and 5.5's sentence changes. That is the 2026-11-05 deployment's case.
+(c) Serve it to every managed forge: a far Forgejo's hook would post to its own loopback, signed, to whatever listens there. Not this.
+
+Recommendation: (b). No task waits for this: `adopt-grant` builds to 5.5 as it stands and its story asserts no hook."""
