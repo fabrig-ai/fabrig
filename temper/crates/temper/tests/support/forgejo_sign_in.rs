@@ -329,7 +329,7 @@ fn no_registration(
     browser.signed_out_of_forgejo();
     let missing = through_temper(browser, temper, forge)?;
     no_sam(&instance);
-    let mut signup_form = link_page("(1) no account", &missing, forge);
+    link_page("(1) no account", &missing, forge);
 
     let csrf = csrf(&missing.body);
     eprintln!("Forgejo link form CSRF field: {}", csrf.is_some());
@@ -361,12 +361,12 @@ fn no_registration(
     assert_eq!(created.status, 201, "admin makes sam");
     browser.signed_out_of_forgejo();
     let unlinked = through_temper(browser, temper, forge)?;
-    signup_form |= link_page("(3) existing unlinked account", &unlinked, forge);
+    link_page("(3) existing unlinked account", &unlinked, forge);
     let wrong = link_password(browser, forge, &unlinked.body, "wrong-throwaway-password")?;
     landing("(3) wrong password", &wrong);
     browser.signed_out_of_forgejo();
     let still_unlinked = through_temper(browser, temper, forge)?;
-    signup_form |= link_page("(3) wrong password linked nothing", &still_unlinked, forge);
+    link_page("(3) wrong password linked nothing", &still_unlinked, forge);
     let right = link_password(browser, forge, &still_unlinked.body, &password)?;
     landing("(3) right password", &right);
     assert_eq!(right.status, 200);
@@ -378,7 +378,6 @@ fn no_registration(
     assert_eq!(once.status, 200);
     assert!(!once.address.contains("/user/link_account"));
     signed_in_as_sam(browser, forge)?;
-    assert!(!signup_form, "link page offers no registration");
     Ok(instance)
 }
 
@@ -386,7 +385,7 @@ fn landing(leg: &str, landed: &Landed) {
     eprintln!("{leg}: {} {}", landed.status, landed.address.split('?').next().expect("address"));
 }
 
-fn link_page(leg: &str, landed: &Landed, forge: std::net::SocketAddr) -> bool {
+fn link_page(leg: &str, landed: &Landed, forge: std::net::SocketAddr) {
     landing(leg, landed);
     let page = std::str::from_utf8(&landed.body).expect("link page text");
     let signin = page.contains("action=\"/user/link_account_signin\"");
@@ -425,11 +424,11 @@ fn link_page(leg: &str, landed: &Landed, forge: std::net::SocketAddr) -> bool {
         }
         let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
         eprintln!("{leg}: link_account_signup controls (tag, name): {names:?}; text: {text:?}");
+        assert!(names.is_empty(), "link page offers no registration fields");
     }
     assert_eq!(landed.status, 200);
     assert_eq!(landed.address, format!("http://{forge}/user/link_account"));
     assert!(signin, "link page offers password linking");
-    signup
 }
 
 fn no_sam(instance: &skein_throwaway_forgejo::Instance) {
