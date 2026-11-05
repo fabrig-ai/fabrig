@@ -47,9 +47,13 @@ Each member, with its type and bound, is in
 ### Documents from a repository
 
 Put rules in a charter's `documents` when its runs should read them from
-an adopted repository. Read `temper ctl DIR forge list` for the forge's
-`host`; `temper ctl DIR forge list --json` prints the same `host` in each
-forge row. Copy that host unchanged into `forge`, including its port.
+an adopted repository. In a configuring chat, call `settings` without
+members: `project repositories` lists readable adopted repositories in the
+chat's project, with each canonical host and OWNER/NAME. Copy that host
+into the document's `forge` and OWNER/NAME into `repository`.
+
+People can read `temper ctl DIR forge list` for the forge's `host`;
+`temper ctl DIR forge list --json` prints the same `host` in each forge row. Copy that host unchanged into `forge`, including its port.
 It is the host in repository resource names, not the forge number or
 the forge's web address.
 

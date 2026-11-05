@@ -93,6 +93,7 @@ fn deliver(root: &mut f::Harness, states: &[w::MakingState], listed: bool) {
                 w::ForgeRow::new(
                     &limits,
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         number: 3,
                         host: b"git.example:3000".as_slice().into(),
                         kind: w::Kind::Forgejo,

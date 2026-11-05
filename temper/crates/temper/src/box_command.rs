@@ -179,7 +179,7 @@ fn open_listeners(
 /// public lines on the Forgejo step, never credentials or setup configuration.
 fn owned_notices(steps: &mut temper_forge_setup::Steps, owned: &temper_forge_setup::setup::Owned) {
     let notice = format!(
-        "Forgejo: started\nForgejo: api http://{}/api/v1\nForgejo: person {}\n",
+        "Forgejo: api http://{}/api/v1\nForgejo: person {}\n",
         owned.listen,
         String::from_utf8_lossy(&owned.person.login),
     );

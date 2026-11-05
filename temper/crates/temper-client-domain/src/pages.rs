@@ -48,7 +48,7 @@ pub struct Pages {
     task: Option<task::Task>,
     accounts: accounts::Accounts,
     switcher: switcher::Switcher,
-    connect_model: Option<Box<connect_model::ConnectModel>>,
+    pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_choice: PlaygroundChoice,
     pub(crate) playground_model: bool,
@@ -58,6 +58,7 @@ pub struct Pages {
     default_project: welcome::DefaultProject,
     adopting: Option<welcome::Adopting>,
     pub(crate) welcome_first: Option<welcome::First>,
+    pub(crate) welcome_copies: Option<crate::forge::making::Copies>,
     pub(crate) welcome_decision: Option<welcome::FirstRun>,
     party: Option<u64>,
     next: u64,
@@ -72,6 +73,25 @@ pub enum Act {
     MakeDefault,
     /// Home adopts the first repository again.
     AdoptFirst,
+    /// Ask a failed copy again into its kept project.
+    CopyAgain {
+        org: Box<[u8]>,
+        name: Box<[u8]>,
+    },
+    /// Ask the welcome intent’s copies left unasked after a restart.
+    CopyOffered,
+    AddOpen {
+        start: crate::forge::forges::Start,
+    },
+    AddChoose {
+        start: crate::forge::forges::Start,
+    },
+    AddWrite {
+        field: home::AddField,
+        words: Box<[u8]>,
+    },
+    AddClose,
+    AddSubmit,
     /// Skip this project's To begin (client/README.md, 3.5).
     SkipToBegin,
     /// Ready's name field.
@@ -226,6 +246,7 @@ impl Pages {
             default_project: welcome::DefaultProject::new(),
             adopting: None,
             welcome_first: None,
+            welcome_copies: None,
             welcome_decision: None,
             party: None,
             next: 1,
@@ -264,6 +285,10 @@ impl Pages {
         self.welcome_first.as_ref()
     }
     #[must_use]
+    pub const fn welcome_copies(&self) -> Option<&crate::forge::making::Copies> {
+        self.welcome_copies.as_ref()
+    }
+    #[must_use]
     pub const fn adopting(&self) -> Option<&welcome::Adopting> {
         self.adopting.as_ref()
     }
@@ -287,21 +312,9 @@ impl Pages {
         {
             return name;
         }
-        let mut name = [0; 16];
-        for (slot, byte) in name.iter_mut().zip(*b"accounts") {
-            *slot = byte;
-        }
-        for (slot, byte) in name
-            .get_mut(8..)
-            .expect("name number fits")
-            .iter_mut()
-            .zip(self.serial.checked_add(1).expect("page keys fit").to_be_bytes())
-        {
-            *slot = byte;
-        }
-
-        name
+        account_request_name(self.serial)
     }
+
     #[must_use]
     pub fn accounts_document<'a>(&self, client: &'a Client) -> Option<&'a jig_client::contract::Accounts> {
         if !self.watching || self.party != Some(accounts::current_me(client)?.party.number) {
@@ -562,6 +575,58 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::AdoptFirst } => {
             if let Address::Home { project } = pages.address {
                 adopt(pages, env, project, out);
+            }
+        }
+        Event::Act { act: Act::AddOpen { start } } => {
+            if start != crate::forge::forges::Start::Nothing
+                && let Address::Home { project } = pages.address
+            {
+                let rows = copy_rows(env, client);
+                if home::can_add(&rows, project)
+                    && let Some(home) = &mut pages.home
+                    && home.add.is_none()
+                    && !home.copying()
+                {
+                    home.add = Some(home::AddSheet::new(start));
+                }
+            }
+        }
+        Event::Act { act: Act::AddChoose { start } } => {
+            if start != crate::forge::forges::Start::Nothing
+                && let Some(home) = &mut pages.home
+                && let Some(sheet) = &mut home.add
+                && sheet.out.is_none()
+            {
+                sheet.start = start;
+                sheet.refused = None;
+            }
+        }
+        Event::Act { act: Act::AddWrite { field, words } } => {
+            if let Some(home) = &mut pages.home
+                && let Some(sheet) = &mut home.add
+            {
+                sheet.write(field, words, env.limits.forge);
+            }
+        }
+        Event::Act { act: Act::AddClose } => {
+            if let Some(home) = &mut pages.home
+                && let Some(sheet) = &home.add
+                && sheet.out.is_none()
+            {
+                home.add = None;
+            }
+        }
+        Event::Act { act: Act::AddSubmit } => add_submit(pages, env, client, out),
+        Event::Act { act: Act::CopyAgain { org, name } } => copy_again(pages, env, client, &org, &name, out),
+        Event::Act { act: Act::CopyOffered } => {
+            if let Address::Home { project } = pages.address
+                && let Some(home) = &pages.home
+                && !home.copying()
+            {
+                let rows = copy_rows(env, client);
+                if let Some(copies) = crate::forge::making::copies(&rows, None) {
+                    copy_all(pages, env, client, project, &copies, out);
+                }
             }
         }
         Event::Act { act: Act::DefaultName { words } } => {
@@ -972,6 +1037,23 @@ fn open_result(pages: &mut Pages, task: u64, through: u64, out: &mut Queue<Reque
     out.push(Request::Show { address: Address::Task { task, filter: PlanFilter::All } });
 }
 
+pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
+    let mut name = [0; 16];
+    for (slot, byte) in name.iter_mut().zip(*b"accounts") {
+        *slot = byte;
+    }
+    for (slot, byte) in name
+        .get_mut(8..)
+        .expect("name number fits")
+        .iter_mut()
+        .zip(serial.checked_add(1).expect("page keys fit").to_be_bytes())
+    {
+        *slot = byte;
+    }
+
+    name
+}
+
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if let Some(page) = &mut pages.connect_model {
         if let Told::Kept { key, request: jig_client::Ask::Jig(ask) } = &told
@@ -1001,7 +1083,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             | Told::Ended { .. }
             | Told::Page { .. } => true,
         };
-        if claim && page.request.told(client, &told) {
+        if claim && page.told(client, &told, &mut pages.serial, out) {
             // Both requests observe watch changes, but answers belong to their own key.
             if let Told::Changed { .. } = told {
                 pages.accounts.request.refresh(client);
@@ -1058,6 +1140,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
     true
 }
 
+#[expect(clippy::too_many_lines, reason = "one dispatch routes confirmations and exhaustively names page actions")]
 fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act, out: &mut Queue<Request>) {
     if let Act::Confirm = act
         && let Some(page) = &mut pages.task
@@ -1127,6 +1210,13 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Choice(_)
         | Act::MakeDefault
         | Act::AdoptFirst
+        | Act::CopyAgain { .. }
+        | Act::CopyOffered
+        | Act::AddOpen { .. }
+        | Act::AddChoose { .. }
+        | Act::AddWrite { .. }
+        | Act::AddClose
+        | Act::AddSubmit
         | Act::DefaultName { .. }
         | Act::OpenProject { .. }
         | Act::Project { .. }
@@ -1407,7 +1497,7 @@ fn make_default(pages: &mut Pages, out: &mut Queue<Request>) {
         Some(welcome::FirstRun::Whole | welcome::FirstRun::Unfinished { step: crate::Step::Ready }) => {}
         Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) | None => return,
     }
-    let offered = welcome::offered(pages.welcome_first());
+    let offered = welcome::offered(pages.welcome_first(), pages.welcome_copies());
     let Ok(asked) = jig_client::contract::Text::new(pages.default_project.asked(&offered).into(), welcome::NAME_BYTES)
     else {
         return;
@@ -1456,7 +1546,7 @@ fn default_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &To
         | Told::Ended { .. }
         | Told::Page { .. } => return false,
     };
-    let offered = welcome::offered(pages.welcome_first());
+    let offered = welcome::offered(pages.welcome_first(), pages.welcome_copies());
     pages.default_project.making = None;
     match outcome {
         jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(
@@ -1496,6 +1586,9 @@ fn default_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &To
         default_chosen(pages, client);
         out.push(Request::Show { address: Address::Home { project } });
         adopt(pages, env, project, out);
+        if let Some(copies) = pages.welcome_copies.clone() {
+            copy_all(pages, env, client, project, &copies, out);
+        }
     }
     true
 }
@@ -1504,6 +1597,144 @@ fn default_chosen(pages: &mut Pages, client: &Client) {
         choose_project(pages, client, project);
         if pages.project == Some(project) {
             pages.default_project.project = None;
+        }
+    }
+}
+
+/// The shared forges watch supplies Ready and Home (client/README.md, 3.5).
+fn copy_rows(env: &Env<Limits>, client: &Client) -> crate::forge::forges::State {
+    use crate::forge::forges;
+    match client.document(forges::handle()) {
+        Some(document) if document.state != jig_client::State::Ended => match document.latest {
+            Some(Latest::Family(record)) => match forges::rows(record, &env.limits.forge) {
+                Some(rows) => forges::State::Rows(rows),
+                None => forges::State::Ended,
+            },
+            Some(Latest::Jig(_)) | None => forges::State::Unknown,
+        },
+        Some(_) | None => forges::State::Unknown,
+    }
+}
+/// Home makes repositories into the project under its own keys (client/README.md, 3.5).
+fn add_submit(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
+    use crate::forge;
+    let Address::Home { project } = pages.address else { return };
+    let Some(forge) = home::add_forge(&copy_rows(env, client), None) else { return };
+    let Some(home) = &mut pages.home else { return };
+    let Some(sheet) = &mut home.add else { return };
+    if sheet.out.is_some() {
+        return;
+    }
+    let requests = match sheet.requests(forge, project) {
+        Ok(requests) => requests,
+        Err(refused) => {
+            sheet.refused = Some(refused);
+            return;
+        }
+    };
+    sheet.refused = None;
+    for ask in &requests {
+        let Some(request) = forge::make_repository(ask, &env.limits.forge) else { return };
+        pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
+        let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+        let number = skein_lib::Decimal::of(pages.serial);
+        let label = skein_lib::bytes::concat(&[b"home-add-", number.as_bytes()]);
+        let name = crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&label).expect("home add key fits"));
+        home.add.as_mut().expect("sheet is open").out = Some(key);
+        home.keep_copy(key);
+        out.push(Request::Client(jig_client::Event::Send { key, name: Some(name), request }));
+    }
+}
+
+/// Ready and Home ask copies under the same keys (client/README.md, 3.5).
+fn copy_all(
+    pages: &mut Pages,
+    env: &Env<Limits>,
+    client: &Client,
+    project: u32,
+    copies: &crate::forge::making::Copies,
+    out: &mut Queue<Request>,
+) {
+    use crate::forge::{self, listed, making};
+    use temper_client_protocol_wire::v1 as w;
+    let rows = copy_rows(env, client);
+    let home = match listed::held(&rows, None, project) {
+        listed::Held::None => true,
+        listed::Held::Unknown | listed::Held::One { .. } | listed::Held::Several { .. } => false,
+    };
+    let mut number = 0_u64;
+    for address in &copies.addresses {
+        number = number.checked_add(1).expect("copy places fit");
+        let mut asked = false;
+        for row in &listed::rows(&rows, None) {
+            if row.number == copies.forge {
+                asked = making::asked(row, address);
+            }
+        }
+        if asked {
+            continue;
+        }
+        let Some((org, name)) = making::target(address) else { continue };
+        let Ok(into) = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: home && number == 1 }) else {
+            continue;
+        };
+        let Ok(ask) = making::ask(copies.forge, &org, &name, Some(address), Some(into)) else { continue };
+        let Some(request) = forge::make_repository(&ask, &env.limits.forge) else { continue };
+        pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
+        let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+        if let Some(home) = &mut pages.home {
+            home.keep_copy(key);
+        }
+        out.push(Request::Client(jig_client::Event::Send { key, name: Some(forge::copy_key(number)), request }));
+    }
+}
+
+/// A failed row keeps the source and adoption the person asked (client/README.md, 3.5, Home).
+fn copy_again(
+    pages: &mut Pages,
+    env: &Env<Limits>,
+    client: &Client,
+    org: &[u8],
+    name: &[u8],
+    out: &mut Queue<Request>,
+) {
+    use crate::forge::{self, making};
+    use temper_client_protocol_wire::v1 as w;
+    let Address::Home { project } = pages.address else { return };
+    let Some(home) = &pages.home else { return };
+    if home.copying() {
+        return;
+    }
+    for row in &forge::listed::rows(&copy_rows(env, client), None) {
+        for making in &row.makings {
+            if making.org.as_ref() != org || making.name.as_ref() != name {
+                continue;
+            }
+            let Some(into) = &making.into else { continue };
+            if into.project() != project {
+                continue;
+            }
+            match &making.state {
+                w::MakingState::Failed(_) => {}
+                w::MakingState::Waiting
+                | w::MakingState::Making
+                | w::MakingState::Made(_)
+                | w::MakingState::Adopting(_) => continue,
+            }
+            let from = match &making.from {
+                w::MakeFrom::Copy(copy) => Some(copy.address()),
+                w::MakeFrom::Empty => None,
+            };
+            let Ok(ask) = making::ask(row.number, org, name, from, Some(into.clone())) else { return };
+            let Some(request) = forge::make_repository(&ask, &env.limits.forge) else { return };
+            pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
+            let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+            let number = skein_lib::Decimal::of(pages.serial);
+            let label = skein_lib::bytes::concat(&[b"home-copy-again-", number.as_bytes()]);
+            let name = crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&label).expect("copy key fits"));
+            pages.home.as_mut().expect("Home is open").keep_copy(key);
+            out.push(Request::Client(jig_client::Event::Send { key, name: Some(name), request }));
+            return;
         }
     }
 }

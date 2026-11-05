@@ -21,7 +21,14 @@ fn fresh(under_box: bool) -> Domain {
     d
 }
 fn setup(forge: Making) -> Ask {
-    Ask::SetUp { forge, org: b"work".as_slice().into(), repository: b"hello".as_slice().into(), playground: false }
+    Ask::SetUp {
+        forge,
+        first: SetUpFirst::Empty {
+            org: b"work".as_slice().into(),
+            repository: b"hello".as_slice().into(),
+            playground: false,
+        },
+    }
 }
 fn admin() -> How {
     How::ForgejoAdmin {
@@ -67,8 +74,8 @@ fn set_up_new_owned_makes_a_record_and_asks_the_box() {
     assert_eq!(record.place, place(b"owned.example"));
     assert_eq!(record.bot.login.as_ref(), b"temper");
     assert!(record.asked);
-    assert_eq!(record.first.as_ref().unwrap().org.as_ref(), b"work");
-    assert_eq!(record.first.as_ref().unwrap().label.as_ref(), b"temper-host");
+    assert_eq!(empty_intent(&record).org.as_ref(), b"work");
+    assert_eq!(empty_intent(&record).label.as_ref(), b"temper-host");
     assert_eq!(d.record(1), Some(&record));
     assert_eq!(d.forges().rows[0].first.as_ref().unwrap().state, FirstState::Making);
     assert!(out.contains(&Request::ForgeKept(record)));
@@ -81,9 +88,11 @@ fn set_up_new_owned_makes_a_record_and_asks_the_box() {
     assert!(out.contains(&Request::SetUp {
         forge: 1,
         request: Token::new(1),
-        org: b"work".as_slice().into(),
-        repository: b"hello".as_slice().into(),
-        playground: false
+        first: SetUpFirst::Empty {
+            org: b"work".as_slice().into(),
+            repository: b"hello".as_slice().into(),
+            playground: false
+        }
     }));
     outputs(&mut d, Event::SetUpAnswered { forge: 1, request: Token::new(1), answer: SetUpAnswer::SettingUp });
     assert_eq!(d.application_answer(Token::new(1)), Some(Answered::SetUp(SetUpAnswer::SettingUp)));
@@ -153,7 +162,7 @@ fn connect_new_managed_makes_a_record_with_its_intent() {
     assert_eq!(record.kind, Kind::Forgejo);
     assert_eq!(record.place, place(b"managed.example"));
     assert_eq!(record.git_program.as_deref(), Some(b"/data/bin/managed-git".as_slice()));
-    assert_eq!(record.first.as_ref().unwrap().label.as_ref(), b"docker");
+    assert_eq!(empty_intent(&record).label.as_ref(), b"docker");
     assert!(out.contains(&Request::Connect { forge: 1, request: Token::new(1), how, carried: VALUE }));
 }
 #[test]
@@ -213,9 +222,9 @@ fn a_restart_before_the_first_repository_rebuilds_the_intent_from_the_record() {
         outputs(&mut restarted, Event::Restore { record: Stored::Forge(record.clone()) });
         let first = restarted.forges().rows[0].first.clone().unwrap();
         assert_eq!(first.state, FirstState::Making);
-        assert_eq!(first.org, record.first.as_ref().unwrap().org);
-        assert_eq!(first.repository, record.first.as_ref().unwrap().repository);
-        assert_eq!(first.label, record.first.as_ref().unwrap().label);
+        assert_eq!(first.org, empty_intent(&record).org);
+        assert_eq!(first.repository, empty_intent(&record).repository);
+        assert_eq!(first.label, empty_intent(&record).label);
         if !owned {
             let out = application(
                 &mut restarted,
@@ -366,4 +375,83 @@ fn the_kept_forge_bound_and_spent_numbers_refuse_without_saving() {
         assert_eq!(d.forge_number, last);
         assert!(!out.iter().any(|r| if let Request::Save { .. } = r { true } else { false }));
     }
+}
+
+fn empty_intent(record: &ForgeRecord) -> &EmptyIntent {
+    let Some(FirstIntent::Empty(first)) = &record.first else { panic!("empty fixture intent") };
+    first
+}
+
+#[test]
+fn deferred_setup_choices_restore_without_a_repository_underway() {
+    let addresses = copy_addresses(temper_client_protocol_wire::FIRST_COPIES, b"https://source.example/owner/repo");
+    for (first, intent, starts_with) in [
+        (SetUpFirst::Nothing, FirstIntent::Nothing, StartsWith::Nothing),
+        (
+            SetUpFirst::Copies { addresses: addresses.clone() },
+            FirstIntent::Copies { addresses: addresses.clone() },
+            StartsWith::Copies { addresses },
+        ),
+    ] {
+        let mut d = fresh(true);
+        let out = application(&mut d, 1, Ask::SetUp { forge: Making::New(ForgeAsk::Owned), first: first.clone() });
+        let record = saved(&out);
+        assert_eq!(record.first, Some(intent));
+        assert!(out.contains(&Request::SetUp { forge: 1, request: Token::new(1), first }));
+        for restored in [false, true] {
+            if restored {
+                d = fresh(true);
+                outputs(&mut d, Event::Restore { record: Stored::Forge(record.clone()) });
+            }
+            let rows = d.forges();
+            assert_eq!(rows.rows[0].starts_with, starts_with);
+            assert_eq!(rows.rows[0].first, None);
+        }
+    }
+}
+#[test]
+fn setup_refuses_invalid_or_excess_copy_addresses_without_saving() {
+    let past = temper_client_protocol_wire::FIRST_COPIES + 1;
+    for addresses in [
+        copy_addresses(1, b"http://source.example/owner/repo"),
+        copy_addresses(past, b"https://source.example/owner/repo"),
+        Box::new([skein_lib::bytes::zeroed(temper_client_protocol_wire::source::ADDRESS_BYTES + 1)]),
+    ] {
+        let mut d = fresh(true);
+        application(
+            &mut d,
+            1,
+            Ask::SetUp { forge: Making::New(ForgeAsk::Owned), first: SetUpFirst::Copies { addresses } },
+        );
+        assert_setup_refusal(&d, 1, SetUpRefusal::Invalid);
+        assert!(d.records.is_empty());
+    }
+}
+#[test]
+fn playground_empty_setup_keeps_its_files_intent() {
+    let mut d = fresh(true);
+    let out = application(
+        &mut d,
+        1,
+        Ask::SetUp {
+            forge: Making::New(ForgeAsk::Owned),
+            first: SetUpFirst::Empty {
+                org: b"playground".as_slice().into(),
+                repository: b"widget".as_slice().into(),
+                playground: true,
+            },
+        },
+    );
+    assert!(empty_intent(&saved(&out)).playground);
+    let row = d.forges().rows[0].clone();
+    assert_eq!(row.starts_with, StartsWith::Repository);
+    assert_eq!(row.first.unwrap().state, FirstState::Making);
+}
+
+fn copy_addresses(count: u32, address: &[u8]) -> Box<[Box<[u8]>]> {
+    let mut addresses = skein_lib::List::with_capacity(count);
+    for _ in 0..count {
+        addresses.push(Box::from(address)).unwrap();
+    }
+    addresses.into_boxed()
 }

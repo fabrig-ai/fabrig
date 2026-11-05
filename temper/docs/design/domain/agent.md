@@ -807,7 +807,14 @@ agents must do stays text its runs read.
   paste, or a document in an adopted repository they point to by its
   path, which it reads with `read_file`. It reads the settings first,
   with `settings`: the inventory, then each setting the description
-  touches, whole. Settings pages use `core.call_answer_bytes` less the tool
+  touches, whole. The authorized inventory also names the caller project's
+  readable adopted repositories, each with the canonical host, owner and name
+  from its retained repository record. Other projects and ended forges are
+  excluded. These identities are read context, not settings or credentials;
+  setting, revision and history reads carry no repository context. A charter
+  document copies that host unchanged, including its port, and OWNER/NAME.
+  This lets a configuring chat name documents without a workspace or ctl.
+  Settings pages use `core.call_answer_bytes` less the tool
   name, reserving escaped framing and continuation markers. A long value
   fills the available page even after its heading; `next: OFFSET` counts
   original UTF-8 text bytes for exact reconstruction. This allowance is

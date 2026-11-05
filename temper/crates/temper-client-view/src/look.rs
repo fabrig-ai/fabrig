@@ -183,6 +183,10 @@ pub const HOME_TAG: Style = Style { owner: owner(), token: 229 };
 pub const HOME_SKIP: Style = Style { owner: owner(), token: 231 };
 /// Home’s lede and Accounts link (client/README.md, 3.5).
 pub const HOME_LEDES: Style = Style { owner: owner(), token: 233 };
+/// Home’s small repository actions (client/README.md, 3.5).
+pub const HOME_SMALL: Style = Style { owner: owner(), token: 337 };
+/// A repository’s progress line (client/README.md, 3.5).
+pub const HOME_COPY: Style = Style { owner: owner(), token: 336 };
 /// To begin’s remaining steps note (client/README.md, 3.5).
 pub const HOME_NOTE: Style = Style { owner: owner(), token: 232 };
 /// Home's first needs card (client/README.md, 3.5).
@@ -548,6 +552,9 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
+    (owner(), skein_ui::Role::List, WELCOME_NUMBERED, "ol"),
+    (owner(), skein_ui::Role::Slot, WELCOME_SPIN, "span"),
+    (owner(), skein_ui::Role::Slot, WELCOME_OK, "span"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
     (owner(), skein_ui::Role::Heading { level: 3 }, WELCOME_LEGEND, "legend"),
     (owner(), skein_ui::Role::Slot, MODEL_FACTS, "dl"),
@@ -565,6 +572,28 @@ pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
 /// The browser's phone navigation.
 pub const TABBAR: Style = Style { owner: owner(), token: 179 };
+/// Forge status in the welcome's column (client/README.md, 3.5).
+pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 338 };
+/// A Model way’s panel (client/README.md, 3.5).
+pub const WELCOME_PANEL: Style = Style { owner: owner(), token: 330 };
+/// A Model sign-in’s note (client/README.md, 3.5).
+pub const WELCOME_AWAY: Style = Style { owner: owner(), token: 331 };
+/// The paste’s numbered instructions (client/README.md, 3.5).
+pub const WELCOME_NUMBERED: Style = Style { owner: owner(), token: 332 };
+/// A Model panel’s full-width secret field (client/README.md, 3.5).
+pub const WELCOME_FIELD: Style = Style { owner: owner(), token: 333 };
+/// The welcome’s terminal command (client/README.md, 3.5).
+pub const WELCOME_CMD: Style = Style { owner: owner(), token: 334 };
+/// A checklist line under way (client/README.md, 3.5, Ready).
+pub const WELCOME_CURRENT: Style = Style { owner: owner(), token: 335 };
+/// The forge's spinning status marker.
+pub const WELCOME_SPIN: Style = Style { owner: owner(), token: 326 };
+/// The welcome's primary continuation.
+pub const WELCOME_ACTS: Style = Style { owner: owner(), token: 327 };
+/// The forge's connected tick.
+pub const WELCOME_OK: Style = Style { owner: owner(), token: 328 };
+/// The separator between the forge's name and its status.
+pub const WELCOME_SEP: Style = Style { owner: owner(), token: 329 };
 /// The look's names (skein's ui.md, 8): styles by token, regions by number.
 pub const NAMES: Names<'static> = Names {
     owner: owner(),
@@ -896,6 +925,19 @@ pub const NAMES: Names<'static> = Names {
         b"temper-by-delegate",
         b"temper-turn-tool",
         b"temper-tool-file",
+        b"temper-welcome-spin",
+        b"temper-welcome-acts",
+        b"temper-welcome-ok",
+        b"temper-welcome-sep",
+        b"temper-welcome-panel",
+        b"temper-welcome-away",
+        b"temper-welcome-numbered",
+        b"temper-welcome-field",
+        b"temper-welcome-cmd",
+        b"temper-welcome-current",
+        b"temper-home-copy",
+        b"temper-home-small",
+        b"temper-welcome-forge-status",
         b"temper-mode-chat",
         b"temper-mode-split",
         b"temper-mode-draft",
@@ -974,28 +1016,28 @@ pub const NEEDS_HOME: Style = Style { owner: owner(), token: 319 };
 pub const NEEDS_INTRO: Style = Style { owner: owner(), token: 320 };
 
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const MODE_CHAT: Style = Style { owner: owner(), token: 326 };
+pub const MODE_CHAT: Style = Style { owner: owner(), token: 339 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const MODE_SPLIT: Style = Style { owner: owner(), token: 327 };
+pub const MODE_SPLIT: Style = Style { owner: owner(), token: 340 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const MODE_DRAFT: Style = Style { owner: owner(), token: 328 };
+pub const MODE_DRAFT: Style = Style { owner: owner(), token: 341 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const DOC: Style = Style { owner: owner(), token: 329 };
+pub const DOC: Style = Style { owner: owner(), token: 342 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const DOC_INNER: Style = Style { owner: owner(), token: 330 };
+pub const DOC_INNER: Style = Style { owner: owner(), token: 343 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const DOC_PATH: Style = Style { owner: owner(), token: 331 };
+pub const DOC_PATH: Style = Style { owner: owner(), token: 344 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const DOC_SEC: Style = Style { owner: owner(), token: 332 };
+pub const DOC_SEC: Style = Style { owner: owner(), token: 345 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const DOC_CHANGED: Style = Style { owner: owner(), token: 333 };
+pub const DOC_CHANGED: Style = Style { owner: owner(), token: 346 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const DOC_NOTE: Style = Style { owner: owner(), token: 334 };
+pub const DOC_NOTE: Style = Style { owner: owner(), token: 347 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const DOC_MUTED: Style = Style { owner: owner(), token: 335 };
+pub const DOC_MUTED: Style = Style { owner: owner(), token: 348 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const SEG: Style = Style { owner: owner(), token: 336 };
+pub const SEG: Style = Style { owner: owner(), token: 349 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const SEG_SPLIT: Style = Style { owner: owner(), token: 337 };
+pub const SEG_SPLIT: Style = Style { owner: owner(), token: 350 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
-pub const RAIL_UNFOLD: Style = Style { owner: owner(), token: 338 };
+pub const RAIL_UNFOLD: Style = Style { owner: owner(), token: 351 };

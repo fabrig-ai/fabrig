@@ -147,6 +147,7 @@ pub struct Row {
     pub fetched: Option<Fetched>,
     pub offer: Offer,
     pub first: Option<First>,
+    pub starts_with: StartsWith,
     pub installations: Box<[Installation]>,
     pub ended: Option<Box<[u8]>>,
     pub app: Option<AppWay>,
@@ -156,6 +157,15 @@ pub struct Row {
     pub admin: bool,
     pub ended_stop: Option<AdminStop>,
 }
+/// What the forge starts with (temper/docs/design/protocol/setup.md, 6.7).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StartsWith {
+    Repository,
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
+}
+/// The setup request's first-repository choice (temper/docs/design/client/README.md, 4.6).
+pub use wire::v1::SetUpFirst;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetUpOutcome {
     SettingUp,
@@ -188,16 +198,13 @@ pub fn watch(limits: &super::Limits) -> Option<Watchable> {
 pub fn ask(forge: u16, org: Box<[u8]>, repository: Box<[u8]>, playground: bool, limits: &super::Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
     let forge = w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).ok()?);
-    ask_target(forge, org, repository, playground, &bounds)
+    ask_target(forge, empty(org, repository, playground, &bounds)?, &bounds)
 }
-fn ask_target(
-    forge: w::Making,
-    org: Box<[u8]>,
-    repository: Box<[u8]>,
-    playground: bool,
-    bounds: &w::Limits,
-) -> Option<Ask> {
-    let value = w::SetUp::new(bounds, w::SetUpParts { forge, org, repository, playground }).ok()?;
+fn empty(org: Box<[u8]>, repository: Box<[u8]>, playground: bool, bounds: &w::Limits) -> Option<SetUpFirst> {
+    Some(SetUpFirst::Empty(w::FirstEmpty::new(bounds, w::FirstEmptyParts { org, repository, playground }).ok()?))
+}
+fn ask_target(forge: w::Making, first: SetUpFirst, bounds: &w::Limits) -> Option<Ask> {
+    let value = w::SetUp::new(bounds, w::SetUpParts { forge, first }).ok()?;
     request(w::Request::SetUp(value), bounds)
 }
 #[must_use]
@@ -259,7 +266,8 @@ pub struct Draft {
     pub start: Start,
     pub copies: Box<[u8]>,
     pub copies_written: u64,
-    pub not_yet: bool,
+    pub blank: bool,
+    pub copies_refused: Option<super::making::CopiesRefused>,
 }
 impl Draft {
     pub(crate) fn new() -> Self {
@@ -272,7 +280,8 @@ impl Draft {
             start: Start::Empty,
             copies: Box::from(b"".as_slice()),
             copies_written: 0,
-            not_yet: false,
+            blank: false,
+            copies_refused: None,
         }
     }
     #[must_use]
@@ -298,6 +307,7 @@ pub(crate) fn write(side: &mut super::Side, limits: super::Limits, field: SetupF
     let written = draft.written.get_mut(index).expect("two setup fields");
     *written = written.checked_add(1).expect("written count fits");
     draft.checked = false;
+    draft.blank = false;
     if let Some(last) = &mut side.set_up {
         last.answer = None;
     }
@@ -310,6 +320,7 @@ pub(crate) fn write_copies(side: &mut super::Side, limits: super::Limits, text: 
     }
     let draft = &mut side.setup_form;
     draft.copies = text;
+    draft.copies_refused = None;
     draft.copies_written = draft.copies_written.checked_add(1).expect("written count fits");
     side.changed();
 }
@@ -373,6 +384,46 @@ impl Managed {
         !self.host.is_empty() && self.port != 0
     }
 }
+fn run_owned(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib::Queue<super::Request>) {
+    if !can_make(side) || !can_set_up(side) || side.playground_running() {
+        return;
+    }
+    let Some(bounds) = wire_limits(&limits) else { return };
+    let draft = &mut side.setup_form;
+    draft.blank = false;
+    draft.copies_refused = None;
+    let first = match draft.start {
+        Start::Empty => {
+            let org = draft.text(SetupField::Organization).trim_ascii();
+            let repository = draft.text(SetupField::Repository).trim_ascii();
+            if org.is_empty() || repository.is_empty() {
+                draft.checked = true;
+                draft.blank = true;
+                side.changed();
+                return;
+            }
+            let Some(first) = empty(Box::from(org), Box::from(repository), false, &bounds) else { return };
+            first
+        }
+        Start::Copies => {
+            let addresses = match super::making::parse_copies(&draft.copies) {
+                Ok(addresses) => addresses,
+                Err(why) => {
+                    draft.copies_refused = Some(why);
+                    side.changed();
+                    return;
+                }
+            };
+            let Ok(copies) = w::CopyAddresses::new(&bounds, w::CopyAddressesParts { addresses }) else {
+                return;
+            };
+            SetUpFirst::Copies(copies)
+        }
+        Start::Nothing => SetUpFirst::Nothing,
+    };
+    new_record(side, Kind::Forgejo, Mode::Owned);
+    send_setup(side, limits, 0, SetupValues { first }, out);
+}
 pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: &mut skein_lib::Queue<super::Request>) {
     match act {
         Act::SetUpOwned => {
@@ -384,21 +435,12 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
         }
         Act::Start(start) => {
             side.setup_form.start = start;
-            side.setup_form.not_yet = false;
+            side.setup_form.blank = false;
+            side.setup_form.copies_refused = None;
             side.changed();
         }
-        Act::RunOwned => {
-            if side.setup_form.start != Start::Empty {
-                side.setup_form.not_yet = true;
-                side.changed();
-                return;
-            }
-            if !can_make(side) || !can_set_up(side) || side.playground_running() {
-                return;
-            }
-            new_record(side, Kind::Forgejo, Mode::Owned);
-            set_up(side, limits, 0, out);
-        }
+        Act::RunOwned => run_owned(side, limits, out),
+
         Act::GitHub { back } => {
             if !can_make(side)
                 || side.party.is_none()
@@ -662,10 +704,8 @@ fn removal_told(
 /// The last set up sent by this client, retained across page changes.
 #[derive(Debug)]
 pub struct SetUp {
-    pub playground: bool,
+    pub first: SetUpFirst,
     pub forge: Option<u16>,
-    pub org: Box<[u8]>,
-    pub repository: Box<[u8]>,
     pub request: skein_lib::Token,
     pub progress: Option<skein_lib::RequestProgress>,
     pub answer: Option<SetUpAnswer>,
@@ -718,20 +758,22 @@ pub(crate) fn set_up(
     if !can_set_up(side) {
         return;
     }
-    let previous = retry_fields(side, forge);
+    let previous = retry_fields(side, forge, limits);
     let draft = &mut side.setup_form;
     draft.checked = true;
-    let (org, repository, playground) = match previous {
-        Some(fields) => (fields.org, fields.repository, fields.playground),
+    let values = match previous {
+        Some(fields) => fields,
         None => {
             if draft.fields[0].is_empty() || draft.fields[1].is_empty() {
                 side.changed();
                 return;
             }
-            (draft.fields[0].clone(), draft.fields[1].clone(), false)
+            let Some(bounds) = wire_limits(&limits) else { return };
+            let Some(first) = empty(draft.fields[0].clone(), draft.fields[1].clone(), false, &bounds) else { return };
+            SetupValues { first }
         }
     };
-    send_setup(side, limits, forge, SetupValues { playground, org, repository }, out);
+    send_setup(side, limits, forge, values, out);
 }
 /// The welcome's set up under the box sends these, none of them asked
 /// (client/README.md, 3.5).
@@ -747,13 +789,9 @@ pub(crate) fn set_up_at_once(
     if !can_set_up(side) {
         return;
     }
-    send_setup(
-        side,
-        limits,
-        forge,
-        SetupValues { playground: false, org: Box::from(AT_ONCE_ORG), repository: Box::from(AT_ONCE_REPOSITORY) },
-        out,
-    );
+    let Some(bounds) = wire_limits(&limits) else { return };
+    let Some(first) = empty(Box::from(AT_ONCE_ORG), Box::from(AT_ONCE_REPOSITORY), false, &bounds) else { return };
+    send_setup(side, limits, forge, SetupValues { first }, out);
 }
 fn can_set_up(side: &super::Side) -> bool {
     if side.party.is_none() || side.served == super::Served::OutOfDate {
@@ -774,19 +812,17 @@ fn send_setup(
     out: &mut skein_lib::Queue<super::Request>,
 ) {
     let Some(_party) = side.party else { return };
-    let SetupValues { playground, org, repository } = values;
+    let SetupValues { first } = values;
     let Some(bounds) = wire_limits(&limits) else { return };
     let Some(target) = making(side, forge, &bounds, None) else { return };
-    let Some(ask) = ask_target(target, org.clone(), repository.clone(), playground, &bounds) else {
+    let Some(ask) = ask_target(target, first.clone(), &bounds) else {
         return;
     };
     side.serial = side.serial.checked_add(1).expect("forge request serial fits");
     let request = skein_lib::Token::new(side.serial);
     side.set_up = Some(Box::new(SetUp {
-        playground,
+        first,
         forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
-        org,
-        repository,
         request,
         progress: Some(skein_lib::RequestProgress::Parked),
         answer: None,
@@ -795,11 +831,9 @@ fn send_setup(
     side.changed();
 }
 struct SetupValues {
-    playground: bool,
-    org: Box<[u8]>,
-    repository: Box<[u8]>,
+    first: SetUpFirst,
 }
-fn retry_fields(side: &super::Side, forge: u16) -> Option<SetupValues> {
+fn retry_fields(side: &super::Side, forge: u16, limits: super::Limits) -> Option<SetupValues> {
     let State::Rows(rows) = &side.forges else { return None };
     for row in rows {
         if row.number != forge || !super::connect::failed(row) {
@@ -808,19 +842,24 @@ fn retry_fields(side: &super::Side, forge: u16) -> Option<SetupValues> {
         if let Some(last) = &side.set_up
             && last.forge == Some(forge)
         {
-            return Some(SetupValues {
-                playground: last.playground,
-                org: last.org.clone(),
-                repository: last.repository.clone(),
-            });
+            return Some(SetupValues { first: last.first.clone() });
         }
-        if let Some(first) = &row.first {
-            return Some(SetupValues {
-                playground: first.playground,
-                org: first.org.clone(),
-                repository: first.repository.clone(),
-            });
-        }
+        let bounds = wire_limits(&limits)?;
+        let first = match &row.starts_with {
+            StartsWith::Repository => {
+                let first = row.first.as_ref()?;
+                empty(first.org.clone(), first.repository.clone(), first.playground, &bounds)?
+            }
+            StartsWith::Copies { addresses } => {
+                let mut list = skein_lib::List::with_capacity(wire::FIRST_COPIES);
+                for address in addresses {
+                    list.push(address.clone()).ok()?;
+                }
+                SetUpFirst::Copies(w::CopyAddresses::new(&bounds, w::CopyAddressesParts { addresses: list }).ok()?)
+            }
+            StartsWith::Nothing => SetUpFirst::Nothing,
+        };
+        return Some(SetupValues { first });
     }
     None
 }
