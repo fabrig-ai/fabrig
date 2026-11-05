@@ -1,5 +1,5 @@
 //! Private app.ini from setup and the secrets recorded once (protocol/setup.md, 6.2).
-use crate::{check::joined, place::Place, setup::Owned, state::Secrets};
+use crate::{check::joined, place::Place, setup::Owned, sign_in::FirstSignIn, state::Secrets};
 use alloc::boxed::Box;
 use core::net::{IpAddr, SocketAddr};
 use skein_lib::{Decimal, Secret, Writer};
@@ -56,7 +56,13 @@ pub(crate) fn socket(address: SocketAddr) -> Box<[u8]> {
 }
 /// Forgejo settings. Only a configured listener adds an allowed webhook host.
 #[must_use]
-pub fn text(owned: &Owned, place: &Place, secrets: &Secrets, allowed_host: Option<IpAddr>, sign_in: bool) -> Secret {
+pub fn text(
+    owned: &Owned,
+    place: &Place,
+    secrets: &Secrets,
+    allowed_host: Option<IpAddr>,
+    sign_in: Option<FirstSignIn>,
+) -> Secret {
     let work = place.work_path();
     let address = ip(owned.listen.ip());
     let socket = socket(owned.listen);
@@ -74,10 +80,10 @@ pub fn text(owned: &Owned, place: &Place, secrets: &Secrets, allowed_host: Optio
         }
         None => joined(&[b"\nROOT_URL = http://", &socket, b"/"]),
     };
-    let registration = if sign_in {
-        b"ALLOW_ONLY_EXTERNAL_REGISTRATION = true\n[oauth2_client]\nENABLE_AUTO_REGISTRATION = true\nUSERNAME = preferred_username\nACCOUNT_LINKING = login\n".as_slice()
-    } else {
-        b""
+    let registration = match sign_in {
+        Some(FirstSignIn::MakesAccount) => b"ALLOW_ONLY_EXTERNAL_REGISTRATION = true\n[oauth2_client]\nENABLE_AUTO_REGISTRATION = true\nUSERNAME = preferred_username\nACCOUNT_LINKING = login\n".as_slice(),
+        Some(FirstSignIn::LinksOnly) => b"[oauth2_client]\nENABLE_AUTO_REGISTRATION = false\nUSERNAME = preferred_username\nACCOUNT_LINKING = login\n",
+        None => b"",
     };
     Secret::new(joined(&[
         b"RUN_USER = ",
