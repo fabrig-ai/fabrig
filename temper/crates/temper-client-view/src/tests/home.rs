@@ -199,15 +199,7 @@ fn home_documents_with_reads(
     dismissed: Option<&[u32]>,
     settings_delivered: bool,
 ) -> (d::Domain, Token) {
-    let (mut root, me_watch, _, _, accounts, _, needs_watch) = f::root_at_with_dismissals_and_needs(
-        Address::Settings { project: f::PROJECT },
-        &home_limits(),
-        b"Shop",
-        None,
-        None,
-        Some(rows),
-        dismissed,
-    );
+    let (mut root, me_watch, accounts, settings, needs_watch) = f::home_root(rows, dismissed);
     let template_root = f::chat::messaging_root();
     let template_me = template_root.pages().me(template_root.client()).unwrap();
     let mut me = root.pages().me(root.client()).unwrap().clone();
@@ -234,7 +226,7 @@ fn home_documents_with_reads(
         d::Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
-                    watch: needs_watch.unwrap(),
+                    watch: needs_watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
                         List::with_capacity(0),
                         0,
@@ -249,7 +241,6 @@ fn home_documents_with_reads(
     while let Some(request) = delivered.pop() {
         out.push(request);
     }
-    let mut settings = None;
     let mut live = None;
     for request in &out {
         if let d::Request::Unlinked {
@@ -260,9 +251,9 @@ fn home_documents_with_reads(
         } = request
         {
             match subject {
-                c::Subject::Settings => settings = Some(*watch),
                 c::Subject::Tasks { .. } => live = Some(*watch),
-                c::Subject::Me
+                c::Subject::Settings
+                | c::Subject::Me
                 | c::Subject::Task { .. }
                 | c::Subject::Tree { .. }
                 | c::Subject::Chips { .. }
@@ -286,7 +277,7 @@ fn home_documents_with_reads(
     if settings_delivered {
         deliver(
             &mut root,
-            settings.expect("Home settings"),
+            settings,
             c::Delivery::Settings(Box::new(c::SettingsDocument {
                 newest: 0,
                 settings: lines,
@@ -316,7 +307,7 @@ fn home_documents_with_reads(
         out.push(request);
     }
     settle_home(&mut root, &mut out, needs.as_ref(), chats.as_ref());
-    (root, accounts.unwrap())
+    (root, accounts)
 }
 fn read_done(root: &mut d::Domain, read: Token, value: c::ReadValue) -> Queue<d::Request> {
     drive(
@@ -1039,7 +1030,7 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
                 &mut view,
                 Role::Link,
                 b"Add a README",
-                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
             );
             assert_action(
                 &mut view,
@@ -1080,7 +1071,7 @@ fn unread_need_has_only_meta_and_unknown_headline() {
             &mut view,
             Role::Link,
             b"T9",
-            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
         );
     }
 }
@@ -1151,7 +1142,7 @@ fn nonquestion_need_opens_inbox_and_keeps_its_lowercase_kind() {
                 &mut view,
                 Role::Button,
                 b"Open",
-                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
             );
             assert!(
                 !main_nodes(view.tree())
@@ -1320,7 +1311,7 @@ fn read_need_without_a_title_links_by_task_number() {
             &mut view,
             Role::Link,
             b"Task 9",
-            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
         );
         assert_action(
             &mut view,

@@ -66,10 +66,9 @@ where a worker's translation aborts on a stored source name smith
 refuses (`protocol/README.md`), and lags in a removal without the
 box (`domain/forge.md`), a project's Delete (`client/README.md`),
 a failure of the secrets' store on an accounts' request, which stops
-no engine (`protocol/credentials.md`), and
-a forge's Start over with no welcome, which ends at the inbox
-(`client/forge.md`), and a closed change whose repository a removal
-erased leaves no project the Changes document (`client/README.md`);
+no engine (`protocol/credentials.md`), and a closed change whose
+repository a removal erased leaves no project the Changes document
+(`client/README.md`);
 public reading still lacks a deployment's proxy configuration and
 figures, and its negative walk plays the proxy's own rules against
 scripted upstreams rather than temper's service
@@ -91,7 +90,8 @@ sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
 nor filters for a project with no goal template; `NewChat` draws its
 layout with no project, and says a project has no repository while
-the forges' rows are unknown; and under a kind or
+the forges' rows are unknown; an account's sources are a list, not
+`.setting` rows; and under a kind or
 goal filter Needs you's answered lines and head count what the filter
 leaves out (`client/README.md`). The
 case library's purpose is retired, the fake
