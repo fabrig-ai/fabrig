@@ -177,6 +177,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         flags: tasks::Flags::PLAIN,
         last_activity: Wall::EPOCH,
         ended_below: tasks::Endings::ZERO,
+        ended_delegates: tasks::Endings::ZERO,
         question_lines: Box::new([]),
         hold: 0,
         placed: None,

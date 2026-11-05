@@ -515,6 +515,8 @@ mod tests {
             budget: task.budget,
             waits_on: c::WaitsOn::Nothing,
             phases: c::PhaseCounts::ZERO,
+            delegates_done: 0,
+            delegates_total: 0,
             held_below: 0,
             conversation: None,
         }

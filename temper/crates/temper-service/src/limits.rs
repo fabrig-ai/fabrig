@@ -398,7 +398,7 @@ const STANDARD_ROOT: Root = Root {
     brief: STANDARD_BRIEF,
     journal: engine::JournalLimits {
         // Deep task row at jig standard's bounds, including its inbox (engine::row_bound).
-        transcript_bytes: 22_467_632,
+        transcript_bytes: 22_467_648,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },
