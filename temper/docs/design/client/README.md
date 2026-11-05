@@ -5872,6 +5872,9 @@ own tests:
   credential once; another party's kept work. Default: not in temper's
   client; the person acts on them through the engine's configuration,
   or not at all.
+- **A repository's role, health and landing rules on the Repositories
+  tab** (3.5; `forge.md`, 5.2 and 5.3). Default: not drawn, as the user's
+  request of 2026-11-05 settled: a line says its name and its forge.
 - **The form's place:** among a project's settings (`forge.md`, 5.3),
   which `Settings` (3.5) links and does not hold. Default: a page of its
   own, from `Settings`, Home and the banner's navigation.

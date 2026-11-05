@@ -126,6 +126,11 @@
   `forges` watch refused, ended or not delivered yet, where the section has
   nothing said. The request of 2026-11-05 gives that line two cases and no
   words for not knowing; no test holds it and no reason is recorded.
+  3.5, *The rows*: an account's sources are a list under their level-3
+  heading, each with its state and acts, and a sign-in under way a paragraph
+  (`temper-client-view`'s `pages/accounts/rows.rs`, `draw`), where the section
+  has a row's facts as `.setting` rows, because the rows keep their sources,
+  observations and forms in document order.
 - **Design departs:** 3.5, *A chat's conversation*, its cards, from the request
   `ui-chats` of 2026-11-05, which names a proposal, a held task and a question's
   answer as cards in the conversation: a chat's page holds proposals alone
@@ -152,6 +157,14 @@
   And " · later" shows on *Needs you*'s mono line as on Home's, where the request
   and the mock have it on Home's card alone: the one function draws both, and no
   reason is recorded.
+- **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
+  `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
+  draws no path, where the request has each flow add one: the same request
+  keeps the terminal's prints' meaning, a path would shift every number on the
+  flows, and the terminal's rail holds "Settings". With hosts kept and none
+  connected, `.empty` stands above their "Not connected" lines, where the
+  request gives none connected `.empty` and no words for that case, so that no
+  state is dropped.
 - **Design departs:** 3.5, *Goals*, from the request of 2026-11-05: "6 / 9" is
   on the task line (jig's `client/domain/contract.md`, 5.1), where the request
   offered the goal's document or the tree's read, and a row reads its report

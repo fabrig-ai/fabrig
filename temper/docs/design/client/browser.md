@@ -1242,6 +1242,19 @@ from the engine's own answers, is where the look is tuned.
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Settings' frame |
 | `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot |
+| `forges-empty` | the Forges tab's quiet band, in a world with no forge |
+| `forges-setting-up` | the first run's Forges at step 6: a row setting up |
+| `forges-fetching` | the first run's Forges at step 24: a row fetching Forgejo, its percent in its summary |
+| `forges-fetching-bytes` | the first run's Forges at step 25: a row fetching Forgejo, its bytes in its summary |
+| `forges-failed` | the first run's Forges at step 9: a set up failed, with "Set up again" |
+| `forges-replacing` | the solo world's Forges, a row's Replace open on its private key |
+| `forges-removing` | the first run's Forges at step 7: a row's removal asking first |
+| `accounts-empty` | the Accounts tab's quiet band, in a world with no account |
+| `accounts-states` | the reference world's accounts, a row in each state of a source |
+| `accounts-key` | the reference world's accounts, a row's key field open |
+| `accounts-removing` | the reference world's accounts, an account's removal asking first |
+| `accounts-signing-in` | the reference world's accounts, a row's sign-in under way with its field for the page's address |
+| `accounts-program-needs-sign-in` | the solo world's accounts: a program's login not signed in on its host, with "Check again" |
 | `builders` | the Builders tab, its hosts connected, draining and not connected |
 | `builders-not-owner` | the Builders tab for a person with no role in the deployment |
 | `builders-none` | the Builders tab with no host connected |

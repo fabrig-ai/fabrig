@@ -529,7 +529,7 @@ pub static MEMBERS: [Member; 108] = [
         kind: "text",
         bound: "relative repository path without parent segments; 1 to 4,096 bytes",
         required: false,
-        line: "The merge command run from the repository root.",
+        line: "The merge command’s path from the repository root; see The merge command, below.",
         gone: None,
     },
     Member {
