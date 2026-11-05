@@ -509,7 +509,13 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::ChatState { party, project, task, last_reply, live, seen, replies } => {
             domain.assert_projection_event();
-            inbox::chat_state_event(domain, env, party, project, task, last_reply, live, seen, replies, out);
+            inbox::chat_state_event(
+                domain,
+                env,
+                inbox::State { party, project, task, last_reply, live, seen },
+                replies,
+                out,
+            );
         }
         Event::ConversationSeen { request, project, last_reply } => {
             conversation_seen_decision(domain, env, request, project, last_reply, out);
@@ -529,7 +535,13 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Restore { record } => start::load(domain, env, record, out),
         Event::SignedIn { reply_to, person, sign_in, identity, kind, held } => {
-            signin(domain, env, reply_to, person, sign_in, identity, kind, held, out);
+            signin(
+                domain,
+                env,
+                reply_to,
+                parties::SigningIn { candidate: person, number: sign_in, identity, kind, held },
+                out,
+            );
         }
         Event::Whose { reply_to, sign_in } => {
             if !domain.ready() {
@@ -566,7 +578,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             }
         }
         Event::Ask { reply_to, sign_in, key, ask, models } => {
-            admit_ask(domain, env, reply_to, sign_in, key, ask, models, out);
+            admit_ask(domain, env, reply_to, (sign_in, key), ask, models, out);
         }
         Event::Decided { request, outcome } => decided(domain, env, Id::<Pending>::from_token(request), outcome, out),
     }

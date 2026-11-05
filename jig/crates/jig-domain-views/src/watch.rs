@@ -45,15 +45,13 @@ pub(crate) enum State {
     ClosingDelivery { end: End },
 }
 
-#[expect(clippy::too_many_arguments, reason = "one admitted watch carries its optional stream binding")]
 pub(crate) fn open(
     domain: &mut Domain,
     limits: &Limits,
     token: Token,
     party: Token,
     subject: Token,
-    window: Window,
-    follow: Option<Follow>,
+    (window, follow): (Window, Option<Follow>),
     out: &mut Queue<Request>,
 ) {
     assert!(!domain.names.contains_key(&token), "unique open watcher tokens");
