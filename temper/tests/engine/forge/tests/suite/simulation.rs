@@ -1111,6 +1111,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::Connect { .. }
                 | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
+                | top::Request::AdoptAccess { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }

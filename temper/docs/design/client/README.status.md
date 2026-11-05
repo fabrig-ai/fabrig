@@ -2,6 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period
   (`temper-service`'s `stock.rs`, `project_policy`), so once a person's pool has

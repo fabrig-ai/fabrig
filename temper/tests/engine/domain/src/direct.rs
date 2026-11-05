@@ -165,6 +165,7 @@ impl Driver {
         self.root.reclaim();
     }
 
+    #[expect(clippy::too_many_lines, reason = "the world routes each root request in its collection pass")]
     pub fn collect(&mut self) {
         for _ in 0..self.out.len() {
             let request = self.out.pop().expect("output count");
@@ -230,6 +231,11 @@ impl Driver {
                         op,
                         &self.env.limits.forge.client,
                     );
+                }
+                engine::Request::AdoptAccess { forge, request, .. } => {
+                    self.events.push_back(engine::Event::Forge(Box::new(
+                        temper_engine_domain_forge::Event::AccessAnswered { forge, request, answer: Ok(()) },
+                    )));
                 }
                 engine::Request::Stop => self.stopped = true,
                 engine::Request::Worker(engine::WorkerRequest::Host(request)) => self.host_requests.push(request),
