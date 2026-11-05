@@ -115,7 +115,7 @@ fn create_sends_and_goes_to_its_goal() {
     assert_eq!(task.authority.spend, budget);
     assert_eq!(task.authority.deadline, None);
     assert_eq!(task.llm, None);
-    assert_eq!(task.spec.words.bytes(), start_goal::words(b"away-mode", PATH, Some(CHAT)).as_ref());
+    assert_eq!(task.spec.words.bytes(), start_goal::words(b"away-mode", PATH, Some(CHAT), false).as_ref());
     assert!(h.pages.start().is_some());
     h.answer(key, done(c::DocumentOutcome::Created { first: GOAL, last: GOAL, given: None }));
     assert!(h.pages.start().is_none());
@@ -224,7 +224,7 @@ fn a_double_press_joins_the_pending_request() {
 #[test]
 fn the_words_read_back_through_draft_of() {
     for chat in [None, Some(CHAT)] {
-        let words = start_goal::words(b"Away mode", PATH, chat);
+        let words = start_goal::words(b"Away mode", PATH, chat, false);
         let expected: &[u8] = if chat.is_some() {
             b"Away mode\n\nBuild docs/design/draft/away-mode.md.\nDraft: docs/design/draft/away-mode.md\nChat: T4"
         } else {
@@ -297,7 +297,7 @@ fn too_long_text_stays_open_without_sending() {
         let Some(Failure::TooLong) = h.pages.start().unwrap().error else { panic!("text limit refusal") };
         assert!(h.out.is_empty());
     }
-    let length = u32::try_from(start_goal::words(b"away-mode", PATH, Some(CHAT)).len()).unwrap();
+    let length = u32::try_from(start_goal::words(b"away-mode", PATH, Some(CHAT), false).len()).unwrap();
     for bound in [length.checked_sub(1).unwrap(), length] {
         let mut h = Harness::new(me());
         h.open();
@@ -337,4 +337,34 @@ fn missing_me_does_not_open() {
         &mut Queue::uncapped(),
     );
     assert!(pages.start().is_none());
+}
+
+#[test]
+fn always_adds_the_line() {
+    let mut h = Harness::new(me());
+    h.open();
+    h.act(Act::StartAsks { always: true });
+    h.act(Act::StartGoal);
+    let (_, ask) = h.sent();
+    let c::Ask::Create { tasks, .. } = ask else { panic!("create") };
+    assert!(tasks.get(0).unwrap().spec.words.bytes().ends_with(b"\nAsks: always"));
+    h.act(Act::StartAsks { always: false });
+    assert!(h.pages.start().unwrap().always, "the sent choice is held while pending");
+}
+#[test]
+fn follow_adds_none() {
+    let mut h = Harness::new(me());
+    h.open();
+    h.act(Act::StartAsks { always: true });
+    h.act(Act::StartAsks { always: false });
+    h.act(Act::StartGoal);
+    let (_, ask) = h.sent();
+    let c::Ask::Create { tasks, .. } = ask else { panic!("create") };
+    assert!(skein_lib::bytes::find(tasks.get(0).unwrap().spec.words.bytes(), b"Asks:").is_none());
+}
+#[test]
+fn the_default_follows() {
+    let mut h = Harness::new(me());
+    h.open();
+    assert!(!h.pages.start().unwrap().always);
 }

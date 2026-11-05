@@ -14,6 +14,10 @@ fn every_record_reads_back_as_written() {
         Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
         Line::Primary(Primary::Control),
         Line::Primary(Primary::Meta),
+        Line::Zone(120),
+        Line::Zone(-300),
+        Line::Zone(i32::MIN),
+        Line::Zone(i32::MAX),
         Line::Ways { content: bytes(), origin: bytes() },
         Line::Forge(bytes()),
         Line::Path(bytes()),
@@ -97,6 +101,11 @@ fn a_malformed_line_is_unreadable() {
         "path \"open",
         "path \"\\x4\"",
         "path \"\\q\"",
+        "zone +120",
+        "zone -0",
+        "zone 0120",
+        "zone 2147483648",
+        "zone -2147483649",
         "seed -1",
         "seed 01",
         "",
@@ -136,6 +145,7 @@ fn facts() -> Facts {
         now: Time::ZERO,
         wall: Wall::EPOCH,
         primary: Primary::Control,
+        zone_minutes: 0,
         ways: None,
         forges: Vec::new(),
         path: b"/accounts/connect".as_slice().into(),
@@ -400,5 +410,19 @@ fn a_marks_lead_is_its_next_act() {
         let recording = recording(&[turn(0), Line::Mark(None), self::act(act), Line::Deadline(None)]);
         let mut replay = Replay::new(&recording).expect("read mark");
         assert_eq!(replay.next().expect("mark").expect("act's mark").lead, lead);
+    }
+}
+
+#[test]
+fn a_journey_keeps_the_shells_zone_and_omits_zero() {
+    for zone in [0_i32, 120_i32, -300_i32] {
+        let mut facts = facts();
+        facts.zone_minutes = zone;
+        let (_, page) = facts.start();
+        let save = Recorder::new(&facts).save(&page);
+        let read = lines(&save).expect("read zone facts");
+        assert_eq!(read.iter().any(|line| matches!(line, Line::Zone(value) if *value == zone)), zone != 0);
+        let (replayed, _) = replay::facts(&read).expect("replay zone facts");
+        assert_eq!(replayed.zone_minutes, zone);
     }
 }

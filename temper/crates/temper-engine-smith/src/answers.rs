@@ -442,6 +442,21 @@ fn proposed(
 fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
+        CallAnswer::Decided { took: choice } => {
+            match choice {
+                Some(words) => {
+                    text.add(b"Decided: carry on with ")?;
+                    text.add(words)?;
+                    text.add(b".")?;
+                }
+                None => {
+                    text.add(
+                        b"Ask: your person is here or this kind waits for them. Ask with message, as a question.",
+                    )?;
+                }
+            }
+            false
+        }
         CallAnswer::TaskRead(read) => return task_read(read, HostAnswer::CAPACITY),
         CallAnswer::SettingsRefused(why) => {
             settings_refused(&mut text, why)?;
@@ -771,7 +786,7 @@ fn authority_findings(
 
 fn tool_family(tool: &[u8]) -> Option<&'static [u8]> {
     Some(match tool {
-        b"amend" | b"cancel" | b"release" => b"control",
+        b"decided" | b"amend" | b"cancel" | b"release" => b"control",
         b"goal" | b"change" | b"delegate" => b"delegate",
         b"message" | b"introduce" => b"message",
         b"decide" | b"withdraw" | b"decide_escalation" => b"decide",

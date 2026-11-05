@@ -10,6 +10,8 @@ use jig_protocol_engine_clients_http as http;
 use skein_io as io;
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain as root;
+#[cfg(test)]
+mod admission_tests;
 pub mod bundle;
 pub mod fetch;
 pub mod forge_sign_in;
@@ -40,6 +42,7 @@ pub struct Clients {
     mount_env: Env<http::Limits>,
     mount_out: Queue<http::Request>,
     server_out: Queue<crate::server::Routed>,
+    waiting: Map<Token, skein_http::server::Call>,
     replies: Map<Token, bundle::Reply>,
     github: Map<Token, github::Reply>,
     pub(crate) google: Option<google::Google>,
@@ -238,6 +241,7 @@ impl Clients {
             mount_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients_http },
             mount_out: Queue::uncapped(),
             server_out: Queue::uncapped(),
+            waiting: Map::with_capacity(crate::limits::server(&config.limits).connections),
             replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
             google: None,
             google_replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
@@ -396,7 +400,11 @@ impl Clients {
                 crate::server::Routed::Call { call, head } => {
                     // Claims depend on the prefix alone; the mounted mapping checks the Host.
                     let claimed = http::claims(&http_settings(None), &head);
-                    if claimed && self.mount.room_for(&head) > 0 {
+                    if claimed && !head.target.starts_with(b"/jig/v1/public/") && self.stopping.is_none() {
+                        // The existing connection and stall bounds hold this head;
+                        // its body is not asked for until the mapping has room.
+                        self.waiting.insert(call, head).expect("one waiting head per server connection");
+                    } else if claimed && self.mount.room_for(&head) > 0 {
                         self.mount.down(&self.mount_env, http::Event::Call { call, head });
                     } else if !claimed && provider::claims(&head.target) {
                         self.provider_call(call, head);
@@ -409,7 +417,23 @@ impl Clients {
                     }
                 }
                 crate::server::Routed::Http { call, event } => {
-                    if self.provider_replies.contains_key(&call) {
+                    if self.waiting.contains_key(&call) {
+                        match event {
+                            skein_http::server::Event::Closed
+                            | skein_http::server::Event::Ended
+                            | skein_http::server::Event::Done(_)
+                            | skein_http::server::Event::Failed(_)
+                            | skein_http::server::Event::Refused(_) => {
+                                self.waiting.remove(&call).expect("waiting head");
+                                self.server.done(call, &mut self.server_out);
+                            }
+                            skein_http::server::Event::Body(_)
+                            | skein_http::server::Event::Reply(_)
+                            | skein_http::server::Event::Call(_) => {
+                                unreachable!("waiting heads ask for no body or reply")
+                            }
+                        }
+                    } else if self.provider_replies.contains_key(&call) {
                         self.provider_event(call, event);
                     } else if self.google_replies.contains_key(&call) {
                         self.google_event(call, event);
@@ -424,11 +448,29 @@ impl Clients {
             }
         }
         self.closed = self.component_closed
+            && self.waiting.is_empty()
             && self.server.closed()
             && match &self.google {
                 Some(google) => google.closed(),
                 None => true,
             };
+    }
+    fn admit_waiting(&mut self) -> bool {
+        let mut ready = None;
+        for (call, head) in &self.waiting {
+            if self.stopping.is_some() || self.mount.room_for(head) > 0 {
+                ready = Some(*call);
+                break;
+            }
+        }
+        let Some(call) = ready else { return false };
+        let head = self.waiting.remove(&call).expect("ready head");
+        if self.stopping.is_some() {
+            self.serve_call(call, &head, true);
+        } else {
+            self.mount.down(&self.mount_env, http::Event::Call { call, head });
+        }
+        true
     }
     fn root(&mut self, value: root::Event, events: &mut Queue<root::Event>) {
         if self.starting.is_some() {
@@ -570,6 +612,7 @@ impl Clients {
         self.server.fire(&mut self.server_out);
         let server_pending = self.server.advance(&mut self.server_out);
         self.server_requests();
+        let admitted = self.admit_waiting();
         self.google_advance(events);
         self.endings_step(events, forges, demo, accounts);
         self.advance(events, forges, demo, accounts);
@@ -580,7 +623,7 @@ impl Clients {
             self.component.fire(&self.env);
         }
         self.advance(events, forges, demo, accounts);
-        self.pending = server_pending || !self.server_out.is_empty();
+        self.pending = server_pending || admitted || !self.server_out.is_empty();
         let mount_pending = self.mount.up(&self.mount_env, &mut self.mount_out);
         self.pending |= mount_pending;
         if self.component_closed && !mount_pending && self.mount_out.is_empty() && self.out.is_empty() {

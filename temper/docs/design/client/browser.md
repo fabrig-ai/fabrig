@@ -155,6 +155,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   person (section 5). A service's credential is never shown: temper's
   client makes no service (`README.md`, section 11).
 
+The person's zone is one of the shell's inputs: `Date`'s offset, in minutes
+east of universal time, read at start and recorded in a journey's facts, so a
+replay says the same clocks (`README.md`, 5.12).
+
 ### 2.2 Serving
 
 - **The routes of the clients' listener,** temper's, in this order,
@@ -201,6 +205,13 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **jig's example guards, as they are** (`README.md`, section 8): the
   Host allow-list holding the listener's own address; a cookie without
   jig's browser header refused.
+- **Ordinary calls wait for jig's mapping's room** (jig's
+  `protocol/client.md`, 17.4). Each waiting head stays under the listener's
+  connection bound and stall deadline, with no body read until admitted;
+  a closed connection drops its head. The small profile's four calls,
+  streams included, therefore serve one page's concurrent requests in
+  turn. Public reads retain their separate busy response (jig's
+  `protocol/client.md`, 17.5); stopping refuses waiting ordinary calls.
 - **The bundle** is skein's bundler's output (skein's `ui-web.md`,
   section 4): the shell's module, skein's stylesheet and temper's
   (2.5). temper's build embeds it in the binary (2.6);
@@ -1182,6 +1193,12 @@ from the engine's own answers, is where the look is tuned.
 | `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
 | `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
 | `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
+| `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
+| `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
+| `home-away-overturned` | hand-made Home deliveries: a row overturned, its task live, and one ended, "landed 03:12" |
+| `rail-away-off` | a project’s page after turning the switch off, with its toast open |
+| `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
+| `settings-away` | *How work runs* with the section `#away`, the defaults ticked |
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
 | `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
@@ -1306,8 +1323,8 @@ from the engine's own answers, is where the look is tuned.
 | `goal-toast` | `goal-running` paused, its toast showing |
 | `goal-sending` | `goal-running` with the person's words sent and one being sent, the composer holding its next words |
 | `start-goal` | Goals with "Start one from a draft" pressed: the sheet with no draft, its Draft field and two ways |
-| `start-goal-draft` | the sheet opened with first-run-projects.md, its name and its default way |
-| `start-goal-refused` | `start-goal-draft` after a refused start: `.sheet-error` in jig's words |
+| `start-goal-draft` | the sheet opened with first-run-projects.md, its name, its default way and "When it needs you", following the away switch |
+| `start-goal-refused` | `start-goal-draft` after a refused start: "Always ask" chosen, `.sheet-error` in jig's words |
 | `task-solo-T3` | the solo world's goal T3, on `goal.html`'s page |
 | `accounts-solo` | the solo world's accounts |
 | `chats-first-run-1` | the first run's Chats at step 1: an empty list |

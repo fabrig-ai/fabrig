@@ -140,6 +140,15 @@ section 7).
   | 36 | `ProjectFacts` | `ProjectFacts { project }` | a project's landed count, the wall of its latest landing, the status agent's brief, none or `{ sentence, lede, at, landed }`, and its run in flight, none or `{ task, landed, since }` (`../domain/forge.md`, 5.6 and 5.7). Written in the decision that lands a change, when a run is asked, made or refused, and when a brief is heard; erased with its project | `judge_projects` |
   | 37 | `Looked` | `Looked { party, project }` | a party's `previous` and `latest` looks at a project, walls, and the `landed` counts at them, `seen` and `next_seen` (`../domain/forge.md`, 5.6). Written by the party's request; erased with its project | `bindings` times `judge_projects` |
 
+- **A person's away and what was decided for them,** after them:
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 38 | `Away` | `Away { party, project }`: the party, then the project | a person's Away switch on a project: `since`, `until` or none, `kinds`, `landed`, `off` or none (`../domain/forge.md`, 5.8). Written by the party's `SetAway`; erased with its project. A family of the forge connector's though it is people's, as `Binding` is | `bindings` times `judge_projects` |
+  | 39 | `Decided` | `Decided { project, number }`: the project, then the row's number | what a goal decided while its person was away: `party`, `task`, `at`, `question` at most 400 bytes, `options` 2 to 6 of at most 120 bytes each, `took`, `why` at most 400 bytes, `overturned` (`../domain/forge.md`, 5.9). Written by the `decided` call the connector lets, and `Overturn`; the 65th of a project erases its oldest in that decision; erased with its project | 64 times `judge_projects` |
+
+  A named call's `CallPayload` gains `decided`, `CallDecided`: the taken
+  option's words, or none for ask (`../domain/forge.md`, 5.9).
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads a row: what a party sees of them comes in
   the forge's documents (`../client/README.md`, section 4).
@@ -177,6 +186,8 @@ section 7).
     the project.
   - `ProjectFacts` is the project; `Looked` is the party, then the
     project.
+  - `Away` is the party, then the project; `Decided` is the project,
+    then the number.
 - **Written out, not generated:** each family has a small encoder and
   decoder in `temper-protocol-store`. A property test holds each encoder
   to the order `Key` derives, on generated keys of every family, and

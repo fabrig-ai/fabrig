@@ -223,7 +223,9 @@ impl<'a> Page<'a> {
     }
 
     pub fn set_href(&mut self, node: NodeId, path: &[u8], ops: &mut Vec<Op>) {
-        self.held(node);
+        if self.held(node).href.as_deref() == Some(path) {
+            return;
+        }
         self.nodes.get_mut(&node).expect("held node").href = Some(path.into());
         self.remap(node);
         ops.push(Op::Href { node, path: path.into() });

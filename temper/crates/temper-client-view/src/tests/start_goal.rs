@@ -132,7 +132,10 @@ fn one_option_per_way_in_order() {
     let mut choices = List::uncapped();
     let mut names = List::uncapped();
     for node in tree.nodes() {
-        if node.role == Role::Choice {
+        if node.role == Role::Choice
+            && let Some(Action::Pages(Act::StartWay { .. })) =
+                bindings.decode(node.binding.unwrap().token, skein_ui::Act::Toggle)
+        {
             choices.push(node).unwrap();
             names.push(node.name.as_deref().unwrap()).unwrap();
         }
@@ -165,6 +168,9 @@ fn the_default_is_chosen_and_says_so() {
                 continue;
             }
             let act = bindings.decode(choice.binding.unwrap().token, skein_ui::Act::Toggle).unwrap();
+            if let Action::Pages(Act::StartAsks { .. }) = act {
+                continue;
+            }
             if choice.states.as_slice().contains(&State::Selected) {
                 selected += 1;
                 assert_eq!(act, Action::Pages(Act::StartWay { template: chosen }));
@@ -183,10 +189,10 @@ fn the_default_is_chosen_and_says_so() {
     }
 }
 #[test]
-fn no_budget_and_no_asks() {
+fn no_budget_or_draft_field() {
     let sheet = Sheet::open();
     let (tree, _) = sheet.tree(&f::browser_words());
-    for forbidden in [b"Budget".as_slice(), b"When it needs you", b"Draft"] {
+    for forbidden in [b"Budget".as_slice(), b"Draft"] {
         assert!(skein_lib::bytes::find(&f::text(&tree), forbidden).is_none());
         for node in tree.nodes() {
             assert_ne!(node.name.as_deref(), Some(forbidden));
@@ -255,4 +261,38 @@ fn its_settings_link() {
         press(&tree, &bindings, Role::Link, name),
         Action::Pages(Act::Go { address: Address::Settings { project: f::PROJECT } })
     );
+}
+
+#[test]
+fn when_it_needs_you_follows_by_default_and_binds_both_choices() {
+    let mut sheet = Sheet::open();
+    for always in [false, true] {
+        if always {
+            sheet.act(Act::StartAsks { always });
+        }
+        for words in [f::words(), f::browser_words()] {
+            let (tree, bindings) = sheet.tree(&words);
+            node(&tree, Role::ChoiceGroup, b"When it needs you");
+            for (value, name) in [(false, b"Follow the away switch".as_slice()), (true, b"Always ask")] {
+                let choice = node(&tree, Role::Choice, name);
+                assert_eq!(choice.states.as_slice().contains(&State::Selected), value == always);
+                assert_eq!(
+                    bindings.decode(choice.binding.unwrap().token, skein_ui::Act::Toggle),
+                    Some(Action::Pages(Act::StartAsks { always: value }))
+                );
+            }
+            let text = f::text(&tree);
+            for detail in [
+                "Asks while you’re here; while you’re away, decides within the project's limits and tells you.",
+                "Waits for you on every question it can’t answer from the plan.",
+            ] {
+                assert!(skein_lib::bytes::find(&text, detail.as_bytes()).is_some());
+            }
+        }
+    }
+    sheet.act(Act::StartGoal);
+    let (tree, _) = sheet.tree(&f::browser_words());
+    for name in [b"Follow the away switch".as_slice(), b"Always ask"] {
+        assert!(node(&tree, Role::Choice, name).states.as_slice().contains(&State::Disabled));
+    }
 }

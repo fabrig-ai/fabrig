@@ -327,6 +327,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         }
         v1::Request::Accept(value) if value.installation() == 0 => return None,
         v1::Request::Reachable(value) if value.page() == 0 => return None,
+        v1::Request::SetAway(value) if value.kinds() > 15 => return None,
         v1::Request::Reachable(_)
         | v1::Request::Accept(_)
         | v1::Request::Install(_)
@@ -335,6 +336,8 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Adopt(_)
         | v1::Request::Dismiss(_)
         | v1::Request::Looked(_)
+        | v1::Request::SetAway(_)
+        | v1::Request::Overturn(_)
         | v1::Request::Replace(_)
         | v1::Request::RemoveForge(_)
         | v1::Request::StartPlayground
@@ -478,6 +481,36 @@ pub fn project_status(record: &v1::ProjectStatus) -> Box<[u8]> {
 pub fn decode_project_status(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ProjectStatus> {
     let mut reader = Reader::new(bytes);
     let record = v1::ProjectStatus::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a party's away rows (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn aways(record: &v1::Aways) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete aways document (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_aways(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Aways> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::Aways::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a project's decisions (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decisions(record: &v1::Decisions) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete decisions document (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_decisions(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Decisions> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::Decisions::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
 
