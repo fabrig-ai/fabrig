@@ -42,7 +42,7 @@ fn the_accounts_page_returns_after_a_key_send() {
         // The accounts watch retains the key added before leaving the flow.
         press(b"Settings", Role::Link),
         press(b"Accounts", Role::Link),
-        see(Find::exactly_named(Role::Heading { level: 2 }, b"Your accounts")),
+        see(Find::exactly_named(Role::Heading { level: 2 }, "Your accounts · 1".as_bytes())),
         see(Find::named(Role::Disclosure, b"Test provider API key")),
         Step::Person(PersonStep::Press { find: Find::named(Role::Disclosure, b"Test provider API key") }),
         see(Find::exactly_named(Role::Button, b"Replace")),

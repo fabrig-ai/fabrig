@@ -93,6 +93,7 @@ pub(crate) fn quiet_band(b: &mut Builder, tag: &[u8], words: &[u8]) {
     b.style(look::SETTINGS_BAND);
     b.style(look::SETTINGS_QUIET_BAND);
     b.open(Role::Paragraph);
+    b.name(words);
     text(b, Role::Text, tag, look::SETTINGS_TAG);
     b.text(Run::Plain, words);
     b.close();

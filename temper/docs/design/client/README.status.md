@@ -12,8 +12,6 @@
   (`tools.md`, 5.2). 3.5, 5.3, 5.13: How work runs' controls and its
   session's watch and reads, the rail and tab bar by kind 7, `drafts_offered`,
   and a proposal of settings' card in a chat.
-  3.5, *The `Accounts` tab*: `Accounts` draws its old rows, and with no
-  project its old page (`pages/accounts.rs`, `pages/accounts/rows.rs`).
   3.5, *The flows' paths*: no flow draws a path, `Adopt` keeps its card chrome
   (`forge/page.rs`), and "Start over" from `ConnectForge` leaves for the welcome.
   3.5, *Builders*: no `Builders { project }` in `temper-client-domain`'s

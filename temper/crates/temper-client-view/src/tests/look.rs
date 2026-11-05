@@ -403,7 +403,7 @@ fn the_choice_token_stays_on_the_composer_slot() {
 }
 
 #[test]
-fn the_account_and_adoption_bars_keep_their_headings() {
+fn the_account_and_adoption_pages_keep_their_headings() {
     // One root at a time: two outgrow a stack array's 16 KiB.
     for token in [ACCOUNTS_PAGE, ADOPTION_PAGE] {
         let root = if token == ACCOUNTS_PAGE {
@@ -417,7 +417,9 @@ fn the_account_and_adoption_bars_keep_their_headings() {
             fixtures::adoption_root()
         };
         let view = fixtures::page_view(&root);
-        assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).as_ref(), [Box::from([])]);
+        let heading: Box<[skein_ui::Style]> =
+            if token == ACCOUNTS_PAGE { Box::from([SETTINGS_HEADLINE]) } else { Box::from([]) };
+        assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).as_ref(), [heading]);
         let mut found = false;
         for node in view.tree().nodes() {
             if node.styles.as_slice().contains(&token) {
@@ -428,7 +430,7 @@ fn the_account_and_adoption_bars_keep_their_headings() {
                 found = true;
             }
         }
-        assert!(found);
+        assert_eq!(found, token == ADOPTION_PAGE);
     }
 }
 
@@ -439,7 +441,7 @@ fn the_delegation_steps_keep_their_roles() {
 
 #[test]
 fn account_rows_and_sign_ins_have_distinct_style_names() {
-    assert_eq!(NAMES.style(ACCOUNT_ROW), Some(b"temper-account-row".as_slice()));
+    assert_eq!(NAMES.style(SETTINGS_ROW), Some(b"temper-settings-row".as_slice()));
     assert_eq!(NAMES.style(SIGN_IN), Some(b"temper-sign-in".as_slice()));
-    assert_ne!(ACCOUNT_ROW, SIGN_IN);
+    assert_ne!(SETTINGS_ROW, SIGN_IN);
 }

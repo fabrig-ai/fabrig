@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 126;
+pub const N: usize = 132;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -290,6 +290,12 @@ pub fn samples() -> [Sample; N] {
             address: Address::Inbox { filter: Filter::ALL },
             then: Shown,
         },
+        Sample { name: "accounts-states", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-key", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-removing", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-signing-in", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-program-needs-sign-in", world: Solo, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-empty", world: Bare, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-reference", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-first-run-1", world: FirstRun { step: 1 }, address: Address::Accounts, then: Shown },
         Sample { name: "google-sign-in", world: Bare, address: CHATS, then: Then::GoogleSignIn },
@@ -599,6 +605,8 @@ pub fn domain(sample: &Sample) -> Domain {
         };
         step(&mut root, Event::Act { action: Action::Forge(forge::Act::Forges(act)) }, &mut out);
     }
+    account_states(&mut root, sample, accounts_watch, &mut out);
+    account_editor(&mut root, sample, &mut out);
     if sample.then == Then::Paste(PasteFrame::Expired) {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
         doc.signing = skein_lib::List::with_capacity(1);
@@ -621,6 +629,104 @@ pub fn domain(sample: &Sample) -> Domain {
         );
     }
     root
+}
+fn account_states(root: &mut Domain, sample: &Sample, accounts_watch: Option<Token>, out: &mut Queue<Request>) {
+    if sample.name == "accounts-states" || sample.name == "accounts-program-needs-sign-in" {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
+        if sample.name == "accounts-states" {
+            let template = doc.accounts.get(1).expect("plan account").clone();
+            let states = [
+                c::AccountState::Granted,
+                c::AccountState::Asking,
+                c::AccountState::Later { until: None },
+                c::AccountState::Later { until: Some(skein_lib::Wall::EPOCH) },
+                c::AccountState::SignInAgain,
+                c::AccountState::Misconfigured,
+                c::AccountState::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Unreadable },
+                c::AccountState::Cancelled,
+                c::AccountState::Closing,
+                c::AccountState::Moving,
+                c::AccountState::Granted,
+            ];
+            doc.accounts = skein_lib::List::with_capacity(u32::try_from(states.len()).expect("sample states"));
+            for (index, state) in states.into_iter().enumerate() {
+                let mut row = template.clone();
+                row.number = u32::try_from(index).expect("sample number").checked_add(1).expect("sample number");
+                row.place = row.number;
+                row.display = c::DocumentText::complete(
+                    c::Text::new(
+                        Box::from(format!("state {}", row.number).as_bytes()),
+                        crate::driver::limits().client.domain.text,
+                    )
+                    .expect("sample display"),
+                );
+                let source = row.sources.get_mut(0).expect("plan source");
+                source.number = row.number;
+                source.state = state;
+                source.usable = index == 0;
+                doc.accounts.push(row).expect("sample state");
+            }
+        } else {
+            let row = doc.accounts.get_mut(0).expect("program account");
+            let source = row.sources.get_mut(0).expect("program source");
+            source.state = c::AccountState::SignInAgain;
+            source.usable = false;
+            for host in doc.program_hosts.iter_mut() {
+                for program in host.programs.iter_mut() {
+                    program.state = Some(c::ProgramState::NotSignedIn);
+                }
+            }
+        }
+        crate::driver::deliver(
+            root,
+            accounts_watch.expect("accounts watch"),
+            c::Delivery::Accounts(Box::new(doc)),
+            out,
+        );
+    }
+}
+fn account_editor(root: &mut Domain, sample: &Sample, out: &mut Queue<Request>) {
+    if matches!(sample.name, "accounts-key" | "accounts-removing" | "accounts-signing-in") {
+        use temper_client_domain::pages::accounts::{Act as A, Operation, Row};
+        let row = Row { holder: c::AskAccountHolder::Own, account: 2 };
+        let act = if sample.name == "accounts-key" {
+            A::KeyFor { row, source: None }
+        } else {
+            A::Submit {
+                name: root.pages().account_name(),
+                row,
+                operation: if sample.name == "accounts-removing" {
+                    Operation::RemoveAccount
+                } else {
+                    Operation::SignIn { provider: 18 }
+                },
+            }
+        };
+        step(root, Event::Act { action: Action::Pages(Act::Accounts(act)) }, out);
+        if sample.name == "accounts-signing-in" {
+            step(root, Event::Client { event: jig_client::Event::Stored }, out);
+            let attempt = sent_attempt(out);
+            step(
+                root,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Answer {
+                            attempt,
+                            envelope: skein_lib::RequestEnvelope::Final,
+                            why: None,
+                            answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                                c::DocumentOutcome::AccountSignInStarted {
+                                    source: 43,
+                                    address: Box::from(b"https://issuer.example/visit".as_slice()),
+                                },
+                            )))),
+                        },
+                    },
+                },
+                out,
+            );
+        }
+    }
 }
 fn configure_domain(sample: &Sample) -> Domain {
     if matches!(sample.name, "configure-chat" | "configure-chats-tag") {

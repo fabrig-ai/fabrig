@@ -528,7 +528,6 @@ pub enum Word {
     AskedByTask,
     AskedByDeployment,
     Deadline,
-    AccountLead,
     Priority,
     Folded,
     HeldBelow,
@@ -931,8 +930,8 @@ const PHRASES: u32 = 1416;
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
-const SEGMENTS: u32 = 2453;
-const ALL: [Word; 820] = [
+const SEGMENTS: u32 = 2455;
+const ALL: [Word; 819] = [
     Word::SettingsKicker,
     Word::SettingsHowHeading,
     Word::SettingsHowLede,
@@ -1436,7 +1435,6 @@ const ALL: [Word; 820] = [
     Word::AskedByTask,
     Word::AskedByDeployment,
     Word::Deadline,
-    Word::AccountLead,
     Word::Priority,
     Word::Folded,
     Word::HeldBelow,
@@ -2290,7 +2288,6 @@ impl Word {
             Self::AskedByTask => 169,
             Self::AskedByDeployment => 170,
             Self::Deadline => 171,
-            Self::AccountLead => 194,
             Self::Priority => 172,
             Self::Folded => 173,
             Self::HeldBelow => 174,
@@ -3367,7 +3364,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AskedByTask => (&[b"Asked by task ", b""], &[Number]),
         Word::AskedByDeployment => (&[b"Asked by deployment of project ", b""], &[Number]),
         Word::Deadline => (&[b"Due ", b""], &[HoleKind::Date]),
-        Word::AccountLead => (&[b"The LLM accounts temper\xe2\x80\x99s agents run on for you. A task keeps its account: while the account is limited, the task waits for it."], &[]),
         Word::Priority => (&[b"priority ", b""], &[Number]),
         Word::Folded => (&[b"Folded: ", b" ", b""], &[Number, Name]),
         Word::HeldBelow => (&[b"Held below: ", b""], &[Number]),

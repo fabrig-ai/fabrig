@@ -191,13 +191,13 @@ a { color: inherit; text-decoration: none; }
 .temper-row > p:nth-of-type(2):has(+ p.temper-time) { grid-column: 3 / -1; }
 /* .tag: status words with their five meaning colours. */
 .temper-row > [role=status] { grid-column: 1; grid-row: 1; justify-self: start; }
-.temper-status-yours, .temper-status-held, .temper-status-retrying, .temper-status-active, .temper-status-quiet { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; }
-.temper-status-yours { color: var(--temper-accent-dark); background: var(--temper-accent-pale); }
-.temper-status-held { color: var(--temper-red); background: var(--temper-red-pale); }
-.temper-status-retrying { color: var(--temper-amber); background: var(--temper-amber-pale); }
-.temper-status-active { color: var(--temper-green); background: var(--temper-green-pale); }
-.temper-status-quiet { color: #6d695f; background: #f3f1eb; }
-.temper-status-waiting { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; color: var(--temper-amber); background: var(--temper-amber-pale); }
+.temper-status-yours:where(:not(.temper-settings-row *)), .temper-status-held:where(:not(.temper-settings-row *)), .temper-status-retrying:where(:not(.temper-settings-row *)), .temper-status-active:where(:not(.temper-settings-row *)), .temper-status-quiet:where(:not(.temper-settings-row *)) { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; }
+.temper-status-yours:where(:not(.temper-settings-row *)) { color: var(--temper-accent-dark); background: var(--temper-accent-pale); }
+.temper-status-held:where(:not(.temper-settings-row *)) { color: var(--temper-red); background: var(--temper-red-pale); }
+.temper-status-retrying:where(:not(.temper-settings-row *)) { color: var(--temper-amber); background: var(--temper-amber-pale); }
+.temper-status-active:where(:not(.temper-settings-row *)) { color: var(--temper-green); background: var(--temper-green-pale); }
+.temper-status-quiet:where(:not(.temper-settings-row *)) { color: #6d695f; background: #f3f1eb; }
+.temper-status-waiting:where(:not(.temper-settings-row *)) { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; color: var(--temper-amber); background: var(--temper-amber-pale); }
 /* .first-run-context: the project and signed-in role. */
 .temper-context { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; color: var(--temper-muted); font-size: 12.83px; margin: 0 0 21px; }
 /* .first-run-empty: one invitation and a wrapping row of paper suggestions. */
@@ -741,41 +741,23 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > button { align-self: flex-end; width: auto; min-height: 0; padding: 0; border: 0; background: none; color: var(--temper-muted); font-size: 11px; }
 .temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > button:hover { color: var(--temper-accent-dark); text-decoration: underline; }
 
-/* accounts.html's page and cards; .welcome keeps adoption's own column. */
-.temper-main.temper-page > :is(.temper-accounts-page, .temper-adoption-page) { width: 100%; margin: 0; color: var(--temper-ink); }
-.temper-accounts-page > :not(.temper-pagebar) { width: min(1353.33px, calc(100% - 56px)); margin-inline: auto; }
+/* Adoption's page and cards. */
+.temper-main.temper-page > .temper-adoption-page { width: 100%; margin: 0; color: var(--temper-ink); }
 .temper-adoption-page > :not(.temper-pagebar) { width: min(886.67px, calc(100% - 56px)); margin-inline: auto; }
-:is(.temper-accounts-page, .temper-adoption-page) .temper-pagebar { height: auto; min-height: 43.17px; padding-block: 10.5px; }
-:is(.temper-accounts-page, .temper-adoption-page) .temper-pagebar h1 { margin: 0; font: 700 12.83px/1.58 var(--temper-mono); }
+.temper-adoption-page .temper-pagebar { height: auto; min-height: 43.17px; padding-block: 10.5px; }
+.temper-adoption-page .temper-pagebar h1 { margin: 0; font: 700 12.83px/1.58 var(--temper-mono); }
 /* .first-run-panel: supplied regions and the standalone form are cards. */
-.temper-accounts-page :is(section, form) { border: 1px solid var(--temper-line); border-radius: 5.83px; background: #fffefd; padding: 17.5px 21px; margin-block: 14px; min-width: 0; }
 .temper-adoption-page section { border: 1px solid #dbd4ca; border-radius: 10.5px; background: #fffefd; padding: 23.33px; margin-block: 14px; min-width: 0; }
-.temper-accounts-page h2 { margin: 25.67px 0 10.5px; font: 700 16.33px/1.3 var(--temper-mono); }
-.temper-accounts-page section h2 { margin-top: 0; }
-.temper-accounts-page .temper-heading > :is(h2, p) { margin-block: 0; }
-.temper-accounts-page h3 { margin: 0 0 10.5px; font: 700 14px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
-.temper-accounts-page section h3 { font-size: 16.33px; }
-:is(.temper-accounts-page, .temper-adoption-page) :is(p, [role=status]) { margin-block: 7px 0; font-size: 12.83px; color: #756e65; overflow-wrap: anywhere; }
-:is(.temper-accounts-page, .temper-adoption-page) [role=alert] { margin-top: 14px; font-size: 12.83px; color: var(--temper-red); overflow-wrap: anywhere; }
-/* .kv: preserve the source's complete text and supplied order. */
-.temper-accounts-page ul { list-style: none; margin: 7px 0 0; padding: 0; }
-.temper-accounts-page li { display: flex; flex-wrap: wrap; gap: 14px; padding: 9.33px 0; border-bottom: 1px solid #f0ede8; color: var(--temper-ink); font-size: 12.83px; overflow-wrap: anywhere; min-width: 0; }
-.temper-accounts-page li:last-child { border-bottom: 0; padding-bottom: 0; }
-/* .rule and .field: panels keep the existing sibling fields in a grid. */
-.temper-accounts-page form { position: relative; margin-top: 43.17px; display: grid; grid-template-columns: repeat(auto-fill, minmax(256.67px, 1fr)); gap: 0 16.33px; }
-.temper-accounts-page form::before { content: ''; position: absolute; top: -22.17px; left: 0; right: 0; height: 1px; background: var(--temper-line); }
-.temper-accounts-page form .temper-card, .temper-adoption-page section .temper-card { padding: 0; border: 0; border-radius: 0; background: transparent; }
-:is(.temper-accounts-page, .temper-adoption-page) div:has(> input:not([type=radio]):not([type=checkbox])) { min-width: 0; }
-/* Keep the former :is() arm's three-class specificity for Accounts. */
-.temper-accounts-page form > .temper-card:has(> input:not([type=radio]):not([type=checkbox])) { display: flex; flex-direction: column; justify-content: flex-end; }
-.temper-accounts-page label[for]:has(+ input:not([type=radio], [type=checkbox])) { display: block; margin: 14px 0 5.83px; color: #756e65; font: 12.83px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
-.temper-accounts-page input:not([type=radio]):not([type=checkbox]) { display: block; width: 100%; min-width: 0; border: 1px solid #d8d0c5; background: #fff; color: var(--temper-ink); border-radius: 9.33px; padding: 10.5px 12.83px; font: 14px/1.58 var(--temper-mono); }
+.temper-adoption-page :is(p, [role=status]) { margin-block: 7px 0; font-size: 12.83px; color: #756e65; overflow-wrap: anywhere; }
+.temper-adoption-page [role=alert] { margin-top: 14px; font-size: 12.83px; color: var(--temper-red); overflow-wrap: anywhere; }
+.temper-adoption-page section .temper-card { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.temper-adoption-page div:has(> input:not([type=radio]):not([type=checkbox])) { min-width: 0; }
 /* The forges form's .forge-field, with the renderer's sibling label. */
 .temper-adoption-page label[for]:has(+ input:not([type=radio], [type=checkbox])) { display: block; margin: 14px 0 4.67px; color: #77756e; font: 11.67px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
 .temper-adoption-page input:not([type=radio]):not([type=checkbox]) { display: block; width: 100%; min-width: 0; border: 1px solid #dcd4c9; background: #fffefd; color: var(--temper-ink); border-radius: 5.83px; padding: 7px 9.33px; font: 12.83px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 /* Existing model validation marks both the field and its adjacent explanation. */
-:is(.temper-accounts-page, .temper-adoption-page) input[aria-invalid=true]:not([type=radio]):not([type=checkbox]) { border-color: var(--temper-red); }
-:is(.temper-accounts-page, .temper-adoption-page) input[aria-invalid=true] + [role=status] { color: var(--temper-red); }
+.temper-adoption-page input[aria-invalid=true]:not([type=radio]):not([type=checkbox]) { border-color: var(--temper-red); }
+.temper-adoption-page input[aria-invalid=true] + [role=status] { color: var(--temper-red); }
 /* .stack and .kv: one radio or check and its existing words on each row. */
 .temper-adoption-page [role=radiogroup] { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10.5px; margin-top: 21px; }
 .temper-adoption-page [role=radiogroup] > label { display: block; padding: 9.33px 0; margin: 0; border-bottom: 1px solid #f0ede8; color: var(--temper-ink); font-size: 12.83px; overflow-wrap: anywhere; }
@@ -783,36 +765,19 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-adoption-page input:is([type=radio], [type=checkbox]) { flex: none; margin: 0; accent-color: var(--temper-accent); }
 /* The pinned renderer emits the input and its label as siblings. */
 .temper-adoption-page [role=radiogroup] > input { align-self: center; }
-/* .button-row and dialog actions: Accounts stays plain; Adopt is primary. */
-.temper-accounts-page form > .temper-card:first-of-type { grid-column: 1; }
-.temper-accounts-page form > label, .temper-accounts-page form > .temper-card:has(> button) { grid-column: 1 / -1; }
-.temper-accounts-page form > input { grid-column: 1; }
-.temper-accounts-page form > :is(p, [role=status], [role=alert], a) { grid-column: 1 / -1; min-width: 0; }
-.temper-accounts-page .temper-status-done { color: var(--temper-green); }
-.temper-accounts-page form > .temper-card:has(> button) { display: flex; flex-wrap: wrap; align-items: center; gap: 9.33px; margin-top: 21px; }
-.temper-accounts-page form > .temper-card:has(> button) > :not(button) { flex-basis: 100%; }
-.temper-page :is(.temper-accounts-page, .temper-adoption-page) button, .temper-page .temper-accounts-page .temper-card button { min-height: 32.67px; max-width: 100%; border: 1px solid #d8d0c5; border-radius: 5.83px; background: #fffefd; color: var(--temper-ink); padding: 7px 11.67px; margin: 0; font: 600 12.83px/1.3 var(--temper-mono); overflow-wrap: anywhere; }
-.temper-accounts-page form > button { justify-self: start; margin: 0 0 7px; }
+/* Adoption actions. */
+.temper-page .temper-adoption-page button { min-height: 32.67px; max-width: 100%; border: 1px solid #d8d0c5; border-radius: 5.83px; background: #fffefd; color: var(--temper-ink); padding: 7px 11.67px; margin: 0; font: 600 12.83px/1.3 var(--temper-mono); overflow-wrap: anywhere; }
 /* The form's checks on the radios' grid, each check and the act on the fields' 14px rhythm. */
 .temper-adoption-page section { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10.5px; }
 .temper-adoption-page section > :not(input[type=checkbox], input[type=checkbox] + label) { grid-column: 1 / -1; }
 .temper-adoption-page section > input[type=checkbox] { grid-column: 1; align-self: center; margin-top: 14px; }
 .temper-adoption-page section > input[type=checkbox] + label { grid-column: 2; margin: 14px 0 0; }
 .temper-page .temper-adoption-page section > button { justify-self: start; margin-top: 14px; }
-:is(.temper-accounts-page, .temper-adoption-page) button:disabled { opacity: .55; cursor: default; }
-.temper-accounts-page a { color: var(--temper-accent); text-decoration: underline; overflow-wrap: anywhere; }
-.temper-accounts-page .temper-heading > a { color: var(--temper-ink); text-decoration: none; }
-@media (max-width: 850px) {
-  .temper-accounts-page > :not(.temper-pagebar) { width: calc(100% - 39.67px); }
-}
-@media (max-width: 760px) {
-  .temper-accounts-page > :not(.temper-pagebar) { width: calc(100% - 32.67px); }
-}
+.temper-adoption-page button:disabled { opacity: .55; cursor: default; }
 /* .first-run-panel on a phone: adoption's 18.67px edges and one field per row. */
 @media (max-width: 600px) {
   .temper-adoption-page > :not(.temper-pagebar) { width: calc(100% - 37.33px); }
-  .temper-accounts-page form { grid-template-columns: minmax(0, 1fr); }
-  :is(.temper-accounts-page, .temper-adoption-page) .temper-pagebar { padding-inline: 18.67px; }
+  .temper-adoption-page .temper-pagebar { padding-inline: 18.67px; }
 }
 
 /* Supplied refusals keep Status semantics and share the Accounts alert colour. */
@@ -848,7 +813,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-main:not(.temper-chat):has(> .temper-chatbar) > .temper-context > p { margin: 0; }
 .temper-main:not(.temper-chat):has(> .temper-chatbar) > :is(.temper-choice, .temper-entry) { width: min(886.67px, calc(100% - 56px)); margin-left: max(28px, calc((100% - 1353.33px) / 2)); margin-right: auto; }
 .temper-main:not(.temper-chat):has(> .temper-chatbar) > .temper-entry { margin-bottom: 24.5px; }
-.temper-main:not(.temper-chat) > .temper-chatbar .temper-status-quiet { color: #4c8067; }
+.temper-main:not(.temper-chat) > .temper-chatbar .temper-status-quiet:where(:not(.temper-settings-row *)) { color: #4c8067; }
 .temper-main:not(.temper-chat) > .temper-chatbar [role=status]::before { content: none; }
 @media (max-width: 850px) {
   .temper-main:not(.temper-chat):has(> .temper-chatbar) > :not(.temper-chatbar) { width: calc(100% - 39.67px); }
@@ -1092,25 +1057,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* T2: the Forges page, setup strip and navigation dot (client/forge.md, 5.4). */
-.temper-account-row { margin: 14px 0; border: 1px solid var(--temper-line); border-radius: 7px; background: var(--temper-paper); }
-.temper-account-row > summary { display: grid; gap: 5.83px; position: relative; padding: 21px 23.33px 21px 44.33px; cursor: pointer; list-style: none; font-size: 15.17px; font-weight: 700; overflow-wrap: anywhere; }
-.temper-account-row > summary::-webkit-details-marker { display: none; }
-.temper-account-row > summary::before { content: '›'; position: absolute; left: 21px; top: 21px; transition: transform .15s; }
-.temper-account-row[open] > summary::before { transform: rotate(90deg); }
-.temper-account-row > summary > [id^="skein-ui-description-"] { display: block; font-size: 11.67px; font-weight: 400; color: var(--temper-muted); }
-.temper-account-row > :nth-child(2) { border-top: 1px solid var(--temper-line); }
-.temper-account-row > :not(summary) { margin: 0; padding: 11.67px 23.33px; }
-.temper-account-row dt { font-size: 11.67px; color: var(--temper-muted); }
-.temper-account-row dd { margin: 0; font-size: 12.83px; }
-.temper-account-row > a { display: inline-block; color: var(--temper-accent-dark); font-size: 12.83px; }
 .temper-setup-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 10px 24px; background: var(--temper-amber-pale); border-bottom: 1px solid var(--temper-line); font-size: 11px; }
 .temper-setup-strip > p { margin: 0; }
 .temper-setup-strip > a { color: var(--temper-accent-dark); font-weight: 700; }
 
-/* Accounts share the forge disclosure cards and keep their row acts together. */
-.temper-account-row button { margin: 7px 7px 7px 0 !important; }
-.temper-account-row [role=term] { color: var(--temper-muted); font-size: 11.67px; }
-.temper-account-row [role=definition] { margin: 0; font-size: 12.83px; }
 /* The first repository stays visible in a folded forge's summary (client/forge.md, 5.4). */
 
 /* protocol/sign-in.md, 7: the stock browser sign-in card. */
@@ -1195,48 +1145,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-kind-question > details > summary::-webkit-details-marker { display: none; }
 .temper-kind-question > a, .temper-page .temper-kind-proposal > a { display: inline-block; margin-top: 11.67px; color: var(--temper-accent-dark); font-size: 12.83px; font-weight: 600; }
 
-/* Account rows use the forge row's summary, with the supplied holder and state. */
-.temper-account-row > .temper-heading { margin: 0; border: 0; padding: 21px 23.33px 21px 44.33px; }
-.temper-account-row > .temper-heading h3 { margin: 0; font-size: 15.17px; }
-.temper-account-row > .temper-heading p { margin: 0; font-size: 11.67px; font-weight: 400; color: var(--temper-muted); }
-.temper-account-row > ul { list-style: none; }
-.temper-account-row > ul > li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; padding: 9.33px 0; border-bottom: 1px solid var(--temper-line); }
-.temper-account-row > ul > li > p { flex-basis: 100%; margin: 0; }
-.temper-account-row > .temper-details { display: grid; gap: 9.33px; border: 0; border-top: 1px solid var(--temper-line); border-radius: 0; background: transparent; }
-.temper-account-row .temper-details > section { display: flex; justify-content: space-between; gap: 21px; }
-.temper-account-row .temper-details [role=definition] { text-align: right; }
-/* As in the wide banner, visible summary parts share the native summary's grid
-   cell. Its own accessible name and description stay with its native control. */
-@supports selector(::details-content) {
-  .temper-account-row:has(> .temper-heading) { display: grid; grid-template-columns: minmax(0, 1fr); }
-  .temper-account-row:has(> .temper-heading)::details-content { content-visibility: visible; display: contents; }
-  .temper-account-row:has(> .temper-heading) > summary { grid-area: 1 / 1; padding: 0; font-size: 0; color: transparent; }
-  .temper-account-row:has(> .temper-heading) > summary::before { color: var(--temper-muted); font-size: 15.17px; }
-  .temper-account-row:has(> .temper-heading) > summary > [id^=skein-ui-description-] { display: none; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading { grid-area: 1 / 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4.67px 18.67px; pointer-events: none; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading > h3 { grid-column: 1; grid-row: 1; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading > p:first-of-type { grid-column: 1; grid-row: 2; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading > [role=status] { grid-column: 2; grid-row: 1; align-self: start; }
-  .temper-account-row:has(> .temper-heading) > .temper-heading > p:last-child { grid-column: 1 / -1; grid-row: 3; }
-  .temper-account-row:has(> .temper-heading) > :not(summary):not(.temper-heading) { grid-column: 1; }
-  .temper-account-row:has(> .temper-heading):not([open]) > :not(summary):not(.temper-heading) { display: none; }
-  .temper-account-row:has(> .temper-heading)[open] > .temper-heading + * { border-top: 1px solid var(--temper-line); }
-}
-/* The account lead stays under its heading; Connect wraps below it on phones. */
-.temper-accounts-page > .temper-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 14px; align-items: center; }
-.temper-accounts-page > .temper-heading > h2 { grid-column: 1; grid-row: 1; }
-.temper-accounts-page > .temper-heading > .temper-subtle-count { grid-column: 2; grid-row: 1; margin: 0; }
-.temper-accounts-page > .temper-heading > a { grid-column: 3; grid-row: 1 / 3; }
-.temper-accounts-page > .temper-heading > p:last-child { grid-column: 1 / 3; grid-row: 2; margin: 0; color: var(--temper-muted); font-size: 12.83px; }
-@media (max-width: 430px) {
-  .temper-accounts-page > .temper-heading > p:last-child { grid-column: 1 / -1; }
-  .temper-accounts-page > .temper-heading > a { grid-column: 1 / -1; grid-row: 3; justify-self: start; margin-top: 14px; }
-}
 
-.temper-accounts-page > .temper-empty { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 11.67px; margin-block: 11.67px 28px; }
-.temper-accounts-page > .temper-empty > p { margin: 0; }
 
-.temper-account-row:not(:has(> .temper-heading)) > summary { color: var(--temper-muted); font-size: 12.83px; font-weight: 400; }
 
 /* The mockup's wide rows put spend and activity beside the title. */
 @media (min-width: 761px) {
@@ -1734,6 +1644,26 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-settings-row a:empty::before { content: attr(aria-label); }
 .temper-settings-row .temper-flow-card { margin: 14px 0 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 .temper-settings-row .temper-flow-card h2 { margin: 0; font: 500 15px/1.6 var(--gf-sans); letter-spacing: normal; }
+
+
+/* Account sources, observations and forms keep their document order in the rows. */
+.temper-settings-row h3 { margin: 0; font: 500 15px/1.6 var(--gf-sans); letter-spacing: normal; }
+.temper-settings-row p { margin: 6px 0; }
+.temper-settings-row :is(p, [role=status], [role=definition]) { font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-row :is(.temper-status-active, .temper-status-done) { color: var(--gf-good); }
+.temper-settings-row .temper-status-retrying { color: var(--gf-signal); }
+.temper-settings-row :is(.temper-status-held, [role=alert]) { color: var(--gf-signal); }
+.temper-settings-row ul { list-style: none; margin: 14px 0; padding: 0; }
+.temper-settings-row li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; padding: 14px 0; border-bottom: 1px solid var(--gf-line); min-width: 0; }
+.temper-settings-row li > p { flex-basis: 100%; margin: 0; }
+.temper-settings-row li > [role=status] { font-size: 13.5px; }
+.temper-settings-row li > :is(button, a) { min-height: 34px; padding: 5px 12px; font-size: 13.5px; }
+.temper-settings-row input { font: 400 14px/1.6 var(--gf-sans); color: var(--gf-ink); }
+.temper-settings-row input[aria-invalid=true] { border-color: var(--gf-signal); }
+.temper-settings-row [role=alert] { margin-top: 14px; font-size: 13.5px; }
+.temper-settings-row code { display: block; white-space: pre-wrap; font: 400 13px/1.6 var(--gf-mono); }
+.temper-settings-row details:not(.temper-settings-row) { margin-top: 14px; }
+.temper-settings-row details:not(.temper-settings-row) > summary { cursor: pointer; color: var(--gf-muted); font-size: 13.5px; }
 
 @media (max-width: 760px) {
   #app > .temper-settings { padding: 8px 20px 112px; }
