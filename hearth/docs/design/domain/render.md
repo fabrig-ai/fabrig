@@ -1529,3 +1529,19 @@ Over generated repositories, valid by construction and then mutated:
 - **Where a resolution's closure is made:** 8.2's `Resolved` carries the
   closure, while 5.3 has the domain match `Inst` triples to `Packages`
   stanzas; one of the two is to change.
+- **How the builder paces with its own queues uncapped:** an uncapped
+  `answers` can hold a copy of every target's spec, so it takes a
+  watermark (`skein/docs/foundation/programming-model.md`, 7.1) or a stop
+  on `takes`. A pass's loops take bounds of their own: an uncapped
+  queue's capacity bounds nothing, and one pass could run a whole render.
+  It is to settle with the service's move to the model
+  (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`).
+- **What resumed work's order protects** (8.5): the cases searched show
+  a client nothing different when an io event enters with work pending.
+  The guard stays until a consequence is found and a test holds it;
+  pending cache work is to be read beside stdin's room, a child's exit
+  and a pipe's end. It depends on the same move.
+- **The domain's next event and its own resumed work:** 8.5 orders the
+  protocol layer's alone, and the domain's step takes event after event
+  without asking whether it has work to resume. Whether it must depends
+  on the first build step that streams its events.

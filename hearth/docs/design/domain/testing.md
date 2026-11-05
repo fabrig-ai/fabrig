@@ -1664,8 +1664,8 @@ VM tier its one real machine relies on.
   which may only fall (`skein/docs/foundation/programming-model.md`, 6.3).
   Moving to the model is hearth's debt
   (`hearth/docs/development/debt/`, D001).
-- **The memory suites' fixtures** (2.9, 8.4): two suites reach three
-  fixtures under their worlds' `src/` by `#[path]`. Each moves into its
+- **The config memory suite's fixtures** (2.9, 8.4): it reaches two
+  fixtures under its world's `src/` by `#[path]`. Each moves into the
   suite as a plain module, in a later round of hearth's debt
   (`hearth/docs/development/debt/`, D008).
 - **Live changes on a real machine:** every item hearth/docs/design/domain/slots.md, section 15
