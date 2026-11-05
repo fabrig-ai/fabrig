@@ -111,7 +111,7 @@ pub(super) const ACCOUNTS: accounts::Limits =
     accounts::Limits { program_hosts: 65, accounts: 16, sign_ins: 4, credentials: 15, facts: 128, ..small::ACCOUNTS };
 pub(super) const VIEWS: views::Limits = views::Limits { runs: 32, watchers: 16, facts: 256, ..small::VIEWS };
 pub(super) const NOTES: notes::Limits =
-    notes::Limits { scopes: 19, entries_per_scope: 64, body_bytes: 8_192, lines: 8, recalled: 8, ..small::NOTES };
+    notes::Limits { scopes: 19, entries_per_scope: 64, body_bytes: 65_536, lines: 8, recalled: 8, ..small::NOTES };
 pub(super) const DOCUMENTS: core::documents::DocumentLimits = core::documents::DocumentLimits {
     roles: AUTHORITY.roles,
     grants: super::authority_grants(&TASKS, &AUTHORITY),
@@ -149,13 +149,15 @@ pub(super) const CORE: core::Limits = core::Limits {
     accounts: ACCOUNTS,
     notes: NOTES,
     views: VIEWS,
+    load_bytes: 131_072,
+    call_answer_bytes: 135_168,
     resume_bytes: 262_144,
     run_bytes: 65_536,
     documents: DOCUMENTS,
     ..small::CORE
 };
 pub(super) const HUB: host::Limits =
-    host::Limits { inbox: 82, slots: 4, accounts: 32, facts: 256, told: 256, ..small::HUB };
+    host::Limits { event_bytes: 135_168, inbox: 82, slots: 4, accounts: 32, facts: 256, told: 256, ..small::HUB };
 pub(super) const LINK: Link = Link { names: 64, opening: 16, facts: 4470, ..small::LINK };
 pub(super) const LIMITS: Limits = Limits {
     core: CORE,
