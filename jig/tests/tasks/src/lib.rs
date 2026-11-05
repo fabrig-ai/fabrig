@@ -1,16 +1,3 @@
 //! Tasks with scripted executors and an atomic durable parent at the retained
 //! production boundary (domain/tasks.md, 11; domain/engine.md, 7).
-pub mod accounting_referee;
-pub mod coverage;
-pub mod referee;
-pub mod stories;
-pub mod trace;
-mod world;
-pub use world::{
-    EFFORTS, Frozen, LIMITS, RETRY, Reply, World, authority, charters, domain, run_story, run_story_choices,
-    run_story_facts, run_story_traced, task,
-};
-
-/// The tasks world's project and first task.
-pub const PROJECT: u32 = 1;
-pub const TASK: u64 = 1;
+pub use jig_tasks_kit::*;

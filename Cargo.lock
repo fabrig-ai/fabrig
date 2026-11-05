@@ -1778,10 +1778,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-people-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-people",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
 name = "jig-people-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-people",
+ "jig-people-kit",
  "sha2",
  "skein-lib",
  "skein-world",
@@ -2076,10 +2086,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-tasks-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-tasks",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
 name = "jig-tasks-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-tasks",
+ "jig-tasks-kit",
  "skein-lib",
  "skein-world",
 ]
@@ -5194,11 +5214,11 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "jig-engine-clients-kit",
- "jig-people-world",
+ "jig-people-kit",
  "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-store",
- "jig-tasks-world",
+ "jig-tasks-kit",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store-files",

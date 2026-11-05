@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+jig-tasks-kit.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
 jig-domain-tasks.workspace = true
