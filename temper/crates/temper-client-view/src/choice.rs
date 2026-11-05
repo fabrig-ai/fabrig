@@ -53,6 +53,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Home { .. }
+            | Address::Changes { .. }
             | Address::Settings { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. } => false,

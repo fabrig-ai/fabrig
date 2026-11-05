@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 114;
+pub const N: usize = 118;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -73,6 +73,10 @@ fn task(task: u64) -> Address {
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
 pub fn samples() -> [Sample; N] {
     [
+        Sample { name: "changes", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
+        Sample { name: "changes-empty", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
+        Sample { name: "changes-one", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
+        Sample { name: "changes-landed-only", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample {
             name: "home-three-left",
             world: FirstRun { step: 7 },
@@ -378,6 +382,8 @@ fn model_sample(name: &'static str, kind: temper_client_domain::WayKind, then: T
 }
 fn special_mockup(name: &str) -> Option<String> {
     match name {
+        "changes" | "changes-one" | "changes-empty" => return Some("changes.html".to_owned()),
+        "changes-landed-only" => return Some("changes.html?project=hello".to_owned()),
         "forges-github-install" => return Some("forges.html?world=first-run-github&step=3&bare".to_owned()),
         "forge-admin-details" => {
             return Some("connect-forge.html?world=first-run-elsewhere&step=2&forge=3&bare".to_owned());
@@ -469,7 +475,11 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Home { .. } | Address::Settings { .. } | Address::Configure { .. } | Address::Adopt { .. } => {
+        Address::Home { .. }
+        | Address::Changes { .. }
+        | Address::Settings { .. }
+        | Address::Configure { .. }
+        | Address::Adopt { .. } => {
             return None;
         }
     };
@@ -501,6 +511,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => String::new(),
@@ -526,6 +537,9 @@ pub fn domain(sample: &Sample) -> Domain {
             &mut Queue::uncapped(),
         );
         return root;
+    }
+    if sample.name.starts_with("changes") {
+        return crate::worlds::changes_world(sample.name);
     }
     if sample.name.starts_with("configure") {
         return configure_domain(sample);
@@ -1002,7 +1016,9 @@ fn home_domain(name: &str) -> Domain {
                     w::Watch::Forges => wire::forges(
                         &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Home forges"),
                     ),
-                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Landings(_) => continue,
+                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Changes(_) => {
+                        continue;
+                    }
                 };
                 step(
                     &mut root,

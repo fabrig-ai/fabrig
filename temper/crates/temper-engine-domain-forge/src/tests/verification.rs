@@ -67,6 +67,9 @@ const LIMITS: Limits = Limits {
     collaborators: 8,
     landings: 8,
     landing_members: 2,
+    landings_kept: 16,
+    changes_rows: 32,
+    changes_landed: 8,
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
@@ -1065,3 +1068,6 @@ fn retained_tier_runs_survive_later_verdicts_restart_and_shared_change_release()
     verification::released(&mut restored, SECOND, &mut Queue::uncapped());
     assert!(restored.change_verdicts(SECOND).is_empty());
 }
+
+#[path = "landing_log.rs"]
+mod landing_log_tests;
