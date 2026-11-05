@@ -255,6 +255,12 @@ impl Engine {
                 root::Fact::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
                     self.notes.push(crate::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error });
                 }
+                root::Fact::BriefReadRefused { task, section, stage, error } => {
+                    self.notes.push(crate::Note::BriefReadRefused { task, section, stage, error });
+                }
+                root::Fact::BriefFailed { task, counts, reason } => {
+                    self.notes.push(crate::Note::BriefFailed { task, counts, reason });
+                }
                 root::Fact::CallAdmissionRefused { task, attempt, tool, layer, reason } => {
                     self.notes.push(crate::Note::CallAdmissionRefused { task, attempt, tool, layer, reason });
                 }

@@ -6,7 +6,8 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 [dependencies]
-hearth-render-world.workspace = true
+hearth-test-repository.workspace = true
+hearth-test-render.workspace = true
 hearth.workspace = true
 hearth-domain-builder.workspace = true
 hearth-domain-render.workspace = true

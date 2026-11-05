@@ -1,5 +1,5 @@
 //! The scripted parent delays answers and checks request terminals.
-use crate::fixtures::{self, Repository};
+use crate::{Repository, oid};
 use hearth_domain_render::{
     self as render, Render, limits,
     vocabulary::{Answer, Event, Outcome, Output, Request},
@@ -32,11 +32,8 @@ struct Revisions<'a> {
 }
 impl<'a> Revisions<'a> {
     fn listing(self, revision: &[u8], request: skein_lib::Token) -> (&'a Repository, Event) {
-        let (repository, commit) = if revision == b"after" {
-            (self.to.expect("second revision"), fixtures::oid(b'b'))
-        } else {
-            (self.from, fixtures::oid(b'a'))
-        };
+        let (repository, commit) =
+            if revision == b"after" { (self.to.expect("second revision"), oid(b'b')) } else { (self.from, oid(b'a')) };
         (repository, Event::Listed { request, commit, entries: repository.entries.clone().into_boxed_slice() })
     }
     fn event(self, targets: &[&[u8]]) -> Event {
@@ -177,7 +174,8 @@ fn render_event(targets: &[&[u8]]) -> Event {
     }
 }
 
-pub(crate) fn blob_event(
+#[must_use]
+pub fn blob_event(
     repository: &Repository,
     blob: &render::vocabulary::Blob,
     request: skein_lib::Token,

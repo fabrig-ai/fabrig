@@ -553,8 +553,10 @@ fn valid_runtime(task: &TaskRecord) -> bool {
         return false;
     }
     let notice_valid = match task.retry_notice {
-        Some(RetryNotice::Failed { count, allowance, .. }) => task.attempt != 0 && count != 0 && allowance != u32::MAX,
-        Some(RetryNotice::Refused { count }) => count != 0,
+        Some(RetryNotice::Failed { count, allowance, ref reason, .. }) => {
+            (task.attempt != 0 || reason.is_some()) && count != 0 && allowance != u32::MAX
+        }
+        Some(RetryNotice::Refused { count, .. }) => count != 0,
         None => true,
     };
     if !notice_valid {
@@ -569,10 +571,10 @@ fn valid_runtime(task: &TaskRecord) -> bool {
         }
         Phase::Active(Active::BackingOff { .. }) | Phase::Held { was: Was::Active(Active::BackingOff { .. }), .. } => {
             match task.retry_notice {
-                Some(RetryNotice::Failed { class, count, allowance }) => {
+                Some(RetryNotice::Failed { class, count, allowance, .. }) => {
                     count == task.tries.of(class) && count <= allowance
                 }
-                Some(RetryNotice::Refused { count }) => count == task.refusals,
+                Some(RetryNotice::Refused { count, .. }) => count == task.refusals,
                 None => false,
             }
         }

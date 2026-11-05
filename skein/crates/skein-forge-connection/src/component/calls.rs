@@ -87,7 +87,7 @@ impl Common {
             if c.role == connection::Use::Reserved {
                 continue;
             }
-            if c.phase == Phase::Idle && !c.closing && !self.holders.contains_key(owner) {
+            if c.phase() == Phase::Idle && !c.closing() && !self.holders.contains_key(owner) {
                 if c.forge == forge && c.origin == origin {
                     token = Some(*owner);
                     break;
@@ -165,10 +165,10 @@ impl Common {
         let connection = *self.connections.get(&token).expect("indexed connection");
         for _ in 0..64_u32 {
             let c = self.connection_slab.get_mut(connection).expect("holding connection");
-            if c.phase == Phase::Idle {
+            if c.phase() == Phase::Idle {
                 let waiting = self.waiting.get_mut(id).expect("indexed call");
                 if waiting.revoked {
-                    c.deadline = Some(env.now.saturating_add(env.limits.idle));
+                    c.rest(Some(env.now.saturating_add(env.limits.idle)));
                     let error = forgejo.plan.error(api::Error::Forbidden);
                     self.finish(call, id, Err(error), up);
                     break;
@@ -176,7 +176,7 @@ impl Common {
                 let deadline = waiting.deadline;
                 let plan = &mut forgejo.plan;
                 if let Some(request) = plan.pending() {
-                    c.deadline = Some(deadline);
+                    c.hold(deadline);
                     c.raw_room(plan.raw_room(self.shared.answer_bytes));
                     let forge = &base.forge;
                     let authorization = skein_forge::forgejo::credential::authorization(
@@ -204,12 +204,8 @@ impl Common {
             if let Some(heard) = forgejo.exchange.heard(c) {
                 let heard = call_heard(heard, waiting, &mut self.diagnostics);
                 let page_size = waiting.page_size;
-                let step = forgejo.plan.heard(
-                    heard,
-                    bounds(page_size, &env.limits, &self.shared),
-                    &self.owner.word,
-                    &mut self.forgejo_tables,
-                );
+                let bounds = bounds(page_size, &env.limits, &self.shared);
+                let step = forgejo.plan.heard(heard, bounds, &self.owner.word, &mut self.forgejo_tables);
                 let cut = forgejo.plan.take_cut();
                 if cut {
                     forgejo.exchange.cut(c);
@@ -229,7 +225,7 @@ impl Common {
                 }
                 continue;
             }
-            if c.phase == Phase::Closed {
+            if c.phase() == Phase::Closed {
                 c.close(env, true, io);
             }
             if !forgejo.exchange.ready(c) {
@@ -256,7 +252,7 @@ impl Common {
         match step {
             Step::Send(exchange) => {
                 forgejo.plan.set_pending(exchange);
-                if c.phase == Phase::Closed {
+                if c.phase() == Phase::Closed {
                     c.close(env, false, io);
                     let _holder = self.holders.remove(&token);
                     self.waiting.get_mut(id).expect("call").connection = None;
@@ -266,10 +262,10 @@ impl Common {
                 false
             }
             Step::Done(result) => {
-                if c.phase == Phase::Closed {
+                if c.phase() == Phase::Closed {
                     c.close(env, false, io);
                 } else {
-                    c.deadline = Some(env.now.saturating_add(env.limits.idle));
+                    c.rest(Some(env.now.saturating_add(env.limits.idle)));
                 }
                 self.finish(call, id, result, up);
                 true
@@ -435,8 +431,8 @@ impl Component {
                 self.common.wake = Some(env.now);
             }
             if self.common.lifecycle != Lifecycle::Live
-                || (c.phase == Phase::Idle && c.deadline <= Some(env.now))
-                || c.phase == Phase::Closed
+                || (c.phase() == Phase::Idle && c.deadline <= Some(env.now))
+                || c.phase() == Phase::Closed
             {
                 c.close(env, c.in_flight(), io);
                 if c.link.has_work() {

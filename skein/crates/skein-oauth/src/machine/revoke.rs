@@ -4,7 +4,7 @@ use super::{Client, ClientLimits, Exchange, Failure, Grant, HttpEvidence, HttpRe
 use crate::RefreshState;
 use crate::redirect::{form_fields, issued_id, validate_registration};
 use alloc::boxed::Box;
-use skein_lib::{Queue, Time, bytes, usize_of};
+use skein_lib::{Queue, Secret, Time, bytes, usize_of};
 
 pub(super) fn endpoint(registration: &Registration) -> Option<&[u8]> {
     registration.terms.as_ref()?.revocation_endpoint.as_deref()
@@ -58,7 +58,7 @@ impl Client {
         let mut exchange = Exchange {
             registration,
             grant: Grant::Revoke { prior },
-            state: bytes::copy_of(b""),
+            state: Secret::new(bytes::copy_of(b"")),
             verifier: None,
             nonce: None,
             deadline: now.checked_add(self.limits.sign_in_time).ok_or(Failure::Limit)?,
@@ -109,11 +109,11 @@ pub(super) fn body(
     limits: &ClientLimits,
 ) -> Result<Box<[u8]>, Failure> {
     let fields = [
-        Some((b"token".as_slice(), prior.refresh_token.as_ref())),
+        Some((b"token".as_slice(), prior.refresh_token.expose())),
         Some((b"token_type_hint".as_slice(), b"refresh_token".as_slice())),
         Some((b"client_id".as_slice(), registration.client_id.as_ref())),
-        match registration.client_secret.as_deref() {
-            Some(secret) => Some((b"client_secret".as_slice(), secret)),
+        match registration.client_secret.as_ref() {
+            Some(secret) => Some((b"client_secret".as_slice(), secret.expose())),
             None => None,
         },
     ];

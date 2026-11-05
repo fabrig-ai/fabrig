@@ -113,24 +113,20 @@ pub(crate) fn route_ended_proposal(
             && row.by <= core.counters.deployment().people
             && row.proposer == proposer;
         if named {
+            let kind = match row.kind {
+                tasks::ProposalKind::Settings => None,
+                tasks::ProposalKind::Batch => Some(authority::ProposalKind::Batch),
+                tasks::ProposalKind::Effect => Some(authority::ProposalKind::Effect),
+                tasks::ProposalKind::Amend => Some(authority::ProposalKind::Amend),
+                tasks::ProposalKind::Widen => Some(authority::ProposalKind::Widen),
+                tasks::ProposalKind::Release => Some(authority::ProposalKind::Escalation),
+            };
             let allowed = proposer == people::Proposer::Party(person)
                 || person == row.by
-                || (row.kind == tasks::ProposalKind::Settings && core.people.role(person, 0).is_some())
-                || (row.kind != tasks::ProposalKind::Settings
-                    && core.proposal_policy_standing(
-                        person,
-                        project,
-                        match row.kind {
-                            tasks::ProposalKind::Settings => {
-                                unreachable!("settings visibility checked by deployment role")
-                            }
-                            tasks::ProposalKind::Batch => authority::ProposalKind::Batch,
-                            tasks::ProposalKind::Effect => authority::ProposalKind::Effect,
-                            tasks::ProposalKind::Amend => authority::ProposalKind::Amend,
-                            tasks::ProposalKind::Widen => authority::ProposalKind::Widen,
-                            tasks::ProposalKind::Release => authority::ProposalKind::Escalation,
-                        },
-                    ));
+                || match kind {
+                    Some(kind) => core.proposal_policy_standing(person, project, kind),
+                    None => core.people.role(person, 0).is_some(),
+                };
             let running_valid = match core.people.pending_ask(core.people_request(request).expect("party route")) {
                 Some(people::Ask::DecideProposal { decision, running, .. }) => {
                     let accepting = match decision {

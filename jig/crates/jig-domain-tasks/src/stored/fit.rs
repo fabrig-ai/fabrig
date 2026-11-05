@@ -169,6 +169,9 @@ fn phase(value: &Phase, limits: &Limits) -> Result<(), RestoreCause> {
     };
     if let Some(source) = source {
         match source {
+            HoldSource::Preparation { words } => {
+                count(RestoreBound::PreparationReasonBytes, words.len(), crate::REASON_BYTES)?;
+            }
             HoldSource::Account { words, .. } => {
                 count(RestoreBound::AccountOriginBytes, words.len(), crate::hold_origin::ACCOUNT_BYTES)?;
             }
@@ -292,6 +295,15 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     contract(&value.contract, limits)?;
     authority(&value.authority, limits)?;
     phase(&value.phase, limits)?;
+    let reason = match &value.retry_notice {
+        Some(crate::RetryNotice::Failed { reason, .. } | crate::RetryNotice::Refused { reason, .. }) => {
+            reason.as_deref()
+        }
+        None => None,
+    };
+    if let Some(reason) = reason {
+        count(RestoreBound::PreparationReasonBytes, reason.len(), crate::REASON_BYTES)?;
+    }
     count(RestoreBound::Delegates, value.delegates.len(), limits.delegates)?;
     count(RestoreBound::Batch, value.result_followups.len(), limits.batch)?;
     count(RestoreBound::References, value.references.len(), limits.references)?;

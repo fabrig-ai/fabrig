@@ -138,8 +138,38 @@ fn resolver_compare_over_rows_keeps_required_pull_section() {
 fn resolver_comparison_read_errors_still_fail_the_section() {
     let (mut world, pull, head, absent) = resolver(9, 0, true);
     gather(&mut world, pull, head);
-    assert!(world.seen().contains(&top::Request::BriefSized { section: SECTION, size: None }));
+    assert!(world.seen().contains(&top::Request::BriefSized {
+        section: SECTION,
+        size: Err(top::BriefUnread { fate: top::BriefFate::Permanent, words: b"the forge has no such object" })
+    }));
     assert!(world.take_calls().contains(&api::Op::Read(api::Read::Compare { before: head, after: absent })));
+    world.take_seen();
+    world.event(top::Event::TakeBrief { section: SECTION });
+    assert_eq!(world.seen(), &[top::Request::BriefTaken { section: SECTION, bytes: None }]);
+}
+
+#[test]
+fn a_reviews_lone_pull_read_failure_fails_its_brief_without_words() {
+    let mut world = World::new(246);
+    world.adopt();
+    let mut row = changes::change_row();
+    // The fake has no such pull; its Item read answers Missing.
+    let pull = 17;
+    let head = translate::commit(1);
+    row.pull = Some(pull);
+    row.change.last_head = Some(head);
+    row.change.state = change::State::Gating { head, asked: Box::new([]) };
+    world.event(top::Event::Change { row });
+    gather(&mut world, pull, head);
+    assert!(world.seen().contains(&top::Request::BriefReadRefused {
+        section: SECTION,
+        stage: "item",
+        error: Some(api::Error::Missing)
+    }));
+    assert!(world.seen().contains(&top::Request::BriefSized {
+        section: SECTION,
+        size: Err(top::BriefUnread { fate: top::BriefFate::Permanent, words: b"the forge has no such object" })
+    }));
     world.take_seen();
     world.event(top::Event::TakeBrief { section: SECTION });
     assert_eq!(world.seen(), &[top::Request::BriefTaken { section: SECTION, bytes: None }]);

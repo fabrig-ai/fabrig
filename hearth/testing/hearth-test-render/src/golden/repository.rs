@@ -1,6 +1,6 @@
 //! Decode a golden once for the scripted domain parent.
 use super::Golden;
-use crate::fixtures::goldens::{JSON_QUEUE, JSON_TURN_GRACE, JSON_TURNS_PER_BYTE};
+use crate::{JSON_QUEUE, JSON_TURN_GRACE, JSON_TURNS_PER_BYTE};
 use hearth_domain_render::{
     revision::{Entry, Mode, Oid},
     vocabulary::Decoded,
@@ -13,13 +13,13 @@ use skein_lib::{
 };
 impl Golden {
     #[must_use]
-    pub fn repository(&self) -> crate::fixtures::Repository {
+    pub fn repository(&self) -> crate::Repository {
         repository_of(&self.tree)
     }
 }
 #[must_use]
-pub fn repository_of(leaves: &[super::Leaf]) -> crate::fixtures::Repository {
-    let mut repository = crate::fixtures::Repository { entries: Vec::new(), documents: Vec::new(), blobs: Vec::new() };
+pub fn repository_of(leaves: &[super::Leaf]) -> crate::Repository {
+    let mut repository = crate::Repository { entries: Vec::new(), documents: Vec::new(), blobs: Vec::new() };
     for leaf in leaves {
         let oid = Oid(leaf.path.clone().into_boxed_slice());
         let mode = match leaf.kind {

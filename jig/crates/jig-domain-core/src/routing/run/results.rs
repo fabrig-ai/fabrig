@@ -73,7 +73,14 @@ pub(crate) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box
         }
     }
     if core.result_read_flights() == core.flight_tasks_capacity {
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+        work.push(Work::PreparationFailed {
+            task,
+            failure: jig_domain_brief::GatherFailure {
+                fate: jig_domain_brief::GatherFate::Capacity,
+                section: b"results",
+                words: b"no read flight is free",
+            },
+        });
     } else {
         let read = ResultRead {
             why: ReadFor::Preparation {
@@ -175,7 +182,14 @@ pub(crate) fn loaded(
                 }
             };
             let Some(result) = result else {
-                work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+                work.push(Work::PreparationFailed {
+                    task,
+                    failure: jig_domain_brief::GatherFailure {
+                        fate: jig_domain_brief::GatherFate::Transient,
+                        section: b"results",
+                        words: b"a dependency's result could not be read",
+                    },
+                });
                 return out;
             };
             read.results.push(result).expect("one result per ID");

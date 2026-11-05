@@ -333,8 +333,8 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
 - **The same environment only.** `chat-prod` runs on `east-prod`; a lab
   container runs on a lab host. So the bash fleet's error, a container
   file that cannot vary by environment and so carries production's forge
-  host key in the lab, cannot be written. The container `east-chat`
-  becomes the target `chat-prod`, with `hosts/chat/chat-prod.json`:
+  host key in the lab, cannot be written. The container is the target
+  `chat-prod`, with `hosts/chat/chat-prod.json`:
 
   ```json
   { "placement": { "kind": "container", "on": "east-prod" } }
@@ -2384,9 +2384,3 @@ hearth/docs/design/domain/artifacts.md (7.3) cite it.
   or its `ConfigurationDirectory=` could name its consumers without a
   `live` entry (5.14); it depends on how many entries the fleet's tasks
   need once written.
-- **A bash fleet's container name in 3.5:** whether "The same environment
-  only" keeps the name of the container that becomes `chat-prod`, or is
-  written around the target alone; the user's to decide. The id base that
-  target's file sets (3.5; hearth/docs/design/domain/slots.md, 12.1) stays
-  either way: it is the first id past the builder's range
-  (hearth/docs/design/domain/store.md, 9.2) and says nothing of a deployment.
