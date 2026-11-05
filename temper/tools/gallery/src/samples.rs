@@ -73,7 +73,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 177;
+pub const N: usize = 180;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -338,6 +338,24 @@ pub fn samples() -> [Sample; N] {
             world: Solo,
             address: Address::Chat { task: 10 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Split),
+        },
+        Sample {
+            name: "chat-draft-chat",
+            world: Solo,
+            address: Address::Chat { task: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+        },
+        Sample {
+            name: "chat-draft-split",
+            world: Solo,
+            address: Address::Chat { task: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Split),
+        },
+        Sample {
+            name: "chat-draft-draft",
+            world: Solo,
+            address: Address::Chat { task: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
         },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
@@ -912,7 +930,12 @@ pub fn domain(sample: &Sample) -> Domain {
         return root;
     }
     match sample.then {
-        Then::Mode(mode) => step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut out),
+        Then::Mode(mode) => {
+            step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut out);
+            if sample.name == "chat-draft-split" {
+                step(&mut root, Event::Act { action: Action::Pages(Act::ShowSection { line: 17 }) }, &mut out);
+            }
+        }
         Then::Shown | Then::Working | Then::Held | Then::DelegatedGoal | Then::HeldChange | Then::HeldTask => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),

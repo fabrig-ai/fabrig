@@ -16,6 +16,14 @@ pub enum Word {
     DraftSplit,
     DraftDraft,
     DraftPath,
+    DraftWrote,
+    DraftEditedTool,
+    DraftLines,
+    DraftCounts,
+    DraftFile,
+    DraftShow,
+    DraftSendHint,
+
     DraftEdited,
     DraftAdded,
     DraftChanged,
@@ -1071,7 +1079,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Delegation lines add seven literal phrases (client/README.md, 5.7).
 // The document’s mode controls, path, attribution and rail add nine phrases (3.5).
 // Start over and the proposal line add six phrases (3.5).
-const PHRASES: u32 = 1548;
+// Note tool lines and the draft shortcut hint add seven phrases (3.5).
+const PHRASES: u32 = 1555;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1103,13 +1112,21 @@ const PHRASES: u32 = 1548;
 // Delegation lines add seven literal segments (client/README.md, 5.7).
 // The document adds twenty-one literal and hole segments (3.5).
 // Start over and the proposal line add fourteen segments (3.5).
-const SEGMENTS: u32 = 2728;
-const ALL: [Word; 952] = [
+// Note tool lines and the draft shortcut hint add fifteen segments (3.5).
+const SEGMENTS: u32 = 2743;
+const ALL: [Word; 959] = [
     Word::DraftGroup,
     Word::DraftChat,
     Word::DraftSplit,
     Word::DraftDraft,
     Word::DraftPath,
+    Word::DraftWrote,
+    Word::DraftEditedTool,
+    Word::DraftLines,
+    Word::DraftCounts,
+    Word::DraftFile,
+    Word::DraftShow,
+    Word::DraftSendHint,
     Word::DraftEdited,
     Word::DraftAdded,
     Word::DraftChanged,
@@ -2698,6 +2715,14 @@ impl Word {
             Self::DraftSplit => 3402,
             Self::DraftDraft => 3403,
             Self::DraftPath => 3404,
+            Self::DraftWrote => 3420,
+            Self::DraftEditedTool => 3421,
+            Self::DraftLines => 3422,
+            Self::DraftCounts => 3423,
+            Self::DraftFile => 3424,
+            Self::DraftShow => 3425,
+            Self::DraftSendHint => 3426,
+
             Self::DraftEdited => 3405,
             Self::DraftAdded => 3406,
             Self::DraftChanged => 3407,
@@ -3328,7 +3353,8 @@ impl Words {
                 + 367
                 + 468
                 + 88
-                + 148,
+                + 148
+                + 99,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4034,6 +4060,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DraftWaits => (&[b"Proposal ", b" \xc2\xb7 waits for an owner"], &[Number]),
         Word::DraftAccepted => (&[b"Accepted at ", b""], &[Name]),
         Word::DraftDecided => (&[b"Proposal ", b" \xc2\xb7 decided"], &[Number]),
+        Word::DraftWrote => (&[b"Wrote"], &[]),
+        Word::DraftEditedTool => (&[b"Edited"], &[]),
+        Word::DraftLines => (&[b"", b" lines"], &[Number]),
+        Word::DraftCounts => (&[b"+", b" \xe2\x88\x92", b""], &[Number, Number]),
+        Word::DraftFile => (&[b"", b".md"], &[Name]),
+        Word::DraftShow => (&[b"Show"], &[]),
+        Word::DraftSendHint => (&[b"Enter sends \xc2\xb7 Shift+Enter for a new line \xc2\xb7 Ctrl+\\ switches the draft"], &[]),
         Word::DraftPath => (&[b"docs/design/draft/", b".md"], &[Name]),
         Word::DraftEdited => (&[b"edited ", b""], &[Name]),
         Word::DraftAdded => (&[b"Added by T", b" ", b""], &[Number, Name]),

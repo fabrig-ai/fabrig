@@ -1394,6 +1394,12 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+#app > .temper-session .temper-doc-sec { border-radius: 8px; transition: background .8s; }
+#app > .temper-session .temper-doc-sec:focus { outline: none; }
+#app > .temper-session .temper-doc-flash { border-radius: 8px; animation: flash 1.8s ease-out; }
+@keyframes flash { 0% { background: #fde7cf; } 100% { background: var(--gf-signal-pale); } }
+#app > .temper-session .temper-turn-tool > button:hover { color: var(--gf-ink); text-decoration-color: var(--gf-ink); }
+
 
 /* The keyboard hint has no paragraph margin below the mock's composer. */
 #app > .temper-session .temper-session-foot > .temper-session-hint { margin-bottom: 0; }
@@ -1402,7 +1408,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* Calls and delegations share the conversation's pen line. */
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -8px 0 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-size: 13px; color: var(--gf-muted); }
-#app > .temper-session :is(.temper-task-card, .temper-turn-tool > summary)::before { content: ''; flex: none; display: inline-block; width: 14px; height: 14px; background: var(--gf-faint); mask: url(files/pen.svg) center / contain no-repeat; }
+#app > .temper-session :is(.temper-task-card, .temper-turn-tool > summary, div.temper-turn-tool)::before { content: ''; flex: none; display: inline-block; width: 14px; height: 14px; background: var(--gf-faint); mask: url(files/pen.svg) center / contain no-repeat; }
 #app > .temper-session details.temper-turn-tool { display: block; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 0; margin: 0; border: 0; background: none; list-style: none; font: inherit; color: var(--gf-muted); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > summary::-webkit-details-marker { display: none; }
@@ -1418,7 +1424,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > [role=status]::before { content: none; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-details { color: var(--gf-faint); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-details > * { margin: 0; font: inherit; }
-#app > .temper-session :is(.temper-turn-tool, .temper-task-card) > a { padding: 0; border: 0; background: none; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; }
+#app > .temper-session :is(.temper-turn-tool, .temper-task-card) > :is(a, button) { padding: 0; border: 0; background: none; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; }
 /* Conversation cards use the mock's proposal, independently of the inbox. */
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 20px 22px; border: 0; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) > * { margin: 0; }
@@ -1669,6 +1675,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @media (max-width: 760px) {
   #app > .temper-session .temper-seg > .temper-seg-split { display: none; }
   #app > .temper-session .temper-seg { margin-left: auto; }
+  #app > .temper-session.temper-mode-split .temper-seg > button:last-child { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
   #app > .temper-session > .temper-doc { padding: 24px 16px 60px; border-left: 0; scrollbar-gutter: auto; }
   #app:has(> .temper-rail):has(> .temper-mode-split) { grid-template-columns: minmax(0, 1fr); }
   #app > .temper-session.temper-mode-split { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }

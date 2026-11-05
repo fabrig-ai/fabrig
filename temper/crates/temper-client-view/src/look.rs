@@ -952,6 +952,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-seg-split",
         b"temper-rail-unfold",
         b"temper-start-over",
+        b"temper-doc-flash",
     ],
     regions: &[b"temper-link"],
 };
@@ -1045,3 +1046,6 @@ pub const RAIL_UNFOLD: Style = Style { owner: owner(), token: 351 };
 
 /// A configuring chat’s fresh start (temper/docs/design/client/README.md, 3.5).
 pub const START_OVER: Style = Style { owner: owner(), token: 352 };
+
+/// A shown section (temper/docs/design/client/README.md, 3.5).
+pub const DOC_FLASH: Style = Style { owner: owner(), token: 353 };

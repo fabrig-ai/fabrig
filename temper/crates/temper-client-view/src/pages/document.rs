@@ -15,7 +15,7 @@ use temper_client_domain::{
         Act,
         chat::{
             Chat,
-            document::{self, Mode, NoteChange},
+            document::{self, Mode, NoteChange, NoteWrite},
         },
     },
 };
@@ -104,6 +104,10 @@ pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, 
             NoteChange::Later { first, .. } => tinted = Some(document::section_holding(&draft.body, first)),
         }
     }
+    let flashed = match chat.shown {
+        Some(line) => Some(document::section_holding(&draft.body, line)),
+        None => None,
+    };
     let mut names =
         Map::<Box<[u8]>, u64>::with_capacity(u32::try_from(draft.body.len()).expect("bounded body").saturating_add(1));
     for (index, section) in document::sections(&draft.body).enumerate() {
@@ -114,8 +118,17 @@ pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, 
         b.open(Role::Slot);
         b.style(look::DOC_SEC);
         b.key(Key { owner: crate::frame::owner(), kind: 11, a: heading_hash(section.heading), b: nth });
+        let flashed = flashed == Some(index);
+        if flashed {
+            b.focus(chat.shown_count);
+        }
+        b.open(Role::Slot);
         if tinted == Some(index) {
             b.style(look::DOC_CHANGED);
+        }
+        if flashed {
+            b.style(look::DOC_FLASH);
+            b.key(Key { owner: crate::frame::owner(), kind: 12, a: chat.shown_count, b: 0 });
         }
         if index == 0 {
             opening(b, section.bytes);
@@ -136,6 +149,7 @@ pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, 
             b.text(Run::Plain, &words.say(word, &[Hole::Number(task.chip.task), Hole::Name(ago)]));
             b.close();
         }
+        b.close();
         b.close();
     }
     b.close();
@@ -197,4 +211,61 @@ fn proposal_line(b: &mut Builder, chat: &Chat, words: &Words, times: &mut Times)
     } else {
         b.text(Run::Plain, &words.say(Word::DraftNotProposed, &[Hole::Number(chat.task)]));
     }
+}
+
+/// Successful writes leave the ordinary tool disclosure.
+pub(crate) fn write(call: &c::Call) -> Option<NoteWrite> {
+    if call.failed || call.tool.bytes() != b"note" {
+        return None;
+    }
+    document::note_write(call.outcome.as_ref()?.bytes())
+}
+
+pub(crate) fn tool_line(b: &mut Builder, call: &c::Call, chat: Option<&Chat>, words: &Words, bindings: &mut Bindings) {
+    let Some(write) = write(call) else { return };
+    let draft = match chat {
+        Some(chat) => chat.draft.as_ref(),
+        None => None,
+    };
+    let name = document::slug(match draft {
+        Some(draft) => &draft.title,
+        None => b"",
+    });
+    let (verb, detail, line) = match write.change {
+        NoteChange::First { lines } => {
+            let mut line = 1;
+            if let Some(draft) = draft {
+                for section in document::sections(&draft.body) {
+                    if section.bytes.starts_with(b"## ") {
+                        line = section.line;
+                        break;
+                    }
+                }
+            }
+            (Word::DraftWrote, words.say(Word::DraftLines, &[Hole::Number(u64::from(lines))]), line)
+        }
+        NoteChange::Later { added, removed, first } => (
+            Word::DraftEditedTool,
+            words.say(Word::DraftCounts, &[Hole::Number(u64::from(added)), Hole::Number(u64::from(removed))]),
+            first,
+        ),
+    };
+    b.open(Role::Slot);
+    b.style(look::TURN_TOOL);
+    b.open(Role::Paragraph);
+    b.text(Run::Plain, &words.say(verb, &[]));
+    b.close();
+    b.open(Role::Paragraph);
+    b.style(look::TOOL_FILE);
+    b.text(Run::Plain, &words.say(Word::DraftFile, &[Hole::Name(name)]));
+    b.close();
+    b.open(Role::Paragraph);
+    b.style(look::DETAILS);
+    b.text(Run::Plain, &detail);
+    b.close();
+    b.open(Role::Button);
+    b.name(&words.say(Word::DraftShow, &[]));
+    b.bind(bindings.insert(Act::ShowSection { line }));
+    b.close();
+    b.close();
 }

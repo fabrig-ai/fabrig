@@ -47,6 +47,9 @@ configure-sending
 configure-refused
 configure-chat-document
 configure-chat-document-split
+chat-draft-chat
+chat-draft-split
+chat-draft-draft
 configure-chat
 configure-chats-tag
 chat-new

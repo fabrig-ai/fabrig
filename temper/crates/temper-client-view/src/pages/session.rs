@@ -87,9 +87,14 @@ pub(crate) fn foot(b: &mut Builder, name: &[u8]) {
     b.style(look::SESSION_COMPOSER);
 }
 /// Closes the entry and follows it with the shared keyboard hint.
-pub(crate) fn hint(b: &mut Builder, w: &Words) {
+pub(crate) fn hint(b: &mut Builder, w: &Words, document: bool) {
     b.close();
-    text(b, Role::Paragraph, &w.say(Word::ChatSendHint, &[]), Some(look::SESSION_HINT));
+    text(
+        b,
+        Role::Paragraph,
+        &w.say(if document { Word::DraftSendHint } else { Word::ChatSendHint }, &[]),
+        Some(look::SESSION_HINT),
+    );
 }
 
 fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style>) {

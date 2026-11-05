@@ -1219,6 +1219,45 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "chat-draft-chat",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Away mode" },
+        ],
+    },
+    Holds {
+        name: "chat-draft-split",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Named { role: Role::Region, name: "Away mode" },
+        ],
+    },
+    Holds {
+        name: "chat-draft-draft",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Named { role: Role::Region, name: "Away mode" },
+        ],
+    },
+    Holds {
         name: "configure-chat",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
@@ -1638,12 +1677,15 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 18] = [
+const SPENDS: [(&str, Role, &str); 21] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
     ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-chat", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-split", Role::Paragraph, "1 spent · of 40"),
+    ("chat-draft-draft", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
     ("chat-working", Role::Paragraph, "1 spent · of 40"),
     ("chat-change-running", Role::Paragraph, "0 spent · of 20"),
