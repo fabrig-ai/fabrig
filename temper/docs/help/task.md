@@ -33,13 +33,10 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   stays within the giver's authority and funding.
   A change runs nothing of its own, so `task release --again` on it is
   refused: release its hold, and it decides afresh.
-- **Its parts,** read separately: its tree (its live
-  delegates), its activity (events, newest last),
-  its turns (the model's words, calls and their results at each step),
-  and its run (the current attempt).
-- **Its settings revision:** an agent task records the settings
-  revision its runs use; `task show` prints it as `settings: revision R`,
-  with the run's own and the newest where they differ.
+- **Its parts:** tree (live delegates), activity (events, newest last),
+  turns (model words, calls and results per step), and run (current attempt).
+- **Its settings revision:** `task show` prints the task's
+  `settings: revision R`, plus the run's own and newest where they differ.
 - **Its model choice:** when the task carries an LLM choice, `task show`
   prints `main model: MODEL/EFFORT`, then `sub-agent model: MODEL/EFFORT`
   for each sub-agent choice in order. A model without an effort prints
@@ -123,7 +120,9 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   family: a change's coder, repairer and resolver are offered it where
   the change relays their questions; its reviewer is not offered it.
 
-Failed-run detail: serve's stderr, or `DATA/box/logs/serve.log` under the box.
+An “invalid results” hold may mean an assignment was refused before any model turn.
+For the precise refusal reason or failed-run detail, read serve's stderr or
+`DATA/box/logs/serve.log`.
 
 ## Limits
 

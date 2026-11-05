@@ -38,10 +38,10 @@ pub fn opened() -> (
 ) {
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits::SHIPPED };
     let mut reader = crate::output::Reader::new(&env.limits);
-    let mut below = skein_lib::Queue::with_capacity(1);
+    let mut below = skein_lib::Queue::uncapped();
     crate::output::open(&mut reader, &env, &mut below);
     assert!(below.pop().is_some(), "open demands a scan");
-    (env, reader, skein_lib::Queue::with_capacity(1), below)
+    (env, reader, skein_lib::Queue::uncapped(), below)
 }
 
 pub const APT_LINES: [&[u8]; 9] = [
@@ -82,8 +82,8 @@ pub fn opened_list() -> (
 ) {
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits::SHIPPED };
     let mut reader = crate::packages::Stanzas::new(&env.limits);
-    let mut below = skein_lib::Queue::with_capacity(crate::packages::UP_MAX_OUT.below);
+    let mut below = skein_lib::Queue::uncapped();
     crate::packages::open(&mut reader, &env, &mut below);
     assert!(below.pop().is_some(), "open demands a scan");
-    (env, reader, skein_lib::Queue::with_capacity(crate::packages::UP_MAX_OUT.above), below)
+    (env, reader, skein_lib::Queue::uncapped(), below)
 }

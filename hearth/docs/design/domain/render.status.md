@@ -8,6 +8,14 @@
 - **Not yet:** 6.2: the diff's rebuild time from each layer's last
   recorded cost. The domain's and printer's typed changes carry the
   rebuild layer, with no time or lookup of those costs.
+- **Not yet:** 8.5: no test holds that resumed work goes before the next
+  event, so that order rests on `work_pending` and this section alone.
+  Taking `work_pending` out of `protocol_up`'s `told` guard admits an io
+  event with work pending, and changes none of the client's submissions
+  or completions in 384 fixed cases. The guard stays, and section 10
+  keeps what would show the order
+  (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`,
+  "The service-order search").
 - **Departs:** 8.2: unsettled: this section's `Resolved` reply carries
   a closure, while `hearth/docs/design/domain/render.md`, 5.3, puts
   matching `Inst` triples to `Packages` stanzas in the domain. The code
