@@ -440,6 +440,7 @@ fn a_chat_writes_its_own_scope_and_a_party_reads_it() {
         (1, notes::Scope::Project { project: PROJECT }, b"project note".as_slice()),
         (2, scope.clone(), b"chat draft".as_slice()),
     ] {
+        world.turn(completion, 0, None, b"write a note");
         action(
             &mut world,
             completion,
@@ -459,6 +460,13 @@ fn a_chat_writes_its_own_scope_and_a_party_reads_it() {
     let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2 else {
         panic!("chat note admitted")
     };
+    world.turn(3, 0, None, b"recall the draft");
+    action(&mut world, 3, core::NamedAction::Recall { by: notes::Recall::Name { name }, page: 0 });
+    let core::CallPart::NoteRecalled { entries, more: false } = &world.answers.last().expect("chat recall").2 else {
+        panic!("chat recalls its own note")
+    };
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].body.as_ref(), b"# Draft");
     let owner = world.sign_in;
     let reader = jig_core_world::fixtures::second_party(&mut world, b"draft-reader", people::Role::Member);
     world.sign_in = Some(reader);

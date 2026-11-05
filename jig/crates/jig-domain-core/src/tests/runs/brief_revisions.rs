@@ -132,3 +132,17 @@ fn the_briefs_delegates_show_their_spec_and_hold_revisions() {
         assert_eq!(text.as_ref(), expected);
     }
 }
+
+#[test]
+fn a_brief_names_its_task_and_project() {
+    let (mut core, _) = make_tree();
+    let mut context = settings::charters::context(CHILD, CHARTER);
+    context.project = 23;
+    context.spec.words = b"Keep the task words first".as_slice().into();
+    context.ended_by = tasks::EndedBy::Requester;
+    core.contexts.insert(CHILD, context).expect("context room");
+    let text =
+        read_brief_part(&core, BriefTextLimits { parts: 2, read_bytes: 256, brief_bytes: 256 }, CHILD, BriefPart::Spec)
+            .expect("spec section");
+    assert_eq!(text.as_ref(), b"Keep the task words first\n[This task: 7, in project 23]\n[Requested by person 1]\n");
+}
