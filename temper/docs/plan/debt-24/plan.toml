@@ -72,3 +72,16 @@ id = 5
 story = "every world's tests pass as they did, and the boundary rule has nothing left pending"
 parts = ["jig-kits"]
 walk = false
+
+[[part]]
+id = "world-verbs"
+title = "each world names its fixtures once and calls its common acts by name; a bare number is left only where it's the point (jig D035)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 7"
+
+[[slice]]
+id = 6
+story = "the exempted search reads at most ten, each named; ask has one definition per world, and test lines fall"
+parts = ["world-verbs"]
+walk = false
