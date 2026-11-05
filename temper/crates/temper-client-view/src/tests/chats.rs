@@ -195,7 +195,6 @@ fn the_chat_composer_waits_for_the_person_and_project() {
         temper_client_domain::Event::Went {
             place: temper_client_domain::Place::Address(temper_client_domain::Address::Chats {
                 filter: ChatsFilter::All,
-                start: false,
             }),
         },
     );
@@ -329,9 +328,7 @@ fn open_chats(root: &mut Domain, env: &Env<temper_client_domain::Limits>, out: &
     temper_client_domain::step(
         root,
         env,
-        Event::Went {
-            place: temper_client_domain::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }),
-        },
+        Event::Went { place: temper_client_domain::Place::Address(Address::Chats { filter: ChatsFilter::All }) },
         out,
     );
     let mut watch = None;
@@ -484,7 +481,7 @@ fn chats_have_one_list_or_the_empty_sentence() {
 #[test]
 fn an_empty_playground_start_has_suggestions_and_chats() {
     let root = fixtures::playground_root(
-        temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+        temper_client_domain::Address::Chats { filter: ChatsFilter::All },
         fixtures::PROJECT,
         true,
     );
@@ -590,7 +587,7 @@ fn filter(root: &mut Domain, filter: ChatsFilter) {
     fixtures::root_event(
         root,
         temper_client_domain::Event::Went {
-            place: temper_client_domain::Place::Address(temper_client_domain::Address::Chats { filter, start: false }),
+            place: temper_client_domain::Place::Address(temper_client_domain::Address::Chats { filter }),
         },
     );
 }
@@ -729,7 +726,7 @@ fn the_composer_has_no_heading_and_precedes_the_choice() {
     for playground in [false, true] {
         let root = if playground {
             fixtures::playground_root(
-                temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+                temper_client_domain::Address::Chats { filter: ChatsFilter::All },
                 fixtures::PROJECT,
                 true,
             )
@@ -764,11 +761,7 @@ fn the_composer_has_no_heading_and_precedes_the_choice() {
 #[test]
 fn an_accepted_start_draws_no_applied_status() {
     use temper_client_domain::{self as d, Action, Event, pages::Act};
-    let mut root = fixtures::playground_root(
-        d::Address::Chats { filter: ChatsFilter::All, start: false },
-        fixtures::PROJECT,
-        true,
-    );
+    let mut root = fixtures::playground_root(d::Address::Chats { filter: ChatsFilter::All }, fixtures::PROJECT, true);
     let limits = fixtures::domain_limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
@@ -842,7 +835,7 @@ fn the_chats_page_opens_with_its_pane_and_draws_its_list() {
     assert_eq!(nodes[pane].styles.as_slice(), [crate::look::SIDEBAR]);
     assert_eq!(nodes[pane + 1].styles.as_slice(), [crate::look::CHATBAR]);
     let playground = fixtures::page_view(&fixtures::playground_root(
-        temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+        temper_client_domain::Address::Chats { filter: ChatsFilter::All },
         fixtures::PROJECT,
         true,
     ));
@@ -902,7 +895,11 @@ fn done_and_failed_chats_say_closed_in_the_list_and_bar() {
 fn only_the_starts_address_focuses_its_composer_including_the_playground() {
     for playground in [false, true] {
         for start in [false, true] {
-            let address = temper_client_domain::Address::Chats { filter: ChatsFilter::All, start };
+            let address = if start {
+                temper_client_domain::Address::NewChat
+            } else {
+                temper_client_domain::Address::Chats { filter: ChatsFilter::All }
+            };
             let root = if playground {
                 fixtures::playground_root(address, fixtures::PROJECT, true)
             } else {
@@ -1011,7 +1008,7 @@ fn the_repository_context_precedes_the_composer_and_links_into_its_project() {
         }
         let mut rows = List::with_capacity(1);
         rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-        let address = d::Address::Chats { filter: ChatsFilter::All, start: false };
+        let address = d::Address::Chats { filter: ChatsFilter::All };
         let root = fixtures::forge_root(address, rows);
         let mut view = fixtures::page_view(&root);
         let context = fixtures::find(view.tree(), Role::Paragraph, b"No repository yet");
@@ -1038,10 +1035,8 @@ fn the_repository_context_precedes_the_composer_and_links_into_its_project() {
 fn an_ended_or_refused_forges_watch_says_nothing_about_a_repository() {
     use temper_client_domain as d;
     for end in [WatchEnd::NotAllowed, WatchEnd::SubjectEnded] {
-        let (mut root, watch) = fixtures::forge_root_watch(
-            d::Address::Chats { filter: ChatsFilter::All, start: false },
-            List::with_capacity(0),
-        );
+        let (mut root, watch) =
+            fixtures::forge_root_watch(d::Address::Chats { filter: ChatsFilter::All }, List::with_capacity(0));
         fixtures::root_event(
             &mut root,
             d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end } } },
@@ -1053,8 +1048,11 @@ fn an_ended_or_refused_forges_watch_says_nothing_about_a_repository() {
 fn the_playgrounds_project_keeps_its_context_instead_of_no_repository() {
     use temper_client_domain as d;
     for start in [false, true] {
-        let root =
-            fixtures::playground_root(d::Address::Chats { filter: ChatsFilter::All, start }, fixtures::PROJECT, true);
+        let root = fixtures::playground_root(
+            if start { d::Address::NewChat } else { d::Address::Chats { filter: ChatsFilter::All } },
+            fixtures::PROJECT,
+            true,
+        );
         assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Paragraph, b"No repository yet").is_none());
         assert_eq!(
             d::forge::listed::without_repository(root.forges(), root.forge().playground(), fixtures::PROJECT),
@@ -1066,8 +1064,7 @@ fn the_playgrounds_project_keeps_its_context_instead_of_no_repository() {
 #[test]
 fn a_project_with_no_chat_offers_the_first_chat() {
     use temper_client_domain::{Action, Address, pages::Act};
-    let (root, _, _) =
-        fixtures::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, &fixtures::domain_limits());
+    let (root, _, _) = fixtures::root_at(Address::Chats { filter: ChatsFilter::All }, &fixtures::domain_limits());
     let mut view = fixtures::page_view(&root);
     let button = fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").expect("first chat");
     let composer = fixtures::find(view.tree(), Role::TextArea, b"Start a chat").expect("composer");
@@ -1099,7 +1096,7 @@ fn a_project_with_a_chat_offers_no_first_chat() {
 #[test]
 fn the_playground_project_offers_no_first_chat() {
     let root = fixtures::playground_root(
-        temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+        temper_client_domain::Address::Chats { filter: ChatsFilter::All },
         fixtures::PROJECT,
         true,
     );
@@ -1124,7 +1121,7 @@ fn the_first_chat_offer_is_only_shown_under_all() {
 fn a_pending_chat_start_keeps_the_offer_and_disables_the_composer() {
     use temper_client_domain::{Action, Event, pages::Act};
     let mut root = fixtures::playground_root(
-        temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+        temper_client_domain::Address::Chats { filter: ChatsFilter::All },
         fixtures::SECOND_PROJECT,
         true,
     );
@@ -1157,7 +1154,7 @@ fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
     for event in [
         Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
         Event::Start {
-            address: Address::Chats { filter: ChatsFilter::All, start: false },
+            address: Address::Chats { filter: ChatsFilter::All },
             kept: List::with_capacity(0),
             with: Some(jig_client::With::Transport),
         },
@@ -1287,7 +1284,7 @@ fn configuring_rows_tag_the_chip_executor_in_meta_with_fixed_words_in_both_shell
     let source = fixtures::chat::messaging_root();
     for listed in [false, true] {
         let (mut root, me_watch, _) = fixtures::root_at(
-            temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+            temper_client_domain::Address::Chats { filter: ChatsFilter::All },
             &fixtures::domain_limits(),
         );
         let mut me = source.pages().me(source.client()).expect("me").clone();

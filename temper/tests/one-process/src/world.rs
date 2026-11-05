@@ -422,10 +422,7 @@ impl Person {
         let steps = match scenario {
             Story::Chat { words } | Story::ChatReadThenWait { words } => vec![
                 Step::Go {
-                    address: temper_client_domain::Address::Chats {
-                        filter: temper_client_domain::ChatsFilter::All,
-                        start: false,
-                    },
+                    address: temper_client_domain::Address::Chats { filter: temper_client_domain::ChatsFilter::All },
                 },
                 Step::See { find: Find::named(skein_ui::Role::TextArea, b"Start a chat"), within: CHAT_WITHIN },
                 Step::Type { find: Find::named(skein_ui::Role::TextArea, b"Start a chat"), words: words.into() },

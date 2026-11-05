@@ -241,7 +241,7 @@ fn connected() -> forge::Connection {
 }
 // Welcome hides Live. Establish the world's Online observation before entering it.
 fn open(world: &mut Pages, address: Address) -> ClientId {
-    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All, start: false });
+    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All });
     follow(world, client, vec![see(Role::Heading { level: 1 }, b"Chats")]);
     follow(world, client, vec![PersonStep::Go { address }]);
     client
@@ -471,12 +471,8 @@ fn unoffered_forge_has_no_owned_choose_card() {
 #[test]
 fn github_details_offer_only_the_app_of_ones_own_with_a_masked_key() {
     let mut world = world();
-    let client = world.client_with(
-        f::PARTY,
-        Address::Chats { filter: ChatsFilter::All, start: false },
-        f::domain_limits(),
-        browser_client,
-    );
+    let client =
+        world.client_with(f::PARTY, Address::Chats { filter: ChatsFilter::All }, f::domain_limits(), browser_client);
     follow(
         &mut world,
         client,
@@ -846,7 +842,7 @@ fn navigation_dot_names_and_colours_follow_real_rows_only() {
     ] {
         let mut world = world_for(number);
         connection(&mut world, number, state);
-        let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
+        let client = open(&mut world, Address::Chats { filter: ChatsFilter::All });
         follow(
             &mut world,
             client,
@@ -868,7 +864,7 @@ fn failure_dot_wins_over_progress_then_clears_on_connect() {
     let mut world = world();
     connection(&mut world, OWNED, forge::Connection::SetUpFailed { why: FAILURE.into() });
     connection(&mut world, GITHUB, forge::Connection::Connecting);
-    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
+    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All });
     follow(&mut world, client, vec![see(Role::Text, b"a forge needs you"), gone(Role::Text, b"a forge is setting up")]);
     connection(&mut world, OWNED, connected());
     connection(&mut world, GITHUB, connected());
@@ -892,7 +888,7 @@ fn failure_dot_wins_over_progress_then_clears_on_connect() {
 fn fake_failure_never_sets_navigation_dot() {
     let mut world = world_for(FAKE);
     connection(&mut world, FAKE, forge::Connection::SetUpFailed { why: FAILURE.into() });
-    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
+    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All });
     follow(
         &mut world,
         client,
@@ -1043,7 +1039,7 @@ fn session_watch_survives_pages_and_stays_terminal_without_retry() {
         client,
         vec![
             PersonStep::Go { address: at(OWNED) },
-            PersonStep::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+            PersonStep::Go { address: Address::Chats { filter: ChatsFilter::All } },
         ],
     );
     // Hold first delivery: Forges must draw headings only. Refuse/end instead:
@@ -1079,7 +1075,7 @@ fn accounts_banner_stays_visible_without_the_setup_strip() {
     for (page, _had_strip) in [
         (Address::Home { project: 1 }, true),
         (Address::Settings { project: 1 }, true),
-        (Address::Chats { filter: ChatsFilter::All, start: false }, true),
+        (Address::Chats { filter: ChatsFilter::All }, true),
         (f::inbox(), true),
         (Address::Adopt { project: 1 }, true),
         (Address::Forges, false),

@@ -41,7 +41,7 @@ pub fn a() -> Vec<Step<Address>> {
 }
 
 fn chats() -> Step<Address> {
-    Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } }
+    Step::Go { address: Address::Chats { filter: ChatsFilter::All } }
 }
 
 fn see(find: Find) -> Step<Address> {

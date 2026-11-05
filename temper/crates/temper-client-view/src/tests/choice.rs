@@ -41,7 +41,7 @@ fn banner(usable: Option<bool>) -> (d::Domain, Token) {
     }
     fixtures::root_event(
         &mut root,
-        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
+        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All }) },
     );
     (root, watch)
 }
@@ -155,7 +155,7 @@ fn line_fixture(
     task_page: bool,
 ) -> (d::Domain, Token, Option<Token>, Token) {
     let (mut root, me_watch, watch, _, accounts_watch) = fixtures::root_at_full(
-        if task_page { Address::Chat { task: 9 } } else { Address::Chats { filter: ChatsFilter::All, start: false } },
+        if task_page { Address::Chat { task: 9 } } else { Address::Chats { filter: ChatsFilter::All } },
         &fixtures::limits(),
         b"Shop",
     );
@@ -163,11 +163,7 @@ fn line_fixture(
     let models = line_models(task_page);
     me.projects.get_mut(0).unwrap().models = models;
     if !task_page {
-        let template = fixtures::playground_root(
-            Address::Chats { filter: ChatsFilter::All, start: false },
-            fixtures::PROJECT,
-            true,
-        );
+        let template = fixtures::playground_root(Address::Chats { filter: ChatsFilter::All }, fixtures::PROJECT, true);
         me.projects.get_mut(0).unwrap().templates =
             template.pages().me(template.client()).unwrap().projects.get(0).unwrap().templates.clone();
     }
@@ -329,8 +325,7 @@ fn catalogue(name: &[u8], efforts: &[&[u8]]) -> d::Domain {
     catalogue_rows(models)
 }
 fn catalogue_rows(models: List<c::MeModel>) -> d::Domain {
-    let (mut root, me_watch, _) =
-        fixtures::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, &fixtures::limits());
+    let (mut root, me_watch, _) = fixtures::root_at(Address::Chats { filter: ChatsFilter::All }, &fixtures::limits());
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     let project = me.projects.get_mut(0).unwrap();
     project.templates = List::with_capacity(1);

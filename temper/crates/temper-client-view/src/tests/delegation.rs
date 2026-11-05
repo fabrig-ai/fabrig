@@ -98,7 +98,7 @@ fn root_chat_with_reads(
         Some(chat) => chat.chip.task,
         None => CHAT,
     };
-    let (mut root, _, _) = fixtures::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, receiving);
+    let (mut root, _, _) = fixtures::root_at(Address::Chats { filter: ChatsFilter::All }, receiving);
     let mut out = Queue::uncapped();
     temper_client_domain::step(
         &mut root,

@@ -7,7 +7,7 @@ use temper_client_domain::ChatsFilter;
 
 #[test]
 fn the_start_draws_the_pane_before_the_composer_choice_and_suggestions() {
-    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
     let mut main = None;
@@ -83,7 +83,7 @@ fn other_chats_keep_their_pane_and_no_suggestions() {
         [("other project", f::SECOND_PROJECT, true, true), ("no answer", f::PROJECT, true, false)]
     {
         let root = if playground {
-            f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
+            f::playground_root(Address::Chats { filter: ChatsFilter::All }, project, model)
         } else {
             f::chats_root()
         };
@@ -203,7 +203,7 @@ fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
 fn the_context_repository_has_its_own_node_and_style() {
     // Each page has exactly one playground repository in its context.
     const REPOSITORIES: u32 = 1;
-    for address in [Address::Chats { filter: ChatsFilter::All, start: false }, Address::Chat { task: f::chat::TASK }] {
+    for address in [Address::Chats { filter: ChatsFilter::All }, Address::Chat { task: f::chat::TASK }] {
         let root = f::playground_root(address, f::PROJECT, true);
         let view = f::page_view(&root);
         let mut repositories = skein_lib::List::with_capacity(REPOSITORIES);
@@ -220,7 +220,7 @@ fn the_context_repository_has_its_own_node_and_style() {
 
 #[test]
 fn the_suggestions_slot_holds_only_the_cue_list() {
-    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
     let at = nodes.iter().position(|node| node.styles.as_slice().contains(&crate::look::INVITATION)).unwrap();
@@ -321,7 +321,7 @@ fn enter_and_start_wait_for_the_playground_start_answer() {
 }
 
 fn start_root() -> temper_client_domain::Domain {
-    let address = Address::Chats { filter: ChatsFilter::All, start: false };
+    let address = Address::Chats { filter: ChatsFilter::All };
     let template = f::playground_root(address.clone(), f::PROJECT, true);
     let (mut root, me, _, _, accounts, _) = f::root_at_with_forges(
         address,

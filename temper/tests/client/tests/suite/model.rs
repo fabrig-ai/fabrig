@@ -28,7 +28,7 @@ pub fn follow(world: &mut Pages, client: ClientId, steps: Vec<Step<Address>>) {
     assert_eq!(result.verdict, Verdict::Passed, "{result:?}");
 }
 pub fn open(world: &mut Pages, path: &[u8]) -> ClientId {
-    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All, start: false });
+    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All });
     follow(world, client, vec![see(Role::Status, b"Live"), Step::Go { address: at(path) }]);
     client
 }

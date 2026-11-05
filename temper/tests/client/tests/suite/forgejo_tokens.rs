@@ -111,7 +111,7 @@ fn paste(world: &mut Pages, client: ClientId, values: &[Box<[u8]>]) {
 fn your_forgejo_connects_with_bot_tokens_retries_a_stop_and_is_ready() {
     let mut world = new_world();
     let values = tokens();
-    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All, start: false });
+    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All });
     follow(
         &mut world,
         client,

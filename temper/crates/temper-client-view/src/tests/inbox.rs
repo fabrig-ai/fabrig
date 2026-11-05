@@ -682,7 +682,7 @@ fn the_filters_row_starts_with_a_new_chat_link() {
     let filters = filters.expect("heading filters");
     assert_eq!(link, filters + 1, "the link is the filters' first child");
     let id = needs[link].id;
-    assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/chats?at=start".as_slice()));
+    assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/chats/new".as_slice()));
 }
 
 #[test]

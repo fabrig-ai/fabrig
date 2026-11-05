@@ -31,7 +31,7 @@ fn follow(world: &mut Pages, client: ClientId, steps: Vec<PersonStep<Address>>) 
 // Welcome deliberately has no link-state node (client/README.md, 3.5).
 // Establish the world's visible Online expectation at Chats before navigating.
 fn open_from_chats(world: &mut Pages, step: Step) -> ClientId {
-    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All, start: false });
+    let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All });
     follow(world, client, vec![see(Role::Heading { level: 1 }, b"Chats")]);
     follow(world, client, vec![PersonStep::Go { address: welcome(step) }]);
     client

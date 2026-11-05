@@ -90,6 +90,7 @@ impl Switcher {
             | Address::Settings { .. }
             | Address::Configure { .. }
             | Address::Chats { .. }
+            | Address::NewChat
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Adopt { .. } => {}
