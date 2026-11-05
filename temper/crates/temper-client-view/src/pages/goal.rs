@@ -1,4 +1,5 @@
-//! A goal's header, report and side (temper/docs/design/client/README.md, 5.8, 5.12).
+//! A goal's header, needs, report and side (temper/docs/design/client/README.md, 5.8, 5.12).
+use super::ask::{self, Kind};
 use crate::{
     frame::Bindings,
     look,
@@ -14,6 +15,8 @@ use temper_client_domain::{
         Act, delegation,
         goal::{self, Counts, Fallback},
         goals::State,
+        inbox::Card,
+        needs,
         report::Report,
     },
 };
@@ -38,17 +41,17 @@ pub(crate) fn main(
                         Some(ended) => ended.page.as_deref(),
                         None => None,
                     };
-                    let needs = match root.pages().inbox() {
-                        Some(inbox) => inbox.needs().next().is_some(),
-                        None => false,
-                    };
+                    let bands = open_bands(root);
                     let shown = Page {
                         task,
                         report: goal.report.as_ref(),
                         counts: goal.counts(task, ended),
-                        state: goal.state(task, ended, needs),
+                        state: goal.state(task, ended, !bands.is_empty()),
                     };
                     shown.header(b, words, bindings, times);
+                    for card in &bands {
+                        band(b, root, task, card, words, bindings);
+                    }
                     b.open(Role::Slot);
                     b.style(look::GOAL_TWO);
                     shown.report(b, words, times);
@@ -60,6 +63,117 @@ pub(crate) fn main(
         }
     }
     b.close();
+}
+
+fn open_bands(root: &Domain) -> Box<[&Card]> {
+    let mut bands = List::uncapped();
+    if let Some(inbox) = root.pages().inbox() {
+        for card in &root.pages().needs().open(inbox) {
+            if card.group != c::InboxGroup::Questions || card.page.is_some() {
+                bands.push(*card).expect("open inbox cards fit");
+            }
+        }
+    }
+    bands.into_boxed()
+}
+
+fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, bindings: &mut Bindings) {
+    let asked = ask::read(card, w);
+    let kind = match asked.kind {
+        Kind::Funds { .. } => Word::NeedsKindFunds,
+        Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => ask::need_kind(card.group),
+    };
+    let question = match asked.kind {
+        Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),
+        Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => asked.short.clone(),
+    };
+    b.open(Role::Region);
+    b.style(look::GOAL_BAND);
+    b.name(&w.say(Word::NeedsYou, &[]));
+    b.open(Role::Paragraph);
+    b.open(Role::Text);
+    b.style(look::GOAL_BAND_TAG);
+    b.text(Run::Plain, &w.say(Word::NeedsYou, &[]));
+    b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
+    b.text(Run::Plain, &w.say(kind, &[]));
+    b.close();
+    b.text(Run::Plain, &question);
+    b.close();
+    band_controls(b, root, task, &asked, w, bindings);
+    b.close();
+}
+
+fn band_controls(
+    b: &mut Builder,
+    root: &Domain,
+    task: &c::Task,
+    asked: &ask::Asked<'_>,
+    w: &Words,
+    bindings: &mut Bindings,
+) {
+    let card = asked.card;
+    b.open(Role::Slot);
+    b.style(look::GOAL_CHOICES);
+    if let Some(parsed) = &asked.parsed
+        && !parsed.choices.is_empty()
+    {
+        for (i, choice) in parsed.choices.iter().enumerate() {
+            b.open(Role::Button);
+            b.style(look::GOAL_BTN);
+            b.name(&choice.words);
+            b.bind(
+                bindings.insert(Act::Needs(needs::Act::Choose { object: card.object, words: choice.words.clone() })),
+            );
+            if parsed.primary() == Some(i) {
+                b.style(look::GOAL_PRIMARY);
+            }
+            if choice.recommended {
+                if w.shell == Shell::Terminal {
+                    b.text(Run::Plain, &choice.words);
+                    b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
+                }
+                ask::text(b, Role::Text, &w.say(Word::NeedsRecommended, &[]), look::GOAL_PRIMARY);
+            }
+            b.close();
+        }
+    } else if funds_offered(asked) {
+        crate::confirm::needs_controls(b, root, card, w, bindings);
+    } else {
+        let word = match asked.kind {
+            Kind::Question | Kind::PersonTask => Word::Answer,
+            Kind::Proposal | Kind::Held | Kind::Funds { .. } => Word::HomeOpen,
+        };
+        let name = w.say(word, &[]);
+        crate::link(
+            b,
+            &name,
+            bindings.insert(Act::Go {
+                address: Address::Inbox {
+                    filter: temper_client_domain::address::Filter {
+                        project: Some(task.project),
+                        goal: Some(task.chip.task),
+                        kind: None,
+                    },
+                },
+            }),
+        );
+        b.style(look::GOAL_BTN);
+        b.style(look::GOAL_PRIMARY);
+        b.text(Run::Plain, &name);
+        b.close();
+    }
+    b.close();
+}
+
+fn funds_offered(asked: &ask::Asked<'_>) -> bool {
+    match asked.kind {
+        Kind::Funds { .. } => {}
+        Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => return false,
+    }
+    let Some(page) = &asked.card.page else { return false };
+    let offers = temper_client_domain::acts::offers(page);
+    jig_client::facts::offer(offers, c::ActKind::Release).is_some()
+        || jig_client::facts::offer(offers, c::ActKind::LeaveHeld).is_some()
 }
 
 struct Page<'a> {
@@ -499,7 +613,7 @@ fn count_words(words: &Words, total: u32) -> Box<[u8]> {
     }
 }
 
-fn delegate_line(chip: &c::Chip, open: &[&temper_client_domain::pages::inbox::Card]) -> Option<goal::Line> {
+fn delegate_line(chip: &c::Chip, open: &[&Card]) -> Option<goal::Line> {
     let mut yours = false;
     for card in open {
         if super::inbox::source_task(card.object) == Some(chip.task) {
