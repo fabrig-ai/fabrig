@@ -155,3 +155,27 @@ fn repair_accounts_precede_stale_caveats_with_utf8_cuts_and_completion_order() {
     assert!(skein_lib::bytes::is_utf8(&retained));
     assert!(retained.ends_with(b" bytes cut]\n"));
 }
+
+#[test]
+fn a_green_head_records_why_its_ci_repair_ended() {
+    let head = [
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0,
+    ];
+    let mut result = ChangeResult::empty();
+    result.checked(head, &[check(b"build", Check::Failed)], BOUND);
+    result.repaired(change::Repair::Ci, Some(head), BOUND);
+    result.ci_passed(&head, BOUND);
+    assert_eq!(
+        result.repairs.bytes.as_ref(),
+        b"CI failed: build, then CI passed at 0123456789ab0000000000000000000000000000"
+    );
+    assert_eq!(result.repair_count, 1);
+}
+
+#[test]
+fn a_green_head_with_no_repair_records_no_repair_words() {
+    let mut result = ChangeResult::empty();
+    result.ci_passed(&HEAD, BOUND);
+    assert_eq!(result, ChangeResult::empty());
+}

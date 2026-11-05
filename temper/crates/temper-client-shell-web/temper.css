@@ -1369,7 +1369,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-session-composer > button { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--gf-ink) url(files/send.svg) center / 16px no-repeat; color: transparent; font-size: 0; overflow: hidden; }
 #app > .temper-session .temper-session-composer > button:disabled { background-color: var(--gf-line-2); cursor: default; }
 @media (max-width: 760px) {
-  #app:has(> .temper-session) > :is(.temper-rail, .temper-tabbar) { display: none; }
+  #app:has(> .temper-session) > :is(.temper-rail, .temper-tabbar, .temper-accounts) { display: none; }
   #app > .temper-session > .temper-session-top { padding: 10px 12px; gap: 8px; }
   #app > .temper-session .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
   #app > .temper-session .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
@@ -1598,7 +1598,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 .temper-toast { position: fixed; left: 50%; bottom: 28px; z-index: 50; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px); padding: 10px 14px 10px 18px; border-radius: 10px; background: var(--gf-ink); color: #fff; font-size: 14px; transform: translate(-50%, 0); }
 .temper-toast button { padding: 0; border: 0; background: none; color: #fff; text-decoration: underline; font-size: 14px; }
-@media (max-width: 760px) { .temper-toast { bottom: 88px; } }
+@media (max-width: 760px) { .temper-toast { bottom: calc(88px + env(safe-area-inset-bottom)); } }
 
 
 
@@ -1734,7 +1734,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-rail) .temper-sheet-link:hover { text-decoration-color: var(--gf-ink); }
 @keyframes typing { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
 @media (max-width: 760px) {
-  #app:has(> .temper-rail) .temper-goal { padding: 8px 20px 112px; }
+  #app:has(> .temper-rail) .temper-goal { padding: 8px 20px 112px; gap: 32px; }
   #app:has(> .temper-rail) .temper-goal-choices { flex-direction: column; align-items: stretch; }
   #app:has(> .temper-rail) .temper-goal-choices :is(.temper-goal-btn, button, summary) { min-height: 48px; font-size: 15.5px; }
   #app:has(> .temper-rail) .temper-goal-choices .temper-goal-btn.temper-goal-quiet { min-height: 44px; }
@@ -1914,6 +1914,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   .temper-settings .temper-settings-lede { font-size: 15.5px; }
   .temper-settings-tabs { flex-wrap: wrap; }
   .temper-settings-setting { grid-template-columns: minmax(0, 1fr); }
+  .temper-settings [role=radiogroup]:has(> .temper-settings-setting) { grid-template-columns: minmax(0, 1fr); }
+  .temper-settings .temper-settings-primary { min-height: 44px; }
 }
 
 
@@ -1949,7 +1951,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-session .temper-starter-ways { margin-top: 32px; }
   #app > .temper-session .temper-starters { gap: 10px; }
   #app > .temper-session .temper-starters button { padding: 12px 16px 14px; }
-  #app > .temper-session .temper-session-foot { padding: 8px 16px 14px; scrollbar-gutter: auto; }
+  #app > .temper-session .temper-session-foot { padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); scrollbar-gutter: auto; }
 }
 
 
@@ -2092,3 +2094,9 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: phone ==== */
+@media (max-width: 760px) {
+  /* The tabs occupy 63px; keep a pixel clear when scrolling a control. */
+  :root:has(#app > .temper-tabbar):not(:has(#app > .temper-session)) { scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .temper-main:where(:not(.temper-settings)) .temper-flow-primary { min-height: 44px; }
+  dialog > button:nth-last-child(2) { min-height: 44px; }
+}

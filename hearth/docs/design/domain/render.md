@@ -1556,3 +1556,12 @@ Over generated repositories, valid by construction and then mutated:
   protocol layer's alone, and the domain's step takes event after event
   without asking whether it has work to resume. Whether it must depends
   on the first build step that streams its events.
+- **The store adapter's and a keep's lifecycles** (8): `store.rs` and `keep.rs`
+  in `hearth-protocol-builder` keep theirs in flags and `Option`s
+  (`skein/docs/foundation/programming-model.md`, 5.4). Default: as they stand,
+  until a debt item names them.
+- **A stop with its output gone** (8.5): if standard error breaks and closes
+  during a lock wait and the store then answers `Unopened`, `progress.stop()`
+  queues a `Down::Finish`, and `resume` expects an output there is none of. This
+  is from reading the code; no test has run it. Whether `stop` asks first.
+  Default: as it stands, until a test shows it.
