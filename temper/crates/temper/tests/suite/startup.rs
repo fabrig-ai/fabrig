@@ -2114,3 +2114,170 @@ fn a_fresh_box_offers_chatgpt_and_claude_with_no_claude_on_path() {
     assert_eq!(agent["programs"]["claude_code"]["path"], "fetched");
     scratch.remove();
 }
+
+#[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), any(target_os = "linux", target_os = "macos")))]
+#[test]
+fn a_fetched_program_runs_through_its_launcher() {
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+    use temper_forge_setup::claude_code::{self, Libc};
+    let scratch = support::Scratch::startup("fetched-program-launcher");
+    let directory = scratch.path();
+    let temper = skein_scratch::paths::binary("temper");
+    let init = std::process::Command::new(&temper)
+        .args(["init", "--box"])
+        .args(support::configuration::flags(directory))
+        .env_clear()
+        .output()
+        .unwrap();
+    assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
+    let agent: serde_json::Value = serde_json::from_slice(&fs::read(directory.join("agent.json")).unwrap()).unwrap();
+    assert_eq!(agent["programs"]["claude_code"]["path"], "fetched");
+    let build = claude_code::build(
+        if cfg!(target_os = "macos") {
+            skein_forge::forgejo::pin::Platform::Macos
+        } else {
+            skein_forge::forgejo::pin::Platform::Linux
+        },
+        std::env::consts::ARCH,
+        if cfg!(target_env = "musl") { Libc::Musl } else { Libc::Gnu },
+    )
+    .unwrap();
+    let file = directory.join("claude-code/2.1.311/claude");
+    fs::create_dir_all(file.parent().unwrap()).unwrap();
+    fs::write(&file, format!("#!/bin/sh\nprintf '%s\\000' \"$@\" > '{}/arguments'\nprintf '%s' \"$DISABLE_AUTOUPDATER\" > '{}/updater'\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > '{}/source'\nprintf 'command stdout\\n'\nexit 0\n", directory.display(), directory.display(), directory.display())).unwrap();
+    fs::OpenOptions::new().write(true).open(&file).unwrap().set_len(build.bytes).unwrap();
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+    let login = std::process::Command::new(&temper)
+        .arg("program-login")
+        .args(support::configuration::flags(directory))
+        .arg("some-name")
+        .env_clear()
+        .output()
+        .unwrap();
+    assert!(login.status.success(), "{}", String::from_utf8_lossy(&login.stderr));
+    assert_eq!(login.stdout, b"command stdout\n");
+    assert!(!String::from_utf8_lossy(&login.stderr).contains("fetching"));
+    assert_eq!(fs::read(directory.join("arguments")).unwrap(), b"auth\0login\0");
+    assert_eq!(
+        fs::read(directory.join("source")).unwrap(),
+        directory.join("programs/some-name").as_os_str().as_bytes()
+    );
+    assert_eq!(fs::read(directory.join("updater")).unwrap(), b"1");
+    let launcher = directory.join("claude-code/claude");
+    assert_eq!(fs::read_link(&launcher).unwrap(), temper);
+    assert_eq!(fs::read_link(directory.join("claude-code/cache")).unwrap(), directory);
+    assert_eq!(fs::metadata(launcher.parent().unwrap()).unwrap().permissions().mode() & 0o777, 0o700);
+    let odd = [std::ffi::OsString::from_vec(b"one \xff\n'".to_vec()), "--two=$x".into()];
+    let clock = skein_shell::Clock::new();
+    let began = clock.now().now;
+    let output = std::process::Command::new(&launcher).args(&odd).env_clear().output().unwrap();
+    let elapsed_ns = clock.now().now.as_nanos().saturating_sub(began.as_nanos());
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"command stdout\n");
+    assert!(output.stderr.is_empty());
+    assert_eq!(fs::read(directory.join("arguments")).unwrap(), b"one \xff\n'\0--two=$x\0");
+    assert_eq!(fs::read(directory.join("updater")).unwrap(), b"1");
+    let began = clock.now().now;
+    let direct = std::process::Command::new(&file).args(&odd).env_clear().output().unwrap();
+    let direct_ns = clock.now().now.as_nanos().saturating_sub(began.as_nanos());
+    assert!(direct.status.success());
+    eprintln!(
+        "cached launcher: {elapsed_ns} ns; direct: {direct_ns} ns; added: {} ns",
+        elapsed_ns.saturating_sub(direct_ns)
+    );
+    assert!(!file.with_extension("part").exists());
+    assert!(!file.with_extension("lock").exists(), "a cache hit opens no lock");
+    scratch.remove();
+}
+
+#[test]
+fn program_login_places_both_launcher_links_only_for_a_fetched_program() {
+    use std::os::unix::fs::MetadataExt;
+    for fetched in [false, true] {
+        let scratch = support::Scratch::startup(&format!("login-links-{fetched}"));
+        let directory = scratch.path();
+        let programs = directory.join("programs");
+        support::program_login::configuration(
+            directory,
+            Some(&programs),
+            if fetched { Path::new("fetched") } else { Path::new("/missing/claude") },
+        );
+        let mut command = std::process::Command::new(skein_scratch::paths::binary("temper"));
+        command.arg("program-login").args(support::configuration::flags(directory)).arg("source").env_clear();
+        // A wrong-sized cached build refuses before any network request.
+        let build = directory.join("claude-code/2.1.311/claude");
+        fs::create_dir_all(build.parent().unwrap()).unwrap();
+        fs::write(&build, b"wrong size").unwrap();
+        let launcher = directory.join("claude-code/claude");
+        let cache = directory.join("claude-code/cache");
+        if fetched {
+            symlink("/stale/temper", &launcher).unwrap();
+            symlink("/stale/cache", &cache).unwrap();
+        }
+        let output = command.output().unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert!(output.stdout.is_empty());
+        if fetched {
+            assert_eq!(fs::read_link(&launcher).unwrap(), skein_scratch::paths::binary("temper"));
+            assert_eq!(fs::read_link(&cache).unwrap(), directory);
+            let before = fs::symlink_metadata(&launcher).unwrap();
+            let again = command.output().unwrap();
+            assert_eq!(again.status.code(), Some(1));
+            assert_eq!(before.ino(), fs::symlink_metadata(&launcher).unwrap().ino(), "right links stay untouched");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("temper: claude: "),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        } else {
+            assert!(fs::symlink_metadata(&launcher).is_err());
+            assert!(fs::symlink_metadata(&cache).is_err());
+        }
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("fetching"));
+        scratch.remove();
+    }
+}
+
+#[test]
+fn serve_and_a_worker_alone_place_links_only_for_a_fetched_program() {
+    for worker in [false, true] {
+        for fetched in [false, true] {
+            let scratch = support::Scratch::startup(&format!("serve-launcher-{worker}-{fetched}"));
+            let directory = scratch.path();
+            support::program_login::configuration(
+                directory,
+                Some(&directory.join("programs")),
+                if fetched { Path::new("fetched") } else { Path::new("/found/claude") },
+            );
+            for (name, bytes) in jig_channel_world::fixtures::files(false).entries.into_boxed() {
+                if !name.starts_with(b"charters/") {
+                    let path = directory.join(std::str::from_utf8(&name).unwrap());
+                    fs::create_dir_all(path.parent().unwrap()).unwrap();
+                    support::write_private(&path, bytes.expose());
+                }
+            }
+            support::write_private(&directory.join("worker.secret"), b"worker-secret");
+            if worker {
+                let document = directory.join("temper.json");
+                let mut input: serde_json::Value = serde_json::from_slice(&fs::read(&document).unwrap()).unwrap();
+                input.as_object_mut().unwrap().remove("engine");
+                input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
+                input["application"] = serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
+                fs::write(&document, serde_json::to_vec(&input).unwrap()).unwrap();
+            }
+            let prepared = temper::prepare_in(&support::configuration::directories(directory));
+            assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
+            let launcher = directory.join("claude-code/claude");
+            let cache = directory.join("claude-code/cache");
+            if fetched {
+                assert_eq!(fs::read_link(&launcher).unwrap(), std::env::current_exe().unwrap());
+                assert_eq!(fs::read_link(&cache).unwrap(), directory);
+            } else {
+                assert!(fs::symlink_metadata(launcher).is_err());
+                assert!(fs::symlink_metadata(cache).is_err());
+            }
+            assert!(!directory.join("claude-code/2.1.311").exists(), "startup fetches nothing");
+            scratch.remove();
+        }
+    }
+}

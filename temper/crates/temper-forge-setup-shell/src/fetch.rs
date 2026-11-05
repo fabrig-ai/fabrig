@@ -92,6 +92,50 @@ fn finish(handle: &fs::File, part: &[u8], file: &[u8]) -> Result<(), Failed> {
         .and_then(|dir| dir.sync_all())
         .map_err(|why| file_error(file, &why))
 }
+/// Finds Claude Code by size, serializing a missing build's fetch (protocol/setup.md, 6.6).
+pub fn claude_code(
+    limits: &skein_io::Limits,
+    trust: &Trust,
+    file: &std::path::Path,
+    pin: fetch::Pin,
+    bytes: u64,
+    out: &mut dyn io::Write,
+) -> Result<(), Failed> {
+    use std::os::unix::ffi::OsStrExt;
+    let name = file.as_os_str().as_bytes();
+    if claude_present(file, bytes)? {
+        return Ok(());
+    }
+    let parent = file.parent().expect("cache path has a parent");
+    fs::DirBuilder::new().recursive(true).mode(0o700).create(parent).map_err(|why| file_error(name, &why))?;
+    fs::set_permissions(parent, fs::Permissions::from_mode(0o700)).map_err(|why| file_error(name, &why))?;
+    let mut lock_name = file.as_os_str().to_os_string();
+    lock_name.push(".lock");
+    let lock = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .open(&lock_name)
+        .map_err(|why| file_error(lock_name.as_bytes(), &why))?;
+    lock.lock().map_err(|why| file_error(lock_name.as_bytes(), &why))?;
+    if claude_present(file, bytes)? {
+        return Ok(());
+    }
+    match out.write_all(b"fetching Claude Code\n") {
+        Ok(()) | Err(_) => {}
+    }
+    run(limits, trust, Fetch::new(Box::new([pin]), bytes), out)
+}
+fn claude_present(file: &std::path::Path, bytes: u64) -> Result<bool, Failed> {
+    use std::os::unix::ffi::OsStrExt;
+    match fs::metadata(file) {
+        Ok(metadata) if metadata.is_file() && metadata.len() == bytes => Ok(true),
+        Ok(_) => Err(Failed::Refused(Failure::Present { file: file.as_os_str().as_bytes().into() })),
+        Err(why) if why.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(why) => Err(file_error(file.as_os_str().as_bytes(), &why)),
+    }
+}
 /// Runs the machine; an interrupted body leaves its part to be truncated next time.
 pub fn run(
     limits: &skein_io::Limits,
