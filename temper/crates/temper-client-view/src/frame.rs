@@ -506,7 +506,7 @@ pub(crate) fn rail(
     switcher(b, root, w, bindings, Some(project), Place::Rail);
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    entries(b, root, w, bindings, project);
+    entries(b, root, w, bindings, project, shown(root, project));
     b.close();
     crate::link(
         b,
@@ -559,13 +559,18 @@ pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bi
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project);
+    entries(b, root, w, bindings, project, shown(root, project));
     settings_link(b, root, w, bindings, project);
     b.close();
 }
 
-fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
-    use crate::words::Word;
+struct Shown {
+    home: bool,
+    inbox: bool,
+    chats: bool,
+}
+// This address set has no Goals, Changes or Away entry (client/README.md, 5.3).
+fn shown(root: &Domain, _project: u32) -> Shown {
     let (home, inbox, chats) = match root.pages().address() {
         Address::Home { .. } => (true, false, false),
         Address::Inbox { .. } => (false, true, false),
@@ -582,6 +587,18 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
+    Shown { home, inbox, chats }
+}
+fn entries(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: u32,
+    shown: Shown,
+) {
+    use crate::words::Word;
+    let Shown { home, inbox, chats } = shown;
     action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
     let count = root.pages().me(root.client()).expect("rail has me").needs_total;
     let name = if count == 0 {

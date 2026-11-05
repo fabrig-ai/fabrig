@@ -535,3 +535,69 @@ fn settings_is_current_on_every_page_of_settings() {
         }
     }
 }
+
+#[test]
+fn the_rail_shows_what_kind_seven_shows() {
+    use d::forge::ways::Ways;
+    for ways in [
+        Ways::STOCK,
+        Ways { drafts: true, ..Ways::STOCK },
+        Ways { goals: true, ..Ways::STOCK },
+        Ways { changes: true, ..Ways::STOCK },
+        Ways { away: true, ..Ways::STOCK },
+    ] {
+        let root = f::root_with_ways(Address::Home { project: f::PROJECT }, Some(ways));
+        assert_eq!(root.forge().ways(f::PROJECT), Some(ways));
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let names = children(styled(view.tree(), look::RAIL_NAV))
+                .iter()
+                .map(|n| n.name.as_deref().unwrap())
+                .collect::<Vec<_>>();
+            // This address set offers no Goals, Changes or Away entry.
+            assert_eq!(names, [b"Home".as_slice(), b"Needs you", b"Chats"]);
+        }
+    }
+}
+#[test]
+fn until_read_the_optional_entries_are_hidden() {
+    let root = f::root_with_ways(Address::Home { project: f::PROJECT }, None);
+    assert_eq!(root.forge().ways(f::PROJECT), None);
+    let view = f::browser_page_view(&root);
+    for name in [b"Goals".as_slice(), b"Changes", b"Away"] {
+        assert!(f::find(view.tree(), Role::Link, name).is_none());
+    }
+    assert!(f::find(view.tree(), Role::Link, b"Settings").is_some());
+}
+#[test]
+fn the_tab_bar_by_goals() {
+    use d::forge::ways::Ways;
+    for ways in [None, Some(Ways::STOCK), Some(Ways { goals: true, ..Ways::STOCK })] {
+        let root = f::root_with_ways(Address::Home { project: f::PROJECT }, ways);
+        let mut view = f::browser_page_view(&root);
+        let tabs = children(styled(view.tree(), look::TABBAR));
+        assert_eq!(
+            tabs.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+            [b"Home".as_slice(), b"Needs you", b"Chats", b"Settings"]
+        );
+        let settings = tabs.last().unwrap().id;
+        assert_eq!(crate::href(&mut view, settings).as_deref(), Some(b"/projects/1/settings".as_slice()));
+        assert!(f::find(view.tree(), Role::Link, b"Settings for Shop").is_some());
+        let terminal = f::page_view(&root);
+        assert!(!terminal.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::TABBAR)));
+    }
+}
+#[test]
+fn drafts_offered_reads_drafts() {
+    const OTHER_PROJECT: u32 = 17;
+    use d::forge::ways::Ways;
+    for (ways, offered) in [
+        (None, false),
+        (Some(Ways::STOCK), false),
+        (Some(Ways { drafts: true, ..Ways::STOCK }), true),
+        (Some(Ways { goals: true, ..Ways::STOCK }), false),
+    ] {
+        let root = f::root_with_ways(Address::Chats { filter: ChatsFilter::All, start: false }, ways);
+        assert_eq!(crate::pages::chats::drafts_offered(&root, f::PROJECT), offered);
+        assert!(!crate::pages::chats::drafts_offered(&root, OTHER_PROJECT));
+    }
+}

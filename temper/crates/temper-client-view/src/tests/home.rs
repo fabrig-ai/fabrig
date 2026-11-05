@@ -197,15 +197,7 @@ fn home_documents_with_reads(
     dismissed: Option<&[u32]>,
     settings_delivered: bool,
 ) -> (d::Domain, Token) {
-    let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_dismissals(
-        Address::Settings { project: f::PROJECT },
-        &f::domain_limits(),
-        b"Shop",
-        None,
-        None,
-        Some(rows),
-        dismissed,
-    );
+    let (mut root, me_watch, accounts, settings) = f::home_root(rows, dismissed);
     let template_root = f::chat::messaging_root();
     let template_me = template_root.pages().me(template_root.client()).unwrap();
     let mut me = root.pages().me(root.client()).unwrap().clone();
@@ -227,7 +219,6 @@ fn home_documents_with_reads(
         .unwrap();
     f::deliver_me(&mut root, me_watch, me);
     let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
-    let mut settings = None;
     let mut live = None;
     for request in &out {
         if let d::Request::Unlinked {
@@ -238,9 +229,9 @@ fn home_documents_with_reads(
         } = request
         {
             match subject {
-                c::Subject::Settings => settings = Some(*watch),
                 c::Subject::Tasks { .. } => live = Some(*watch),
-                c::Subject::Me
+                c::Subject::Settings
+                | c::Subject::Me
                 | c::Subject::Task { .. }
                 | c::Subject::Tree { .. }
                 | c::Subject::Chips { .. }
@@ -264,7 +255,7 @@ fn home_documents_with_reads(
     if settings_delivered {
         deliver(
             &mut root,
-            settings.expect("Home settings"),
+            settings,
             c::Delivery::Settings(Box::new(c::SettingsDocument {
                 newest: 0,
                 settings: lines,
@@ -294,7 +285,7 @@ fn home_documents_with_reads(
         out.push(request);
     }
     settle_home(&mut root, &mut out, needs.as_ref(), chats.as_ref());
-    (root, accounts.unwrap())
+    (root, accounts)
 }
 fn read_done(root: &mut d::Domain, read: Token, value: c::ReadValue) -> Queue<d::Request> {
     drive(

@@ -593,3 +593,12 @@ fn suggestions(
     b.close();
     b.close();
 }
+
+/// Whether chats in this project can write drafts (temper/docs/design/client/README.md, 5.13).
+#[must_use]
+pub fn drafts_offered(root: &Domain, project: u32) -> bool {
+    match root.forge().ways(project) {
+        Some(ways) => ways.drafts,
+        None => false,
+    }
+}

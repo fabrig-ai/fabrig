@@ -238,6 +238,7 @@ pub fn page(address: &temper_client_domain::Address, signed_out: bool) -> skein_
     temper_client_view::build(&mut view, &root, NOW, &mut Queue::with_capacity(tree_limits().patches));
     copy_tree(view.tree())
 }
+#[expect(clippy::too_many_lines, reason = "the fixture answers the page and session documents together")]
 fn populate_page(
     root: &mut client::Domain,
     env: &skein_lib::Env<client::Limits>,
@@ -251,6 +252,33 @@ fn populate_page(
             break;
         };
         match request {
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
+            } => {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
+                    let value = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None }).unwrap();
+                    client::step(
+                        root,
+                        env,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::ReadDone {
+                                    read,
+                                    result: jig_client::Readout::Family {
+                                        family: wire::FORGE,
+                                        record: Some(wire::setting_answer(&value)),
+                                    },
+                                },
+                            },
+                        },
+                        out,
+                    );
+                }
+            }
             Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {

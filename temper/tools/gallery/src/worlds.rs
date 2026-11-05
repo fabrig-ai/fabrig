@@ -257,7 +257,13 @@ fn world_in_layout(w: World, address: Address, then: Then, configuring_chat: boo
                         }
                         c::Subject::Tree { task, window } => Some(plan_tree(w, task, window, then)),
                         c::Subject::Deployment => Some(c::Delivery::Deployment(Box::new(deployment(w)))),
-                        c::Subject::Settings | c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
+                        c::Subject::Settings => Some(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                            newest: 0,
+                            settings: List::with_capacity(0),
+                            held: List::with_capacity(0),
+                            pending: List::with_capacity(0),
+                        }))),
+                        c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);
@@ -279,7 +285,26 @@ fn world_in_layout(w: World, address: Address, then: Then, configuring_chat: boo
                                 playground_read = true;
                             }
                         }
-                        v1::Read::Setting(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Setting(_) => {
+                            let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: None })
+                                .expect("stock setting");
+                            step(
+                                &mut root,
+                                Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::ReadDone {
+                                            read,
+                                            result: jig_client::Readout::Family {
+                                                family: FORGE,
+                                                record: Some(wire::setting_answer(&value)),
+                                            },
+                                        },
+                                    },
+                                },
+                                &mut out,
+                            );
+                        }
+                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
