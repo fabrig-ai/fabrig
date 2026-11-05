@@ -34,7 +34,7 @@ Fabrig/ui's ruling of 2026-11-05: this plan builds "When it needs you" on the on
 
 Acceptance:
 
-- **The sheet,** `pages/start_goal.rs`, a choice group with the legend "When it needs you", as `ways` is drawn: "Follow the away switch", small "Asks while you're here; while you're away, decides within the project's limits and tells you.", chosen by default; "Always ask", small "Waits for you on every question it can't answer from the plan."
+- **The sheet,** `pages/start_goal.rs`, a choice group with the legend "When it needs you", as `ways` is drawn: "Follow the away switch", small "Asks while you’re here; while you’re away, decides within the project's limits and tells you.", chosen by default; "Always ask", small "Waits for you on every question it can’t answer from the plan."
 - **Its act** in the domain: `Act::StartAsks { always: bool }`, as `Act::StartWay`.
 - **`Asks: always`:** `words()` in the domain's `pages/start_goal.rs` gains that line, exactly, where "Always ask" is chosen, and none otherwise. The root's rail and the charter's sentence are already built: `decided-tool`, `decided-charter`.
 - **A goal's page,** `Word::GoalAlwaysAsks` stays for a goal whose words hold the line, " · always asks you"; every other goal says " · follows the away switch", a new `Word::GoalFollowsAway`. One function reads the line, in the domain's `pages/goal.rs`.

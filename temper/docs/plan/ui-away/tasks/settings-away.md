@@ -30,7 +30,7 @@ The switch's kinds and its hour, on *How work runs*: `temper/docs/design/client/
 
 Acceptance:
 
-- **The section,** in `how_work_runs`, after `needs`, before `telling`, while `away_shown`: a level-2 "While you're away, agents may decide", words and rows as 3.5 says, each `.setting` by the rows `pages/settings.rs` already has.
+- **The section,** in `how_work_runs`, after `needs`, before `telling`, while `away_shown`: a level-2 "While you’re away, agents may decide", words and rows as 3.5 says, each `.setting` by the rows `pages/settings.rs` already has.
 - **Each writes through `SetAway`:** a kind's check, `Act::Away(Kinds { project, kinds })`; the select, `Act::Away(Until { project, eight })`. Read from the row; with none, `DEFAULT_KINDS` and 08:00. Past its row's `until` a select still reads 08:00.
 - **Locked and unticked:** "Budgets, sign-ins, machines, what is hard to reverse: always wait", a check that's disabled, whatever the row says.
 - **While off they work:** a test sends each and sees the row's choice come back drawn, with `on` false.
