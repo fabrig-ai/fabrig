@@ -11,6 +11,8 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    GoalTell,
+    GoalHint,
     GoalPause,
     GoalResume,
     ToastPaused,
@@ -999,7 +1001,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // The goal header and report use eighteen phrases; its side uses thirty-two (client/README.md, 5.8).
-const PHRASES: u32 = 1492;
+const PHRASES: u32 = 1494;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1015,8 +1017,10 @@ const PHRASES: u32 = 1492;
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // The goal header and report use forty literal and hole segments; its side uses fifty-two (5.8).
-const SEGMENTS: u32 = 2593;
-const ALL: [Word; 896] = [
+const SEGMENTS: u32 = 2597;
+const ALL: [Word; 898] = [
+    Word::GoalTell,
+    Word::GoalHint,
     Word::GoalPause,
     Word::GoalResume,
     Word::ToastPaused,
@@ -1918,6 +1922,8 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::GoalTell => 3438,
+            Self::GoalHint => 3439,
             Self::GoalPause => 3432,
             Self::GoalResume => 3433,
             Self::ToastPaused => 3434,
@@ -3059,7 +3065,24 @@ impl Words {
             // Needs count, toast, page and kinds add 367 literal bytes (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
             // The goal header and report use 358 literal bytes; its side uses 443 (5.8).
-            text_bytes: 443 + 32768 + 288 + 149 + 401 + 11 + 419 + 250 + 476 + 87 + 225 + 15 + 367 + 54 + 358 + 53,
+            // The goal composer uses 100 literal bytes (5.11).
+            text_bytes: 100
+                + 443
+                + 32768
+                + 288
+                + 149
+                + 401
+                + 11
+                + 419
+                + 250
+                + 476
+                + 87
+                + 225
+                + 15
+                + 367
+                + 54
+                + 358
+                + 53,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3127,6 +3150,8 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::GoalTell => (&[b"Tell ", b" something"], &[Name]),
+        Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
         Word::GoalPause => (&[b"Pause"], &[]),
         Word::GoalResume => (&[b"Resume"], &[]),
         Word::ToastPaused => (&[b"Paused: running tasks stop, nothing new starts."], &[]),

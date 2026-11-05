@@ -1,4 +1,4 @@
-//! A goal's header, needs, report and side (temper/docs/design/client/README.md, 5.8, 5.12).
+//! A goal's header, needs, report and side (temper/docs/design/client/README.md, 5.8, 5.11, 5.12).
 use super::ask::{self, Kind};
 use crate::{
     frame::Bindings,
@@ -8,7 +8,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::{Latest, contract as c};
 use skein_lib::{List, Map, Wall, bytes::copy_of};
-use skein_ui::{Builder, Role, Run, phrases::Hole};
+use skein_ui::{Builder, Role, Run, State as UiState, phrases::Hole};
 use temper_client_domain::{
     Address, Domain, PlanFilter,
     pages::{
@@ -57,6 +57,8 @@ pub(crate) fn main(
                     shown.report(b, words, times);
                     shown.side(b, root, words, bindings, times);
                     b.close();
+                    sent(b, root, page, words);
+                    composer(b, root, page, task, words, bindings);
                 }
             }
             None => super::task::reading(b, page, words),
@@ -644,4 +646,100 @@ fn delegate_line(chip: &c::Chip, open: &[&Card]) -> Option<goal::Line> {
         }
     }
     goal::line(chip, yours)
+}
+
+/// The latest page is newest first; a goal keeps only the reader's words (5.8).
+fn sent(b: &mut Builder, root: &Domain, page: &temper_client_domain::pages::task::Task, words: &Words) {
+    let Some(me) = root.pages().me(root.client()) else { return };
+    let mut lines = List::uncapped();
+    if let Some(latest) = &page.latest {
+        for row in latest.rows.iter().rev() {
+            match &row.source.line {
+                c::Activity::Words { by: c::Requester::Person(person), words, .. } if *person == me.party.number => {
+                    lines.push((words.bytes(), false)).expect("latest activity words fit");
+                }
+                c::Activity::Words { .. }
+                | c::Activity::Heard(_)
+                | c::Activity::Notified { .. }
+                | c::Activity::RunBegan { .. }
+                | c::Activity::RunEnded { .. }
+                | c::Activity::Turn { .. }
+                | c::Activity::Decided { .. }
+                | c::Activity::Milestone { .. }
+                | c::Activity::Kept { .. } => {}
+            }
+        }
+    }
+    for pending in &page.thread.words.rows {
+        if pending.state == jig_client::thread::words::Words::BeingSent
+            && let Some(by) = &pending.by
+            && by.number == me.party.number
+        {
+            lines.push((pending.words.bytes(), true)).expect("pending words fit");
+        }
+    }
+    if lines.is_empty() {
+        return;
+    }
+    b.open(Role::Slot);
+    b.style(look::GOAL_SENT);
+    for (line, pending) in &lines {
+        b.open(Role::Paragraph);
+        b.style(look::GOAL_YOU);
+        b.text(Run::Plain, line);
+        b.close();
+        if *pending {
+            words.status(b, crate::cards::P::WordsBeingSent, &[]);
+        }
+    }
+    b.close();
+}
+
+fn composer(
+    b: &mut Builder,
+    root: &Domain,
+    page: &temper_client_domain::pages::task::Task,
+    task: &c::Task,
+    words: &Words,
+    bindings: &mut Bindings,
+) {
+    if super::chats::ended(&task.chip) || task.result.is_some() {
+        return;
+    }
+    let Some(admission) = jig_client::facts::offer(task.acts.as_slice(), c::ActKind::Message) else { return };
+    match admission {
+        c::Admission::Allowed | c::Admission::Bounded { .. } => {}
+        c::Admission::Refused(c::Refusal::NotWaiting) => return,
+        c::Admission::Refused(_) | c::Admission::Proposed { .. } => {
+            super::task::act(b, task, c::ActKind::Message, Word::Message, Act::Send, words, bindings);
+            return;
+        }
+    }
+    let name = words.say(Word::GoalTell, &[Hole::Name(copy_of(task.chip.title.bytes()))]);
+    b.open(Role::Slot);
+    b.style(look::GOAL_COMPOSER_BOX);
+    b.open(Role::Slot);
+    b.style(look::GOAL_COMPOSER);
+    b.open(Role::TextArea);
+    b.name(&name);
+    b.placeholder(&name);
+    if crate::choice::can_send(root) {
+        b.state(UiState::SubmitsOnEnter);
+    }
+    b.value(&page.words, temper_client_domain::pages::shown(root.pages()));
+    b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
+    b.close();
+    b.open(Role::Button);
+    b.name(&words.say(Word::Send, &[]));
+    if page.words.is_empty() || !crate::choice::can_send(root) {
+        b.state(UiState::Disabled);
+    }
+    b.bind(bindings.insert(Act::Send));
+    b.close();
+    b.close();
+    b.open(Role::Paragraph);
+    b.style(look::GOAL_HINT);
+    b.text(Run::Plain, &words.say(Word::GoalHint, &[]));
+    b.close();
+    b.close();
 }

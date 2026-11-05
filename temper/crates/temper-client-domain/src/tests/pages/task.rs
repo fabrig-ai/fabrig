@@ -746,13 +746,10 @@ fn an_agents_send_is_one_message_only_when_allowed() {
     }
 }
 #[test]
-fn a_goals_page_has_no_message_composer_or_older_read() {
+fn a_goals_page_has_no_older_read() {
     let mut task = offered_task(c::ActKind::Message, Some(c::Admission::Allowed));
     task.priority = Some(PRIORITY);
     let (mut pages, client) = task_pages(task);
-    page_act(&mut pages, &client, Act::MessageWords { words: Box::from(WORDS) });
-    assert!(pages.task().expect("page").words.is_empty());
-    assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Send)).is_empty());
     assert!(page_act(&mut pages, &client, Act::Older).is_empty());
 }
 #[test]

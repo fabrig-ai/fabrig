@@ -1,4 +1,5 @@
 //! One task's borrowed documents, first activity page and live run handle.
+//! See temper/docs/design/client/README.md, 5.8 and 5.11.
 use super::{
     Act, Request,
     activity::{Asking, READ_FIRST, READ_MOST, signed_out},
@@ -390,7 +391,7 @@ impl Task {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        if self.shape != Shape::Agent {
+        if self.shape != Shape::Agent && self.shape != Shape::Tracked {
             return;
         }
         match act {
@@ -400,11 +401,12 @@ impl Task {
                 }
             }
             Act::Send => self.send(env, client, Sending::Message, serial, out),
-            Act::Older => {
+            Act::Older if self.shape == Shape::Agent => {
                 if let Some(older) = self.thread.older() {
                     self.asking.ask(self.activity, older, out);
                 }
             }
+            Act::Older => {}
             Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked
@@ -571,7 +573,8 @@ impl Task {
         let Some(task) = self.document(client) else { return };
         let ask = match kind {
             Sending::Message
-                if self.shape == Shape::Agent
+                if (self.shape == Shape::Agent || self.shape == Shape::Tracked)
+                    && task.chip.details.phase != c::ChipPhase::Ended
                     && !self.words.is_empty()
                     && super::chat::allowed(task, c::ActKind::Message) =>
             {

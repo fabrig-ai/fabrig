@@ -1596,6 +1596,7 @@ impl GoalPage {
         task.label = 2;
         task.priority = Some(1);
         task.acts = offers(&[
+            c::ActKind::Message,
             c::ActKind::Amend,
             if self.facts.state == GoalState::Paused { c::ActKind::Release } else { c::ActKind::Stop },
             c::ActKind::Cancel,
