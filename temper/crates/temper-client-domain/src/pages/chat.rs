@@ -650,6 +650,8 @@ impl Chat {
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }
+            | Act::MoreGoals
+            | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
             | Act::PlanFilter { .. }
             | Act::ClosedChats

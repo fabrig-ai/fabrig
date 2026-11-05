@@ -307,6 +307,7 @@ fn task_history(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wi
         wire::TaskHistoryParts {
             last_activity: source.last_activity.as_nanos(),
             ended_below: index::endings(&source.ended_below, limits)?,
+            ended_delegates: index::endings(&source.ended_delegates, limits)?,
             question_lines: question_lines(&source.question_lines, limits)?,
             hold: source.hold,
             placed: source.placed,
@@ -445,6 +446,7 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
         flags: phase::read_flags(definition.flags),
         last_activity: Wall::from_nanos(history.last_activity),
         ended_below: index::read_endings(history.ended_below)?,
+        ended_delegates: index::read_endings(history.ended_delegates)?,
         question_lines: read_question_lines(history.question_lines)?,
         hold: history.hold,
         placed: history.placed,

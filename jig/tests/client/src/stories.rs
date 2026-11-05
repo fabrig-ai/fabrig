@@ -305,6 +305,8 @@ pub fn chat_world(seed: u64) -> World<Test, Scripted> {
                             failed: 0,
                             cancelled: 0,
                         },
+                        delegates_done: 0,
+                        delegates_total: 0,
                         held_below: 0,
                         conversation: Some(jig_client_domain::contract::ConversationRead {
                             seen: 0,

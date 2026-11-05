@@ -32,6 +32,8 @@ pub(in crate::codec) fn wire_task_line(value: &c::TaskLine, limits: &w::Limits) 
             budget: wire_budget(&value.budget, limits)?,
             waits_on: wire_waits_on(&value.waits_on, limits)?,
             phases: wire_phase_counts(&value.phases, limits)?,
+            delegates_done: value.delegates_done,
+            delegates_total: value.delegates_total,
             held_below: value.held_below,
             conversation: value.conversation.as_ref().map(|item| wire_conversation_read(item, limits)).transpose()?,
         },

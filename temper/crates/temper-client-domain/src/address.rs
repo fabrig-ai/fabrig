@@ -13,6 +13,7 @@ pub enum Address {
     Chat { task: u64 },
     Task { task: u64, filter: PlanFilter },
     Home { project: u32 },
+    Goals { project: u32, filter: GoalsFilter },
     Changes { project: u32 },
     Settings { project: u32 },
     Configure { project: u32 },
@@ -53,6 +54,14 @@ pub enum ChatsFilter {
     Live,
     Closed,
 }
+/// The project goals' filter is its query (temper/docs/design/client/browser.md, 2.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GoalsFilter {
+    All,
+    Needs,
+    Live,
+    Ended,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlanFilter {
     All,
@@ -88,7 +97,7 @@ pub enum Place {
 }
 
 /// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/<task>`, `/tasks/<task>`,
-/// `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/configure`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
+/// `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/configure`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
 pub fn print(address: &Address) -> Box<[u8]> {
     let (name, number, tail) = match address {
@@ -118,6 +127,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Chat { task } => (b"chats".as_slice(), Some(*task), b"".as_slice()),
         Address::Task { task, .. } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
         Address::Home { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"".as_slice()),
+        Address::Goals { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"goals".as_slice()),
         Address::Changes { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"changes".as_slice()),
         Address::Settings { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"settings".as_slice()),
         Address::Configure { project } => {
@@ -137,6 +147,13 @@ pub fn print(address: &Address) -> Box<[u8]> {
     }
     let query = if let Address::Task { filter: PlanFilter::Live, .. } = address {
         b"?state=live".as_slice()
+    } else if let Address::Goals { filter, .. } = address {
+        match filter {
+            GoalsFilter::All => b"".as_slice(),
+            GoalsFilter::Needs => b"?state=needs".as_slice(),
+            GoalsFilter::Live => b"?state=live".as_slice(),
+            GoalsFilter::Ended => b"?state=ended".as_slice(),
+        }
     } else {
         b"".as_slice()
     };
@@ -209,6 +226,10 @@ pub fn parse(path: &[u8]) -> Place {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Home { project }
         }
+        (b"projects", _, b"goals") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            Address::Goals { project, filter: parse_goals(fields) }
+        }
         (b"projects", _, b"changes") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Changes { project }
@@ -253,6 +274,28 @@ fn parse_chats(query: &[u8]) -> (ChatsFilter, bool) {
         start |= field == b"at=start";
     }
     (filter, start)
+}
+
+fn parse_goals(query: &[u8]) -> GoalsFilter {
+    let mut rest = query;
+    for _ in 0..query.len() {
+        if rest.is_empty() {
+            break;
+        }
+        let end = skein_lib::bytes::find(rest, b"&").unwrap_or(rest.len());
+        let field = rest.get(..end).expect("separator in query");
+        rest = rest.get(end..).expect("separator in query").strip_prefix(b"&").unwrap_or(b"");
+        if field == b"state=needs" {
+            return GoalsFilter::Needs;
+        }
+        if field == b"state=live" {
+            return GoalsFilter::Live;
+        }
+        if field == b"state=ended" {
+            return GoalsFilter::Ended;
+        }
+    }
+    GoalsFilter::All
 }
 
 fn parse_plan(query: &[u8]) -> PlanFilter {
