@@ -1,5 +1,5 @@
 //! Proposal and escalation choices use their current waiting holder.
-use crate::{Core, Limits, acts::Act, documents};
+use crate::{Core, Limits, acts::{Act, Decision}, documents};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
@@ -37,8 +37,8 @@ pub(crate) fn proposal(
                     return Err(people::Refusal::Unknown);
                 }
             }
-            match act {
-                Act::Accept => {
+            match act.decision() {
+                Some(Decision::Accept) => {
                     if row.action.is_settings() {
                         return Ok(());
                     }
@@ -57,30 +57,9 @@ pub(crate) fn proposal(
                     )?;
                     Ok(())
                 }
-                Act::Reject => Ok(()),
-                Act::PassUp => Err(people::Refusal::NoFurther),
-                Act::Withdraw
-                | Act::Message
-                | Act::Answer
-                | Act::Take
-                | Act::HandBack
-                | Act::Release
-                | Act::LeaveHeld
-                | Act::Amend
-                | Act::Stop
-                | Act::Cancel
-                | Act::Move
-                | Act::Reorder
-                | Act::Seen
-                | Act::EditNote
-                | Act::DeleteNote
-                | Act::Adopt
-                | Act::RemoveProject
-                | Act::Rename
-                | Act::ChangePolicy
-                | Act::SetRoles
-                | Act::MakeService
-                | Act::SetPool => Err(people::Refusal::NotOffered),
+                Some(Decision::Reject) => Ok(()),
+                Some(Decision::PassUp) => Err(people::Refusal::NoFurther),
+                None | Some(Decision::Release | Decision::LeaveHeld) => Err(people::Refusal::NotOffered),
             }
         }
         documents::Proposer::Task(task) => {
@@ -96,31 +75,10 @@ pub(crate) fn proposal(
                 if core.people.role(party, people::DEPLOYMENT) != Some(people::Role::Owner) {
                     return Err(people::Refusal::NotWaiting);
                 }
-                return match act {
-                    Act::Accept | Act::Reject => Ok(()),
-                    Act::PassUp => Err(people::Refusal::NoFurther),
-                    Act::Withdraw
-                    | Act::Message
-                    | Act::Answer
-                    | Act::Take
-                    | Act::HandBack
-                    | Act::Release
-                    | Act::LeaveHeld
-                    | Act::Amend
-                    | Act::Stop
-                    | Act::Cancel
-                    | Act::Move
-                    | Act::Reorder
-                    | Act::Seen
-                    | Act::EditNote
-                    | Act::DeleteNote
-                    | Act::Adopt
-                    | Act::RemoveProject
-                    | Act::Rename
-                    | Act::ChangePolicy
-                    | Act::SetRoles
-                    | Act::MakeService
-                    | Act::SetPool => Err(people::Refusal::NotOffered),
+                return match act.decision() {
+                    Some(Decision::Accept | Decision::Reject) => Ok(()),
+                    Some(Decision::PassUp) => Err(people::Refusal::NoFurther),
+                    None | Some(Decision::Release | Decision::LeaveHeld) => Err(people::Refusal::NotOffered),
                 };
             }
             let (_, kind) = Core::proposal_kind(&row.action);
@@ -135,8 +93,8 @@ pub(crate) fn proposal(
             if !waiting || role.is_none() {
                 return Err(people::Refusal::NotWaiting);
             }
-            match act {
-                Act::Accept => {
+            match act.decision() {
+                Some(Decision::Accept) => {
                     if let tasks::ProposalAction::ReleasePlaced { hold, .. } = row.action {
                         return core
                             .party_hold_admit(party, core.tasks.placed_hold(hold).ok_or(people::Refusal::Unknown)?);
@@ -158,37 +116,16 @@ pub(crate) fn proposal(
                         limits.tasks.tree_tasks,
                     )
                 }
-                Act::Reject => Ok(()),
-                Act::PassUp if crate::admission::proposals::placed_release(&row.action) => {
+                Some(Decision::Reject) => Ok(()),
+                Some(Decision::PassUp) if crate::admission::proposals::placed_release(&row.action) => {
                     Err(people::Refusal::NoFurther)
                 }
-                Act::PassUp => match current {
+                Some(Decision::PassUp) => match current {
                     tasks::ProposalHolder::Person(_) => Ok(()),
                     tasks::ProposalHolder::Policy { .. } => Err(people::Refusal::NoFurther),
                     tasks::ProposalHolder::Task(_) => unreachable!("party standing checked"),
                 },
-                Act::Withdraw
-                | Act::Message
-                | Act::Answer
-                | Act::Take
-                | Act::HandBack
-                | Act::Release
-                | Act::LeaveHeld
-                | Act::Amend
-                | Act::Stop
-                | Act::Cancel
-                | Act::Move
-                | Act::Reorder
-                | Act::Seen
-                | Act::EditNote
-                | Act::DeleteNote
-                | Act::Adopt
-                | Act::RemoveProject
-                | Act::Rename
-                | Act::ChangePolicy
-                | Act::SetRoles
-                | Act::MakeService
-                | Act::SetPool => Err(people::Refusal::NotOffered),
+                None | Some(Decision::Release | Decision::LeaveHeld) => Err(people::Refusal::NotOffered),
             }
         }
     }
@@ -215,42 +152,21 @@ pub(crate) fn escalation(
     if !Core::escalation_standing(&context, party, role) {
         return Err(people::Refusal::NotWaiting);
     }
-    match act {
-        Act::Release => {
+    match act.decision() {
+        Some(Decision::Release) => {
             if !core.escalation_covers(limits, &context, party, role) {
                 return Err(people::Refusal::Role { held: role });
             }
             core.escalation_release_allowed(&context, party, role, limits.tasks.tree_tasks)
         }
-        Act::LeaveHeld => Ok(()),
-        Act::PassUp => {
+        Some(Decision::LeaveHeld) => Ok(()),
+        Some(Decision::PassUp) => {
             if core.escalation_fallback(context.project).is_some() {
                 Ok(())
             } else {
                 Err(people::Refusal::NoFurther)
             }
         }
-        Act::Message
-        | Act::Answer
-        | Act::Take
-        | Act::HandBack
-        | Act::Withdraw
-        | Act::Accept
-        | Act::Reject
-        | Act::Amend
-        | Act::Stop
-        | Act::Cancel
-        | Act::Move
-        | Act::Reorder
-        | Act::Seen
-        | Act::EditNote
-        | Act::DeleteNote
-        | Act::Adopt
-        | Act::RemoveProject
-        | Act::Rename
-        | Act::ChangePolicy
-        | Act::SetRoles
-        | Act::MakeService
-        | Act::SetPool => Err(people::Refusal::NotOffered),
+        None | Some(Decision::Accept | Decision::Reject) => Err(people::Refusal::NotOffered),
     }
 }

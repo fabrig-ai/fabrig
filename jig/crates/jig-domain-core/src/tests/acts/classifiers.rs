@@ -1,8 +1,7 @@
 //! Every act retains its proposal and escalation admission partition.
 use super::*;
 
-#[derive(Debug)]
-enum Decision { Accept, Reject, PassUp, Release, LeaveHeld }
+use crate::acts::Decision;
 
 #[test]
 fn every_act_keeps_its_decision_admission() {
@@ -90,6 +89,7 @@ fn every_act_keeps_its_decision_admission() {
         (Act::SetPool, None, no.clone(), no.clone(), no.clone(), no.clone()),
         (Act::Withdraw, None, Err(people::Refusal::NotOffered), Ok(()), Err(people::Refusal::NotOffered), no.clone()),
     ] {
+        assert_eq!(act.decision(), decision, "{act:?}");
         assert_eq!(crate::acts::proposal(&core, &limits, 1, act, Proposer::Task(TASK), PROPOSAL, Wall::EPOCH), task, "{act:?} {decision:?}");
         assert_eq!(crate::acts::proposal(&core, &limits, 1, act, Proposer::Party(1), PROPOSAL, Wall::EPOCH), party.clone(), "{act:?}");
         assert_eq!(crate::acts::proposal(&settings_core, &limits, 1, act, Proposer::Task(2), SETTINGS, Wall::EPOCH), settings, "settings {act:?}");
