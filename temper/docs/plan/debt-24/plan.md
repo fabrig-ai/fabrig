@@ -32,8 +32,7 @@ Two independent parts (`inputs/request.md`): the spot review of debt-22, and the
 | D030 | `connection-worlds` | `hand-rows` | `connection-seam` | medium | 30 | about 137 tests that read private rows move |
 | D030 | `connection-worlds` | `hand-seeded` | `hand-rows` | high | 40 | about 119 tests that seed move; the crate's fake goes |
 | D030 | `connection-worlds` | `connection-residue` | `hand-seeded` | high | 30 | `Harness` leaves the crate |
-| D030 | `connection-worlds` | `forge-sockets` | `forge-kit`, `connection-residue` | high | 70 | `Sockets`; each world's arms go; seeds replay |
-| D030 | `connection-worlds` | `connection-close` | `forge-sockets` | high | 30 | duplicates and fixture copies go; the item goes |
+| D030 | `connection-worlds` | `connection-close` | `connection-residue` | high | 30 | duplicates and fixture copies go; the item goes |
 | D031 | `jig-kits` | `world-exemptions` | | medium | 25 | `skein-world` and smith's world exempt; two unused edges go; Measure 27 |
 | D031 | `jig-kits` | `connector-kit` | `kit-packages`, `world-exemptions` | medium | 30 | paths and kinds; five edges |
 | D031 | `jig-kits` | `core-kit` | `connector-kit` | medium | 50 | the core world's library; six edges |
@@ -75,6 +74,7 @@ Two independent parts (`inputs/request.md`): the spot review of debt-22, and the
 - **`admitted.rs` is one copy the rule forces.** A crate's unit tests and a world can share a fixture only by `#[path]`, or by a public item in production code, and a kit would give two copies of the crate's types. So the dialect world gets its own, trimmed. `forgejo_memory`'s fixture is the opposite: its six tests move into the crate.
 - **The echo goes beyond the item's list.** Its shell's dev-edge is one of the 17: `client_limits` and `plan` move to `skein-echo-client`, and `end_to_end.rs` moves into the shell.
 - **`smith/benchmarks/.../shell-cwd/grader`** is outside the workspace and pinned to an older source, so it stays on `skein_llm_world`.
+- **The shared socket table left the plan** (11-05, fabrig/debt, the plan's owner). `forge-sockets` ended at +131 net lines against -100, the worlds sharing about five lines of dispatch, so each world keeps its own arms. `skein/docs/design/fake-forge.md`, 10.6, its status entry and D030's **Paid when** say so; the branch `debt-24/forge-sockets` isn't merged, and `connection-close` now needs `connection-residue`. The minutes above still count its 70.
 - **D030 is paid by the item's Paid when, not its last sentence.** "The moved tests use the fake's own server" would rewrite nearly every test: they write literal bytes (`status(503)`, malformed bodies, `acme/widgets`) a fake won't serve, and the fake's identities differ. So `hand` keeps them scripted, and only `github_files` meets the fake. `skein/docs/design/forge-connection.md`, 10 says so, in this plan's commit.
 - **`ConnectionHarness` and `HookHarness` stay in the crate, and the item's search reads them.** They step one entity with events, which is 2.1's own shape, and the request exempts a legitimate use of a word. The acceptance is `rg -lw Harness`.
 - **The `seam` feature is the plan's one new mechanism.** 217 tests read or seed private rows, so they can't move otherwise without a rewrite, which the request forbids. A real start would change their `connections_opened` and add RSA work. No design text rules a test feature in or out, and the request allows additions. No service turns it on, and `connection-seam` proves that with `cargo tree`. This is the call most worth fabrig/debt's second look.

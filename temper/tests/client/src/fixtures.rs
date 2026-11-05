@@ -1,8 +1,8 @@
 //! Named story values and one client profile, shared by every story.
 pub mod b2;
 use crate::{app::Temper, front::Joint};
-use jig_client_world::harness::FrontFault;
-use jig_client_world::harness::{Settings, World};
+use jig_client_kit::harness::FrontFault;
+use jig_client_kit::harness::{Settings, World};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, RequestLimits, Time, Token};
 use std::{
@@ -83,6 +83,7 @@ pub fn domain_limits() -> Limits {
                 // The linked world sends whole starters and cues, as both shipped shells do.
                 text: temper_client_protocol_wire::CUE_BYTES,
                 turn_text: temper_client_protocol_wire::CUE_BYTES,
+                long_text: temper_client_protocol_wire::CUE_BYTES,
                 rows: 4,
                 fields: 4,
                 segments: 9,
@@ -984,7 +985,7 @@ fn adopt_goal_repository(driver: &mut Driver) {
 /// Guard on one-step answer waits, never a client limit.
 const ANSWER_STEPS: u32 = 4096;
 #[must_use]
-pub fn agent(world: &mut World<Temper, Joint>) -> jig_client_world::harness::ClientId {
+pub fn agent(world: &mut World<Temper, Joint>) -> jig_client_kit::harness::ClientId {
     let limits = crate::agent::limits().domain;
     world.front().next_client_limits(limits);
     world.client_with(PARTY, inbox(), limits, crate::agent::new)
@@ -1027,8 +1028,8 @@ pub fn call(words: &[&[u8]]) -> crate::app::Event {
         }
     }
 }
-pub fn give(world: &mut World<Temper, Joint>, agent: jig_client_world::harness::ClientId, words: &[&[u8]]) -> u32 {
-    use jig_client_world::harness::Until;
+pub fn give(world: &mut World<Temper, Joint>, agent: jig_client_kit::harness::ClientId, words: &[&[u8]]) -> u32 {
+    use jig_client_kit::harness::Until;
     let start = world.now();
     for _ in 0..ANSWER_STEPS {
         if world.root(agent).agent().ready() && world.root(agent).agent().kept() == 0 {
@@ -1046,11 +1047,11 @@ pub fn give(world: &mut World<Temper, Joint>, agent: jig_client_world::harness::
 /// Supply the host's already-loaded FILE bytes without touching the filesystem.
 pub fn give_with_file(
     world: &mut World<Temper, Joint>,
-    agent: jig_client_world::harness::ClientId,
+    agent: jig_client_kit::harness::ClientId,
     words: &[&[u8]],
     bytes: &[u8],
 ) -> u32 {
-    use jig_client_world::harness::Until;
+    use jig_client_kit::harness::Until;
     use temper_client_tools::jig::call::{Value, Values};
     let start = world.now();
     for _ in 0..ANSWER_STEPS {
@@ -1076,10 +1077,10 @@ pub fn give_with_file(
 }
 pub fn answered(
     world: &mut World<Temper, Joint>,
-    agent: jig_client_world::harness::ClientId,
+    agent: jig_client_kit::harness::ClientId,
     number: u32,
 ) -> temper_client_tools::jig::Printed {
-    use jig_client_world::harness::Until;
+    use jig_client_kit::harness::Until;
     let start = world.now();
     for _ in 0..ANSWER_STEPS {
         let outcome = world.run(Until::Steps(2));
@@ -1247,7 +1248,7 @@ fn turn_read_row(front: &Joint, task: u64, value: jig_domain_core::Record) -> ji
 /// Follow the printed continuation calls, retaining the turn's text alone.
 pub fn read_whole(
     world: &mut World<Temper, Joint>,
-    agent: jig_client_world::harness::ClientId,
+    agent: jig_client_kit::harness::ClientId,
     words: &[&[u8]],
 ) -> (Vec<u8>, u32) {
     let mut words: Vec<Box<[u8]>> = words.iter().map(|word| Box::from(*word)).collect();
@@ -1289,8 +1290,8 @@ pub fn printed_act(stdout: &[u8], act: &[u8]) -> Vec<Box<[u8]>> {
 }
 
 /// Cut the answer after application, before the client's first retry.
-pub fn cut(world: &mut World<Temper, Joint>, agent: jig_client_world::harness::ClientId, words: &[&[u8]]) {
-    use jig_client_world::harness::Until;
+pub fn cut(world: &mut World<Temper, Joint>, agent: jig_client_kit::harness::ClientId, words: &[&[u8]]) {
+    use jig_client_kit::harness::Until;
     world.fault(FrontFault::NoAnswer);
     give(world, agent, words);
     let start = world.now();
@@ -1344,6 +1345,7 @@ pub fn configuring_world(seed: u64, member: bool) -> World<Temper, Joint> {
     let mut limits = domain_limits();
     // The proposal's whole reason and charter remain visible in its review.
     limits.client.domain.text = 4096;
+    limits.client.domain.long_text = 4096;
     world_with(seed, Joint::with_configuring(seed, limits, member))
 }
 
@@ -1372,6 +1374,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
     templates.push(template);
     config.core.defaults.templates = templates.into_boxed_slice();
     config.core.defaults.rules.ceiling.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+    config.core.defaults.rules.ceiling.notes = authority::Scopes::GOAL;
     config.core.defaults.rules.ceiling.delegation.kinds =
         Box::new([authority::Executor::Charter(1), authority::Executor::Charter(3)]);
     for project in &mut config.core.seed_projects {
@@ -1379,6 +1382,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
         policy.ceiling = config.core.defaults.rules.ceiling.clone();
         let owner = &mut policy.roles[0];
         owner.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+        owner.authority.notes = authority::Scopes::GOAL;
         owner.authority.delegation.kinds.clone_from(&policy.ceiling.delegation.kinds);
         let mut member = owner.clone();
         member.number = jig_domain_people::Role::Member.number();
@@ -1463,7 +1467,7 @@ pub(crate) fn configuring_member(driver: &mut Driver) -> u64 {
 }
 
 /// The same ctl root as the other stories, under this world's caller.
-pub fn configuring_agent(world: &mut World<Temper, Joint>) -> jig_client_world::harness::ClientId {
+pub fn configuring_agent(world: &mut World<Temper, Joint>) -> jig_client_kit::harness::ClientId {
     let party = world.front().caller;
     let limits = crate::agent::limits().domain;
     world.front().next_client_limits(limits);
@@ -1507,7 +1511,7 @@ pub fn person_task_tools(seed: u64) -> (Joint, crate::app::Root) {
 /// Start a ctl client on a prepared joined engine fixture.
 #[must_use]
 pub fn tools_on(mut front: Joint, seed: u64) -> (Joint, crate::app::Root) {
-    use jig_client_world::harness::{App, ClientId, Front};
+    use jig_client_kit::harness::{App, ClientId, Front};
     front.bind(ClientId(0), PARTY);
     let mut root = crate::agent::new(seed).0;
     crate::front::account_acts::event(&mut front, &mut root, Temper::start(inbox(), Vec::new(), 0));

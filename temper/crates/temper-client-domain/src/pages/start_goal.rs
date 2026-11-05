@@ -14,6 +14,8 @@ pub struct StartGoal {
     pub draft: Box<[u8]>,
     pub name: Box<[u8]>,
     pub way: Option<u32>,
+    pub default: Option<u32>,
+    pub body: Option<Box<[u8]>>,
     pub always: bool,
     pub pending: Option<Key>,
     pub error: Option<Failure>,
@@ -83,11 +85,21 @@ pub fn default_way(me: &c::Me, project: u32) -> Option<u32> {
     first
 }
 
+pub(crate) fn preferred_way(me: &c::Me, project: u32, configured: Option<u32>) -> Option<u32> {
+    if let Some(number) = configured
+        && let Some(template) = shapes::template(me, project, number)
+        && template.tracked.is_some()
+    {
+        return Some(number);
+    }
+    default_way(me, project)
+}
+
 pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>, chat: Option<u64>) {
     if pages.start.is_some() {
         return;
     }
-    let (Some(me), Some(draft), Some(chat)) = (pages.me(client), draft, chat) else { return };
+    let (Some(me), Some(mut draft), Some(chat)) = (pages.me(client), draft, chat) else { return };
     let project = if let Some(page) = &pages.chat {
         match page.task(client) {
             Some(task) => Some(task.project),
@@ -102,6 +114,26 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
         super::conversation_project(pages)
     };
     let Some(project) = project else { return };
+    let body = if let Some(page) = &pages.chat {
+        let Some(task) = page.task(client) else { return };
+        let Some(document) = &page.draft else { return };
+        if page.task != chat || document.body.is_empty() {
+            return;
+        }
+        let mut creating = false;
+        for member in &me.projects {
+            if member.project == task.project && member.creating.is_some() {
+                creating = true;
+            }
+        }
+        if !creating {
+            return;
+        }
+        draft = super::chat::sheet::path(&super::chat::document::slug(&document.title));
+        Some(document.body.clone())
+    } else {
+        None
+    };
     let draft: Box<[u8]> = draft.trim_ascii().into();
     if draft.is_empty() {
         return;
@@ -116,6 +148,8 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
         draft,
         name,
         way,
+        default: way,
+        body,
         always: false,
         pending: None,
         error: None,
@@ -155,12 +189,24 @@ impl StartGoal {
             self.error = Some(Failure::NotOffered(shapes::NotOffered::Template));
             return;
         };
-        let bound = env.limits.client.domain.text;
+        let bound =
+            if self.body.is_some() { env.limits.client.domain.long_text } else { env.limits.client.domain.text };
         if c::Text::new(self.name.clone(), bound).is_err() || c::Text::new(self.draft.clone(), bound).is_err() {
             self.error = Some(Failure::TooLong);
             return;
         }
-        let Ok(words) = c::Text::new(words(self.name.trim_ascii(), &self.draft, self.chat, self.always), bound) else {
+        let mut bytes = if let Some(body) = &self.body {
+            super::chat::sheet::snapshot(self.name.trim_ascii(), &self.draft, body, self.chat)
+        } else {
+            words(self.name.trim_ascii(), &self.draft, self.chat, self.always)
+        };
+        if self.body.is_some() && self.always {
+            let mut writer = Writer::new(bytes.len().checked_add(b"\nAsks: always".len()).expect("asks words fit"));
+            writer.put(&bytes).expect("measured snapshot");
+            writer.put(b"\nAsks: always").expect("measured asks");
+            bytes = writer.finish();
+        }
+        let Ok(words) = c::Text::new(bytes, bound) else {
             self.error = Some(Failure::TooLong);
             return;
         };
@@ -244,12 +290,28 @@ pub(super) fn told(
         match sent {
             Some(Sent::Create) => {
                 if let c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) = done {
+                    if let Some(chat) = start.chat {
+                        let what = crate::forge::dismissed::PersonFact::GoalFrom {
+                            project: start.project,
+                            chat,
+                            goal: *first,
+                            at: env.wall.as_nanos(),
+                        };
+                        if let Some(request) = crate::forge::dismissed::ask(what, &env.limits.forge) {
+                            pages.serial = pages.serial.checked_add(1).expect("page keys fit");
+                            let key = Key { asker: Owner::Pages.asker(), number: pages.serial };
+                            out.push(Request::Client(jig_client::Event::Send { key, name: None, request }));
+                        }
+                    }
                     out.push(Request::Show { address: Address::Task { task: *first } });
                     pages.start = None;
                     return true;
                 }
             }
             Some(Sent::Propose(to)) => {
+                if let Some(chat) = &mut pages.chat {
+                    chat.proposed = Some(to.clone());
+                }
                 pages.needs.say(Toasted::Proposed { to }, env.now);
                 pages.start = None;
                 return true;

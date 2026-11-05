@@ -146,7 +146,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::EditNote(value) => c::Ask::EditNote {
             project: value.project(),
             note: value.note(),
-            scope: answers::note_scope(value.scope()),
+            scope: answers::note_scope(value.scope())?,
             revision: answers::revision(value.revision()),
             description: text(value.description(), limits)?,
             body: text(value.body(), limits)?,
@@ -155,7 +155,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::DeleteNote(value) => c::Ask::DeleteNote {
             project: value.project(),
             note: value.note(),
-            scope: answers::note_scope(value.scope()),
+            scope: answers::note_scope(value.scope())?,
             revision: answers::revision(value.revision()),
         },
         w::Ask::ChangePolicy(value) => {

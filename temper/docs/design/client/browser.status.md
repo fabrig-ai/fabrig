@@ -2,6 +2,10 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
+  with Split displayed as Draft. The 2026-11-05 answer to
+  `ui-chat-draft/document-pane` accepts this cycle without viewport state;
+  only the visible buttons omit Split (`README.md`, 3.5).
 - **Design departs:** 2.5, from the request `ui-phone` of 2026-11-05, decided by
   its plan's cut and its sweep. A chat's foot stands 16 px in, where the
   request's check has the mock's 12: the look request `configure-temper-name`
@@ -38,9 +42,9 @@
 - **Departs:** 7.2: `start-goal` is Chats with no sheet and no filter,
   `Chats { filter: All }`, since that is where Goals' entry goes and `OpenStart`
   opens nothing without both a draft and a chat; `start-goal-draft` and
-  `start-goal-refused` draw the sheet by sending it both, which no page does.
+  `start-goal-refused` draw the same sheet a chat's "Start goal…" opens.
   The rulings of 2026-11-05 on the request `ui-goal-page` send the entry to a
-  Drafts filter, which is not built (`README.status.md`, 3.5, *Goals*, 5.14).
+  Drafts filter (`README.status.md`, 3.5, *Goals*, 5.14).
 - **Not yet:** 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not

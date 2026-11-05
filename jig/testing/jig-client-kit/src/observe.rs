@@ -147,12 +147,13 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
             .rows
             .iter()
             .filter_map(|n| match &n.scope {
-                NoteScope::Project(project) | NoteScope::Resource { project, .. } | NoteScope::Task { project, .. } => {
-                    Some(Receipt::Card {
-                        key: key(ObjectKey::Note { project: *project, note: n.number }),
-                        revisions: vec![(4, n.revision.value)],
-                    })
-                }
+                NoteScope::Project(project)
+                | NoteScope::Resource { project, .. }
+                | NoteScope::Task { project, .. }
+                | NoteScope::Tasks { project } => Some(Receipt::Card {
+                    key: key(ObjectKey::Note { project: *project, note: n.number }),
+                    revisions: vec![(4, n.revision.value)],
+                }),
                 NoteScope::Deployment => None,
             })
             .collect(),
@@ -522,8 +523,8 @@ mod tests {
 
     const ATTEMPT: skein_lib::Token = skein_lib::Token::new(7);
     const REQUEST_KEY: [u8; 16] = [3; 16];
-    const PROJECT: u32 = 1;
-    const TASK: u64 = 8;
+    use crate::PROJECT;
+    const OBSERVED_TASK: u64 = 8;
 
     fn send(ask: jig_client::Ask) -> jig_client_test_domain::Request {
         jig_client_test_domain::Request::Unlinked {
@@ -568,7 +569,8 @@ mod tests {
     }
     #[test]
     fn top_level_seen_has_no_retained_answer_observation() {
-        for through in [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: TASK, through: 1 }]
+        for through in
+            [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: OBSERVED_TASK, through: 1 }]
         {
             assert!(
                 super::sent(&send(jig_client::Ask::Jig(Box::new(c::Ask::Seen { through })))).is_none(),
@@ -584,11 +586,11 @@ mod tests {
         let name = c::Text::new(b"Tally".as_slice().into(), 32).expect("fixture name");
         let asks = [
             c::Ask::Create { project: PROJECT, tasks: list([]) },
-            c::Ask::Take { project: PROJECT, task: TASK },
-            c::Ask::HandBack { project: PROJECT, task: TASK },
-            c::Ask::Stop { project: PROJECT, task: TASK },
-            c::Ask::Cancel { project: PROJECT, task: TASK, reason: reason.clone(), grace: None },
-            c::Ask::Move { project: PROJECT, task: TASK, reason: reason.clone() },
+            c::Ask::Take { project: PROJECT, task: OBSERVED_TASK },
+            c::Ask::HandBack { project: PROJECT, task: OBSERVED_TASK },
+            c::Ask::Stop { project: PROJECT, task: OBSERVED_TASK },
+            c::Ask::Cancel { project: PROJECT, task: OBSERVED_TASK, reason: reason.clone(), grace: None },
+            c::Ask::Move { project: PROJECT, task: OBSERVED_TASK, reason: reason.clone() },
             c::Ask::Withdraw { project: PROJECT, proposal: 1 },
             c::Ask::Propose { project: PROJECT, action: c::ProposeAction::Batch { tasks: list([]) }, reason },
             c::Ask::ChangePolicy { project: PROJECT, edit: c::PolicyEdit::ProjectSpend { period_spend: 10 } },
@@ -610,10 +612,10 @@ mod tests {
             c::Ask::Compound {
                 project: PROJECT,
                 operations: list([
-                    c::Operation::Stop { project: PROJECT, task: TASK },
+                    c::Operation::Stop { project: PROJECT, task: OBSERVED_TASK },
                     c::Operation::Message {
                         project: PROJECT,
-                        task: TASK,
+                        task: OBSERVED_TASK,
                         words: c::Text::new(b"continue".as_slice().into(), 32).expect("fixture text"),
                     },
                 ]),
@@ -635,7 +637,7 @@ mod tests {
         let (project, value) =
             jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::ChangeObject {
                 project: PROJECT,
-                object: TASK,
+                object: OBSERVED_TASK,
                 revision: c::Revision { value: 5 },
                 value: 0,
             });
@@ -650,7 +652,7 @@ mod tests {
         .expect("family request observed");
         let card = CardKey::of(jig_client_test_view::family_key(&jig_client_test_domain::family::Subject {
             scope: jig_client_test_domain::family::Scope::Project(PROJECT),
-            kind: jig_client_test_domain::family::Kind::Item(TASK),
+            kind: jig_client_test_domain::family::Kind::Item(OBSERVED_TASK),
         }));
         assert_eq!(
             (sent.attempt, sent.key, sent.card, sent.revision, sent.words),

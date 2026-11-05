@@ -3,7 +3,7 @@ use super::{
     b_conversations::{WAIT, finish, sign_in},
     b_seed::{Facts, inbox_source, install},
 };
-use crate::{Front, Scripted, Test, World, harness::Seed, joint::engine::Driver};
+use crate::{Front, PROJECT, SIGNING_PARTY, Scripted, Test, World, harness::Seed, joint::engine::Driver};
 use jig_client_domain::contract as c;
 use jig_client_scripted_engine::Change;
 use jig_fake_workers::{Call, Script};
@@ -11,8 +11,6 @@ use skein_fake_person::{Find, Step};
 use skein_lib::{Duration, Time, Wall};
 use skein_ui::Role;
 
-const PARTY: u64 = 1;
-const PROJECT: u32 = 1;
 const PROPOSER: u64 = 1;
 // Each proposed goal reserves a task number before the next conversation starts.
 const SECOND_PROPOSER: u64 = 3;
@@ -62,21 +60,21 @@ pub fn core(driver: &mut Driver, now: Time, wall: Wall) {
     );
 }
 pub fn scripted(front: &mut Scripted) {
-    let mut frame = crate::stories::frame(PARTY);
+    let mut frame = crate::stories::frame(SIGNING_PARTY);
     frame.needs.proposals = GROUP_ROWS;
     frame.needs_total = GROUP_ROWS;
     frame.updates.value = GROUP_ROWS;
     front.engine.act(Time::ZERO, Wall::EPOCH, Change::Me(frame)).expect("frame fits");
     let needs = vec![need(front, PROPOSER, 1), need(front, SECOND_PROPOSER, 2)];
-    inbox_source(front, PARTY, c::InboxReadGroup::Needs, needs);
+    inbox_source(front, SIGNING_PARTY, c::InboxReadGroup::Needs, needs);
     let updates = vec![update(front, NEWER_RESULT, 4), update(front, OLDER_RESULT, 3)];
-    inbox_source(front, PARTY, c::InboxReadGroup::Updates, updates);
+    inbox_source(front, SIGNING_PARTY, c::InboxReadGroup::Updates, updates);
 }
 fn need(front: &mut Scripted, task: u64, position: u64) -> c::InboxEntry {
     let key = c::ProposalKey { proposer: c::Proposer::Task(task), number: position };
     let mut proposal = crate::stories::proposal();
     proposal.key = key;
-    proposal.waiting.holder = c::HistoryHolder::Person(PARTY);
+    proposal.waiting.holder = c::HistoryHolder::Person(SIGNING_PARTY);
     proposal.waiting.since = Wall::from_nanos(position);
     proposal.funding.clear();
     install(front, c::ObjectKey::Proposal(key), c::ReadValue::Proposal(Box::new(proposal)));
@@ -117,9 +115,9 @@ fn update(front: &mut Scripted, task: u64, position: u64) -> c::InboxEntry {
 }
 /// jig/docs/design/domain/engine.md, 11.2.
 pub fn a_person_s_inbox_lists_needs_oldest_first_and_updates_newest_first<F: Front<Test>>(world: &mut World<Test, F>) {
-    world.seed(Seed::ChatProject { party: PARTY, project: PROJECT });
+    world.seed(Seed::ChatProject { party: SIGNING_PARTY, project: PROJECT });
     world.seed(Seed::Project(Facts::InboxOrder));
-    let client = world.client(PARTY, crate::stories::inbox());
+    let client = world.client(SIGNING_PARTY, crate::stories::inbox());
     world.person(
         client,
         sign_in(vec![

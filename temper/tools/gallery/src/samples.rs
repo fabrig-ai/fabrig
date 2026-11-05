@@ -20,6 +20,8 @@ pub enum World {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Then {
     Shown,
+    DraftEmpty,
+    Mode(temper_client_domain::pages::chat::document::Mode),
     Hosts { role: bool, connected: bool },
     Working,
     DelegatedGoal,
@@ -72,8 +74,13 @@ impl Sample {
     pub fn open_disclosure(&self) -> Option<&[u8]> {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
+    /// Opens the rail menu through the page part in the static print (client/browser.md, 7).
+    #[must_use]
+    pub fn open_menu(&self) -> Option<&[u8]> {
+        if self.name == "rail-new-menu" { Some(b"More ways to start work") } else { None }
+    }
 }
-pub const N: usize = 235;
+pub const N: usize = 247;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -406,14 +413,65 @@ pub fn samples() -> [Sample; N] {
             address: Address::Configure { project: 1 },
             then: Shown,
         },
+        Sample {
+            name: "configure-chat-document",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+        },
+        Sample {
+            name: "configure-chat-document-split",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Split),
+        },
+        Sample {
+            name: "chat-draft-chat",
+            world: Solo,
+            address: Address::Chat { task: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+        },
+        Sample {
+            name: "chat-draft-split",
+            world: Solo,
+            address: Address::Chat { task: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Split),
+        },
+        Sample {
+            name: "chat-draft-draft",
+            world: Solo,
+            address: Address::Chat { task: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
+        },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-accepted", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
-        Sample { name: "chat-new", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
-        Sample { name: "chat-new-no-repository", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample { name: "chat-draft-empty", world: Solo, address: Address::Chat { task: 1 }, then: Then::DraftEmpty },
+        Sample { name: "chat-start-goal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-start-goal-refused", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-goal-linked", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-new-draft", world: Solo, address: Address::NewChat { draft: true }, then: Shown },
+        Sample {
+            name: "chat-new",
+            world: FirstRun { step: 7 },
+            address: Address::NewChat { draft: false },
+            then: Shown,
+        },
+        Sample {
+            name: "chat-new-no-repository",
+            world: FirstRun { step: 7 },
+            address: Address::NewChat { draft: false },
+            then: Shown,
+        },
         Sample { name: "chats-no-repository", world: FirstRun { step: 7 }, address: CHATS, then: Shown },
+        Sample {
+            name: "chats-drafts",
+            world: Reference,
+            address: Address::Chats { filter: ChatsFilter::Drafts },
+            then: Shown,
+        },
         Sample { name: "chats-live", world: Solo, address: Address::Chats { filter: ChatsFilter::Live }, then: Shown },
         Sample {
             name: "chats-closed",
@@ -424,6 +482,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "rail-new-menu",
+            world: Solo,
+            address: Address::Home { project: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+        },
         Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "forges-empty", world: Bare, address: Address::Forges, then: Shown },
@@ -501,8 +565,8 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "goal-failed", world: Reference, address: task(122), then: Shown },
         Sample { name: "goal-no-report", world: Reference, address: task(108), then: Shown },
         Sample { name: "start-goal", world: Reference, address: CHATS, then: Shown },
-        Sample { name: "start-goal-draft", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
-        Sample { name: "start-goal-refused", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "start-goal-draft", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "start-goal-refused", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "settings-away", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-drafts-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
@@ -522,7 +586,12 @@ pub fn samples() -> [Sample; N] {
             address: Address::Welcome { step: temper_client_domain::Step::WelcomeAsked },
             then: Shown,
         },
-        Sample { name: "chat-new-first-run-1", world: FirstRun { step: 1 }, address: Address::NewChat, then: Shown },
+        Sample {
+            name: "chat-new-first-run-1",
+            world: FirstRun { step: 1 },
+            address: Address::NewChat { draft: false },
+            then: Shown,
+        },
         Sample { name: "chats-first-run-1", world: FirstRun { step: 1 }, address: CHATS, then: Shown },
         owned_sample("connect-forge-first-run-6", 6, false),
         Sample { name: "forges-first-run-7", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
@@ -600,7 +669,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
-        Sample { name: "chat-byline-open", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample {
+            name: "chat-byline-open",
+            world: FirstRun { step: 7 },
+            address: Address::NewChat { draft: false },
+            then: Shown,
+        },
         Sample { name: "chat-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
         Sample { name: "chat-held-task", world: Solo, address: Address::Chat { task: 10 }, then: Then::HeldTask },
@@ -844,6 +918,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::SignInRefused => "#other-states-refused",
             Then::Hosts { .. }
             | Then::Shown
+            | Then::DraftEmpty
+            | Then::Mode(_)
             | Then::Working
             | Then::DelegatedGoal
             | Then::HeldChange
@@ -871,7 +947,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         World::Bare => return None,
     };
     let (page, task) = match sample.address {
-        Address::NewChat => return Some("chat.html?id=new".to_owned()),
+        Address::NewChat { draft } => {
+            return Some(if draft { "chat.html?id=new&draft=1" } else { "chat.html?id=new" }.to_owned());
+        }
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::Inbox { .. } => ("inbox", None),
@@ -902,7 +980,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         }
         Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
@@ -991,22 +1069,49 @@ fn goal_domain(sample: &Sample) -> Domain {
 }
 #[must_use]
 fn start_domain(sample: &Sample) -> Domain {
-    let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), Then::Shown);
+    let then = if sample.name == "start-goal" {
+        Then::Shown
+    } else {
+        Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat)
+    };
+    let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), then);
     if sample.name != "start-goal" {
         let mut out = Queue::uncapped();
         step(
             &mut root,
             Event::Act {
                 action: Action::Pages(Act::OpenStart {
-                    draft: Some(b"docs/design/draft/first-run-projects.md".as_slice().into()),
+                    draft: Some(b"docs/design/draft/away-mode.md".as_slice().into()),
                     chat: Some(1),
                 }),
             },
             &mut out,
         );
-        if sample.name == "start-goal-refused" {
+        if sample.name.ends_with("-refused") {
             step(&mut root, Event::Act { action: Action::Pages(Act::StartAsks { always: true }) }, &mut out);
             step(&mut root, Event::Act { action: Action::Pages(Act::StartGoal) }, &mut out);
+            step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+            while let Some(request) = out.pop() {
+                if let Some(jig_client::Down::Send { attempt, .. }) = crate::driver::down(request) {
+                    step(
+                        &mut root,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::Answer {
+                                    attempt,
+                                    envelope: skein_lib::RequestEnvelope::Final,
+                                    why: None,
+                                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                                        refusal: c::Refusal::NotOffered,
+                                        at: None,
+                                    })),
+                                },
+                            },
+                        },
+                        &mut Queue::uncapped(),
+                    );
+                }
+            }
         }
     }
     root
@@ -1014,6 +1119,9 @@ fn start_domain(sample: &Sample) -> Domain {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name == "chats-drafts" {
+        return crate::worlds::drafts_world();
+    }
     if sample.name == "settings" || sample.name.starts_with("settings-") {
         return crate::worlds::settings_world(sample.name);
     }
@@ -1033,13 +1141,16 @@ pub fn domain(sample: &Sample) -> Domain {
         let mut root = home_domain(if sample.name == "chat-new" { "home-ready" } else { "home-no-repository" });
         step(
             &mut root,
-            Event::Went { place: temper_client_domain::Place::Address(Address::NewChat) },
+            Event::Went { place: temper_client_domain::Place::Address(Address::NewChat { draft: false }) },
             &mut Queue::uncapped(),
         );
         return root;
     }
-    if sample.name.starts_with("start-goal") {
+    if sample.name.starts_with("start-goal") || sample.name.starts_with("chat-start-goal") {
         return start_domain(sample);
+    }
+    if sample.name == "chat-goal-linked" {
+        return crate::worlds::linked_chat_world(sample.world, sample.address.clone());
     }
     if sample.name.starts_with("needs-") {
         return crate::needs::domain(sample.name);
@@ -1122,8 +1233,18 @@ pub fn domain(sample: &Sample) -> Domain {
         claude(&mut root, sample.name, accounts_watch.expect("Claude accounts watch"), &mut out);
         return root;
     }
+    if sample.name == "chat-draft-empty" {
+        step(&mut root, Event::Act { action: Action::Pages(Act::AddDraft) }, &mut out);
+    }
     match sample.then {
+        Then::Mode(mode) => {
+            step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut out);
+            if sample.name == "chat-draft-split" {
+                step(&mut root, Event::Act { action: Action::Pages(Act::ShowSection { line: 17 }) }, &mut out);
+            }
+        }
         Then::Hosts { .. }
+        | Then::DraftEmpty
         | Then::Shown
         | Then::Working
         | Then::Held
@@ -1367,11 +1488,18 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
 }
 
 fn configure_domain(sample: &Sample) -> Domain {
-    if sample.name.starts_with("configure-chat-") {
+    if matches!(sample.name, "configure-chat-proposal" | "configure-chat-accepted" | "configure-chat-replaced") {
         return crate::worlds::settings_chat_world(sample.name);
     }
-    if matches!(sample.name, "configure-chat" | "configure-chats-tag") {
-        return crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then).0;
+    if matches!(
+        sample.name,
+        "configure-chat" | "configure-chats-tag" | "configure-chat-document" | "configure-chat-document-split"
+    ) {
+        let mut root = crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then).0;
+        if let Then::Mode(mode) = sample.then {
+            step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut Queue::uncapped());
+        }
+        return root;
     }
     let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     if sample.name == "configure" {
@@ -1824,7 +1952,7 @@ fn home_domain(name: &str) -> Domain {
                         let mut dismissed = List::with_capacity(1);
                         if name == "home-after-skip" {
                             dismissed
-                                .push(w::Dismissal::ToBegin(
+                                .push(w::PersonFact::ToBegin(
                                     w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: 1 }).expect("Home skip"),
                                 ))
                                 .expect("one skip");
@@ -2047,6 +2175,7 @@ fn home_domain(name: &str) -> Domain {
                         crate::worlds::project_ways(
                             &mut root,
                             read,
+                            false,
                             with_goals || home_away,
                             home_away,
                             home_away || away_sample,

@@ -45,9 +45,11 @@ pub struct Limits {
     pub waiters: u32,
     /// Maximum combined subject, login and display-name bytes per party.
     pub identity_bytes: u32,
-    /// Maximum opening-word or escalation rejection-reason bytes per keyed ask, including pending
+    /// Maximum message, answer or explanation bytes per keyed ask, including pending
     /// and completed copies.
     pub words: u32,
+    /// Maximum words bytes of a requested or proposed task specification.
+    pub spec_bytes: u32,
     /// Maximum owned bytes carried by one keyed task amendment.
     pub amendment_bytes: u32,
     /// Nonzero configured lifetime projected once from admission's wall/monotonic environment.

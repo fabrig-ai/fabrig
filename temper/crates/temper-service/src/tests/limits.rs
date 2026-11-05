@@ -177,7 +177,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
         root: limits::Root {
             brief: temper_engine_domain::BriefLimits {
                 read_bytes: 131_584,
-                brief_bytes: 357_967,
+                brief_bytes: 357_328,
                 budgets: temper_engine_domain::BriefBudgets {
                     task: 131_584,
                     pull: 131_584,
@@ -188,10 +188,16 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             },
             journal: temper_engine_domain::JournalLimits {
                 transcript_bytes: 22_467_664,
-                result_bytes: 357_967,
+                result_bytes: 357_328,
                 ..small.root.journal
             },
-            loads: small.root.loads,
+            loads: temper_engine_domain::loads::Limits {
+                transcript_bytes: 70_208,
+                bytes: 70_456,
+                reply_bytes: 70_456,
+                read_bytes: 131_072,
+                ..small.root.loads
+            },
         },
         ..small
     };
@@ -738,4 +744,60 @@ fn configured_public_index_bounds_reach_the_core() {
     config.jig.limits.core.public = jig_domain_core::PublicIndexLimits { goals: 4, ended: 3, lines: 8, depth: 4 };
     let configured = limits::engine(&config.jig.limits, &config.limits).expect("configured engine");
     assert_eq!(temper_engine_domain::core_limits(&configured).public, config.jig.limits.core.public);
+}
+
+// jig/docs/design/domain/engine.md, 10: recall loads a document's whole stored row.
+#[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary test builds note text at each configured bound")]
+fn the_standard_archive_load_holds_a_whole_note_row() {
+    use jig_domain_notes as notes;
+    use skein_lib::{List, Queue, Wall};
+    use temper_engine_domain::{self as engine, loads};
+    let notes = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.notes;
+    let mut segments = List::<Box<[u8]>>::with_capacity(notes.pattern_bytes);
+    for _ in 0..notes.pattern_bytes {
+        segments.push(Box::new([])).unwrap();
+    }
+    let mut references = List::with_capacity(notes.references);
+    for task in 1..=notes.references {
+        references.push(u64::from(task)).unwrap();
+    }
+    let row = engine::Record::Core(jig_domain_core::Record::Notes(notes::Record::Entry(notes::Entry {
+        name: 1,
+        scope: notes::Scope::Resources {
+            project: 1,
+            connector: 1,
+            pattern: notes::Pattern {
+                segments: segments.into_boxed(),
+                last: notes::Last::Exact(vec![b'p'; notes.pattern_bytes.try_into().unwrap()].into()),
+            },
+        },
+        description: vec![b't'; notes.description_bytes.try_into().unwrap()].into(),
+        body: vec![b'x'; notes.body_bytes.try_into().unwrap()].into(),
+        references,
+        author: notes::Author::Party { party: 1 },
+        revision: 1,
+        changed: Wall::EPOCH,
+    })));
+    let page_bytes = engine::record_bytes(&row).unwrap() + u64::try_from(size_of::<engine::Record>()).unwrap();
+    let mut domain = loads::Loads::new(&limits::profile(limits::Profile::Standard).root.loads);
+    let mut out = Queue::uncapped();
+    let owner = loads::begin(
+        &mut domain,
+        Token::new(1),
+        engine::Range::Core(engine::CoreRange::Notes(notes::Range::Entry { name: 1 })),
+        None,
+        1,
+        &mut out,
+    )
+    .unwrap();
+    out.pop().expect("load request");
+    loads::loaded(&mut domain, owner, Box::new([row]), None, &mut out);
+    let result = out.pop().expect("load terminal");
+    let loads::Request::Loaded { rows, cut, next, .. } = result else {
+        panic!("whole note page needs {page_bytes} bytes: {result:?}");
+    };
+    assert_eq!(rows.len(), 1, "whole note page needs {page_bytes} bytes");
+    assert!(cut.is_none());
+    assert!(next.is_none());
 }

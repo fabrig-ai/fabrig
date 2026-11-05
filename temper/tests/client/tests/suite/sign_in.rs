@@ -1,5 +1,5 @@
 //! Sign-in departure, return and endings through the joined world's public fakes.
-use jig_client_world::harness::{App, Front, FrontFault};
+use jig_client_kit::harness::{App, Front, FrontFault};
 use jig_domain_accounts as a;
 use skein_lib::{Duration, Queue, Wall};
 use skein_ui::{Act, Role};

@@ -54,7 +54,7 @@ record CallPartControlDenied { answer: Answer }
 record CallPartSent { message: u64 }
 record CallPartSubscribed { subscription: u64 }
 record CallPartDelegationDenied { answer: Answer findings: list 1024 Finding }
-record CallPartNoteWritten { name: u64 revision: u32 }
+record CallPartNoteWritten { name: u64 revision: u32 lines: u32 added: u32 removed: u32 first: u32 }
 record TaskBytes { value: bytes 8192 holds jig-store-tasks TaskProblem }
 record CallPartEscalationRefused { value: TaskBytes }
 record CallPartProposalRefused { value: TaskBytes }

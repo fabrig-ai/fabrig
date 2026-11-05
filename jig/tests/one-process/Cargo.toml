@@ -13,7 +13,7 @@ doctest = false
 
 [dependencies]
 serde_json.workspace = true
-jig-protocol-accounts-world = { path = "../protocol-accounts" }
+jig-protocol-accounts-kit.workspace = true
 skein-fake-oauth.workspace = true
 skein-http.workspace = true
 skein-oauth-accounts.workspace = true
@@ -22,7 +22,7 @@ jig-client-domain.workspace = true
 jig-conformance.workspace = true
 smith-channel.workspace = true
 smith-charter.workspace = true
-jig-channel-world = { path = "../channel" }
+jig-channel-kit.workspace = true
 jig-client-protocol-kit.workspace = true
 jig-client-shell-native = { path = "../../crates/jig-client-shell-native" }
 jig-test-service.workspace = true

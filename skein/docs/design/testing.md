@@ -329,7 +329,7 @@ testing/skein-json-kit          what a second crate takes of the JSON world: the
 testing/skein-http-kit          the HTTP world's reference reader
 testing/skein-tls-kit           the TLS world's certificates, in-memory server, byte driver and step meter, over tests/tls/fixtures
 testing/skein-llm-kit           the LLM world's wire fixtures and its faces of skein's fake LLM
-testing/skein-forge-kit         the forge machine world's machine, peers, pipes and joint world, its GitHub face, and one io harness, Sockets, for the forge worlds (fake-forge.md, 10.6)
+testing/skein-forge-kit         the forge machine world's machine, peers, pipes and joint world, and its GitHub face
 testing/skein-codegen           the codec generator, run by a consumer's tests (codec.md)
 testing/skein-browser           the browser kit, a step machine: headless Chromium over the DevTools protocol on a pipe (browser.md)
 testing/skein-fake-person       the person: targets by role, name and text, steps, the tree face, the random person (ui.md, 17.1)

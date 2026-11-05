@@ -12,25 +12,23 @@ test = false
 doctest = false
 
 [dependencies]
+jig-protocol-accounts-kit.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
 jig-domain-accounts.workspace = true
 jig-domain-core.workspace = true
 jig-protocol-accounts.workspace = true
-jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true
 skein-kv.workspace = true
 skein-sim.workspace = true
-skein-fake-oauth.workspace = true
 skein-fake-peers.workspace = true
-skein-http.workspace = true
-skein-tls.workspace = true
 skein-oauth.workspace = true
 skein-oauth-accounts.workspace = true
 skein-io.workspace = true
 skein-heap.workspace = true
 
 [dev-dependencies]
+jig-protocol-config.workspace = true
 skein-codegen.workspace = true
 skein-scratch.workspace = true
 

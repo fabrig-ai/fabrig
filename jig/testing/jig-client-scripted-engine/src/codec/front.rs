@@ -32,6 +32,7 @@ pub(super) fn limits(bounds: &Bounds) -> Result<Limits, Invalid> {
         segments: bounds.segments,
         authority: bounds.authority,
         text: bounds.text,
+        long_text: bounds.text,
         turn_text: bounds.text.min(u32::try_from(bounds.document_bytes).map_err(|_| Invalid::Payload)?),
         projects: bounds.rows,
         fields: bounds.rows,

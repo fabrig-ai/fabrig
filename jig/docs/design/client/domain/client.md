@@ -1016,9 +1016,14 @@ Each is configured and bounds what enters or is retained:
   (`../../protocol/client.md`, section 9).
 
 `DomainLimits.turn_text` is one committed turn's shared text budget in the
-transcript: its texts, its calls' names, inputs and outcomes, and its
-results' summaries. It is at least the receiving field bound `text` and
-at most `turn_bytes`; limits outside those bounds are refused.
+transcript: its texts, its calls' names, its outcomes and inputs, an outcome
+taken before its input, and its results' summaries. It is at least the receiving
+field bound `text` and at most `turn_bytes`; limits outside those bounds are
+refused.
+
+`DomainLimits.long_text` bounds what a person may read or send whole past a
+field's `text`: a note's body, a document's text and a task's words. It is at
+least `text` and at most `document_bytes`, and a request's `ask_bytes` holds it.
 
 Reads have room independently of watch handles; a read need not own a
 watch. Pending entries price both their token and optional family. A
@@ -1196,7 +1201,10 @@ with a person in front of a tree, are view.md's, 18.10.
     sent;
   - `shapes::set_goal(..)` fills the stock goal template;
     `shapes::set_goal_from(me, project, template, draft, reason)` fills
-    an offered template by number. Each compares the filled draft
+    an offered template by number; `shapes::set_agreed_goal_from`, the same with
+    its specification's `asks`, a task its requester agrees before it starts
+    changing. A template not flagged conversation is filled with no note scopes,
+    whatever the creating bound holds: a role reaches its chats' own. Each compares the filled draft
     with the project's creating bounds in `me` (contract.md, 5.3), a
     deadline given as a span within both, for the engine to judge, and
     gives one of four: *made,* a `Create`, within the first bound;

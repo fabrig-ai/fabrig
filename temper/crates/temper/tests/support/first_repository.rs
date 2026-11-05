@@ -398,7 +398,7 @@ fn task_steps_in(root: &Path, task: Task, repository: &str) -> Vec<Step> {
     let project = task.project.to_string();
     let chat = task.chat.to_string();
     let key = root.join("llm-key");
-    write_private(&key, jig_channel_world::fixtures::KEY);
+    write_private(&key, jig_channel_kit::fixtures::KEY);
     vec![
         Step::Run(Call::new(&[
             "account",

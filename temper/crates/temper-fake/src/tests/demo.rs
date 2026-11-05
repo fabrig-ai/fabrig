@@ -399,7 +399,7 @@ fn template() -> Value {
 
 const CHAT: &str = "Add CSV export to widget";
 
-const CODING: &str = "Read only what the change needs, then write it in its files: your turns are few. Finish with a clear change summary. You can run nothing; a file the change drops, remove once you have read it. The change has no pull request yet: once you finish, your work is committed, its pull request opened and its checks run; what fails there, or needs the pull request's number, comes back as a repair that names it. So write only files the change keeps, and no placeholder for what you can't know yet. Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with a failure saying what the code has instead; never add a feature in a fix's place. Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with a failure only when it cannot be built there.\n\n## Task\n\nExport widget's table as CSV\n[Change connector 1, kind 2, at most 4096 bytes]\n[Requested by task 2]\n\n";
+const CODING: &str = "Read only what the change needs, then write it in its files: your turns are few. Finish with a clear change summary. You can run nothing; a file the change drops, remove once you have read it. The change has no pull request yet: once you finish, your work is committed, its pull request opened and its checks run; what fails there, or needs the pull request's number, comes back as a repair that names it. So write only files the change keeps, and no placeholder for what you can't know yet. Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with a failure saying what the code has instead; never add a feature in a fix's place. Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with a failure only when it cannot be built there.\n\n## Task\n\nExport widget's table as CSV\n[Change connector 1, kind 2, at most 4096 bytes]\n[This task: 3, in project 1]\n[Requested by task 2]\n\n";
 
 #[test]
 fn the_templates_demo_fits_the_fakes_bounds() {
@@ -530,7 +530,7 @@ fn the_csv_cues_select_only_their_own_agents_briefs() {
 
 #[test]
 fn the_csv_review_uses_its_verdict_script_with_the_changes_words_quoted() {
-    let review = "Review the change with read-only authority.\n\n## Task\n\nReview this change at the named head\nChange words:\nExport widget's table as CSV\n[Requested by task 2]\n";
+    let review = "Review the change with read-only authority.\n\n## Task\n\nReview this change at the named head\nChange words:\nExport widget's table as CSV\n[This task: 4, in project 1]\n[Requested by task 2]\n";
     let answers = answers(review, run::Mode::Finite, 1);
     let verdict = call(&answers[0], b"finish");
     assert_eq!(verdict["form"], "verdict");
@@ -629,4 +629,48 @@ fn a_persons_new_request_restarts_the_chat_script() {
     assert_eq!(restarted.parts, first.parts);
     assert_eq!(restarted.finish, first.finish);
     assert_eq!(restarted.usage.output, first.usage.output);
+}
+
+/// A person's draft request must reach the unsuggested script through Smith's
+/// open-chat opening (temper/docs/design/domain/agent.md, 8.3).
+#[test]
+fn a_chat_document_request_calls_note_from_smiths_opening() {
+    let first = answers("Please write this up. Write this up as a draft beside us.", run::Mode::Open, 2);
+    let note = call(&first[0], b"note");
+    assert_eq!(note["scope"], json!({"kind": "goal", "project": 1, "goal": 1}));
+    assert_eq!(note["description"], "Away mode");
+    assert_eq!(note["body"].as_str().unwrap().lines().count(), 29);
+    assert_eq!(first[1].finish, Finish::Stop);
+    assert_eq!(
+        first[1].parts.as_ref(),
+        &[Part::Text {
+            text: b"I wrote an Away mode draft with its purpose, return flow and open questions.".as_slice().into()
+        }]
+    );
+
+    let second = answers("Add what happens to a running goal.", run::Mode::Open, 2);
+    let revised = call(&second[0], b"note");
+    assert_eq!(revised["scope"], note["scope"]);
+    assert_eq!(revised["description"], note["description"]);
+    assert_eq!(revised["name"], 1);
+    assert_eq!(revised["recalled"], 1);
+    let body = revised["body"].as_str().unwrap();
+    let (before, after) = body.split_once("## A running goal\n").unwrap();
+    let (_, after) = after.split_once("## When the person returns").unwrap();
+    assert_eq!(format!("{before}## When the person returns{after}"), note["body"].as_str().unwrap());
+    assert_eq!(body.lines().count(), 36);
+    assert_eq!(second[1].finish, Finish::Stop);
+    assert_eq!(
+        second[1].parts.as_ref(),
+        &[Part::Text { text: b"I added how a running goal continues and waits for your decisions.".as_slice().into() }]
+    );
+    let template = template();
+    let scripts = &template["application"]["demo"]["llm"];
+    let asked = scripts["asked"].as_array().unwrap();
+    let cued = scripts["cued"].as_array().unwrap();
+    assert!(asked.len() + cued.len() <= 8);
+    for cue in ["Write this up as a draft beside us.", "Add what happens to a running goal."] {
+        assert!(!asked.iter().any(|script| script["cue"] == cue), "document cue is never suggested");
+        assert!(cued.iter().any(|script| script["cue"] == cue));
+    }
 }

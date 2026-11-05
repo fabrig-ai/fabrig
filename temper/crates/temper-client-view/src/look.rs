@@ -640,8 +640,10 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
 pub const RAIL: Style = Style { owner: owner(), token: 175 };
 /// The rail's three page entries.
 pub const RAIL_NAV: Style = Style { owner: owner(), token: 176 };
-/// The rail's new chat link.
+/// The rail's new chat link and menu.
 pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
+/// All ways to start work in the rail menu (client/README.md, 5.3).
+pub const RAIL_NEW_ALL: Style = Style { owner: owner(), token: 437 };
 /// The rail's status, settings and person.
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
 /// The browser's phone navigation.
@@ -1090,8 +1092,27 @@ pub const NAMES: Names<'static> = Names {
         b"temper-sheet-link",
         b"temper-sheet-foot",
         b"temper-sheet-error",
+        b"temper-mode-chat",
+        b"temper-mode-split",
+        b"temper-mode-draft",
+        b"temper-doc",
+        b"temper-doc-inner",
+        b"temper-doc-path",
+        b"temper-doc-sec",
+        b"temper-doc-changed",
+        b"temper-doc-note",
+        b"temper-doc-muted",
+        b"temper-seg",
+        b"temper-seg-split",
+        b"temper-rail-unfold",
+        b"temper-start-over",
+        b"temper-doc-flash",
+        b"temper-doc-empty",
+        b"temper-add-draft",
         b"temper-home-facts",
         b"temper-home-byline",
+        b"temper-chat-goal",
+        b"temper-rail-new-all",
         b"temper-away",
         b"temper-away-chip",
         b"temper-away-track",
@@ -1205,23 +1226,63 @@ pub const SETTINGS_REFUSAL: Style = Style { owner: owner(), token: 360 };
 pub const SETTINGS_ROW: Style = Style { owner: owner(), token: 374 };
 pub const SETTINGS_PATH: Style = Style { owner: owner(), token: 375 };
 pub const SETTINGS_EMPTY: Style = Style { owner: owner(), token: 376 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const MODE_CHAT: Style = Style { owner: owner(), token: 417 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const MODE_SPLIT: Style = Style { owner: owner(), token: 418 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const MODE_DRAFT: Style = Style { owner: owner(), token: 419 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC: Style = Style { owner: owner(), token: 420 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_INNER: Style = Style { owner: owner(), token: 421 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_PATH: Style = Style { owner: owner(), token: 422 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_SEC: Style = Style { owner: owner(), token: 423 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_CHANGED: Style = Style { owner: owner(), token: 424 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_NOTE: Style = Style { owner: owner(), token: 425 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_MUTED: Style = Style { owner: owner(), token: 426 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const SEG: Style = Style { owner: owner(), token: 427 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const SEG_SPLIT: Style = Style { owner: owner(), token: 428 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const RAIL_UNFOLD: Style = Style { owner: owner(), token: 429 };
+
+/// A configuring chat’s fresh start (temper/docs/design/client/README.md, 3.5).
+pub const START_OVER: Style = Style { owner: owner(), token: 430 };
+
+/// A shown section (temper/docs/design/client/README.md, 3.5).
+pub const DOC_FLASH: Style = Style { owner: owner(), token: 431 };
+
+/// The unwritten document (client/README.md, 3.5).
+pub const DOC_EMPTY: Style = Style { owner: owner(), token: 432 };
+/// The bar's draft action (client/README.md, 3.5).
+pub const ADD_DRAFT: Style = Style { owner: owner(), token: 433 };
 
 /// Home status (temper/docs/design/client/README.md, 3.5).
-pub const HOME_FACTS: Style = Style { owner: owner(), token: 417 };
+pub const HOME_FACTS: Style = Style { owner: owner(), token: 434 };
 /// Home brief attribution (temper/docs/design/client/README.md, 3.5).
-pub const HOME_BYLINE: Style = Style { owner: owner(), token: 418 };
+pub const HOME_BYLINE: Style = Style { owner: owner(), token: 435 };
+
+/// A chat starts a goal or links its start (client/README.md, 3.5).
+pub const CHAT_GOAL: Style = Style { owner: owner(), token: 436 };
 /// Away controls (temper/docs/design/client/README.md, 3.5).
-pub const AWAY: Style = Style { owner: owner(), token: 419 };
-pub const AWAY_CHIP: Style = Style { owner: owner(), token: 420 };
-pub const AWAY_TRACK: Style = Style { owner: owner(), token: 421 };
+pub const AWAY: Style = Style { owner: owner(), token: 438 };
+pub const AWAY_CHIP: Style = Style { owner: owner(), token: 439 };
+pub const AWAY_TRACK: Style = Style { owner: owner(), token: 440 };
 
 /// Home’s decisions (temper/docs/design/client/README.md, 3.5, Away).
-pub const DECIDED: Style = Style { owner: owner(), token: 422 };
-pub const DECISION: Style = Style { owner: owner(), token: 423 };
-pub const DECISION_TOOK: Style = Style { owner: owner(), token: 424 };
-pub const DECISION_WHY: Style = Style { owner: owner(), token: 425 };
-pub const DECISION_LATE: Style = Style { owner: owner(), token: 426 };
-pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 427 };
+pub const DECIDED: Style = Style { owner: owner(), token: 441 };
+pub const DECISION: Style = Style { owner: owner(), token: 442 };
+pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
+pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
+pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
+pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
 
 #[cfg(test)]
 mod tests {

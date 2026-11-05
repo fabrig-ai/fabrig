@@ -180,9 +180,9 @@ fn client_models() -> Box<[clients::Model]> {
 }
 
 fn client_request(ask: &c::Ask) -> people::Ask {
-    let mut settings = jig_engine_clients_world::fixtures::settings();
+    let mut settings = jig_engine_clients_kit::fixtures::settings();
     settings.models = client_models();
-    let mut peer = jig_engine_clients_world::Peer::signed_in(&settings, 1);
+    let mut peer = jig_engine_clients_kit::Peer::signed_in(&settings, 1);
     let ask = jig_client_protocol_link::translate::asks::ask(ask, &w::CEILINGS).expect("encoded client ask");
     let mut out = skein_lib::Writer::new(usize::try_from(ask.measure()).expect("ask size"));
     ask.encode(&mut out).expect("ask bytes");
@@ -207,7 +207,7 @@ fn client_request(ask: &c::Ask) -> people::Ask {
 }
 
 fn client_limits() -> jig_client::DomainLimits {
-    let mut bounds = jig_client_world::test::limits().client.domain;
+    let mut bounds = jig_client_kit::test::limits().client.domain;
     bounds.text = 64;
     bounds.turn_text = bounds.text;
     bounds.turn_bytes = bounds.text;

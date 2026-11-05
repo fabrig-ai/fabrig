@@ -1244,7 +1244,7 @@ pub mod waiting {
     pub const REPIN_HOLD: &[u8] = b"case-6-6-repin-producer";
     // Script inputs only: app root 1, kit root 2, e1 coder 3, kit merge 4,
     // repin coder 5, app merge 6. The repin turn waits for kit to land.
-    // The oracle instead renders the unique actual kit Merged.commit.
+    // The oracle instead renders the unique kit Merged.commit.
     pub const KIT_REVIEW_HEAD: u64 = 3;
     pub const PIN_INPUT: u64 = 4;
     pub const APP_REVIEW_HEAD: u64 = 5;

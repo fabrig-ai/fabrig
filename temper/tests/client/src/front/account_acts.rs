@@ -4,7 +4,7 @@ use crate::{
     app::{Event, Root, Temper},
     fixtures,
 };
-use jig_client_world::harness::{App, ClientId, Duty, Front, FrontFault};
+use jig_client_kit::harness::{App, ClientId, Duty, Front, FrontFault};
 use jig_domain_accounts as a;
 use skein_lib::{Duration, Env, Queue, Wall};
 use temper_engine_domain as engine;

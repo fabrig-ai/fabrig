@@ -1783,3 +1783,10 @@ the newest when it moved.
   roles when the policy stops naming any for its kind, or that stalls
   past its last holder: who may decide it then, or whether it is
   withdrawn, saying why.
+- **A finish refused at the call** (5.7): a run with its own question open
+  that calls `finish` parks, the run hearing nothing live, and its next run's
+  transcript shows that finish as accepted. Refusing it at the call needs a
+  new crossing from jig through the worker to smith, since the run serves
+  `finish` with no call to its host (engine.md, 7.3 and 7.4), and costs a turn;
+  parking stays underneath it, as a refusal can't cover every path to a finish.
+  Default: it parks, an application's charter saying beforehand to call `wait`.

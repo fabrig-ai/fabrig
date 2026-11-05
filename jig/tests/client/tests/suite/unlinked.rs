@@ -1,7 +1,6 @@
 use jig_client::{Client, Event, Link, UnlinkedRequest};
-use jig_client_world::{Front, Test, harness::ClientId, joint::Joint};
+use jig_client_world::{Front, SIGNING_PARTY, Test, harness::ClientId, joint::Joint};
 use skein_lib::{Duration, List, Queue, Time, Wall};
-const PARTY: u64 = 1;
 const CLIENT: ClientId = ClientId(0);
 const NOW: Time = Time::ZERO;
 const WALL: Wall = Wall::from_nanos(1_000_000_000_000);
@@ -43,7 +42,7 @@ fn an_unlinked_client_sees_me_live_against_the_real_core() {
     let mut client = Client::unlinked(&limits, 8512).expect("bounded client");
     let mut out = Queue::uncapped();
     let mut front = front();
-    Front::<Test>::bind(&mut front, CLIENT, PARTY);
+    Front::<Test>::bind(&mut front, CLIENT, SIGNING_PARTY);
     client.step_unlinked(NOW, WALL, Event::StartUnlinked { kept: List::with_capacity(0) }, &mut out);
     client.step_unlinked(NOW, WALL, Event::SignIn { with: jig_client::With::Transport }, &mut out);
     drain(&mut client, &mut front, &mut out);
@@ -68,7 +67,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
     let mut client = Client::unlinked(&limits, 8513).expect("bounded client");
     let mut out = Queue::uncapped();
     let mut front = front();
-    Front::<Test>::bind(&mut front, CLIENT, PARTY);
+    Front::<Test>::bind(&mut front, CLIENT, SIGNING_PARTY);
     client.step_unlinked(NOW, WALL, Event::StartUnlinked { kept: List::with_capacity(0) }, &mut out);
     client.step_unlinked(NOW, WALL, Event::SignIn { with: jig_client::With::Transport }, &mut out);
     drain(&mut client, &mut front, &mut out);

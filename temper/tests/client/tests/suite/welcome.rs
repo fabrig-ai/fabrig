@@ -1,5 +1,5 @@
 //! Welcome states (temper/docs/design/client/README.md, 3.5 and 10).
-use jig_client_world::harness::App;
+use jig_client_kit::harness::App;
 use skein_lib::Queue;
 use skein_ui::Role;
 use temper_client_domain::{self as d, Address, Step};

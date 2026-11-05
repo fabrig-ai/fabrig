@@ -47,7 +47,7 @@ pub fn settings() -> skein_ui::Tree {
     first_run_page(client::Address::Settings { project: 1 }, true)
 }
 pub fn first_run() -> skein_ui::Tree {
-    first_run_page(client::Address::NewChat, true)
+    first_run_page(client::Address::NewChat { draft: false }, true)
 }
 #[expect(clippy::too_many_lines, reason = "one fixture answers the chat's documents and the session's demo and forges")]
 fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
@@ -216,7 +216,7 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
 fn demo_me() -> contract::Me {
     use jig_client::contract as c;
     use skein_lib::List;
-    let mut me = jig_client_world::stories::frame(1);
+    let mut me = jig_client_kit::stories::frame(1);
     me.deployment_role = Some(c::HeldRole::Owner);
     let mut models = List::with_capacity(1);
     models
@@ -236,7 +236,7 @@ fn demo_me() -> contract::Me {
 }
 fn delegation_task(number: u64, landed: bool) -> contract::Task {
     use jig_client::contract as c;
-    let mut task = jig_client_world::stories::conversations::chat(number, b"First run", skein_lib::Wall::EPOCH);
+    let mut task = jig_client_kit::stories::conversations::chat(number, b"First run", skein_lib::Wall::EPOCH);
     task.chip.task = number;
     task.chip.title = c::DocumentText::complete(delegation_text(if number == 1 {
         b"Add CSV export to widget"

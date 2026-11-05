@@ -1973,7 +1973,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
     for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
         let tree = view.tree();
         let main = styled(tree, look::SESSION);
-        assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MAIN, look::SESSION]);
+        assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MODE_CHAT, look::SESSION]);
         assert_eq!(style_position(tree.nodes(), look::AGENT_PAGE), None);
         let top = styled(tree, look::SESSION_TOP);
         let bar = styled(tree, look::SESSION_RIGHT);
@@ -2452,5 +2452,32 @@ fn the_log_has_one_column_with_older_before_turns() {
         assert!(column[older].styles.as_slice().contains(&crate::look::CHATS_MORE));
         let message = named_position(column, Role::Paragraph, Some(b"A retained message")).unwrap();
         assert!(older < message);
+    }
+}
+
+#[test]
+fn a_note_turn_draws_no_cut_words() {
+    use fixtures::first_run as run;
+    for other_cut in [false, true] {
+        let mut blocks = List::with_capacity(2);
+        blocks.push(run::call(1, b"note", b"", Some("Note 1 revision 1 written · 12 lines".as_bytes()))).unwrap();
+        if other_cut {
+            blocks.push(c::Block::Text(run::text(b"A long reply, also cut"))).unwrap();
+        }
+        let mut line = run::turn(1, ATTEMPT, 1, &[run::message(c::Speaker::Assistant, blocks.as_slice())], 512);
+        let Some(c::ArchivedTurn { turn: c::TurnRead::Decoded(turn), .. }) = &mut line.decoded else {
+            panic!("decoded turn")
+        };
+        turn.cut = true;
+        line.source.task = TASK;
+        line.decoded.as_mut().unwrap().task = TASK;
+        let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+        let mut rows = List::with_capacity(1);
+        rows.push(line).unwrap();
+        thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+        let tree = tree(&thread);
+        assert_eq!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_some(), other_cut);
+        assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
     }
 }

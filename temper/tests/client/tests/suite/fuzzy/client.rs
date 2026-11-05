@@ -1,4 +1,4 @@
-use jig_client_world::harness::Until;
+use jig_client_kit::harness::Until;
 use skein_world::domain::Verdict;
 use temper_client_world::fixtures;
 

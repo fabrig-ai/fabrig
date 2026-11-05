@@ -194,7 +194,7 @@ fn opened(cue: &[u8]) -> (crate::Domain, skein_lib::Token) {
         );
     }
     deliver_playground_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(answer(cue)) });
-    event(&mut root, crate::Event::Went { place: crate::Place::Address(crate::Address::NewChat) });
+    event(&mut root, crate::Event::Went { place: crate::Place::Address(crate::Address::NewChat { draft: false }) });
     act(&mut root, Act::ChatWords { words: DRAFT.into() });
     (root, account)
 }

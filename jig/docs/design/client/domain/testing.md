@@ -287,7 +287,7 @@ budgets (sections 2 and 9).
 ### 6.2 jig's check
 
 jig's check is its test kit's, in `jig-client-test-kit`: the referee of
-`jig-client-world`, on which an application's client worlds run, runs
+`jig-client-kit`, on which an application's client worlds run, runs
 it in jig's worlds and in each application's. It is checked, never
 mandated: nothing checks it at run, and an application that does not
 run it is not held to it.
@@ -360,7 +360,7 @@ application's on skein's UI kit:
   arrangement keeps its banner and `after_page`'s parts last is the
   reference UI's step tests' to check (section 2).
 - **Bounded:** the reference UI and its view stay within their limits.
-  In `jig-client-world`, `Settings::heap_ceiling` holds one named
+  In `jig-client-kit`, `Settings::heap_ceiling` holds one named
   ceiling on the measured peak of all clients in a fixed scenario
   together (testing-strategy.md, section 6).
   `World::measure_heap_within` starts the meter before clients are

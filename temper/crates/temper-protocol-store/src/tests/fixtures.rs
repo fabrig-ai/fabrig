@@ -227,7 +227,7 @@ pub fn key(random: &mut Rng) -> top::Key {
         }),
         _ => top::Key::Dismissed {
             party: number,
-            what: top::Dismissal::ToBegin { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
+            what: top::PersonFact::ToBegin { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         },
     }
 }

@@ -325,6 +325,8 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client-scripted-engine",
                 // The real joint world joins the core and pure test connector
                 // (client/domain/testing.md, 5); client step crates stay separate.
+                // Joint stories use shipped limits (jig/docs/design/protocol/configuration.md, 6).
+                "jig-protocol-config",
                 "jig-domain-core",
                 "jig-domain-authority",
                 "jig-domain-people",
@@ -343,8 +345,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client-test-kit",
                 "sha2"
             ]
-            .contains(&d.as_str())
-                || super::kits::pending_world_dependency("jig-client-kit", d)),
+            .contains(&d.as_str())),
             "{}",
             manifest.path.display()
         );
@@ -734,6 +735,7 @@ fn client_crates_carry_the_client_prefix() {
         "jig-test-service",
         "jig-one-process-world",
         "jig-channel-world",
+        "jig-channel-kit",
         "jig-ops-world",
     ];
     let failures = crate::client_names::breaches(&kit_root(), "jig", &allowed);

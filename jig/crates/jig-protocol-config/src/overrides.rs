@@ -22,7 +22,11 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
     let owner = name.get(..dot).ok_or(What::Override)?;
     let field = name.get(dot.checked_add(1).ok_or(What::Override)?..).ok_or(What::Override)?;
     match owner {
-        b"tasks" => set_tasks(&mut core.tasks, field, value),
+        b"tasks" => {
+            set_tasks(&mut core.tasks, field, value)?;
+            core.people.spec_bytes = core.tasks.spec_bytes;
+            Ok(())
+        }
         b"people" => set_people(&mut core.people, field, value),
         b"fleet" => set_fleet(&mut core.fleet, field, value),
         b"authority" => {
@@ -254,6 +258,7 @@ fn set_people(limits: &mut jig_domain_people::Limits, name: &[u8], value: u64) -
         waiters,
         identity_bytes,
         words,
+        spec_bytes: _,
         amendment_bytes,
         sign_in_lifetime,
         request_retention,

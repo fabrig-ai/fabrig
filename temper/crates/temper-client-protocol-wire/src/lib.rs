@@ -77,7 +77,7 @@ pub const CLIENT_VERSION: u32 = 14;
 /// The deployment's maximum number of forges (client/README.md, 4.6).
 pub const FORGES: u32 = 16;
 /// A party's dismissals on the wire (client/README.md, 4.6).
-pub const DISMISSED: u32 = 1024;
+pub const DISMISSED: u32 = 8192;
 /// The maximum installations per GitHub forge (client/README.md, 4.6).
 pub const INSTALLATIONS: u32 = 64;
 /// The maximum repository makings per forge (temper/docs/design/client/README.md, 4.6).
@@ -542,3 +542,10 @@ pub fn decode_proposal_items_answer(bytes: &[u8], limits: &v1::Limits) -> Option
     let record = v1::ProposalItemsAnswer::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
+
+/// A goal reads its work as a goal (temper/docs/design/domain/agent.md, 4.3.2).
+pub const GOAL_SCOPE: &[u8] =
+    b"You are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.";
+/// A goal asks for agreement before changes (temper/docs/design/domain/agent.md, 8.2).
+pub const GOAL_AGREED: &[u8] =
+    b"The work is to be agreed: before anything is changed, ask your requester your plan with message, as a question, and wait for the answer.";

@@ -142,7 +142,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
     for name in ["accounts", "secrets", "state"] {
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
     }
-    for (name, bytes) in jig_channel_world::fixtures::files(false).entries.into_boxed() {
+    for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
         if name.starts_with(b"charters/") {
             continue;
         }

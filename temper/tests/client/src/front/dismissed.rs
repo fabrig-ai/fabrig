@@ -1,6 +1,6 @@
 //! Distinct people in the dismissal stories (temper/docs/design/domain/testing.md, 2.1).
 use super::{Joint, client, engine_limits, fixtures, translate};
-use jig_client_world::harness::{ClientId, Observed};
+use jig_client_kit::harness::{ClientId, Observed};
 use jig_domain_people as people;
 use skein_lib::{Duration, ReplyTo, Token};
 use temper_engine_domain as engine;
@@ -46,7 +46,7 @@ impl Joint {
         } = request
             && Some(request)
                 == client::forge::dismissed::ask(
-                    client::forge::dismissed::Dismissal::ToBegin { project: 1 },
+                    client::forge::dismissed::PersonFact::ToBegin { project: 1 },
                     &self.limits.forge,
                 )
                 .as_ref()

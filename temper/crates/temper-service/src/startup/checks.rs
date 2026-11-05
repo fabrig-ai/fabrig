@@ -319,8 +319,8 @@ pub fn limits(limits: &limits::Limits, git: &temper_worker_protocol_git::Limits,
     if sign_in.deadline == Duration::ZERO {
         against(problems, b"sign_in.deadline_ms", b"a nonzero sign-in deadline");
     }
-    if limits.forge.judge_projects > temper_client_protocol_wire::DISMISSED {
-        against(problems, b"forge.judge_projects", b"wire::DISMISSED");
+    if limits.forge.judge_projects > temper_client_protocol_wire::DISMISSED / 8 {
+        against(problems, b"forge.judge_projects", b"wire::DISMISSED / 8");
     }
     if sign_in.members > limits.forge.bindings {
         against(problems, b"sign_in.members", b"forge.bindings");

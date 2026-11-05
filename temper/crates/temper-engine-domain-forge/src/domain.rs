@@ -155,7 +155,7 @@ pub struct Domain {
     pub(crate) aways: Map<(u64, u32), crate::Away>,
     pub(crate) decisions: Map<(u32, u32), crate::Decided>,
     pub(crate) looked: Map<(u64, u32), crate::Looked>,
-    pub(crate) dismissed: Map<(u64, crate::Dismissal), ()>,
+    pub(crate) dismissed: Map<(u64, crate::PersonFact), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
     /// One setup runs at a time (temper/docs/design/protocol/forge.md, 2.8).
     pub(crate) fetched: Option<(u16, crate::SetUpFetched)>,
@@ -241,9 +241,9 @@ pub struct Domain {
 impl Domain {
     /// The party's rows in key order (temper/docs/design/domain/forge.md, 5.5).
     #[must_use]
-    pub fn dismissals(&self, party: u64) -> Box<[crate::Dismissal]> {
+    pub fn dismissals(&self, party: u64) -> Box<[crate::PersonFact]> {
         let mut rows = List::with_capacity(self.dismissed.len());
-        for ((owner, what), ()) in self.dismissed.range((party, crate::Dismissal::ToBegin { project: 0 })..) {
+        for ((owner, what), ()) in self.dismissed.range((party, crate::PersonFact::ToBegin { project: 0 })..) {
             if *owner != party {
                 break;
             }
@@ -636,9 +636,9 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
-            aways: Map::with_capacity(l.dismissed()),
+            aways: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             decisions: Map::with_capacity(l.decided()),
-            looked: Map::with_capacity(l.dismissed()),
+            looked: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             dismissed: Map::with_capacity(l.dismissed()),
             connections: Map::with_capacity(l.forges),
             fetched: None,

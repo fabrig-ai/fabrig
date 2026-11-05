@@ -94,6 +94,7 @@ const BINDING_ROLES: &[(Role, bool)] = &[
     (Role::Form, false),
     (Role::Search, false),
     (Role::Region, false),
+    (Role::Group, false),
     (Role::Heading { level: 1 }, false),
     (Role::Paragraph, false),
     (Role::Text, false),
@@ -543,4 +544,34 @@ fn a_fraction_without_its_own_runs_is_an_assertion() {
     b.fraction(crate::Fraction { done: 1, total: 2 });
     b.text(Run::Plain, b"half");
     b.close();
+}
+
+fn backslash_tree(modifier: crate::Modifier) -> crate::Tree {
+    let mut builder = Builder::new(&LIMITS);
+    builder.open(Role::Button);
+    builder.bind(Binding { owner: Owner { number: 65_536 }, token: Token::new(1) });
+    builder.shortcut(crate::Shortcut { key: b'\\', modifier });
+    builder.close();
+    builder.finish()
+}
+
+#[test]
+fn a_primary_backslash_is_a_shortcut() {
+    let tree = backslash_tree(crate::Modifier::Primary);
+    assert_eq!(
+        tree.get(0).expect("button").shortcut,
+        Some(crate::Shortcut { key: b'\\', modifier: crate::Modifier::Primary })
+    );
+}
+
+#[test]
+#[should_panic(expected = "shortcut keys are letters or digits")]
+fn a_plain_backslash_is_refused() {
+    let _tree = backslash_tree(crate::Modifier::Plain);
+}
+
+#[test]
+#[should_panic(expected = "shortcut keys are letters or digits")]
+fn an_alt_backslash_is_refused() {
+    let _tree = backslash_tree(crate::Modifier::Alt);
 }

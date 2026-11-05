@@ -327,8 +327,9 @@ more than one world needs them (testing-strategy.md, section 4):
   peers and referee (`jig-core-kit`), the client's harness, fronts and shared
   stories (`jig-client-kit`), the engine clients' peer
   (`jig-engine-clients-kit`), the protocol client (`jig-client-protocol-kit`),
-  the accounts' fixtures (`jig-protocol-accounts-kit`) and the channel's
-  (`jig-channel-kit`).
+  the accounts' fixtures (`jig-protocol-accounts-kit`), the channel's
+  (`jig-channel-kit`), the people's referee (`jig-people-kit`) and the tasks'
+  world and referees (`jig-tasks-kit`).
 
 They stay in jig, and an application's worlds reuse them. What jig finds
 missing in skein's world harness goes into skein first.

@@ -137,6 +137,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::Resume
         | Act::Stop
         | Act::Close
+        | Act::StartOver
         | Act::DelegateFate { .. }
         | Act::Older
         | Act::ChatWords { .. }
@@ -185,6 +186,9 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::DiscardAmendment
         | Act::SendAmendment
         | Act::AmendAgain
+        | Act::AddDraft
+        | Act::Mode { .. }
+        | Act::ShowSection { .. }
         | Act::Go { .. } => {
             unreachable!("only deciding acts routed here")
         }

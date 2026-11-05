@@ -63,6 +63,9 @@ pub(super) const PEOPLE: people::Limits = people::Limits {
     inbox_tasks: 256,
     inbox_recipients: 176,
     words: 8_192,
+    spec_bytes: TASKS.spec_bytes,
+    // The whole spec and 4,096 bytes for the member's other owned fields.
+    amendment_bytes: 135_168,
     sign_ins: 32,
     projects: 9,
     holdings: 32,
@@ -108,7 +111,7 @@ pub(super) const ACCOUNTS: accounts::Limits =
     accounts::Limits { program_hosts: 65, accounts: 16, sign_ins: 4, credentials: 15, facts: 128, ..small::ACCOUNTS };
 pub(super) const VIEWS: views::Limits = views::Limits { runs: 32, watchers: 16, facts: 256, ..small::VIEWS };
 pub(super) const NOTES: notes::Limits =
-    notes::Limits { scopes: 19, entries_per_scope: 64, body_bytes: 8_192, lines: 8, recalled: 8, ..small::NOTES };
+    notes::Limits { scopes: 19, entries_per_scope: 64, body_bytes: 65_536, lines: 8, recalled: 8, ..small::NOTES };
 pub(super) const DOCUMENTS: core::documents::DocumentLimits = core::documents::DocumentLimits {
     roles: AUTHORITY.roles,
     grants: super::authority_grants(&TASKS, &AUTHORITY),
@@ -146,13 +149,15 @@ pub(super) const CORE: core::Limits = core::Limits {
     accounts: ACCOUNTS,
     notes: NOTES,
     views: VIEWS,
+    load_bytes: 131_072,
+    call_answer_bytes: 135_168,
     resume_bytes: 262_144,
     run_bytes: 65_536,
     documents: DOCUMENTS,
     ..small::CORE
 };
 pub(super) const HUB: host::Limits =
-    host::Limits { inbox: 82, slots: 4, accounts: 32, facts: 256, told: 256, ..small::HUB };
+    host::Limits { event_bytes: 135_168, inbox: 82, slots: 4, accounts: 32, facts: 256, told: 256, ..small::HUB };
 pub(super) const LINK: Link = Link { names: 64, opening: 16, facts: 4470, ..small::LINK };
 pub(super) const LIMITS: Limits = Limits {
     core: CORE,
@@ -199,20 +204,20 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
 // Retained-revision release adds 2 * 8 heads + 16 versions + one extent = 33.
 // Placed holds: tightened core room plus 18 connector slots needs 151,673 writes.
 const JOURNAL: super::JournalSizes = super::JournalSizes { commits: 3, writes: 151_673, door: 1024, release: 1024 };
-// check_commits sets value to the largest map value, 59,568,612 bytes at these limits (store.md, 5.4).
+// check_commits sets value to the largest map value, 100,865,296 bytes at these limits (store.md, 5.4).
 // RunPolicy.tools is priced in the largest task row.
-// Page bytes are key + value = 2,079 + 59,568,612 = 59,570,691, above the 33,554,496-byte
+// Page bytes are key + value = 2,079 + 100,865,296 = 100,867,375, above the 33,554,496-byte
 // TurnRecord frame for smith's 33,554,432-byte turn (store.md, 8.1).
-// Chunk bytes are skein_kv::chunk_bytes(key, value) = 59,570,711, including framing.
+// Chunk bytes are skein_kv::chunk_bytes(key, value) = 100,867,395, including framing.
 const STORE_KV: skein_kv::Limits = skein_kv::Limits {
-    value: 59_568_612,
+    value: 100_865_296,
     ops: 303_350,
     commit: 901_830_282,
     queued_bytes: 2_705_490_846,
     segment: 1_803_660_564,
     snapshot_after: 901_830_282,
-    chunk: 59_570_711,
-    page: skein_kv::Page { rows: 2, bytes: 59_570_691 },
+    chunk: 100_867_395,
+    page: skein_kv::Page { rows: 2, bytes: 100_867_375 },
     ..small::STORE_KV
 };
 const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {

@@ -38,7 +38,8 @@ The code departs in a few single items (`README.md`, `client/domain/client.md`, 
 `domain/providers.md` and `client/domain/README.md` have no gap of their
 own. Its drafts: `draft/account-facts.md` says what a provider
 reports about an account, and `draft/notes-memory.md` keeps the idea of
-notes as agents' memory, not to be planned until the user says.
+notes as agents' memory, a chat's document alone taken up (`domain/engine.md`,
+section 10), the rest not to be planned until the user says.
 
 Design documents:
 - [`README.md`](README.status.md)

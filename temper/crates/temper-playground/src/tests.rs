@@ -63,7 +63,7 @@ fn the_fakes_limits_are_their_constructors() {
 
 #[test]
 fn the_owned_values_equal_the_test_kits_values() {
-    use jig_channel_world::fixtures as channel;
+    use jig_channel_kit::fixtures as channel;
     assert_eq!(documents::KEY, channel::KEY);
     assert_eq!(documents::engine_document(), channel::engine_document());
     assert_eq!(documents::WORKER_DOCUMENT, channel::WORKER_DOCUMENT);

@@ -901,6 +901,7 @@ impl World {
         store_limits.people.words = limits.people.words;
         store_limits.tasks.message_bytes = limits.tasks.message_bytes;
         store_limits.tasks.spec_bytes = limits.tasks.spec_bytes;
+        store_limits.people.spec_bytes = limits.tasks.spec_bytes;
         store_limits.tasks.result_bytes = limits.tasks.result_bytes;
         store_limits.tasks.inbox_bytes = limits.tasks.inbox_bytes;
         store_limits.tasks.executor_kinds = limits.tasks.executor_kinds;
@@ -1050,6 +1051,7 @@ impl World {
         self.creating = jig_test_profile::fixtures::Creating::new(&self.restart_config.core, tasks);
         let mut codec = crate::store::widest();
         codec.tasks = self.env.limits.tasks;
+        codec.people.spec_bytes = self.env.limits.tasks.spec_bytes;
         codec.authority = self.env.limits.authority;
         codec.people.words = self.env.limits.people.words;
         self.store = crate::fixtures::restored_over(

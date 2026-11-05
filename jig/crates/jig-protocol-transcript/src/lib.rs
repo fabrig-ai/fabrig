@@ -142,7 +142,6 @@ fn translate_block(source: &smith::Turn, block: &smith::Block, budget: &mut Budg
         },
         smith::Block::Call(call) => {
             let tool = budget.text(call.name());
-            let input = budget.text(call.input());
             let mut outcome = None;
             let mut failed = false;
             for message in source.messages() {
@@ -162,6 +161,7 @@ fn translate_block(source: &smith::Turn, block: &smith::Block, budget: &mut Budg
                     }
                 }
             }
+            let input = budget.text(call.input());
             Block::Call(Call {
                 number: call_number(source, call.id()),
                 tool,

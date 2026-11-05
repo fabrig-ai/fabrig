@@ -92,6 +92,9 @@ pub(super) fn activity_reads(host: &mut NativeClient) -> Vec<(skein_lib::Token, 
         {
             let envelope = w::Owned::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record)).expect("read envelope");
             let read = w::Read::decode(&w::CEILINGS, &mut skein_lib::Reader::new(envelope.record())).expect("jig read");
+            if matches!(read, w::Read::Notes(_)) {
+                continue;
+            }
             assert!(matches!(read, w::Read::Activity(_)), "chat asks for activity");
             found.push((exchange, credential));
         }
@@ -258,7 +261,7 @@ pub(super) fn page_work(host: &mut NativeClient) -> (Vec<skein_lib::Token>, Vec<
 }
 
 pub(super) fn quiet_task(host: &mut NativeClient, watch: skein_lib::Token) {
-    let task = jig_client_world::stories::task();
+    let task = jig_client_kit::stories::task();
     assert_eq!(task.chip.task, TASK);
     assert_eq!(task.activity, 0);
     assert!(task.priority.is_some(), "the Task address becomes Tracked");

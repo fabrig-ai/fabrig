@@ -1,8 +1,10 @@
-/// What a party has dismissed (temper/docs/design/domain/forge.md, 5.5).
+/// Facts a party keeps (temper/docs/design/domain/forge.md, 5.5).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Dismissal {
+pub enum PersonFact {
     /// "Skip" on the project's "To begin".
     ToBegin { project: u32 },
+    /// The person started `goal` from `chat`'s document.
+    GoalFrom { project: u32, chat: u64, goal: u64, at: u64 },
 }
 
 /// A dismissal's answer (temper/docs/design/domain/forge.md, 5.5).
@@ -24,12 +26,12 @@ pub(crate) fn dismiss(
     request: Token,
     token: Token,
     party: u64,
-    what: Dismissal,
+    what: PersonFact,
     out: &mut Queue<Request>,
 ) {
     let answer = if d.dismissed.contains_key(&(party, what)) {
         DismissAnswer::Dismissed
-    } else if d.dismissed.len() == d.dismissed.capacity() {
+    } else if d.dismissed.len() == d.dismissed.capacity() || party_full(d, party) {
         DismissAnswer::TooLarge
     } else {
         d.dismissed.insert((party, what), ()).expect("dismissal room checked");
@@ -43,7 +45,9 @@ pub(crate) fn dismiss(
 pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let mut erases = List::with_capacity(d.dismissed.len());
     for ((party, what), ()) in &d.dismissed {
-        let Dismissal::ToBegin { project: held } = what;
+        let held = match what {
+            PersonFact::ToBegin { project } | PersonFact::GoalFrom { project, .. } => project,
+        };
         if *held == project {
             erases.push((*party, *what)).expect("bounded dismissal rows");
         }
@@ -55,4 +59,18 @@ pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Reques
         }
         out.push(Request::Marked { tasks: Box::new([DISMISSED_SUBJECT]) });
     }
+}
+
+fn party_full(d: &Domain, party: u64) -> bool {
+    let mut count = 0_u32;
+    for ((owner, _), ()) in d.dismissed.range((party, PersonFact::ToBegin { project: 0 })..) {
+        if *owner != party {
+            break;
+        }
+        count = count.saturating_add(1);
+        if count == temper_client_protocol_wire::DISMISSED {
+            return true;
+        }
+    }
+    false
 }

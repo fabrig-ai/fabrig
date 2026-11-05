@@ -49,14 +49,14 @@ walk = false
 
 [[part]]
 id = "connection-worlds"
-title = "forge-connection's crate tests feed its step functions; what plays io over scripted HTTP lives in the machine world, with one io harness (skein D030)"
+title = "forge-connection's crate tests feed its step functions; what plays io over scripted HTTP lives in the machine world (skein D030)"
 mode = "direct"
 needs = []
 design = "skein/docs/design/forge-connection.md, 10"
 
 [[slice]]
 id = 4
-story = "every test that used the crate's Harness passes with the same asserts in the machine world, and each forge world's sockets go through Sockets"
+story = "every test that used the crate's Harness passes with the same asserts in the machine world"
 parts = ["connection-worlds"]
 walk = false
 

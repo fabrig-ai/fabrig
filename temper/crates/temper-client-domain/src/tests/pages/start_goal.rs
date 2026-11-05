@@ -14,12 +14,14 @@ const WAY: u32 = 2;
 const CHARTER: u32 = 7;
 const CHAT: u64 = 4;
 const GOAL: u64 = 42;
+// The wall clock differs from monotone time zero when the create answer arrives.
+const FACT_AT: u64 = 1234;
 const PATH: &[u8] = b"docs/design/draft/away-mode.md";
 // The whole specification fits, including its two copies of the path.
 const TEXT: u32 = 256;
 const EXTRA_BUDGET: u64 = 1;
 
-fn me() -> c::Me {
+pub(super) fn me() -> c::Me {
     let mut me = fixtures::chats::me();
     let member = me.projects.get_mut(0).unwrap();
     let template = member.templates.get_mut(0).unwrap();
@@ -32,7 +34,7 @@ fn me() -> c::Me {
     creating.within.charters = List::from_boxed(Box::new([CHARTER]));
     me
 }
-fn beyond(mut me: c::Me, beyond: c::Beyond) -> c::Me {
+pub(super) fn beyond(mut me: c::Me, beyond: c::Beyond) -> c::Me {
     let member = me.projects.get_mut(0).unwrap();
     let creating = member.creating.as_mut().unwrap();
     member.templates.get_mut(0).unwrap().budget =
@@ -40,16 +42,17 @@ fn beyond(mut me: c::Me, beyond: c::Beyond) -> c::Me {
     creating.beyond = beyond;
     me
 }
-struct Harness {
-    root: crate::Domain,
-    pages: Pages,
-    limits: crate::Limits,
-    out: Queue<Request>,
+pub(super) struct Harness {
+    pub(super) root: crate::Domain,
+    pub(super) pages: Pages,
+    pub(super) limits: crate::Limits,
+    pub(super) out: Queue<Request>,
 }
 impl Harness {
-    fn new(me: c::Me) -> Self {
+    pub(super) fn new(me: c::Me) -> Self {
         let mut limits = fixtures::limits();
         limits.client.domain.text = TEXT;
+        limits.client.domain.long_text = TEXT;
         limits.client.domain.turn_text = TEXT;
         let mut root = crate::unlinked(&limits, fixtures::SEED);
         let watch = fixtures::start(&mut root, List::with_capacity(0));
@@ -71,16 +74,16 @@ impl Harness {
         h.out = Queue::uncapped();
         h
     }
-    fn event(&mut self, event: Event) {
+    pub(super) fn event(&mut self, event: Event) {
         pages::step(&mut self.pages, &fixtures::env(&self.limits), self.root.client(), event, &mut self.out);
     }
-    fn act(&mut self, act: Act) {
+    pub(super) fn act(&mut self, act: Act) {
         self.event(Event::Act { act });
     }
-    fn open(&mut self) {
+    pub(super) fn open(&mut self) {
         self.act(Act::OpenStart { draft: Some(PATH.into()), chat: Some(CHAT) });
     }
-    fn sent(&mut self) -> (Key, c::Ask) {
+    pub(super) fn sent(&mut self) -> (Key, c::Ask) {
         while let Some(request) = self.out.pop() {
             if let Request::Client(jig_client::Event::Send { key, request: jig_client::Ask::Jig(ask), .. }) = request {
                 return (key, *ask);
@@ -88,11 +91,11 @@ impl Harness {
         }
         panic!("one sent goal request")
     }
-    fn answer(&mut self, key: Key, outcome: Outcome) {
+    pub(super) fn answer(&mut self, key: Key, outcome: Outcome) {
         self.event(Event::Told { told: Told::Answered { key, outcome } });
     }
 }
-fn done(value: c::DocumentOutcome) -> Outcome {
+pub(super) fn done(value: c::DocumentOutcome) -> Outcome {
     Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(value))))
 }
 
@@ -117,8 +120,37 @@ fn create_sends_and_goes_to_its_goal() {
     assert_eq!(task.llm, None);
     assert_eq!(task.spec.words.bytes(), start_goal::words(b"away-mode", PATH, Some(CHAT), false).as_ref());
     assert!(h.pages.start().is_some());
-    h.answer(key, done(c::DocumentOutcome::Created { first: GOAL, last: GOAL, given: None }));
+    let mut env = fixtures::env(&h.limits);
+    env.wall = skein_lib::Wall::from_nanos(FACT_AT);
+    pages::step(
+        &mut h.pages,
+        &env,
+        h.root.client(),
+        Event::Told {
+            told: Told::Answered {
+                key,
+                outcome: done(c::DocumentOutcome::Created { first: GOAL, last: GOAL, given: None }),
+            },
+        },
+        &mut h.out,
+    );
     assert!(h.pages.start().is_none());
+    let Some(Request::Client(jig_client::Event::Send { request: jig_client::Ask::Family { scope, record }, .. })) =
+        h.out.pop()
+    else {
+        panic!("goal fact sent")
+    };
+    assert_eq!(scope, c::Scope::Project(fixtures::PROJECT));
+    let request =
+        temper_client_protocol_wire::decode_requesting(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+            .unwrap();
+    let temper_client_protocol_wire::v1::Request::Dismiss(dismiss) = request.into_parts().request else {
+        panic!("dismiss fact")
+    };
+    let temper_client_protocol_wire::v1::PersonFact::GoalFrom(fact) = dismiss.into_parts().what else {
+        panic!("goal fact")
+    };
+    assert_eq!((fact.project(), fact.chat(), fact.goal(), fact.at()), (fixtures::PROJECT, CHAT, GOAL, FACT_AT));
     assert_eq!(h.out.pop(), Some(Request::Show { address: Address::Task { task: GOAL } }));
     let mut chosen = self::me();
     let member = chosen.projects.get_mut(0).unwrap();
@@ -245,6 +277,9 @@ fn the_default_way_is_the_first_numbered() {
         c::Template { number: 4, ..base },
     ]));
     assert_eq!(start_goal::default_way(&me, fixtures::PROJECT), Some(4));
+    for (configured, expected) in [(None, Some(4)), (Some(9), Some(9)), (Some(1), Some(4)), (Some(99), Some(4))] {
+        assert_eq!(start_goal::preferred_way(&me, fixtures::PROJECT, configured), expected);
+    }
     assert_eq!(start_goal::default_way(&me, 99), None);
     me.projects.get_mut(0).unwrap().templates.clear();
     assert_eq!(start_goal::default_way(&me, fixtures::PROJECT), None);

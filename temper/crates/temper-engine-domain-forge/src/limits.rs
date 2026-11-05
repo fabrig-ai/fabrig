@@ -83,10 +83,10 @@ impl Limits {
     pub const fn decided(&self) -> u32 {
         self.judge_projects.saturating_mul(64)
     }
-    /// Members times projects, saturating (temper/docs/design/domain/forge.md, 5.5).
+    /// Eight times members times projects, saturating (temper/docs/design/domain/forge.md, 5.5).
     #[must_use]
     pub const fn dismissed(&self) -> u32 {
-        self.bindings.saturating_mul(self.judge_projects)
+        self.bindings.saturating_mul(self.judge_projects).saturating_mul(8)
     }
 }
 

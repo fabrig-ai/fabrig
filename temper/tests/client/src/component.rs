@@ -1,9 +1,9 @@
 //! Temper's clients component and link joined in memory
 //! (jig/docs/design/client/domain/testing.md, 5; temper/docs/design/client/README.md, 8).
 use jig_client::contract as c;
+use jig_client_kit::harness::ClientId;
+use jig_client_kit::joint::transport::{KeyedOwner, Reply, Transport, Watched};
 use jig_client_protocol_link as link;
-use jig_client_world::harness::ClientId;
-use jig_client_world::joint::transport::{KeyedOwner, Reply, Transport, Watched};
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients::{self as clients, Event, Request};

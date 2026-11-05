@@ -3,7 +3,7 @@ use super::{PROOF_WAIT, Story, fixtures};
 use jig_client::{Answered, Ask, Asker, Handle, Key, Latest, Outcome, Watchable, contract as c};
 use skein_lib::{List, sha256};
 const ACCOUNTS: Handle = Handle { asker: Asker::JIG, number: 30 };
-const TASK: Handle = Handle { asker: Asker::JIG, number: 31 };
+const TASK_WATCH: Handle = Handle { asker: Asker::JIG, number: 31 };
 const FIRST_KEY: Key = Key { asker: Asker::JIG, number: 30 };
 const SECOND_KEY: Key = Key { asker: Asker::JIG, number: 31 };
 const CREATE: Key = Key { asker: Asker::JIG, number: 32 };
@@ -28,7 +28,7 @@ fn accounts(story: &Story) -> Option<&c::Accounts> {
     Some(value)
 }
 fn task(story: &Story) -> Option<&c::Task> {
-    let Some(Latest::Jig(c::Delivery::Task(value))) = &story.client.document(TASK)?.latest else { return None };
+    let Some(Latest::Jig(c::Delivery::Task(value))) = &story.client.document(TASK_WATCH)?.latest else { return None };
     Some(value)
 }
 fn add(story: &mut Story, key: Key, name: u8, value: &[u8]) -> (u32, u32) {
@@ -80,7 +80,7 @@ fn prepared() -> (Story, u64, (u32, u32), (u32, u32)) {
     else {
         panic!("created")
     };
-    story.watch(TASK, Watchable::Jig(c::Subject::Task { task: number }));
+    story.watch(TASK_WATCH, Watchable::Jig(c::Subject::Task { task: number }));
     assert!(story.run_until(|s| task(s).is_some_and(|t| t.kept_account == Some(first.0)), PROOF_WAIT));
     (story, number, first, second)
 }
@@ -181,7 +181,7 @@ fn a_move_keeps_a_project_key_covering_the_new_financial_payer() {
         task(&story)
     );
     story.project_paid_copy(original, PROJECT_PAID);
-    story.watch(TASK, Watchable::Jig(c::Subject::Task { task: PROJECT_PAID }));
+    story.watch(TASK_WATCH, Watchable::Jig(c::Subject::Task { task: PROJECT_PAID }));
     assert!(
         story.run_until(
             |s| task(s).is_some_and(|t| t.kept_account == Some(0)) && s.phase(PROJECT_PAID) == Some(c::Phase::Running),

@@ -1377,6 +1377,15 @@ prefers. The notes child domain knows scopes, entries and indexes:
   tasks, and who wrote it: a party, or a task.
 - **Scopes:** the deployment; a project; a goal; a resource pattern of a
   connector's (a service, a repository), within a project.
+- **A chat's own scope** is the goal scope named by a chat's own number. A
+  root conversation, a task flagged conversation with no tracked ancestor
+  (`goal_of` none), writes and reads that scope as a goal's tree does its
+  goal's, where its authority's note scopes hold a goal; another task's run
+  never does, nor any task of another project. The store and the wire keep
+  one scope: a goal's `project` and number. What lives there is the
+  application's to say: an application's chats may keep a document in it. A
+  brief's index lists this scope first, as it lists a goal's first (section
+  9).
 - **In the store,** where parties read, correct and delete them through a
   client. Notes are hints: where a note and the facts disagree, the facts
   are right.
@@ -1384,12 +1393,32 @@ prefers. The notes child domain knows scopes, entries and indexes:
   (authority.md, section 3), and committed like any decision. A revision
   names the revision its run recalled, and is refused as moved if the
   entry changed since.
+- **Its answer says what changed.** A write answered carries, beside the
+  note's name and revision, `lines`, the new body's lines, and, from the
+  body before it and the body written with their common leading and
+  trailing lines trimmed, `added` and `removed`, what remains of the new and
+  of the old, and `first`, the new body's 1-based line where they first
+  differ. A first write has `added` equal to `lines`, `removed` 0 and `first`
+  1. A body that ends in a newline has no further empty line; an empty body
+  has 0 lines. A write that removes only trailing lines, or changes nothing,
+  has `first` the new body's last line (1 when it has none). It is a pure
+  function of the two bodies, bounded by `notes.body_bytes`, and no shortest
+  edit: a person's reader wants a count and a place, not a diff.
 - **Read in two steps.** A brief carries the index of the notes in its
   scope, a line per entry, saying how many more there are when they do
   not all fit; a run asks for the entries it wants with `recall`, by name
   or by a search of their descriptions, answered a page at a time.
   Indexes are kept per scope in use, and evicted least recently used;
   entries per scope are bounded.
+- **A body's bound,** `notes.body_bytes`, is 65,536 bytes in `standard` and
+  32,768 in `small`, room for a document a person reads, and what carries a body
+  holds one whole: a tool call's input and a host's event, twice the bound and
+  4,096 for its JSON's escapes (`core.call_answer_bytes`, `hub.event_bytes`), a
+  load (`core.load_bytes`), and a client's read, cut at `notes.body_bytes` rather
+  than `documents.text_bytes`. A model's output bounds a call's payload all the
+  same (smith's `protocol/limits.md`, 13): a box's model writes what its output
+  holds, a document's room waiting for a larger one. A party's correction is
+  bounded by `people.amendment_bytes`.
 - **Knowledge that belongs to a system** belongs there, such as a
   repository's guide: a note that matures may be proposed as an effect
   on it.

@@ -1,0 +1,197 @@
+draft = "ui-chat-draft"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-chat-draft/inputs/request.md", "temper/docs/design/client/greenfield/app.js", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/template-places.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+# The trunk was made from ui-chats' and carries its unlanded commits; chats-base brings its later tasks. See plan.md.
+after = ["ui-chats"]
+
+# One order for what meets in temper.css, the gallery and the goldens (inputs/request.md, Design and the cut); the engine's
+# jig tasks run side by side, in files of their own. The cut wrote the design. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "note-scope"
+title = "jig: a chat's own note scope"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 10"
+
+[[part]]
+id = "note-answer"
+title = "jig: a written note's answer says what changed"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 10"
+
+[[part]]
+id = "note-room"
+title = "jig: a note's body has a document's room"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 10"
+
+[[part]]
+id = "skein-keys"
+title = "skein: the key Ctrl+\\, a keyed slot, a menu item with a line"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 6.1"
+
+[[slice]]
+id = 1
+story = "a chat's run writes a document in its own scope, a party reads it, and the answer says what changed"
+parts = ["note-scope", "note-answer", "note-room", "skein-keys"]
+walk = false
+
+[[part]]
+id = "person-words"
+title = "jig: a client's long text; a person's goal words up to tasks.spec_bytes"
+mode = "direct"
+needs = ["note-room"]
+design = "jig/docs/design/client/domain/client.md, 14"
+
+[[part]]
+id = "notes-list"
+title = "jig: NoteScope::Tasks, a project's documents, bodies left out"
+mode = "direct"
+needs = ["person-words"]
+design = "jig/docs/design/client/domain/contract.md, 6"
+
+[[part]]
+id = "chat-stock"
+title = "temper: a chat's note scope, its instructions, its answer's words"
+mode = "direct"
+needs = ["note-scope", "note-answer"]
+design = "temper/docs/design/domain/agent.md, 8.3"
+
+[[part]]
+id = "person-facts"
+title = "temper: PersonFact, with GoalFrom"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 5.5"
+
+[[part]]
+id = "fake-document"
+title = "temper: a scripted turn writes a document, proved through ctl"
+mode = "direct"
+needs = ["chat-stock", "note-room"]
+design = "temper/docs/design/domain/agent.md, 8.3"
+
+[[slice]]
+id = 2
+story = "the fake model writes and changes a chat's document, proved through temper ctl; a client can read it whole"
+parts = ["person-words", "notes-list", "chat-stock", "person-facts", "fake-document"]
+walk = false
+
+[[part]]
+id = "chat-state"
+title = "temper: a chat's document in the domain, read live"
+mode = "direct"
+needs = ["chat-stock", "person-words"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "chats-base"
+title = "what ui-chats has by now, on this trunk"
+mode = "direct"
+needs = ["chat-state"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "the client's domain holds a chat's document, and the draw starts from ui-chats' page"
+parts = ["chat-state", "chats-base"]
+walk = false
+
+[[part]]
+id = "document-pane"
+title = "configure-chat-draft's pane, group and strip, on a configuring chat"
+mode = "direct"
+needs = ["chats-base", "skein-keys"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "start-over"
+title = "Start over, and a configuring chat's line"
+mode = "direct"
+needs = ["document-pane"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "chat-bar"
+title = "every chat's group, tool line and Show"
+mode = "direct"
+needs = ["start-over"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "add-draft"
+title = "+ Draft, on a chat and at NewChat { draft }"
+mode = "direct"
+needs = ["chat-bar"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 4
+story = "a chat writes a document beside its conversation, in Chat, Split and Draft"
+parts = ["document-pane", "start-over", "chat-bar", "add-draft"]
+walk = false
+
+[[part]]
+id = "goal-sheet-state"
+title = "Start goal, in the domain"
+mode = "direct"
+needs = ["add-draft", "person-facts", "person-words"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "goal-sheet"
+title = "the sheet, Start goal… and Goal TITLE →"
+mode = "direct"
+needs = ["goal-sheet-state"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "chats-drafts"
+title = "the Chats page under Drafts"
+mode = "direct"
+needs = ["goal-sheet", "notes-list"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "rail-menu"
+title = "new-menu, landed with its account"
+mode = "direct"
+needs = ["chats-drafts"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[slice]]
+id = 5
+story = "a goal starts from a chat's document, Chats says who writes what, and the rail offers the ways to start work"
+parts = ["goal-sheet-state", "goal-sheet", "chats-drafts", "rail-menu"]
+walk = false
+
+[[part]]
+id = "chat-draft-journey"
+title = "the journey chat-draft, recorded"
+mode = "direct"
+needs = ["rail-menu", "fake-document"]
+design = "temper/docs/design/client/journeys.md, 9"
+
+[[part]]
+id = "draft-proof"
+title = "the renders beside the mock, configure-chat-draft's account, the status"
+mode = "direct"
+needs = ["chat-draft-journey"]
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[slice]]
+id = 6
+story = "the whole look proved beside the mock and the requests, with its recording and its account"
+parts = ["chat-draft-journey", "draft-proof"]
+walk = false

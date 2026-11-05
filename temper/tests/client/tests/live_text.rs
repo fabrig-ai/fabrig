@@ -1,5 +1,5 @@
 //! A run's live text reaches the chat through the real engine (domain/testing.md, 6.3).
-use jig_client_world::harness::Until;
+use jig_client_kit::harness::Until;
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;
 use skein_world::domain::Verdict;

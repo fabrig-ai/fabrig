@@ -19,6 +19,7 @@ const ROLES: &[(Role, &str, &[&[u8]])] = &[
     (Role::Form, r#"<form data-node="1"></form>"#, &[b"form"]),
     (Role::Search, r#"<search data-node="1"></search>"#, &[b"search"]),
     (Role::Region, r#"<section data-node="1"></section>"#, &[b"region"]),
+    (Role::Group, r#"<div data-node="1" role="group"></div>"#, &[b"group"]),
     (Role::Heading { level: 1 }, r#"<h1 data-node="1"></h1>"#, &[b"heading"]),
     (Role::Heading { level: 2 }, r#"<h2 data-node="1"></h2>"#, &[b"heading"]),
     (Role::Heading { level: 3 }, r#"<h3 data-node="1"></h3>"#, &[b"heading"]),
@@ -468,4 +469,31 @@ fn a_disclosures_description_follows_its_name_in_the_summary() {
         dom::print(&mapping::element(&made, &fixtures::look(), b"/", Primary::Control, &Words::ENGLISH)),
         r#"<details data-node="1"><summary>3 tool calls<span id="skein-ui-description-1"> read · grep · edit</span></summary></details>"#
     );
+}
+
+#[test]
+fn a_menu_item_shows_its_description_in_a_span_of_its_own() {
+    let mut made = fixtures::made(Role::MenuItem);
+    made.attribute.name = Some(b"Chat & <b>".as_slice().into());
+    made.attribute.description = Some(b"Ask & <b>".as_slice().into());
+    assert_eq!(
+        dom::print(&mapping::element(&made, &fixtures::look(), b"/", Primary::Control, &Words::ENGLISH)),
+        concat!(
+            "<div data-node=\"1\" role=\"menuitem\" aria-label=\"Chat &amp; &lt;b&gt;\" ",
+            "aria-describedby=\"skein-ui-description-1\"><span>Chat &amp; &lt;b&gt;</span>",
+            "<span id=\"skein-ui-description-1\">Ask &amp; &lt;b&gt;</span></div>"
+        )
+    );
+}
+
+#[test]
+fn a_primary_backslash_names_the_platform_modifier() {
+    let mut made = fixtures::made(Role::Button);
+    made.attribute.shortcut = Some(Shortcut { key: b'\\', modifier: Modifier::Primary });
+    for (primary, expected) in [
+        (Primary::Control, r#"<button data-node="1" type="button" aria-keyshortcuts="Control+\"></button>"#),
+        (Primary::Meta, r#"<button data-node="1" type="button" aria-keyshortcuts="Meta+\"></button>"#),
+    ] {
+        assert_eq!(dom::print(&mapping::element(&made, &fixtures::look(), b"/", primary, &Words::ENGLISH)), expected);
+    }
 }

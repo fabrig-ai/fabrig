@@ -1,5 +1,5 @@
 //! A focused replay of the recovery deadline found by the fuzzy gate.
-use jig_client_world::harness::Until;
+use jig_client_kit::harness::Until;
 use skein_world::domain::Verdict;
 use temper_client_world::fixtures;
 

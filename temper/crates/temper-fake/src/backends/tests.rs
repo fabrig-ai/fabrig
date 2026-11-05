@@ -200,6 +200,27 @@ fn generated_peers_use_existing_formats_and_the_first_added_key() {
     );
 }
 
+/// The fake box must write and revise the same document as the demo model
+/// (temper/docs/design/client/journeys.md, 9).
+#[test]
+fn the_fake_box_keeps_the_demos_two_document_turns() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
+    crate::llm::Document::decode(&docs.llm).expect("document scripts fit the model format");
+    let model = json(&docs.llm);
+    let scripts = model["cued"].as_array().expect("fake box cues");
+    let demo = temper["application"]["demo"]["llm"]["cued"].as_array().expect("demo cues");
+    for cue in ["Write this up as a draft beside us.", "Add what happens to a running goal."] {
+        let mut expected = demo.iter().find(|script| script["cue"] == cue).expect("demo document cue").clone();
+        if cue == "Add what happens to a running goal." {
+            // Home's status takes note 1 before the first chat writes note 2.
+            expected["turns"][0]["lines"][0]["arguments"]["name"] = json!(2);
+        }
+        let found = scripts.iter().find(|script| script["cue"] == cue).expect("fake box document cue");
+        assert_eq!(*found, expected, "write and revision calls agree: {cue}");
+    }
+}
+
 #[test]
 fn forgejo_alone_seeds_the_two_copy_sources() {
     let (temper, agent, paths, peers) = fixture();

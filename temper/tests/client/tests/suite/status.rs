@@ -1,11 +1,11 @@
 //! Home's entry looks cross the real roots (temper/docs/design/domain/testing.md,
 //! 2.1; temper/docs/design/domain/forge.md, 5.6; temper/docs/design/client/README.md, 3.5).
 use jig_client::{Handle, Key, Latest};
-use jig_client_world::harness::{App, ClientId, Duty, Front};
+use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 use temper_client_domain::{
     Action, Address, Event, Request,
-    forge::dismissed::{self, Dismissal},
+    forge::dismissed::{self, PersonFact},
     forge::status,
     owner::Owner,
     pages::{
@@ -147,7 +147,7 @@ impl Story {
                 event: jig_client::Event::Send {
                     key: Key { asker: Owner::Forge.asker(), number: 2201 },
                     name: None,
-                    request: dismissed::ask(Dismissal::ToBegin { project: PROJECT }, &self.env.limits.forge)
+                    request: dismissed::ask(PersonFact::ToBegin { project: PROJECT }, &self.env.limits.forge)
                         .expect("skip request"),
                 },
             }

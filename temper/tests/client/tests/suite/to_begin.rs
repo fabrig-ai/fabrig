@@ -1,6 +1,6 @@
 //! Home's Skip crosses the client and engine (temper/docs/design/client/README.md,
 //! 3.5, To begin, and 10; temper/docs/design/domain/testing.md, 2.1).
-use jig_client_world::harness::{App, ClientId, Settings, Until, World};
+use jig_client_kit::harness::{App, ClientId, Settings, Until, World};
 use skein_lib::Duration;
 use skein_world::domain::Verdict;
 use temper_client_domain::{
@@ -108,12 +108,12 @@ fn one_row(world: &mut Clients) {
         [(
             Key::Forge(forge::Key::Dismissed {
                 party: fixtures::PARTY,
-                what: forge::Dismissal::ToBegin { project: PROJECT },
+                what: forge::PersonFact::ToBegin { project: PROJECT },
             }),
             Record::Forge {
                 row: Box::new(forge::Stored::Dismissed {
                     party: fixtures::PARTY,
-                    what: forge::Dismissal::ToBegin { project: PROJECT },
+                    what: forge::PersonFact::ToBegin { project: PROJECT },
                 })
             },
         )]

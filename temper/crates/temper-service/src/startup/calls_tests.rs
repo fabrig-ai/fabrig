@@ -35,11 +35,11 @@ fn worker_document(bound: Option<u32>) -> Box<[u8]> {
 fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
     let directories = config::Directories::working();
     for (engine, worker, payload, expected_engine, expected_worker) in [
-        (None, None, 4096, 32_768, 32_768),
-        (None, None, 32_768, 32_768, 32_768),
-        (None, None, 40_960, 40_960, 40_960),
-        (Some(4096), None, 4096, 4096, 32_768),
-        (None, Some(4096), 4096, 32_768, 4096),
+        (None, None, 4096, 69_632, 69_632),
+        (None, None, 32_768, 69_632, 69_632),
+        (None, None, 40_960, 69_632, 69_632),
+        (Some(4096), None, 4096, 4096, 69_632),
+        (None, Some(4096), 4096, 69_632, 4096),
         (Some(32_768), Some(32_768), 32_768, 32_768, 32_768),
         (Some(40_960), Some(40_960), 4096, 40_960, 40_960),
     ] {
@@ -107,7 +107,7 @@ fn store_readers_require_local_agent_metadata_but_leave_remote_engines_configure
     for metadata in [None, Some(&agent)] {
         assert_eq!(
             store_limits(input.as_bytes(), &directories, metadata).unwrap().store.core.call_answer_bytes,
-            32_768
+            69_632
         );
     }
 }
@@ -115,7 +115,7 @@ fn store_readers_require_local_agent_metadata_but_leave_remote_engines_configure
 #[test]
 fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
     let directories = config::Directories::working();
-    for (bound, expected) in [(None, 40_960), (Some(40_960), 40_960)] {
+    for (bound, expected) in [(None, 69_632), (Some(40_960), 40_960)] {
         let input = worker_document(bound);
         let mut agent = fixtures::startup_agent();
         agent.tool_payload = 40_960;

@@ -4,7 +4,7 @@ use crate::{
     Script, fixtures,
     referee::{Referee as Judge, Scenario},
 };
-use jig_channel_world::{
+use jig_channel_kit::{
     fixtures as channel,
     world::store::{Capture, Store},
 };
@@ -38,7 +38,7 @@ pub(super) struct ServiceHost {
     pub(super) store: Rc<RefCell<Store>>,
     pub(super) attached: bool,
     pub(super) wire: crate::referee::agent::Wire,
-    pub(super) commits: Vec<jig_channel_world::world::store::Commit>,
+    pub(super) commits: Vec<jig_channel_kit::world::store::Commit>,
     pub(super) hold_mark: bool,
     pub(super) held_mark: Vec<Complete>,
     pub(super) mark_gate_checked: bool,

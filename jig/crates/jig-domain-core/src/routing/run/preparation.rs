@@ -340,7 +340,7 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
         return out;
     }
     let mut scopes = List::with_capacity(env.limits.notes.scopes);
-    if let Some(goal) = core.goal_of(current) {
+    if let Some(goal) = core.note_goal(current) {
         scopes.push(notes::Scope::Goal { project: context.project, goal }).expect("goal scope room");
     }
     scopes.push(notes::Scope::Project { project: context.project }).expect("project scope room");

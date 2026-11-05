@@ -2,7 +2,7 @@
 #[cfg(test)]
 pub(crate) mod durable;
 use crate::world::Settings;
-use jig_channel_world::fixtures as channel;
+use jig_channel_kit::fixtures as channel;
 use skein_lib::{Duration, Secret};
 pub(crate) use temper_playground::documents::{
     CHAT_WAIT_MS, CLIENTS, FORGE, FORGE_CONNECTOR, GRANT_KINDS, PROCEDURE_CODE, PRODUCER_SPEND, PRODUCER_TOOLS,
@@ -55,6 +55,7 @@ pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
     limits.client.client.domain.parts = 4;
     limits.client.client.domain.reads = 8;
     limits.client.client.domain.text = 128;
+    limits.client.client.domain.long_text = 128;
     limits.client.client.domain.turn_text = 128;
     limits.client.client.domain.document_bytes = 65_536;
     limits.client.client.domain.requests.bytes = 262_144;
