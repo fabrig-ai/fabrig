@@ -11,6 +11,25 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    GoalPlanningTitle,
+    GoalMetaCount,
+    GoalSpent,
+    GoalSince,
+    GoalPlanningDraft,
+    GoalPlanningAsked,
+    GoalStoppedHeading,
+    GoalFailedReason,
+    GoalWrittenAt,
+    GoalByAt,
+    GoalDraft,
+    GoalChat,
+    GoalReportTitle,
+    GoalReadingDraft,
+    GoalReadingAsked,
+    GoalLeft,
+    GoalRisk,
+    GoalSeparator,
+
     GoalsWaySeparator,
     GoalsWayEnd,
     GoalsKicker,
@@ -970,7 +989,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Goal rows and ways add eighteen phrases; the page adds sixteen (client/README.md, 3.5).
 // Needs count, toast and page kinds add twenty-three phrases (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
-const PHRASES: u32 = 1466;
+// The goal header and report add eighteen phrases (client/README.md, 5.8).
+const PHRASES: u32 = 1484;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -985,8 +1005,27 @@ const PHRASES: u32 = 1466;
 // Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
 // Needs count, toast and page kinds add fifty-one segments (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
-const SEGMENTS: u32 = 2547;
-const ALL: [Word; 870] = [
+// The goal header and report add forty literal and hole segments (5.8).
+const SEGMENTS: u32 = 2587;
+const ALL: [Word; 888] = [
+    Word::GoalPlanningTitle,
+    Word::GoalMetaCount,
+    Word::GoalSpent,
+    Word::GoalSince,
+    Word::GoalPlanningDraft,
+    Word::GoalPlanningAsked,
+    Word::GoalStoppedHeading,
+    Word::GoalFailedReason,
+    Word::GoalWrittenAt,
+    Word::GoalByAt,
+    Word::GoalDraft,
+    Word::GoalChat,
+    Word::GoalReportTitle,
+    Word::GoalReadingDraft,
+    Word::GoalReadingAsked,
+    Word::GoalLeft,
+    Word::GoalRisk,
+    Word::GoalSeparator,
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1862,6 +1901,24 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::GoalPlanningTitle => 3327,
+            Self::GoalMetaCount => 3310,
+            Self::GoalSpent => 3311,
+            Self::GoalSince => 3312,
+            Self::GoalPlanningDraft => 3313,
+            Self::GoalPlanningAsked => 3314,
+            Self::GoalStoppedHeading => 3315,
+            Self::GoalFailedReason => 3316,
+            Self::GoalWrittenAt => 3317,
+            Self::GoalByAt => 3318,
+            Self::GoalDraft => 3319,
+            Self::GoalChat => 3320,
+            Self::GoalReportTitle => 3321,
+            Self::GoalReadingDraft => 3322,
+            Self::GoalReadingAsked => 3323,
+            Self::GoalLeft => 3324,
+            Self::GoalRisk => 3325,
+            Self::GoalSeparator => 3326,
             Self::GoalsWaySeparator => 3270,
             Self::GoalsWayEnd => 3271,
             Self::GoalsKicker => 3272,
@@ -2976,7 +3033,8 @@ impl Words {
             // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
             // Needs count, toast and page kinds add 327 literal bytes (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 5 + 419 + 250 + 476 + 87 + 225 + 15 + 367 + 54,
+            // The goal header and report add 358 literal bytes (5.8).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 5 + 419 + 250 + 476 + 87 + 225 + 15 + 367 + 54 + 358,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3044,6 +3102,24 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::GoalPlanningTitle => (&[b"Planning"], &[]),
+        Word::GoalMetaCount => (&[b"", b" of ", b" tasks"], &[Number, Number]),
+        Word::GoalSpent => (&[b"", b" of ", b" spent"], &[Number, Number]),
+        Word::GoalSince => (&[b"since ", b""], &[Name]),
+        Word::GoalPlanningDraft => (&[b"Planning from ", b": reading it and the designs it cites."], &[Name]),
+        Word::GoalPlanningAsked => (&[b"Planning: reading what was asked."], &[]),
+        Word::GoalStoppedHeading => (&[b"Stopped by you. What landed on the goal branch stays there."], &[]),
+        Word::GoalFailedReason => (&[b"Failed: ", b""], &[Name]),
+        Word::GoalWrittenAt => (&[b"Written by its agent at ", b""], &[Name]),
+        Word::GoalByAt => (&[b"By its agent at ", b""], &[Name]),
+        Word::GoalDraft => (&[b"Draft"], &[]),
+        Word::GoalChat => (&[b"Chat T", b""], &[Number]),
+        Word::GoalReportTitle => (&[b"Report"], &[]),
+        Word::GoalReadingDraft => (&[b"Reading ", b" and the designs it cites, to propose its tasks."], &[Name]),
+        Word::GoalReadingAsked => (&[b"Reading what was asked, to propose its tasks."], &[]),
+        Word::GoalLeft => (&[b"Left: "], &[]),
+        Word::GoalRisk => (&[b"Risk: "], &[]),
+        Word::GoalSeparator => (&[b"\xc2\xb7"], &[]),
         Word::GoalsKicker => (&[b"", b" \xc2\xb7 goals"], &[Name]),
         Word::GoalsNone => (&[b"No goals yet."], &[]),
         Word::GoalsOne => (&[b"", b" goal, ", b" under way."], &[Number, Number]),

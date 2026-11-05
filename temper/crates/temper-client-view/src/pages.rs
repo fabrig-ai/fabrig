@@ -10,6 +10,7 @@ pub(crate) mod chat;
 pub(crate) mod chats;
 pub(crate) mod configure;
 pub(crate) mod connect_model;
+pub(crate) mod goal;
 pub mod goals;
 pub mod home;
 pub(crate) mod inbox;
