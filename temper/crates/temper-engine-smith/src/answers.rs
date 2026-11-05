@@ -1449,6 +1449,10 @@ fn task_read(
         }
     };
     task_read_metadata(&mut text, read)?;
+    if let Some(code) = read.verdict_code {
+        text.add(b"\nVerdict: ")?;
+        text.number(u64::from(code))?;
+    }
     text.add(match read.words.field {
         jig_domain_core::reads::TaskTextField::Specification => b"\nWords from ",
         jig_domain_core::reads::TaskTextField::Result => b"\nResult from ",

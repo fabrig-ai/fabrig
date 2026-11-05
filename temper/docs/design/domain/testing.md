@@ -2462,7 +2462,7 @@ obligations missing.
 | the project's checks | box: `.temper/pre-pr` in the repository |
 | g's tier | box: the document's tier `goal`, following goal branches, `span_ms` 1,200,000 |
 | main's tiers | box: the document's tier `slow`, following main |
-| questions | setting: the coordinator's instructions (`judged`: `foreman` for each coding change, `up` for a designer's); box: four per change, the document's `forge.change_policy.questions`, the stock's 4 |
+| questions | setting: the coordinator's instructions (`judged`: `foreman` for each coding change, `up` for a designer's); box: four per change, the document's `forge.change_policy.questions`, the reference's explicit override of 4 |
 | the merge job | box: the document's `merge_job`, `.temper/merge` in the repository |
 | the profile's limits | box: the limits 6.5.2 names |
 
@@ -2506,7 +2506,7 @@ the forge's API as an observer, the limits against the box's document):
   `docs/examples/reference/limits.json`'s and `agent.json`'s
   overrides, and `landing.json`, the project's merge job and its two
   tiers (13.9); a change's question bound,
-  `forge.change_policy.questions`, at the stock's 4;
+  `forge.change_policy.questions`, explicitly overridden to 4 by `limits.json`;
 - **the project,** with its repository adopted, holding `AGENTS.md`,
   `DESIGN.md`, its code rules, `.temper/pre-pr`, `.temper/merge`, the
   tiers' workflows and a merge-commit merge style; and, at the path the

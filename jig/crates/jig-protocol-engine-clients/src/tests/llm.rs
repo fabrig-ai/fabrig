@@ -374,3 +374,23 @@ fn hello_refusals_reuse_the_deployment_context_through_server_bytes_and_client_t
         }
     }
 }
+
+#[test]
+fn checks_refusal_preserves_charter_through_server_bytes_and_client_tasks() {
+    use jig_client_domain::contract as c;
+    use jig_domain_core::documents as d;
+    use jig_domain_fleet as fleet;
+    let at = skein_lib::Wall::from_nanos(1234);
+    assert_task_refusal_round_trip(
+        d::TaskWaitRefused::Hello {
+            kind: fleet::HostKind::Worker,
+            at,
+            why: fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Checks { charter: 2 } },
+        },
+        c::TaskWaitRefused::Hello {
+            kind: c::HostKind::Worker,
+            at,
+            why: c::HelloRefusal::Agent { why: c::AgentShortfall::Checks { charter: 2 } },
+        },
+    );
+}

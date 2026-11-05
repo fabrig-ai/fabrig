@@ -27,7 +27,7 @@ fn attempt(value: fleet::AttemptState) -> w::AttemptState {
         fleet::AttemptState::Closed => w::AttemptState::Closed,
     }
 }
-// The current client wire reports these dimensions without their charter numbers.
+// Turns, time and waiting report their dimensions without charter numbers.
 fn shortfall(value: fleet::AgentShortfall, limits: &w::Limits) -> Result<w::AgentShortfall, w::Problem> {
     Ok(match value {
         fleet::AgentShortfall::Model { charter, model } => w::AgentShortfall::Model(w::AgentShortfallModel::new(
@@ -46,7 +46,9 @@ fn shortfall(value: fleet::AgentShortfall, limits: &w::Limits) -> Result<w::Agen
         fleet::AgentShortfall::Spend => w::AgentShortfall::Spend,
         fleet::AgentShortfall::Time { charter: _ } => w::AgentShortfall::Time,
         fleet::AgentShortfall::Waiting { charter: _ } => w::AgentShortfall::Waiting,
-        fleet::AgentShortfall::Checks { charter: _ } => w::AgentShortfall::Checks,
+        fleet::AgentShortfall::Checks { charter } => {
+            w::AgentShortfall::Checks(w::AgentShortfallChecks::new(limits, w::AgentShortfallChecksParts { charter })?)
+        }
         fleet::AgentShortfall::Message => w::AgentShortfall::Message,
         fleet::AgentShortfall::Inbox => w::AgentShortfall::Inbox,
         fleet::AgentShortfall::Unacknowledged => w::AgentShortfall::Unacknowledged,

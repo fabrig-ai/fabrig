@@ -115,6 +115,12 @@ both machines, each of which keeps its own policy for what it reads
 with the module's public predicates (`is_tchar`, `is_token`, `is_field_byte`,
 `trim`, `field_len`) and `client::request_head_len`.
 
+A head prints its lengths (lib.md, 6). A `Header`'s `Debug` shows its name
+and its value's length. A server's `Call`, and the request line a server is
+still reading, show the target's length, and a `Call` its fields so; a
+client's written head, held until room comes to send it, shows its own
+length. A client's `Call` is the side above's own, and prints its target.
+
 The crate builds for `wasm32-unknown-unknown` too (lib.md, section 2), so
 a client compiled to WebAssembly stacks the same machines: the
 event-stream reader over the body its platform's fetch streams, and the

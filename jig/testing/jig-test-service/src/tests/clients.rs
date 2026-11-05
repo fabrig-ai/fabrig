@@ -194,8 +194,10 @@ fn link_body(engine: &mut crate::Engine) -> Box<[u8]> {
     let link = engine.clients.as_mut().expect("clients").links.pop().expect("printed link");
     let at = skein_lib::bytes::find(&link, b"secret=").expect("query").checked_add(7).expect("query start");
     let secret = base64::decode(Alphabet::Url, link.get(at..).expect("secret bytes"), 32).expect("secret");
-    let value =
-        w::LinkSignIn::new(&engine.clients.as_ref().expect("clients").env.limits.wire, w::LinkSignInParts { secret });
+    let value = w::LinkSignIn::new(
+        &engine.clients.as_ref().expect("clients").env.limits.wire,
+        w::LinkSignInParts { secret: skein_lib::Secret::new(secret) },
+    );
     let value = value.expect("bounded sign-in record");
     let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured record");

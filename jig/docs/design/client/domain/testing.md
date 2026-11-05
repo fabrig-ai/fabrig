@@ -431,3 +431,8 @@ suite and budget are `../../protocol/browser.md`'s, section 15.
   stories cannot seed runs on the scripted front alone, so the joint
   world does not check it. Whether one is worth what seeding its
   document costs. Default: they stay.
+- **The link's wire fixtures:** the link's tests keep their own encoders
+  (`jig-client-protocol-link/src/tests/encoders.rs`), which repeat the
+  scripted engine's wire projections (section 4). The engine depends on the
+  link, so reading the engine's would take a dev-dependency cycle. Default:
+  they stay.
