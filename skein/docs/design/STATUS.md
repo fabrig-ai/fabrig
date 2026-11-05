@@ -10,9 +10,11 @@ no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); seven of its artifact facts are unchecked at the
 pinned Forgejo (`forge.md`), as are a copy's facts, one of them not
-recorded at all (`forge-setup.md`); the fake Forgejo leaves no repository
-at a refused copy and asks a delete the wrong scope, and the fake GitHub
-refuses no push as `GH013` (`fake-forge.md`).
+recorded at all, and no fact records a site admin's read of a repository
+by its path (`forge-setup.md`); the fake Forgejo leaves no repository
+at a refused copy, asks a delete the wrong scope and answers a read by
+path `403` to a caller with no grant, a public repository's too, and the
+fake GitHub refuses no push as `GH013` (`fake-forge.md`).
 No macOS runner runs skein's suites (`shell.md`). json, tls and http's collector have no fuzz target
 (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
 `examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live

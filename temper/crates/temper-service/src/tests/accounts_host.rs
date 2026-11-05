@@ -100,7 +100,7 @@ impl SignInWorld {
                 client_id: b"client".as_slice().into(),
                 client_secret: None,
                 redirect_uri: b"http://127.0.0.1:0/callback".as_slice().into(),
-                refresh_token: b"throwaway-refresh".as_slice().into(),
+                refresh_token: Secret::new(b"throwaway-refresh".as_slice().into()),
                 terms: Some(fake::Terms {
                     issued: Box::new([b"issued-client".as_slice().into()]),
                     omit_issued: false,
@@ -274,9 +274,9 @@ impl SignInWorld {
         };
         let mut callback = uri.to_vec();
         callback.extend_from_slice(b"?state=");
-        callback.extend_from_slice(&state);
+        callback.extend_from_slice(state.expose());
         callback.extend_from_slice(b"&code=");
-        callback.extend_from_slice(&code);
+        callback.extend_from_slice(code.expose());
         callback.extend_from_slice(b"&client_id=");
         callback.extend_from_slice(&client_id.expect("issued client"));
         callback.into_boxed_slice()
@@ -311,7 +311,7 @@ impl SignInWorld {
             .queue(fake::Plan {
                 status: 200,
                 body: fake::Body::Token(oauth::TokenResponse {
-                    access_token: b"throwaway-access".as_slice().into(),
+                    access_token: Secret::new(b"throwaway-access".as_slice().into()),
                     refresh_token: None,
                     expires_in: 3600,
                     scope: Some(b"openid read".as_slice().into()),
@@ -539,8 +539,8 @@ fn record(source: u32, limits: &oauth::Limits) -> oauth::SavedToken {
     let record = oauth::SavedToken {
         key: source,
         generation: 2,
-        access_token: bytes::copy_of(b"fresh-token"),
-        refresh_token: Some(bytes::copy_of(b"fresh-refresh-token")),
+        access_token: Secret::new(bytes::copy_of(b"fresh-token")),
+        refresh_token: Some(Secret::new(bytes::copy_of(b"fresh-refresh-token"))),
         metadata: None,
         expires_at: Wall::from_nanos(Duration::from_secs(60).as_nanos()),
         issued_client_id: None,
@@ -826,7 +826,7 @@ fn dynamic_sources_use_provider_templates_and_restore_their_kept_records() {
             .expect("restored dynamic source")
             .token
             .expose(),
-        saved.access_token.as_ref()
+        saved.access_token.expose()
     );
 }
 #[test]
@@ -889,7 +889,7 @@ fn a_restored_sign_ins_metadata_leaves_its_grant_a_bearer() {
     let value =
         engine.values.accounts.value(SOURCE, saved.generation, Time::from_nanos(1)).expect("restored sign-in lent");
     let table::Scheme::Bearer = &value.scheme else { panic!("the sign-in lends a bearer") };
-    assert_eq!(value.token.expose(), saved.access_token.as_ref());
+    assert_eq!(value.token.expose(), saved.access_token.expose());
 }
 
 fn pump_move_events(accounts: &mut Accounts, engine: &mut crate::engine::Engine) -> Queue<root::Event> {
@@ -1016,7 +1016,12 @@ fn a_move_out_answers_with_its_record_once_and_a_move_in_is_adopted() {
             assert!(moved_record.expose().is_empty(), "the second exchange has no file");
         }
     }
-    adopt_moved_record(engine, file.expect("first moved record"), &document, saved.refresh_token.as_deref().unwrap());
+    adopt_moved_record(
+        engine,
+        file.expect("first moved record"),
+        &document,
+        saved.refresh_token.as_ref().unwrap().expose(),
+    );
 }
 
 fn adopt_moved_record(
@@ -1052,7 +1057,7 @@ fn adopt_moved_record(
     };
     let adopted = oauth::decode_record(value.expose(), document).expect("adopted record");
     assert_eq!(adopted.key, 72);
-    assert_eq!(adopted.refresh_token.as_deref(), Some(refresh_token));
+    assert_eq!(adopted.refresh_token.as_ref().expect("refresh token").expose(), refresh_token);
     let Some(store::Event::Secret { value: None, .. }) = engine
         .store
         .secrets(Token::new(123), store::Secrets::Get { owner: store::SecretOwner::Application, number: carried })

@@ -894,7 +894,7 @@ pub(crate) fn lift(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
     let mut lifted = false;
     for number in numbers.into_boxed() {
         let Some(row) = record(domain, number) else { continue };
-        let Some(circle) = circle_held(&row.phase) else { continue };
+        let Some((circle, was)) = circle_held(&row.phase) else { continue };
         let mut affected = circle.cut || changes.all;
         for task in &circle.tasks {
             affected |= changes.tasks.contains(task);
@@ -902,11 +902,10 @@ pub(crate) fn lift(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         if !affected {
             continue;
         }
-        let resume = match &row.phase {
-            Phase::Held { was: Was::Waiting, .. } => Phase::Waiting,
-            Phase::Held { was: Was::Active(active), .. } => Phase::Active(*active),
-            Phase::Held { was: Was::Closing(closing), .. } => Phase::Closing(closing.clone()),
-            Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => unreachable!("circle hold"),
+        let resume = match was {
+            Was::Waiting => Phase::Waiting,
+            Was::Active(active) => Phase::Active(*active),
+            Was::Closing(closing) => Phase::Closing(closing.clone()),
         };
         let resume = crate::run::ends::for_record(row).amended(row.executor, resume);
         match check_waits(domain, &Staged::new(0), &env.limits, number, &resume, &row.waiting_on) {
@@ -1083,10 +1082,10 @@ impl WaitPhase {
     }
 }
 
-fn circle_held(phase: &Phase) -> Option<&Circle> {
+fn circle_held(phase: &Phase) -> Option<(&Circle, &Was)> {
     match phase {
-        Phase::Held { why: Hold::Circle, source: Some(source), .. } => match source.as_ref() {
-            HoldSource::Circle(circle) => Some(circle),
+        Phase::Held { why: Hold::Circle, source: Some(source), was } => match source.as_ref() {
+            HoldSource::Circle(circle) => Some((circle, was)),
             HoldSource::Preparation { .. }
             | HoldSource::Resource(_)
             | HoldSource::Effect { .. }

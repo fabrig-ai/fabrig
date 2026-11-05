@@ -158,7 +158,7 @@ impl Peer {
     /// The scripted access tokens, for the LLM peer's list at start.
     #[must_use]
     pub fn granted(&self) -> Box<[Box<[u8]>]> {
-        self.issuer.granted()
+        self.issuer.granted().into_iter().map(skein_lib::Secret::into_exposed).collect()
     }
 
     /// The actual listener address after io announces Listening.
@@ -475,8 +475,9 @@ impl Peer {
             match output {
                 issuer::Request::Redirect { uri, state, code, client_id } => {
                     let index = origin.expect("authorization emits synchronously");
-                    let location = redirect(&uri, &state, &code, client_id.as_deref(), self.http_limits.response)
-                        .expect("configured redirect response cap");
+                    let location =
+                        redirect(&uri, state.expose(), code.expose(), client_id.as_deref(), self.http_limits.response)
+                            .expect("configured redirect response cap");
                     self.observe(Observation::Redirect { connection: self.connections[index].owner }, 0);
                     self.respond(
                         index,
@@ -785,7 +786,7 @@ mod tests {
                 client_id: Box::from(b"client".as_slice()),
                 client_secret: None,
                 redirect_uri: Box::from(b"http://127.0.0.1/callback".as_slice()),
-                refresh_token: Box::from(b"seed".as_slice()),
+                refresh_token: skein_lib::Secret::new(Box::from(b"seed".as_slice())),
                 terms: None,
             };
             let peer =

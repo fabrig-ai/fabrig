@@ -1,11 +1,13 @@
 //! Independent bounded OAuth issuer. No IO, clock reads, or provider policy.
+//! Credentials and carrier debug views follow skein/docs/design/oauth.md, 4
+//! and skein/docs/design/lib.md, 6.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
 
 use alloc::boxed::Box;
 use skein_json::Token;
-use skein_lib::{Duration, List, Queue, Time, Wall, Writer, bytes, usize_of};
+use skein_lib::{Duration, List, Queue, Secret, Time, Wall, Writer, bytes, usize_of};
 use skein_oauth::{
     HttpEvidence, HttpRequest, HttpResponse, Json, Limits as DocumentLimits, OAuthError, TokenResponse, challenge,
     encode_error, encode_response,
@@ -55,26 +57,25 @@ pub fn valid(limits: &Limits) -> bool {
         && skein_oauth::v3::check_limits(&record).is_ok()
 }
 
-#[expect(missing_debug_implementations, reason = "issuer configuration contains secrets")]
+#[derive(Debug)]
 pub struct Config {
     pub authorization_url: Box<[u8]>,
     pub token_endpoint: Box<[u8]>,
     pub client_id: Box<[u8]>,
-    pub client_secret: Option<Box<[u8]>>,
+    pub client_secret: Option<Secret>,
     pub redirect_uri: Box<[u8]>,
-    pub refresh_token: Box<[u8]>,
+    pub refresh_token: Secret,
     /// Optional issued-registration and revocation terms.
     pub terms: Option<Terms>,
 }
 
-#[expect(missing_debug_implementations, reason = "response plans contain tokens")]
 pub enum Body {
     Token(TokenResponse),
     Error(OAuthError),
     Raw(Box<[u8]>),
 }
 
-#[expect(missing_debug_implementations, reason = "response plans contain tokens")]
+#[derive(Debug)]
 pub struct Plan {
     pub status: u16,
     pub body: Body,
@@ -82,7 +83,6 @@ pub struct Plan {
     pub retry_after: Duration,
 }
 
-#[expect(missing_debug_implementations, reason = "events contain codes or token requests")]
 pub enum Event {
     Authorize { url: Box<[u8]>, now: Time },
     Post { request: HttpRequest, now: Time, wall: Wall },
@@ -91,9 +91,9 @@ pub enum Event {
     LoseResponse,
 }
 
-#[expect(missing_debug_implementations, reason = "outputs contain codes or tokens")]
+#[derive(Debug)]
 pub enum Request {
-    Redirect { uri: Box<[u8]>, state: Box<[u8]>, code: Box<[u8]>, client_id: Option<Box<[u8]>> },
+    Redirect { uri: Box<[u8]>, state: Secret, code: Secret, client_id: Option<Box<[u8]>> },
     Http(HttpResponse),
     Refused,
 }
@@ -120,10 +120,10 @@ pub struct Email {
 }
 
 struct Code {
-    value: Box<[u8]>,
-    challenge: Option<Box<[u8]>>,
+    value: Secret,
+    challenge: Option<Secret>,
     redirect_uri: Box<[u8]>,
-    nonce: Option<Box<[u8]>>,
+    nonce: Option<Secret>,
     account: Option<Account>,
     used: bool,
     expires: Time,
@@ -138,17 +138,16 @@ struct Pending {
 }
 struct Field {
     key: Box<[u8]>,
-    value: Box<[u8]>,
+    value: Secret,
 }
 
-#[expect(missing_debug_implementations, reason = "issuer retains rotating credentials")]
 pub struct Issuer {
     config: Config,
     account: Option<Account>,
     limits: Limits,
     plans: Queue<Plan>,
     codes: List<Code>,
-    spent: List<Box<[u8]>>,
+    spent: List<Secret>,
     generation: u64,
     posts: u64,
     next_code: u64,
@@ -156,6 +155,44 @@ pub struct Issuer {
     carried: List<Box<[u8]>>,
     authorizations: usize,
     revoked: bool,
+}
+
+impl core::fmt::Debug for Body {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Body::Token(value) => f.debug_tuple("Token").field(value).finish(),
+            Body::Error(value) => f.debug_tuple("Error").field(value).finish(),
+            Body::Raw(value) => f.debug_struct("Raw").field("len", &value.len()).finish(),
+        }
+    }
+}
+
+impl core::fmt::Debug for Event {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Event::Authorize { url, now } => {
+                f.debug_struct("Authorize").field("url_len", &url.len()).field("now", now).finish()
+            }
+            Event::Post { request, now, wall } => {
+                f.debug_struct("Post").field("request", request).field("now", now).field("wall", wall).finish()
+            }
+            Event::Get { id, endpoint, now, wall } => f
+                .debug_struct("Get")
+                .field("id", id)
+                .field("endpoint", endpoint)
+                .field("now", now)
+                .field("wall", wall)
+                .finish(),
+            Event::Tick { now, wall } => f.debug_struct("Tick").field("now", now).field("wall", wall).finish(),
+            Event::LoseResponse => f.write_str("LoseResponse"),
+        }
+    }
+}
+
+impl core::fmt::Debug for Issuer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Issuer").field("posts", &self.posts).finish_non_exhaustive()
+    }
 }
 
 impl Issuer {
@@ -271,7 +308,7 @@ impl Issuer {
 
     /// Access tokens in queued successful token plans; the script mints none.
     #[must_use]
-    pub fn granted(&self) -> Box<[Box<[u8]>]> {
+    pub fn granted(&self) -> Box<[Secret]> {
         let mut tokens = List::with_capacity(self.plans.len());
         for plan in &self.plans {
             if (200..300).contains(&plan.status) {
@@ -358,7 +395,7 @@ impl Issuer {
             out.push(Request::Refused);
             return;
         }
-        let code = code_bytes(self.next_code);
+        let code = Secret::new(code_bytes(self.next_code));
         let Some(next) = self.next_code.checked_add(1) else {
             out.push(Request::Refused);
             return;
@@ -381,11 +418,13 @@ impl Issuer {
         out.push(Request::Redirect {
             uri: bytes::copy_of(redirect.expect("redirect checked")),
             client_id: terms::issued(&self.config, self.authorizations),
-            state: bytes::copy_of(state),
+            state: Secret::new(bytes::copy_of(state)),
             code,
         });
     }
 
+    #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
+    #[expect(clippy::too_many_lines, reason = "the bounded token POST keeps its credential conversions in place")]
     fn post(&mut self, request: HttpRequest, now: Time, wall: Wall, out: &mut Queue<Request>) {
         self.carried.clear();
         if self.pending.is_some() {
@@ -420,7 +459,7 @@ impl Issuer {
             return;
         }
         if field(&fields, b"client_id") != Some(terms::latest(&self.config, self.authorizations))
-            || field(&fields, b"client_secret") != self.config.client_secret.as_deref()
+            || field(&fields, b"client_secret") != expose_optional(self.config.client_secret.as_ref())
         {
             self.refuse(request.id, now, wall, out);
             return;
@@ -440,8 +479,14 @@ impl Issuer {
                     out.push(Request::Refused);
                     return;
                 }
-                let next =
-                    if !revocation && (200..300).contains(&plan.status) { value.refresh_token.clone() } else { None };
+                let next = if !revocation && (200..300).contains(&plan.status) {
+                    match &value.refresh_token {
+                        Some(token) => Some(token.clone()),
+                        None => None,
+                    }
+                } else {
+                    None
+                };
                 let Ok(body) = encode_response(&value, &self.limits.document) else {
                     out.push(Request::Refused);
                     return;
@@ -489,6 +534,7 @@ impl Issuer {
         self.deliver(now, wall, out);
     }
 
+    #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
     fn add_id_token(
         &self,
         value: &mut TokenResponse,
@@ -504,14 +550,17 @@ impl Issuer {
             && let Some(openid) = openid::configured(&self.config)
         {
             let code = self.code(fields).ok_or(Error::Plan)?;
-            value.id_token = openid::token(
+            value.id_token = match openid::token(
                 openid,
                 &self.limits,
                 field(fields, b"client_id").expect("accepted client"),
                 code.account.as_ref().ok_or(Error::Plan)?,
-                code.nonce.as_deref(),
+                expose_optional(code.nonce.as_ref()),
                 wall,
-            )?;
+            )? {
+                Some(token) => Some(Secret::new(token)),
+                None => None,
+            };
         }
         Ok(())
     }
@@ -519,7 +568,7 @@ impl Issuer {
     #[expect(clippy::manual_find, reason = "programming-model.md, 10.3 forbids closures in step code")]
     fn code(&self, fields: &List<Field>) -> Option<&Code> {
         for entry in self.codes.as_slice() {
-            if Some(entry.value.as_ref()) == field(fields, b"code") {
+            if Some(entry.value.expose()) == field(fields, b"code") {
                 return Some(entry);
             }
         }
@@ -529,7 +578,7 @@ impl Issuer {
     fn accepted(&mut self, fields: &List<Field>, revocation: bool, now: Time) -> bool {
         if revocation {
             !self.revoked
-                && field(fields, b"token") == Some(self.config.refresh_token.as_ref())
+                && field(fields, b"token") == Some(self.config.refresh_token.expose())
                 && field(fields, b"token_type_hint") == Some(b"refresh_token".as_slice())
         } else {
             match field(fields, b"grant_type") {
@@ -541,21 +590,21 @@ impl Issuer {
     }
 
     fn refresh(&self, fields: &List<Field>) -> bool {
-        !self.revoked && field(fields, b"refresh_token") == Some(self.config.refresh_token.as_ref())
+        !self.revoked && field(fields, b"refresh_token") == Some(self.config.refresh_token.expose())
     }
 
     fn redeem(&mut self, fields: &List<Field>, now: Time) -> bool {
         let Some(code) = field(fields, b"code") else { return false };
         for index in 0..self.codes.len() {
             let Some(entry) = self.codes.get_mut(index) else { return false };
-            if entry.value.as_ref() == code && !entry.used && entry.expires > now {
+            if entry.value.expose() == code && !entry.used && entry.expires > now {
                 if field(fields, b"redirect_uri") != Some(entry.redirect_uri.as_ref()) {
                     return false;
                 }
                 if let Some(expected) = &entry.challenge {
                     let Some(verifier) = field(fields, b"code_verifier") else { return false };
                     let Ok(got) = challenge(verifier) else { return false };
-                    if got != *expected {
+                    if got.as_ref() != expected.expose() {
                         return false;
                     }
                 }
@@ -614,7 +663,7 @@ fn field<'a>(fields: &'a List<Field>, key: &[u8]) -> Option<&'a [u8]> {
             if found.is_some() {
                 return None;
             }
-            found = Some(entry.value.as_ref());
+            found = Some(entry.value.expose());
         }
     }
     found
@@ -631,7 +680,7 @@ fn json_fields(body: &[u8], limits: &Limits) -> Result<List<Field>, Error> {
     while at < tokens.len().saturating_sub(1) {
         let Some(Token::Key(key)) = tokens.get(at) else { return Err(Error::Plan) };
         let Some(Token::String(value)) = tokens.get(at.saturating_add(1)) else { return Err(Error::Plan) };
-        fields.push(Field { key: key.clone(), value: value.clone() }).or(Err(Error::Plan))?;
+        fields.push(Field { key: key.clone(), value: Secret::new(value.clone()) }).or(Err(Error::Plan))?;
         at = at.saturating_add(2);
     }
     Ok(fields)
@@ -653,7 +702,7 @@ fn form_fields(body: &[u8], limits: &Limits) -> Result<List<Field>, Error> {
         let Some(equal) = bytes::find(pair, b"=") else { return Err(Error::Plan) };
         let key = percent_decode(pair.get(..equal).ok_or(Error::Plan)?, limits.request_bytes)?;
         let value = percent_decode(pair.get(equal.saturating_add(1)..).ok_or(Error::Plan)?, limits.request_bytes)?;
-        fields.push(Field { key, value }).or(Err(Error::Plan))?;
+        fields.push(Field { key, value: Secret::new(value) }).or(Err(Error::Plan))?;
         if end == remaining.len() {
             break;
         }
@@ -694,7 +743,14 @@ fn percent_decode(value: &[u8], cap: u32) -> Result<Box<[u8]>, Error> {
     Ok(writer.finish())
 }
 
-fn copy_optional(value: Option<&[u8]>) -> Option<Box<[u8]>> {
+fn copy_optional(value: Option<&[u8]>) -> Option<Secret> {
     let value = value?;
-    Some(bytes::copy_of(value))
+    Some(Secret::new(bytes::copy_of(value)))
+}
+
+fn expose_optional(value: Option<&Secret>) -> Option<&[u8]> {
+    match value {
+        Some(value) => Some(value.expose()),
+        None => None,
+    }
 }
