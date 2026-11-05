@@ -1,6 +1,6 @@
 //! Sign-out revokes once, then forgets the record (oauth.md, sections 2.3 and 6.3).
 
-use super::{Component, State, failed, held, names::number, set_held};
+use super::{Component, Lending, State, failed, held, names::number, set_held};
 use crate::accounts::{Source, copy_registration};
 use crate::exchange::{Exchange, Purpose, Stage};
 use crate::keeper::{Operation, Store};
@@ -71,7 +71,7 @@ impl Component {
         let id = self.bindings.get(account).expect("binding").expect("sign-out exchange");
         let slot = self.accounts.get_mut(account).expect("account state");
         if held(slot) {
-            set_held(slot, false);
+            set_held(slot, Lending::Free);
             failed(number(&self.names, account), Failure::Expired, up);
         }
         if self.lock_write(env, id, up) {

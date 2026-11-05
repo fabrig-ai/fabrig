@@ -4,7 +4,7 @@
 //! operation retains its owner token through cancellation and root closing.
 
 use super::names::{missing_id, number};
-use super::{Component, FileLower, Lifecycle, State, failed, recorded};
+use super::{Component, FileLower, Lending, Lifecycle, State, failed, recorded};
 use crate::exchange::Stage;
 use crate::keeper::{Operation, Pending, Store};
 use crate::{Asked, Event, Failure, Keeping, Limits, Lower, Place, Refusal, Unloaded};
@@ -340,7 +340,9 @@ impl Component {
         };
         let has_record = record.is_some();
         match record {
-            Some(record) => *self.accounts.get_mut(account).expect("account state") = recorded(record, env, false),
+            Some(record) => {
+                *self.accounts.get_mut(account).expect("account state") = recorded(record, env, Lending::Free)
+            }
             None => {}
         }
         let signer = match *self.bindings.get(account).expect("account binding") {
