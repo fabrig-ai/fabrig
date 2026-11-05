@@ -122,6 +122,7 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::StartRefused(_)
         | w::Outcome::StartFailed(_)
         | w::Outcome::Removed
+        | w::Outcome::Looked
         | w::Outcome::Dismissed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
@@ -222,6 +223,7 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::StartRefused(_)
         | w::Outcome::StartFailed(_)
         | w::Outcome::Removed
+        | w::Outcome::Looked
         | w::Outcome::Dismissed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset

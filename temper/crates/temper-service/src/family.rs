@@ -169,6 +169,7 @@ pub fn to_root(
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
                         | w::Request::Dismiss(_)
+                        | w::Request::Looked(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
                         | w::Request::EndPlayground => {
@@ -292,6 +293,9 @@ pub fn to_root(
                         request: root::Application::Dismiss { what },
                     }));
                 }
+                w::Request::Looked(_) => {
+                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable { to: reply_to })));
+                }
                 w::Request::Adopt(value) => value,
             };
             let a = request.into_parts();
@@ -388,7 +392,7 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::DISMISSED_SUBJECT),
                     },
-                    w::Watch::Change(_) | w::Watch::Landing(_) => {
+                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Status(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
                             why: jig_domain_core::WatchRefusal::Unknown,

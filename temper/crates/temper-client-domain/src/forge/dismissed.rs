@@ -183,7 +183,8 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
     Some(match answer.into_parts().outcome {
         w::Outcome::Dismissed => Answer::Dismissed,
         w::Outcome::Unknown => Answer::Unknown,
-        w::Outcome::Page(_)
+        w::Outcome::Looked
+        | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
         | w::Outcome::Connecting
