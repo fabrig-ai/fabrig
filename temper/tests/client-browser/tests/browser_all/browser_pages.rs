@@ -11,7 +11,7 @@ use temper_client_browser_world::{ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Tier, 
 fn enter_starts_one_chat_keeping_a_shift_enter_break() {
     let tier = Tier::new("composer").with_model();
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
-    let composer = || Find::exactly_named(Role::TextArea, b"Start a chat");
+    let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     let chats = || Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") });
     let mut script = Script::new(Box::new([
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
@@ -19,6 +19,7 @@ fn enter_starts_one_chat_keeping_a_shift_enter_break() {
         see(tier.states().live),
         temper_client_browser_world::connected(),
         chats(),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"New chat") }),
         see(composer()),
         Step::Type { find: composer(), words: Box::from(b"Hello".as_slice()) },
         Step::KeyWithShift(Key::Enter),

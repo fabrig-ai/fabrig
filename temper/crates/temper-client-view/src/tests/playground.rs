@@ -21,7 +21,6 @@ fn suggestions_show_only_in_the_playground_project() {
         if shown {
             let mut heading = None;
             let mut suggestion = None;
-            let mut composer = None;
             for (index, node) in view.tree().nodes().iter().enumerate() {
                 if node.role == (Role::Heading { level: 1 }) {
                     heading = Some(index);
@@ -29,11 +28,8 @@ fn suggestions_show_only_in_the_playground_project() {
                 if node.role == Role::List && node.name.as_deref() == Some(b"Suggested requests") {
                     suggestion = Some(index);
                 }
-                if node.role == Role::TextArea {
-                    composer = Some(index);
-                }
             }
-            assert!(heading.unwrap() < composer.unwrap() && composer.unwrap() < suggestion.unwrap(), "{row}");
+            assert!(heading.unwrap() < suggestion.unwrap(), "{row}");
         }
     }
 }
@@ -64,20 +60,6 @@ fn suggestion_buttons_wait_for_a_start_and_press_their_own_cue() {
                 "{row}"
             );
         }
-        let mut start = None;
-        for candidate in view.tree().nodes() {
-            if candidate.role == Role::Button && candidate.name.as_deref() == Some(b"Start chat") {
-                start = Some(candidate);
-            }
-        }
-        let start = start.expect("start button");
-        assert_eq!(start.states.as_slice().contains(&State::Disabled), pending, "{row}: composer send");
-        let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("chat field");
-        assert_eq!(
-            crate::act(&mut view, field, skein_ui::Act::Submit),
-            if pending { None } else { Some(Action::Pages(Act::StartChat)) },
-            "{row}: Enter shares send readiness"
-        );
     }
 }
 
@@ -163,7 +145,7 @@ fn the_playground_account_always_names_default_whatever_the_model_or_project() {
         let view = f::page_view(&root);
         assert!(skein_lib::bytes::find(&f::text(view.tree()), expected.as_bytes()).is_some(), "{row}");
     }
-    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
+    let root = f::playground_root(Address::NewChat, f::PROJECT, true);
     assert!(
         f::find(f::page_view(&root).tree(), Role::Paragraph, "Using Scripted model · Default".as_bytes()).is_some()
     );
@@ -257,7 +239,7 @@ fn the_hidden_deployment_playground_account_needs_only_its_public_provider() {
 
 #[test]
 fn the_playground_chooser_names_the_provider_and_model_but_keeps_the_configured_choice() {
-    let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
+    let mut root = f::playground_root(Address::NewChat, f::PROJECT, true);
     let mut view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"Playground").is_some());
     assert!(f::find(view.tree(), Role::Button, crate::words::SCRIPTED_MODEL).is_none());

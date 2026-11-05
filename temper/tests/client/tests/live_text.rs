@@ -30,9 +30,11 @@ fn a_chats_reply_shows_as_it_is_written_then_as_its_committed_turn() {
     world.person(
         person,
         vec![
-            see(Find::named(Role::TextArea, b"Start a chat")),
-            Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: QUESTION.into() },
-            Step::Send { find: Find::named(Role::TextArea, b"Start a chat") },
+            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
+            see(Find::named(Role::TextArea, b"What do you want done?")),
+            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: QUESTION.into() },
+            Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
             see(Find::text(&provisional)),
             see(Find::text(FIRST)),
             gone(Find::text(&whole)),

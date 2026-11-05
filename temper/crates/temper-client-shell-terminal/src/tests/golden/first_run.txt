@@ -24,14 +24,7 @@ Project:
   No chats yet.
   Playground:
     This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
-[15] Start a chat: (empty) (enter sends)
-enter to start · shift+enter for newline
-[16] Start chat
-Using Scripted model · Default
-Change model:
-  - [17] Scripted model
-  [18] Reset choice
 Suggested requests:
-  - [19] Add CSV export to widget
-  - [20] Add a dark theme to widget
-  - [21] Fix widget’s empty search state
+  - [15] Add CSV export to widget
+  - [16] Add a dark theme to widget
+  - [17] Fix widget’s empty search state

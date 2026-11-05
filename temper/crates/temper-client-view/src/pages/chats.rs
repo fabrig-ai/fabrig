@@ -1,4 +1,4 @@
-//! The chats pane and composer (temper/docs/design/client/README.md, 3.5, 5.1 and 5.6).
+//! The chats pane and playground start (temper/docs/design/client/README.md, 3.5, 5.1 and 5.6).
 use crate::{
     frame::Bindings,
     words::{TimeForm, Times, Word, Words},
@@ -30,7 +30,7 @@ pub(crate) fn main(
     words: &Words,
     bindings: &mut Bindings,
     forge: &mut crate::forge::bindings::Bindings,
-    text_limit: u32,
+    _text_limit: u32,
     times: &mut Times,
 ) {
     b.open(Role::Main);
@@ -58,10 +58,7 @@ pub(crate) fn main(
     list(b, root, words, bindings, times);
     crate::frame::playground_banner(b, root, words, forge);
     b.close();
-    if let Some(chats) = root.pages().chats()
-        && root.pages().me(root.client()).is_some()
-        && root.pages().project().is_some()
-    {
+    if root.pages().chats().is_some() && root.pages().me(root.client()).is_some() && root.pages().project().is_some() {
         if offers_first_chat(root) {
             b.open(Role::Button);
             b.name(&words.say(Word::FirstChat, &[]));
@@ -70,47 +67,6 @@ pub(crate) fn main(
             }
             b.close();
         }
-        let ready = super::new_chat::ready_to_start(root);
-        if !ready {
-            bindings.block_submissions();
-        }
-        b.open(Role::Slot);
-        b.style(crate::look::ENTRY);
-        b.open(Role::TextArea);
-        b.name(&words.say(Word::StartChat, &[]));
-        b.placeholder(&words.say(Word::DescribeChange, &[]));
-        if ready {
-            b.state(State::SubmitsOnEnter);
-        }
-        b.style(crate::look::COMPOSER);
-        b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
-        b.bind(bindings.insert(Act::ChatWords { words: Box::default() }));
-        b.close();
-        b.open(Role::Paragraph);
-        b.style(crate::look::HINT);
-        words.text(b, Word::ChatHint, &[]);
-        b.close();
-        if let Some(me) = root.pages().me(root.client())
-            && root.pages().choice().valid(me)
-        {
-            b.open(Role::Button);
-            b.name(&words.say(Word::Start, &[]));
-            if !ready {
-                b.state(State::Disabled);
-            }
-            b.bind(bindings.insert(Act::StartChat));
-            b.close();
-        }
-        if chats.refusal.is_some() {
-            words.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
-        }
-        if let Some(outcome) = &chats.outcome
-            && !accepted(outcome)
-        {
-            outcome_text(b, words, outcome, text_limit);
-        }
-        b.close();
-        crate::choice::composer(b, root, None, words, bindings, times);
         if let Some(playground) = playground {
             suggestions(b, root, playground, words, bindings);
         }

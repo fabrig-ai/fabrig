@@ -10,10 +10,12 @@ fn a_model_choice_reaches_the_next_run_document() {
     world.person(
         person,
         vec![
+            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
             Step::See { find: Find::exactly_named(Role::Button, b"scripted"), within: fixtures::WITHIN },
             Step::Press { find: Find::exactly_named(Role::Button, b"scripted") },
-            Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: Box::from(*b"Hello") },
-            Step::Send { find: Find::named(Role::TextArea, b"Start a chat") },
+            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: Box::from(*b"Hello") },
+            Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
             Step::See { find: Find::exactly_named(Role::Paragraph, b"Using scripted"), within: fixtures::WITHIN },
             Step::See { find: Find::named(Role::Heading { level: 1 }, " · ".as_bytes()), within: fixtures::WITHIN },
         ],
