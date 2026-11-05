@@ -79,6 +79,7 @@ impl Domain {
 pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<Request>) {
     let Some(change) = d.changes.get(&task) else { return };
     let repository = change.repository;
+    let subject = crate::views::changes_mark(d, repository);
     if let Some(row) = d.verifications.get_mut(&(repository, commit)) {
         if !row.changes.contains(&task) {
             let mut changes = List::with_capacity(d.landing.limits.changes);
@@ -87,7 +88,7 @@ pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<
             }
             changes.push(task).expect("one landing per live change");
             row.changes = changes.into_boxed();
-            save(row.clone(), out);
+            save(row.clone(), subject, out);
         }
         return;
     }
@@ -116,7 +117,7 @@ pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<
     }
     let row = Verification { repository, commit, changes: Box::new([task]), tiers: tiers.into_boxed() };
     d.verifications.insert((repository, commit), row.clone()).expect("one landing per live change");
-    save(row, out);
+    save(row, subject, out);
 }
 
 fn fact(tiers: &[TierVerification]) -> change::Verification {
@@ -144,6 +145,7 @@ pub(crate) fn judged(
     out: &mut Queue<Request>,
 ) {
     assert_eq!(landings.len(), verdict.landings.len(), "one blame per landing in the judged range");
+    let subject = crate::views::changes_mark(d, repository);
     let mut keys = List::with_capacity(d.verifications.len());
     for ((repo, commit), _) in &d.verifications {
         if *repo == repository {
@@ -193,7 +195,7 @@ pub(crate) fn judged(
             for task in &row.changes {
                 d.procedure_wakes.insert(*task, true).expect("one pending wake per change");
             }
-            save(row.clone(), out);
+            save(row.clone(), subject, out);
         }
     }
 }
@@ -208,7 +210,11 @@ pub(crate) fn released(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     }
     let Some(key) = found else { return };
     let mut row = d.verifications.remove(&key).expect("found verification");
+    let subject = crate::views::changes_mark(d, row.repository);
     if row.changes.len() == 1 {
+        if let Some(subject) = subject {
+            out.push(Request::Marked { tasks: Box::new([subject]) });
+        }
         out.push(Request::Erase { key: Key::Verification { repository: row.repository, commit: row.commit } });
     } else {
         let mut changes = List::with_capacity(u32::try_from(row.changes.len()).expect("admitted changes"));
@@ -219,11 +225,14 @@ pub(crate) fn released(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
         }
         row.changes = changes.into_boxed();
         d.verifications.insert(key, row.clone()).expect("replaces verification");
-        save(row, out);
+        save(row, subject, out);
     }
 }
 
-fn save(row: Verification, out: &mut Queue<Request>) {
+fn save(row: Verification, subject: Option<u64>, out: &mut Queue<Request>) {
+    if let Some(subject) = subject {
+        out.push(Request::Marked { tasks: Box::new([subject]) });
+    }
     out.push(Request::Save { read_afresh: None, release: None, record: Stored::Verification(row) });
 }
 

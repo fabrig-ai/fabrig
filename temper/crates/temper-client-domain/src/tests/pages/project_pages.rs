@@ -104,6 +104,7 @@ fn unlisted_project_addresses_keep_the_open_project() {
 fn switching_projects_keeps_home_settings_configure_or_chats() {
     for (address, shown) in [
         (Address::Home { project: fixtures::PROJECT }, Some(Address::Home { project: OTHER })),
+        (Address::Changes { project: fixtures::PROJECT }, Some(Address::Changes { project: OTHER })),
         (Address::Settings { project: fixtures::PROJECT }, Some(Address::Settings { project: OTHER })),
         (Address::Configure { project: fixtures::PROJECT }, Some(Address::Configure { project: OTHER })),
         (Address::Chats { filter: ChatsFilter::All, start: false }, None),
@@ -130,6 +131,7 @@ fn switching_projects_keeps_home_settings_configure_or_chats() {
 fn project_pages_keep_the_switchers_rename_form() {
     for address in [
         Address::Home { project: fixtures::PROJECT },
+        Address::Changes { project: fixtures::PROJECT },
         Address::Settings { project: fixtures::PROJECT },
         Address::Configure { project: fixtures::PROJECT },
     ] {

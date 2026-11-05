@@ -14,6 +14,7 @@ pub enum Address {
     Task { task: u64, filter: PlanFilter },
     Home { project: u32 },
     Goals { project: u32, filter: GoalsFilter },
+    Changes { project: u32 },
     Settings { project: u32 },
     Configure { project: u32 },
     Adopt { project: u32 },
@@ -127,6 +128,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Task { task, .. } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
         Address::Home { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"".as_slice()),
         Address::Goals { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"goals".as_slice()),
+        Address::Changes { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"changes".as_slice()),
         Address::Settings { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"settings".as_slice()),
         Address::Configure { project } => {
             (b"projects".as_slice(), Some(u64::from(*project)), b"settings/configure".as_slice())
@@ -227,6 +229,10 @@ pub fn parse(path: &[u8]) -> Place {
         (b"projects", _, b"goals") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Goals { project, filter: parse_goals(fields) }
+        }
+        (b"projects", _, b"changes") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            Address::Changes { project }
         }
         (b"projects", _, b"settings") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
