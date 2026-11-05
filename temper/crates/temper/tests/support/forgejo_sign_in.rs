@@ -1,4 +1,5 @@
 //! Owned Forgejo signing its member in through temper's printed setup command.
+//! temper/docs/design/domain/testing.md, 2.6.
 use super::{
     configuration,
     forge_sign_in::{command, configure, success},
@@ -132,11 +133,13 @@ fn run_owned(directory: &Path) -> io::Result<()> {
     let [listener] = super::reserve_listeners(&[forge, temper]);
     let google = listener.local_addr().expect("issuer address");
     configure(directory, &forge.to_string(), &temper.to_string(), &google.to_string());
+    fixture_bundle(directory);
     let registration = json!({"issuer":format!("http://{google}"),"authorization":format!("http://{google}/auth"),"token":format!("http://{google}/token"),"revocation":format!("http://{google}/revoke"),"keys":format!("http://{google}/keys"),"client":"temper-test","scopes":[]});
     let _google =
         super::sign_in::issuer(listener, &registration, format!("http://{temper}/sign-in/google/return").as_bytes());
     let prepared = super::owned::prepare(directory, 1);
     success(&prepared);
+    assert!(!directory.join("box/groups").exists(), "prepare needs no group's file");
     let instructions = command(directory).output().expect("sign-in instructions");
     success(&instructions);
     let secret = fs::read(directory.join("forgejo.secret")).expect("scratch client secret");
@@ -146,9 +149,8 @@ fn run_owned(directory: &Path) -> io::Result<()> {
     let printed_command =
         std::str::from_utf8(&instructions.stdout).expect("instructions").lines().next().expect("command");
     let running = super::owned::run(directory, "forgejo");
-    let mut instance = super::owned::attach(directory, forge.port(), running);
+    let instance = super::owned::attach(directory, forge.port(), running);
     let past_start = clock.now().now;
-    super::forgejo::seed(directory, &mut instance);
     let log = fs::File::create(directory.join("sign-in-serve.log")).expect("private log");
     let mut serve = Serve {
         child: Command::new(skein_scratch::paths::binary("temper"))
@@ -176,14 +178,45 @@ fn run_owned(directory: &Path) -> io::Result<()> {
         assert!(!lower.contains("failed") && !lower.contains("error"), "add-oauth reported failure");
         assert!(!output.windows(secret.len()).any(|part| part == secret), "credential absent from add-oauth output");
     }
-    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
     let link = std::str::from_utf8(&link).expect("printed link");
+    let mut browser = Browser::default();
+    sign_in(&mut browser, temper, forge, link)?;
+    member_named(&instance);
+    let member_signed_in = clock.now().now;
+    connect(directory, forge, temper, &stdout, link, &mut browser)?;
+    let connected = clock.now().now;
+    serve.stop();
+    instance.stop().expect("Forgejo stopped");
+    assert!(!directory.join("box/groups").exists(), "the walk needs no group's file");
+    eprintln!(
+        "Forgejo sign-in: whole {:?}; past Forgejo start {:?}; member sign-in {:?}; admin connect {:?}; shutdown {:?}",
+        clock.now().now.saturating_since(whole),
+        clock.now().now.saturating_since(past_start),
+        member_signed_in.saturating_since(past_start),
+        connected.saturating_since(member_signed_in),
+        clock.now().now.saturating_since(connected)
+    );
+    Ok(())
+}
+
+fn sign_in(
+    browser: &mut Browser,
+    temper: std::net::SocketAddr,
+    forge: std::net::SocketAddr,
+    link: &str,
+) -> io::Result<()> {
+    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("link encoding");
     let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret }).expect("link record");
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
     record.encode(&mut out).expect("link wire");
-    let mut browser = Browser::default();
+    let page = browser.call(&format!("http://{temper}/"), None)?;
+    assert_eq!(page.status, 200);
+    assert!(
+        !String::from_utf8(page.body).expect("bundle page").contains("temper-forge-sign-in"),
+        "a forge not yet connected has no sign-in meta"
+    );
     let signed = browser.call(&format!("http://{temper}/jig/v1/sign-in/link"), Some(&out.finish()))?;
     assert_eq!(signed.status, 200);
     assert!(browser.cookies.iter().any(|(name, _, _)| name == "jig-sign-in"), "printed link set the browser cookie");
@@ -213,15 +246,86 @@ fn run_owned(directory: &Path) -> io::Result<()> {
         callback = browser.call(&callback.location.expect("callback redirect"), None)?;
     }
     assert_eq!(callback.status, 200);
-    member_named(&instance);
-    serve.stop();
-    instance.stop().expect("Forgejo stopped");
-    eprintln!(
-        "Forgejo sign-in: whole {:?}; past Forgejo start {:?}",
-        clock.now().now.saturating_since(whole),
-        clock.now().now.saturating_since(past_start)
+    Ok(())
+}
+
+fn fixture_bundle(directory: &Path) {
+    let bundle = directory.join("bundle");
+    fs::create_dir_all(bundle.join("0123456789abcdef")).expect("bundle directory");
+    fs::write(bundle.join("index.html"), b"<html><head></head><body></body></html>").expect("bundle page");
+    fs::write(bundle.join("0123456789abcdef/boot.js"), b"boot();").expect("bundle asset");
+    let path = directory.join("temper.json");
+    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    value["application"]["clients"]["bundle"] = json!(bundle);
+    super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+}
+
+fn connect(
+    directory: &Path,
+    forge: std::net::SocketAddr,
+    temper: std::net::SocketAddr,
+    stdout: &std::process::ChildStdout,
+    link: &str,
+    browser: &mut Browser,
+) -> io::Result<()> {
+    let link_file = directory.join("ctl-link");
+    super::write_private(&link_file, link.as_bytes());
+    let refused = ctl(directory, &["sign-in", "ctl-link"]);
+    assert!(!refused.status.success(), "the browser spent the printed link");
+    let link = super::read_line(skein_io::kernel::Fd::new(stdout.as_raw_fd()), super::WITHIN);
+    super::write_private(&link_file, &link);
+    success(&ctl(directory, &["sign-in", "ctl-link"]));
+    let forges = ctl(directory, &["forge", "list", "--json"]);
+    success(&forges);
+    let forges: Value = serde_json::from_slice(&forges.stdout).expect("forges JSON");
+    assert_eq!(forges["forges"], json!([]), "serve without the box keeps no owned forge");
+    success(&ctl(
+        directory,
+        &[
+            "forge",
+            "connect",
+            "forgejo-admin",
+            "forge-1/admin_token",
+            "--api",
+            &forge.to_string(),
+            "--git",
+            &format!("http://{forge}"),
+            "--key",
+            "walk-connect",
+        ],
+    ));
+    let forges = ctl(directory, &["forge", "list", "--until", "connected:1", "--json"]);
+    success(&forges);
+    let forges: Value = serde_json::from_slice(&forges.stdout).expect("connected forges JSON");
+    assert_eq!(forges["met"], true);
+    let forges = forges["forges"]["forges"].as_array().expect("forges");
+    assert_eq!(forges.len(), 1);
+    assert_eq!(forges[0]["number"], 1);
+    assert_eq!(forges[0]["mode"], "managed");
+    assert_eq!(forges[0]["state"], "connected");
+    assert!(directory.join("forge-1/admin_token").is_file(), "managed connect keeps the admin handover");
+    let page = browser.call(&format!("http://{temper}/"), None)?;
+    assert_eq!(page.status, 200);
+    assert!(
+        String::from_utf8(page.body)
+            .expect("connected bundle page")
+            .contains(&format!("<meta name=\"temper-forge-sign-in\" content=\"1 forgejo http://{forge} other\">")),
+        "the connected forge serves its sign-in meta"
     );
     Ok(())
+}
+
+fn ctl(directory: &Path, arguments: &[&str]) -> std::process::Output {
+    super::story_command::standalone(
+        Command::new(skein_scratch::paths::binary("temper"))
+            .arg("ctl")
+            .arg(directory.join("ctl"))
+            .args(arguments)
+            .current_dir(directory)
+            .stdin(Stdio::null()),
+        "the walk's ctl command",
+        super::WITHIN,
+    )
 }
 
 fn owned_command(directory: &Path, printed_command: &str) -> String {
