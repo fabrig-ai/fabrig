@@ -69,22 +69,6 @@ impl Core {
         !(self.stopping && timer.waits_while_stopping()) && (new_work || !timer.new_work())
     }
 
-    /// Take a dirty deployment header once after the cold load has established
-    /// its counters. The root retains the journal's first-row ordering.
-    #[must_use]
-    pub fn cold_header(&mut self) -> Option<Write> {
-        if !self.counters.dirty() {
-            return None;
-        }
-        Some(self.commit_header())
-    }
-
-    /// Number a writing decision and construct its deployment row.
-    #[must_use]
-    pub fn commit_header(&mut self) -> Write {
-        self.counters.commit_header()
-    }
-
     /// The deployment row this decision writes, if any (engine.md, 5.4).
     #[must_use]
     pub fn decision_header(&mut self, wrote: bool) -> Option<Record> {

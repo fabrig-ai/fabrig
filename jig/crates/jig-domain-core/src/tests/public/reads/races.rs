@@ -197,7 +197,7 @@ fn a_newer_commit_extends_the_wait_before_completion() {
     let (mut core, limits) = fixture();
     visibility(&mut core, &limits, true);
     let token = wait(start(&mut core, &limits, 102, read(2, None)));
-    let _header = core.commit_header();
+    let _header = core.counters.commit_header();
     let out = crate::step(&mut core, &environment(&limits), Event::PublicDurable { read: token });
     assert_eq!(wait(out), token, "the older barrier does not complete the read");
     assert_eq!(core.public_reads.len(), 1);

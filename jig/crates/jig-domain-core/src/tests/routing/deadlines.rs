@@ -108,19 +108,19 @@ fn decision_header_numbers_writing_or_dirty_decisions_once() {
 }
 
 #[test]
-fn cold_header_is_taken_once_and_never_before_the_load() {
+fn a_dirty_header_is_taken_once_and_never_before_the_load() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
-    let Some(Write::Save(Record::Core(CoreRecord::Deployment(header)))) = core.cold_header() else {
+    let Some(Record::Core(CoreRecord::Deployment(header))) = core.decision_header(false) else {
         unreachable!("a fresh deployment supplies its header");
     };
     assert_eq!(header.commits, 1);
-    assert!(core.cold_header().is_none());
+    assert!(core.decision_header(false).is_none());
     core.counters.begin_start();
-    assert!(core.cold_header().is_none());
+    assert!(core.decision_header(false).is_none());
     core.counters.finish_restore();
-    assert!(core.cold_header().is_some());
-    assert!(core.cold_header().is_none());
+    assert!(core.decision_header(false).is_some());
+    assert!(core.decision_header(false).is_none());
 }
 
 #[test]

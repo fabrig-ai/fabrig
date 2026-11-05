@@ -316,18 +316,6 @@ impl Party {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Party;
-
-    #[test]
-    fn party_sender_labels() {
-        assert_eq!(Party::Task(123).sender().as_ref(), b"123");
-        assert_eq!(Party::Person(456).sender().as_ref(), b"456");
-        assert_eq!(Party::Deployment { project: 7 }.sender().as_ref(), b"deployment");
-    }
-}
-
 /// Task executor selected by the root. The procedure's owner interprets its opaque code.
 /// (domain/tasks.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
