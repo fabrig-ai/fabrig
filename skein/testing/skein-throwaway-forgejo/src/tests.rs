@@ -5,7 +5,7 @@ fn the_app_ini_names_loopback_sqlite_and_the_page_cap() {
     let rendered = ini(Path::new("/scratch"), 3000, &Settings::small(), "fixture", "secret", "internal");
     assert_eq!(
         rendered,
-        "APP_NAME = kit throwaway\nRUN_USER = fixture\nWORK_PATH = /scratch\n[server]\nPROTOCOL = http\nHTTP_ADDR = 127.0.0.1\nHTTP_PORT = 3000\nROOT_URL = http://127.0.0.1:3000/\nAPP_DATA_PATH = /scratch/data\nDISABLE_SSH = true\nOFFLINE_MODE = true\n[database]\nDB_TYPE = sqlite3\nPATH = /scratch/forgejo.db\n[repository]\nROOT = /scratch/repositories\nDEFAULT_BRANCH = main\n[security]\nINSTALL_LOCK = true\nSECRET_KEY = secret\nINTERNAL_TOKEN = internal\n[service]\nDISABLE_REGISTRATION = true\n[log]\nMODE = console\nLEVEL = Error\n[git]\nPATH = /usr/bin/git\n[actions]\nENABLED = true\n[api]\nMAX_RESPONSE_ITEMS = 2\n"
+        "APP_NAME = kit throwaway\nRUN_USER = fixture\nWORK_PATH = /scratch\n[server]\nPROTOCOL = http\nHTTP_ADDR = 127.0.0.1\nHTTP_PORT = 3000\nROOT_URL = http://127.0.0.1:3000/\nAPP_DATA_PATH = /scratch/data\nDISABLE_SSH = true\nOFFLINE_MODE = true\n[database]\nDB_TYPE = sqlite3\nPATH = /scratch/forgejo.db\n[repository]\nROOT = /scratch/repositories\nDEFAULT_BRANCH = main\n[security]\nINSTALL_LOCK = true\nSECRET_KEY = secret\nINTERNAL_TOKEN = internal\n[service]\nDISABLE_REGISTRATION = true\n[log]\nMODE = console\nLEVEL = Info\nROUTER = console\n[git]\nPATH = /usr/bin/git\n[actions]\nENABLED = true\n[api]\nMAX_RESPONSE_ITEMS = 2\n"
     );
 }
 #[test]
