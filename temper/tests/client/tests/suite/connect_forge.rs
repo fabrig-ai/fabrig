@@ -141,7 +141,7 @@ fn setting_up_forgejo_here_from_the_welcome() {
         &mut front,
         &mut root,
         &mut now,
-        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
+        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All }) },
     );
     let chats = view(&root);
     assert!(
@@ -165,7 +165,7 @@ fn setting_up_forgejo_here_from_the_welcome() {
         &mut front,
         &mut root,
         &mut now,
-        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
+        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All }) },
     );
     assert_eq!(front.applications_admitted(), before, "setup sends no adoption");
     assert!(!front.engine_adopted(OWNED, 42));

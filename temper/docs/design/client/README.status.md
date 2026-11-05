@@ -46,8 +46,8 @@
   `apps`), so a GitHub forge found unfinished after a restart offers
   "Start over" alone.
   3.5, With no project
-  yet, where the document shows the welcome: its heading, words and acts; `pages/chats.rs` draws the pane
-  alone, the new chat's bar with no status and the list under "Chats".
+  yet, where the document shows the welcome: its heading, words and acts; `pages/chats.rs` draws its page
+  alone.
   4.7: the "not installed" outcome, "temper's App is not installed on
   OWNER.", with "Install on another account": `temper-service/src/family.rs`
   maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;

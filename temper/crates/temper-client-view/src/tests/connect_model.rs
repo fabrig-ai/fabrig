@@ -284,9 +284,7 @@ fn a_key_has_details_then_ready_with_its_account_and_chat_link() {
     let node = fixtures::find(tree, Role::Link, b"Start a chat").unwrap();
     assert_eq!(
         crate::act(&mut view, node, Act::Press),
-        Some(d::Action::Pages(d::pages::Act::Go {
-            address: d::Address::Chats { filter: d::ChatsFilter::All, start: false }
-        }))
+        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::NewChat }))
     );
 }
 #[test]
@@ -457,7 +455,7 @@ fn the_accounts_banner_links_each_way_to_its_address_and_is_hidden_in_the_flow()
     super::accounts::deliver(&mut root, watch, doc);
     fixtures::root_event(
         &mut root,
-        d::Event::Went { place: d::Place::Address(d::Address::Chats { filter: d::ChatsFilter::All, start: false }) },
+        d::Event::Went { place: d::Place::Address(d::Address::Chats { filter: d::ChatsFilter::All }) },
     );
     let mut view = fixtures::page_view(&root);
     for (name, kind) in [

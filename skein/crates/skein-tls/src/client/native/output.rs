@@ -7,7 +7,7 @@ use crate::session;
 use alloc::boxed::Box;
 use core::mem;
 use skein_lib::stream::{OutputDown, OutputOutcome, OutputUp};
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, Token, usize_of};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum UpperOutput {
@@ -72,10 +72,7 @@ pub(super) fn output_down(
         },
         OutputDown::Send { right, bytes } => match client.upper_output {
             UpperOutput::Granted { right: granted, bytes: cap } if granted == right => {
-                assert!(
-                    bytes.len() <= usize::try_from(cap).expect("plaintext cap fits"),
-                    "matching native Send within grant"
-                );
+                assert!(bytes.len() <= usize_of(cap), "matching native Send within grant");
                 client.upper_output = UpperOutput::Idle;
                 send_plain(client, bytes, above, below);
             }
@@ -104,10 +101,7 @@ pub(super) fn send_plain(
     let Some(open) = open(&mut client.state) else { unreachable!("matching live native Send") };
     match session::encrypt(&mut open.tls, &mut client.buffers.records, &plain, &mut client.buffers.owed) {
         Ok(Some(sealed)) => {
-            assert!(
-                sealed.len() <= usize::try_from(bytes).expect("ciphertext cap fits"),
-                "complete native ciphertext within full owed envelope"
-            );
+            assert!(sealed.len() <= usize_of(bytes), "complete native ciphertext within full owed envelope");
             below.push(LowerRequest::Output(OutputDown::Send { right, bytes: sealed }));
         }
         Ok(None) => below.push(LowerRequest::Output(OutputDown::Release { right })),

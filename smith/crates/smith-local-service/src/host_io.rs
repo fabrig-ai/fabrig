@@ -39,12 +39,8 @@ pub struct ProcessLimits {
     pub queue: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
-enum Operation {
-    Io(Token),
-    File(Token),
-    ProgramRoot,
-}
+/// The one close `HostIo` itself submits, on its own tag (skein/docs/design/lib.md, 4).
+const PROGRAM_ROOT: Token = Token::new(1 << 60);
 
 #[derive(Debug)]
 pub(crate) struct HostIo {
@@ -65,8 +61,8 @@ pub(crate) struct HostIo {
     file_events: Queue<file::Event>,
     io_submissions: Queue<kernel::Submit>,
     file_submissions: Queue<kernel::Submit>,
-    operations: Map<Token, Operation>,
-    next_operation: u64,
+    in_flight: u32,
+    io_completions: Queue<kernel::Complete>,
     io_events: Queue<io::Event>,
     pub(crate) io_requests: Queue<io::Request>,
     process_events: Queue<protocol::ProcessEvent>,
@@ -82,7 +78,7 @@ pub(crate) struct HostIo {
 
 /// IO table capacities and the selected process channel's framing edges.
 pub(crate) fn valid(limits: &ProcessLimits, framed: bool) -> bool {
-    if !native_io_valid(&limits.io) || !local_protocol::Store::valid(&store_limits()) {
+    if !io::valid(&limits.io) || !local_protocol::Store::valid(&store_limits()) {
         return false;
     }
     if framed {
@@ -93,13 +89,6 @@ pub(crate) fn valid(limits: &ProcessLimits, framed: bool) -> bool {
         return schema.check(skein_channel::Role::Initiator, &limits.channel.channel).is_ok();
     }
     true
-}
-
-/// Whether native IO is usable and its flight and timer capacities fit (protocol/limits.md, section 3).
-#[must_use]
-pub fn native_io_valid(limits: &io::Limits) -> bool {
-    let Some(operations) = io::operations(limits) else { return false };
-    limits.is_usable() && operations.checked_mul(2).is_some() && limits.sockets.checked_mul(2).is_some()
 }
 
 impl HostIo {
@@ -133,8 +122,8 @@ impl HostIo {
             file_events: Queue::uncapped(),
             io_submissions: Queue::uncapped(),
             file_submissions: Queue::uncapped(),
-            operations: Map::with_capacity(limits.queue),
-            next_operation: 1,
+            in_flight: 0,
+            io_completions: Queue::uncapped(),
             io_events: Queue::uncapped(),
             io_requests: Queue::uncapped(),
             process_events: Queue::uncapped(),
@@ -153,6 +142,7 @@ impl HostIo {
     pub(crate) fn backlog(&self) -> u32 {
         let mut total = 0_u32;
         for entries in [
+            self.io_completions.len(),
             self.io_events.len(),
             self.io_requests.len(),
             self.io_submissions.len(),
@@ -290,7 +280,8 @@ impl HostIo {
             && self.store_io.store_actions.is_empty()
             && self.files.takes()
             && self.files.open_files() == 0
-            && self.operations.len() == self.signals.reads()
+            && self.in_flight == self.signals.reads()
+            && self.io_completions.is_empty()
             && self.file_requests.is_empty()
             && self.file_events.is_empty()
             && self.io_requests.is_empty()
@@ -343,6 +334,7 @@ impl HostIo {
         }
         self.io.is_ready()
             || self.io.is_due(now)
+            || !self.io_completions.is_empty()
             || !self.io_events.is_empty()
             || !self.shell_events.is_empty()
             || !self.io_requests.is_empty()
@@ -367,47 +359,32 @@ impl HostIo {
         self.failed
     }
 
-    fn reap(&mut self, env: &Env<io::Limits>) {
-        for _ in 0..self.completions.capacity() {
-            let Some(complete) = self.completions.pop() else { break };
-            self.signals.completed(complete.op);
-            let route = self.operations.remove(&complete.op).expect("one route per submitted kernel operation");
-            match route {
-                Operation::ProgramRoot => self.programs.as_mut().expect("program root close").root_closed(),
-                Operation::Io(op) => io::up(
-                    &mut self.io,
-                    env,
-                    kernel::Complete { op, kind: complete.kind, result: complete.result },
-                    &mut self.io_events,
-                    &mut self.io_submissions,
-                ),
-                Operation::File(op) => file_layer::up(
-                    &mut self.files,
-                    kernel::Complete { op, kind: complete.kind, result: complete.result },
-                    &mut self.file_events,
-                    &mut self.file_submissions,
-                ),
-            }
+    // A completion's token names its lane (skein/docs/design/io.md, 5).
+    fn split(&mut self, complete: kernel::Complete) {
+        self.signals.completed(complete.op);
+        self.in_flight = self.in_flight.checked_sub(1).expect("one completion per submitted operation");
+        if complete.op == PROGRAM_ROOT {
+            self.programs.as_mut().expect("program root close").root_closed();
+        } else if file_layer::owns(complete.op) {
+            file_layer::up(&mut self.files, complete, &mut self.file_events, &mut self.file_submissions);
+        } else {
+            self.io_completions.push(complete);
         }
     }
 
     pub(crate) fn io_up(&mut self, env: &Env<io::Limits>) {
-        let now = env.now;
-        for _ in 0..self.limits.io.sockets {
-            if !self.io.is_ready() {
-                break;
-            }
-            io::resume(&mut self.io, env, &mut self.io_events, &mut self.io_submissions);
+        for _ in 0..self.completions.len() {
+            let Some(complete) = self.completions.pop() else { break };
+            self.split(complete);
         }
-        self.reap(env);
-        for _ in 0..self.limits.io.sockets {
-            if self.io.is_ready() {
-                io::resume(&mut self.io, env, &mut self.io_events, &mut self.io_submissions);
-            }
-            if self.io.is_due(now) {
-                io::fire(&mut self.io, env, &mut self.io_events, &mut self.io_submissions);
-            }
-        }
+        io::stage::up(
+            &mut self.io,
+            env,
+            &mut self.io_completions,
+            &mut self.io_events,
+            &mut self.io_submissions,
+            env.now,
+        );
     }
 
     pub(crate) fn shell_events(&mut self) -> &mut Queue<io::Event> {
@@ -639,48 +616,31 @@ impl HostIo {
 
     fn flush_submissions(&mut self) {
         for _ in 0..self.limits.queue {
-            if self.submissions.room() == 0 || self.operations.len() == self.operations.capacity() {
+            if !self.edge_room() {
                 break;
             }
             let Some(submit) = self.io_submissions.pop() else { break };
-            self.route_submission(submit, false);
+            self.forward(submit);
         }
         for _ in 0..self.limits.queue {
-            if self.submissions.room() == 0 || self.operations.len() == self.operations.capacity() {
+            if !self.edge_room() {
                 break;
             }
             let Some(submit) = self.file_submissions.pop() else { break };
-            self.route_submission(submit, true);
+            self.forward(submit);
         }
     }
 
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "kernel operations are external; only Cancel references another operation"
-    )]
-    fn route_submission(&mut self, submit: kernel::Submit, file: bool) {
-        let global = Token::new(self.next_operation);
-        self.next_operation = self.next_operation.checked_add(1).expect("kernel operation tokens never wrap");
-        let kind = match submit.kind {
-            kernel::Op::Cancel { target } => {
-                let mut found = None;
-                for (global, route) in &self.operations {
-                    match route {
-                        Operation::File(original) if file && *original == target => found = Some(*global),
-                        Operation::Io(original) if !file && *original == target => found = Some(*global),
-                        Operation::File(_) | Operation::Io(_) | Operation::ProgramRoot => {}
-                    }
-                }
-                kernel::Op::Cancel { target: found.unwrap_or(Token::new(u64::MAX)) }
-            }
-            other => other,
-        };
-        if let kernel::Op::ReadSignal { .. } = &kind {
-            self.signals.reading(global);
+    fn edge_room(&self) -> bool {
+        self.submissions.room() > 0 && self.in_flight < self.limits.queue
+    }
+
+    fn forward(&mut self, submit: kernel::Submit) {
+        if let kernel::Op::ReadSignal { .. } = &submit.kind {
+            self.signals.reading(submit.op);
         }
-        let route = if file { Operation::File(submit.op) } else { Operation::Io(submit.op) };
-        self.operations.insert(global, route).expect("reserved kernel route");
-        self.submissions.push(kernel::Submit { op: global, kind });
+        self.in_flight = self.in_flight.checked_add(1).expect("kernel edge bounds operations in flight");
+        self.submissions.push(submit);
     }
 
     fn request(
@@ -910,7 +870,8 @@ mod tests {
     #[test]
     fn invalid_limits_are_refused() {
         let base = crate::tests::config().limits.process.io;
-        assert!(native_io_valid(&base));
+        let mut limits = crate::tests::config().limits.process;
+        assert!(valid(&limits, false));
         let changes: &[fn(&mut io::Limits)] = &[
             |limits| limits.refusals = 0,
             |limits| limits.intake = 0,
@@ -921,14 +882,18 @@ mod tests {
             |limits| limits.retry = skein_lib::Duration::ZERO,
             |limits| limits.sockets = u32::MAX,
             |limits| limits.sockets = u32::MAX / 8 + 1,
+            |limits| limits.sockets = 1 << 24_u32,
+            |limits| limits.sockets = u32::MAX / 8,
         ];
         for change in changes {
             let mut invalid = base;
             change(&mut invalid);
-            assert!(!native_io_valid(&invalid), "invalid native IO: {invalid:?}");
+            limits.io = invalid;
+            assert!(!valid(&limits, false), "invalid native IO: {invalid:?}");
         }
-        for sockets in [0, u32::MAX / 8] {
-            assert!(native_io_valid(&io::Limits { sockets, ..base }));
+        for sockets in [0, (1 << 24_u32) - 1] {
+            limits.io = io::Limits { sockets, ..base };
+            assert!(valid(&limits, false));
         }
     }
 
@@ -1148,6 +1113,11 @@ mod tests {
         kernel::Submit { op: Token::new(number), kind: kernel::Op::Close { fd: kernel::Fd::new(90) } }
     }
 
+    fn close_completion() -> kernel::Complete {
+        let submit = close_submission(1);
+        kernel::Complete { op: submit.op, kind: submit.kind, result: Ok(kernel::Done::Nothing) }
+    }
+
     #[test]
     fn a_host_io_drains_more_io_terminals_than_its_queue_in_one_burst() {
         let mut host_io = host_io(ROUTING_QUEUE, BURST);
@@ -1343,51 +1313,50 @@ mod tests {
         host_io.submissions.push(close_submission(10));
         host_io.io_submissions.push(close_submission(11));
         host_io.io_submissions.push(close_submission(12));
-        host_io.file_submissions.push(close_submission(13));
+        host_io.file_submissions.push(close_submission(file_layer::LANE | 0x0d));
         host_io.flush_submissions();
         assert_eq!(host_io.submissions.capacity(), KERNEL_QUEUE);
         assert_eq!(host_io.completions.capacity(), KERNEL_QUEUE);
         assert_eq!(host_io.submissions.len(), KERNEL_QUEUE);
         assert_eq!(host_io.io_submissions.len(), 2, "full edge holds IO");
         assert_eq!(host_io.file_submissions.len(), 1, "full edge holds files");
-        assert!(host_io.operations.is_empty(), "no route crosses the full kernel edge");
+        assert_eq!(host_io.in_flight, 0, "no operation crosses the full kernel edge");
         host_io.submissions.pop().expect("shell drains the occupied edge");
         for original in [11, 12, 13] {
             host_io.flush_submissions();
             assert_eq!(host_io.submissions.len(), KERNEL_QUEUE, "only one submission crosses returned credit");
             let submit = host_io.submissions.pop().expect("shell takes the routed submission");
             host_io.flush_submissions();
-            assert!(host_io.submissions.is_empty(), "the operation table also waits for completion credit");
-            // Model the route retirement performed by reap, without sending
-            // these synthetic operations into the real IO/file machines.
-            match host_io.operations.remove(&submit.op).expect("one route per kernel operation") {
-                Operation::Io(token) => {
-                    assert!(original == 11 || original == 12, "IO retains priority over files");
-                    assert_eq!(token, Token::new(original));
-                }
-                Operation::File(token) => {
-                    assert_eq!(original, 13, "files follow both IO submissions");
-                    assert_eq!(token, Token::new(original));
-                }
-                Operation::ProgramRoot => panic!("fixture has no program root"),
+            assert!(host_io.submissions.is_empty(), "the kernel edge also waits for completion credit");
+            // Model completion credit without sending synthetic operations to the machines.
+            host_io.in_flight = host_io.in_flight.checked_sub(1).unwrap();
+            if file_layer::owns(submit.op) {
+                assert_eq!(original, 13, "files follow both IO submissions");
+                assert_eq!(submit.op, Token::new(file_layer::LANE | original));
+            } else {
+                assert!(original == 11 || original == 12, "IO retains priority over files");
+                assert_eq!(submit.op, Token::new(original));
             }
         }
         assert!(host_io.io_submissions.is_empty());
         assert!(host_io.file_submissions.is_empty());
-        assert!(host_io.operations.is_empty());
+        assert_eq!(host_io.in_flight, 0);
+    }
+
+    #[test]
+    fn a_staged_io_completion_keeps_work_pending() {
+        let mut host_io = host_io(KERNEL_QUEUE, KERNEL_QUEUE);
+        host_io.io_completions.push(close_completion());
+        assert!(host_io.work_pending(Time::ZERO), "a staged IO completion needs another up pass");
     }
 
     #[test]
     fn the_process_backlog_counts_only_internal_handoffs() {
         let mut host_io = host_io(KERNEL_QUEUE, KERNEL_QUEUE);
         host_io.submissions.push(close_submission(1));
-        host_io.completions.push(kernel::Complete {
-            op: Token::new(1),
-            kind: kernel::Op::Close { fd: kernel::Fd::new(90) },
-            result: Ok(kernel::Done::Nothing),
-        });
+        host_io.completions.push(close_completion());
         host_io.shell_events.push(io::Event::Resized);
-        host_io.operations.insert(Token::new(1), Operation::Io(Token::new(1))).expect("one edge route");
+        host_io.in_flight = 1;
         assert_eq!(host_io.backlog(), 0, "kernel and shell edges are outside the backlog");
         host_io.io_events.push(io::Event::Resized);
         host_io.io_submissions.push(close_submission(2));

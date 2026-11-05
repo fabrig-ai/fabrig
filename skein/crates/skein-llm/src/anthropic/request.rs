@@ -4,6 +4,7 @@
 use crate::{Block, Error, Json, Prompt, Provider, Replay, Role, Tool, wire};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer};
+use skein_lib::usize_of;
 
 /// Encode the request under the endpoint's nonzero declared output ceiling.
 pub fn encode_request(prompt: &Prompt, declared_output: u32, limits: &wire::Limits) -> Result<Box<[u8]>, Error> {
@@ -40,11 +41,11 @@ pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &wire::Lim
     if prompt.max_output_tokens.unwrap_or(declared_output) > declared_output {
         return Err(Error::limit(crate::Cap::Output, declared_output));
     }
-    let count = usize::try_from(limits.history_items).expect("u32 fits usize");
+    let count = usize_of(limits.history_items);
     if prompt.model.is_empty() || prompt.messages.is_empty() || prompt.max_output_tokens == Some(0) {
         return Err(Error::Invalid);
     }
-    if prompt.tools.len() > usize::try_from(limits.tools).expect("bounded tools") {
+    if prompt.tools.len() > usize_of(limits.tools) {
         return Err(Error::limit(crate::Cap::Tools, limits.tools));
     }
     if prompt.messages.len() > count {

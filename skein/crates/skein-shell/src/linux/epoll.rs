@@ -43,7 +43,7 @@ impl Epoll {
         }
         // SAFETY: fd is fresh, exclusively owned, and transferred exactly once.
         let fd = unsafe { OwnedFd::from_raw_fd(fd) };
-        let capacity = usize::try_from(operations).expect("a u32 fits usize");
+        let capacity = skein_lib::usize_of(operations);
         Ok(Self { fd, events: vec![libc::epoll_event { events: 0, u64: 0 }; capacity].into_boxed_slice() })
     }
 

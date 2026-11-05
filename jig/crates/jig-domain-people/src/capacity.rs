@@ -3,7 +3,7 @@
 //! Permanent facts come from retained keyed answers; entrance pressure is
 //! bounded live history, independent of diagnostics and replay decisions.
 
-use crate::{Ask, LimitKind, Outcome, Refusal, RequestKey};
+use crate::{ApplicationScope, Ask, AskFamily, LimitKind, Outcome, Refusal, RequestKey};
 use skein_lib::Wall;
 
 /// The refused operation's kind and existing object identity, without its payload.
@@ -101,94 +101,19 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
 }
 
 pub(crate) fn project(ask: &Ask) -> Option<u32> {
-    match ask {
-        Ask::Compound { project, .. }
-        | Ask::EditNote { project, .. }
-        | Ask::MakeService { project, .. }
-        | Ask::Adopt { project, .. }
-        | Ask::SetRoles { project, .. }
-        | Ask::RemoveProject { project, .. }
-        | Ask::SetVisibility { project, .. }
-        | Ask::Rename { project, .. }
-        | Ask::ChangePolicy { project, .. }
-        | Ask::SetPool { project, .. }
-        | Ask::DecideEscalation { project, .. }
-        | Ask::DecideProposal { project, .. }
-        | Ask::Say { project, .. }
-        | Ask::AnswerQuestion { project, .. }
-        | Ask::Amend { project, .. }
-        | Ask::Move { project, .. }
-        | Ask::TakePerson { project, .. }
-        | Ask::HandBackPerson { project, .. }
-        | Ask::AnswerPerson { project, .. }
-        | Ask::Stop { project, .. }
-        | Ask::Cancel { project, .. }
-        | Ask::Release { project, .. }
-        | Ask::Create { project, .. }
-        | Ask::Propose { project, .. }
-        | Ask::Withdraw { project, .. } => Some(*project),
-        Ask::Restore { .. } | Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
+    match ask.family() {
+        AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => Some(project),
+        AskFamily::Restore | AskFamily::Deployment | AskFamily::Application(ApplicationScope::Deployment) => {
             Some(crate::DEPLOYMENT)
         }
-        Ask::Application { scope, .. } => match scope {
-            crate::ApplicationScope::Own => None,
-            crate::ApplicationScope::Project(project) => Some(*project),
-            crate::ApplicationScope::Deployment => Some(0),
-        },
-        Ask::Lift { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => None,
+        AskFamily::Application(ApplicationScope::Own) | AskFamily::Account | AskFamily::Lift | AskFamily::Seen => None,
     }
 }
 
 pub(crate) fn permanent(outcome: &Outcome) -> Option<CapacityCause> {
-    match outcome {
-        Outcome::Refused(refusal) | Outcome::CompoundRefused { why: refusal, .. } => room(refusal),
-        Outcome::Compound { .. }
-        | Outcome::Applied { .. }
-        | Outcome::Again(_)
-        | Outcome::SignedOut
-        | Outcome::NoteEdited { .. }
-        | Outcome::ServiceMade { .. }
-        | Outcome::Adopted { .. }
-        | Outcome::Created { .. }
-        | Outcome::Restored { .. }
-        | Outcome::Proposed { .. }
-        | Outcome::Withdrawn { .. }
-        | Outcome::Stopped { .. }
-        | Outcome::Cancelled { .. }
-        | Outcome::Lifted { .. }
-        | Outcome::Released { .. }
-        | Outcome::PersonTaken { .. }
-        | Outcome::PersonHandedBack { .. }
-        | Outcome::PersonAnswered { .. }
-        | Outcome::Moved { .. }
-        | Outcome::ProposalDecided { .. }
-        | Outcome::Said { .. }
-        | Outcome::QuestionAnswered { .. }
-        | Outcome::Amended { .. }
-        | Outcome::RolesSet { .. }
-        | Outcome::PolicyChanged { .. }
-        | Outcome::Renamed { .. }
-        | Outcome::ProjectMade { .. }
-        | Outcome::ProjectRemoved { .. }
-        | Outcome::VisibilitySet { .. }
-        | Outcome::SettingsChanged { .. }
-        | Outcome::MovedToNewest { .. }
-        | Outcome::PoolSet { .. }
-        | Outcome::EscalationDecided { .. }
-        | Outcome::AccountSignInStarted { .. }
-        | Outcome::AccountProgramDeclared { .. }
-        | Outcome::AccountKeyKept { .. }
-        | Outcome::AccountMovingOut { .. }
-        | Outcome::AccountFinishing { .. }
-        | Outcome::AccountMovedIn { .. }
-        | Outcome::AccountChanged
-        | Outcome::AccountRemoved { .. }
-        | Outcome::AccountSignedOut { .. }
-        | Outcome::MarkedSeen { .. } => None,
+    match outcome.refusal() {
+        Some(refusal) => room(refusal),
+        None => None,
     }
 }
 

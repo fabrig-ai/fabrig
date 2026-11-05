@@ -1,4 +1,5 @@
 use super::{Domain, Env, Fact, Fresh, Limits, LiveRecord, Priority, Progress, RepositoryRecord, Scan, State, What};
+use skein_lib::usize_of;
 
 pub(crate) fn restore_writer(d: &mut Domain, env: &Env<Limits>, writer: crate::Writer) {
     assert!(!d.keep.ready, "restore before restored");
@@ -22,7 +23,7 @@ pub(crate) fn restore_live(d: &mut Domain, env: &Env<Limits>, record: LiveRecord
         || !super::answer::valid_deliveries(&record.comments, env.limits.inbox)
         || !super::answer::valid_deliveries(&record.reviews, env.limits.inbox)
         || !crate::bounds::cached(&record.cached, &env.limits)
-        || record.echoes.len() > usize::try_from(env.limits.rows).expect("u32 fits usize")
+        || record.echoes.len() > usize_of(env.limits.rows)
         || d.keep.live.len() >= env.limits.resources
     {
         d.keep.failed = true;

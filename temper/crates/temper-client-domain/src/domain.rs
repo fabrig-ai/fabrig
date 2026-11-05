@@ -173,9 +173,7 @@ fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
                 }
                 crate::Address::Welcome { step }
             }
-            crate::pages::welcome::FirstRun::Whole => {
-                crate::Address::Chats { filter: crate::ChatsFilter::All, start: false }
-            }
+            crate::pages::welcome::FirstRun::Whole => crate::Address::Chats { filter: crate::ChatsFilter::All },
         };
         out.push(Request::Show { address, replace: true });
     }

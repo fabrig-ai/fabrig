@@ -1,6 +1,6 @@
 use super::*;
 use skein_json::writer::Encoder;
-use skein_lib::{Writer, base64};
+use skein_lib::{Writer, base64, usize_of};
 
 const MIN_BITS: u32 = 2048; // oauth.md, section 2.2.
 const MAX_BITS: u32 = 4096; // limits().modulus_bits.
@@ -40,13 +40,13 @@ fn fetching(direct: bool) -> (Client, HttpRequest) {
 fn encoded(raw: &[u8]) -> Box<[u8]> {
     let length =
         base64::encoded_len(base64::Alphabet::Url, u32::try_from(raw.len()).expect("fixture")).expect("fixture");
-    let mut out = Writer::new(usize::try_from(length).expect("fixture"));
+    let mut out = Writer::new(usize_of(length));
     base64::encode(base64::Alphabet::Url, raw, &mut out).expect("fixture");
     out.finish()
 }
 fn modulus(bits: u32, leading_zero: bool) -> Box<[u8]> {
     const MAX_BYTES: usize = 514; // One byte beyond 4096 bits, plus a leading zero.
-    let count = usize::try_from(bits.div_ceil(8)).expect("fixture");
+    let count = usize_of(bits.div_ceil(8));
     let mut raw = [0xff; MAX_BYTES];
     let offset = usize::from(leading_zero);
     if leading_zero {
@@ -145,10 +145,7 @@ struct KeyRow {
     expected: Option<KeyShape>,
 }
 fn key_shape(bits: u32, count: u32) -> KeyShape {
-    KeyShape {
-        count: usize::try_from(count).expect("fixture"),
-        modulus_bytes: usize::try_from(bits / 8).expect("fixture"),
-    }
+    KeyShape { count: usize_of(count), modulus_bytes: usize_of(bits / 8) }
 }
 fn key_row(name: &'static str) -> KeyRow {
     KeyRow {
@@ -213,8 +210,8 @@ fn failed_fetch(row: FetchRow) -> Option<Request> {
     step(&mut client, answered(get.id, row.status, &row.body, row.now))
 }
 fn failed_fetch_rows() -> [FetchRow; 11] {
-    let metadata_cap = usize::try_from(limits().metadata_bytes).expect("fixture");
-    let set_cap = usize::try_from(limits().key_set_bytes).expect("fixture");
+    let metadata_cap = usize_of(limits().metadata_bytes);
+    let set_cap = usize_of(limits().key_set_bytes);
     let mut metadata_body = bytes::zeroed(metadata_cap.checked_add(1).expect("small fixture"));
     let mut set_body = bytes::zeroed(set_cap.checked_add(1).expect("small fixture"));
     for body in [&mut metadata_body, &mut set_body] {

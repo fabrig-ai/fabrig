@@ -63,7 +63,7 @@ impl<'a> Fields<'a> {
     pub(super) fn presented(&self, route: Provider, list: &[Credential], auth: Auth) -> Presented {
         let (scheme, index) = match auth {
             Auth::Matched(index) => {
-                let credential = list.get(usize::try_from(index).expect("u32 fits usize")).expect("matched index");
+                let credential = list.get(skein_lib::usize_of(index)).expect("matched index");
                 (Some(credential.scheme), Some(index))
             }
             Auth::Open | Auth::Unauthorized => {

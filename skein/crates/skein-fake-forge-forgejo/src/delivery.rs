@@ -7,7 +7,7 @@ use skein_fake_forge_domain::{
     api::{Change, Check},
 };
 use skein_forge::forgejo::{delivery, document::Body, request::ReviewEvent, server};
-use skein_lib::{Decimal, List, Secret, Writer, bytes, sha256::Hmac};
+use skein_lib::{Decimal, List, Secret, Writer, bytes, len_u64, sha256::Hmac};
 /// One forge's destination and signing secret; no secret crosses into its domain.
 #[derive(Debug)]
 pub struct Endpoint {
@@ -137,7 +137,7 @@ impl Service {
 }
 
 fn post(sent: server::delivery::Sent, target: &[u8], host: &[u8], secret: &Secret) -> Option<Post> {
-    let length = Decimal::of(u64::try_from(sent.body.len()).ok()?);
+    let length = Decimal::of(len_u64(sent.body.len()));
     let signature = sign(secret, &sent.body);
     let parts: [&[u8]; 16] = [
         b"POST ",

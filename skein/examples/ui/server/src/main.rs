@@ -6,7 +6,7 @@ use skein_http::sse::writer as sse;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_io::{self as io, Addr, Io, Request};
 use skein_lib::stream::{self, Read};
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall, usize_of};
 use skein_shell::{Backend, Clock, Config, Host, Kernel, drive};
 use skein_ui_example_server::{State, bundle::Bundle, routes};
 use std::collections::{BTreeMap, VecDeque};
@@ -252,7 +252,7 @@ impl Web {
                     let conn = self.connections.get_mut(&owner).expect("live connection");
                     let end = conn
                         .sent
-                        .checked_add(usize::try_from(self.env.limits.send).expect("send fits"))
+                        .checked_add(usize_of(self.env.limits.send))
                         .expect("bounded reply")
                         .min(conn.reply.len());
                     let bytes = Box::from(conn.reply.get(conn.sent..end).expect("sent stays within reply"));
@@ -322,7 +322,7 @@ impl Web {
         };
         let len = base64::encoded_len(Alphabet::Standard, u32::try_from(note.len()).expect("note bounded"))
             .expect("event fits");
-        let mut writer = Writer::new(usize::try_from(len).expect("event fits"));
+        let mut writer = Writer::new(usize_of(len));
         base64::encode(Alphabet::Standard, note, &mut writer).expect("event measured");
         let data = writer.finish();
         let owners: Vec<_> =

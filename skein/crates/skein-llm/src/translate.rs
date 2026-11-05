@@ -4,6 +4,7 @@
 use crate::{Block, Error, Prompt, Provider, Replay, Role, openai};
 use alloc::boxed::Box;
 use skein_json::{Kind, writer};
+use skein_lib::usize_of;
 #[cfg(test)]
 use skein_lib::{List, Writer, bytes};
 
@@ -305,10 +306,10 @@ fn validate(prompt: &Prompt, provider: Provider, limits: &openai::Limits) -> Res
     if prompt.model.is_empty() {
         return Err(Error::Invalid);
     }
-    if prompt.tools.len() > usize::try_from(limits.tools).expect("bounded tools") {
+    if prompt.tools.len() > usize_of(limits.tools) {
         return Err(Error::limit(crate::Cap::Tools, limits.tools));
     }
-    let count = usize::try_from(limits.history_items).expect("bounded history");
+    let count = usize_of(limits.history_items);
     if prompt.messages.len() > count {
         return Err(Error::limit(crate::Cap::HistoryItems, limits.history_items));
     }
@@ -659,7 +660,7 @@ fn charge_replay_item(
         };
         match openai::json::optional_at(view, encrypted) {
             Ok(Some(encrypted)) => match openai::json::text_ref(encrypted) {
-                Ok(text) if text.len() > usize::try_from(maximum).expect("bounded reasoning") => {
+                Ok(text) if text.len() > usize_of(maximum) => {
                     return Err(Error::limit(cap, maximum));
                 }
                 Ok(_) => {}

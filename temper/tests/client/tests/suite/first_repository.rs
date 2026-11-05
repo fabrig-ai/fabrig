@@ -236,7 +236,7 @@ fn leaving_the_flow_keeps_the_made_repository_unadopted() {
     let mut world = configured(true);
     let person = world.client(fixtures::PARTY, flow());
     setup(&mut world, person);
-    script(&mut world, person, vec![Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } }]);
+    script(&mut world, person, vec![Step::Go { address: Address::Chats { filter: ChatsFilter::All } }]);
     made(&mut world);
     connected(&mut world);
     let _ = world.run(Until::Steps(256));

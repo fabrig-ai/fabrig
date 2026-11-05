@@ -297,6 +297,11 @@ const PROPERTIES: &[(Role, Property, &str)] = &[
         r#"<button data-node="1" type="button" aria-keyshortcuts="Meta+K"></button>"#,
     ),
     (
+        Role::Disclosure,
+        Property::State(State::FoldsAway),
+        r#"<details data-node="1" data-folds-away=""><summary></summary></details>"#,
+    ),
+    (
         Role::Item,
         Property::State(State::Completed),
         r#"<li data-node="1"><span id="skein-ui-state-1"> completed</span></li>"#,

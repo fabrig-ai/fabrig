@@ -81,7 +81,7 @@ pub(crate) fn read_signal(fd: Fd) -> Result<Done, Error> {
     if PIPES.lock().expect("signal pipe table is not poisoned").contains(&fd) {
         let mut bytes = [0; size_of::<i32>()];
         let count = super::read(fd, &mut bytes).map_err(Error::Other)?;
-        if usize::try_from(count).expect("u32 fits usize") != bytes.len() {
+        if skein_lib::usize_of(count) != bytes.len() {
             return Err(Error::Other(libc::EIO));
         }
         return decode(i32::from_ne_bytes(bytes));

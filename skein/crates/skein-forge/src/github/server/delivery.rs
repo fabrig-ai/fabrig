@@ -7,6 +7,7 @@ use super::super::{
 use crate::text::Body;
 use alloc::boxed::Box;
 use skein_json::writer::{self, Encoder};
+use skein_lib::usize_of;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Sent {
@@ -43,7 +44,7 @@ fn body(json: &mut Encoder, value: &Body, limits: &Limits) -> Result<(), writer:
     match value {
         Body::Long(_) => return Err(writer::Refusal::TooLong),
         Body::Kept(text) => {
-            if text.len() > usize::try_from(limits.body_bytes).expect("u32 fits usize") {
+            if text.len() > usize_of(limits.body_bytes) {
                 return Err(writer::Refusal::TooLong);
             }
             json.key(b"body");
@@ -127,8 +128,7 @@ pub(super) fn write(value: &Delivery, limits: &Limits, json: &mut Encoder) -> Re
         }
         Delivery::Push { repository: id, branch, after, deleted, sender } => {
             repository(json, *id);
-            if branch.len().saturating_add(b"refs/heads/".len())
-                > usize::try_from(limits.string_bytes.min(limits.json.string)).expect("u32 fits usize")
+            if branch.len().saturating_add(b"refs/heads/".len()) > usize_of(limits.string_bytes.min(limits.json.string))
             {
                 return Err(writer::Refusal::TooLong);
             }

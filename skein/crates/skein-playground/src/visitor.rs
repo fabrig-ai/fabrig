@@ -6,7 +6,7 @@ use alloc::collections::{BTreeMap, VecDeque};
 use connection::Connection;
 use skein_http::{Header, Method, client as http};
 use skein_io::{self as io, kernel};
-use skein_lib::{Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall, len_u64, usize_of};
 use skein_shell::Host;
 use skein_ui_web::{bridge, fetch, transport::StreamDuty};
 
@@ -166,7 +166,7 @@ impl Visitor {
             self.end(ticket);
             return;
         };
-        if self.connections.len() >= usize::try_from(self.config.io.sockets).expect("socket count fits")
+        if self.connections.len() >= usize_of(self.config.io.sockets)
             || !exchange.path.starts_with(b"/")
             || exchange.path.starts_with(b"//")
             || exchange.path.contains(&b'\\')
@@ -198,7 +198,7 @@ impl Visitor {
                 method,
                 target: exchange.path,
                 headers: headers.into_boxed_slice(),
-                body: http::Body::Length(u64::try_from(exchange.body.len()).expect("body length fits")),
+                body: http::Body::Length(len_u64(exchange.body.len())),
                 close: true,
             },
             exchange.body,
