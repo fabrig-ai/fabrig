@@ -1,6 +1,6 @@
 //! Memory stays under scenario ceilings (skein/docs/foundation/programming-model.md, section 6.3), measured by
 //! a counting allocator: the tools child domain with every kit holding the
-//! longest authority, knowing as many files as it may at the longest paths,
+//! one-name authority, knowing as many files as it may at the longest paths,
 //! and running as many edits, writes and reads as it may. Driven at random,
 //! it is checked in `fuzzy_memory.rs`.
 

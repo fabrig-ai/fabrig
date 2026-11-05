@@ -71,7 +71,7 @@ section 11.
   and the client reads it from the engine (4.8): a banner of one line
   on every page says it is the playground and offers "set up temper",
   which resets it and opens the welcome's Forge step, and the
-  playground's project's chats page suggests the requests its model
+  playground's `NewChat` suggests the requests its model
   plays (5.6). The printed link's sign-in in a browser lands on the
   welcome where the document shows it, and on the inbox otherwise
   (`browser.md`, 2.4).
@@ -353,9 +353,10 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Settings { project }` | the greenfield mock's `settings.html` | How work runs, the first tab of a project's settings: Configure temper, what the project shows, its ways of working, its status, what needs the person, while the person is away and telling them (*Settings,* below; 5.13) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13) |
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
-| `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root). In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
-| `Chats` | `chats.html`; the playground's start at the first run's first step, which `first-run.html` opens | a pane at the head of its main, a complementary region named "Project" (`browser.md`, 2.5): the new chat's bar (below), in the playground's project while the playground starts or runs the playground's start (4.8, 5.6), then the person's chats under the level-1 heading "Chats", as one list, "Your chats", live and ended together, newest first, under All, Live or Closed (below), each with its project and number, title, status, own spend and live delegates, and last the playground's banner while it runs or is leaving (5.1); beside the pane, the composer to start a chat alone: its text area "Start a chat", showing "Describe a change" while it is empty, and its button "Start chat", with the hint "enter to start · shift+enter for newline", then its line and its chooser (5.5) under it, and in the playground's start its suggested requests under them (5.6) | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; choose the list's filter; more closed chats |
-| `Chat { task }` | `chat.html` | its chatbar: its number and title, its status, its spend and acts; after it, the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate` or a `change`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); its status and spend; Stop and Close; the composer, while the chat lives: its line and its chooser (5.5), its text area "Message" with the placeholder "Message T6…", T6 the chat's number, shown while it is empty and never its name, and the hint "Enter to send · Shift+Enter for newline", and "Send", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, its line and chooser alone; an ended chat draws no composer and no composer's line | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7) | message, stop, close, accept or reject a proposal in place |
+| `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root). In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
+| `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended | choose the list's filter; more closed chats |
+| `NewChat` | the greenfield mock's `chat.html?id=new`; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request |
+| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Stop and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7) | message, stop, close, change the next run's model, accept or reject a proposal in place |
 | `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
 | `Task { task }` | `task.html` | a goal: its header, what was asked and the result it gives, its result once ended, its plan as a tree of its delegates, live and ended, with their counts and its filter, each task's state, spend and dependencies, its latest activity and history, its budget and authority (5.8), with Amend, Stop and Cancel (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Stop and its composer (5.11); either's own held card while it is held | `task`, `tree`, `activity` a page at a time, older pages on an agent's task's "Older"; `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change | a goal's plan's filter (5.8); as its document offers them (5.11): on a goal amend, stop, cancel; on an agent's task message, amend, stop; release its own held task or one of its plan |
 | `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
@@ -373,14 +374,38 @@ keeps (`../protocol/configuration.md`, section 2).
   jig's thread model; jig's enums and a decision's facts in jig's
   words, under temper's phrasebook (5.1);
   each card temper's own (section 1).
-- **A chat's chatbar** (`chat.html`): its level-1
-  heading "TN · TITLE", the chat's task number and its title (a
-  chat's first message); its status; its own spend, “N spent · of B”; and its acts. Every ended
-  chat says “Closed”, with its end’s clock when supplied (“Closed 21:19”). Nothing
-  of the composer's line (5.5) is repeated there, neither its model nor
-  its effort, nor the mockup's template, charter, host kind and budget:
-  the composer's line says what the next run uses (the user's pick,
-  10-23).
+- **One layout for every chat** (the greenfield mock's `chat.html`): every
+  chat and `NewChat` take the layout of the configuring chat's page
+  (`temper-session`; *The configuring chat's page,* below). The rail stays
+  on every chat: the user's choice in `configure-chat-in-settings`, which
+  supersedes the mock's rail-less chat. On a phone, at 760 px or less, rail
+  and tab bar go. A chat differs from a configuring chat only in its path
+  and its chooser: a chat's path is "PROJECT / Chats /", "‹" on a phone a
+  link to `Chats`; a configuring chat's is still through `Settings`, the
+  rail current on Settings, and it has no chooser.
+- **A chat's bar** holds its path, its level-1 heading "TN · TITLE", the
+  chat's task number and its title (a chat's first message), of which a
+  browser shows the title, and at its right, in this order:
+  1. *Its byline:* "T4 · ", then the composer's line (5.5) as its words,
+     account, " · ", model. It is the summary of the "Change model"
+     disclosure (*The work's account and model,* below), the same pixels as
+     the mock's `.byline` until pressed, the ink colour on hover. Its body
+     is a panel under the bar, 320 px wide, closing on a press outside it
+     or Escape (skein's `ui.md`, 3.2, *folds away*). On a phone the byline
+     goes, and the disclosure's name, "Change model", shows instead, so
+     that the choice stays reachable. A configuring chat's byline is a
+     line with nothing behind it.
+  2. *Its status,* quiet: 12 px, faint, in lower case by the look alone.
+     It is the colour of `.state-needs` while it waits for the person.
+     Every ended chat says "Closed", with its end's clock when supplied
+     ("Closed 21:19").
+  3. *Stop and Close,* while allowed, each quiet and small. The mock has
+     neither; they are the only way to stop or end a chat.
+  4. *Its own spend,* "N spent · of B", in the view and hidden in the
+     browser.
+
+  The next plan adds the mode group and "Start goal…" after the byline, so
+  the bar's right part is a flex row that takes them.
 - **A conversation's turns** are named "You" when the turn is the
   person's own, "Temper" when it is the agent's, and by the party's
   name otherwise (`chat.html`), on every page that draws a
@@ -389,7 +414,7 @@ keeps (`../protocol/configuration.md`, section 2).
   rule (5.12): a line's time for the agent's words and the person's,
   and for the request the conversation's first line's; words not yet
   read by the engine have none.
-- **A chat's status,** in its chatbar and on its line of the chats
+- **A chat's status,** in its bar and on its line of the Chats
   page, is jig's, narrowed as the mockups' "Where each value comes
   from" says: "waiting on 1 delegate", "waiting on N delegates" while
   it waits on its delegates, N its chip's live delegates, as a goal's
@@ -404,10 +429,10 @@ keeps (`../protocol/configuration.md`, section 2).
   is on the person, before its delegates, and it says "Waiting for
   you". A line of the chats page reads the same wake policy, from its
   chip's (`OwnerChipDetails`' `wake`), and says "waiting on your words"
-  as the chatbar does: a chat at rest after its reply, which only its
+  as the bar does: a chat at rest after its reply, which only its
   person's words or Close move on (jig's `domain/tasks.md`, 5.8). A
   chat whose host refuses its start says jig's "Cannot start yet", and
-  its composer's line says why (below); a line of the chats page holds
+  the feedback above its composer says why (below); a line of the Chats page holds
   no run wait, so it is never refused, and says jig's word for its
   stage (jig's `client/domain/client.md`, 19.1). A chat held on a
   configured bound (jig's `Exceeded` hold) says jig's phrase for that
@@ -476,32 +501,103 @@ keeps (`../protocol/configuration.md`, section 2).
     REASON"). Who closed it is the ending's `by` against the chat's
     requester, both in its document, never the reason's words. The
     result is not drawn again.
-- **The new chat's bar** (`chats.html`), the pane's head: "New chat"
-  and its status: in the playground's start, the playground's (5.6);
-  else "Starting" while a playground's start is out or its read answers
-  starting; else "Ready" while the composer can send (5.5, 5.6); else
-  none, the composer's line saying why.
-- **The chats list** (`chats.html`), under the pane's level-1 heading
-  "Chats", under the playground's start too (5.6), is one list: the live group's
-  lines by last activity and the ended page's by when each ended,
-  merged newest first, a tie by the lower number first. "All", "Live"
-  and "Closed", three buttons, the chosen one pressed, filter it in
-  the page, reading nothing; the filter is in the page's address
-  (`browser.md`, 2.3), "/chats?state=live", a filter chosen a move, as
-  the inbox's. Under "All" or
-  "Closed", while an older page of ended chats remains, "More closed
-  chats" reads it, in place of the last. With no line to show it says
-  "No chats yet.", or under a filter "No live chats." or "No closed
-  chats.". A line names its project as the switcher does, then "TN", a link to its page, then
-  its title, its status (the chatbar's: one word for one state in
-  both places, and "Closed" for every ended chat, as the filter says
-  it; the user's pick, 10-23), its
-  own spend, "N spent", and "1 delegate" or "N delegates" while it has live ones, and when it
-  ended or was last active, as 5.12's ago ("1 h 28 min ago"). An ended line
-  whose retention is Kept adds “Closed. Its transcript is kept.”; no
-  other line claims that its transcript stays.
-- **The inbox in the terminal** (`inbox.html`; the browser's is *Needs
-  you,* below) shows what needs the person, then the
+
+  Its look is the greenfield mock's `.thread` and `.thread-inner`: a column
+  720 px wide and centred, gap 20, whose scroll stays at the end while the
+  person was at the end. The conversation is still a log.
+  - *The person's and the agent's turns* are `.turn-you` and `.turn-agent`,
+    the agent's Markdown with its first and last margins zero. A turn's
+    name and clock are hidden from sight and stay for readers and the
+    terminal, but "Being sent" and "Sent": 12 px, faint, right aligned under
+    the bubble. The day's line is hidden; a marker is `.meta-line`.
+  - *A delegate's words* look like `.turn-agent`, with "TN" kept visible,
+    12 px and faint, above them.
+  - *A call's line,* `.turn-tool`, opens with the pen icon. The disclosure
+    of other calls keeps its name and description ("2 tool calls",
+    "read ×2") as one line: pen, name muted, description faint; open, its
+    work lines are indented 24 px. A delegated change and a goal are one
+    line each (5.7).
+  - *While it works:* three dots, `.typing`, at the end of the log, named
+    "Writing", while the chat's status is Starting, Writing, Working or a
+    tool's and the window's last line is not provisional text. The terminal
+    prints nothing new for it. *Provisional text* looks like `.turn-agent`,
+    its "writing" label hidden.
+  - *A card in the conversation* (a proposal, a held task, a question's
+    answer) is `.proposal`: white, radius 12, its shadow, 20 px 22 px; a
+    kind's title in `.proposal-title`; `.proposal-split` and
+    `.proposal-state`; its first button `.btn.primary.small`, the rest
+    `.btn.quiet.small`.
+  - *"Older"* is a `.btn.quiet.small`, centred, at the head. *Its end* has
+    `.meta-line`'s look, and an ended chat has no composer.
+- **A new chat** (the greenfield mock's `chat.html?id=new`): `NewChat`,
+  at `/chats/new`, for the open project. The domain's `Chats` state holds
+  its words and start, and `NewChat` opens that state with the page's
+  watches, so that `Act::StartChat`, `Act::ChatWords` and `Act::Suggest`
+  are the page's, as they are the configuring chat's. On the layout every
+  chat takes:
+  - *Its bar:* the path "PROJECT / Chats /", "‹" on a phone a link to
+    `Chats`, and the level-1 heading "New chat"; its byline, `choice`'s
+    `new_chat_model` line, as a chat's is. No project yet, in the
+    playground's start, the path is "Chats /" alone.
+  - *In the thread,* centred, `.meta-line`: "Say what you want; the agent
+    works in OWNER/NAME.", OWNER/NAME the project's home repository, read as
+    Home reads it; or, with none, "Say what you want. PROJECT has no
+    repository yet, so the agent can talk and plan but not change code."
+  - *The composer,* the session's: its name and placeholder "What do you
+    want done?", focused as the page opens, the hint "Enter sends ·
+    Shift+Enter for a new line". There is no "Start" button: the send arrow
+    is the act, grey while the words are empty or the composer cannot send.
+    Sent, while it is out, the arrow is disabled and the words stay; made,
+    `Chat { task }` opens in place of this address; refused, jig's words
+    stay under the composer, the words kept.
+  - *With no usable model,* "No model yet · Connect a model" sits above the
+    composer (5.5).
+  - *The playground's start* (4.8, 5.6): its status, its failure and "Try
+    again" and its context line draw above the `.meta-line`'s place, and its
+    suggestions as `.starters` under it.
+- **The Chats page** (the greenfield mock's `chats.html`): `Chats { filter }`,
+  a page of the frame and no pane, a main with the token `CHATS_PAGE`,
+  drawn as the mock's `.main` and `.col`, in this order:
+  - *Its head,* `.intro`: `.kicker` "PROJECT · chats"; the level-1
+    `.headline` "Talk to an agent about OWNER/NAME.", OWNER/NAME the
+    project's home repository, read as Home reads it, or "Talk to an
+    agent." with none; `.lede` "A chat answers a question or changes the
+    code."
+  - *With no repository* (*A project with no repository,* below), `.band.quiet-band`:
+    `.tag` "No repository yet", "Chats in PROJECT talk and plan, but change
+    no code until a repository is in." and a `.btn.small` link "Adopt a
+    repository", to `Adopt { project }`.
+  - *The list,* `.section`: `.section-head` with `.filters` at its left,
+    "All", "Live" and "Closed", three pressed-or-not buttons that filter
+    in the page, reading nothing, the filter being in the page's address
+    (`browser.md`, 2.3), a filter chosen a move, as the inbox's; and
+    `.btn.small` "+ New chat" at its right, a link to `NewChat`.
+  - *Its rows,* `.goal-rows` and `.goal-row`: the live group's lines by last
+    activity and the ended page's by when each ended, merged newest first,
+    a tie by the lower number first, each row one link: its number's, whose
+    `::after` covers the row. A row's top line, `.top.mono`, holds at its
+    left "T9", then for a configuring chat " · Configuring", and at its right
+    its status, " · " and its age. The status is the bar's (one word for
+    one state in both places, and "Closed" for every ended chat, as the
+    filter says it; the user's pick, 10-23), in lower case by the look
+    alone (the terminal keeps its words), `.state-needs` while it waits on
+    the person: the tokens `STATUS_YOURS` and `STATUS_WAITING`. Its age is
+    Home's short form (5.12, *span*): when it ended or was last active.
+    Under it `.line`, its title, `.goal-row.ended .line` on an ended chat.
+    A row names no project: the page is one project's. Its own spend, "N
+    spent", "1 delegate" or "N delegates" while it has live ones, and on an
+    ended line whose retention is Kept "Closed. Its transcript is kept."
+    stay in the view and are hidden in the browser; no other line claims
+    that its transcript stays.
+  - *With no line to show,* `.empty`, "None.", under every filter.
+  - *"More closed chats",* under "All" or "Closed" while an older page of
+    ended chats remains, a `.btn.quiet.small` under the rows, reads it, in
+    place of the last.
+
+  On a phone, as the mock: `.headline` 25 px, `.goal-row { padding: 12px 0
+  }`, `.goal-row .line { font-size: 15px }`; the frame's top bar and tab bar
+  stay.
+- **The inbox in the terminal** (`inbox.html`; the browser’s is *Needs you,* below) shows what needs the person, then the
   updates, each entry its card (section 1), under two headings, each
   with how many entries it lists beside it, the updates' as new ones
   since what is read leaves them (below): "Needs you 2", "Updates 2
@@ -509,8 +605,8 @@ keeps (`../protocol/configuration.md`, section 2).
   list was cut (jig's `more`, an owner inbox's next page, a filtered
   page's `cut`), so that a count never says less than there is; with
   none, "Nothing needs you." or "No updates.". Its first heading's
-  row holds "+ New chat", a link to the Chats page's start
-  (`/chats?at=start`, its text area focused: no act of its own), then
+  row holds "+ New chat", a link to `NewChat` (`/chats/new`, its text area
+  focused: no act of its own), then
   its filters as folded menus, in order: projects (only with two or more),
   goals, then Kind. Each menu names its choice: "All projects" or the
   project's name; "All goals" or "Goal · TN"; "Kind" or "Kind · Question".
@@ -737,7 +833,7 @@ keeps (`../protocol/configuration.md`, section 2).
     includes the box's directory placeholders and the signed-in skip
     rule (`tools.md`, 5.5, area 5).
   - *Ready* says the account is made, in 5.5's words, with "Start a
-    chat", to the chats page, and a plan's "Manage usage".
+    chat", to `NewChat`, and a plan's "Manage usage".
   - *Its steps,* the flow's list (5.2, A flow's parts): "Choose",
     "Signing in" and "Ready" for a sign-in; "Choose", "Details" and
     "Ready" for a key or a program's login, and at Choose.
@@ -805,7 +901,7 @@ keeps (`../protocol/configuration.md`, section 2).
     temper box's line and the steps alone: no person's name or "Sign
     out", no project, navigation or link state, and no accounts' banner
     (5.1); the playground's line while the playground is leaving, as on
-    every page but the chats page (4.8, 5.1, 5.6). temper box's line says what this
+    every page but `Chats` and `NewChat` (4.8, 5.1, 5.6). temper box's line says what this
     temper is for, in fixed words: "**temper box** · on this machine,
     to try it · more later, from Settings · Run temper on a server ↗",
     the last an external link to temper's help on running a server
@@ -865,9 +961,9 @@ keeps (`../protocol/configuration.md`, section 2).
     first (below), and a whole one never. A real account alone does not
     end it (4.8).
   - *"Try the playground"* sends `StartPlayground` while no playground
-    is read (4.8) and opens the chats page, in the playground's project
+    is read (4.8) and opens `NewChat`, in the playground's project
     once its read names it, which the start's acts make
-    (`../protocol/setup.md`, 8.4); until then the chats page shows the
+    (`../protocol/setup.md`, 8.4); until then `NewChat` shows the
     playground's start under way, as in that project.
     *"Set up temper"* opens its Forge step. Its card comes first, the
     default, its button the step's one primary act, the playground's
@@ -1128,7 +1224,7 @@ keeps (`../protocol/configuration.md`, section 2).
     are.
 - **With no project yet** (`../draft/first-run-projects.md`, 2 and 4): until the
   playground's start or the welcome's Ready makes one, the
-  chats page's composer and "Your chats" give way to the level-1
+  Chats page's head and list and `NewChat`'s layout give way to the level-1
   heading "No project yet" and "Setting temper up makes your first
   project.", with "Set up temper", to the welcome, which opens at the
   step left undone (The welcome, above); and, while the
@@ -1145,9 +1241,9 @@ keeps (`../protocol/configuration.md`, section 2).
   usable meanwhile: its chats start and run, a chat that names no
   repository running with no workspace (`../domain/agent.md`, 4.2).
   Home says so in its second step (*Home,* below). Its
-  chats page says so where its repository would show, before the
-  composer: "No repository yet", and "Adopt a repository", a link to
-  the adoption form into this project, `Adopt { project }` (4.4). The
+  Chats page says so in its band: "No repository yet", and "Adopt a
+  repository", a link to the adoption form into this project, `Adopt {
+  project }` (4.4), and `NewChat` in its thread's line. The
   playground's project, while the playground is read, shows its
   context line instead (5.6). Where the page draws it is the look's
   (`journeys.md`, 7); its words and its link are these.
@@ -1233,7 +1329,7 @@ keeps (`../protocol/configuration.md`, section 2).
        adopt until the rows say it is in, and a first "Adopt" names
        Ready's key, so that the engine answers the one adoption.
     3. "Start a chat", "Ask a question or ask for a change.", with "New
-       chat", to the chats' start. Done once the project holds a chat
+       chat", to `NewChat`. Done once the project holds a chat
        other than a configuring one, live or ended, as `Chats` reads
        them; done, its title alone.
   - *"Skip"* sends the FORGE request `Dismiss { to_begin(project) }`
@@ -1243,8 +1339,8 @@ keeps (`../protocol/configuration.md`, section 2).
     Refused, or lost, the card comes back with "temper couldn't keep
     that. Try Skip again." under its line; *unknown,* the subject
     answers it, and nothing is said. A skip is never undone, and nothing
-    is lost by it: the first step's act stays on the chats page, the
-    second's in Settings and on the chats page, the third's in the rail.
+    is lost by it: the first step's act stays on the Chats page, the
+    second's in Settings, the third's in the rail.
   - *Until it is known:* To begin waits for the facts it reads. Until the
     person's dismissals, the `forges` rows, the project's chats and the
     `settings` document are delivered, it is left out, so that a project
@@ -1575,12 +1671,13 @@ keeps (`../protocol/configuration.md`, section 2).
 - **The first chat** (`../draft/configuring.md`, 5.1): on the chats
   page of a project that is not the playground's and holds no chat
   yet, live or ended, under "All", the offer "Tell temper how you
-  work", a button above the composer. Pressed, it opens `Configure {
+  work", a button after the chats list. Pressed, it opens `Configure {
   project }` (below). Home's first step makes the same offer, its
   "Start" the same act: a step says what the person does, so both keep
-  these words, and what they open is named "Configure temper". The chat
-  starts with the person's own words, never with canned ones. Once the project
-  holds a chat, the chats page's offer goes.
+  these words, and what they open is named "Configure temper". "How work
+  runs" makes the same offer (5.13). The chat starts with the person's
+  own words, never with canned ones. Once the project holds a chat, the
+  chats page's offer goes.
 - **The configuring chat's page** (the mock's
   `chat.html?id=new&configure=1`, in the project's frame):
   `Configure { project }`, at `/projects/<project>/settings/configure`,
@@ -1627,11 +1724,12 @@ keeps (`../protocol/configuration.md`, section 2).
     work, or what to change", that its placeholder too, its text 14
     pixels in from the composer's edge; "Send", the send arrow on ink in a rounded
     square, grey while disabled, which it is while the text is empty;
-    under it the chat page's hint, "Enter to send · Shift+Enter for
-    newline". It has no composer's line and no chooser: the configuring
+    under it the chat page's hint, "Enter sends · Shift+Enter for a
+    new line". It has no composer's line and no chooser: the configuring
     role's models are a setting (5.13), which this chat can change. On a
     phone the frame's top bar and tab bar go, so that the composer keeps
-    the foot, and with them the model's line and the hint.
+    the foot, and with them the model's line. The hint stays under the
+    composer.
 
   The conversation and the composer's foot each keep a scrollbar's gutter
   on both edges and hold one column, at most 720 pixels and centred, so
@@ -1663,23 +1761,25 @@ keeps (`../protocol/configuration.md`, section 2).
   line and no chooser, and none on an ended chat; "Settings" is the
   rail's current entry. Its address stays `/chats/<task>`. A chat from
   template 1 is any chat.
-- **The work's account and model.** A chat's composer names the
-  account and model its next run takes in one line, the composer's line
-  (5.5), and under it offers the models `me`
+- **The work's account and model.** A chat's bar names the
+  account and model its next run takes in one line, its byline, the
+  composer's line's words (5.5), and behind it offers the models `me`
   serves for the project (jig's `client/domain/contract.md`, 5.3), each
   with its efforts, and "needs an account" beside an LLM provider no
   usable account of the person's work serves; a choice is the task's
   LLM choice, from the chat's next run (jig's `domain/tasks.md`, section
   3). The offer is the chooser, a disclosure named "Change model"
-  (skein's `ui.md`, its disclosure): a browser shows it folded to its
-  name until the person opens it, while the terminal and the fake
+  (skein's `ui.md`, its disclosure) and described by the byline: a browser
+  shows it folded to its description until the person opens it, its name
+  instead on a phone, while the terminal and the fake
   person find its content whole. In it, in order: each model's LLM
   provider, its readiness and its button, the chosen model's efforts,
-  "Reset choice", and, on a task's composer while the draft differs
+  "Reset choice", and, on a task's page while the draft differs
   from its choice, "Next run if applied: MODEL" (or "…: engine
-  default") and "Apply to next run". A request in flight and its
+  default") and "Apply to next run"; then a plan's "Manage usage". A request in flight and its
   outcome, a task's wait for its account, and a refused next run stay
-  outside it, after the line. A refused next run says "Next run refused
+  outside it, above the composer. An agent's task's page, which keeps its
+  own composer (5.9), keeps the line and the chooser together in it. A refused next run says "Next run refused
   · WHY", WHY the refusal's cause in the words of jig's reference view
   (jig's `client/domain/client.md`, 19.1), each sentence ending with a
   full stop: for a host's hello, "An engine host was refused at HH:MM"
@@ -2494,9 +2594,9 @@ client removes no account and closes no chat of its own.
 - **Started when chosen** (`../protocol/setup.md`, 8.4). "Try the
   playground", the welcome's, sends `StartPlayground` while the
   playground is offered (3.5, The welcome) and none is read, one start
-  at a time, held by the forge's side across pages, and opens the
-  chats page. While the start is out, or the read answers starting,
-  the playground's start on the chats page says it is under way, its
+  at a time, held by the forge's side across pages, and opens
+  `NewChat`. While the start is out, or the read answers starting,
+  the playground's start on `NewChat` says it is under way, its
   suggestions waiting; once it failed, why, with "Try again", which
   sends a start under a new key (5.6). Answered running, or unknown,
   the side reads the playground again. It sends no start of its own
@@ -2506,7 +2606,7 @@ client removes no account and closes no chat of its own.
   sends `EndPlayground` while a playground is read and no reset is
   under way. From its sending, the side holds the playground as
   leaving, and the banner says "Leaving the playground…"; once the read
-  answers resetting, the chats page shows no playground's start.
+  answers resetting, `NewChat` shows no playground's start.
   Answered reset, or its read answering
   none while it is leaving, the side drops the playground and opens the
   welcome's Forge step, `Welcome { Forge }` (`/welcome?at=forge`): the
@@ -2535,9 +2635,9 @@ client removes no account and closes no chat of its own.
   owner alone, while `me` says the role and a playground is read; once
   either ends, the side drops it. For any other person it opens none.
 - **What shows:** while the playground runs, or is leaving, the
-  banner's one line at the foot of the chats page's pane, and while it
+  banner's one line above the main of `Chats` and `NewChat`, and while it
   is leaving on every other page as well (5.1, 5.6); the playground's start,
-  on the chats page, while a playground is read that is not resetting
+  on `NewChat`, while a playground is read that is not resetting
   and the person is in its project, or in none while its project is
   not made yet (3.5); the context line, on the playground's start and on a
   chat's page in its project, while it runs; on the Forges page its
@@ -2606,11 +2706,11 @@ client removes no account and closes no chat of its own.
     (5.5), on every page but the accounts page, `ConnectModel` and
     `Welcome`;
   - *the playground's banner:* a region named "Playground", one line,
-    its words and its link "set up temper" (5.6); on the chats page,
-    whose pane it ends (3.5), while the playground runs or is leaving
+    its words and its link "set up temper" (5.6); on `Chats` and
+    `NewChat`, while the playground runs or is leaving
     (4.8); on every other page, `Welcome`, the accounts and the forges
-    pages and a chat's page among them, while it is leaving alone,
-    above their chatbars, after the accounts' banner where both show,
+    pages and a chat's page among them, while it is leaving alone;
+    above the main, after the accounts' banner where both show,
     the rail's or the banner's "Set up temper" being the way out while
     it runs (the user, 2026-11-03); while the link is signed out or out
     of date, none;
@@ -2777,7 +2877,7 @@ page (5.1): a navigation named by the open project, in this order:
   `Changes { project }`, only while kind 7 shows them;
   current on `Home`, on `Inbox`, on `Goals`, on a goal (a tracked agent's
   `Task`) and on a task whose document names a goal, and on `Changes`,
-  on `Chats` and `Chat`, but a configuring chat's, whose current entry is
+  on `Chats`, `NewChat` and `Chat`, but a configuring chat's, whose current entry is
   "Settings". On Goals, on a goal and on Changes their entry stays
   shown, so that nothing goes from under the person; a hidden page keeps
   its address, hiding removing the way in and not the page. Until kind 7
@@ -2785,8 +2885,8 @@ page (5.1): a navigation named by the open project, in this order:
   Whether a project has a goal is `Domain::has_goals(project)`, a fact the
   domain keeps whatever the rail does, from a live watch and one ended
   read of the goals' query with window 1, per open project;
-- "+ New chat", named "New chat", to the chats' start
-  (`/chats?at=start`);
+- "+ New chat", named "New chat", to `NewChat`
+  (`/chats/new`);
 - at its foot: the Away switch, only while kind 7 shows it or while Away
   is on; while the playground runs and is not leaving (4.8),
   "Set up temper", as the banner has it (5.1); the link's state, as
@@ -3038,13 +3138,14 @@ The words for each offered source are:
   only member"; a key's or a program's login's with no uses given,
   "Your own work" (jig's `domain/accounts.md`, 4.2).
 - **The composer's line** names the account and model the work's next
-  run takes, just above its field, with the folded chooser beside it
-  (3.5), from what jig gives every page: `me`, the accounts document
+  run takes, on a chat as its bar's byline, with the chooser behind it
+  (3.5), and just above its field on an agent's task's page, from what
+  jig gives every page: `me`, the accounts document
   and its readiness. When the welcome's model usability is known false
   and no playground is read (4.8), it says “No model yet ·
   Connect a model”, the link to `ConnectModel` with no way chosen.
-  There is no chooser, Start chat and Send are disabled, and Enter
-  sends nothing; the draft stays editable. Unknown usability keeps
+  It sits above the composer, there is no chooser, the send arrow is
+  disabled, and Enter sends nothing; the draft stays editable. Unknown usability keeps
   today's behavior. Otherwise:
   - *MODEL* is the draft's model (a task's LLM choice; a new chat's,
     its template's), then " · EFFORT" where the choice names an effort.
@@ -3075,7 +3176,9 @@ The words for each offered source are:
     source. Mixed provider offers do not establish a model's endpoint
     kind, so name no account. Another payer's work, or a cut document or
     account, names no account.
-    The source words the line, with the provider and plan words above from
+    In a byline the line's "Using " and its "Manage usage" are left out, so
+    that it reads account, " · ", model, "ChatGPT plan · gpt-6-luna"; "Manage
+    usage" is the chooser's. The source words the line, with the provider and plan words above from
     `me`: "Using your OpenAI API key · MODEL" for a key; "Using ChatGPT
     plan · MODEL · Manage usage" for a signed-in plan, the last an
     external link where the document gives a safe manage-usage address;
@@ -3193,9 +3296,9 @@ by the person's name for it (with the user, 2026-10-23;
 `../draft/archive/first-run.md`, 2.3); OWNER/NAME is the playground's
 repository, and the cues the playground's, copied in from its read:
 
-- **The banner,** one line, at the foot of the chats page's pane
-  while the playground runs, and on every page while it is leaving
-  (5.1): "This is the
+- **The banner,** one line, in the frame, above the main of `Chats`
+  and `NewChat` while the playground runs, and on every page while it is
+  leaving (5.1): "This is the
   playground: a scripted model and in-memory forge. Use the wizard to
   set up temper", "set up temper" its link, which sends `EndPlayground`
   (4.8); while it is leaving, "Leaving the playground…" in its place,
@@ -3203,17 +3306,15 @@ repository, and the cues the playground's, copied in from its read:
   or the frame's banner leads its corner with it on a page that is no
   project's, the same act, while the playground runs and is not
   leaving: the way out, prominent (5.1, 5.3).
-- **The playground's start,** on the chats page, at the head of its
-  pane (3.5; `first-run.html`, the first run's first step): the new
-  chat's bar, "New chat" and the status "Ready"; while its start is
+- **The playground's start,** on `NewChat`, at the head of its thread
+  (3.5; the first run's first step): the status "Ready"; while its start is
   out or its read answers starting (4.8), the status "Starting" and its
   suggestions disabled; once the start failed, the status "Not
   started"; the context line; once the start failed, under it "The
   playground did not start: WHY." with "Try again", WHY "its fakes did
   not start (BOX'S WHY)", "the scripted model's account was refused",
   "OWNER/NAME was not adopted" or "Playground forge did not connect";
-  then the pane's chats, as on any chats page (3.5). Beside the pane,
-  under the composer and its line, a list named "Suggested requests"
+  then the page's `.meta-line` (3.5), and under it a list, `.starters`, named "Suggested requests"
   of one button per suggested request, the playground's `llm.asked`
   cues in order and never its `llm.cued` (`../protocol/setup.md`,
   8.4), each named by its cue's words, kept for the tests that walk
@@ -3221,14 +3322,15 @@ repository, and the cues the playground's, copied in from its read:
   user, 11-03; section 11). The model's name is the composer's line's
   alone. A chat starts with its first
   message, so the start has no task and no number; once a suggestion
-  or the composer starts the chat, its page keeps the frame (3.5).
-- **The context line,** after the chatbar: on a chat's page,
+  or the composer starts the chat, its page opens in place of `NewChat`
+  and keeps the frame (3.5).
+- **The context line,** at the thread's head, in `.meta-line`'s look: on a chat's page,
   "PROJECT · OWNER/NAME on Playground forge", PROJECT the project as
   the switcher names it; then "Signed in
   as the deployment’s owner" while `me`'s role on the deployment is
   `Owner`, else "Signed in as the project’s owner" while the person's
   role on the project is `Owner`, else "Signed in as NAME", the
-  person's name as the rail shows it. On the chats page's pane,
+  person's name as the rail shows it. On `NewChat`,
   OWNER/NAME alone, since the switcher names the project (5.1). OWNER/NAME is a node of its
   own, for the look.
 - **The composer's line,** for the playground's LLM provider: "Using
@@ -3370,10 +3472,22 @@ the change's chip in a chat (`forge.md`, 2.4 and 2.5).
 - **What it stands for:** the call's work summary, its result's, and
   the line that heard the task's result, whose words are the card's: a
   chat that shows a task's card shows none of them.
+- **In the browser it is one line** (the greenfield mock's `.turn-tool`),
+  the view and the terminal holding every part above:
+  - *a delegated change:* the pen icon, "Change", its title in `--gf-ink-2`,
+    its state in lower case, "held" in `--gf-signal` while held, its result's
+    words once it has ended ("CI passed. Landed · merge commit 1a2b3c4"),
+    then a link to its page, underlined as `.turn-tool button`. Its line of
+    number and kind and its steps are hidden in the browser. The link's name
+    stays "Task N"; its text is "Open" in the browser, "Task N ↗" in the
+    terminal;
+  - *a goal,* a delegate that is tracked, from its `goal` call or its
+    document: the same line with "Started goal", its title in `.file` mono,
+    its state and "Open".
 - **The look:** the card's tokens (CARD and TASK_CARD, META, TITLE,
   DETAILS, a status's) and three of the steps: STEPS, STEP and
-  STEP_DONE, which the browser's stylesheet draws as the mockup's
-  `.steps`, `.step` and `.step.done` (`browser.md`, 2.5).
+  STEP_DONE (`browser.md`, 2.5); on a chat's page these draw the line
+  above, and elsewhere the mockup's `.steps`, `.step` and `.step.done`.
 - **Where it is decided:** the domain's chat page holds each delegation
   (its task and its handle), and a pure function of the domain derives
   a card's facts from a task's document: its kind, state, title, words
@@ -3601,14 +3715,14 @@ acts on it as its document offers (5.11).
   while Message is offered (5.11); then the confirmation while one is
   open (3.6). At phone width the order is
   the same: the lineage bar keeps one line, its titles cut short, and
-  the taskbar is a chat's chatbar at that width.
+  the taskbar's parts wrap.
 - **The lineage bar:** its parent, the last of its lineage
   (`lineage_chips`, root first), as its "Task N" link and its title,
   after an arrow; then the task itself, "Task M" and its title. With no
   lineage supplied, the parent is its requester's "Task N" link when a
   task asked it, and there is none otherwise. The arrow and the slash
   between them are the look's.
-- **The taskbar,** a chat's chatbar (3.5): its level-1 heading "TN ·
+- **The taskbar:** its level-1 heading "TN ·
   TITLE", as a chat's; its state, in 5.8's words, from the same
   function (`pages::task::header_state`), with its status token; then
   its executor, "Agent", and its own spend, "N spent", its `budget.spent`
@@ -3688,11 +3802,11 @@ acts on it as its document offers (5.11).
   domain derives the run's heading from the chip (`pages::task::run`);
   the state and the result are 5.8's. The view lays them out with the
   phrasebook's words.
-- **The look:** the chat's, MAIN and CHAT on its main, CHATBAR on its
+- **The look:** its own, MAIN and AGENT_PAGE on its main, TASKBAR on its
   taskbar, THREAD on what follows it and the conversation's tokens, so
-  `temper.css`'s rules for a chat draw them; and its own: AGENT_LINEAGE
-  on the lineage bar, which tells the page from a chat's (a node
-  carries two tokens at most, and its main has MAIN and CHAT),
+  `temper.css`'s rules for this page draw them; and AGENT_LINEAGE
+  on the lineage bar (a node
+  carries two tokens at most, and its main has MAIN and AGENT_PAGE),
   AGENT_BRIEF on the brief, AGENT_RUN on the run's heading and its
   start, AGENT_RESULT on its result. `task-pages.css` draws them as the
   mockup's
@@ -3879,11 +3993,9 @@ Its rules:
 
 - **Where they are.** On a goal's page, a toolbar after the header, as
   the mockup's: "Amend", "Stop", "Cancel", in that order. On an agent's
-  task's page, in its taskbar after its spend, as a chat's chatbar
-  holds Stop and Close: "Amend", "Stop"; and its composer last (below).
+  task's page, in its taskbar after its spend: "Amend", "Stop"; and its composer last (below).
   At phone width the goal's toolbar is a line of its own under the
-  header, in the same order, and the taskbar's acts wrap as a chat's
-  do. While the page's confirmation is open, the toolbar and the
+  header, in the same order, and the taskbar's acts wrap. While the page's confirmation is open, the toolbar and the
   taskbar draw no act: the dialog is the one place to answer, and its
   "Cancel" the only one on the page.
 - **Its own held card.** While the page's task is held, stopped among
@@ -5403,8 +5515,8 @@ own tests:
 - **The playground's and the agent's placeholders** ("Try a suggested
   request…"; "Write to T12…", the
   agent's task's composer, 5.11): skein-ui's text area takes a
-  placeholder, which a chat's composer and the chats page's, "Describe
-  a change" in every project, the playground's start among them, draw
+  placeholder, which a chat's composer and `NewChat`'s, "What do you want
+  done?" in every project, the playground's start among them, draw
   (3.5). Default: neither drawn, the agent's waiting for its page's
   owner.
 - **The composer's selected account and source** (5.5): jig's
@@ -5586,8 +5698,7 @@ own tests:
   (`journeys.md`, 7) drew the chats page without the playground's
   invitation, its suggestions among it; the user kept the suggestions
   while tests walk the playground by them, to revisit (11-03).
-  Default: a list under the composer's line, in the playground's start
-  alone.
+  Default: `.starters` under the playground's start, on `NewChat`.
 - **The account's email on Ready** (3.5, The welcome): a signed-in
   plan's line names the provider's verified email, a fact beside the
   account's display (`jig/docs/design/draft/account-facts.md`, 1 and

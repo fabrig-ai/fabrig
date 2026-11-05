@@ -317,12 +317,9 @@ fn archiving_a_settings_revision_copies_its_items_before_erasing_the_held_row() 
         1,
     );
     let held = Key::Core(CoreKey::Settings(s::Key::Held(1)));
+    let (from, to) = s::history_copy(1);
     assert_committed(
-        &commit(
-            &mut store,
-            2,
-            Box::new([fixtures::header(2), Write::CopySettingsRevision(1), Write::Erase(held.clone())]),
-        ),
+        &commit(&mut store, 2, Box::new([fixtures::header(2), Write::Copy { from, to }, Write::Erase(held.clone())])),
         2,
     );
     assert_eq!(jig_row(&mut store, &held), None);

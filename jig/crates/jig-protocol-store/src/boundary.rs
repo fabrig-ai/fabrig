@@ -45,8 +45,8 @@ pub enum Request {
 pub enum Write {
     /// The start's component-owned wires row, from `Store::wires` (store.md 5.3).
     Wires,
-    /// Copy a held settings revision to history in this commit.
-    CopySettingsRevision(u32),
+    /// Copy the bytes the map holds under `from` to `to` in this commit (store.md 6).
+    Copy { from: core::Key, to: core::Key },
     /// jig's save: a put of its encoded key and record; a turn's save
     /// becomes a frame in its task's transcript and puts of its places.
     Save(core::Record),

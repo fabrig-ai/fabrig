@@ -3,12 +3,13 @@ use crate::item;
 use skein_lib::{
     Secret, Writer,
     base64::{self, Alphabet},
+    len_u64,
 };
 
 /// One RSA PRIVATE KEY block, within Pasted's input bound and DER's key bound
 /// (forge-setup.md, 5.2 and 6.4). The host proves the RSA structure by signing.
 pub(super) fn pem(pem: &Secret, key_bytes: u32) -> Option<Secret> {
-    if u64::try_from(pem.len()).ok()? > u64::from(key_bytes).checked_mul(2)? {
+    if len_u64(pem.len()) > u64::from(key_bytes).checked_mul(2)? {
         return None;
     }
     let mut block = pem.expose();

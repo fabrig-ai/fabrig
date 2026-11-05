@@ -16,7 +16,7 @@ use alloc::boxed::Box;
 use skein_http::{Header, server as http};
 use skein_io::{Event, Request};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Env, Id, Queue, Token, bytes};
+use skein_lib::{Env, Id, Queue, Token, bytes, usize_of};
 use skein_oauth::Redirect;
 
 const PAGE: &[u8] = b"Sign-in received. You may close this page.\n";
@@ -308,10 +308,7 @@ impl Listener {
                     }
                 }
                 http::Event::Reply(Up::Room) => {
-                    let end = callback
-                        .offset
-                        .saturating_add(usize::try_from(env.limits.server.send).expect("u32 fits"))
-                        .min(callback.page.len());
+                    let end = callback.offset.saturating_add(usize_of(env.limits.server.send)).min(callback.page.len());
                     callback.requests.push(http::Request::Reply(Down::Send(bytes::copy_of(
                         callback.page.get(callback.offset..end).expect("fixed page offset"),
                     ))));

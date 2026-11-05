@@ -208,7 +208,7 @@ impl Chats {
             Err(why) => self.refusal = Some(why),
         }
     }
-    pub(crate) fn told(&mut self, told: Told, out: &mut Queue<Request>) -> bool {
+    pub(crate) fn told(&mut self, told: Told, address: &Address, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Changed { handle } if handle == self.live => {
                 // Live deliveries omit ended tasks. Refresh the first ended page
@@ -235,11 +235,11 @@ impl Chats {
             Told::Answered { key, outcome } if Some(key) == self.start => {
                 if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(value))) = &outcome {
                     if let c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) = value {
-                        out.push(Request::Show { address: Address::Chat { task: *first } });
+                        show_chat(*first, address, out);
                     } else if let c::Outcome::Made { what: c::Made::Tasks { tasks } } = value
                         && let Some(task) = tasks.get(0)
                     {
-                        out.push(Request::Show { address: Address::Chat { task: *task } });
+                        show_chat(*task, address, out);
                     }
                 }
                 self.outcome = Some(outcome);
@@ -354,6 +354,11 @@ fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
     } else {
         jig_client::shapes::CHAT
     }
+}
+
+fn show_chat(task: u64, from: &Address, out: &mut Queue<Request>) {
+    let address = Address::Chat { task };
+    out.push(if *from == Address::NewChat { Request::Replace { address } } else { Request::Show { address } });
 }
 
 fn newest_configuring(rows: &skein_lib::List<c::TaskLine>, me: &Me, project: u32, newest: &mut Option<u64>) {

@@ -70,11 +70,11 @@ pub fn answered_chat(words: &[u8], answer: &[u8]) -> Script {
     Script {
         begin: Begin::LinkWithKey,
         steps: Box::new([
-            Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
-            Step::See { find: Find::named(skein_ui::Role::TextArea, b"Start a chat"), within: START_WITHIN },
-            Step::Type { find: Find::named(skein_ui::Role::TextArea, b"Start a chat"), words: words.into() },
+            Step::Go { address: Address::NewChat },
+            Step::See { find: Find::named(skein_ui::Role::TextArea, b"What do you want done?"), within: START_WITHIN },
+            Step::Type { find: Find::named(skein_ui::Role::TextArea, b"What do you want done?"), words: words.into() },
             Step::Gone { find: Find::text(b"No model yet"), within: START_WITHIN },
-            Step::Press { find: Find::named(skein_ui::Role::Button, b"Start") },
+            Step::Press { find: Find::named(skein_ui::Role::Button, b"Send") },
             Step::See { find: Find::text(answer), within: START_WITHIN },
         ]),
     }
@@ -183,13 +183,14 @@ pub fn demo_chat(task: u64, cue: &[u8], text: &[u8]) -> Script {
         steps: Box::new([
             Step::See { find: Find::exactly_named(Role::Button, b"Demo"), within: START_WITHIN },
             Step::Press { find: Find::exactly_named(Role::Button, b"Demo") },
-            Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
-            Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: START_WITHIN },
+            Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
             Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },
             Step::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: START_WITHIN },
+            Step::Go { address: Address::NewChat },
+            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: START_WITHIN },
             Step::Press { find: Find::exactly_named(Role::Button, b"Scripted model") },
-            Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: cue.into() },
-            Step::Press { find: Find::named(Role::Button, b"Start") },
+            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: cue.into() },
+            Step::Press { find: Find::named(Role::Button, b"Send") },
             Step::See {
                 find: Find::exactly_named(Role::Paragraph, b"You")
                     .within(Box::new([Target::Role { role: Role::Log, name: b"Conversation".as_slice().into() }])),
@@ -265,16 +266,18 @@ pub fn demo_change() -> Script {
     }
 }
 
-fn playground_opening(conversation: impl Fn() -> Box<[Target; 1]>) -> [Step<Address>; 12] {
+fn playground_opening(conversation: impl Fn() -> Box<[Target; 1]>) -> [Step<Address>; 14] {
     use skein_ui::Role;
     [
         Step::Go { address: Address::Welcome { step: temper_client_domain::Step::Welcome } },
         Step::See { find: Find::exactly_named(Role::Button, b"Try the playground"), within: START_WITHIN },
         Step::Press { find: Find::exactly_named(Role::Button, b"Try the playground") },
+        Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
         Step::See { find: Find::exactly_named(Role::Status, b"Starting"), within: START_WITHIN },
         Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },
-        Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+        Step::Go { address: Address::NewChat },
         Step::Press { find: Find::exactly_named(Role::Button, b"Scripted model") },
+        Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
         // client/README.md, 4.8: a suggested request starts and opens its chat.
         Step::See { find: Find::named(Role::Button, b"Add CSV export to widget"), within: START_WITHIN },
         Step::Press { find: Find::named(Role::Button, b"Add CSV export to widget") },
@@ -718,7 +721,7 @@ fn person_failure(step: u32, why: &skein_fake_person::Why, client: &NativeClient
     format!("native person step {step}: {why:?}; client: {:?}; tree: {nodes:?}", client.pending())
 }
 
-/// A key's acknowledgement can precede the model watch that enables Start.
+/// A key's acknowledgement can precede the model watch that enables Send.
 pub fn a_chat_waits_for_the_model_watch_before_pressing_start() {
     let mut actor = skein_fake_person::Person::new(answered_chat(b"Hello", b"answer").steps);
     let waiting = chat_start_view(false);
@@ -726,8 +729,8 @@ pub fn a_chat_waits_for_the_model_watch_before_pressing_start() {
     assert!(matches!(actor.next(&mut face, Time::ZERO), Next::Do(Doing::Go { .. })));
     assert_eq!(actor.next(&mut face, Time::ZERO), Next::Wait { until: None });
     assert!(matches!(actor.next(&mut face, Time::ZERO), Next::Do(Doing::Act { act: skein_ui::Act::Input { .. }, .. })));
-    assert!(matches!(actor.next(&mut face, Time::ZERO), Next::Wait { .. }), "Start waits for the model watch");
-    assert_eq!(actor.at(), 3, "the delayed watch keeps the script before Start");
+    assert!(matches!(actor.next(&mut face, Time::ZERO), Next::Wait { .. }), "Send waits for the model watch");
+    assert_eq!(actor.at(), 3, "the delayed watch keeps the script before Send");
     let ready = chat_start_view(true);
     let mut face = ReplyFace::new(ready.tree());
     assert_eq!(actor.next(&mut face, Time::ZERO), Next::Wait { until: None });
@@ -742,11 +745,11 @@ fn chat_start_view(usable: bool) -> skein_ui::View {
     let mut builder = view.builder();
     builder.open(Role::Page);
     builder.open(Role::TextArea);
-    builder.name(b"Start a chat");
+    builder.name(b"What do you want done?");
     builder.bind(skein_ui::Binding { owner: skein_ui::Owner { number: 1 }, token: Token::new(1) });
     builder.close();
     builder.open(Role::Button);
-    builder.name(b"Start");
+    builder.name(b"Send");
     builder.bind(skein_ui::Binding { owner: skein_ui::Owner { number: 1 }, token: Token::new(2) });
     if !usable {
         builder.state(State::Disabled);
@@ -885,13 +888,13 @@ pub fn adopt_and_change(_forgejo: &super::forgejo::Throwaway) -> Script {
         Step::See { find: Find::text(b"Adopted acme/widget on forge 1 as owned."), within: super::WITHIN },
     ]);
     steps.extend([
-        Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
-        Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: super::WITHIN },
+        Step::Go { address: Address::NewChat },
+        Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: super::WITHIN },
         Step::Type {
-            find: Find::named(Role::TextArea, b"Start a chat"),
+            find: Find::named(Role::TextArea, b"What do you want done?"),
             words: b"@forge_chat Land a small change".as_slice().into(),
         },
-        Step::Press { find: Find::named(Role::Button, b"Start") },
+        Step::Press { find: Find::named(Role::Button, b"Send") },
         Step::Go { address: Address::Inbox { filter: temper_client_domain::address::Filter::ALL } },
         inbox_reply(FORGE_CHAT_REPLY),
     ]);

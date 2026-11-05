@@ -158,7 +158,7 @@ impl Reader {
                     return Some(Part::NeedMore);
                 }
                 let decoded = decode_chunk(&self.bytes, count, previous, payload)?;
-                *rows = rows.checked_add(u64::try_from(decoded.len()).ok()?)?;
+                *rows = rows.checked_add(skein_lib::len_u64(decoded.len()))?;
                 self.bytes.clear();
                 Some(Part::Rows { rows: decoded })
             }

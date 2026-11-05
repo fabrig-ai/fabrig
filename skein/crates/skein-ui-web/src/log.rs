@@ -1,6 +1,6 @@
 //! The session log's text and its keeping (playground.md, 6).
 use crate::{bridge, fetch};
-use skein_lib::{Time, Wall, sha256::Sha256};
+use skein_lib::{Time, Wall, sha256::Sha256, usize_of};
 
 mod reader;
 mod text;
@@ -107,7 +107,7 @@ impl Log {
             unstamped: 0,
             saying,
             end,
-            bound: usize::try_from(bound).expect("a log bound fits usize"),
+            bound: usize_of(bound),
             last_room,
         };
         if log.text.len().saturating_add(text::end(end).len()) > log.bound {

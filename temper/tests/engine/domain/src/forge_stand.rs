@@ -90,6 +90,12 @@ impl ForgeStand {
             config.limits.name_bytes =
                 config.limits.name_bytes.max(u32::try_from(setup.name.len()).expect("fixture name"));
         }
+        for setup in &setups {
+            for file in &setup.tree {
+                config.limits.content_bytes =
+                    config.limits.content_bytes.max(u32::try_from(file.content.len()).expect("fixture file"));
+            }
+        }
         config.latency_min = skein_lib::Duration::ZERO;
         config.latency_max = skein_lib::Duration::ZERO;
         let mut domain = fake::Domain::new(&config, 71);

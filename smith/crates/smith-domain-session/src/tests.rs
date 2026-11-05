@@ -281,9 +281,9 @@ const ROOT: Token = Token::new(70);
 fn authority(repos: u8) -> Authority {
     let mut mounted = List::with_capacity(u32::from(repos));
     for repo in 0..repos {
-        let mount: Box<[Name]> = match repo.checked_sub(1) {
-            None => Box::new([named(b"work")]),
-            Some(other) => Box::new([named(b"other"), named(&[b'a'.checked_add(other).expect("few")])]),
+        let mount = match repo.checked_sub(1) {
+            None => named(b"work"),
+            Some(other) => named(&[b'a'.checked_add(other).expect("few")]),
         };
         let root = Token::new(ROOT.raw().checked_add(u64::from(repo)).expect("few"));
         mounted
@@ -291,7 +291,7 @@ fn authority(repos: u8) -> Authority {
             .expect("room for each");
     }
     Authority {
-        cwd: Box::new([named(b"work")]),
+        cwd: Some(named(b"work")),
         repos: mounted.into_boxed(),
         grants: Grants { inspect: true, modify: true, shell: false },
     }

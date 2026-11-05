@@ -452,7 +452,8 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         Address::Changes { project: f::PROJECT },
         Address::Goals { project: f::PROJECT, filter: GoalsFilter::All },
         Address::Inbox { filter: d::address::Filter::ALL },
-        Address::Chats { filter: ChatsFilter::All, start: false },
+        Address::Chats { filter: ChatsFilter::All },
+        Address::NewChat,
         Address::Chat { task: 9 },
         Address::Task { task: 9, filter: d::PlanFilter::All },
         Address::Accounts,
@@ -488,7 +489,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 let brand = parts[0].id;
                 let new_chat = parts[3].id;
                 assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/projects/1".as_slice()));
-                assert_eq!(crate::href(&mut view, new_chat).as_deref(), Some(b"/chats?at=start".as_slice()));
+                assert_eq!(crate::href(&mut view, new_chat).as_deref(), Some(b"/chats/new".as_slice()));
                 let needs: &[u8] = if count == 0 {
                     b"Needs you".as_slice()
                 } else if cut {
@@ -499,7 +500,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 let current = match address {
                     Address::Home { .. } => Some(b"Home".as_slice()),
                     Address::Inbox { .. } => Some(needs),
-                    Address::Chats { .. } | Address::Chat { .. } => Some(b"Chats".as_slice()),
+                    Address::Chats { .. } | Address::NewChat | Address::Chat { .. } => Some(b"Chats".as_slice()),
                     Address::Changes { .. } => Some(b"Changes".as_slice()),
                     Address::Goals { .. } => Some(b"Goals".as_slice()),
                     Address::Settings { .. }
@@ -907,7 +908,7 @@ fn drafts_offered_reads_drafts() {
         (Some(Ways { drafts: true, ..Ways::STOCK }), true),
         (Some(Ways { goals: true, ..Ways::STOCK }), false),
     ] {
-        let root = f::root_with_ways(Address::Chats { filter: ChatsFilter::All, start: false }, ways);
+        let root = f::root_with_ways(Address::Chats { filter: ChatsFilter::All }, ways);
         assert_eq!(crate::pages::chats::drafts_offered(&root, f::PROJECT), offered);
         assert!(!crate::pages::chats::drafts_offered(&root, OTHER_PROJECT));
     }

@@ -7,7 +7,7 @@ use crate::{
 fn each_page_round_trips_through_its_path() {
     let pages: [(Address, &[u8]); 21] = [
         (Address::Inbox { filter: Filter::ALL }, b"/"),
-        (Address::Chats { filter: ChatsFilter::All, start: false }, b"/chats"),
+        (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
         (Address::Task { task: 7, filter: PlanFilter::All }, b"/tasks/7"),
         (Address::Changes { project: 0 }, b"/projects/0/changes"),
@@ -104,7 +104,7 @@ fn a_field_it_cannot_read_is_dropped() {
 fn one_trailing_slash_is_ignored() {
     for (path, expected) in [
         (&b"/chats/7/"[..], Place::Address(Address::Chat { task: 7 })),
-        (b"/chats/", Place::Address(Address::Chats { filter: ChatsFilter::All, start: false })),
+        (b"/chats/", Place::Address(Address::Chats { filter: ChatsFilter::All })),
         (b"/chats/7//", Place::Missing),
         (b"/projects/3/settings/configure/", Place::Address(Address::Configure { project: 3 })),
         (b"/projects/3/settings/configure//", Place::Missing),
@@ -122,6 +122,7 @@ fn a_path_that_is_no_page_is_missing() {
         b"/robots.txt",
         b"chats",
         b"/chats/x",
+        b"/chats/newer",
         b"/tasks",
         b"/projects/01",
         b"/projects/1/other",
@@ -342,15 +343,13 @@ fn a_return_source_is_printed_and_read_only_on_a_sign_in_way() {
 }
 
 #[test]
-fn chats_and_plan_filters_round_trip_with_the_starts_focus() {
+fn chats_and_plan_filters_and_new_chat_round_trip() {
     use crate::{ChatsFilter as Chats, PlanFilter as Plan};
     let cases: &[(Address, &[u8])] = &[
-        (Address::Chats { filter: Chats::All, start: false }, b"/chats"),
-        (Address::Chats { filter: Chats::Live, start: false }, b"/chats?state=live"),
-        (Address::Chats { filter: Chats::Closed, start: false }, b"/chats?state=closed"),
-        (Address::Chats { filter: Chats::All, start: true }, b"/chats?at=start"),
-        (Address::Chats { filter: Chats::Live, start: true }, b"/chats?state=live&at=start"),
-        (Address::Chats { filter: Chats::Closed, start: true }, b"/chats?state=closed&at=start"),
+        (Address::Chats { filter: Chats::All }, b"/chats"),
+        (Address::Chats { filter: Chats::Live }, b"/chats?state=live"),
+        (Address::Chats { filter: Chats::Closed }, b"/chats?state=closed"),
+        (Address::NewChat, b"/chats/new"),
         (Address::Task { task: 7, filter: Plan::All }, b"/tasks/7"),
         (Address::Task { task: 7, filter: Plan::Live }, b"/tasks/7?state=live"),
     ];
@@ -366,13 +365,13 @@ fn chats_and_plan_drop_each_unreadable_field_independently() {
         (b"/chats?state=nope".as_slice(), b"/chats".as_slice()),
         (b"/tasks/7?state=nope", b"/tasks/7"),
         (b"/tasks/7?state=closed", b"/tasks/7"),
-        (b"/chats?at=start&state=live", b"/chats?state=live&at=start"),
-        (b"/chats?at=start&state=nope", b"/chats?at=start"),
+        (b"/chats?x=1&state=live", b"/chats?state=live"),
+        (b"/chats?x=1&state=nope", b"/chats"),
         (b"/chats?at=nope&state=closed", b"/chats?state=closed"),
-        (b"/chats?state=nope&state=live&state=closed&at=nope&at=start", b"/chats?state=live&at=start"),
-        (b"/tasks/7?state=closed&state=live&at=start", b"/tasks/7?state=live"),
+        (b"/chats?state=nope&state=live&state=closed&at=nope&x=1", b"/chats?state=live"),
+        (b"/tasks/7?state=closed&state=live&x=1", b"/tasks/7?state=live"),
         (b"/chats?state=Live&at=Start", b"/chats"),
-        (b"/chats?state=live=closed&at=start=nope", b"/chats"),
+        (b"/chats?state=live=closed&x=1=nope", b"/chats"),
         (b"/chats?state&at&unknown=live", b"/chats"),
     ] {
         assert_eq!(parse(path), parse(canonical), "{path:?}");
@@ -431,6 +430,22 @@ fn a_neighbour_of_repositories_is_missing() {
 }
 
 #[test]
+fn new_chat_has_its_own_canonical_address() {
+    for (path, address, canonical) in [
+        (b"/chats/new".as_slice(), Address::NewChat, b"/chats/new".as_slice()),
+        (b"/chats/new?x=1", Address::NewChat, b"/chats/new"),
+        (b"/chats?at=start", Address::Chats { filter: ChatsFilter::All }, b"/chats"),
+        (b"/chats?state=live&at=start", Address::Chats { filter: ChatsFilter::Live }, b"/chats?state=live"),
+        (b"/chats/7", Address::Chat { task: 7 }, b"/chats/7"),
+    ] {
+        assert_eq!(parse(path), Place::Address(address.clone()), "{path:?}");
+        assert_eq!(print(&address).as_ref(), canonical);
+        assert_eq!(parse(canonical), Place::Address(address));
+    }
+    assert_eq!(parse(b"/chats/newer"), Place::Missing);
+}
+
+#[test]
 fn goals_filter_is_its_query() {
     for (filter, path) in [
         (GoalsFilter::All, b"/projects/3/goals".as_slice()),
@@ -451,7 +466,7 @@ fn goals_drops_unread_state_and_prints_the_canonical_address() {
         (b"/projects/3/goals?state=closed", b"/projects/3/goals"),
         (b"/projects/3/goals?state=Live", b"/projects/3/goals"),
         (b"/projects/3/goals?state=live=ended", b"/projects/3/goals"),
-        (b"/projects/3/goals?state&at=start", b"/projects/3/goals"),
+        (b"/projects/3/goals?state&unknown=value", b"/projects/3/goals"),
         (b"/projects/3/goals?state=nope&state=needs&state=ended", b"/projects/3/goals?state=needs"),
         (b"/projects/3/goals/?unknown=x&state=live", b"/projects/3/goals?state=live"),
     ] {

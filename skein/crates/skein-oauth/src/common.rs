@@ -1,6 +1,6 @@
 use alloc::boxed::Box;
 use skein_json::{tokenizer, writer};
-use skein_lib::{Duration, bytes};
+use skein_lib::{Duration, bytes, usize_of};
 
 /// Bounds for one token exchange and its saved record (oauth.md §5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -114,7 +114,7 @@ pub(crate) fn measured(encoder: writer::Encoder) -> Result<u32, DecodeError> {
     }
 }
 pub(crate) fn bounded(input: &[u8], cap: u32) -> Result<(), DecodeError> {
-    if input.len() > usize::try_from(cap).expect("u32 fits usize") {
+    if input.len() > usize_of(cap) {
         return Err(DecodeError::TooLarge);
     }
     if input.is_empty() {
@@ -148,7 +148,7 @@ pub(crate) fn text(input: &[u8]) -> Result<(), DecodeError> {
     Ok(())
 }
 pub(crate) fn clipped(input: &[u8], cap: u32) -> Box<[u8]> {
-    let mut count = input.len().min(usize::try_from(cap).expect("u32 fits usize"));
+    let mut count = input.len().min(usize_of(cap));
     for _back in 0..4_u32 {
         match input.get(count) {
             Some(byte) if byte & 0xc0 == 0x80 => count = count.saturating_sub(1),
@@ -159,7 +159,7 @@ pub(crate) fn clipped(input: &[u8], cap: u32) -> Box<[u8]> {
 }
 
 pub(crate) fn optional_text(input: &[u8], cap: u32) -> Result<(), DecodeError> {
-    if input.len() > usize::try_from(cap).expect("u32 fits usize") {
+    if input.len() > usize_of(cap) {
         return Err(DecodeError::TooLarge);
     }
     text(input)

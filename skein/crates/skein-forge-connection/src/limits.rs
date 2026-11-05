@@ -1,6 +1,6 @@
 //! Forge component limits (forge-connection.md, sections 2, 3.5, 7 and 8).
 use skein_forge::forgejo::limits as documents;
-use skein_lib::Duration;
+use skein_lib::{Duration, len_u64, usize_of};
 
 /// The component's limits (forge-connection.md, section 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -317,7 +317,7 @@ fn check_github_kind(l: &Limits, s: &Shared, github: bool) -> Result<(), Unusabl
         if l.renew_before < l.deadline.saturating_mul(2) || l.renew_before > MAX_RENEW_BEFORE {
             return Err(Unusable::RenewBefore { renew_before: l.renew_before, deadline: l.deadline });
         }
-        if usize::try_from(l.key_bytes).expect("u32 fits") < skein_tls::RS256_KEY_BYTES {
+        if usize_of(l.key_bytes) < skein_tls::RS256_KEY_BYTES {
             return Err(Unusable::KeyBytes { key_bytes: l.key_bytes });
         }
     }
@@ -434,9 +434,7 @@ fn check_forge(l: &Limits, s: &Shared, listener: bool, user_agent: &[u8], forge:
     // Longest method, target, seven fields and final empty line. Decimal lengths
     // use u64's longest spelling; headers here reserve their complete framing.
     let head = u64::from(l.target_bytes)
-        .checked_add(
-            u64::try_from(crate::settings::host(forge).ok_or(Unusable::Zero)?.len()).ok().ok_or(Unusable::Zero)?,
-        )
+        .checked_add(len_u64(crate::settings::host(forge).ok_or(Unusable::Zero)?.len()))
         .ok_or(Unusable::Zero)?;
     let credential = match forge.kind {
         Kind::Forgejo => u64::from(l.token_bytes),
@@ -447,7 +445,7 @@ fn check_forge(l: &Limits, s: &Shared, listener: bool, user_agent: &[u8], forge:
     let head = head
         .checked_add(credential)
         .ok_or(Unusable::Zero)?
-        .checked_add(u64::try_from(user_agent.len()).ok().ok_or(Unusable::Zero)?)
+        .checked_add(len_u64(user_agent.len()))
         .ok_or(Unusable::Zero)?
         .checked_add(192)
         .ok_or(Unusable::Zero)?;
@@ -478,9 +476,9 @@ fn check_origins(l: &Limits, s: &Shared, user_agent: &[u8], forge: &Forge, tls: 
             return Err(Unusable::Origin { forge: forge.number, origin: origin.clone() });
         }
         let head = u64::from(l.target_bytes)
-            .checked_add(u64::try_from(crate::settings::log_host(configured).len()).ok().ok_or(Unusable::Zero)?)
+            .checked_add(len_u64(crate::settings::log_host(configured).len()))
             .ok_or(Unusable::Zero)?
-            .checked_add(u64::try_from(user_agent.len()).ok().ok_or(Unusable::Zero)?)
+            .checked_add(len_u64(user_agent.len()))
             .ok_or(Unusable::Zero)?
             .checked_add(192)
             .ok_or(Unusable::Zero)?;
@@ -495,14 +493,12 @@ pub(crate) fn access(l: &Limits, kind: Kind, listener: bool, access: &Access) ->
     use skein_forge::credential::Credential;
     match (&access.credential, kind) {
         (Credential::Token(token), Kind::Forgejo) => {
-            if !header_value(token.expose()) || token.len() > usize::try_from(l.token_bytes).expect("u32 fits") {
+            if !header_value(token.expose()) || token.len() > usize_of(l.token_bytes) {
                 return Err(Value::Token);
             }
         }
         (Credential::App { key, .. }, Kind::GitHub) => {
-            if key.len() > usize::try_from(l.key_bytes).expect("u32 fits")
-                || skein_tls::sign_rs256(key.expose(), b"skein").is_none()
-            {
+            if key.len() > usize_of(l.key_bytes) || skein_tls::sign_rs256(key.expose(), b"skein").is_none() {
                 return Err(Value::Key);
             }
         }
@@ -514,10 +510,7 @@ pub(crate) fn access(l: &Limits, kind: Kind, listener: bool, access: &Access) ->
         return Err(Value::User);
     }
     if let Some(secret) = &access.webhook_secret
-        && (kind == Kind::GitHub
-            || !listener
-            || secret.is_empty()
-            || secret.len() > usize::try_from(l.hook_secret_bytes).expect("u32 fits"))
+        && (kind == Kind::GitHub || !listener || secret.is_empty() || secret.len() > usize_of(l.hook_secret_bytes))
     {
         return Err(Value::Secret);
     }
