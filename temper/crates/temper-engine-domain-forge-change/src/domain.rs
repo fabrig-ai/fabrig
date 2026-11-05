@@ -293,7 +293,8 @@ fn released_step(change: Change, why: Hold, facts: &Facts, standing: &Heard) -> 
     } else {
         Delegate::Produce
     };
-    if let Hold::Authority(prior) = why
+    if !(ci_state(&change.state) && green_head(facts).is_some())
+        && let Hold::Authority(prior) = why
         && let Some(current) = missing(standing, delegate)
         && current.lack == prior.lack
     {
@@ -797,6 +798,9 @@ fn cancelling_gates(change: Change, head: [u8; 32], facts: &Facts, now: Wall, li
     if facts.live_gate == Some(head) {
         return waiting(change, now, limits);
     }
+    if let Some(head) = green_head(facts) {
+        return take_pushed_head(change, head, now);
+    }
     let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
     repair_due(change, why, facts, now, limits)
 }
@@ -984,10 +988,68 @@ fn repairing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if ci_reason(why)
+        && let Some(head) = green_head(facts)
+    {
+        if !requested || standing.delegate == Status::Failed {
+            return repair_ended(change, head, now);
+        }
+        // Passed stands as a delivery below. An unmade task has nothing to cancel.
+        if standing.delegate != Status::Passed
+            && let Some(Delegate::Repair(_)) = facts.delegate
+            && !standing.delegate_running
+        {
+            return Stepped { change, decision: Decision::CancelRepair { head } };
+        }
+    }
     if !requested {
         return repair_due(change, why, facts, now, limits);
     }
     delegated(change, requested, Delegate::Repair(why), facts, standing, now, limits)
+}
+
+fn ci_reason(why: Repair) -> bool {
+    match why {
+        Repair::Ci | Repair::Semantic => true,
+        Repair::Gate(_) | Repair::Landing { .. } => false,
+    }
+}
+
+fn green_head(facts: &Facts) -> Option<[u8; 32]> {
+    let head = facts.branch?;
+    if facts.ci.head == head && facts.ci.status == Status::Passed { Some(head) } else { None }
+}
+
+fn repair_ended(change: Change, head: [u8; 32], now: Wall) -> Stepped {
+    let mut stepped = take_pushed_head(change, head, now);
+    stepped.decision = Decision::RepairEnded { head };
+    stepped
+}
+
+fn ci_state(state: &State) -> bool {
+    match state {
+        State::Repairing { why, .. } => ci_reason(*why),
+        State::Checking { .. } | State::CancellingGates { .. } => true,
+        State::Producing { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Gating { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Ready { .. }
+        | State::Preparing { .. }
+        | State::Updating { .. }
+        | State::Resolving { .. }
+        | State::Landing { .. }
+        | State::Landed { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
+        | State::NoChange { .. }
+        | State::Held { .. }
+        | State::Ended => false,
+    }
 }
 
 fn resolving(

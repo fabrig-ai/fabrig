@@ -2188,6 +2188,23 @@ fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::St
     }
 }
 
+// A task between attempts is not a run in progress (temper/docs/design/domain/forge.md, 8.4).
+fn change_delegate_running(domain: &Domain, task: u64) -> bool {
+    let Some(row) = domain.forge.change(task) else { return false };
+    let Some((child, _)) = row.delegate else { return false };
+    let Some(child) = domain.core.tasks.task(child) else { return false };
+    match &child.phase {
+        tasks::Phase::Active(active) | tasks::Phase::Held { was: tasks::Was::Active(active), .. } => match active {
+            tasks::Active::Claimed { .. } | tasks::Active::Running { .. } => true,
+            tasks::Active::Idle | tasks::Active::Due | tasks::Active::Preparing | tasks::Active::BackingOff { .. } => {
+                false
+            }
+        },
+        tasks::Phase::Closing(_) | tasks::Phase::Held { was: tasks::Was::Closing(_), .. } => true,
+        tasks::Phase::Waiting | tasks::Phase::Held { was: tasks::Was::Waiting, .. } | tasks::Phase::Ended(_) => false,
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     let task = context.task;
@@ -2421,6 +2438,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             lacking: change_authority_lack(domain, task),
             spend: change_spend(domain, task),
             delegate: forge_change::Status::Unknown,
+            delegate_running: change_delegate_running(domain, task),
             effect: forge_change::EffectResult::None,
             // A held procedure can only run again once jig has lifted its hold.
             // The forge consumes this before starting any asynchronous reads.
@@ -3994,6 +4012,36 @@ fn cancel_change_gates(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureS
     ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
 }
 
+fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
+    let child = match domain.forge.change(task) {
+        Some(row) => match row.delegate {
+            Some((child, forge_change::Delegate::Repair(_))) if domain.core.tasks.task(child).is_some() => Some(child),
+            Some((
+                _,
+                forge_change::Delegate::Produce
+                | forge_change::Delegate::Repair(_)
+                | forge_change::Delegate::Resolve { .. }
+                | forge_change::Delegate::Gate { .. }
+                | forge_change::Delegate::Merge { .. },
+            ))
+            | None => None,
+        },
+        None => None,
+    };
+    let cancels: Box<[jig_domain_core::StepCancel]> = match child {
+        Some(child) => {
+            let mut reason = List::with_capacity(96);
+            append(&mut reason, b"CI passed at head ");
+            for byte in &head {
+                append(&mut reason, &forge::hex(*byte));
+            }
+            Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
+        }
+        None => Box::new([]),
+    };
+    ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
+}
+
 fn change_result_bound(domain: &Domain, task: u64) -> u32 {
     match domain.core.tasks.task(task) {
         Some(row) => match row.contract {
@@ -4220,6 +4268,8 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
         }
         forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
+        forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
+        forge_change::Decision::RepairEnded { .. } => unreachable!("the forge top consumes a repair ended by green CI"),
         forge_change::Decision::Ready => {
             again = ready_change(domain, env, task);
             ProcedureStep::new(StepEnd::Wait)
@@ -4866,6 +4916,8 @@ pub(crate) fn outputs(
                 | forge_change::Decision::Wait { .. }
                 | forge_change::Decision::Delegate(_)
                 | forge_change::Decision::CancelGates { .. }
+                | forge_change::Decision::CancelRepair { .. }
+                | forge_change::Decision::RepairEnded { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
                 | forge_change::Decision::NoChange
