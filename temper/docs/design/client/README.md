@@ -785,8 +785,9 @@ keeps (`../protocol/configuration.md`, section 2).
   to add (4.8).
 - **The welcome** (`welcome.html`) is one page, `Welcome { step }`, its
   step Welcome, Forge, Model or Ready, at `/welcome` and
-  `/welcome?at=forge`, `model` or `ready` (`browser.md`, 2.3); its
-  words are its mockup's (5.6).
+  `/welcome?at=welcome`, `forge`, `model` or `ready` (`browser.md`, 2.3); its
+  words are its mockup's (5.6). The tab's title is "Welcome · first run ·
+  temper" on every step (`browser.md`, 2.5).
   - *Whether it shows* is the document's
     (`../protocol/configuration.md`, section 3), which the domain learns
     from the deployment's read (4.6): the forge's side reads it when a
@@ -799,8 +800,8 @@ keeps (`../protocol/configuration.md`, section 2).
     alike, moves on to the inbox, its address replacing the welcome's,
     and the store's state is not judged: the rest of this entry holds
     where the document shows it.
-  - *Its frame* is temper's brand link to Chats (named "temper chats"),
-    temper box's line and the steps alone: no person's name or "Sign
+  - *Its frame* is temper's brand link to the welcome, `/welcome`
+    (named "temper"), temper box's line and the steps alone: no person's name or "Sign
     out", no project, navigation or link state, and no accounts' banner
     (5.1); the playground's line while the playground is leaving, as on
     every page but the chats page (4.8, 5.1, 5.6). temper box's line says what this
@@ -808,10 +809,25 @@ keeps (`../protocol/configuration.md`, section 2).
     to try it · more later, from Settings · Run temper on a server ↗",
     the last an external link to temper's help on running a server
     (`temper/docs/help/server.md`), the welcome being a quick way to
-    try temper, not a deployment's wizard (the user, 2026-11-04). The
-    steps (5.2, A flow's parts) are the frame's, at its end. Each
+    try temper, not a deployment's wizard (the user, 2026-11-04). Each
     step's heading is the page's level-1 heading.
-  - *The store's state* is judged at its Welcome step, once each time
+  - *Its steps,* at the frame's end, are a list named Steps of four links,
+    each to its own step in every state: Welcome to `/welcome?at=welcome`,
+    Forge, Model and Ready to their `?at=`, with no choice or way. They
+    are the welcome's own, not the flows' list (5.2, A flow's parts), which
+    `ConnectForge` and `ConnectModel` keep. Each draws its number or its
+    tick in a ring, then its label; below 760 px only the current step's
+    label shows. The step at the address is current, always, a choice or a
+    way in it among them: Ready stays current, its "4" black, when its
+    forge and model are done. A step is ticked when it is done and not
+    current: Welcome is done at any other step or once a real forge is
+    kept; Forge once a real forge is kept, even under way; Model once a
+    model is usable; Ready never. The terminal prints the list as text,
+    its links as the acts it offers any link (section 6).
+  - *`/welcome?at=welcome`* opens the Welcome step, its link's address,
+    whatever the store's state, once its facts are in; only a whole state
+    moves on, to the chats page, as `/welcome` does.
+  - *The store's state* is judged at `/welcome`, once each time
     the page opens, when its facts are in, from the forges the store
     keeps, the accounts and `me`'s projects (`../protocol/setup.md`,
     6.7 and 8.4; `../draft/first-run-projects.md`, 4). A
@@ -823,7 +839,7 @@ keeps (`../protocol/configuration.md`, section 2).
     and the person has a project when `me` lists one in which they hold
     a role. No adoption is read.
     - *Empty:* no real forge kept and no model usable. The step shows
-      its two cards, "Try the playground" and "Set up temper".
+      its cards (*The Welcome step,* below).
     - *Unfinished:* neither: a real forge kept, but none connected, or
       no model usable, or a model usable with no real forge, or no
       project. The page opens at the step left undone, Forge while no
@@ -862,6 +878,12 @@ keeps (`../protocol/configuration.md`, section 2).
     (`../protocol/setup.md`, 8.4): an unfinished forge is started over
     first (below), and a whole one never. A real account alone does not
     end it (4.8).
+  - *The Welcome step* draws "Set up temper"'s card, then, while the
+    playground is offered, "Try the playground"'s and the note under them;
+    not offered, both are left out. With a real forge kept, the card's
+    button reads "Go on setting up" and goes to Ready when a model is
+    usable, else to Model; with none, it reads "Set up temper" and goes to
+    Forge.
   - *"Try the playground"* sends `StartPlayground` while no playground
     is read (4.8) and opens the chats page, in the playground's project
     once its read names it, which the start's acts make
@@ -885,8 +907,8 @@ keeps (`../protocol/configuration.md`, section 2).
     Back" returns to Forge's Choose. The welcome has no "‹ All
     forges"; `ConnectForge` keeps it. Its foot, on Forge and Model, is
     "‹ Back" and, while the playground is offered, "Try the playground
-    instead": no way to leave set up half done but the brand's link to
-    Chats (the user, 2026-11-04). The step connects a forge and
+    instead": a set up half done is left by no act of the foot's
+    (the user, 2026-11-04). The step connects a forge and
     nothing more, on every kind: it adopts no repository and asks no
     project's name (`../draft/first-run-projects.md`, 4).
     *Forgejo's sheet* (the user, 2026-11-04) is Forgejo on this
@@ -936,8 +958,8 @@ keeps (`../protocol/configuration.md`, section 2).
     GitHub stays the person's to delete. While the removal is out, both
     are disabled. An account added before stays: it is the person's,
     not the set up's, and the Model step shows it ready.
-    A forge connected is no choice either: the step says it, "FORGE ·
-    CONNECTION", with "View", to `ConnectForge` at it; but a GitHub
+    A forge of the person's under way or connected is no choice either
+    (*The Forge step with a forge,* below); but a GitHub
     forge with no accepted installation, or a Forgejo connecting
     as its admin, shows `ConnectForge`'s step for it in the step, its
     `back` the welcome's Forge step, `/welcome?at=forge&forge=N`, so
@@ -948,6 +970,18 @@ keeps (`../protocol/configuration.md`, section 2).
     `/welcome?at=forge`, stays on Forge. Its first repository, made on
     an owned or managed Forgejo, waits unadopted: the person adopts it
     later, from the project's "Adopt a repository" (4.4).
+    *The Forge step with a forge:* for a personal forge under way or
+    connected, GitHub with an accepted installation among them, the step
+    is the heading "Connect a forge"; the lead "One forge is enough to
+    begin; add others later, from Settings."; the forge's status, in the
+    column, not the Model step's pane: under way a spinner, the forge's
+    name, a muted line of `welcome_line`'s words and the disclosure "Each
+    step"; connected a tick, the name and "connected as LOGIN · ORG/NAME
+    made", on GitHub "temper’s App on ACCOUNT", ACCOUNT the first accepted
+    installation's, with no count of repositories; then the primary
+    "Continue", to Ready when a model is usable, else to Model; then the
+    foot. A set up failed, a forge cut short, GitHub's installation and
+    Forgejo's admin steps keep what this entry says of them.
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
     (above), its way in the welcome's address (`browser.md`, 2.3).
     Its lead is "temper’s agents run on a plan you sign in to.". Its
@@ -2427,8 +2461,8 @@ client removes no account and closes no chat of its own.
   - *a progress,* a list of lines, each with its state in words
     ("done", "under way", "failed", or none for one to come);
   - *a card,* the step's one card, holding the rest.
-  A flow's page builds its main from them; the welcome's own steps are
-  the same list, in its frame (3.5, The welcome).
+  A flow's page builds its main from them; the welcome's steps are its
+  own links, in its frame (3.5, The welcome).
 - **Bindings:** writing a field, choosing a role, toggling home or ci,
   choosing a picker's installation or row, its "Next" and "First page",
   pressing Adopt, each of the forges' page's actions, and going to
