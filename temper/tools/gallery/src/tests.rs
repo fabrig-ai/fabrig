@@ -432,6 +432,35 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-model-claude",
+        heading: "Your Claude subscription",
+        parts: &[
+            Part::Text { text: "temper program-login claude-pat" },
+            Part::Named { role: Role::Button, name: "I’ve signed in" },
+            Part::Absent { role: Role::TextField, name: "Name" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-checking",
+        heading: "Your Claude subscription",
+        parts: &[
+            Part::Named { role: Role::Status, name: "Checking Claude Code’s sign-in on this machine…" },
+            Part::Absent { role: Role::Button, name: "I’ve signed in" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-not-yet",
+        heading: "Your Claude subscription",
+        parts: &[
+            Part::Text { text: "temper program-login claude-pat" },
+            Part::Named {
+                role: Role::Alert,
+                name: "Claude Code isn’t signed in here yet. Run the command above, then press I’ve signed in.",
+            },
+            Part::Named { role: Role::Button, name: "I’ve signed in" },
+        ],
+    },
+    Holds {
         name: "welcome-model-key-details",
         heading: "An OpenAI API key",
         parts: &[Part::Named { role: Role::TextField, name: "Key, pasted once" }],

@@ -448,7 +448,7 @@ pub(super) fn program_body(b: &mut Builder, root: &Domain, w: &Words, bindings: 
         }
         b.close();
     }
-    command(b, w, &name);
+    command(b, w, &name, false);
     muted(b, &say(w, W::ProgramNote));
     button(
         b,
@@ -477,9 +477,9 @@ fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     button(b, bindings, &w.say(Word::ModelAddKey, &[]), Act::Submit { name: root.pages().account_name() }, busy, true);
     b.close();
 }
-fn command(b: &mut Builder, w: &Words, name: &[u8]) {
+pub(super) fn command(b: &mut Builder, w: &Words, name: &[u8], welcome: bool) {
     b.open(Role::Code);
-    b.style(crate::look::FLOW_CODE);
+    b.style(if welcome { crate::look::WELCOME_CMD } else { crate::look::FLOW_CODE });
     b.text(Run::Plain, &named(w, W::Command, name));
     b.close();
 }
@@ -514,7 +514,7 @@ pub(super) fn ready_body(
             );
             crate::cards::text(b, Role::Status, &label);
             text(b, w, Role::Paragraph, W::ProgramRun);
-            command(b, w, name);
+            command(b, w, name, false);
             text(b, w, Role::Paragraph, W::ProgramNote);
         }
         Way::SignIn { .. } => {

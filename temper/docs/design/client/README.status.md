@@ -2,7 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *A way's page*'s Claude: the welcome declares a name and stops at "Declared". 3.5, *Ready*: Model comes first until both are done; the line's size, its spinning ring, "Forge none yet"'s link at the row's end, Model's words, the note under the form and the foot. 3.5, *Forgejo's sheet*, *Its copies*: copies and nothing say "Not available yet". 3.5, Home's second step: its copies, "Add a repository" and its sheet. 3.4, 5.5: the composer's
+- **Not yet:** 3.5, *Ready*: Model comes first until both are done; the line's size, its spinning ring, "Forge none yet"'s link at the row's end, Model's words, the note under the form and the foot. 3.5, *Forgejo's sheet*, *Its copies*: copies and nothing say "Not available yet". 3.5, Home's second step: its copies, "Add a repository" and its sheet. 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no

@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 117;
+pub const N: usize = 120;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -239,6 +239,9 @@ pub fn samples() -> [Sample; N] {
         model_forge_sample("welcome-model-forge-fetching-bytes", 25),
         model_forge_sample("welcome-model-forge-done", 7),
         model_forge_sample("welcome-model-forge-failed", 9),
+        welcome_model_sample("welcome-model-claude", temper_client_domain::WayKind::Program, Shown),
+        welcome_model_sample("welcome-model-claude-checking", temper_client_domain::WayKind::Program, Shown),
+        welcome_model_sample("welcome-model-claude-not-yet", temper_client_domain::WayKind::Program, Shown),
         welcome_model_sample("welcome-model-key-details", temper_client_domain::WayKind::Key, Shown),
         model_forge_sample("welcome-model-connected", 7),
         welcome_model_sample("welcome-model-away", temper_client_domain::WayKind::SignIn, SigningIn),
@@ -400,6 +403,9 @@ fn special_mockup(name: &str) -> Option<String> {
         }
         "forge-setup-failed" | "welcome-setup-failed" => {
             return Some("connect-forge.html?world=first-run&step=6&forge=3&bare#other-states".to_owned());
+        }
+        "welcome-model-claude" | "welcome-model-claude-checking" | "welcome-model-claude-not-yet" => {
+            return Some("welcome.html?at=model&way=claude".to_owned());
         }
         "welcome-model-key-details" => {
             return Some("welcome.html?world=first-run&step=0&at=model&way=key&bare".to_owned());
@@ -565,6 +571,10 @@ pub fn domain(sample: &Sample) -> Domain {
             &mut out,
         );
     }
+    if sample.name.starts_with("welcome-model-claude") {
+        claude(&mut root, sample.name, accounts_watch.expect("Claude accounts watch"), &mut out);
+        return root;
+    }
     match sample.then {
         Then::Shown | Then::Held => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
@@ -631,6 +641,69 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     root
 }
+fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_domain::pages::{accounts::Way, connect_model::Act as A};
+    if name == "welcome-model-claude" {
+        return;
+    }
+    let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Claude accounts").clone();
+    doc.settled = false;
+    crate::driver::deliver(root, watch, c::Delivery::Accounts(Box::new(doc.clone())), out);
+    step(
+        root,
+        Event::Act {
+            action: Action::Pages(Act::ConnectModel(A::SignedIn {
+                name: root.pages().account_name(),
+                way: Way::Program { provider: 17 },
+            })),
+        },
+        out,
+    );
+    step(root, Event::Client { event: jig_client::Event::Stored }, out);
+    let attempt = sent_attempt(out);
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                        c::DocumentOutcome::AccountProgramDeclared {
+                            source: 43,
+                            name: b"claude-pat".as_slice().into(),
+                        },
+                    )))),
+                },
+            },
+        },
+        out,
+    );
+    if name == "welcome-model-claude-not-yet" {
+        step(root, Event::Client { event: jig_client::Event::Stored }, out);
+        let attempt = sent_attempt(out);
+        step(
+            root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        why: None,
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::AccountChanged,
+                        )))),
+                    },
+                },
+            },
+            out,
+        );
+        doc.settled = true;
+        crate::driver::deliver(root, watch, c::Delivery::Accounts(Box::new(doc)), out);
+    }
+}
+
 fn configure_domain(sample: &Sample) -> Domain {
     if matches!(sample.name, "configure-chat" | "configure-chats-tag") {
         return crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then).0;

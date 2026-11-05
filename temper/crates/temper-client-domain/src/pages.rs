@@ -39,7 +39,7 @@ pub struct Pages {
     task: Option<task::Task>,
     accounts: accounts::Accounts,
     switcher: switcher::Switcher,
-    connect_model: Option<Box<connect_model::ConnectModel>>,
+    pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_choice: PlaygroundChoice,
     pub(crate) playground_model: bool,
@@ -263,21 +263,9 @@ impl Pages {
         {
             return name;
         }
-        let mut name = [0; 16];
-        for (slot, byte) in name.iter_mut().zip(*b"accounts") {
-            *slot = byte;
-        }
-        for (slot, byte) in name
-            .get_mut(8..)
-            .expect("name number fits")
-            .iter_mut()
-            .zip(self.serial.checked_add(1).expect("page keys fit").to_be_bytes())
-        {
-            *slot = byte;
-        }
-
-        name
+        account_request_name(self.serial)
     }
+
     #[must_use]
     pub fn accounts_document<'a>(&self, client: &'a Client) -> Option<&'a jig_client::contract::Accounts> {
         if !self.watching || self.party != Some(accounts::current_me(client)?.party.number) {
@@ -836,6 +824,23 @@ fn open_result(pages: &mut Pages, task: u64, through: u64, out: &mut Queue<Reque
     out.push(Request::Show { address: Address::Task { task, filter: PlanFilter::All } });
 }
 
+pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
+    let mut name = [0; 16];
+    for (slot, byte) in name.iter_mut().zip(*b"accounts") {
+        *slot = byte;
+    }
+    for (slot, byte) in name
+        .get_mut(8..)
+        .expect("name number fits")
+        .iter_mut()
+        .zip(serial.checked_add(1).expect("page keys fit").to_be_bytes())
+    {
+        *slot = byte;
+    }
+
+    name
+}
+
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if let Some(page) = &mut pages.connect_model {
         if let Told::Kept { key, request: jig_client::Ask::Jig(ask) } = &told
@@ -865,7 +870,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             | Told::Ended { .. }
             | Told::Page { .. } => true,
         };
-        if claim && page.request.told(client, &told) {
+        if claim && page.told(client, &told, &mut pages.serial, out) {
             // Both requests observe watch changes, but answers belong to their own key.
             if let Told::Changed { .. } = told {
                 pages.accounts.request.refresh(client);
