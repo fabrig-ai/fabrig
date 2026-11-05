@@ -1,0 +1,55 @@
+draft = "hearth-memory-4"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-memory-4/inputs/request.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "sentence"
+title = "format.md's 3.5 is written around the target chat-prod, and its open question goes"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/protocol/format.md, 3.5"
+
+[[slice]]
+id = 1
+story = "the design names no container of the example fleet, and no longer asks whether it should"
+parts = ["sentence"]
+walk = false
+
+[[part]]
+id = "orders"
+title = "Every order the capped queues beside the JSON decoder keep has a world test that passes today"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/render.md, 8.5"
+
+[[slice]]
+id = 2
+story = "what each capped queue beside the decoder keeps is listed and held by a test, before any cap goes"
+parts = ["orders"]
+walk = false
+
+[[part]]
+id = "machine"
+title = "hearth-protocol-config has no MaxOut, the queues beside its decoder are uncapped and its hand-grown lists are gone"
+mode = "direct"
+needs = ["orders"]
+design = "hearth/docs/design/domain/render.md, 8.5"
+
+[[part]]
+id = "close"
+title = "D001 says what is true after this round, and stays open"
+mode = "direct"
+needs = ["machine"]
+design = "hearth/docs/design/domain/render.md, 8.5"
+
+[[slice]]
+id = 3
+story = "the config machine runs uncapped with only its edges refusing, and what hearth does is unchanged"
+parts = ["machine", "close"]
+walk = false

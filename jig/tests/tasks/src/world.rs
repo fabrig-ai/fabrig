@@ -553,8 +553,8 @@ impl World {
             | Event::Refusals { .. }
             | Event::Activation { cause: Cause::Unpriced, .. }
             | Event::PreparationWaiting { .. }
-            | Event::PreparationFailed { .. }
-            | Event::PreparationUnread { .. }
+            | Event::PreparationPaused { .. }
+            | Event::PreparationCounted { .. }
             | Event::Hold { .. }
             | Event::HoldFrom { .. }
             | Event::EffectsSettled { .. }
@@ -653,8 +653,8 @@ impl World {
             | Event::Refusals { .. }
             | Event::Activation { .. }
             | Event::PreparationWaiting { .. }
-            | Event::PreparationFailed { .. }
-            | Event::PreparationUnread { .. }
+            | Event::PreparationPaused { .. }
+            | Event::PreparationCounted { .. }
             | Event::Hold { .. }
             | Event::HoldFrom { .. }
             | Event::EffectsSettled { .. }

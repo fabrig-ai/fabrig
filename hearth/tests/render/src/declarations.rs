@@ -181,7 +181,7 @@ pub fn decode(source: &[u8]) -> hearth_domain_render::revision::declaration::Dec
     use hearth_protocol_config::{self as config, json};
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config::limits::SHIPPED };
     let mut decoder = json::Decoder::new(&env.limits);
-    let (mut above, mut below) = (Queue::with_capacity(1), Queue::with_capacity(1));
+    let (mut above, mut below) = (Queue::uncapped(), Queue::uncapped());
     let mut held = Held::new(Box::from(source));
     json::down(&mut decoder, &env, json::Request::Decode, &mut above, &mut below);
     for _ in 0..source.len().saturating_mul(8).saturating_add(32) {

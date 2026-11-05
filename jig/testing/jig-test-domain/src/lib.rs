@@ -324,6 +324,8 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 pub struct Domain {
     scripted_project_releases: Option<Queue<(u16, u32)>>,
     scripted_workspaces: Option<Queue<core::Event>>,
+    scripted_brief_failure: Option<jig_domain_brief::GatherFailure>,
+    brief_failures: Queue<(u64, jig_domain_brief::GatherFailure)>,
     hub_link: jig_domain_hub_link::Link,
     core: core::Core,
     first: connector::Domain,
@@ -347,6 +349,16 @@ impl Domain {
     /// Hold workspace completions for deterministic preparation interleavings.
     pub fn script_workspaces(&mut self) {
         self.scripted_workspaces = Some(Queue::uncapped());
+    }
+
+    /// Fail each brief assembly until the world clears the script.
+    pub fn script_brief_failure(&mut self, failure: Option<jig_domain_brief::GatherFailure>) {
+        self.scripted_brief_failure = failure;
+    }
+
+    /// Take one failure observed by the application's log route.
+    pub fn take_brief_failure(&mut self) -> Option<(u64, jig_domain_brief::GatherFailure)> {
+        self.brief_failures.pop()
     }
 
     /// Take one held completion; the world delivers it through the root's entrance.
@@ -482,6 +494,8 @@ impl Domain {
         Domain {
             scripted_project_releases: None,
             scripted_workspaces: None,
+            scripted_brief_failure: None,
+            brief_failures: Queue::uncapped(),
             hub_link: jig_domain_hub_link::Link::new(
                 jig_domain_hub_link::Limits {
                     assignments: limits.core.tasks.tasks,

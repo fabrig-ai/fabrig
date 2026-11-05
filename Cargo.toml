@@ -321,6 +321,9 @@ members = [
     "hearth/testing/hearth-fake-mmdebstrap",
     "hearth/testing/hearth-recordings",
     "hearth/testing/hearth-test-fixtures",
+    "hearth/testing/hearth-test-render",
+    "hearth/testing/hearth-test-repository",
+    "hearth/testing/hearth-test-git",
     "hearth/testing/hearth-test-mirror",
     "hearth/tests/accounts",
     "hearth/tests/builder",
@@ -563,13 +566,11 @@ temper-fake-checkout = { path = "temper/tests/fake-checkout" }
 temper-worker-checkout-world = { path = "temper/tests/worker/checkout" }
 
 # hearth
-hearth-render-world = { path = "hearth/tests/render" }
 hearth-service-builder = { path = "hearth/crates/hearth-service-builder" }
 hearth = { path = "hearth/crates/hearth" }
 hearth-protocol-builder = { path = "hearth/crates/hearth-protocol-builder" }
 hearth-client-protocol-records = { path = "hearth/crates/hearth-client-protocol-records" }
 hearth-recordings = { path = "hearth/testing/hearth-recordings" }
-hearth-git-world = { path = "hearth/tests/git" }
 hearth-fake-git = { path = "hearth/testing/hearth-fake-git" }
 hearth-protocol-config = { path = "hearth/crates/hearth-protocol-config" }
 hearth-fake-mmdebstrap = { path = "hearth/testing/hearth-fake-mmdebstrap" }
@@ -580,6 +581,9 @@ hearth-domain-store = { path = "hearth/crates/hearth-domain-store" }
 hearth-domain-tree = { path = "hearth/crates/hearth-domain-tree" }
 hearth-domain-build = { path = "hearth/crates/hearth-domain-build" }
 hearth-test-fixtures = { path = "hearth/testing/hearth-test-fixtures" }
+hearth-test-render = { path = "hearth/testing/hearth-test-render" }
+hearth-test-repository = { path = "hearth/testing/hearth-test-repository" }
+hearth-test-git = { path = "hearth/testing/hearth-test-git" }
 hearth-test-mirror = { path = "hearth/testing/hearth-test-mirror" }
 hearth-domain-render = { path = "hearth/crates/hearth-domain-render" }
 hearth-protocol-mmdebstrap = { path = "hearth/crates/hearth-protocol-mmdebstrap" }

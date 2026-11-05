@@ -5,7 +5,6 @@ use crate::{
     limits::{self, Limits},
 };
 use alloc::boxed::Box;
-use core::mem;
 use skein_json::{Token, tokenizer as tk};
 use skein_lib::{
     Env, List, Map, Queue, Stack,
@@ -67,19 +66,12 @@ struct Held {
     at: Position,
     value: Option<Value>,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct MaxOut {
-    pub above: u32,
-    pub below: u32,
-}
-pub const UP_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
-pub const DOWN_MAX_OUT: MaxOut = UP_MAX_OUT;
 impl Decoder {
     #[must_use]
     pub fn new(limits: &Limits) -> Decoder {
         Decoder {
             tokenizer: tk::Tokenizer::new(&limits::tokenizer(limits)),
-            events: Queue::with_capacity(1),
+            events: Queue::uncapped(),
             open: Stack::with_capacity(limits.depth),
             root: None,
             state: Waiting::Decode,
@@ -207,10 +199,7 @@ fn accept(decoder: &mut Decoder, limits: &Limits, token: Token, at: Position) ->
             return Ok(());
         }
         Token::ArrayStart => {
-            decoder
-                .open
-                .push(Frame::Array { at, values: List::with_capacity(0) })
-                .expect("the tokenizer enforces depth");
+            decoder.open.push(Frame::Array { at, values: List::uncapped() }).expect("the tokenizer enforces depth");
             return Ok(());
         }
         Token::Key(key) => return key_read(decoder, key, at),
@@ -285,14 +274,7 @@ fn place(decoder: &mut Decoder, value: Value) -> Result<(), Error> {
             entries.get_mut(&*key).expect("the key was counted").value = Some(value);
         }
         Some(Frame::Array { values, .. }) => {
-            if values.room() == 0 {
-                let capacity = values.capacity().saturating_mul(2).max(1);
-                let old = mem::replace(values, List::with_capacity(capacity));
-                for item in old.into_boxed() {
-                    values.push(item).expect("doubled capacity");
-                }
-            }
-            values.push(value).expect("room reserved");
+            values.push(value).expect("an uncapped list");
         }
     }
     Ok(())
@@ -314,17 +296,22 @@ fn finish(frame: Frame) -> Value {
     }
 }
 
+/// What `events` holds once it has grown: an uncapped queue's first push takes four items' room,
+/// and `drive` takes each event before it asks the next.
+const EVENTS: u32 = 4;
+
 /// Bounds the decoder's retained heap, including the tree under construction
 /// (skein/docs/foundation/programming-model.md, 6.3; hearth/docs/design/domain/render.md, 2.3).
 #[must_use]
 pub fn decoder_bound(limits: &Limits) -> Option<u64> {
     let tokenizer = tk::tokenizer_bound(&limits::tokenizer(limits))?;
     let frames = Stack::<Frame>::price(limits.depth)?;
-    let events = Queue::<tk::Event>::price(1)?;
+    let events = Queue::<tk::Event>::price(EVENTS)?;
     let maps = Map::<Box<[u8]>, Held>::price(limits.keys)?.checked_mul(u64::from(limits.depth))?;
     let values = u64::from(limits.document).checked_div(2)?.checked_add(1)?;
-    // A growing array holds its old capacity and twice that capacity; all
-    // other values share the same document, rather than adding a full tree.
+    // An open array's four slots cost at least three bytes of document (`[0,`):
+    // 4/3 of a record a byte, under the 3/2 counted here. All values share
+    // the same document, rather than adding a full tree.
     // Object finishing moves values; its map storage is counted above.
     let records = u64::try_from(size_of::<Value>().max(size_of::<Entry>())).ok()?;
     let storage = values.checked_mul(records)?.checked_mul(3)?;
@@ -342,5 +329,5 @@ pub(crate) fn decoded_bound(limits: &Limits) -> Option<u64> {
         .checked_add(u64::from(limits.document))?
         .checked_add(tk::tokenizer_bound(&limits::tokenizer(limits))?)?
         .checked_add(Stack::<Frame>::price(limits.depth)?)?
-        .checked_add(Queue::<tk::Event>::price(1)?)
+        .checked_add(Queue::<tk::Event>::price(EVENTS)?)
 }
