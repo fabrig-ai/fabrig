@@ -430,9 +430,11 @@ impl Task {
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
+            | Act::StartAsks { .. }
             | Act::StartCancel
             | Act::StartGoal
             | Act::Switcher(_)
+            | Act::Away(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut
@@ -557,9 +559,11 @@ impl Task {
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
+            | Act::StartAsks { .. }
             | Act::StartCancel
             | Act::StartGoal
             | Act::Switcher(_)
+            | Act::Away(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut

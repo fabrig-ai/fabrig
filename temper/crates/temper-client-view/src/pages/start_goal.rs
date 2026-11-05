@@ -45,6 +45,7 @@ pub(crate) fn sheet(b: &mut Builder, root: &Domain, start: &StartGoal, words: &W
     b.close();
     b.close();
     ways(b, root, start, words, bindings);
+    asks(b, start, words, bindings);
     if let Some(error) = &start.error {
         failure(b, words, error);
     }
@@ -113,6 +114,39 @@ fn ways(b: &mut Builder, root: &Domain, start: &StartGoal, words: &Words, bindin
     b.style(look::SHEET_LINK);
     b.text(Run::Plain, &name);
     b.close();
+    b.close();
+}
+
+fn asks(b: &mut Builder, start: &StartGoal, words: &Words, bindings: &mut Bindings) {
+    b.open(Role::ChoiceGroup);
+    b.style(look::SHEET_FIELDSET);
+    b.name(&words.say(Word::StartGoalAsks, &[]));
+    b.open(Role::Heading { level: 3 });
+    b.style(look::SHEET_FIELDSET);
+    words.text(b, Word::StartGoalAsks, &[]);
+    b.close();
+    for (always, title, detail) in [
+        (false, Word::StartGoalFollow, Word::StartGoalFollowDetail),
+        (true, Word::StartGoalAlways, Word::StartGoalAlwaysDetail),
+    ] {
+        b.open(Role::Slot);
+        b.style(look::SHEET_OPTION);
+        b.open(Role::Choice);
+        b.name(&words.say(title, &[]));
+        b.bind(bindings.insert(Act::StartAsks { always }));
+        if start.always == always {
+            b.state(State::Selected);
+        }
+        if start.pending.is_some() {
+            b.state(State::Disabled);
+        }
+        b.close();
+        b.open(Role::Text);
+        b.style(look::SHEET_MUTED);
+        words.text(b, detail, &[]);
+        b.close();
+        b.close();
+    }
     b.close();
 }
 

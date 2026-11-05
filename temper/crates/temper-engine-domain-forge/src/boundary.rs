@@ -247,6 +247,8 @@ pub enum Answered {
     Reachable(ReachableAnswer),
     Dismiss(crate::DismissAnswer),
     Looked(crate::LookedAnswer),
+    SetAway(crate::SetAwayAnswer),
+    Overturn(crate::OverturnAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge.md, 4.5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1057,6 +1059,7 @@ pub struct NamedCall {
 /// The connector's part of a named answer; core decisions remain outside it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallPayload {
+    Decided { took: Option<Box<[u8]>> },
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
     Refused(skein_forge::api::Error),
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
@@ -1158,6 +1161,8 @@ pub enum Stored {
     },
     ProjectFacts(crate::ProjectFacts),
     Looked(crate::Looked),
+    Away(crate::Away),
+    Decided(crate::Decided),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1203,6 +1208,8 @@ pub enum Key {
     Making(crate::MakingKey),
     ProjectFacts { project: u32 },
     Looked { party: u64, project: u32 },
+    Away { party: u64, project: u32 },
+    Decided { project: u32, number: u32 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1291,6 +1298,30 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    SetAway {
+        request: Token,
+        token: Token,
+        party: u64,
+        project: u32,
+        on: bool,
+        until: Option<skein_lib::Wall>,
+        kinds: u8,
+    },
+    Overturn {
+        request: Token,
+        token: Token,
+        party: u64,
+        project: u32,
+        number: u32,
+    },
+    Decided {
+        to: skein_lib::ReplyTo,
+        key: NamedCall,
+        party: u64,
+        project: u32,
+        task: u64,
+        call: crate::DecidedCall,
+    },
     MakingStarted {
         key: crate::MakingKey,
     },
@@ -1802,6 +1833,11 @@ pub enum Event {
     reason = "Save carries the change row and its producer report; changing the request boundary is separate"
 )]
 pub enum Request {
+    Decided {
+        to: skein_lib::ReplyTo,
+        key: NamedCall,
+        took: Option<Box<[u8]>>,
+    },
     MakingCopied {
         key: crate::MakingKey,
     },

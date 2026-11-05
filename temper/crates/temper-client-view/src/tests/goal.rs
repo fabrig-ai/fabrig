@@ -1068,9 +1068,9 @@ fn how_it_runs_says_its_way_by_its_branch() {
             assert_eq!(
                 section_text(&draw(&root, &words).0, b"How it runs").as_ref(),
                 if has_branch {
-                    b"Plan, tasks, land whole \xc2\xb7 always asks you".as_slice()
+                    b"Plan, tasks, land whole \xc2\xb7 follows the away switch".as_slice()
                 } else {
-                    b"Task by task \xc2\xb7 always asks you"
+                    b"Task by task \xc2\xb7 follows the away switch"
                 }
             );
         }
@@ -1870,5 +1870,20 @@ mod composer {
         let said = fixtures::text(&tree);
         assert!(skein_lib::bytes::find(&said, b"Another person.").is_none());
         assert!(skein_lib::bytes::find(&said, b"A tool or agent.").is_none());
+    }
+}
+
+#[test]
+fn how_it_runs_reads_the_asking_line() {
+    for (spec, suffix) in [
+        (b"Goal\nAsks: always".as_slice(), b"always asks you".as_slice()),
+        (b"Goal\nIt says Asks: always", b"follows the away switch"),
+    ] {
+        let mut task = document();
+        task.spec.specification.words = text(spec);
+        let root = root(task, 0, 0, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            assert!(section_text(&draw(&root, &words).0, b"How it runs").ends_with(suffix));
+        }
     }
 }

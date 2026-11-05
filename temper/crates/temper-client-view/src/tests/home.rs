@@ -204,6 +204,7 @@ struct StatusFixture {
     answered: bool,
     goals: bool,
     goal_rows: Option<ChatFixture>,
+    away: Option<AwayFixture>,
 }
 #[expect(
     clippy::disallowed_methods,
@@ -221,8 +222,31 @@ fn home_documents_with_status(
     settings_delivered: bool,
     status: Option<&StatusFixture>,
 ) -> (d::Domain, Token) {
-    let (mut root, me_watch, accounts, settings, needs_watch) =
+    let (mut root, me_watch, accounts, settings, needs_watch, away_watch) =
         f::home_root(&home_limits(), rows, dismissed, status.is_some_and(|fixture| fixture.goals));
+    if let Some(spell) = status.and_then(|s| s.away.as_ref()).and_then(|a| a.spell.clone()) {
+        drive(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::FamilyDelivered {
+                        watch: away_watch,
+                        record: jig_client::Family {
+                            family: wire::FORGE,
+                            version: wire::CLIENT_VERSION,
+                            bytes: wire::aways(
+                                &w::Aways::new(
+                                    &w::CEILINGS,
+                                    w::AwaysParts { rows: List::from_boxed(Box::new([spell])) },
+                                )
+                                .unwrap(),
+                            ),
+                        },
+                    },
+                },
+            },
+        );
+    }
     let template_root = f::chat::messaging_root();
     let template_me = template_root.pages().me(template_root.client()).unwrap();
     let mut me = root.pages().me(root.client()).unwrap().clone();
@@ -447,6 +471,46 @@ fn settle_home(
         let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let mut more = match down {
             jig_client::Down::Open { watch, subject }
+                if status.and_then(|s| s.away.as_ref()).is_some()
+                    && (Some(&subject) == d::forge::away::watch(&home_limits().forge).as_ref()
+                        || Some(&subject) == d::forge::decided::watch(f::PROJECT, &home_limits().forge).as_ref()) =>
+            {
+                let fixture = status.unwrap().away.as_ref().unwrap();
+                let bytes = if Some(&subject) == d::forge::away::watch(&home_limits().forge).as_ref() {
+                    let Some(spell) = fixture.spell.clone() else { continue };
+                    wire::aways(
+                        &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([spell])) })
+                            .unwrap(),
+                    )
+                } else if Some(&subject) == d::forge::decided::watch(f::PROJECT, &home_limits().forge).as_ref() {
+                    wire::decisions(
+                        &w::Decisions::new(
+                            &w::CEILINGS,
+                            w::DecisionsParts { project: f::PROJECT, rows: fixture.rows.clone() },
+                        )
+                        .unwrap(),
+                    )
+                } else {
+                    unreachable!("away fixture watch")
+                };
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes,
+                                },
+                            },
+                        },
+                    },
+                )
+            }
+
+            jig_client::Down::Open { watch, subject }
                 if Some(&subject) == d::forge::status::watch(f::PROJECT, &home_limits().forge).as_ref()
                     && status.is_some() =>
             {
@@ -593,6 +657,32 @@ fn settle_home(
                     continue;
                 }
                 read_done(root, read, home_need_page(c::ObjectKey::Escalation(task)))
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) }
+                if status.and_then(|s| s.away.as_ref()).is_some() =>
+            {
+                let fixture = status.unwrap().away.as_ref().unwrap();
+                if fixture.state == d::pages::home::DecisionTask::Unknown {
+                    continue;
+                }
+                let mut document = f::task::document();
+                document.chip.task = task;
+                document.chip.title = f::task::document_words(b"welcome-stall");
+                match fixture.state {
+                    d::pages::home::DecisionTask::Unknown => unreachable!(),
+                    d::pages::home::DecisionTask::Live => {}
+                    d::pages::home::DecisionTask::Done(at) | d::pages::home::DecisionTask::Ended(at) => {
+                        document.chip.details.phase = c::ChipPhase::Ended;
+                        document.chip.details.details.ended_at = Some(at);
+                        document.chip.details.details.ending =
+                            if let d::pages::home::DecisionTask::Done(_) = fixture.state {
+                                Some(c::ChipEnding::Done(c::ResultValue::Report(f::task::document_words(b"Landed."))))
+                            } else {
+                                None
+                            };
+                    }
+                }
+                read_done(root, read, c::ReadValue::Task(Box::new(document)))
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::PersonTask { task }) } => {
                 if !needs.is_some_and(|needs| needs.read) {
@@ -1851,6 +1941,7 @@ fn status_home(parts: w::ProjectStatusParts, answered: bool, beginning: bool, go
         answered,
         goals,
         goal_rows: None,
+        away: None,
     };
     home_documents_with_status(
         forge_rows(true),
@@ -2310,6 +2401,7 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
         answered: true,
         goals: true,
         goal_rows: Some(goals),
+        away: None,
     };
     home_documents_with_status(
         forge_rows(true),
@@ -2889,5 +2981,448 @@ fn home_add_waits_for_kept_and_reports_forge_refusals_in_both_shells() {
                 None => assert!(root.pages().home().unwrap().add.is_none()),
             }
         }
+    }
+}
+
+struct AwayFixture {
+    spell: Option<w::AwayRow>,
+    rows: List<w::Decision>,
+    state: d::pages::home::DecisionTask,
+}
+fn away_fixture(count: u32) -> AwayFixture {
+    let mut rows = List::with_capacity(count);
+    for number in 1..=count {
+        rows.push(
+            w::Decision::new(
+                &w::CEILINGS,
+                w::DecisionParts {
+                    number,
+                    task: 99,
+                    at: STATUS_NOW - 55 * STATUS_MINUTE,
+                    question: b"Fix in the store or serve?".as_slice().into(),
+                    took: b"In serve".as_slice().into(),
+                    why: b"The store changes a record.".as_slice().into(),
+                    overturned: false,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    }
+    AwayFixture {
+        spell: Some(
+            w::AwayRow::new(
+                &w::CEILINGS,
+                w::AwayRowParts {
+                    project: f::PROJECT,
+                    since: STATUS_NOW - 50 * STATUS_MINUTE,
+                    until: None,
+                    kinds: 7,
+                    landed: 1,
+                    off: None,
+                },
+            )
+            .unwrap(),
+        ),
+        rows,
+        state: d::pages::home::DecisionTask::Live,
+    }
+}
+fn away_home(away: AwayFixture, beginning: bool, objects: &[c::ObjectKey], parts: w::ProjectStatusParts) -> d::Domain {
+    let fixture = StatusFixture {
+        document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(),
+        answered: true,
+        goals: false,
+        goal_rows: None,
+        away: Some(away),
+    };
+    home_documents_with_status(
+        forge_rows(true),
+        !beginning,
+        !beginning,
+        Some(NeedsFixture { objects, cut: false, read: true }),
+        None,
+        Some(&[]),
+        true,
+        Some(&fixture),
+    )
+    .0
+}
+fn default_away(away: AwayFixture) -> d::Domain {
+    away_home(away, false, &[], status_parts())
+}
+#[test]
+fn the_kicker_reads_since_to_now() {
+    let root = default_away(away_fixture(4));
+    for browser in [false, true] {
+        assert_eq!(kicker(&root, browser).as_ref(), "While you were away · Sun 23:10 to now".as_bytes());
+    }
+}
+#[test]
+fn the_kicker_reads_since_to_its_end_once_off() {
+    for until in [false, true] {
+        let mut away = away_fixture(1);
+        let mut spell = away.spell.take().unwrap().into_parts();
+        let end = STATUS_NOW - 10 * STATUS_MINUTE;
+        if until {
+            spell.until = Some(end);
+        } else {
+            spell.off = Some(end);
+        }
+        away.spell = Some(w::AwayRow::new(&w::CEILINGS, spell).unwrap());
+        let root = default_away(away);
+        for browser in [false, true] {
+            assert_eq!(kicker(&root, browser).as_ref(), "While you were away · Sun 23:10 to Sun 23:50".as_bytes());
+        }
+    }
+}
+#[test]
+fn the_kicker_alone_with_no_row() {
+    let mut away = away_fixture(1);
+    away.spell = None;
+    let root = default_away(away);
+    for browser in [false, true] {
+        assert_eq!(kicker(&root, browser).as_ref(), b"While you were away");
+    }
+}
+#[test]
+fn the_headline_says_landed_then_decided() {
+    for (count, landed, headline) in [
+        (4, 58, "57 changes landed. Four things were decided for you."),
+        (10, 2, "One change landed. 10 things were decided for you."),
+    ] {
+        let mut parts = status_parts();
+        parts.landed = landed;
+        let root = away_home(away_fixture(count), false, &[], parts);
+        for browser in [false, true] {
+            main_find(status_view(&root, browser).tree(), Role::Heading { level: 1 }, headline.as_bytes());
+        }
+    }
+}
+#[test]
+fn none_for_no_changes() {
+    for delivered in [false, true] {
+        let mut away = away_fixture(4);
+        if !delivered {
+            away.spell = None;
+        }
+        let mut parts = status_parts();
+        parts.landed = 1;
+        let root = away_home(away, false, &[], parts);
+        main_find(status_view(&root, true).tree(), Role::Heading { level: 1 }, b"Four things were decided for you.");
+    }
+}
+#[test]
+fn one_thing_was_decided() {
+    let root = default_away(away_fixture(1));
+    for browser in [false, true] {
+        main_find(
+            status_view(&root, browser).tree(),
+            Role::Heading { level: 1 },
+            b"2 changes landed. One thing was decided for you.",
+        );
+    }
+}
+#[test]
+fn lede_and_byline_stand() {
+    let root = away_home(away_fixture(1), false, &[], brief_parts(2, BRIEF_LEDE, STATUS_NOW));
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        assert_eq!(styled(view.tree(), crate::look::HOME_LEDE).name.as_deref(), Some(BRIEF_LEDE.as_bytes()));
+        assert_eq!(
+            styled(view.tree(), crate::look::HOME_BYLINE).name.as_deref(),
+            Some(b"Written by the status agent at 00:00".as_slice())
+        );
+    }
+}
+#[test]
+fn no_form_with_no_row_showing() {
+    for beginning in [false, true] {
+        let root = away_home(away_fixture(u32::from(beginning)), beginning, &[], status_parts());
+        let view = status_view(&root, true);
+        absent(&f::main_text(view.tree()), "decided for you");
+        for node in main_nodes(view.tree()) {
+            assert!(!node.styles.as_slice().contains(&crate::look::DECIDED));
+        }
+    }
+}
+#[test]
+fn the_section_comes_first_after_the_intro() {
+    let root = default_away(away_fixture(1));
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        let sections = children(main_nodes(view.tree()));
+        assert!(sections[0].styles.as_slice().contains(&crate::look::HOME_INTRO));
+        assert_eq!(sections[1].role, Role::Region);
+        assert_eq!(sections[1].name.as_deref(), Some("Decided for you · 1".as_bytes()));
+        main_find(view.tree(), Role::Heading { level: 2 }, "Decided for you · 1".as_bytes());
+    }
+}
+#[test]
+fn its_count_is_every_row_showing() {
+    let root = default_away(away_fixture(10));
+    let view = status_view(&root, true);
+    main_find(view.tree(), Role::Heading { level: 2 }, "Decided for you · 10".as_bytes());
+    let mut count = 0_u32;
+    for node in main_nodes(view.tree()) {
+        if node.styles.as_slice().contains(&crate::look::DECISION) {
+            count += 1;
+        }
+    }
+    assert_eq!(count, 7);
+}
+#[test]
+fn limits_goes_to_settings() {
+    let root = default_away(away_fixture(1));
+    for browser in [false, true] {
+        let mut view = status_view(&root, browser);
+        let id = main_find(view.tree(), Role::Button, b"Limits");
+        let (node, act) = if browser {
+            (id, Act::Press)
+        } else {
+            f::terminal_command(view.tree(), &view.limits().tree, id, b"Limits", "Decided for you · 1".as_bytes())
+        };
+        assert_eq!(
+            crate::act(&mut view, node, act),
+            Some(d::Action::Pages(d::pages::Act::Away(d::pages::away::Act::Limits { project: f::PROJECT })))
+        );
+    }
+}
+
+#[test]
+fn a_row_says_title_and_clock() {
+    let root = default_away(away_fixture(1));
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        let row = styled(view.tree(), crate::look::DECISION);
+        let text = f::nodes_text(subtree(view.tree(), row.id));
+        contains(&text, "welcome-stall · Sun 23:05");
+        contains(&text, "Fix in the store or serve?");
+        contains(&text, "In serve");
+        contains(&text, "The store changes a record.");
+        main_find(view.tree(), Role::Button, b"Overturn");
+        if !browser {
+            contains(
+                &printed(&view),
+                "welcome-stall · Sun 23:05 Fix in the store or serve? In serve The store changes a record.",
+            );
+        }
+    }
+}
+#[test]
+fn an_unread_task_says_task_n() {
+    let mut away = away_fixture(1);
+    away.state = d::pages::home::DecisionTask::Unknown;
+    let root = default_away(away);
+    contains(&f::main_text(status_view(&root, true).tree()), "Task 99 · Sun 23:05");
+}
+fn assert_decision_end(state: d::pages::home::DecisionTask, overturned: bool, late: &str) {
+    let mut away = away_fixture(1);
+    away.state = state;
+    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    row.overturned = overturned;
+    *away.rows.get_mut(0).unwrap() = w::Decision::new(&w::CEILINGS, row).unwrap();
+    let root = default_away(away);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        assert_eq!(styled(view.tree(), crate::look::DECISION_LATE).name.as_deref(), Some(late.as_bytes()));
+        assert_eq!(
+            styled(view.tree(), crate::look::DECISION).styles.as_slice().contains(&crate::look::DECISION_OVERTURNED),
+            overturned
+        );
+        assert_eq!(styled(view.tree(), crate::look::DECISION_TOOK).name.as_deref(), Some(b"In serve".as_slice()));
+    }
+}
+#[test]
+fn done_says_landed() {
+    assert_decision_end(
+        d::pages::home::DecisionTask::Done(skein_lib::Wall::from_nanos(STATUS_NOW)),
+        false,
+        "landed 00:00 · a new goal can undo it",
+    );
+}
+#[test]
+fn ended_says_ended() {
+    assert_decision_end(
+        d::pages::home::DecisionTask::Ended(skein_lib::Wall::from_nanos(STATUS_NOW)),
+        false,
+        "ended 00:00 · a new goal can undo it",
+    );
+}
+#[test]
+fn overturned_says_it_asks_again_and_strikes_took() {
+    assert_decision_end(d::pages::home::DecisionTask::Live, true, "Overturned: it asks you again");
+}
+#[test]
+fn ended_and_overturned_says_landed_and_strikes_took() {
+    assert_decision_end(
+        d::pages::home::DecisionTask::Done(skein_lib::Wall::from_nanos(STATUS_NOW)),
+        true,
+        "landed 00:00 · a new goal can undo it",
+    );
+}
+#[test]
+fn needs_head_says_still() {
+    for objects in [&[][..], &QUESTIONS[..2]] {
+        let root = away_home(away_fixture(1), false, objects, status_parts());
+        let heading = if objects.is_empty() { "Still needs you" } else { "Still needs you · 2" };
+        for browser in [false, true] {
+            main_find(status_view(&root, browser).tree(), Role::Heading { level: 2 }, heading.as_bytes());
+        }
+    }
+}
+
+#[test]
+fn the_oldest_expiry_wakes_home() {
+    let mut away = away_fixture(1);
+    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    row.at = STATUS_NOW - 86_400_000_000_000 + 30_000_000_000;
+    *away.rows.get_mut(0).unwrap() = w::Decision::new(&w::CEILINGS, row).unwrap();
+    let root = default_away(away);
+    for browser in [false, true] {
+        assert_eq!(
+            status_view(&root, browser).next_change(),
+            Some(skein_lib::Wall::from_nanos(STATUS_NOW + 30_000_000_000))
+        );
+    }
+}
+
+#[test]
+fn a_live_row_offers_overturn() {
+    let root = default_away(away_fixture(1));
+    for browser in [false, true] {
+        let mut view = status_view(&root, browser);
+        let id = main_find(view.tree(), Role::Button, b"Overturn");
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Away(d::pages::away::Act::Overturn {
+                project: f::PROJECT,
+                number: 1
+            })))
+        );
+    }
+}
+#[test]
+fn an_overturned_row_offers_none() {
+    let mut away = away_fixture(1);
+    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    row.overturned = true;
+    *away.rows.get_mut(0).unwrap() = w::Decision::new(&w::CEILINGS, row).unwrap();
+    let root = default_away(away);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        assert!(f::find(view.tree(), Role::Button, b"Overturn").is_none());
+    }
+}
+#[test]
+fn only_live_rows_offer_overturn() {
+    for state in [
+        d::pages::home::DecisionTask::Unknown,
+        d::pages::home::DecisionTask::Done(skein_lib::Wall::EPOCH),
+        d::pages::home::DecisionTask::Ended(skein_lib::Wall::EPOCH),
+    ] {
+        let mut away = away_fixture(1);
+        away.state = state;
+        let root = default_away(away);
+        for browser in [false, true] {
+            assert!(f::find(status_view(&root, browser).tree(), Role::Button, b"Overturn").is_none());
+        }
+    }
+}
+fn overturn_drive(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
+    let mut limits = home_limits();
+    limits.client.domain.text = 512;
+    let mut out = Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::from_nanos(STATUS_NOW), limits },
+        event,
+        &mut out,
+    );
+    out
+}
+fn overturn_attempt(out: &Queue<d::Request>) -> Token {
+    for request in out {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
+        {
+            return *attempt;
+        }
+    }
+    panic!("overturn attempt")
+}
+pub(super) fn overturn_answer(outcome: w::Outcome, message: Option<c::Answer>) -> d::Domain {
+    let mut root = default_away(away_fixture(2));
+    overturn_drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyServed {
+                    family: wire::FORGE,
+                    versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
+                },
+            },
+        },
+    );
+    let out = overturn_drive(
+        &mut root,
+        d::Event::Act {
+            action: d::Action::Pages(d::pages::Act::Away(d::pages::away::Act::Overturn {
+                project: f::PROJECT,
+                number: 1,
+            })),
+        },
+    );
+    let attempt = overturn_attempt(&out);
+    let out = overturn_drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Family(jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+                    })),
+                },
+            },
+        },
+    );
+    if let Some(answer) = message {
+        let attempt = overturn_attempt(&out);
+        overturn_drive(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        why: None,
+                        answer: Some(jig_client::Answered::Jig(answer)),
+                    },
+                },
+            },
+        );
+    }
+    root
+}
+#[test]
+fn another_overturn_disables_the_button() {
+    let root = overturn_answer(w::Outcome::Overturned, None);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        let at = main_find(view.tree(), Role::Button, b"Overturn");
+        assert!(
+            subtree(view.tree(), at)
+                .first()
+                .expect("decision button")
+                .states
+                .as_slice()
+                .contains(&skein_ui::State::Disabled)
+        );
     }
 }

@@ -121,7 +121,7 @@ A chat is a conversation between a party and an agent in a project: an untracked
   On the web, a project's first chat starts it when template 3 is
   offered; otherwise it starts the default chat.
 - **temper's runs** in a chat use the host tools `change`, `goal`,
-  `delegate` and `message`, and read these pages with `read_docs`.
+  `delegate`, `decided` and `message`, and read these pages with `read_docs`.
 
 ## Limits
 

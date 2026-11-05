@@ -7,6 +7,7 @@ mod agent;
 mod agent_recovery;
 mod agent_turn;
 mod amend_tools;
+mod away;
 mod b2;
 mod builders;
 mod change_panel;

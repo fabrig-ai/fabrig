@@ -1,7 +1,7 @@
 //! The forge family's records at the clients' boundary (client/README.md, 8).
 use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
-use skein_lib::{List, Token, Writer};
+use skein_lib::{List, Token, Wall, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
@@ -167,6 +167,8 @@ pub fn to_root(
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
                         | w::Request::Dismiss(_)
+                        | w::Request::SetAway(_)
+                        | w::Request::Overturn(_)
                         | w::Request::Looked(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
@@ -308,6 +310,37 @@ pub fn to_root(
                         request: root::Application::Looked { project: value.project() },
                     }));
                 }
+                w::Request::SetAway(value) => {
+                    let value = value.into_parts();
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::SetAway {
+                            project: value.project,
+                            on: value.on,
+                            until: match value.until {
+                                Some(until) => Some(Wall::from_nanos(until)),
+                                None => None,
+                            },
+                            kinds: value.kinds,
+                        },
+                    }));
+                }
+                w::Request::Overturn(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Overturn { project: value.project(), number: value.number() },
+                    }));
+                }
                 w::Request::Adopt(value) => value,
             };
             let a = request.into_parts();
@@ -408,6 +441,16 @@ pub fn to_root(
                         scope,
                         connector: wire::FORGE,
                         subject: Token::new(forge::status_subject(subject.project())),
+                    },
+                    w::Watch::Away => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::AWAY_SUBJECT),
+                    },
+                    w::Watch::Decided(subject) => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Project(subject.project()),
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::decided_subject(subject.project())),
                     },
                     w::Watch::Change(_) | w::Watch::Landing(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
@@ -778,9 +821,22 @@ pub fn answer(
         )) => return None,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
+        Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,
+        Some(root::ApplicationAnswer::Overturn(answer)) => match answer {
+            forge::OverturnAnswer::Overturned => w::Outcome::Overturned,
+            forge::OverturnAnswer::Already => w::Outcome::OverturnRefused(
+                w::OverturnRefused::new(limits, w::OverturnRefusedParts { reason: w::OverturnRefusal::Already })
+                    .ok()?,
+            ),
+            forge::OverturnAnswer::Unknown => w::Outcome::OverturnRefused(
+                w::OverturnRefused::new(limits, w::OverturnRefusedParts { reason: w::OverturnRefusal::Unknown })
+                    .ok()?,
+            ),
+        },
         Some(
             root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge)
-            | root::ApplicationAnswer::Looked(forge::LookedAnswer::TooLarge),
+            | root::ApplicationAnswer::Looked(forge::LookedAnswer::TooLarge)
+            | root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::TooLarge),
         ) => w::Outcome::ForgeRefused(
             w::ForgeRefused::new(limits, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).ok()?,
         ),
@@ -1364,6 +1420,8 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
+        forge::Document::Aways(value) => aways(value, limits),
+        forge::Document::Decisions(value) => decisions(value, limits),
         forge::Document::Status(value) => project_status(value, limits),
         forge::Document::Changes(value) => changes_panel(value, limits),
         forge::Document::Landings(value) => {
@@ -1406,6 +1464,59 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
         }
     }
 }
+fn aways(value: forge::AwaysView, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let mut rows = List::with_capacity(u32::try_from(value.rows.len()).ok()?);
+    for row in value.rows {
+        rows.push(
+            w::AwayRow::new(
+                limits,
+                w::AwayRowParts {
+                    project: row.project,
+                    since: row.since.as_nanos(),
+                    until: match row.until {
+                        Some(at) => Some(at.as_nanos()),
+                        None => None,
+                    },
+                    kinds: row.kinds,
+                    landed: row.landed,
+                    off: match row.off {
+                        Some(at) => Some(at.as_nanos()),
+                        None => None,
+                    },
+                },
+            )
+            .ok()?,
+        )
+        .ok()?;
+    }
+    let document = w::Aways::new(limits, w::AwaysParts { rows }).ok()?;
+    Some(wire::aways(&document))
+}
+
+fn decisions(value: forge::DecisionsView, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let mut rows = List::with_capacity(u32::try_from(value.rows.len()).ok()?);
+    for row in value.rows {
+        rows.push(
+            w::Decision::new(
+                limits,
+                w::DecisionParts {
+                    number: row.number,
+                    task: row.task,
+                    at: row.at.as_nanos(),
+                    question: row.question,
+                    took: row.took,
+                    why: row.why,
+                    overturned: row.overturned,
+                },
+            )
+            .ok()?,
+        )
+        .ok()?;
+    }
+    let document = w::Decisions::new(limits, w::DecisionsParts { project: value.project, rows }).ok()?;
+    Some(wire::decisions(&document))
+}
+
 fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut queues = List::with_capacity(limits.changes_panel_queues);
     for queue in value.queues {

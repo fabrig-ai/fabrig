@@ -128,6 +128,9 @@ home-adopting
 home-after-skip
 home-answered
 home-at-work
+home-away
+home-away-one
+home-away-overturned
 home-begin-one-chats
 home-begin-settings-left
 home-chats-sentence
@@ -171,11 +174,14 @@ needs-saw-open
 needs-second-answered
 out-of-date
 playground-resetting
+rail-away-off
+rail-away-on
 rail-new-menu
 repositories
 repositories-none
 settings
 settings-all-hidden
+settings-away
 settings-away-off
 settings-changes-off
 settings-chat-open

@@ -33,6 +33,8 @@ pub enum Document {
     Landings(LandingsView),
     Changes(ChangesView),
     Status(crate::StatusView),
+    Aways(crate::AwaysView),
+    Decisions(crate::DecisionsView),
     Dismissals(Box<[PersonFact]>),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
@@ -106,6 +108,8 @@ impl Domain {
             ApplicationScope::Own => {
                 return if subject == DISMISSED_SUBJECT {
                     Some(Document::Dismissals(self.dismissals(party)))
+                } else if subject == crate::AWAY_SUBJECT {
+                    Some(Document::Aways(self.aways_view(party)))
                 } else {
                     None
                 };
@@ -117,6 +121,9 @@ impl Domain {
             if subject == landings_subject(project, ended) {
                 return Some(Document::Landings(self.landings_view(project, ended)?));
             }
+        }
+        if subject == crate::decided_subject(project) {
+            return Some(Document::Decisions(self.decisions_view(project, party)));
         }
         if subject == crate::status_subject(project) {
             return Some(Document::Status(self.status_view(project, party, now, limits)?));
@@ -343,6 +350,18 @@ impl Document {
                 }
                 for change in &view.landed {
                     size = size.saturating_add(change.title.len());
+                }
+            }
+            Self::Aways(view) => {
+                size = size.saturating_add(size_of_val(view.rows.as_ref()));
+            }
+            Self::Decisions(view) => {
+                size = size.saturating_add(size_of_val(view.rows.as_ref()));
+                for row in &view.rows {
+                    size = size
+                        .saturating_add(row.question.len())
+                        .saturating_add(row.took.len())
+                        .saturating_add(row.why.len());
                 }
             }
             Self::Status(view) => {

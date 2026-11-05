@@ -517,6 +517,40 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     }
 }
 
+// temper/docs/design/protocol/configuration.md, 13.4; domain/agent.md, 4.3.
+#[test]
+fn a_goal_is_told_to_call_decided_before_it_asks() {
+    let words = include_str!("../stock/chat.txt");
+    let goal = words
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
+        .expect("goal paragraph");
+    assert!(goal.contains("Otherwise do the work without asking. Before you ask your requester anything, call decided with the question, its options, the one you'd take, why, and its kind; on Decided carry on with it and ask no one; on Ask, ask them with message, as a question."), "the goal calls decided before asking and follows its answer");
+    assert!(
+        goal.contains("Funds, sign-ins, machines, a plan's go-ahead and anything hard to reverse are kind other."),
+        "these decisions wait for the person"
+    );
+    assert!(
+        goal.contains("If they tell you a decision was overturned, ask it with message, as a question, and wait."),
+        "an overturned decision waits for the person's answer"
+    );
+}
+
+#[test]
+fn asks_always_is_told_never_to_call_it() {
+    let words = include_str!("../stock/chat.txt");
+    let goal = words
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
+        .expect("goal paragraph");
+    assert!(
+        goal.contains(
+            "If your words hold the line Asks: always, never call decided: ask them with message, as a question."
+        ),
+        "Asks: always bypasses decided and asks the person"
+    );
+}
+
 #[test]
 fn the_chats_words_tell_the_person_when_its_change_or_goal_holds() {
     let words = include_str!("../stock/chat.txt");

@@ -10,10 +10,10 @@ use skein_ui::{Binding, Builder, Role, Run, State, Style, phrases::Hole};
 use temper_client_domain::{
     Address, ChatsFilter, Domain,
     forge::{
-        self, listed,
+        self, away, listed,
         ways::{self, Asked, Control, Route, Ways},
     },
-    pages::Act,
+    pages::{Act, away::Act as Away},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -198,6 +198,7 @@ pub(crate) fn how_work_runs(
     bindings: &mut Bindings,
     forge: &mut ForgeBindings,
     project: u32,
+    wall: skein_lib::Wall,
 ) {
     main(b);
     open(b, root, w, bindings, project, Tab::HowWorkRuns);
@@ -237,6 +238,7 @@ pub(crate) fn how_work_runs(
         }
         status(b, w);
         needs(b, root, w, forge, project);
+        away_settings(b, root, w, bindings, project, wall);
         telling(b, w);
         b.close();
     }
@@ -440,6 +442,82 @@ fn needs(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings
     disabled_select(b, w, Word::SettingsFunds, Some(Word::SettingsUnbuilt), Word::SettingsBudgetUsed);
     b.close();
 }
+/// The row's choices remain editable while off (client/README.md, 3.5, Away).
+fn away_settings(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    wall: skein_lib::Wall,
+) {
+    if !root.away_shown(project, wall) {
+        return;
+    }
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION);
+    b.open(Role::Heading { level: 2 });
+    b.style(look::SETTINGS_SECTION_TITLE);
+    let title = w.say(Word::AwaySettingsTitle, &[]);
+    b.name(&title);
+    b.text(Run::Plain, &title);
+    let count = root.pages().away_focus();
+    if count > 0 {
+        b.focus(count);
+    }
+    b.close();
+    let row_value = root.forge().away(project);
+    let (kinds, eight) = match row_value {
+        Some(row) => (row.kinds, row.until.is_some()),
+        None => (away::DEFAULT_KINDS, true),
+    };
+    let disabled = root.pages().away_busy();
+    row(b, w, &w.say(Word::AwayKinds, &[]), Some(Word::AwayKindsLine));
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_CHECKS);
+    for (bit, word) in [
+        (1, Word::AwayImplementation),
+        (2, Word::AwayRetry),
+        (4, Word::AwayWording),
+        (8, Word::AwayDependency),
+        (0, Word::AwayLocked),
+    ] {
+        b.open(Role::Slot);
+        b.open(Role::Check);
+        b.name(&w.say(word, &[]));
+        if bit != 0 {
+            b.bind(bindings.insert(Act::Away(Away::Kinds { project, kinds: kinds ^ bit })));
+            if kinds & bit != 0 {
+                b.state(State::Pressed);
+            }
+        }
+        if bit == 0 || disabled {
+            b.state(State::Disabled);
+        }
+        b.close();
+        b.close();
+    }
+    b.close();
+    b.close();
+    row(b, w, &w.say(Word::AwaySettingsUntil, &[]), Some(Word::AwayUntilLine));
+    b.open(Role::Select);
+    b.name(&w.say(Word::AwaySettingsUntil, &[]));
+    if disabled {
+        b.state(State::Disabled);
+    }
+    for (choice, word) in [(true, Word::AwayEight), (false, Word::AwayByHand)] {
+        b.open(Role::Option);
+        b.name(&w.say(word, &[]));
+        b.bind(bindings.insert(Act::Away(Away::Until { project, eight: choice })));
+        if choice == eight {
+            b.state(State::Selected);
+        }
+        b.close();
+    }
+    b.close();
+    b.close();
+    b.close();
+}
 fn telling(b: &mut Builder, w: &Words) {
     section(b, w, Word::SettingsTelling);
     disabled_select(b, w, Word::SettingsNotifications, Some(Word::SettingsNotificationsLine), Word::SettingsOff);
@@ -532,7 +610,9 @@ fn repository_row(b: &mut Builder, owner: &[u8], name: &[u8], forge: &[u8]) {
 }
 pub(crate) fn sign_out(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     let Some(me) = root.pages().me(root.client()) else { return };
-    b.open(Role::Slot);
+    // A distinct form keeps its element when account sections arrive beside it.
+    b.open(Role::Form);
+    b.name(&w.say(Word::SignOut, &[]));
     b.style(look::SETTINGS_SETTING);
     b.open(Role::Slot);
     crate::cards::text(b, Role::Text, &w.say(Word::SettingsSignedIn, &[Hole::Name(me.party.name.bytes().into())]));

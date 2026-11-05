@@ -154,6 +154,7 @@ struct Seen {
     answers: Vec<Ended>,
 }
 
+mod away;
 mod chat_document;
 mod copy;
 mod goal;

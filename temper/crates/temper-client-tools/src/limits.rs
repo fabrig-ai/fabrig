@@ -47,7 +47,7 @@ pub fn client() -> client::Limits {
             backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
             authority: 16, // Entries in an authority's grants, delegation kinds and notes' scopes.
             heartbeat: Duration::from_secs(30),
-            reads: 16,
+            reads: 32, // Sixteen inbox cards, seven decisions and nine other Home/session reads.
             parts: 16,
             delegates: 80, // Live delegates in a chat's close.
             document_bytes: DOCUMENT,

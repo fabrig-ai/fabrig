@@ -141,6 +141,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     } else {
         shown
     };
+    view.forge_words.set_zone_minutes(root.zone_minutes());
     let mut times = crate::words::Times::new(wall);
     view.forge.begin();
     view.pages.begin();
@@ -149,7 +150,15 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     builder.open(Role::Page);
     let rail_project = crate::frame::rail_project(root, &view.forge_words, &view.sign_in);
     if let Some(project) = rail_project {
-        crate::frame::rail(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge, project);
+        crate::frame::rail(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            &mut view.forge,
+            project,
+            &mut times,
+        );
     } else {
         crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge);
     }
@@ -295,6 +304,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.pages,
             &mut view.forge,
             *project,
+            wall,
         );
     } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
         crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
@@ -361,7 +371,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     {
         crate::frame::tabbar(&mut builder, root, &view.forge_words, &mut view.pages, project);
     }
-    crate::frame::toast(&mut builder, root, &view.forge_words, &mut view.pages);
+    crate::frame::toast(&mut builder, root, &view.forge_words, &mut view.pages, &mut times);
     if let Some(start) = root.pages().start() {
         crate::pages::start_goal::sheet(&mut builder, root, start, &view.forge_words, &mut view.pages);
     }

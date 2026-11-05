@@ -399,7 +399,7 @@ fn links_are_reported_in_preorder() {
 }
 
 #[test]
-fn a_links_href_is_the_owners_path() {
+fn a_links_href_only_changes_when_the_owners_path_changes() {
     let (mut page, mut view) = (page(), View::new(&LIMITS));
     page.apply(
         &fixtures::patches(&mut view, 0, |b| {
@@ -411,8 +411,16 @@ fn a_links_href_is_the_owners_path() {
         }),
         &mut Vec::new(),
     );
-    page.set_href(FIRST_LINK, b"/notes/1", &mut Vec::new());
+    let mut ops = Vec::new();
+    page.set_href(FIRST_LINK, b"/notes/1", &mut ops);
+    assert_eq!(ops, [Op::Href { node: FIRST_LINK, path: b"/notes/1".as_slice().into() }]);
     assert_eq!(page.html(), include_str!("golden/href.html").trim_end());
+    ops.clear();
+    page.set_href(FIRST_LINK, b"/notes/1", &mut ops);
+    assert!(ops.is_empty(), "an unchanged path leaves the DOM alone");
+    page.set_href(FIRST_LINK, b"/notes/2", &mut ops);
+    assert_eq!(ops, [Op::Href { node: FIRST_LINK, path: b"/notes/2".as_slice().into() }]);
+    assert!(page.html().contains("href=\"/notes/2\""));
 }
 
 mod events;

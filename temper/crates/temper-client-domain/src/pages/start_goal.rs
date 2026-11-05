@@ -16,6 +16,7 @@ pub struct StartGoal {
     pub way: Option<u32>,
     pub default: Option<u32>,
     pub body: Option<Box<[u8]>>,
+    pub always: bool,
     pub pending: Option<Key>,
     pub error: Option<Failure>,
     sent: Option<Sent>,
@@ -35,7 +36,7 @@ enum Sent {
 
 /// The goal's title and draft provenance (client/README.md, 5.14).
 #[must_use]
-pub fn words(name: &[u8], path: &[u8], chat: Option<u64>) -> Box<[u8]> {
+pub fn words(name: &[u8], path: &[u8], chat: Option<u64>, always: bool) -> Box<[u8]> {
     let mut size = name.len().checked_add(path.len().checked_mul(2).expect("draft words fit")).expect("goal words fit");
     size = size.checked_add(b"\n\nBuild .\nDraft: ".len()).expect("goal words fit");
     let number = match chat {
@@ -46,6 +47,9 @@ pub fn words(name: &[u8], path: &[u8], chat: Option<u64>) -> Box<[u8]> {
         size = size.checked_add(b"\nChat: T".len()).expect("chat words fit");
         size = size.checked_add(number.as_bytes().len()).expect("chat words fit");
     }
+    if always {
+        size = size.checked_add(b"\nAsks: always".len()).expect("asks words fit");
+    }
     let mut words = Writer::new(size);
     words.put(name).expect("measured name");
     words.put(b"\n\nBuild ").expect("measured build");
@@ -55,6 +59,9 @@ pub fn words(name: &[u8], path: &[u8], chat: Option<u64>) -> Box<[u8]> {
     if let Some(number) = number {
         words.put(b"\nChat: T").expect("measured chat");
         words.put(number.as_bytes()).expect("measured chat number");
+    }
+    if always {
+        words.put(b"\nAsks: always").expect("measured asks");
     }
     words.finish()
 }
@@ -143,6 +150,7 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
         way,
         default: way,
         body,
+        always: false,
         pending: None,
         error: None,
         sent: None,
@@ -153,6 +161,12 @@ impl StartGoal {
     pub(super) fn name(&mut self, words: Box<[u8]>) {
         if self.pending.is_none() {
             self.name = words;
+            self.error = None;
+        }
+    }
+    pub(super) fn asks(&mut self, always: bool) {
+        if self.pending.is_none() {
+            self.always = always;
             self.error = None;
         }
     }
@@ -181,11 +195,17 @@ impl StartGoal {
             self.error = Some(Failure::TooLong);
             return;
         }
-        let bytes = if let Some(body) = &self.body {
+        let mut bytes = if let Some(body) = &self.body {
             super::chat::sheet::snapshot(self.name.trim_ascii(), &self.draft, body, self.chat)
         } else {
-            words(self.name.trim_ascii(), &self.draft, self.chat)
+            words(self.name.trim_ascii(), &self.draft, self.chat, self.always)
         };
+        if self.body.is_some() && self.always {
+            let mut writer = Writer::new(bytes.len().checked_add(b"\nAsks: always".len()).expect("asks words fit"));
+            writer.put(&bytes).expect("measured snapshot");
+            writer.put(b"\nAsks: always").expect("measured asks");
+            bytes = writer.finish();
+        }
         let Ok(words) = c::Text::new(bytes, bound) else {
             self.error = Some(Failure::TooLong);
             return;

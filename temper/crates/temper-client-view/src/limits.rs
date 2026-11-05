@@ -146,6 +146,10 @@ impl Limits {
             // the fixed step card also holds fields, snippets or progress.
             .max(temper_client_domain::forge::forges::ROWS.checked_mul(16)?.checked_add(152)?)
             .checked_add(choices)?
+            // Away’s Settings heading (3), kinds row (6), checks (11), until row and select (9).
+            .checked_add(29)?
+            // Each of Home's seven live decision rows can offer Overturn (3.5).
+            .checked_add(7)?
             // Owned rows add Runs and First password: a slot, term and description each.
             .checked_add(temper_client_domain::forge::forges::ROWS.checked_mul(6)?)?
             // The context line splits the repository from its forge suffix.
@@ -162,6 +166,8 @@ impl Limits {
             .checked_add(5)?
             // The rail menu wrapper, menu and three items.
             .checked_add(5)?
+            // Start goal's asking group: heading, two choices and their small text leaves.
+            .checked_add(11)?
             // The adoption form's region, named by the page's heading.
             .checked_add(1)?
             // GitHub's App line keeps each installation in its own bounded text slot.
@@ -209,7 +215,7 @@ fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32
         .checked_add(32)?;
     // Conversation controls share one slot.
     let card = proposed.checked_mul(receiving.rows)?.checked_add(129)?;
-    let cards = card.checked_mul(receiving.reads.checked_add(1)?)?;
+    let cards = card.checked_mul(temper_client_domain::pages::inbox::card_capacity(receiving.reads).checked_add(1)?)?;
     Some(cards)
 }
 // A disclosure joins admitted tool names, count, separators and repetition

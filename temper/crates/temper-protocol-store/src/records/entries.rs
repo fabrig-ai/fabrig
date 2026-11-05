@@ -134,6 +134,9 @@ pub(super) fn decode_proposed(value: w::ProposedEffect, bounds: &Bounds) -> Resu
 
 fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
     match value {
+        top::CallPayload::Decided { took } => w::CallPayload::Decided(
+            w::CallDecided::new(&w::CEILINGS, w::CallDecidedParts { took: took.clone() }).expect(FITS),
+        ),
         top::CallPayload::Effect { entry, deadline, outcome } => w::CallPayload::Effect(
             w::CallEffect::new(
                 &w::CEILINGS,
@@ -168,6 +171,7 @@ fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
 }
 fn decode_payload(value: w::CallPayload, bounds: &Bounds) -> Result<top::CallPayload, Undecodable> {
     Ok(match value {
+        w::CallPayload::Decided(value) => top::CallPayload::Decided { took: value.into_parts().took },
         w::CallPayload::Effect(value) => {
             let w::CallEffectParts { entry, deadline, outcome } = value.into_parts();
             top::CallPayload::Effect {

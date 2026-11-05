@@ -295,7 +295,12 @@ impl Page<'_> {
         b.close();
         section(b, Word::GoalHowTitle, words);
         let way = if goal::holds_branch(self.task) { Word::GoalLandWhole } else { Word::GoalTaskByTask };
-        facts(b, &words.say(Word::GoalAlwaysAsks, &[Hole::Name(words.say(way, &[]))]));
+        let asks = if goal::always_asks(self.task.spec.specification.words.bytes.bytes()) {
+            Word::GoalAlwaysAsks
+        } else {
+            Word::GoalFollowsAway
+        };
+        facts(b, &words.say(asks, &[Hole::Name(words.say(way, &[]))]));
         b.close();
         if let Some(report) = self.report
             && !report.decided.is_empty()

@@ -103,7 +103,7 @@ impl Page {
             sign_in::take(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/welcome" }, path.as_bytes())
                 .expect("the service printed a sign-in link");
         let (now, wall) = memory.clocks(browser);
-        let mut host = host::Host::new(seed, now, wall, temper_client_view::sign_in::Ways::NONE);
+        let mut host = host::Host::new(seed, now, wall, 0, temper_client_view::sign_in::Ways::NONE);
         let surface = host::page(&host.bounds.tree, Primary::Control);
         let store = Store::new(b"temper.", None);
         host.start(&taken.address, store.read_all(&memory), Some(taken.secret));

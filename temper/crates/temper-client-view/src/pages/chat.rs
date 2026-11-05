@@ -751,12 +751,12 @@ fn turn_time(
     b: &mut Builder,
     at: Option<skein_lib::Wall>,
     times: &mut Option<&mut Times>,
-    day: &mut Option<u64>,
+    day: &mut Option<i64>,
     words: &Words,
 ) -> Option<Box<[u8]>> {
     let at = at?;
     let times = times.as_mut()?;
-    let date = at.as_nanos() / 86_400_000_000_000;
+    let date = words.calendar_day(at);
     if *day != Some(date) {
         let said = times.say(words, TimeForm::Day, at);
         b.open(Role::Paragraph);
