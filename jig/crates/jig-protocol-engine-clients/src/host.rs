@@ -15,27 +15,35 @@ enum Asked {
 /// The bridge between the component's secrets and the store's (protocol/service.md, 11.6).
 #[derive(Debug)]
 pub struct Bridge {
-    owners: Map<Token, Asked>,
+    owners: Map<Token, kit::SecretOwner>,
+    carries: Map<Token, Token>,
     next: u64,
     namespace: u8,
 }
 impl Bridge {
     #[must_use]
     pub fn new(namespace: u8) -> Self {
-        Self { owners: Map::with_capacity(u32::MAX), next: 1, namespace }
+        Self { owners: Map::with_capacity(u32::MAX), carries: Map::with_capacity(u32::MAX), next: 1, namespace }
     }
     /// Names a request and keeps what it was for; the owner calls its store with what this returns.
     pub fn ask(&mut self, request: kit::SecretsRequest) -> (Token, store::Secrets) {
         let (owner, request) = secret_request(request);
         let token = Token::tagged(self.namespace, self.next).expect("bounded secret routing token");
         self.next = self.next.checked_add(1).expect("secret routing sequence");
-        self.owners.insert(token, owner).expect("secret request correlation");
+        match owner {
+            Asked::Owner(owner) => {
+                self.owners.insert(token, owner).expect("secret request correlation");
+            }
+            Asked::Carry(exchange) => {
+                self.carries.insert(token, exchange).expect("secret carry correlation");
+            }
+        }
         (token, request)
     }
     /// No request is in flight.
     #[must_use]
     pub fn idle(&self) -> bool {
-        self.owners.is_empty()
+        self.owners.is_empty() && self.carries.is_empty()
     }
     /// The component's answer to a store's terminal for a token `ask` named.
     pub fn answer(&mut self, answer: store::Event) -> kit::SecretsAnswer {
@@ -44,13 +52,16 @@ impl Bridge {
             Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Kept { owner } => kit::SecretsAnswer::Kept { owner: self.owner(owner) },
             Event::Erased { owner } => kit::SecretsAnswer::Erased { owner: self.owner(owner) },
-            Event::Carried { owner, number } => match self.owners.remove(&owner).expect("secret carry owner") {
-                Asked::Carry(exchange) => kit::SecretsAnswer::Carried { exchange, number: Some(number) },
-                Asked::Owner(_) => unreachable!("the store answers Carried only to a carry"),
+            Event::Carried { owner, number } => kit::SecretsAnswer::Carried {
+                exchange: self.carries.remove(&owner).expect("secret carry owner"),
+                number: Some(number),
             },
-            Event::Stale { owner } => match self.owners.remove(&owner).expect("secret stale owner") {
-                Asked::Carry(exchange) => kit::SecretsAnswer::Carried { exchange, number: None },
-                Asked::Owner(_) => kit::SecretsAnswer::Failed,
+            Event::Stale { owner } => match self.carries.remove(&owner) {
+                Some(exchange) => kit::SecretsAnswer::Carried { exchange, number: None },
+                None => {
+                    self.owners.remove(&owner).expect("secret stale owner");
+                    kit::SecretsAnswer::Failed
+                }
             },
             Event::Secret { owner, value } => {
                 let owner = self.owner(owner);
@@ -79,10 +90,7 @@ impl Bridge {
         }
     }
     fn owner(&mut self, token: Token) -> kit::SecretOwner {
-        match self.owners.remove(&token).expect("secret request owner") {
-            Asked::Owner(owner) => owner,
-            Asked::Carry(_) => unreachable!("the store answers a carry Carried or Stale"),
-        }
+        self.owners.remove(&token).expect("secret request owner")
     }
 }
 fn secret_request(request: kit::SecretsRequest) -> (Asked, store::Secrets) {

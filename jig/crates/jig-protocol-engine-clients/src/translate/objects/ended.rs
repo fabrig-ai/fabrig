@@ -323,12 +323,10 @@ pub fn person_proposal(
 pub(crate) fn settings_history(
     models: &[crate::Model],
     proposal: &t::PersonProposal,
+    against: u32,
+    items: &[t::SettingHead],
     limits: &w::Limits,
 ) -> Result<w::ProposalHistory, w::Problem> {
-    let (against, items) = match &proposal.action {
-        t::PersonAction::Settings { against, items } => (*against, d::settings_heads(items)),
-        t::PersonAction::Batch(_) | t::PersonAction::Amend { .. } => unreachable!("settings history selected"),
-    };
     let (state, made) = match &proposal.state {
         t::PersonProposalState::Pending { since } => (
             d::ProposalHistoryState::Pending(d::ProposalWaiting {
@@ -352,7 +350,7 @@ pub(crate) fn settings_history(
             number: proposal.number,
             proposer: proposal.proposer,
             as_holder: false,
-            action: d::RetainedAction::Settings { against, items, made },
+            action: d::RetainedAction::Settings { against, items: d::settings_heads(items), made },
             state,
         },
         limits,

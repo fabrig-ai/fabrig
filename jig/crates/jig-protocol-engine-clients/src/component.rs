@@ -23,7 +23,7 @@ mod public_me;
 #[path = "reads.rs"]
 mod reads;
 #[path = "services.rs"]
-mod services;
+pub(crate) mod services;
 #[path = "watches.rs"]
 mod watches;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -461,13 +461,16 @@ impl Component {
                     }
                     return;
                 };
-                let owner =
-                    if route == Route::Service { SecretOwner::Service(sign_in) } else { SecretOwner::SignIn(sign_in) };
+                let owner = if route == Route::Service {
+                    services::GetOwner::Service(sign_in)
+                } else {
+                    services::GetOwner::SignIn(sign_in)
+                };
                 self.pending
                     .exchanges
                     .insert(exchange, Waiting::Get { owner, digest, body, route })
                     .expect("admitted exchange");
-                out.push(Request::Secrets(SecretsRequest::Get { owner }));
+                out.push(Request::Secrets(SecretsRequest::Get { owner: owner.secret() }));
             }
         }
     }
@@ -513,7 +516,7 @@ impl Component {
             },
             Waiting::Authorize { authorization, .. } => self.authorize_reply(env, exchange, reply, authorization),
             Waiting::Core { held } => self.sign_in_reply(env, exchange, reply, held, out),
-            Waiting::Ask { .. } => self.ask_reply(env, exchange, reply, out, waiting),
+            Waiting::Ask { sign_in, .. } => self.ask_reply(env, exchange, sign_in, reply, out, waiting),
             Waiting::LinkGet { .. }
             | Waiting::Watch { .. }
             | Waiting::Read { .. }
@@ -541,11 +544,11 @@ impl Component {
         &mut self,
         env: &Env<Limits>,
         exchange: Token,
+        sign_in: u64,
         reply: people::Reply,
         out: &mut Queue<Request>,
         waiting: Waiting,
     ) {
-        let Waiting::Ask { sign_in, .. } = waiting else { unreachable!("ask reply route") };
         match reply {
             people::Reply::Outcome(people::Outcome::AccountMovingOut { account, number, source }) => {
                 self.pending
