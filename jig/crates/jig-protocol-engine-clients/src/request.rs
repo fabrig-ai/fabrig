@@ -52,13 +52,20 @@ impl Component {
                     return;
                 };
                 let scope = crate::served::scope(record.scope());
-                let (digest, carried) = match &keyed.value {
-                    None => (sign_in::digest(record.record()).expose().try_into().expect("32-byte digest"), None),
-                    Some(value) => (
-                        sign_in::carrying(record.record(), value),
-                        Some(core::Carried { number: 0, digest: skein_lib::sha256::digest(value.expose()) }),
-                    ),
-                };
+                if let Some(value) = keyed.value {
+                    let request = CarriedRequest::Application {
+                        key: keyed.key,
+                        family: family.number(),
+                        version: keyed.version,
+                        scope,
+                        digest: sign_in::carrying(record.record(), &value),
+                        record: record.into_parts().record,
+                        carried_digest: skein_lib::sha256::digest(value.expose()),
+                    };
+                    self.carry(exchange, sign_in, request, value, Some(crate::CarriedKind::Value), out);
+                    return;
+                }
+                let digest = sign_in::digest(record.record()).expose().try_into().expect("32-byte digest");
                 let request = crate::ToApplication::Request {
                     reply_to: ReplyTo::new(exchange),
                     sign_in,
@@ -68,12 +75,8 @@ impl Component {
                     scope,
                     record: record.into_parts().record,
                     digest,
-                    carried,
+                    carried: None,
                 };
-                if let Some(value) = keyed.value {
-                    self.carry(exchange, sign_in, CarriedRequest::Application(request), value, out);
-                    return;
-                }
                 Request::Application(request)
             }
         };
@@ -97,6 +100,7 @@ impl Component {
         keyed: w::KeyedParts,
         out: &mut Queue<Request>,
     ) {
+        let mut kind = None;
         let ask = match w::Ask::decode(&env.limits.wire, &mut skein_lib::Reader::new(&keyed.request)) {
             Ok(value) => {
                 let value = match value {
@@ -193,6 +197,7 @@ impl Component {
                     | w::Ask::Take(_)
                     | w::Ask::Withdraw(_)) => other,
                 };
+                let carrying = account_key_digest(&value);
                 if let Some(carried) = &keyed.value {
                     let bound = carried_bound(
                         &value,
@@ -200,20 +205,21 @@ impl Component {
                         self.settings.moved_bytes,
                         self.settings.redirect_bytes,
                     );
-                    if u64::try_from(carried.len()).expect("value size fits u64") > bound
-                        && account_key_digest(&value).is_some()
-                    {
+                    if u64::try_from(carried.len()).expect("value size fits u64") > bound && carrying.is_some() {
                         let reply = people::Reply::Refused(people::Refusal::Limit { which: people::LimitKind::Words });
                         let answer = crate::translate::answers::answer(&reply, &self.settings.models, &env.limits.wire);
                         self.answer(exchange, answer);
                         return;
                     }
                 }
-                let valid = match account_key_digest(&value) {
-                    Some(digest) => match &keyed.value {
-                        Some(value) => digest == skein_lib::sha256::digest(value.expose()),
-                        None => false,
-                    },
+                let valid = match carrying {
+                    Some((digest, value_kind)) => {
+                        kind = value_kind;
+                        match &keyed.value {
+                            Some(value) => digest == skein_lib::sha256::digest(value.expose()),
+                            None => false,
+                        }
+                    }
                     None => keyed.value.is_none(),
                 };
                 if !valid {
@@ -238,7 +244,7 @@ impl Component {
         if let Some(value) = keyed.value {
             let digest = skein_lib::sha256::digest(value.expose());
             let request = CarriedRequest::AccountKey { key: keyed.key, ask: Box::new(ask.ask), digest };
-            self.carry(exchange, sign_in, request, value, out);
+            self.carry(exchange, sign_in, request, value, kind, out);
             return;
         }
         let request = Request::Core(Box::new(core::Event::People(people::Event::Ask {
@@ -275,6 +281,7 @@ impl Component {
         sign_in: u64,
         request: CarriedRequest,
         value: skein_lib::Secret,
+        kind: Option<crate::CarriedKind>,
         out: &mut Queue<Request>,
     ) {
         if self.pending.carried.len() == self.pending.carried.capacity() {
@@ -282,17 +289,8 @@ impl Component {
             return;
         }
         let (family, version) = match &request {
-            CarriedRequest::Application(crate::ToApplication::Request { family, version, .. }) => {
-                (Some(*family), *version)
-            }
+            CarriedRequest::Application { family, version, .. } => (Some(*family), *version),
             CarriedRequest::AccountKey { .. } => (None, jig_client_protocol_wire::VERSION),
-            CarriedRequest::Application(crate::ToApplication::Read { .. } | crate::ToApplication::Watch { .. }) => {
-                unreachable!("only a request carries a value")
-            }
-        };
-        let kind = match &request {
-            CarriedRequest::AccountKey { ask, .. } => carried_kind(ask),
-            CarriedRequest::Application(_) => Some(crate::CarriedKind::Value),
         };
         let waiting = Waiting::Carry { sign_in, family, version, request: Box::new(request) };
         self.pending.carried.insert(exchange, None).expect("carried below its capacity");
@@ -306,7 +304,7 @@ impl Component {
 }
 
 /// The value's digest is the sole secret-derived fact admitted to the core.
-fn account_key_digest(ask: &w::Ask) -> Option<[u8; 32]> {
+fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKind>)> {
     let change = match ask {
         w::Ask::AccountChange(row) => row.change(),
         w::Ask::ChangeSettings(_)
@@ -342,10 +340,10 @@ fn account_key_digest(ask: &w::Ask) -> Option<[u8; 32]> {
         | w::Ask::SignOut(_) => return None,
     };
     match change {
-        w::AccountChange::AddKey(row) => Some(*row.digest()),
-        w::AccountChange::ReplaceKey(row) => Some(*row.digest()),
-        w::AccountChange::FinishSignIn(row) => Some(*row.digest()),
-        w::AccountChange::MoveIn(row) => Some(*row.digest()),
+        w::AccountChange::AddKey(row) => Some((*row.digest(), Some(crate::CarriedKind::Key))),
+        w::AccountChange::ReplaceKey(row) => Some((*row.digest(), Some(crate::CarriedKind::Key))),
+        w::AccountChange::FinishSignIn(row) => Some((*row.digest(), None)),
+        w::AccountChange::MoveIn(row) => Some((*row.digest(), Some(crate::CarriedKind::Moved))),
         w::AccountChange::DeclareProgram(_)
         | w::AccountChange::CheckProgram(_)
         | w::AccountChange::RemoveKey(_)
@@ -409,65 +407,5 @@ fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes:
         | w::AccountChange::SetUses(_)
         | w::AccountChange::MoveOut(_)
         | w::AccountChange::Written(_) => 0,
-    }
-}
-/// The pasted address is the sole jig value held without a durable carry.
-fn carried_kind(ask: &people::Ask) -> Option<crate::CarriedKind> {
-    match ask {
-        people::Ask::AccountChange { change, .. } => match change {
-            people::AccountChange::FinishSignIn { .. } => None,
-            people::AccountChange::AddKey { .. } | people::AccountChange::ReplaceKey { .. } => {
-                Some(crate::CarriedKind::Key)
-            }
-            people::AccountChange::MoveIn { .. } => Some(crate::CarriedKind::Moved),
-            people::AccountChange::DeclareProgram { .. }
-            | people::AccountChange::CheckProgram { .. }
-            | people::AccountChange::RemoveKey { .. }
-            | people::AccountChange::Resume { .. }
-            | people::AccountChange::Remove { .. }
-            | people::AccountChange::MoveAccount { .. }
-            | people::AccountChange::MoveSource { .. }
-            | people::AccountChange::SetUses { .. }
-            | people::AccountChange::MoveOut { .. }
-            | people::AccountChange::Written { .. } => {
-                unreachable!("only a key, moved file or pasted address carries a value")
-            }
-        },
-        people::Ask::ChangeSettings { .. }
-        | people::Ask::MoveToNewest { .. }
-        | people::Ask::Restore { .. }
-        | people::Ask::Compound { .. }
-        | people::Ask::Create { .. }
-        | people::Ask::MarkSeen { .. }
-        | people::Ask::Application { .. }
-        | people::Ask::EditNote { .. }
-        | people::Ask::MakeService { .. }
-        | people::Ask::Adopt { .. }
-        | people::Ask::Propose { .. }
-        | people::Ask::Withdraw { .. }
-        | people::Ask::Stop { .. }
-        | people::Ask::Cancel { .. }
-        | people::Ask::Lift { .. }
-        | people::Ask::Release { .. }
-        | people::Ask::TakePerson { .. }
-        | people::Ask::HandBackPerson { .. }
-        | people::Ask::AnswerPerson { .. }
-        | people::Ask::Move { .. }
-        | people::Ask::DecideProposal { .. }
-        | people::Ask::Say { .. }
-        | people::Ask::AnswerQuestion { .. }
-        | people::Ask::Amend { .. }
-        | people::Ask::SetRoles { .. }
-        | people::Ask::ChangePolicy { .. }
-        | people::Ask::RemoveProject { .. }
-        | people::Ask::SetVisibility { .. }
-        | people::Ask::Rename { .. }
-        | people::Ask::MakeProject { .. }
-        | people::Ask::SetPool { .. }
-        | people::Ask::DecideEscalation { .. }
-        | people::Ask::AccountSignIn { .. }
-        | people::Ask::AccountSignOut { .. } => {
-            unreachable!("only a key, moved file or pasted address carries a value")
-        }
     }
 }

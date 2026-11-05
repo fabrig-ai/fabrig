@@ -44,12 +44,12 @@ fn again(
             issued_client_id,
             id_token,
             subject,
-            nonce,
+            nonce: nonce.map(skein_lib::Secret::new),
             port: None,
             key: 7,
             generation: 0,
-            state: boxed(b"0123456789abcdef"),
-            verifier: Some(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")),
+            state: skein_lib::Secret::new(boxed(b"0123456789abcdef")),
+            verifier: Some(skein_lib::Secret::new(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))),
             now: time(1),
         },
     );
@@ -85,7 +85,7 @@ fn each_form_sends_what_it_must_and_nothing_else() {
         let mut issuer = issuer_with(true, Some(issued(&[b"client-1"])));
         let prior = if prior {
             let mut saved = signed_in(&mut issuer, issuing_registration(), success(b"access", Some(b"refresh"), 0));
-            saved.id_token = Some(boxed(b"held.header.signature"));
+            saved.id_token = Some(skein_lib::Secret::new(boxed(b"held.header.signature")));
             saved.subject = Some(boxed(b"subject"));
             Some(saved)
         } else {

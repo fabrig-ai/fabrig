@@ -334,7 +334,7 @@ fn an_accounts_private_root_starting_absent_survives_every_acknowledged_power_lo
                 )
                 .expect("whole acknowledged record");
                 assert_eq!(record.generation, 1, "{label}, store before {before}");
-                assert_eq!(record.access_token.as_ref(), b"new", "{label}, store before {before}");
+                assert_eq!(record.access_token.expose(), b"new", "{label}, store before {before}");
             }
             outcome.machine.finish();
         }

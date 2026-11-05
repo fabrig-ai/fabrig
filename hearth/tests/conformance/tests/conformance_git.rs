@@ -1,6 +1,6 @@
 use hearth_conformance_world::{fixtures::Scenario, git};
-use hearth_git_world::world::{self, Settings};
 use hearth_protocol_git::limits;
+use hearth_test_git::world::{self, Settings};
 const REVISION_CASES: &[&str] = &[
     "rev-parse-branch",
     "rev-parse-commit",
