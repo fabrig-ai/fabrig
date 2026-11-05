@@ -36,6 +36,15 @@ and touch the same files.
 - **Goldens, prints and the gallery's `names.txt` and `tests.rs`:** on a catch-up, regenerate rather than
   hand-merge, and keep `names.txt` sorted as it is.
 
+## A goal's page, as the chain builds it
+
+`goal-header`, `goal-side` and `goal-bands` build `pages/goal.rs` before `goal-route` hands over: until then
+it is reached by its tests alone. A scoped `#[cfg_attr(not(test), expect(dead_code, reason = "goal-route hands
+over"))]` on its `main` is expected; `goal-route` removes it.
+
+A test on an old page's words that a later task of this plan owns is listed under your report's `## Left`,
+never made to pass by keeping the old page.
+
 ## Render proofs
 
 Chromium 147's new headless won't go below 500 px by `--window-size`: a 420 px proof uses CDP's
