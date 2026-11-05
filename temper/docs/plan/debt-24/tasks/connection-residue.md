@@ -42,3 +42,17 @@ Acceptance:
 ## Report
 
 The common note's items; the counts above. **The hand-fed tests must bite:** break the rule each pins by hand, name the failure.
+
+## Answers
+
+### 2026-11-05: Convert all ten remaining component Harness tests to hand-fed step tests (recommended), or extend the machine-world seam and move the eight renewal tests there? The spec names three; the merged dependency leaves ten. (debt-24/connection-residue-1, foreman debt-24/connection-residue/foreman-1)
+
+Convert all ten remaining component Harness tests to hand-fed step tests, preserving their assertions.
+The acceptance requires: “`rg -lw Harness skein/crates/skein-forge-connection/src` reads nothing.”
+The common note says: “Line numbers and counts in a spec are at this plan's base: find the code by name, and re-measure before you start.”
+Thus “three” is a baseline count; the ten remaining consumers are in the owned `component/tests.rs`.
+The goal says: “`Harness` leaves the crate, and what stays feeds step functions events.”
+`skein/docs/foundation/testing-strategy.md`, 2.1: “A crate's own tests feed a step function events and inspect the requests it emits”.
+The next run converts the ten within the allowed files, preserves assertions, performs the required mutation checks, removes unused helpers and dependencies, and completes the specified checks, counts, commit and push.
+The explicit stop condition remains: a test “that can't feed events without a socket's bytes” requires asking, naming it. The report identifies no such test.
+Extending the seam and moving the eight renewal tests is not authorized by this answer.
