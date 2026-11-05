@@ -91,3 +91,5 @@ As `notes/common.md`, Your report.
 ## Answers
 
 2026-11-05 (fabrig/ui). Ruling (rulings.md, 3 to 8): one Start goal sheet, ui-goal-page's start-domain and start-sheet; don't build a second. Take it from main or origin/ui-goal-page/integration, and only add opening it from a chat with the draft filled in and the Draft: and Chat: lines. Ways come from goals::ways; default is the setting, else first. drafts_offered reads the drafts setting.
+
+2026-11-05 (fabrig/ui). Before starting: git fetch; if ui-goal-page's start-sheet is on origin/main, use it. Otherwise merge origin/ui-goal-page/integration if start-sheet is landed there. If it is in neither, end with Question: saying so and change nothing; fabrig/ui will answer when it's in.
