@@ -274,11 +274,14 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   an error and fits the host answer's byte bound.
 - **File reads fit the host answer's bound.** The adapter measures rendered
   file, directory and pull-file answers, including metadata and byte escaping.
-  An oversized answer is an error naming its rendered byte size and numeric
-  host bound. A file refusal directs `read_file` with smaller `max_bytes`,
-  leaving room for metadata and escaping (up to four output bytes per input
-  byte). This reads a prefix, never the whole file when truncated, and has
-  no offset. A fitting read retains its truncation marker. An oversized
+  A file keeps the largest UTF-8 prefix that fits with its metadata and a
+  visible `[file truncated]` marker, counting escaping (up to four output
+  bytes per input byte). An explicit `max_bytes` still bounds the raw forge
+  prefix; host fitting may cut it further. A cut is never the whole file,
+  and there is no offset. If metadata leaves no room for content, bounded
+  error feedback directs a shorter path or a larger `core.call_answer_bytes`;
+  lowering `max_bytes` cannot fit metadata. An oversized directory answer
+  is an error naming its rendered byte size and numeric host bound. An oversized
   pull-file page retains a changed-path inventory as room permits, marks
   content omitted separately from absent sides, marks omitted paths, and
   keeps whether more pages follow. Omitted paths are recovered through
@@ -796,7 +799,11 @@ agents must do stays text its runs read.
   paste, or a document in an adopted repository they point to by its
   path, which it reads with `read_file`. It reads the settings first,
   with `settings`: the inventory, then each setting the description
-  touches, whole.
+  touches, whole. Settings pages use `core.call_answer_bytes` less the tool
+  name, reserving escaped framing and continuation markers. A long value
+  fills the available page even after its heading; `next: OFFSET` counts
+  original UTF-8 text bytes for exact reconstruction. This allowance is
+  separate from `read_docs`' fixed bound (`../protocol/documentation.md`, 5).
 - **Its instructions** are held in the binary, in the `stock` module's
   `configuring.txt`, and say, in the person's register:
   - the test for each sentence of a description: would temper's engine
