@@ -1,0 +1,49 @@
+draft = "debt-15"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-15/inputs/request.md", "temper/docs/plan/debt-15/inputs/held-temper-wrong-kind.md", "temper/docs/plan/debt-15/inputs/held-github-media-type.md", "skein/docs/development/debt/D011-fake-github-on-forgejo-fake.md", "temper/docs/development/debt/D001-reference-service-copy.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "temper-wrong-kind"
+title = "a restored secret of the wrong kind stops temper's engine"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/credentials.md, 5"
+
+[[part]]
+id = "github-media-type"
+title = "the fake GitHub names github.com's media types on every connection"
+mode = "direct"
+needs = []
+design = "skein/docs/design/fake-forge.md, 10.6"
+
+[[slice]]
+id = 1
+story = "the two tasks held out of debt-9 land on the user's answers"
+parts = ["temper-wrong-kind", "github-media-type"]
+walk = false
+
+[[part]]
+id = "d013-kept"
+title = "hearth's D013 is kept, for the layers' own vocabularies"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/README.md, 4.2"
+
+[[part]]
+id = "d001-kept"
+title = "both services take the small moves, and temper's D001 is kept"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/service.md, 11.6"
+
+[[slice]]
+id = 2
+story = "the items the user decided to keep say so, with their reasons"
+parts = ["d013-kept", "d001-kept"]
+walk = false
