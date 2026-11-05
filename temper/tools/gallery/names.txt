@@ -53,6 +53,9 @@ needs-proposal
 needs-held
 needs-funds
 needs-plain-words
+goal-amending
+goal-stop-dialog
+goal-toast
 goal-running
 goal-needs-funds
 goal-needs-question

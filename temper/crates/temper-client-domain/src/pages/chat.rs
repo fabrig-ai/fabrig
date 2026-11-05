@@ -663,6 +663,8 @@ impl Chat {
             | Act::Cancel
             | Act::Close
             | Act::DelegateFate { .. }
+            | Act::Pause
+            | Act::Resume
             | Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked

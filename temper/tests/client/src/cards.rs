@@ -41,8 +41,9 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
         }
         // The editor is the task's visible decision, named by its number, as
         // "Hold revision N" names a card's revision (client/README.md, 5.11).
-        let amending =
-            node.role == Role::Region && node.styles.as_slice().contains(&temper_client_view::look::TASK_AMEND);
+        let amending = node.role == Role::Region
+            && (node.styles.as_slice().contains(&temper_client_view::look::TASK_AMEND)
+                || node.styles.as_slice().contains(&temper_client_view::look::GOAL_FIELD));
         if (node.role != Role::Item && !amending) || index < links_end {
             continue;
         }

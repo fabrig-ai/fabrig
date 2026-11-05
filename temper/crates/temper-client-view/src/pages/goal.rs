@@ -26,7 +26,7 @@ pub(crate) fn main(
     root: &Domain,
     words: &Words,
     bindings: &mut Bindings,
-    _rows: u32,
+    rows: u32,
     times: &mut Times,
 ) {
     b.open(Role::Main);
@@ -48,6 +48,7 @@ pub(crate) fn main(
                         state: goal.state(task, ended, !bands.is_empty()),
                     };
                     shown.header(b, words, bindings, times);
+                    super::task::amendment(b, root, words, bindings);
                     for card in &bands {
                         band(b, root, task, card, words, bindings);
                     }
@@ -61,6 +62,7 @@ pub(crate) fn main(
             None => super::task::reading(b, page, words),
         }
     }
+    crate::confirm::main(b, root, words, bindings, rows);
     b.close();
 }
 
@@ -203,8 +205,27 @@ impl Page<'_> {
         if let c::Requester::Task(task) = self.task.requester {
             chat_link(b, task, &words.say(Word::GoalChat, &[Hole::Number(task)]), bindings);
         }
+        self.acts(b, words, bindings);
         b.close();
         b.close();
+    }
+
+    fn acts(&self, b: &mut Builder, words: &Words, bindings: &mut Bindings) {
+        match self.task.chip.details.phase {
+            c::ChipPhase::Ended => return,
+            c::ChipPhase::Active(_)
+            | c::ChipPhase::Waiting { .. }
+            | c::ChipPhase::Person { .. }
+            | c::ChipPhase::Closing(_)
+            | c::ChipPhase::Held { .. } => {}
+        }
+        super::task::act(b, self.task, c::ActKind::Amend, Word::Amend, Act::Amend, words, bindings);
+        if self.state == State::Paused {
+            super::task::act(b, self.task, c::ActKind::Release, Word::GoalResume, Act::Resume, words, bindings);
+        } else {
+            super::task::act(b, self.task, c::ActKind::Stop, Word::GoalPause, Act::Pause, words, bindings);
+        }
+        super::task::act(b, self.task, c::ActKind::Cancel, Word::Stop, Act::Close, words, bindings);
     }
 
     fn meta(&self, b: &mut Builder, words: &Words, times: &mut Times) {

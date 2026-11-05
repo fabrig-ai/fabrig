@@ -200,6 +200,7 @@ pub enum Shape {
 pub enum Sending {
     Message,
     Stop,
+    Resume,
     Cancel,
     Amend,
 }
@@ -351,7 +352,7 @@ impl Task {
             through: None,
             cards: List::with_capacity(limits.client.domain.reads),
             words: Box::default(),
-            pending: List::with_capacity(4),
+            pending: List::with_capacity(5),
             outcome: None,
             amending: None,
         }
@@ -429,6 +430,8 @@ impl Task {
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }
+            | Act::Pause
+            | Act::Resume
             | Act::Stop
             | Act::Close
             | Act::DelegateFate { .. }
@@ -536,6 +539,8 @@ impl Task {
             | Act::Suggest { .. }
             | Act::MessageWords { .. }
             | Act::Send
+            | Act::Pause
+            | Act::Resume
             | Act::Stop
             | Act::Close
             | Act::DelegateFate { .. }
@@ -579,11 +584,31 @@ impl Task {
             Sending::Stop if super::chat::allowed(task, c::ActKind::Stop) => {
                 c::Ask::Stop { project: task.project, task: self.number }
             }
+            Sending::Resume
+                if self.shape == Shape::Tracked
+                    && super::goals::state(&task.chip, false, false, 0) == super::goals::State::Paused
+                    && super::chat::allowed(task, c::ActKind::Release) =>
+            {
+                let Some(value) = chip_hold(&task.chip) else { return };
+                c::Ask::Release {
+                    project: task.project,
+                    task: self.number,
+                    revision: c::Revision { value },
+                    again: None,
+                }
+            }
             Sending::Cancel if super::chat::allowed(task, c::ActKind::Cancel) => c::Ask::Cancel {
                 project: task.project,
                 task: self.number,
-                reason: c::Text::new(Box::from(*b"Cancelled from its page"), u32::MAX)
-                    .expect("page cancellation reason fits"),
+                reason: c::Text::new(
+                    Box::from(if self.shape == Shape::Tracked {
+                        b"Stopped from its page".as_slice()
+                    } else {
+                        b"Cancelled from its page".as_slice()
+                    }),
+                    u32::MAX,
+                )
+                .expect("page cancellation reason fits"),
                 grace: None,
             },
             Sending::Amend if super::chat::allowed(task, c::ActKind::Amend) => {
@@ -603,7 +628,7 @@ impl Task {
                     reason: c::Text::new(Box::from(*b"Amended from its page"), u32::MAX).expect("page reason fits"),
                 }
             }
-            Sending::Message | Sending::Stop | Sending::Cancel | Sending::Amend => return,
+            Sending::Message | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Amend => return,
         };
         for (_, pending) in &self.pending {
             if *pending == kind {
@@ -630,6 +655,34 @@ impl Task {
             name: None,
             request: jig_client::Ask::Jig(Box::new(ask)),
         }));
+    }
+    /// Goal outcomes belong to the frame toast (client/README.md, 5.11).
+    pub(crate) fn toasted(&self, told: &Told) -> Option<super::needs::Toasted> {
+        if self.shape != Shape::Tracked {
+            return None;
+        }
+        let Told::Answered { key, outcome } = told else { return None };
+        let kind = self.pending_kind(*key)?;
+        let done = match outcome {
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(_))) => true,
+            jig_client::Outcome::Answered(_)
+            | jig_client::Outcome::Full { .. }
+            | jig_client::Outcome::NotKept
+            | jig_client::Outcome::Held
+            | jig_client::Outcome::Unknown
+            | jig_client::Outcome::Limit
+            | jig_client::Outcome::Unconfirmed
+            | jig_client::Outcome::Unsent
+            | jig_client::Outcome::Lost => false,
+        };
+        match kind {
+            Sending::Stop if done => Some(super::needs::Toasted::Paused),
+            Sending::Resume if done => Some(super::needs::Toasted::Resumed),
+            Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Message if !done => {
+                Some(super::needs::Toasted::Refused { outcome: outcome.clone() })
+            }
+            Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Message | Sending::Amend => None,
+        }
     }
     fn pending_kind(&self, key: Key) -> Option<Sending> {
         for (pending, kind) in &self.pending {
@@ -678,7 +731,7 @@ impl Task {
                 }
                 open.outcome = Some(outcome);
             }
-        } else if !said {
+        } else if !said && self.shape != Shape::Tracked {
             self.outcome = Some(outcome);
         }
         let mut kept = List::with_capacity(self.pending.capacity());

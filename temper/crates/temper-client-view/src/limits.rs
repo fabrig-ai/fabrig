@@ -155,8 +155,9 @@ impl Limits {
                     .checked_mul(temper_client_domain::forge::forges::INSTALLATIONS)?
                     .checked_mul(2)?,
             )?
-            // The toast adds its status, text leaf and optional Undo button.
-            .checked_add(3)?;
+            // The toast holds a refusal, its Look again sentence and button (six nodes),
+            // or a proposal's lead and at most rows role recipients (two nodes each).
+            .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
@@ -165,7 +166,7 @@ impl Limits {
             drawing_bytes: 0,
             scene_marks: 0,
             scene_bytes: 0,
-            styles_per_node: 2,
+            styles_per_node: 3,
             // A diff emits at most four patches a node (skein's ui.md, 7).
             patches: nodes.checked_mul(4)?,
             bindings: nodes,
