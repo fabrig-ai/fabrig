@@ -403,7 +403,7 @@ impl Component {
                     return;
                 };
                 if let Some((_, link)) = &self.spending {
-                    let answer = if sign_in::constant_time_eq(link.secret.expose(), record.secret()) {
+                    let answer = if sign_in::constant_time_eq(link.secret.expose(), record.secret().expose()) {
                         routes::sign_in_busy()
                     } else {
                         routes::refused()
@@ -413,7 +413,8 @@ impl Component {
                 }
                 let live = match &self.link {
                     Some(link) => {
-                        env.now < link.until && sign_in::constant_time_eq(link.secret.expose(), record.secret())
+                        env.now < link.until
+                            && sign_in::constant_time_eq(link.secret.expose(), record.secret().expose())
                     }
                     None => false,
                 };

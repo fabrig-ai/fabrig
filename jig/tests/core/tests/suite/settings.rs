@@ -2144,3 +2144,97 @@ fn full_answers_keep_replay_and_seen_until_the_oldest_expires() {
     changed(&change_key(&mut world, signed, request_key(3), 3, Box::new([third])), 4);
     assert_saved_answer(&world, 3, &people::Outcome::SettingsChanged { revision: 4 });
 }
+
+#[test]
+fn a_checks_refusal_keeps_the_held_reserve_until_revision_advancement() {
+    let mut world = start(64);
+    let signed = sign_in(&mut world);
+    world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
+    let edit = check_reserve_edit(&world, 10);
+    let proposal = proposed(&propose(&mut world, signed, 101, 1, Box::new([edit])));
+    assert!(matches!(
+        decide(
+            &mut world,
+            signed,
+            102,
+            OWNER,
+            proposal,
+            people::ProposalDecision::Accept,
+            Some(people::Running::Stays)
+        ),
+        people::Reply::Outcome(people::Outcome::ProposalDecided { choice: people::ProposalChoice::Accepted, .. })
+    ));
+    let task = held_goal(&mut world, signed, 103);
+    checks_hello(&mut world, 7);
+    assert_checks_refused(&mut world, signed, task);
+    let edit = check_reserve_edit(&world, 60);
+    changed(&change(&mut world, signed, 104, 2, Box::new([edit])), 3);
+    assert_eq!(
+        world.domain.settings().charter(1).expect("current charter").policy.reserve_time,
+        Duration::from_secs(60)
+    );
+    checks_hello(&mut world, 8);
+    assert_checks_refused(&mut world, signed, task);
+    let reads::Answer::Setting(held) = client_read(
+        &mut world,
+        signed,
+        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 2, proposal: None },
+    ) else {
+        panic!("held charter")
+    };
+    let Some(settings::Value::Charter(charter)) = held.value else { panic!("held charter value") };
+    assert_eq!(charter.policy.reserve_time, Duration::from_secs(10));
+    assert_eq!(
+        ask(&mut world, signed, 105, people::Ask::MoveToNewest { revision: 2 }),
+        people::Reply::Outcome(people::Outcome::MovedToNewest { newest: 3, moved: 1, stayed: 0 })
+    );
+    assert!(!world.store.rows.contains_key(&key(settings::Key::Charter { charter: 1, revision: 2 })));
+    checks_hello(&mut world, 7);
+    assert_eq!(world.assigned.as_ref().expect("equality admits the worker").task, task);
+    fixtures::finish_chat(&mut world, 0, b"The compatible reserve permits completion");
+}
+
+fn check_reserve_edit(world: &World, seconds: u64) -> settings::Item {
+    let mut charter = world.domain.settings().charter(1).expect("charter").clone();
+    charter.policy.modify = true;
+    charter.policy.time = Duration::from_secs(120);
+    charter.policy.reserve_time = Duration::from_secs(seconds);
+    settings::Item {
+        setting: settings::Setting::Charter(1),
+        edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))),
+    }
+}
+
+fn checks_hello(world: &mut World, channel: u64) {
+    let mut bounds = jig_test_profile::fixtures::bounds();
+    bounds.checks = Duration::from_secs(60);
+    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
+        worker: 0,
+        channel: Token::new(channel),
+        hello: fleet::Hello {
+            jobs: Box::default(),
+            bounds,
+            stop_bound: Duration::from_millis(1),
+            slots: 1,
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        },
+    })));
+}
+
+fn assert_checks_refused(world: &mut World, signed: u64, task: u64) {
+    let document = settings_task_document(world, signed, task);
+    assert!(
+        matches!(
+            document.run_wait,
+            Some(documents::TaskRunWait::Refused(documents::TaskWaitRefused::Hello {
+                kind: fleet::HostKind::Worker,
+                why: fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Checks { charter: 1 } },
+                ..
+            }))
+        ),
+        "the held reserve prevents worker admission: {:?}",
+        document.run_wait
+    );
+    assert!(world.assigned.is_none());
+}

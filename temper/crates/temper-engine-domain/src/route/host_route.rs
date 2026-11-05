@@ -61,6 +61,7 @@ pub(crate) struct Flight {
 pub(crate) enum FlightRender {
     Plain,
     TaskRead,
+    ForgeRead,
     Settings { from: u32, requested: Option<u64> },
     Amended(crate::Changed),
     Change(Box<ChangeChoice>),
@@ -71,7 +72,7 @@ impl FlightRender {
     fn is_core_read(&self) -> bool {
         match self {
             Self::TaskRead | Self::Settings { .. } => true,
-            Self::Plain | Self::Amended(_) | Self::Change(_) | Self::PersonRoles(_) => false,
+            Self::Plain | Self::ForgeRead | Self::Amended(_) | Self::Change(_) | Self::PersonRoles(_) => false,
         }
     }
 }
@@ -119,6 +120,8 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let Some(to) = admit(domain, to, key, &body.tool) else { return };
     let render = if let crate::Tool::ReadTask { .. } = &body.tool {
         FlightRender::TaskRead
+    } else if let crate::Tool::ReadForge { .. } | crate::Tool::ReadNamed { .. } = &body.tool {
+        FlightRender::ForgeRead
     } else if let crate::Tool::Settings { from, read } = &body.tool {
         let requested = match read {
             jig_domain_core::SettingsRead::Revision { number } => Some(u64::from(*number)),
@@ -307,9 +310,11 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
                 answer
             }
         }
-        FlightRender::Plain | FlightRender::TaskRead | FlightRender::Settings { .. } | FlightRender::PersonRoles(_) => {
-            answer
-        }
+        FlightRender::Plain
+        | FlightRender::TaskRead
+        | FlightRender::ForgeRead
+        | FlightRender::Settings { .. }
+        | FlightRender::PersonRoles(_) => answer,
     };
     emit(
         decision,
@@ -345,19 +350,32 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
             None => Some(0),
         }
     };
-    let fits = call.valid(&super::core_limits(&domain.limits))
-        && match answer_bytes {
-            Some(answer) => match call.owned_bytes() {
-                Some(bytes) => match bytes.checked_add(answer) {
-                    Some(total) => total <= u64::from(domain.limits.journal.transcript_bytes),
-                    None => false,
-                },
-                None => false,
-            },
-            None => false,
+    let excess = render_excess(domain, &call, answer_bytes);
+    let fits = excess.is_none();
+    if let Some((reason, measured, limit)) = excess {
+        call.answer = match flight.render {
+            FlightRender::ForgeRead => {
+                super::diagnostics::emit(
+                    domain,
+                    crate::Fact::ReadRefused {
+                        task: key.task,
+                        attempt: key.attempt,
+                        tool: call.tool.clone(),
+                        layer: "host-render",
+                        reason,
+                        findings: Box::new([]),
+                        error: None,
+                    },
+                );
+                read_size_refusal(domain, &call.tool, reason, measured, limit)
+            }
+            FlightRender::Plain
+            | FlightRender::TaskRead
+            | FlightRender::Settings { .. }
+            | FlightRender::Amended(_)
+            | FlightRender::Change(_)
+            | FlightRender::PersonRoles(_) => SettledAnswer::Host { error: true, body: Box::from(b"busy".as_slice()) },
         };
-    if !fits {
-        call.answer = SettledAnswer::Host { error: true, body: Box::from(&b"busy"[..]) };
     }
     if fits && recorded {
         domain.work.push(Work::Core(jig_domain_core::Event::SettledCall { to, key, name: flight.name, call }));
@@ -365,6 +383,50 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
         let id = domain.hub_link.retain(Payload::SettledCall(call));
         domain.work.push(Work::Fleet(fleet::Event::Relayed { to, answer: id }));
     }
+}
+
+/// Report the first exceeded bound, counting the tool and any retained typed answer.
+fn render_excess(domain: &Domain, call: &SettledCall, answer_bytes: Option<u64>) -> Option<(&'static str, u64, u64)> {
+    let bytes = call.owned_bytes().unwrap_or(u64::MAX);
+    let limit = u64::from(domain.limits.call_answer_bytes);
+    if !call.valid(&super::core_limits(&domain.limits)) {
+        return Some(("core.call_answer_bytes exceeded", bytes, limit));
+    }
+    let total = match answer_bytes {
+        Some(answer) => bytes.saturating_add(answer),
+        None => u64::MAX,
+    };
+    let limit = u64::from(domain.limits.journal.transcript_bytes);
+    if total > limit { Some(("root.journal.transcript_bytes exceeded", total, limit)) } else { None }
+}
+
+/// Keep refusal metadata before fallback advice, within both settled-answer bounds.
+fn read_size_refusal(domain: &Domain, tool: &[u8], reason: &str, measured: u64, limit: u64) -> SettledAnswer {
+    let measured = Decimal::of(measured);
+    let limit = Decimal::of(limit);
+    let compare = if tool == b"read_compare" {
+        b"For an existing pull, use read_pull for its head, then read_pull_files with that head and page=1; advance page while more follows. ".as_slice()
+    } else {
+        b"".as_slice()
+    };
+    let parts = [
+        b"Forge read refused: ".as_slice(), reason.as_bytes(), b"; measured ", measured.as_bytes(),
+        b" bytes, limit ", limit.as_bytes(),
+        b" bytes (including tool name; journal also counts retained typed answer). ", compare,
+        b"If a pull-file page is too large, or no pull exists, use read_file to list directories at both endpoints, then read selected files at each endpoint with max_bytes.",
+    ];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("fixed refusal and u64 digits");
+    }
+    let bound = domain.limits.call_answer_bytes.min(domain.limits.journal.transcript_bytes);
+    let capacity = skein_lib::usize_of(bound).saturating_sub(tool.len());
+    let mut words = Writer::new(length.min(capacity));
+    for part in parts {
+        let prefix = part.get(..part.len().min(words.room())).expect("bounded refusal prefix");
+        words.put(prefix).expect("prefix fits remaining room");
+    }
+    SettledAnswer::Host { error: true, body: words.finish() }
 }
 
 /// Add the blocked producers before settlement, so replay keeps these words.

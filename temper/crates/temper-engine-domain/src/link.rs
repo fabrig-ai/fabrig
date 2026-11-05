@@ -439,15 +439,10 @@ pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
             return question_notice(b"Question ", question, b" ended", &[]);
         }
         tasks::MessageKind::SettingsDecision { .. } => unreachable!("settings decision rendered above"),
-        tasks::MessageKind::Result(_) => (
-            // The client's chat cards read this line (temper-client-domain pages/delegation.rs `results`).
-            b"Result from task ".as_slice(),
-            match word.from {
-                tasks::Party::Task(task) => task,
-                tasks::Party::Person(person) => person,
-                tasks::Party::Deployment { .. } => 0,
-            },
-        ),
+        tasks::MessageKind::Result(tasks::ResultKind::Verdict { code, .. }) => {
+            return verdict_words(word, code);
+        }
+        tasks::MessageKind::Result(_) => (b"Result from task ".as_slice(), source_number(word.from)),
         tasks::MessageKind::ProposalDecision { proposal, accepted } => {
             (if accepted { b"Proposal accepted ".as_slice() } else { b"Proposal rejected ".as_slice() }, proposal)
         }
@@ -467,16 +462,33 @@ pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
         | tasks::MessageKind::Proposal { .. }
         | tasks::MessageKind::Escalation { .. } => return word.words.clone(),
     };
+    numbered_words(label, number, &word.words)
+}
+
+fn numbered_words(label: &[u8], number: u64, words: &[u8]) -> Box<[u8]> {
     let number = Decimal::of(number);
     let bytes = label.len().checked_add(number.as_bytes().len()).expect("bounded message label");
     let bytes = bytes.checked_add(2).expect("bounded message separator");
-    let bytes = bytes.checked_add(word.words.len()).expect("bounded message envelope");
+    let bytes = bytes.checked_add(words.len()).expect("bounded message envelope");
     let mut writer = Writer::new(bytes);
     writer.put(label).expect("measured label");
     writer.put(number.as_bytes()).expect("measured source");
     writer.put(b":\n").expect("measured separator");
-    writer.put(&word.words).expect("measured words");
+    writer.put(words).expect("measured words");
     writer.finish()
+}
+
+fn source_number(from: tasks::Party) -> u64 {
+    match from {
+        tasks::Party::Task(task) => task,
+        tasks::Party::Person(person) => person,
+        tasks::Party::Deployment { .. } => 0,
+    }
+}
+
+fn verdict_words(word: &tasks::Word, code: u32) -> Box<[u8]> {
+    let reason = question_notice(b"verdict ", u64::from(code), b"", &word.words);
+    question_notice(b"Result from task ", source_number(word.from), b"", &reason)
 }
 
 fn delegated_answer_notice(asker: u64, question: u64, words: &[u8]) -> Box<[u8]> {
@@ -823,6 +835,10 @@ mod tests {
     #[test]
     fn question_notices_render_their_number_and_any_answer_words() {
         let cases: &[(u64, tasks::MessageKind, &[u8], &[u8])] = &[
+            (2, tasks::MessageKind::Result(tasks::ResultKind::Verdict { code: 2, fields: Box::new([]) }),
+             b"bold", b"Result from task 2:\nverdict 2:\nbold"),
+            (2, tasks::MessageKind::Result(tasks::ResultKind::Verdict { code: 2, fields: Box::new([]) }),
+             b"", b"Result from task 2:\nverdict 2"),
             (2, tasks::MessageKind::QuestionAnswered { question: 42 }, b"", b"Person answered question 42 in their inbox"),
             (
                 2, tasks::MessageKind::QuestionAnswered { question: 42 },

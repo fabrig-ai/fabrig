@@ -276,7 +276,17 @@ fn agent_shortfall(value: c::AgentShortfall, out: &mut Encoder) {
         c::AgentShortfall::Spend => out.string(b"spend"),
         c::AgentShortfall::Time => out.string(b"time"),
         c::AgentShortfall::Waiting => out.string(b"waiting"),
-        c::AgentShortfall::Checks => out.string(b"checks"),
+        c::AgentShortfall::Checks { charter } => {
+            out.object_start();
+            out.key(b"checks");
+            out.object_start();
+            out.key(b"charter");
+            out.unsigned(u64::from(charter));
+            out.key(b"member");
+            out.string(b"reserve_time");
+            out.object_end();
+            out.object_end();
+        }
         c::AgentShortfall::Message => out.string(b"message"),
         c::AgentShortfall::Inbox => out.string(b"inbox"),
         c::AgentShortfall::Unacknowledged => out.string(b"unacknowledged"),
@@ -349,7 +359,11 @@ fn agent_shortfall_text(value: c::AgentShortfall, out: &mut Text) {
         c::AgentShortfall::Spend => out.put(b"agent spend too small"),
         c::AgentShortfall::Time => out.put(b"agent time too short"),
         c::AgentShortfall::Waiting => out.put(b"agent waiting too short"),
-        c::AgentShortfall::Checks => out.put(b"agent checks exceed the change reserve"),
+        c::AgentShortfall::Checks { charter } => {
+            out.put(b"agent check timeout exceeds charter ");
+            out.number(u64::from(charter));
+            out.put(b" reserve_time; see settings help for held revisions");
+        }
         c::AgentShortfall::Message => out.put(b"agent message bound too small"),
         c::AgentShortfall::Inbox => out.put(b"agent inbox too small"),
         c::AgentShortfall::Unacknowledged => out.put(b"agent unacknowledged turns too few"),
