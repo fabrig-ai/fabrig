@@ -7,7 +7,13 @@ use skein_lib::Time;
 use skein_shell::{Clock, Host};
 use skein_ui::{Role, State};
 use skein_world::{Referee, real};
-use std::{cell::RefCell, io::{Read, Write}, net::TcpStream, path::Path, rc::Rc};
+use std::{
+    cell::RefCell,
+    io::{Read, Write},
+    net::TcpStream,
+    path::Path,
+    rc::Rc,
+};
 use temper_client_domain::{Address, Step};
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 
@@ -148,13 +154,33 @@ fn a_chatgpt_sign_in_beside_a_browsers_idle_issuer_sockets_leaves_ready_able_to_
                 assert!(
                     accounts["accounts"]["usable"].as_bool().expect("account usability"),
                     "settled sign-in: usable {}; last_end {}; signing {}",
-                    accounts["accounts"]["usable"], accounts["accounts"]["last_end"], accounts["accounts"]["signing"]
+                    accounts["accounts"]["usable"],
+                    accounts["accounts"]["last_end"],
+                    accounts["accounts"]["signing"]
                 );
                 Call::new(&["account", "list", "--json"])
             })),
         ],
         |config, client| {
             ready_can_create(config, client);
+            let held = sockets.borrow();
+            let issuer = held.as_ref().expect("held browser sockets")[0].peer_addr().expect("issuer address");
+            let extra: Vec<_> = (0..=temper_fake::oauth::CONNECTIONS)
+                .map(|_| TcpStream::connect(issuer).expect("extra issuer socket"))
+                .collect();
+            let log = walk.sandbox().join("data/box/logs/fake-issuer.log");
+            let mut patience = crate::support::patience::Patience::arm("the issuer's rejection log", WITHIN);
+            loop {
+                let lines = std::fs::read_to_string(&log).expect("fake issuer log");
+                if lines.contains("rejected a connection") {
+                    eprintln!("issuer rejection log: {lines}");
+                    break;
+                }
+                assert!(patience.failed().is_none(), "fake-issuer.log never showed rejected a connection: {lines}");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            drop(extra);
+            drop(held);
             drop(sockets.borrow_mut().take().expect("held browser sockets"));
         },
     );
@@ -180,8 +206,7 @@ fn browser_socket(url: &[u8]) -> TcpStream {
     assert!(address.ip().is_loopback(), "browser stays on loopback");
     let socket = TcpStream::connect_timeout(&address, std::time::Duration::from_nanos(WITHIN.as_nanos()))
         .expect("browser connection");
-    socket.set_read_timeout(Some(std::time::Duration::from_nanos(WITHIN.as_nanos())))
-        .expect("browser read timeout");
+    socket.set_read_timeout(Some(std::time::Duration::from_nanos(WITHIN.as_nanos()))).expect("browser read timeout");
     socket
 }
 
@@ -203,9 +228,16 @@ fn hop(socket: &mut TcpStream, url: &[u8]) -> (u16, Vec<u8>) {
         head.extend_from_slice(&byte);
     }
     let mut lines = std::str::from_utf8(&head).expect("response head text").split("\r\n");
-    let status = lines.next().expect("status line").split_whitespace().nth(1)
-        .expect("status code").parse().expect("numeric status");
-    let location = lines.filter_map(|line| line.split_once(':'))
+    let status = lines
+        .next()
+        .expect("status line")
+        .split_whitespace()
+        .nth(1)
+        .expect("status code")
+        .parse()
+        .expect("numeric status");
+    let location = lines
+        .filter_map(|line| line.split_once(':'))
         .find(|(name, _)| name.eq_ignore_ascii_case("location"))
         .map_or_else(Vec::new, |(_, value)| value.trim().as_bytes().to_vec());
     (status, location)
