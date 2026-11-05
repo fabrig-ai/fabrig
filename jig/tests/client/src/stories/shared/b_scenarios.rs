@@ -38,7 +38,7 @@ pub fn core(driver: &mut Driver, now: Time, wall: Wall, facts: Facts) {
     batch[0].authority.delegation.tasks = 2;
     batch[0].budget = jig_domain_people::Budget::Named;
     batch[0].contract = jig_domain_people::Contract::Report { words: 32 };
-    jig_core_world::fixtures::ask_as(&mut driver.world, sign_in, 80, jig_domain_people::Ask::Create { project, batch });
+    jig_core_kit::fixtures::ask_as(&mut driver.world, sign_in, 80, jig_domain_people::Ask::Create { project, batch });
 }
 pub fn scripted(front: &mut Scripted, facts: Facts) {
     let mut chat = crate::stories::conversations::chat(1, b"Hello", Wall::EPOCH);

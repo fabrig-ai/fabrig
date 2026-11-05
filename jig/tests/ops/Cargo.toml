@@ -24,7 +24,7 @@ jig-client-domain.workspace = true
 skein-ui.workspace = true
 jig-ops-domain.workspace = true
 jig-conformance.workspace = true
-jig-core-world = { path = "../core" }
+jig-core-kit.workspace = true
 jig-domain-core.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-tasks.workspace = true

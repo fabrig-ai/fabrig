@@ -468,7 +468,7 @@ impl Application for OpsApplication {
                     peers.milestones.push((milestone, store.applied));
                 }
             }
-            peers.observations.extend(peers.truth.applied(jig_core_world::store_peer::DurableSnapshot {
+            peers.observations.extend(peers.truth.applied(jig_core_kit::store_peer::DurableSnapshot {
                 commit: store.applied,
                 at: Time::from_nanos(clock.now),
                 rows: core_store(store).rows,

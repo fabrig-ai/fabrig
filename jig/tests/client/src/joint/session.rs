@@ -778,10 +778,7 @@ impl Session {
 }
 
 fn unrouted_delivery(other: &root::Delivery) -> Result<(), Invalid> {
-    assert!(
-        !jig_core_world::client_peer::ClientPeer::accepts(other),
-        "all released peer variants are explicitly routed"
-    );
+    assert!(!jig_core_kit::client_peer::ClientPeer::accepts(other), "all released peer variants are explicitly routed");
     Err(Invalid::InternalPacket)
 }
 
@@ -814,7 +811,7 @@ impl Session {
 mod tests {
     use super::*;
     use crate::joint::{take_signed_in, transport::Reply};
-    use jig_core_world::peers::Peers;
+    use jig_core_kit::peers::Peers;
     use skein_lib::Token;
 
     fn session() -> (Session, Time, Wall) {
@@ -1119,7 +1116,7 @@ mod tests {
     #[test]
     fn requests_wait_for_authentication_independently_of_me_durability() {
         let (mut session, now, wall) = session();
-        session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(session.driver.world.store.applied + 1));
+        session.driver.world.cut = Some(jig_core_kit::world::Cut::Submitted(session.driver.world.store.applied + 1));
         session.bind(ClientId(0), 1, identity(), now, wall);
         let native = Token::new(u64::MAX);
         session.send(ClientId(0), now, wall, frame(native)).expect("original request parks");
@@ -1374,7 +1371,7 @@ mod tests {
             .driver
             .world
             .store
-            .fault(jig_core_world::Fault::Fail { commit: durable.checked_add(1).expect("next actual transaction") });
+            .fault(jig_core_kit::Fault::Fail { commit: durable.checked_add(1).expect("next actual transaction") });
         let key = [17; 16];
         let request = |attempt| Request::Unlinked {
             request: jig_client::UnlinkedRequest::Down {
@@ -1479,7 +1476,7 @@ mod tests {
         let first = session.driver.transport.sign_in(ClientId(0)).expect("first owner session");
         let sibling = session.driver.transport.sign_in(ClientId(1)).expect("sibling owner session");
         assert_ne!(first, sibling);
-        session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(session.driver.world.store.applied + 1));
+        session.driver.world.cut = Some(jig_core_kit::world::Cut::Submitted(session.driver.world.store.applied + 1));
         session.sign_out(ClientId(0), now, wall);
         assert!(session.driver.withhold_completion().expect("actual session erasure is durable").is_none());
         assert!(session.business_poll(now, wall).expect("withheld actual sign-out completion").is_empty());

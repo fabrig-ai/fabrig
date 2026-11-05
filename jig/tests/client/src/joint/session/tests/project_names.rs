@@ -41,7 +41,7 @@ fn exchange(session: &mut Session, client: &mut Client, now: Time, wall: Wall, e
 
 #[test]
 fn the_frame_names_each_project() {
-    let (mut configuration, limits) = jig_core_world::fixtures::two_projects(8455);
+    let (mut configuration, limits) = jig_core_kit::fixtures::two_projects(8455);
     configuration.core.seed_projects[0].name = Box::from("Tally");
     // The shared deployment fixture leaves project 2 unnamed: its seed is Project 2.
     let (mut session, mut client, now, wall) = public(configuration, &limits);
@@ -89,7 +89,7 @@ fn public(configuration: root::Config, limits: &root::Limits) -> (Session, Clien
 }
 
 fn projects() -> (Session, Client, Time, Wall) {
-    let (mut config, mut limits) = jig_core_world::fixtures::two_projects(8456);
+    let (mut config, mut limits) = jig_core_kit::fixtures::two_projects(8456);
     // Two seed projects and one made project, plus deployment roles.
     limits.core.authority.projects = 3;
     limits.core.people.projects = 4;
@@ -113,7 +113,7 @@ fn projects() -> (Session, Client, Time, Wall) {
             },
         )
         .expect("one configured policy");
-    jig_core_world::peers::journal(&mut limits);
+    jig_core_kit::peers::journal(&mut limits);
     public(config, &limits)
 }
 fn ask(

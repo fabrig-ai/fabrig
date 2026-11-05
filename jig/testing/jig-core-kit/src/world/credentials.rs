@@ -6,7 +6,7 @@ impl World {
     pub fn delegate_on_resource(&mut self, resource: u64) {
         self.delegate_on_path(
             resource,
-            jig_test_connector_world::path(1, u8::try_from(resource).expect("fixture resource")),
+            jig_test_connector_kit::path(1, u8::try_from(resource).expect("fixture resource")),
         );
     }
     pub fn delegate_on_path(&mut self, resource: u64, path: connector::Path) {

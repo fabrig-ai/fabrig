@@ -37,8 +37,8 @@ pub fn journal(mut limits: jig_test_domain::Limits) -> jig_test_domain::Limits {
     limits
 }
 #[must_use]
-pub fn peers() -> jig_core_world::peers::Peers {
-    jig_core_world::peers::Peers::new(
+pub fn peers() -> jig_core_kit::peers::Peers {
+    jig_core_kit::peers::Peers::new(
         vec![jig_fake_workers::Worker::new(1, 1, vec![Box::new([jig_fake_workers::Script::Wait])])],
         Vec::new(),
     )

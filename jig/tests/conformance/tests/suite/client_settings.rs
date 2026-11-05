@@ -229,9 +229,9 @@ fn an_owner_moves_running_work_through_the_client_and_hears_both_counts() {
     use skein_lib::{Time, Wall};
     let now = Time::from_nanos(17);
     let wall = Wall::from_nanos(1_000_000_000_000);
-    let (configuration, owner_limits) = jig_core_world::peers::fixture(8455, 0);
+    let (configuration, owner_limits) = jig_core_kit::peers::fixture(8455, 0);
     let driver =
-        Driver::new(configuration, owner_limits, jig_core_world::peers::Peers::new(Vec::new(), Vec::new()), now, wall);
+        Driver::new(configuration, owner_limits, jig_core_kit::peers::Peers::new(Vec::new(), Vec::new()), now, wall);
     let mut limits = jig_client_world::test::limits();
     // The real deployment's frame uses the joint world's document bounds.
     limits.client.domain.turn_text = 4096;

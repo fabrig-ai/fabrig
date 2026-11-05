@@ -324,7 +324,7 @@ impl Front<Test> for Joint {
 pub fn fixture(owner_limits: &jig_test_domain::Limits) -> Joint {
     use crate::joint::engine::Driver;
     use jig_client_domain::contract as client;
-    use jig_core_world::peers::Peers;
+    use jig_core_kit::peers::Peers;
     use jig_domain_people as people;
 
     let driver = Driver::new(
@@ -614,7 +614,7 @@ mod tests {
         assert!(!front.session.driver.world.store.loading());
         assert_eq!(front.session.driver.transport.sign_in(ClientId(0)), None);
         assert_eq!(front.session.sign_in_again(ClientId(0)), Some(people::Again::NotReady));
-        assert_eq!(front.session.driver.world.store.rows, jig_core_world::store_peer::with_start_mark(&rows));
+        assert_eq!(front.session.driver.world.store.rows, jig_core_kit::store_peer::with_start_mark(&rows));
         assert_eq!(front.session.driver.world.store.applied, applied + 1);
         assert_eq!(front.session.driver.world.commits.len(), commits + 1);
         Front::<Test>::sign_in(&mut front, ClientId(0), later, clock(later));
@@ -676,7 +676,7 @@ mod tests {
         assert!(Front::<Test>::poll(&mut front, later, clock(later)).is_empty(), "page release is not a final reply");
         assert!(!front.session.driver.world.store.loading());
         assert!(!front.session.driver.world.hold_restore_pages);
-        assert_eq!(front.session.driver.world.store.rows, jig_core_world::store_peer::with_start_mark(&rows));
+        assert_eq!(front.session.driver.world.store.rows, jig_core_kit::store_peer::with_start_mark(&rows));
         assert_eq!(front.session.driver.world.store.applied, applied + 1);
         assert_eq!(Front::<Test>::observed(&mut front), vec![Observed::Durable { commit: applied + 1, at: later }]);
         Front::<Test>::wire(&mut front, ClientId(0), later, clock(later), request(Token::new(42)));
@@ -759,7 +759,7 @@ fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
     let driver = super::engine::Driver::new(
         jig_test_profile::config(8455),
         jig_test_profile::limits(),
-        jig_core_world::peers::Peers::new(Vec::new(), Vec::new()),
+        jig_core_kit::peers::Peers::new(Vec::new(), Vec::new()),
         now,
         wall,
     );

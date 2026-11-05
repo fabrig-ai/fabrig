@@ -4,7 +4,7 @@ use super::{Joint, engine::Driver, session::Session};
 use crate::{Settings, Test, World};
 use jig_client_domain::contract as client;
 use jig_client_test_domain::DIALECT;
-use jig_core_world::peers::Peers;
+use jig_core_kit::peers::Peers;
 use jig_domain_people as people;
 use jig_fake_workers::{Script, Worker};
 use skein_lib::{Duration, Time, Wall};

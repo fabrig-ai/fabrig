@@ -14,7 +14,7 @@ doctest = false
 [dependencies]
 jig-test-profile.workspace = true
 jig-conformance.workspace = true
-jig-core-world = { path = "../core" }
+jig-core-kit.workspace = true
 jig-test-domain.workspace = true
 jig-test-connector.workspace = true
 jig-test-connector-kit.workspace = true

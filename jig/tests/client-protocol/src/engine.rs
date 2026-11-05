@@ -51,7 +51,7 @@ impl Engine {
         seed: u64,
         limits: &root::Limits,
         config: root::Config,
-        peers: jig_core_world::peers::Peers,
+        peers: jig_core_kit::peers::Peers,
     ) -> Self {
         let limits = crate::fixtures::journal(*limits);
         let driver = Driver::new(config, limits, peers, Time::ZERO, crate::fixtures::wall(Time::ZERO));

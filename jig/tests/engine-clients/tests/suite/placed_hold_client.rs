@@ -1,10 +1,10 @@
 //! The public linked client, native client wire, real core and applied store.
 use jig_client::{self as client, contract as c};
 use jig_client_protocol_wire::v19 as w;
-use jig_core_world::fixtures;
-use jig_core_world::reads;
-use jig_core_world::world::Setup;
-use jig_core_world::world::World;
+use jig_core_kit::fixtures;
+use jig_core_kit::reads;
+use jig_core_kit::world::Setup;
+use jig_core_kit::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -203,13 +203,13 @@ impl Party {
 
 #[test]
 fn a_client_reads_a_stopped_goals_hold_and_only_its_owner_lifts_it() {
-    let (mut config, mut limits) = jig_core_world::peers::fixture(960, 0);
+    let (mut config, mut limits) = jig_core_kit::peers::fixture(960, 0);
     config.core.seed_projects[0].policy.policy.roles[0].authority.budget.spend = 100;
     limits.core.fleet.slots = 3;
     limits.core.tasks.inbox_messages = 8;
     limits.core.tasks.inbox_bytes = 512;
     limits.core.people.inbox_recipients = 24;
-    jig_core_world::peers::journal(&mut limits);
+    jig_core_kit::peers::journal(&mut limits);
     let mut world = World::new(Setup { seed: 960, configuration: Some(config), limits, ..Setup::default() });
     world.reads = Some(reads::Parties::new(world.store.applied));
     let owner_sign_in = world.sign_in.expect("owner");

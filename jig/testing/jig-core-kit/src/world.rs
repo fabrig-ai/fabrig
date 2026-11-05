@@ -622,7 +622,7 @@ impl World {
     pub fn effect() -> connector::Effect {
         connector::Effect {
             kind: 5,
-            resources: Box::new([jig_test_connector_world::path(1, 1)]),
+            resources: Box::new([jig_test_connector_kit::path(1, 1)]),
             purpose: 19,
             condition: None,
             target: 13,
@@ -756,7 +756,7 @@ impl World {
 
     /// Read the observer's system, then give the idle procedure another step.
     pub fn observed(&mut self, state: u64) {
-        self.systems[1].other_hand(&jig_test_connector_world::path(1, 1), state);
+        self.systems[1].other_hand(&jig_test_connector_kit::path(1, 1), state);
         let reads = std::mem::take(&mut self.pending_reads);
         for (number, call) in reads {
             let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
@@ -916,7 +916,7 @@ impl World {
         self.send(root::Event::Connector {
             number: 2,
             event: connector::Event::System(connector::SystemEvent::Fact {
-                resource: jig_test_connector_world::path(1, 1),
+                resource: jig_test_connector_kit::path(1, 1),
                 fact: connector::Fact { state: None, observed: Wall::from_nanos(self.wall), pending: true },
                 origin: connector::Origin::Other,
             }),

@@ -197,7 +197,7 @@ impl Walking {
                 self.procedure = Some(task);
                 world.events.push_back(root::Event::Connector {
                     number: connector,
-                    event: root::procedure_input(&context, code, jig_test_connector_world::path(1, 1)),
+                    event: root::procedure_input(&context, code, jig_test_connector_kit::path(1, 1)),
                 });
             }
             root::Delivery::Core(core::Held::CallAnswer { part: core::CallPart::Delegated(tasks), .. }) => {
