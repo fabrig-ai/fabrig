@@ -555,8 +555,6 @@ impl World {
             | Event::PreparationWaiting { .. }
             | Event::PreparationPaused { .. }
             | Event::PreparationCounted { .. }
-            | Event::PreparationFailed { .. }
-            | Event::PreparationUnread { .. }
             | Event::Hold { .. }
             | Event::HoldFrom { .. }
             | Event::EffectsSettled { .. }
@@ -657,8 +655,6 @@ impl World {
             | Event::PreparationWaiting { .. }
             | Event::PreparationPaused { .. }
             | Event::PreparationCounted { .. }
-            | Event::PreparationFailed { .. }
-            | Event::PreparationUnread { .. }
             | Event::Hold { .. }
             | Event::HoldFrom { .. }
             | Event::EffectsSettled { .. }

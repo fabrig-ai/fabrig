@@ -4,8 +4,6 @@
 Unlisted provisions have no known gap, including the saved-window load
 and unread-tail retry guard in 7.1 and 7.2.
 
-- **Not yet:** 9.1: a brief's failure says no reason and always pauses
-  the task, without bound.
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
