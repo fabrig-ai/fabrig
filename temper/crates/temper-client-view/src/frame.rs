@@ -51,6 +51,7 @@ impl Bindings {
                         Act::Filter { filter }
                     }
                     (Act::StartWay { template }, skein_ui::Act::Toggle) => Act::StartWay { template: *template },
+                    (Act::StartAsks { always }, skein_ui::Act::Toggle) => Act::StartAsks { always: *always },
                     (Act::StartName { .. }, skein_ui::Act::Input { value }) => Act::StartName { words: value },
                     (Act::AmendWords { .. }, skein_ui::Act::Input { value }) => Act::AmendWords { words: value },
                     (Act::AmendPriority { .. }, skein_ui::Act::Input { value }) => {

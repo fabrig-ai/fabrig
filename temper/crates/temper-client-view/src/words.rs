@@ -93,6 +93,12 @@ pub enum Word {
     StartGoalDefault,
     StartGoalWays,
     StartGoalRun,
+    StartGoalAsks,
+    StartGoalFollow,
+    StartGoalFollowDetail,
+    StartGoalAlways,
+    StartGoalAlwaysDetail,
+    GoalFollowsAway,
     GoalsStartDraft,
 
     GoalTell,
@@ -1222,7 +1228,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1713;
+// Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
+const PHRASES: u32 = 1719;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1240,8 +1247,9 @@ const PHRASES: u32 = 1713;
 // Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // Overturn adds four literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 2973;
-const ALL: [Word; 1114] = [
+// The asking choice has five literals; the following word has three segments (5.14, 5.8).
+const SEGMENTS: u32 = 2981;
+const ALL: [Word; 1120] = [
     Word::SettingsProposalTitle,
     Word::SettingsProposalDrafts,
     Word::SettingsProposalGoals,
@@ -1323,6 +1331,12 @@ const ALL: [Word; 1114] = [
     Word::StartGoalDefault,
     Word::StartGoalWays,
     Word::StartGoalRun,
+    Word::StartGoalAsks,
+    Word::StartGoalFollow,
+    Word::StartGoalFollowDetail,
+    Word::StartGoalAlways,
+    Word::StartGoalAlwaysDetail,
+    Word::GoalFollowsAway,
     Word::GoalsStartDraft,
     Word::GoalTell,
     Word::GoalHint,
@@ -2475,6 +2489,12 @@ impl Word {
             Self::StartGoalDefault => 3554,
             Self::StartGoalWays => 3555,
             Self::StartGoalRun => 3556,
+            Self::StartGoalAsks => 3590,
+            Self::StartGoalFollow => 3591,
+            Self::StartGoalFollowDetail => 3592,
+            Self::StartGoalAlways => 3593,
+            Self::StartGoalAlwaysDetail => 3594,
+            Self::GoalFollowsAway => 3595,
             Self::GoalsStartDraft => 3557,
             Self::GoalTell => 3540,
             Self::GoalHint => 3541,
@@ -3772,7 +3792,8 @@ impl Words {
             // Home status and its last-look spans add 311 literal bytes (3.5).
             // Overturn adds 132 literal bytes (client/README.md, 3.5).
             // Away’s Settings section has twelve literal phrases (3.5).
-            text_bytes: 41203 + 204 + 901 + 311 + 132 + 383,
+            // Asking choice and goal following words (5.14, 5.8).
+            text_bytes: 41203 + 204 + 901 + 311 + 132 + 383 + 237,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -3849,6 +3870,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::StartGoalDefault => (&[b" ", b"\xe2\x80\x99s default."], &[Name]),
         Word::StartGoalWays => (&[b"The project\xe2\x80\x99s ways of working"], &[]),
         Word::StartGoalRun => (&[b"Start goal"], &[]),
+        Word::StartGoalAsks => (&[b"When it needs you"], &[]),
+        Word::StartGoalFollow => (&[b"Follow the away switch"], &[]),
+        Word::StartGoalFollowDetail => (&[b"Asks while you\xe2\x80\x99re here; while you\xe2\x80\x99re away, decides within the project's limits and tells you."], &[]),
+        Word::StartGoalAlways => (&[b"Always ask"], &[]),
+        Word::StartGoalAlwaysDetail => (&[b"Waits for you on every question it can\xe2\x80\x99t answer from the plan."], &[]),
+        Word::GoalFollowsAway => (&[b"", b" \xc2\xb7 follows the away switch"], &[Name]),
         Word::GoalsStartDraft => (&[b"Start one from a draft"], &[]),
         Word::GoalTell => (&[b"Tell ", b" something"], &[Name]),
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),

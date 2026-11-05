@@ -428,6 +428,7 @@ impl Task {
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
+            | Act::StartAsks { .. }
             | Act::StartCancel
             | Act::StartGoal
             | Act::Switcher(_)
@@ -552,6 +553,7 @@ impl Task {
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
+            | Act::StartAsks { .. }
             | Act::StartCancel
             | Act::StartGoal
             | Act::Switcher(_)

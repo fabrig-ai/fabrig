@@ -999,6 +999,7 @@ fn start_domain(sample: &Sample) -> Domain {
             &mut out,
         );
         if sample.name == "start-goal-refused" {
+            step(&mut root, Event::Act { action: Action::Pages(Act::StartAsks { always: true }) }, &mut out);
             step(&mut root, Event::Act { action: Action::Pages(Act::StartGoal) }, &mut out);
         }
     }

@@ -143,6 +143,9 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
             Part::Value { role: Role::TextField, name: "Name", value: "first-run-projects" },
             Part::Named { role: Role::ChoiceGroup, name: "How it runs" },
+            Part::Named { role: Role::ChoiceGroup, name: "When it needs you" },
+            Part::Named { role: Role::Choice, name: "Follow the away switch" },
+            Part::Named { role: Role::Choice, name: "Always ask" },
             Part::Named { role: Role::Button, name: "Start goal" },
         ],
     },
@@ -188,6 +191,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "goal-running",
         heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
         parts: &[
+            Part::Text { text: "Plan, tasks, land whole · follows the away switch" },
             Part::Text { text: "31 of 40 spent" },
             Part::Text { text: "since Mon 19:10" },
             Part::Text { text: "waits on 2 tasks" },

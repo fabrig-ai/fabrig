@@ -159,6 +159,8 @@ impl Limits {
             // Start a chat heading and its text outside the playground start (2), and
             // a failed playground start's alert, its text leaf and Try again (3).
             .checked_add(5)?
+            // Start goal's asking group: heading, two choices and their small text leaves.
+            .checked_add(11)?
             // The adoption form's region, named by the page's heading.
             .checked_add(1)?
             // GitHub's App line keeps each installation in its own bounded text slot.
