@@ -162,6 +162,7 @@ pub fn first() -> crate::prepare::Found {
         admin_token: false,
         person_headers: [false; 2],
         runner_secret: false,
+        runner_configuration: None,
         files: false,
     }
 }
@@ -177,6 +178,7 @@ pub fn later() -> crate::prepare::Found {
         admin_token: true,
         person_headers: [true; 2],
         runner_secret: true,
+        runner_configuration: Some(runner_configuration(b"kept-uuid")),
         files: true,
     }
 }
@@ -246,7 +248,16 @@ pub fn run_command(command: crate::spec::Command) -> crate::prepare::Request {
 pub fn runner_added() -> crate::prepare::Found {
     let mut state = prepared();
     state.runner = None;
-    crate::prepare::Found { state: Some(crate::state::encode(&state)), runner_secret: false, ..later() }
+    crate::prepare::Found {
+        state: Some(crate::state::encode(&state)),
+        runner_secret: false,
+        runner_configuration: None,
+        ..later()
+    }
+}
+pub fn runner_configuration(uuid: &[u8]) -> skein_lib::Secret {
+    let owned = owned();
+    skein_lib::Secret::new(crate::runner::configuration(owned.runner.as_ref().unwrap(), &owned, &place(), uuid))
 }
 pub fn failed() -> crate::prepare::Event {
     crate::prepare::Event::Ran(crate::prepare::Ran {

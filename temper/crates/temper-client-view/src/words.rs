@@ -3680,7 +3680,8 @@ impl Words {
             // The settings proposal adds 279 literal bytes (5.13).
             // The agent check refusal names its charter, adding 53 literal bytes.
             // Builders, flow paths and Home phrases add 204 literal bytes (3.5).
-            text_bytes: 41203 + 204 + 310 + 901,
+            // Home status and its last-look spans add 311 literal bytes (3.5).
+            text_bytes: 41203 + 204 + 901 + 311,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)

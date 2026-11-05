@@ -367,9 +367,9 @@ pub fn root_with_refused_ways(address: temper_client_domain::Address) -> temper_
 
 pub fn home_root(
     limits: &Limits,
-    goals: bool,
     rows: List<w::ForgeRow>,
     dismissed: Option<&[u32]>,
+    goals: bool,
 ) -> (temper_client_domain::Domain, Token, Token, Token, Token) {
     let (root, me, _, _, accounts, _, settings, needs, _) = root_at_with_values(
         temper_client_domain::Address::Settings { project: PROJECT },

@@ -42,8 +42,7 @@ impl Home {
             copies: List::uncapped(),
         };
         if let Some(subject) = forge::status::watch(project, &limits) {
-            let handle =
-                Handle { asker: Owner::Pages.asker(), number: number.checked_add(1).expect("page handles fit") };
+            let handle = Handle { asker: Owner::Pages.asker(), number };
             home.status = Some(handle);
             out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
         }

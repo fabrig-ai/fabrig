@@ -2,6 +2,12 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *Home on any project*: the stock owner pool may
+  reserve the whole project period, leaving no funding for the status
+  agent (`temper-service`'s `stock.rs`, `project_policy`;
+  `jig-domain-core`'s `connector_repair_authority`). Returning then keeps
+  the computed sentence. The fake-box proof reduces the owner's pool
+  allowance to leave period funding, as the root's status world does.
 - **Not yet:** 10: a browser walk from a draft's sheet through planning, a live
   report and delegate tasks, Pause, Resume, a message and Stop. The fake box's
   model (`temper-fake/src/backends.rs`, `model_document`) writes a report only
@@ -15,31 +21,35 @@
   route accepted by `ui-goal-page`'s `goal-browser` answer of 2026-11-05;
   `ui-chat-draft` owns its draft-to-goal continuation. On the fake box's
   stock project, Chats offers no Drafts filter or draft-start control.
-- **Not yet:** 3.5, *Away*: its client domain and view. 3.5, *Home on any project*: the stock owner pool may
-  reserve the whole project period, leaving no funding for the status
-  agent (`temper-service`'s `stock.rs`, `project_policy`;
-  `jig-domain-core`'s `connector_repair_authority`). Returning then keeps
-  the computed sentence. The fake-box proof reduces the owner's pool
-  allowance to leave period funding, as the root's status world does.
-  3.4, 5.5: the composer's
+- **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
-  5.3, 5.13: the Away switch in the rail and phone's top bar, and
-  "While you're away, agents may decide", await Away's `SetAway`.
+  5.3, 5.13: the Away switch in the rail and phone's top bar, "While you're
+  away, agents may decide" and its "Limits" await Away's `SetAway`, which is
+  not on main: the tab's "Away switch" row stores kind 7's `away`, and no other
+  page reads it.
   5.13: a person with a project's role alone can read kinds 6 and 7,
   but cannot change them on the tab: jig's settings inventory requires
   a deployment role (`jig-domain-core`'s `documents/settings.rs`, `make`),
   so `temper-client-domain`'s `forge/ways.rs`, `act`, has no newest
   revision and sends nothing. The controls appear enabled and give no
-  refusal. A project-scoped settings inventory needs a contract in jig
-  before the tab can use it.
-  5.13: `pages/chats.rs`'s `drafts_offered` reads kind 7, but the chat's
-  draft offer has no view calling it yet. A goal's start preselecting the
-  stored way awaits a goal-start page; `pages/goals.rs` draws the list alone.
-  3.5, 5.13, 10: `Proposal { proposal }` and the fuller page's sections, with a review's
-  "Change something"; ctl supplies the review groups and running-work effect (`tools.md`, 5.2).
+  refusal, where the request of 2026-11-05 has a person who is no owner refused
+  in jig's words, as one with a deployment role is. With no document to say a
+  setting changed, that person reads them again only as the project opens or
+  the link comes back. A project-scoped settings inventory needs a contract in
+  jig before the tab can use it.
+  5.13: `pages/chats.rs`'s `drafts_offered` reads kind 7, but only its tests call
+  it, no view drawing a chat's draft offer (section 11, *The draft beside a
+  chat*), so "Chats can write drafts" changes nothing a person sees.
+  5.13, 5.14: a goal's start chooses the first tracked template in number order
+  (`temper-client-domain`'s `pages/start_goal.rs`, `default_way`), not kind 7's
+  `way`, which the tab and a proposal's card alone read (`forge/ways.rs`,
+  `default_way`), so the default chosen on the tab does not reach the sheet or
+  its " PROJECT’s default.".
+  5.13: Home draws neither "Turn on drafts and goals" nor "See the settings", so
+  nothing opens the tab by them.
   5.3: the banner's "Changes", on a page that is no project's:
   the request of 2026-11-05 asked for the rail, and its mock has no banner.
   3.5, *Goals*: a project whose `me` lists no goal template opens no watch
@@ -49,8 +59,8 @@
   stops at "landed work.", which the section has no words for.
   3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
-  or in `temper-service`'s routing. 3.5: Ready's model line names no
-  email for a ChatGPT sign-in, whose account's display is empty, since
+  or in `temper-service`'s routing. 3.5: Ready's model line and the Model step's
+  status name no email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
   3.5, *Ready*: two endings leave nothing under "Model none yet"
@@ -114,7 +124,7 @@
   has the document; seen by reading, no test holds it and no reason is recorded.
   3.5, *Goals*: `goals::row` is `pub(crate)` (`temper-client-view`'s
   `pages/goals.rs`), where this section has it public, because its `Bindings`
-  is the view's own and Home, its next reader, is in the same crate.
+  is the view's own and Home reads it in the same crate.
   3.5, *Needs you*: a filter's `kind` and `goal` narrow the open cards alone:
   `temper-client-view`'s `pages/needs.rs`, `main`, asks `Session::answered` by
   project, and an `Answered` keeps neither, so under such a filter the answered
@@ -173,3 +183,22 @@
   number order, as the request's words have it, so the reference's read "task
   by task, plan, tasks, land whole", where its mock, the target, draws them the
   other way round: number order is what a project's settings decide.
+- **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
+  of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
+  stands on the rail's foot as well as the `Accounts` tab, where the request moves
+  it there: a person with a lost sign-out may be on any page (6.6). Kind 7's
+  controls are disabled together while one is out, where the request disables the
+  one pressed: they write one record, so two at once would lose one. And a
+  proposal's card names kinds 6 and 7 as `temper ctl` names them for a person with
+  no role in the deployment, where the request has their values for everyone: a
+  proposal's items span scopes, so their read keeps that role
+  (`../protocol/configuration.md`, 13.2).
+- **Design departs:** 3.5, *The welcome* and *Home*, from the request `ui-welcome`
+  of 2026-11-05, decided by its plan's cut. A plan's way at its address, with no
+  sign-in asked, keeps its card in the panel, where the request draws a way's page
+  for the key, the paste and Claude alone: that card is how the welcome reaches
+  the paste. A repository Home's sheet asked leaves the step's lines once in and
+  reads as any in the project, "ORG/NAME is in PROJECT" and the merge queue's
+  line, where the request has each copy ticked and then "Chats can change its code
+  now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
+  names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).

@@ -2221,6 +2221,12 @@ Each is named here and designed when it comes.
   host`, `Retrying`, `ChipExecutor active`); a wait takes the phase
   word, in any case, until the header and the condition share one
   spelling.
+- **A refusal past a person task's contract that carries its bound**
+  (5.5, area 3): jig's `LimitKind::Contract` says the same for a wrong
+  form, an unknown choice and text past the bound, so the tool names
+  the bound from the contract its read gave, and a restored request,
+  which read nothing, prints the refusal bare. Carrying the bound in
+  the refusal changes a stored form and jig's protocol.
 
 ## 15. Open questions
 

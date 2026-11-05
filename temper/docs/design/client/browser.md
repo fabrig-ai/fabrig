@@ -469,8 +469,8 @@ replay says the same clocks (`README.md`, 5.12).
   `.forge-status`, `.spin`, `.acts`, `.panel`, `.away-note`, `.numbered`,
   `.field-v`, `.cmd` and `.checklist .current .mark`.
 - **The welcome's look** (the user's greenfield pass, 2026-11-04;
-  `README.md`, 3.5 and 5.6), at its own scale, in `temper.css`'s last
-  block, every rule scoped to the welcome's frame
+  `README.md`, 3.5 and 5.6), at its own scale, in a block of its own in
+  `temper.css`, every rule scoped to the welcome's frame
   (`#app:has(> .temper-welcome)`), so that no other page changes: IBM
   Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
   1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
@@ -1233,10 +1233,17 @@ from the engine's own answers, is where the look is tuned.
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
 | `configure-refused` | the start refused; jig's words below the composer, the words kept |
 | `configure-chat` | the solo world’s T10 as a configuring chat, conversation and proposal in the Settings layout |
+| `configure-chat-proposal` | `configure-chat` with a pending proposal of settings: its title, lines, items and "Accept" |
+| `configure-chat-accepted` | that proposal accepted: "✓ Accepted · new work follows it" |
+| `configure-chat-replaced` | that proposal dimmed, "Replaced by the proposal below", the later one under it |
 | `settings` | hand-made settings deliveries: How work runs with every part of kind 7 shown |
 | `settings-all-hidden` | hand-made settings deliveries: kind 7's stock, the mock's `settings.html?project=hello` |
 | `settings-goals` | hand-made settings deliveries: Goals shown, its ways of working with one the default |
 | `settings-chat-open` | hand-made settings deliveries: a configuring chat open, "Go on" |
+| `settings-drafts-off` | `settings` with "Chats can write drafts" off |
+| `settings-goals-off` | `settings` with Goals hidden: no ways of working, and the rail without "Goals" |
+| `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
+| `settings-away-off` | `settings` with the Away switch hidden |
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |

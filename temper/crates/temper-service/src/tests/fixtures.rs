@@ -64,6 +64,7 @@ pub fn engine() -> settings::Engine {
     // This typed fixture reaches the core's start; policy 1 needs 5774 bytes.
 
     settings::Engine {
+        host_reply_bytes: None,
         machine: machine(),
         directories: jig_protocol_config::Directories::working(),
         jig,
