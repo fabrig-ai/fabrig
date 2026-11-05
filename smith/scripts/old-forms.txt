@@ -12,7 +12,7 @@ expect_single_match 0
 full_limits 104
 temp_dir 0
 bare_wire_kind 0
-io_resume 15
+io_resume 14
 test_windows 35
 path_attribute 6
 domain_while 0
