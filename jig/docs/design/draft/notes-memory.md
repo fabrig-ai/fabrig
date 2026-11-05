@@ -90,8 +90,9 @@ document is drawn beside their conversation (the look request
   conversation (temper's Chat, Split and Draft); a revision says "edited
   just now", and the section changed last comes from the answer to that
   call, its first changed line.
-- **Written by the run's note tool,** a whole body each time, against
-  the revision it read, refused as moved otherwise, as today.
+- **Written by the run's note tool,** a first version whole, then by line
+  ranges (`../domain/engine.md`, section 10), against the revision it read,
+  refused as moved otherwise, and stored whole, so that a reader sees no parts.
 - **Later, into a repository:** a document that matures may be proposed
   as an effect, a file in a repository, as a lesson may become a guide
   (`../domain/engine.md`, section 10).

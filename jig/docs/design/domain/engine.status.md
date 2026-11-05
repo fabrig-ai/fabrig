@@ -9,6 +9,8 @@ Unlisted sections have no known gap.
   7.1, 9: the brief's lineage, calls and waiting sections. 7.2: what a
   turn's calls made, written beside the turn. 7.3: the tools `move`, `succeed`,
   `hold` and `lift`.
+  10: `note`'s line range, its refusals past the end and past the bound, and a
+  moved refusal that says the revision.
   11.1: `me`'s
   `resolved_default`. 15: core-world stories that opt out of the restart
   oracle with a named finding (`broken()` in `jig/tests/core`), most for

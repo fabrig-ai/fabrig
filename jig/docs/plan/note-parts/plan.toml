@@ -3,3 +3,29 @@ repo = "fabrig"
 sources = ["jig/docs/plan/note-parts/inputs/request.md", "jig/docs/design/draft/notes-memory.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+# Lands after ui-chat-draft, whose trunk this one was made from (inputs/request.md). See plan.md.
+after = ["ui-chat-draft"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "note-range"
+title = "jig: note takes a line range, and its refusals say what to do next"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 10"
+
+[[part]]
+id = "task-notes"
+title = "temper ctl: task notes reads a task's notes whole"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.2"
+
+[[slice]]
+id = 1
+story = "jig's machine builds a note in parts and recalls it whole, and ctl can read one"
+parts = ["note-range", "task-notes"]
+walk = false

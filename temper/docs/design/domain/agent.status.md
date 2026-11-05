@@ -6,6 +6,7 @@ change-refusal model wording and shell authority for runs that cannot deliver.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks. 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`), since jig's `setting` read names jig's kinds and an application's alone (jig's `client/domain/contract.md`, 5.1), so the configuring agent proposes a project's policy without reading it first.
+- **Not yet:** 8.3: `chat.txt` and `configuring.txt` still write a document whole each time; the tool's words lack a later write's lines and a refusal's next step; a document built in parts is proved on no script.
 - **Not yet:** 4.3.1: a change's refusal omits which model its charter
   refused, because `temper-engine-smith/src/answers.rs` renders
   `model outside the charter` without that detail although the typed
