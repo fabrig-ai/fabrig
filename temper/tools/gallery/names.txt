@@ -50,8 +50,11 @@ chats-reference
 chats-solo
 configure
 configure-chat
+configure-chat-accepted
 configure-chat-document
 configure-chat-document-split
+configure-chat-proposal
+configure-chat-replaced
 configure-chats-tag
 configure-refused
 configure-sending
@@ -145,6 +148,14 @@ playground-resetting
 repositories
 repositories-none
 settings
+settings-all-hidden
+settings-away-off
+settings-changes-off
+settings-chat-open
+settings-drafts-off
+settings-goals
+settings-goals-off
+settings-refused
 signed-out
 task-held
 task-reference-T12

@@ -35,6 +35,69 @@ pub enum Word {
     DraftAccepted,
     DraftDecided,
 
+    SettingsProposalTitle,
+    SettingsProposalDrafts,
+    SettingsProposalGoals,
+    SettingsProposalChanges,
+    SettingsProposalAway,
+    SettingsProposalWay,
+    SettingsProposalOn,
+    SettingsProposalOff,
+    SettingsProposalShown,
+    SettingsProposalHidden,
+    SettingsProposalForeman,
+    SettingsProposalUp,
+    SettingsProposalNone,
+    SettingsProposalChange,
+    SettingsProposalWaiting,
+    SettingsProposalOwners,
+    SettingsProposalAccepted,
+    SettingsProposalReplaced,
+
+    SettingsShows,
+    SettingsDrafts,
+    SettingsDraftsLine,
+    SettingsGoals,
+    SettingsGoalsLine,
+    SettingsChanges,
+    SettingsChangesLine,
+    SettingsAway,
+    SettingsAwayLine,
+    SettingsOn,
+    SettingsOff,
+    SettingsShown,
+    SettingsHidden,
+    SettingsWays,
+    SettingsDefault,
+    SettingsStatus,
+    SettingsReports,
+    SettingsReportsLine,
+    SettingsAgentReports,
+    SettingsRewritten,
+    SettingsOnOpen,
+    SettingsBrief,
+    SettingsBriefLine,
+    SettingsNeeds,
+    SettingsQuestions,
+    SettingsForeman,
+    SettingsUp,
+    SettingsAlone,
+    SettingsFunds,
+    SettingsBudgetUsed,
+    SettingsUnbuilt,
+    SettingsTelling,
+    SettingsNotifications,
+    SettingsNotificationsLine,
+    SettingsQuiet,
+    SettingsNoQuiet,
+    SettingsWhole,
+    SettingsWholeLine,
+    SettingsEach,
+    SettingsEachLine,
+    SettingsReview,
+    SettingsReviewLine,
+    SettingsOne,
+    SettingsOneLine,
     SettingsBuildersTab,
     SettingsBuildersHeading,
     SettingsBuildersLede,
@@ -1095,25 +1158,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Welcome's resumed setup adds one literal phrase (client/README.md, 3.5).
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
-// Settings adds seventeen phrases and thirty-three literal/hole segments (3.5).
-// Model’s panels and notes add fifteen phrases (client/README.md, 3.5).
-// Claude’s welcome panel and check add six literals (client/README.md, 3.5).
-// Ready adds its setup note and program/key details (client/README.md, 3.5).
-// Goal rows, ways and page add thirty-five phrases (client/README.md, 3.5).
-// The sheet replaces its placeholder with four refusal phrases (3.5).
-// Needs count, toast, page and kinds add thirty-two phrases (3.5).
-// Ready’s counted copy lead adds one phrase (client/README.md, 3.5).
-// Home’s copies add nine phrases (client/README.md, 3.5).
-// Home’s repository sheet adds eleven phrases (client/README.md, 3.5).
-// New chat adds three phrases (client/README.md, 3.5).
-// Chats adds six phrases and removes two filter empty phrases (client/README.md, 3.5).
-// Byline forms add six phrases (client/README.md, 5.5).
-// The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
-// Delegation lines add seven literal phrases (client/README.md, 5.7).
-// The document’s mode controls, path, attribution and rail add nine phrases (3.5).
-// Start over and the proposal line add six phrases (3.5).
-// Note tool lines and the draft shortcut hint add seven phrases (3.5).
-const PHRASES: u32 = 1588;
+// Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
+const PHRASES: u32 = 1650;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1128,26 +1174,9 @@ const PHRASES: u32 = 1588;
 // Welcome's resumed setup adds one literal segment (client/README.md, 3.5).
 // Forge status adds four segments and removes View (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
-// Five plan-name holes add ten segments to fifteen Model phrases (3.5).
-// Claude’s six literals add six segments (client/README.md, 3.5).
-// Ready adds four literal segments and one program-name hole (3.5).
-// Goal rows, ways and page add sixty-three segments (3.5).
-// The sheet adds five segments after removing its placeholder (3.5).
-// Needs count, toast, page and kinds add sixty-two segments (3.5).
-// Ready’s counted copy lead adds two literals and a Number hole (3.5).
-// Home’s copies add twenty-five literal and hole segments (3.5).
-// Home’s repository sheet adds 19 literal and hole segments (3.5).
-// Agent check refusal adds two segments for its charter number (5.13).
-// New chat adds nine literal and hole segments (client/README.md, 3.5).
-// Chats adds fourteen segments and removes two (client/README.md, 3.5).
-// Goal rows, ways and page add sixty-three segments (client/README.md, 3.5).
-// Byline forms add twenty-eight segments (client/README.md, 5.5).
-// Delegation lines add seven literal segments (client/README.md, 5.7).
-// The document adds twenty-one literal and hole segments (3.5).
-// Start over and the proposal line add fourteen segments (3.5).
-// Note tool lines and the draft shortcut hint add fifteen segments (3.5).
-const SEGMENTS: u32 = 2804;
-const ALL: [Word; 991] = [
+// Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
+const SEGMENTS: u32 = 2880;
+const ALL: [Word; 1053] = [
     Word::DraftGroup,
     Word::DraftChat,
     Word::DraftSplit,
@@ -1170,6 +1199,68 @@ const ALL: [Word; 991] = [
     Word::DraftWaits,
     Word::DraftAccepted,
     Word::DraftDecided,
+    Word::SettingsProposalTitle,
+    Word::SettingsProposalDrafts,
+    Word::SettingsProposalGoals,
+    Word::SettingsProposalChanges,
+    Word::SettingsProposalAway,
+    Word::SettingsProposalWay,
+    Word::SettingsProposalOn,
+    Word::SettingsProposalOff,
+    Word::SettingsProposalShown,
+    Word::SettingsProposalHidden,
+    Word::SettingsProposalForeman,
+    Word::SettingsProposalUp,
+    Word::SettingsProposalNone,
+    Word::SettingsProposalChange,
+    Word::SettingsProposalWaiting,
+    Word::SettingsProposalOwners,
+    Word::SettingsProposalAccepted,
+    Word::SettingsProposalReplaced,
+    Word::SettingsShows,
+    Word::SettingsDrafts,
+    Word::SettingsDraftsLine,
+    Word::SettingsGoals,
+    Word::SettingsGoalsLine,
+    Word::SettingsChanges,
+    Word::SettingsChangesLine,
+    Word::SettingsAway,
+    Word::SettingsAwayLine,
+    Word::SettingsOn,
+    Word::SettingsOff,
+    Word::SettingsShown,
+    Word::SettingsHidden,
+    Word::SettingsWays,
+    Word::SettingsDefault,
+    Word::SettingsStatus,
+    Word::SettingsReports,
+    Word::SettingsReportsLine,
+    Word::SettingsAgentReports,
+    Word::SettingsRewritten,
+    Word::SettingsOnOpen,
+    Word::SettingsBrief,
+    Word::SettingsBriefLine,
+    Word::SettingsNeeds,
+    Word::SettingsQuestions,
+    Word::SettingsForeman,
+    Word::SettingsUp,
+    Word::SettingsAlone,
+    Word::SettingsFunds,
+    Word::SettingsBudgetUsed,
+    Word::SettingsUnbuilt,
+    Word::SettingsTelling,
+    Word::SettingsNotifications,
+    Word::SettingsNotificationsLine,
+    Word::SettingsQuiet,
+    Word::SettingsNoQuiet,
+    Word::SettingsWhole,
+    Word::SettingsWholeLine,
+    Word::SettingsEach,
+    Word::SettingsEachLine,
+    Word::SettingsReview,
+    Word::SettingsReviewLine,
+    Word::SettingsOne,
+    Word::SettingsOneLine,
     Word::SettingsBuildersTab,
     Word::SettingsBuildersHeading,
     Word::SettingsBuildersLede,
@@ -2144,39 +2235,101 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
-            Self::SettingsBuildersTab => 3407,
-            Self::SettingsBuildersHeading => 3408,
-            Self::SettingsBuildersLede => 3409,
-            Self::BuildersCount => 3410,
-            Self::BuildersSlot => 3411,
-            Self::BuildersSlots => 3412,
-            Self::BuilderUnnamed => 3413,
-            Self::BuilderConnected => 3414,
-            Self::BuilderDraining => 3415,
-            Self::BuilderNotConnected => 3416,
-            Self::BuildersFacts => 3417,
-            Self::BuildersNone => 3418,
-            Self::BuildersNoRole => 3419,
-            Self::BuildersCut => 3420,
-            Self::SettingsKicker => 3388,
-            Self::SettingsHowHeading => 3389,
-            Self::SettingsHowLede => 3390,
-            Self::SettingsRepositoriesHeading => 3391,
-            Self::SettingsRepositoriesLede => 3392,
-            Self::SettingsForgesHeading => 3393,
-            Self::SettingsForgesLede => 3394,
-            Self::SettingsAccountsHeading => 3395,
-            Self::SettingsAccountsLede => 3396,
-            Self::SettingsAccountsTab => 3404,
-            Self::PathAddForge => 3405,
-            Self::PathConnectAccount => 3406,
-            Self::SettingsHowTab => 3397,
-            Self::SettingsRepositoriesTab => 3398,
-            Self::SettingsConfigureHelp => 3399,
-            Self::SettingsRepositoriesCount => 3400,
-            Self::SettingsNoneTag => 3401,
-            Self::SettingsNoneBody => 3402,
-            Self::SettingsSignedIn => 3403,
+            Self::SettingsProposalTitle => 3416,
+            Self::SettingsProposalDrafts => 3417,
+            Self::SettingsProposalGoals => 3418,
+            Self::SettingsProposalChanges => 3419,
+            Self::SettingsProposalAway => 3420,
+            Self::SettingsProposalWay => 3421,
+            Self::SettingsProposalOn => 3422,
+            Self::SettingsProposalOff => 3423,
+            Self::SettingsProposalShown => 3424,
+            Self::SettingsProposalHidden => 3425,
+            Self::SettingsProposalForeman => 3426,
+            Self::SettingsProposalUp => 3427,
+            Self::SettingsProposalNone => 3428,
+            Self::SettingsProposalChange => 3429,
+            Self::SettingsProposalWaiting => 3430,
+            Self::SettingsProposalOwners => 3431,
+            Self::SettingsProposalAccepted => 3432,
+            Self::SettingsProposalReplaced => 3433,
+            Self::SettingsShows => 3434,
+            Self::SettingsDrafts => 3435,
+            Self::SettingsDraftsLine => 3436,
+            Self::SettingsGoals => 3437,
+            Self::SettingsGoalsLine => 3438,
+            Self::SettingsChanges => 3439,
+            Self::SettingsChangesLine => 3440,
+            Self::SettingsAway => 3441,
+            Self::SettingsAwayLine => 3442,
+            Self::SettingsOn => 3443,
+            Self::SettingsOff => 3444,
+            Self::SettingsShown => 3445,
+            Self::SettingsHidden => 3446,
+            Self::SettingsWays => 3447,
+            Self::SettingsDefault => 3448,
+            Self::SettingsStatus => 3449,
+            Self::SettingsReports => 3450,
+            Self::SettingsReportsLine => 3451,
+            Self::SettingsAgentReports => 3452,
+            Self::SettingsRewritten => 3453,
+            Self::SettingsOnOpen => 3454,
+            Self::SettingsBrief => 3455,
+            Self::SettingsBriefLine => 3456,
+            Self::SettingsNeeds => 3457,
+            Self::SettingsQuestions => 3458,
+            Self::SettingsForeman => 3459,
+            Self::SettingsUp => 3460,
+            Self::SettingsAlone => 3461,
+            Self::SettingsFunds => 3462,
+            Self::SettingsBudgetUsed => 3463,
+            Self::SettingsUnbuilt => 3464,
+            Self::SettingsTelling => 3465,
+            Self::SettingsNotifications => 3466,
+            Self::SettingsNotificationsLine => 3388,
+            Self::SettingsQuiet => 3389,
+            Self::SettingsNoQuiet => 3390,
+            Self::SettingsWhole => 3391,
+            Self::SettingsWholeLine => 3392,
+            Self::SettingsEach => 3393,
+            Self::SettingsEachLine => 3394,
+            Self::SettingsReview => 3395,
+            Self::SettingsReviewLine => 3396,
+            Self::SettingsOne => 3397,
+            Self::SettingsOneLine => 3398,
+            Self::SettingsKicker => 3399,
+            Self::SettingsHowHeading => 3400,
+            Self::SettingsHowLede => 3401,
+            Self::SettingsRepositoriesHeading => 3402,
+            Self::SettingsRepositoriesLede => 3403,
+            Self::SettingsForgesHeading => 3404,
+            Self::SettingsForgesLede => 3405,
+            Self::SettingsAccountsHeading => 3406,
+            Self::SettingsAccountsLede => 3407,
+            Self::SettingsAccountsTab => 3408,
+            Self::SettingsHowTab => 3409,
+            Self::SettingsRepositoriesTab => 3410,
+            Self::SettingsConfigureHelp => 3411,
+            Self::SettingsRepositoriesCount => 3412,
+            Self::SettingsNoneTag => 3413,
+            Self::SettingsNoneBody => 3414,
+            Self::SettingsSignedIn => 3415,
+            Self::SettingsBuildersTab => 3467,
+            Self::SettingsBuildersHeading => 3468,
+            Self::SettingsBuildersLede => 3469,
+            Self::BuildersCount => 3470,
+            Self::BuildersSlot => 3471,
+            Self::BuildersSlots => 3472,
+            Self::BuilderUnnamed => 3473,
+            Self::BuilderConnected => 3474,
+            Self::BuilderDraining => 3475,
+            Self::BuilderNotConnected => 3476,
+            Self::BuildersFacts => 3477,
+            Self::BuildersNone => 3478,
+            Self::BuildersNoRole => 3479,
+            Self::BuildersCut => 3480,
+            Self::PathAddForge => 3481,
+            Self::PathConnectAccount => 3482,
             Self::GoalsWaySeparator => 3285,
             Self::GoalsWayEnd => 3286,
             Self::GoalsKicker => 3271,
@@ -2807,28 +2960,28 @@ impl Word {
             Self::DelegateMove => 156,
             Self::ToolCalls => 1040,
             Self::ToolSeparator => 1041,
-            Self::DraftGroup => 3421,
-            Self::DraftChat => 3422,
-            Self::DraftSplit => 3423,
-            Self::DraftDraft => 3424,
-            Self::DraftPath => 3425,
-            Self::DraftEdited => 3426,
-            Self::DraftAdded => 3427,
-            Self::DraftChanged => 3428,
-            Self::RailUnfold => 3429,
-            Self::StartOver => 3430,
-            Self::StartOverQuestion => 3431,
-            Self::DraftNotProposed => 3432,
-            Self::DraftWaits => 3433,
-            Self::DraftAccepted => 3434,
-            Self::DraftDecided => 3435,
-            Self::DraftWrote => 3436,
-            Self::DraftEditedTool => 3437,
-            Self::DraftLines => 3438,
-            Self::DraftCounts => 3439,
-            Self::DraftFile => 3440,
-            Self::DraftShow => 3441,
-            Self::DraftSendHint => 3442,
+            Self::DraftGroup => 3483,
+            Self::DraftChat => 3484,
+            Self::DraftSplit => 3485,
+            Self::DraftDraft => 3486,
+            Self::DraftPath => 3487,
+            Self::DraftEdited => 3488,
+            Self::DraftAdded => 3489,
+            Self::DraftChanged => 3490,
+            Self::RailUnfold => 3491,
+            Self::StartOver => 3492,
+            Self::StartOverQuestion => 3493,
+            Self::DraftNotProposed => 3494,
+            Self::DraftWaits => 3495,
+            Self::DraftAccepted => 3496,
+            Self::DraftDecided => 3497,
+            Self::DraftWrote => 3498,
+            Self::DraftEditedTool => 3499,
+            Self::DraftLines => 3500,
+            Self::DraftCounts => 3501,
+            Self::DraftFile => 3502,
+            Self::DraftShow => 3503,
+            Self::DraftSendHint => 3504,
             Self::ToolRepeated => 1042,
             Self::ChatEnded => 1043,
             Self::ChatEndedReport => 1044,
@@ -3408,51 +3561,8 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            // The document adds 88 literal bytes (client/README.md, 3.5).
-            // Settings and Builders add 1154 literal bytes (3.5).
-            // Forge status adds 76 literal bytes after removing View (3.5).
-            // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            // Model’s fifteen panel and note phrases add 659 literal bytes (3.5).
-            // Claude’s six phrases add 468 literal bytes (client/README.md, 3.5).
-            // Ready’s note and account details add 122 literal bytes (3.5).
-            // Goal rows, ways and page add 669 literal bytes (3.5).
-            // Sheet refusal literals add 84 bytes (client/README.md, 3.5).
-            // Needs count, toast, page and kinds add 381 literal bytes (3.5).
-            // Ready’s counted copy lead adds 96 literal bytes (3.5).
-            // Home’s copy phrases add 254 literal bytes (client/README.md, 3.5).
-            // Home’s repository sheet adds 289 literal bytes (client/README.md, 3.5).
-            // Agent check refusal adds 53 literal bytes (5.13).
-            // Start over and the proposal line add 148 literal bytes (3.5).
-            text_bytes: 1154
-                + 157
-                + 141
-                + 419
-                + 250
-                + 87
-                + 225
-                + 15
-                + 54
-                + 53
-                + 289
-                + 254
-                + 96
-                + 381
-                + 84
-                + 669
-                + 122
-                + 32768
-                + 288
-                + 149
-                + 401
-                + 11
-                + 76
-                + 476
-                + 659
-                + 367
-                + 468
-                + 88
-                + 148
-                + 99,
+            // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
+            text_bytes: 41203 + 204 + 88 + 148 + 99,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4261,6 +4371,68 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DelegateMove => (&[b"Delegate ", b" will be moved to you"], &[Number]),
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
+        Word::SettingsShows => (&[b"What the project shows"], &[]),
+        Word::SettingsDrafts => (&[b"Chats can write drafts"], &[]),
+        Word::SettingsDraftsLine => (&[b"A chat keeps a document beside it, in docs/design/draft/, that a goal can start from."], &[]),
+        Word::SettingsGoals => (&[b"Goals"], &[]),
+        Word::SettingsGoalsLine => (&[b"Bigger work from a draft: a plan, tasks, landing."], &[]),
+        Word::SettingsChanges => (&[b"Changes"], &[]),
+        Word::SettingsChangesLine => (&[b"The landing queue, as a page."], &[]),
+        Word::SettingsAway => (&[b"Away switch"], &[]),
+        Word::SettingsAwayLine => (&[b"Lets agents decide within limits while you\xe2\x80\x99re away."], &[]),
+        Word::SettingsProposalTitle => (&[b"How temper will run ", b""], &[Name]),
+        Word::SettingsProposalDrafts => (&[b"Drafts: ", b""], &[Name]),
+        Word::SettingsProposalGoals => (&[b"Goals: ", b""], &[Name]),
+        Word::SettingsProposalChanges => (&[b"Changes page: ", b""], &[Name]),
+        Word::SettingsProposalAway => (&[b"Away switch: ", b""], &[Name]),
+        Word::SettingsProposalWay => (&[b"Way: ", b""], &[Name]),
+        Word::SettingsProposalOn => (&[b"on"], &[]),
+        Word::SettingsProposalOff => (&[b"off"], &[]),
+        Word::SettingsProposalShown => (&[b"shown"], &[]),
+        Word::SettingsProposalHidden => (&[b"hidden"], &[]),
+        Word::SettingsProposalForeman => (&[b"Questions: answered by the goal"], &[]),
+        Word::SettingsProposalUp => (&[b"Questions: asked of me too"], &[]),
+        Word::SettingsProposalNone => (&[b"Questions: not asked"], &[]),
+        Word::SettingsProposalChange => (&[b"Change something"], &[]),
+        Word::SettingsProposalWaiting => (&[b"Waiting for an owner"], &[]),
+        Word::SettingsProposalOwners => (&[b"Owners of project ", b""], &[Name]),
+        Word::SettingsProposalAccepted => (&[b"\xe2\x9c\x93 Accepted \xc2\xb7 new work follows it"], &[]),
+        Word::SettingsProposalReplaced => (&[b"Replaced by the proposal below"], &[]),
+        Word::SettingsOn => (&[b"On"], &[]),
+        Word::SettingsOff => (&[b"Off"], &[]),
+        Word::SettingsShown => (&[b"Shown"], &[]),
+        Word::SettingsHidden => (&[b"Hidden"], &[]),
+        Word::SettingsWays => (&[b"Ways of working"], &[]),
+        Word::SettingsDefault => (&[b"The default"], &[]),
+        Word::SettingsStatus => (&[b"Status"], &[]),
+        Word::SettingsReports => (&[b"Status lines and reports"], &[]),
+        Word::SettingsReportsLine => (&[b"Written words, beside the counts temper keeps itself."], &[]),
+        Word::SettingsAgentReports => (&[b"Written by each goal\xe2\x80\x99s agent"], &[]),
+        Word::SettingsRewritten => (&[b"Rewritten"], &[]),
+        Word::SettingsOnOpen => (&[b"When someone opens it"], &[]),
+        Word::SettingsBrief => (&[b"The brief on Home"], &[]),
+        Word::SettingsBriefLine => (&[b"What changed since you last looked."], &[]),
+        Word::SettingsNeeds => (&[b"What needs you"], &[]),
+        Word::SettingsQuestions => (&[b"Questions a goal can answer from its plan"], &[]),
+        Word::SettingsForeman => (&[b"Answered by the goal, kept in its decisions"], &[]),
+        Word::SettingsUp => (&[b"Asked of me too"], &[]),
+        Word::SettingsAlone => (&[b"Not asked: each agent decides alone"], &[]),
+        Word::SettingsFunds => (&[b"Funds"], &[]),
+        Word::SettingsBudgetUsed => (&[b"Ask when a budget is used up"], &[]),
+        Word::SettingsUnbuilt => (&[b"Not built yet: this is what temper does today."], &[]),
+        Word::SettingsTelling => (&[b"Telling you"], &[]),
+        Word::SettingsNotifications => (&[b"Notifications"], &[]),
+        Word::SettingsNotificationsLine => (&[b"Only when something needs you; never for status."], &[]),
+        Word::SettingsQuiet => (&[b"Quiet hours"], &[]),
+        Word::SettingsNoQuiet => (&[b"None"], &[]),
+        Word::SettingsWhole => (&[b"Plan, tasks, land whole"], &[]),
+        Word::SettingsWholeLine => (&[b"A plan from the draft, its tasks on a goal branch, landed as one change once all are checked."], &[]),
+        Word::SettingsEach => (&[b"Task by task"], &[]),
+        Word::SettingsEachLine => (&[b"The same plan; each task lands on its own once checked."], &[]),
+        Word::SettingsReview => (&[b"Plan, then wait for me"], &[]),
+        Word::SettingsReviewLine => (&[b"Proposes the plan and its tasks, and starts nothing until you approve."], &[]),
+        Word::SettingsOne => (&[b"One agent, one branch"], &[]),
+        Word::SettingsOneLine => (&[b"No plan: one agent works the draft through and opens one change."], &[]),
         Word::SettingsBuildersTab => (&[b"Builders"], &[]),
         Word::SettingsBuildersHeading => (&[b"Where agents work."], &[]),
         Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its slots and how many are in use."], &[]),
