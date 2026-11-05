@@ -554,7 +554,7 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
     use jig_domain_authority as authority;
     use settings_form::view as form;
     let limits = settings_form::Limits::standard();
-    for (grant_count, kind_count) in [(14, 7), (16, 16)] {
+    for (grant_count, kind_count) in [(14, 9), (16, 16)] {
         let ceiling = settings_ceiling(grant_count, kind_count);
         let policy = jig_domain_core::ConfiguredPolicy {
             policy: authority::Policy {
