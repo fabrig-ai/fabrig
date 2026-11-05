@@ -1330,8 +1330,9 @@ keeps (`../protocol/configuration.md`, section 2).
   `lineage_chips`, "chat T6". The page reads each row's task, as a task's
   page reads a chip, those of the rows shown alone; until one arrives,
   its row has no mono part. Every row but "and N more" is a link to its
-  change's `Task { task }`. The terminal prints the page; the view is
-  shared.
+  change's `Task { task }`. Until its first document, the page is its
+  kicker; with its watch refused or ended, its kicker and "Shown on the
+  forge." (4.2). The terminal prints the page; the view is shared.
 - **Settings:** `Settings { project }`, at `/projects/<project>/settings`,
   has the level-1 heading "Settings for PROJECT"; a list of links, "Forges",
   "Accounts" and "Adopt a repository", each with the marks 5.3 gives it;

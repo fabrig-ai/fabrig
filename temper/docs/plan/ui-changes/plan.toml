@@ -27,3 +27,29 @@ id = 1
 story = "a landing's title outlives its change's close, and the client's document has a shape"
 parts = ["changes-wire", "landing-log"]
 walk = false
+
+[[part]]
+id = "changes-view"
+title = "the engine serves the watch changes"
+mode = "direct"
+needs = ["changes-wire", "landing-log"]
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[slice]]
+id = 2
+story = "a landed change is read in the document, with its title, after its close"
+parts = ["changes-view"]
+walk = false
+
+[[part]]
+id = "changes-page"
+title = "the Changes page, as the greenfield mock draws it"
+mode = "direct"
+needs = ["changes-wire"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "a person opens Changes from the rail and sees what is on the way to main"
+parts = ["changes-page"]
+walk = false

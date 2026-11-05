@@ -14,10 +14,16 @@ and 10; `domain/after-landing.md`, 10; `domain/forge.md`, 9; `protocol/store.md`
 |---|---|---|---|---|
 | 1 | `changes-wire` | | medium, 35 | the subject and its document on the wire; refused by the engine |
 | 2 | `landing-log` | | high, 100 | family 30, written at each merge, erased with its repository |
+| 3 | `changes-view` | 1, 2 | high, 110 | the engine serves the watch: queues, red, landed; its marks and its world |
+| 4 | `changes-page` | 1 | high, 190 | the page, the rail, the breadcrumb, its samples, the proof against the mock |
+
+The page builds to the wire, delivering its own `ChangesPanel`s, so it needn't wait for the engine: the two meet on
+`notes/contracts.md`. `temper.css`, the gallery's `tests.rs` and `names.txt` and the terminal's goldens are touched by
+`changes-page` alone, so no two tasks of this plan conflict on them.
 
 ## The critical path, as it stands
 
-`landing-log` (100). Later tasks follow in the next push.
+`changes-wire`, then `changes-page`: 225 implementer-minutes. Beside it, `landing-log`, then `changes-view`: 210.
 
 ## Decisions that change a format, a protocol or an interface
 
@@ -40,7 +46,25 @@ There is no supported deployment, so each is decided here and reaches the user t
 - **Landed recently's time is 5.12's *clock*,** since the mock draws "05:01".
 - **A project that lands by turn** has an empty Queue on this page and lists what it lands: the mock draws
   one queue, and turn is not the default (`domain/landing.md`, 1).
+- **The queue's first stays on the page while it updates:** `queue_ready` leaves out `Updating`, `Checking`,
+  `Gating` and `Landing`, so the document puts the change that owns the queue (`owns_turn`) first, in the spirit of
+  the request's "first: checking".
+- **The banner's "Changes"** (`client/README.md`, 5.3) isn't drawn, and stays *Not yet*: the request asks for the
+  rail, and the mock has no banner.
+
+## Seen while cutting, not changed here
+
+- `queue_first` (`temper-engine-domain-forge/src/domain.rs`) reads `queue_ready`, which leaves out a first change
+  at `Updating`, so by reading, the next ready change could take `First` while the first updates, where
+  `domain/forge.md`, 9 has it keep its turn. Read, not run: `changes-view`'s report says what a test shows.
 
 ## Overlaps with the drafts beside it
 
-- `changes-wire` and `landing-log` touch no file of `claude-always`, `ui-signin`, `debt-17` or `hearth-memory-3`.
+- `changes-wire`, `landing-log` and `changes-view` touch no file of `claude-always`, `ui-signin`, `debt-17` or
+  `hearth-memory-3`, and need no other plan's file.
+- `changes-page` could not avoid what every `ui-*` plan shares: `temper.css` (under its own marker), `frame.rs`'s
+  rail, `look.rs`, `words.rs`, the gallery's `names.txt` and `tests.rs`, and the terminal's goldens, beside
+  `ui-needs` and `look-round-5`, both cut in flight, whose files aren't known yet. Expect a catch-up there: goldens
+  are regenerated, never hand-merged (`notes/common.md`).
+- `ui-home-status` is on no list beside this plan, and Home's "Landing:" line isn't on the trunk. This page makes the
+  line's function, and whichever of the two lands second moves to it.
