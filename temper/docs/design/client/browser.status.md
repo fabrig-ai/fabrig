@@ -2,10 +2,10 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.5: a
-  chat's document, its sheet and `Ctrl+\`. 7.2: `chat-draft-*`, `chat-new-draft`,
-  `chat-start-goal*`, `chat-goal-linked`, `configure-chat-document*`
-  and `rail-new-menu`.
+- **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
+  with Split displayed as Draft. The 2026-11-05 answer to
+  `ui-chat-draft/document-pane` accepts this cycle without viewport state;
+  only the visible buttons omit Split (`README.md`, 3.5).
 - **Not yet:** 7.2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
   `goal-toast` answers Pause without delivering a paused task document, so
@@ -14,7 +14,7 @@
 - **Departs:** 7.2: `start-goal` is Chats with no sheet and no filter,
   `Chats { filter: All }`, since that is where Goals' entry goes and `OpenStart`
   opens nothing without both a draft and a chat; `start-goal-draft` and
-  `start-goal-refused` draw the sheet by sending it both, which no page does.
+  `start-goal-refused` draw the same sheet a chat's "Start goal…" opens.
   The rulings of 2026-11-05 on the request `ui-goal-page` send the entry to a
   Drafts filter (`README.status.md`, 3.5, *Goals*, 5.14).
 - **Not yet:** 7.1: a `home-*` state's title is its headline, then

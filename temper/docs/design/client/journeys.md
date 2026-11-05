@@ -515,6 +515,13 @@ over skein's harness.
 | `project-landing` | on a fresh `temper box --fake-backends` (3.5): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's two steps left; the recording holds no act; its `README.md` says so |
 | `chat-draft` | on a fresh `temper box --fake-backends` (3.5): "Chats can write drafts" enabled in Settings, a chat started, "+ Draft" pressed, two turns of the fake model writing and changing its document (`../domain/testing.md`, 2.4), Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../domain/agent.md`, 8.3; `README.md`, 3.5) |
 
+The `configure-chat-draft` request's hand-made `configure-chat/02.html`
+through `04.html` and its README are not journeys to reprint or land
+(section 7). Its document pane and modes are shared with `chat-draft`;
+the configuring proposal states, Start over and the rail strip are also
+drawn by the gallery (`browser.md`, 7.2). Its drawing and figure wait on
+`skein/docs/design/draft/diagrams.md`.
+
 ## 10. Open questions
 
 - **Typing:** whether every act marks its page; the design marks
