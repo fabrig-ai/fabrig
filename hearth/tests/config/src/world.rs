@@ -120,8 +120,8 @@ pub fn run(document: &[u8], settings: &Settings, seed: u64) -> Run {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: settings.limits };
     let mut rng = Rng::new(seed);
     let mut decoder = Decoder::new(&env.limits);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut wire = Wire::new(seed);
     wire.write(settings.sent(document));
     wire.eof = true;
@@ -187,7 +187,7 @@ pub fn run(document: &[u8], settings: &Settings, seed: u64) -> Run {
                 json::up(&mut decoder, &env, event, &mut above, &mut below);
             }
         }
-        assert!(above.len() <= 1 && below.len() <= 1, "MAX_OUT");
+        assert!(above.len() <= 1 && below.len() <= 1, "one thing an entry point");
         if let Some(down) = below.pop() {
             match &down {
                 Down::Demand { read: Read::Nothing, room: 0 } => {
