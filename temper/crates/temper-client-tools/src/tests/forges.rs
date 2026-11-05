@@ -1358,6 +1358,8 @@ fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)])
                 | w::Request::Reachable(_)
                 | w::Request::Accept(_)
                 | w::Request::MakeRepository(_)
+                | w::Request::SetAway(_)
+                | w::Request::Overturn(_)
                 | w::Request::Looked(_)
                 | w::Request::Dismiss(_)
                 | w::Request::StartPlayground) => panic!("unexpected {other:?}"),
