@@ -2,7 +2,7 @@
 
 2026-11-05. Where skein's code lags or departs from [io.md](io.md).
 
-- **Not yet:** 5: a tree's metadata, the filesystem's status and sync, and
+- **Not yet:** 5: `file_layer::Limits`, `file_layer::valid`, `FileIo::with_limits` and `file_layer::step`. 5: a tree's metadata, the filesystem's status and sync, and
   btrfs's subvolumes (`StatEntry` to `SubvolumePath`). 6, 6.2 to 6.4:
   cgroups and contained trees.
 - **Departs:** 3, 5, 7: for pipes, files and signals,
