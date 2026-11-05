@@ -394,8 +394,8 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
   of its merge.
 - **A party's dismissals outlive it.** jig erases no party: a member
   taken out of the configuration stays a party, and a role lost leaves
-  the party's rows. So `Dismissed` and `Looked` are erased with their
-  project alone, and a row can outlive its member's use for it, within
+  the party's rows. So `Dismissed`, `Looked`, `Away` and a party's
+  `Decided` rows are erased with their project alone, and a row can outlive its member's use for it, within
   the family's bound:
   a person given the role back finds it still dismissed. Default:
   nothing, until jig erases a party, when its connector would

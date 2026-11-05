@@ -956,6 +956,10 @@ unless marked:
   never holds. Dropping them changes what a public function returns. Its one
   reader outside the crate, `skein-fake-llm-protocol`, asks only whether it
   is `Some`, so it can shrink when a consumer wants the room.
+- **A client's handlers** (3): each event is one function that matches the
+  state inside, where programming-model.md, section 5.4 has one handler per
+  cell, and `Client` keeps its machines, its `Upload` and its `outcome` beside
+  `State`. They stay until a debt item names them.
 
 ## 7. Open questions
 

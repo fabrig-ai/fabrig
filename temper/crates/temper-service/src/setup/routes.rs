@@ -143,7 +143,7 @@ fn escaped(byte: &u8) -> &[u8] {
         _ => core::slice::from_ref(byte),
     }
 }
-const HEAD: &[u8] = b"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>temper</title><style>";
+const HEAD: &[u8] = b"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>temper</title><style>";
 const STYLE: &[u8] = b":root{color-scheme:light dark;font-family:system-ui,sans-serif}body{max-width:42rem;margin:3rem auto;padding:0 1rem;line-height:1.5}main{padding:1.5rem;border:1px solid;border-radius:.5rem}a,button{display:inline-block;padding:.6rem 1rem;border:1px solid;border-radius:.3rem;font:inherit}a{color:inherit;text-decoration:none}button{cursor:pointer}";
 const MANIFEST_HIDDEN: &[u8] = b".js body{display:none}";
 // Submit in a task after load: an earlier submit can replace this history entry in Chromium.
