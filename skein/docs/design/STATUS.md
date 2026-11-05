@@ -1,6 +1,6 @@
 # Status
 
-2026-11-04. Where skein's code lags or departs from its design, and its
+2026-11-05. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The kernel's
 records of a tree's metadata, the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
@@ -27,12 +27,14 @@ llm-connection and lib's `RequestTable` depart from
 product's types against `../foundation/testing-strategy.md`, 4
 (`fake-forge.md`, `fake-llm.md`); single departures stand in
 `fake-forge.md`, `forge-setup.md`, `forge-connection.md`, `io.md`,
-`json.md`, `kv.md`, `link.md`, `llm.md`, `shell.md` and `testing.md`. The
-foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
+`json.md`, `kv.md`, `link.md`, `llm.md`, `shell.md`, `testing.md` and
+`ui.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
-`lib.md` and `io.md` to name its items, and the design departs from
-`redb.md`: the store is `kv.md`'s own machine.
+`lib.md` and `io.md` to name its items, the design departs from
+`redb.md`: the store is `kv.md`'s own machine, and `progress-value.md`'s
+status holds a departure the user has not answered, a progress's text
+as runs of its own.
 
 Design documents:
 - [`README.md`](README.status.md)

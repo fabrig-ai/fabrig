@@ -523,7 +523,11 @@ over skein's harness.
   moves to a journey once the fake box reaches it, its answers then the
   engine's own (`browser.md`, section 7). Model's forge done and failed
   and Ready wait on a fake box whose Forgejo set up finishes, so that
-  fewer states are hand-made (`../draft/look-requests.md`, 8).
+  fewer states are hand-made (`../draft/look-requests.md`, 8). The two
+  fetching states wait on a still page at the fetch: `welcome-set-up`'s
+  recording holds the fetch's rows, but they keep the page moving, so
+  its pages 07 and 08 fall at preparing (8.1;
+  `../protocol/setup.md`, section 15).
 - **A render-check command:** in `temper-client-journeys`, taking a
   request's name. Default: each landing's own script
   (`../draft/look-requests.md`, 4 and 8).

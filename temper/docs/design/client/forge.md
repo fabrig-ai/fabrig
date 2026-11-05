@@ -1343,6 +1343,9 @@ made by the forge connector from what it keeps of the change
   autocomplete off, its text masked) would keep the PEM's lines as
   GitHub gives them and retire the restore. A change to skein's
   builder and page, not temper's.
+- **One percentage for both binaries** (5.4). Default: each binary says
+  its own, so the bar starts again for the runner, until their sizes
+  are pinned beside their digests (`../protocol/setup.md`, section 15).
 - **The welcome's forge choices** (5.4; `README.md`, 3.5). Default:
   Connect a forge's cards and their Details, the same on the welcome,
   Forgejo on this machine's Details before its set up. The user's

@@ -3528,6 +3528,16 @@ Each is intended; what it needs is named with it.
   the refusal, `mirror` and a binary given by path answer it, and a copy
   temper hosts is GPL code it distributes, its source to keep beside it
   (`../draft/macos.md`, section 7).
+- **One percentage for both binaries** (6.6): from sizes pinned beside
+  their digests (skein's `forge.md`, 4.3), known before the first byte,
+  so that the bar does not start again for the runner
+  (`../client/forge.md`, 5.4).
+- **The other steps' progress** (7.1): preparing and starting take
+  seconds, and keep the moving bar.
+- **A fake fetch for the fake box,** so that a journey prints the
+  percentage: a walk's fetch lasts seconds, its `fetched` lines keep the
+  page moving, and `again` takes no page while it moves
+  (`../client/journeys.md`, 8.1).
 
 ## 16. Open questions
 
