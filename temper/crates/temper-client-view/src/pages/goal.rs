@@ -502,7 +502,10 @@ impl<'a> Delegates<'a> {
             let word = if state == State::Planning { Word::GoalProposing } else { Word::GoalNoTasks };
             facts(b, &words.say(word, &[]));
         } else {
-            b.open(Role::Image);
+            b.open(match words.shell {
+                Shell::Browser => Role::Figure,
+                Shell::Terminal => Role::Image,
+            });
             b.style(look::GOAL_BAR);
             b.name(&words.say(Word::GoalBarCount, &[Hole::Number(landed), Hole::Number(total)]));
             for (_, row) in &self.rows {
