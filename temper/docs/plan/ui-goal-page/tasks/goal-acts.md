@@ -88,3 +88,14 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-goal-page/goal-acts/foreman-1)
+
+rebase words.rs by combining both segment-count increases
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Main commit `789b2ee91d` (“client: preserve the charter in check-reserve refusals”), incorporated through integration merge `1e39271882`, adds two segments for `AgentChecks`.
+The task adds eight segments for its six goal-action phrases.
+Resolve `SEGMENTS` to `2593` (base `2583` + main’s `2` + task’s `8`).
+Keep the task’s `PHRASES = 1492`, `ALL` length `896`, six new variants, phrase IDs `3432..3437`, and English phrases.
+Preserve main’s revised `AgentChecks` wording, its `Number` hole, and the `+ 53` text-byte allowance in `Words::english`.
+Run the spec’s required checks through heavy after rebasing; the refusal occurred during merge and provides no test results.
