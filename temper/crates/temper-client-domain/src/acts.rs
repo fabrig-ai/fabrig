@@ -147,6 +147,7 @@ pub(super) fn step(pages: &mut Pages, _env: &Env<Limits>, act: Act, out: &mut Qu
         | Act::PlanFilter { .. }
         | Act::ClosedChats => unreachable!("chat acts routed to chats"),
         Act::Switcher(_)
+        | Act::Needs(_)
         | Act::Choice(_)
         | Act::Accounts(_)
         | Act::ConnectModel(_)
@@ -262,7 +263,7 @@ pub fn pending(card: &Card, client: &Client) -> Option<jig_client::Progress> {
     Some(client.pending(card.key?)?.progress)
 }
 
-fn allowed(page: &ReadValue, act: ActKind) -> bool {
+pub(crate) fn allowed(page: &ReadValue, act: ActKind) -> bool {
     match jig_client::facts::offer(offers(page), act) {
         Some(Admission::Allowed | Admission::Bounded { .. }) => true,
         Some(Admission::Refused(_) | Admission::Proposed { .. }) | None => false,

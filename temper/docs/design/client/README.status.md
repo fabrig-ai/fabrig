@@ -2,9 +2,8 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *What the client keeps*: `Pages`' session state and
-  its held send, the toast, and the standing `inbox` watch of 5.3's count
-  and link. 3.5, *Needs you*: the browser's page, which draws the list.
+- **Not yet:** 3.5, *What the client keeps*: the toast's drawing and the
+  standing `inbox` watch of 5.3's count and link. 3.5, *Needs you*: the browser's page, which draws the list.
   3.5, *Home*: its card, lines, answered lines, number words and phone
   block by the line form.
   3.4, 5.5: the composer's
