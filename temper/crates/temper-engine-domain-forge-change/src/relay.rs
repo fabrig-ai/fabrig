@@ -45,6 +45,8 @@ pub enum RelayAct {
     Answer { asker: u64, number: u64, words: Box<[u8]> },
     /// Ask the requester, with the foreman's reasons if any.
     Ask { asker: u64, number: u64, reasons: Box<[u8]> },
+    /// Tell the requester that a question's asker ended.
+    Left { asker: u64, number: u64, line: Box<[u8]>, answered: bool },
     /// Cancel a foreman whose asker ended.
     Cancel { task: u64 },
     /// Hold the change past its bound.
@@ -60,23 +62,33 @@ pub struct Relayed {
     pub more: bool,
 }
 
-/// Decide the relay purely; `room` bounds this step's `Answer` and `Ask` acts.
+/// Decide the relay purely; `room` bounds this step's `Answer`, `Ask` and `Left` acts.
 #[must_use]
 pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut room: usize) -> Relayed {
     if questions.route == Route::None {
         return Relayed { questions: questions.clone(), acts: Box::new([]), more: false };
     }
     let mut acts = List::uncapped();
-    let mut open = take_questions(questions, heard, &mut acts);
+    let mut more = false;
+    let mut open = take_questions(questions, heard, &mut acts, &mut room, &mut more);
     let mut heard = *heard;
     let mut taken = questions.taken;
     let mut done: usize = 0;
-    let mut more = false;
     for question in &mut open {
+        if heard.ended.contains(&question.asker) && question.stands != Stands::Asked {
+            break;
+        }
         if question.stands == Stands::Asked
             && let Some(answer) = heard.answer
         {
             if heard.ended.contains(&question.asker) {
+                if room == 0 {
+                    question.stands = Stands::Held { answer: bytes::copy_of(answer) };
+                    more = true;
+                    break;
+                }
+                room = room.saturating_sub(1);
+                acts.push(left(question, true)).expect("relay acts fit a list");
                 heard.answer = None;
                 done = done.saturating_add(1);
                 continue;
@@ -88,7 +100,7 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
         }
         let Some(act) = next_act(question, &heard, limits, taken, questions.route) else { break };
         match &act {
-            RelayAct::Answer { .. } | RelayAct::Ask { .. } => {
+            RelayAct::Answer { .. } | RelayAct::Ask { .. } | RelayAct::Left { .. } => {
                 if room == 0 {
                     more = true;
                     break;
@@ -126,7 +138,9 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
                 acts.push(act).expect("relay acts fit a list");
                 break;
             }
-            RelayAct::Cancel { .. } => unreachable!("ended askers are removed before working the head"),
+            RelayAct::Cancel { .. } | RelayAct::Left { .. } => {
+                unreachable!("ended askers are removed before working the head")
+            }
         }
     }
     let remaining = open.get(done..).expect("only answered heads leave the open questions");
@@ -137,20 +151,33 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
     }
 }
 
-fn take_questions(questions: &Questions, heard: &RelayHeard<'_>, acts: &mut List<RelayAct>) -> Box<[Open]> {
+fn take_questions(
+    questions: &Questions,
+    heard: &RelayHeard<'_>,
+    acts: &mut List<RelayAct>,
+    room: &mut usize,
+    more: &mut bool,
+) -> Box<[Open]> {
     let cap = u32::try_from(QUESTIONS_OPEN).expect("the open question bound fits a u32");
     let mut open = List::with_capacity(cap);
     for question in &questions.open {
-        if heard.ended.contains(&question.asker) {
-            match question.stands {
-                Stands::Foreman { task } => {
-                    if let Some(task) = task {
-                        acts.push(RelayAct::Cancel { task }).expect("relay acts fit a list");
+        if heard.ended.contains(&question.asker) && question.stands != Stands::Asked {
+            if *room == 0 {
+                *more = true;
+            } else {
+                *room = room.saturating_sub(1);
+                match question.stands {
+                    Stands::Foreman { task } => {
+                        acts.push(left(question, false)).expect("relay acts fit a list");
+                        if let Some(task) = task {
+                            acts.push(RelayAct::Cancel { task }).expect("relay acts fit a list");
+                        }
                     }
-                    continue;
+                    Stands::Taken => acts.push(left(question, false)).expect("relay acts fit a list"),
+                    Stands::Held { .. } => acts.push(left(question, true)).expect("relay acts fit a list"),
+                    Stands::Asked => unreachable!("an asked question waits for its answer"),
                 }
-                Stands::Taken | Stands::Held { .. } => continue,
-                Stands::Asked => {}
+                continue;
             }
         }
         open.push(question.clone()).expect("the record fits the open question bound");
@@ -169,6 +196,10 @@ fn take_questions(questions: &Questions, heard: &RelayHeard<'_>, acts: &mut List
         open.push(question).expect("open question room was checked");
     }
     open.into_boxed()
+}
+
+fn left(question: &Open, answered: bool) -> RelayAct {
+    RelayAct::Left { asker: question.asker, number: question.number, line: question.line.clone(), answered }
 }
 
 fn next_act(question: &Open, heard: &RelayHeard<'_>, limits: &Limits, taken: u32, route: Route) -> Option<RelayAct> {

@@ -188,47 +188,114 @@ fn released_past_the_bound_it_goes_up_without_a_foreman() {
     }
 }
 
-#[test]
-fn an_ended_asker_cancels_its_foreman_and_drops_its_questions() {
-    let q = Questions {
-        open: Box::new([
-            open(ASKER, NUMBER, Stands::Taken),
-            open(ASKER, NUMBER, Stands::Foreman { task: Some(FOREMAN) }),
-            open(ASKER, NUMBER, Stands::Foreman { task: None }),
-            open(ASKER, NUMBER, Stands::Held { answer: Box::from(b"Unused".as_slice()) }),
-            open(NEXT_ASKER, NEXT_NUMBER, Stands::Taken),
-        ]),
-        ..head(Stands::Taken)
-    };
-    let result = relay(
-        &q,
-        &RelayHeard { ended: &[ASKER], foreman: Some((FOREMAN, Settled::Answer(b"Unused"))), ..heard() },
-        &super::LIMITS,
-        0,
-    );
-    assert_eq!(
-        result.acts.as_ref(),
-        &[RelayAct::Cancel { task: FOREMAN }, RelayAct::Foreman { asker: NEXT_ASKER, number: NEXT_NUMBER },]
-    );
-    assert_eq!(result.questions.open.as_ref(), &[open(NEXT_ASKER, NEXT_NUMBER, Stands::Foreman { task: None })]);
-    assert!(!result.more);
+fn left(answered: bool) -> RelayAct {
+    RelayAct::Left { asker: ASKER, number: NUMBER, line: Box::from(b"Which path?".as_slice()), answered }
 }
 
 #[test]
-fn an_asked_question_of_an_ended_asker_drops_its_answer() {
+fn an_ended_asker_reports_each_question_and_cancels_its_foreman() {
+    for (stands, answered, cancel) in [
+        (Stands::Taken, false, None),
+        (Stands::Foreman { task: Some(FOREMAN) }, false, Some(FOREMAN)),
+        (Stands::Foreman { task: None }, false, None),
+        (Stands::Held { answer: Box::from(b"Unused".as_slice()) }, true, None),
+    ] {
+        let result = relay(&head(stands), &RelayHeard { ended: &[ASKER], kept: true, ..heard() }, &super::LIMITS, 1);
+        let mut expected = vec![left(answered)];
+        if let Some(task) = cancel {
+            expected.push(RelayAct::Cancel { task });
+        }
+        assert_eq!(result.acts.as_ref(), expected);
+        assert!(result.questions.open.is_empty());
+        assert!(!result.more);
+        let next = relay(&result.questions, &RelayHeard { ended: &[ASKER], ..heard() }, &super::LIMITS, ROOM);
+        assert!(next.acts.is_empty(), "the ended question is reported once");
+    }
+}
+
+#[test]
+fn an_asked_question_of_an_ended_asker_reports_at_its_answer() {
     let q = head(Stands::Asked);
     let waiting = relay(&q, &RelayHeard { ended: &[ASKER], ..heard() }, &super::LIMITS, ROOM);
     assert_eq!(waiting.questions, q);
     assert!(waiting.acts.is_empty());
-    let result = relay(
-        &waiting.questions,
-        &RelayHeard { ended: &[ASKER], answer: Some(b"Unused"), kept: true, asked: &[asked()], ..heard() },
-        &super::LIMITS,
-        0,
-    );
-    assert_eq!(result.acts.as_ref(), &[RelayAct::Foreman { asker: NEXT_ASKER, number: NEXT_NUMBER }]);
-    assert_eq!(result.questions.open.as_ref(), &[open(NEXT_ASKER, NEXT_NUMBER, Stands::Foreman { task: None })]);
-    assert!(!result.more);
+    for kept in [false, true] {
+        let result = relay(
+            &waiting.questions,
+            &RelayHeard { ended: &[ASKER], answer: Some(b"Unused"), kept, ..heard() },
+            &super::LIMITS,
+            1,
+        );
+        assert_eq!(result.acts.as_ref(), &[left(true)]);
+        assert!(result.questions.open.is_empty());
+        assert!(!result.more);
+    }
+}
+
+#[test]
+fn no_room_keeps_an_ended_question_until_it_can_be_reported_once() {
+    for stands in [
+        Stands::Taken,
+        Stands::Foreman { task: Some(FOREMAN) },
+        Stands::Foreman { task: None },
+        Stands::Asked,
+        Stands::Held { answer: Box::from(b"Unused".as_slice()) },
+    ] {
+        let q = head(stands.clone());
+        let result = relay(&q, &RelayHeard { ended: &[ASKER], answer: Some(b"Unused"), ..heard() }, &super::LIMITS, 0);
+        let (expected, answered) = match stands {
+            Stands::Asked | Stands::Held { .. } => {
+                (head(Stands::Held { answer: Box::from(b"Unused".as_slice()) }), true)
+            }
+            Stands::Taken | Stands::Foreman { .. } => (q, false),
+        };
+        assert_eq!(result.questions, expected);
+        assert!(result.acts.is_empty(), "a foreman stays whole while the notice waits");
+        assert!(result.more);
+        let next = relay(&result.questions, &RelayHeard { ended: &[ASKER], ..heard() }, &super::LIMITS, 1);
+        assert_eq!(next.acts[0], left(answered));
+        assert!(next.questions.open.is_empty());
+        assert!(!next.more);
+        let again = relay(&next.questions, &RelayHeard { ended: &[ASKER], ..heard() }, &super::LIMITS, ROOM);
+        assert!(again.acts.is_empty());
+    }
+}
+
+#[test]
+fn an_ended_question_shares_message_room_with_the_next_question() {
+    let q = Questions {
+        route: Route::Up,
+        open: Box::new([open(ASKER, NUMBER, Stands::Taken), open(NEXT_ASKER, NEXT_NUMBER, Stands::Taken)]),
+        ..head(Stands::Taken)
+    };
+    let result = relay(&q, &RelayHeard { ended: &[ASKER], ..heard() }, &super::LIMITS, 1);
+    assert_eq!(result.acts.as_ref(), &[left(false)]);
+    assert_eq!(result.questions.open.as_ref(), &[open(NEXT_ASKER, NEXT_NUMBER, Stands::Taken)]);
+    assert!(result.more);
+}
+
+#[test]
+fn a_live_askers_question_is_never_reported_as_ended() {
+    for stands in [
+        Stands::Taken,
+        Stands::Foreman { task: Some(FOREMAN) },
+        Stands::Asked,
+        Stands::Held { answer: Box::from(b"Use the path.".as_slice()) },
+    ] {
+        let result = relay(&head(stands), &RelayHeard { ended: &[NEXT_ASKER], ..heard() }, &super::LIMITS, ROOM);
+        let mut reported = false;
+        for act in &result.acts {
+            match act {
+                RelayAct::Left { .. } => reported = true,
+                RelayAct::Foreman { .. }
+                | RelayAct::Answer { .. }
+                | RelayAct::Ask { .. }
+                | RelayAct::Cancel { .. }
+                | RelayAct::Hold => {}
+            }
+        }
+        assert!(!reported);
+    }
 }
 
 #[test]
