@@ -58,14 +58,14 @@ fn a_remote_past_the_checkouts_names_refuses_the_start() {
     );
 }
 #[test]
-fn the_engines_items_past_the_workers_refuse_the_start() {
+fn a_checkout_with_one_repository_can_start() {
     let document = fixtures::with(
         &fixtures::document(),
         b"application.limits.overrides",
         br#"{"checkout.name_bytes":600,"checkout.repositories":1,"git_component.stdout_bytes":2048}"#,
     );
     let found = started(&document, &fixtures::files(), &fixtures::startup_agent());
-    assert_eq!(&*lines(&found), b"application.limits.overrides.forge.resources_per_task: must agree with checkout.repositories and checkout.name_bytes\n".as_slice());
+    assert!(found.is_empty(), "{:?}", lines(&found));
 }
 #[test]
 fn default_engine_and_worker_grants_fit_the_channel_and_link() {
@@ -176,7 +176,7 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         found.problems.get(0).unwrap().path,
-        Path::root().member(b"application").member(b"limits").member(b"overrides").member(b"forge.resources_per_task")
+        Path::root().member(b"application").member(b"limits").member(b"overrides").member(b"checkout.repositories")
     );
     let What::Past { bytes, .. } = found.problems.get(0).unwrap().what else {
         panic!("repository ceiling named");

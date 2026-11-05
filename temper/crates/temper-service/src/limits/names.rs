@@ -596,7 +596,7 @@ pub static NAMES: [Name; 163] = [
     Name {
         name: "forge.resources_per_task",
         unit: Unit::Count,
-        line: "Bounds repositories in one task's resources, equal to the checkout's repository count.",
+        line: "Bounds distinct forge names watched by one task, including held resources and subscribed branches.",
         value: |limits| u64::from(limits.forge.resources_per_task),
     },
     Name {

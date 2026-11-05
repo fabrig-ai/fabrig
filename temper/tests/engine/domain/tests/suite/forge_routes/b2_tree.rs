@@ -1035,6 +1035,8 @@ fn an_agreed_goal_changes_once_answered() {
     let (mut world, chat, work, question) = questioning_goal();
     answer(&mut world, &chat, CHAT_TURNS, tasks::End::Parked);
     person_answers(&mut world, chat.task, question);
+    let notified = admitted(&world, chat.task);
+    answer(&mut world, &notified, CHAT_TURNS, tasks::End::Parked);
     let (change, _) = land_change(&mut world, &work);
     assert!(landed(&world, change));
 }
