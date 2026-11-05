@@ -630,7 +630,7 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         return true;
     }
     if let Some(home) = &mut pages.home
-        && home.told(&told, env.limits.forge)
+        && home.told(&told, client, env.limits.forge, out)
     {
         return true;
     }
@@ -831,8 +831,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
         }
         if let Address::Home { project } = address {
-            pages.home = Some(home::Home::new(pages.next, out));
-            pages.next = pages.next.checked_add(1).expect("page handles fit");
+            pages.home = Some(home::Home::new(project, pages.next, env.limits.forge, out));
+            pages.next = pages.next.checked_add(2).expect("page handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
             pages.next = pages.next.checked_add(2).expect("page handles fit");
             pages.inbox = Some(inbox::Inbox::new(
