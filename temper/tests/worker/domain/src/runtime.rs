@@ -319,7 +319,7 @@ impl World {
     fn answered(&mut self, answer: &host::RunAnswer, work: &wire::Work) {
         assert_eq!(answer.turns, u32::try_from(self.observed.len()).expect("bounded"));
         let host::Ending::Parked { .. } = &answer.ending else { panic!("script only parks: {answer:?}") };
-        assert_eq!(work.saved.is_some(), !self.settings.merging, "a merge in progress saves nothing");
+        assert!(work.saved.is_some(), "parking saves the delivered work, including a resolved merge");
         let received = (answer.turns, answer.spent, digest(&(answer, work)));
         if let Some(old) = self.answer {
             assert_eq!(old, received, "answer replay is identical");
@@ -410,14 +410,12 @@ impl World {
                 self.stats.commits += 1;
                 if title.as_ref() == b"Save unfinished work" {
                     self.stats.saves += 1;
-                    assert!(!self.settings.merging);
                 } else {
                     assert_eq!(title.as_ref(), b"short title");
                     assert_eq!(body.as_ref(), b"a separate, longer body");
                 }
-                if self.settings.merging {
-                    assert_eq!(merging, Some(Commit::new(BASE)));
-                }
+                let parent = (self.settings.merging && self.stats.saves == 0).then_some(Commit::new(BASE));
+                assert_eq!(merging, parent);
                 if self.unresolved {
                     Done::Conflicted { files: Box::new([Box::from(PATH)]) }
                 } else {
