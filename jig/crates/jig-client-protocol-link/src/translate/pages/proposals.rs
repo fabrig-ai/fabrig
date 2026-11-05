@@ -1,5 +1,9 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
-use super::{Box, Limits, List, Wall, address_change_fields, amendment_state_fields, authority_document_fields, authority_fields, c, chip_fields, ending_fields, history_holder_fields, offered_piece, proposed_task_piece, task_fields, task_link_fields, text, too_large, w};
+use super::{
+    Box, Limits, List, Wall, address_change_fields, amendment_state_fields, authority_document_fields,
+    authority_fields, c, chip_fields, ending_fields, history_holder_fields, offered_piece, proposed_task_piece,
+    task_fields, task_link_fields, text, too_large, w,
+};
 
 pub(crate) fn parameter_fields(value: &w::Parameter, limits: &Limits) -> Result<c::Parameter, w::Problem> {
     Ok(match value {

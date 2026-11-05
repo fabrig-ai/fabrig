@@ -1,5 +1,8 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
-use super::{Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, offered_piece, piece_problem, pool_ledger_fields, specification_document_fields, task_contract_document_fields, too_large, w};
+use super::{
+    Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, offered_piece, piece_problem,
+    pool_ledger_fields, specification_document_fields, task_contract_document_fields, too_large, w,
+};
 
 pub(crate) fn project_resource_role_fields(value: &w::ProjectResourceRole) -> c::ProjectResourceRole {
     match value {

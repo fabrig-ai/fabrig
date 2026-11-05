@@ -1,5 +1,7 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
-use super::{Box, Limits, Wall, c, chip_fields, offered_piece, piece_problem, task_contract_document_fields, task_link_piece, w};
+use super::{
+    Box, Limits, Wall, c, chip_fields, offered_piece, piece_problem, task_contract_document_fields, task_link_piece, w,
+};
 
 pub(crate) fn result_value_fields(value: &w::ResultValue, limits: &Limits) -> Result<c::ResultValue, w::Problem> {
     match crate::translate::facts::decode(value.rows(), limits)? {

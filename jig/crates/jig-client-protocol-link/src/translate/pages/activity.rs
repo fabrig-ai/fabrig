@@ -1,5 +1,7 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
-use super::{Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, piece_problem, text, too_large, w};
+use super::{
+    Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, piece_problem, text, too_large, w,
+};
 
 pub(crate) fn message_proposal_kind_fields(value: &w::MessageProposalKind) -> c::MessageProposalKind {
     match value {

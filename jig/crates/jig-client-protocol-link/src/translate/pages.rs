@@ -24,7 +24,6 @@ fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     }
 }
 
-
 mod activity;
 pub(crate) use activity::*;
 mod decisions;

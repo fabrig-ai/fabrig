@@ -1,5 +1,8 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
-use super::{Limits, List, Reader, Wall, authority_fields, c, message_proposal_kind_fields, opaque, piece_problem, specification_fields, task_contract_document_fields, text, too_large, w};
+use super::{
+    Limits, List, Reader, Wall, authority_fields, c, message_proposal_kind_fields, opaque, piece_problem,
+    specification_fields, task_contract_document_fields, text, too_large, w,
+};
 
 pub(crate) fn goal_holding_fields(value: &w::GoalHolding, limits: &Limits) -> Result<c::GoalHolding, w::Problem> {
     Ok(match value {

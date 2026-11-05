@@ -1,7 +1,7 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
-use super::{retry_notice};
+use super::retry_notice;
 use crate::Limits;
-use crate::translate::{text_problem};
+use crate::translate::text_problem;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{Wall, bytes};

@@ -12,15 +12,20 @@ mod parties;
 mod parts;
 mod runs;
 mod wake;
+use chips::{
+    chip_details_fields, chip_ending_fields, chip_fields, chip_phase_fields, closing_fields, ending_fields,
+    result_value_fields,
+};
 #[expect(unused_imports, reason = "The facts root keeps its translation names reachable.")]
 pub(crate) use chips::{chip_phase, closing_stage};
 pub(crate) use holds::{chip_hold, failure_class, hold_category, retry_notice};
-pub(crate) use parties::{party, person_address, person_wait, recipient, requester};
-pub(crate) use parts::{budget, dependencies, document_text, executor, funder, numbers, part, proposal_key, resource_line};
-pub(crate) use runs::{active_run, call_identity, run_stage};
-pub(crate) use wake::{wake_policy};
-use chips::{chip_details_fields, chip_ending_fields, chip_fields, chip_phase_fields, closing_fields, ending_fields, result_value_fields};
 use holds::{held_runtime_fields, hold_reason_fields};
+pub(crate) use parties::{party, person_address, person_wait, recipient, requester};
+pub(crate) use parts::{
+    budget, dependencies, document_text, executor, funder, numbers, part, proposal_key, resource_line,
+};
+pub(crate) use runs::{active_run, call_identity, run_stage};
+pub(crate) use wake::wake_policy;
 
 #[derive(Debug)]
 struct Child {
@@ -282,6 +287,6 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
     root.ok_or(piece_problem(skein_codec::Reason::Malformed))
 }
 
-pub(crate) use holds::failure_tries;
 pub(crate) use chips::prior_phase;
 pub(crate) use chips::result_field;
+pub(crate) use holds::failure_tries;

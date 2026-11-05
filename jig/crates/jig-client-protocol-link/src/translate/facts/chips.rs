@@ -1,13 +1,17 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
-use super::{Child, budget, chip_hold, dependencies, document_text, hold_category, part, party, person_address, person_wait, proposal_key, requester, retry_notice, run_stage, take_chip, take_chip_phase, take_ending, take_owner_chip_details, take_owner_chip_ending, take_result_value, wake_policy};
 use super::parties::{actor, decision};
 use super::parts::resource_line_piece;
+use super::{
+    Child, budget, chip_hold, dependencies, document_text, hold_category, part, party, person_address, person_wait,
+    proposal_key, requester, retry_notice, run_stage, take_chip, take_chip_phase, take_ending, take_owner_chip_details,
+    take_owner_chip_ending, take_result_value, wake_policy,
+};
 use crate::Limits;
 use crate::translate::text_problem;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{Map, List, Wall, bytes};
+use skein_lib::{List, Map, Wall, bytes};
 
 pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {
     match value {

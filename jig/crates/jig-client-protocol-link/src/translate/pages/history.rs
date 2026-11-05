@@ -1,5 +1,8 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
-use super::{Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_ending_fields, cursor_fields, message_proposal_kind_fields, piece_problem, proposed_task_piece, specification_document_fields, too_large, w};
+use super::{
+    Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_ending_fields, cursor_fields,
+    message_proposal_kind_fields, piece_problem, proposed_task_piece, specification_document_fields, too_large, w,
+};
 
 pub(crate) fn history_change_fields(value: &w::HistoryChange) -> c::HistoryChange {
     match value {

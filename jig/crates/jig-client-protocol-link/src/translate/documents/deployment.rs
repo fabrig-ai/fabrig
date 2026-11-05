@@ -1,5 +1,9 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
-use super::{Limits, List, account_piece, c, capacity_fields, charge, hello_refusal_line_fields, host_piece, host_run_piece, person_capacity_refusal_fields, project_capacity_fields, store_fill_fields, task_capacity_refusal_fields, too_large, w};
+use super::{
+    Limits, List, account_piece, c, capacity_fields, charge, hello_refusal_line_fields, host_piece, host_run_piece,
+    person_capacity_refusal_fields, project_capacity_fields, store_fill_fields, task_capacity_refusal_fields,
+    too_large, w,
+};
 
 pub(crate) fn deployment_fields(value: &w::Deployment, limits: &Limits) -> Result<c::Deployment, w::Problem> {
     let mut room = super::document_room(limits);

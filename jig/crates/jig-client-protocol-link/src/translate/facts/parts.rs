@@ -1,8 +1,8 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
-use super::{person_address, requester};
 use super::parties::proposer;
+use super::{person_address, requester};
 use crate::Limits;
-use crate::translate::{piece_problem, too_large, text_problem};
+use crate::translate::{piece_problem, text_problem, too_large};
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{List, Reader, Wall, bytes};
