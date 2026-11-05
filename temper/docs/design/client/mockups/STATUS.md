@@ -79,15 +79,14 @@ Where the client does otherwise:
   empty sections say "Nothing needs you. Work carries on, and this
   page tells you what changed when you come back." and "No chats
   yet.", with no "All 0". The phone replaces the card with a pale
-  signal line and "Answer"; that link, "Reply" and the wide "Answer
-  in a row" open the project's inbox. The rail and phone tabs colour
-  the person's needs count across projects, supplied by `me`, while
-  Home's section counts this project's needs. The kicker shows the
+  signal block and "Answer"; that link and the wide "Answer in a row"
+  open the project's *Needs you*. The rail and phone tabs colour the
+  open project's needs count, as Home's section does. The kicker shows the
   current day and time; "you last looked", what landed in the
   headline, the lede and byline wait on `../README.md`, 11, *What
   changed since the person last looked*. Context, choices,
-  "recommended", "Later", the answer's green line and "Undo" wait on
-  `../README.md`, 11, *A question answered on Home*; Goals and "No
+  "recommended", "Later", the answer's green line and "Undo" are the
+  greenfield mock's (`../README.md`, 3.5); Goals and "No
   goals yet…" on *Goals on Home* there; "Landing: …", including
   "Landing: nothing has landed yet" after Skip, on *The landing's
   line on Home* there. A chat's "landed" waits on *What a chat did, on
@@ -283,7 +282,8 @@ What is not built here, though the main drawings show it:
 - A proposal's template and charter names (`me` has no charter names,
   and a proposed task names no template); a card's lineage beyond
   its own task (the inbox's `Card` carries no ancestry).
-- **Board** in the navigation is not built.
+- **Board** in the navigation: `../README.md`, 3.5 and 5.3 have the
+  project's Goals in its place, drawn from the greenfield mock.
 
 Other facts the comparison found absent:
 

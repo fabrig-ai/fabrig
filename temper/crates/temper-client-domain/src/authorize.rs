@@ -73,6 +73,10 @@ pub(crate) fn progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
             changed(root);
         }
         Link::Live => {
+            // The first send waits for local credit; a peer's answer remains terminal.
+            if root.client.admission().attempts >= env.limits.client.exchanges {
+                return;
+            }
             page.state = State::Pending;
             root.authorizing = Flight::Pending;
             let query = page.query.clone();
@@ -247,6 +251,90 @@ mod tests {
         let mut query = b"client_id=f%6Frgejo&state=a+b%20c&state=second&pad=".to_vec();
         query.resize(bytes, b'x');
         query.into()
+    }
+    fn occupy_exchanges(root: &mut Domain, limits: &Limits) -> skein_lib::Token {
+        let mut out = Queue::uncapped();
+        let mut occupied = None;
+        for number in 0..limits.client.exchanges {
+            if root.client.admission().attempts == limits.client.exchanges {
+                break;
+            }
+            crate::route::client(
+                root,
+                &fixtures::env(limits),
+                jig_client::Event::Read {
+                    handle: jig_client::Handle {
+                        asker: crate::owner::Owner::Runner.asker(),
+                        number: u64::from(number),
+                    },
+                    read: jig_client::Readable::Jig(jig_client::contract::Read::Project { project: 1 }),
+                },
+                &mut out,
+            );
+            while let Some(request) = out.pop() {
+                if let Request::Client {
+                    request: jig_client::Request::Exchange { exchange, message: jig_client::Message::Read(_), .. },
+                } = request
+                {
+                    occupied = Some(exchange);
+                }
+            }
+        }
+        assert_eq!(root.client.admission().attempts, limits.client.exchanges);
+        occupied.expect("background reads occupy the exchange edge")
+    }
+    #[test]
+    fn authorization_waits_for_exchange_credit_and_sends_once() {
+        use jig_client_protocol_wire::v19 as w;
+        let limits = fixtures::limits();
+        let env = fixtures::env(&limits);
+        let mut root = signed_in();
+        let occupied = occupy_exchanges(&mut root, &limits);
+        let query: Box<[u8]> = Box::from(b"client_id=forgejo&state=a+b%20c".as_slice());
+        went(&mut root, &Place::Authorize { query: query.clone() });
+        let mut out = Queue::uncapped();
+        progress(&mut root, &env, &mut out);
+        assert_eq!(root.authorization().unwrap().state(), State::Waiting);
+        crate::fire(&mut root, &env, &mut out);
+        assert!(out.is_empty(), "a full local exchange edge keeps the first send waiting");
+        crate::step(
+            &mut root,
+            &env,
+            crate::Event::Client { event: jig_client::Event::Lost { exchange: occupied } },
+            &mut out,
+        );
+        assert_eq!(root.authorization().unwrap().state(), State::Pending);
+        assert_eq!(root.client.admission().attempts, limits.client.exchanges);
+        let mut sent = None;
+        while let Some(request) = out.pop() {
+            if let Request::Client {
+                request: jig_client::Request::Exchange { exchange, message: jig_client::Message::Authorize(body), .. },
+            } = request
+            {
+                let record = w::Authorize::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&body)).unwrap();
+                assert_eq!(record.query(), query.as_ref());
+                assert!(sent.replace(exchange).is_none(), "one authorization leaves after credit returns");
+            }
+        }
+        crate::fire(&mut root, &env, &mut out);
+        assert!(out.is_empty(), "an admitted authorization is not sent twice");
+        let answer = w::AuthorizeAnswer::Busy;
+        let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap());
+        answer.encode(&mut writer).unwrap();
+        crate::step(
+            &mut root,
+            &env,
+            crate::Event::Client {
+                event: jig_client::Event::Reply {
+                    exchange: sent.expect("authorization admitted"),
+                    message: writer.finish(),
+                },
+            },
+            &mut out,
+        );
+        assert_eq!(root.authorization().unwrap().state(), State::Busy);
+        crate::fire(&mut root, &env, &mut out);
+        assert!(out.is_empty(), "the peer's busy reply is terminal and is never retried");
     }
     #[test]
     fn signed_in_sends_long_queries_byte_for_byte_once() {

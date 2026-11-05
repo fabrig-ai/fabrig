@@ -172,6 +172,33 @@ pub enum Word {
     Configuring,
 
     HomeOpen,
+    NeedsLaterMeta,
+    NeedsYourReply,
+    NeedsPlaceholder,
+    NeedsSendReply,
+    NeedsProgress,
+    NeedsProgressCut,
+    NeedsSaw,
+    NeedsRecommended,
+    NeedsReply,
+    NeedsLater,
+    NeedsNext,
+    NeedsLast,
+    NeedsAnswered,
+    NeedsDone,
+    NeedsFunds,
+    NeedsFundsUsed,
+    NeedsRelease,
+    NeedsKindFunds,
+    HomeTwo,
+    HomeThree,
+    HomeFour,
+    HomeFive,
+    HomeSix,
+    HomeSeven,
+    HomeEight,
+    HomeNine,
+    HomeAnswerMany,
     HomeNeedsNone,
     HomeNeedsOne,
     HomeNeedsMany,
@@ -258,6 +285,11 @@ pub enum Word {
     BrandHome,
     RailHome,
     NeedsYouCount,
+    NeedsYouCountCut,
+    ToastAnswered,
+    ToastLater,
+    ToastUndo,
+    AnsweredReply,
     RailSettings,
     Sections,
 
@@ -967,7 +999,7 @@ pub enum Word {
 // The owned row's Runs and first-password lines add two words and three phrases.
 // A failed setup's step adds five phrases.
 // A task document's reading line and eight lasting read ends (client/README.md, 3.5).
-// The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
+// The paste of a sign-in's address adds sixteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds three literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
@@ -998,8 +1030,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring chat tag adds one literal phrase (3.5).
 // Goal rows and ways add eighteen phrases; the page adds sixteen (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
-// How work runs adds 44 literal phrases (client/README.md, 5.13).
-const PHRASES: u32 = 1495;
+// Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
+const PHRASES: u32 = 1527;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1013,9 +1045,9 @@ const PHRASES: u32 = 1495;
 // The configuring chat tag adds one literal segment (3.5).
 // Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
-// How work runs adds 44 literal segments (client/README.md, 5.13).
-const SEGMENTS: u32 = 2560;
-const ALL: [Word; 899] = [
+// Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
+const SEGMENTS: u32 = 2622;
+const ALL: [Word; 931] = [
     Word::SettingsShows,
     Word::SettingsDrafts,
     Word::SettingsDraftsLine,
@@ -1174,6 +1206,33 @@ const ALL: [Word; 899] = [
     Word::ConfigureWhere,
     Word::Configuring,
     Word::HomeOpen,
+    Word::NeedsLaterMeta,
+    Word::NeedsYourReply,
+    Word::NeedsPlaceholder,
+    Word::NeedsSendReply,
+    Word::NeedsProgress,
+    Word::NeedsProgressCut,
+    Word::NeedsSaw,
+    Word::NeedsRecommended,
+    Word::NeedsReply,
+    Word::NeedsLater,
+    Word::NeedsNext,
+    Word::NeedsLast,
+    Word::NeedsAnswered,
+    Word::NeedsDone,
+    Word::NeedsFunds,
+    Word::NeedsFundsUsed,
+    Word::NeedsRelease,
+    Word::NeedsKindFunds,
+    Word::HomeTwo,
+    Word::HomeThree,
+    Word::HomeFour,
+    Word::HomeFive,
+    Word::HomeSix,
+    Word::HomeSeven,
+    Word::HomeEight,
+    Word::HomeNine,
+    Word::HomeAnswerMany,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
     Word::HomeNeedsMany,
@@ -1260,6 +1319,11 @@ const ALL: [Word; 899] = [
     Word::BrandHome,
     Word::RailHome,
     Word::NeedsYouCount,
+    Word::NeedsYouCountCut,
+    Word::ToastAnswered,
+    Word::ToastLater,
+    Word::ToastUndo,
+    Word::AnsweredReply,
     Word::RailSettings,
     Word::Sections,
     Word::ForgeHereVersionDetails,
@@ -1920,67 +1984,67 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
-            Self::SettingsShows => 3295,
-            Self::SettingsDrafts => 3296,
-            Self::SettingsDraftsLine => 3297,
-            Self::SettingsGoals => 3298,
-            Self::SettingsGoalsLine => 3299,
-            Self::SettingsChanges => 3300,
-            Self::SettingsChangesLine => 3301,
-            Self::SettingsAway => 3302,
-            Self::SettingsAwayLine => 3303,
-            Self::SettingsOn => 3304,
-            Self::SettingsOff => 3305,
-            Self::SettingsShown => 3306,
-            Self::SettingsHidden => 3307,
-            Self::SettingsWays => 3308,
-            Self::SettingsDefault => 3309,
-            Self::SettingsStatus => 3310,
-            Self::SettingsReports => 3311,
-            Self::SettingsReportsLine => 3312,
-            Self::SettingsAgentReports => 3313,
-            Self::SettingsRewritten => 3314,
-            Self::SettingsOnOpen => 3315,
-            Self::SettingsBrief => 3316,
-            Self::SettingsBriefLine => 3317,
-            Self::SettingsNeeds => 3318,
-            Self::SettingsQuestions => 3319,
-            Self::SettingsForeman => 3320,
-            Self::SettingsUp => 3321,
-            Self::SettingsAlone => 3322,
-            Self::SettingsFunds => 3323,
-            Self::SettingsBudgetUsed => 3324,
-            Self::SettingsUnbuilt => 3325,
-            Self::SettingsTelling => 3326,
-            Self::SettingsNotifications => 3327,
-            Self::SettingsNotificationsLine => 3328,
-            Self::SettingsQuiet => 3329,
-            Self::SettingsNoQuiet => 3330,
-            Self::SettingsWhole => 3331,
-            Self::SettingsWholeLine => 3332,
-            Self::SettingsEach => 3333,
-            Self::SettingsEachLine => 3334,
-            Self::SettingsReview => 3335,
-            Self::SettingsReviewLine => 3336,
-            Self::SettingsOne => 3337,
-            Self::SettingsOneLine => 3338,
-            Self::SettingsKicker => 3278,
-            Self::SettingsHowHeading => 3279,
-            Self::SettingsHowLede => 3280,
-            Self::SettingsRepositoriesHeading => 3281,
-            Self::SettingsRepositoriesLede => 3282,
-            Self::SettingsForgesHeading => 3283,
-            Self::SettingsForgesLede => 3284,
-            Self::SettingsAccountsHeading => 3285,
-            Self::SettingsAccountsLede => 3286,
-            Self::SettingsAccountsTab => 3294,
-            Self::SettingsHowTab => 3287,
-            Self::SettingsRepositoriesTab => 3288,
-            Self::SettingsConfigureHelp => 3289,
-            Self::SettingsRepositoriesCount => 3290,
-            Self::SettingsNoneTag => 3291,
-            Self::SettingsNoneBody => 3292,
-            Self::SettingsSignedIn => 3293,
+            Self::SettingsShows => 3322,
+            Self::SettingsDrafts => 3323,
+            Self::SettingsDraftsLine => 3324,
+            Self::SettingsGoals => 3325,
+            Self::SettingsGoalsLine => 3326,
+            Self::SettingsChanges => 3327,
+            Self::SettingsChangesLine => 3328,
+            Self::SettingsAway => 3329,
+            Self::SettingsAwayLine => 3330,
+            Self::SettingsOn => 3331,
+            Self::SettingsOff => 3332,
+            Self::SettingsShown => 3333,
+            Self::SettingsHidden => 3334,
+            Self::SettingsWays => 3335,
+            Self::SettingsDefault => 3336,
+            Self::SettingsStatus => 3337,
+            Self::SettingsReports => 3338,
+            Self::SettingsReportsLine => 3339,
+            Self::SettingsAgentReports => 3340,
+            Self::SettingsRewritten => 3341,
+            Self::SettingsOnOpen => 3342,
+            Self::SettingsBrief => 3343,
+            Self::SettingsBriefLine => 3344,
+            Self::SettingsNeeds => 3345,
+            Self::SettingsQuestions => 3346,
+            Self::SettingsForeman => 3347,
+            Self::SettingsUp => 3348,
+            Self::SettingsAlone => 3349,
+            Self::SettingsFunds => 3350,
+            Self::SettingsBudgetUsed => 3351,
+            Self::SettingsUnbuilt => 3352,
+            Self::SettingsTelling => 3353,
+            Self::SettingsNotifications => 3354,
+            Self::SettingsNotificationsLine => 3355,
+            Self::SettingsQuiet => 3356,
+            Self::SettingsNoQuiet => 3357,
+            Self::SettingsWhole => 3358,
+            Self::SettingsWholeLine => 3359,
+            Self::SettingsEach => 3360,
+            Self::SettingsEachLine => 3361,
+            Self::SettingsReview => 3362,
+            Self::SettingsReviewLine => 3363,
+            Self::SettingsOne => 3364,
+            Self::SettingsOneLine => 3365,
+            Self::SettingsKicker => 3305,
+            Self::SettingsHowHeading => 3306,
+            Self::SettingsHowLede => 3307,
+            Self::SettingsRepositoriesHeading => 3308,
+            Self::SettingsRepositoriesLede => 3309,
+            Self::SettingsForgesHeading => 3310,
+            Self::SettingsForgesLede => 3311,
+            Self::SettingsAccountsHeading => 3312,
+            Self::SettingsAccountsLede => 3313,
+            Self::SettingsAccountsTab => 3321,
+            Self::SettingsHowTab => 3314,
+            Self::SettingsRepositoriesTab => 3315,
+            Self::SettingsConfigureHelp => 3316,
+            Self::SettingsRepositoriesCount => 3317,
+            Self::SettingsNoneTag => 3318,
+            Self::SettingsNoneBody => 3319,
+            Self::SettingsSignedIn => 3320,
             Self::GoalsWaySeparator => 3276,
             Self::GoalsWayEnd => 3277,
             Self::GoalsKicker => 3262,
@@ -2079,6 +2143,33 @@ impl Word {
             Self::ConfigureWhere => 3187,
             Self::Configuring => 3188,
             Self::HomeOpen => 3165,
+            Self::NeedsLaterMeta => 3278,
+            Self::NeedsYourReply => 3279,
+            Self::NeedsPlaceholder => 3280,
+            Self::NeedsSendReply => 3281,
+            Self::NeedsProgress => 3282,
+            Self::NeedsProgressCut => 3283,
+            Self::NeedsSaw => 3284,
+            Self::NeedsRecommended => 3285,
+            Self::NeedsReply => 3286,
+            Self::NeedsLater => 3287,
+            Self::NeedsNext => 3288,
+            Self::NeedsLast => 3289,
+            Self::NeedsAnswered => 3290,
+            Self::NeedsDone => 3291,
+            Self::NeedsFunds => 3292,
+            Self::NeedsFundsUsed => 3294,
+            Self::NeedsRelease => 3295,
+            Self::NeedsKindFunds => 3293,
+            Self::HomeTwo => 3296,
+            Self::HomeThree => 3297,
+            Self::HomeFour => 3298,
+            Self::HomeFive => 3299,
+            Self::HomeSix => 3300,
+            Self::HomeSeven => 3301,
+            Self::HomeEight => 3302,
+            Self::HomeNine => 3303,
+            Self::HomeAnswerMany => 3304,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
             Self::HomeNeedsMany => 3147,
@@ -2162,6 +2253,11 @@ impl Word {
             Self::BrandHome => 3080,
             Self::RailHome => 3081,
             Self::NeedsYouCount => 3083,
+            Self::NeedsYouCountCut => 3086,
+            Self::ToastAnswered => 3087,
+            Self::ToastLater => 3088,
+            Self::ToastUndo => 3089,
+            Self::AnsweredReply => 3090,
             Self::RailSettings => 3084,
             Self::Sections => 3085,
 
@@ -2184,7 +2280,7 @@ impl Word {
             Self::NewProjectPlaceholder => 2188,
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
-            Self::SettingsFor => 2200,
+            Self::SettingsFor => 2227,
             Self::ProjectNotYours => 2201,
             Self::NoProjectLine => 2197,
             Self::ModelKeyDescription => 2100,
@@ -2870,6 +2966,13 @@ fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // The toast wraps the outgoing choice or the reply label (3.5).
+    if word == Word::ToastAnswered {
+        return temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow);
+    }
+    if word == Word::AnsweredReply {
+        return Ok(temper_client_protocol_wire::CUE_BYTES);
+    }
     // Changes names the wire's complete repository and branch (client/README.md, 4.6).
     if word == Word::ChangesQueueNamed {
         return Ok(if last {
@@ -2886,7 +2989,7 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     }
 
     // The phone link names the joined title, question and its colon (3.5).
-    if word == Word::HomeAnswerName {
+    if word == Word::HomeAnswerName && !last {
         return home_answer_bytes(joined);
     }
     if word == Word::SwitcherRow && last {
@@ -3056,11 +3159,12 @@ impl Words {
             // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
             // How work runs adds 1181 bytes; agent-written reports add thirteen (5.13).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 771 + 1181 + 13,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 771 + 1181 + 13 + 87 + 225 + 15 + 54,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
+                .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
                 .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
@@ -3215,9 +3319,36 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicJob => (&[b"a job"], &[]),
         Word::PublicReading => (&[b"Reading\xe2\x80\xa6"], &[]),
         Word::HomeOpen => (&[b"Open"], &[]),
+        Word::NeedsLaterMeta => (&[b" \xc2\xb7 later"], &[]),
+        Word::NeedsYourReply => (&[b"Your reply"], &[]),
+        Word::NeedsPlaceholder => (&[b"Your words go to ", b"\xe2\x80\x99s agent"], &[Name]),
+        Word::NeedsSendReply => (&[b"Send reply"], &[]),
+        Word::NeedsProgress => (&[b"", b" of ", b""], &[Number, Number]),
+        Word::NeedsProgressCut => (&[b"", b" of ", b"+"], &[Number, Number]),
+        Word::NeedsSaw => (&[b"What the agent saw"], &[]),
+        Word::NeedsRecommended => (&[b"recommended"], &[]),
+        Word::NeedsReply => (&[b"Reply\xe2\x80\xa6"], &[]),
+        Word::NeedsLater => (&[b"Later"], &[]),
+        Word::NeedsNext => (&[b"Next: ", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::NeedsLast => (&[b"The last one"], &[]),
+        Word::NeedsAnswered => (&[b"Answered"], &[]),
+        Word::NeedsKindFunds => (&[b"funds"], &[]),
+        Word::NeedsFunds => (&[b"", b" of ", b" used"], &[Number, Number]),
+        Word::NeedsFundsUsed => (&[b"", b" of ", b" used."], &[Number, Number]),
+        Word::NeedsRelease => (&[b"Release"], &[]),
+        Word::NeedsDone => (&[b"Every question is answered. Work carries on; Home tells you what changed."], &[]),
+        Word::HomeTwo => (&[b"Two"], &[]),
+        Word::HomeThree => (&[b"Three"], &[]),
+        Word::HomeFour => (&[b"Four"], &[]),
+        Word::HomeFive => (&[b"Five"], &[]),
+        Word::HomeSix => (&[b"Six"], &[]),
+        Word::HomeSeven => (&[b"Seven"], &[]),
+        Word::HomeEight => (&[b"Eight"], &[]),
+        Word::HomeNine => (&[b"Nine"], &[]),
+        Word::HomeAnswerMany => (&[b"Answer, one at a time"], &[]),
         Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
         Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),
-        Word::HomeNeedsMany => (&[b"", b" things need you."], &[Number]),
+        Word::HomeNeedsMany => (&[b"", b" things need you."], &[Name]),
         Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),
         Word::HomeNeedsCount => (&[b"Needs you \xc2\xb7 ", b""], &[Number]),
         Word::HomeNeedsEmpty => (&[b"Nothing needs you. Work carries on, and this page tells you what changed when you come back."], &[]),
@@ -3231,7 +3362,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeAllChatsName => (&[b"", b" chats"], &[Name]),
         Word::HomeAskLine => (&[b"", b": ", b""], &[Name, Name]),
         Word::HomeAnswer => (&[b"Answer"], &[]),
-        Word::HomeAnswerName => (&[b"", b" Answer"], &[Name]),
+        Word::HomeAnswerName => (&[b"", b" ", b""], &[Name, Name]),
         Word::HomeChatName => (&[b"", b", ", b", ", b""], &[Name, Name, Name]),
         Word::HomeWaiting => (&[b"waiting on you"], &[]),
         Word::HomeClosed => (&[b"closed"], &[]),
@@ -3374,6 +3505,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BrandHome => (&[b"temper home"], &[]),
         Word::RailHome => (&[b"Home"], &[]),
         Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
+        Word::NeedsYouCountCut => (&[b"Needs you ", b"+"], &[Number]),
+        Word::ToastAnswered => (&[b"Answered: ", b""], &[Name]),
+        Word::ToastLater => (&[b"Later: it stays in Needs you, after the others."], &[]),
+        Word::ToastUndo => (&[b"Undo"], &[]),
+        Word::AnsweredReply => (&[b"Replied: \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name]),
         Word::RailSettings => (&[b"Settings"], &[]),
         Word::Sections => (&[b"Sections"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),
