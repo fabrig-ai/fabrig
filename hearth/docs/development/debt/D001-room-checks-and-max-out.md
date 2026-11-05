@@ -48,3 +48,34 @@ First list what each room check keeps, a capacity or an order, as 7.2
 asks, and write each order's test. Then make the inner queues uncapped,
 from the machines up, and take the constants and `within` out. Do it with
 D004, which rewrites the same `io_up` and `io_down`.
+
+## What each room check keeps
+
+By `skein/docs/foundation/programming-model.md`, 7.2, each check keeps a
+capacity, an order, or nothing. This section lists them, for the round
+that removes each one. A check here that goes needs its order's test
+first, and each order's test is named beside it.
+
+### The machines and the domains
+
+| Where | Check | Keeps |
+|---|---|---|
+| `hearth-protocol-git/src/tail.rs`, `Tail::admit` | `self.lines.room() == 0` | A capacity, `tail_lines`, at an edge: git's standard error. An order too: the oldest line leaves first. `the_tail_keeps_the_newest_lines_oldest_first_whatever_the_cuts`, in `hearth/tests/git`. |
+| the same | `self.line.room() > 0` | A capacity, `tail_line`, at the same edge. An order too: a line keeps its first bytes. The same test. |
+| `hearth-protocol-git/src/tail.rs`, `Tail::lines` | `lines.room() > 0` | A capacity: at `tail_lines` 0 it stops the unended line. `a_tail_of_no_lines_holds_nothing`. |
+| `hearth-protocol-mmdebstrap/src/tail.rs`, `admit` | `tail.lines.room() == 0` | A capacity, `tail_lines`, at an edge, and the same order as git's. `generated_failures_keep_the_reference_s_tail_and_cause`, in `hearth/tests/mmdebstrap`. |
+| `hearth-protocol-builder/src/lib.rs`, `revision_stdout` | `stdout.room()`, three times | A capacity at an edge: `rev-parse`'s answer, of `MAX_STDOUT` and one byte to see excess. |
+| `hearth-protocol-builder/src/indices.rs`, `Indices` | `self.intake.room()` | A capacity: a read of a `Packages` file asks for no more than its intake holds. |
+| `hearth-protocol-tree/src/fields.rs`, `Fields::value` | `values.room()` | A capacity at an edge: a stored value's items, refused past `limit`. |
+| `hearth-domain-render/src/parts/exports.rs`, `push` | `record.room() == 0` | Nothing: it doubles a list by hand and refuses nothing. `List::uncapped` does the same. |
+| `hearth-domain-render/src/schema.rs`, `push`, `fault` and `add_default` | `faults.room() == 0`, twice, and `values.room() == 0` | Nothing, the same. |
+| `hearth-domain-render/src/schema/references.rs`, `condition` | `faults.room() == 0` | Nothing, the same. |
+| `hearth-protocol-config/src/document.rs` | `pending.room() == 0` | Nothing, the same: a stack whose depth the decoder's limits bound. |
+| `hearth-protocol-config/src/json.rs` | `values.room() == 0` | Nothing, the same. |
+
+The capacity-1 queues beside each git machine, in
+`hearth-protocol-builder/src/lib.rs` and `read.rs`, hold no room check, but
+a machine's second output panicked on them. They kept a capacity, one event
+and one demand for each entry, and what the machine's states keep behind
+them is in `hearth/docs/design/domain/render.md`, 8.5, with its tests in
+`hearth/tests/git`.
