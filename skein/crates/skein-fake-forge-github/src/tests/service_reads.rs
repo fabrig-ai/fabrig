@@ -38,7 +38,7 @@ fn github_fake_repository_reads_inside_reach() {
             let (_, Document::Branch(branch)) = h.decode(Kind::Branch, &response) else {
                 panic!("branch document");
             };
-            let expected = skein_fake_forge_protocol::routes::object(h.first).bytes;
+            let expected = skein_fake_forge_domain::commit_bytes(h.first);
             assert_eq!(branch.commit, expected);
             assert_eq!(Some(branch.name.as_ref()), target.strip_prefix(b"/repos/acme/widgets/branches/"));
         }
