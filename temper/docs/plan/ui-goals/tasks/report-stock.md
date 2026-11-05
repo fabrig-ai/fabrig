@@ -121,3 +121,7 @@ Once authorized, regenerate from the combined code using `SKEIN_CODEGEN_WRITE=1`
 Then run `suite::walk::story_a_kept_log_replays_natively` without the write variable.
 The recording mechanism is in `temper/tests/playground/tests/suite/walk.rs`; `temper/docs/design/playground.md`, section 9, requires recording a new log when replay changes.
 Verify the limits resolution with the focused `temper-service` library test `tests::limits::the_standard_profile_holds_fabrig_scale_work`.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Yes: regenerate story-a.log from the combined code in this task. Regenerating a fixture your change makes stale is always the task's own.
