@@ -1,6 +1,6 @@
 # http: status
 
-2026-11-02. Where skein's code lags or departs from [http.md](http.md).
+2026-11-05. Where skein's code lags or departs from [http.md](http.md).
 
-- **Not yet:** 6: skein-json's selective collector on the protocol worlds'
+- **Not yet:** 7: the server reckons the `Date` by itself, not by `Wall::civil`. 6: skein-json's selective collector on the protocol worlds'
   event data, their memory under scenario ceilings, and the fuzz targets.
