@@ -10,12 +10,23 @@ person last looked, the landing's line, and the status agent's words. The design
 |---|---|---|---|---|
 | 1 | `status-wire` | | medium, 40 | `Looked`, `Watch::Status`, `ProjectStatus` on the wire |
 | 2 | `project-facts` | | high, 90 | the families, the count, the look and the document in the forge |
+| 3 | `status-charter` | | medium, 60 | stock charter 9 and its host-part figures |
+| 4 | `status-read` | 1, 2 | high, 60 | the root and the service carry the look and the document |
+| 5 | `home-domain` | 1 | high, 75 | Home watches `status` and looks once |
+| 6 | `home-walk` | 4, 5 | high, 60 | the meeting point: the real roots, a fake clock past 30 minutes |
+| 7 | `home-words` | 5 | high, 90 | the kicker, the headline, the foot, Chats' sentence, five gallery states |
+| 8 | `home-goals` | 7 | high, 60 | Goals in Chats' place |
+| 9 | `status-run` | 2, 3, 4 | high, 90 | the agent's run: made, delegated, heard, saved |
+| 10 | `home-brief` | 8 | medium, 45 | the lede, the byline, the brief's sentence, `home-morning` |
+| 11 | `home-proof` | 6, 9, 10 | high, 90 | Home beside the mock at three widths, a real walk with the fake box |
 
-More follow in later pushes: the root and the service, the client's watch and look, the view, the charter, the run.
+The request's five tasks map so: its 1 is the design this cut wrote; its 2 is tasks 1, 2 and 4; its 3 is 5, 7 and 8 (Goals' section is in the request's section 2, and needed a task of its own); its 4 is 3 and 9; its 5 is 10. Task 6 and 11 are its proof. They are fanned out where the code allows, not one chain: a task waits only for the code it builds on.
+
+The computed Home (tasks 1, 2, 4, 5, 7) is whole without the agent, and is the part the request calls worth landing alone.
 
 ## Critical path
 
-`project-facts`, then what follows it. To be filled as batches land.
+`status-wire`, `home-domain`, `home-words`, `home-goals`, `home-brief`, `home-proof`: ~400 implementer-minutes, then the trunk's end check. `project-facts`, `status-read`, `status-run`, `home-proof` is ~330 beside it. Tasks 1, 2 and 3 start at once. The view, the stylesheet, the gallery and the terminal's goldens take one writer at a time, 7, 8, 10, then 11.
 
 ## What the cut settled, for the user to see
 
@@ -29,6 +40,11 @@ More follow in later pushes: the root and the service, the client's watch and lo
 - **A goal's "landed and total changes" are its delegates done and total,** as `ui-goals`' task line counts them; the forge keeps no per-goal count, so the root adds that part of the words.
 - **The foot's "Changes" link is drawn,** since main has the page, as the request's condition has it.
 - **`queued` and `red` are the Changes document's,** computed by the same code, so the two pages can't disagree.
+
+- **Things the request's literal words would have broken, each noted above, reach the user through the report:** `next_seen`, charter 9, a kept run, a procedure that delegates.
+- **The status agent's `running` is stored,** a field the request doesn't name: "none running" has to survive a restart, and a run in flight past an hour counts as none, so a held run can't stop every later one.
+- **The real walk has no fake clock:** the client world's has (`home-walk`), a real box hasn't, so `home-proof` waits 31 real minutes, or does it once by hand for the proof if its tier can't hold that. No budget is raised.
+- **`ui-needs` is not on this trunk yet,** though the request says this plan needs it. Home keeps the needs sentence it finds, through one function, so a catch-up takes `ui-needs`' words without touching this plan's.
 
 ## Overlaps with the drafts beside this one
 
