@@ -1705,7 +1705,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-session-foot > .temper-session-hint { margin-top: 6px; padding: 0 6px; font-size: 12px; color: var(--gf-faint); }
 #app > .temper-session .temper-thread > * { max-width: 720px; margin-inline: auto; }
 @media (max-width: 760px) {
-  #app > .temper-session .temper-thread { padding: 20px 16px; scrollbar-gutter: auto; }
+  #app > .temper-session .temper-thread { padding: 20px 16px; scrollbar-gutter: auto; scrollbar-width: none; }
   #app > .temper-session .temper-starter > h2 { font-size: 26px; }
   #app > .temper-session .temper-starter-ways { margin-top: 32px; }
   #app > .temper-session .temper-starters { gap: 10px; }
