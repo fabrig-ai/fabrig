@@ -6083,10 +6083,17 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
 pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: ChangeRow) {
     retain_terminal_ci(d, &mut row);
     let task = row.task;
-    let tasks = match row.change.landing {
-        Some(landing) => Box::from([task, landing]),
-        None => Box::from([task]),
-    };
+    let mut tasks = List::with_capacity(crate::MARKED);
+    tasks.push(task).expect("own subject");
+    if let Some(landing) = row.change.landing {
+        tasks.push(landing).expect("member landing subject");
+    }
+    if (row.change.owns_turn || row.base_repair)
+        && let Some(subject) = crate::views::changes_mark(d, row.repository)
+    {
+        tasks.push(subject).expect("project changes subject");
+    }
+    let tasks = tasks.into_boxed();
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
     emit(out, Request::Marked { tasks });
 }
@@ -6127,6 +6134,9 @@ fn save_queue_change(
     tasks.push(row.task).expect("own subject");
     if let Some(landing) = row.change.landing {
         tasks.push(landing).expect("member landing subject");
+    }
+    if let Some(subject) = crate::views::changes_mark(d, row.repository) {
+        tasks.push(subject).expect("project changes subject");
     }
     let mut previous = None;
     while tasks.room() > 0 {

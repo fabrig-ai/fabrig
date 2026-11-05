@@ -95,7 +95,8 @@ pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
 pub use verification::LandingRed;
 pub use views::{
-    Document, GateProof, LandingGate, LandingLine, LandingMember, LandingView, LandingsView, landings_subject,
+    ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, Document, GateProof, LandingGate, LandingLine,
+    LandingMember, LandingView, LandingsView, changes_subject, landings_subject,
 };
 /// Connector-owned access to one exact effect on an adopted resource.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
