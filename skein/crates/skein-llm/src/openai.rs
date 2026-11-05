@@ -2,7 +2,7 @@
 mod common;
 pub(crate) mod filter;
 pub(crate) use common::{limit_detail, measured};
-pub(crate) mod json;
+pub(crate) use crate::wire::json;
 mod request;
 pub(crate) use request::VERBOSITY;
 pub(crate) mod response;

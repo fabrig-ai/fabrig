@@ -5,7 +5,7 @@
 //! the native codecs. `from_bytes` collects a complete value; `from_document`
 //! admits a producer's owned document; the writer emits the document whole.
 use crate::DocumentLimits as Limits;
-use crate::openai::DecodeError;
+use crate::DocumentError as DecodeError;
 use alloc::boxed::Box;
 use skein_json::{Compact, Document, Kind, ParseError, document, tokenizer, writer};
 use skein_lib::{List, Stack, bytes};
@@ -96,7 +96,7 @@ impl Json {
         let bounded = limits.writer_limits();
         let mut measure = writer::Encoder::measure(&bounded);
         self.write(&mut measure);
-        let len = crate::openai::common::measured(measure, bounded, crate::Cap::Retained)?;
+        let len = crate::openai::measured(measure, bounded, crate::Cap::Retained)?;
         let mut write = writer::Encoder::write(len, &bounded);
         self.write(&mut write);
         Ok(write.finish())
@@ -463,4 +463,24 @@ pub(crate) fn reported_field<'a>(view: (&'a Document, Span), name: &[u8]) -> Opt
 
 pub(crate) fn reported_unsigned(view: (&Document, Span), name: &[u8]) -> Option<u64> {
     unsigned(reported_field(view, name)?).ok()
+}
+
+pub(crate) fn long_text(value: (&Document, Span)) -> Option<u64> {
+    match record(value, 0) {
+        Some(record) if record.kind == Kind::Long && len(value) == 1 => Some(u64::from(record.len)),
+        Some(_) | None => None,
+    }
+}
+
+pub(crate) fn optional_text(tokens: (&Document, Span), name: &[u8]) -> Result<Option<Box<[u8]>>, DecodeError> {
+    match optional_at(tokens, field(tokens, name)?)? {
+        Some(value) => {
+            if kind(value, 0) == Some(Kind::Null) && len(value) == 1 {
+                Ok(None)
+            } else {
+                Ok(Some(text(value)?))
+            }
+        }
+        None => Ok(None),
+    }
 }

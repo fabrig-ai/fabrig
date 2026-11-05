@@ -1353,12 +1353,7 @@ fn received_length(long: Option<u64>, stored: usize) -> u64 {
     }
 }
 
-pub(crate) fn long_text(value: (&Document, json::Span)) -> Option<u64> {
-    match json::record(value, 0) {
-        Some(record) if record.kind == Kind::Long && json::len(value) == 1 => Some(u64::from(record.len)),
-        Some(_) | None => None,
-    }
-}
+pub(crate) use crate::wire::json::long_text;
 
 fn arguments(value: (&Document, json::Span)) -> Result<Box<[u8]>, DecodeError> {
     match long_text(value) {

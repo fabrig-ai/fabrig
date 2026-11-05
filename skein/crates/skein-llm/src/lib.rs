@@ -27,7 +27,7 @@ pub use document::DocumentLimits;
 /// Callers use `document_error` to retain limit versus invalid-input refusal.
 /// See `docs/design/llm.md`, Vocabulary and ownership.
 pub use openai::DecodeError as DocumentError;
-pub use openai::Json;
+pub use wire::Json;
 pub use replay::{REPLAY_HEADER_BYTES, replay_bound, replay_bytes};
 pub use translate::decode as document_error;
 pub use types::{
