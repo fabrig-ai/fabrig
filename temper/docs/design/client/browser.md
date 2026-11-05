@@ -1194,6 +1194,9 @@ from the engine's own answers, is where the look is tuned.
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
 | `welcome-forge-choose` | the welcome's Forge choices, before any forge is connected |
 | `welcome-forge-details` | the welcome's Forgejo Details, with organization and repository paired |
+| `welcome-sheet-copies` | Forgejo's sheet with public copy addresses, in the order written |
+| `welcome-sheet-copies-refused` | Forgejo's sheet refuses an invalid copy address above its foot |
+| `welcome-sheet-nothing` | Forgejo's sheet with Nothing for now selected |
 | `welcome-forge-under-way` | the Forge step's status in the column, Each step, and Continue while Forgejo sets up |
 | `welcome-forge-connected` | the Forge step's connected Forgejo and first repository, with Continue |
 | `welcome-forge-github` | the Forge step's accepted GitHub installation, with Continue |

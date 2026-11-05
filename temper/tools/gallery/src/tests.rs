@@ -679,6 +679,38 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-sheet-copies",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "Copies of public repositories" },
+            Part::Named { role: Role::TextArea, name: "Their addresses, one per line" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+        ],
+    },
+    Holds {
+        name: "welcome-sheet-copies-refused",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "Copies of public repositories" },
+            Part::Named {
+                role: Role::Alert,
+                name: "Not an address: not an address. Write it as github.com/owner/name.",
+            },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+        ],
+    },
+    Holds {
+        name: "welcome-sheet-nothing",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "Nothing for now" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+        ],
+    },
+    Holds {
         name: "welcome-forge-under-way",
         heading: "Connect a forge",
         parts: &[

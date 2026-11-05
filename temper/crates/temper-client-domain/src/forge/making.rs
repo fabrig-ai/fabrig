@@ -1,8 +1,60 @@
-//! Repository making facts and the client's checks (temper/docs/design/client/README.md, 4.6;
+//! Repository making facts and the client's checks (temper/docs/design/client/README.md, 3.5 and 4.6;
 //! temper/docs/design/draft/repository-copies.md, 5.2 to 5.4).
 use alloc::boxed::Box;
-use skein_lib::bytes;
+use skein_lib::{List, bytes};
 use temper_client_protocol_wire::{source, v1 as w};
+
+/// Why the welcome's addresses cannot be sent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CopiesRefused {
+    NoAddress,
+    NotAnAddress(Box<[u8]>),
+    TooMany,
+}
+
+/// Each non-empty line as the greenfield mock's `parseCopies` reads it, then `source::parse`.
+/// An address in `source::address`'s form, in the order written.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the welcome trims person-entered lines as Unicode before checking source addresses"
+)]
+pub fn parse_copies(text: &[u8]) -> Result<List<Box<[u8]>>, CopiesRefused> {
+    let Ok(text) = core::str::from_utf8(text) else {
+        return Err(CopiesRefused::NotAnAddress(bytes::copy_of(text)));
+    };
+    let mut addresses = List::with_capacity(temper_client_protocol_wire::FIRST_COPIES);
+    for raw in text.split('\n') {
+        let raw = raw.trim();
+        let line = match raw.strip_prefix("https://") {
+            Some(line) => line,
+            None => raw.strip_prefix("http://").unwrap_or(raw),
+        };
+        let line = line.strip_suffix(".git").unwrap_or(line).trim_end_matches('/');
+        if line.is_empty() {
+            continue;
+        }
+        let line = line.as_bytes();
+        let address = match bytes::count(line, b"/", 3) {
+            1 => bytes::concat(&[b"github.com/", line]),
+            2 => bytes::copy_of(line),
+            _ => return Err(CopiesRefused::NotAnAddress(bytes::copy_of(raw.as_bytes()))),
+        };
+        let Ok(source) = source::parse(&address) else {
+            return Err(CopiesRefused::NotAnAddress(bytes::copy_of(raw.as_bytes())));
+        };
+        let address = source::address(&source);
+        if address.len() > source::ADDRESS_BYTES {
+            return Err(CopiesRefused::NotAnAddress(bytes::copy_of(raw.as_bytes())));
+        }
+        if addresses.push(address).is_err() {
+            return Err(CopiesRefused::TooMany);
+        }
+    }
+    if addresses.is_empty() {
+        return Err(CopiesRefused::NoAddress);
+    }
+    Ok(addresses)
+}
 
 /// One repository being made, in the forge watch's key order.
 #[derive(Clone, Debug, PartialEq, Eq)]

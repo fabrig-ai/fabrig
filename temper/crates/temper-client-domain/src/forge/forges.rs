@@ -266,7 +266,8 @@ pub struct Draft {
     pub start: Start,
     pub copies: Box<[u8]>,
     pub copies_written: u64,
-    pub not_yet: bool,
+    pub blank: bool,
+    pub copies_refused: Option<super::making::CopiesRefused>,
 }
 impl Draft {
     pub(crate) fn new() -> Self {
@@ -279,7 +280,8 @@ impl Draft {
             start: Start::Empty,
             copies: Box::from(b"".as_slice()),
             copies_written: 0,
-            not_yet: false,
+            blank: false,
+            copies_refused: None,
         }
     }
     #[must_use]
@@ -305,6 +307,7 @@ pub(crate) fn write(side: &mut super::Side, limits: super::Limits, field: SetupF
     let written = draft.written.get_mut(index).expect("two setup fields");
     *written = written.checked_add(1).expect("written count fits");
     draft.checked = false;
+    draft.blank = false;
     if let Some(last) = &mut side.set_up {
         last.answer = None;
     }
@@ -317,6 +320,7 @@ pub(crate) fn write_copies(side: &mut super::Side, limits: super::Limits, text: 
     }
     let draft = &mut side.setup_form;
     draft.copies = text;
+    draft.copies_refused = None;
     draft.copies_written = draft.copies_written.checked_add(1).expect("written count fits");
     side.changed();
 }
@@ -380,6 +384,46 @@ impl Managed {
         !self.host.is_empty() && self.port != 0
     }
 }
+fn run_owned(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib::Queue<super::Request>) {
+    if !can_make(side) || !can_set_up(side) || side.playground_running() {
+        return;
+    }
+    let Some(bounds) = wire_limits(&limits) else { return };
+    let draft = &mut side.setup_form;
+    draft.blank = false;
+    draft.copies_refused = None;
+    let first = match draft.start {
+        Start::Empty => {
+            let org = draft.text(SetupField::Organization).trim_ascii();
+            let repository = draft.text(SetupField::Repository).trim_ascii();
+            if org.is_empty() || repository.is_empty() {
+                draft.checked = true;
+                draft.blank = true;
+                side.changed();
+                return;
+            }
+            let Some(first) = empty(Box::from(org), Box::from(repository), false, &bounds) else { return };
+            first
+        }
+        Start::Copies => {
+            let addresses = match super::making::parse_copies(&draft.copies) {
+                Ok(addresses) => addresses,
+                Err(why) => {
+                    draft.copies_refused = Some(why);
+                    side.changed();
+                    return;
+                }
+            };
+            let Ok(copies) = w::CopyAddresses::new(&bounds, w::CopyAddressesParts { addresses }) else {
+                return;
+            };
+            SetUpFirst::Copies(copies)
+        }
+        Start::Nothing => SetUpFirst::Nothing,
+    };
+    new_record(side, Kind::Forgejo, Mode::Owned);
+    send_setup(side, limits, 0, SetupValues { first }, out);
+}
 pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: &mut skein_lib::Queue<super::Request>) {
     match act {
         Act::SetUpOwned => {
@@ -391,21 +435,12 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
         }
         Act::Start(start) => {
             side.setup_form.start = start;
-            side.setup_form.not_yet = false;
+            side.setup_form.blank = false;
+            side.setup_form.copies_refused = None;
             side.changed();
         }
-        Act::RunOwned => {
-            if side.setup_form.start != Start::Empty {
-                side.setup_form.not_yet = true;
-                side.changed();
-                return;
-            }
-            if !can_make(side) || !can_set_up(side) || side.playground_running() {
-                return;
-            }
-            new_record(side, Kind::Forgejo, Mode::Owned);
-            set_up(side, limits, 0, out);
-        }
+        Act::RunOwned => run_owned(side, limits, out),
+
         Act::GitHub { back } => {
             if !can_make(side)
                 || side.party.is_none()

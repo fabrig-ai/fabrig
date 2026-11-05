@@ -50,6 +50,9 @@ forges-first-run-7
 connect-forge-choose
 welcome-forge-choose
 welcome-forge-details
+welcome-sheet-copies
+welcome-sheet-copies-refused
+welcome-sheet-nothing
 welcome-forge-under-way
 welcome-forge-connected
 welcome-forge-github
