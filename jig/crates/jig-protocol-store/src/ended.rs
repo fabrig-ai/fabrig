@@ -46,6 +46,7 @@ pub fn key(now: &Now) -> Option<Key> {
         | Now::BriefCorePlanned { .. }
         | Now::WorkspaceRequest { .. }
         | Now::RunPreparationFailed { .. }
+        | Now::BriefFailed { .. }
         | Now::RunPrepared { .. }
         | Now::RestoreRefused => None,
     }
@@ -119,6 +120,7 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
         | Now::BriefCorePlanned { .. }
         | Now::WorkspaceRequest { .. }
         | Now::RunPreparationFailed { .. }
+        | Now::BriefFailed { .. }
         | Now::RunPrepared { .. }
         | Now::RestoreRefused => return None,
     })

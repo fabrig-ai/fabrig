@@ -136,16 +136,39 @@ fn unavailable_or_rejected_results_back_off_without_spending_attempts() {
             panic!("{label}: preparation did not back off");
         };
         assert_eq!(row.attempt, 0, "{label}");
-        assert_eq!(row.tries, tasks::Tries::NONE, "{label}");
+        assert_eq!(row.tries, tasks::Tries { transient: 1, ..tasks::Tries::NONE }, "{label}");
+        assert_eq!(
+            row.retry_notice,
+            Some(tasks::RetryNotice::Failed {
+                class: tasks::Class::Transient,
+                count: 1,
+                allowance: limits.tasks.retries.transient.retries,
+                reason: Some(b"results: a dependency's result could not be read".as_slice().into()),
+            }),
+            "{label}"
+        );
         assert!((core.result_read_flights() == 0), "{label}");
         assert!(core.contexts.is_empty(), "{label}");
         assert!(core.dependency_results.is_empty(), "{label}");
         assert!((core.note_flights() == 0), "{label}");
+        let mut failures = 0_u32;
         for request in &out {
-            if let Request::Now(_) = request {
-                panic!("{label}: unexpected immediate output: {request:?}");
+            if let Request::Now(now) = request
+                && let Now::BriefFailed { task, failure } = now.as_ref()
+            {
+                assert_eq!(*task, PREPARING);
+                assert_eq!(
+                    *failure,
+                    jig_domain_brief::GatherFailure {
+                        fate: jig_domain_brief::GatherFate::Transient,
+                        section: b"results",
+                        words: b"a dependency's result could not be read",
+                    }
+                );
+                failures = failures.checked_add(1).unwrap();
             }
         }
+        assert_eq!(failures, 1, "{label}: root hears the classified failure once");
     }
 }
 

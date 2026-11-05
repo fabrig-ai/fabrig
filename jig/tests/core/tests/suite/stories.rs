@@ -2124,3 +2124,6 @@ fn a_held_chats_delegate_waits_for_its_person_without_a_stall() {
         tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Person(1), .. }
     ));
 }
+
+#[path = "../stories/brief_failure.rs"]
+mod brief_failure;

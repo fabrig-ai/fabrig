@@ -93,6 +93,8 @@ pub struct World {
     period: Option<u64>,
     period_budget: u64,
     pub fail_job_reads: bool,
+    /// Refuse the named section reads while a CI repair is preparing.
+    pub fail_brief_reads: Option<(bool, bool, skein_forge::api::Error)>,
     slow_brief_reads: bool,
     /// A branch whose reads take twenty seconds, each decided when it is sent.
     pub slow_branch: Option<Box<[u8]>>,
@@ -952,6 +954,7 @@ impl World {
             period: None,
             period_budget,
             fail_job_reads: false,
+            fail_brief_reads: None,
             slow_brief_reads: false,
             slow_branch: None,
             review_files_delay: None,
@@ -1347,6 +1350,31 @@ impl World {
                         ))));
                         continue;
                     }
+                    // Nonparticipating keep-up reads Item after u64::MAX. The change
+                    // finishes its fresh Checks before its repair enters Preparing.
+                    if let Some((pull, checks, error)) = self.fail_brief_reads
+                        && self.store.rows.values().any(|row| {
+                            matches!(row,
+                            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+                                if row.spec.words.starts_with(b"Repair CI at ")
+                                    && row.phase == tasks::Phase::Active(tasks::Active::Preparing))
+                        })
+                        && ((pull
+                            && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Item { after: 0, .. })))
+                            || (checks
+                                && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. }))))
+                    {
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 0,
+                                result: Err(error),
+                            },
+                        ))));
+                        continue;
+                    }
                     if self.fail_job_reads
                         && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. }))
                     {
@@ -1644,6 +1672,15 @@ impl World {
 
     /// Restore a delegate question with its reserved answer room at a committed cut.
     pub fn restore_delegate_question(&mut self, delegate: u64, words: &[u8]) -> u64 {
+        self.restore_delegate_message(delegate, words, tasks::MessageKind::Question)
+    }
+
+    /// Restore a delegate's plain words in its change's inbox at a committed cut.
+    pub fn restore_delegate_words(&mut self, delegate: u64, words: &[u8]) -> u64 {
+        self.restore_delegate_message(delegate, words, tasks::MessageKind::Words)
+    }
+
+    fn restore_delegate_message(&mut self, delegate: u64, words: &[u8], kind: tasks::MessageKind) -> u64 {
         assert!(self.store.pending.is_empty());
         let mut header = self.store.header();
         header.messages += 1;
@@ -1664,19 +1701,21 @@ impl World {
         };
         assert!(target.delegates.contains(&delegate));
         sender.activity += 1;
-        let mut credits = sender.questions.into_vec();
-        credits.push(tasks::QuestionCredit {
-            number: question,
-            answerer: tasks::Party::Task(change),
-            asked: tasks::Party::Task(change),
-            line: sender.activity,
-        });
-        sender.questions = credits.into_boxed_slice();
+        if kind == tasks::MessageKind::Question {
+            let mut credits = sender.questions.into_vec();
+            credits.push(tasks::QuestionCredit {
+                number: question,
+                answerer: tasks::Party::Task(change),
+                asked: tasks::Party::Task(change),
+                line: sender.activity,
+            });
+            sender.questions = credits.into_boxed_slice();
+        }
         let mut inbox = target.inbox.into_vec();
         inbox.push(tasks::Word {
             number: question,
             from: tasks::Party::Task(delegate),
-            kind: tasks::MessageKind::Question,
+            kind: kind.clone(),
             words: words.into(),
             at: self.env.wall,
             hits: 1,
@@ -1694,7 +1733,7 @@ impl World {
                     line: tasks::Line::Words {
                         message: question,
                         by: tasks::Party::Task(delegate),
-                        kind: tasks::MessageKind::Question,
+                        kind,
                         words: words.into(),
                     },
                 },

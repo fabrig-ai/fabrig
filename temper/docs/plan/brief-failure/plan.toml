@@ -1,0 +1,75 @@
+draft = "brief-failure"
+repo = "fabrig"
+sources = ["temper/docs/plan/brief-failure/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "brief-words"
+title = "the brief child says why it failed and how that counts"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 9.1"
+
+[[part]]
+id = "retry-reason"
+title = "a task keeps why its preparation failed, and can count it to a hold that names it"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 5.5"
+
+[[slice]]
+id = 1
+story = "The kit's children can say why a brief failed and can end a task held for it, though nothing yet asks them to"
+parts = ["brief-words", "retry-reason"]
+walk = false
+
+[[part]]
+id = "forge-answer"
+title = "the real Forgejo answer the client refuses, with it as a fixture"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge.md, 3.4"
+
+[[slice]]
+id = 2
+story = "A real Forgejo's pull and compare answers are taken, the refused answer a fixture"
+parts = ["forge-answer"]
+walk = false
+
+[[part]]
+id = "brief-counts"
+title = "a brief's failure counts by why and ends held, naming the reason"
+mode = "direct"
+needs = ["brief-words", "retry-reason"]
+design = "jig/docs/design/domain/engine.md, 9.1"
+
+[[part]]
+id = "reason-shown"
+title = "the chip and temper ctl task show say the reason"
+mode = "direct"
+needs = ["retry-reason"]
+design = "jig/docs/design/client/domain/objects.md, 3"
+
+[[slice]]
+id = 3
+story = "A brief that fails says why on its chip and in temper ctl, a capacity refusal pauses, and anything else ends held"
+parts = ["brief-counts", "reason-shown"]
+walk = false
+
+[[part]]
+id = "forge-sections"
+title = "a forge section's read that fails says why, and one doesn't sink a repair"
+mode = "direct"
+needs = ["brief-words", "brief-counts"]
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[slice]]
+id = 4
+story = "On a real Forgejo, a change whose CI goes red gets a repair that starts, and a repair whose brief can't be read ends held with the reason in temper ctl"
+parts = ["forge-sections"]
+walk = true

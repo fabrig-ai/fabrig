@@ -212,8 +212,8 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::EffectSettled { .. }
         | tasks::Event::Started { .. }
         | tasks::Event::PreparationWaiting { .. }
-        | tasks::Event::PreparationFailed { .. }
-        | tasks::Event::PreparationUnread { .. }
+        | tasks::Event::PreparationPaused { .. }
+        | tasks::Event::PreparationCounted { .. }
         | tasks::Event::Hold { .. }
         | tasks::Event::HoldFrom { .. }
         | tasks::Event::EffectsSettled { .. }

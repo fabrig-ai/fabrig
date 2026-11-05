@@ -23,7 +23,7 @@ fn unread_window(transient: u32, closed: bool) -> (Core, Limits) {
 fn assert_fresh(core: &Core, work: &mut Queue<Work>) {
     let Some(Work::StartBrief { task }) = work.pop() else { panic!("unread tail continues the brief") };
     assert_eq!(task, 1);
-    assert!(work.is_empty(), "no PreparationUnread is counted");
+    assert!(work.is_empty(), "no preparation failure is counted");
     assert!(core.contexts.contains_key(&1));
     let transcript = core.transcripts.get(&1).unwrap();
     assert!(transcript.window.is_none());
@@ -57,8 +57,11 @@ fn an_unread_open_window_without_a_transient_retry_counts_once() {
     let (mut core, limits) = unread_window(0, false);
     let mut work = Queue::with_capacity(2);
     let requests = transcript_unread(&mut core, &mut work, 1);
-    assert!(requests.is_empty());
-    let Some(Work::Event(Event::Tasks(event @ tasks::Event::PreparationUnread { task: 1 }))) = work.pop() else {
+    assert_eq!(requests.len(), 2);
+    let Some(Work::Event(Event::Tasks(
+        event @ tasks::Event::PreparationCounted { task: 1, class: tasks::Class::Transient, .. },
+    ))) = work.pop()
+    else {
         panic!("an unread resume spends one transient try");
     };
     assert!(work.is_empty());
