@@ -3,7 +3,7 @@ id = "narrow-tasks"
 part = "narrowing"
 kind = "feature"
 needs = []
-files = ["jig/crates/jig-domain-tasks/src/closing.rs", "jig/crates/jig-domain-tasks/src/compound/staged.rs", "jig/crates/jig-domain-tasks/src/questions.rs", "jig/crates/jig-domain-tasks/src/control.rs", "jig/crates/jig-domain-tasks/src/proposals.rs", "jig/crates/jig-domain-tasks/src/waits.rs", "jig/crates/jig-domain-tasks/src/domain.rs", "jig/crates/jig-domain-tasks/src/inbox.rs", "jig/crates/jig-domain-tasks/src/placed.rs", "jig/crates/jig-domain-tasks/src/standing.rs"]
+files = ["jig/crates/jig-domain-tasks/src/closing.rs", "jig/crates/jig-domain-tasks/src/compound/staged.rs", "jig/crates/jig-domain-tasks/src/questions.rs", "jig/crates/jig-domain-tasks/src/control.rs", "jig/crates/jig-domain-tasks/src/proposals.rs", "jig/crates/jig-domain-tasks/src/waits.rs", "jig/crates/jig-domain-tasks/src/domain.rs", "jig/crates/jig-domain-tasks/src/inbox.rs", "jig/crates/jig-domain-tasks/src/placed.rs", "jig/crates/jig-domain-tasks/src/standing.rs", "jig/crates/jig-domain-tasks/src/funders.rs"]
 effort = "high"
 minutes = 90
 +++
@@ -57,3 +57,7 @@ Acceptance:
 ## Report
 
 The common note's items; the counts; any site that stayed, and why.
+
+## Answers
+
+2026-11-05. May this task also change `funders.rs` to narrow `original_period` to `Option<Period>` and repair its local callers? Yes: `domain.rs`'s count of nothing can't hold otherwise, so `funders.rs` joins `files`, for this change only. Add a `pub(crate) struct Period { project: u32, period: u64 }` in `funders.rs`, `Copy` and `PartialEq`, with a small `funder()` returning `Funder::Period`; `original_period` builds it in its `Funder::Period` arm. `tree_made` loses its re-match the same way, as a further re-narrowing. `restore_fits`'s comparison at `funders.rs:312` and `representable` use `funder()` where they need the map's key. Behaviour, stored and wire forms stay as they are; `Period` is not stored and takes no public path. Every other `funders.rs` site, its `unreachable!` count (0) included, stays.
