@@ -21,25 +21,27 @@ fn amend(world: &mut World, dependencies: &[u64]) {
     let message = world.record(KEPT).last_message + 1;
     assert_eq!(
         response(world, |reply_to| Event::Amend {
+            operation: tasks::Amend {
+                task: KEPT,
+                message,
+                stop_run: false,
+                amendment: Box::new(Amendment {
+                    tracked: None,
+                    addressed: None,
+                    instructions: None,
+                    release: None,
+                    spec: None,
+                    wake: None,
+                    dependencies: Some(dependencies.into()),
+                    authority: None,
+                    llm: None,
+                    reason: Box::new([1]),
+                })
+            },
             places: Box::new([]),
             reply_to,
             by: AMENDER,
-            task: KEPT,
-            message,
-            stop_run: false,
-            funder: None,
-            amendment: Amendment {
-                tracked: None,
-                addressed: None,
-                instructions: None,
-                release: None,
-                spec: None,
-                wake: None,
-                dependencies: Some(dependencies.into()),
-                authority: None,
-                llm: None,
-                reason: Box::new([1]),
-            },
+            funder: None
         }),
         Reply::Done
     );

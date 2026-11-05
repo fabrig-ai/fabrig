@@ -152,7 +152,7 @@ fn check(
         }
         people::Operation::Move { reason, .. } => {
             core.move_admit(route.task(task), env.limits.tasks.tree_tasks, env.limits.tasks.depth, admission)?;
-            Ok(tasks::Operation::Move { task, reason })
+            Ok(tasks::Operation::Move(tasks::Move { task, reason }))
         }
         people::Operation::Amend { revision, amendment, release, .. } => {
             crate::acts::bounds::amend_preflight_in(core, &env.limits, route.person, task, route.role, admission)?;
@@ -184,7 +184,7 @@ fn check(
                 core.party_hold_admit(route.person, hold)?;
             }
             amendment.release = release;
-            Ok(tasks::Operation::Amend { task, message: 0, stop_run, amendment: Box::new(amendment) })
+            Ok(tasks::Operation::Amend(tasks::Amend { task, message: 0, stop_run, amendment: Box::new(amendment) }))
         }
         people::Operation::Message { words, .. } => {
             crate::acts::write_in(core, &env.limits, route.person, task, admission)?;
@@ -210,24 +210,24 @@ fn issue(counters: &mut Counters, operation: &mut tasks::Operation) -> Result<u6
     match operation {
         tasks::Operation::Cancel(tasks::Cancel { message: Some(message), .. })
         | tasks::Operation::Release(tasks::Release { message: Some(message), .. })
-        | tasks::Operation::Amend { message, .. } => *message = number,
+        | tasks::Operation::Amend(tasks::Amend { message, .. }) => *message = number,
         tasks::Operation::Message { word, .. } => word.number = number,
         tasks::Operation::Stop { hold, .. } => *hold = number,
         tasks::Operation::Cancel(tasks::Cancel { message: None, .. })
         | tasks::Operation::Release(tasks::Release { message: None, .. })
-        | tasks::Operation::Move { .. } => {}
+        | tasks::Operation::Move(tasks::Move { .. }) => {}
     }
     Ok(number)
 }
 
 fn projection_room(core: &Core, prior: &List<tasks::Operation>, operation: &tasks::Operation, bound: u32) -> bool {
-    let tasks::Operation::Amend { task, amendment, .. } = operation else { return true };
+    let tasks::Operation::Amend(tasks::Amend { task, amendment, .. }) = operation else { return true };
     if !tracks(amendment) || core.projections.contains_key(task) {
         return true;
     }
     let mut count = core.projections.len();
     for (at, earlier) in prior.iter().enumerate() {
-        if let tasks::Operation::Amend { task: number, amendment, .. } = earlier
+        if let tasks::Operation::Amend(tasks::Amend { task: number, amendment, .. }) = earlier
             && tracks(amendment)
             && !core.projections.contains_key(number)
         {
@@ -236,7 +236,7 @@ fn projection_room(core: &Core, prior: &List<tasks::Operation>, operation: &task
             }
             let mut seen = false;
             for previous in prior.iter().take(at) {
-                if let tasks::Operation::Amend { task: other, amendment, .. } = previous
+                if let tasks::Operation::Amend(tasks::Amend { task: other, amendment, .. }) = previous
                     && other == number
                     && tracks(amendment)
                 {

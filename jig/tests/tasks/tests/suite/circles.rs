@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    Active, Amendment, Cancel, Circle, Event, Hold, HoldKind, HoldSource, Holding, Kind, Limits, Name, Operation,
-    Party, Phase, Refusal, Release, Stored, Taken, Was,
+    self as tasks, Active, Amendment, Cancel, Circle, Event, Hold, HoldKind, HoldSource, Holding, Kind, Limits, Name,
+    Operation, Party, Phase, Refusal, Release, Stored, Taken, Was,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, List};
@@ -257,7 +257,7 @@ fn a_release_of_a_holder_rechecks_its_delegate_waits_and_lifts_after_they_end() 
 }
 
 fn amendment(world: &World, number: u64, dependencies: &[u64]) -> Operation {
-    Operation::Amend {
+    Operation::Amend(tasks::Amend {
         task: number,
         message: world.record(number).last_message + 1,
         stop_run: false,
@@ -273,7 +273,7 @@ fn amendment(world: &World, number: u64, dependencies: &[u64]) -> Operation {
             llm: None,
             reason: Box::new([]),
         }),
-    }
+    })
 }
 
 fn compound(world: &mut World, operations: Vec<Operation>) -> Reply {
@@ -379,8 +379,10 @@ fn a_compound_stop_removes_its_waiters_queue_from_the_walk() {
 #[test]
 fn a_compound_move_removes_the_old_requesters_delegate_wait() {
     let mut world = queued_delegate();
-    let operations =
-        vec![Operation::Move { task: WAITER, reason: Box::new([]) }, amendment(&world, HOLDER, &[REQUESTER])];
+    let operations = vec![
+        Operation::Move(tasks::Move { task: WAITER, reason: Box::new([]) }),
+        amendment(&world, HOLDER, &[REQUESTER]),
+    ];
     assert_eq!(compound(&mut world, operations), Reply::Done);
     assert_eq!(world.record(WAITER).requester, Party::Person(PERSON));
     assert_eq!(world.record(HOLDER).waiting_on.as_ref(), [REQUESTER]);
@@ -412,7 +414,7 @@ fn a_compound_reheld_release_does_not_restore_a_circling_queue_edge() {
 
 #[test]
 fn a_procedure_step_judges_earlier_amendments_before_refusing_a_circle_whole() {
-    use jig_domain_tasks::{Executor, ProcedureAmendment, ProcedureDecision, ProcedureEnd};
+    use jig_domain_tasks::{Amend, Executor, ProcedureDecision, ProcedureEnd};
     let mut world = configured(&LIMITS, false);
     let mut root = task(ROOT, &[]);
     root.executor = Executor::Procedure { connector: CONNECTOR, code: u32::from(KIND) };
@@ -420,10 +422,10 @@ fn a_procedure_step_judges_earlier_amendments_before_refusing_a_circle_whole() {
     world.make(Party::Task(ROOT), vec![task(HOLDER, &[]), task(REQUESTER, &[])]);
     let mut parts = Vec::new();
     for operation in [amendment(&world, HOLDER, &[REQUESTER]), amendment(&world, REQUESTER, &[HOLDER])] {
-        let Operation::Amend { task, message, stop_run, amendment } = operation else {
+        let Operation::Amend(tasks::Amend { task, message, stop_run, amendment }) = operation else {
             unreachable!("amendment fixture")
         };
-        parts.push(ProcedureAmendment { task, message, stop_run, amendment: *amendment });
+        parts.push(Amend { task, message, stop_run, amendment });
     }
     let mut decision = ProcedureDecision::new(ProcedureEnd::Wait);
     decision.amendments = parts.into_boxed_slice();
@@ -443,7 +445,9 @@ fn a_compound_amendment_that_reholds_a_returning_waiter_adds_no_queue_edge() {
     finish_prerequisite(&mut world);
     world.make(Party::Person(PERSON), vec![task(OTHER_HOLDER, &[])]);
     let mut operation = amendment(&world, WAITER, &[OTHER_HOLDER]);
-    let Operation::Amend { amendment: change, .. } = &mut operation else { unreachable!("amendment fixture") };
+    let Operation::Amend(tasks::Amend { amendment: change, .. }) = &mut operation else {
+        unreachable!("amendment fixture")
+    };
     change.release = Some(world.record(WAITER).revisions.hold);
     compound(&mut world, vec![operation]);
     let operations = vec![amendment(&world, WAITER, &[]), amendment(&world, HOLDER, &[REQUESTER])];
@@ -689,25 +693,27 @@ fn a_circle_held_agent_given_a_dependency_lifts_idle_and_is_not_due() {
     let reply_to = world.to();
     let message = world.record(HOLDER).last_message + 1;
     world.send(Event::Amend {
+        operation: tasks::Amend {
+            task: HOLDER,
+            message,
+            stop_run: false,
+            amendment: Box::new(Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: Some(Box::new([LATE])),
+                authority: None,
+                llm: None,
+                reason: Box::new([1]),
+            }),
+        },
         places: Box::new([]),
         reply_to,
         by: Party::Task(ROOT),
-        task: HOLDER,
-        message,
-        stop_run: false,
         funder: None,
-        amendment: Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: Some(Box::new([LATE])),
-            authority: None,
-            llm: None,
-            reason: Box::new([1]),
-        },
     });
     assert_eq!(world.record(HOLDER).waiting_on.as_ref(), [LATE]);
     let reply_to = world.to();
@@ -793,7 +799,7 @@ fn a_compound_readding_an_indexed_dependency_frees_it_once() {
     let mut world = second_holder();
     assert_eq!(amend_dependencies(&mut world, HOLDER, &[ROOT]), Reply::Done);
     let mut readded = amendment(&world, HOLDER, &[ROOT]);
-    let Operation::Amend { message, .. } = &mut readded else { unreachable!("amendment fixture") };
+    let Operation::Amend(tasks::Amend { message, .. }) = &mut readded else { unreachable!("amendment fixture") };
     *message += 1;
     let operations = vec![amendment(&world, HOLDER, &[]), readded];
     assert_eq!(compound(&mut world, operations), Reply::Done);

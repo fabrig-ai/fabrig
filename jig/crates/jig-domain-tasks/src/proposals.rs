@@ -79,10 +79,7 @@ fn wake_holder(domain: &mut Domain, env: &Env<Limits>, proposal: &Proposal, out:
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(
     not(target_arch = "wasm32"),
-    expect(
-        clippy::large_enum_variant,
-        reason = "a proposed amendment stays inline, as `Event::Amend` carries it, and is priced by size_of"
-    )
+    expect(clippy::large_enum_variant, reason = "a stored proposed amendment stays inline and is priced by size_of")
 )]
 pub enum ProposalAction {
     /// Settings values stay in the core (engine.md, 17.6).

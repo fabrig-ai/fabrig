@@ -1,6 +1,6 @@
 //! Ordered admission and whole application of a party's task operations (people.md, 5.1).
 mod staged;
-use crate::{Amendment, Domain, Funder, Limits, Numbers, Party, Problem, Refusal, Request, Word};
+use crate::{Domain, Funder, Limits, Numbers, Party, Problem, Refusal, Request, Word};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
 pub use staged::CompoundTask;
@@ -9,8 +9,8 @@ pub use staged::CompoundTask;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Operation {
     Cancel(crate::Cancel),
-    Move { task: u64, reason: Box<[u8]> },
-    Amend { task: u64, message: u64, stop_run: bool, amendment: Box<Amendment> },
+    Move(crate::Move),
+    Amend(crate::Amend),
     Release(crate::Release),
     Message { task: u64, word: Word },
     Stop { task: u64, hold: u64 },
@@ -20,8 +20,8 @@ impl Operation {
         match self {
             Self::Cancel(crate::Cancel { task, .. })
             | Self::Release(crate::Release { task, .. })
-            | Self::Move { task, .. }
-            | Self::Amend { task, .. }
+            | Self::Move(crate::Move { task, .. })
+            | Self::Amend(crate::Amend { task, .. })
             | Self::Message { task, .. }
             | Self::Stop { task, .. } => *task,
         }
@@ -316,8 +316,8 @@ fn maker_allowed(by: Party, project: u32, operation: &Operation, domain: &Domain
                     Some(row) => row.project == project,
                     None => false,
                 },
-                Operation::Move { .. }
-                | Operation::Amend { .. }
+                Operation::Move(_)
+                | Operation::Amend(_)
                 | Operation::Release(_)
                 | Operation::Message { .. }
                 | Operation::Stop { .. } => false,
@@ -344,20 +344,8 @@ fn check(
         Operation::Cancel(cancel) => {
             Ok(Plan::Cancel(Box::new(crate::control::check_cancel(domain, staged, env, by, cancel)?)))
         }
-        Operation::Amend { task, message, stop_run, amendment } => match crate::control::check_amend(
-            domain,
-            staged,
-            env,
-            by,
-            crate::control::Amend {
-                number: task,
-                message,
-                stop_run,
-                funder: None,
-                amendment: *amendment,
-                places: Box::new([]),
-            },
-        ) {
+        Operation::Amend(operation) => match crate::control::check_amend(domain, staged, env, by, operation, &[], None)
+        {
             Ok(plan) => Ok(Plan::Amend(Box::new(plan))),
             Err(problem) => Err(problem),
         },
@@ -394,11 +382,11 @@ fn check(
             };
             Ok(Plan::Stop(Box::new(crate::placed::check_place(domain, staged, &env.limits, placed)?)))
         }
-        Operation::Move { task, reason } => match crate::moving::check(
+        Operation::Move(crate::Move { task, reason }) => match crate::moving::check(
             domain,
             staged,
             env,
-            crate::moving::Move {
+            crate::moving::Moving {
                 number: task,
                 person: person(request.by)?,
                 period: request.period,

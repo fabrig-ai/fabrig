@@ -651,18 +651,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Release { reply_to, by, operation } => {
             crate::control::apply(domain, env, reply_to, by, crate::Operation::Release(operation), out);
         }
-        Event::Amend { reply_to, by, task, message, stop_run, amendment, funder, places } => {
-            crate::control::amend(
-                domain,
-                env,
-                reply_to,
-                by,
-                crate::control::Amend { number: task, message, stop_run, funder, amendment, places },
-                out,
-            );
+        Event::Amend { reply_to, by, operation, funder, places } => {
+            crate::control::amend(domain, env, reply_to, by, operation, &places, funder, out);
         }
-        Event::Move { reply_to, task, person, period, pool_budget, period_budget, reason } => {
-            crate::moving::apply(domain, env, reply_to, task, person, period, pool_budget, period_budget, &reason, out);
+        Event::Move { reply_to, operation, person, period, pool_budget, period_budget } => {
+            crate::moving::apply(domain, env, reply_to, operation, person, period, pool_budget, period_budget, out);
         }
         Event::Subscribe { reply_to, task, subscription } => {
             crate::subscriptions::subscribe(domain, env, reply_to, task, subscription, false, out);

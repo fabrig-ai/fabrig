@@ -228,14 +228,13 @@ pub struct DependencyPlace {
     pub status: crate::Status,
 }
 
-/// An authenticated amendment and its root-issued message.
-pub(crate) struct Amend {
-    pub places: Box<[DependencyPlace]>,
-    pub funder: Option<crate::Funder>,
-    pub number: u64,
+/// Amend a task with its root-issued message (domain/tasks.md, section 7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Amend {
+    pub task: u64,
     pub message: u64,
     pub stop_run: bool,
-    pub amendment: Amendment,
+    pub amendment: Box<Amendment>,
 }
 
 pub(crate) struct AmendPlan {
@@ -254,20 +253,23 @@ pub(crate) struct AmendPlan {
     pub(crate) met: Option<u64>,
 }
 
+#[expect(clippy::too_many_arguments, reason = "the single amendment entrance carries dependency places and funding")]
 pub(crate) fn amend(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     by: Party,
     change: Amend,
+    places: &[DependencyPlace],
+    funder: Option<crate::Funder>,
     out: &mut Queue<Request>,
 ) {
-    let number = change.number;
+    let number = change.task;
     let to = match entrance(domain, to, number) {
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
-    match check_amend(domain, &Staged::new(0), env, by, change) {
+    match check_amend(domain, &Staged::new(0), env, by, change, places, funder) {
         Ok(plan) => {
             apply_amend(domain, env, by, plan, out);
             out.push(Request::Done { reply_to: to });
@@ -283,11 +285,11 @@ pub(crate) fn check_amend(
     env: &Env<Limits>,
     by: Party,
     amendment: Amend,
+    places: &[DependencyPlace],
+    funder: Option<crate::Funder>,
 ) -> Result<AmendPlan, Box<crate::Problem>> {
-    let number = amendment.number;
-    let mut amendment = amendment;
-    let places = core::mem::replace(&mut amendment.places, Box::new([]));
-    let mut plan = match check_amend_fields(domain, staged, env, by, amendment) {
+    let number = amendment.task;
+    let mut plan = match check_amend_fields(domain, staged, env, by, amendment, funder) {
         Ok(plan) => plan,
         Err(why) => return Err(Box::new(crate::Problem::new(Some(number), why))),
     };
@@ -321,17 +323,17 @@ pub(crate) fn check_amend(
             }
             continue;
         }
-        if record(domain, *dependency).is_none() && place(&places, *dependency).is_none() {
+        if record(domain, *dependency).is_none() && place(places, *dependency).is_none() {
             return Err(Box::new(crate::Problem::new(Some(*dependency), Refusal::Unknown)));
         }
-        if !dependency_reached(domain, staged, env, by, old.project, number, *dependency, &places) {
+        if !dependency_reached(domain, staged, env, by, old.project, number, *dependency, places) {
             return Err(Box::new(crate::Problem::naming(Some(number), Refusal::Dependencies, &[*dependency])));
         }
         if record(domain, *dependency).is_some() {
             waiting.push(*dependency).expect("dependency bound");
             pending.push(*dependency).expect("pending adds bounded");
         } else {
-            match place(&places, *dependency).expect("loaded dependency checked").status {
+            match place(places, *dependency).expect("loaded dependency checked").status {
                 crate::Status::Done => {}
                 how @ (crate::Status::Failed | crate::Status::Cancelled) => {
                     return Err(Box::new(crate::Problem::naming(
@@ -442,8 +444,10 @@ fn check_amend_fields(
     env: &Env<Limits>,
     by: Party,
     amendment: Amend,
+    funder: Option<crate::Funder>,
 ) -> Result<AmendPlan, Refusal> {
-    let Amend { number, message, stop_run, funder, amendment, places: _ } = amendment;
+    let Amend { task: number, message, stop_run, amendment } = amendment;
+    let amendment = *amendment;
     if !domain.ready() {
         return Err(Refusal::NotReady);
     }
@@ -803,7 +807,7 @@ pub(crate) fn apply(
                 None => false,
             },
             Operation::Release(_) => false,
-            Operation::Move { .. } | Operation::Amend { .. } | Operation::Message { .. } | Operation::Stop { .. } => {
+            Operation::Move(_) | Operation::Amend(_) | Operation::Message { .. } | Operation::Stop { .. } => {
                 unreachable!("single control operation")
             }
         },
@@ -836,7 +840,7 @@ pub(crate) fn apply(
                 return out.push(Request::Refused { reply_to: to, problem });
             }
         },
-        Operation::Move { .. } | Operation::Amend { .. } | Operation::Message { .. } | Operation::Stop { .. } => {
+        Operation::Move(_) | Operation::Amend(_) | Operation::Message { .. } | Operation::Stop { .. } => {
             unreachable!("single control operation")
         }
     }

@@ -1,7 +1,7 @@
 use jig_domain_tasks::Operation as TaskOperation;
 use jig_domain_tasks::{
-    Accepted, Active, Amendment, Cancel, DependencyPlace, End, Ending, Event, Funder, Hold, HoldKind, Holding, Key,
-    Kind, Line, Name, Party, Phase, Refusal, Release, Status, Stored, Taken, TaskResult,
+    self as tasks, Accepted, Active, Amendment, Cancel, DependencyPlace, End, Ending, Event, Funder, Hold, HoldKind,
+    Holding, Key, Kind, Line, Name, Party, Phase, Refusal, Release, Status, Stored, Taken, TaskResult,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{ReplyTo, Rng, Token};
@@ -216,7 +216,7 @@ fn draw(world: &World, random: &mut Rng) -> Operation {
                     if random.chance(500) {
                         dependencies.pop();
                     }
-                    operations.push(TaskOperation::Amend {
+                    operations.push(TaskOperation::Amend(tasks::Amend {
                         task: number,
                         message: row.last_message + at + 1,
                         stop_run: false,
@@ -232,7 +232,7 @@ fn draw(world: &World, random: &mut Rng) -> Operation {
                             llm: None,
                             reason: Box::new([1]),
                         }),
-                    });
+                    }));
                 } else {
                     operations.push(TaskOperation::Release(Release { task: number, again: None, message: None }));
                 }
@@ -275,25 +275,27 @@ fn amend(world: &mut World, task: u64, dependencies: &[u64], seen: &mut BTreeSet
     let call = reply_to.into_token().raw();
     let reply_to = ReplyTo::new(Token::new(call));
     world.send(Event::Amend {
+        operation: tasks::Amend {
+            task,
+            message: before.last_message + 1,
+            stop_run: false,
+            amendment: Box::new(Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: Some(dependencies.into()),
+                authority: None,
+                llm: None,
+                reason: Box::new([1]),
+            }),
+        },
         places,
         reply_to,
         by: PERSON,
-        task,
-        message: before.last_message + 1,
-        stop_run: false,
         funder: None,
-        amendment: Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: Some(dependencies.into()),
-            authority: None,
-            llm: None,
-            reason: Box::new([1]),
-        },
     });
     match world.replies.get(&call).expect("amendment reply") {
         Reply::Done => {
@@ -385,7 +387,7 @@ fn control(world: &mut World, operation: TaskOperation) {
 fn compound(world: &mut World, operations: Vec<TaskOperation>, seen: &mut BTreeSet<Reached>) {
     let mut amended = false;
     for operation in &operations {
-        if matches!(operation, TaskOperation::Amend { .. }) {
+        if matches!(operation, TaskOperation::Amend(_)) {
             amended = true;
         }
     }

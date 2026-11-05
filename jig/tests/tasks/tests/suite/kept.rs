@@ -1,5 +1,5 @@
 use jig_domain_tasks::{
-    Active, Amendment, Class, End, Event, Hold, Key, Operation, Party, Phase, Refusal, Release, Stored,
+    self as tasks, Active, Amendment, Class, End, Event, Hold, Key, Operation, Party, Phase, Refusal, Release, Stored,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{List, ReplyTo};
@@ -43,14 +43,11 @@ fn keep(world: &mut World, release: bool) -> Reply {
     let amendment = amendment(world, release);
     let message = world.record(KEPT).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        operation: tasks::Amend { task: KEPT, message, stop_run: false, amendment: Box::new(amendment) },
         places: Box::new([]),
         reply_to,
         by: Party::Person(PERSON),
-        task: KEPT,
-        message,
-        stop_run: false,
         funder: None,
-        amendment,
     })
 }
 
@@ -105,12 +102,12 @@ fn a_compound_amendment_then_release_keeps_the_agent_idle() {
     world.activations.clear();
     let mut operations = List::with_capacity(PAIR);
     operations
-        .push(Operation::Amend {
+        .push(Operation::Amend(tasks::Amend {
             task: KEPT,
             message: 1,
             stop_run: false,
             amendment: Box::new(amendment(&world, false)),
-        })
+        }))
         .expect("amendment fixture");
     operations.push(Operation::Release(Release { task: KEPT, again: None, message: None })).expect("release fixture");
     assert_eq!(
@@ -204,14 +201,11 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
     remove.dependencies = Some(Box::new([]));
     let message = world.record(KEPT).last_message + 1;
     response(&mut world, |reply_to| Event::Amend {
+        operation: tasks::Amend { task: KEPT, message, stop_run: false, amendment: Box::new(remove) },
         places: Box::new([]),
         reply_to,
         by: Party::Person(PERSON),
-        task: KEPT,
-        message,
-        stop_run: false,
         funder: None,
-        amendment: remove,
     });
     assert_eq!(world.record(WAITER).phase, Phase::Waiting);
     assert_eq!(world.record(WAITER).hold_wait_since, place);

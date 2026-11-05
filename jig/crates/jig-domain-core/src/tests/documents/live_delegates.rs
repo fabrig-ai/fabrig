@@ -73,13 +73,12 @@ fn live_delegate_documents_keep_every_identity_and_the_owner_takeover_reservatio
         &mut core,
         &limits,
         tasks::Event::Move {
+            operation: tasks::Move { task: 2, reason: Box::new([]) },
             reply_to: ReplyTo::new(Token::new(1)),
-            task: 2,
             person: 1,
             period: 1,
             pool_budget: 500,
             period_budget: 1000,
-            reason: Box::new([]),
         },
     );
     let moved = core.tasks.task(2).unwrap();

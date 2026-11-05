@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    Amendment, Cancel, Ending, Event, Executor, Key, MessageKind, Party, PersonAddress, Phase, Problem, Refusal,
-    Stored, Word,
+    self as tasks, Amendment, Cancel, Ending, Event, Executor, Key, MessageKind, Party, PersonAddress, Phase, Problem,
+    Refusal, Stored, Word,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::Duration;
@@ -38,25 +38,27 @@ fn amend(world: &mut World) {
     let reply_to = world.to();
     let message = world.record(TASK).last_message + 1;
     world.send(Event::Amend {
+        operation: tasks::Amend {
+            task: TASK,
+            message,
+            stop_run: false,
+            amendment: Box::new(Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: None,
+                llm: None,
+                reason: b"ordinary amendment".as_slice().into(),
+            }),
+        },
         places: Box::new([]),
         funder: None,
         reply_to,
         by: Party::Person(REQUESTER),
-        task: TASK,
-        message,
-        stop_run: false,
-        amendment: Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: None,
-            authority: None,
-            llm: None,
-            reason: b"ordinary amendment".as_slice().into(),
-        },
     });
 }
 

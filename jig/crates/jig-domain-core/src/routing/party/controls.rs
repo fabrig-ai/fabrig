@@ -92,14 +92,11 @@ pub(crate) fn amend_route(
     };
     let request = core.fly_person_task(request, PersonTaskRoute::Amended { task, released });
     routed.work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
+        operation: tasks::Amend { task, message, stop_run, amendment: Box::new(amendment) },
         places: evidence.places.into_boxed(),
         funder: None,
         reply_to: ReplyTo::new(request),
         by: tasks::Party::Person(person),
-        task,
-        message,
-        stop_run,
-        amendment,
     })));
 }
 
@@ -327,13 +324,12 @@ pub(crate) fn move_request(
         Ok(()) => {
             let token = core.fly(crate::routing::flight::Flight::Moving { request, task });
             routed.work.push(Work::Event(Event::Tasks(tasks::Event::Move {
+                operation: tasks::Move { task, reason },
                 reply_to: ReplyTo::new(token),
-                task,
                 person,
                 period: core.period(project),
                 pool_budget: core.pool_budget(project, person),
                 period_budget: core.period_budget(project),
-                reason,
             })));
         }
         Err(why) => {
