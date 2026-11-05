@@ -111,9 +111,11 @@ engine's routing encodes it (`../protocol/llm.md`, section 5).
   the sections about its own mechanics, and each repository's guide.
   The small profile admits 14,592 body bytes across at most 64 brief
   sections; the forge reviews budget is 4,608 bytes within that total;
-  `standard`, which `temper init`'s box runs, admits what its host part
+  `standard`, which `temper init`'s box runs, gathers what its host part
   leaves the largest stock charter, its task section a whole spec
-  (`../protocol/configuration.md`, section 7).
+  (`../protocol/configuration.md`, section 7). Assignment and receiving
+  fitting (4.3) may shorten those gathered sections to the charter and
+  workspace ownership bound; the durable specification stays whole.
 
 ### 4.2 Workspace
 
@@ -185,8 +187,12 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   framing, and its decoded ownership. Instructions, tools, contracts,
   models and run identity stay whole. The worker service also fits the
   brief after the workspace is prepared and before encoding the start,
-  using the receiving run's limits and measured schema costs, including
-  the prepared workspace's conflict paths. `temper-engine-smith` owns
+  using the receiving run's limits and measured schema costs. It fits both
+  rendered host room and the decoded charter ownership left after smith
+  charges the prepared workspace against `run_bytes`, including resolved
+  host paths and conflict paths. Smith supplies that remaining allowance
+  through `charter_room`; temper keeps the incoming charter allowance too.
+  `temper-engine-smith` owns
   the fitter; its typed start takes explicit receiving limits and fits
   the brief too. A brief already within each entrance's room is kept
   whole. Otherwise, fitting cuts bodies from the last
@@ -207,8 +213,8 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   text. If even that line cannot fit, it is left out, down to an empty
   brief at zero room. Fitting also keeps the charter within its admitted
   ownership allowance. No run is refused for its brief's size; if the
-  non-brief host part alone exceeds the bound, smith's declaration
-  refusal still applies.
+  non-brief host part or fixed declarations plus workspace alone exceed
+  their receiving bound, smith's declaration refusal still applies.
 - **Checked before a run meets it:** at start, and at temper's three
   entrances of a change of settings that touches a charter (the
   engine's `ChangeSettings` and `ProposeSettings` routes and a run's
@@ -635,8 +641,10 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   the host part and a quarter the offer (smith's `protocol/limits.md`,
   3.9): ⌊(⌊1,048,576 × 4/5⌋ − 2 × 8,192 − own) / 2⌋, about 400,000
   bytes; `temper-service`'s step tests hold the figure at init's agent.
-  Every stock charter retains it, and it holds the stock tools and the
-  authorised brief with a whole spec. A message offered a run is at
+  Every stock charter retains that rendered room, which holds the stock
+  tools and the gathered brief with a whole spec. Delivery also enforces
+  the separate combined ownership bound, shortening the brief when needed
+  (4.3). A message offered a run is at
   most an offer and the agent's tool payload, which the model's output
   bounds (`../protocol/configuration.md`, 13.8).
 - **Waiting and resuming:** the waiting time is the charter's; a

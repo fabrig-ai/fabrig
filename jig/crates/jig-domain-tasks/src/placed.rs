@@ -2,8 +2,8 @@
 use crate::compound::Staged;
 use crate::domain::{fact, publish, record, task_mut};
 use crate::{
-    Capacity, CapacityAction, CapacityCause, Domain, Fact, Hold, Key, Limits, Party, Phase, Problem, Refusal, Request,
-    Stored,
+    Capacity, CapacityAction, CapacityCause, Domain, Fact, Hold, Key, Limits, Party, Phase, Problem, Refusal, Release,
+    Request, Stored,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
@@ -447,7 +447,8 @@ pub(crate) fn apply_changes(
                 };
                 publish(domain, env, number, out);
             } else {
-                let plan = crate::control::check_release(domain, &Staged::new(0), env, number, by, None, None)
+                let operation = Release { task: number, again: None, message: None };
+                let plan = crate::control::check_release(domain, &Staged::new(0), env, by, operation)
                     .expect("placed reason needs no effect choice or message");
                 crate::control::apply_release(domain, env, by, plan, out);
                 released = released.checked_add(1).expect("bounded tasks");

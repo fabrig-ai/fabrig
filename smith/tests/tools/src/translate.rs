@@ -183,9 +183,12 @@ pub fn listed(output: &[u8], exit: fake::Exit, depth: Depth, max: u32, max_bytes
         Depth::Whole => u32::MAX,
         Depth::Levels(levels) => levels,
     };
+    let paths = output.split(|&b| b == 0).filter(|p| !p.is_empty());
+    let paths = paths.map(|p| p.strip_prefix(b"./").unwrap_or(p));
+    assert!(paths.clone().all(|p| p.split(|&b| b == b'/').all(|p| p != b".git")), "finite fixture doesn't send .git");
+    assert!(paths.clone().is_sorted(), "the finite fixture doesn't send unsorted listings");
     let mut names = std::collections::BTreeMap::new();
-    for path in output.split(|byte| *byte == 0).filter(|path| !path.is_empty()) {
-        let path = path.strip_prefix(b"./").unwrap_or(path);
+    for path in paths {
         let mut level = 1;
         for (index, byte) in path.iter().enumerate() {
             if *byte == b'/' {

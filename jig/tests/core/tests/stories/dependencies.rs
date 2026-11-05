@@ -382,8 +382,8 @@ fn a_cancelled_added_dependency_is_refused_by_name() {
         parent,
         4,
         core::NamedAction::Control {
-            target: dependency,
-            control: tasks::Control::Cancel {
+            cancel: tasks::Cancel {
+                task: dependency,
                 reason: b"no longer needed".as_slice().into(),
                 grace: None,
                 message: None,

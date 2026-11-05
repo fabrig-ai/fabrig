@@ -24,6 +24,8 @@ use skein_http::sse::writer::{self, Event, Limits, Outgoing, Refusal, Request, W
 use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Env, Queue, Rng, Time, Wall};
 
+use skein_protocol_kit::random::{draw as draw32, fault};
+
 use crate::generate::{draw, pick, text};
 use crate::reference::{self, Ending};
 use crate::sse_world;
@@ -93,14 +95,6 @@ pub fn limits(rng: &mut Rng) -> Limits {
         return Limits { event: u32::try_from(rng.between(0, 48)).expect("fits"), chunk: draw32(rng, 1, 8) };
     }
     Limits { event: draw32(rng, 256, 4096), chunk: draw32(rng, 1, 256) }
-}
-
-fn draw32(rng: &mut Rng, low: u32, high: u32) -> u32 {
-    u32::try_from(rng.between(u64::from(low), u64::from(high))).expect("fits a u32")
-}
-
-fn fault(rng: &mut Rng) -> Fault {
-    [Fault::Reset, Fault::Invalid, Fault::Other][usize::try_from(rng.below(3)).expect("fits a usize")]
 }
 
 /// What the side above writes: an event, or a comment.

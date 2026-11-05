@@ -28,13 +28,12 @@ fn payer_follows_funding_not_requester() {
     let mut h = funded_tree();
     assert_eq!(h.domain.payer(CHILD), Some(Payer::Project(PROJECT)));
     h.send(Event::Move {
+        operation: crate::Move { task: ROOT, reason: Box::new([]) },
         reply_to: to(),
-        task: ROOT,
         person: OTHER,
         period: 0,
         pool_budget: 100,
         period_budget: 10_000,
-        reason: Box::new([]),
     });
     assert_eq!(h.domain.payer(CHILD), Some(Payer::Party(OTHER)));
     h.send(Event::OpenPeriod { reply_to: to(), project: PROJECT, period: 1, budget: 10_000 });
@@ -84,25 +83,27 @@ fn refunding_changes_the_payer_of_financial_descendants() {
     let mut h = funded_tree();
     h.send(Event::CarvePool { reply_to: to(), project: PROJECT, person: OTHER, period: 0, budget: 100 });
     h.send(Event::Amend {
+        operation: crate::Amend {
+            task: ROOT,
+            message: 1,
+            stop_run: false,
+            amendment: Box::new(crate::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: None,
+                llm: None,
+                reason: Box::new([]),
+            }),
+        },
         places: Box::new([]),
         reply_to: to(),
         by: Party::Person(OTHER),
-        task: ROOT,
-        message: 1,
-        stop_run: false,
         funder: Some(Funder::Pool { project: PROJECT, person: OTHER, period: 0 }),
-        amendment: crate::Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: None,
-            authority: None,
-            llm: None,
-            reason: Box::new([]),
-        },
     });
     assert_eq!(h.domain.task(ROOT).unwrap().requester, Party::Person(HOLDER));
     assert_eq!(h.domain.payer(CHILD), Some(Payer::Party(OTHER)));
@@ -126,7 +127,7 @@ fn compound_payer_reads_a_move_before_the_live_financial_chain_changes() {
                 pool_budget: 100,
                 period_budget: 10_000,
             },
-            crate::Operation::Move { task: ROOT, reason: Box::new([]) },
+            crate::Operation::Move(crate::Move { task: ROOT, reason: Box::new([]) }),
         )
         .unwrap();
     assert_eq!(admission.payer(CHILD), Some(Payer::Party(OTHER)));

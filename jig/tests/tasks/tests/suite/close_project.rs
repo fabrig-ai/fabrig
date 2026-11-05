@@ -45,11 +45,10 @@ fn closing_a_project_keeps_its_spend_in_closed_ledgers() {
     world.send(Event::RecurringBatch { task: 9, period: 1, numbers: Box::new([10]) });
     finish(&mut world, 10, 7);
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Person(9),
-        task: 9,
-        control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: tasks::Cancel { task: 9, reason: Box::new([]), grace: None, message: None },
     });
     world.complete_cancel();
     assert_eq!(world.live(), 0);

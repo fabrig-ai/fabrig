@@ -9,62 +9,46 @@
 //! way a stream can fail, each way it can end or fail below, a close in
 //! each state, a CR's LF delivered alone, and a line read in pieces.
 
-use std::collections::BTreeMap;
-
 use skein_http::sse::Error;
 use skein_http_world::reference::Ending;
 use skein_http_world::sse_world::{self, Run, Settings};
 use skein_http_world::{generate, transcript};
 use skein_lib::Rng;
+use skein_protocol_kit::seen::Seen;
 
 const ROUNDS: u64 = 12_000;
 
-#[derive(Default)]
-struct Seen(BTreeMap<String, u32>);
-
-impl Seen {
-    fn note(&mut self, what: String) {
-        *self.0.entry(what).or_default() += 1;
+fn record(tally: &mut Seen, run: &Run, settings: &Settings) {
+    match run.outcome {
+        Some(Ending::Failed(Error::Stream(_))) => tally.note("failed Stream".into()),
+        Some(outcome) => tally.note(format!("{outcome:?}")),
+        None => tally.note("closed before the outcome".into()),
     }
-
-    fn record(&mut self, run: &Run, settings: &Settings) {
-        match run.outcome {
-            Some(Ending::Failed(Error::Stream(_))) => self.note("failed Stream".into()),
-            Some(outcome) => self.note(format!("{outcome:?}")),
-            None => self.note("closed before the outcome".into()),
-        }
-        self.note(format!("closed while waiting for {:?}", run.closed_while));
-        let fell = run.fell;
-        for (flag, what) in [
-            (fell.idle_end, "an end with nothing demanded"),
-            (fell.crossed_end, "a demand crossed the end"),
-            (fell.late_delivery, "a delivery after the close"),
-            (fell.failed_after_end, "a failure after the end"),
-            (fell.lone_lf, "a lone LF after a CR"),
-            (fell.long_line, "a line longer than a chunk"),
-        ] {
-            if flag {
-                self.note(what.into());
-            }
-        }
-        if let Some(waiting) = fell.failed_while {
-            self.note(format!("failed while waiting for {waiting:?}"));
-        }
-        if let Some(fault) = run.failed {
-            self.note(format!("failed with {fault:?}"));
-        }
-        if settings.cut.is_some() {
-            self.note("a stream ended early".into());
-        }
-        if run.held_back == settings.cap {
-            self.note("the stream below filled while the side above stopped".into());
+    tally.note(format!("closed while waiting for {:?}", run.closed_while));
+    let fell = run.fell;
+    for (flag, what) in [
+        (fell.idle_end, "an end with nothing demanded"),
+        (fell.crossed_end, "a demand crossed the end"),
+        (fell.late_delivery, "a delivery after the close"),
+        (fell.failed_after_end, "a failure after the end"),
+        (fell.lone_lf, "a lone LF after a CR"),
+        (fell.long_line, "a line longer than a chunk"),
+    ] {
+        if flag {
+            tally.note(what.into());
         }
     }
-
-    fn assert_fell(&self, expected: &[&str]) {
-        for what in expected {
-            assert!(self.0.contains_key(*what), "{what} fell: {:#?}", self.0);
-        }
+    if let Some(waiting) = fell.failed_while {
+        tally.note(format!("failed while waiting for {waiting:?}"));
+    }
+    if let Some(fault) = run.failed {
+        tally.note(format!("failed with {fault:?}"));
+    }
+    if settings.cut.is_some() {
+        tally.note("a stream ended early".into());
+    }
+    if run.held_back == settings.cap {
+        tally.note("the stream below filled while the side above stopped".into());
     }
 }
 
@@ -110,7 +94,7 @@ fn generated_and_mutated_streams_read_as_the_reference_reads_them_whatever_the_n
         let limits = sse_world::limits(&mut rng);
         let settings = Settings::chaotic(&mut rng, limits, stream.len());
         let run = sse_world::check(&stream, &settings, seed);
-        tally.record(&run, &settings);
+        record(&mut tally, &run, &settings);
     }
     tally.assert_fell(&EVERY);
 }
@@ -141,7 +125,7 @@ fn the_transcripts_events_cut_mutated_and_failed_read_as_the_reference_reads_the
         limits.chunk = u32::try_from(rng.between(1, 128)).unwrap();
         let settings = Settings::chaotic(&mut rng, limits, stream.len());
         let run = sse_world::check(&stream, &settings, seed);
-        tally.record(&run, &settings);
+        record(&mut tally, &run, &settings);
     }
     tally.assert_fell(&["Ended", "failed Stream", "closed before the outcome", "a stream ended early"]);
 }

@@ -2,6 +2,7 @@
 use crate::pki;
 use skein_lib::stream::Fault;
 use skein_lib::{Rng, Wall};
+use skein_protocol_kit::random::{draw, fault};
 use skein_tls::client::{self, Certificate, Error, Limits};
 
 /// What a run is about: the server, the client's view of it, and what the
@@ -198,15 +199,7 @@ pub fn limits(rng: &mut Rng) -> Limits {
     Limits { read, send, records: draw(rng, client::MAX_RECORD, 4 * client::MAX_RECORD) }
 }
 
-pub(super) fn fault(rng: &mut Rng) -> Fault {
-    pick(rng, &[Fault::Reset, Fault::Invalid, Fault::Other])
-}
-
 /// One of `items`, drawn from `rng`.
 pub fn pick<T: Copy>(rng: &mut Rng, items: &[T]) -> T {
     items[usize::try_from(rng.below(items.len() as u64)).expect("fits a usize")]
-}
-
-pub(super) fn draw(rng: &mut Rng, low: u32, high: u32) -> u32 {
-    u32::try_from(rng.between(u64::from(low), u64::from(high))).expect("fits a u32")
 }
