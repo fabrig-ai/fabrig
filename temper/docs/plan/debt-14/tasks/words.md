@@ -3,7 +3,7 @@ id = "words"
 part = "words"
 kind = "feature"
 needs = []
-files = ["smith/crates/smith-local-domain/src/person.rs", "smith/crates/smith-local-domain/src/domain.rs", "smith/crates/smith-local-domain/src/agent.rs", "smith/crates/smith-local-domain/src/boundary.rs", "smith/crates/smith-local-domain/src/lib.rs", "smith/crates/smith-local-domain/src/agent_tests.rs", "smith/crates/smith-local-domain/src/parent_tests.rs", "smith/crates/smith-local-domain/src/tests.rs", "smith/crates/smith-local-protocol/src/terminal.rs", "smith/crates/smith-local-protocol/src/lib.rs", "smith/crates/smith-local-service/src/service.rs", "smith/crates/smith-local-service/src/service/program_check/pending.rs", "smith/crates/smith-local-service/src/tests.rs", "smith/crates/smith-local-shell/src/front/headless.rs", "smith/crates/smith-local-shell/src/local_host/words.rs", "smith/crates/smith-local-shell/src/local_host.rs", "smith/crates/smith-local-shell/src/local_host/credentials.rs", "smith/tests/local/src/world.rs", "smith/tests/local/src/person.rs", "smith/docs/design/domain/host.status.md", "smith/docs/design/STATUS.md", "smith/docs/development/debt/D018-domain-formats-text.md"]
+files = ["smith/crates/smith-local-domain/src/person.rs", "smith/crates/smith-local-domain/src/domain.rs", "smith/crates/smith-local-domain/src/agent.rs", "smith/crates/smith-local-domain/src/boundary.rs", "smith/crates/smith-local-domain/src/lib.rs", "smith/crates/smith-local-domain/src/agent_tests.rs", "smith/crates/smith-local-domain/src/parent_tests.rs", "smith/crates/smith-local-domain/src/tests.rs", "smith/crates/smith-local-protocol/src/terminal.rs", "smith/crates/smith-local-protocol/src/lib.rs", "smith/crates/smith-local-service/src/service.rs", "smith/crates/smith-local-service/src/service/program_check/pending.rs", "smith/crates/smith-local-service/src/tests.rs", "smith/crates/smith-local-shell/src/front/headless.rs", "smith/crates/smith-local-shell/src/local_host/words.rs", "smith/crates/smith-local-shell/src/local_host.rs", "smith/crates/smith-local-shell/src/local_host/credentials.rs", "smith/tests/local/src/world.rs", "smith/tests/local/src/person.rs", "smith/tests/local-process/src/referee.rs", "smith/docs/design/domain/host.status.md", "smith/docs/design/STATUS.md", "smith/docs/development/debt/D018-domain-formats-text.md"]
 effort = "high"
 minutes = 120
 +++
@@ -166,6 +166,7 @@ Acceptance:
 7. **The worlds.** `tests/local/src/world.rs`: a new arm ahead of `Request::Notice`, for `Notice::Turn` and
    `Notice::Answer`, renders with `notice_text` and runs what `Request::Show`'s arm ran on those bytes. Neither reaches
    `self.notices` or `saw`, so no person's cue fires. `tests/local/src/person.rs`: the compiler's arm, `unreachable!`.
+   `tests/local-process/src/referee.rs`: its older-store expectation reaches the same bytes through `notice_text`.
 8. **Bite.** Show red, and restore: remove the early `return` for `Turn`, so a turn gains a newline; render `Turn` through
    `append` in place of `append_text`; swap the two verdicts' words; send `EffortRefused` through the final `newline`.
 9. `host.status.md`, `STATUS.md`, D018's deletion. `cargo fmt`, the ratchet, clippy on the four crates and the two worlds,
@@ -175,3 +176,15 @@ Acceptance:
 
 What each bite printed. The literals left in the domain. Whether `world.shown()` needed anything. The peak of
 `smith-local-world`'s memory test before and after. Net lines, production and tests apart.
+
+## Answers
+
+2026-11-05, `smith/tests/local-process/src/referee.rs` outside `files`: accepted, and the file joins `files` and Step 7.
+`Older::words` goes by the cut's decision and `smith-local-process-world` is in the acceptance run, so the acceptance
+can't hold without it. The one changed expression is a call's spelling (`notes/common.md`, behaviour rule); it keeps the
+`smith: ` prefix and every assertion. Keep commit `79caaada69`'s repair as it is.
+
+2026-11-05, the domain's reduction measured at 16 production lines against 60: not settled here, the user's. 25% of 60
+lets an answer call take the target to 45, and 16 is past it. Compacting further doesn't reach it: the types Steps, 2
+prescribes add 37 lines to the domain, which the target left out. A later answer below this one settles it; until then
+the task waits.
