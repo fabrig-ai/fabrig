@@ -1369,7 +1369,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-session-composer > button { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--gf-ink) url(files/send.svg) center / 16px no-repeat; color: transparent; font-size: 0; overflow: hidden; }
 #app > .temper-session .temper-session-composer > button:disabled { background-color: var(--gf-line-2); cursor: default; }
 @media (max-width: 760px) {
-  #app:has(> .temper-session) > :is(.temper-rail, .temper-tabbar) { display: none; }
+  #app:has(> .temper-session) > :is(.temper-rail, .temper-tabbar, .temper-accounts) { display: none; }
   #app > .temper-session > .temper-session-top { padding: 10px 12px; gap: 8px; }
   #app > .temper-session .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
   #app > .temper-session .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
