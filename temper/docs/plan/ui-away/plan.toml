@@ -22,3 +22,72 @@ id = 1
 story = "this trunk stands on the Home that ui-home-status draws"
 parts = ["home-base"]
 walk = false
+
+[[part]]
+id = "client-base"
+title = "ui-settings' and ui-goal-page's merged code on this trunk"
+mode = "direct"
+needs = ["home-base"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "away-wire"
+title = "the client's wire gains SetAway, Overturn, and the subjects away and decided"
+mode = "direct"
+needs = ["home-base"]
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[part]]
+id = "away-forge"
+title = "the forge keeps Away and Decided, judges a call and answers Overturn"
+mode = "direct"
+needs = ["home-base"]
+design = "temper/docs/design/domain/forge.md, 5.8"
+
+[[part]]
+id = "client-zone"
+title = "the person's zone, the shell's input, and the clocks read in it"
+mode = "direct"
+needs = ["home-base"]
+design = "temper/docs/design/client/README.md, 5.12"
+
+[[part]]
+id = "away-route"
+title = "the root and the service carry the switch, Overturn and their documents"
+mode = "direct"
+needs = ["away-wire", "away-forge"]
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[part]]
+id = "decided-tool"
+title = "the host tool decided, judged by the forge and named once"
+mode = "direct"
+needs = ["away-forge"]
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[part]]
+id = "decided-charter"
+title = "stock charter 1's words for decided"
+mode = "direct"
+needs = ["decided-tool"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "away-client"
+title = "the client watches the switch and sends it"
+mode = "direct"
+needs = ["client-base", "away-wire", "client-zone"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "away-switch"
+title = "the control in the rail, the chip and the terminal, and its toasts"
+mode = "direct"
+needs = ["away-client"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "a goal asks decided, the forge judges by the person's switch, and the person can turn it on"
+parts = ["client-base", "away-wire", "away-forge", "client-zone", "away-route", "decided-tool", "decided-charter", "away-client", "away-switch"]
+walk = false
