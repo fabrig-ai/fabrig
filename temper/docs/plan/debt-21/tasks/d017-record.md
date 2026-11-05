@@ -66,3 +66,7 @@ Acceptance:
 ## Report
 
 The common note's items; the count; any line you dropped from the list, and why.
+
+## Answers
+
+2026-11-05. Resume after `narrow-tasks` pushes its implementation, or record 299 above the 280 limit? Resume; don't record 299. `narrow-tasks` has since pushed its implementation (`origin/debt-21/narrow-tasks`, at `c0666f1e35`, still running): all ten files you named read their targets there, and that branch merged with the trunk measures 274 by the item's **Measure**. As your brief says, `git fetch origin` and merge `origin/debt-21/narrow-tasks` again before you measure, and again before you push; record the count measured at your merged commit. The 280 limit stands: a count still over it is a `Question:` as the acceptance says.
