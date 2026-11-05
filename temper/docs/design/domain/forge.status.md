@@ -52,6 +52,13 @@
     its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
     `brief_answer`), but those stories run a CI repair's pair alone and no test
     holds its words.
+  - 8.4: a green head ending a repair has no story for a repair waiting for an
+    answer to its question (none asks from a repair), a repair finding nothing
+    to do (`NoChange`, read as failed), or a task closing or held with its
+    attempt running, taken as a run in progress
+    (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate_running`):
+    the policy's tests hold a failed status and `delegate_running` alone
+    (`temper-engine-domain-forge-change/src/tests/green.rs`).
   - 8.4, 8.5: a goal's landing held past its repairs, then released after
     a change into its goal branch (`../draft/reference-landing.md`,
     section 9's second story), is built, but its story is ignored: after
@@ -153,6 +160,28 @@
   - 5.9: "Only goals call it" is held by the root, where the request leaves it to
     charter 1's words: goals and chats share that charter, so a chat's call answers
     ask (`agent.status.md`, 4.3).
+- **Design departs:** 8.4, from the request `repair-green` of 2026-11-05, each
+  decided by its plan's cut, for the user to see:
+  - The request's rule 1 ends a held repair when CI has passed at the head. A
+    hold at gating, past the bound or short of authority, stays held
+    (`temper-engine-domain-forge-change/src/domain.rs`, `held_on_ci`), because
+    its state can't say whether it is a gate's or CI's, and the plan kept what a
+    hold stores.
+  - Rule 1's hold ends on a wake alone, and a poll wakes a change only when what
+    it read of the pull request moved (`temper-engine-domain-forge/src/domain.rs`,
+    the pull read's `wakes`). Under required contexts a check they don't name can
+    keep the pull request's CI as it was, so that hold waits for a hint or a
+    person's release, and where nothing delivers hints, for the release. It
+    costs time and makes no fresh repair.
+  - Rule 1 ends a retrying repair with no agent's work. A run ending into a retry
+    wakes no change, and the change reads again within `poll`
+    (`temper-engine-domain-forge/src/domain.rs`, `repair_poll`), so a backoff
+    shorter than that starts another run, which rule 2 leaves to finish.
+  - The request has its stories in the forge world or lower. The held and
+    retrying ones run in the engine's domain world, above it
+    (`tests/engine/domain/tests/suite/forge_routes/repair_green.rs`), where a
+    task's phase, its cancel and the deployment's release meet; the forge world
+    (`tests/engine/forge/tests/suite/green.rs`) tells the policy's.
 - **Design departs:** 8.4, from the request `brief-failure` of 2026-11-05, each
   decided by its plan's cut, for the user to see:
   - The request's true capacity is a place, an account or a brief slot. 8.4 also
