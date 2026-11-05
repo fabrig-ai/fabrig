@@ -69,10 +69,6 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
     }
 }
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the seeded corpus mutates named decision answers beside the other store records"
-)]
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
