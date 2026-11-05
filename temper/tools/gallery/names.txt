@@ -50,6 +50,9 @@ welcome-model-forge-fetching
 welcome-model-forge-fetching-bytes
 welcome-model-forge-done
 welcome-model-forge-failed
+welcome-model-claude
+welcome-model-claude-checking
+welcome-model-claude-not-yet
 welcome-model-key-details
 welcome-model-connected
 welcome-model-away
