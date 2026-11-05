@@ -20,3 +20,16 @@ id = 1
 story = "each test named by the review goes red when its rule breaks, or has gone, and net lines fall"
 parts = ["spot-review"]
 walk = false
+
+[[part]]
+id = "oauth-states"
+title = "the oauth client's phase holds its exchange, and the accounts hold one entry per account with their lifecycles as enums (skein D022)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth.md, 3"
+
+[[slice]]
+id = 2
+story = "each oauth test's events stay as they were, no credential reaches Debug, and the flags and parallel lists have gone"
+parts = ["oauth-states"]
+walk = false
