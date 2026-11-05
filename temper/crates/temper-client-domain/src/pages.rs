@@ -14,6 +14,7 @@ pub mod chats;
 pub mod choice;
 pub mod connect_model;
 pub mod delegation;
+pub mod goals;
 pub mod home;
 pub mod inbox;
 pub mod report;
@@ -36,6 +37,7 @@ pub struct Pages {
     pub(crate) inbox: Option<inbox::Inbox>,
     pub home: Option<home::Home>,
     chats: Option<chats::Chats>,
+    goals: Option<goals::Goals>,
     chat: Option<chat::Chat>,
     task: Option<task::Task>,
     accounts: accounts::Accounts,
@@ -125,6 +127,10 @@ pub enum Act {
     },
     Older,
     ClosedChats,
+    MoreGoals,
+    GoalsFilter {
+        filter: crate::GoalsFilter,
+    },
     ChatFilter {
         filter: ChatsFilter,
     },
@@ -189,6 +195,7 @@ impl Pages {
             inbox: None,
             home: None,
             chats: None,
+            goals: None,
             chat: None,
             task: None,
             accounts: accounts::Accounts::default(),
@@ -307,6 +314,10 @@ impl Pages {
         self.chats.as_ref()
     }
     #[must_use]
+    pub const fn goals(&self) -> Option<&goals::Goals> {
+        self.goals.as_ref()
+    }
+    #[must_use]
     pub const fn chat(&self) -> Option<&chat::Chat> {
         self.chat.as_ref()
     }
@@ -419,6 +430,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             if let Some(chats) = pages.chats.take() {
                 pages.next = pages.next.max(chats.leave(out));
             }
+            if let Some(goals) = pages.goals.take() {
+                pages.next = pages.next.max(goals.leave(out));
+            }
             leave_conversations(pages, out);
             pages.accounts.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
@@ -448,6 +462,16 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
             unreachable!("suggestions are resolved by the root")
+        }
+        Event::Act { act: Act::MoreGoals } => {
+            if let Some(goals) = &mut pages.goals {
+                goals.older(out);
+            }
+        }
+        Event::Act { act: Act::GoalsFilter { filter } } => {
+            if let Address::Goals { project, .. } = pages.address {
+                out.push(Request::Show { address: Address::Goals { project, filter } });
+            }
         }
         Event::Act { act: Act::ClosedChats } => closed_chats(pages, out),
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
@@ -568,6 +592,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     let project = conversation_project(pages);
     if let Some(chats) = &mut pages.chats {
         chats.configure(me, project, &env.limits, out);
+    }
+    if let Address::Goals { project, .. } = pages.address
+        && let Some(goals) = &mut pages.goals
+    {
+        goals.configure(me, project, client, &env.limits, out);
     }
     choice::refresh(pages, client);
     redirect_chat(pages, client, out);
@@ -692,6 +721,14 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         pages.address = address;
         return;
     }
+    if let (Address::Goals { project: current, .. }, Address::Goals { project, filter }, Some(page)) =
+        (&pages.address, &address, &mut pages.goals)
+        && current == project
+    {
+        page.filter = *filter;
+        pages.address = address;
+        return;
+    }
     if let (Address::Task { task: current, .. }, Address::Task { task, filter }, Some(page)) =
         (&pages.address, &address, &mut pages.task)
         && current == task
@@ -704,6 +741,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         && pages.home.is_none()
         && pages.inbox.is_none()
         && pages.chats.is_none()
+        && pages.goals.is_none()
         && pages.chat.is_none()
         && pages.task.is_none()
         && pages.welcome.is_none())
@@ -741,7 +779,15 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Some(chats) = pages.chats.take() {
             pages.next = pages.next.max(chats.leave(out));
         }
+        if let Some(goals) = pages.goals.take() {
+            pages.next = pages.next.max(goals.leave(out));
+        }
         leave_conversations(pages, out);
+        if let Address::Goals { filter, .. } = address {
+            let mut page = goals::Goals::new(pages.next);
+            page.filter = filter;
+            pages.goals = Some(page);
+        }
         if let Address::Task { task, filter } = address {
             let mut page = task::Task::new(task, pages.next, &env.limits, out);
             page.filter = filter;
@@ -906,6 +952,8 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         if moved {
             chat.see(&mut pages.serial, out);
         }
+    } else if let Some(goals) = &mut pages.goals {
+        return goals.told(told, out);
     } else if let Some(chats) = &mut pages.chats {
         if !chats.told(told.clone(), out) {
             return match &mut pages.inbox {
@@ -1006,6 +1054,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::MessageWords { .. }
         | Act::Send
         | Act::Older
+        | Act::GoalsFilter { .. }
+        | Act::MoreGoals
         | Act::ChatFilter { .. }
         | Act::PlanFilter { .. }
         | Act::ClosedChats
