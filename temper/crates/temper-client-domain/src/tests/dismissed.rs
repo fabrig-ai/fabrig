@@ -3,15 +3,15 @@ use crate::{
     Domain, Event, Request,
     forge::{
         self,
-        dismissed::{self, Dismissal},
+        dismissed::{self, PersonFact},
     },
 };
 use jig_client::{Ask, Down, Family, Link, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-const WHAT: Dismissal = Dismissal::ToBegin { project: f::PROJECT };
-const OTHER: Dismissal = Dismissal::ToBegin { project: 17 };
+const WHAT: PersonFact = PersonFact::ToBegin { project: f::PROJECT };
+const OTHER: PersonFact = PersonFact::ToBegin { project: 17 };
 
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -47,7 +47,7 @@ fn record(projects: &[u32]) -> Family {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for project in projects {
         dismissed
-            .push(w::Dismissal::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
+            .push(w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
             .unwrap();
     }
     Family {
@@ -199,7 +199,8 @@ fn signing_out_closes_the_watch_and_clears_the_facts() {
 #[test]
 fn ask_is_of_the_projects_scope() {
     for project in [0, f::PROJECT, u32::MAX] {
-        let Ask::Family { scope, record } = dismissed::ask(Dismissal::ToBegin { project }, &f::limits().forge).unwrap()
+        let Ask::Family { scope, record } =
+            dismissed::ask(PersonFact::ToBegin { project }, &f::limits().forge).unwrap()
         else {
             panic!("family request")
         };
@@ -210,7 +211,37 @@ fn ask_is_of_the_projects_scope() {
         else {
             panic!("dismiss request")
         };
-        let w::Dismissal::ToBegin(value) = value.what();
+        let w::PersonFact::ToBegin(value) = value.what() else { panic!("to begin") };
         assert_eq!(value.project(), project);
     }
+}
+
+#[test]
+fn goals_from_reads_the_partys_rows() {
+    const CHAT: u64 = 7;
+    let (mut root, watch, _) = opened();
+    assert!(root.forge().goals_from(f::PROJECT, CHAT).eq([]));
+    let mut dismissed = List::with_capacity(wire::DISMISSED);
+    dismissed
+        .push(w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: f::PROJECT }).unwrap()))
+        .unwrap();
+    for (project, chat, goal) in
+        [(f::PROJECT, CHAT, 11), (f::PROJECT, CHAT, 19), (f::PROJECT, CHAT + 1, 23), (f::PROJECT + 1, CHAT, 29)]
+    {
+        dismissed
+            .push(w::PersonFact::GoalFrom(
+                w::GoalFrom::new(&w::CEILINGS, w::GoalFromParts { project, chat, goal }).unwrap(),
+            ))
+            .unwrap();
+    }
+    let record = Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+    };
+    up(&mut root, Up::FamilyDelivered { watch, record });
+    assert!(root.forge().goals_from(f::PROJECT, CHAT).eq([11, 19]));
+    assert_eq!(root.forge().dismissed(PersonFact::GoalFrom { project: f::PROJECT, chat: CHAT, goal: 11 }), Some(true));
+    up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded });
+    assert!(root.forge().goals_from(f::PROJECT, CHAT).eq([]));
 }

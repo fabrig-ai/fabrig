@@ -527,7 +527,7 @@ pub enum WorkerInput {
 pub enum Application {
     Forge(forge::Ask),
     Return { source: u32, path: Box<[u8]> },
-    Dismiss { what: forge::Dismissal },
+    Dismiss { what: forge::PersonFact },
 }
 /// The family's terminal answer; root returns are volatile, like forge setup answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
