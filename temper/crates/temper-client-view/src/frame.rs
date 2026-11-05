@@ -72,6 +72,11 @@ impl Bindings {
                     (Act::Switcher(switcher::Act::NewWords { .. }), skein_ui::Act::Submit) => {
                         Act::Switcher(switcher::Act::Create)
                     }
+                    (Act::AddChoose { start }, skein_ui::Act::Toggle) => Act::AddChoose { start: *start },
+                    (Act::AddWrite { field, .. }, skein_ui::Act::Input { value }) => {
+                        Act::AddWrite { field: *field, words: value }
+                    }
+                    (Act::AddWrite { .. }, skein_ui::Act::Submit) => Act::AddSubmit,
                     (Act::DefaultName { .. }, skein_ui::Act::Input { value }) => Act::DefaultName { words: value },
                     (Act::DefaultName { .. }, skein_ui::Act::Submit) => Act::MakeDefault,
                     (Act::ChatWords { .. }, skein_ui::Act::Submit) => Act::StartChat,

@@ -11,6 +11,7 @@ use temper_client_protocol_wire::{source, v1 as w};
 #[expect(clippy::partial_pub_fields, reason = "settings is a public read; request state belongs to this page")]
 pub struct Home {
     pub settings: Handle,
+    pub add: Option<AddSheet>,
     skip: Option<Key>,
     skipped: bool,
     skip_refused: bool,
@@ -19,6 +20,7 @@ pub struct Home {
 impl Home {
     pub(super) fn new(number: u64, out: &mut Queue<Request>) -> Self {
         let home = Self {
+            add: None,
             settings: Handle { asker: Owner::Pages.asker(), number },
             skip: None,
             skipped: false,
@@ -47,10 +49,23 @@ impl Home {
     }
     pub(super) fn told(&mut self, told: &Told, limits: forge::Limits) -> bool {
         match told {
-            Told::Answered { key, .. } => {
+            Told::Answered { key, outcome } => {
                 for index in 0..self.copies.len() {
                     if self.copies.get(index) == Some(key) {
                         self.copies.swap_remove(index).expect("held copy key");
+                        if let Some(sheet) = &mut self.add
+                            && sheet.out.is_some()
+                        {
+                            if let Err(refused) = add_answer(outcome, limits) {
+                                sheet.refused = Some(refused);
+                            }
+                            if self.copies.is_empty() {
+                                sheet.out = None;
+                                if sheet.refused.is_none() {
+                                    self.add = None;
+                                }
+                            }
+                        }
                         return true;
                     }
                 }
@@ -110,6 +125,113 @@ impl Home {
         }
         false
     }
+}
+
+/// The repository sheet belongs to this Home (client/README.md, 3.5).
+#[derive(Debug, PartialEq, Eq)]
+pub struct AddSheet {
+    pub start: forge::forges::Start,
+    pub org: Box<[u8]>,
+    pub name: Box<[u8]>,
+    pub addresses: Box<[u8]>,
+    pub refused: Option<AddRefused>,
+    pub out: Option<Key>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AddField {
+    Org,
+    Name,
+    Addresses,
+}
+#[derive(Debug, PartialEq, Eq)]
+pub enum AddRefused {
+    Blank,
+    Copies(forge::making::CopiesRefused),
+    Invalid(forge::making::Refused),
+    Make(w::MakeRefusal),
+    Unknown,
+}
+impl AddSheet {
+    pub(super) fn new(start: forge::forges::Start) -> Self {
+        Self {
+            start,
+            org: b"work".as_slice().into(),
+            name: b"hello".as_slice().into(),
+            addresses: Box::default(),
+            refused: None,
+            out: None,
+        }
+    }
+    pub(super) fn write(&mut self, field: AddField, words: Box<[u8]>, limits: forge::Limits) {
+        if self.out.is_some() || words.len() > usize::try_from(limits.field_bytes).expect("field bound fits") {
+            return;
+        }
+        match field {
+            AddField::Org => self.org = words,
+            AddField::Name => self.name = words,
+            AddField::Addresses => self.addresses = words,
+        }
+        self.refused = None;
+    }
+    pub(super) fn requests(&self, forge: u16, project: u32) -> Result<List<w::MakeRepository>, AddRefused> {
+        use forge::{forges::Start, making};
+        let mut requests = List::uncapped();
+        match self.start {
+            Start::Empty => {
+                let org = self.org.trim_ascii();
+                let name = self.name.trim_ascii();
+                if org.is_empty() || name.is_empty() {
+                    return Err(AddRefused::Blank);
+                }
+                let into = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: true })
+                    .expect("project into fits");
+                let request = match making::ask(forge, org, name, None, Some(into)) {
+                    Ok(request) => request,
+                    Err(why) => return Err(AddRefused::Invalid(why)),
+                };
+                requests.push(request).expect("one empty repository");
+            }
+            Start::Copies => {
+                let addresses = match making::parse_copies(&self.addresses) {
+                    Ok(addresses) => addresses,
+                    Err(why) => return Err(AddRefused::Copies(why)),
+                };
+                for address in &addresses {
+                    let Some((org, name)) = making::target(address) else { return Err(AddRefused::Unknown) };
+                    let into = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: requests.is_empty() })
+                        .expect("project into fits");
+                    let request = match making::ask(forge, &org, &name, Some(address), Some(into)) {
+                        Ok(request) => request,
+                        Err(why) => return Err(AddRefused::Invalid(why)),
+                    };
+                    requests.push(request).expect("admitted copies");
+                }
+            }
+            Start::Nothing => return Err(AddRefused::Unknown),
+        }
+        Ok(requests)
+    }
+}
+fn add_answer(outcome: &jig_client::Outcome, limits: forge::Limits) -> Result<(), AddRefused> {
+    use temper_client_protocol_wire as wire;
+    if let jig_client::Outcome::Answered(jig_client::Answered::Family(record)) = outcome
+        && record.family == wire::FORGE
+        && record.version == wire::CLIENT_VERSION
+        && let Some(bounds) = forge::wire_limits(&limits)
+    {
+        let mut reader = skein_lib::Reader::new(&record.bytes);
+        if let Ok(answer) = w::Answer::decode(&bounds, &mut reader)
+            && reader.is_empty()
+        {
+            if answer.outcome() == &w::Outcome::MakeKept {
+                return Ok(());
+            }
+            if let w::Outcome::MakeRefused(refused) = answer.outcome() {
+                return Err(AddRefused::Make(refused.why().clone()));
+            }
+        }
+    }
+    Err(AddRefused::Unknown)
 }
 
 /// What needs the person in this project (temper/docs/design/client/README.md, 3.5, Home).
@@ -173,6 +295,9 @@ pub enum Repository {
     GitHub {
         account: Option<Box<[u8]>>,
     },
+    Add {
+        forge: u16,
+    },
     None,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -184,6 +309,7 @@ pub struct CopyLine {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CopyState {
     Running { host: Box<[u8]> },
+    Making,
     Waiting,
     Adopting,
     In,
@@ -206,6 +332,7 @@ impl Facts {
             | Repository::Adopting(_)
             | Repository::Offer { .. }
             | Repository::GitHub { .. }
+            | Repository::Add { .. }
             | Repository::None => true,
         };
         u8::from(!self.configured)
@@ -313,7 +440,45 @@ fn repository(root: &Domain, project: u32) -> Repository {
             return Repository::GitHub { account };
         }
     }
-    Repository::None
+    match add_forge(root.forges(), forge::connect::playground(root.forge())) {
+        Some(forge) => Repository::Add { forge },
+        None => Repository::None,
+    }
+}
+
+pub(super) fn can_add(state: &forge::forges::State, project: u32) -> bool {
+    if forge::listed::held(state, None, project) != forge::listed::Held::None
+        || forge::listed::unadopted_first(state).is_some()
+        || copy_repository(state, None, project).is_some()
+    {
+        return false;
+    }
+    for row in &forge::listed::rows(state, None) {
+        if row.kind == forge::forges::Kind::GitHub
+            && let forge::forges::Connection::Connected { .. } = row.connection
+        {
+            return false;
+        }
+    }
+    add_forge(state, None).is_some()
+}
+
+pub(super) fn add_forge(state: &forge::forges::State, playground: Option<u16>) -> Option<u16> {
+    use forge::forges::{Connection, Kind, Mode};
+    let mut found = None;
+    for row in &forge::listed::rows(state, playground) {
+        if row.kind == Kind::Forgejo
+            && (row.mode == Mode::Owned || row.mode == Mode::Managed)
+            && let Connection::Connected { .. } = row.connection
+            && match found {
+                Some(number) => row.number < number,
+                None => true,
+            }
+        {
+            found = Some(row.number);
+        }
+    }
+    found
 }
 
 /// The making rows take precedence over held repositories (client/README.md, 3.5, Home).
@@ -419,14 +584,19 @@ fn copy_repository(state: &forge::forges::State, playground: Option<u16>, projec
 }
 fn copy_line(making: &forge::making::Making) -> CopyLine {
     let state = match &making.state {
-        w::MakingState::Waiting => CopyState::Waiting,
+        w::MakingState::Waiting => match making.from {
+            w::MakeFrom::Empty => CopyState::Making,
+            w::MakeFrom::Copy(_) => CopyState::Waiting,
+        },
         w::MakingState::Making => {
             let host = match &making.from {
                 w::MakeFrom::Copy(copy) => match source::parse(copy.address()) {
                     Ok(source) => source.host.into(),
                     Err(_) => b"?".as_slice().into(),
                 },
-                w::MakeFrom::Empty => Box::default(),
+                w::MakeFrom::Empty => {
+                    return CopyLine { org: making.org.clone(), name: making.name.clone(), state: CopyState::Making };
+                }
             };
             CopyState::Running { host }
         }

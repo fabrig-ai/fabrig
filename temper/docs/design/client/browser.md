@@ -1166,6 +1166,9 @@ from the engine's own answers, is where the look is tuned.
 | `home-copied` | hand-made Home deliveries: both copies adopted, with their source names and the Forgejo explanation |
 | `home-copy-one` | hand-made Home deliveries: one copy adopted, with its singular explanation |
 | `home-copy-offer` | hand-made Home deliveries: both addresses left unasked after a restart, with one filled Copy act |
+| `home-add-repository` | hand-made Home deliveries: connected owned Forgejo with no first repository; Make, Copy and Adopt another |
+| `home-add-repository-sheet` | those deliveries with Make an empty one pressed; the repository sheet open on Home |
+| `home-add-repository-copies` | the same Home sheet opened at Copy a public one, with its addresses |
 | `home-refused` | hand-made Home deliveries: first adoption refused; its words and retry acts |
 | `home-no-repository` | hand-made Home deliveries: no repository or first offer |
 | `home-after-skip` | hand-made Home deliveries: To begin skipped with steps left; plain Home with empty Needs you and Chats |

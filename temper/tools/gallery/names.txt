@@ -19,6 +19,9 @@ home-copy-failed
 home-copied
 home-copy-one
 home-copy-offer
+home-add-repository
+home-add-repository-sheet
+home-add-repository-copies
 home-refused
 home-no-repository
 home-after-skip

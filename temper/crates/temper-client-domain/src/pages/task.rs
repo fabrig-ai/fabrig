@@ -412,6 +412,11 @@ impl Task {
             | Act::MakeDefault
             | Act::AdoptFirst
             | Act::CopyAgain { .. }
+            | Act::AddOpen { .. }
+            | Act::AddChoose { .. }
+            | Act::AddWrite { .. }
+            | Act::AddClose
+            | Act::AddSubmit
             | Act::CopyOffered
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
@@ -448,6 +453,7 @@ impl Task {
         }
     }
     /// The task page's amendment acts (client/README.md, 5.11).
+    #[expect(clippy::too_many_lines, reason = "the exhaustive routing arms include Home’s repository sheet acts")]
     pub(crate) fn amend(
         &mut self,
         env: &Env<Limits>,
@@ -519,6 +525,11 @@ impl Task {
             Act::MakeDefault
             | Act::AdoptFirst
             | Act::CopyAgain { .. }
+            | Act::AddOpen { .. }
+            | Act::AddChoose { .. }
+            | Act::AddWrite { .. }
+            | Act::AddClose
+            | Act::AddSubmit
             | Act::CopyOffered
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
