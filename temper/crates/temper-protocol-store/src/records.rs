@@ -14,6 +14,7 @@ mod entries;
 mod forges;
 mod issues;
 mod landing;
+mod landing_log;
 mod making;
 mod names;
 mod settings;
@@ -29,6 +30,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Making(row) => w::Value::Making(making::encode(row)),
         d::Stored::Setting(row) => w::Value::Setting(settings::encode(row)),
         d::Stored::Tier(row) => w::Value::Tier(Box::new(tiers::encode(row))),
+        d::Stored::LandingLog(row) => w::Value::LandingLog(landing_log::encode(row)),
         d::Stored::Verification(row) => w::Value::Verification(verification::encode(row)),
         d::Stored::Forge(row) => w::Value::Forge(forges::encode(row)),
         d::Stored::ForgeNumber { last } => {
@@ -88,6 +90,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Making(row) => d::Stored::Making(making::decode(row)),
         w::Value::Setting(row) => d::Stored::Setting(settings::decode(row, bounds)?),
         w::Value::Tier(row) => d::Stored::Tier(tiers::decode(*row)?),
+        w::Value::LandingLog(row) => d::Stored::LandingLog(landing_log::decode(row)),
         w::Value::Verification(row) => d::Stored::Verification(verification::decode(row)?),
         w::Value::Forge(row) => d::Stored::Forge(forges::decode(row)),
         w::Value::ForgeNumber(row) => {
@@ -256,6 +259,9 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         tier_record_flakes: forge.tiers.failing_tests,
         tier_flake_test: forge.tiers.test_id_bytes,
         tier_tests_tests: forge.tiers.failing_tests,
+        landing_log_landings: forge.landings_kept,
+        logged_landing_changes: forge.landing_members,
+        logged_landing_branch: forge.name_bytes,
         verification_changes: forge.changes,
         verification_tiers: forge.tiers.tiers,
         tier_verification_tier: 32,

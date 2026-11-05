@@ -447,6 +447,7 @@ fn the_tab_bar_is_four_either_way() {
 fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
     let addresses = [
         Address::Home { project: f::PROJECT },
+        Address::Changes { project: f::PROJECT },
         Address::Goals { project: f::PROJECT, filter: GoalsFilter::All },
         Address::Inbox { filter: d::address::Filter::ALL },
         Address::Chats { filter: ChatsFilter::All, start: false },
@@ -490,6 +491,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     Address::Home { .. } => Some(b"Home".as_slice()),
                     Address::Inbox { .. } => Some(needs),
                     Address::Chats { .. } | Address::Chat { .. } => Some(b"Chats".as_slice()),
+                    Address::Changes { .. } => Some(b"Changes".as_slice()),
                     Address::Settings { .. } | Address::Configure { .. } => Some(b"Settings".as_slice()),
                     Address::Goals { .. } => Some(b"Goals".as_slice()),
                     Address::Task { .. }
@@ -515,22 +517,31 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     let links = children(styled(view.tree(), style));
                     let goals = root.pages().goals().is_some();
                     let expected = if goals {
-                        vec![b"Home".as_slice(), needs, b"Goals", b"Chats"]
+                        if style == look::TABBAR {
+                            vec![b"Home".as_slice(), needs, b"Goals", b"Chats"]
+                        } else {
+                            vec![b"Home".as_slice(), needs, b"Goals", b"Chats", b"Changes"]
+                        }
                     } else if style == look::TABBAR {
                         vec![b"Home".as_slice(), needs, b"Chats", b"Settings"]
                     } else {
-                        vec![b"Home".as_slice(), needs, b"Chats"]
+                        vec![b"Home".as_slice(), needs, b"Chats", b"Changes"]
                     };
                     assert_eq!(links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(), expected);
                     let ids = links
                         .iter()
                         .map(|n| (n.id, n.name.clone(), n.states.as_slice().contains(&State::Current)))
                         .collect::<Vec<_>>();
-                    let hrefs = if goals {
-                        [b"/projects/1".as_slice(), b"/", b"/projects/1/goals", b"/chats"]
+                    let mut hrefs = if goals {
+                        vec![b"/projects/1".as_slice(), b"/", b"/projects/1/goals", b"/chats"]
                     } else {
-                        [b"/projects/1".as_slice(), b"/", b"/chats", b"/projects/1/settings"]
+                        vec![b"/projects/1".as_slice(), b"/", b"/chats"]
                     };
+                    if style == look::RAIL_NAV {
+                        hrefs.push(b"/projects/1/changes");
+                    } else if !goals {
+                        hrefs.push(b"/projects/1/settings");
+                    }
                     for ((id, name, marked), href) in ids.into_iter().zip(hrefs) {
                         assert_eq!(marked, name.as_deref() == current && current.is_some());
                         assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
@@ -708,7 +719,8 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
     skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
     let text = String::from_utf8_lossy(print.text.as_slice());
     assert_eq!(text.lines().next(), Some("== Inbox == Offline; Behind"));
-    for line in ["[7] Home", "[8] Needs you (current)", "[9] Chats", "[10] + New chat", "[11] Settings"] {
+    for line in ["[7] Home", "[8] Needs you (current)", "[9] Chats", "[10] Changes", "[11] + New chat", "[12] Settings"]
+    {
         assert!(text.lines().any(|s| s.trim() == line), "{line}: {text}");
     }
     assert!(!text.contains("Sections:"));

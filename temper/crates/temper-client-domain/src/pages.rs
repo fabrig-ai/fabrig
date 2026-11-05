@@ -9,6 +9,7 @@ use jig_client::{
 use skein_lib::{Env, Queue, Time};
 pub mod accounts;
 mod activity;
+pub mod changes;
 pub mod chat;
 pub mod chats;
 pub mod choice;
@@ -36,6 +37,7 @@ pub struct Pages {
     shown: u64,
     pub(crate) inbox: Option<inbox::Inbox>,
     pub home: Option<home::Home>,
+    changes: Option<changes::Changes>,
     chats: Option<chats::Chats>,
     goals: Option<goals::Goals>,
     has_goals: goals::HasGoals,
@@ -195,6 +197,7 @@ impl Pages {
             shown: 0,
             inbox: None,
             home: None,
+            changes: None,
             chats: None,
             goals: None,
             has_goals: goals::HasGoals::new(),
@@ -310,6 +313,10 @@ impl Pages {
     #[must_use]
     pub const fn home(&self) -> Option<&home::Home> {
         self.home.as_ref()
+    }
+    #[must_use]
+    pub const fn changes(&self) -> Option<&changes::Changes> {
+        self.changes.as_ref()
     }
     #[must_use]
     pub const fn chats(&self) -> Option<&chats::Chats> {
@@ -428,6 +435,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.switcher.close();
             if let Some(inbox) = pages.inbox.take() {
                 pages.next = pages.next.max(inbox.leave(out));
+            }
+            if let Some(changes) = pages.changes.take() {
+                changes.leave(out);
+                pages.next = pages.next.max(changes.next());
             }
             if let Some(home) = pages.home.take() {
                 home.leave(out);
@@ -552,6 +563,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                     out.push(Request::Show { address: Address::Goals { project, filter: crate::GoalsFilter::All } });
                 }
                 Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
+                Address::Changes { .. } => out.push(Request::Show { address: Address::Changes { project } }),
                 Address::Settings { .. } => out.push(Request::Show { address: Address::Settings { project } }),
                 Address::Configure { .. } => out.push(Request::Show { address: Address::Configure { project } }),
                 Address::Inbox { .. }
@@ -610,6 +622,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if pages.has_goals.told(&told) {
+        return true;
+    }
+    if let Some(changes) = &mut pages.changes
+        && changes.told(&told, client, env.limits.forge, out)
+    {
         return true;
     }
     if let Some(home) = &mut pages.home
@@ -747,6 +764,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         return;
     }
     if (!pages.accounts_open
+        && pages.changes.is_none()
         && pages.home.is_none()
         && pages.inbox.is_none()
         && pages.chats.is_none()
@@ -779,6 +797,10 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Address::Welcome { .. } = address {
             pages.welcome = Some(welcome::Welcome::new());
         }
+        if let Some(changes) = pages.changes.take() {
+            changes.leave(out);
+            pages.next = pages.next.max(changes.next());
+        }
         if let Some(home) = pages.home.take() {
             home.leave(out);
         }
@@ -804,6 +826,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         if let Address::Chat { task } = address {
             pages.chat = Some(chat::Chat::new(task, pages.next, &env.limits, out));
+        }
+        if let Address::Changes { project } = address {
+            pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
         }
         if let Address::Home { project } = address {
             pages.home = Some(home::Home::new(pages.next, out));
@@ -850,6 +875,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Task { .. }
             | Address::Goals { .. }
             | Address::Home { .. }
+            | Address::Changes { .. }
             | Address::Settings { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. } => None,
@@ -1092,6 +1118,7 @@ fn address_project(address: &Address) -> Option<u32> {
     match address {
         Address::Home { project }
         | Address::Goals { project, .. }
+        | Address::Changes { project }
         | Address::Settings { project }
         | Address::Configure { project } => Some(*project),
         Address::Inbox { .. }
@@ -1293,6 +1320,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Task { .. }
         | Address::Goals { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => return,

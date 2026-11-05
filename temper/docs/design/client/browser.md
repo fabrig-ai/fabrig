@@ -230,6 +230,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   |---|---|
   | `Inbox { filter }` | `/`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
+  | `Changes { project }` | `/projects/<project>/changes` |
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
@@ -246,7 +247,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 
   `<task>` and `<project>` are the task's and the project's numbers in
   decimal. A later page's path comes with it, in this shape
-  (`/projects/<project>/changes`). The
+  (`/projects/<project>/board`). The
   public pages' paths, under `/public`, are section 8's.
 - **The inbox's filter is its query:** the fields it sets, in one
   order, `?project=<project>&kind=<kind>&goal=<goal>`, and none with

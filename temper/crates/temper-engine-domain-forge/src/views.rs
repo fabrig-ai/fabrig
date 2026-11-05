@@ -5,6 +5,14 @@ use core::mem::size_of_val;
 use jig_domain_people::ApplicationScope;
 use skein_lib::List;
 use temper_engine_domain_forge_landing as policy;
+mod changes;
+pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView};
+
+/// A project changes subject lies outside task and landing list subjects.
+#[must_use]
+pub fn changes_subject(project: u32) -> u64 {
+    (1 << 62) | (1 << 33) | u64::from(project)
+}
 
 /// A project list subject lies outside the task number space.
 #[must_use]
@@ -20,6 +28,7 @@ pub enum Document {
     Change(Panel),
     Landing(LandingView),
     Landings(LandingsView),
+    Changes(ChangesView),
     Dismissals(Box<[Dismissal]>),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
@@ -104,6 +113,9 @@ impl Domain {
             if subject == landings_subject(project, ended) {
                 return Some(Document::Landings(self.landings_view(project, ended)?));
             }
+        }
+        if subject == changes_subject(project) {
+            return Some(Document::Changes(self.changes_view(project, now, limits)?));
         }
         if let Some(row) = self.landing.rows.get(&subject) {
             if row.landing.project != project {
@@ -308,6 +320,24 @@ impl Document {
     pub fn owned_bytes(&self) -> usize {
         let mut size = size_of::<Self>();
         match self {
+            Self::Changes(view) => {
+                size = size
+                    .saturating_add(view.landing.len())
+                    .saturating_add(size_of_val(view.queues.as_ref()))
+                    .saturating_add(size_of_val(view.landed.as_ref()));
+                for queue in &view.queues {
+                    size = size
+                        .saturating_add(queue.repository.len())
+                        .saturating_add(queue.branch.len())
+                        .saturating_add(size_of_val(queue.changes.as_ref()));
+                    for change in &queue.changes {
+                        size = size.saturating_add(change.title.len());
+                    }
+                }
+                for change in &view.landed {
+                    size = size.saturating_add(change.title.len());
+                }
+            }
             Self::Dismissals(rows) => {
                 size = size.saturating_add(size_of_val(rows.as_ref()));
             }
@@ -368,4 +398,9 @@ fn phase_bytes(phase: &policy::Phase) -> usize {
         | policy::Phase::Landed
         | policy::Phase::Cancelled => 0,
     }
+}
+
+/// The adopted repository's project owns its changes document (domain/forge.md, 9).
+pub(crate) fn changes_mark(d: &Domain, repository: skein_forge::api::Repository) -> Option<u64> {
+    Some(changes_subject(d.repositories.get(&repository)?.project))
 }
