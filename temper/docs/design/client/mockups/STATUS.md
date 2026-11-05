@@ -285,7 +285,8 @@ What is not built here, though the main drawings show it:
 - A proposal's template and charter names (`me` has no charter names,
   and a proposed task names no template); a card's lineage beyond
   its own task (the inbox's `Card` carries no ancestry).
-- **Board** in the navigation is not built.
+- **Board** in the navigation: `../README.md`, 3.5 and 5.3 have the
+  project's Goals in its place, drawn from the greenfield mock.
 
 Other facts the comparison found absent:
 
