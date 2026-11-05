@@ -57,6 +57,15 @@ pub enum Word {
     NeedsFundsUsed,
     NeedsRelease,
     NeedsKindFunds,
+    HomeTwo,
+    HomeThree,
+    HomeFour,
+    HomeFive,
+    HomeSix,
+    HomeSeven,
+    HomeEight,
+    HomeNine,
+    HomeAnswerMany,
     HomeNeedsNone,
     HomeNeedsOne,
     HomeNeedsMany,
@@ -889,7 +898,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Needs count and toast add five phrases (client/README.md, 3.5).
 // Needs you adds sixteen phrases; its kinds add two (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
-const PHRASES: u32 = 1387;
+const PHRASES: u32 = 1396;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -904,8 +913,8 @@ const PHRASES: u32 = 1387;
 // Needs count and toast add eleven literal and hole segments (3.5).
 // Needs you adds thirty-four literal and hole segments; its kinds add six (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
-const SEGMENTS: u32 = 2396;
-const ALL: [Word; 791] = [
+const SEGMENTS: u32 = 2407;
+const ALL: [Word; 800] = [
     Word::ConfigureTitle,
     Word::ConfigureQuestion,
     Word::ConfigureLede,
@@ -951,6 +960,15 @@ const ALL: [Word; 791] = [
     Word::NeedsFundsUsed,
     Word::NeedsRelease,
     Word::NeedsKindFunds,
+    Word::HomeTwo,
+    Word::HomeThree,
+    Word::HomeFour,
+    Word::HomeFive,
+    Word::HomeSix,
+    Word::HomeSeven,
+    Word::HomeEight,
+    Word::HomeNine,
+    Word::HomeAnswerMany,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
     Word::HomeNeedsMany,
@@ -1747,6 +1765,15 @@ impl Word {
             Self::NeedsFundsUsed => 3232,
             Self::NeedsRelease => 3233,
             Self::NeedsKindFunds => 3231,
+            Self::HomeTwo => 3260,
+            Self::HomeThree => 3261,
+            Self::HomeFour => 3262,
+            Self::HomeFive => 3263,
+            Self::HomeSix => 3264,
+            Self::HomeSeven => 3265,
+            Self::HomeEight => 3266,
+            Self::HomeNine => 3267,
+            Self::HomeAnswerMany => 3268,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
             Self::HomeNeedsMany => 3147,
@@ -2551,7 +2578,7 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
         return Ok(temper_client_protocol_wire::CUE_BYTES);
     }
     // The phone link names the joined title, question and its colon (3.5).
-    if word == Word::HomeAnswerName {
+    if word == Word::HomeAnswerName && !last {
         return home_answer_bytes(joined);
     }
     if word == Word::SwitcherRow && last {
@@ -2721,7 +2748,7 @@ impl Words {
             // Needs count and toast add 87 literal bytes (3.5).
             // Needs you adds 225 literal bytes; its kinds add fifteen (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87 + 225 + 476 + 15,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87 + 225 + 476 + 15 + 54,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2829,9 +2856,18 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsFundsUsed => (&[b"", b" of ", b" used."], &[Number, Number]),
         Word::NeedsRelease => (&[b"Release"], &[]),
         Word::NeedsDone => (&[b"Every question is answered. Work carries on; Home tells you what changed."], &[]),
+        Word::HomeTwo => (&[b"Two"], &[]),
+        Word::HomeThree => (&[b"Three"], &[]),
+        Word::HomeFour => (&[b"Four"], &[]),
+        Word::HomeFive => (&[b"Five"], &[]),
+        Word::HomeSix => (&[b"Six"], &[]),
+        Word::HomeSeven => (&[b"Seven"], &[]),
+        Word::HomeEight => (&[b"Eight"], &[]),
+        Word::HomeNine => (&[b"Nine"], &[]),
+        Word::HomeAnswerMany => (&[b"Answer, one at a time"], &[]),
         Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
         Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),
-        Word::HomeNeedsMany => (&[b"", b" things need you."], &[Number]),
+        Word::HomeNeedsMany => (&[b"", b" things need you."], &[Name]),
         Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),
         Word::HomeNeedsCount => (&[b"Needs you \xc2\xb7 ", b""], &[Number]),
         Word::HomeNeedsEmpty => (&[b"Nothing needs you. Work carries on, and this page tells you what changed when you come back."], &[]),
@@ -2845,7 +2881,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeAllChatsName => (&[b"", b" chats"], &[Name]),
         Word::HomeAskLine => (&[b"", b": ", b""], &[Name, Name]),
         Word::HomeAnswer => (&[b"Answer"], &[]),
-        Word::HomeAnswerName => (&[b"", b" Answer"], &[Name]),
+        Word::HomeAnswerName => (&[b"", b" ", b""], &[Name, Name]),
         Word::HomeChatName => (&[b"", b", ", b", ", b""], &[Name, Name, Name]),
         Word::HomeWaiting => (&[b"waiting on you"], &[]),
         Word::HomeClosed => (&[b"closed"], &[]),

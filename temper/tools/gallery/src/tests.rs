@@ -42,8 +42,22 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
             {
                 let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
                 assert!(matches!(reset.name.as_deref(), Some(b"set up temper" | b"Set up temper")));
+            } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Needs(
+                temper_client_domain::pages::needs::Act::Open { object },
+            ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
+            {
+                assert!(sample.name.starts_with("home-"));
+                assert!(
+                    samples::domain(&sample)
+                        .pages()
+                        .inbox()
+                        .expect("Home inbox")
+                        .cards
+                        .iter()
+                        .any(|card| card.object == object)
+                );
             } else {
-                panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
+                panic!("{}: link {node:?} has neither a destination nor its action", sample.name);
             }
         }
     }
@@ -237,13 +251,19 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "home-needs-several",
-        heading: "3 things need you.",
+        heading: "Three things need you.",
         parts: &[
             Part::Named { role: Role::Link, name: "Needs you 3" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Named { role: Role::Link, name: "Answer in a row" },
-            Part::Named { role: Role::Link, name: "Hello in Rust · a question · 4 min" },
-            Part::Named { role: Role::Link, name: "What is in this repository? · a question · 4 min" },
+            Part::Named {
+                role: Role::Link,
+                name: "The repository has no license. Name one in the README? · a question · 4 min",
+            },
+            Part::Named {
+                role: Role::Link,
+                name: "The repository has no license. Name one in the README? · a question · 4 min",
+            },
             Part::Named { role: Role::Link, name: "All 3 chats" },
         ],
     },
@@ -347,6 +367,46 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "temper’s App reaches its repositories on sam." },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-morning-card",
+        heading: "Three things need you.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+            },
+            Part::Named { role: Role::Button, name: "In jig’s store" },
+            Part::Named { role: Role::Disclosure, name: "What the agent saw" },
+            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Named { role: Role::Button, name: "Later" },
+        ],
+    },
+    Holds {
+        name: "home-answered",
+        heading: "Two things need you.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "In jig’s store" },
+            Part::Named { role: Role::Button, name: "Undo" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+            },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 2" },
+        ],
+    },
+    Holds {
+        name: "home-one-need",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "MIT" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named {
+                role: Role::Link,
+                name: "Add a README: The repository has no license. Name one in the README? Answer",
+            },
+            Part::Absent { role: Role::Link, name: "Answer in a row" },
         ],
     },
     Holds {

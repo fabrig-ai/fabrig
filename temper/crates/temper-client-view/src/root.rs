@@ -235,7 +235,15 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut times,
         );
     } else if let temper_client_domain::Address::Home { project } = root.pages().address() {
-        crate::pages::home::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
+        crate::pages::home::main(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            *project,
+            &mut times,
+            view.rows,
+        );
     } else if let temper_client_domain::Address::Configure { project } = root.pages().address() {
         crate::pages::configure::main(
             &mut builder,
