@@ -610,6 +610,36 @@ impl Throwaway {
         serde_json::from_slice(&response.body).expect("elsewhere JSON")
     }
 
+    /// Repositories outside the bot's organizations, before the managed deployment starts.
+    pub fn adoption_repositories(&self) {
+        let token = &self.instance.admin().token;
+        request(&self.instance, token, "POST", "/api/v1/orgs", &json!({"username":"other","visibility":"public"}), 201);
+        for (name, private) in [("open", false), ("closed", true)] {
+            request(
+                &self.instance,
+                token,
+                "POST",
+                "/api/v1/orgs/other/repos",
+                &json!({"name":name,"auto_init":true,"default_branch":"main","private":private}),
+                201,
+            );
+        }
+    }
+
+    /// Remove access outside temper so the restart must repair it.
+    pub fn remove_adoption_collaborator(&self, name: &str) {
+        let response = self
+            .instance
+            .exchange(&Outgoing::json(
+                "DELETE",
+                &format!("/api/v1/repos/other/{name}/collaborators/elsewhere-bot"),
+                Some(&self.instance.admin().token),
+                b"null",
+            ))
+            .expect("remove collaborator answer");
+        assert_eq!(response.status, 204, "remove adoption collaborator");
+    }
+
     /// Keeps the forge's pull, branch and comparison evidence when an update stalls.
     pub fn pull_update_failure(&self, base: Option<&str>) {
         eprintln!("stalled update: style=rebase, requested base={base:?}");

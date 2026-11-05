@@ -879,7 +879,7 @@ pub struct ChangeRow {
     /// The foreman's charter captured when made (domain/forge.md, 8.11).
     pub foreman_charter: u32,
     pub effect_account: Option<EffectAccount>,
-    /// Producer failure words retained within the hold account bound (domain/forge.md, 8.4).
+    /// Words of the hold its delegate's end made, within the hold account bound (domain/forge.md, 8.4).
     pub producer_failure: Option<Box<[u8]>>,
     /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
     pub report: Box<[u8]>,
@@ -1423,6 +1423,11 @@ pub enum Event {
         request: Token,
         answer: ConnectAnswer,
     },
+    AccessAnswered {
+        forge: u16,
+        request: Token,
+        answer: Result<(), AdoptionRefusal>,
+    },
     ReachableAnswered {
         forge: u16,
         request: Token,
@@ -1896,6 +1901,12 @@ pub enum Request {
         forge: u16,
         request: Token,
         back: Option<Box<[u8]>>,
+    },
+    AdoptAccess {
+        forge: u16,
+        request: Token,
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
     },
     Reachable {
         forge: u16,

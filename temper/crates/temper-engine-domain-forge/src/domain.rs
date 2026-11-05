@@ -1223,6 +1223,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::ConnectAnswered { forge, request, answer } => crate::connect::connected(d, forge, request, answer, out),
+        Event::AccessAnswered { forge: _, request, answer } => adoption::accessed(d, env, request, answer, out),
         Event::ReachableAnswered { forge, request, answer } => crate::connect::reached(d, forge, request, answer, out),
         Event::AcceptAnswered { forge, request, answer, stopped } => {
             crate::connect::accepted(d, forge, request, answer, stopped, out);
@@ -2831,11 +2832,41 @@ fn delegate_result(
         ),
         change::Delegate::Resolve { .. } => {}
     }
+    if cancelled {
+        row.producer_failure = cancelled_delegate_words(kind, child, words);
+    }
     let saved = row.clone();
     if kind == change::Delegate::Produce && status == change::Status::Failed {
         d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     }
     save_change(d, out, saved);
+}
+
+/// A delegate's cancellation account (temper/docs/design/domain/forge.md, 8.4).
+fn cancelled_delegate_words(kind: change::Delegate, child: u64, words: &[u8]) -> Option<Box<[u8]>> {
+    let name: &[u8] = match kind {
+        change::Delegate::Produce => b"producer",
+        change::Delegate::Repair(_) => b"repair",
+        change::Delegate::Resolve { .. } => b"resolution",
+        change::Delegate::Merge { .. } => b"merge job",
+        change::Delegate::Gate { .. } => return None,
+    };
+    let number = skein_lib::Decimal::of(child);
+    let separator: &[u8] = if words.is_empty() { b"" } else { b": " };
+    let parts = [b"its ".as_slice(), name, b", task ", number.as_bytes(), b", was cancelled", separator, words];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded cancellation account");
+    }
+    let mut account = skein_lib::Writer::new(length);
+    for part in parts {
+        account.put(part).expect("measured cancellation account");
+    }
+    Some(crate::text::fit(
+        &account.finish(),
+        usize::try_from(jig_domain_tasks::HOLD_ACCOUNT_BYTES).expect("bounded hold account"),
+        b"...",
+    ))
 }
 
 fn completed_merge(row: &mut ChangeRow, status: change::Status, words: &[u8], kind: Option<(u32, u32)>) {

@@ -1484,6 +1484,13 @@ impl World {
                     },
                     _ => {}
                 },
+                engine::Request::AdoptAccess { forge, request, .. } => {
+                    self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::AccessAnswered {
+                        forge,
+                        request,
+                        answer: Ok(()),
+                    })));
+                }
                 engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }

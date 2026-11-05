@@ -58,6 +58,9 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         root::Request::Manifest { forge, request, back } => {
             crate::setup::public::manifest(engine, forge, request, back);
         }
+        root::Request::AdoptAccess { forge, request, owner, name } => {
+            crate::setup::public::adopt_access(engine, forge, request, owner, name);
+        }
         root::Request::Reachable { forge, request, installation, page } => {
             crate::setup::public::reachable(engine, forge, request, installation, page);
         }

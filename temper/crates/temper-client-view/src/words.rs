@@ -1184,7 +1184,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1674;
+const PHRASES: u32 = 1676;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1201,7 +1201,7 @@ const PHRASES: u32 = 1674;
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
-const SEGMENTS: u32 = 2906;
+const SEGMENTS: u32 = 2912;
 const ALL: [Word; 1077] = [
     Word::StartGoalTitle,
     Word::StartGoalFrom,

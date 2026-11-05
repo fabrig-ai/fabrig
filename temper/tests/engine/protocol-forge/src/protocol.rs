@@ -526,6 +526,7 @@ impl Protocol {
                 | top::Request::Connect { .. }
                 | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
+                | top::Request::AdoptAccess { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }
