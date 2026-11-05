@@ -11,7 +11,7 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); seven of its artifact facts are unchecked at the
 pinned Forgejo (`forge.md`), as are a copy's facts, one of them not
 recorded at all, and no fact records a site admin's read of a repository
-by its path (`forge-setup.md`); the fake Forgejo leaves no repository
+by its path (`forge-setup.md`), nor a comparison's `removed` (`forge.md`); the fake Forgejo leaves no repository
 at a refused copy, asks a delete the wrong scope and answers a read by
 path `403` to a caller with no grant, a public repository's too, and the
 fake GitHub refuses no push as `GH013` (`fake-forge.md`).
@@ -22,7 +22,9 @@ suite's logins have no design (`skein-live`), five of its provider
 stories being manual, run by the owner (`llm.md`). Most carriers still
 print the bytes they hold, credentials among them on known paths
 (`lib.md`, `oauth.md`), as does a server's written head (`http.md`). The code departs
-in `skein-playground`'s manifest (`playground.md`).
+in `skein-playground`'s manifest (`playground.md`). An owner may ask a call
+to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
+fake LLM peer to keep what it read (`fake-llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
 `browser.md` have no gap. The state machines of io's file store and
