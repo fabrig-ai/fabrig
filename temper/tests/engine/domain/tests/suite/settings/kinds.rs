@@ -746,3 +746,50 @@ fn a_proposal_of_a_projects_ways_is_kept_then_accepted() {
     assert_eq!(kept(&driver, 7, 1, 1, settings::SettingSlot::Change), Some(&proposed));
     assert_eq!(kept(&driver, 7, 1, 1, settings::SettingSlot::Proposal(key)), None);
 }
+
+#[test]
+fn a_project_member_reads_its_kinds_at_their_revisions() {
+    use temper_engine_domain_forge_change::Route;
+    let mut driver = kinds::driver();
+    let earlier = [settings::Value::Rule(rule()), settings::Value::Questions(Route::Foreman), project_ways()];
+    let later = [
+        settings::Value::Rule(settings::LandingRule { ci: true, ..rule() }),
+        settings::Value::Questions(Route::Up),
+        settings::Value::Ways(settings::ProjectWays {
+            drafts: false,
+            goals: false,
+            changes: true,
+            away: false,
+            way: 0,
+        }),
+    ];
+    for (key, values) in [(67, &earlier), (68, &later)] {
+        apply(
+            &mut driver,
+            key,
+            [2, 6, 7].into_iter().zip(values).map(|(kind, value)| kinds::item(kind, 1, 1, value)).collect(),
+        );
+    }
+    let member = project_member(&mut driver);
+    for (revision, values) in [(2, earlier), (3, later)] {
+        for (kind, value) in [2, 6, 7].into_iter().zip(values) {
+            const REPLY: ReplyTo = ReplyTo::new(Token::new(70));
+            driver.delivered.clear();
+            driver.send(engine::Event::Party(engine::PartyInput::ForgeRead {
+                reply: REPLY,
+                sign_in: member,
+                scope: people::ApplicationScope::Project(1),
+                query: engine::ForgeRead::RevisionSetting { kind, scope: 1, number: 1, revision },
+            }));
+            driver.settle();
+            assert!(
+                driver.delivered.iter().any(|delivery| matches!(delivery,
+                    Delivery::ForgeRead { reply: to, answer: engine::ForgeReadAnswer::Setting(Some(kept)) }
+                        if *to == REPLY && kept.value == value
+                )),
+                "kind {kind}, revision {revision}: {:?}",
+                driver.delivered
+            );
+        }
+    }
+}
