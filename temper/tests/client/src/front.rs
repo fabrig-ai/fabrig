@@ -884,22 +884,13 @@ impl Joint {
     ) -> Self {
         Self::with_engine_with_refused_hello(seed, limits, store, configs, engine_limits, slots, false)
     }
-    fn with_engine_with_refused_hello(
-        seed: u64,
-        limits: &client::Limits,
-        store: Store,
-        configs: [engine::Config; 2],
+    fn worker_hello(
+        config: &engine::Config,
         engine_limits: &engine::Limits,
         slots: u32,
         refuse_hello: bool,
-    ) -> Self {
-        let mut transport = Transport::new(jig_client::contract::VersionRange {
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
-        });
-        transport.models.clone_from(&configs[1].core.settings.models);
-        transport.providers = configs[1].core.settings.llm_providers.clone();
-        let worker_models = configs[1]
+    ) -> engine::Event {
+        let worker_models = config
             .core
             .settings
             .models
@@ -925,6 +916,24 @@ impl Joint {
             const UNCONFIGURED_WORKER: u32 = 7;
             *worker = UNCONFIGURED_WORKER;
         }
+        hello
+    }
+    fn with_engine_with_refused_hello(
+        seed: u64,
+        limits: &client::Limits,
+        store: Store,
+        configs: [engine::Config; 2],
+        engine_limits: &engine::Limits,
+        slots: u32,
+        refuse_hello: bool,
+    ) -> Self {
+        let mut transport = Transport::new(jig_client::contract::VersionRange {
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        });
+        transport.models.clone_from(&configs[1].core.settings.models);
+        transport.providers = configs[1].core.settings.llm_providers.clone();
+        let hello = Self::worker_hello(&configs[1], engine_limits, slots, refuse_hello);
         // protocol/configuration.md, 7: documents fit the client this world serves.
         // Smaller text projections still retain the full task spec and brief.
         let mut engine_limits = *engine_limits;
