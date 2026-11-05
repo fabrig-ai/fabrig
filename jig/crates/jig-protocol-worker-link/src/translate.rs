@@ -405,6 +405,7 @@ fn invalid_value(value: host::Invalid, limits: &wire::v9::Limits) -> Option<wire
                     cause: match cause {
                         host::StartCause::Other => wire::StartCause::Other,
                         host::StartCause::Grants => wire::StartCause::Grants,
+                        host::StartCause::Transcript => wire::StartCause::Transcript,
                     },
                 },
             )
@@ -439,6 +440,7 @@ fn run_failure(value: host::RunFailure, limits: &wire::v9::Limits) -> Option<wir
             .ok()?,
         ),
         host::RunFailure::Model => wire::RunFailure::Model,
+        host::RunFailure::Transcript => wire::RunFailure::Transcript,
         host::RunFailure::Budget => wire::RunFailure::Budget,
         host::RunFailure::Policy => wire::RunFailure::Policy,
         host::RunFailure::Cancelled => wire::RunFailure::Cancelled,

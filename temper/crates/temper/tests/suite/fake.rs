@@ -1213,6 +1213,7 @@ fn git_run() {
                 | GitCommand::DiffIndex { .. }
                 | GitCommand::WriteTree
                 | GitCommand::CommitTree { .. }
+                | GitCommand::Origin { .. }
                 | GitCommand::IsAncestor { .. } => {}
             }
             let at = dir.join(step.at);

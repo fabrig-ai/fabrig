@@ -179,8 +179,43 @@ pub(crate) fn parts(domain: &Domain, answer: &host::RunAnswer) -> (wire::Work, O
     let (work, preparation) = match &answer.ending {
         host::Ending::Refused(_) => (None, None),
         host::Ending::Ended { work, .. } | host::Ending::Parked { work } => (Some(work), None),
-        host::Ending::Failed { failure, work, .. } => (Some(work), Some(failure)),
+        host::Ending::Failed { failure, work, .. } => (
+            Some(work),
+            match failure {
+                host::Failure::Unprepared(preparation) => Some(*preparation),
+                host::Failure::Run(_) | host::Failure::Agent(_) | host::Failure::Cancelled(_) => None,
+            },
+        ),
     };
+    work_parts(domain, work, preparation)
+}
+
+/// Jobs name the same workspace resources as runs, including preparation failures.
+pub(crate) fn job_parts(domain: &Domain, answer: &host::JobEnding) -> (wire::Work, Option<wire::Preparation>) {
+    let (work, preparation) = match answer {
+        host::JobEnding::Refused(_) => (None, None),
+        host::JobEnding::Finished { work, .. } => (Some(work), None),
+        host::JobEnding::Failed { failure, work, .. } => (
+            Some(work),
+            match failure {
+                host::JobFailure::Unprepared(preparation) => Some(*preparation),
+                host::JobFailure::Failed
+                | host::JobFailure::Deadline
+                | host::JobFailure::Result
+                | host::JobFailure::Unstarted
+                | host::JobFailure::Undelivered(_)
+                | host::JobFailure::Cancelled(_) => None,
+            },
+        ),
+    };
+    work_parts(domain, work, preparation)
+}
+
+fn work_parts(
+    domain: &Domain,
+    work: Option<&host::Work>,
+    preparation: Option<host::Preparation>,
+) -> (wire::Work, Option<wire::Preparation>) {
     let mut landed = List::with_capacity(0);
     let mut saved = None;
     if let Some(work) = work {
@@ -197,14 +232,14 @@ pub(crate) fn parts(domain: &Domain, answer: &host::RunAnswer) -> (wire::Work, O
         }
     }
     let preparation = match preparation {
-        Some(host::Failure::Unprepared(host::Preparation::Permanent { resource: Some(resource) })) => {
-            let items = domain.items.get(resource).expect("a run's items live to its answer");
+        Some(host::Preparation::Permanent { resource: Some(resource) }) => {
+            let items = domain.items.get(&resource).expect("a run's items live to its answer");
             items.preparation
         }
-        Some(host::Failure::Unprepared(
-            host::Preparation::Transient | host::Preparation::Permanent { resource: None },
-        )) => Some(wire::Preparation::Transient),
-        Some(host::Failure::Run(_) | host::Failure::Agent(_) | host::Failure::Cancelled(_)) | None => None,
+        Some(host::Preparation::Transient | host::Preparation::Permanent { resource: None }) => {
+            Some(wire::Preparation::Transient)
+        }
+        None => None,
     };
     (wire::Work { landed: landed.into_boxed(), saved }, preparation)
 }

@@ -241,13 +241,13 @@ fn direct(source: &crate::settings::Forge) -> Option<core::net::SocketAddr> {
 }
 fn intent(first: Option<&domain::FirstIntent>) -> Option<lifecycle::Intent> {
     match first {
-        Some(first) => Some(lifecycle::Intent {
+        Some(domain::FirstIntent::Empty(first)) => Some(lifecycle::Intent {
             playground: first.playground,
             org: first.org.clone(),
             repository: first.repository.clone(),
             label: first.label.clone(),
         }),
-        None => None,
+        Some(domain::FirstIntent::Copies { .. } | domain::FirstIntent::Nothing) | None => None,
     }
 }
 

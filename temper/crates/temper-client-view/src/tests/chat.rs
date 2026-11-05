@@ -2206,6 +2206,43 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
     }
 }
 
+fn goals_navigation(root: &temper_client_domain::Domain, shown: bool) {
+    let view = fixtures::browser_page_view(root);
+    // The rail and the phone's tab bar follow the same Goals visibility.
+    for style in [crate::look::RAIL_NAV, crate::look::TABBAR] {
+        let mut at = None;
+        for (index, node) in view.tree().nodes().iter().enumerate() {
+            if node.styles.as_slice().contains(&style) {
+                at = Some(index);
+                break;
+            }
+        }
+        let children = subtree(view.tree(), at.unwrap());
+        let mut found = false;
+        for node in children {
+            found |= node.role == Role::Link && node.name.as_deref() == Some(b"Goals");
+        }
+        assert_eq!(found, shown);
+    }
+}
+#[test]
+fn goals_navigation_shows_when_the_setting_is_on() {
+    let root = fixtures::root_with_ways(
+        temper_client_domain::Address::Home { project: fixtures::PROJECT },
+        Some(temper_client_domain::forge::ways::Ways { goals: true, ..temper_client_domain::forge::ways::Ways::STOCK }),
+    );
+    goals_navigation(&root, true);
+}
+#[test]
+fn goals_navigation_hides_an_existing_goal_until_kind_seven_shows_it() {
+    let (mut root, me, _) = fixtures::root_at(
+        temper_client_domain::Address::Home { project: fixtures::PROJECT },
+        &fixtures::domain_limits(),
+    );
+    super::rail::with_goal_fact(&mut root, me, Some(true));
+    goals_navigation(&root, false);
+}
+
 #[test]
 fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_path() {
     use crate::look;

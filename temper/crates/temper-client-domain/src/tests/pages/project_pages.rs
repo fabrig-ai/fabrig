@@ -59,9 +59,12 @@ fn two_projects() -> c::Me {
 
 #[test]
 fn project_addresses_wait_until_me_lists_their_project() {
-    for address in
-        [Address::Home { project: OTHER }, Address::Settings { project: OTHER }, Address::Configure { project: OTHER }]
-    {
+    for address in [
+        Address::Home { project: OTHER },
+        Address::Settings { project: OTHER },
+        Address::Repositories { project: OTHER },
+        Address::Configure { project: OTHER },
+    ] {
         let mut f = fixture();
         event(&mut f, Event::Went { address });
         assert_eq!(f.pages.project(), None);
@@ -74,9 +77,12 @@ fn project_addresses_wait_until_me_lists_their_project() {
 
 #[test]
 fn going_to_project_pages_opens_the_named_project() {
-    for address in
-        [Address::Home { project: OTHER }, Address::Settings { project: OTHER }, Address::Configure { project: OTHER }]
-    {
+    for address in [
+        Address::Home { project: OTHER },
+        Address::Settings { project: OTHER },
+        Address::Repositories { project: OTHER },
+        Address::Configure { project: OTHER },
+    ] {
         let mut f = fixture();
         deliver(&mut f, two_projects());
         event(&mut f, Event::Went { address });
@@ -89,6 +95,7 @@ fn unlisted_project_addresses_keep_the_open_project() {
     for address in [
         Address::Home { project: UNKNOWN },
         Address::Settings { project: UNKNOWN },
+        Address::Repositories { project: UNKNOWN },
         Address::Configure { project: UNKNOWN },
     ] {
         let mut f = fixture();
@@ -134,6 +141,7 @@ fn project_pages_keep_the_switchers_rename_form() {
         Address::Home { project: fixtures::PROJECT },
         Address::Changes { project: fixtures::PROJECT },
         Address::Settings { project: fixtures::PROJECT },
+        Address::Repositories { project: fixtures::PROJECT },
         Address::Configure { project: fixtures::PROJECT },
     ] {
         let mut f = fixture();
@@ -147,4 +155,39 @@ fn project_pages_keep_the_switchers_rename_form() {
         assert_eq!(f.pages.switcher().renaming(), Some(fixtures::PROJECT));
         assert_eq!(f.pages.switcher().rename_words(), b"Changed");
     }
+}
+
+#[test]
+fn choosing_a_project_keeps_the_repositories_tab() {
+    let mut f = fixture();
+    deliver(&mut f, two_projects());
+    event(&mut f, Event::Went { address: Address::Repositories { project: fixtures::PROJECT } });
+    while f.out.pop().is_some() {}
+    event(&mut f, Event::Act { act: Act::Project { project: OTHER } });
+    assert_eq!(f.pages.project(), Some(OTHER));
+    assert_eq!(f.out.pop(), Some(Request::Show { address: Address::Repositories { project: OTHER } }));
+}
+
+#[test]
+fn choosing_a_project_stays_on_forges_and_accounts() {
+    for address in [Address::Forges, Address::Accounts] {
+        let mut f = fixture();
+        deliver(&mut f, two_projects());
+        event(&mut f, Event::Went { address: address.clone() });
+        while f.out.pop().is_some() {}
+        event(&mut f, Event::Act { act: Act::Project { project: OTHER } });
+        assert_eq!(f.pages.project(), Some(OTHER));
+        assert_eq!(f.pages.address(), &address);
+        assert!(f.out.is_empty());
+    }
+}
+#[test]
+fn choosing_a_project_keeps_the_builders_tab() {
+    let mut f = fixture();
+    deliver(&mut f, two_projects());
+    event(&mut f, Event::Went { address: Address::Builders { project: fixtures::PROJECT } });
+    while f.out.pop().is_some() {}
+    event(&mut f, Event::Act { act: Act::Project { project: OTHER } });
+    assert_eq!(f.pages.project(), Some(OTHER));
+    assert_eq!(f.out.pop(), Some(Request::Show { address: Address::Builders { project: OTHER } }));
 }

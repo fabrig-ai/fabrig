@@ -2,7 +2,6 @@ use super::fixtures;
 use crate::look;
 use jig_client::contract as c;
 use skein_ui::{Node, State, Tree};
-use temper_client_domain::PlanFilter;
 use temper_client_domain::{
     Address, Domain, Event,
     address::{Filter, Kind},
@@ -70,7 +69,7 @@ fn an_entry_naming_a_task_links_to_its_page_by_number() {
     assert_eq!(
         crate::act(&mut view, node, Act::Press),
         Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-            address: Address::Task { task: fixtures::INBOX_TASK, filter: PlanFilter::All }
+            address: Address::Task { task: fixtures::INBOX_TASK }
         }))
     );
 }
@@ -812,7 +811,7 @@ fn each_needs_you_card_offers_its_task_number_as_a_terminal_command() {
         assert_eq!(
             crate::act(&mut view, node, first),
             Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-                address: Address::Task { task: fixtures::INBOX_TASK, filter: PlanFilter::All },
+                address: Address::Task { task: fixtures::INBOX_TASK },
             },))
         );
     }

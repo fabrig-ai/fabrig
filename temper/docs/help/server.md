@@ -25,8 +25,7 @@ Run a long-lived deployment on a server: the engine behind a TLS proxy with Goog
 
 ## 1. Write the engine's configuration
 
-From `owned.json`, at `CONFIG/temper.json`, these members changed and
-the rest kept:
+At `CONFIG/temper.json`, keep `owned.json` but change:
 
 - `engine.hosts`: `{"workers": [{"name": "w1", "digest":
   "secrets/w1.digest"}], "listener": [{"socket": "127.0.0.1:8369"}]}`;
@@ -48,8 +47,7 @@ the rest kept:
   "CLIENT_ID", "secret": "secrets/google-client.secret", "endpoints":
   null}, "members": [{"address": "sam@example.com", "login": "sam"}]}`.
 
-Every owner of provider 3 is a member. Adding a member is a change of
-this file and a restart.
+Every owner of provider 3 is a member. To add one, edit this file and restart.
 
 To sign your people in to Forgejo through temper too, add
 `engine.clients.provider`: `{"key": "provider.key", "clients": [{"id":
@@ -63,17 +61,15 @@ and prints the Forgejo command to run once, after step 4:
 temper forge sign-in --config CONFIG --data DATA --cache CACHE 1
 ```
 
-`engine.memory_bytes`, 1 GiB (`1073741824`) in `owned.json`, is the
-engine's budget for the transcripts and turns it holds. While what it
-holds is at or past the figure, a task that comes due waits to start
-its run, and starts as earlier runs reach a worker and their turns are
-saved; after a restart, the tasks that were due start the same way. A
-person's reads, calls that start no run, and the turns of a run already
-started never wait for it. It never caps the process's memory, and a
-start refuses only `0`, as `engine.memory_bytes: past its bound`: a
-figure far above what the engine holds rarely binds, and a small one
-starts runs one at a time. A document from an older release keeps its
-figure; its workers' `memory_bytes` are read and unused.
+`engine.memory_bytes`, 1 GiB (`1073741824`) in `owned.json`, budgets
+held transcripts and turns. At or past it, due tasks wait to start runs
+until earlier runs reach a worker and their turns are saved; due tasks
+do the same after restart. People's reads, calls starting no run and
+started runs' turns never wait. It never caps process memory; a start
+refuses only `0`, as `engine.memory_bytes: past its bound`. Far above
+what is held, it rarely binds; a small budget starts runs one at a time.
+Older documents keep their figure; workers' `memory_bytes` are read
+and unused.
 
 Expect: the file, valid JSON; nothing runs yet.
 
@@ -126,7 +122,7 @@ nothing; each exits 0. `run` is Forgejo's own output; `serve` prints its
 sign-in link,
 `https://temper.example.com/jig/v1/sign-in/link?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.
-With `sign_in.forges`, `serve`'s stderr says
+With `application.sign_in.forges` on a new store, `serve`'s stderr says
 `temper serve: forge 1: no sign-in through temper: no such forge is kept`
 until step 6 connects it.
 
@@ -182,6 +178,9 @@ unit's journal.
   `agent.json` by absolute paths; its unit as step 3's,
   `ReadWritePaths` its own home: without `PrivateTmp=yes` a Claude Code
   run fails `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
+  `agent.json`'s `environment` is a list of entries,
+  `[{"name": "PATH", "value": "/usr/bin:/bin"}]`, not a map
+  (temper help box).
 - The runner, Forgejo runner 13.2.1 under a user of its own, its
   `url` `http://127.0.0.1:3000`, its `uuid` and secret those of
   `DATA/forge-1/runner/`; its jobs in rootless podman.
@@ -235,6 +234,9 @@ Keep `DATA/forge-1/admin_token`: the next redeploy's connect reads it.
 Expect: `party 1 · sam · ` and the party's name: the first of
 `engine.owners`. `connecting`; then the wait prints the forges, forge
 `1` `managed`, then `met`.
+The page's `temper-forge-sign-in` meta appears only once `forge connect`
+has kept the forge. If a page fetched after that still lacks the meta,
+restart the engine once: a start makes it from the kept record.
 
 If not: `temper ctl: the sign-in link was refused`: it was spent or
 expired, and temper printed a fresh one: run the line again.

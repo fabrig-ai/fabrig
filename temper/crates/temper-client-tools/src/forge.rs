@@ -374,6 +374,14 @@ fn answer_text(a: &forge::Adoption, answer: &forge::Answer, kept: bool, text: u3
             let mut list = Text::writing_exact(measure);
             kinds(a.kinds, &mut list);
             phrase(Word::May, &[Hole::Name(list.finish())], out);
+            if !a.kinds.push && a.role != forge::Role::Context {
+                out.put(b"\n");
+                phrase(
+                    Word::ReadOnly,
+                    &[Hole::Name(words::full_name(&a.owner, &a.name)), Hole::Name(decimal(u64::from(a.forge)))],
+                    out,
+                );
+            }
             if a.protection == forge::Protection::Unknown {
                 out.put(b"\n");
                 phrase(Word::Protection, &[], out);
@@ -387,7 +395,11 @@ fn answer_text(a: &forge::Adoption, answer: &forge::Answer, kept: bool, text: u3
         forge::Answer::ForgeRefused(why) => match why {
             forge::Reason::NoSuchForge => phrase(Word::NoSuchForge, &[number], out),
             forge::Reason::NotFound => phrase(Word::NotFound, &[name, number], out),
-            forge::Reason::NoAccess => phrase(Word::NoAccess, &[name, number], out),
+            forge::Reason::NoAccess => {
+                phrase(Word::NoAccess, &[name, number], out);
+                out.put(b"\n");
+                phrase(Word::AdminScope, &[], out);
+            }
             forge::Reason::Refused => phrase(Word::Refused, &[name, Hole::Name(a.prefix.clone())], out),
             forge::Reason::AnotherProject => phrase(Word::AnotherProject, &[name], out),
             forge::Reason::HomeHeld => {

@@ -51,6 +51,12 @@ impl Harness {
         }
     }
 
+    fn reusing(limits: Limits) -> Harness {
+        let mut harness = Self::new(limits);
+        harness.domain.reuse_workspaces();
+        harness
+    }
+
     /// Steps the domain with `event`, takes what it emitted, then reclaims,
     /// as the loop would at the end of the iteration.
     fn step(&mut self, event: Event) -> List<Request> {
@@ -104,6 +110,7 @@ impl Harness {
         let (hold, mut op) = self.prepare(client, spec);
         for _ in 0..16_u32 {
             let done = match &op {
+                Op::Look { .. } => Done::Looked { holds: false },
                 Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit: *commit },
                 Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
                 Op::Merge { .. } => Done::Merged,
@@ -269,6 +276,7 @@ fn workspace_of(op: &Op) -> Token {
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
         | Op::CheckOut { at, .. }
+        | Op::Look { at, .. }
         | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
         | Op::Commit { at, .. }
@@ -371,6 +379,94 @@ fn the_least_recently_used_idle_workspace_is_evicted_when_the_cache_is_full() {
     assert_eq!(op.kind(), Kind::Fetch, "a's workspace is still cached");
     assert_ne!(workspace_of(&op), workspace, "and it is not the one evicted");
     assert_eq!((h.domain.workspaces(), h.domain.idle()), (2, 0));
+}
+
+/// A full cache reassigns its sole workspace without changing its token.
+fn evict(h: &mut Harness, old: Spec, new: Spec, cached: Cached, kind: Kind) {
+    let first = h.ready(1, old);
+    h.one(Event::Release { hold: first });
+    h.facts();
+    let (_, op) = h.prepare(2, new);
+    assert_eq!(workspace_of(&op), Token::new(0), "eviction retains the workspace's token");
+    assert_eq!(op.kind(), kind);
+    assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(2), cached }));
+}
+
+#[test]
+fn an_evicted_matching_clone_is_kept_when_reuse_is_enabled() {
+    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    evict(&mut h, one(b"old"), one(b"new"), Cached::Kept, Kind::Fetch);
+    assert_eq!(h.domain.workstream(0), Some(&b"new"[..]), "the kept clone belongs to the new workstream at once");
+    assert_eq!(h.domain.workstream(1), None);
+}
+
+#[test]
+fn an_evicted_matching_clone_is_made_again_by_default() {
+    let mut h = Harness::new(Limits { workspaces: 1, ..LIMITS });
+    evict(&mut h, one(b"old"), one(b"new"), Cached::Evicted, Kind::Make);
+}
+
+#[test]
+fn an_evicted_clone_from_another_remote_is_made_again() {
+    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let repo = Repository { remote: remote(b"b"), ..repository(b"a", true) };
+    evict(&mut h, one(b"old"), spec(b"new", Box::new([repo])), Cached::Evicted, Kind::Make);
+}
+
+#[test]
+fn an_evicted_clone_in_another_directory_is_made_again() {
+    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let repo = Repository { remote: remote(b"a"), ..repository(b"b", true) };
+    evict(&mut h, one(b"old"), spec(b"new", Box::new([repo])), Cached::Evicted, Kind::Make);
+}
+
+#[test]
+fn an_evicted_workspace_needing_one_more_repository_is_made_again() {
+    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    evict(&mut h, one(b"old"), two(b"new"), Cached::Evicted, Kind::Make);
+}
+
+#[test]
+fn an_evicted_workspace_needing_one_fewer_repository_is_made_again() {
+    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    evict(&mut h, two(b"old"), one(b"new"), Cached::Evicted, Kind::Make);
+}
+
+#[test]
+fn an_evicted_clone_starting_saved_is_made_again() {
+    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let repo = Repository { start: Start::Saved { branch: bytes(b"saved/1") }, ..repository(b"a", true) };
+    evict(&mut h, one(b"old"), spec(b"new", Box::new([repo])), Cached::Evicted, Kind::Make);
+}
+
+#[test]
+fn an_evicted_workspace_spoiled_by_a_broken_operation_is_made_again() {
+    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let first = h.ready(1, one(b"old"));
+    h.one(Event::Release { hold: first });
+    let (hold, op) = h.prepare(2, one(b"old"));
+    let workspace = workspace_of(&op);
+    h.one(Event::Done { owner: hold, done: Done::Failed { fault: Fault::Broken } });
+    h.one(Event::Release { hold });
+    h.facts();
+    let (_, op) = h.prepare(3, one(b"new"));
+    assert_eq!(op, Op::Make { workspace });
+    assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(3), cached: Cached::Evicted }));
+}
+
+#[test]
+fn reuse_considers_only_the_least_recently_used_idle_workspace() {
+    let mut h = Harness::reusing(LIMITS);
+    let oldest = h.ready(1, two(b"oldest"));
+    let matching = h.ready(2, one(b"matching"));
+    h.one(Event::Release { hold: oldest });
+    h.one(Event::Release { hold: matching });
+    h.facts();
+    let (_, op) = h.prepare(3, one(b"new"));
+    assert_eq!(op, Op::Make { workspace: Token::new(0) });
+    assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(3), cached: Cached::Evicted }));
+    let (_, op) = h.prepare(4, one(b"matching"));
+    assert_eq!(op.kind(), Kind::Fetch, "the newer matching workspace stays with its workstream");
 }
 
 #[test]
@@ -1327,7 +1423,12 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
         | Op::Fetch { account, .. }
         | Op::Create { account, .. }
         | Op::Push { account, .. } => assert_eq!(account, expected),
-        Op::IsAncestor { .. } | Op::Make { .. } | Op::CheckOut { .. } | Op::Merge { .. } | Op::Commit { .. } => {
+        Op::Look { .. }
+        | Op::IsAncestor { .. }
+        | Op::Make { .. }
+        | Op::CheckOut { .. }
+        | Op::Merge { .. }
+        | Op::Commit { .. } => {
             panic!("an operation that authenticates")
         }
     }
@@ -1553,4 +1654,91 @@ fn merged_heads_empty_or_too_many_are_invalid() {
     else {
         panic!("ready without a merge")
     };
+}
+
+#[test]
+fn a_first_hold_looks_in_spec_order_then_fetches_and_caches_the_clones() {
+    let mut h = Harness::reusing(LIMITS);
+    let (hold, op) = h.prepare(1, two(b"work"));
+    assert_eq!(op, Op::Look { at: place(Token::new(0), b"a"), remote: remote(b"a") });
+    assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(1), cached: Cached::Looking }));
+    assert_eq!(
+        h.next(hold, Done::Looked { holds: true }),
+        Op::Look { at: place(Token::new(0), b"b"), remote: remote(b"b") }
+    );
+    assert_eq!(h.next(hold, Done::Looked { holds: true }).kind(), Kind::Fetch);
+    assert_eq!(h.domain.workstream(0), Some(&b"work"[..]));
+    assert_eq!(h.next(hold, Done::Fetched { commit: commit(1) }).kind(), Kind::CheckOut);
+    assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Fetch);
+    assert_eq!(h.next(hold, Done::Fetched { commit: commit(2) }).kind(), Kind::CheckOut);
+    h.one(Event::Done { owner: hold, done: Done::Succeeded });
+    h.one(Event::Release { hold });
+    let (_, op) = h.prepare(2, two(b"work"));
+    assert_eq!(op.kind(), Kind::Fetch);
+}
+
+#[test]
+fn a_look_that_does_not_hold_makes_then_clones() {
+    for holds_first in [false, true] {
+        let mut h = Harness::reusing(LIMITS);
+        let (hold, _) = h.prepare(1, two(b"work"));
+        if holds_first {
+            h.next(hold, Done::Looked { holds: true });
+        }
+        assert_eq!(h.next(hold, Done::Looked { holds: false }), Op::Make { workspace: Token::new(0) });
+        assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Clone);
+    }
+}
+
+#[test]
+fn a_first_saved_start_makes_without_looking() {
+    for reuse in [true, false] {
+        let mut h = if reuse { Harness::reusing(LIMITS) } else { Harness::new(LIMITS) };
+        let repo = Repository { start: Start::Saved { branch: bytes(b"saved") }, ..repository(b"b", false) };
+        let (_, op) = h.prepare(1, spec(b"work", Box::new([repository(b"a", true), repo])));
+        assert_eq!(op, Op::Make { workspace: Token::new(0) });
+        assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(1), cached: Cached::New }));
+    }
+}
+
+#[test]
+fn a_failed_look_spoils_the_workspace_and_fails_transient() {
+    for fault in [Fault::Broken, Fault::TimedOut, Fault::Cancelled] {
+        let mut h = Harness::reusing(LIMITS);
+        let (hold, _) = h.prepare(1, one(b"work"));
+        assert_eq!(
+            h.one(Event::Done { owner: hold, done: failed(fault) }),
+            Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient } }
+        );
+        h.one(Event::Release { hold });
+        h.facts();
+        let (_, op) = h.prepare(2, one(b"work"));
+        assert_eq!(op.kind(), Kind::Make);
+        assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(2), cached: Cached::Rebuilt }));
+    }
+}
+
+#[test]
+fn aborting_or_releasing_a_look_waits_for_its_terminal() {
+    for release in [false, true] {
+        let mut h = Harness::reusing(LIMITS);
+        let (hold, _) = h.prepare(1, one(b"work"));
+        let event = if release { Event::Release { hold } } else { Event::Abort { hold } };
+        assert_eq!(h.one(event), Request::Cancel { owner: hold });
+        let requests = h.step(Event::Done { owner: hold, done: Done::Looked { holds: true } });
+        assert_eq!(requests.get(0), Some(&Request::Prepared { client: Token::new(1), prepared: Prepared::Aborted }));
+        assert_eq!(requests.len(), if release { 2 } else { 1 });
+        if release {
+            assert_eq!(requests.get(1), Some(&Request::Released { client: Token::new(1) }));
+        }
+    }
+}
+
+#[test]
+fn a_look_uses_the_local_deadline() {
+    let mut h = Harness::reusing(LIMITS);
+    let requests = h.step(Event::Prepare { client: Token::new(1), spec: one(b"work") });
+    let Some(Request::Io { op, deadline, .. }) = requests.get(1) else { panic!("look requested") };
+    assert_eq!(op.kind(), Kind::Look);
+    assert_eq!(*deadline, h.env.now.saturating_add(LIMITS.local_timeout));
 }

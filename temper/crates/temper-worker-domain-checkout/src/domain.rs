@@ -28,6 +28,17 @@ impl Domain {
         }
     }
 
+    /// Keep matching clones when an idle workspace is evicted.
+    pub fn reuse_workspaces(&mut self) {
+        self.cache.reuse_workspaces();
+    }
+
+    /// Whether eviction may keep matching clones.
+    #[must_use]
+    pub const fn reuses_workspaces(&self) -> bool {
+        self.cache.reuses_workspaces()
+    }
+
     /// Workspaces in the cache, held or idle.
     #[must_use]
     pub fn workspaces(&self) -> u32 {

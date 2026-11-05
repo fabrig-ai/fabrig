@@ -644,6 +644,7 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
             | crate::Output::Connect { .. }
             | crate::Output::Replace { .. }
             | crate::Output::Manifest { .. }
+            | crate::Output::AdoptAccess { .. }
             | crate::Output::Reachable { .. }
             | crate::Output::Install { .. }
             | crate::Output::Accept { .. }

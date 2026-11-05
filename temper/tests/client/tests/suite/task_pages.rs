@@ -6,6 +6,8 @@ use temper_client_domain::Address;
 use temper_client_world::{app::Temper, fixtures as f, front::Joint};
 
 type Pages = World<Temper, Joint>;
+// The initial open and one browser reload.
+const GOAL_OPENS: u32 = 2;
 
 fn planned() -> (Pages, f::b2::Planned) {
     let mut world = f::world(f::SEED);
@@ -41,9 +43,6 @@ fn dependency(task: u64, find: Find) -> Find {
         role: Role::List,
         name: format!("Dependencies of task {task}").into_bytes().into(),
     }]))
-}
-fn press(label: &[u8]) -> Step<Address> {
-    Step::Press { find: Find::exactly_named(Role::Button, label) }
 }
 
 // client/README.md 6.10: "a root started at a page's address ... asking its reads";
@@ -126,73 +125,47 @@ fn fresh_ended_advisor_keeps_its_brief_and_result_across_reload() {
     );
 }
 
-// client/README.md 5.8: an ended goal is read again so its result stays readable;
-// "Live only" stays chosen while the ended read goes on and says "No live tasks."
+// client/README.md 5.8: an ended goal keeps its result and total counts.
 #[test]
-#[ignore = "backlog: a goal page that misses a burst of tree changes before its goal ends keeps a stale live row (Task 4 'preparing a host' beside '0 live'), under All too; B2's story, which reads between the reports, passes"]
-fn goal_finishes_while_live_filter_keeps_its_result_and_counts() {
+#[ignore = "backlog: a goal page that misses a burst of tree changes before its goal ends keeps a stale live row; B2's story, which reads between the reports, passes"]
+fn goal_finishes_with_its_result_and_counts() {
     let (mut world, plan) = planned();
     let client = world.client(f::PARTY, f::task_page(plan.goal));
-    follow(&mut world, client, vec![see(Find::text(b"Its delegates: 2 live, 1 ended.")), press(b"Live only")]);
+    follow(&mut world, client, vec![see(Find::text(b"1 of 3 tasks"))]);
     f::b2::first_reported(world.front(), &plan);
     drop(f::b2::goal_reported(world.front(), &plan));
-    follow(
-        &mut world,
-        client,
-        vec![
-            see(result(Find::text(f::b2::GOAL_REPORT))),
-            see(Find::text(b"Its delegates: 0 live, more than 2 ended.")),
-            see(Find::text(b"No live tasks.")),
-            gone(f::plan_item(plan.first, b"Completed")),
-        ],
-    );
-    follow(
-        &mut world,
-        client,
-        vec![
-            press(b"All"),
-            see(f::plan_item(plan.advisor, b"Completed")),
-            see(f::plan_item(plan.first, b"Completed")),
-            gone(f::plan_item(plan.second, b"Completed")),
-            see(Find::text(b"More of its ended tasks are not shown.")),
-        ],
-    );
+    follow(&mut world, client, ended_goal());
 }
 
-// client/README.md 5.8: "All is chosen when the page opens"; an ended goal's plan
-// reads its bounded first ended page even when the tree subject is gone (6.10).
-// B2's engine clamps this page to two rows; its third delegate is beyond the cut.
-// The reload is a second client at the address, as 6.10 says a browser's is (this
-// world's `reload` is a terminal restart, which keeps no address).
+// client/README.md 5.8: the report, total counts and bounded landed tasks survive reload.
+// B2's engine clamps the ended page to two rows; its third delegate is beyond the cut.
+// A second client at the address models the browser's reload (6.10).
 #[test]
-fn fresh_ended_goal_reload_restores_all_filter_for_its_page() {
+fn fresh_ended_goal_reload_keeps_its_result_and_counts() {
     let (mut world, plan) = planned();
     f::b2::first_reported(world.front(), &plan);
     drop(f::b2::goal_reported(world.front(), &plan));
-    let client = world.client(f::PARTY, f::task_page(plan.goal));
-    follow(
-        &mut world,
-        client,
-        vec![
-            see(result(Find::text(f::b2::GOAL_REPORT))),
-            see(f::plan_item(plan.advisor, b"Completed")),
-            see(f::plan_item(plan.first, b"Completed")),
-            gone(f::plan_item(plan.second, b"Completed")),
-            see(Find::text(b"More of its ended tasks are not shown.")),
-            press(b"Live only"),
-            see(Find::text(b"No live tasks.")),
-        ],
-    );
-    let client = world.client(f::PARTY, f::task_page(plan.goal));
-    follow(
-        &mut world,
-        client,
-        vec![
-            see(f::plan_item(plan.advisor, b"Completed")),
-            see(f::plan_item(plan.first, b"Completed")),
-            gone(f::plan_item(plan.second, b"Completed")),
-            see(Find::text(b"More of its ended tasks are not shown.")),
-            see(Find::text(b"Its delegates: 0 live, more than 2 ended.")),
-        ],
-    );
+    for _ in 0..GOAL_OPENS {
+        let client = world.client(f::PARTY, f::task_page(plan.goal));
+        follow(&mut world, client, ended_goal());
+    }
+}
+
+fn ended_goal() -> Vec<Step<Address>> {
+    vec![
+        see(Find::exactly_named(Role::Heading { level: 1 }, f::b2::GOAL_REPORT)),
+        see(Find::text(f::b2::GOAL_REPORT)
+            .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Report".as_slice().into() }]))),
+        see(Find::text(" · landed · ".as_bytes())),
+        see(Find::text(b"3 of 3 tasks")),
+        see(Find::exactly_named(Role::Image, b"2 landed of 2")),
+        see(landed_link(f::b2::ADVISOR_BRIEF)),
+        see(landed_link(f::b2::FIRST_BRIEF)),
+        gone(Find::exactly_named(Role::Link, f::b2::SECOND_BRIEF)),
+        see(Find::text(b"More of its tasks are not shown.")),
+    ]
+}
+fn landed_link(title: &[u8]) -> Find {
+    Find::exactly_named(Role::Link, title)
+        .within(Box::new([Target::ExactRole { role: Role::Disclosure, name: b"2 landed".as_slice().into() }]))
 }

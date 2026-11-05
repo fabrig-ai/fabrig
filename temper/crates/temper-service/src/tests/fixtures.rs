@@ -6,7 +6,7 @@ use skein_lib::{Secret, Token};
 pub const DIALECT: u32 = 3;
 
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"tasks.charters":5,"core.templates":3,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":8,"tasks.executor_kinds":8,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"tasks.charters":6,"core.templates":3,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":9,"tasks.executor_kinds":9,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"models":["small"],"sources":{"keys":true}}],
 "endpoints": [{
@@ -61,9 +61,10 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 
 pub fn engine() -> settings::Engine {
     let jig = parse_engine(ENGINE);
-    // This typed fixture reaches the core's start; policy 1 needs 5742 bytes.
+    // This typed fixture reaches the core's start; policy 1 needs 5774 bytes.
 
     settings::Engine {
+        host_reply_bytes: None,
         machine: machine(),
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -836,6 +837,7 @@ pub fn settle_root(
                 | root::Request::Connect { .. }
                 | root::Request::Replace { .. }
                 | root::Request::Manifest { .. }
+                | root::Request::AdoptAccess { .. }
                 | root::Request::Reachable { .. }
                 | root::Request::Install { .. }
                 | root::Request::Accept { .. }

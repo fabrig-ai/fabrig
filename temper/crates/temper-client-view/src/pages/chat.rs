@@ -207,6 +207,9 @@ fn session_composer(
     if crate::choice::can_send(root) {
         b.state(State::SubmitsOnEnter);
     }
+    if chat.composer_focus != 0 {
+        b.focus(chat.composer_focus);
+    }
     b.value(&chat.words, temper_client_domain::pages::shown(root.pages()));
     b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
     b.close();
@@ -327,8 +330,10 @@ fn proposal_card(
 ) {
     b.open(role);
     b.name(&super::inbox::card_name(root, card.object, Word::Proposal, words));
-    b.style(look::CARD);
-    b.style(look::KIND_PROPOSAL);
+    if crate::cards::proposal::settings_proposal(root, card).is_none() {
+        b.style(look::CARD);
+        b.style(look::KIND_PROPOSAL);
+    }
     if role == Role::Item {
         b.key(super::inbox::card_key(card.object));
     }
@@ -338,7 +343,10 @@ fn proposal_card(
     {
         proposal_wait(b, words, times, since);
     }
-    crate::confirm::card(b, root, card, words, bindings, rows);
+    let replaced = settings_replaced(root, card.object, rows);
+    if !crate::cards::proposal::settings(b, root, card, words, bindings, replaced) {
+        crate::confirm::card(b, root, card, words, bindings, rows);
+    }
     b.close();
 }
 
@@ -1310,4 +1318,35 @@ fn markdown(b: &mut Builder, bytes: &[u8], words: &Words, most: u32) {
     if end < bytes.len() {
         words.status(b, P::TurnCut, &[]);
     }
+}
+
+// Only a later settings proposal anchored in this conversation replaces an ended one.
+fn settings_replaced(root: &Domain, object: c::ObjectKey, rows: u32) -> bool {
+    let Some(chat) = root.pages().chat() else { return false };
+    let Some(anchor) = proposal_anchor(chat, object, rows) else { return false };
+    let mut reached = false;
+    for line in chat.thread.lines().into_boxed() {
+        if let Line::Turn { name, turn, .. } = line {
+            for (message, value) in turn.messages.iter().enumerate() {
+                for (block, value) in value.blocks.iter().enumerate() {
+                    if (name, message, block) == anchor {
+                        reached = true;
+                        continue;
+                    }
+                    if reached && let c::Block::Call(call) = value {
+                        for card in &chat.cards {
+                            if call.objects.as_slice().contains(&card.object)
+                                && card.object != object
+                                && proposal_anchor(chat, card.object, rows) == Some((name, message, block))
+                                && crate::cards::proposal::settings_proposal(root, card).is_some()
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
 }

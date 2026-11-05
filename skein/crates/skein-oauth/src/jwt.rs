@@ -4,8 +4,7 @@ use crate::{ClaimSelector, DecodeError, Json, Limits, common, json};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall, base64, bytes, usize_of};
 
-#[derive(Clone, PartialEq, Eq, Hash)]
-#[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Claims {
     pub metadata: Box<[u8]>,
     pub expires_at: Option<Wall>,

@@ -1,7 +1,8 @@
 # engine: status
 
 2026-11-05. Where jig's code lags or departs from [engine.md](engine.md).
-Unlisted sections have no known gap.
+Unlisted provisions have no known gap, including the saved-window load
+and unread-tail retry guard in 7.1 and 7.2.
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the

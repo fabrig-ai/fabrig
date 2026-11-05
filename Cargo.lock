@@ -344,10 +344,10 @@ dependencies = [
 name = "hearth"
 version = "0.0.0"
 dependencies = [
- "hearth-builder-world",
  "hearth-client-protocol-records",
  "hearth-protocol-git",
  "hearth-service-builder",
+ "hearth-test-repository",
  "libc",
  "skein-fail-stop",
  "skein-io",
@@ -382,8 +382,9 @@ dependencies = [
  "hearth-protocol-template",
  "hearth-protocol-tree",
  "hearth-recordings",
- "hearth-render-world",
  "hearth-test-mirror",
+ "hearth-test-render",
+ "hearth-test-repository",
  "skein-heap",
  "skein-io",
  "skein-lib",
@@ -421,10 +422,10 @@ dependencies = [
  "hearth-fake-git",
  "hearth-fake-machine",
  "hearth-fake-mmdebstrap",
- "hearth-git-world",
  "hearth-protocol-git",
  "hearth-protocol-mmdebstrap",
  "hearth-recordings",
+ "hearth-test-git",
  "hearth-test-mirror",
  "skein-lib",
  "skein-scratch",
@@ -506,9 +507,9 @@ version = "0.0.0"
 dependencies = [
  "hearth-protocol-git",
  "hearth-recordings",
+ "hearth-test-git",
  "skein-heap",
  "skein-lib",
- "skein-world",
 ]
 
 [[package]]
@@ -605,12 +606,13 @@ dependencies = [
 name = "hearth-render-world"
 version = "0.0.0"
 dependencies = [
- "hearth-config-world",
  "hearth-domain-render",
  "hearth-lib",
  "hearth-protocol-builder",
  "hearth-protocol-config",
  "hearth-protocol-template",
+ "hearth-test-fixtures",
+ "hearth-test-render",
  "minijinja",
  "skein-heap",
  "skein-lib",
@@ -648,10 +650,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "hearth-test-git"
+version = "0.0.0"
+dependencies = [
+ "hearth-protocol-git",
+ "hearth-recordings",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
 name = "hearth-test-mirror"
 version = "0.0.0"
 dependencies = [
  "skein-scratch",
+]
+
+[[package]]
+name = "hearth-test-render"
+version = "0.0.0"
+dependencies = [
+ "hearth-domain-render",
+ "hearth-lib",
+ "hearth-protocol-builder",
+ "hearth-protocol-config",
+ "hearth-protocol-template",
+ "hearth-test-fixtures",
+ "skein-lib",
+ "skein-scratch",
+ "skein-world",
+]
+
+[[package]]
+name = "hearth-test-repository"
+version = "0.0.0"
+dependencies = [
+ "hearth-lib",
+ "hearth-protocol-tree",
+ "skein-io",
+ "skein-lib",
+ "skein-scratch",
+ "skein-shell",
+ "skein-world",
 ]
 
 [[package]]
@@ -4475,6 +4515,7 @@ dependencies = [
  "temper-box",
  "temper-client-bundle",
  "temper-client-domain",
+ "temper-client-protocol-wire",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-client-shell-web",
@@ -4771,6 +4812,7 @@ dependencies = [
  "temper-client-view",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-engine-domain-world",
  "temper-engine-smith",
  "temper-service",
@@ -5047,6 +5089,7 @@ dependencies = [
  "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-settings-form",
 ]
 

@@ -625,8 +625,9 @@ served is held, kept and unsent, for its owner's version (client.md,
     engine's answers (3.1). It carries no version: the stream's hello does
     (section 8);
   - *a task:* its header, overview, budget and authority; its fields
-    (3.2): tracked and priority, label, flags, last activity, and what
-    it waits on; its LLM choice with the creator's optional account preference,
+    (3.2): tracked and priority, label, flags, when it was made
+    (`made`, its record's `created_at`), last activity, and what it
+    waits on; its LLM choice with the creator's optional account preference,
     the separate account kept by the last successful claim, and its next-run
     account/source wait with the source's typed state and optional wall reset
     (unknown stays unknown), or a credential or host wait. `Task.run_wait`

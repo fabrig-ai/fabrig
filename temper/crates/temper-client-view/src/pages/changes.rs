@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
-    Address, Domain, PlanFilter,
+    Address, Domain,
     pages::{
         Act,
         changes::{From, State},
@@ -50,33 +50,51 @@ fn branch_words(panel: &w::ChangesPanel, words: &Words, fallback: Word) -> Box<[
         None => words.say(fallback, &[]),
     }
 }
-/// The landing's line, Home's too in time: its parts, each saying if it is the signal's.
-pub(crate) fn landing_line(panel: &w::ChangesPanel, words: &Words, times: &mut Times) -> Box<[LinePart]> {
+/// The facts shared by Home and Changes (client/README.md, 3.5).
+#[derive(Debug)]
+pub(crate) struct LandingFacts<'a> {
+    pub queued: u64,
+    pub last: Option<Wall>,
+    pub branch: Option<&'a [u8]>,
+    pub red: &'a [&'a [u8]],
+}
+impl<'a> LandingFacts<'a> {
+    pub(crate) fn panel(panel: &'a w::ChangesPanel, red: &'a [&'a [u8]]) -> Self {
+        Self {
+            queued: queued(panel),
+            last: match panel.landed().get(0) {
+                Some(last) => Some(Wall::from_nanos(last.at())),
+                None => None,
+            },
+            branch: branch_named(panel),
+            red,
+        }
+    }
+}
+/// The landing's line for Home and Changes, with each signal part marked.
+pub(crate) fn landing_line(facts: &LandingFacts<'_>, words: &Words, times: &mut Times) -> Box<[LinePart]> {
     let mut parts = List::uncapped();
-    let count = queued(panel);
-    let branch = branch_words(panel, words, Word::ChangesLanding);
-    if count > 0 {
+    let branch = match facts.branch {
+        Some(branch) => branch.into(),
+        None => words.say(Word::ChangesLanding, &[]),
+    };
+    if facts.queued > 0 {
         parts
-            .push(LinePart { words: words.say(Word::ChangesQueued, &[Hole::Number(count)]), red: false })
+            .push(LinePart { words: words.say(Word::ChangesQueued, &[Hole::Number(facts.queued)]), red: false })
             .expect("line fits");
-        if let Some(last) = panel.landed().get(0) {
+        if let Some(last) = facts.last {
             parts
                 .push(LinePart {
-                    words: words.say(
-                        Word::ChangesLast,
-                        &[Hole::Name(times.say(words, TimeForm::Ago, Wall::from_nanos(last.at())))],
-                    ),
+                    words: words.say(Word::ChangesLast, &[Hole::Name(times.say(words, TimeForm::Ago, last))]),
                     red: false,
                 })
                 .expect("line fits");
         }
-    } else if let Some(last) = panel.landed().get(0) {
+    } else if let Some(last) = facts.last {
         parts
             .push(LinePart {
-                words: words.say(
-                    Word::ChangesMoved,
-                    &[Hole::Name(branch), Hole::Name(times.say(words, TimeForm::Ago, Wall::from_nanos(last.at())))],
-                ),
+                words: words
+                    .say(Word::ChangesMoved, &[Hole::Name(branch), Hole::Name(times.say(words, TimeForm::Ago, last))]),
                 red: false,
             })
             .expect("line fits");
@@ -84,16 +102,26 @@ pub(crate) fn landing_line(panel: &w::ChangesPanel, words: &Words, times: &mut T
     } else {
         parts.push(LinePart { words: words.say(Word::ChangesNothingLanded, &[]), red: false }).expect("line fits");
     }
-    for queue in panel.queues() {
-        if queue.red() {
-            let branch =
-                if queue.branch().is_empty() { words.say(Word::ChangesLanding, &[]) } else { queue.branch().into() };
-            parts
-                .push(LinePart { words: words.say(Word::ChangesRed, &[Hole::Name(branch)]), red: true })
-                .expect("line fits");
-        }
+    for branch in facts.red {
+        let branch = if branch.is_empty() { words.say(Word::ChangesLanding, &[]) } else { (*branch).into() };
+        parts
+            .push(LinePart { words: words.say(Word::ChangesRed, &[Hole::Name(branch)]), red: true })
+            .expect("line fits");
     }
     parts.into_boxed()
+}
+pub(crate) fn landing_parts(b: &mut Builder, parts: &[LinePart], words: &Words) {
+    for (index, part) in parts.iter().enumerate() {
+        b.open(Role::Text);
+        if part.red {
+            b.style(look::CHANGES_RED);
+        }
+        if index > 0 {
+            b.run(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+        }
+        b.run(Run::Plain, &part.words);
+        b.close();
+    }
 }
 fn count_named(count: u64, words: &Words) -> Box<[u8]> {
     let word = match count {
@@ -173,17 +201,14 @@ pub(crate) fn main(
     text(b, Role::Heading { level: 1 }, &heading(panel, words), None);
     b.open(Role::Paragraph);
     b.style(look::HOME_LEDE);
-    for (index, part) in landing_line(panel, words, times).into_iter().enumerate() {
-        if index > 0 {
-            b.text(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+    let mut red = List::uncapped();
+    for queue in panel.queues() {
+        if queue.red() {
+            red.push(queue.branch()).expect("bounded queues");
         }
-        b.open(Role::Text);
-        if part.red {
-            b.style(look::CHANGES_RED);
-        }
-        b.run(Run::Plain, &part.words);
-        b.close();
     }
+    let facts = LandingFacts::panel(panel, red.as_slice());
+    landing_parts(b, &landing_line(&facts, words, times), words);
     let branch = branch_words(panel, words, Word::ChangesItsBranch);
     b.text(Run::Plain, &words.say(Word::ChangesLede, &[Hole::Name(branch)]));
     b.close();
@@ -318,7 +343,7 @@ fn row_start(
     };
     let label = crate::accounts::words::join(&[title, b" ", &from, &words.say(Word::ToolSeparator, &[]), when]);
     b.open(Role::Item);
-    crate::link(b, &label, bindings.insert(Act::Go { address: Address::Task { task, filter: PlanFilter::All } }));
+    crate::link(b, &label, bindings.insert(Act::Go { address: Address::Task { task } }));
     b.open(Role::Text);
     b.run(Run::Plain, title);
     if !from.is_empty() {

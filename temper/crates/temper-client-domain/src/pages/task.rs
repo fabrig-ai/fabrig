@@ -1,10 +1,10 @@
 //! One task's borrowed documents, first activity page and live run handle.
+//! See temper/docs/design/client/README.md, 5.8 and 5.11.
 use super::{
     Act, Request,
     activity::{Asking, READ_FIRST, READ_MOST, signed_out},
     inbox::Card,
 };
-use crate::address::PlanFilter;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c};
@@ -200,6 +200,7 @@ pub enum Shape {
 pub enum Sending {
     Message,
     Stop,
+    Resume,
     Cancel,
     Amend,
 }
@@ -301,7 +302,7 @@ pub struct Task {
     pub activity: Handle,
     pub run: Option<Handle>,
     pub ended: Option<Ended>,
-    pub filter: PlanFilter,
+    pub goal: Option<super::goal::Goal>,
     pub shape: Shape,
     pub latest: Option<Box<c::ActivityPage>>,
     pub thread: jig_client::thread::Thread,
@@ -340,7 +341,7 @@ impl Task {
             activity,
             run: None,
             ended: None,
-            filter: PlanFilter::All,
+            goal: None,
             shape: Shape::Unknown,
             latest: None,
             thread,
@@ -349,7 +350,7 @@ impl Task {
             through: None,
             cards: List::with_capacity(limits.client.domain.reads),
             words: Box::default(),
-            pending: List::with_capacity(4),
+            pending: List::with_capacity(5),
             outcome: None,
             amending: None,
         }
@@ -387,7 +388,7 @@ impl Task {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        if self.shape != Shape::Agent {
+        if self.shape != Shape::Agent && self.shape != Shape::Tracked {
             return;
         }
         match act {
@@ -397,12 +398,14 @@ impl Task {
                 }
             }
             Act::Send => self.send(env, client, Sending::Message, serial, out),
-            Act::Older => {
+            Act::Older if self.shape == Shape::Agent => {
                 if let Some(older) = self.thread.older() {
                     self.asking.ask(self.activity, older, out);
                 }
             }
-            Act::Amend
+            Act::Older => {}
+            Act::FocusComposer
+            | Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked
             | Act::AmendPriority { .. }
@@ -411,9 +414,22 @@ impl Task {
             | Act::AmendAgain
             | Act::MakeDefault
             | Act::AdoptFirst
+            | Act::CopyAgain { .. }
+            | Act::AddOpen { .. }
+            | Act::AddChoose { .. }
+            | Act::AddWrite { .. }
+            | Act::AddClose
+            | Act::AddSubmit
+            | Act::CopyOffered
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
+            | Act::OpenStart { .. }
+            | Act::StartDraft { .. }
+            | Act::StartName { .. }
+            | Act::StartWay { .. }
+            | Act::StartCancel
+            | Act::StartGoal
             | Act::Switcher(_)
             | Act::Needs(_)
             | Act::Choice(_)
@@ -427,6 +443,8 @@ impl Task {
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }
+            | Act::Pause
+            | Act::Resume
             | Act::Stop
             | Act::Close
             | Act::DelegateFate { .. }
@@ -434,7 +452,6 @@ impl Task {
             | Act::MoreGoals
             | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
-            | Act::PlanFilter { .. }
             | Act::Filter { .. }
             | Act::OpenResult { .. }
             | Act::Decide { .. }
@@ -446,6 +463,10 @@ impl Task {
         }
     }
     /// The task page's amendment acts (client/README.md, 5.11).
+    #[expect(
+        clippy::too_many_lines,
+        reason = "amendment dispatch lists every page act, including start goal and Home’s repository sheet"
+    )]
     pub(crate) fn amend(
         &mut self,
         env: &Env<Limits>,
@@ -516,9 +537,22 @@ impl Task {
             Act::SendAmendment => self.send(env, client, Sending::Amend, serial, out),
             Act::MakeDefault
             | Act::AdoptFirst
+            | Act::CopyAgain { .. }
+            | Act::AddOpen { .. }
+            | Act::AddChoose { .. }
+            | Act::AddWrite { .. }
+            | Act::AddClose
+            | Act::AddSubmit
+            | Act::CopyOffered
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
+            | Act::OpenStart { .. }
+            | Act::StartDraft { .. }
+            | Act::StartName { .. }
+            | Act::StartWay { .. }
+            | Act::StartCancel
+            | Act::StartGoal
             | Act::Switcher(_)
             | Act::Needs(_)
             | Act::Choice(_)
@@ -532,8 +566,11 @@ impl Task {
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }
+            | Act::FocusComposer
             | Act::MessageWords { .. }
             | Act::Send
+            | Act::Pause
+            | Act::Resume
             | Act::Stop
             | Act::Close
             | Act::DelegateFate { .. }
@@ -542,7 +579,6 @@ impl Task {
             | Act::MoreGoals
             | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
-            | Act::PlanFilter { .. }
             | Act::Filter { .. }
             | Act::OpenResult { .. }
             | Act::Decide { .. }
@@ -564,7 +600,8 @@ impl Task {
         let Some(task) = self.document(client) else { return };
         let ask = match kind {
             Sending::Message
-                if self.shape == Shape::Agent
+                if (self.shape == Shape::Agent || self.shape == Shape::Tracked)
+                    && task.chip.details.phase != c::ChipPhase::Ended
                     && !self.words.is_empty()
                     && super::chat::allowed(task, c::ActKind::Message) =>
             {
@@ -577,11 +614,31 @@ impl Task {
             Sending::Stop if super::chat::allowed(task, c::ActKind::Stop) => {
                 c::Ask::Stop { project: task.project, task: self.number }
             }
+            Sending::Resume
+                if self.shape == Shape::Tracked
+                    && super::goals::state(&task.chip, false, false, 0) == super::goals::State::Paused
+                    && super::chat::allowed(task, c::ActKind::Release) =>
+            {
+                let Some(value) = chip_hold(&task.chip) else { return };
+                c::Ask::Release {
+                    project: task.project,
+                    task: self.number,
+                    revision: c::Revision { value },
+                    again: None,
+                }
+            }
             Sending::Cancel if super::chat::allowed(task, c::ActKind::Cancel) => c::Ask::Cancel {
                 project: task.project,
                 task: self.number,
-                reason: c::Text::new(Box::from(*b"Cancelled from its page"), u32::MAX)
-                    .expect("page cancellation reason fits"),
+                reason: c::Text::new(
+                    Box::from(if self.shape == Shape::Tracked {
+                        b"Stopped from its page".as_slice()
+                    } else {
+                        b"Cancelled from its page".as_slice()
+                    }),
+                    u32::MAX,
+                )
+                .expect("page cancellation reason fits"),
                 grace: None,
             },
             Sending::Amend if super::chat::allowed(task, c::ActKind::Amend) => {
@@ -601,7 +658,7 @@ impl Task {
                     reason: c::Text::new(Box::from(*b"Amended from its page"), u32::MAX).expect("page reason fits"),
                 }
             }
-            Sending::Message | Sending::Stop | Sending::Cancel | Sending::Amend => return,
+            Sending::Message | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Amend => return,
         };
         for (_, pending) in &self.pending {
             if *pending == kind {
@@ -629,6 +686,34 @@ impl Task {
             request: jig_client::Ask::Jig(Box::new(ask)),
         }));
     }
+    /// Goal outcomes belong to the frame toast (client/README.md, 5.11).
+    pub(crate) fn toasted(&self, told: &Told) -> Option<super::needs::Toasted> {
+        if self.shape != Shape::Tracked {
+            return None;
+        }
+        let Told::Answered { key, outcome } = told else { return None };
+        let kind = self.pending_kind(*key)?;
+        let done = match outcome {
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(_))) => true,
+            jig_client::Outcome::Answered(_)
+            | jig_client::Outcome::Full { .. }
+            | jig_client::Outcome::NotKept
+            | jig_client::Outcome::Held
+            | jig_client::Outcome::Unknown
+            | jig_client::Outcome::Limit
+            | jig_client::Outcome::Unconfirmed
+            | jig_client::Outcome::Unsent
+            | jig_client::Outcome::Lost => false,
+        };
+        match kind {
+            Sending::Stop if done => Some(super::needs::Toasted::Paused),
+            Sending::Resume if done => Some(super::needs::Toasted::Resumed),
+            Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Message if !done => {
+                Some(super::needs::Toasted::Refused { outcome: outcome.clone() })
+            }
+            Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Message | Sending::Amend => None,
+        }
+    }
     fn pending_kind(&self, key: Key) -> Option<Sending> {
         for (pending, kind) in &self.pending {
             if *pending == key {
@@ -647,11 +732,17 @@ impl Task {
         for card in &self.cards {
             unwatch(card.handle, out);
         }
+        if let Some(goal) = &self.goal {
+            goal.leave(out);
+        }
         self.next
     }
     fn answered(&mut self, key: Key, outcome: jig_client::Outcome) {
         if self.pending_kind(key) == Some(Sending::Message) {
-            if let jig_client::Outcome::Answered(jig_client::Answered::Jig(answer)) = &outcome {
+            // Goals restore durable words from their latest activity page (5.8).
+            if self.shape == Shape::Tracked {
+                self.thread.words.refused(key);
+            } else if let jig_client::Outcome::Answered(jig_client::Answered::Jig(answer)) = &outcome {
                 self.thread.answered(key, answer);
             } else {
                 self.thread.words.refused(key);
@@ -673,7 +764,7 @@ impl Task {
                 }
                 open.outcome = Some(outcome);
             }
-        } else if !said {
+        } else if !said && self.shape != Shape::Tracked {
             self.outcome = Some(outcome);
         }
         let mut kept = List::with_capacity(self.pending.capacity());
@@ -685,6 +776,11 @@ impl Task {
         self.pending = kept;
     }
     pub(crate) fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+        if let Some(goal) = &mut self.goal
+            && goal.told(&told, out)
+        {
+            return true;
+        }
         if let Told::Page { handle, page: Readout::Jig(c::ReadResult::Value(value)) } = &told {
             for index in 0..self.cards.len() {
                 let card = self.cards.get_mut(index).expect("bounded held card");
@@ -848,8 +944,9 @@ impl Task {
             self.thread.failed();
         }
     }
+    /// Tracked pages read needs through their inbox, without task cards (client/README.md, 5.11).
     pub(crate) fn held(&mut self, chip: &c::Chip, out: &mut Queue<Request>) {
-        if chip.phase != c::Phase::Held {
+        if self.shape == Shape::Tracked || chip.phase != c::Phase::Held {
             return;
         }
         let object = c::ObjectKey::Task(chip.task);
@@ -952,6 +1049,19 @@ impl Task {
             | c::ChipExecutor::Party { .. }
             | c::ChipExecutor::Role { .. } => Shape::HeaderAndPlan,
         };
+        if self.shape == Shape::Tracked {
+            for card in &self.cards {
+                unwatch(card.handle, out);
+            }
+            self.cards.clear();
+            if let Some(goal) = &mut self.goal {
+                goal.changed(task, out);
+            } else {
+                self.goal = Some(super::goal::Goal::new(task, &mut self.next, out));
+            }
+        } else if let Some(goal) = self.goal.take() {
+            goal.leave(out);
+        }
         if self.shape == Shape::Agent {
             if let Some(page) = self.latest.take()
                 && let Some(reading) = self.thread.page(*page)

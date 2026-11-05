@@ -22,7 +22,20 @@
   and a bearer's token in `Reply::Record`'s encoded `SignedIn`. Of the rest,
   a `FrameWriter` holds a body as it is written, a local in the same way, and
   none has a known credential path.
-- **Departs:** 12: `skein/docs/foundation/programming-model.md`, 5.4
+- **Departs:** 6: a step widens with `usize_of` and `len_u64`, but `try_from`
+  still stands for them in three places. What the schema compiler prints
+  holds `usize::try_from(limit).expect("u32 fits usize")`, 13 sites in
+  `skein-oauth` and `skein/examples/ui/view`, which the debt item the request
+  of 2026-11-05 paid counts and names no exception for, because changing it
+  regenerates every tree's codecs (codec.md, 13). `skein-fake-checkout`
+  measures two lengths with `u64::try_from`, against that item too, because
+  it has no `skein-lib` dependency; `skein/scripts/old-forms.txt`'s
+  `widening` holds them at 23, the other 21 a
+  `u64`'s or a signed count's, which can fail and are outside the rule. And
+  136 lines of step code write `usize::try_from(..)` with no `.expect(..)` on
+  the line, over a `u32` or a `u64`, `skein-kv`'s frames and snapshots among
+  them, which that item does not name and that form does not count. 12:
+  `skein/docs/foundation/programming-model.md`, 5.4
   asks for one explicit state enum per lifecycle, each state holding
   exactly its data, no lifecycle in flags or `Option`s beside it,
   exhaustive matches and one handler per cell;

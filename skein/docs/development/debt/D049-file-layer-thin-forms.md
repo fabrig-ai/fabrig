@@ -2,7 +2,7 @@
 
 - **Kind:** complexity
 - **Where:** `skein-io/src/file_layer.rs`, `skein-io/src/file_layer/store.rs`, `skein-io/src/file_layer/private.rs`, every tree's readers
-- **Seen:** 2026-11-05 at `d4b22abddf`, in `temper/docs/plan/debt-20/tasks/io-file-limits.md`
+- **Seen:** 2026-11-05 at `d4b22abddf`, in the task io-file-limits of the plan debt-20, read at that commit
 - **Checked:** 2026-11-05 at `d4b22abddf`
 - **Value:** low
 - **Size:** M

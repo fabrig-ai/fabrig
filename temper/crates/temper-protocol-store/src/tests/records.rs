@@ -1344,10 +1344,15 @@ fn forge_record_round_trips_every_mode_and_state() {
                         record.read_only = optional;
                         record.asked = optional;
                         record.first = if first {
-                            Some(forge::FirstIntent {
+                            Some(forge::FirstIntent::Empty(forge::EmptyIntent {
                                 playground: optional,
-                                ..record.first.take().expect("fixture first intent")
-                            })
+                                ..match record.first.take().expect("fixture first intent") {
+                                    forge::FirstIntent::Empty(first) => first,
+                                    forge::FirstIntent::Copies { .. } | forge::FirstIntent::Nothing => {
+                                        panic!("empty fixture intent")
+                                    }
+                                }
+                            }))
                         } else {
                             None
                         };
@@ -1399,7 +1404,7 @@ fn forge_names_decode_at_the_deployment_bound_and_refuse_one_past() {
     for field in ["org", "repository"] {
         for extra in [0, 1] {
             let mut row = fixtures::forge_record();
-            let first = row.first.as_mut().expect("fixture first intent");
+            let Some(forge::FirstIntent::Empty(first)) = row.first.as_mut() else { panic!("fixture empty intent") };
             let name =
                 skein_lib::bytes::zeroed(usize::try_from(fixtures::LIMITS.name_bytes + extra).expect("name length"));
             match field {
@@ -1697,6 +1702,44 @@ fn dismissed_rows_round_trip_at_the_field_bounds() {
     }
 }
 
+#[test]
+fn each_setup_intent_round_trips_in_its_forge_record() {
+    use temper_engine_domain_forge::{EmptyIntent, FirstIntent};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let limits = bounds.limits();
+    for first in [
+        FirstIntent::Nothing,
+        FirstIntent::Copies { addresses: Box::new([]) },
+        FirstIntent::Copies {
+            addresses: full_copy_addresses(limits.copy_intent_addresses, limits.copy_intent_addresses_item),
+        },
+        FirstIntent::Empty(EmptyIntent {
+            org: Box::new([]),
+            repository: Box::new([]),
+            label: Box::new([]),
+            playground: false,
+        }),
+        FirstIntent::Empty(EmptyIntent {
+            org: skein_lib::bytes::zeroed(usize::try_from(limits.empty_intent_org).unwrap()),
+            repository: skein_lib::bytes::zeroed(usize::try_from(limits.empty_intent_repository).unwrap()),
+            label: skein_lib::bytes::zeroed(usize::try_from(limits.empty_intent_label).unwrap()),
+            playground: true,
+        }),
+    ] {
+        let mut record = fixtures::forge_record();
+        record.first = Some(first);
+        new_family_round_trip(&forge::Stored::Forge(record));
+    }
+}
+
+pub(super) fn full_copy_addresses(count: u32, length: u32) -> Box<[Box<[u8]>]> {
+    let mut addresses = skein_lib::List::with_capacity(count);
+    for _ in 0..count {
+        addresses.push(skein_lib::bytes::zeroed(usize::try_from(length).unwrap())).unwrap();
+    }
+    addresses.into_boxed()
+}
+
 #[expect(
     clippy::disallowed_macros,
     reason = "ordinary boundary fixtures allocate rows at configured bounds and one past them"
@@ -1742,4 +1785,46 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
         row.landings[0].changes[0].pull = None;
     }
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
+fn status_rows_round_trip_all_options_and_field_bounds() {
+    use skein_lib::Wall;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (party, project, count) in [(0, 0, 0), (7, 3, 2), (u64::MAX, u32::MAX, u64::MAX)] {
+        for present in [false, true] {
+            let brief = present.then_some(forge::Brief {
+                sentence: Box::from([b's'; forge::BRIEF_SENTENCE_BYTES]),
+                lede: Box::from([b'l'; forge::BRIEF_LEDE_BYTES]),
+                at: Wall::from_nanos(count),
+                landed: count,
+            });
+            for running in [
+                None,
+                Some(forge::StatusRunning { task: None, landed: count, since: Wall::from_nanos(count) }),
+                Some(forge::StatusRunning { task: Some(u64::MAX), landed: count, since: Wall::from_nanos(count) }),
+            ] {
+                let facts = forge::Stored::ProjectFacts(forge::ProjectFacts {
+                    project,
+                    landed: count,
+                    last_landed: Wall::from_nanos(count),
+                    brief: brief.clone(),
+                    running,
+                });
+                let looked = forge::Stored::Looked(forge::Looked {
+                    party,
+                    project,
+                    previous: present.then_some(Wall::from_nanos(count)),
+                    latest: Wall::from_nanos(count),
+                    seen: count,
+                    next_seen: count,
+                });
+                for row in [facts, looked] {
+                    let bytes = records::encode(&row);
+                    let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+                    assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+                }
+            }
+        }
+    }
 }

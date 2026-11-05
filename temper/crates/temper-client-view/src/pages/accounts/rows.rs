@@ -125,7 +125,7 @@ fn draw(
     };
     let models = models(root, w, provider, text_bytes / 4);
     b.open(Role::Disclosure);
-    b.style(crate::look::ACCOUNT_ROW);
+    b.style(crate::look::SETTINGS_ROW);
     b.name(&title);
     // Skein includes the description in the native disclosure summary.
     let separator = words::say(w, W::Separator, &[]);
@@ -140,7 +140,6 @@ fn draw(
     ]);
     b.description(&summary);
     b.open(Role::Slot);
-    b.style(crate::look::HEADING);
     b.open(Role::Heading { level: 3 });
     b.name(&title);
     let visible = if name.is_some() { caption(w, name, display, plan, sources) } else { title.clone() };
@@ -232,7 +231,6 @@ fn draw(
     b.close();
     omitted(b, w, W::SourcesOmitted, sources.len(), bindings.counts().sources);
     b.open(Role::Slot);
-    b.style(crate::look::DETAILS);
     if !models.is_empty() {
         pair(b, w, W::Models, &models);
     }
@@ -433,6 +431,7 @@ fn summary_state(w: &Words, source: Option<&c::AccountSource>) -> Box<[u8]> {
 }
 fn pair(b: &mut Builder, w: &Words, word: W, value: &[u8]) {
     b.open(Role::Region);
+    b.style(crate::look::SETTINGS_SETTING);
     b.name(&words::say(w, word, &[]));
     text(b, w, Role::Term, word);
     crate::cards::text(b, Role::Description, value);
@@ -722,11 +721,18 @@ fn program_hosts(
                     super::super::account_programs::failure(b, w, *reason, detail, w.name_bytes);
                 }
                 Some(c::ProgramState::SignedInOtherwise { method }) => {
+                    b.run(Run::Plain, b" ");
                     run(b, w, W::SignedInOtherwise);
                     b.run(Run::Plain, method);
                 }
-                Some(c::ProgramState::Usable) => run(b, w, W::Ready),
-                None => run(b, w, W::Unknown),
+                Some(c::ProgramState::Usable) => {
+                    b.run(Run::Plain, b" ");
+                    run(b, w, W::Ready);
+                }
+                None => {
+                    b.run(Run::Plain, b" ");
+                    run(b, w, W::Unknown);
+                }
                 Some(c::ProgramState::NotSignedIn) => {}
             }
             if !host.connected {

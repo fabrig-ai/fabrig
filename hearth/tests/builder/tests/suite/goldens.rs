@@ -1,5 +1,5 @@
 use hearth_builder_world::fixtures;
-use hearth_render_world::golden;
+use hearth_test_render::golden;
 #[test]
 fn merge_renders_what_its_expected_files_and_witnesses_say() {
     fixtures::check_golden("merge", "", &[]);
@@ -93,7 +93,7 @@ const X1_RENDER_LINES: &str = concat!(
     "config       part ............\n",
     "  tmpfiles   /var/log/journal d 2755 root systemd-journal\n",
     "  /etc/hostname                file 0644 root:root ............\n",
-    "  /etc/localtime               link root:root /usr/share/zoneinfo/Europe/Lisbon\n",
+    "  /etc/localtime               link root:root /usr/share/zoneinfo/Etc/UTC\n",
     "data         part ............\n",
     "  journal    /var/log/journal\n",
 );

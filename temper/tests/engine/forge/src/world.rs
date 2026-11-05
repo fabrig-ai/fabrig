@@ -101,6 +101,11 @@ struct Pending {
     generation: u64,
 }
 
+struct ReadScript {
+    ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
+    comparisons_too_large: bool,
+}
+
 /// Scripted root and forge protocol surrounding the connector top.
 pub struct World {
     top: top::Domain,
@@ -125,7 +130,7 @@ pub struct World {
     hints: Vec<skein_forge::api::Hint>,
     signatures: bool,
     pull_snapshot: Option<skein_forge::api::Pull>,
-    ancestry_answer: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
+    read_script: ReadScript,
     landing_config: Option<(u32, temper_engine_domain_forge_change::Way, Box<[top::RepositoryGates]>)>,
 }
 
@@ -301,7 +306,12 @@ impl World {
 
     /// Script each ancestry range's terminal result until the script is cleared.
     pub fn script_ancestry(&mut self, result: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>) {
-        self.ancestry_answer = result;
+        self.read_script.ancestry = result;
+    }
+
+    /// Refuse full comparisons at the protocol body bound; ancestry reads still reach the fake.
+    pub fn reject_comparisons(&mut self) {
+        self.read_script.comparisons_too_large = true;
     }
 
     pub fn preload_branches(&mut self, count: u32) {
@@ -445,7 +455,7 @@ impl World {
             hints: Vec::new(),
             signatures,
             pull_snapshot: None,
-            ancestry_answer: None,
+            read_script: ReadScript { ancestry: None, comparisons_too_large: false },
             landing_config: None,
         };
         world.top.restore_begin(world.env.wall);
@@ -458,6 +468,20 @@ impl World {
     pub fn writerless(seed: u64) -> World {
         Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false, None)
     }
+    /// Restore a durable tier snapshot through the connector's restart.
+    pub fn restore_tier(&mut self, row: top::TierRow) {
+        self.stored
+            .insert(top::Key::Tier { repository: row.repository, tier: row.tier.clone() }, top::Stored::Tier(row))
+            .expect("fixture tier room");
+        self.restart();
+    }
+
+    /// Bound tier news and client answers independently.
+    pub fn tier_log_room(&mut self, brief_bytes: u32, answer_bytes: u32) {
+        self.env.limits.brief_bytes = brief_bytes;
+        self.env.limits.client.answer_bytes = answer_bytes;
+    }
+
     pub fn tier_failures(&mut self, failing_tests: u32) {
         self.env.limits.tiers.failing_tests = failing_tests;
     }
@@ -1057,6 +1081,14 @@ impl World {
         for _ in 0..self.top_out.len() {
             let request = self.top_out.pop().expect("counted top output");
             match request {
+                top::Request::AdoptAccess { forge, request, .. } => {
+                    top::step(
+                        &mut self.top,
+                        &self.env,
+                        top::Event::AccessAnswered { forge, request, answer: Ok(()) },
+                        &mut self.top_out,
+                    );
+                }
                 top::Request::ApplicationPart { request, .. } => {
                     top::step(&mut self.top, &self.env, top::Event::Adopt { request }, &mut self.top_out);
                 }
@@ -1158,6 +1190,7 @@ impl World {
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::StatusRun { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }
@@ -1184,18 +1217,10 @@ impl World {
         assert!(repository.repository == REPO.repository || repository.repository == 0 || repository.repository == 3);
         self.calls += 1;
         self.call_ops.push(op.clone());
-        if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Commits { .. }))
-            && let Some(result) = &self.ancestry_answer
-        {
+        if let Some(result) = self.scripted_read(&op) {
             self.to_top.push((
                 self.generation,
-                top::Event::Client(skein_forge_client::Event::Answered {
-                    free: 0,
-                    rate: None,
-                    call,
-                    cost: 1,
-                    result: result.clone(),
-                }),
+                top::Event::Client(skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result }),
             ));
             return;
         }
@@ -1212,6 +1237,21 @@ impl World {
             .insert(token, Pending { client: call, op, generation: self.generation, repository: name.clone() })
             .expect("world call slots");
         self.to_forge.push(forge::Event::Call { reply_to: ReplyTo::new(token), user: 1, repository: name, op: raw });
+    }
+
+    fn scripted_read(
+        &self,
+        op: &skein_forge::api::Op,
+    ) -> Option<Result<skein_forge::api::Answer, skein_forge::api::Error>> {
+        match op {
+            skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })
+                if self.read_script.comparisons_too_large =>
+            {
+                Some(Err(skein_forge::api::Error::TooLarge))
+            }
+            skein_forge::api::Op::Read(skein_forge::api::Read::Commits { .. }) => self.read_script.ancestry.clone(),
+            _ => None,
+        }
     }
 
     fn take_forge(&mut self) {
@@ -1306,6 +1346,8 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::Looked(row) => top::Key::Looked { party: row.party, project: row.project },
         top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
@@ -1435,12 +1477,12 @@ mod records {
                 read_only: false,
                 bot: top::Bot { login: b"temper-bot".as_slice().into(), name: Box::new([]), email: Box::new([]) },
                 asked: false,
-                first: Some(top::FirstIntent {
+                first: Some(top::FirstIntent::Empty(top::EmptyIntent {
                     playground: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
                     label: b"Work".as_slice().into(),
-                }),
+                })),
             };
             world
                 .stored

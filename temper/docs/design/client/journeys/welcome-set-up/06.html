@@ -4,7 +4,7 @@
 ><meta charset="utf-8"
 ><meta name="viewport" content="width=device-width, initial-scale=1"
 ><title
->Connect a forge · temper</title
+>Welcome · first run · temper</title
 ><link rel="stylesheet" href="../skein-ui.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/temper.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/task-pages.css"
@@ -17,7 +17,7 @@
 ><body
 ><div id="app"
 ><header class="temper-banner"
-><a aria-label="temper chats" class="temper-brand" href="/chats"
+><a aria-label="temper" class="temper-brand" href="/welcome"
 ><span
 >temper</span
 ></a
@@ -33,20 +33,28 @@
 ></div
 ><ul aria-label="Steps" class="temper-flow-steps"
 ><li class="temper-flow-step temper-flow-done"
+><a aria-label="Welcome" href="/welcome?at=welcome"
 ><span
 >Welcome</span
+></a
 ></li
 ><li aria-current="true" class="temper-flow-step"
+><a aria-label="Forge" href="/welcome?at=forge"
 ><span
 >Forge</span
+></a
 ></li
 ><li class="temper-flow-step"
+><a aria-label="Model" href="/welcome?at=model"
 ><span
 >Model</span
+></a
 ></li
 ><li class="temper-flow-step"
+><a aria-label="Ready" href="/welcome?at=ready"
 ><span
 >Ready</span
+></a
 ></li
 ></ul
 ></header
@@ -114,8 +122,8 @@
 >Start it with</span
 ></legend
 ><div class="temper-welcome-option"
-><input type="radio" checked="" id="skein-ui-label-71"
-><label for="skein-ui-label-71"
+><input type="radio" checked="" id="skein-ui-label-75"
+><label for="skein-ui-label-75"
 >An empty repository</label
 ><p aria-label="A README and a starter CI check."
 ><span
@@ -124,19 +132,19 @@
 ></div
 ><div class="temper-welcome-option-more"
 ><div
-><label for="skein-ui-label-76"
+><label for="skein-ui-label-80"
 >Organization</label
-><input type="text" value="work" id="skein-ui-label-76"
+><input type="text" value="work" id="skein-ui-label-80"
 ></div
 ><div
-><label for="skein-ui-label-78"
+><label for="skein-ui-label-82"
 >Name</label
-><input type="text" value="hello" id="skein-ui-label-78"
+><input type="text" value="hello" id="skein-ui-label-82"
 ></div
 ></div
 ><div class="temper-welcome-option"
-><input type="radio" id="skein-ui-label-80"
-><label for="skein-ui-label-80"
+><input type="radio" id="skein-ui-label-84"
+><label for="skein-ui-label-84"
 >Copies of public repositories</label
 ><p aria-label="Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back."
 ><span
@@ -144,8 +152,8 @@
 ></p
 ></div
 ><div class="temper-welcome-option"
-><input type="radio" id="skein-ui-label-84"
-><label for="skein-ui-label-84"
+><input type="radio" id="skein-ui-label-88"
+><label for="skein-ui-label-88"
 >Nothing for now</label
 ><p aria-label="Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself."
 ><span

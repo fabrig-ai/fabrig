@@ -18,6 +18,7 @@ pub(super) enum Caller {
     Install { forge: u16, request: Token, back: Option<Box<[u8]>> },
     AcceptAsked { forge: u16, request: Token, installation: u64, stop: domain::AdoptionRefusal },
     Accept { forge: u16, call: Token, back: Option<Box<[u8]>> },
+    Access { forge: u16, request: Token },
     Reachable { forge: u16, request: Token },
 }
 #[derive(Debug)]
@@ -420,6 +421,7 @@ fn accept_answer(end: &root::SetupEnd, installation: u64, stop: domain::Adoption
         domain::AcceptAnswer::ForgeRefused(stop)
     }
 }
+#[expect(clippy::too_many_lines, reason = "each public caller keeps its terminal answer beside the other callers")]
 pub(super) fn ended(engine: &mut Engine, run: Token, end: &root::SetupEnd) -> bool {
     let Some(caller) = engine.setup.public.remove(&run) else { return false };
     if let root::SetupEnd::Stopped { reason, .. } = end {
@@ -482,6 +484,15 @@ pub(super) fn ended(engine: &mut Engine, run: Token, end: &root::SetupEnd) -> bo
         Caller::AcceptAsked { forge, request, installation, stop } => {
             let answer = accept_answer(end, installation, stop);
             event(engine, domain::Event::AcceptAnswered { forge, request, answer, stopped });
+        }
+        Caller::Access { forge, request } => {
+            let why = match end {
+                root::SetupEnd::Stopped { reason, .. } if reason.as_ref() == b"setup host: busy" => {
+                    domain::AdoptionRefusal::InFlight
+                }
+                root::SetupEnd::Done { .. } | root::SetupEnd::Stopped { .. } => domain::AdoptionRefusal::Unreachable,
+            };
+            event(engine, domain::Event::AccessAnswered { forge, request, answer: Err(why) });
         }
         Caller::Reachable { forge, request } => {
             let answer = match end {
@@ -668,4 +679,21 @@ fn accept_failure(
         | Why::Busy
         | Why::Crowded => domain::AdoptionRefusal::InvalidAnswer,
     }
+}
+
+/// A person's adoption asks on its path before the bot can locate it (protocol/setup.md, 5.4).
+pub(crate) fn adopt_access(engine: &mut Engine, forge: u16, request: Token, owner: Box<[u8]>, name: Box<[u8]>) {
+    if full(engine, forge) {
+        event(engine, domain::Event::AccessAnswered { forge, request, answer: Err(domain::AdoptionRefusal::InFlight) });
+        return;
+    }
+    let run = super::lifecycle::next_run(&mut engine.setup.lifecycle);
+    engine.setup.public.insert(run, Caller::Access { forge, request }).expect("public room checked");
+    stage(engine, run, host::Plan::Adopt { forge, repository: host::Repository::Path { owner, name } });
+}
+pub(super) fn accessed(engine: &mut Engine, run: Token, answer: Result<(), domain::AdoptionRefusal>) {
+    let Some(Caller::Access { forge, request }) = engine.setup.public.remove(&run) else {
+        unreachable!("Adopt access has its public caller")
+    };
+    event(engine, domain::Event::AccessAnswered { forge, request, answer });
 }

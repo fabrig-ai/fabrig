@@ -285,6 +285,8 @@ impl<P: ShellPlatform> Shell<P> {
         let heading = document.query_selector("main h1").expect("heading selector");
         let words = if document.query_selector("main.temper-home").expect("Home selector").is_some() {
             "Home".to_owned()
+        } else if document.query_selector("main.temper-welcome").expect("Welcome selector").is_some() {
+            "Welcome · first run".to_owned()
         } else {
             heading.as_ref().and_then(|element| element.text_content()).unwrap_or_default()
         };

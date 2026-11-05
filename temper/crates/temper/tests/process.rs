@@ -86,11 +86,10 @@ fn temper_open_adopts_a_repository_by_commands() {
     typist.wait_for(b"== Inbox == Live", support::WITHIN);
     typist.wait_for(b"All goals (pressed)\n", support::WITHIN);
     typist.type_on(b"Settings", b"");
-    typist.wait_for(b"== Settings for ", support::WITHIN);
+    typist.wait_for(b"== How work runs in ", support::WITHIN);
     typist.type_on(b"Forges", b"");
-    typist.wait_for(b"forge 1 \xc2\xb7 Forgejo \xc2\xb7 Connected as temper", support::WITHIN);
-    typist.type_on(b"Settings", b"");
-    typist.wait_for(b"== Settings for ", support::WITHIN);
+    typist.wait_for(b"Forge 1 \xc2\xb7 Forgejo \xc2\xb7 Connected as temper", support::WITHIN);
+    typist.type_on(b"Repositories", b"");
     typist.type_on(b"Adopt a repository", b"");
     for (control, words, printed) in [
         (b"Owner: (empty)".as_slice(), b"acme".as_slice(), b"Owner: acme".as_slice()),
@@ -385,7 +384,7 @@ fn temper_box_prints_its_link_and_stops_its_processes() {
     let owned = boxed_example(&scratch);
     let forgejo = owned.forgejo;
     let ended = support::boxed::run_echo_steps(scratch.path(), Some(forgejo), support::boxed::Plan::Stop, BOX_DEADLINE);
-    assert_box_streams(&ended, forgejo);
+    assert_box_streams(&ended, forgejo, scratch.path());
     assert_eq!(ended.forgejo_at_link, Some(200), "Forgejo answered its version when the link came");
     assert_eq!(ended.exit, Some(Exit::Code(0)), "stopped as asked: {}", String::from_utf8_lossy(&ended.stderr));
     assert_eq!(ended.left, Some(Vec::new()), "no process the box started outlived it");
@@ -405,7 +404,7 @@ fn boxed_example(scratch: &support::Scratch) -> support::owned::Owned {
     support::write_private(&scratch.path().join("box/started/1"), b"");
     owned
 }
-fn assert_box_streams(ended: &support::boxed::Outcome, forgejo: std::net::SocketAddr) {
+fn assert_box_streams(ended: &support::boxed::Outcome, forgejo: std::net::SocketAddr, data: &std::path::Path) {
     let link = support::printed_link(&ended.stdout).unwrap_or_else(|| {
         panic!("the box's stdout carries the link: {}", String::from_utf8_lossy(&ended.stderr));
     });
@@ -414,7 +413,15 @@ fn assert_box_streams(ended: &support::boxed::Outcome, forgejo: std::net::Socket
     assert!(ended.stdout.split(|byte| *byte == b'\n').all(alone), "stdout holds links alone");
     let steps = ["prepare-1: ", "forgejo-1: ", "runner-1: ", "serve: "];
     let api = format!("Forgejo: api http://{forgejo}/api/v1");
-    let notices = ["Forgejo: started", api.as_str(), "Forgejo: person ada"];
+    let notices = ["Forge 1 (Forgejo): starting", "Forge 1 (Forgejo): started"];
+    let log = std::fs::read_to_string(data.join("box/logs/forgejo-1.log")).expect("Forgejo step log");
+    for words in [api.as_str(), "Forgejo: person ada"] {
+        let lines: Vec<_> = log.lines().filter(|line| line.ends_with(words)).collect();
+        assert_eq!(lines.len(), 1, "hands are logged once: {log}");
+        let stamp = lines[0].strip_suffix(words).expect("hands suffix");
+        assert_eq!(stamp.len(), 21, "ISO UTC time precedes the hands");
+        assert!(stamp.ends_with("Z "));
+    }
     let stderr = std::str::from_utf8(&ended.stderr).expect("box diagnostics");
     assert!(
         stderr.lines().all(|line| {
@@ -423,6 +430,10 @@ fn assert_box_streams(ended: &support::boxed::Outcome, forgejo: std::net::Socket
         }),
         "each stderr line names its step or carries prescribed box words: {stderr}"
     );
+    for words in notices {
+        assert_eq!(stderr.lines().filter(|line| box_notice_words(line) == words).count(), 1, "{stderr}");
+    }
+    assert!(!stderr.contains("Forgejo: api ") && !stderr.contains("Forgejo: person "), "{stderr}");
     assert!(stderr.lines().any(|line| line.starts_with("runner-1: ")), "the runner's lines arrive prefixed");
 }
 
@@ -471,19 +482,7 @@ fn owned_hands_line(words: &str) -> bool {
     if number.parse::<u16>().is_err() {
         return false;
     }
-    if words == "started" {
-        return true;
-    }
-    if let Some(address) = words.strip_prefix("api http://").and_then(|api| api.strip_suffix("/api/v1")) {
-        return address.parse::<std::net::SocketAddr>().is_ok();
-    }
-    words
-        .strip_prefix("person ")
-        .and_then(|words| words.split_once(", read header "))
-        .and_then(|(_, headers)| headers.split_once(", write header "))
-        .is_some_and(|(read, write)| {
-            std::path::Path::new(read).is_absolute() && std::path::Path::new(write).is_absolute()
-        })
+    ["starting", "started"].contains(&words)
 }
 
 #[test]

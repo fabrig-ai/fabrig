@@ -5,7 +5,7 @@ use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::Host;
 use temper_client_domain::Address;
-use temper_client_domain::{ChatsFilter, PlanFilter};
+use temper_client_domain::ChatsFilter;
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 /// Resolve the process story's Reply and task title together on one Item.
 /// Other semantic queries and interaction checks retain `TreeFace`'s contract.
@@ -87,7 +87,10 @@ pub fn deployment_account() -> Script {
         begin: Begin::LinkWithOpenAiKey,
         steps: Box::new([
             Step::Go { address: Address::Accounts },
-            Step::See { find: Find::exactly_named(Role::Heading { level: 1 }, b"Accounts"), within: START_WITHIN },
+            Step::See {
+                find: Find::exactly_named(Role::Heading { level: 1 }, b"What agents run on."),
+                within: START_WITHIN,
+            },
             Step::See {
                 find: Find::exactly_named(Role::Disclosure, b"OpenAI API key \xc2\xb7 held by the deployment"),
                 within: START_WITHIN,
@@ -251,7 +254,7 @@ pub fn demo_change() -> Script {
             Step::See { find: Find::text("CI passed. Landed · merge commit ".as_bytes()).within(card()), within: START_WITHIN },
             Step::Gone { find: Find::exactly_named(Role::Status, b"Applied"), within: START_WITHIN },
             // The owner's chat log holds the result's words alone, not its ending.
-            Step::Go { address: Address::Task { task: CHANGE, filter: PlanFilter::All } },
+            Step::Go { address: Address::Task { task: CHANGE } },
             Step::See {
                 find: Find::exactly_named(Role::Heading { level: 1 }, b"Export widget's table as CSV").within(details()),
                 within: START_WITHIN,
@@ -668,6 +671,11 @@ impl Person {
             && self.project == ProjectSelection::Selected
             && !self.finished
             && self.failed.is_none()
+            // Finish opening exchanges before a scripted one-shot account paste.
+            && (client.pending().admission.attempts == 0
+                || !client.tree().nodes().iter().any(|node| {
+                    node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Add key")
+                }))
             && !key_waits
         {
             let before = self.actor.at();
@@ -868,6 +876,8 @@ pub fn adopt_and_change(_forgejo: &super::forgejo::Throwaway) -> Script {
         },
         Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: super::WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
+        Step::See { find: Find::exactly_named(Role::Link, b"Repositories"), within: super::WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Link, b"Repositories") },
         Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: super::WITHIN },
         Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within: super::WITHIN },

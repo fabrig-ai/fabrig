@@ -21,7 +21,9 @@
     linear history, code owners and the App's bypass
     (`temper-service/src/family.rs`).
   - 7.1, 12: the findings topic and findings (`findings.md`).
-  - 7.3: a hold parked until a landing.
+  - 7.3: a hold parked until a landing. An explicit landing subscription
+    with no paths receives a known landing as kept news; it does not wake
+    a parked hold.
   - 8.1: per-change bounds and gates are not caller overrides: `change` takes parameters 1
     to 6, 9 to 12, 14 and 16, its bounds, the questions it takes among
     them, are the deployment's `change_policy`, and its gates its landing
@@ -93,6 +95,32 @@
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
     on.
+- **Departs:** 5.7: a project's first run's words count their span from the
+  epoch: `temper-engine-domain-forge/src/status/words.rs`, `specification`,
+  takes `Wall::EPOCH` with no brief, so the agent reads "Since the last brief:"
+  and some half a million hours, where a brief has never been written. This
+  section names no span for a first brief, the plan's test gives its row a brief
+  (`its_words_say_what_landed_since_the_brief`), and no reason is recorded.
+- **Design departs:** 5.6, 5.7, from the request `ui-home-status` of 2026-11-05,
+  each decided by its plan's cut, for the user to see:
+  - 5.6: `Looked` keeps `next_seen`, a field the request doesn't name, where the
+    request has a new sitting set `seen` to the current `landed`. That would read
+    as nothing landed at the moment the person comes back; the request's own
+    definition of `seen`, the count at `previous`, is what holds.
+  - 5.7: `ProjectFacts.running`, a field the request doesn't name, so that "none
+    running" survives a restart and a run held past an hour never stops the next.
+  - 5.7: a run is a procedure of the project's period that delegates charter 9,
+    where the request has an agent's task under the project's pool, because jig's
+    connector task takes the project's whole ceiling as its authority and can't
+    narrow it, and an agent reading change titles should not hold merge
+    authority. So a project whose policy's delegation doesn't name charter 9 has
+    no brief, and a period its people's pools reserve whole has none either
+    (`../client/README.status.md`, 3.5).
+  - 5.7: a run's task is kept, where the request has it forgotten once read,
+    because jig forgets a result only for a person's request (section 20).
+  - 5.7: a live goal's "landed and total changes" are its delegates done and
+    total, because the forge keeps no count a goal, and "failures the forge holds
+    since" are what each tier holds now, because it keeps no times on them.
 - **Departs:** 9: the first keeps its turn only until the next ready change
   steps: `queue_first` (`temper-engine-domain-forge/src/domain.rs`) chooses
   among `queue_ready`'s changes, which leave out one at `Updating`, `Checking`,

@@ -148,6 +148,8 @@ pub struct Domain {
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
+    pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
+    pub(crate) looked: Map<(u64, u32), crate::Looked>,
     pub(crate) dismissed: Map<(u64, crate::Dismissal), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
     /// One setup runs at a time (temper/docs/design/protocol/forge.md, 2.8).
@@ -332,6 +334,16 @@ impl Domain {
                 },
                 offer: self.offer(*forge),
                 first: self.first.get(forge).cloned(),
+                starts_with: match match self.record(*forge) {
+                    Some(record) => record.first.as_ref(),
+                    None => None,
+                } {
+                    Some(crate::FirstIntent::Copies { addresses }) => {
+                        crate::StartsWith::Copies { addresses: addresses.clone() }
+                    }
+                    Some(crate::FirstIntent::Nothing) => crate::StartsWith::Nothing,
+                    Some(crate::FirstIntent::Empty(_)) | None => crate::StartsWith::Repository,
+                },
                 installations: self.forge_installations(*forge, config.kind),
                 ended,
                 app: match self.connection(*forge) {
@@ -613,6 +625,8 @@ impl Domain {
             bindings: Map::with_capacity(l.bindings),
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
+            project_facts: Map::with_capacity(l.judge_projects),
+            looked: Map::with_capacity(l.dismissed()),
             dismissed: Map::with_capacity(l.dismissed()),
             connections: Map::with_capacity(l.forges),
             fetched: None,
@@ -888,7 +902,10 @@ impl Domain {
         if !self.repositories.contains_key(&repository) {
             return Some((b"repository is not adopted; select an adopted owner/name", None));
         }
-        None
+        match &subscription.topic {
+            Topic::Landings { branch, .. } => admission::landing_subscription_problem(self, limits, repository, branch),
+            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
+        }
     }
 
     /// Current subscriber for an automatic goal topic, preserving its durable number.
@@ -1160,6 +1177,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
     }
     match event {
         Event::TierWords { task, words } => crate::tiers::words::projected(d, task, &words, out),
+        Event::StatusTask { project, task } => crate::status::task(d, project, Some(task), out),
+        Event::StatusRefused { project } => crate::status::task(d, project, None, out),
+        Event::StatusHeard { task, report } => crate::status::heard(d, env.wall, task, report, out),
         Event::TierTask { repository, tier, number, task } => {
             crate::tiers::task(d, repository, tier, number, Some(task), out);
         }
@@ -1203,6 +1223,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::ConnectAnswered { forge, request, answer } => crate::connect::connected(d, forge, request, answer, out),
+        Event::AccessAnswered { forge: _, request, answer } => adoption::accessed(d, env, request, answer, out),
         Event::ReachableAnswered { forge, request, answer } => crate::connect::reached(d, forge, request, answer, out),
         Event::AcceptAnswered { forge, request, answer, stopped } => {
             crate::connect::accepted(d, forge, request, answer, stopped, out);
@@ -1341,6 +1362,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::MakingActed { key, outcome } => crate::making::acted(d, key, outcome, out),
         Event::MakingAgain { key } => {
             d.making_acts.remove(&key);
+        }
+        Event::Looked { request, token, party, project } => {
+            crate::status::looked(d, env, request, token, party, project, out);
         }
         Event::Dismiss { request, token, party, what } => {
             crate::dismissed::dismiss(d, request, token, party, what, out);
@@ -1550,7 +1574,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Withdraw { entry } => withdraw(d, env, entry, out),
         Event::VetoChange { task, entry, prior } => veto_change(d, env, task, entry, prior, out),
         Event::Subscribe { subscription } => subscribe(d, env, subscription, out),
-        Event::Unsubscribe { task, topic } => unsubscribe(d, task, topic, out),
+        Event::Unsubscribe { task, topic } => unsubscribe(d, env, task, topic, out),
         Event::Hint { hint } => {
             crate::landing::hinted(d, &hint, out);
             crate::tiers::hinted(d, &hint, out);
@@ -3089,6 +3113,22 @@ fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Er
     }
 }
 
+// Uncertain reads retry without spending production's stall or resolution allowance
+// (temper/docs/design/domain/forge.md, 8.2 and 10).
+fn retry_step(env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    emit(
+        out,
+        Request::ChangeDecision {
+            task,
+            decision: change::Decision::Wait {
+                until: Some(skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000))),
+            },
+            entry: None,
+            evidence: None,
+        },
+    );
+}
+
 #[expect(clippy::too_many_lines, reason = "one bounded fresh-read chain preserves its stage and facts")]
 fn step_read(
     d: &mut Domain,
@@ -3102,17 +3142,7 @@ fn step_read(
         return;
     }
     if result == Err(skein_forge::api::Error::Busy) {
-        emit(
-            out,
-            Request::ChangeDecision {
-                task: pending.task,
-                decision: change::Decision::Wait {
-                    until: Some(skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000))),
-                },
-                entry: None,
-                evidence: None,
-            },
-        );
+        retry_step(env, pending.task, out);
         return;
     }
     let Some(row) = d.changes.get(&pending.task) else { return };
@@ -3199,7 +3229,7 @@ fn step_read(
             }
             if let Some(commit) = catch_up {
                 pending.stage = StepStage::CatchUp;
-                skein_forge::api::Read::Compare { before: commit, after: pending.base_tip.expect("base read") }
+                skein_forge::api::Read::Commits { before: pending.base_tip.expect("base read"), after: commit, page: 1 }
             } else {
                 pending.stage = StepStage::Pull;
                 match pull_number {
@@ -3209,18 +3239,11 @@ fn step_read(
             }
         }
         StepStage::CatchUp => {
-            pending.contains_catch_up = match result {
-                Ok(skein_forge::api::Answer::Compare { before, after, contains_before, .. })
-                    if Some(before) == catch_up && Some(after) == pending.base_tip =>
-                {
-                    if contains_before {
-                        change::Status::Passed
-                    } else {
-                        change::Status::Failed
-                    }
-                }
-                Ok(_) | Err(_) => change::Status::Pending,
-            };
+            pending.contains_catch_up = ancestry_status(result);
+            if pending.contains_catch_up == change::Status::Unknown {
+                retry_step(env, pending.task, out);
+                return;
+            }
             pending.stage = StepStage::Pull;
             match pull_number {
                 Some(number) => skein_forge::api::Read::Pull { number },
@@ -4326,7 +4349,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
             }
         }
         for topic in &topics {
-            unsubscribe(d, task, topic.clone(), out);
+            unsubscribe(d, env, task, topic.clone(), out);
         }
         unnamed(d, env, task, true, out);
         end_change(d, env, task, out);
@@ -5018,6 +5041,10 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
     }
     let key = (task, subscription.topic.clone());
     d.subscriptions.insert(key, subscription.clone()).expect("preflighted subscription capacity");
+    let landing = match &subscription.topic {
+        Topic::Landings { .. } => true,
+        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => false,
+    };
     topics::subscribe(d, &subscription, out);
     let tasks = subscription.goal_tasks.clone();
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Subscription(subscription) });
@@ -5029,9 +5056,12 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
     if let Some((repository, head)) = ci {
         ci_refresh(d, env, repository, head, out);
     }
+    if landing {
+        crate::tiers::watch(d, env, out);
+    }
 }
 
-fn unsubscribe(d: &mut Domain, task: u64, topic: Topic, out: &mut Queue<Request>) {
+fn unsubscribe(d: &mut Domain, env: &Env<Limits>, task: u64, topic: Topic, out: &mut Queue<Request>) {
     if d.subscriptions.remove(&(task, topic.clone())).is_some() {
         emit(out, Request::Erase { key: Key::Subscription { task, topic: topic.clone() } });
         match topic {
@@ -5046,7 +5076,8 @@ fn unsubscribe(d: &mut Domain, task: u64, topic: Topic, out: &mut Queue<Request>
                     emit(out, Request::Erase { key: Key::Ci { repository, head } });
                 }
             }
-            Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Landings { .. } => crate::tiers::watch(d, env, out),
+            Topic::Pull { .. } | Topic::Participation { .. } => {}
         }
     }
 }
@@ -5755,6 +5786,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Setting(row) => {
             d.setting_rows.insert(row.key, row.edit).expect("restored setting within limits");
         }
+        Stored::ProjectFacts(row) => {
+            d.project_facts.insert(row.project, row).expect("restored project facts room checked");
+        }
+        Stored::Looked(row) => {
+            d.looked.insert((row.party, row.project), row).expect("restored looked room checked");
+        }
         Stored::Dismissed { party, what } => {
             d.dismissed.insert((party, what), ()).expect("restored dismissal room checked");
         }
@@ -6091,7 +6128,9 @@ pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: Cha
     if (row.change.owns_turn || row.base_repair)
         && let Some(subject) = crate::views::changes_mark(d, row.repository)
     {
-        tasks.push(subject).expect("project changes subject");
+        for subject in subject {
+            tasks.push(subject).expect("project changes and status subjects");
+        }
     }
     let tasks = tasks.into_boxed();
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
@@ -6136,7 +6175,9 @@ fn save_queue_change(
         tasks.push(landing).expect("member landing subject");
     }
     if let Some(subject) = crate::views::changes_mark(d, row.repository) {
-        tasks.push(subject).expect("project changes subject");
+        for subject in subject {
+            tasks.push(subject).expect("project changes and status subjects");
+        }
     }
     let mut previous = None;
     while tasks.room() > 0 {
@@ -6435,6 +6476,8 @@ impl Domain {
             | RecordKind::Binding
             | RecordKind::Setting
             | RecordKind::Making
+            | RecordKind::ProjectFacts
+            | RecordKind::Looked
             | RecordKind::Dismissed => {
                 unreachable!("row has no links")
             }

@@ -83,15 +83,16 @@ Where the client does otherwise:
   link and the wide "Answer in a row"
   open the project's *Needs you*. The rail and phone tabs colour the
   open project's needs count, as Home's section does. The kicker shows the
-  current day and time; "you last looked", what landed in the
-  headline, the lede and byline wait on `../README.md`, 11, *What
-  changed since the person last looked*. Context, choices,
+  current day and time and "you last looked", the headline what landed,
+  and the lede and byline the status agent's words, with no prose of the
+  client's where it has written none; "Landing: …", including "Landing:
+  nothing has landed yet" after Skip, closes the page, and Goals takes
+  Chats' place with a goal in the project (`../README.md`, 3.5, *Home on
+  any project*; on the stock policy a person's pool leaves no funding
+  for those words, `../README.status.md`, 3.5). Context, choices,
   "recommended", "Later", the answer's green line and "Undo" are the
-  greenfield mock's (`../README.md`, 3.5); Goals and "No
-  goals yet…" on *Goals on Home* there; "Landing: …", including
-  "Landing: nothing has landed yet" after Skip, on *The landing's
-  line on Home* there. A chat's "landed" waits on *What a chat did, on
-  its line* there. An adopted repository's To begin line describes checked changes landing through
+  greenfield mock's (`../README.md`, 3.5). A chat's "landed" waits on
+  `../README.md`, 11, *What a chat did, on its line*. An adopted repository's To begin line describes checked changes landing through
   the merge queue, without claiming a creation age or first CI result
   (`../README.md`, 11). Landing-by-turn wording waits on that
   section's *How a project lands, on To begin's second step*: the
@@ -122,12 +123,10 @@ Where the client does otherwise:
   ahead of Forges, Accounts and Adopt a repository (`../README.md`,
   3.5, *Settings*). Before its rows arrive, or when the configuring chat
   is past the watch's window, the link opens the page before its first
-  words. Settings' forge and model lines await that page's design
-  (`../README.md`, 11).
-  How work runs' "Configure temper" entry and a proposal review's "Change
-  something" await the client settings and proposal views
-  (`../README.status.md`, 3.5 and 5.13). Docking the configuring chat
-  beside How work runs is `../README.md`, 11. No draft act or model
+  words. A proposal review's "Change
+  something" awaits the client's proposal view
+  (`../README.status.md`, 3.5 and 5.13). The configuring chat is docked
+  beside nothing, the user's decision (`../README.md`, 5.13). No draft act or model
   chooser is drawn on this page.
   The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;

@@ -69,8 +69,9 @@ pub(crate) fn landed(d: &mut Domain, now: Wall, commit: Commit, task: u64, out: 
         changed = true;
     }
     if changed {
+        crate::status::landed(d, now, repository, out);
         if let Some(subject) = crate::views::changes_mark(d, repository) {
-            out.push(Request::Marked { tasks: Box::new([subject]) });
+            out.push(Request::Marked { tasks: Box::new(subject) });
         }
         out.push(Request::Save { read_afresh: None, release: None, record: Stored::LandingLog(row.clone()) });
     }

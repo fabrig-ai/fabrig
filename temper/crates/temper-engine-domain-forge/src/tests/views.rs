@@ -288,6 +288,7 @@ fn marked(out: &[Request]) -> bool {
     for request in out {
         if let Request::Marked { tasks } = request
             && tasks.contains(&changes_subject(PROJECT))
+            && tasks.contains(&status_subject(PROJECT))
         {
             return true;
         }
@@ -298,6 +299,7 @@ fn queue_marked(out: &Queue<Request>) -> bool {
     for request in out {
         if let Request::Marked { tasks } = request
             && tasks.contains(&changes_subject(PROJECT))
+            && tasks.contains(&status_subject(PROJECT))
         {
             return true;
         }

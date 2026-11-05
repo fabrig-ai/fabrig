@@ -159,11 +159,7 @@ mod tests {
         let mut root = domain::unlinked(&domain_limits(), 11);
         let mut requests = root_event(
             &mut root,
-            Event::Start {
-                address: domain::Address::Task { task: TASK, filter: domain::PlanFilter::All },
-                kept: List::with_capacity(0),
-                with: None,
-            },
+            Event::Start { address: domain::Address::Task { task: TASK }, kept: List::with_capacity(0), with: None },
         );
         for event in [
             jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
@@ -207,7 +203,11 @@ mod tests {
         requests
             .iter()
             .filter_map(|request| match request {
-                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => Some(*read),
+                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { query, .. }) }
+                    if query.parent == Some(TASK) =>
+                {
+                    Some(*read)
+                }
                 _ => None,
             })
             .collect()
@@ -355,12 +355,7 @@ mod tests {
         };
         node
     }
-    fn press(root: &mut Domain, label: &[u8]) -> Vec<jig_client::Down> {
-        let mut view = view(root);
-        let node = find(&view, skein_ui::Role::Button, label);
-        let action = temper_client_view::act(&mut view, node, skein_ui::Act::Press).expect("button's act");
-        root_event(root, Event::Act { action })
-    }
+
     fn page(rows: &[u64], cut: bool) -> c::TaskPage {
         let mut page = empty_page();
         let mut ended = List::with_capacity(domain_limits().client.domain.rows);
@@ -369,107 +364,6 @@ mod tests {
         }
         page.ended = c::EndedGroup::Rows { rows: ended, after: None, cut };
         page
-    }
-    fn plan_links(root: &Domain) -> Vec<String> {
-        let view = view(root);
-        let nodes = view.tree().nodes();
-        let index = nodes.iter().position(|node| node.role == skein_ui::Role::Tree).expect("plan tree");
-        let end = index.checked_add(usize::try_from(nodes[index].size).expect("subtree size")).expect("subtree end");
-        nodes[index..end]
-            .iter()
-            .filter(|node| node.role == skein_ui::Role::Link)
-            .filter_map(|node| node.name.as_ref().map(|name| String::from_utf8_lossy(name).into_owned()))
-            .collect()
-    }
-
-    // client/README.md 5.8: "filter is drawn from the page's start, before the read answers";
-    // "two buttons, the chosen one pressed"; they "filter ... reading nothing".
-    #[test]
-    fn goal_filter_is_operable_before_the_first_ended_answer() {
-        let (mut root, _, _, _) = opened(goal());
-        let requests = press(&mut root, b"Live only");
-        assert!(requests.is_empty(), "filter is local: {requests:?}");
-        let view = view(&root);
-        let node = find(&view, skein_ui::Role::Button, b"Live only");
-        assert!(
-            view.tree()
-                .nodes()
-                .iter()
-                .find(|n| n.id == node)
-                .expect("button")
-                .states
-                .as_slice()
-                .contains(&skein_ui::State::Pressed)
-        );
-        assert!(text(view.tree().nodes()).contains("No live tasks."));
-    }
-
-    // client/README.md 5.8: "read goes on under either" filter; counts use
-    // "N the goal's chip's live_delegates" and "more than M ended" when cut.
-    #[test]
-    fn live_filter_keeps_counts_and_receives_refreshed_ended_rows() {
-        let (mut root, _, tree_watch, requests) = opened(goal());
-        answer_all_initial_reads(&mut root, &requests, &page(&[21], true));
-        drop(press(&mut root, b"Live only"));
-        let refresh = deliver(&mut root, tree_watch, tree(&goal()));
-        let read = ended_reads(&refresh).into_iter().next().expect("refresh read");
-        drop(ended_answer(&mut root, read, page(&[22, 23], false)));
-        let drawing = text(view(&root).tree().nodes());
-        assert!(drawing.contains("Its delegates: 17 live, 2 ended."), "supplied counts: {drawing}");
-        assert!(plan_links(&root).is_empty(), "ended rows hidden under Live only");
-        assert!(!drawing.contains("More of its ended tasks are not shown."), "more line hidden");
-        drop(press(&mut root, b"All"));
-        assert_eq!(plan_links(&root), ["Task 22", "Task 23"], "All uses the answer received while filtered");
-    }
-
-    // client/README.md 5.8: "last page answered stays drawn until the next one answers";
-    // the cut page says "more than M ended" and the filter "does not change" counts.
-    #[test]
-    fn goal_refresh_keeps_old_rows_and_cut_count_until_answered() {
-        let (mut root, _, tree_watch, requests) = opened(goal());
-        answer_all_initial_reads(&mut root, &requests, &page(&[21], true));
-        drop(deliver(&mut root, tree_watch, tree(&goal())));
-        let drawing = text(view(&root).tree().nodes());
-        assert_eq!(plan_links(&root), ["Task 21"]);
-        assert!(drawing.contains("Its delegates: 17 live, more than 1 ended."), "cut count: {drawing}");
-        assert!(drawing.contains("More of its ended tasks are not shown."));
-    }
-
-    // client/README.md 5.8: a delegate in both sources "is drawn once, as the tree's row".
-    #[test]
-    fn overlapping_ended_and_live_rows_use_the_tree_row_once() {
-        let task = goal();
-        let (mut root, _, tree_watch, requests) = opened(task.clone());
-        let mut child = agent();
-        child.chip.task = 21;
-        child.chip.title = words(b"Tree row takes precedence");
-        let mut rows = List::with_capacity(1);
-        rows.push(c::TreeRow {
-            chip: child.chip,
-            parent: TASK,
-            depth: 1,
-            proposals: List::with_capacity(0),
-            spent: 999,
-            dependencies: List::with_capacity(0),
-            cut: false,
-        })
-        .expect("row");
-        drop(deliver(
-            &mut root,
-            tree_watch,
-            c::Delivery::Tree(Box::new(c::Tree {
-                root: task.chip,
-                rows,
-                folded: List::with_capacity(0),
-                held_below: 0,
-                next: None,
-            })),
-        ));
-        answer_all_initial_reads(&mut root, &requests, &page(&[21], false));
-        assert_eq!(plan_links(&root), ["Task 21"]);
-        let drawing = text(view(&root).tree().nodes());
-        assert!(drawing.contains("Tree row takes precedence"), "tree supplies content: {drawing}");
-        assert!(!drawing.contains("ended child 21"), "page duplicate omitted: {drawing}");
     }
 
     // client/README.md 5.9: with no lineage, "parent is its requester's Task N link
@@ -562,69 +456,6 @@ mod tests {
         text(&nodes[index..end])
     }
 
-    // client/README.md 5.8: budget reads "S spent · L left of B" as supplied,
-    // with "Delegates spent" and "Reserved for delegates" kept separate;
-    // "it computes no sum, share or difference".
-    #[test]
-    fn goal_budget_uses_supplied_amounts_without_recomputing_left() {
-        let mut task = goal();
-        task.budget.numbers = c::Numbers { budget: 100, spent: 7, spent_below: 31, reserved: 19 };
-        task.budget.left = 43;
-        task.budget.funder = c::Funder::Pool { project: 1, person: 73, period: 1 };
-        task.budget.deadline = None;
-        let (root, _, _, _) = opened(task);
-        let drawing = region_text(&root, b"Budget and authority");
-        assert!(drawing.contains("7 spent · 43 left of 100"), "budget's own left: {drawing}");
-        assert!(drawing.contains("Delegates spent31"), "ended spend separate: {drawing}");
-        assert!(drawing.contains("Reserved for delegates19"), "reservation separate: {drawing}");
-        assert!(drawing.contains("Your pool") && drawing.contains("DeadlineNone"), "funder and no deadline: {drawing}");
-    }
-
-    // client/README.md 5.8: dependency waits use "N their supplied count";
-    // party waits say "you" only when the person is that party or holds that role.
-    #[test]
-    fn goal_header_uses_exact_wait_count_and_scoped_role_identity() {
-        let mut pending = List::with_capacity(2);
-        pending.push(21).expect("dependency");
-        pending.push(22).expect("dependency");
-        for (project, wait, expected) in [
-            (1, c::WaitsOn::Dependencies { pending, count: 41 }, "waiting on 41 tasks"),
-            (
-                1,
-                c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: TASK, kind: c::WaitedFor::Question },
-                "waiting on an answer from you",
-            ),
-            (
-                2,
-                c::WaitsOn::Party {
-                    whom: c::Whom::Role { project: 2, role: 1 },
-                    entries: 1,
-                    task: TASK,
-                    kind: c::WaitedFor::Question,
-                },
-                "waiting on an answer from you",
-            ),
-            (
-                3,
-                c::WaitsOn::Party {
-                    whom: c::Whom::Role { project: 3, role: 1 },
-                    entries: 1,
-                    task: TASK,
-                    kind: c::WaitedFor::Question,
-                },
-                "waiting on an answer from role 1",
-            ),
-        ] {
-            let mut task = goal();
-            task.project = project;
-            details(&mut task).project = project;
-            task.waits_on = wait.clone();
-            let (root, _, _, _) = opened(task);
-            let view = view(&root);
-            find(&view, skein_ui::Role::Status, expected.as_bytes());
-        }
-    }
-
     // client/README.md 5.9: brief dependencies are "in order" with added marks
     // from "dependency_facts"; document cut "does not say which ... was cut",
     // so the line has no invented last item (5.8 marks match by number).
@@ -703,63 +534,6 @@ mod tests {
         );
     }
 
-    // client/README.md 5.11: "While ... confirmation is open ... draw no act";
-    // the dialog's Cancel is "the only one on the page".
-    #[test]
-    fn goal_stop_confirmation_hides_other_toolbar_acts() {
-        let mut task = goal();
-        task.acts = List::with_capacity(3);
-        for act in [c::ActKind::Amend, c::ActKind::Stop, c::ActKind::Cancel] {
-            task.acts.push(c::Offered { act, admission: c::Admission::Allowed, effect: None }).expect("toolbar offers");
-        }
-        let (mut root, _, _, _) = opened(task);
-        drop(press(&mut root, b"Stop"));
-        let view = view(&root);
-        find(&view, skein_ui::Role::Dialog, b"Stop");
-        let buttons: Vec<_> = view
-            .tree()
-            .nodes()
-            .iter()
-            .filter(|n| n.role == skein_ui::Role::Button)
-            .filter_map(|n| n.name.as_deref())
-            .collect();
-        assert_eq!(buttons.iter().filter(|n| **n == b"Cancel").count(), 1, "one dialog Cancel");
-        assert!(!buttons.iter().any(|n| *n == b"Amend" || *n == b"Stop"), "toolbar hidden while confirming");
-    }
-
-    // client/README.md 5.8: Live only keeps "the live rows, their folds and held
-    // cards"; "No live tasks" requires "no live row, fold or held count".
-    #[test]
-    fn live_filter_does_not_call_a_folded_only_plan_empty() {
-        let task = goal();
-        let (mut root, _, tree_watch, requests) = opened(task.clone());
-        let mut folded = List::with_capacity(1);
-        folded
-            .push(c::TreeFold {
-                parent: TASK,
-                phases: c::PhaseCounts { running: 17, ..c::PhaseCounts::ZERO },
-                held_below: 0,
-            })
-            .expect("one fold");
-        drop(deliver(
-            &mut root,
-            tree_watch,
-            c::Delivery::Tree(Box::new(c::Tree {
-                root: task.chip,
-                rows: List::with_capacity(0),
-                folded,
-                held_below: 0,
-                next: None,
-            })),
-        ));
-        answer_all_initial_reads(&mut root, &requests, &page(&[21], false));
-        drop(press(&mut root, b"Live only"));
-        let drawing = region_text(&root, b"Plan");
-        assert!(!drawing.contains("No live tasks."), "folds attest hidden live work: {drawing}");
-        assert!(drawing.contains("17"), "supplied fold count remains visible: {drawing}");
-        assert!(plan_links(&root).is_empty(), "ended row remains filtered");
-    }
-
     // client/README.md 5.9: Agent is "an agent's executor, no priority, not the
     // chat label"; 5.11 allows untracking a goal. Its resulting page has a brief
     // and conversation, with no inherited ended-delegate query (5.8).
@@ -773,5 +547,49 @@ mod tests {
         let drawing = text(view.tree().nodes());
         assert!(!drawing.contains("ended child 21"), "goal's ended rows leave with its tracked shape: {drawing}");
         assert!(!drawing.contains("Its delegates:"), "agent has no goal plan counts: {drawing}");
+    }
+    // client/README.md, 5.11: needs are bands; held tasks have cards on their own pages.
+    #[test]
+    fn a_tracked_page_reads_no_own_or_delegate_held_cards() {
+        let mut task = goal();
+        phase(
+            &mut task,
+            c::ChipPhase::Held { reason: c::HoldCategory::Failures { class: c::HoldFailure::Run }, revision: 7 },
+        );
+        let (mut root, _, tree_watch, mut requests) = opened(task.clone());
+        let mut child = agent();
+        child.chip.task = 21;
+        phase(
+            &mut child,
+            c::ChipPhase::Held { reason: c::HoldCategory::Failures { class: c::HoldFailure::Run }, revision: 7 },
+        );
+        let mut rows = List::with_capacity(1);
+        rows.push(c::TreeRow {
+            chip: child.chip,
+            parent: TASK,
+            depth: 1,
+            proposals: List::with_capacity(0),
+            spent: 0,
+            dependencies: List::with_capacity(0),
+            cut: false,
+        })
+        .expect("held delegate");
+        requests.extend(deliver(
+            &mut root,
+            tree_watch,
+            c::Delivery::Tree(Box::new(c::Tree {
+                root: task.chip,
+                rows,
+                folded: List::with_capacity(0),
+                held_below: 0,
+                next: None,
+            })),
+        ));
+        assert!(root.pages().task().expect("tracked page").cards.is_empty());
+        for request in &requests {
+            if let jig_client::Down::Read { what: jig_client::Readable::Jig(c::Read::Task { .. }), .. } = request {
+                panic!("tracked page must not read task cards: {requests:?}");
+            }
+        }
     }
 }

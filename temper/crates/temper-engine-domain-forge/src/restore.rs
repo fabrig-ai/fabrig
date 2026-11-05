@@ -286,6 +286,20 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.repository_makings.capacity(),
             d.repository_makings.contains_key(&row.key),
         ),
+        Stored::ProjectFacts(row) => room(
+            K::ProjectFacts,
+            Rows(K::ProjectFacts),
+            d.project_facts.len(),
+            d.project_facts.capacity(),
+            d.project_facts.contains_key(&row.project),
+        ),
+        Stored::Looked(row) => room(
+            K::Looked,
+            Rows(K::Looked),
+            d.looked.len(),
+            d.looked.capacity(),
+            d.looked.contains_key(&(row.party, row.project)),
+        ),
         Stored::Dismissed { party, what } => room(
             K::Dismissed,
             Rows(K::Dismissed),

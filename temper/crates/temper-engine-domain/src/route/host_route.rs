@@ -16,15 +16,28 @@ pub enum HostRequest {
     Dropped { call: fleet::Call },
 }
 
+/// An adopted repository's canonical resource identity for settings discovery
+/// (temper/docs/design/domain/agent.md, 8.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct RepositoryIdentity {
+    /// The host in resource names, including any port.
+    pub host: Box<[u8]>,
+    /// The repository's forge owner.
+    pub owner: Box<[u8]>,
+    /// The repository's name within that owner.
+    pub name: Box<[u8]>,
+}
+
 /// Root to protocol after the decision commits: render a decided call's
 /// answer, or carry a workspace delivery's settled answer to its host, which
 /// the hub's link names only as text (jig's `domain/hosts.md`, 2).
 #[derive(PartialEq, Eq, Debug)]
 pub enum HostDelivery {
-    /// Settings reads have no durable call part; the protocol renders the core document.
+    /// Settings reads have no durable call part; inventories include project repositories.
     Settings {
         to: ReplyTo,
         answer: Box<jig_domain_core::SettingsAnswer>,
+        repositories: Box<[RepositoryIdentity]>,
         application: Option<temper_engine_domain_forge::settings::SizedValue>,
         from: u32,
         requested: Option<u64>,
@@ -557,10 +570,36 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     let FlightRender::Settings { from, requested } = flight.render else { unreachable!("settings rendering context") };
     let request = crate::boundary::delivery_output(Delivery::Host(Box::new(HostDelivery::Settings {
         to,
+        repositories: settings_repositories(domain, flight, &answer),
         application: super::tools::settings_value(domain, &answer),
         answer,
         from,
         requested,
     })));
     assert!(super::now(domain, request), "settings read render door reserved");
+}
+
+/// Enrich only authorized inventories, scoped to the caller's retained project.
+fn settings_repositories(
+    domain: &Domain,
+    flight: &Flight,
+    answer: &jig_domain_core::SettingsAnswer,
+) -> Box<[RepositoryIdentity]> {
+    if let jig_domain_core::SettingsAnswer::Inventory(_) = answer {
+        let Some(context) = domain.core.tasks.delegation(flight.task) else { return Box::new([]) };
+        let repositories = domain.forge.readable_repositories(context.project);
+        let mut identities = List::with_capacity(u32::try_from(repositories.len()).expect("bounded repositories"));
+        for repository in &repositories {
+            identities
+                .push(RepositoryIdentity {
+                    host: repository.host.clone(),
+                    owner: repository.owner.clone(),
+                    name: repository.name.clone(),
+                })
+                .expect("one identity per readable repository");
+        }
+        identities.into_boxed()
+    } else {
+        Box::new([])
+    }
 }

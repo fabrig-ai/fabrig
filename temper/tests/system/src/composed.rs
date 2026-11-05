@@ -37,6 +37,7 @@ mod agreement;
 #[cfg(test)]
 mod chat;
 mod link;
+mod long_chat;
 mod process;
 mod review;
 
@@ -63,6 +64,8 @@ pub struct Observed {
     pub turn_acks: usize,
     pub relays: usize,
     pub replies: usize,
+    /// Settled host replies replayed byte for byte after a lost delivery.
+    pub replays: usize,
     pub messages: Vec<(Token, Box<[u8]>)>,
     pub cancels: usize,
     pub answers: usize,
@@ -109,6 +112,7 @@ pub struct World {
     worker_out: Queue<worker::Request>,
     worker_events: VecDeque<worker::Event>,
     process: Process,
+    replay: Option<(Option<host::LinkUp>, Option<host::LinkDown>)>,
     assignment: Option<engine::Assignment>,
     adoption: Adoption,
     /// The root heard its funding period and the git identity once ready.
@@ -238,6 +242,55 @@ impl World {
     #[must_use]
     pub fn chat(seed: u64, script: Script) -> Self {
         Self::configured(seed, script, false)
+    }
+
+    /// Read a large family design with unequal engine and receiving allowances.
+    #[must_use]
+    pub fn forge_reads(seed: u64, mut script: Script, content: &[u8], refused: bool) -> Self {
+        let mut world = Self::configured_limits(
+            seed,
+            report_script(false),
+            true,
+            config,
+            if refused { refused_forge_limits } else { forge_read_limits },
+        );
+        world.worker_env.limits.reply_bytes = 8192;
+        world.worker = worker::Domain::new(&world.worker_env.limits, Box::new([]));
+        let before = world.forge.branch(b"org/repo", b"main").expect("base commit");
+        world.forge.create_branch(b"org/repo", b"formats", before).expect("head branch");
+        let head = world.forge.advance(b"org/repo", b"formats", b"docs/design/formats.md", content);
+        let pull = world
+            .forge
+            .api(
+                b"org/repo",
+                1,
+                fake::Op::Write(fake::Write::OpenPull {
+                    opens_empty: false,
+                    title: b"Family numbers".as_slice().into(),
+                    body: Box::default(),
+                    head: b"formats".as_slice().into(),
+                    base: b"main".as_slice().into(),
+                }),
+            )
+            .expect("open pull");
+        assert!(matches!(pull, fake::Answer::Created(1)));
+        let hex =
+            |commit| String::from_utf8(engine::commit_text(&api::commit(commit)).into_vec()).expect("commit ASCII");
+        for turn in &mut script.turns {
+            for line in &mut turn.lines {
+                if let Line::Call { arguments, .. } = line {
+                    *arguments = String::from_utf8(arguments.to_vec())
+                        .expect("fixture JSON")
+                        .replace("$BEFORE", &hex(before))
+                        .replace("$HEAD", &hex(head))
+                        .into_bytes()
+                        .into_boxed_slice();
+                }
+            }
+        }
+        world.process = Process::new(seed, script);
+        world.replay = Some((None, None));
+        world
     }
 
     /// Start a chat whose task is ended by its requester.
@@ -410,6 +463,7 @@ impl World {
             // The worker's link has a channel open to the engine.
             worker_events: VecDeque::from([worker::Event::Ready]),
             process: Process::new(seed, script),
+            replay: None,
             assignment: None,
             adoption: if repository { Adoption::Pending } else { Adoption::Without },
             funded: false,
@@ -651,6 +705,19 @@ impl World {
                         say(project, task, words, release)
                     }
                     parties::Ask::Stop { task: parties::Task::Number(task) } => people::Ask::Stop { project, task },
+                    parties::Ask::Decision { proposer: parties::Proposer::Task(task), proposal, accept } => {
+                        people::Ask::DecideProposal {
+                            project: people::DEPLOYMENT,
+                            proposer: people::Proposer::Task(task),
+                            proposal,
+                            decision: if accept {
+                                people::ProposalDecision::Accept
+                            } else {
+                                people::ProposalDecision::Reject { reason: Box::default() }
+                            },
+                            running: Some(people::Running::Stays),
+                        }
+                    }
                     other @ (parties::Ask::Close { .. }
                     | parties::Ask::Cancel { .. }
                     | parties::Ask::SeeResults { .. }
@@ -697,12 +764,12 @@ impl World {
                 self.store.submit(number, writes, delay);
             }
             engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
-                let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                let (rows, next, texts) = self.store.page_with_texts(&range, after.as_ref(), most);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
                     owner,
                     rows,
                     next,
-                    texts: None,
+                    texts,
                 }));
             }
             engine::Request::Forge { call, repository, op } => self.forge(call, repository, &op),
@@ -749,6 +816,7 @@ impl World {
             | engine::Request::Connect { .. }
             | engine::Request::Replace { .. }
             | engine::Request::Manifest { .. }
+            | engine::Request::AdoptAccess { .. }
             | engine::Request::Reachable { .. }
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
@@ -775,10 +843,33 @@ impl World {
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, .. } => {
-                    engine::WorkerInput::RenderedHostCall { to, answer: link::render(&answer) }
+                engine::HostDelivery::Render { to, answer, tool, key, .. } => engine::WorkerInput::RenderedHostCall {
+                    to,
+                    answer: link::render(
+                        &answer,
+                        &tool,
+                        self.env.limits.call_answer_bytes,
+                        key.task,
+                        self.worker_env.limits.reply_bytes,
+                    ),
+                },
+                engine::HostDelivery::Settings { to, answer, repositories, application, from, requested } => {
+                    let (body, error) = temper_engine_smith::settings_repository_answer(
+                        &answer,
+                        from,
+                        requested,
+                        self.root.models(),
+                        application.as_ref(),
+                        &repositories,
+                        self.env.limits.call_answer_bytes.saturating_sub(8),
+                    )
+                    .into_parts();
+                    engine::WorkerInput::RenderedHostCall {
+                        to,
+                        answer: jig_domain_core::SettledAnswer::Host { body, error },
+                    }
                 }
-                other @ (engine::HostDelivery::Settings { .. } | engine::HostDelivery::Answer { .. }) => {
+                other @ engine::HostDelivery::Answer { .. } => {
                     panic!("unscripted delivery answer: {other:?}")
                 }
             },
@@ -808,6 +899,7 @@ impl World {
             | engine::Request::Connect { .. }
             | engine::Request::Replace { .. }
             | engine::Request::Manifest { .. }
+            | engine::Request::AdoptAccess { .. }
             | engine::Request::Reachable { .. }
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
@@ -834,7 +926,14 @@ impl World {
         let located = temper_engine_forge_world::translate::locate_name(op);
         let name = located.as_deref().unwrap_or(b"org/repo");
         let result = match self.forge.api(name, 1, api::op(op, client)) {
-            Ok(answer) => Ok(api::answer(op, answer, client)),
+            Ok(answer) => {
+                let answer = api::answer(op, answer, client);
+                if skein_forge::measure::answer(&answer).expect("fake answer size") > u64::from(client.answer_bytes) {
+                    Err(skein_forge::api::Error::TooLarge)
+                } else {
+                    Ok(answer)
+                }
+            }
             Err(error) => Err(api::error(
                 error,
                 skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::CONFIG, self.env.now),
@@ -892,7 +991,7 @@ impl World {
                 if let host::LinkDown::TurnKept { .. } = down {
                     self.observed.turn_acks += 1;
                 }
-                self.worker_events.push_back(worker::Event::Link(down));
+                self.deliver_link(down);
             }
             // The link sends a turn again once the engine's backoff passed.
             Delivery::TurnBusy { channel, task, attempt, turn } => {
@@ -952,6 +1051,26 @@ impl World {
             }
             people::Reply::Outcome(people::Outcome::Said { task, message }) => parties::Reply::Said { task, message },
             people::Reply::Outcome(people::Outcome::Stopped { task }) => parties::Reply::Changed { task },
+            people::Reply::Outcome(people::Outcome::ProposalDecided {
+                proposer: people::Proposer::Task(task),
+                proposal,
+                by,
+                at,
+                choice,
+                ..
+            }) => parties::Reply::ProposalDecided {
+                proposer: parties::Proposer::Task(task),
+                proposal,
+                by,
+                at,
+                choice: match choice {
+                    people::ProposalChoice::Accepted => parties::Choice::Accepted,
+                    people::ProposalChoice::Rejected => parties::Choice::Rejected,
+                    people::ProposalChoice::Withdrawn => parties::Choice::Withdrawn,
+                    people::ProposalChoice::Passed => parties::Choice::Passed,
+                    people::ProposalChoice::Stale => parties::Choice::Stale,
+                },
+            },
             other @ (people::Reply::Outcome(_)
             | people::Reply::SignedOut
             | people::Reply::Again(_)
@@ -984,22 +1103,58 @@ impl World {
         preparation: Option<worker::wire::Preparation>,
     ) {
         self.observed.answers += 1;
-        let (turns, spent) = self.process.answered.expect("Smith ended before the worker answered");
+        let (turns, spent) = self.process.answered.unwrap_or((0, 0));
         assert_eq!((answer.turns, answer.spent), (turns, spent));
-        match (&answer.ending, self.agent().answer()) {
-            (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
-                let decoded = smith_protocol_channel::decode_declared(outcome, &smith_charter::CEILINGS);
-                assert_eq!(decoded.as_ref(), Ok(declared), "the answer carries smith's own result");
+        if let host::Ending::Refused(_) = &answer.ending {
+            assert!(self.process.prepared(), "refusal precedes a process");
+        } else {
+            match (&answer.ending, self.agent().answer()) {
+                (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
+                    let decoded = smith_protocol_channel::decode_declared(outcome, &smith_charter::CEILINGS);
+                    assert_eq!(decoded.as_ref(), Ok(declared), "the answer carries smith's own result");
+                }
+                (host::Ending::Parked { .. }, run::Answer::Parked { .. })
+                | (host::Ending::Failed { .. }, run::Answer::Failed { .. }) => {}
+                (ending, settled) => panic!("the worker's answer {ending:?} follows smith's {settled:?}"),
             }
-            (host::Ending::Parked { .. }, run::Answer::Parked { .. })
-            | (host::Ending::Failed { .. }, run::Answer::Failed { .. }) => {}
-            (ending, settled) => panic!("the worker's answer {ending:?} follows smith's {settled:?}"),
         }
         if self.assignment().workspace.repositories.iter().all(|repository| repository.push.is_none()) {
             assert!(work.landed.is_empty(), "an inspecting run lands nothing");
         }
         let parts = link::parts(work, preparation);
         self.up(engine::Link::Up { up: host::LinkUp::Answer { run, attempt, answer }, parts });
+    }
+
+    fn remember_call(&mut self, up: &host::LinkUp) {
+        if let Some((pending, _)) = &mut self.replay
+            && let host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } = up
+        {
+            *pending = Some(host::LinkUp::Call {
+                run: *run,
+                attempt: *attempt,
+                call: call.clone(),
+                tool: tool.clone(),
+                writes: *writes,
+                input: input.clone(),
+                deadline: *deadline,
+            });
+        }
+    }
+
+    fn deliver_link(&mut self, down: host::LinkDown) {
+        if matches!(down, host::LinkDown::Relayed { answer: host::Relayed::Answer { .. }, .. })
+            && let Some((pending, previous)) = &mut self.replay
+        {
+            if let Some(first) = previous.take() {
+                assert_eq!(down, first, "settled-call replay preserves the fitted answer");
+                self.observed.replays += 1;
+            } else if let Some(up) = pending.take() {
+                *previous = Some(down);
+                self.up(engine::Link::Up { up, parts: engine::Parts::none() });
+                return;
+            }
+        }
+        self.worker_events.push_back(worker::Event::Link(down));
     }
 
     fn worker_request(&mut self, request: worker::Request) {
@@ -1009,6 +1164,7 @@ impl World {
             }
             worker::Request::Hello(hello) => self.up(engine::Link::Hello { worker: 0, hello }),
             worker::Request::Link(up) => {
+                self.remember_call(&up);
                 match &up {
                     host::LinkUp::Turn { .. } => self.observed.turns += 1,
                     host::LinkUp::Piece { .. } => self.observed.pieces += 1,
@@ -1026,6 +1182,10 @@ impl World {
             }
             worker::Request::Answer { run, attempt, answer, work, preparation } => {
                 self.worker_answer(run, attempt, answer, &work, preparation);
+            }
+            worker::Request::JobAnswer { run, attempt, answer, work, preparation } => {
+                let parts = link::parts(&work, preparation);
+                self.up(engine::Link::Up { up: host::LinkUp::JobAnswer { run, attempt, answer }, parts });
             }
             // The link cancels a relay's local wait at once.
             worker::Request::CancelRelay { run, attempt, call } => {
@@ -1283,7 +1443,12 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
                 .expect("the world's configured git remote")
                 .into();
         }
-        Op::Make { .. } | Op::CheckOut { .. } | Op::IsAncestor { .. } | Op::Merge { .. } | Op::Commit { .. } => {}
+        Op::Make { .. }
+        | Op::CheckOut { .. }
+        | Op::Look { .. }
+        | Op::IsAncestor { .. }
+        | Op::Merge { .. }
+        | Op::Commit { .. } => {}
     }
     op
 }
@@ -1307,6 +1472,7 @@ fn adoption() -> temper_engine_domain_forge::Adoption {
 
 /// Read access to the repository for the chat's role, and room for it.
 fn grant_read(config: &mut engine::Config, limits: &mut engine::Limits) {
+    let tools = authority::Tools(1 | jig_domain_core::ToolFamilies::JIG.read.0);
     let grant = authority::Grant {
         connector: 0,
         kind: 1,
@@ -1326,14 +1492,14 @@ fn grant_read(config: &mut engine::Config, limits: &mut engine::Limits) {
     limits.notes.scopes = 4;
     let mut authority_rules = config.core.defaults.rules.clone();
     authority_rules.ceiling.grants = Box::new([grant.clone()]);
-    authority_rules.ceiling.tools = authority::Tools(1);
+    authority_rules.ceiling.tools = tools;
     let mut policy = config.core.seed_projects[0].policy.policy.clone();
     policy.ceiling.grants = Box::new([grant.clone()]);
-    policy.ceiling.tools = authority::Tools(1);
+    policy.ceiling.tools = tools;
     policy.projections = Box::new([grant.clone()]);
     // A chat's authority is its role's, one level shallower.
     policy.roles[0].authority.grants = Box::new([grant]);
-    policy.roles[0].authority.tools = authority::Tools(1);
+    policy.roles[0].authority.tools = tools;
     let mut roles = policy.roles.to_vec();
     for number in 1..4 {
         let mut role = roles[0].clone();
@@ -1383,6 +1549,18 @@ fn configured_parts(mut config: engine::Config, repository: bool) -> (engine::Co
         grant_read(&mut config, &mut limits);
     }
     (config, limits)
+}
+
+fn forge_read_limits(limits: &mut engine::Limits) {
+    limits.call_answer_bytes = 32768;
+    limits.forge.client.answer_bytes = 65_536;
+    limits.journal.transcript_bytes = 131_072;
+    limits.loads.transcript_bytes = 131_072;
+}
+
+fn refused_forge_limits(limits: &mut engine::Limits) {
+    forge_read_limits(limits);
+    limits.forge.client.answer_bytes = 4096;
 }
 
 fn repository_forge(seed: u64) -> Forge {

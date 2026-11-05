@@ -1,4 +1,4 @@
-//! The changes watch retains a landed title after cleanup (temper/docs/design/client/forge.md, 3).
+//! Change history and catch-up production (temper/docs/design/domain/forge.md, 8.2 and 10).
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{World, changes};
@@ -65,4 +65,107 @@ fn a_landed_change_keeps_its_title_after_its_close() {
     }
     assert!(restored.document(PROJECT, CHANGE).is_none());
     assert_eq!(view(&restored), closed);
+}
+
+// Catch-ups use ancestry without the goal's full diff (temper/docs/design/domain/forge.md, 8.2 and 10).
+fn catch_up_world(advance_main: bool) -> (World, skein_forge::api::Commit, skein_forge::api::Commit) {
+    let mut world = World::with_comparison_room(SEED);
+    world.adopt();
+    world.produce_on(b"temper/g", b"main");
+    for merge in 0_u8..12 {
+        world.produce_on(b"temper/incoming", b"temper/g");
+        world.push_file(b"temper/incoming", b"file", &[merge]);
+        world.status(b"temper/incoming", skein_fake_forge_domain::api::Check::Passed);
+        let pull = world.open_pull(b"temper/incoming", b"temper/g");
+        world.merge(pull, b"temper/incoming");
+        world.delete_branch(b"temper/incoming");
+    }
+    if advance_main {
+        world.push_file(b"main", b"main-only", b"independent");
+    }
+    let commit = temper_engine_forge_world::translate::commit(world.branch(b"main"));
+    let tip = temper_engine_forge_world::translate::commit(world.branch(b"temper/g"));
+    let mut row = changes::change_row();
+    row.base = b"temper/g".as_slice().into();
+    row.catch_up = Some(commit);
+    row.change.since = world.wall();
+    world.event(top::Event::Change { row });
+    world.reject_comparisons();
+    world.take_calls();
+    (world, commit, tip)
+}
+
+#[test]
+fn a_catch_up_starts_when_the_full_comparison_is_too_large() {
+    let (mut world, commit, tip) = catch_up_world(true);
+    assert_eq!(
+        changes::change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
+        change::Decision::Delegate(change::Delegate::Merge { base: commit, from: None })
+    );
+    assert_eq!(world.change(CHANGE).change.resolutions, 0, "production spends no resolution");
+    assert_eq!(world.change(CHANGE).change.state, change::State::Producing { requested: true });
+    assert_eq!(world.change(CHANGE).change.last_head, None, "no producer branch yet");
+    assert_catch_up_range(&mut world, commit, tip);
+}
+
+fn assert_catch_up_range(world: &mut World, commit: skein_forge::api::Commit, tip: skein_forge::api::Commit) {
+    use skein_forge::api::{Op, Read};
+    let calls = world.take_calls();
+    assert!(calls.contains(&Op::Read(Read::Commits { before: tip, after: commit, page: 1 })), "current goal tip");
+    assert!(!calls.iter().any(|op| matches!(op, Op::Read(Read::Compare { .. }))), "no full comparison");
+}
+
+#[test]
+fn a_contained_catch_up_ends_without_a_producer() {
+    let (mut world, commit, tip) = catch_up_world(false);
+    assert_eq!(changes::change_step(&mut world, 1, change::Status::Unknown, Box::new([])), change::Decision::NoChange);
+    assert!(matches!(world.change(CHANGE).change.state, change::State::NoChange { .. }));
+    assert_eq!(world.change(CHANGE).change.last_head, None);
+    assert_eq!(world.change(CHANGE).change.resolutions, 0);
+    assert_catch_up_range(&mut world, commit, tip);
+}
+
+#[test]
+fn a_catch_up_retries_uncertain_ancestry_without_a_restart() {
+    use skein_forge::api::{Answer, Error};
+    for result in [
+        Err(Error::TooLarge),
+        Err(Error::Refused),
+        Err(Error::InvalidAnswer),
+        Ok(Answer::Commits { commits: Box::new([]), more: true }),
+        Ok(Answer::Commits {
+            commits: Box::new([skein_forge::api::CommitMessage {
+                id: [0; 32],
+                parents: Box::new([]),
+                message: Box::new([]),
+            }]),
+            more: true,
+        }),
+    ] {
+        let (mut world, commit, tip) = catch_up_world(true);
+        world.script_ancestry(Some(result.clone()));
+        let decision = changes::change_step(&mut world, 1, change::Status::Unknown, Box::new([]));
+        let change::Decision::Wait { until: Some(until) } = decision else {
+            panic!("uncertain ancestry must schedule a retry: {result:?}: {decision:?}")
+        };
+        assert!(until > world.wall(), "retry must be in the future");
+        assert_eq!(world.change(CHANGE).change.state, change::State::Producing { requested: false });
+        assert_catch_up_range(&mut world, commit, tip);
+        world.run_for(31);
+        let change::Decision::Wait { until: Some(retry) } =
+            changes::change_step(&mut world, 2, change::Status::Unknown, Box::new([]))
+        else {
+            panic!("read failure must not consume the producer stall allowance")
+        };
+        assert!(retry > world.wall());
+        world.script_ancestry(None);
+        world.run_to(retry);
+        assert_eq!(
+            changes::change_step(&mut world, 3, change::Status::Unknown, Box::new([])),
+            change::Decision::Delegate(change::Delegate::Merge { base: commit, from: None }),
+            "recovered ancestry: {result:?}"
+        );
+        assert_eq!(world.change(CHANGE).change.resolutions, 0);
+        assert_catch_up_range(&mut world, commit, tip);
+    }
 }

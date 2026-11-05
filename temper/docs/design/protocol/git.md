@@ -709,3 +709,8 @@ checks this document's contract:
 - **Another git's messages.** Default: classified against 2.47's, from
   2.41 on; a version that words a failure otherwise reads `Broken` until
   its transcripts are captured.
+- **A clone that outlives its workstream.** Section 3 turns off automatic
+  garbage collection and maintenance, which costs little while a new
+  workstream makes its workspace again. A clone kept past one
+  (`../domain/worker.status.md`) gathers old objects until a make. Default:
+  nothing collects them.

@@ -2793,18 +2793,24 @@ fn four_foreman_changes_share_the_call_task_room() {
 
 #[test]
 fn mixed_change_routes_share_room_within_each_policy_cap() {
-    use crate::ChangeQuestions::{Foreman, Up};
-    for (routes, tasks_left, expected) in [
-        ([Some(Up), Some(Foreman)], 200, [80, 118]),
-        ([Some(Foreman), Some(Up)], 200, [118, 80]),
-        ([None, Some(Foreman)], 400, [80, 160]),
-        ([Some(Up), Some(Foreman)], 4, [1, 1]),
+    use crate::ChangeQuestions::{Foreman, None as NoQuestions, Up};
+    use temper_engine_domain_forge_change::Route;
+    for (project_route, routes, tasks_left, expected) in [
+        (Route::None, [Some(Up), Some(Foreman)], 200, [80, 118]),
+        (Route::None, [Some(Foreman), Some(Up)], 200, [118, 80]),
+        (Route::None, [None, Some(Foreman)], 400, [80, 160]),
+        (Route::None, [Some(Up), Some(Foreman)], 4, [1, 1]),
+        (Route::Foreman, [None, Some(Up)], 200, [118, 80]),
+        (Route::Foreman, [None, Some(Up)], 400, [160, 80]),
+        (Route::Foreman, [Some(NoQuestions), None], 400, [80, 160]),
+        (Route::Foreman, [None, None], 400, [160, 160]),
     ] {
-        let (domain, mut env, mut context) = change_choice_world();
+        let (mut domain, mut env, mut context) = change_choice_world();
         env.limits.forge.change_policy.tasks = 80;
         env.limits.forge.change_policy.questions = 80;
         context.tasks_left = tasks_left;
         context.authority.delegation.tasks = tasks_left;
+        set_project_questions(&mut domain, &env, project_route);
         let changes = change_family(&routes);
         let batch = match super::change_batch(&domain, &env, 1, &context, &changes) {
             Ok(batch) => batch,
@@ -3540,4 +3546,125 @@ fn a_live_room_refusal_rearms_the_change_delegate() {
     assert_eq!(refused, task);
     assert!(domain.work.is_empty());
     assert!(domain.forge_delegating.is_empty());
+}
+
+fn set_project_questions(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    route: temper_engine_domain_forge_change::Route,
+) {
+    use super::forge::settings::{Asked, Edit, SizedValue, Value};
+    domain.forge.keep_settings(
+        &crate::translate::environment_forge(env),
+        2,
+        None,
+        &[Asked {
+            kind: 6,
+            scope: 1,
+            number: 1,
+            edit: Edit::Set(SizedValue { value: Value::Questions(route), size: 1 }),
+        }],
+        &mut skein_lib::Queue::uncapped(),
+    );
+}
+
+fn questions_delegate(
+    domain: &super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    context: &super::tasks::DelegationContext,
+    questions: Option<crate::ChangeQuestions>,
+) -> super::super::Delegate {
+    let change = crate::ChangeCall { questions, ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None) };
+    let batch = change_choice_batch(domain, env, context, change).unwrap();
+    batch[0].clone()
+}
+
+fn kept_route(delegate: super::super::Delegate) -> temper_engine_domain_forge_change::Route {
+    use super::{Work, forge};
+    let (mut domain, env, mut context) = change_start_fixture();
+    context.requester = super::tasks::Party::Task(1);
+    context.spec = delegate.spec;
+    assert!(super::start_change(&mut domain, &env, &context));
+    let Some(Work::Forge(event @ forge::Event::Change { .. })) = domain.work.pop() else { panic!("new change row") };
+    forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut skein_lib::Queue::uncapped());
+    domain.forge.change(context.task).unwrap().questions.route
+}
+
+#[test]
+fn a_change_naming_no_route_takes_its_projects_questions() {
+    use temper_engine_domain_forge_change::Route;
+    for route in [Route::None, Route::Foreman, Route::Up] {
+        let (mut domain, env, context) = change_choice_world();
+        set_project_questions(&mut domain, &env, route);
+        let delegate = questions_delegate(&domain, &env, &context, None);
+        assert_eq!(kept_route(delegate), route);
+    }
+}
+
+#[test]
+fn a_named_route_wins_over_the_projects() {
+    use temper_engine_domain_forge_change::Route;
+    for (named, expected) in [
+        (crate::ChangeQuestions::None, Route::None),
+        (crate::ChangeQuestions::Foreman, Route::Foreman),
+        (crate::ChangeQuestions::Up, Route::Up),
+    ] {
+        let (mut domain, env, context) = change_choice_world();
+        set_project_questions(&mut domain, &env, Route::Foreman);
+        let delegate = questions_delegate(&domain, &env, &context, Some(named));
+        assert_eq!(kept_route(delegate), expected);
+    }
+}
+
+#[test]
+fn a_later_change_of_the_questions_reaches_only_later_changes() {
+    use super::{Work, forge};
+    use temper_engine_domain_forge_change::Route;
+    let (mut domain, env, mut context) = change_start_fixture();
+    let (mut chooser, chooser_env, delegation) = change_choice_world();
+    set_project_questions(&mut chooser, &chooser_env, Route::Foreman);
+    context.requester = super::tasks::Party::Task(1);
+    context.spec = questions_delegate(&chooser, &chooser_env, &delegation, None).spec;
+    assert!(super::start_change(&mut domain, &env, &context));
+    let Some(Work::Forge(event @ forge::Event::Change { .. })) = domain.work.pop() else { panic!("new change row") };
+    forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut skein_lib::Queue::uncapped());
+    set_project_questions(&mut domain, &env, Route::Up);
+    set_project_questions(&mut chooser, &chooser_env, Route::Up);
+    assert_eq!(domain.forge.change(context.task).unwrap().questions.route, Route::Foreman);
+    assert_eq!(kept_route(questions_delegate(&chooser, &chooser_env, &delegation, None)), Route::Up);
+}
+
+#[test]
+fn a_projects_foreman_grants_the_foremans_charter_and_tasks() {
+    use super::tasks;
+    use temper_engine_domain_forge_change::Route;
+    let (mut domain, mut env, context) = change_choice_world();
+    env.limits.forge.change_policy.tasks = 8;
+    env.limits.forge.change_policy.questions = 4;
+    set_project_questions(&mut domain, &env, Route::Foreman);
+    let inherited = questions_delegate(&domain, &env, &context, None);
+    let named = questions_delegate(&domain, &env, &context, Some(crate::ChangeQuestions::Foreman));
+    assert_eq!(inherited, named);
+    assert_eq!(inherited.authority.delegation.tasks, 12);
+    assert!(inherited.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Charter(super::FOREMAN_CHARTER)));
+}
+
+#[test]
+fn inherited_foreman_changes_share_the_call_task_room() {
+    use temper_engine_domain_forge_change::Route;
+    let (mut domain, mut env, mut context) = change_choice_world();
+    env.limits.forge.change_policy.tasks = 8;
+    env.limits.forge.change_policy.questions = 4;
+    context.tasks_left = 26;
+    set_project_questions(&mut domain, &env, Route::Foreman);
+    let changes = change_family(&[None, None]);
+    let batch = match super::change_batch(&domain, &env, 1, &context, &changes) {
+        Ok(batch) => batch,
+        Err(super::ChangeRefused::Refusal(why)) => panic!("{why:?}"),
+        Err(super::ChangeRefused::Words(words)) => panic!("{words:?}"),
+    };
+    assert_eq!(batch.len(), 2);
+    for member in &batch {
+        assert_eq!(member.authority.delegation.tasks, 12);
+    }
 }

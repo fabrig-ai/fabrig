@@ -440,6 +440,7 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
         }
         Some(
             w::Outcome::Unknown
+            | w::Outcome::Looked
             | w::Outcome::Dismissed
             | w::Outcome::Adopted(_)
             | w::Outcome::CoreRefused(_)

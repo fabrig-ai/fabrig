@@ -174,9 +174,7 @@ pub enum Ask {
     Adopt(Adoption),
     SetUp {
         forge: Making,
-        org: Box<[u8]>,
-        repository: Box<[u8]>,
-        playground: bool,
+        first: SetUpFirst,
     },
     RemoveForge {
         forge: u16,
@@ -248,6 +246,7 @@ pub enum Answered {
     Accept(AcceptAnswer),
     Reachable(ReachableAnswer),
     Dismiss(crate::DismissAnswer),
+    Looked(crate::LookedAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge.md, 4.5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -412,11 +411,32 @@ pub struct Bot {
 }
 /// The first repository's intent (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct FirstIntent {
+pub struct EmptyIntent {
     pub playground: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
+}
+/// The set up's durable choice (temper/docs/design/protocol/setup.md, 6.7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum FirstIntent {
+    Empty(EmptyIntent),
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
+}
+/// The set up's admitted input (temper/docs/design/client/README.md, 4.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum SetUpFirst {
+    Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool },
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
+}
+/// The row's first-repository choice (temper/docs/design/protocol/setup.md, 6.7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum StartsWith {
+    Repository,
+    Copies { addresses: Box<[Box<[u8]>]> },
+    Nothing,
 }
 /// A forge kept in the connector's store (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -571,6 +591,7 @@ pub struct Row {
     pub fetched: Option<SetUpFetched>,
     pub offer: Offer,
     pub first: Option<First>,
+    pub starts_with: StartsWith,
     pub installations: Box<[(u64, Installation)]>,
     pub ended: Option<Box<[u8]>>,
     pub app: Option<AppWay>,
@@ -1135,6 +1156,8 @@ pub enum Stored {
         party: u64,
         what: crate::Dismissal,
     },
+    ProjectFacts(crate::ProjectFacts),
+    Looked(crate::Looked),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1178,6 +1201,8 @@ pub enum Key {
     LandingLog { repository: skein_forge::api::Repository },
     Dismissed { party: u64, what: crate::Dismissal },
     Making(crate::MakingKey),
+    ProjectFacts { project: u32 },
+    Looked { party: u64, project: u32 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1301,6 +1326,17 @@ pub enum Event {
         task: u64,
         words: Box<[u8]>,
     },
+    StatusTask {
+        project: u32,
+        task: u64,
+    },
+    StatusRefused {
+        project: u32,
+    },
+    StatusHeard {
+        task: u64,
+        report: Option<Box<[u8]>>,
+    },
     TierTask {
         repository: skein_forge::api::Repository,
         tier: Box<[u8]>,
@@ -1387,6 +1423,11 @@ pub enum Event {
         request: Token,
         answer: ConnectAnswer,
     },
+    AccessAnswered {
+        forge: u16,
+        request: Token,
+        answer: Result<(), AdoptionRefusal>,
+    },
     ReachableAnswered {
         forge: u16,
         request: Token,
@@ -1446,6 +1487,12 @@ pub enum Event {
         ask: Ask,
         role: Option<jig_domain_people::Role>,
         carried: Option<jig_domain_core::Carried>,
+    },
+    Looked {
+        request: Token,
+        token: Token,
+        party: u64,
+        project: u32,
     },
     /// A core-admitted dismissal (temper/docs/design/domain/forge.md, 5.5).
     Dismiss {
@@ -1763,6 +1810,11 @@ pub enum Request {
         adoption: Adoption,
         repository: skein_forge::api::Repository,
     },
+    /// Make Home's brief task (temper/docs/design/domain/forge.md, 5.7).
+    StatusRun {
+        project: u32,
+        words: Box<[u8]>,
+    },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
     TierRun {
         repository: skein_forge::api::Repository,
@@ -1826,9 +1878,7 @@ pub enum Request {
     SetUp {
         forge: u16,
         request: Token,
-        org: Box<[u8]>,
-        repository: Box<[u8]>,
-        playground: bool,
+        first: SetUpFirst,
     },
     Connect {
         forge: u16,
@@ -1850,6 +1900,12 @@ pub enum Request {
         forge: u16,
         request: Token,
         back: Option<Box<[u8]>>,
+    },
+    AdoptAccess {
+        forge: u16,
+        request: Token,
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
     },
     Reachable {
         forge: u16,

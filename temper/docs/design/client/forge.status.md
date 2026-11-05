@@ -9,9 +9,12 @@
   ctl's `change show` carries the counted people and heads, the rules'
   approval deficits and a pull-request instruction while they wait.
   5.1: "Land without CI" for a repository with no CI. 5.2: health. 5.3:
-  the forge's part of a project's settings. 5.4: a row's summary by its
-  name and host and its repositories' line, where the view says "forge N
-  · KIND" (`temper-client-view`'s `forge/forges.rs`); its load, the
+  the forge's part of a project's settings. 5.4: in a row's summary,
+  "Forgejo at HOST", WEB and a connected forge's repositories, each with
+  its project: the view names another Forgejo "Forgejo", draws "Forge N ·
+  KIND" and its connection's words, and its line is its set up's first
+  repository alone (`temper-client-view`'s `forge/connect.rs`, `name`, and
+  `forge/forges.rs`, `repository_line`); its load, the
   App's setup URL and the `Lacking` line on the row; Forget,
   with no request on the wire; the warning of no git on the
   machine. 5.4: Forgejo on this machine's Details for a forge to make,
@@ -19,11 +22,6 @@
   deployment's help, and the fields alone (`forge/connect.rs` `body`,
   `Choice::Owned`). 5.4, Elsewhere: the dot leaving out the playground's
   forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
-  5.4, at Choose, with no welcome: "Start over" on a forge cut short ends
-  at the inbox, not the choices (`README.md`, 3.5):
-  `temper-client-domain`'s `forge/forges.rs` `removal_told` leaves for
-  `/welcome?at=forge` from `ConnectForge` too, and the welcome's guard
-  (`domain.rs` `welcome`) sends that on; no test holds it.
   6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:
   the reads of the forge's other parts.
@@ -45,3 +43,9 @@
   their own connect's new stop alone (`forge/tokens.rs` `stopped`); the
   code records no reason, and a code task gives the admin's form the
   tokens' rule.
+- **Design departs:** 5.4, from the request `ui-settings-tabs` of 2026-11-05,
+  decided by its plan's cut: a row's first line is the forge's name, and
+  "Forge N · KIND" opens its second, before its connection's words, with its
+  repository on a third, where the request's row is "Forge 1 · Forgejo", its
+  connection and its repository line, and its summary two lines. The names
+  stay, as the plan keeps them for the tests of these pages.

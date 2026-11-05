@@ -85,9 +85,18 @@ impl View {
         let project = crate::pages::project_name(root.pages().me(root.client()), form.project);
         b.open(Role::Main);
         b.style(crate::look::MAIN);
-        b.style(crate::look::PAGE);
+        b.style(crate::look::SETTINGS);
         b.open(Role::Slot);
-        b.style(crate::look::ADOPTION_PAGE);
+        b.style(crate::look::SETTINGS_COL);
+        crate::pages::settings::path(
+            b,
+            root,
+            &self.forge_words,
+            &mut self.pages,
+            Some(form.project),
+            crate::pages::settings::FlowTab::Repositories,
+            crate::words::Word::Adoption,
+        );
         forge::page::page(
             b,
             form,
@@ -158,6 +167,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Builders { .. }
+        | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. } => {
@@ -179,6 +190,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Builders { .. }
+        | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. } => {
@@ -275,7 +288,18 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             view.limits.tree.text_per_node,
         );
     } else if let temper_client_domain::Address::Settings { project } = root.pages().address() {
-        crate::pages::home::settings(&mut builder, root, &view.forge_words, &mut view.pages, *project);
+        crate::pages::settings::how_work_runs(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            &mut view.forge,
+            *project,
+        );
+    } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
+        crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
+    } else if let temper_client_domain::Address::Repositories { project } = root.pages().address() {
+        crate::pages::settings::repositories(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Chat { .. } = root.pages().address() {
         crate::pages::chat::main(
             &mut builder,
@@ -294,6 +318,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             root,
             &view.forge_words,
             &mut view.accounts,
+            &mut view.pages,
+            rail_project,
             view.limits.tree.text_per_node,
         );
     } else if *root.pages().address() == temper_client_domain::Address::Accounts {
@@ -302,6 +328,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             root,
             &view.forge_words,
             &mut view.accounts,
+            &mut view.pages,
+            rail_project,
             view.limits.tree.text_per_node,
         );
     } else if let temper_client_domain::Address::ConnectForge { forge } = root.pages().address() {
@@ -312,6 +340,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.pages,
             &mut view.forge,
             *forge,
+            rail_project,
             &view.forge_sign_in,
         );
     } else if *root.pages().address() == temper_client_domain::Address::Forges {
@@ -322,6 +351,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.pages,
             &mut view.forge,
             &view.forge_sign_in,
+            rail_project,
         );
     } else if let temper_client_domain::Address::Adopt { .. } = root.pages().address() {
         view.adoption_main(&mut builder, root);
@@ -332,6 +362,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::frame::tabbar(&mut builder, root, &view.forge_words, &mut view.pages, project);
     }
     crate::frame::toast(&mut builder, root, &view.forge_words, &mut view.pages);
+    if let Some(start) = root.pages().start() {
+        crate::pages::start_goal::sheet(&mut builder, root, start, &view.forge_words, &mut view.pages);
+    }
     builder.close();
     view.next_change = times.next;
     view.render.finish(builder, shown, out);
@@ -339,7 +372,24 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
 }
 #[must_use]
 pub fn act(view: &mut View, node: NodeId, act: Act) -> Option<Action> {
-    if let temper_client_domain::Event::Act { action } = event(view, node, act)? { Some(action) } else { None }
+    if let temper_client_domain::Event::Act { action } = act_event(view, node, act)? { Some(action) } else { None }
+}
+/// Decode an act being sent and remember its setting row for a refusal (client/README.md, 5.13).
+#[must_use]
+pub fn act_event(view: &mut View, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {
+    let event = event(view, node, act)?;
+    for shown in view.tree().nodes() {
+        if shown.id != node {
+            continue;
+        }
+        if let Some(binding) = shown.binding
+            && binding.owner == temper_client_domain::forge::words::owner(view.forge_words.connector)
+        {
+            view.forge.remember(binding.token);
+        }
+        break;
+    }
+    Some(event)
 }
 /// The address a link node opens, which the browser shell gives as its href
 /// (client/browser.md, 2.3 and 7.1): its external address, or the page its press goes to.

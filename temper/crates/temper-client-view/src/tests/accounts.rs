@@ -109,19 +109,28 @@ fn account_management_keeps_both_account_lists() {
     assert_eq!(headings, [b"Your accounts".to_vec(), b"Deployment accounts".to_vec()]);
 }
 #[test]
-fn your_accounts_heading_row_holds_its_count_and_the_connect_link() {
+fn the_tab_draws_your_accounts_with_its_count_and_act_in_its_head() {
     let (mut root, watch) = fixtures::account_root();
     deliver(&mut root, watch, card_document(b"openai", b"Pat", c::AccountKind::SignIn));
-    let mut view = fixtures::view();
-    let tree = fixtures::build(&mut view, &root);
-    let row = super::inbox::subtree(tree, super::inbox::styled(tree, crate::look::HEADING));
-    assert!(row.iter().any(
-        |node| node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"Your accounts".as_slice())
-    ));
-    assert!(row.iter().any(|node| node.styles.as_slice().contains(&crate::look::SUBTLE_COUNT)));
-    assert!(
-        row.iter().any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"+ Connect a model".as_slice()))
-    );
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        let row = super::inbox::subtree(tree, super::inbox::styled(tree, crate::look::SETTINGS_SECTION_HEAD));
+        assert!(row[0].styles.as_slice().contains(&crate::look::ACCOUNTS_PAGE));
+        assert!(row.iter().any(|node| node.role == Role::Heading { level: 2 }
+            && node.name.as_deref() == Some("Your accounts · 1".as_bytes())
+            && node.styles.as_slice().contains(&crate::look::SETTINGS_SECTION_TITLE)));
+        let act = row
+            .iter()
+            .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"+ Connect a model"))
+            .unwrap();
+        assert!(act.styles.as_slice().contains(&crate::look::SETTINGS_BTN));
+        assert!(act.styles.as_slice().contains(&crate::look::SETTINGS_SMALL));
+        let id = act.id;
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::ConnectModel { way: None } }))
+        );
+    }
 }
 #[test]
 fn a_cut_provider_name_keeps_the_numbered_card_fallback() {
@@ -1009,7 +1018,7 @@ fn accounts_are_folded_disclosures_with_their_state_and_line() {
     deliver(&mut root, watch, card_document(b"openai", b"alice", c::AccountKind::SignIn));
     let mut view = fixtures::view();
     let tree = fixtures::build(&mut view, &root);
-    let row = tree.nodes().iter().find(|node| node.styles.as_slice().contains(&crate::look::ACCOUNT_ROW)).unwrap();
+    let row = tree.nodes().iter().find(|node| node.styles.as_slice().contains(&crate::look::SETTINGS_ROW)).unwrap();
     assert!(!row.states.as_slice().contains(&skein_ui::State::Expanded));
     let summary = core::str::from_utf8(row.description.as_ref().unwrap()).unwrap();
     assert!(summary.contains("Ready"));
@@ -1134,7 +1143,7 @@ fn a_moving_account_shows_its_state_without_buttons() {
     deliver(&mut root, watch, doc);
     let mut view = fixtures::view();
     let tree = fixtures::build(&mut view, &root);
-    let row = tree.nodes().iter().find(|node| node.styles.as_slice().contains(&crate::look::ACCOUNT_ROW)).unwrap();
+    let row = tree.nodes().iter().find(|node| node.styles.as_slice().contains(&crate::look::SETTINGS_ROW)).unwrap();
     assert!(core::str::from_utf8(row.description.as_ref().unwrap()).unwrap().contains("Moving to another deployment"));
     let at = tree.nodes().iter().position(|node| node.id == row.id).unwrap();
     let content = super::inbox::subtree(tree, at);
@@ -1191,7 +1200,7 @@ fn an_outcome_is_in_the_disclosure_that_sent_the_act() {
         .nodes()
         .iter()
         .enumerate()
-        .filter(|(_, n)| n.styles.as_slice().contains(&crate::look::ACCOUNT_ROW))
+        .filter(|(_, n)| n.styles.as_slice().contains(&crate::look::SETTINGS_ROW))
         .collect();
     for (number, (at, row)) in rows.into_iter().enumerate() {
         let content = &tree.nodes()[at..at + usize::try_from(row.size).unwrap()];
@@ -1251,7 +1260,7 @@ fn only_deployment_rows_show_usage_facts_and_their_use_summary() {
     deliver(&mut root, accounts, card_document(b"openai", b"alice", c::AccountKind::SignIn));
     let view = fixtures::page_view(&root);
     let mut rows: u32 = 0;
-    for row in view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_ROW)) {
+    for row in view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_ROW)) {
         let at = view.tree().nodes().iter().position(|n| n.id == row.id).unwrap();
         let content = &view.tree().nodes()[at..at + usize::try_from(row.size).unwrap()];
         let deployment = rows == 1;
@@ -1370,7 +1379,7 @@ fn an_accounts_row_keeps_its_header_sources_facts_and_acts_in_order() {
     let view = fixtures::page_view(&root);
     let tree = view.tree();
     assert!(fixtures::find(tree, Role::Paragraph, "The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it.".as_bytes()).is_some());
-    let row = super::inbox::styled(tree, crate::look::ACCOUNT_ROW);
+    let row = super::inbox::styled(tree, crate::look::SETTINGS_ROW);
     let nodes = super::inbox::subtree(tree, row);
     assert!(nodes[0].states.is_empty());
     let mut previous = 0;
@@ -1399,7 +1408,7 @@ fn accounts_lists_the_scripted_model_with_nothing_to_add() {
         let mut view = fixtures::view_of(words);
         let tree = fixtures::build(&mut view, &root);
         let rows: Vec<_> =
-            tree.nodes().iter().filter(|node| node.styles.as_slice().contains(&crate::look::ACCOUNT_ROW)).collect();
+            tree.nodes().iter().filter(|node| node.styles.as_slice().contains(&crate::look::SETTINGS_ROW)).collect();
         assert_eq!(rows.len(), 1);
         assert_eq!(
             rows[0].name.as_deref(),
@@ -1433,7 +1442,7 @@ fn a_real_account_added_before_is_ready_in_the_playground() {
             .unwrap();
         assert!(core::str::from_utf8(row.description.as_deref().unwrap()).unwrap().contains("Ready"));
         assert_eq!(
-            tree.nodes().iter().filter(|node| node.styles.as_slice().contains(&crate::look::ACCOUNT_ROW)).count(),
+            tree.nodes().iter().filter(|node| node.styles.as_slice().contains(&crate::look::SETTINGS_ROW)).count(),
             if playground { 2 } else { 1 }
         );
         assert_eq!(
@@ -1441,4 +1450,150 @@ fn a_real_account_added_before_is_ready_in_the_playground() {
             "ChatGPT plan · Pat".as_bytes()
         );
     }
+}
+
+#[test]
+fn no_account_is_a_quiet_band_and_an_unread_document_claims_nothing() {
+    let (mut root, watch) = fixtures::account_root();
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        assert!(fixtures::find(tree, Role::Heading { level: 2 }, b"Your accounts").is_some());
+        assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_BAND)));
+        for name in [b"+ Connect a model".as_slice(), b"Connect a model"] {
+            assert!(fixtures::find(tree, Role::Link, name).is_none());
+        }
+    }
+    deliver(&mut root, watch, document(0));
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        assert!(fixtures::find(tree, Role::Heading { level: 2 }, "Your accounts · 0".as_bytes()).is_some());
+        let band = super::inbox::subtree(tree, super::inbox::styled(tree, crate::look::SETTINGS_QUIET_BAND));
+        assert!(band[0].styles.as_slice().contains(&crate::look::SETTINGS_BAND));
+        assert!(band.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_TAG)
+            && n.name.as_deref() == Some(b"No account yet")));
+        assert!(String::from_utf8_lossy(&fixtures::text(tree)).contains("No model of yours yet."));
+        let act = band.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Connect a model")).unwrap();
+        assert!(act.styles.as_slice().contains(&crate::look::SETTINGS_PRIMARY));
+        assert!(!act.styles.as_slice().contains(&crate::look::SETTINGS_SMALL));
+        let id = act.id;
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::ConnectModel { way: None } }))
+        );
+    }
+}
+
+#[test]
+fn deployment_accounts_and_the_playgrounds_are_sections_of_the_same_rows() {
+    let (mut owner, _, accounts) = owner_root_with_accounts();
+    deliver(&mut owner, accounts, card_document(b"openai", b"Pat", c::AccountKind::SignIn));
+    let playground = fixtures::playground_root(d::Address::Accounts, fixtures::PROJECT, true);
+    for (root, titles, count) in [
+        (&owner, ["Your accounts · 1", "Deployment accounts"], 2),
+        (&playground, ["Your accounts · 0", "The playground"], 1),
+    ] {
+        for view in [fixtures::page_view(root), fixtures::browser_page_view(root)] {
+            let tree = view.tree();
+            let sections: Vec<_> =
+                tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_SECTION)).collect();
+            assert_eq!(sections.len(), 2);
+            for (section, title) in sections.iter().zip(titles) {
+                let at = tree.nodes().iter().position(|n| n.id == section.id).unwrap();
+                let nodes = super::inbox::subtree(tree, at);
+                assert!(nodes.iter().any(|n| n.role == Role::Heading { level: 2 }
+                    && n.name.as_deref() == Some(title.as_bytes())
+                    && n.styles.as_slice().contains(&crate::look::SETTINGS_SECTION_TITLE)));
+                if title != "Your accounts · 0" {
+                    assert!(nodes.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_LINES)));
+                    assert!(nodes.iter().any(|n| n.role == Role::Disclosure
+                        && n.styles.as_slice().contains(&crate::look::SETTINGS_ROW)
+                        && n.states.is_empty()));
+                }
+            }
+            assert_eq!(
+                tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_ROW)).count(),
+                count
+            );
+        }
+    }
+}
+
+#[test]
+fn alone_it_keeps_its_heading_and_lede_with_no_tabs() {
+    let (mut root, me_watch, _, _, accounts) =
+        fixtures::root_at_full(d::Address::Accounts, &fixtures::limits(), b"Shop");
+    deliver(&mut root, accounts.unwrap(), card_document(b"openai", b"Pat", c::AccountKind::SignIn));
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    me.projects.clear();
+    fixtures::deliver_me(&mut root, me_watch, me);
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        let main = super::inbox::subtree(tree, tree.nodes().iter().position(|n| n.role == Role::Main).unwrap());
+        assert_eq!(main[0].styles.as_slice(), &[crate::look::MAIN, crate::look::SETTINGS]);
+        assert!(main.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_COL)));
+        assert!(fixtures::find(tree, Role::Heading { level: 1 }, b"Accounts").is_some());
+        let lede = crate::words::Words::say(&fixtures::words(), crate::words::Word::SettingsAccountsLede, &[]);
+        assert_eq!(main.iter().filter(|n| n.name.as_deref() == Some(lede.as_ref())).count(), 1);
+        assert!(main.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_LEDE)));
+        for style in [crate::look::SETTINGS_KICKER, crate::look::SETTINGS_TABS] {
+            assert!(!main.iter().any(|n| n.styles.as_slice().contains(&style)));
+        }
+        assert!(main.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_SECTION)));
+        assert!(main.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_ROW)));
+    }
+}
+
+fn assert_no_old_chrome(root: &d::Domain) {
+    for view in [fixtures::page_view(root), fixtures::browser_page_view(root)] {
+        for node in view.tree().nodes() {
+            for style in [
+                crate::look::CARD,
+                crate::look::PAGEBAR,
+                crate::look::HEADING,
+                crate::look::SUBTLE_COUNT,
+                crate::look::DETAILS,
+                crate::look::EMPTY,
+            ] {
+                assert!(!node.styles.as_slice().contains(&style), "old chrome {style:?} on {:?}", node.name);
+            }
+            if node.role == Role::Region && node.name.as_deref() == Some(b"Pays for") {
+                assert!(node.styles.as_slice().contains(&crate::look::SETTINGS_SETTING));
+            }
+        }
+    }
+}
+
+#[test]
+fn the_old_chrome_is_gone() {
+    for state in [
+        c::AccountState::Granted,
+        c::AccountState::Asking,
+        c::AccountState::Later { until: None },
+        c::AccountState::SignInAgain,
+        c::AccountState::Misconfigured,
+        c::AccountState::Cancelled,
+        c::AccountState::Closing,
+        c::AccountState::Moving,
+        c::AccountState::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Unreadable },
+    ] {
+        let (mut root, watch) = fixtures::account_root();
+        let mut doc = card_document(b"openai", b"Pat", c::AccountKind::SignIn);
+        doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().state = state;
+        deliver(&mut root, watch, doc);
+        assert_no_old_chrome(&root);
+        action(&mut root, A::KeyFor { row: Row { holder: c::AskAccountHolder::Own, account: 1 }, source: None });
+        assert_no_old_chrome(&root);
+        let name = root.pages().account_name();
+        action(
+            &mut root,
+            A::Submit {
+                name,
+                row: Row { holder: c::AskAccountHolder::Own, account: 1 },
+                operation: Operation::RemoveAccount,
+            },
+        );
+        assert_no_old_chrome(&root);
+    }
+    assert_no_old_chrome(&owner_root().0);
+    assert_no_old_chrome(&fixtures::playground_root(d::Address::Accounts, fixtures::PROJECT, true));
 }

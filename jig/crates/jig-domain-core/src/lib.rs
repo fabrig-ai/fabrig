@@ -394,6 +394,17 @@ fn assert_connector_registry(connectors: &[u16]) {
 }
 
 impl Core {
+    /// The templates `project` offers: the current ones under its overrides, as `me` delivers them
+    /// (jig/docs/design/domain/engine.md, 17.2).
+    #[must_use]
+    pub fn project_templates(&self, project: u32) -> Box<[Template]> {
+        let overrides = match self.template_overrides.get(&project) {
+            Some(entries) => entries.as_ref(),
+            None => &[],
+        };
+        templates::current_merged(&self.current, overrides)
+    }
+
     /// Allocate the eight children and the bounded live core tables.
     /// # Errors
     /// A configured worker count or name exceeds the priced membership bounds.

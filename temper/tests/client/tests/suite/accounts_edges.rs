@@ -12,7 +12,7 @@ fn empty_own_accounts_offer_a_model_connection() {
         &mut world,
         client,
         vec![
-            see(Role::Heading { level: 2 }, b"Your accounts"),
+            see(Role::Heading { level: 2 }, "Your accounts · 0".as_bytes()),
             see(Role::Paragraph, b"No model of yours yet."),
             see(Role::Link, b"Connect a model"),
         ],
@@ -97,7 +97,11 @@ fn accounts_navigation_from_connect_model_walks_settings() {
         .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Accounts"))
         .expect("accounts navigation");
     assert!(!entry.states.as_slice().contains(&State::Current));
-    follow(&mut world, client, vec![press(Role::Link, b"Accounts"), see(Role::Heading { level: 1 }, b"Accounts")]);
+    follow(
+        &mut world,
+        client,
+        vec![press(Role::Link, b"Accounts"), see(Role::Heading { level: 1 }, b"What agents run on.")],
+    );
 }
 
 // client/README.md 3.5 Accounts: the person's accounts come before the deployment's.

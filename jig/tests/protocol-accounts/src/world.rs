@@ -97,7 +97,7 @@ pub(crate) fn issuer(story: Story) -> Process {
             } else {
                 fixtures::REDIRECT
             }),
-            refresh_token: bytes::copy_of(b"seed"),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(b"seed")),
         },
         limits,
         skein_http::server::Limits { response, ..profile.server },

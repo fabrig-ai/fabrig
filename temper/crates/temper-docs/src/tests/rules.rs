@@ -78,6 +78,46 @@ fn task_help_explains_refused_invalid_results() {
 }
 
 #[test]
+fn configuration_help_gives_the_merge_commands_contract() {
+    let page = find(b"configuration").expect("configuration page").text;
+    let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
+    let (members, contract) = text.split_once("## The merge command").expect("merge command section");
+    let row = members.split_once("- `merge_job`:").expect("merge_job row").1;
+    let row = row.split(" - `").next().expect("merge_job line");
+    assert!(row.contains("see The merge command, below."), "merge_job must point to its contract");
+    for instruction in [
+        "`TEMPER_JOB`",
+        "`request.json`",
+        "`result.json`",
+        "`git add`",
+        "**Exit 0:**",
+        "**Exit 3:**",
+        "**Any other exit,**",
+    ] {
+        assert!(contract.contains(instruction), "merge command contract must explain: {instruction}");
+    }
+}
+
+#[test]
+fn change_help_points_resolving_to_the_merge_command() {
+    let text = find(b"change").expect("change page").text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let resolving = text.split_once("- `resolving`:").expect("resolving step").1;
+    let resolving = resolving.split_once("- `repairing`:").expect("repairing step").0;
+    assert!(resolving.contains("temper help configuration"), "resolving must point to the merge command");
+}
+
+#[test]
+fn change_and_task_help_say_what_a_cancelled_early_start_means() {
+    for name in [b"change".as_slice(), b"task"] {
+        let page = find(name).expect("change or task page");
+        let text = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for instruction in ["`Cancelled · its early start conflicts with SHA`", "goes on with a new producer"] {
+            assert!(text.contains(instruction), "{} help must explain: {instruction}", page.name);
+        }
+    }
+}
+
+#[test]
 fn tier_help_explains_that_clearance_waits_through_verifying_and_red() {
     let text = find(b"tier").expect("tier page").text;
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -385,10 +425,10 @@ fn deployment_explains_tool_payload_and_its_dependencies() {
 }
 
 #[test]
-fn box_help_locates_forgejo_notices_on_the_box_output() {
+fn box_help_locates_forgejo_lifecycle_and_hands() {
     let text = find(b"box").expect("box help").text.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(text.contains("`temper box`'s stdout"), "name the notices' output stream");
-    assert!(text.contains("redirected log"), "locate notices for background boxes");
+    assert!(text.contains("`temper box`'s terminal (stderr)"), "name the lifecycle notices' output stream");
+    assert!(text.contains("The forge's hands are in `DATA/box/logs/forgejo-FORGE.log`"), "locate the forge's hands");
 }
 
 #[test]

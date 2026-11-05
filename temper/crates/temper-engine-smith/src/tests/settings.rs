@@ -558,7 +558,7 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
     use jig_domain_authority as authority;
     use settings_form::view as form;
     let limits = settings_form::Limits::standard();
-    for (grant_count, kind_count) in [(14, 7), (16, 16)] {
+    for (grant_count, kind_count) in [(14, 9), (16, 16)] {
         let ceiling = settings_ceiling(grant_count, kind_count);
         let policy = jig_domain_core::ConfiguredPolicy {
             policy: authority::Policy {
@@ -646,6 +646,49 @@ fn a_runs_proposal_carries_the_forges_charter_number() {
 }
 
 #[test]
+fn settings_proposals_carry_typed_project_questions() {
+    let call = decided(b"propose_settings", br#"{"against":1,"reason":"questions","items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#).expect("questions proposal");
+    let engine::Tool::ProposeSettings { kinds, .. } = call.tool else { panic!("settings proposal") };
+    let value =
+        temper_engine_domain_forge::settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman);
+    let size = u32::try_from(crate::kinds::encode(&value).len()).expect("questions encoding");
+    assert_eq!(
+        kinds.as_ref(),
+        &[engine::KindValue {
+            kind: 6,
+            scope: 7,
+            number: 1,
+            value: temper_engine_domain_forge::settings::SizedValue { value, size }
+        }]
+    );
+}
+#[test]
+fn project_settings_reads_require_project_and_refuse_number() {
+    for (kind, number) in [("project-ways", 7), ("project-questions", 6)] {
+        let bytes = format!(r#"{{"setting":{{"kind":"{kind}","project":7}},"revision":2}}"#);
+        let call = decided(b"settings", bytes.as_bytes()).expect("project read");
+        assert_eq!(
+            call.tool,
+            engine::Tool::Settings {
+                read: SettingsRead::Setting {
+                    setting: s::Setting::Application { kind: number, scope: 7, number: 1 },
+                    revision: 2
+                },
+                from: 0
+            }
+        );
+        for (suffix, expected) in [
+            ("", Problem::Missing(b"project")),
+            (",\"project\":7,\"number\":1", Problem::Range(b"number")),
+            (",\"project\":0", Problem::Range(b"project")),
+        ] {
+            let bytes = format!(r#"{{"setting":{{"kind":"{kind}"{suffix}}}}}"#);
+            assert_eq!(decided(b"settings", bytes.as_bytes()).unwrap_err(), expected);
+        }
+    }
+}
+
+#[test]
 fn settings_pages_reserve_escaped_framing_within_the_allowance() {
     use settings_form::page::{Error, page_bounded};
     for text in ["\"".repeat(100), "\\".repeat(100), "\n".repeat(100), "\0".repeat(100), "λ".repeat(100)] {
@@ -668,4 +711,53 @@ fn settings_pages_reserve_escaped_framing_within_the_allowance() {
         assert!(answer.error());
         assert!(answer.text().len() <= usize::try_from(maximum).unwrap());
     }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test reconstructs rendered UTF-8 pages")]
+fn repository_identities_share_settings_pagination_and_stay_out_of_other_reads() {
+    let mut repositories = List::with_capacity(20);
+    for _ in 0..20_u32 {
+        repositories
+            .push(engine::RepositoryIdentity {
+                host: b"forge.example:3847".as_slice().into(),
+                owner: b"org".as_slice().into(),
+                name: b"repo".as_slice().into(),
+            })
+            .expect("fixture repository capacity");
+    }
+    let repositories = repositories.into_boxed();
+    let answer = inventory(0);
+    let (whole, error) =
+        crate::settings_repository_answer(&answer, 0, None, &[], None, &repositories, 8192).into_parts();
+    assert!(!error);
+    let expected = whole.strip_suffix(b"end\n").expect("terminal marker");
+    assert!(expected.ends_with(b"  forge forge.example:3847 repository org/repo\n"));
+    let mut combined = skein_lib::Writer::new(expected.len());
+    let mut from = 0;
+    let mut pages = 0_u32;
+    loop {
+        let (body, error) =
+            crate::settings_repository_answer(&answer, from, None, &[], None, &repositories, 256).into_parts();
+        assert!(!error);
+        assert!(body.len() <= 256);
+        let text = core::str::from_utf8(&body).expect("page UTF-8");
+        pages += 1;
+        if let Some((text, next)) = text.rsplit_once("next: ") {
+            let next = u32::try_from(crate::decimal(next.trim().as_bytes(), b"next").expect("offset")).expect("u32");
+            let length = skein_lib::usize_of(next.checked_sub(from).expect("offset advances"));
+            combined.put(text.as_bytes().get(..length).expect("original bytes")).expect("whole capacity");
+            from = next;
+        } else {
+            combined.put(body.strip_suffix(b"end\n").expect("end marker")).expect("last page");
+            break;
+        }
+    }
+    assert!(pages > 1);
+    assert_eq!(combined.finish().as_ref(), expected);
+    let (unknown, error) =
+        crate::settings_repository_answer(&SettingsAnswer::Unknown, 0, None, &[], None, &repositories, 256)
+            .into_parts();
+    assert!(error);
+    assert_eq!(unknown.as_ref(), b"unknown\nend\n", "context belongs only to an inventory");
 }

@@ -183,5 +183,15 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
         assert!(!root.join(path).exists(), "{path}");
     }
     assert!(cached[0].is_file(), "Forgejo's cached binary stays");
+    for words in ["Forge 17 (Forgejo): starting", "Forge 17 (Forgejo): started", "Forge 17 (Forgejo): stopped"] {
+        assert_eq!(stderr.lines().filter(|line| line.ends_with(words)).count(), 1, "{stderr}");
+    }
+    assert!(!stderr.contains("Forgejo: api ") && !stderr.contains("Forgejo: person "), "{stderr}");
+    let log = fs::read_to_string(root.join("box/logs/forgejo-17.log")).expect("Forgejo step log");
+    for words in [format!("Forgejo: api http://{listen}/api/v1"), "Forgejo: person ada".to_owned()] {
+        let lines: Vec<_> = log.lines().filter(|line| line.ends_with(&words)).collect();
+        assert_eq!(lines.len(), 1, "hands are logged once: {log}");
+        assert_eq!(lines[0].strip_suffix(&words).expect("hands suffix").len(), 21, "UTC prefix");
+    }
     scratch.remove();
 }

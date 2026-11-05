@@ -35,7 +35,7 @@ fn main_find(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> skein_ui::NodeId
 fn project_pages_draw_their_heading_in_both_shells() {
     for (address, heading) in [
         (Address::Home { project: f::PROJECT }, b"Shop".as_slice()),
-        (Address::Settings { project: f::PROJECT }, b"Settings for Shop".as_slice()),
+        (Address::Settings { project: f::PROJECT }, b"How work runs in Shop.".as_slice()),
     ] {
         let (root, _, _) = f::root_at(address, &f::domain_limits());
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -53,7 +53,11 @@ fn project_pages_draw_their_heading_in_both_shells() {
 
 #[test]
 fn unlisted_projects_explain_and_link_to_chats() {
-    for address in [Address::Home { project: UNKNOWN }, Address::Settings { project: UNKNOWN }] {
+    for address in [
+        Address::Home { project: UNKNOWN },
+        Address::Settings { project: UNKNOWN },
+        Address::Repositories { project: UNKNOWN },
+    ] {
         let (root, _, _) = f::root_at(address, &f::domain_limits());
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let main = f::main_text(view.tree());
@@ -66,57 +70,6 @@ fn unlisted_projects_explain_and_link_to_chats() {
         }
         let view = f::page_view(&root);
         assert!(skein_lib::bytes::find(&printed(&view), b"Project 99 is not one of yours.").is_some());
-    }
-}
-
-fn settings_root() -> d::Domain {
-    f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits()).0
-}
-
-#[test]
-fn settings_lists_links_then_sign_out_in_both_shells() {
-    let root = settings_root();
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let nodes = main_nodes(view.tree());
-        assert_eq!(nodes[0].styles.as_slice(), &[crate::look::MAIN, crate::look::SETTINGS]);
-        assert_eq!(crate::look::NAMES.style(crate::look::SETTINGS), Some(b"temper-settings".as_slice()));
-        let mut at = 1;
-        let mut list = None;
-        for expected in [Role::Heading { level: 1 }, Role::List, Role::Button] {
-            let node = &nodes[at];
-            assert_eq!(node.role, expected);
-            if expected == Role::List {
-                list = Some(subtree(view.tree(), node.id));
-            }
-            at += usize::try_from(node.size).unwrap();
-        }
-        assert_eq!(at, nodes.len());
-        let list = list.unwrap();
-        let mut at = 1;
-        for name in [b"Configure temper".as_slice(), b"Forges", b"Accounts", b"Adopt a repository"] {
-            assert_eq!(list[at].role, Role::Item);
-            assert_eq!(list[at + 1].role, Role::Link);
-            assert_eq!(list[at + 1].name.as_deref(), Some(name));
-            at += usize::try_from(list[at].size).unwrap();
-        }
-        assert_eq!(at, list.len());
-        for (name, address, href) in [
-            (
-                b"Configure temper".as_slice(),
-                Address::Configure { project: f::PROJECT },
-                b"/projects/1/settings/configure".as_slice(),
-            ),
-            (b"Forges".as_slice(), Address::Forges, b"/forges".as_slice()),
-            (b"Accounts", Address::Accounts, b"/accounts"),
-            (b"Adopt a repository", Address::Adopt { project: f::PROJECT }, b"/projects/1/adopt"),
-        ] {
-            let link = main_find(view.tree(), Role::Link, name);
-            assert!(!subtree(view.tree(), link)[0].states.as_slice().contains(&skein_ui::State::Current));
-            assert_eq!(crate::href(&mut view, link).as_deref(), Some(href));
-            assert_eq!(crate::act(&mut view, link, Act::Press), Some(d::Action::Pages(d::pages::Act::Go { address })));
-        }
-        let button = main_find(view.tree(), Role::Button, b"Sign out");
-        assert_eq!(crate::act(&mut view, button, Act::Press), Some(d::Action::Pages(d::pages::Act::SignOut)));
     }
 }
 
@@ -169,40 +122,6 @@ fn settings_links_carry_the_forge_and_account_marks_in_both_shells() {
     }
 }
 
-#[test]
-fn settings_terminal_numbers_each_link_and_sign_out() {
-    let root = settings_root();
-    let mut view = f::page_view(&root);
-    for (role, name, action) in [
-        (
-            Role::Link,
-            b"Configure temper".as_slice(),
-            d::pages::Act::Go { address: Address::Configure { project: f::PROJECT } },
-        ),
-        (Role::Link, b"Forges".as_slice(), d::pages::Act::Go { address: Address::Forges }),
-        (Role::Link, b"Accounts", d::pages::Act::Go { address: Address::Accounts }),
-        (Role::Link, b"Adopt a repository", d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } }),
-        (Role::Button, b"Sign out", d::pages::Act::SignOut),
-    ] {
-        let control = main_find(view.tree(), role, name);
-        let (node, act) = f::terminal_command(view.tree(), &view.limits().tree, control, name, b"Settings for Shop");
-        assert_eq!(crate::act(&mut view, node, act), Some(d::Action::Pages(action)));
-    }
-}
-
-#[test]
-fn settings_lost_sign_out_alert_offers_sign_out_again() {
-    let mut root = settings_root();
-    f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SignOut) });
-    f::root_event(&mut root, d::Event::Client { event: jig_client::Event::SignOutLost });
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let _alert = main_find(view.tree(), Role::Alert, b"Sign out did not reach the engine.");
-        let button = main_find(view.tree(), Role::Button, b"Sign out");
-        assert_eq!(crate::act(&mut view, button, Act::Press), Some(d::Action::Pages(d::pages::Act::SignOut)));
-        assert!(skein_lib::bytes::find(&printed(&view), b"Sign out did not reach the engine.").is_some());
-    }
-}
-
 fn subtree(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> &[skein_ui::Node] {
     for (at, node) in tree.nodes().iter().enumerate() {
         if node.id == id {
@@ -219,6 +138,9 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn home_limits() -> d::Limits {
     let mut limits = f::domain_limits();
+    // Home, goal presence, the Goals page and the standing Needs watch (README.md, 3.5).
+    limits.client.domain.handles = 15;
+    limits.client.domain.watches = 13;
     limits.client.domain.reads = 16;
     limits
 }
@@ -266,11 +188,6 @@ fn home_documents(
 ) -> (d::Domain, Token) {
     home_documents_with_reads(rows, configured, chat, needs, chats, Some(&[]), true)
 }
-#[expect(
-    clippy::disallowed_methods,
-    clippy::too_many_lines,
-    reason = "one fixture delivers Home and its standing inbox through public events"
-)]
 fn home_documents_with_reads(
     rows: List<w::ForgeRow>,
     configured: bool,
@@ -280,21 +197,49 @@ fn home_documents_with_reads(
     dismissed: Option<&[u32]>,
     settings_delivered: bool,
 ) -> (d::Domain, Token) {
-    let (mut root, me_watch, _, _, accounts, _, needs_watch) = f::root_at_with_dismissals_and_needs(
-        Address::Settings { project: f::PROJECT },
-        &home_limits(),
-        b"Shop",
-        None,
-        None,
-        Some(rows),
-        dismissed,
-    );
+    home_documents_with_status(rows, configured, chat, needs, chats, dismissed, settings_delivered, None)
+}
+struct StatusFixture {
+    document: w::ProjectStatus,
+    answered: bool,
+    goals: bool,
+    goal_rows: Option<ChatFixture>,
+}
+#[expect(
+    clippy::disallowed_methods,
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "one fixture delivers Home documents and their public replies together"
+)]
+fn home_documents_with_status(
+    rows: List<w::ForgeRow>,
+    configured: bool,
+    chat: bool,
+    needs: Option<NeedsFixture<'_>>,
+    chats: Option<ChatFixture>,
+    dismissed: Option<&[u32]>,
+    settings_delivered: bool,
+    status: Option<&StatusFixture>,
+) -> (d::Domain, Token) {
+    let (mut root, me_watch, accounts, settings, needs_watch) =
+        f::home_root(&home_limits(), rows, dismissed, status.is_some_and(|fixture| fixture.goals));
     let template_root = f::chat::messaging_root();
     let template_me = template_root.pages().me(template_root.client()).unwrap();
     let mut me = root.pages().me(root.client()).unwrap().clone();
     let member = me.projects.get_mut(0).unwrap();
     member.role = c::HeldRole::Owner;
     member.templates = template_me.projects.get(0).unwrap().templates.clone();
+    if status.is_some_and(|fixture| fixture.goals) {
+        let mut goal = member.templates.get(0).unwrap().clone();
+        goal.number = jig_client::shapes::GOAL;
+        goal.tracked = Some(1);
+        let mut templates = List::uncapped();
+        for template in &member.templates {
+            templates.push(template.clone()).unwrap();
+        }
+        templates.push(goal).unwrap();
+        member.templates = templates;
+    }
     member.models = List::with_capacity(1);
     member
         .models
@@ -308,14 +253,28 @@ fn home_documents_with_reads(
             efforts: List::with_capacity(0),
         })
         .unwrap();
-    f::deliver_me(&mut root, me_watch, me);
-    let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
+    let mut out = drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+    );
+    let mut entered =
+        drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
+    while let Some(request) = entered.pop() {
+        out.push(request);
+    }
     let mut delivered = drive(
         &mut root,
         d::Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
-                    watch: needs_watch.unwrap(),
+                    watch: needs_watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
                         List::with_capacity(0),
                         0,
@@ -330,7 +289,6 @@ fn home_documents_with_reads(
     while let Some(request) = delivered.pop() {
         out.push(request);
     }
-    let mut settings = None;
     let mut live = None;
     for request in &out {
         if let d::Request::Unlinked {
@@ -341,9 +299,10 @@ fn home_documents_with_reads(
         } = request
         {
             match subject {
-                c::Subject::Settings => settings = Some(*watch),
-                c::Subject::Tasks { .. } => live = Some(*watch),
-                c::Subject::Me
+                c::Subject::Tasks { query, .. } if query.tracked != Some(true) => live = Some(*watch),
+                c::Subject::Tasks { .. }
+                | c::Subject::Settings
+                | c::Subject::Me
                 | c::Subject::Task { .. }
                 | c::Subject::Tree { .. }
                 | c::Subject::Chips { .. }
@@ -367,7 +326,7 @@ fn home_documents_with_reads(
     if settings_delivered {
         deliver(
             &mut root,
-            settings.expect("Home settings"),
+            settings,
             c::Delivery::Settings(Box::new(c::SettingsDocument {
                 newest: 0,
                 settings: lines,
@@ -396,8 +355,8 @@ fn home_documents_with_reads(
     while let Some(request) = refreshed.pop() {
         out.push(request);
     }
-    settle_home(&mut root, &mut out, needs.as_ref(), chats.as_ref());
-    (root, accounts.unwrap())
+    settle_home(&mut root, &mut out, needs.as_ref(), chats.as_ref(), status);
+    (root, accounts)
 }
 fn read_done(root: &mut d::Domain, read: Token, value: c::ReadValue) -> Queue<d::Request> {
     drive(
@@ -474,6 +433,7 @@ fn home_need_page(object: c::ObjectKey) -> c::ReadValue {
 }
 #[expect(
     clippy::disallowed_methods,
+    clippy::too_many_lines,
     reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
 )]
 fn settle_home(
@@ -481,10 +441,99 @@ fn settle_home(
     out: &mut Queue<d::Request>,
     needs: Option<&NeedsFixture<'_>>,
     chats: Option<&ChatFixture>,
+    status: Option<&StatusFixture>,
 ) {
     while let Some(request) = out.pop() {
         let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let mut more = match down {
+            jig_client::Down::Open { watch, subject }
+                if Some(&subject) == d::forge::status::watch(f::PROJECT, &home_limits().forge).as_ref()
+                    && status.is_some() =>
+            {
+                let status = status.unwrap();
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::project_status(&status.document),
+                                },
+                            },
+                        },
+                    },
+                )
+            }
+            jig_client::Down::Send { attempt, request, .. }
+                if Some(&request) == d::forge::status::ask(f::PROJECT, &home_limits().forge).as_ref()
+                    && status.is_some_and(|status| status.answered) =>
+            {
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                why: None,
+                                answer: Some(jig_client::Answered::Family(jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::answer(
+                                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked })
+                                            .unwrap(),
+                                    ),
+                                })),
+                            },
+                        },
+                    },
+                )
+            }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) }
+                if query.tracked == Some(true) =>
+            {
+                if let Some(goals) = status.and_then(|fixture| fixture.goal_rows.as_ref()) {
+                    let mut more = drive(
+                        root,
+                        d::Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::Watched {
+                                    watch,
+                                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(goals.live.clone()))),
+                                },
+                            },
+                        },
+                    );
+                    while let Some(request) = more.pop() {
+                        out.push(request);
+                    }
+                    continue;
+                }
+                let mut rows = List::uncapped();
+                if status.is_some_and(|fixture| fixture.goals) {
+                    let mut goal = super::chats::line();
+                    goal.tracked = Some(1);
+                    rows.push(goal).unwrap();
+                }
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Watched {
+                                watch,
+                                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                                    rows,
+                                    more: false,
+                                }))),
+                            },
+                        },
+                    },
+                )
+            }
+
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) }
                 if needs.is_some() =>
             {
@@ -518,7 +567,12 @@ fn settle_home(
                         cut: group == c::InboxReadGroup::Needs && needs.cut,
                         before: None,
                         after: None,
-                        selection: None,
+                        selection: status.filter(|fixture| fixture.goals).map(|_| {
+                            List::from_boxed(Box::new([c::InboxSelection {
+                                cursor: c::InboxCursor::Number { number: 1 },
+                                goals: List::from_boxed(Box::new([9])),
+                            }]))
+                        }),
                     })),
                 )
             }
@@ -545,6 +599,20 @@ fn settle_home(
                     continue;
                 }
                 read_done(root, read, home_need_page(c::ObjectKey::PersonTask(task)))
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { query, .. }) }
+                if query.tracked == Some(true) && status.and_then(|fixture| fixture.goal_rows.as_ref()).is_some() =>
+            {
+                read_done(
+                    root,
+                    read,
+                    c::ReadValue::Tasks(Box::new(status.unwrap().goal_rows.as_ref().unwrap().ended.clone())),
+                )
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Notes { scope, .. }) }
+                if status.is_some_and(|fixture| fixture.goals) =>
+            {
+                read_done(root, read, goal_notes(scope))
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => read_done(
                 root,
@@ -953,7 +1021,7 @@ fn home_kicker_tracks_the_current_day_and_minute() {
     let (root, _) = home_root(List::with_capacity(0), false, false);
     let mut view = f::browser_page_view(&root);
     let kicker = styled(view.tree(), crate::look::HOME_KICKER).name.as_deref().unwrap();
-    contains(kicker, "Thursday 1 January");
+    contains(kicker, "Thursday,");
     contains(kicker, "00:00");
     absent(kicker, "Shop");
     assert_eq!(view.next_change(), Some(skein_lib::Wall::from_nanos(60_000_000_000)));
@@ -1120,7 +1188,7 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
                 &mut view,
                 Role::Link,
                 b"Add a README",
-                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
             );
             assert_action(
                 &mut view,
@@ -1161,7 +1229,7 @@ fn unread_need_has_only_meta_and_unknown_headline() {
             &mut view,
             Role::Link,
             b"T9",
-            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
         );
     }
 }
@@ -1232,7 +1300,7 @@ fn nonquestion_need_opens_inbox_and_keeps_its_lowercase_kind() {
                 &mut view,
                 Role::Button,
                 b"Open",
-                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
             );
             assert!(
                 !main_nodes(view.tree())
@@ -1311,7 +1379,7 @@ fn chats_keep_live_then_ended_status_age_names_and_events() {
             assert_eq!(region.role, Role::Region);
             assert_eq!(region.name.as_deref(), Some(b"Chats".as_slice()));
             let parts = children(subtree(view.tree(), region.id));
-            assert_eq!(parts.len(), 2);
+            assert_eq!(parts.len(), 3);
             assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
             assert_eq!(parts[1].styles.as_slice(), &[crate::look::HOME_ROWS]);
             let heading = children(subtree(view.tree(), parts[0].id));
@@ -1401,7 +1469,7 @@ fn read_need_without_a_title_links_by_task_number() {
             &mut view,
             Role::Link,
             b"Task 9",
-            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } },
         );
         assert_action(
             &mut view,
@@ -1744,7 +1812,7 @@ fn settings_configure_link_opens_the_delivered_configuring_chat_in_both_shells()
         c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })),
     );
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let link = main_find(view.tree(), Role::Link, b"Configure temper");
+        let link = main_find(view.tree(), Role::Link, b"Go on");
         assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/chats/9".as_slice()));
         assert_eq!(
             crate::act(&mut view, link, Act::Press),
@@ -1755,6 +1823,218 @@ fn settings_configure_link_opens_the_delivered_configuring_chat_in_both_shells()
     }
 }
 
+// Four epoch days leave room for the table's three-day previous sitting.
+const STATUS_NOW: u64 = 345_600_000_000_000;
+const STATUS_MINUTE: u64 = 60_000_000_000;
+const CHAT_SENTENCE: &str = "A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing.";
+fn status_parts() -> w::ProjectStatusParts {
+    w::ProjectStatusParts {
+        project: f::PROJECT,
+        landed: 3,
+        last_landed: Some(STATUS_NOW - 6 * STATUS_MINUTE),
+        brief: None,
+        previous: Some(STATUS_NOW - 9 * 60 * STATUS_MINUTE),
+        seen: 1,
+        queued: 3,
+        red: false,
+        branch: b"main".as_slice().into(),
+    }
+}
+fn status_home(parts: w::ProjectStatusParts, answered: bool, beginning: bool, goals: bool) -> d::Domain {
+    let fixture = StatusFixture {
+        document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(),
+        answered,
+        goals,
+        goal_rows: None,
+    };
+    home_documents_with_status(
+        forge_rows(true),
+        !beginning,
+        !beginning,
+        Some(NeedsFixture { objects: &[], cut: false, read: true }),
+        None,
+        Some(&[]),
+        true,
+        Some(&fixture),
+    )
+    .0
+}
+fn status_view(root: &d::Domain, browser: bool) -> crate::View {
+    let mut view = f::view_of(if browser { f::browser_words() } else { f::words() });
+    crate::build(&mut view, root, skein_lib::Wall::from_nanos(STATUS_NOW), &mut Queue::uncapped());
+    view
+}
+fn kicker(root: &d::Domain, browser: bool) -> Box<[u8]> {
+    let view = status_view(root, browser);
+    styled(view.tree(), crate::look::HOME_KICKER).name.clone().unwrap()
+}
+#[test]
+fn the_kicker_says_when_you_last_looked() {
+    // The fractional spans prove the displayed unit is rounded down.
+    for (seconds, expected) in [
+        (61, "Monday, 00:00 · you last looked a minute ago"),
+        (179, "Monday, 00:00 · you last looked 2 minutes ago"),
+        (3601, "Monday, 00:00 · you last looked an hour ago"),
+        (35_999, "Monday, 00:00 · you last looked 9 hours ago"),
+        (86_401, "Monday, 00:00 · you last looked a day ago"),
+        (259_201, "Monday, 00:00 · you last looked 3 days ago"),
+    ] {
+        let mut parts = status_parts();
+        parts.previous = Some(STATUS_NOW - seconds * 1_000_000_000);
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            assert_eq!(kicker(&root, browser).as_ref(), expected.as_bytes());
+            contains(&printed(&status_view(&root, browser)), expected);
+        }
+    }
+}
+#[test]
+fn no_previous_says_nothing() {
+    let mut parts = status_parts();
+    parts.previous = None;
+    let root = status_home(parts, true, false, false);
+    for browser in [false, true] {
+        assert_eq!(kicker(&root, browser).as_ref(), "Monday, 00:00".as_bytes());
+    }
+}
+#[test]
+fn under_a_minute_says_nothing() {
+    for seconds in [0, 59, 60] {
+        let mut parts = status_parts();
+        parts.previous = Some(STATUS_NOW - seconds * 1_000_000_000);
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            absent(&kicker(&root, browser), "you last looked");
+        }
+    }
+}
+#[test]
+fn the_headline_counts_what_landed() {
+    for (landed, seen, headline) in [
+        (0, 0, "Nothing needs you."),
+        (3, 3, "Nothing needs you."),
+        (3, 2, "One change landed since you last looked. Nothing needs you."),
+        (5, 2, "3 changes landed since you last looked. Nothing needs you."),
+    ] {
+        let mut parts = status_parts();
+        parts.landed = landed;
+        parts.seen = seen;
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
+            contains(&printed(&view), headline);
+        }
+    }
+}
+#[test]
+fn the_headline_is_as_now_until_status_is_shown() {
+    for root in
+        [Box::new(everyday(false, &[], false, true)), Box::new(status_home(status_parts(), false, false, false))]
+    {
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            main_find(view.tree(), Role::Heading { level: 1 }, b"Nothing needs you.");
+            let text = f::main_text(view.tree());
+            absent(&text, "you last looked");
+            absent(&text, "Landing:");
+        }
+    }
+}
+#[test]
+fn the_foot_says_what_is_queued() {
+    for (queued, last, red, branch, expected) in [
+        (
+            3,
+            Some(STATUS_NOW - 6 * STATUS_MINUTE),
+            false,
+            b"main".as_slice(),
+            "Landing: 3 queued · last landed 6 min ago · Changes",
+        ),
+        (
+            0,
+            Some(STATUS_NOW - 60 * STATUS_MINUTE),
+            false,
+            b"main".as_slice(),
+            "Landing: main last moved 1 h ago · nothing queued · Changes",
+        ),
+        (0, None, false, b"main".as_slice(), "Landing: nothing has landed yet · Changes"),
+        (0, None, true, b"main".as_slice(), "Landing: nothing has landed yet · main red · Changes"),
+        (0, None, true, b"".as_slice(), "Landing: nothing has landed yet · landing red · Changes"),
+    ] {
+        let mut parts = status_parts();
+        parts.queued = queued;
+        parts.last_landed = last;
+        parts.red = red;
+        parts.branch = branch.into();
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            let foot = children(main_nodes(view.tree())).last().copied().unwrap();
+            assert_eq!(foot.role, Role::Paragraph);
+            assert_eq!(foot.styles.as_slice(), &[crate::look::HOME_FACTS]);
+            let nodes = subtree(view.tree(), foot.id);
+            assert_eq!(f::nodes_text(nodes).as_ref(), expected.as_bytes());
+            if red {
+                let signal = styled(view.tree(), crate::look::CHANGES_RED);
+                assert!(f::nodes_text(subtree(view.tree(), signal.id)).starts_with(" · ".as_bytes()));
+            }
+            contains(&printed(&view), "Landing:");
+        }
+    }
+}
+#[test]
+fn the_foot_links_to_changes() {
+    let root = status_home(status_parts(), true, false, false);
+    for browser in [false, true] {
+        let mut view = status_view(&root, browser);
+        let foot = children(main_nodes(view.tree())).last().copied().unwrap();
+        let mut link = None;
+        for node in subtree(view.tree(), foot.id) {
+            if node.role == Role::Link {
+                link = Some(node.id);
+            }
+        }
+        let link = link.unwrap();
+        assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/projects/1/changes".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Changes { project: f::PROJECT } }))
+        );
+    }
+}
+#[test]
+fn no_foot_while_to_begin_shows() {
+    let root = status_home(status_parts(), true, true, false);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        main_find(view.tree(), Role::Heading { level: 1 }, b"Shop is ready.");
+        absent(&f::main_text(view.tree()), "Landing:");
+    }
+}
+#[test]
+fn chats_says_its_sentence_with_no_goal() {
+    for mut root in
+        [Box::new(home_chats(chat_fixture(1, 1, false, false))), Box::new(home_chats(chat_fixture(0, 0, false, false)))]
+    {
+        drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SkipToBegin) });
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            main_find(view.tree(), Role::Paragraph, CHAT_SENTENCE.as_bytes());
+            let region = styled(view.tree(), crate::look::HOME_CHATS);
+            let last = children(subtree(view.tree(), region.id)).last().copied().unwrap();
+            assert_eq!(last.name.as_deref(), Some(CHAT_SENTENCE.as_bytes()));
+            assert_eq!(last.styles.as_slice(), &[crate::look::HOME_FACTS]);
+        }
+    }
+}
+#[test]
+fn chats_has_no_sentence_with_a_goal() {
+    let root = status_home(status_parts(), true, false, true);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        absent(&f::main_text(view.tree()), CHAT_SENTENCE);
+    }
+}
 const HOME_QUESTION: &[u8] = b"Which license?\n\nThe README needs a license.\n\nSaw: No license file.\nChoice: MIT (recommended)\nChoice: Apache";
 const PARSED: c::ObjectKey = c::ObjectKey::Question { task: f::INBOX_TASK, message: 8 };
 fn needs_act(root: &mut d::Domain, act: d::pages::needs::Act) {
@@ -1984,5 +2264,625 @@ fn home_funds_and_proposal_keep_decisions_confirmation_and_short_lines() {
             "Add a README: 31 of 40 used · funds".as_bytes(),
             d::pages::Act::Needs(d::pages::needs::Act::Open { object: funds }),
         );
+    }
+}
+
+fn goal_notes(scope: c::NoteScope) -> c::ReadValue {
+    let mut rows = List::uncapped();
+    if scope == (c::NoteScope::Task { project: f::PROJECT, task: 9 }) {
+        rows.push(c::Note {
+            number: 1,
+            revision: c::Revision { value: 1 },
+            scope,
+            description: f::task::document_words(b"report: A goal report."),
+            body: f::task::document_words(b""),
+            writer: c::NoteAuthor::Task { task: 9, attempt: 1 },
+            tasks: List::with_capacity(0),
+            changed: Some(f::NOW),
+            acts: List::with_capacity(0),
+            cut: false,
+        })
+        .unwrap();
+    }
+    c::ReadValue::Notes(Box::new(c::NotePage { rows, before: None, after: None, cut: false }))
+}
+
+fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
+    let mut goals = chat_fixture(live, ended, false, false);
+    for row in goals.live.rows.iter_mut() {
+        row.tracked = Some(1);
+    }
+    if let c::EndedGroup::Rows { rows, .. } = &mut goals.ended.ended {
+        for row in rows.iter_mut() {
+            row.tracked = Some(1);
+            row.chip.details.phase = c::ChipPhase::Ended;
+            row.chip.details.details.ending =
+                Some(c::ChipEnding::Done(c::ResultValue::Report(f::task::document_words(b"Landed."))));
+        }
+    }
+    let fixture = StatusFixture {
+        document: w::ProjectStatus::new(&w::CEILINGS, status_parts()).unwrap(),
+        answered: true,
+        goals: true,
+        goal_rows: Some(goals),
+    };
+    home_documents_with_status(
+        forge_rows(true),
+        !beginning,
+        !beginning,
+        Some(NeedsFixture { objects: &[c::ObjectKey::Question { task: 9, message: 1 }], cut: false, read: true }),
+        Some(chat_fixture(1, 0, false, false)),
+        Some(&[]),
+        true,
+        Some(&fixture),
+    )
+    .0
+}
+
+#[test]
+fn goals_takes_chats_place() {
+    let root = home_goals(2, 3, false);
+    assert!(root.pages().goals().unwrap().report(9).is_some(), "Home reads the goal report");
+    assert!(root.pages().goals().unwrap().needs_person(9), "Home reads the goal needs");
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let region = main_find(view.tree(), Role::Region, b"Goals");
+        main_find(view.tree(), Role::Heading { level: 2 }, b"Goals");
+        for node in main_nodes(view.tree()) {
+            assert!(node.role != Role::Region || node.name.as_deref() != Some(b"Chats"));
+        }
+        absent(&f::main_text(view.tree()), CHAT_SENTENCE);
+        let text = f::nodes_text(subtree(view.tree(), region));
+        contains(&text, "A goal report.");
+        contains(&text, "needs you");
+        contains(&text, "planning");
+        contains(&text, "landed");
+        main_find(view.tree(), Role::Button, b"Reply");
+        let row = main_find(view.tree(), Role::Link, b"README \xc2\xb7 needs you");
+        assert_eq!(
+            crate::act(&mut view, row, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Task { task: 9 } }))
+        );
+        let goals = f::find(view.tree(), Role::Link, b"Goals").unwrap();
+        assert!(!subtree(view.tree(), goals)[0].states.as_slice().contains(&skein_ui::State::Current));
+        contains(&printed(&view), "A goal report.");
+    }
+}
+
+#[test]
+fn goals_rows_are_live_first_and_at_least_five() {
+    for (live, ended, shown) in [(2, 5, 5), (6, 1, 6), (0, 3, 3), (1, 1, 2)] {
+        let root = home_goals(live, ended, false);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let region = main_find(view.tree(), Role::Region, b"Goals");
+            let mut rows = List::uncapped();
+            for node in subtree(view.tree(), region) {
+                if node.styles.as_slice().contains(&crate::look::GOALS_ROW) {
+                    rows.push(node).unwrap();
+                }
+            }
+            assert_eq!(usize::try_from(rows.len()).unwrap(), shown, "max(five, live), limited by available rows");
+            for (row, title) in rows.iter().zip(CHAT_TITLES) {
+                assert!(row.name.as_deref().unwrap().starts_with(title), "live then ended in page order");
+            }
+        }
+    }
+}
+
+#[test]
+fn all_n_links_to_goals() {
+    let root = home_goals(2, 5, false);
+    assert_eq!(root.pages().goals().unwrap().count(root.client()), 7);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let link = main_find(view.tree(), Role::Link, b"All 7");
+        assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/projects/1/goals".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go {
+                address: Address::Goals { project: f::PROJECT, filter: d::GoalsFilter::All },
+            }))
+        );
+    }
+}
+
+#[test]
+fn to_begin_keeps_chats() {
+    let root = home_goals(1, 1, true);
+    assert!(root.has_goals(f::PROJECT));
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Heading { level: 2 }, b"To begin");
+        main_find(view.tree(), Role::Region, b"Chats");
+        for node in main_nodes(view.tree()) {
+            assert!(node.role != Role::Region || node.name.as_deref() != Some(b"Goals"));
+        }
+    }
+}
+
+const BRIEF_SENTENCE: &str = "41 changes landed overnight.";
+const BRIEF_LEDE: &str =
+    "first-run-projects is six of nine tasks in. Its store task hit the wasm size limit twice and was split in two.";
+
+fn brief_parts(landed: u64, lede: &str, at: u64) -> w::ProjectStatusParts {
+    let mut parts = status_parts();
+    parts.brief = Some(
+        w::StatusBrief::new(
+            &w::CEILINGS,
+            w::StatusBriefParts {
+                sentence: BRIEF_SENTENCE.as_bytes().into(),
+                lede: lede.as_bytes().into(),
+                at,
+                landed,
+            },
+        )
+        .unwrap(),
+    );
+    parts
+}
+
+fn no_brief_prose(view: &crate::View) {
+    for style in [crate::look::HOME_LEDE, crate::look::HOME_BYLINE] {
+        for node in main_nodes(view.tree()) {
+            assert!(!node.styles.as_slice().contains(&style));
+        }
+    }
+    let text = f::main_text(view.tree());
+    absent(&text, BRIEF_SENTENCE);
+    absent(&text, BRIEF_LEDE);
+    absent(&text, "Written by the status agent");
+}
+
+#[test]
+fn a_brief_above_seen_says_its_words() {
+    let root = status_home(brief_parts(2, BRIEF_LEDE, STATUS_NOW), true, false, false);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        main_find(view.tree(), Role::Heading { level: 1 }, b"41 changes landed overnight. Nothing needs you.");
+        let lede = styled(view.tree(), crate::look::HOME_LEDE);
+        let byline = styled(view.tree(), crate::look::HOME_BYLINE);
+        assert_eq!(lede.name.as_deref(), Some(BRIEF_LEDE.as_bytes()));
+        assert_eq!(byline.name.as_deref(), Some(b"Written by the status agent at 00:00".as_slice()));
+        let intro = children(subtree(view.tree(), styled(view.tree(), crate::look::HOME_INTRO).id));
+        if browser {
+            assert_eq!(intro.len(), 4);
+            assert_eq!(intro[2].id, lede.id);
+            assert_eq!(intro[3].id, byline.id);
+        } else {
+            assert_eq!(intro[1].role, Role::Paragraph);
+            let expected = crate::accounts::words::join(&[
+                b"Monday, 00:00 \xc2\xb7 you last looked 9 hours ago 41 changes landed overnight. Nothing needs you. ",
+                BRIEF_LEDE.as_bytes(),
+            ]);
+            assert_eq!(f::nodes_text(subtree(view.tree(), intro[1].id)).as_ref(), expected.as_ref());
+        }
+        let print = printed(&view);
+        let kicker = skein_lib::bytes::find(&print, b"you last looked").unwrap();
+        let headline = if browser {
+            kicker
+        } else {
+            skein_lib::bytes::find_from(&print, BRIEF_SENTENCE.as_bytes(), kicker).unwrap()
+        };
+        let lede = skein_lib::bytes::find(&print, BRIEF_LEDE.as_bytes()).unwrap();
+        let byline = skein_lib::bytes::find(&print, b"Written by the status agent").unwrap();
+        assert!(kicker <= headline && headline < lede && lede < byline);
+        absent(&print, "2 changes landed since");
+    }
+}
+
+#[test]
+fn a_brief_at_seen_is_the_computed_words() {
+    for landed in [0, 1] {
+        let root = status_home(brief_parts(landed, BRIEF_LEDE, STATUS_NOW), true, false, false);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            main_find(
+                view.tree(),
+                Role::Heading { level: 1 },
+                b"2 changes landed since you last looked. Nothing needs you.",
+            );
+            no_brief_prose(&view);
+        }
+    }
+}
+
+#[test]
+fn no_brief_no_lede_no_byline() {
+    for root in [
+        Box::new(status_home(status_parts(), true, false, false)),
+        Box::new(status_home(brief_parts(2, BRIEF_LEDE, STATUS_NOW), false, false, false)),
+    ] {
+        for browser in [false, true] {
+            no_brief_prose(&status_view(&root, browser));
+        }
+    }
+}
+
+#[test]
+fn an_empty_lede_keeps_the_byline() {
+    let root = status_home(brief_parts(2, "", STATUS_NOW), true, false, false);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        for node in main_nodes(view.tree()) {
+            assert!(!node.styles.as_slice().contains(&crate::look::HOME_LEDE));
+        }
+        assert_eq!(
+            styled(view.tree(), crate::look::HOME_BYLINE).name.as_deref(),
+            Some(b"Written by the status agent at 00:00".as_slice())
+        );
+    }
+}
+
+#[test]
+fn the_byline_says_its_clock() {
+    for (now, at, expected) in [
+        (
+            STATUS_NOW + 8 * 60 * STATUS_MINUTE,
+            STATUS_NOW + (7 * 60 + 42) * STATUS_MINUTE,
+            "Written by the status agent at 07:42",
+        ),
+        (
+            STATUS_NOW + 8 * 60 * STATUS_MINUTE,
+            STATUS_NOW - (24 * 60 - 7 * 60 - 42) * STATUS_MINUTE,
+            "Written by the status agent at Sun 07:42",
+        ),
+    ] {
+        let root = status_home(brief_parts(2, BRIEF_LEDE, at), true, false, false);
+        for words in [f::words(), f::browser_words()] {
+            let mut view = f::view_of(words);
+            crate::build(&mut view, &root, skein_lib::Wall::from_nanos(now), &mut Queue::uncapped());
+            assert_eq!(styled(view.tree(), crate::look::HOME_BYLINE).name.as_deref(), Some(expected.as_bytes()));
+        }
+    }
+}
+
+const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
+fn copy_forges(states: &[Option<w::MakingState>], unasked: bool) -> List<w::ForgeRow> {
+    let rows = forge_rows(false);
+    let mut row = rows.get(0).unwrap().clone().into_parts();
+    row.first = None;
+    let mut addresses = List::with_capacity(2);
+    for address in COPY_ADDRESSES.iter().take(states.len()) {
+        addresses.push((*address).into()).unwrap();
+    }
+    row.starts_with =
+        w::StartsWith::Copies(w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).unwrap());
+    row.makings = List::with_capacity(2);
+    row.repositories = List::with_capacity(2);
+    for (address, state) in COPY_ADDRESSES.iter().zip(states) {
+        let (org, name) = d::forge::making::target(address).unwrap();
+        if let Some(state) = state {
+            row.makings
+                .push(
+                    w::RepositoryMaking::new(
+                        &w::CEILINGS,
+                        w::RepositoryMakingParts {
+                            org,
+                            name,
+                            state: state.clone(),
+                            from: w::MakeFrom::Copy(
+                                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: (*address).into() })
+                                    .unwrap(),
+                            ),
+                            into: Some(
+                                w::MakeInto::new(
+                                    &w::CEILINGS,
+                                    w::MakeIntoParts { project: f::PROJECT, home: *address == COPY_ADDRESSES[0] },
+                                )
+                                .unwrap(),
+                            ),
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        } else if !unasked {
+            row.repositories
+                .push(
+                    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner: org, name, project: f::PROJECT }).unwrap(),
+                )
+                .unwrap();
+        }
+    }
+    List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()]))
+}
+#[test]
+fn home_copy_lines_keep_order_completion_and_retry_in_browser_and_terminal() {
+    let failed = w::MakingState::Failed(
+        w::MakingFailed::new(
+            &w::CEILINGS,
+            w::MakingFailedParts {
+                step: w::MakeStep::Repository,
+                reason: w::MakeFailure::Taken,
+                words: b"name taken".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    );
+    let made =
+        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 1, branch: b"main".as_slice().into() }).unwrap();
+    for (states, expected, done, retry) in [
+        (
+            [Some(w::MakingState::Making), Some(w::MakingState::Waiting)],
+            ["Copying acme/widget from github.com…", "Waiting to copy"],
+            false,
+            false,
+        ),
+        ([None, Some(failed)], ["acme/widget is in Shop", "acme/other failed at repository: name taken"], true, true),
+        (
+            [Some(w::MakingState::Made(made.clone())), Some(w::MakingState::Adopting(made))],
+            ["Adopting acme/widget into Shop…", "Adopting acme/other into Shop…"],
+            false,
+            false,
+        ),
+    ] {
+        let (root, _) = home_root(copy_forges(&states, false), false, false);
+        for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+            let text = f::main_text(view.tree());
+            let first = skein_lib::bytes::find(&text, expected[0].as_bytes()).expect("first copy's words");
+            let second = skein_lib::bytes::find(&text, expected[1].as_bytes()).expect("second copy's words");
+            assert!(first < second);
+            let line = styled(view.tree(), crate::look::HOME_COPY);
+            assert_eq!(line.styles.as_slice().contains(&crate::look::HOME_DONE), done);
+            assert_eq!(crate::look::NAMES.style(crate::look::HOME_COPY), Some(b"temper-home-copy".as_slice()));
+            if retry {
+                assert_action(
+                    &mut view,
+                    Role::Button,
+                    b"Copy again",
+                    d::pages::Act::CopyAgain { org: b"acme".as_slice().into(), name: b"other".as_slice().into() },
+                );
+            } else {
+                absent(&text, "Copy again");
+            }
+            if !browser {
+                let text = printed(&view);
+                contains(&text, expected[0]);
+                contains(&text, expected[1]);
+                if done {
+                    contains(&text, "Done. acme/widget is in Shop");
+                }
+            }
+        }
+    }
+}
+#[test]
+fn home_completed_copies_name_the_sources_and_explain_where_chats_write_in_both_shells() {
+    for (count, title, detail) in [
+        (
+            1,
+            "acme/widget is in Shop",
+            "Chats can change its code now, on your Forgejo; nothing goes back where it was copied from.",
+        ),
+        (
+            2,
+            "acme/widget, acme/other are in Shop",
+            "Chats can change their code now, on your Forgejo; nothing goes back where they were copied from.",
+        ),
+    ] {
+        let (root, _) = home_root(copy_forges(&[None, None][..count], false), false, false);
+        for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+            let text = f::main_text(view.tree());
+            contains(&text, title);
+            main_find(view.tree(), Role::Paragraph, detail.as_bytes());
+            absent(&text, "temper can change its code now;");
+            let step = styled(view.tree(), crate::look::HOME_DONE);
+            assert_eq!(step.role, Role::Item);
+            assert_eq!(step.styles.as_slice(), &[crate::look::HOME_STEP, crate::look::HOME_DONE]);
+            if !browser {
+                let heading = skein_lib::bytes::concat(&[b"2. Done. ", title.as_bytes()]);
+                assert!(skein_lib::bytes::find(&printed(&view), &heading).is_some());
+            }
+        }
+    }
+}
+#[test]
+fn home_unasked_copies_offer_the_filled_addresses_and_one_copy_act_in_both_shells() {
+    let (root, _) = home_root(copy_forges(&[None, None], true), false, false);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        contains(&f::main_text(view.tree()), "Copy https://github.com/acme/widget");
+        main_find(view.tree(), Role::Paragraph, b"https://github.com/acme/other");
+        assert_action(&mut view, Role::Button, b"Copy", d::pages::Act::CopyOffered);
+        let button = main_find(view.tree(), Role::Button, b"Copy");
+        assert!(subtree(view.tree(), button)[0].styles.as_slice().contains(&crate::look::HOME_PRIMARY));
+    }
+    contains(&printed(&f::page_view(&root)), "Copy https://github.com/acme/widget");
+    contains(&printed(&f::page_view(&root)), "https://github.com/acme/other");
+}
+
+fn add_rows() -> List<w::ForgeRow> {
+    let mut row = forge_rows(false).get(0).unwrap().clone().into_parts();
+    row.first = None;
+    row.starts_with = w::StartsWith::Nothing;
+    List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()]))
+}
+fn add_act(root: &mut d::Domain, act: d::pages::Act) -> Queue<d::Request> {
+    drive(root, d::Event::Act { action: d::Action::Pages(act) })
+}
+#[test]
+fn home_add_step_offers_small_make_copy_and_quiet_adoption_in_both_shells() {
+    use d::forge::forges::Start;
+    let (root, _) = home_root(add_rows(), false, false);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        contains(&f::main_text(view.tree()), "Add a repository");
+        main_find(
+            view.tree(),
+            Role::Paragraph,
+            b"Your Forgejo has none yet. Until one is in, chats talk and plan but change no code.",
+        );
+        for (name, start) in [(b"Make an empty one".as_slice(), Start::Empty), (b"Copy a public one", Start::Copies)] {
+            assert_action(&mut view, Role::Button, name, d::pages::Act::AddOpen { start });
+            let node = main_find(view.tree(), Role::Button, name);
+            assert_eq!(subtree(view.tree(), node)[0].styles.as_slice(), &[crate::look::HOME_SMALL]);
+        }
+        assert_action(
+            &mut view,
+            Role::Link,
+            "Adopt another…".as_bytes(),
+            d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } },
+        );
+        let node = main_find(view.tree(), Role::Link, "Adopt another…".as_bytes());
+        assert!(subtree(view.tree(), node)[0].styles.as_slice().contains(&crate::look::HOME_QUIET));
+    }
+    contains(&printed(&f::page_view(&root)), "Add a repository");
+}
+#[test]
+fn home_add_sheet_keeps_choices_fields_cancel_escape_and_input_in_both_shells() {
+    use d::forge::forges::Start;
+    use d::pages::home::AddField;
+    for (start, role, name, field, value) in [
+        (Start::Empty, Role::TextField, "Organization", AddField::Org, "work"),
+        (Start::Copies, Role::TextArea, "Their addresses, one per line", AddField::Addresses, ""),
+    ] {
+        let (mut root, _) = home_root(add_rows(), false, false);
+        add_act(&mut root, d::pages::Act::AddOpen { start });
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            main_find(view.tree(), Role::Dialog, b"Add a repository to Shop");
+            main_find(view.tree(), Role::Paragraph, b"Made or copied on your Forgejo, then in this project at once.");
+            main_find(view.tree(), Role::ChoiceGroup, b"A repository");
+            absent(&f::main_text(view.tree()), "Nothing for now");
+            for (choice, name) in
+                [(Start::Empty, b"An empty repository".as_slice()), (Start::Copies, b"Copies of public repositories")]
+            {
+                let node = main_find(view.tree(), Role::Choice, name);
+                assert_eq!(
+                    subtree(view.tree(), node)[0].states.as_slice().contains(&skein_ui::State::Selected),
+                    choice == start
+                );
+                assert_eq!(
+                    crate::act(&mut view, node, Act::Toggle),
+                    Some(d::Action::Pages(d::pages::Act::AddChoose { start: choice }))
+                );
+            }
+            let input = main_find(view.tree(), role, name.as_bytes());
+            assert_eq!(subtree(view.tree(), input)[0].value.as_ref().unwrap().text.as_ref(), value.as_bytes());
+            assert_eq!(
+                crate::act(&mut view, input, Act::Input { value: b"written".as_slice().into() }),
+                Some(d::Action::Pages(d::pages::Act::AddWrite { field, words: b"written".as_slice().into() }))
+            );
+            assert_eq!(
+                crate::act(&mut view, input, Act::Submit),
+                if role == Role::TextField { Some(d::Action::Pages(d::pages::Act::AddSubmit)) } else { None }
+            );
+            let cancel = main_find(view.tree(), Role::Button, b"Cancel");
+            assert_eq!(subtree(view.tree(), cancel)[0].shortcut, Some(skein_ui::Shortcut::ESCAPE));
+            assert_action(&mut view, Role::Button, b"Cancel", d::pages::Act::AddClose);
+            assert_action(&mut view, Role::Button, b"Add it", d::pages::Act::AddSubmit);
+        }
+        let text = printed(&f::page_view(&root));
+        contains(&text, "Add a repository to Shop");
+        contains(&text, name);
+        add_act(&mut root, d::pages::Act::AddClose);
+        assert!(root.pages().home().unwrap().add.is_none());
+    }
+}
+#[test]
+fn home_add_sheet_says_welcome_validation_alerts_in_both_shells() {
+    use d::forge::forges::Start;
+    use d::pages::home::AddField;
+    for (start, field, text, expected) in [
+        (Start::Empty, AddField::Org, "", "Both an organization and a name."),
+        (Start::Copies, AddField::Addresses, "", "At least one address, as github.com/owner/name."),
+        (Start::Copies, AddField::Addresses, "bad", "Not an address: bad. Write it as github.com/owner/name."),
+    ] {
+        let (mut root, _) = home_root(add_rows(), false, false);
+        add_act(&mut root, d::pages::Act::AddOpen { start });
+        add_act(&mut root, d::pages::Act::AddWrite { field, words: text.as_bytes().into() });
+        add_act(&mut root, d::pages::Act::AddSubmit);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            main_find(view.tree(), Role::Dialog, b"Add a repository to Shop");
+            main_find(view.tree(), Role::Alert, expected.as_bytes());
+        }
+        contains(&printed(&f::page_view(&root)), expected);
+    }
+}
+#[test]
+fn home_empty_making_has_its_own_words_in_both_shells() {
+    let mut row = add_rows().get(0).unwrap().clone().into_parts();
+    row.makings = List::from_boxed(Box::new([w::RepositoryMaking::new(
+        &w::CEILINGS,
+        w::RepositoryMakingParts {
+            org: b"work".as_slice().into(),
+            name: b"hello".as_slice().into(),
+            from: w::MakeFrom::Empty,
+            into: Some(w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: f::PROJECT, home: true }).unwrap()),
+            state: w::MakingState::Making,
+        },
+    )
+    .unwrap()]));
+    let (root, _) = home_root(List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()])), false, false);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Paragraph, "Making work/hello…".as_bytes());
+        absent(&f::main_text(view.tree()), "Copy");
+        contains(&f::main_text(view.tree()), "Add a repository");
+    }
+    contains(&printed(&f::page_view(&root)), "Making work/hello…");
+}
+
+#[test]
+fn home_add_waits_for_kept_and_reports_forge_refusals_in_both_shells() {
+    use d::forge::forges::Start;
+    for (why, words) in [
+        (None, None),
+        (Some(w::MakeRefusal::NoSuchForge), Some("no such forge")),
+        (Some(w::MakeRefusal::NotOffered), Some("not offered")),
+        (Some(w::MakeRefusal::NotOwner), Some("not owner")),
+        (Some(w::MakeRefusal::Invalid), Some("invalid")),
+        (Some(w::MakeRefusal::HomeHeld), Some("The project has a home already.")),
+        (Some(w::MakeRefusal::Full), Some("full")),
+    ] {
+        let (mut root, _) = home_root(add_rows(), false, false);
+        add_act(&mut root, d::pages::Act::AddOpen { start: Start::Empty });
+        let mut sent = add_act(&mut root, d::pages::Act::AddSubmit);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let add = main_find(view.tree(), Role::Button, b"Add it");
+            assert!(subtree(view.tree(), add)[0].states.as_slice().contains(&skein_ui::State::Disabled));
+            main_find(view.tree(), Role::Dialog, b"Add a repository to Shop");
+        }
+        let mut stored = drive(&mut root, d::Event::Client { event: jig_client::Event::Stored });
+        while let Some(request) = stored.pop() {
+            sent.push(request);
+        }
+        let mut attempt = None;
+        while let Some(request) = sent.pop() {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: found, .. } },
+            } = request
+            {
+                attempt = Some(found);
+            }
+        }
+        let outcome = match why {
+            Some(why) => {
+                w::Outcome::MakeRefused(w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why }).unwrap())
+            }
+            None => w::Outcome::MakeKept,
+        };
+        let record = wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap());
+        drive(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt: attempt.unwrap(),
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        why: None,
+                        answer: Some(jig_client::Answered::Family(jig_client::Family {
+                            family: wire::FORGE,
+                            version: wire::CLIENT_VERSION,
+                            bytes: record,
+                        })),
+                    },
+                },
+            },
+        );
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            match words {
+                Some(words) => {
+                    let alert = skein_lib::bytes::concat(&[b"Could not add the repository: ", words.as_bytes()]);
+                    main_find(view.tree(), Role::Alert, &alert);
+                    let add = main_find(view.tree(), Role::Button, b"Add it");
+                    assert!(!subtree(view.tree(), add)[0].states.as_slice().contains(&skein_ui::State::Disabled));
+                }
+                None => assert!(root.pages().home().unwrap().add.is_none()),
+            }
+        }
     }
 }

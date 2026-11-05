@@ -595,7 +595,7 @@ pub fn fixture_5_2() -> forge::Fixture {
             value["world_settings"]["helper"] = true.into();
             // Creating offers charters 1, 2 and 4 plus the helper's charter 9.
             value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
-            // The five stock charters and the helper need six catalogue slots.
+            // Six catalogue slots hold the stock with the helper replacing charter 9.
             // The director, chat, helper, reviewer and change procedure need five delegation kinds.
             for (name, size) in [("tasks.charters", 6), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
                 value["engine"]["limits"]["overrides"][name] = size.into();

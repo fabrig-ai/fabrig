@@ -35,6 +35,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::StepRefused { task, step, why } => {
+            if connector == domain.config.forge_connector && forge_route::status_refused(domain, task, &why) {
+                return;
+            }
             let pending = domain.forge_delegating.remove(&(task, step));
             let delegation = match &pending {
                 Some(pending) => pending.delegate,
@@ -431,6 +434,12 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::RepairRefused { repair } => {
             if connector == domain.config.forge_connector
+                && let Some(task) = repair
+                && let Some(project) = domain.forge.status_project(task)
+            {
+                domain.work.push(Work::Forge(forge::Event::StatusRefused { project }));
+            }
+            if connector == domain.config.forge_connector
                 && let Some(repair) = repair
                 && let Some(owner) = domain.forge.queue_repair_owner(repair)
             {
@@ -464,6 +473,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 }
             } else if connector == domain.config.forge_connector && code == forge_route::LANDING_CODE {
                 forge_route::start_landing_step(domain, env, &context);
+            } else if connector == domain.config.forge_connector && code == forge_route::STATUS_CODE {
+                forge_route::start_status_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::AFTER_LANDING_CODE {
                 forge_route::start_tier_step(domain, env, &context);
             } else {

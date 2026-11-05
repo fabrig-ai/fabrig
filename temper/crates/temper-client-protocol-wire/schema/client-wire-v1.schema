@@ -15,7 +15,10 @@ record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes
 enum ForgeAsk { github, owned, managed: ManagedForge, connected: ManagedForge }
 record NewForge { forge: ForgeAsk }
 enum Making { kept: Kept, new: NewForge }
-record SetUp { forge: Making org: bytes 1024 repository: bytes 1024 playground: bool }
+record FirstEmpty { org: bytes 1024 repository: bytes 1024 playground: bool }
+record CopyAddresses { addresses: list 16 bytes 512 }
+enum SetUpFirst { empty: FirstEmpty, copies: CopyAddresses, nothing }
+record SetUp { forge: Making first: SetUpFirst }
 record Return { source: u32 path: bytes 512 }
 record GitHubApp { id: u64 read_only: option bool }
 record GitHubManifest { back: option bytes 512 }
@@ -34,6 +37,7 @@ record ToBegin { project: u32 }
 enum Dismissal { to_begin: ToBegin }
 record Dismiss { what: Dismissal }
 versioned record Dismissals { dismissed: list 1024 Dismissal }
+record Looked { project: u32 }
 
 # temper/docs/design/client/README.md, 4.6: removal and reset.
 record RemoveForge { forge: u16 }
@@ -41,7 +45,7 @@ record MakeCopy { address: bytes 512 }
 enum MakeFrom { empty, copy: MakeCopy }
 record MakeInto { project: u32 home: bool }
 record MakeRepository { forge: u16 org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto }
-enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository }
+enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, looked: Looked }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -88,7 +92,8 @@ enum MakeFailure { taken, empty, timed_out, refused: Refused, not_allowed, other
 record MakingFailed { step: MakeStep reason: MakeFailure words: bytes 256 }
 enum MakingState { waiting, making, made: MakingMade, adopting: MakingMade, failed: MakingFailed }
 record RepositoryMaking { org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto state: MakingState }
-record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking }
+enum StartsWith { repository, copies: CopyAddresses, nothing }
+record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository starts_with: StartsWith installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking }
 versioned record Forges { forges: list 16 ForgeRow }
 
 # The forge's reads (temper/docs/design/client/forge.md, 9).
@@ -96,7 +101,7 @@ record SettingRead { kind: u32 scope: u32 number: u32 }
 record ProposalItemsRead { key: u64 }
 record RevisionSettingRead { kind: u32 scope: u32 number: u32 revision: u32 }
 enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead }
-# Values are kinds-codec's LandingRule and ForgeCharter records.
+# Values are the records of temper's settings kinds below.
 versioned record SettingAnswer { value: option bytes 1048576 }
 record SettingValue { value: bytes 1048576 }
 enum SettingEdit { set: SettingValue, removed, reset }
@@ -118,7 +123,8 @@ record Pull { number: u64 address: bytes 2048 }
 record LandingSubject { task: u64 }
 record LandingsSubject { project: u32 ended: bool }
 record ChangesSubject { project: u32 }
-enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject }
+record StatusSubject { project: u32 }
+enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject }
 enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
 record Receipted { run: u64 number: u64 address: bytes 2048 }
 record Dispatched { attempt: u16 run: option u64 }
@@ -135,6 +141,9 @@ record ChangesQueued { task: u64 title: bytes 256 ready_since: u64 checks_since:
 record ChangesQueue { repository: bytes 2048 branch: bytes 1024 red: bool changes: list 32 ChangesQueued }
 record ChangesLanded { task: u64 title: bytes 256 at: u64 }
 versioned record ChangesPanel { project: u32 landing: bytes 1024 queues: list 32 ChangesQueue more: u32 landed: list 32 ChangesLanded landed_more: u32 }
+# A party's project status (temper/docs/design/client/README.md, 4.6).
+record StatusBrief { sentence: bytes 200 lede: bytes 600 at: u64 landed: u64 }
+versioned record ProjectStatus { project: u32 landed: u64 last_landed: option u64 brief: option StatusBrief previous: option u64 seen: u64 queued: u32 red: bool branch: bytes 1024 }
 versioned record Watching { watch: Watch }
 record Queued { place: u32 ahead: list 64 u64 }
 record GateReason { gate: u64 }
@@ -192,7 +201,7 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full }
 record MakeRefused { why: MakeRefusal }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked }
 versioned record Answer { outcome: Outcome }
 
 # Values of temper's settings kinds (temper/docs/design/domain/root.md, 5.6;
@@ -205,3 +214,6 @@ record RuleGate { number: u32 blocking: bool freshness: RuleFreshness }
 record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
 record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
 record ForgeCharter { charter: u32 }
+enum QuestionsRoute { none, foreman, up }
+record ProjectQuestions { route: QuestionsRoute }
+record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }

@@ -72,3 +72,16 @@ id = 5
 story = "a change to the render world stops rebuilding the builder's, and every world's tests run as they did"
 parts = ["hearth-kits"]
 walk = false
+
+[[part]]
+id = "narrowing"
+title = "the re-narrowing unreachable! this plan can reach is gone, and D017 says what's left (jig D017, in part)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.1"
+
+[[slice]]
+id = 6
+story = "a hundred sites give their pairing to a type or a single match, every test stays as it was, and the item names the rest"
+parts = ["narrowing"]
+walk = false

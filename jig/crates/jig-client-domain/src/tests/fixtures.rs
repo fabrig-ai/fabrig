@@ -168,6 +168,7 @@ fn document(number: u64) -> contract::Task {
             retention: contract::Retention::Kept,
         },
         last_activity: Wall::from_nanos(0),
+        made: Wall::from_nanos(0),
         waits_on: contract::WaitsOn::Nothing,
         chip: contract::Chip {
             task: number,

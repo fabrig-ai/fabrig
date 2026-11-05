@@ -93,6 +93,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 | Request::Connect { .. }
                 | Request::Replace { .. }
                 | Request::Manifest { .. }
+                | Request::AdoptAccess { .. }
                 | Request::Reachable { .. }
                 | Request::Install { .. }
                 | Request::Accept { .. }
@@ -122,10 +123,12 @@ fn setup(key: u8) -> Event {
         digest: [key; 32],
         carried: None,
         request: crate::Application::Forge(forge::Ask::SetUp {
-            playground: false,
             forge: forge::Making::Kept(1),
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
+            first: forge::SetUpFirst::Empty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            },
         }),
     })
 }
@@ -138,7 +141,9 @@ fn a_keyed_setup_answers_the_client_and_the_same_key_replays_without_asking_the_
     connection(&mut domain, &env, forge::Connection::NotSetUp);
     crate::try_step(&mut domain, &env, setup(1)).unwrap();
     let requests = settle(&mut domain, &env);
-    let [Request::SetUp { playground: false, forge: 1, request, org, repository }] = requests.as_ref() else {
+    let [Request::SetUp { forge: 1, request, first: forge::SetUpFirst::Empty { playground: false, org, repository } }] =
+        requests.as_ref()
+    else {
         panic!("one setup ask: {requests:?}")
     };
     assert_eq!((org.as_ref(), repository.as_ref()), (b"work".as_slice(), b"hello".as_slice()));
@@ -209,6 +214,7 @@ fn the_deployment_owner_watches_forges_again_after_a_connection_changes() {
             watcher: WATCHER,
             forges: forge::Forges {
                 rows: Box::new([forge::Row {
+                    starts_with: forge::StartsWith::Repository,
                     makings: Box::new([]),
                     host: Box::new([]),
                     number: 1,
@@ -251,6 +257,7 @@ fn a_party_without_a_deployment_role_cannot_watch_forges_or_ask_the_box() {
 
 fn row(connection: forge::Connection) -> forge::Row {
     forge::Row {
+        starts_with: forge::StartsWith::Repository,
         makings: Box::new([]),
         host: Box::new([]),
         number: 1,

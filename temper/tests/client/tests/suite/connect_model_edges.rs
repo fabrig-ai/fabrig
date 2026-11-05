@@ -79,26 +79,24 @@ fn direct_sign_in_link_waits_for_a_press() {
     );
 }
 
-// client/README.md 3.5 The welcome: Model uses the flow body inside the welcome frame.
+// client/README.md 3.5 A model usable: the welcome keeps its frame and continues to Ready.
 #[test]
-fn welcome_model_keeps_its_frame_when_opening_key_details() {
+fn welcome_model_keeps_its_frame_with_a_model_already_usable() {
     let mut world = world();
     let client = open(&mut world, b"/welcome?at=model");
     follow(
         &mut world,
         client,
         vec![
-            press(Role::Link, b"Use an API key"),
-            see(Role::Button, b"Add key"),
+            see(Role::Status, b"the default model"),
             see(Role::Link, "‹ Back".as_bytes()),
+            gone(Role::Button, b"Add key"),
+            gone(Role::Link, b"All ways"),
             gone(Role::Link, b"Later"),
             gone(Role::Link, b"Accounts"),
             gone(Role::Status, b"Live"),
-            press(Role::Link, "‹ All ways".as_bytes()),
-            see(Role::Link, b"Use an API key"),
-            press(Role::Link, b"Use an API key"),
-            press(Role::Link, "‹ Back".as_bytes()),
-            see(Role::Link, b"Use an API key"),
+            press(Role::Link, b"Continue"),
+            see(Role::Heading { level: 1 }, b"Almost ready"),
         ],
     );
 }

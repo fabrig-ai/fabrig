@@ -1,10 +1,5 @@
-/* A goal's additions to the terminal task page (client/README.md, 5.8).
+/* Shared task page parts (client/README.md, 5.8–5.11).
    Loaded after temper.css, on its palette and type (client/browser.md, 2.5). */
-/* .card-top and .tag.outline: the result beside the request's heading. */
-.temper-task-card:has(> .temper-task-contract) { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; column-gap: 21px; }
-.temper-task-card:has(> .temper-task-contract) > * { flex-basis: 100%; min-width: 0; }
-.temper-task-card:has(> .temper-task-contract) > h2 { flex-basis: auto; }
-.temper-task-card > .temper-task-contract { flex: 0 1 auto; max-width: 100%; margin: 0; padding: 2.33px 7px; border: 1px solid var(--temper-line); border-radius: 3.5px; color: #6d695f; /* style.css .tag */ background: transparent; font-size: 11.67px; font-weight: 600; line-height: 1.58; }
 /* .tree-row without model/on: name, kind, state and its own spend, one line
    ("N spent") whose width the name gives up. */
 .temper-plan-row:has(> .temper-plan-spend) { grid-template-columns: minmax(0, 1fr) 175px 291.67px max-content; column-gap: 11.67px; min-height: 36.17px; padding: 5.83px 0; }
@@ -24,29 +19,9 @@
 .temper-dependencies .temper-status-held { color: var(--temper-red); font-weight: 700; }
 .temper-dependencies .temper-status-retrying { color: var(--temper-amber); }
 .temper-dependencies a:hover { color: var(--temper-accent-dark); text-decoration: underline; }
-/* .side-card, .mini-stat, .rule and .kv from the terminal sheets.
-   .two-col > aside.stack gives the card one of three desktop columns. */
-.temper-main.temper-page > .temper-task-budget { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: calc((min(1353.33px, 100% - 56px) - 21px) / 3); margin-left: max(28px, calc((100% - 1353.33px) / 2)); margin-right: auto; padding: 16.33px 18.67px; font-size: 12.83px; }
-.temper-task-budget > h2 { grid-column: 1 / -1; margin: 0 0 10.5px; font-size: 14px; font-weight: 700; }
-.temper-task-budget > p { grid-column: 1 / -1; margin: 7px 0 0; color: var(--temper-muted); font-size: 12.83px; line-height: 1.58; }
-.temper-task-budget > p:first-of-type { margin-top: 0; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--temper-line); }
-.temper-task-budget > [role=term], .temper-task-budget > [role=definition] { min-width: 0; padding: 7px 0; border-bottom: 1px solid #f0ede8; /* style.css .kv */ }
-.temper-task-budget > [role=term] { grid-column: 1; color: var(--temper-muted); }
-.temper-task-budget > [role=definition] { grid-column: 2; text-align: right; font-weight: 600; }
-.temper-task-budget > [role=definition] + [role=definition] { padding-top: 0; }
-.temper-task-budget > [role=term]:not(:has(~ [role=term])), .temper-task-budget > [role=definition]:not(:has(~ [role=term])) { border-bottom: 0; }
-.temper-task-budget > [role=term]:not(:has(~ [role=term])), .temper-task-budget > [role=definition]:last-child { padding-bottom: 0; }
-.temper-task-budget a:hover { color: var(--temper-accent-dark); text-decoration: underline; }
-/* A heard result's "Task N" in Latest activity: in a line of text, a link in
-   the accent, as the lineage bar's and the chat card's task links are. */
-.temper-events > li > div > a { color: var(--temper-accent-dark); font-weight: 700; }
-.temper-events > li > div > a:hover { text-decoration: underline; }
 /* .tree-row at 1100px: the reference narrows kind, state and spend. */
 @media (max-width: 1100px) {
   .temper-plan-row:has(> .temper-plan-spend) { grid-template-columns: minmax(0, 1fr) 151.67px 256.67px max-content; }
-}
-@media (max-width: 850px) {
-  .temper-main.temper-page > .temper-task-budget { width: calc((100% - 39.67px - 21px) / 3); margin-left: 19.83px; }
 }
 /* The phone keeps every cell, unlike the reference's hidden kind/model/on;
    the spend sits at the right of the name's line, as the reference's. */
@@ -57,7 +32,6 @@
   .temper-plan-row:has(> .temper-plan-spend) > [role=status] { grid-column: 2; grid-row: 2; }
   .temper-plan-row:has(> .temper-plan-spend) > .temper-plan-spend { grid-column: 3; grid-row: 1; }
   .temper-plan-row:has(> .temper-plan-spend) > :nth-child(5) { grid-column: 1 / -1; grid-row: 3; }
-  .temper-main.temper-page > .temper-task-budget { width: calc(100% - 32.67px); margin-left: 16.33px; }
 }
 
 /* An agent's task's page (client/README.md, 5.9). */
@@ -116,7 +90,6 @@
 .temper-task-acts > :is(button, a):hover { border-color: #c9b7a8; background: #faf7f2; }
 /* .task-toolbar .button: an external link in the toolbar, drawn as its buttons. */
 .temper-task-acts > a { display: inline-flex; align-items: center; gap: 8.17px; text-decoration: none; }
-.temper-task-acts > .temper-task-danger { color: var(--temper-red); }
 /* Admissions have words in place of buttons; retain their supplied order. */
 .temper-task-acts > p, .temper-task-acts > [role=status] { flex: 0 0 100%; margin: 0; font-size: 12.83px; line-height: 1.58; overflow-wrap: anywhere; }
 .temper-task-acts > p { color: var(--temper-muted); }

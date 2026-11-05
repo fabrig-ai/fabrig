@@ -455,9 +455,12 @@ fn a_judges_observed_facts_may_change_after_a_verdict_but_new_effects_use_the_ne
     assert_eq!(world.spent(), 3);
 }
 
-#[test]
-fn an_exhausted_delegate_escalates_to_a_person_who_releases_it_to_finish() {
-    let mut world = plan_world(128);
+fn exhausted_delegate(seed: u64) -> (World, (u64, u64), u64) {
+    let (configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
+    limits.core.people.words = 128;
+    limits.core.tasks.message_bytes = 128;
+    jig_core_world::peers::journal(&mut limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     let parent = world.assignments[0];
     let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"retry this delegate");
     child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
@@ -481,8 +484,11 @@ fn an_exhausted_delegate_escalates_to_a_person_who_releases_it_to_finish() {
     assert!(matches!(world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(child)))),
         Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
             if matches!(row.phase, tasks::Phase::Held { why: tasks::Hold::Failures(tasks::Class::Run), .. })));
-    // The parent receives the escalation first, then passes its current revision
-    // to the person. The person decides through their authenticated client face.
+    (world, parent, child)
+}
+
+fn passed_up_delegate(seed: u64) -> (World, (u64, u64), u64, u64) {
+    let (mut world, parent, child) = exhausted_delegate(seed);
     let revision = match world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(child)))) {
         Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))) => match row.escalation {
             tasks::Escalation::Waiting { revision, .. } => revision,
@@ -507,6 +513,12 @@ fn an_exhausted_delegate_escalates_to_a_person_who_releases_it_to_finish() {
         },
         row => panic!("held child missing: {row:?}"),
     };
+    (world, parent, child, revision)
+}
+
+#[test]
+fn an_exhausted_delegate_escalates_to_a_person_who_releases_it_to_finish() {
+    let (mut world, parent, child, revision) = passed_up_delegate(128);
     ask(
         &mut world,
         44,
@@ -529,6 +541,91 @@ fn an_exhausted_delegate_escalates_to_a_person_who_releases_it_to_finish() {
     for task in [child, parent.0] {
         assert!(world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))));
     }
+}
+
+const LEAVE_REASON: &[u8] =
+    b"design-listed: docs/design/formats.md is not named in docs/INDEX.txt, the project's list of designs";
+
+#[test]
+fn a_persons_leave_reason_reaches_the_goal_that_passed_up_the_escalation() {
+    let (mut world, parent, child, revision) = passed_up_delegate(341);
+    let decide = people::Ask::DecideEscalation {
+        project: 1,
+        task: child,
+        revision,
+        decision: people::EscalationDecision::Reject { reason: LEAVE_REASON.into() },
+    };
+    world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
+    ask(&mut world, 44, decide.clone());
+    assert!(
+        !world.inbound.iter().any(|word| word.words.as_ref() == LEAVE_REASON),
+        "leave words wait for the decision's commit"
+    );
+    world.release_commits();
+    assert_leave_commit(&world, child);
+    assert!(
+        world.people_answers.iter().any(|reply| matches!(
+            reply,
+            people::Reply::Outcome(people::Outcome::EscalationDecided {
+                choice: people::EscalationChoice::Rejected,
+                ..
+            })
+        )),
+        "{:?}",
+        world.people_answers
+    );
+    assert_leave_delivered(&world, parent.0, child);
+    assert!(
+        world.inbound.iter().any(|word| word.words.as_ref() == LEAVE_REASON),
+        "the goal's live run hears the person's exact leave reason"
+    );
+    ask(&mut world, 44, decide.clone());
+    ask(&mut world, 45, decide.clone());
+    assert_leave_delivered(&world, parent.0, child);
+    world.restart_with(jig_core_world::faults::plan_fixture(341).0);
+    ask(&mut world, 44, decide.clone());
+    ask(&mut world, 46, decide);
+    assert_leave_delivered(&world, parent.0, child);
+}
+
+fn assert_leave_commit(world: &World, child: u64) {
+    let commit = world
+        .commits
+        .iter()
+        .find(|writes| {
+            writes.iter().any(|write| {
+                matches!(write,
+        root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::EscalationDecision(row))))
+            if row.task == child && matches!(row.decision, people::EscalationDecision::Reject { .. }))
+            })
+        })
+        .expect("decision archived");
+    assert!(
+        commit.iter().any(|write| matches!(write,
+        root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
+            if row.inbox.iter().any(|word| word.words.as_ref() == LEAVE_REASON))),
+        "the notification commits with the decision"
+    );
+    assert!(
+        commit.iter().any(|write| matches!(write,
+        root::Write::Save(root::Record::Core(core::Record::People(people::Stored::Answer { key, .. })))
+            if key.key == [44; 16])),
+        "the keyed answer commits with the notification"
+    );
+}
+
+fn assert_leave_delivered(world: &World, parent: u64, child: u64) {
+    let delegate = live_row(world, child);
+    assert!(matches!(delegate.phase, tasks::Phase::Held { why: tasks::Hold::Failures(tasks::Class::Run), .. }));
+    assert!(
+        matches!(&delegate.escalation, tasks::Escalation::Rejected { reason, .. }
+        if reason.as_ref() == LEAVE_REASON),
+        "the escalation leaves the person's inbox"
+    );
+    let words: Vec<_> =
+        live_row(world, parent).inbox.iter().filter(|word| word.words.as_ref() == LEAVE_REASON).collect();
+    assert_eq!(words.len(), 1, "the coordinating goal receives exactly one leave reason");
+    assert_eq!(words[0].from, tasks::Party::Person(1));
 }
 
 fn pool_size(world: &mut World, slots: u32) {

@@ -11,8 +11,10 @@ mod dismissed;
 mod playground;
 mod public;
 mod question;
+mod status;
 
 pub(crate) mod fixtures;
+mod forge_ways;
 mod forge_words;
 mod forges;
 mod form;

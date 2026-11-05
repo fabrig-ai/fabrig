@@ -23,16 +23,16 @@ print the bytes they hold, credentials among them on known paths
 in `skein-playground`'s manifest (`playground.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
-`browser.md` have no gap. The state machines of io,
-forge-connection, Forgejo's plans, the fake forge's connection, oauth
-and its accounts, llm,
+`browser.md` have no gap. The state machines of io's file store and
+private opening, forge-connection, Forgejo's plans, the fake forge's
+connection, oauth and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
 (`fake-forge.md`, `fake-llm.md`); single departures stand in
 `channel.md`, `fake-forge.md`, `forge-connection.md`, `io.md`,
-`json.md`, `kv.md`, `link.md`, `llm.md`, `shell.md`, `testing.md` and
-`ui.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
+`json.md`, `kv.md`, `lib.md`, `link.md`, `llm.md`, `shell.md`,
+`testing.md` and `ui.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
 `lib.md` and `io.md` to name its items, the design departs from

@@ -400,7 +400,7 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
     else {
         panic!("one saved decision")
     };
-    assert_eq!(tasks.as_ref(), &[fixtures::CHANGE, changes_subject(5)]);
+    assert_eq!(tasks.as_ref(), &[fixtures::CHANGE, changes_subject(5), status_subject(5)]);
     assert_eq!((*task, decision, entry, evidence), (fixtures::CHANGE, &change::Decision::Ready, &None, &None));
     assert_eq!(ready(&mut d).as_ref(), &[]);
 }

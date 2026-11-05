@@ -93,6 +93,7 @@ pub(crate) struct PersonEscalation {
     pub(crate) task: u64,
     pub(crate) revision: u64,
     pub(crate) decision: people::EscalationDecision,
+    pub(crate) notice: Option<tasks::Message>,
 }
 
 #[derive(Debug)]

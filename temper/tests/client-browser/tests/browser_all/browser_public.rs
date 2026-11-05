@@ -135,6 +135,7 @@ fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
         exited(),
         see(Find::text("Landed · merge commit ".as_bytes())),
         press(Find::exactly_named(Role::Link, b"Settings")),
+        press(Find::exactly_named(Role::Link, b"Accounts")),
         press(Find::exactly_named(Role::Button, b"Sign out")),
         see(tier.states().signed_out),
         Step::Reopen,

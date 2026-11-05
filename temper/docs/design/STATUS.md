@@ -27,8 +27,8 @@ but for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
 asks from a repair or a resolution and a step short of message room
-loses a foreman's verdict (`domain/forge.md`), and neither a
-project's question route nor the foremen's charter is a setting. A
+loses a foreman's verdict (`domain/forge.md`), and the foremen's
+charter is not a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
@@ -44,16 +44,20 @@ run that cannot deliver keeps the shell its charter grants, and on the
 fake box a fresh box's first goal alone writes its report
 (`domain/agent.md`). The reference is one profile a box is set up
 with, its rules hold no note scope but the goal's, where its charter 5
-also notes in the repository's, and the case's repository carries no
-CI or tiers' workflows (`protocol/configuration.md`). A fresh box holds the figures of the
+also notes in the repository's, the case's repository carries no
+CI or tiers' workflows, and no walk applies the case's project file
+(`protocol/configuration.md`). A fresh box holds the figures of the
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
-(`domain/forge.md`); so do the client's How work runs page
-and many of ctl's tools (`client/README.md`,
+(`domain/forge.md`); so do Start goal's sheet, which no page opens, a live
+goal's walk, which the fake box's model cannot script, How work runs'
+controls for a person with a project's role alone, its stored way, which
+a goal's start does not read,
+and its drafts, which no chat offers yet, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
 and whose download is past its bar (`playground.md`), upgrades'
@@ -66,29 +70,49 @@ where a worker's translation aborts on a stored source name smith
 refuses (`protocol/README.md`), and lags in a removal without the
 box (`domain/forge.md`), a project's Delete (`client/README.md`),
 a failure of the secrets' store on an accounts' request, which stops
-no engine (`protocol/credentials.md`), and
-a forge's Start over with no welcome, which ends at the inbox
-(`client/forge.md`), and a closed change whose repository a removal
-erased leaves no project the Changes document (`client/README.md`);
+no engine (`protocol/credentials.md`), and a closed change whose
+repository a removal erased leaves no project the Changes document
+(`client/README.md`);
 public reading still lacks a deployment's proxy configuration and
-figures, and its negative walk plays the proxy's own rules against
-scripted upstreams rather than temper's service
+figures, its negative walk plays the proxy's own rules against
+scripted upstreams rather than temper's service, and the server walk
+gives a forge's sign-in meta at `forge connect` where the user's
+request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
-managed (`protocol/setup.md`); a kept GitHub forge whose base ends
+managed (`protocol/setup.md`); `temper forge sign-in` prints an owned
+Forgejo's command without its binary and paths
+(`protocol/setup.md`), a preparation keeps a runner's row when its
+configuration names a `uuid`, reading no row, where the `runner-labels`
+request of 2026-11-05 has the uuid match (`protocol/setup.md`), and a
+held task names no run's failure, which
+is the user's to decide (`domain/worker.md`); with
+`TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
+workspaces stay as they are between workstreams and across a restart,
+for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
+a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
-(`domain/root.md`). Ready names no email for a ChatGPT sign-in,
-which waits on jig's account-facts draft, and draws no words for a
+(`domain/root.md`). Ready and the Model step name no email for a
+ChatGPT sign-in, which waits on jig's account-facts draft, and Ready
+draws no words for a
 sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
-nor filters for a project with no goal template; and under a kind or
+nor filters for a project with no goal template; `NewChat` draws its
+layout with no project, and says a project has no repository while
+the forges' rows are unknown; an account's sources are a list, not
+`.setting` rows; and under a kind or
 goal filter Needs you's answered lines and head count what the filter
-leaves out (`client/README.md`). The
+leaves out (`client/README.md`). Home says what changed since the person
+last looked and the status agent is built, but on the stock policy a
+person's pool leaves it no funding, the reference names no charter 9, no
+walk on a box reaches a brief, and a project's first run counts its span
+from the epoch (`client/README.md`,
+`domain/forge.md`, `protocol/configuration.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
@@ -97,9 +121,7 @@ is shown on the fake issuer alone, and the live scripts
 default to a scratch layout of whoever runs fabrig's development, in a
 form the outward check does not match (`domain/testing.md`). temper's one story on macOS has not run green
 on the runner, so `draft/macos.md`'s acceptance stands open
-(`domain/testing.md`). The `project-landing` journey has no Home
-recording: its browser walk reaches Home and is still to be recorded
-(`client/journeys.md`). The forge's connect refusals that
+(`domain/testing.md`). The forge's connect refusals that
 ctl renders name no remedy (`protocol/documentation.md`). Six
 hand-written widenings stand beside skein's `len_u64` and
 `usize_of`, two of them in the worker's steps (`README.md`). Of the
@@ -116,7 +138,12 @@ repository's "Adopt" sending its adoption and an adoption under way the
 session's alone, beside a lag, any project's change of settings marking
 its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
-bound on a migration, and its welcome and sheet are unbuilt; the others
+bound on a migration, and its sheet, "Add repositories", is unbuilt;
+`draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a
+repository" where they have "Adopt a repository";
+`draft/dogfood-hacks.md`'s holds one a plan's requester decided, with no
+record of the user weighing it, Forgejo's link page keeping an empty signup
+form; the others
 record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap.
@@ -161,6 +188,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
+- [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)

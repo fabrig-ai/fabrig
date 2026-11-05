@@ -23,6 +23,7 @@ pub enum Act {
     Choose { object: ObjectKey, words: Box<[u8]> },
     OpenReply { object: ObjectKey },
     CancelReply,
+    Dismiss,
     SendReply { object: ObjectKey },
     Later { object: ObjectKey },
     Undo { object: ObjectKey },
@@ -51,6 +52,10 @@ pub struct Answered {
 pub enum Toasted {
     Answered { object: ObjectKey, label: Label },
     Later,
+    Paused,
+    Resumed,
+    Proposed { to: contract::Recipient },
+    Refused { outcome: Outcome },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Count {
@@ -93,6 +98,9 @@ impl Default for Session {
     }
 }
 impl Session {
+    pub(crate) fn say(&mut self, toasted: Toasted, now: Time) {
+        self.toast = Some((toasted, now.saturating_add(TOAST)));
+    }
     pub(super) fn configure(&mut self, showing: bool, limits: &Limits, out: &mut Queue<Request>) {
         if showing && !self.watching {
             self.watching = true;
@@ -212,10 +220,10 @@ impl Session {
         }
         match after {
             Address::Inbox { .. } => {}
-            Address::Chats { .. }
-            | Address::NewChat
+            Address::NewChat
             | Address::Goals { .. }
             | Address::Changes { .. }
+            | Address::Chats { .. }
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -224,6 +232,8 @@ impl Session {
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Home { .. }
+            | Address::Builders { .. }
+            | Address::Repositories { .. }
             | Address::Settings { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. } => self.at = None,
@@ -487,6 +497,7 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                 pages.needs.reply = Some(object);
             }
         }
+        Act::Dismiss => pages.needs.toast = None,
         Act::CancelReply => {
             if let Some(object) = pages.needs.reply.take()
                 && let Some(card) = card_mut(pages, object)
@@ -543,7 +554,11 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                             pages.needs.toast = None;
                         }
                     }
-                    Toasted::Later => {}
+                    Toasted::Later
+                    | Toasted::Paused
+                    | Toasted::Resumed
+                    | Toasted::Proposed { .. }
+                    | Toasted::Refused { .. } => {}
                 }
             }
         }
@@ -552,9 +567,9 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
             let project = match pages.address {
                 Address::Home { project } => Some(project),
                 Address::Inbox { .. }
-                | Address::Chats { .. }
                 | Address::NewChat
                 | Address::Goals { .. }
+                | Address::Chats { .. }
                 | Address::Changes { .. }
                 | Address::Accounts
                 | Address::Forges
@@ -563,6 +578,8 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                 | Address::Welcome { .. }
                 | Address::Chat { .. }
                 | Address::Task { .. }
+                | Address::Builders { .. }
+                | Address::Repositories { .. }
                 | Address::Settings { .. }
                 | Address::Configure { .. }
                 | Address::Adopt { .. } => None,

@@ -79,9 +79,25 @@ pub fn decode(call: &fleet::Call) -> engine::Call {
 
 /// A decided call's answer rendered as smith takes it.
 #[must_use]
-pub fn render(answer: &engine::CallAnswer) -> core::SettledAnswer {
-    let (body, error) = temper_engine_smith::answer(answer).into_parts();
-    core::SettledAnswer::Host { error, body }
+pub fn render(
+    answer: &engine::CallAnswer,
+    tool: &[u8],
+    maximum: u32,
+    task: u64,
+    receiving: u32,
+) -> core::SettledAnswer {
+    let event = temper_service::render_for_task(
+        skein_lib::ReplyTo::new(Token::new(1)),
+        answer,
+        tool,
+        maximum.saturating_sub(u32::try_from(tool.len()).expect("tool length")),
+        task,
+        receiving,
+    );
+    let engine::Event::Worker(engine::WorkerInput::RenderedHostCall { answer, .. }) = event else {
+        panic!("rendered host call")
+    };
+    answer
 }
 
 /// An ended answer's outcome read back as the engine's task ending: smith's

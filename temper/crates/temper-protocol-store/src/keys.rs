@@ -27,6 +27,10 @@ pub const LANDING_LOG: u8 = 30;
 pub const MAKING: u8 = 35;
 /// A person's dismissals (temper/docs/design/protocol/store.md, 2).
 pub const DISMISSED: u8 = 34;
+/// Project landings and brief (temper/docs/design/protocol/store.md, 2).
+pub const PROJECT_FACTS: u8 = 36;
+/// A party's sittings (temper/docs/design/protocol/store.md, 2).
+pub const LOOKED: u8 = 37;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -220,6 +224,12 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::Making(key) => {
             writer.tag(MAKING).u64(u64::from(key.forge)).bytes(&key.org).bytes(&key.name);
         }
+        forge::Key::ProjectFacts { project } => {
+            writer.tag(PROJECT_FACTS).u64(u64::from(*project));
+        }
+        forge::Key::Looked { party, project } => {
+            writer.tag(LOOKED).u64(*party).u64(u64::from(*project));
+        }
         forge::Key::Dismissed { party, what } => {
             writer.tag(DISMISSED).u64(*party);
             match what {
@@ -312,6 +322,8 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             org: read_branch(&mut reader, limits)?,
             name: read_branch(&mut reader, limits)?,
         }),
+        PROJECT_FACTS => forge::Key::ProjectFacts { project: u32::try_from(reader.u64()?).ok()? },
+        LOOKED => forge::Key::Looked { party: reader.u64()?, project: u32::try_from(reader.u64()?).ok()? },
         DISMISSED => {
             let party = reader.u64()?;
             let what = match reader.tag()? {

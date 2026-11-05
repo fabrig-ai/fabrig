@@ -10,7 +10,7 @@ impl Limits {
     #[must_use]
     #[expect(
         clippy::too_many_lines,
-        reason = "the view envelope keeps each bounded page contribution in one derivation"
+        reason = "one checked set of expressions prices the composed pages and their edges"
     )]
     pub fn of(domain: &temper_client_domain::Limits, words: &Words) -> Option<Limits> {
         let receiving = &domain.client.domain;
@@ -26,6 +26,8 @@ impl Limits {
         let text = text.max(temper_client_protocol_wire::CUE_BYTES.checked_add(24)?);
         // The sign-in return link percent-encodes a whole authorization address.
         let text = text.max(3400);
+        // Builders draws each admitted host name whole, as name and text (client/README.md, 3.5).
+        let builder_name = jig_client::contract::PROGRAM_HOST_NAME.checked_mul(2)?;
         let markdown = skein_ui::markdown::max_nodes(receiving.text)?;
         let cards = card_nodes(receiving, markdown)?;
         // Each watched task has one card at its first anchor: sixteen structural
@@ -161,17 +163,19 @@ impl Limits {
                     .checked_mul(temper_client_domain::forge::forges::INSTALLATIONS)?
                     .checked_mul(2)?,
             )?
-            // The toast adds its status, text leaf and optional Undo button.
-            .checked_add(3)?;
+            // The toast holds a refusal, its Look again sentence and button (six nodes),
+            // or a proposal's lead and at most rows role recipients (two nodes each).
+            .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text,
-            text_bytes: nodes.checked_mul(text)?,
+            text_per_node: text.max(builder_name),
+            // Whole builder names are held once per document row; the other nodes retain their price.
+            text_bytes: nodes.checked_mul(text)?.checked_add(receiving.rows.checked_mul(builder_name)?)?,
             drawing_bytes: 0,
             scene_marks: 0,
             scene_bytes: 0,
-            styles_per_node: 2,
+            styles_per_node: 3,
             // A diff emits at most four patches a node (skein's ui.md, 7).
             patches: nodes.checked_mul(4)?,
             bindings: nodes,

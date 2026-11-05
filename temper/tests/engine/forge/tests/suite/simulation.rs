@@ -1111,6 +1111,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::Connect { .. }
                 | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
+                | top::Request::AdoptAccess { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }
@@ -1159,6 +1160,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::Settled { .. }
                 | top::Request::RestartDone { .. }
+                | top::Request::StatusRun { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::MakingCopied { .. }
@@ -1607,6 +1609,135 @@ fn cancellation_during_release_retargets_the_durable_cleanup() {
         matches!(world.stored().get(&top::Key::Release(51)), Some(top::Stored::Release(row)) if row.ending == top::ReleaseEnding::Cancelled)
     );
     assert!(!world.seen().iter().any(|request| matches!(request, top::Request::ReleaseFailed { task: 51, .. })));
+}
+
+// Branch watches use the world's forty-second slow interval, plus time to answer.
+const LANDING_POLL_BOUND: u64 = 41;
+
+fn landing_subscription(task: u64, branch: &[u8]) -> top::Subscriber {
+    top::Subscriber {
+        task,
+        number: 1,
+        topic: top::Topic::Landings { repository: REPO, branch: branch.into() },
+        own_change: None,
+        goal_tasks: None,
+        paths: Box::new([]),
+    }
+}
+
+fn landing_news(world: &World, task: u64) -> Vec<(top::Class, skein_forge::api::Commit, skein_forge::api::Commit)> {
+    world
+        .seen()
+        .iter()
+        .filter_map(|request| match request {
+            top::Request::News { task: owner, class, news: top::News::Landing { before, after, .. }, .. }
+                if *owner == task =>
+            {
+                Some((*class, *before, *after))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_landings_subscription_watches_main_without_named_resources() {
+    for restart in [false, true] {
+        let mut world = World::new(348);
+        world.adopt();
+        world.run_for(3);
+        world.event(top::Event::Subscribe { subscription: landing_subscription(51, b"main") });
+        world.run_for(3);
+        if restart {
+            world.restart();
+            world.run_for(3);
+        }
+        let before = translate::commit(world.branch(b"main"));
+        world.take_seen();
+        world.push_as(b"main", b"file", b"person's landing", 2);
+        let after = translate::commit(world.branch(b"main"));
+        world.run_for(LANDING_POLL_BOUND);
+        assert_eq!(landing_news(&world, 51), [(top::Class::Kept, before, after)], "one landing, restart={restart}");
+    }
+}
+
+#[test]
+fn landing_subscribers_share_a_watch_until_the_final_unsubscribe() {
+    let mut world = World::new(349);
+    world.adopt();
+    for task in [51, 52] {
+        world.event(top::Event::Subscribe { subscription: landing_subscription(task, b"main") });
+    }
+    world.run_for(3);
+    let before = translate::commit(world.branch(b"main"));
+    world.push_as(b"main", b"file", b"first landing", 2);
+    let after = translate::commit(world.branch(b"main"));
+    world.run_for(LANDING_POLL_BOUND);
+    for task in [51, 52] {
+        assert_eq!(landing_news(&world, task), [(top::Class::Kept, before, after)]);
+    }
+    let topic = landing_subscription(51, b"main").topic;
+    world.event(top::Event::Unsubscribe { task: 51, topic: topic.clone() });
+    // Task-name changes must retain the remaining subscription's watch too.
+    world.event(top::Event::Names {
+        task: 60,
+        resources: Box::new([top::Name {
+            forge: REPO.forge,
+            repository: REPO.repository,
+            what: top::What::Repository,
+        }]),
+    });
+    world.event(top::Event::Unnamed { task: 60 });
+    world.run_for(3);
+    world.take_seen();
+    world.push_as(b"main", b"file", b"second landing", 2);
+    let next = translate::commit(world.branch(b"main"));
+    world.run_for(LANDING_POLL_BOUND);
+    assert_eq!(landing_news(&world, 51), []);
+    assert_eq!(landing_news(&world, 52), [(top::Class::Kept, after, next)]);
+    world.event(top::Event::Unsubscribe { task: 52, topic });
+    world.run_for(3);
+    let calls = world.calls();
+    world.run_for(LANDING_POLL_BOUND);
+    assert_eq!(world.calls(), calls, "the last subscriber leaves no poll behind");
+}
+
+#[test]
+fn landing_subscriptions_admit_shared_watches_and_refuse_a_full_union() {
+    use temper_engine_forge_world::LIMITS;
+    let mut world = World::new(350);
+    world.adopt();
+    // Leave one of the client's resource slots for main; none of these names watches it.
+    let names: Vec<_> = (1..LIMITS.client.resources)
+        .map(|number| top::Name {
+            forge: REPO.forge,
+            repository: REPO.repository,
+            what: top::What::Branch(Box::new([format!("other-{number}").into_bytes().into()])),
+        })
+        .collect();
+    for (owner, names) in names.chunks(usize::try_from(LIMITS.resources_per_task).expect("fixture count")).enumerate() {
+        world.event(top::Event::Names {
+            task: 60 + u64::try_from(owner).expect("fixture owner"),
+            resources: names.into(),
+        });
+    }
+    for task in [51, 52] {
+        world.event(top::Event::Subscribe { subscription: landing_subscription(task, b"main") });
+    }
+    world.run_for(3);
+    for task in [51, 52] {
+        assert!(
+            world
+                .stored()
+                .contains_key(&top::Key::Subscription { task, topic: landing_subscription(task, b"main").topic })
+        );
+    }
+    world.take_seen();
+    let subscription = landing_subscription(53, b"overflow");
+    let key = top::Key::Subscription { task: 53, topic: subscription.topic.clone() };
+    world.event(top::Event::Subscribe { subscription });
+    assert!(world.seen().iter().any(|request| matches!(request, top::Request::Refused { task: 53 })));
+    assert!(!world.stored().contains_key(&key), "a refused watch must retain no subscription");
 }
 
 #[test]
@@ -2568,6 +2699,7 @@ fn a_removed_forge_reads_nothing_after() {
     });
     let name = top::Name { forge: 1, repository: REPO.repository, what: top::What::Issue(1) };
     world.event(top::Event::Names { task: 42, resources: Box::new([name]) });
+    world.event(top::Event::Subscribe { subscription: landing_subscription(51, b"main") });
     world.run_for(5);
     world.event(top::Event::Application {
         request: Token::new(200),

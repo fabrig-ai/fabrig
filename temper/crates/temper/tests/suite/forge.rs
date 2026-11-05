@@ -592,7 +592,8 @@ fn forge_sign_in_prints_the_owned_command_with_public_forge_and_temper_origins()
             None,
             b"forgejo",
             directory.join("forgejo.secret").as_os_str().as_encoded_bytes(),
-            b"https://temper.example.com/.well-known/openid-configuration"
+            b"https://temper.example.com/.well-known/openid-configuration",
+            temper_forge_setup::sign_in::FirstSignIn::MakesAccount,
         )
         .as_ref()
     );
@@ -622,7 +623,8 @@ fn forge_sign_in_prints_the_owned_command_without_its_private_secret() {
             None,
             b"forgejo",
             directory.join("forgejo.secret").as_os_str().as_encoded_bytes(),
-            b"http://127.0.0.1:31000/.well-known/openid-configuration"
+            b"http://127.0.0.1:31000/.well-known/openid-configuration",
+            temper_forge_setup::sign_in::FirstSignIn::MakesAccount,
         )
         .as_ref()
     );
@@ -634,5 +636,57 @@ fn forge_sign_in_prints_the_owned_command_without_its_private_secret() {
     assert_eq!(repeated.stdout, output.stdout);
     assert!(repeated.stderr.is_empty());
     assert!(fs::read(directory.join("forgejo.secret")).expect("same scratch secret") == secret);
+    scratch.remove();
+}
+
+#[test]
+fn forge_no_registration_follows_the_switch_on_every_preparation_and_print() {
+    use support::{forge_sign_in, owned};
+    let scratch = support::Scratch::new("forge_no_registration");
+    let directory = scratch.path();
+    let _programs = owned::scripted(directory);
+    forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
+    let path = directory.join("forge-1/forgejo/app.ini");
+    forge_sign_in::success(&owned::prepare(directory, 1));
+    let original = fs::read(&path).expect("initial ini");
+    let external = b"[service]\nDISABLE_REGISTRATION = true\nALLOW_ONLY_EXTERNAL_REGISTRATION = true\n[oauth2_client]\nENABLE_AUTO_REGISTRATION = true\nUSERNAME = preferred_username\nACCOUNT_LINKING = login\n[mailer]";
+    assert!(original.windows(external.len()).any(|part| part == external));
+    forge_sign_in::success(&owned::prepare_no_registration(directory, 1));
+    let closed = fs::read(&path).expect("closed ini");
+    let links = b"[service]\nDISABLE_REGISTRATION = true\n[oauth2_client]\nENABLE_AUTO_REGISTRATION = false\nUSERNAME = preferred_username\nACCOUNT_LINKING = login\n[mailer]";
+    assert!(closed.windows(links.len()).any(|part| part == links));
+    assert!(
+        !closed
+            .windows(b"ALLOW_ONLY_EXTERNAL_REGISTRATION".len())
+            .any(|part| part == b"ALLOW_ONLY_EXTERNAL_REGISTRATION")
+    );
+    forge_sign_in::success(&owned::prepare_no_registration(directory, 1));
+    assert!(fs::read(&path).expect("repeated ini") == closed);
+    let empty = support::story_command::standalone(
+        owned::prepare_command(directory, 1).env("TEMPER_FORGE_NO_REGISTRATION", ""),
+        "preparation with an empty registration switch",
+        support::boxed::BOX_DEADLINE,
+    );
+    forge_sign_in::success(&empty);
+    assert!(fs::read(&path).expect("empty switch ini") == original);
+    let output =
+        forge_sign_in::command(directory).env("TEMPER_FORGE_NO_REGISTRATION", "1").output().expect("sign-in command");
+    forge_sign_in::success(&output);
+    let settings = temper_forge_setup::sign_in::LINKS_ONLY_SETTINGS;
+    assert!(output.stdout.windows(settings.len()).any(|part| part == settings));
+    assert!(
+        !output
+            .stdout
+            .windows(b"ALLOW_ONLY_EXTERNAL_REGISTRATION".len())
+            .any(|part| part == b"ALLOW_ONLY_EXTERNAL_REGISTRATION")
+    );
+
+    // A forge absent from sign_in.forges keeps its settings even with the switch.
+    owned::configuration_value(directory, |value| value["application"]["sign_in"]["forges"] = serde_json::json!([]));
+    forge_sign_in::success(&owned::prepare(directory, 1));
+    let unnamed = fs::read(&path).expect("unnamed forge ini");
+    forge_sign_in::success(&owned::prepare_no_registration(directory, 1));
+    assert!(fs::read(&path).expect("unnamed closed ini") == unnamed);
+    assert!(!unnamed.windows(b"[oauth2_client]".len()).any(|part| part == b"[oauth2_client]"));
     scratch.remove();
 }

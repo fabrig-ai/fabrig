@@ -20,6 +20,10 @@ use temper_service::{
 
 pub mod directories;
 use directories::{Directories, private_root};
+
+pub(crate) fn workspace_reuse() -> bool {
+    std::env::var_os("TEMPER_WORKSPACE_REUSE").is_some()
+}
 mod accounts_runtime;
 mod agent;
 pub mod box_command;
@@ -462,6 +466,9 @@ fn prepare_with_limits(
         given,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if workspace_reuse() {
+        service.reuse_workspaces();
+    }
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
     if let Some(agent) = &agent

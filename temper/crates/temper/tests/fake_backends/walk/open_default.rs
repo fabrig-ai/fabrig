@@ -87,14 +87,14 @@ impl Referee<NativeClient> for Judge {
                 }
             }
             Page::Forges
-                if named(client, Role::Heading { level: 1 }, b"Forges").is_some()
+                if named(client, Role::Heading { level: 1 }, b"Where your code lives.").is_some()
                     && named(client, Role::Disclosure, b"Forgejo on this machine").is_some() =>
             {
                 client.go(Address::Accounts);
                 self.page = Page::Accounts;
             }
             Page::Accounts
-                if named(client, Role::Heading { level: 1 }, b"Accounts").is_some()
+                if named(client, Role::Heading { level: 1 }, b"What agents run on.").is_some()
                     && named(client, Role::Disclosure, "OpenAI API key · held by the deployment".as_bytes())
                         .is_some()
                     && live(client) =>

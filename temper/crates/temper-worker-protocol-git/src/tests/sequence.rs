@@ -82,3 +82,35 @@ fn standalone_ancestry_exits_are_booleans_and_faults_keep_their_diagnostic() {
         assert_eq!(sequence::after(&op, &command, code, b"", b"bad object", 3, &fixtures::checkout()), Next::End(done));
     }
 }
+
+#[test]
+fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
+    let op = git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) };
+    let command = Command::Origin { directory: Box::from(&b"workspaces/7/app"[..]) };
+    assert_eq!(sequence::first(&op), Next::Run(command.clone()));
+    let matching = crate::invocation::joined(&[fixtures::REMOTE, b"\n"]);
+    let extra = crate::invocation::joined(&[&matching, b"\n"]);
+    for (code, stdout, holds) in [
+        (0, matching.as_ref(), true),
+        (0, fixtures::REMOTE, false),
+        (0, b"https://other.example.test/app\n", false),
+        (0, b"\n", false),
+        (0, b"", false),
+        (0, extra.as_ref(), false),
+        (1, matching.as_ref(), false),
+        (128, matching.as_ref(), false),
+    ] {
+        assert_eq!(
+            sequence::after(&op, &command, code, stdout, b"", 0, &fixtures::checkout()),
+            Next::End(git::Done::Looked { holds }),
+            "{code}: {stdout:?}"
+        );
+    }
+    assert_eq!(
+        sequence::after(&op, &command, 2, b"", b"bad config", 3, &fixtures::checkout()),
+        Next::End(git::Done::FailedWithOutput {
+            fault: git::Fault::Broken,
+            diagnostic: git::PushDiagnostic::new(b"bad config", 3)
+        })
+    );
+}

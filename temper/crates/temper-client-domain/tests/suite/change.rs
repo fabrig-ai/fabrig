@@ -34,8 +34,9 @@ mod tests {
                     }],
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
-                    handles: 9,
-                    watches: 9,
+                    // Session settings, its project read and the standing needs watch.
+                    handles: 12,
+                    watches: 11,
                     turn_bytes: 65536,
                     backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                     authority: 12,
@@ -152,11 +153,7 @@ mod tests {
         let mut root = domain::unlinked(&domain_limits(), 11);
         let mut requests = root_event(
             &mut root,
-            Event::Start {
-                address: domain::Address::Task { task: TASK, filter: domain::PlanFilter::All },
-                kept: List::with_capacity(0),
-                with: None,
-            },
+            Event::Start { address: domain::Address::Task { task: TASK }, kept: List::with_capacity(0), with: None },
         );
         for event in [
             jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
@@ -494,12 +491,7 @@ mod tests {
         let (mut root, _, _, requests) = opened(document());
         let reads = ended_reads(&requests);
         let (read, _) = reads.first().expect("old ended read");
-        drop(root_event(
-            &mut root,
-            Event::Went {
-                place: domain::Place::Address(domain::Address::Task { task: 88, filter: domain::PlanFilter::All }),
-            },
-        ));
+        drop(root_event(&mut root, Event::Went { place: domain::Place::Address(domain::Address::Task { task: 88 }) }));
         drop(answer_ended(&mut root, *read, ended_page(true, true)));
         let page = root.pages().task().expect("new page");
         assert_eq!(page.number, 88, "new page stays open");

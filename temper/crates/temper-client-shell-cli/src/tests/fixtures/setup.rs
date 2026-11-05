@@ -43,6 +43,7 @@ impl Frame {
             ),
             f::Request::Adopt(_)
             | f::Request::Dismiss(_)
+            | f::Request::Looked(_)
             | f::Request::Return(_)
             | f::Request::RemoveForge(_)
             | f::Request::StartPlayground
@@ -85,6 +86,7 @@ impl Frame {
                 f::ForgeRow::new(
                     &f::CEILINGS,
                     f::ForgeRowParts {
+                        starts_with: f::StartsWith::Repository,
                         makings: skein_lib::List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number: FORGE,

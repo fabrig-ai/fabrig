@@ -71,7 +71,7 @@ fn text(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> String {
     String::from_utf8(printed.stdout.into_vec()).expect("ctl UTF-8")
 }
 
-fn propose(member: bool) -> (ClientWorld, ClientId, u64, String) {
+pub(super) fn propose(member: bool, items: Option<Box<[s::Item]>>) -> (ClientWorld, ClientId, u64, String) {
     let mut world = fixtures::configuring_world(fixtures::SEED, member);
     let agent = fixtures::configuring_agent(&mut world);
     let started = call(
@@ -113,18 +113,19 @@ fn propose(member: bool) -> (ClientWorld, ClientId, u64, String) {
     let Some(s::Value::Charter(mut charter)) = charter.value else { panic!("charter 1") };
     assert_eq!(charter.policy.waiting, Duration::from_secs(1));
     charter.policy.waiting = Duration::from_secs(2);
+    let reason = if items.is_some() {
+        b"Show drafts, goals, changes and the away switch.".as_slice()
+    } else {
+        REASON.as_bytes()
+    };
+    let items = items.unwrap_or_else(|| {
+        Box::new([s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(s::Value::Charter(charter)) }])
+    });
+    let kinds = temper_engine_domain_world::kinds::decoded(&items);
     let proposed = front.host_tool(
         task,
         3,
-        engine::Tool::ProposeSettings {
-            against: inventory.newest,
-            items: Box::new([s::Item {
-                setting: s::Setting::Charter(1),
-                edit: s::Edit::Set(s::Value::Charter(charter)),
-            }]),
-            reason: REASON.as_bytes().into(),
-            kinds: Box::new([]),
-        },
+        engine::Tool::ProposeSettings { against: inventory.newest, items, reason: reason.into(), kinds },
     );
     let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal, holder }) = proposed else {
         panic!("settings proposal: {proposed:?}")
@@ -133,7 +134,7 @@ fn propose(member: bool) -> (ClientWorld, ClientId, u64, String) {
     (world, agent, task, format!("t{task}/{proposal}"))
 }
 
-fn accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u8]) {
+pub(super) fn accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u8]) {
     let expected = if let Some(task) = proposal.strip_prefix('t') {
         let (task, _) = task.split_once('/').expect("task proposal");
         format!("done: task {task}, decide\n")
@@ -152,7 +153,7 @@ fn accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u8]) 
 
 #[test]
 fn a_configuring_chat_started_through_ctl_proposes_and_an_owner_accepts() {
-    let (mut world, agent, task, proposal) = propose(false);
+    let (mut world, agent, task, proposal) = propose(false, None);
     let inbox = text(&mut world, agent, &[b"inbox", b"--kind", b"proposals"]);
     assert!(inbox.contains(&proposal), "{inbox}");
     let review = text(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
@@ -181,7 +182,7 @@ fn a_configuring_chat_started_through_ctl_proposes_and_an_owner_accepts() {
 
 #[test]
 fn a_configuring_proposal_is_named_and_titled_in_the_inbox() {
-    let (mut world, agent, _, _) = propose(false);
+    let (mut world, agent, _, _) = propose(false, None);
     let inbox = text(&mut world, agent, &[b"inbox", b"--kind", b"proposals"]);
     let title = REASON.lines().next().expect("proposal title");
     let row = inbox.lines().find(|row| row.contains(title)).expect("inbox carries the proposal title");
@@ -195,7 +196,7 @@ fn a_configuring_proposal_is_named_and_titled_in_the_inbox() {
 
 #[test]
 fn a_members_configuring_proposal_waits_for_an_owner() {
-    let (mut world, agent, _, proposal) = propose(true);
+    let (mut world, agent, _, proposal) = propose(true, None);
     let caller = world.front().caller;
     let roles: Vec<_> = world
         .front()
@@ -235,7 +236,7 @@ fn a_members_configuring_proposal_waits_for_an_owner() {
 
 #[test]
 fn a_stale_configuring_proposal_is_withdrawn() {
-    let (mut world, agent, task, proposal) = propose(false);
+    let (mut world, agent, task, proposal) = propose(false, None);
     let charter = text(&mut world, agent, &[b"settings", b"show", b"charter", b"1", b"--json"]);
     let value = charter.trim_end().split_once(",\"value\":").expect("shown charter value").1;
     let value = value.strip_suffix('}').expect("setting envelope");

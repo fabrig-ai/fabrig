@@ -710,8 +710,10 @@ is due again once its dependencies are done.
    or what woke it; has each connector that owns a resource the task
    names gather its workspace items, and name the application's
    credentials they need (connectors.md, section 10); and loads its
-   transcript's current window, if its charter resumes and it has one
-   within the resume limit (7.2). Either way it is given the calls
+   transcript's saved window when it has one, for resuming or for the
+   tail of a fresh brief, including a transient retry (7.2). An activation
+   that needs this load stays due while the root is busy; one with no
+   saved window can prepare its brief then. Either way it is given the calls
    committed after its task's last committed turn: a resumed run as a
    note after the transcript, a fresh one as a section of its brief.
 3. **Commits the claim:** the task claimed, with its new attempt number,
@@ -864,7 +866,13 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   tail. Earlier windows' turns stay readable by parties
   (`../client/domain/contract.md`, section 6), and are never sent to a
   run. A transcript the agent cannot use fails its run as transient,
-  saying so, and the next run is prepared fresh.
+  saying so, and the next run is prepared fresh. A transient retry loads
+  the saved window for its brief's tail, and never resumes it. If that
+  load is unread, preparation continues fresh without the tail and
+  without spending another transient try. An unread open window with
+  no transient try spent counts one transient preparation failure;
+  its retry can then continue without that unread tail. A failed load,
+  rather than an unread window, remains a preparation failure.
 - **A window closed by an upgrade.** A turn is handed to a run in its
   current version, patched as read when it was written in an older one
   (`../protocol/store.md`, 8.6), and a run resumes from it. A patch
@@ -887,11 +895,13 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   gives no text for that turn. If no turn leaves text, the tail is empty:
   the closed window's next attempt still starts fresh, without a failure
   counted. A window page that cannot hold one turn answers `Unread`.
-  An open unread window retains its transient-failure semantics above.
+  An open unread window counts a transient failure only when no
+  transient try has been spent; a transient retry leaves out that tail
+  and continues fresh, as for an unread closed window.
   However the upgrade's
   stop classes the attempt it ends (temper's `draft/upgrades.md`, 7.2),
-  a closed window is kept for its tail's load, where a transient try
-  drops an open one. The run proof
+  both a closed window and a transient retry's open window are kept for
+  their tails' loads; neither is resumed. The run proof
   keeps the window as a `CurrentWindow` (its attempt, its turn, whether
   it is closed: core-v6's `Window`); the transcript a run prepares keeps
   the pair it loads from, and whether it is closed beside it.
@@ -1227,7 +1237,8 @@ The fleet child domain knows the hosts and the runs they host:
   and 6.3), ends a run the host never hosted. The fleet closes the
   attempt as it hears it, and never acknowledges it: one refused as busy
   is placed again, as no failure; one refused as invalid ends its start,
-  refused. One lost with its channel leaves its attempt unlisted at the
+  refused. The task's class comes from the answer's payload: a refused
+  transcript is transient (hosts.md, 6.3). One lost with its channel leaves its attempt unlisted at the
   next hello, and the start ends lost; the next attempt is refused again,
   or placed.
 - **Restarting** (section 6): the fleet adopts the claims the store
@@ -2440,6 +2451,23 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
 
   All of it, the release's revision included, is committed before the
   core admits anything.
+
+  The release's withdrawals are in its decision (17.6), so a crash
+  leaves the revision and its withdrawals both or neither: a start after
+  the commit finds the revision made and the proposals withdrawn, and
+  makes no second one; a start after a commit that was lost makes them
+  both. They run at `Phase::Link`, with every link made. The decision
+  holds their records: the tasks child's, the core's set erased, and a
+  connector's dropping of an application's values, a settings ask like
+  the release's others. The people child's projections of them follow
+  in memory: it takes a projection event once its census is whole, at
+  its link and again once its start has ended, never while loading or
+  sweeping, and a restart rebuilds them from the records. What acts on
+  them waits, by section 6: a proposer left due is activated when the
+  tasks child is told it is restored, and a word left
+  for a live run is relayed after that run's next turn, as any restored
+  task's are. Nothing is activated or relayed from the decision itself,
+  so a first start and a second after a crash do the same.
 - **The document's members as defaults.** An application that passes
   no defaults gives the document's `charters`, `templates`, `policies`
   and `rules` (`../protocol/configuration.md`, section 3), and the

@@ -6,12 +6,18 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 
 ## What it is
 
-The settings are a deployment's charters, templates and policies, and
-its rules, with temper's landing rules and the forge's charters. A
-setting is named by its kind and, but for the rules, its
-number: `charter 2`, `template 1`, `policy 1`, `rules`,
-`landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`.
+Settings cover charters, templates, policies, rules, landing rules, forge
+charters and project ways and questions. Name one by kind and number,
+or project for ways and questions; rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
+`landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`,
+`project-ways 2`, `project-questions 2`.
 
+- A project's ways say whether chats can write drafts and whether Goals,
+  Changes and the Away switch show, and which offered template with
+  `tracked` set a goal starts by; 0 takes the first. The stock hides all
+  four and uses 0.
+- A project's questions give a change's question route when its maker
+  names none: `none`, `foreman` or `up`. The stock uses `none`.
 - A landing rule governs changes landing on matching branches, for the
   deployment or one project: `temper help landing-rule`.
 - The forge's charter 1 selects the change's charter, and 2 its reviews'.
@@ -21,66 +27,56 @@ number: `charter 2`, `template 1`, `policy 1`, `rules`,
 - A policy is what a project made from it starts with, and the rules are
   the ceilings of every project: `temper help policy`.
 
-A project's own policy is no setting, yet it is an item of a change,
-named `project-policy P`: set to a policy whole, set alone and at most
-once a file. `settings show` lists no project's policy; `project show
-PROJECT` reads its roles and spends.
+A change can name a project's policy as `project-policy P`: set whole,
+alone and at most once per file. It is no setting: `settings show` omits
+it; `project show PROJECT` reads its roles and spends.
 
-The binary holds the defaults, and the store holds the changes over
-them. The current settings are the defaults with the stored changes over
-them: a setting no change names follows its default. The settings live
-in the store, never in the configuration document.
+The binary holds defaults; the store holds overrides. A setting without
+an override follows its default. Settings never live in the configuration
+document.
 
-The stock has five charters, numbered 1, 2, 3, 4 and 6, and three
-templates: 1 for a chat, 2 for a goal and 3 for the configuring chat.
-Its rules offer those five charter executors and procedure executors
-2, 3 and 4.
+The stock has charters 1, 2, 3, 4, 6 and 9, and templates 1 for a chat,
+2 for a goal and 3 for the configuring chat. Its rules offer those six
+charter executors and procedures 2, 3 and 4.
 
-A setting's value is whole: a JSON value, as `settings show` prints
-it in JSON. Its members, with their types and bounds, are in
-`temper help settings-fields`.
+A setting's whole value is JSON, as `settings show` prints it. For members,
+types and bounds, read `temper help settings-fields`.
 
-The configuring chat's `settings` pages fill the host answer allowance;
-`next: OFFSET` continues at that byte offset. File replies also fit that
-allowance: `[file truncated]` marks a cut, including cuts for metadata room.
+The configuring chat's `settings` pages fit the host answer allowance;
+`next: OFFSET` continues at that byte offset. File replies share this bound;
+`[file truncated]` marks cuts, including those for metadata room.
 
 ## How it changes
 
-A change is a set of items, at most one per setting. Each item does one
-of three things to its setting:
+A change holds at most one item per setting. Each item:
 
-- sets it to a whole value, which replaces the value before it;
-- removes it, so that it is no longer offered, its default included;
-- resets it, erasing its change, so that it follows its default again.
+- sets a whole value, replacing the previous value;
+- removes it from the offer, its default included;
+- resets it, erasing its change to follow its default again.
 
 The rules are set or reset, never removed.
 
 A change names the newest revision its maker read. It makes one revision
-(`temper help revision`), or it is refused whole and changes nothing.
+(`temper help revision`), or is refused whole.
 The deployment's items need its owners; a project's policy needs that
 project's owners; a change of both needs one person who owns both. A
-party with a role in the deployment or in a project proposes one
-instead, for those owners to decide
-(`temper help proposal`).
+party with a deployment or project role proposes one for those owners
+to decide (`temper help proposal`).
 
-A start whose binary has a new default for a setting that follows its
-default makes a revision of its own. A stored change still wins over a
-default that changed.
+A start with a new binary default makes a revision if the setting follows
+its default. A stored change still wins over a changed default.
 
 ## What temper guarantees
 
-- A change is checked whole before it commits: each value in its shape
-  and within its bounds, each kind within its count, and every reference
-  between settings, such as a template's charter or a charter's models.
+- Before commit, temper checks each value's shape and bounds, each kind's
+  count, and references such as a template's charter or a charter's models.
 - A refused change commits nothing. Its refusal names the item, its
   setting and its fault.
-- A change against a revision that is no longer the newest is refused as
-  stale, naming the newest. Read again, and decide again on what you
-  read.
-- A change that leaves every setting as it was is refused as unchanged.
+- A change against any other revision is refused as stale, naming the
+  newest. Read again, and decide on what you read.
+- A change that alters no setting is refused as unchanged.
 - An accepted change takes effect without a restart.
-- A change asked again under the same key gives its first outcome and
-  makes no second revision.
+- Repeating a change's key gives its first outcome, with no second revision.
 - Each kind is read when it is used: a charter's at each run, from its
   task's revision (`temper help revision`); a template's when a task is
   made from it; a policy's when a project is made from it; the rules at
@@ -88,77 +84,71 @@ default that changed.
 
 ## Acting on it
 
-- Describe how you work to the configuring agent (`temper help chat`).
-  It reads the settings and proposes one change, with what temper
-  enforces and what your agents follow; an owner decides it.
-- `temper ctl`: `settings show` reads the inventory (the newest
-  revision, each setting and where its value comes from, the held
-  revisions and the pending proposals) and, given a setting's kind and
-  number, its whole value; `settings apply` makes a change; `settings
-  propose` proposes one. `settings show landing-rule NUMBER` reads a
-  deployment landing rule; add `--project PROJECT` for a project's.
+- Tell the configuring agent how you work (`temper help chat`). It reads
+  settings and proposes what temper enforces and agents follow; an owner decides.
+- `temper ctl`: `settings show` reads the inventory: newest revision,
+  settings and their value sources, held revisions and pending proposals.
+  Given a kind and number, it reads the whole value. `settings apply`
+  changes settings; `settings propose` proposes a change.
+  `settings show landing-rule NUMBER` reads a deployment landing rule;
+  add `--project PROJECT` for a project's.
   `settings show forge-charter NUMBER` reads one of the forge's charters.
-  Both print the setting's state and its value; `--json` prints the value
-  in the form a settings file's `set` takes. `proposal show PROPOSAL`
-  includes temper's proposed values, removals and resets, and a project's
-  policy now and as it would be, each whole.
-  Each verb's arguments are its help: `temper
-  ctl help settings apply`.
-- A settings file holds a change's items: its form is
-  `temper help settings-fields`.
-- A run whose charter names the settings family and whose authority
-  holds it reads with the host tool `settings` and proposes with
-  `propose_settings`: charter 3 alone in the stock
+  `settings show project-ways PROJECT` and `settings show project-questions
+  PROJECT` read by project number or name, marking the stock when none is
+  stored. Both take `--revision` for an earlier value and print state and
+  value; `--json` gives the form a settings file's `set` takes.
+  `proposal show PROPOSAL` includes proposed values, removals and resets, and a project's current
+  and proposed policy, each whole. Each verb's help gives its arguments:
+  `temper ctl help settings apply`.
+- A settings file holds the items: `temper help settings-fields` gives its form.
+- A run needs the settings family in its charter and authority to read
+  with `settings` and propose with `propose_settings`: stock charter 3 alone
   (`temper help charter`). It reads and proposes `charter`, `template`,
   `policy`, `rules`, `landing-rule`, `forge-charter` and
-  `project-policy`, in the settings file's form. A landing rule names
+  `project-policy`, `project-ways` and `project-questions`, in the settings
+  file's form. Ways and questions require `project` and take no `number`. A landing rule names
   its project, or none for the deployment; a project's policy names its
-  project and is set alone. The inventory lists no project's policy;
-  the tool reads it when named.
+  project and is set alone. The tool reads a named project's policy,
+  though the inventory omits it.
 
 ### Recovering from a check reserve refusal
 
 A worker's check timeout must fit every applicable modifying charter's
 `reserve_time`, including versions held by tasks. A timeout of 60,000
 milliseconds needs at least 60 seconds of reserve; equality is sufficient.
-An accepted setting can still leave a worker unable to run it: proposal
-and acceptance do not validate against connected workers' bounds.
+An accepted setting may still be unusable by a worker: proposal and
+acceptance do not check connected workers' bounds.
 
 When `task show TASK` names a charter's `reserve_time` in its next-run
 refusal:
 
-1. Read the task's `settings:` line and `settings show` to find its held
-   revision. Read that value with `settings show charter 2 --revision 13`
-   (substitute the charter and revision named in your deployment).
+1. Find the held revision in the task's `settings:` line and `settings
+   show`. Read it with `settings show charter 2 --revision 13`, using
+   your deployment's charter and revision.
 2. Read the current charter with `settings show charter 2 --json`. Set
    `reserve_time` to at least the worker's check timeout, in nanoseconds
    in the settings file: 60 seconds is `60000000000`. Keep `time` greater
    than the reserve. Apply the whole value with `settings apply FILE
    --against REVISION --key KEY`, or propose it for an owner to accept.
-3. Updating the current setting leaves held charter versions in force.
+3. Held charter versions remain in force.
    Use `revision advance 13 --key KEY` for each affected held revision.
    Read its moved and stayed counts and the tasks again. A live run keeps
    its version until it ends, and a task that cannot move still holds
    its revision (`temper help revision`).
 
 The worker is admitted on a later hello once all applicable versions fit.
-Changing the current reserve alone does not release an incompatible held
-version.
+Changing the current reserve alone leaves incompatible held versions.
 
 ## Limits
 
-For the configuration members that need a restart, read `temper help configuration`.
+For members needing a restart, read `temper help configuration`.
 
 - temper does not patch a member: an item sets a whole value.
 - The person's client has no page to change settings.
-- A value's bound in `temper help settings-fields` is what ctl sends;
-  the deployment may refuse a value within it, past one of its own
-  limits.
-- The providers, models, listeners, workers and limits are not
-  settings: they are the configuration document's, read at a start, and
-  a change to them needs a restart. Its limits must hold the stock's
-  settings: a start refuses one that does not, and another model or a
-  release with new stock can move what they need.
-- The stock needs room for at least five charters, three templates and
-  eight executor kinds: its five charters and three procedures. These
-  are floors; a deployment's own settings may need more.
+- ctl sends values within `temper help settings-fields` bounds; the
+  deployment may refuse them past its own limits.
+- Providers, models, listeners, workers and limits are configured at start;
+  changes need a restart. Limits must hold the stock's settings or start
+  refuses. Another model or new stock can change the limits needed.
+- Stock floors are six charters, three templates and nine executor kinds
+  (six charters and three procedures); your settings may need more.

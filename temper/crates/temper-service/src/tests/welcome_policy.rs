@@ -60,6 +60,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     let resolved = application::resolve(&parsed.application, &files, &mut problems).expect("generated file values");
     assert!(problems.is_empty());
     let mut settings = settings::Engine {
+        host_reply_bytes: None,
         machine: parsed.application.machine,
         directories: directories.clone(),
         jig: parsed.engine,
@@ -202,10 +203,10 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     let offered = project.creating.as_ref().expect("owner may start a chat");
     let core::acts::Bounds::Create { procedures, charters, .. } = &offered.within else { panic!("create bounds") };
     assert_eq!(procedures.iter().map(|procedure| procedure.code).collect::<Vec<_>>(), [2, 3, 4]);
-    assert_eq!(charters.as_slice(), &[1, 2, 3, 4, 6]);
+    assert_eq!(charters.as_slice(), &[1, 2, 3, 4, 6, 9]);
     let charters = charters.as_slice().to_vec();
     for (number, (turns, seconds)) in
-        charters.into_iter().zip([(64, 3600), (800, 28_800), (64, 3600), (800, 28_800), (800, 28_800)])
+        charters.into_iter().zip([(64, 3600), (800, 28_800), (64, 3600), (800, 28_800), (800, 28_800), (4, 300)])
     {
         let token = Token::new(1000 + u64::from(number));
         driver.send(Event::Party(PartyInput::Read {
@@ -414,7 +415,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
         "the next welcome selection exceeds the profile's project capacity"
     );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
-    assert_eq!(bytes, 5742);
+    assert_eq!(bytes, 5774);
     std::eprintln!(
         "real init joined policy: {bytes}/8192 requested bytes, configured bound {}; profile project capacity {capacity}; adopted=2; owner=39, repositories=64 bytes each; next welcome MakeProject refuses Projects",
         limits.policy_bytes

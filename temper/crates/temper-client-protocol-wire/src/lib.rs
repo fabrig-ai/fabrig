@@ -6,7 +6,15 @@ extern crate alloc;
 
 #[rustfmt::skip]
 #[path = "generated/v1.rs"]
+#[expect(clippy::similar_names, reason = "the schema names the ways fields away and way")]
 pub mod v1;
+
+/// Kinds with typed settings values at temper's entrances
+/// (temper/docs/design/protocol/configuration.md, 13.2).
+#[must_use]
+pub const fn settings_kind(kind: u32) -> bool {
+    kind == 1 || kind == 2 || kind == 3 || kind == 6 || kind == 7
+}
 
 /// The forge's visitor records (temper/docs/design/client/forge.md, 11.4).
 #[rustfmt::skip]
@@ -74,6 +82,8 @@ pub const DISMISSED: u32 = 1024;
 pub const INSTALLATIONS: u32 = 64;
 /// The maximum repository makings per forge (temper/docs/design/client/README.md, 4.6).
 pub const MAKINGS: u32 = 64;
+/// The set up's maximum number of deferred copies (protocol/setup.md, 6.7).
+pub const FIRST_COPIES: u32 = 16;
 /// The last connect's maximum stop reason length (client/README.md, 4.6).
 pub const CONNECT_WHY_BYTES: u32 = 256;
 /// The box's maximum setup failure line length (client/README.md, 4.6).
@@ -154,8 +164,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         playground_answer_cues_item: CUE_BYTES,
         first_ask_org: bounds.field_bytes,
         first_ask_repository: bounds.field_bytes,
-        set_up_org: bounds.field_bytes,
-        set_up_repository: bounds.field_bytes,
+        first_empty_org: bounds.field_bytes,
+        first_empty_repository: bounds.field_bytes,
         first_repository_org: bounds.field_bytes,
         first_repository_repository: bounds.field_bytes,
         adopt_owner: bounds.field_bytes,
@@ -324,6 +334,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
         | v1::Request::Dismiss(_)
+        | v1::Request::Looked(_)
         | v1::Request::Replace(_)
         | v1::Request::RemoveForge(_)
         | v1::Request::StartPlayground
@@ -452,6 +463,21 @@ pub fn changes_panel(record: &v1::ChangesPanel) -> Box<[u8]> {
 pub fn decode_changes_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ChangesPanel> {
     let mut reader = Reader::new(bytes);
     let record = v1::ChangesPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a party's project status (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn project_status(record: &v1::ProjectStatus) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete project status (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_project_status(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ProjectStatus> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::ProjectStatus::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
 

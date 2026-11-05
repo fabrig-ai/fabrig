@@ -99,7 +99,9 @@ impl<T: Transport> Git<T> {
             }
             match &checked.command {
                 Command::Version => {}
-                Command::Clone { directory, .. } => jobs.push_back(Job::Scan(path(&checked.at, directory))),
+                Command::Origin { directory } | Command::Clone { directory, .. } => {
+                    jobs.push_back(Job::Scan(path(&checked.at, directory)));
+                }
                 Command::Fetch { .. }
                 | Command::Create { .. }
                 | Command::CheckOut { .. }

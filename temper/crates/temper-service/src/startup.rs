@@ -738,6 +738,10 @@ fn checked_start_with(
         None
     };
     let mut engine = settings::Engine {
+        host_reply_bytes: match agent {
+            Some(agent) => Some(agent.limits.bodies.host_reply_text),
+            None => None,
+        },
         host_part,
         machine: parsed.application.machine,
         directories: directories.clone(),

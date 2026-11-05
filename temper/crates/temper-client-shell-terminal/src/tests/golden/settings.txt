@@ -1,0 +1,76 @@
+== How work runs in demo. == Live
+demo:
+  [1] temper
+  demo:
+    [2] demo · playground/widget (pressed)
+    New project:
+      [3] New project: (empty) (enter sends)
+      [4] Create
+    [5] Settings for demo
+  [6] Home
+  [7] Needs you
+  [8] Chats
+  [9] + New chat
+  [10] Set up temper
+  [11] Settings (current)
+  * Pat
+demo · settings
+Everything the other pages do for this project comes from here, so each project, and each person, can work its own way.
+Settings:
+  [12] How work runs (current)
+  [13] Repositories
+  [14] Forges
+  [15] Accounts
+  [16] Builders
+Configure temper
+Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept.
+[17] Start
+## What the project shows
+Chats can write drafts
+A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
+Off
+[18] [ ] Chats can write drafts
+Goals
+Bigger work from a draft: a plan, tasks, landing.
+Hidden
+[19] [ ] Goals
+Changes
+The landing queue, as a page.
+Hidden
+[20] [ ] Changes
+Away switch
+Lets agents decide within limits while you’re away.
+Hidden
+[21] [ ] Away switch
+## Status
+Status lines and reports
+Written words, beside the counts temper keeps itself.
+Status lines and reports: (disabled)
+  [-] (*) Written by each goal’s agent
+Rewritten
+Rewritten: (disabled)
+  [-] (*) When someone opens it
+The brief on Home
+What changed since you last looked.
+The brief on Home: (disabled)
+  [-] (*) Off
+Not built yet: this is what temper does today.
+## What needs you
+Questions a goal can answer from its plan
+Questions a goal can answer from its plan:
+  [22] ( ) Answered by the goal, kept in its decisions
+  [23] ( ) Asked of me too
+  [24] (*) Not asked: each agent decides alone
+Funds
+Not built yet: this is what temper does today.
+Funds: (disabled)
+  [-] (*) Ask when a budget is used up
+## Telling you
+Notifications
+Only when something needs you; never for status.
+Notifications: (disabled)
+  [-] (*) Off
+Quiet hours
+Quiet hours: (disabled)
+  [-] (*) None
+Not built yet: this is what temper does today.

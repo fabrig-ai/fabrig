@@ -57,17 +57,30 @@ fn encode_bot(row: &d::Bot) -> w::Bot {
 }
 
 fn encode_first(row: &d::FirstIntent) -> w::FirstIntent {
-    let d::FirstIntent { playground, org, repository, label } = row;
-    w::FirstIntent::new(
-        &w::CEILINGS,
-        w::FirstIntentParts {
-            playground: *playground,
-            org: org.clone(),
-            repository: repository.clone(),
-            label: label.clone(),
-        },
-    )
-    .expect(FITS)
+    match row {
+        d::FirstIntent::Empty(first) => w::FirstIntent::Empty(
+            w::EmptyIntent::new(
+                &w::CEILINGS,
+                w::EmptyIntentParts {
+                    playground: first.playground,
+                    org: first.org.clone(),
+                    repository: first.repository.clone(),
+                    label: first.label.clone(),
+                },
+            )
+            .expect(FITS),
+        ),
+        d::FirstIntent::Copies { addresses } => {
+            let mut list = skein_lib::List::with_capacity(w::CEILINGS.copy_intent_addresses);
+            for address in addresses {
+                list.push(address.clone()).expect(FITS);
+            }
+            w::FirstIntent::Copies(
+                w::CopyIntent::new(&w::CEILINGS, w::CopyIntentParts { addresses: list }).expect(FITS),
+            )
+        }
+        d::FirstIntent::Nothing => w::FirstIntent::Nothing,
+    }
 }
 
 pub(super) fn decode(row: w::Forge) -> d::ForgeRecord {
@@ -116,8 +129,14 @@ fn decode_bot(row: w::Bot) -> d::Bot {
 }
 
 fn decode_first(row: w::FirstIntent) -> d::FirstIntent {
-    let w::FirstIntentParts { playground, org, repository, label } = row.into_parts();
-    d::FirstIntent { playground, org, repository, label }
+    match row {
+        w::FirstIntent::Empty(row) => {
+            let w::EmptyIntentParts { playground, org, repository, label } = row.into_parts();
+            d::FirstIntent::Empty(d::EmptyIntent { playground, org, repository, label })
+        }
+        w::FirstIntent::Copies(row) => d::FirstIntent::Copies { addresses: row.into_parts().addresses.into_boxed() },
+        w::FirstIntent::Nothing => d::FirstIntent::Nothing,
+    }
 }
 
 pub(super) fn encode_playground(row: &d::Playground) -> w::Playground {

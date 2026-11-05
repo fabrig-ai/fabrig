@@ -159,6 +159,17 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
         ("merging commit", commit(true)),
         ("push", push(false)),
         ("leased push", push(true)),
+        ("look", {
+            let transcript = crate::transcripts::read("origin-matches");
+            let remote = transcript.stdout.strip_suffix(b"\n").expect("origin URL").into();
+            let mut query = scenario(
+                git::Op::Look { at: git::Place { workspace: Token::new(1), ..at() }, remote },
+                &["origin-matches"],
+                Expected::done(git::Done::Looked { holds: true }),
+            );
+            query.identity = false;
+            query
+        }),
         ("standalone-ancestry", {
             let mut query = scenario(
                 git::Op::IsAncestor { at: at(), ancestor: TWO, commit: SIX },

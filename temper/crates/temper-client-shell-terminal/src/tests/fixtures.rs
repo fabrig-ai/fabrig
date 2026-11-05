@@ -88,7 +88,7 @@ pub fn tree_limits() -> skein_ui::Limits {
         drawing_bytes: 16,
         scene_marks: 0,
         scene_bytes: 0,
-        styles_per_node: 2,
+        styles_per_node: 3,
         patches: 1280,
         bindings: 256,
         slots: 64,
@@ -240,7 +240,7 @@ pub fn page(address: &temper_client_domain::Address, signed_out: bool) -> skein_
 }
 #[expect(
     clippy::too_many_lines,
-    reason = "one fixture dispatch supplies each opened page and the changes family document"
+    reason = "the fixture answers page and session documents and the changes family watch"
 )]
 fn populate_page(
     root: &mut client::Domain,
@@ -255,6 +255,33 @@ fn populate_page(
             break;
         };
         match request {
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
+            } => {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
+                    let value = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: None }).unwrap();
+                    client::step(
+                        root,
+                        env,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::ReadDone {
+                                    read,
+                                    result: jig_client::Readout::Family {
+                                        family: wire::FORGE,
+                                        record: Some(wire::setting_answer(&value)),
+                                    },
+                                },
+                            },
+                        },
+                        out,
+                    );
+                }
+            }
             Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {

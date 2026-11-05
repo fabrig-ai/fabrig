@@ -515,3 +515,43 @@ fn core_now_translates_the_links_six_outputs_without_changing_fields() {
     };
     assert_eq!((request, returned), (PAYLOAD, problem));
 }
+
+#[test]
+fn unusable_transcripts_are_transient_at_admission_and_at_the_terminal() {
+    let endings = [
+        (host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Transcript)), fleet::Answer::Invalid),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                cause: host::StartCause::Transcript,
+                why: b"saved history".as_slice().into(),
+            })),
+            fleet::Answer::Invalid,
+        ),
+        (
+            host::Ending::Failed {
+                failure: host::Failure::Run(host::RunFailure::Transcript),
+                detail: Box::new([]),
+                work: host::Work { left: None, saved: None },
+            },
+            fleet::Answer::Failed { turned: None },
+        ),
+    ];
+    for (ending, expected) in endings {
+        assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Transient));
+        let mut link = link();
+        let event = up(
+            &mut link,
+            CHANNEL,
+            host::LinkUp::Answer {
+                run: RUN,
+                attempt: ATTEMPT,
+                answer: host::RunAnswer { turns: 0, spent: 0, read: None, refused: Box::new([]), ending },
+            },
+        )
+        .expect("terminal reaches fleet");
+        let core::Event::Fleet(fleet::Event::Answer { answer, .. }) = event else {
+            panic!("terminal reaches the fleet as an answer");
+        };
+        assert_eq!(answer, expected, "a refused start closes without an acknowledgement");
+    }
+}

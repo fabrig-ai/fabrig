@@ -2,10 +2,6 @@
 
 2026-11-05. Where hearth's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 2.9: the kits `hearth-test-render`, `hearth-test-repository` and
-  `hearth-test-git`, and `hearth-test-fixtures`' hostile mutations: their code is
-  in the render, builder, git and config worlds, and other packages depend on
-  those worlds (`hearth/docs/development/debt/D009-worlds-as-kits.md`).
 - **Not yet:** 2.3: the M2 system world joining the builder and the real tree
   helper on one fake machine. 2.5, 2.6: the tree helper's protocol and simulated
   worlds. 2.7: the tree helper's real loop and the process-group stopping test.

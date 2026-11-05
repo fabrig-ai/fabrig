@@ -1217,9 +1217,11 @@ fn ready_names_the_usable_account_and_not_the_model() {
     program.provider_name =
         Some(c::DocumentText::complete(c::Text::new(Box::from(b"anthropic".as_slice()), 32).unwrap()));
     program.sources.get_mut(0).unwrap().usable = true;
-    for (row, expected) in
-        [(plan, "ChatGPT plan · Personal"), (key, "OpenAI API key"), (program, "Claude subscription · Claude Code")]
-    {
+    for (row, expected) in [
+        (plan, "ChatGPT plan · Personal"),
+        (key, "OpenAI API key · billed to the key’s organization"),
+        (program, "Claude subscription · Claude Code, signed in on this machine"),
+    ] {
         let root = line_facts(usable, accounts(&[row]), None, None, None, false);
         let short = crate::pages::accounts::first_usable_short(&root, &fixtures::words()).expect("a usable account");
         assert_eq!(core::str::from_utf8(&short).unwrap(), expected);

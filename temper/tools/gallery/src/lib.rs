@@ -158,6 +158,9 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     if sample.name == "needs-saw-open" {
         html = html.replace("class=\"temper-ask-saw\"", "open class=\"temper-ask-saw\"");
     }
+    if sample.name == "goal-landed-open" {
+        html = html.replace("class=\"temper-goal-landed-fold\"", "open class=\"temper-goal-landed-fold\"");
+    }
     let mut styles = String::new();
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");
@@ -170,6 +173,9 @@ fn heading(tree: &skein_ui::Tree) -> Vec<u8> {
     let nodes = tree.nodes();
     for (index, node) in nodes.iter().enumerate() {
         if node.role == Role::Main {
+            if node.styles.as_slice().contains(&temper_client_view::look::WELCOME) {
+                return "Welcome · first run".as_bytes().to_vec();
+            }
             let end = index + usize::try_from(node.size).expect("main subtree");
             for (offset, heading) in nodes[index..end].iter().enumerate() {
                 if heading.role == (Role::Heading { level: 1 }) {

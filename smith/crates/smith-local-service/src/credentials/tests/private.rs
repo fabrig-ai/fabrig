@@ -59,8 +59,8 @@ fn record(expired: bool) -> skein_oauth::SavedToken {
         earliest_refresh_at: None,
         key: 0,
         generation: 1,
-        access_token: ACCESS.into(),
-        refresh_token: Some(b"refresh-old".as_slice().into()),
+        access_token: Secret::new(ACCESS.into()),
+        refresh_token: Some(Secret::new(b"refresh-old".as_slice().into())),
         metadata: None,
         expires_at: if expired { wall() } else { Wall::from_nanos(300_000_000_000) },
     }
@@ -77,7 +77,7 @@ fn issuer() -> Peer {
             client_secret: None,
             terms: None,
             redirect_uri: REDIRECT.into(),
-            refresh_token: b"refresh-old".as_slice().into(),
+            refresh_token: Secret::new(b"refresh-old".as_slice().into()),
         },
         fake::Limits {
             document: native_limits().client.document,
@@ -97,8 +97,8 @@ fn issuer() -> Peer {
             scope: None,
             id_token: None,
             earliest_refresh_at: None,
-            access_token: ACCESS.into(),
-            refresh_token: Some(b"refresh-new".as_slice().into()),
+            access_token: Secret::new(ACCESS.into()),
+            refresh_token: Some(Secret::new(b"refresh-new".as_slice().into())),
             expires_in: 3600,
         }),
         delay: Duration::ZERO,
@@ -247,7 +247,7 @@ impl Private {
                     }
                 }
                 CredentialRequest::Ready { value, .. } => {
-                    self.kept_before_grant = self.saved().access_token == *value
+                    self.kept_before_grant = self.saved().access_token.expose() == value.as_ref()
                         && (self.story == Story::Load || (self.syncs >= 2 && self.renames == 1));
                 }
                 CredentialRequest::Closed
@@ -364,7 +364,7 @@ fn a_private_sign_in_lends_only_after_the_native_record_is_durable() {
             assert!(grant.renewable);
         }
     }
-    assert_eq!(world.saved().refresh_token.as_deref(), Some(b"refresh-new".as_slice()));
+    assert_eq!(world.saved().refresh_token.as_ref().expect("refresh token").expose(), b"refresh-new");
     world.close();
     assert!(world.browser.as_ref().expect("visited browser").1.saw_reply());
 }

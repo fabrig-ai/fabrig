@@ -114,8 +114,6 @@ pub fn answer_parts(
     work: &temper_worker_domain::wire::Work,
     preparation: Option<&temper_worker_domain::wire::Preparation>,
 ) -> Box<[jig_protocol_worker_wire::Part]> {
-    use jig_protocol_worker_wire::Part;
-    use temper_protocol_worker_wire as payload;
     let (names, resource) = match &answer.ending {
         hub::Ending::Refused(_) => return Box::new([]),
         hub::Ending::Ended { work, .. } | hub::Ending::Parked { work } => (work, None),
@@ -130,6 +128,44 @@ pub fn answer_parts(
             (work, resource)
         }
     };
+    resource_parts(names, resource, work, preparation)
+}
+
+/// Encode a job's application parts under precisely the tokens its ending names.
+#[must_use]
+pub(crate) fn job_answer_parts(
+    answer: &hub::JobEnding,
+    work: &temper_worker_domain::wire::Work,
+    preparation: Option<&temper_worker_domain::wire::Preparation>,
+) -> Box<[jig_protocol_worker_wire::Part]> {
+    let (names, resource) = match answer {
+        hub::JobEnding::Refused(_) => return Box::new([]),
+        hub::JobEnding::Finished { work, .. } => (work, None),
+        hub::JobEnding::Failed { failure, work, .. } => (
+            work,
+            match failure {
+                hub::JobFailure::Unprepared(hub::Preparation::Permanent { resource }) => *resource,
+                hub::JobFailure::Unprepared(hub::Preparation::Transient)
+                | hub::JobFailure::Failed
+                | hub::JobFailure::Deadline
+                | hub::JobFailure::Result
+                | hub::JobFailure::Unstarted
+                | hub::JobFailure::Undelivered(_)
+                | hub::JobFailure::Cancelled(_) => None,
+            },
+        ),
+    };
+    resource_parts(names, resource, work, preparation)
+}
+
+fn resource_parts(
+    names: &hub::Work,
+    resource: Option<Token>,
+    work: &temper_worker_domain::wire::Work,
+    preparation: Option<&temper_worker_domain::wire::Preparation>,
+) -> Box<[jig_protocol_worker_wire::Part]> {
+    use jig_protocol_worker_wire::Part;
+    use temper_protocol_worker_wire as payload;
     let mut parts = List::with_capacity(3);
     let (left, saved) = crate::translate::work(work);
     if let Some(token) = names.left {

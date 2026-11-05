@@ -11,13 +11,13 @@ pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
 pub(super) const SEED: u64 = 9761;
 pub(super) const REASON: &str = "Explain running work\ntemper enforces: running work stays on its revision\nyour agents follow: push early, in charter 1";
-// Stock has five charters, fourteen grants and eight executor kinds. The
+// Stock has six charters, fourteen grants and nine executor kinds. The
 // stories need three simultaneous chats, one extra charter, and their replies.
-const CHARTERS: u32 = 6;
+const CHARTERS: u32 = 7;
 const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
-const EXECUTORS: u32 = 9; // Eight stock kinds and the removable world's charter.
+const EXECUTORS: u32 = 10; // Nine stock kinds and the removable world's charter.
 const RUN_BYTES: u32 = 16_384;
 const TRANSCRIPT_BYTES: u32 = 32_768;
 const MESSAGE_BYTES: u32 = 512;
@@ -80,6 +80,31 @@ pub(super) fn limits() -> engine::Limits {
     limits.loads.reply_bytes = 65_536;
     limits.journal.writes = temper_engine_domain_world::journal_limits::TREE_WRITES;
     limits
+}
+
+/// Two projects retain distinct repositories; only the caller's is discoverable.
+pub(super) fn repository_projects() -> World {
+    let mut config = config();
+    let other = core::SeedProject {
+        number: 2,
+        name: "Other project".into(),
+        policy: config.core.seed_projects[0].policy.clone(),
+    };
+    let mut projects = config.core.seed_projects.into_vec();
+    projects.push(other);
+    config.core.seed_projects = projects.into_boxed_slice();
+    let mut owners = config.core.owners.into_vec();
+    let mut owner = owners[1].clone();
+    owner.project = 2;
+    owners.push(owner);
+    config.core.owners = owners.into_boxed_slice();
+    let mut bounds = limits();
+    bounds.authority.segments = 8; // A charter document names a six-segment forge branch.
+    bounds.authority.projects = 2;
+    bounds.people.projects = 3; // Two projects and the deployment roster.
+    bounds.people.initial_owners = 3;
+    bounds.people.holdings = 4; // The owner holds deployment and both projects.
+    World::with_limits(config, &bounds)
 }
 
 pub(super) fn member_config() -> engine::Config {

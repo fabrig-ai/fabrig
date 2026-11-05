@@ -393,8 +393,9 @@ An active agent task is one of:
 
 - **idle:** nothing to do until a wake (8.3);
 - **due:** a run is wanted: the first activation, or a wake;
-- **preparing:** its brief is gathering and, if it resumes, its
-  transcript's current window loading (engine.md, 7.1). An amendment or
+- **preparing:** its brief is gathering and its saved transcript window,
+  when present, is loading for a resume or a fresh brief's tail, including
+  a transient retry's tail (engine.md, 7.1). An amendment or
   a cancel that comes meanwhile drops what was gathered and decides
   again; a required section that cannot be gathered sends it back to due
   after a backoff, as no attempt was made;

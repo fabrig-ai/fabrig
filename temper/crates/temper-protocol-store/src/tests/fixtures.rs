@@ -160,7 +160,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(30) {
+    match random.below(32) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -205,6 +205,8 @@ pub fn key(random: &mut Rng) -> top::Key {
             org: random_bytes(random),
             name: random_bytes(random),
         }),
+        30 => top::Key::ProjectFacts { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
+        31 => top::Key::Looked { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         29 => top::Key::LandingLog { repository: repository(random) },
         25 => top::Key::Verification { repository: repository(random), commit: commit(random) },
         26 => top::Key::Setting(top::settings::SettingKey {
@@ -952,12 +954,12 @@ pub fn forge_record() -> top::ForgeRecord {
             email: b"bot@example.com".as_slice().into(),
         },
         asked: true,
-        first: Some(top::FirstIntent {
+        first: Some(top::FirstIntent::Empty(top::EmptyIntent {
             playground: true,
             org: b"playground".as_slice().into(),
             repository: b"widget".as_slice().into(),
             label: b"playground".as_slice().into(),
-        }),
+        })),
     }
 }
 

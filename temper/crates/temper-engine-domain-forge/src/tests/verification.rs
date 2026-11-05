@@ -1071,3 +1071,6 @@ fn retained_tier_runs_survive_later_verdicts_restart_and_shared_change_release()
 
 #[path = "landing_log.rs"]
 mod landing_log_tests;
+
+#[path = "status.rs"]
+mod status_tests;

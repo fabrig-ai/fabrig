@@ -227,7 +227,8 @@ fn review_failure(failure: &host::RunFailure) -> Option<&'static [u8]> {
         host::RunFailure::Policy => Some(b"Review ended without a verdict"),
         host::RunFailure::Budget => Some(b"Review exhausted its run budget without a verdict"),
         host::RunFailure::Exceeded(_) => Some(b"Review exceeded a model call bound without a verdict"),
-        host::RunFailure::Cancelled
+        host::RunFailure::Transcript
+        | host::RunFailure::Cancelled
         | host::RunFailure::Stale
         | host::RunFailure::Limited { .. }
         | host::RunFailure::Refused { .. } => None,

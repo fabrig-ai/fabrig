@@ -1,0 +1,680 @@
+//! The session's settings and project values (temper/docs/design/client/README.md, 5.13).
+use super::{Limits, Request, Side, wire_limits};
+use alloc::boxed::Box;
+use jig_client::{Handle, Latest, Link, Readable, Readout, Told, contract as c};
+use skein_lib::{List, Queue, Reader, Token, Writer};
+use temper_client_protocol_wire::{self as wire, v1 as w};
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "kind 7 holds four independent project choices")]
+pub struct Ways {
+    pub drafts: bool,
+    pub goals: bool,
+    pub changes: bool,
+    pub away: bool,
+    pub way: u32,
+}
+impl Ways {
+    pub const STOCK: Self = Self { drafts: false, goals: false, changes: false, away: false, way: 0 };
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Route {
+    None,
+    Foreman,
+    Up,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Control {
+    Ways,
+    Questions,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Proposed {
+    Ways { project: u32, ways: Ways },
+    Questions { project: u32, route: Route },
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Asked {
+    Ways(Ways),
+    Questions(Route),
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Act {
+    Set { project: u32, asked: Asked },
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Watch {
+    Unknown,
+    Open,
+    Ended,
+}
+#[derive(Debug)]
+pub(super) struct State {
+    proposals: List<ProposalRead>,
+    watch: Watch,
+    document: Option<Box<c::SettingsDocument>>,
+    project: Option<u32>,
+    on_tab: bool,
+    live: bool,
+    ways: Slot,
+    questions: Slot,
+}
+#[derive(Debug)]
+struct ProposalRead {
+    key: u64,
+    pending: Option<Handle>,
+    values: Option<List<Proposed>>,
+    again: bool,
+}
+#[derive(Debug)]
+struct Slot {
+    value: Option<Asked>,
+    pending: Option<Reading>,
+    again: bool,
+    line: Option<(Option<u32>, c::SettingFollows)>,
+    setting: Option<Setting>,
+    refused: Option<c::Refusal>,
+}
+#[derive(Clone, Copy, Debug)]
+struct Reading {
+    handle: Handle,
+    project: u32,
+    publish: bool,
+}
+#[derive(Debug)]
+struct Setting {
+    request: Token,
+    project: u32,
+    asked: Asked,
+    retried: bool,
+}
+impl Slot {
+    const fn new() -> Self {
+        Self { value: None, pending: None, again: false, line: None, setting: None, refused: None }
+    }
+    fn forget(&mut self) {
+        self.value = None;
+        self.line = None;
+        self.again = true;
+        self.refused = None;
+    }
+}
+impl State {
+    pub fn new() -> Self {
+        Self {
+            proposals: List::with_capacity(super::forges::ROWS),
+            watch: Watch::Unknown,
+            document: None,
+            project: None,
+            on_tab: false,
+            live: false,
+            ways: Slot::new(),
+            questions: Slot::new(),
+        }
+    }
+    fn slot(&self, control: Control) -> &Slot {
+        match control {
+            Control::Ways => &self.ways,
+            Control::Questions => &self.questions,
+        }
+    }
+    fn slot_mut(&mut self, control: Control) -> &mut Slot {
+        match control {
+            Control::Ways => &mut self.ways,
+            Control::Questions => &mut self.questions,
+        }
+    }
+}
+impl Side {
+    /// Kinds 6 and 7 from a proposal's deployment-scoped items read.
+    #[must_use]
+    pub fn proposed(&self, key: u64) -> Option<&[Proposed]> {
+        for read in &self.ways.proposals {
+            if read.key == key {
+                return Some(read.values.as_ref()?.as_slice());
+            }
+        }
+        None
+    }
+
+    #[must_use]
+    pub fn ways(&self, project: u32) -> Option<Ways> {
+        if self.ways.project != Some(project) {
+            return None;
+        }
+        match self.ways.ways.value {
+            Some(Asked::Ways(value)) => Some(value),
+            Some(Asked::Questions(_)) | None => None,
+        }
+    }
+    #[must_use]
+    pub fn questions(&self, project: u32) -> Option<Route> {
+        if self.ways.project != Some(project) {
+            return None;
+        }
+        match self.ways.questions.value {
+            Some(Asked::Questions(value)) => Some(value),
+            Some(Asked::Ways(_)) | None => None,
+        }
+    }
+    #[must_use]
+    pub fn ways_asked(&self, control: Control) -> Option<&Asked> {
+        let pending = self.ways.slot(control).setting.as_ref()?;
+        if self.ways.project == Some(pending.project) { Some(&pending.asked) } else { None }
+    }
+    #[must_use]
+    pub fn ways_refused(&self, control: Control) -> Option<&c::Refusal> {
+        self.ways.slot(control).refused.as_ref()
+    }
+    #[must_use]
+    pub fn settings_handle(&self) -> Handle {
+        handle()
+    }
+}
+pub(crate) fn handle() -> Handle {
+    Handle { asker: crate::owner::Owner::Forge.asker(), number: super::me::SETTINGS }
+}
+pub(crate) fn configure(side: &mut Side, out: &mut Queue<Request>) {
+    if side.link == Link::SignedOut || side.link == Link::OutOfDate {
+        end(side, out);
+        side.ways = State::new();
+        side.changed();
+        return;
+    }
+    if side.party.is_some() && side.ways.watch == Watch::Unknown {
+        side.ways.watch = Watch::Open;
+        out.push(Request::Client {
+            asked: jig_client::Event::Watch {
+                handle: handle(),
+                subject: jig_client::Watchable::Jig(c::Subject::Settings),
+            },
+        });
+        side.changed();
+    }
+}
+pub(crate) fn ended(side: &Side) -> bool {
+    side.ways.watch == Watch::Ended
+}
+fn end(side: &mut Side, out: &mut Queue<Request>) {
+    if side.ways.watch == Watch::Open {
+        out.push(Request::Client { asked: jig_client::Event::Unwatch { handle: handle() } });
+    }
+    side.ways.watch = Watch::Ended;
+    side.ways.document = None;
+}
+
+/// Reconcile the open project and the How work runs tab after every step and fire.
+pub(crate) fn progress(side: &mut Side, open: Option<u32>, on_tab: bool, limits: Limits, out: &mut Queue<Request>) {
+    let open = if side.party.is_some() { open } else { None };
+    if side.ways.project != open {
+        side.ways.project = open;
+        side.ways.ways.forget();
+        side.ways.questions.forget();
+        side.changed();
+    }
+    if on_tab && !side.ways.on_tab {
+        side.ways.questions.again = true;
+    }
+    side.ways.on_tab = on_tab;
+    for control in [Control::Ways, Control::Questions] {
+        let Some(project) = open else { continue };
+        if control == Control::Questions && !on_tab {
+            continue;
+        }
+        let line = line(side.ways.document.as_deref(), project, control);
+        let slot = side.ways.slot_mut(control);
+        if slot.line != line {
+            slot.line = line;
+            slot.again = true;
+        }
+        read(side, control, limits, out);
+    }
+}
+fn line(
+    document: Option<&c::SettingsDocument>,
+    project: u32,
+    control: Control,
+) -> Option<(Option<u32>, c::SettingFollows)> {
+    for line in &document?.settings {
+        if line.setting == setting(project, control) {
+            return Some((line.last, line.follows.clone()));
+        }
+    }
+    None
+}
+fn read(side: &mut Side, control: Control, limits: Limits, out: &mut Queue<Request>) {
+    let Some(project) = side.ways.project else { return };
+    if control == Control::Questions && !side.ways.on_tab {
+        return;
+    }
+    let slot = side.ways.slot(control);
+    if !slot.again || slot.pending.is_some() || side.party.is_none() {
+        return;
+    }
+    let Some(bounds) = wire_limits(&limits) else { return };
+    let value = w::SettingRead::new(&bounds, w::SettingReadParts { kind: kind(control), scope: project, number: 1 })
+        .expect("fixed setting read fits");
+    let record =
+        w::Reading::new(&bounds, w::ReadingParts { read: w::Read::Setting(value) }).expect("setting read fits");
+    side.serial = side.serial.checked_add(1).expect("forge handles fit");
+    let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
+    let slot = side.ways.slot_mut(control);
+    slot.pending = Some(Reading { handle, project, publish: true });
+    slot.again = false;
+    out.push(Request::Client {
+        asked: jig_client::Event::Read {
+            handle,
+            read: Readable::Family {
+                scope: c::Scope::Project(project),
+                window: c::Window { rows: 0, after: None },
+                record: jig_client::Family {
+                    family: wire::FORGE,
+                    version: wire::CLIENT_VERSION,
+                    bytes: wire::reading(&record),
+                },
+            },
+        },
+    });
+}
+pub(crate) fn told(
+    side: &mut Side,
+    client: &jig_client::Client,
+    told: &Told,
+    limits: Limits,
+    out: &mut Queue<Request>,
+) -> bool {
+    match told {
+        Told::Link { link } => {
+            if *link == Link::Live && !side.ways.live {
+                for index in 0..side.ways.proposals.len() {
+                    let read = side.ways.proposals.get_mut(index).expect("bounded proposal read");
+                    read.again = true;
+                    read.values = None;
+                }
+                side.ways.ways.again = true;
+                side.ways.questions.again = true;
+            }
+            side.ways.live = *link == Link::Live;
+            false
+        }
+        Told::Changed { handle: changed } if *changed == handle() => {
+            if side.ways.watch != Watch::Open {
+                return true;
+            }
+            match client.document(*changed) {
+                Some(document) if document.state == jig_client::State::Ended => end(side, out),
+                Some(document) => match document.latest {
+                    Some(Latest::Jig(c::Delivery::Settings(value))) => side.ways.document = Some(value.clone()),
+                    Some(Latest::Jig(_) | Latest::Family(_)) => end(side, out),
+                    None => side.ways.document = None,
+                },
+                None => side.ways.document = None,
+            }
+            side.changed();
+            true
+        }
+        Told::Ended { handle: ended, .. } if *ended == handle() => {
+            end(side, out);
+            side.changed();
+            true
+        }
+        Told::Page { handle, page } => {
+            for index in 0..side.ways.proposals.len() {
+                let read = side.ways.proposals.get_mut(index).expect("bounded proposal read");
+                if read.pending == Some(*handle) {
+                    read.pending = None;
+                    read.values = proposal_values(page, limits);
+                    side.changed();
+                    return true;
+                }
+            }
+            for control in [Control::Ways, Control::Questions] {
+                if let Some(pending) = side.ways.slot(control).pending
+                    && pending.handle == *handle
+                {
+                    let current = side.ways.project == Some(pending.project) && pending.publish;
+                    let slot = side.ways.slot_mut(control);
+                    slot.pending = None;
+                    if current {
+                        slot.value = value(page, control, limits);
+                    }
+                    side.changed();
+                    read(side, control, limits, out);
+                    return true;
+                }
+            }
+            false
+        }
+        Told::Answered { key, outcome } => {
+            for control in [Control::Ways, Control::Questions] {
+                if let Some(pending) = &side.ways.slot(control).setting
+                    && key.asker == crate::owner::Owner::Forge.asker()
+                    && key.number == pending.request.raw()
+                {
+                    answered(side, control, outcome, limits, out);
+                    return true;
+                }
+            }
+            false
+        }
+        Told::Changed { .. }
+        | Told::Ended { .. }
+        | Told::Text { .. }
+        | Told::Pending { .. }
+        | Told::Kept { .. }
+        | Told::Dropped { .. } => false,
+    }
+}
+fn value(page: &Readout, control: Control, limits: Limits) -> Option<Asked> {
+    let bytes = match page {
+        Readout::Family { family, record } if *family == wire::FORGE => match record {
+            Some(record) => wire::decode_setting_answer(record, &wire_limits(&limits)?)?.into_parts().value,
+            None => return None,
+        },
+        Readout::Family { .. } | Readout::Jig(_) | Readout::NotServed { .. } | Readout::Limit => return None,
+    };
+    let Some(bytes) = bytes else {
+        return Some(stock(control));
+    };
+    let mut reader = Reader::new(&bytes);
+    let value = match control {
+        Control::Ways => {
+            let value = w::ProjectWays::decode(&wire_limits(&limits)?, &mut reader).ok()?;
+            Asked::Ways(Ways {
+                drafts: value.drafts(),
+                goals: value.goals(),
+                changes: value.changes(),
+                away: value.away(),
+                way: value.way(),
+            })
+        }
+        Control::Questions => {
+            let value = w::ProjectQuestions::decode(&wire_limits(&limits)?, &mut reader).ok()?.into_parts();
+            Asked::Questions(match value.route {
+                w::QuestionsRoute::None => Route::None,
+                w::QuestionsRoute::Foreman => Route::Foreman,
+                w::QuestionsRoute::Up => Route::Up,
+            })
+        }
+    };
+    if reader.is_empty() { Some(value) } else { None }
+}
+const fn stock(control: Control) -> Asked {
+    match control {
+        Control::Ways => Asked::Ways(Ways::STOCK),
+        Control::Questions => Asked::Questions(Route::None),
+    }
+}
+const fn kind(control: Control) -> u32 {
+    match control {
+        Control::Ways => 7,
+        Control::Questions => 6,
+    }
+}
+const fn setting(project: u32, control: Control) -> c::Setting {
+    c::Setting::Application { kind: kind(control), scope: project, number: 1 }
+}
+const fn control(asked: &Asked) -> Control {
+    match asked {
+        Asked::Ways(_) => Control::Ways,
+        Asked::Questions(_) => Control::Questions,
+    }
+}
+fn bytes(asked: &Asked, limits: Limits) -> Option<Box<[u8]>> {
+    let bounds = wire_limits(&limits)?;
+    Some(match asked {
+        Asked::Ways(value) => {
+            let record = w::ProjectWays::new(
+                &bounds,
+                w::ProjectWaysParts {
+                    skein_bools: [value.drafts, value.goals, value.changes, value.away],
+                    way: value.way,
+                },
+            )
+            .ok()?;
+            let mut writer = Writer::new(usize::try_from(record.measure()).ok()?);
+            record.encode(&mut writer).ok()?;
+            writer.finish()
+        }
+        Asked::Questions(value) => {
+            let record = w::ProjectQuestions::new(
+                &bounds,
+                w::ProjectQuestionsParts {
+                    route: match value {
+                        Route::None => w::QuestionsRoute::None,
+                        Route::Foreman => w::QuestionsRoute::Foreman,
+                        Route::Up => w::QuestionsRoute::Up,
+                    },
+                },
+            )
+            .ok()?;
+            let mut writer = Writer::new(usize::try_from(record.measure()).ok()?);
+            record.encode(&mut writer).ok()?;
+            writer.finish()
+        }
+    })
+}
+pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
+    let Act::Set { project, asked } = act;
+    let control = control(&asked);
+    if side.party.is_none()
+        || side.served == super::Served::OutOfDate
+        || side.ways.project != Some(project)
+        || side.ways.slot(control).setting.is_some()
+    {
+        return;
+    }
+    let Some(document) = &side.ways.document else { return };
+    let newest = document.newest;
+    side.ways.slot_mut(control).refused = None;
+    send(side, Setting { request: Token::new(0), project, asked, retried: false }, newest, limits, out);
+}
+fn send(side: &mut Side, mut pending: Setting, against: u32, limits: Limits, out: &mut Queue<Request>) {
+    let Some(bytes) = bytes(&pending.asked, limits) else { return };
+    let control = control(&pending.asked);
+    let mut items = List::with_capacity(1);
+    items
+        .push(c::SettingItem {
+            setting: setting(pending.project, control),
+            edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }),
+        })
+        .expect("one setting");
+    side.serial = side.serial.checked_add(1).expect("forge requests fit");
+    pending.request = Token::new(side.serial);
+    out.push(Request::Send {
+        request: pending.request,
+        name: None,
+        ask: jig_client::Ask::Jig(Box::new(c::Ask::ChangeSettings(c::ChangeSettings {
+            against,
+            items,
+            running: c::Running::Stays,
+        }))),
+    });
+    side.ways.slot_mut(control).setting = Some(pending);
+    side.changed();
+}
+fn answered(
+    side: &mut Side,
+    control: Control,
+    outcome: &jig_client::Outcome,
+    limits: Limits,
+    out: &mut Queue<Request>,
+) {
+    let Some(mut pending) = side.ways.slot_mut(control).setting.take() else { return };
+    if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+        refusal: c::Refusal::Stale(stale),
+        ..
+    })) = outcome
+        && !pending.retried
+    {
+        pending.retried = true;
+        send(side, pending, stale.newest, limits, out);
+        return;
+    }
+    let current = side.ways.project == Some(pending.project);
+    let slot = side.ways.slot_mut(control);
+    if current {
+        if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, .. })) = outcome {
+            slot.refused = Some(refusal.clone());
+        }
+        if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::SettingsChanged(
+            _,
+        )))) = outcome
+        {
+            slot.value = Some(pending.asked);
+            if let Some(read) = &mut slot.pending {
+                read.publish = false;
+            }
+            slot.again = true;
+        }
+    }
+    read(side, control, limits, out);
+    side.changed();
+}
+
+/// The selected tracked template offered by this project, or the lowest numbered one.
+#[must_use]
+pub fn default_way(me: &c::Me, project: u32, ways: &Ways) -> Option<u32> {
+    let mut first = None;
+    for row in &me.projects {
+        if row.project != project {
+            continue;
+        }
+        for template in &row.templates {
+            if template.tracked.is_some() {
+                if template.number == ways.way {
+                    return Some(template.number);
+                }
+                first = Some(match first {
+                    Some(number) => core::cmp::min(number, template.number),
+                    None => template.number,
+                });
+            }
+        }
+    }
+    first
+}
+
+/// Reconcile only proposals on the current chat or inbox page (client/README.md, 5.13).
+pub(crate) fn proposals(
+    side: &mut Side,
+    cards: Option<&List<crate::pages::inbox::Card>>,
+    limits: Limits,
+    out: &mut Queue<Request>,
+) {
+    let Some(cards) = cards else { return };
+    let skip = cards.len().saturating_sub(super::forges::ROWS);
+    for card in cards.iter().skip(usize::try_from(skip).expect("bounded cards")) {
+        let (key, items) = if let Some(c::ReadValue::Proposal(proposal)) = &card.page {
+            let c::ProposalAction::Settings(settings) = &proposal.action else { continue };
+            (proposal.key.number, &settings.items)
+        } else if let Some(c::ReadValue::Ended(ended)) = &card.page {
+            let c::EndedValue::Proposal(proposal) = &ended.value else { continue };
+            let c::RetainedAction::Settings(settings) = &proposal.action else { continue };
+            (proposal.number, &settings.items)
+        } else {
+            continue;
+        };
+        let mut needed = false;
+        for item in items {
+            if let c::Setting::Application { kind: 6 | 7, .. } = item.setting {
+                needed = true;
+            }
+        }
+        if !needed {
+            continue;
+        }
+        let mut found = None;
+        for (index, read) in side.ways.proposals.iter().enumerate() {
+            if read.key == key {
+                found = Some(u32::try_from(index).expect("bounded proposal index"));
+            }
+        }
+        let index = match found {
+            Some(index) => index,
+            None => {
+                if side.ways.proposals.len() == side.ways.proposals.capacity() {
+                    let old = core::mem::replace(&mut side.ways.proposals, List::with_capacity(super::forges::ROWS));
+                    for (index, read) in old.into_boxed().into_iter().enumerate() {
+                        if index != 0 {
+                            side.ways.proposals.push(read).expect("retained proposals fit");
+                        }
+                    }
+                }
+                let index = side.ways.proposals.len();
+                side.ways
+                    .proposals
+                    .push(ProposalRead { key, pending: None, values: None, again: true })
+                    .expect("bounded proposals");
+                index
+            }
+        };
+        let read = side.ways.proposals.get(index).expect("retained proposal");
+        if !read.again || read.pending.is_some() || side.party.is_none() {
+            continue;
+        }
+        let Some(bounds) = wire_limits(&limits) else { continue };
+        let record = w::Reading::new(
+            &bounds,
+            w::ReadingParts {
+                read: w::Read::ProposalItems(
+                    w::ProposalItemsRead::new(&bounds, w::ProposalItemsReadParts { key }).expect("fixed proposal read"),
+                ),
+            },
+        )
+        .expect("fixed reading");
+        side.serial = side.serial.checked_add(1).expect("forge handles fit");
+        let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
+        let read = side.ways.proposals.get_mut(index).expect("retained proposal");
+        read.pending = Some(handle);
+        read.again = false;
+        out.push(Request::Client {
+            asked: jig_client::Event::Read {
+                handle,
+                read: Readable::Family {
+                    scope: c::Scope::Deployment,
+                    window: c::Window { rows: 1, after: None },
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::reading(&record),
+                    },
+                },
+            },
+        });
+    }
+}
+fn proposal_values(page: &Readout, limits: Limits) -> Option<List<Proposed>> {
+    let Readout::Family { family: wire::FORGE, record: Some(bytes) } = page else { return None };
+    let bounds = wire_limits(&limits)?;
+    let answer = wire::decode_proposal_items_answer(bytes, &bounds)?;
+    let mut values = List::with_capacity(answer.items().len());
+    for item in answer.into_parts().items.into_boxed() {
+        let item = item.into_parts();
+        let control = if item.kind == 6 {
+            Control::Questions
+        } else if item.kind == 7 {
+            Control::Ways
+        } else {
+            continue;
+        };
+        let decoded = match item.edit {
+            w::SettingEdit::Set(set) => {
+                let bytes = wire::setting_answer(
+                    &w::SettingAnswer::new(&bounds, w::SettingAnswerParts { value: Some(set.into_parts().value) })
+                        .ok()?,
+                );
+                value(&Readout::Family { family: wire::FORGE, record: Some(bytes) }, control, limits)?
+            }
+            w::SettingEdit::Removed | w::SettingEdit::Reset => stock(control),
+        };
+        values
+            .push(match decoded {
+                Asked::Ways(ways) => Proposed::Ways { project: item.scope, ways },
+                Asked::Questions(route) => Proposed::Questions { project: item.scope, route },
+            })
+            .expect("one value per item");
+    }
+    Some(values)
+}

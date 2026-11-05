@@ -85,6 +85,7 @@ fn collect(
                     | checkout::git::Op::Fetch { at, .. }
                     | checkout::git::Op::Create { at, .. }
                     | checkout::git::Op::CheckOut { at, .. }
+                    | checkout::git::Op::Look { at, .. }
                     | checkout::git::Op::IsAncestor { at, .. }
                     | checkout::git::Op::Merge { at, .. }
                     | checkout::git::Op::Commit { at, .. }
@@ -106,6 +107,7 @@ fn collect(
             | Request::Decode { .. }
             | Request::Encode { .. }
             | Request::Job { .. }
+            | Request::JobAnswer { .. }
             | Request::Fact { .. }) => panic!("failed prepares have no agent or source requests: {other:?}"),
         }
     }

@@ -285,7 +285,7 @@ fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> Strin
     line
 }
 
-fn note_line(note: temper_service::Note) -> String {
+pub(crate) fn note_line(note: temper_service::Note) -> String {
     match note {
         temper_service::Note::RunFailed(diagnostic) => run_failure_line(
             diagnostic.task,

@@ -383,11 +383,11 @@ pub mod tests {
             &Streams::Pipes { input: Fd::new(3), output: Fd::new(4) },
             VecDeque::from([
                 Action::On { control: b"Settings".to_vec(), words: Vec::new() },
-                Action::On { control: b"Adopt a repository".to_vec(), words: Vec::new() },
+                Action::On { control: b"Repositories".to_vec(), words: Vec::new() },
             ]),
         );
         pipes.bytes.extend_from_slice(
-            b"== Settings for Project 1 == Live\n- [1] Adopt a repository\n== Forges == Live\n[2] Settings\n",
+            b"== How work runs in Project 1. == Live\n- [1] Repositories\n== Where your code lives. == Live\n[2] Settings\n",
         );
         pipes.iterate(Time::ZERO, Wall::EPOCH);
         let write = pipes.submit.pop().expect("Settings command");
@@ -397,7 +397,7 @@ pub mod tests {
         pipes.iterate(Time::ZERO, Wall::EPOCH);
         assert!(pipes.typed.is_none(), "the previous page cannot supply a control after a command");
 
-        let page = b"== Settings for Project 1 == Live\n- [9] Adopt a repository\n";
+        let page = b"== How work runs in Project 1. == Live\n- [9] Repositories\n";
         let read = pipes.submit.pop().expect("stdout read");
         pipes.complete.push(Complete {
             op: read.op,
@@ -406,7 +406,7 @@ pub mod tests {
         });
         pipes.iterate(Time::ZERO, Wall::EPOCH);
         let write = pipes.submit.pop().expect("adoption command");
-        let Op::PipeWrite { bytes, .. } = write.kind else { panic!("Settings' list link must produce a stdin write") };
+        let Op::PipeWrite { bytes, .. } = write.kind else { panic!("Settings' tab link must produce a stdin write") };
         assert_eq!(bytes.as_ref(), b"9\n", "the current Settings page supplies the control");
     }
 }

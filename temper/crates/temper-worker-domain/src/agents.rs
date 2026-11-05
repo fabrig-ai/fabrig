@@ -272,13 +272,19 @@ pub(crate) fn decoded(
             return route::agent_step(domain, env, smith::Input::Parent(spawn));
         }
         Err(invalid) => {
+            let cause = match invalid {
+                host::Undecoded::Transcript => host::StartCause::Transcript,
+                host::Undecoded::Charter | host::Undecoded::CallName | host::Undecoded::Evidence => {
+                    host::StartCause::Other
+                }
+            };
             let why: &[u8] = match invalid {
                 host::Undecoded::Charter => b"charter",
                 host::Undecoded::Transcript => b"transcript",
                 host::Undecoded::CallName => b"call name",
                 host::Undecoded::Evidence => b"delivery evidence",
             };
-            host::FromAgent::StartRefused { owner, cause: host::StartCause::Other, why: Box::from(why) }
+            host::FromAgent::StartRefused { owner, cause, why: Box::from(why) }
         }
     };
     route::host_step(domain, env, host::Event::Agent(event));
@@ -405,7 +411,15 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
     };
     assert!(started || unstarted, "an agent that ran started first");
     if let Some(why) = translate::unstarted(end) {
-        let refused = host::FromAgent::StartRefused { owner, cause: host::StartCause::Other, why: Box::from(why) };
+        let cause = match end {
+            smith::End::Invalid(smith::Invalid::Transcript) => host::StartCause::Transcript,
+            smith::End::Busy
+            | smith::End::Invalid(_)
+            | smith::End::Unspawned
+            | smith::End::Exited { .. }
+            | smith::End::Settled => host::StartCause::Other,
+        };
+        let refused = host::FromAgent::StartRefused { owner, cause, why: Box::from(why) };
         route::host_step(domain, env, host::Event::Agent(refused));
     } else if hand_out_pending(domain, owner) {
         let old = domain.gone.insert(owner, detail).expect("room for every agent's end");

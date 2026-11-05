@@ -1,6 +1,7 @@
 # tasks: status
 
 2026-11-05. Where jig's code lags or departs from [tasks.md](tasks.md).
+Unlisted sections have no known gap.
 
 - **Not yet:** 5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.

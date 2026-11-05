@@ -17,9 +17,8 @@ pub fn page(
     text_limit: u32,
     pending: Option<jig_client::Progress>,
 ) {
-    builder.open(Role::Slot);
-    builder.style(crate::look::PAGEBAR);
     builder.open(Role::Heading { level: 1 });
+    builder.style(crate::look::SETTINGS_HEADLINE);
     let title = match project_name {
         Some(name) => words::say(words, Word::Title, &[Hole::Name(copy_of(name))]),
         None => words::say(words, Word::TitleNumber, &[Hole::Number(u64::from(form.project))]),
@@ -27,11 +26,9 @@ pub fn page(
     builder.name(&title);
     builder.text(skein_ui::Run::Plain, &title);
     builder.close();
-    builder.close();
     builder.open(Role::Region);
     builder.name(&title);
     builder.open(Role::Slot);
-    builder.style(crate::look::CARD);
     for (field, word) in
         [(forge::Text::Forge, Word::Forge), (forge::Text::Owner, Word::Owner), (forge::Text::Name, Word::Name)]
     {
@@ -56,13 +53,14 @@ pub fn page(
     builder.close();
     check(builder, form.home, Word::Home, Meaning::Home, words, bindings);
     builder.open(Role::Slot);
-    builder.style(crate::look::CARD);
     text_field(builder, form, forge::Text::Prefix, Word::Prefix, words, bindings);
     text_field(builder, form, forge::Text::Landing, Word::Landing, words, bindings);
     builder.close();
     check(builder, form.ci, Word::Ci, Meaning::Ci, words, bindings);
     text_field(builder, form, forge::Text::Checks, Word::Checks, words, bindings);
     builder.open(Role::Button);
+    builder.style(crate::look::SETTINGS_BTN);
+    builder.style(crate::look::SETTINGS_PRIMARY);
     builder.name(&words::say(words, Word::Adopt, &[]));
     builder.bind(bindings.insert(Meaning::Adopt));
     if !form.confirmed || form.pending.is_some() || form.served == forge::Served::OutOfDate {
@@ -103,8 +101,8 @@ fn text_field(
 ) {
     let field_state = form.texts.get(field.index()).expect("six fields");
     builder.open(Role::Slot);
-    builder.style(crate::look::CARD);
     builder.open(Role::TextField);
+    builder.style(crate::look::SETTINGS_TEXT);
     builder.name(&words::say(words, word, &[]));
     builder.value(&field_state.text, field_state.written);
     builder.bind(bindings.insert(Meaning::Field(field)));

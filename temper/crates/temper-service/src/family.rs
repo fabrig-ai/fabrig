@@ -67,10 +67,8 @@ pub fn to_root(
                         digest,
                         carried,
                         request: temper_engine_domain::Application::Forge(forge::Ask::SetUp {
-                            playground: value.playground,
                             forge,
-                            org: value.org,
-                            repository: value.repository,
+                            first: setup_first(value.first),
                         }),
                     }));
                 }
@@ -169,6 +167,7 @@ pub fn to_root(
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
                         | w::Request::Dismiss(_)
+                        | w::Request::Looked(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
                         | w::Request::EndPlayground => {
@@ -292,6 +291,17 @@ pub fn to_root(
                         request: root::Application::Dismiss { what },
                     }));
                 }
+                w::Request::Looked(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Looked { project: value.project() },
+                    }));
+                }
                 w::Request::Adopt(value) => value,
             };
             let a = request.into_parts();
@@ -387,6 +397,11 @@ pub fn to_root(
                         scope: jig_domain_people::ApplicationScope::Own,
                         connector: wire::FORGE,
                         subject: Token::new(forge::DISMISSED_SUBJECT),
+                    },
+                    w::Watch::Status(subject) => jig_domain_core::documents::Watched::Application {
+                        scope,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::status_subject(subject.project())),
                     },
                     w::Watch::Change(_) | w::Watch::Landing(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
@@ -756,7 +771,11 @@ pub fn answer(
             forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
         )) => return None,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
-        Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge)) => w::Outcome::ForgeRefused(
+        Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
+        Some(
+            root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge)
+            | root::ApplicationAnswer::Looked(forge::LookedAnswer::TooLarge),
+        ) => w::Outcome::ForgeRefused(
             w::ForgeRefused::new(limits, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).ok()?,
         ),
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(a))) => {
@@ -964,6 +983,11 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
             first: match row.first {
                 Some(first) => Some(first_repository(first, limits)?),
                 None => None,
+            },
+            starts_with: match row.starts_with {
+                forge::StartsWith::Repository => w::StartsWith::Repository,
+                forge::StartsWith::Copies { addresses } => w::StartsWith::Copies(copy_addresses(addresses, limits)?),
+                forge::StartsWith::Nothing => w::StartsWith::Nothing,
             },
             installations: forge_installations(row.installations, limits)?,
             ended,
@@ -1238,6 +1262,46 @@ fn admin_stop(stop: forge::AdminStop, limits: &w::Limits) -> Option<w::AdminStop
     })
 }
 
+fn project_status(value: forge::StatusView, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let brief = match value.brief {
+        Some(brief) => Some(
+            w::StatusBrief::new(
+                limits,
+                w::StatusBriefParts {
+                    sentence: brief.sentence,
+                    lede: brief.lede,
+                    at: brief.at.as_nanos(),
+                    landed: brief.landed,
+                },
+            )
+            .ok()?,
+        ),
+        None => None,
+    };
+    let document = w::ProjectStatus::new(
+        limits,
+        w::ProjectStatusParts {
+            project: value.project,
+            landed: value.landed,
+            last_landed: match value.last_landed {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            brief,
+            previous: match value.previous {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            seen: value.seen,
+            queued: value.queued,
+            red: value.red,
+            branch: value.branch,
+        },
+    )
+    .ok()?;
+    Some(wire::project_status(&document))
+}
+
 /// Encode a whole forge document, with deployment addresses at this boundary.
 #[must_use]
 pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
@@ -1291,6 +1355,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
+        forge::Document::Status(value) => project_status(value, limits),
         forge::Document::Changes(value) => changes_panel(value, limits),
         forge::Document::Landings(value) => {
             let mut landings = List::with_capacity(u32::try_from(value.landings.len()).ok()?);
@@ -1623,4 +1688,32 @@ fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
         w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
         w::Read::Playground | w::Read::Deployment => None,
     }
+}
+
+fn setup_first(first: w::SetUpFirst) -> forge::SetUpFirst {
+    match first {
+        w::SetUpFirst::Empty(first) => {
+            let w::FirstEmptyParts { org, repository, playground } = first.into_parts();
+            forge::SetUpFirst::Empty { org, repository, playground }
+        }
+        w::SetUpFirst::Copies(copies) => {
+            let mut addresses = List::with_capacity(copies.addresses().len());
+            for address in copies.into_parts().addresses.into_boxed() {
+                let address = match wire::source::parse(&address) {
+                    Ok(source) => wire::source::address(&source),
+                    Err(_) => address,
+                };
+                addresses.push(address).expect("decoded copy list");
+            }
+            forge::SetUpFirst::Copies { addresses: addresses.into_boxed() }
+        }
+        w::SetUpFirst::Nothing => forge::SetUpFirst::Nothing,
+    }
+}
+fn copy_addresses(addresses: Box<[Box<[u8]>]>, limits: &w::Limits) -> Option<w::CopyAddresses> {
+    let mut list = List::with_capacity(wire::FIRST_COPIES);
+    for address in addresses {
+        list.push(address).ok()?;
+    }
+    w::CopyAddresses::new(limits, w::CopyAddressesParts { addresses: list }).ok()
 }

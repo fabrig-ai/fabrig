@@ -6,6 +6,8 @@ use temper_worker_domain_checkout::git;
 
 const FIRST: &[u8] = b"/fake/first";
 const SECOND: &[u8] = b"/fake/second";
+// The fresh layout has seven kernel operations, through its workspaces open.
+const LAYOUT_STEPS: u8 = 7;
 const CURRENT: &[u8] = b"git version 2.41.0\n";
 const REMOTE: &[u8] = b"https://forge.example.test:8443/acme/app.git";
 
@@ -264,4 +266,30 @@ fn invocation(world: &mut Started, program: &[u8], version: bool, stdout: &[u8],
     world.end(pipes[1]);
     world.exited(child, status);
     world.closed(child, &pipes);
+}
+
+#[test]
+fn a_look_without_a_program_ends_not_holding_the_clone() {
+    let mut started = Started::unstarted();
+    started.component = Component::new(
+        &fixtures::limits(),
+        &fixtures::checkout(),
+        crate::Settings { git: None, ..fixtures::settings() },
+    )
+    .expect("valid");
+    started.component.start(started.now, &mut started.below.out);
+    for _ in 0..LAYOUT_STEPS {
+        started.file_operation();
+        started.complete_ok();
+    }
+    assert_eq!(started.below.out.events.pop(), Some(Event::Started));
+    started.empty_sweep();
+    started.down(Request::Io {
+        owner: fixtures::OWNER,
+        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) },
+        deadline: fixtures::DEADLINE,
+        identity: None,
+    });
+    assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Looked { holds: false })));
+    assert!(started.below.out.io.is_empty());
 }

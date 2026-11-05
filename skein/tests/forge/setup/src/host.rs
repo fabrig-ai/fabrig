@@ -580,38 +580,45 @@ impl HostWorld {
                         if let Some(domain) = &mut self.domain {
                             domain::step(domain, &self.domain_env, event, &mut self.domain_out);
                         } else {
-                            let domain::Event::Call {
-                                reply_to,
-                                user,
-                                repository,
-                                op: domain::api::Op::Read(domain::api::Read::ListingPermission),
-                            } = event
-                            else {
-                                panic!("unexpected repository domain call")
+                            let domain::Event::Call { reply_to, user, repository, op } = event;
+                            let repo = self.repositories.iter().find(|repo| repo.full == repository);
+                            let result = match op {
+                                domain::api::Op::Read(domain::api::Read::Settings) => {
+                                    repo.map_or(Err(domain::api::Error::Missing(domain::api::What::Repository)), |_| {
+                                        Ok(domain::api::Answer::Settings(domain::api::Settings {
+                                            default: b"main".as_slice().into(),
+                                            merge: true,
+                                            rebase: true,
+                                            squash: true,
+                                        }))
+                                    })
+                                }
+                                domain::api::Op::Read(domain::api::Read::ListingPermission) => {
+                                    let id = repo.expect("scenario repository").id;
+                                    let login = &self.forge.forgejo().expect("Forgejo fixture").bot_login;
+                                    let grant = self
+                                        .service
+                                        .setup()
+                                        .find(login)
+                                        .filter(|account| account.id == user)
+                                        .and_then(|account| self.service.setup().collaborator(id, &account.login));
+                                    let permission = match grant {
+                                        None => domain::api::Permission::None,
+                                        Some(skein_forge::forgejo::request::Grant::Read) => {
+                                            domain::api::Permission::Read
+                                        }
+                                        Some(skein_forge::forgejo::request::Grant::Write) => {
+                                            domain::api::Permission::Write
+                                        }
+                                        Some(skein_forge::forgejo::request::Grant::Admin) => {
+                                            domain::api::Permission::Admin
+                                        }
+                                    };
+                                    Ok(domain::api::Answer::Permission(permission))
+                                }
+                                other => panic!("unexpected repository domain call: {other:?}"),
                             };
-                            let id = self
-                                .repositories
-                                .iter()
-                                .find(|repo| repo.full == repository)
-                                .expect("scenario repository")
-                                .id;
-                            let login = &self.forge.forgejo().expect("Forgejo fixture").bot_login;
-                            let grant = self
-                                .service
-                                .setup()
-                                .find(login)
-                                .filter(|account| account.id == user)
-                                .and_then(|account| self.service.setup().collaborator(id, &account.login));
-                            let permission = match grant {
-                                None => domain::api::Permission::None,
-                                Some(skein_forge::forgejo::request::Grant::Read) => domain::api::Permission::Read,
-                                Some(skein_forge::forgejo::request::Grant::Write) => domain::api::Permission::Write,
-                                Some(skein_forge::forgejo::request::Grant::Admin) => domain::api::Permission::Admin,
-                            };
-                            self.domain_out.push(domain::Request::Reply {
-                                to: reply_to,
-                                result: Ok(domain::api::Answer::Permission(permission)),
-                            });
+                            self.domain_out.push(domain::Request::Reply { to: reply_to, result });
                         }
                     }
                     fake::Event::Close => {

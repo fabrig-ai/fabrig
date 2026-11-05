@@ -174,3 +174,77 @@ fn no_secret_is_in_an_adopts_failure_debug() {
     }
     assert!(debug.contains("admin: None"));
 }
+
+fn named_request() -> AdoptRun {
+    let mut run = fixtures::adopt_at(b"Acme/team", b"spec imen");
+    assert_eq!(run.step(Event::Begin), Need::Read(Item::AdminToken));
+    assert_eq!(run.step(Event::Read(Some(secret(fixtures::ADMIN)))), fixtures::send(Request::User));
+    run
+}
+#[test]
+fn adopt_by_path_reads_each_encoded_segment_with_the_admins_token() {
+    use crate::{call::Auth, host::connection::Connection};
+    let need = named_request().step(fixtures::user_event(fixtures::admin()));
+    let Need::Send { request, auth } = need else { panic!("repository request") };
+    assert_eq!(auth, Auth::Token(secret(fixtures::ADMIN)));
+    assert_eq!(
+        request,
+        Request::Repository {
+            at: Repo { owner: b"Acme/team".as_slice().into(), name: b"spec imen".as_slice().into() },
+        }
+        .into()
+    );
+    let settings = super::host::github_settings();
+    let connection = Connection::new(
+        skein_lib::Token::new(1),
+        settings.forges.get(0).expect("Forgejo fixture"),
+        b"kit",
+        &request,
+        &secret(fixtures::ADMIN),
+        &super::host::limits(),
+    )
+    .expect("repository request fits");
+    let call = connection.call.as_ref().expect("unsent request");
+    assert_eq!(call.method, skein_http::Method::Get);
+    assert_eq!(call.target.as_ref(), b"/api/v1/repos/Acme%2Fteam/spec%20imen");
+    let mut authorization = None;
+    for header in &call.headers {
+        if header.name.eq_ignore_ascii_case(b"Authorization") {
+            authorization = Some(header.value.as_ref());
+        }
+    }
+    assert_eq!(authorization, Some(b"token site-admin-token".as_slice()));
+}
+#[test]
+fn a_refused_path_lookup_names_the_given_path() {
+    let mut run = named_request();
+    run.step(fixtures::user_event(fixtures::admin()));
+    assert_eq!(
+        run.step(Event::Reply(Reply::Status(403))),
+        fixtures::named_failure(Stage::Repository, b"Acme/team/spec imen", Why::Refused(403))
+    );
+}
+#[test]
+fn a_path_lookup_uses_the_answers_spelling_for_permission_and_later_failures() {
+    let mut run = named_request();
+    run.step(fixtures::user_event(fixtures::admin()));
+    assert_eq!(
+        run.step(fixtures::repository(81, b"ACME", b"renamed")),
+        fixtures::send(Request::Permission {
+            at: Repo { owner: b"ACME".as_slice().into(), name: b"renamed".as_slice().into() },
+            login: b"kit".as_slice().into(),
+        })
+    );
+    assert_eq!(
+        run.step(fixtures::permission(Permission::Read)),
+        fixtures::send(Request::AddCollaborator {
+            at: Repo { owner: b"ACME".as_slice().into(), name: b"renamed".as_slice().into() },
+            login: b"kit".as_slice().into(),
+            permission: Grant::Write,
+        })
+    );
+    assert_eq!(
+        run.step(Event::Reply(Reply::Status(403))),
+        fixtures::named_failure(Stage::Repository, b"ACME/renamed", Why::Refused(403))
+    );
+}

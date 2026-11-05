@@ -537,10 +537,14 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **On a managed or owned Forgejo** the connector asks for access
   before the adoption's reads: `Adopt { forge, repository }`, through
   the root and the routing, which runs it on the setup's host with the
-  admin's token (`../protocol/forge.md`, 2.6). It makes temper's user a
+  admin's token (`../protocol/forge.md`, 2.6). The repository is the
+  path the request carries, since temper's user may not see it yet. It
+  makes temper's user a
   collaborator with write on the repository, and its hook when the
-  deployment has a webhooks' listener. Done, the adoption reads as any
-  other; refused, the adoption is refused, with the run's failure named.
+  deployment has a webhooks' listener and serves the forge one
+  (`../protocol/setup.md`, 5.5). Done, the adoption reads as any
+  other; refused, the adoption is refused, with the run's failure named
+  (`../protocol/setup.md`, 5.4).
 - **The connector never holds the admin's token,** and the forge
   component never does: the setup's host alone uses it, for reconcile,
   for access at adoption and for the picker's reads (4.3)
@@ -550,7 +554,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
   repairs each one's collaborator and hook (`../protocol/forge.md`,
   2.1).
 - **Elsewhere there is nothing to ask:** on a connected Forgejo a person
-  gives the access, and on GitHub the App's installation does (4.3).
+  gives the access, and on GitHub the App's installation does (4.3). A
+  repository this leaves temper's user only able to read is still
+  adopted, and its answer says so (`../client/README.md`, 4.7).
 
 ### 4.3 What the picker offers
 
@@ -784,6 +790,14 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   releases this wait. A fresh change read refused as busy keeps its timed
   procedure wait; other branch, base and pull read failures retain their
   operation, resource and backend cause in the hold.
+- **Landing subscriptions own watches too:** every live subscription
+  contributes its repository and branch, independently of task names and
+  followed tiers. The complete union counts each resource once. Accepting,
+  replacing or removing a landing subscription rebuilds that union; a shared
+  watch remains until its final owner leaves. Admission checks the branch
+  and the union's resource and repository bounds before retaining the
+  subscription. Restart reconstruction, task-name changes and forge removal
+  use the same union, excluding ended forges.
 
 ### 5.2 Keeping up
 
@@ -953,6 +967,126 @@ it does `Binding` (`../protocol/store.md`, section 2).
   (jig's `domain/connectors.md`, section 2) erases its rows in its
   decision, beside its settings, and marks the subject when any went.
   jig erases no party (`../protocol/store.md`, section 7).
+
+### 5.6 What changed since a person last looked
+
+What a project's Home says of its landings and of the person's last
+look (`../client/README.md`, 3.5): two families of temper's, kept by the
+connector as `Dismissed` is (5.5), and a document computed at its read.
+
+- **`ProjectFacts`,** one row a project that has landed anything, held
+  in memory, restored whole at the restart step, at most
+  `judge_projects`:
+  - `landed`, the count of the changes landed, into every landing
+    branch of the project. A merge to a goal's branch counts: a change
+    that lands on a goal's branch and the goal's own landing on main
+    are two;
+  - `last_landed`, the wall time of the latest, the time of its
+    change's decision;
+  - `brief`, none or what the status agent last wrote (5.7): `sentence`,
+    `lede`, `at` and `landed`, the count it covers.
+
+  A landing is counted in the decision that first logs its change in
+  the landing log (`after-landing.md`, section 10), once a change; the
+  row is saved and the subject `status` marked there. A project with no
+  repository left in `repositories` counts nothing. Past the bound a
+  landing is not counted, as `Landed`'s are not past theirs
+  (`../protocol/store.md`, section 7).
+- **`Looked`,** one row a party and a project, held in memory, restored
+  whole, at most `bindings` times `judge_projects`:
+  - `previous` and `latest`, walls: the end of the sitting before this
+    one, none on a party's first, and this sitting's last look;
+  - `seen`, the `landed` count at `previous`, and `next_seen`, the count
+    at `latest`, which `seen` becomes when `previous` next moves. Both
+    are kept because a sitting's first look must compare what landed
+    with where the person stopped: a `seen` taken at that look would be
+    the count that look reads, and say that nothing landed.
+- **`Looked { project }`** (`../client/README.md`, 4.6) is admitted by
+  the core as `Dismiss` is, the root naming the project as its scope.
+  In the decision, with `now` the wall and `landed` the row's count, 0
+  with no row:
+  - no row, the bound reached: answered too large, nothing written;
+  - no row: `previous` none, `latest` now, `seen` and `next_seen`
+    `landed`;
+  - `latest` under 30 minutes old, or ahead of `now`: `latest` now,
+    `next_seen` `landed`, so a sitting keeps one "last looked";
+  - otherwise a new sitting: `previous` the old `latest`, `seen` the old
+    `next_seen`, `latest` now, `next_seen` `landed`.
+
+  Each saves the row, marks the subject `status` and answers looked, the
+  answer held behind the commit as `Dismiss`'s is and unknown after a
+  restart. The 30 minutes are a constant, `SITTING`.
+- **Its document:** the subject `status`, `status_subject(project)`, one
+  number a project, outside the task numbers as `changes_subject`'s are,
+  of the project's scope. The core's ask for a document names the
+  watcher's party, as for the subject `dismissed` (5.5), and the
+  connector computes it at that read:
+  - `landed`, `last_landed` and `brief`, the row's; 0 and none with no
+    row;
+  - `previous` and `seen`, the party's `Looked`; none and `landed` with
+    no row, so nothing reads as new;
+  - `queued`, the project's changes the subject `changes` counts
+    (`../client/README.md`, 4.6): each in temper's queue, ready or owning
+    its turn, and each in the forge's own merge queue (9.1);
+  - `red`, whether the forge's red record holds for the home
+    repository's landing branch, as that document's `red` for that
+    branch: a live repair of the branch (section 9), or a landing a tier
+    still holds red (`after-landing.md`, 5.3). False with no home;
+  - `branch`, the home repository's landing branch, its default branch
+    (`Repository.settings`); empty with no home.
+
+  It is marked wherever the subject `changes` is (a queue, a branch's
+  red, a merge), and at a look and a brief. A look makes the document
+  again for every watcher of the project's, each its own party's; a
+  subject per party would make the root read the sign-in on every
+  watch (5.5).
+- **Erased with its project,** in the same decision as its dismissals
+  (5.5), the subject marked when any went. jig erases no party, so a
+  `Looked` row stays until its project goes, as `Dismissed` does
+  (`../protocol/store.md`, section 7).
+
+### 5.7 The status agent
+
+The few lines at the top of a project's Home, written by an agent from
+what the engine keeps, at most once a sitting and only with something
+new to say. Its charter is the stock's 9
+(`../protocol/configuration.md`, 13.4).
+
+- **When:** in the decision of a `Looked` that moves `previous` (5.6),
+  with `landed` above the brief's `landed`, the brief over an hour old or
+  none, and no run in flight for the project. A party's first look moves
+  no `previous` and starts none. There are no timers: nobody looking, or
+  nothing landed, spends nothing.
+- **In flight:** `ProjectFacts.running`, none or `{ task, landed, since }`,
+  saved in that decision, `task` none until the root has made it, so a
+  restart keeps it. A run in flight over an hour counts as none, so one
+  that is held or waits on an account never stops the next, and its late
+  result is dropped, as `running` no longer names it.
+- **Made** as a tier run's task is (`after-landing.md`, section 3):
+  `Request::StatusRun { project, words }`; the root makes a procedure task
+  of the project's period, code `STATUS_CODE`, on `repair_seed`, as it has
+  an agent to fund, and answers `Event::StatusTask { project, task }`, or
+  `Event::StatusRefused { project }` with no seed or a refused admission.
+- **Its run:** the procedure's first step delegates to charter 9 with the
+  task's words, unlisted, no person asked (`asks` false), its authority
+  narrowed to no tools, grants, notes or delegation (as a foreman's is,
+  8.11), and no workspace: a run of this charter selects no repository. A
+  project whose policy's delegation doesn't name charter 9 has its
+  delegate refused, which is a refused run. It is kept as a tier run's task
+  is: jig forgets a result only for a person's request.
+- **Its words,** made by the forge, and the root adding the goals, which
+  are core's: the span since the last brief, the landed count, the titles
+  of the changes the landing log holds since the last brief (at most 20),
+  the project's live goals each with its delegates done and total, and the
+  failing tests each tier of the project's repositories holds. They say
+  only what the engine keeps.
+- **Heard** at the procedure's next step, from its inbox, as a foreman's
+  result is (8.11): the report's first paragraph is `sentence`, the rest
+  `lede`, cut by `text::fit` to 200 and 600 bytes, saved to
+  `ProjectFacts.brief` with `at`, the wall, and `landed`, `running`'s, and
+  the subject `status` marked. A failed, cancelled, refused or empty run
+  saves nothing and asks nobody: Home keeps the computed words, and the
+  next chance is the next sitting. The procedure then ends.
 
 ## 6. Effects
 
@@ -2750,6 +2884,21 @@ whole.
 
 ## 20. Open questions
 
+- **"The brief on Home" in Settings** (5.7): the status agent always runs
+  for now; the switch is another plan's. Default: it runs.
+- **What funds a status run** (5.7): a run takes what its project's period has
+  unreserved, and the stock policy's pools are each as large as the period, so
+  once one opens the run is refused, at each sitting of that period
+  (`../client/README.status.md`, 3.5). Either the stock roles' pools leave room,
+  which changes what a person may spend; or a run draws on the pool of whoever
+  looked, which is no party's request; or a charge of its own beside the period.
+  Default: as built, a project whose pools leave funding has the agent's words.
+- **A status run's kept row** (5.7): a task made for the deployment is
+  never forgotten, as jig forgets a result only for a person's request. At
+  most one a sitting and an hour, each small. Default: kept, until jig
+  forgets a deployment's reads.
+- **What lands on a goal's branch and then on main** (5.6) counts twice,
+  each a change landed. Default: so, said here and in the design of Home.
 - **A failed row, dismissed** (4.5; `../draft/repository-copies.md`,
   5.2): no request dismisses one yet; that comes with the sheet that
   shows it. Default: asking for the name again replaces it, and failed

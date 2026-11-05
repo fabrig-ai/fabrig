@@ -231,13 +231,15 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Home { project }` | `/projects/<project>` |
   | `Changes { project }` | `/projects/<project>/changes` |
   | `Settings { project }` | `/projects/<project>/settings` |
+  | `Repositories { project }` | `/projects/<project>/settings/repositories` |
+  | `Builders { project }` | `/projects/<project>/settings/builders` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter }` | `/chats`, and its filter's query |
   | `NewChat` | `/chats/new` |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
-  | `Task { task, filter }` | `/tasks/<task>`, and its plan's filter's query |
+  | `Task { task }` | `/tasks/<task>` |
   | `Adopt { project }` | `/projects/<project>/adopt` |
   | `Welcome { step }` | `/welcome`, and its step's query |
   | `Forges` | `/forges` |
@@ -264,25 +266,26 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   address is replaced with the printed one. It reads numbers, not the
   person's projects: a project the person isn't in shows an empty
   inbox, which its unfiltered address undoes. The inbox's filter, the chats
-  list's and a goal's plan's (below), the welcome's step,
+  list's (below), the welcome's step,
   `ConnectForge`'s choice, `ConnectModel`'s way (below) and
   `Authorize`'s query, kept as it came and never printed again, alone
   are in an address, and another page's query is dropped, `/chats/7?x=1`
   replaced with `/chats/7`.
-- **The chats list's and a goal's plan's filters are their queries,**
+- **The chats list's filter is its query,**
   as the inbox's (the user's pick, 10-23): none for "All", so that
   `/chats` is the list whole; `?state=live` for "Live" and
-  `?state=closed` for "Closed"; a goal's `/tasks/<task>?state=live`
-  for its plan's "Live only" (`README.md`, 5.8). A `state` that
-  doesn't read as one of the page's, `/tasks/9?state=closed` among
-  them, or a field of another name, is dropped, and the address
-  replaced with the printed one. A filter chosen is a move (below).
+  `?state=closed` for "Closed". A `state` that
+  doesn't read as one of the page's, or a field of another name, is dropped,
+  and the address replaced with the printed one. `/tasks/9?state=live` reads as
+  `/tasks/9`. A filter chosen is a move (below).
 - **The goals' filter is its query,** as the chats list's: `/projects/<project>/goals`
   is the list whole; `?state=needs` for "Needs you", `?state=live` for
   "Under way" and `?state=ended` for "Ended"; any other value reads as the
   list whole and prints without it. Choosing one is a move.
 - **The welcome's step is its query:** none for its first step,
-  Welcome, so that `/welcome` is the welcome; `?at=forge`, `?at=model`
+  Welcome, so that `/welcome` is the welcome and decides by the store's
+  state; `?at=welcome` for that step asked by its link, which stays on it
+  unless the state is whole; `?at=forge`, `?at=model`
   and `?at=ready` for the others (`README.md`, 3.5, The welcome). As
   the inbox's filter, an `at` that doesn't read as a step, or a field
   of another name, is dropped, and the address replaced with the
@@ -449,19 +452,30 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   small neutral act and its existing program-name input, labeled "Name".
   The welcome's Model ways sit directly under its lead, without the
   standalone page's holder choice or outer Choose card. Inside a way,
-  its single Back returns to Model Choose. The API key details keep the
+  the foot's Back and a quiet "All ways" return to Model Choose. On the
+  welcome a way is one panel, its field the panel's width; standalone, the
+  API key details keep the
   full-width card with contents limited to 420 px; failure reasons in flow details are red.
+- **The welcome's title,** "Welcome · first run · temper" on every step,
+  whatever its level-1 heading, as Home's is "Home · temper"; the shell's
+  turn, the journeys' print and the gallery's take it from the same rule,
+  `main` styled `temper-welcome`.
+- **The welcome's states' parts,** under `temper.css`'s marker for the
+  welcome, take the greenfield mock's rules at the welcome's tokens: its
+  `.forge-status`, `.spin`, `.acts`, `.panel`, `.away-note`, `.numbered`,
+  `.field-v`, `.cmd` and `.checklist .current .mark`.
 - **The welcome's look** (the user's greenfield pass, 2026-11-04;
-  `README.md`, 3.5 and 5.6), at its own scale, in `temper.css`'s last
-  block, every rule scoped to the welcome's frame
+  `README.md`, 3.5 and 5.6), at its own scale, in a block of its own in
+  `temper.css`, every rule scoped to the welcome's frame
   (`#app:has(> .temper-welcome)`), so that no other page changes: IBM
   Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
   1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
   name in the signal colour (#c2410c). The banner is a top bar, 22 px
   by 32 px, the brand, temper box's line in 14 px muted words, its
   "temper box" ink and bold, and the steps at its right in 14.5 px
-  words, each a numbered 24 px circle, the current one filled ink, a
-  done one ticked green, joined by short hairlines; at 1100 px and
+  words, each a link holding a numbered 24 px circle and its label, the
+  current one filled ink, a done one ticked green, joined by short
+  hairlines, hovered ink; below 760 px only the current label shows; at 1100 px and
   under, temper box's line takes its own row under them. The main is
   one 680 px column: the tagline (14 px) above the level-1 heading
   (32 px, 500),
@@ -506,15 +520,32 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   full width, and the gutters are 16 px in the top bar and 20 px in
   the main. Each act keeps a focus ring.
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after
-  `temper.css`, whose variables and rules it builds on: what the task
-  pages add to the look, as `task.html` draws it in the terminal
-  sheets (`README.md`, 5.8): the result a goal gives as an outlined
-  tag at its card's top, a plan row's spend as a fourth, right-aligned
-  cell, a row's dependency line in small muted words under its name,
-  the list's name shown before its items, and the budget's card as the
-  mockup's side card, its terms and descriptions as its key and value
-  rows. `scripts/bundle.sh` passes the three to `skein-ui-bundle` in
+  `temper.css`, whose variables and rules it builds on: what an agent's
+  task's and a change's pages add to the look, as `task.html` draws it in
+  the terminal sheets (`README.md`, 5.9 and 5.10): a plan row's spend as a
+  fourth, right-aligned cell, a row's dependency line in small muted words
+  under its name, the list's name shown before its items. A goal's page takes
+  nothing from it. `scripts/bundle.sh` passes the three to `skein-ui-bundle` in
   that order.
+- **Settings' look** is the greenfield mock's `settings.html`, its
+  `mock.css` rules taken exactly, values and all (`.col`, `.intro`, `.kicker`,
+  `.headline`, `.lede`, `.tabs`, `.settings`, `.setting`, `.checks`, `.switch`,
+  `.toggle-row`, `.section`, `.section-head`, `.lines`, `.when`, `.band`,
+  `.quiet-band`, `.facts`, `.btn.small`, and their rules at 760 px and under),
+  in `temper.css`, scoped under the project's frame with its `--gf-*` variables,
+  as Home's are, on tokens of its own, `temper-settings*`. A disabled select is
+  faint on no fill. A proposal of settings' card takes the conversation's
+  `.proposal`, with `.proposal.superseded` at `opacity: .5` and `.proposal-state.ok`.
+  The mock's `.proposal-split` is the review page's (`README.md`, 5.13).
+  `Forges` and `Accounts` take the same values on their rows (`README.md`, 3.5,
+  *The rows*): `.lines`' hairline and padding on a `details`, the chevron of
+  `.switcher > summary::after` and, opened, `.setting`, `.btn` and its kinds and
+  `.text`. A control a row shares with `ConnectForge` or the welcome takes them
+  by a rule scoped under the row, so those pages keep their look. `Builders`
+  adds `.empty`, and `Adopt` takes the `.col`, `.text` and `.btn`. No rule
+  under the `--temper-*` tokens reaches these pages: the old rows' and pages'
+  rules go, rather than being overridden. A flow's path takes `Configure`'s
+  crumbs' values, its "‹" alone at 760 px and under.
 - **The project's frame** is the greenfield mock's `home.html`, in
   the welcome's paper, ink and IBM Plex from temper's files
   (`temper.css`, The project's frame): the rail a 232 px column at the
@@ -563,6 +594,18 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.
+- **A goal's look** is the greenfield mock's `goal.html` and its `startSheet`, its
+  `mock.css`'s rules taken exactly: `.col.wide`, `.byline`, `.btn` and its
+  `.primary`, `.quiet`, `.small`, `.rec`, `:disabled`; `.acts`, `.band`, `.goal-head`,
+  `.two`, `.report`, `.side`, `.bar`, `.task-line`, `.sent`, `.composer` and
+  `.composer-hint`, `.typing`, `dialog.sheet` and all under it, `.option`, `.field`,
+  `.text`, `.sheet-error`; at 760 px and under, `.choices` and its `.btn`,
+  `.goal-head h1` and `.two`. They live in `temper.css` under `#app:has(>
+  .temper-rail)`, on the `--gf-*` variables, under the marker `/* ==== ui: goals ====
+  */`, on tokens of their own, `temper-goal*` and `temper-sheet*`. `.acts` keep the
+  `.btn.small` height at phone width, wrapping as drawn; the bands' buttons stack at
+  760 px (`.choices`); the side follows the report at 1000 px and under by `.two`'s
+  wrap, not by a media rule.
 - **Goals' look** is the greenfield mock's `goals.html`, its `mock.css`
   rules taken exactly, values and all (`.col`, `.kicker`, `.headline`,
   `.lede`, `.intro`, `.section`, `.section-head`, `.empty`, `.goal-rows`,
@@ -1139,10 +1182,24 @@ from the engine's own answers, is where the look is tuned.
 | `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
 | `home-with-goals` | `home-at-work`'s deliveries with a goal in the project, so that the rail shows Goals |
 | `home-at-work` | hand-made Home deliveries: one question and three chats, the everyday request's words where the client holds its facts |
+| `home-morning` | hand-made Home deliveries: `ProjectStatus` with everything: a brief above `seen`, a last look nine hours ago, three queued, needs and chats; the mock's morning |
+| `home-computed` | hand-made Home deliveries: `ProjectStatus` with changes landed and no brief: the computed sentence, no lede or byline |
+| `home-last-looked-none` | hand-made Home deliveries: `ProjectStatus` of a party's first look: no "last looked" and nothing new |
+| `home-landing-none` | hand-made Home deliveries: `ProjectStatus` with nothing landed: "Landing: nothing has landed yet" |
+| `home-landing-red` | hand-made Home deliveries: `ProjectStatus` with `red`: " · main red" in the signal's colour |
+| `home-chats-sentence` | hand-made Home deliveries: no goal in the project: Chats' sentence after its rows |
 | `home-needs-several` | hand-made Home deliveries: three needs, the first as a card and the others as rows |
 | `home-nothing-needs` | hand-made Home deliveries: all steps done, no needs and one chat |
 | `home-ready` | hand-made Home deliveries: all three steps done; plain Home |
 | `home-adopting` | hand-made Home deliveries: first adoption in flight; no repository acts |
+| `home-copying` | hand-made Home deliveries: acme/widget copying, acme/other waiting, in intent order |
+| `home-copy-failed` | hand-made Home deliveries: first copy adopted, second failed with the forge’s words and Copy again |
+| `home-copied` | hand-made Home deliveries: both copies adopted, with their source names and the Forgejo explanation |
+| `home-copy-one` | hand-made Home deliveries: one copy adopted, with its singular explanation |
+| `home-copy-offer` | hand-made Home deliveries: both addresses left unasked after a restart, with one filled Copy act |
+| `home-add-repository` | hand-made Home deliveries: connected owned Forgejo with no first repository; Make, Copy and Adopt another |
+| `home-add-repository-sheet` | those deliveries with Make an empty one pressed; the repository sheet open on Home |
+| `home-add-repository-copies` | the same Home sheet opened at Copy a public one, with its addresses |
 | `home-refused` | hand-made Home deliveries: first adoption refused; its words and retry acts |
 | `home-no-repository` | hand-made Home deliveries: no repository or first offer |
 | `home-after-skip` | hand-made Home deliveries: To begin skipped with steps left; plain Home with empty Needs you and Chats |
@@ -1167,6 +1224,38 @@ from the engine's own answers, is where the look is tuned.
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
 | `configure-refused` | the start refused; jig's words below the composer, the words kept |
 | `configure-chat` | the solo world’s T10 as a configuring chat, conversation and proposal in the Settings layout |
+| `configure-chat-proposal` | `configure-chat` with a pending proposal of settings: its title, lines, items and "Accept" |
+| `configure-chat-accepted` | that proposal accepted: "✓ Accepted · new work follows it" |
+| `configure-chat-replaced` | that proposal dimmed, "Replaced by the proposal below", the later one under it |
+| `settings` | hand-made settings deliveries: How work runs with every part of kind 7 shown |
+| `settings-all-hidden` | hand-made settings deliveries: kind 7's stock, the mock's `settings.html?project=hello` |
+| `settings-goals` | hand-made settings deliveries: Goals shown, its ways of working with one the default |
+| `settings-chat-open` | hand-made settings deliveries: a configuring chat open, "Go on" |
+| `settings-drafts-off` | `settings` with "Chats can write drafts" off |
+| `settings-goals-off` | `settings` with Goals hidden: no ways of working, and the rail without "Goals" |
+| `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
+| `settings-away-off` | `settings` with the Away switch hidden |
+| `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
+| `repositories` | the Repositories tab with rows |
+| `repositories-none` | the Repositories tab's quiet band |
+| `forges-in-settings` | `Forges` inside Settings' frame |
+| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot |
+| `forges-empty` | the Forges tab's quiet band, in a world with no forge |
+| `forges-setting-up` | the first run's Forges at step 6: a row setting up |
+| `forges-fetching` | the first run's Forges at step 24: a row fetching Forgejo, its percent in its summary |
+| `forges-fetching-bytes` | the first run's Forges at step 25: a row fetching Forgejo, its bytes in its summary |
+| `forges-failed` | the first run's Forges at step 9: a set up failed, with "Set up again" |
+| `forges-replacing` | the solo world's Forges, a row's Replace open on its private key |
+| `forges-removing` | the first run's Forges at step 7: a row's removal asking first |
+| `accounts-empty` | the Accounts tab's quiet band, in a world with no account |
+| `accounts-states` | the reference world's accounts, a row in each state of a source |
+| `accounts-key` | the reference world's accounts, a row's key field open |
+| `accounts-removing` | the reference world's accounts, an account's removal asking first |
+| `accounts-signing-in` | the reference world's accounts, a row's sign-in under way with its field for the page's address |
+| `accounts-program-needs-sign-in` | the solo world's accounts: a program's login not signed in on its host, with "Check again" |
+| `builders` | the Builders tab, its hosts connected, draining and not connected |
+| `builders-not-owner` | the Builders tab for a person with no role in the deployment |
+| `builders-none` | the Builders tab with no host connected |
 | `configure-chats-tag` | the solo world’s chats with T10 tagged Configuring beside ordinary chats |
 | `chats-solo` | the solo world's chats |
 | `chats-live` | `chats-solo` under "Live" |
@@ -1178,6 +1267,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-working` | a live chat at work: its three dots |
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
+| `chat-change-held` | the first run's chat T1 at step 2, its change held: its one line says so |
 | `chat-goal` | a chat with a goal it started: its one line |
 | `chat-byline-open` | a new chat with its byline pressed: the chooser's panel |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
@@ -1193,33 +1283,67 @@ from the engine's own answers, is where the look is tuned.
 | `needs-held` | a held task's card |
 | `needs-funds` | a held task out of budget: "S of L used." |
 | `needs-plain-words` | a question in no line form: "Reply…" alone |
-| `task-solo-T3` | the solo world's goal T3, its plan and budget |
+| `goal-running` | first-run-projects, running: six of nine tasks in, its report, Left and Risk, the bar, three waiting lines, "6 landed" folded |
+| `goal-needs-funds` | first-run-projects held for funds: "needs funds", its band with Release and Leave held |
+| `goal-needs-question` | welcome-stall with an open question: its band and its parsed choices, the recommended one primary |
+| `goal-planning` | forge-cards, no report and no tasks: the planning words, the dots and "Proposing tasks from the draft…" |
+| `goal-paused` | first-run-projects paused by the person: "paused by you", Resume |
+| `goal-landed` | pane-chat-line landed: its result, "Landed at 01:12.", no acts and no composer |
+| `goal-landed-open` | `goal-landed` with "N landed" pressed: its rows under it |
+| `goal-stopped` | welcome-stall stopped: "Stopped by you…", "Stopped before it landed." |
+| `goal-failed` | forge-cards failed: "Failed: " and its reason, "Failed before it landed." |
+| `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks landed.", no byline |
+| `goal-amending` | `goal-running` with Amend pressed: the editor, between the header and the report |
+| `goal-stop-dialog` | `goal-running` with Stop pressed: its confirmation |
+| `goal-toast` | `goal-running` paused, its toast showing |
+| `goal-sending` | `goal-running` with the person's words sent and one being sent, the composer holding its next words |
+| `start-goal` | Goals with "Start one from a draft" pressed: the sheet with no draft, its Draft field and two ways |
+| `start-goal-draft` | the sheet opened with first-run-projects.md, its name and its default way |
+| `start-goal-refused` | `start-goal-draft` after a refused start: `.sheet-error` in jig's words |
+| `task-solo-T3` | the solo world's goal T3, on `goal.html`'s page |
 | `accounts-solo` | the solo world's accounts |
 | `chats-first-run-1` | the first run's Chats at step 1: an empty list |
 | `welcome-first-run-0` | the first run's welcome: its two cards |
+| `welcome-go-on` | Welcome asked for with a real forge under way: Go on setting up, no playground |
 | `connect-forge-first-run-6` | the first run's `ConnectForge` at step 6: Forgejo here setting up, the box preparing |
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
 | `welcome-forge-choose` | the welcome's Forge choices, before any forge is connected |
 | `welcome-forge-details` | the welcome's Forgejo Details, with organization and repository paired |
+| `welcome-sheet-copies` | Forgejo's sheet with public copy addresses, in the order written |
+| `welcome-sheet-copies-refused` | Forgejo's sheet refuses an invalid copy address above its foot |
+| `welcome-sheet-nothing` | Forgejo's sheet with Nothing for now selected |
+| `welcome-forge-under-way` | the Forge step's status in the column, Each step, and Continue while Forgejo sets up |
+| `welcome-forge-connected` | the Forge step's connected Forgejo and first repository, with Continue |
+| `welcome-forge-github` | the Forge step's accepted GitHub installation, with Continue |
 | `github-app-details` | GitHub's own-App form, with masked key input |
 | `github-install` | GitHub's connected App, installed nowhere yet |
 | `github-picker` | the installation's reached repositories, ready to adopt |
 | `github-adopted` | the adopted GitHub repository and its primary Open act |
-| `welcome-model-choose` | the welcome's Model choices, with ChatGPT sign-in and an API key |
+| `welcome-model-choose` | the welcome's Model choices, ChatGPT and Claude |
 | `welcome-model-forge-under-way` | Model at first run step 6, Forgejo setting up, its Forge pane and Each step |
 | `welcome-model-forge-fetching` | Model at first run step 6, Forgejo fetching at 42%, its bar filled and the figure at its end |
 | `welcome-model-forge-fetching-bytes` | Model at first run step 6, Forgejo fetching with no size, its moving bar and 41 MB at its end |
 | `welcome-model-forge-done` | Model at first run step 7, Forgejo connected, its marked Forge pane without Each step |
 | `welcome-model-forge-failed` | Model at first run step 9, Forgejo failed, its Forge pane and Each step |
+| `welcome-model-claude` | Claude’s welcome command and I’ve signed in, with no Name field |
+| `welcome-model-claude-checking` | the declaration or host check under way, its note and spinner |
+| `welcome-model-claude-not-yet` | the settled check without a usable login, its alert and another check |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
-| `welcome-model-signing-in` | signing in to ChatGPT inside the welcome |
-| `welcome-model-signin-ready` | ChatGPT Ready with the account's address and Accounts-page line |
+| `welcome-model-connected` | a usable ChatGPT plan, its ticked status and Continue to Ready |
+| `welcome-model-away` | ChatGPT’s sign-in in this tab, its note and folded paste |
+| `welcome-model-signing-in` | the same note while signing in to ChatGPT inside the welcome |
+| `welcome-model-signin-ready` | the connected state after signing in to ChatGPT |
 | `welcome-model-declined`, `welcome-model-renewed`, `welcome-model-refused` | the other sign-in endings inside the welcome |
 | `welcome-paste-waiting`, `welcome-paste-written` | the elsewhere entry, with an empty or supplied secret address |
 | `welcome-paste-too-long`, `welcome-paste-address`, `welcome-paste-state` | the length and address refusals, ready for a fresh paste |
 | `welcome-paste-sending`, `welcome-paste-finishing` | the finish request in flight, then accepted |
 | `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired` | the restart endings, with no paste field |
 | `welcome-paste-lost`, `welcome-paste-unsent` | the address cleared after a lost or unsent finish request |
+| `welcome-ready-copies` | Ready offers Widget and names the two repositories its act will copy into the project |
+| `welcome-ready-none` | Ready with neither forge nor model, their inline connect links and the offered playground |
+| `welcome-ready-signing` | Ready while ChatGPT signs in, its current checklist ring |
+| `welcome-ready-under-way` | Ready while Forgejo sets up, Forge before Model, Each step and the note below the form |
+| `welcome-ready-adopted` | Ready with Forge and Model connected, the project form and Back to Model |
 | `forge-setup-failed` | the failed setup's reason and neutral retry act |
 | `forges-github-install` | GitHub's Forges row before installation, with its primary Install act |
 | `forge-admin-details` | a managed Forgejo's admin Details, with its first-repository fieldset and legend |
@@ -1229,7 +1353,9 @@ from the engine's own answers, is where the look is tuned.
 | `adoption-refused` | the adoption form after a refusal, its alert |
 | `chats-reference` | the reference world's chats |
 | `chat-reference-T1` | the reference world's chat T1 |
+| `chat-solo-T1` | the solo world's chat T1, closed: no composer and no chooser |
 | `chat-solo-T6` | the solo world's chat T6 |
+| `chat-held-task` | the solo world's chat T10, its proposal's reason saying a task is held |
 | `chat-first-run-2-T1` | the first run's chat T1 at step 2, its change running |
 | `chat-first-run-3-T1` | the first run's chat T1 at step 3, its change landed |
 | `chat-first-run-4-T4` | the first run's chat T4 at step 4, waiting at rest for the person’s words |
@@ -1244,7 +1370,7 @@ from the engine's own answers, is where the look is tuned.
 | `inbox-empty` | nothing needs the person |
 | `chat-closing` | `chat-solo-T6` with Close pressed: its confirmation |
 | `chat-rejecting` | `chat-solo-T10` with Reject pressed: the reason's box |
-| `task-held` | a goal's plan with a held task, Release offered |
+| `task-held` | an agent's task's plan with a held task, Release offered |
 | `task-releasing` | `task-held` with Release pressed: its confirmation |
 | `connect-model-choose` | the offered ways and the owner's holder choice |
 | `connect-model-key-details` | a key's secret field and Add key |
@@ -1258,7 +1384,7 @@ from the engine's own answers, is where the look is tuned.
 | `connect-model-key-lost` | a key request's answer lost, its alert asking for the value again |
 | `task-reference-T28` | the reference world's change T28, queued 2nd after T26 |
 | `task-reference-T24` | the reference world's change T24, landed, its ended task T25 |
-| `task-reference-T12` | the reference world's goal T12, its plan with its ended delegates T13, T14 and T24 |
+| `task-reference-T12` | the reference world's goal T12, its tasks with its ended delegates T13, T14 and T24 folded |
 | `task-solo-T9` | the solo world's agent T9, its run's committed calls and words within the shipped window |
 
 ### 7.3 Its tests

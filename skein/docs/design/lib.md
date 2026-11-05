@@ -761,3 +761,9 @@ What of this document is not built is in [`lib.status.md`](lib.status.md).
   draft asks for it; `lib.status.md` names those it has not reached. The
   stream's records and `Intake` would close the most at once, since every
   head, body and frame passes through them.
+- **Widening's other shapes:** a `u32` written through `.ok()`, `?` or
+  `is_err` can never fail, so `usize_of` (section 6) could take it too, as
+  `len_u64` could `skein-fake-checkout`'s two lengths, should it take
+  `skein-lib`. `lib.status.md` names what stands, and
+  `skein/scripts/old_forms.py`'s `widening` holds the `.expect(..)` form at its
+  floor.

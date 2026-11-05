@@ -24,6 +24,9 @@ pub(super) fn prepare(
     let seed = skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?;
     let mut service = service::startup::worker_alone(part, &files, &agent, runtime, seed)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if crate::workspace_reuse() {
+        service.reuse_workspaces();
+    }
     if let Some(program) = agent.programs.first() {
         if crate::agent::launcher(crate::path(&program.directory)).as_deref() == Some(crate::path(&program.path)) {
             crate::claude_code::place(

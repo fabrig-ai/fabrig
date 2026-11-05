@@ -87,6 +87,57 @@ fn template() -> Template {
 }
 
 #[test]
+fn project_templates_without_overrides_read_current_templates_for_known_and_unknown_projects() {
+    let (mut core, _) = make_tree();
+    core.current.test_templates(Box::new([template()]));
+    for project in [PROJECT, UNKNOWN] {
+        assert_eq!(core.project_templates(project).as_ref(), &[template()], "project {project}");
+    }
+}
+
+fn core_with_template_override() -> Core {
+    let (mut core, limits) = make_tree();
+    core.current.test_templates(Box::new([template()]));
+    core.change_policy(
+        &limits,
+        OWNER,
+        PROJECT,
+        people::PolicyChange::Templates { overrides: Box::new([executor_override(PROJECT)]) },
+    )
+    .expect("configured charter override");
+    core
+}
+
+#[test]
+fn project_templates_apply_only_the_named_projects_overrides() {
+    let core = core_with_template_override();
+    for (project, executor) in
+        [(PROJECT, people::TemplateExecutor::Charter(PROJECT)), (UNKNOWN, people::TemplateExecutor::Chosen)]
+    {
+        assert_eq!(
+            core.project_templates(project).as_ref(),
+            &[Template { executor, ..template() }],
+            "project {project}"
+        );
+    }
+}
+
+#[test]
+fn project_templates_omit_retired_templates_even_with_retained_project_overrides() {
+    let mut core = core_with_template_override();
+    let revision = core.current.newest().checked_add(1).expect("next revision");
+    drop(crate::settings::apply(
+        &mut core.current,
+        &[crate::settings::Item {
+            setting: crate::settings::Setting::Template(PROJECT),
+            edit: crate::settings::Edit::Removed,
+        }],
+        revision,
+    ));
+    assert!(core.project_templates(PROJECT).is_empty());
+}
+
+#[test]
 fn an_override_replaces_only_the_fields_it_names() {
     let empty =
         people::TemplateOverride { template: PROJECT, executor: None, budget: None, deadline: None, priority: None };

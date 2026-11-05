@@ -1,0 +1,8 @@
+{
+  "items": [
+    {
+      "setting": {"kind": "project-ways", "project": 1},
+      "set": {"drafts": true, "goals": true, "changes": true, "away": true, "way": 4}
+    }
+  ]
+}

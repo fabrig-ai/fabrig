@@ -7,7 +7,8 @@ use skein_lib::{Decimal, List, Overflow, Writer};
 /// The document's top level and application members, with values from init's filled document.
 pub fn configuration_reference(init: &[u8], out: &mut Writer) -> Result<(), Overflow> {
     out.put(b"# Configuration\n\nKind: reference\n\nThe configuration document's top level and application members, their bounds and what temper init --box writes.\n")?;
-    render(init, &members::SHAPES, &members::MEMBERS, false, out)
+    render(init, &members::SHAPES, &members::MEMBERS, false, out)?;
+    merge_command(out)
 }
 
 /// The engine and worker members, with values from init's filled document.
@@ -15,6 +16,26 @@ pub fn engine_configuration_reference(init: &[u8], out: &mut Writer) -> Result<(
     out.put(b"# Engine configuration\n\nKind: reference\n\nThe engine and worker configuration members, their bounds and what temper init --box writes.\n")?;
     out.put(b"\nA seeded project's policy must be a number; inline policies are refused.\n")?;
     render(init, &config::members::SHAPES, &config::members::MEMBERS, true, out)
+}
+
+/// The merge command's contract (temper/docs/design/protocol/tooling.md, 4.1).
+fn merge_command(out: &mut Writer) -> Result<(), Overflow> {
+    out.put(b"\n## The merge command\n\n`merge_job` names this command, a path in the repository being merged. It settles the conflicts its project's rules know, with no model, before an agent is asked. temper takes it from the merge in progress: a command file left in conflict, or absent from the merge, is its failure.\n\n- **What it is given:** its arguments, `merge` and the path of `request.json`, which holds `{\"version\":1,\"head\":\"HEAD\",\"base\":\"BASE\"}`: the head merged into, and the commit merged in. Its environment is `PATH` (`")?;
+    out.put(crate::limits::tooling(0).path.as_ref())?;
+    out.put(b"`), `LANG` (`C.UTF-8`), and `HOME` and `TEMPER_JOB`, both the job's directory, which is its working directory too. No credential reaches it. It has ")?;
+    out.put(
+        Decimal::of(
+            crate::limits::MERGE_DEADLINE
+                .as_nanos()
+                .checked_div(skein_lib::Duration::from_secs(1).as_nanos())
+                .expect("one second has nonzero nanoseconds"),
+        )
+        .as_bytes(),
+    )?;
+    out.put(b" seconds.\n- **Where it works:** the repository is the directory of its own name under `TEMPER_JOB`, at the head with the base merged in and not committed; the conflicting files are marked and unmerged in the index (`git diff --name-only --diff-filter=U`).\n- **What it must do:** edit the conflicting files it knows and `git add` each it settles, without committing, aborting the merge or writing another branch; then write `result.json` in `TEMPER_JOB`, at most ")?;
+    out.put(Decimal::of(u64::from(crate::limits::MERGE_RESULT_BYTES)).as_bytes())?;
+    out.put(b" bytes. Where the paths do not fit, it lists those that do, in index order, and adds `\"more\":N`, the count left out. The same head and base must give the same tree.\n- **Exit 0:** `{\"settled\":[PATH]}`, no file left unmerged: temper commits the tree as the merge, with both parents, and pushes it. A file left unmerged or still marked fails the job.\n- **Exit 3:** `{\"settled\":[PATH],\"left\":[PATH]}`, the conflicts it could not settle: nothing is committed or pushed, and an agent resolves them in a merge made afresh, this result in its words.\n- **Any other exit,** or a result missing or past its bound, is the command's failure. A job that fails for good holds the change, as a resolution that fails does.\n")?;
+    Ok(())
 }
 
 fn accepted(path: &str, engine: bool) -> bool {

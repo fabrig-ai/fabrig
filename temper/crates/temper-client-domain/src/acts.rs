@@ -130,8 +130,11 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
             }
         }
         Act::Cancel => pages.confirm = None,
-        Act::MessageWords { .. }
+        Act::FocusComposer
+        | Act::MessageWords { .. }
         | Act::Send
+        | Act::Pause
+        | Act::Resume
         | Act::Stop
         | Act::Close
         | Act::DelegateFate { .. }
@@ -146,15 +149,27 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::MoreGoals
         | Act::GoalsFilter { .. }
         | Act::ChatFilter { .. }
-        | Act::PlanFilter { .. }
         | Act::ClosedChats => unreachable!("chat acts routed to chats"),
-        Act::Switcher(_)
+        Act::OpenStart { .. }
+        | Act::StartDraft { .. }
+        | Act::StartName { .. }
+        | Act::StartWay { .. }
+        | Act::StartCancel
+        | Act::StartGoal
+        | Act::Switcher(_)
         | Act::Needs(_)
         | Act::Choice(_)
         | Act::Accounts(_)
         | Act::ConnectModel(_)
         | Act::MakeDefault
         | Act::AdoptFirst
+        | Act::CopyAgain { .. }
+        | Act::AddOpen { .. }
+        | Act::AddChoose { .. }
+        | Act::AddWrite { .. }
+        | Act::AddClose
+        | Act::AddSubmit
+        | Act::CopyOffered
         | Act::DefaultName { .. }
         | Act::OpenProject { .. }
         | Act::Project { .. }
@@ -189,7 +204,13 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) {
             project,
             on: DecideOn::Proposal {
                 proposal,
-                running: None,
+                running: if let ReadValue::Proposal(proposal) = page
+                    && let contract::ProposalAction::Settings(_) = proposal.action
+                {
+                    Some(contract::Running::Stays)
+                } else {
+                    None
+                },
                 decision: if open.act == ActKind::Accept {
                     Decision::Accepted
                 } else {

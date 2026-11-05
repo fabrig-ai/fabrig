@@ -28,6 +28,8 @@ pub struct Chat {
     pub thread: Thread,
     rows: u32,
     pub words: Box<[u8]>,
+    pub composer_focus: u64,
+    pub settings_proposals: List<c::Proposal>,
     pub pending: List<(Key, Sending)>,
     pub outcome: Option<jig_client::Outcome>,
     pub outcome_kind: Option<Sending>,
@@ -64,6 +66,8 @@ impl Chat {
             thread,
             rows: limits.client.domain.rows,
             words: Box::default(),
+            composer_focus: 0,
+            settings_proposals: List::with_capacity(limits.client.domain.reads),
             pending: List::with_capacity(4),
             outcome: None,
             outcome_kind: None,
@@ -140,6 +144,12 @@ impl Chat {
                 for index in 0..self.cards.len() {
                     let card = self.cards.get_mut(index).expect("bounded card");
                     if card.handle == handle {
+                        if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Proposal(proposal))) = &page
+                            && let c::ProposalAction::Settings(_) = &proposal.action
+                            && settings_snapshot(&self.settings_proposals, proposal.key).is_none()
+                        {
+                            remember_settings(&mut self.settings_proposals, proposal);
+                        }
                         card.page = match page {
                             Readout::Jig(c::ReadResult::Value(value)) => Some(value),
                             Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {
@@ -488,6 +498,12 @@ impl Chat {
         for card in &self.cards {
             let c::ObjectKey::Proposal(key) = card.object else { continue };
             if !task.proposals.as_slice().contains(&key) {
+                if settings_snapshot(&self.settings_proposals, key).is_some() {
+                    if let Some(c::ReadValue::Proposal(_)) = &card.page {
+                        read(card.handle, Some(c::Read::Proposal { proposal: key }), out);
+                    }
+                    continue;
+                }
                 unwatch(card.handle, out);
                 self.departures.push(card.object).expect("removed cards fit their window");
             }
@@ -519,6 +535,15 @@ impl Chat {
                 })
                 .expect("bounded cards");
             read(handle, Some(c::Read::Proposal { proposal: *key }), out);
+        }
+        for card in &self.cards {
+            let c::ObjectKey::Proposal(key) = card.object else { continue };
+            if !task.proposals.as_slice().contains(&key)
+                && settings_snapshot(&self.settings_proposals, key).is_some()
+                && ordered.len() < ordered.capacity()
+            {
+                ordered.push(card.clone()).expect("retained settings cards fit");
+            }
         }
         self.cards = ordered;
     }
@@ -624,6 +649,7 @@ impl Chat {
         out: &mut Queue<Request>,
     ) {
         match act {
+            Act::FocusComposer => self.composer_focus = self.composer_focus.checked_add(1).expect("focus count fits"),
             Act::MessageWords { words } => {
                 if words.len() <= usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("text bound fits") {
                     self.words = words;
@@ -632,13 +658,26 @@ impl Chat {
             Act::Older => ask_activity(&mut self.asking, self.activity, self.thread.older(), out),
             Act::Send => self.send(env, client, Sending::Message, serial, out),
             Act::Stop => self.send(env, client, Sending::Stop, serial, out),
-            Act::Switcher(_)
+            Act::OpenStart { .. }
+            | Act::StartDraft { .. }
+            | Act::StartName { .. }
+            | Act::StartWay { .. }
+            | Act::StartCancel
+            | Act::StartGoal
+            | Act::Switcher(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::Accounts(_)
             | Act::ConnectModel(_)
             | Act::MakeDefault
             | Act::AdoptFirst
+            | Act::CopyAgain { .. }
+            | Act::AddOpen { .. }
+            | Act::AddChoose { .. }
+            | Act::AddWrite { .. }
+            | Act::AddClose
+            | Act::AddSubmit
+            | Act::CopyOffered
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
@@ -653,7 +692,6 @@ impl Chat {
             | Act::MoreGoals
             | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
-            | Act::PlanFilter { .. }
             | Act::ClosedChats
             | Act::Filter { .. }
             | Act::Decide { .. }
@@ -663,6 +701,8 @@ impl Chat {
             | Act::Cancel
             | Act::Close
             | Act::DelegateFate { .. }
+            | Act::Pause
+            | Act::Resume
             | Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked
@@ -783,4 +823,26 @@ fn ask_activity(asking: &mut Asking, handle: Handle, read: Option<c::Read>, out:
     if let Some(read) = read {
         asking.ask(handle, read, out);
     }
+}
+
+#[expect(clippy::manual_find, reason = "the step subset uses an explicit loop rather than a predicate closure")]
+fn settings_snapshot(proposals: &List<c::Proposal>, key: c::ProposalKey) -> Option<&c::Proposal> {
+    for proposal in proposals {
+        if proposal.key == key {
+            return Some(proposal);
+        }
+    }
+    None
+}
+
+fn remember_settings(proposals: &mut List<c::Proposal>, proposal: &c::Proposal) {
+    if proposals.len() == proposals.capacity() {
+        let old = core::mem::replace(proposals, List::with_capacity(proposals.capacity()));
+        for (index, proposal) in old.into_boxed().into_iter().enumerate() {
+            if index != 0 {
+                proposals.push(proposal).expect("retained snapshots fit");
+            }
+        }
+    }
+    proposals.push(proposal.clone()).expect("bounded settings snapshots");
 }
