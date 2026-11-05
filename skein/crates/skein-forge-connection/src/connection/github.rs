@@ -12,7 +12,7 @@ use github::{
 use skein_forge::{decode, github};
 use skein_http::client as http;
 use skein_json::tokenizer;
-use skein_lib::{Env, List, Queue, Secret};
+use skein_lib::{Env, List, Queue, Secret, usize_of};
 
 // Host, User-Agent, Accept, pin, Authorization and Content-Type; HTTP adds Content-Length.
 const HEADERS: u32 = 6;
@@ -131,7 +131,7 @@ impl Exchange {
                 c.set_json_next(request);
             }
             github::decode::Step::Done(github::document::Document::Minted(minted))
-                if minted.token.len() > usize::try_from(env.limits.token_bytes).expect("token bound") =>
+                if minted.token.len() > usize_of(env.limits.token_bytes) =>
             {
                 c.malformed_json(decode::Malformed::Bound { field: b"token" });
             }

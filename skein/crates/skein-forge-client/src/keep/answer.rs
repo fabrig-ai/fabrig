@@ -2,6 +2,7 @@ use super::{
     Alarm, Answer, Box, Commit, Delivery, Domain, Echo, Env, Error, Fresh, Limits, List, Phase, Priority, Progress,
     Queue, Repository, Request, Resource, Scan, Sent, State, Stored, Time, What, api,
 };
+use skein_lib::usize_of;
 
 pub(crate) fn answered_repository(
     d: &mut Domain,
@@ -375,7 +376,7 @@ fn reviews_answered(
     }
 }
 pub(super) fn valid_deliveries(stamps: &[Delivery], cap: u32) -> bool {
-    if stamps.len() > usize::try_from(cap).expect("u32 fits usize") {
+    if stamps.len() > usize_of(cap) {
         return false;
     }
     for (index, stamp) in stamps.iter().enumerate() {

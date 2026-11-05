@@ -7,7 +7,7 @@ use crate::forgejo::{
     time,
 };
 use alloc::boxed::Box;
-use skein_lib::{Decimal, List, Writer};
+use skein_lib::{Decimal, List, Writer, usize_of};
 #[derive(Debug)]
 pub(super) struct Target {
     pub(super) length: usize,
@@ -68,7 +68,7 @@ impl Target {
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
     let mut measure = Target { length: 0, writer: None };
     target(request, &mut measure);
-    if measure.length > usize::try_from(limits.target_bytes).expect("u32 fits") {
+    if measure.length > usize_of(limits.target_bytes) {
         return Err(Refusal::TooLong);
     }
     let mut write = Target { length: 0, writer: Some(Writer::new(measure.length)) };
