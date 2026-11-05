@@ -2,6 +2,7 @@
 
 2026-11-04. Where hearth's code lags or departs from [testing.md](testing.md).
 
+- **Not yet:** 2.9: `testing/hearth-test-fixtures`.
 - **Not yet:** 2.3: the M2 system world joining the builder and the real tree
   helper on one fake machine. 2.5, 2.6: the tree helper's protocol and simulated
   worlds. 2.7: the tree helper's real loop and the process-group stopping test.
