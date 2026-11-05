@@ -5786,9 +5786,11 @@ own tests:
   a chat writes a draft beside its conversation, its bar adds a mode group
   and "Start goal…" after the byline, and the Chats page's lede reads "A chat
   answers a question or changes the code, and can write a draft beside it. A
-  draft becomes a goal for bigger work." It waits for the user's request
-  `ui-chat-draft`. Default: no chat has a draft, and the lede stops at "changes
-  the code."
+  draft becomes a goal for bigger work." On a phone, as the request `ui-phone`
+  of 2026-11-05 has it: Chat and Draft alone, `.seg .split` hidden,
+  `.doc { padding: 24px 20px 60px; border-left: 0 }`. It waits for the user's
+  request `ui-chat-draft`. Default: no chat has a draft, and the lede stops at
+  "changes the code."
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl
   forge list` says them, and Home's second step says a project's while To
