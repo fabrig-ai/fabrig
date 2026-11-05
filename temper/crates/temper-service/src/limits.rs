@@ -349,15 +349,15 @@ const ROOT: Root = Root {
         briefs: 2,
         // Core sections and two charter documents per gather.
         sections: 8,
-        // Parts per section, from the root world.
-        parts: 2,
+        // Task words and contract, requester, and task identity.
+        parts: 3,
         // One section's read bytes: at least the task section's.
         read_bytes: 4608,
         budgets: engine::BriefBudgets {
             // Bytes of each charter document section the forge prepares.
             document: 4096,
             // Task section's bytes: a whole jig small spec (4096) with its contract and
-            // requester lines, so an agent always reads all of what it was asked.
+            // requester and identity lines, so an agent reads all of what it was asked.
             task: 4608,
             // Dependencies section's bytes, from the root world.
             dependencies: 128,
