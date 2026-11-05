@@ -78,14 +78,18 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
 pub(crate) fn render(to: ReplyTo, answer: &engine::CallAnswer, tool: &[u8], max_bytes: u32) -> engine::Event {
     rendered(to, temper_engine_smith::answer_for_tool(answer, tool, max_bytes))
 }
-/// Preserve the proposing task's identity in host feedback.
-pub(crate) fn render_for_task(
+/// Render within the core body and receiving agent allowances, preserving the
+/// proposing task's identity. `max_bytes` excludes the settled call's tool name.
+#[must_use]
+pub fn render_for_task(
     to: ReplyTo,
     answer: &engine::CallAnswer,
     tool: &[u8],
     max_bytes: u32,
     task: u64,
+    receiving_bytes: u32,
 ) -> engine::Event {
+    let max_bytes = max_bytes.min(receiving_bytes);
     if let engine::CallAnswer::Proposed { .. } = answer {
         rendered(to, temper_engine_smith::answer_for_task(answer, tool, max_bytes, task))
     } else {
