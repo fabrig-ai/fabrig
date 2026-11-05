@@ -253,6 +253,16 @@ impl Running {
     }
     #[must_use]
     pub fn start(directory: &Path, program: &str) -> Self {
+        if program == "forgejo" {
+            use std::io::Write;
+            // Override logging without reading the prepared secrets.
+            fs::OpenOptions::new()
+                .append(true)
+                .open(file(directory, 1, temper_forge_setup::place::File::AppIni))
+                .expect("prepared Forgejo configuration")
+                .write_all(b"\n[log]\nMODE = console\nLEVEL = Info\nROUTER = console\n")
+                .expect("Forgejo request logging");
+        }
         let log = directory.join(if program == "forgejo" { "server.log" } else { "runner.log" });
         let output = fs::File::create(&log).expect("log");
         let child = command(directory, program)

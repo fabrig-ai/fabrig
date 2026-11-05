@@ -73,6 +73,7 @@ pub fn answered_chat(words: &[u8], answer: &[u8]) -> Script {
             Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
             Step::See { find: Find::named(skein_ui::Role::TextArea, b"Start a chat"), within: START_WITHIN },
             Step::Type { find: Find::named(skein_ui::Role::TextArea, b"Start a chat"), words: words.into() },
+            Step::Gone { find: Find::text(b"No model yet"), within: START_WITHIN },
             Step::Press { find: Find::named(skein_ui::Role::Button, b"Start") },
             Step::See { find: Find::text(answer), within: START_WITHIN },
         ]),
@@ -651,7 +652,7 @@ impl Person {
                     client.close();
                 }
                 Next::Failed { step, why } => {
-                    self.failed = Some(format!("native person step {step}: {why:?}"));
+                    self.failed = Some(person_failure(step, &why, client));
                 }
             }
             if self.actor.at() != before {
@@ -663,6 +664,61 @@ impl Person {
             self.submissions.push(submit);
         }
     }
+}
+
+fn person_failure(step: u32, why: &skein_fake_person::Why, client: &NativeClient) -> String {
+    let nodes: Vec<_> = client
+        .tree()
+        .nodes()
+        .iter()
+        .map(|node| (node.role, node.name.as_deref().map(String::from_utf8_lossy), &node.states))
+        .collect();
+    format!("native person step {step}: {why:?}; client: {:?}; tree: {nodes:?}", client.pending())
+}
+
+/// A key's acknowledgement can precede the model watch that enables Start.
+pub fn a_chat_waits_for_the_model_watch_before_pressing_start() {
+    let mut actor = skein_fake_person::Person::new(answered_chat(b"Hello", b"answer").steps);
+    let waiting = chat_start_view(false);
+    let mut face = ReplyFace::new(waiting.tree());
+    assert!(matches!(actor.next(&mut face, Time::ZERO), Next::Do(Doing::Go { .. })));
+    assert_eq!(actor.next(&mut face, Time::ZERO), Next::Wait { until: None });
+    assert!(matches!(actor.next(&mut face, Time::ZERO), Next::Do(Doing::Act { act: skein_ui::Act::Input { .. }, .. })));
+    assert!(matches!(actor.next(&mut face, Time::ZERO), Next::Wait { .. }), "Start waits for the model watch");
+    assert_eq!(actor.at(), 3, "the delayed watch keeps the script before Start");
+    let ready = chat_start_view(true);
+    let mut face = ReplyFace::new(ready.tree());
+    assert_eq!(actor.next(&mut face, Time::ZERO), Next::Wait { until: None });
+    assert!(matches!(actor.next(&mut face, Time::ZERO), Next::Do(Doing::Act { act: skein_ui::Act::Press, .. })));
+}
+
+fn chat_start_view(usable: bool) -> skein_ui::View {
+    use skein_ui::{Role, Run, State};
+    let (limits, _) = temper_client_shell_terminal::limits::view(&temper_client_shell_terminal::limits::native())
+        .expect("native view bounds");
+    let mut view = skein_ui::View::new(&limits.tree);
+    let mut builder = view.builder();
+    builder.open(Role::Page);
+    builder.open(Role::TextArea);
+    builder.name(b"Start a chat");
+    builder.bind(skein_ui::Binding { owner: skein_ui::Owner { number: 1 }, token: Token::new(1) });
+    builder.close();
+    builder.open(Role::Button);
+    builder.name(b"Start");
+    builder.bind(skein_ui::Binding { owner: skein_ui::Owner { number: 1 }, token: Token::new(2) });
+    if !usable {
+        builder.state(State::Disabled);
+    }
+    builder.close();
+    if !usable {
+        builder.open(Role::Paragraph);
+        builder.text(Run::Plain, b"No model yet \xc2\xb7 ");
+        builder.close();
+    }
+    builder.close();
+    let mut patches = Queue::with_capacity(limits.tree.patches);
+    view.finish(builder, 1, &mut patches);
+    view
 }
 fn adoption_refusal(tree: &skein_ui::Tree) -> Option<String> {
     let nodes = tree.nodes();
@@ -817,7 +873,7 @@ pub fn adopt_and_start_change(forge: &super::forgejo::Throwaway) -> Script {
 pub fn live_adopt_and_change(forge: &super::forgejo::Throwaway) -> Script {
     let mut script = adopt_and_change(forge);
     for step in &mut script.steps {
-        if let Step::See { within, .. } = step {
+        if let Step::See { within, .. } | Step::Gone { within, .. } = step {
             *within = skein_lib::Duration::from_secs(1_740);
         }
     }

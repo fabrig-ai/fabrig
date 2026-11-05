@@ -117,6 +117,14 @@ fn attach_reads_the_admin_login_and_id() {
     fs::remove_dir_all(fixture.scratch).expect("owner removes scratch");
 }
 #[test]
+fn a_server_log_masks_the_attached_instances_secret() {
+    let fixture = support::attached("kit-owner", 37);
+    fs::write(fixture.scratch.join("server.log"), b"POST /pulls/1/update 200 owner-secret\n").expect("server output");
+    assert_eq!(fixture.instance.server_log().expect("server log"), "POST /pulls/1/update 200 MASKED\n");
+    fixture.instance.stop().expect("stopped");
+    fs::remove_dir_all(fixture.scratch).expect("owner removes scratch");
+}
+#[test]
 fn stopping_an_attached_instance_reaps_the_child_and_keeps_scratch() {
     let fixture = support::attached("kit-owner", 37);
     fixture.instance.stop().expect("stopped");
