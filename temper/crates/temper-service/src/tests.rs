@@ -48,3 +48,5 @@ mod provider;
 mod stock;
 
 mod room;
+
+mod workspace_reuse;

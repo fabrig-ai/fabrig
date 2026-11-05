@@ -7,6 +7,7 @@ mod git;
 mod memory;
 mod merges;
 mod retries;
+mod reuse;
 mod simulation;
 
 mod fuzzy {
