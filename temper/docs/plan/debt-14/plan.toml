@@ -51,6 +51,7 @@ walk = false
 [[question]]
 id = "d008-left"
 text = """D008 asks that no `#[path]` remain in hearth, or that each says why. Three remain, in `hearth/tests/builder/tests/suite/memory.rs` and `hearth/tests/config/tests/suite/memory.rs`, which the request says to leave alone for hearth's memory migration, so `paths` removes the other 22 and leaves D008 open, narrowed to those three, measuring 3. (a) recommended: that stands, and they are paid after the migration, by it or by a later debt round. (b) hearth-memory-1 takes them now, which adds to its scope. Nothing waits on the answer."""
+answer = """(a). The last three `#[path]`s wait for a later round; the memory-test files are free again since hearth round 1 landed. (fabrig/debt, the plan's owner, 11-05)"""
 parts = ["paths"]
 
 [[part]]
