@@ -541,9 +541,9 @@ fn home_reads_its_projects_needs_and_releases_them() {
         assert_eq!(inbox.filter, crate::address::Filter { project: Some(f::PROJECT), kind: None, goal: None });
         let settings = f.root.pages().home().unwrap().settings;
         let chats = f.root.pages().chats().unwrap();
-        assert_eq!(chats.live.number, settings.number + 2);
-        assert_eq!(chats.closed.number, settings.number + 3);
-        assert_eq!(inbox.entries.number, settings.number + 4);
+        assert_eq!(chats.live.asker, crate::owner::Owner::Pages.asker());
+        assert_eq!(chats.closed.number, chats.live.number + 1);
+        assert_eq!(inbox.entries.number, chats.live.number + 2);
         up(&mut f.root, Up::Watched { watch: f.inbox, event: c::WatchEvent::Opened });
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
         let reads = inbox_reads(&out);
@@ -1070,26 +1070,25 @@ fn enter_skipped() -> Fixture {
 fn a_watch_opens_with_the_page_and_closes_with_it() {
     let mut f = fixture();
     let settings = f.root.pages().home().unwrap().settings;
-    let status = jig_client::Handle { number: settings.number + 1, ..settings };
-    assert!(f.root.client().document(status).is_some(), "Home owns its status handle beside settings");
+    let chats = f.root.pages().chats().unwrap();
+    let status = jig_client::Handle { number: chats.live.number - 1, ..chats.live };
+    assert!(f.root.client().document(status).is_some(), "Home owns its status handle before chats");
     for watch in [f.status, f.settings] {
         up(&mut f.root, Up::Watched { watch, event: c::WatchEvent::Opened });
     }
     let out = event(&mut f.root, Event::Went { place: Place::Missing });
-    for expected in [f.status, f.settings] {
-        let mut closes = 0_u32;
-        for request in &out {
-            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
-                request
-                && *watch == expected
-            {
-                closes = closes.checked_add(1).unwrap();
-            }
+    let mut closes = 0_u32;
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+            request
+            && *watch == f.status
+        {
+            closes = closes.checked_add(1).unwrap();
         }
-        assert_eq!(closes, 1);
     }
+    assert_eq!(closes, 1);
     assert!(f.root.client().document(status).is_none());
-    assert!(f.root.client().document(settings).is_none());
+    assert!(f.root.client().document(settings).is_some(), "the session retains settings");
     let out = go(&mut f.root, f::PROJECT);
     assert_ne!(opened(&out, &forge::status::watch(f::PROJECT, &f::limits().forge).unwrap()), Some(f.status));
 }
@@ -1172,11 +1171,10 @@ fn a_second_entry_looks_again() {
     event(&mut f.root, Event::Went { place: Place::Missing });
     let out = looked(&mut f, first, family_answer(w::Outcome::Looked));
     assert_eq!(look_sends(&out), 0, "an answer after leaving sends nothing");
-    for watch in [f.settings, f.status, f.live, f.inbox] {
+    for watch in [f.status, f.live, f.inbox] {
         up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
     }
     let out = go(&mut f.root, f::PROJECT);
-    f.settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
     assert_eq!(look_sends(&out), 0, "the new facts must settle");
     for request in &out {
         if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request {
@@ -1194,12 +1192,11 @@ fn a_second_entry_looks_again() {
         }
     }
     chat_page(&mut f, List::with_capacity(EMPTY), false, None);
-    deliver(
+    let out = deliver(
         &mut f.root,
         f.live,
         c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
     );
-    let out = settings(&mut f, c::SettingFollows::Default);
     assert_eq!(look_sends(&out), 1, "facts={:?}; output={out:?}", home::facts(&f.root, f::PROJECT));
     assert_ne!(look_key(&f), first);
 }
@@ -1281,7 +1278,7 @@ fn a_brief_is_shown_only_above_seen() {
 fn a_watch_that_cannot_be_made_waits_for_reentry() {
     let mut f = fixture();
     event(&mut f.root, Event::Went { place: Place::Missing });
-    for watch in [f.settings, f.status, f.live, f.inbox] {
+    for watch in [f.status, f.live, f.inbox] {
         up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
     }
     let mut limits = f::limits();
@@ -1296,7 +1293,6 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
     let subject = forge::status::watch(f::PROJECT, &f::limits().forge).unwrap();
     assert!(opened(&out, &subject).is_none());
     assert_eq!(home::facts(&f.root, f::PROJECT).status, home::Status::Unknown);
-    f.settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
     assert!(
         opened(&settings(&mut f, c::SettingFollows::Default), &subject).is_none(),
         "a later step cannot retry the watch"

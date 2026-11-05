@@ -221,7 +221,8 @@ fn home_documents_with_status(
     settings_delivered: bool,
     status: Option<&StatusFixture>,
 ) -> (d::Domain, Token) {
-    let (mut root, me_watch, accounts, settings, needs_watch) = f::home_root(rows, dismissed);
+    let (mut root, me_watch, accounts, settings, needs_watch) =
+        f::home_root(&home_limits(), status.is_some_and(|fixture| fixture.goals), rows, dismissed);
     let template_root = f::chat::messaging_root();
     let template_me = template_root.pages().me(template_root.client()).unwrap();
     let mut me = root.pages().me(root.client()).unwrap().clone();
@@ -2339,9 +2340,7 @@ fn goals_takes_chats_place() {
         let row = main_find(view.tree(), Role::Link, b"README \xc2\xb7 needs you");
         assert_eq!(
             crate::act(&mut view, row, Act::Press),
-            Some(d::Action::Pages(d::pages::Act::Go {
-                address: Address::Task { task: 9, filter: d::PlanFilter::All },
-            }))
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Task { task: 9 } }))
         );
         let goals = f::find(view.tree(), Role::Link, b"Goals").unwrap();
         assert!(!subtree(view.tree(), goals)[0].states.as_slice().contains(&skein_ui::State::Current));

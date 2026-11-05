@@ -521,7 +521,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 changes.leave(out);
                 pages.next = pages.next.max(changes.next());
             }
-            pages.home = None;
+            if let Some(home) = pages.home.take() {
+                home.leave(out);
+            }
             if let Some(chats) = pages.chats.take() {
                 pages.next = pages.next.max(chats.leave(out));
             }
@@ -1027,7 +1029,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             changes.leave(out);
             pages.next = pages.next.max(changes.next());
         }
-        pages.home = None;
+        if let Some(home) = pages.home.take() {
+            home.leave(out);
+        }
         if let Some(inbox) = pages.inbox.take() {
             pages.next = pages.next.max(inbox.leave(out));
         }
