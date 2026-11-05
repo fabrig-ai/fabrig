@@ -143,7 +143,7 @@ fn an_authorized_verdict_makes_followups_in_its_result_commit_and_waits_for_them
         choices: Box::new([jig_domain_tasks::Verdict { fields: Box::new([]), code: 7, words: 32, followups: 1 }]),
     };
     assert_eq!(w.make(Party::Person(1), vec![first, task(3, &[1])]), Reply::Made(vec![1, 3]));
-    w.claim(1, 1);
+    w.claim_task(1);
     let mut child = task(2, &[]);
     child.funder = Funder::Task(1);
     child.numbers.budget = 5;
@@ -184,7 +184,7 @@ fn a_verdict_cannot_make_followups_its_contract_did_not_allow() {
         choices: Box::new([jig_domain_tasks::Verdict { fields: Box::new([]), code: 7, words: 32, followups: 0 }]),
     };
     w.make(Party::Person(1), vec![first]);
-    w.claim(1, 1);
+    w.claim_task(1);
     let mut child = task(2, &[]);
     child.funder = Funder::Task(1);
     child.numbers.budget = 5;
@@ -219,11 +219,11 @@ fn a_plan_of_reports_a_choice_and_procedure_tasks_runs_in_dependency_order() {
     assert_eq!(w.make(Party::Person(1), vec![first, choice, procedure, last]), Reply::Made(vec![1, 2, 3, 4]));
     assert!(w.activations.contains(&1));
     assert!(!w.activations.contains(&2) && !w.activations.contains(&3) && !w.activations.contains(&4));
-    w.claim(1, 1);
+    w.claim_task(1);
     w.finish(1);
     w.settle(1);
     assert!(w.activations.contains(&2) && !w.activations.contains(&3));
-    w.claim(2, 2);
+    w.claim_task(2);
     w.terminal(
         2,
         End::Finished {
@@ -247,7 +247,7 @@ fn a_plan_of_reports_a_choice_and_procedure_tasks_runs_in_dependency_order() {
     assert_eq!(w.replies[&key], Reply::Done);
     w.settle(3);
     assert!(w.activations.contains(&4));
-    w.claim(4, 4);
+    w.claim_task(4);
     w.finish(4);
     w.settle(4);
     assert_eq!(w.results.len(), 4);
@@ -376,7 +376,7 @@ fn dependency_order_negative_verdict_starts_but_failure_holds() {
         };
         w.make(Party::Person(1), vec![first, task(2, &[1])]);
         assert!(!w.activations.contains(&2));
-        w.claim(1, 1);
+        w.claim_task(1);
         let result = if fail {
             TaskResult::Failure { reason: Box::new([1]) }
         } else {
@@ -391,7 +391,7 @@ fn dependency_order_negative_verdict_starts_but_failure_holds() {
             assert_eq!(w.record(2).phase, Phase::Held { was: Was::Waiting, why: Hold::Dependency(1), source: None });
         } else {
             w.restart();
-            w.claim(2, 2);
+            w.claim_task(2);
             w.finish(2);
             w.settle(2);
         }
@@ -402,7 +402,7 @@ fn dependency_order_negative_verdict_starts_but_failure_holds() {
 fn ended_dependency_keeps_a_bounded_stub_until_its_last_live_reader_ends() {
     let mut w = World::new(103, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[]), task(2, &[1])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.finish(1);
     w.settle(1);
     assert!(!w.records.contains_key(&Key::Live(1)));
@@ -411,7 +411,7 @@ fn ended_dependency_keeps_a_bounded_stub_until_its_last_live_reader_ends() {
     );
     w.restart();
     assert!(w.records.contains_key(&Key::Stub(1)));
-    w.claim(2, 2);
+    w.claim_task(2);
     w.finish(2);
     w.settle(2);
     assert!(!w.records.contains_key(&Key::Stub(1)));
@@ -425,14 +425,14 @@ fn ended_reference_survives_restart_as_a_stub_until_its_peer_ends() {
     w.make(Party::Task(1), vec![task(2, &[]), task(3, &[])]);
     let reply_to = w.to();
     w.send(Event::Introduce { reply_to, by: 1, left: 2, right: 3 });
-    w.claim(2, 2);
+    w.claim_task(2);
     w.finish(2);
     w.settle(2);
     assert!(w.records.contains_key(&Key::Stub(2)));
     assert_eq!(w.record(3).references.as_ref(), [2]);
     w.restart();
     assert_eq!(w.record(3).references.as_ref(), [2]);
-    w.claim(3, 3);
+    w.claim_task(3);
     w.finish(3);
     w.settle(3);
     assert!(!w.records.contains_key(&Key::Stub(2)));
@@ -555,7 +555,7 @@ fn hold_reasons_survive_restart_and_release_without_losing_task_state() {
 fn releasing_a_held_closing_task_retries_its_unsettled_effects() {
     let mut w = World::new(114, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.finish(1);
     w.send(Event::Hold { task: 1, why: Hold::EffectFailed });
     assert!(matches!(w.record(1).phase, Phase::Held { was: Was::Closing(_), why: Hold::EffectFailed, .. }));
@@ -598,7 +598,7 @@ fn refusals_and_preparation_failure_do_not_spend_tries() {
 fn held_running_task_waits_for_terminal_and_retains_its_hold() {
     let mut w = World::new(6, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.send(Event::Hold { task: 1, why: Hold::Stopped });
     assert!(w.stops.contains(&(1, 1)));
     w.terminal(1, End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false });
@@ -623,11 +623,11 @@ fn held_running_task_waits_for_terminal_and_retains_its_hold() {
 fn corrected_finish_cancels_delegates_and_closes_deepest_first() {
     let mut w = World::new(7, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.make(Party::Task(1), vec![task(2, &[])]);
-    w.claim(2, 2);
+    w.claim_task(2);
     w.make(Party::Task(2), vec![task(3, &[])]);
-    w.claim(3, 3);
+    w.claim_task(3);
     let finish = End::Finished { result: TaskResult::Report { words: Box::new([9]) }, cancel_delegates: false };
     let before = w.records.clone();
     refused(&w.terminal(1, finish), Refusal::LiveDelegates);
@@ -654,11 +654,11 @@ fn corrected_finish_cancels_delegates_and_closes_deepest_first() {
 fn a_cancel_closes_a_tree_of_three_levels_deepest_first_with_runs_live_and_effects_in_flight() {
     let mut w = World::new(71, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.make(Party::Task(1), vec![task(2, &[])]);
-    w.claim(2, 2);
+    w.claim_task(2);
     w.make(Party::Task(2), vec![task(3, &[])]);
-    w.claim(3, 3);
+    w.claim_task(3);
 
     w.terminal(1, End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: true });
     assert!(w.stops.contains(&(2, 2)) && w.stops.contains(&(3, 3)));
@@ -685,7 +685,7 @@ fn a_dependent_starts_only_after_its_dependency_has_closed_and_its_effects_settl
     let mut w = World::new(72, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[]), task(2, &[1])]);
     assert!(w.activations.contains(&1) && !w.activations.contains(&2));
-    w.claim(1, 1);
+    w.claim_task(1);
     w.finish(1);
     assert!(w.closing.contains(&1));
     assert!(!w.activations.contains(&2));
@@ -711,7 +711,7 @@ fn lifetime_tree_limit_survives_delegate_ending() {
 fn invalid_results_spend_invalid_tries_and_refused_held_closing_make_is_atomic() {
     let mut w = World::new(9, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.terminal(
         1,
         End::Finished {
@@ -745,9 +745,9 @@ fn cancelling_unfinished_dependency_siblings_finishes_in_either_settlement_order
     for order in [[2, 3], [3, 2]] {
         let mut w = World::new(11, LIMITS);
         w.make(Party::Person(1), vec![task(1, &[])]);
-        w.claim(1, 1);
+        w.claim_task(1);
         w.make(Party::Task(1), vec![task(2, &[]), task(3, &[2])]);
-        w.claim(2, 2);
+        w.claim_task(2);
         w.observe(jig_tasks_world::referee::Seen::Cancelled { task: 2 });
         w.observe(jig_tasks_world::referee::Seen::Cancelled { task: 3 });
         w.terminal(1, End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: true });
@@ -833,7 +833,7 @@ fn open_discards_every_raw_finish_before_result_judgment() {
     for end in ends {
         let mut w = World::new(326, LIMITS);
         w.make(Party::Person(1), vec![open_task()]);
-        w.claim(1, 1);
+        w.claim_task(1);
         assert_eq!(
             w.terminal_cause(1, end, Cause::Priced { cumulative: 0 }),
             Reply::Acknowledged(jig_domain_tasks::Accepted::New)
@@ -853,7 +853,7 @@ fn open_discards_every_raw_finish_before_result_judgment() {
 fn open_runtime_failures_keep_the_existing_retry_policy() {
     let mut w = World::new(326, LIMITS);
     w.make(Party::Person(1), vec![open_task()]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.terminal(1, End::Failed(Class::Invalid));
     assert_eq!(w.record(1).tries.invalid, 1);
     assert!(matches!(w.record(1).phase, Phase::Active(Active::BackingOff { .. })));
@@ -863,7 +863,7 @@ fn open_runtime_failures_keep_the_existing_retry_policy() {
 fn open_park_keeps_saved_charge_and_delegates_then_cancel_wins() {
     let mut w = World::new(326, LIMITS);
     w.make(Party::Person(1), vec![open_task()]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.make(Party::Task(1), vec![task(2, &[])]);
     let saved = Box::new([jig_domain_tasks::SavedResource { connector: 1, path: Box::new([Box::from([3])]) }]);
     let reply_to = w.to();
@@ -893,7 +893,7 @@ fn open_park_keeps_saved_charge_and_delegates_then_cancel_wins() {
 fn open_still_refuses_bad_saved_work_before_normalizing_a_finish() {
     let mut w = World::new(326, LIMITS);
     w.make(Party::Person(1), vec![open_task()]);
-    w.claim(1, 1);
+    w.claim_task(1);
     let before = w.record(1).clone();
     let reply_to = w.to();
     let call = reply_to.into_token().raw();

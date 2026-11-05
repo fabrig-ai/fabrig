@@ -134,7 +134,7 @@ fn a_queue_circle_lifts_at_its_place_and_counts_its_bound_afresh() {
     assert!(world.record(LATER).hold_wait_since > Some(place));
     world.elapse(Duration::from_secs(5));
     assert_eq!(world.record(WAITER).phase, Phase::Waiting, "the old bound has passed");
-    world.claim(HOLDER, HOLDER);
+    world.claim_task(HOLDER);
     world.finish(HOLDER);
     world.settle(HOLDER);
     assert!(world.record(WAITER).holds_taken);
@@ -494,7 +494,7 @@ fn keeping_the_second_pool_holder_is_refused_naming_the_knot() {
 }
 
 fn finish_task(world: &mut World, number: u64) {
-    world.claim(number, number);
+    world.claim_task(number);
     world.finish(number);
     world.settle(number);
 }
@@ -823,7 +823,7 @@ fn retaining_a_failed_childs_hold_judges_its_roots_queued_delegate() {
     waiter.holdings = Box::new([holding(false)]);
     world.make(Party::Task(ROOT), vec![waiter]);
     let place = world.record(WAITER).hold_wait_since.expect("queued delegate");
-    world.claim(HOLDER, HOLDER);
+    world.claim_task(HOLDER);
     world.terminal(
         HOLDER,
         jig_domain_tasks::End::Finished {

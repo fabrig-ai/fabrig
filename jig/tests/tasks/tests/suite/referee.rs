@@ -405,7 +405,7 @@ fn priced_allocation()
     use jig_tasks_world::{LIMITS, World, task};
     let mut w = World::new(80, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     let before = w.records.clone();
     w.terminal_cause(
         1,
@@ -811,7 +811,7 @@ fn the_world_observes_settings_moves_separately_from_requester_moves() {
     use jig_tasks_world::{EFFORTS, LIMITS, World, charters, task};
     let mut world = World::new(713, LIMITS);
     world.make(Party::Person(1), vec![task(1, &[])]);
-    world.claim(1, 1);
+    world.claim_task(1);
     let mut versions = charters().into_vec();
     let mut newest = versions.clone();
     for charter in &mut newest {
@@ -822,6 +822,6 @@ fn the_world_observes_settings_moves_separately_from_requester_moves() {
     world.send(Event::MoveToNewest { from: Some(1) });
     assert_eq!(world.record(1).settings, SettingsRevision { task: 2, run: Some(1) });
     world.make(Party::Person(1), vec![task(2, &[])]);
-    world.claim(2, 2);
+    world.claim_task(2);
     assert_eq!(world.record(2).settings, SettingsRevision { task: 2, run: Some(2) });
 }

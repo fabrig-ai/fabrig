@@ -1165,6 +1165,11 @@ impl World {
         reply
     }
 
+    /// Claim a task with its own number as the attempt number.
+    pub fn claim_task(&mut self, task: u64) {
+        self.claim(task, task);
+    }
+
     pub fn claim(&mut self, task: u64, attempt: u64) {
         let numbers = self.record(task).numbers;
         let budget = numbers.budget - numbers.spent - numbers.spent_below - numbers.reserved;
@@ -1443,7 +1448,7 @@ fn story_run(seed: u64, w: &mut World, choices: Option<Story>) {
     w.env.now = w.env.now.saturating_add(arrival);
     w.env.wall = Wall::from_nanos(arrival.as_nanos());
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.make(Party::Task(1), vec![task(2, &[]), task(3, &[2])]);
     w.claim_fresh(2);
     let reply_to = w.to();

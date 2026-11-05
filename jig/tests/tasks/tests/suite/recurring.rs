@@ -4,6 +4,11 @@ use jig_domain_tasks::{
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 
+const OCCURRENCE: u64 = 10;
+const OLD_DELEGATE: u64 = 21;
+const OLD_GRANDCHILD: u64 = 23;
+const OCCURRENCE_DELEGATE: u64 = 16;
+
 pub(super) fn recurring(number: u64, overlap: RecurringOverlap) -> New {
     let mut member = task(1, &[]);
     member.numbers.budget = 30;
@@ -32,7 +37,7 @@ fn a_recurring_task_continues_across_a_period_reset() {
     );
     world.open_period(1, 100_000);
     batch(&mut world, 9, 1, 10);
-    world.claim(10, 10);
+    world.claim_task(OCCURRENCE);
     world.terminal(
         10,
         tasks::End::Finished { result: tasks::TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false },
@@ -105,7 +110,7 @@ fn a_recurring_template_waits_for_its_old_batch_before_the_new_period() {
     world.open_period(2, 100_000);
     world.send(Event::TickRecurring { task: 9, period: 2 });
     assert_eq!(world.record(9).recurring.as_ref().expect("template").pending_period, Some(2));
-    world.claim(10, 10);
+    world.claim_task(OCCURRENCE);
     world.terminal(
         10,
         tasks::End::Finished { result: tasks::TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false },
@@ -131,7 +136,7 @@ fn a_standing_task_makes_delegates_across_many_periods_its_allotment_renewed_eac
         assert_eq!(world.record(child).funder, funder);
         assert!(matches!(world.records.get(&Key::Ledger(funder)),
             Some(Stored::Ledger(row)) if row.numbers.budget == 30 && row.numbers.reserved == 30));
-        world.claim(child, child);
+        world.claim_task(child);
         world.terminal_cause(
             child,
             tasks::End::Finished {
@@ -191,13 +196,13 @@ fn a_subscribed_procedure_renews_while_its_old_delegate_remains_live() {
     assert_eq!(world.make(Party::Task(21), vec![old_grandchild]), Reply::Made(vec![23]));
     assert_eq!(world.record(20).made, 2, "old work leaves the fresh period's task allotment alone");
     assert!(matches!(world.records.get(&Key::Ledger(old_source)), Some(Stored::Ledger(row)) if row.made == 3));
-    world.claim(23, 23);
+    world.claim_task(OLD_GRANDCHILD);
     world.terminal(
         23,
         tasks::End::Finished { result: tasks::TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false },
     );
     world.settle(23);
-    world.claim(21, 21);
+    world.claim_task(OLD_DELEGATE);
     world.terminal_cause(
         21,
         tasks::End::Finished { result: tasks::TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false },
@@ -321,7 +326,7 @@ fn recurring_lifetime_funding_exceeds_live_capacity_and_restores_before_retireme
         delegate.authority.budget.spend = 1;
         assert_eq!(world.make(Party::Task(10), vec![delegate]), Reply::Made(vec![child]));
         assert_eq!(world.live(), 3, "simultaneous occupancy fits");
-        world.claim(child, child);
+        world.claim_task(child);
         world.terminal_cause(
             child,
             tasks::End::Finished {
@@ -356,10 +361,10 @@ fn recurring_lifetime_funding_exceeds_live_capacity_and_restores_before_retireme
     delegate.numbers.budget = 1;
     delegate.authority.budget.spend = 1;
     assert_eq!(world.make(Party::Task(10), vec![delegate]), Reply::Made(vec![16]));
-    world.claim(16, 16);
+    world.claim_task(OCCURRENCE_DELEGATE);
     world.finish(16);
     world.settle(16);
-    world.claim(10, 10);
+    world.claim_task(OCCURRENCE);
     world.finish(10);
     world.settle(10);
     world.open_period(2, 100_000);

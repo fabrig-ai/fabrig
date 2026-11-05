@@ -12,7 +12,7 @@ fn delegates() -> World {
 }
 
 fn finish_delegate(world: &mut World) {
-    world.claim(2, 2);
+    world.claim_task(2);
     world.finish(2);
     world.settle(2);
 }
@@ -75,7 +75,7 @@ fn a_moved_delegate_outlives_its_old_root_and_tears_down_cleanly() {
     assert_eq!(world.record(MOVED_DELEGATE).depth, 0);
     assert!(world.record(OLD_ROOT).delegates.is_empty());
     assert!(world.record(OLD_ROOT).references.contains(&MOVED_DELEGATE));
-    world.claim(OLD_ROOT, OLD_ROOT);
+    world.claim_task(OLD_ROOT);
     world.finish(OLD_ROOT);
     world.settle(OLD_ROOT);
     assert_eq!(world.live(), 1);
@@ -101,7 +101,7 @@ fn a_refused_move_keeps_the_old_requesters_delegate_in_the_referee() {
     assert_eq!(world.record(MOVED_DELEGATE).requester, Party::Task(OLD_ROOT));
     assert_eq!(world.referee.expectations().descendants(OLD_ROOT), [OLD_ROOT, MOVED_DELEGATE]);
     finish_delegate(&mut world);
-    world.claim(OLD_ROOT, OLD_ROOT);
+    world.claim_task(OLD_ROOT);
     world.finish(OLD_ROOT);
     world.settle(OLD_ROOT);
     world.complete_cancel();

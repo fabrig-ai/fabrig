@@ -64,7 +64,7 @@ fn unclaimable(world: &mut World) {
 #[test]
 fn a_kept_agents_retry_alarm_leaves_it_idle_without_a_claim() {
     let mut world = pair();
-    world.claim(KEPT, KEPT);
+    world.claim_task(KEPT);
     world.terminal(KEPT, End::Failed(Class::Transient));
     keep(&mut world, false);
     world.advance();
@@ -140,7 +140,7 @@ fn restored_due_and_preparing_kept_agents_resume_idle_without_claims() {
 #[test]
 fn a_restored_kept_backoff_keeps_its_alarm_and_then_becomes_idle() {
     let mut world = pair();
-    world.claim(KEPT, KEPT);
+    world.claim_task(KEPT);
     world.terminal(KEPT, End::Failed(Class::Transient));
     keep(&mut world, false);
     let phase = world.record(KEPT).phase.clone();
@@ -168,7 +168,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
     waiter.holdings = Box::new([holding.clone()]);
     world.make(Party::Task(DEPENDENCY), vec![task(PREREQUISITE, &[]), waiter]);
     keep(&mut world, false);
-    world.claim(PREREQUISITE, PREREQUISITE);
+    world.claim_task(PREREQUISITE);
     world.finish(PREREQUISITE);
     world.settle(PREREQUISITE);
     let place = world.record(WAITER).hold_wait_since;
@@ -211,7 +211,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
     assert_eq!(world.record(WAITER).hold_wait_since, place);
     assert_eq!(world.record(WAITER).hold_bound_since, Some(world.env.wall));
     assert!(world.record(LATER).hold_wait_since > place);
-    world.claim(KEPT, KEPT);
+    world.claim_task(KEPT);
     world.finish(KEPT);
     world.settle(KEPT);
     assert!(world.record(WAITER).holds_taken);

@@ -1,10 +1,9 @@
 use jig_domain_tasks::{self as tasks, Cancel, Event, Operation, Party, Release};
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{PROJECT, LIMITS, Reply, World, task};
 use skein_lib::{Duration, List};
 const ROOT: u64 = 1;
 const CHILD: u64 = 2;
 const REQUESTER: u64 = 9;
-const PROJECT: u32 = 1;
 const FINISH: u64 = 1;
 
 #[test]

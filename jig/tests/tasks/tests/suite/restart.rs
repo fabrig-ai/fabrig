@@ -168,7 +168,7 @@ fn stale_claims_and_replayed_terminal_are_and_do_not_mutate() {
 fn a_crash_before_finished_decision_resumes_current_attempt() {
     let mut w = World::new(24, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     let started = w.record(1).run_since;
     assert!(started.is_some());
     let reply_to = w.to();
@@ -193,7 +193,7 @@ fn a_crash_before_finished_decision_resumes_current_attempt() {
 fn terminal_and_settlement_each_have_a_durable_cut_before_delivery() {
     let mut w = World::new(26, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     let reply_to = w.to();
     w.stage(Event::Activation {
         saved: None,
@@ -228,7 +228,7 @@ fn wall_correction_does_not_move_a_live_backoff_but_restore_reprojects_it() {
     use skein_lib::{Duration, Wall};
     let mut w = World::new(28, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.terminal(1, End::Refused);
     w.env.wall = Wall::from_nanos(Duration::from_secs(100).as_nanos());
     w.advance();
@@ -245,11 +245,11 @@ fn wall_correction_does_not_move_a_live_backoff_but_restore_reprojects_it() {
 fn delegate_cancel_cut_after_durability_stops_adopted_runs_then_closes_deepest() {
     let mut w = World::new(27, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.make(Party::Task(1), vec![task(2, &[])]);
-    w.claim(2, 2);
+    w.claim_task(2);
     w.make(Party::Task(2), vec![task(3, &[])]);
-    w.claim(3, 3);
+    w.claim_task(3);
     w.observe(jig_tasks_world::referee::Seen::Cancelled { task: 2 });
     let reply_to = w.to();
     w.stage(Event::Activation {
@@ -272,7 +272,7 @@ fn delegate_cancel_cut_after_durability_stops_adopted_runs_then_closes_deepest()
 fn dependency_progress_survives_restore_without_loading_retained_ends() {
     let mut w = World::new(29, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[]), task(2, &[]), task(3, &[1, 2])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.finish(1);
     w.settle(1);
     assert_eq!(w.record(3).waiting_on.as_ref(), [2]);
@@ -280,12 +280,12 @@ fn dependency_progress_survives_restore_without_loading_retained_ends() {
     w.restart();
     assert_eq!(w.records, before);
     assert!(!w.activations.contains(&3));
-    w.claim(2, 2);
+    w.claim_task(2);
     w.finish(2);
     w.settle(2);
     assert!(w.record(3).waiting_on.is_empty());
     w.restart();
-    w.claim(3, 3);
+    w.claim_task(3);
     w.finish(3);
     w.settle(3);
     assert_eq!(w.results.len(), 3);
@@ -414,7 +414,7 @@ fn missing_ended_stub_panics_with_record_and_target_after_load() {
     source.make(Party::Task(1), vec![task(2, &[]), task(3, &[])]);
     let reply_to = source.to();
     source.send(Event::Introduce { reply_to, by: 1, left: 2, right: 3 });
-    source.claim(2, 2);
+    source.claim_task(2);
     source.finish(2);
     source.settle(2);
     assert!(source.record(3).references.contains(&2));
@@ -781,7 +781,7 @@ fn retained_llm_choices_must_fit_the_configured_executor_models() {
 fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub() {
     let mut source = World::new(50, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[]), task(2, &[])]);
-    source.claim(1, 1);
+    source.claim_task(1);
     source.finish(1);
     source.settle(1);
     assert!(!source.records.contains_key(&Key::Stub(1)));

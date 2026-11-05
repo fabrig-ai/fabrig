@@ -29,7 +29,7 @@ fn say(world: &mut World, number: u64) {
 fn a_read_fence_takes_only_offered_words() {
     let mut world = World::new(81, LIMITS);
     world.make(Party::Person(9), vec![task(1, &[])]);
-    world.claim(1, 1);
+    world.claim_task(1);
     say(&mut world, 1);
     say(&mut world, 2);
     let before = world.record(1).clone();
@@ -68,7 +68,7 @@ fn a_read_fence_takes_only_offered_words() {
 fn a_parked_chat_wakes_on_its_persons_words() {
     let mut world = World::new(82, LIMITS);
     world.make(Party::Person(9), vec![task(1, &[])]);
-    world.claim(1, 1);
+    world.claim_task(1);
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
     say(&mut world, 1);
     assert!(world.activations.contains(&1));
@@ -153,7 +153,7 @@ fn a_person_answers_one_numbered_question_in_their_active_task() {
     let mut world = World::new(830, LIMITS);
     world.make(Party::Person(9), vec![task(1, &[])]);
     world.make(Party::Task(1), vec![task(2, &[])]);
-    world.claim(1, 1);
+    world.claim_task(1);
     assert!(matches!(task_words(&mut world, 2, 1, 1, MessageKind::Question), Reply::Done));
     let reply_to = world.to();
     let key = reply_to.into_token().raw();
@@ -204,7 +204,7 @@ fn a_coordinator_is_woken_once_by_a_burst() {
     coordinator.wake.words = WakeRule::Batch { count: 3, age: skein_lib::Duration::from_nanos(20) };
     world.make(Party::Person(9), vec![coordinator]);
     world.make(Party::Task(1), vec![task(2, &[])]);
-    world.claim(1, 1);
+    world.claim_task(1);
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
     for number in 1..3 {
         assert!(matches!(task_words(&mut world, 2, 1, number, MessageKind::Words), Reply::Done));
@@ -252,7 +252,7 @@ fn an_inbox_filling_merges_news_refuses_words_and_still_takes_a_result() {
     assert!(
         matches!(task_words(&mut world, 2, 1, 4, MessageKind::Words), Reply::Refused(problem) if problem.why == Refusal::Busy)
     );
-    world.claim(2, 2);
+    world.claim_task(2);
     world.finish(2);
     world.settle(2);
     assert_eq!(world.record(1).inbox.len(), 3);
@@ -268,7 +268,7 @@ fn a_watch_woken_once_by_a_burst_of_news() {
         jig_domain_tasks::Flags { conversation: true, ended_by: jig_domain_tasks::EndedBy::Requester, ..watch.flags };
     watch.wake.news = WakeRule::Batch { count: 2, age: skein_lib::Duration::from_nanos(20) };
     world.make(Party::Person(9), vec![watch]);
-    world.claim(1, 1);
+    world.claim_task(1);
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
     let reply_to = world.to();
     let call = reply_to.into_token().raw();
@@ -316,6 +316,8 @@ fn a_watch_woken_once_by_a_burst_of_news() {
     assert_eq!(world.record(1).last_message, 3);
 }
 
+const NEWS_BATCH_COUNT: u32 = 3;
+
 fn procedure_watch(seed: u64, count: u32, age: u64) -> World {
     let mut world = World::new(seed, LIMITS);
     let mut watch = task(1, &[]);
@@ -361,7 +363,7 @@ fn procedure_news(world: &mut World, number: u64) {
 
 #[test]
 fn a_procedure_woken_once_by_a_burst_of_news_by_count() {
-    let mut world = procedure_watch(861, 3, 20);
+    let mut world = procedure_watch(861, NEWS_BATCH_COUNT, 20);
     for number in 1..3 {
         procedure_news(&mut world, number);
         assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
@@ -382,7 +384,7 @@ fn a_procedure_woken_once_by_a_burst_of_news_by_count() {
 
 #[test]
 fn a_procedure_woken_once_by_a_burst_of_news_by_age() {
-    let mut world = procedure_watch(862, 3, 20);
+    let mut world = procedure_watch(862, NEWS_BATCH_COUNT, 20);
     procedure_news(&mut world, 1);
     world.elapse(skein_lib::Duration::from_nanos(10));
     procedure_news(&mut world, 2);
@@ -402,7 +404,7 @@ fn a_procedure_woken_once_by_a_burst_of_news_by_age() {
 
 #[test]
 fn a_procedures_words_step_it_while_news_waits_for_its_batch() {
-    let mut world = procedure_watch(863, 3, 20);
+    let mut world = procedure_watch(863, NEWS_BATCH_COUNT, 20);
     procedure_news(&mut world, 1);
     assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
     say(&mut world, 2);
@@ -426,7 +428,7 @@ fn procedure_step(
 
 #[test]
 fn a_procedures_step_takes_its_storm_and_a_later_result_steps_it_on_the_result_alone() {
-    let mut world = procedure_watch(864, 3, 20);
+    let mut world = procedure_watch(864, NEWS_BATCH_COUNT, 20);
     world.make(Party::Task(1), vec![task(2, &[])]);
     for number in 1..=3 {
         procedure_news(&mut world, number);
@@ -446,7 +448,7 @@ fn a_procedures_step_takes_its_storm_and_a_later_result_steps_it_on_the_result_a
     assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
     world.restart();
     assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
-    world.claim(2, 2);
+    world.claim_task(2);
     world.finish(2);
     world.settle(2);
     assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
@@ -469,12 +471,12 @@ fn a_procedures_step_takes_its_storm_and_a_later_result_steps_it_on_the_result_a
 
 #[test]
 fn a_result_arriving_after_a_procedures_offer_survives_its_step() {
-    let mut world = procedure_watch(865, 3, 20);
+    let mut world = procedure_watch(865, NEWS_BATCH_COUNT, 20);
     world.make(Party::Task(1), vec![task(2, &[])]);
     for number in 1..=3 {
         procedure_news(&mut world, number);
     }
-    world.claim(2, 2);
+    world.claim_task(2);
     world.finish(2);
     world.settle(2);
     assert_eq!(world.record(1).inbox.len(), 2);
@@ -507,7 +509,7 @@ fn a_result_arriving_after_a_procedures_offer_survives_its_step() {
 
 #[test]
 fn a_refused_procedure_step_takes_nothing_and_restart_offers_the_unread_storm_again() {
-    let mut world = procedure_watch(866, 3, 20);
+    let mut world = procedure_watch(866, NEWS_BATCH_COUNT, 20);
     for number in 1..=3 {
         procedure_news(&mut world, number);
     }
@@ -548,7 +550,7 @@ fn a_refused_procedure_step_takes_nothing_and_restart_offers_the_unread_storm_ag
 
 #[test]
 fn news_arriving_after_a_procedures_offer_waits_for_its_own_batch() {
-    let mut world = procedure_watch(867, 3, 20);
+    let mut world = procedure_watch(867, NEWS_BATCH_COUNT, 20);
     for number in 1..=4 {
         procedure_news(&mut world, number);
     }
@@ -589,7 +591,7 @@ fn the_referee_rejects_a_procedure_keeping_its_prefix_or_taking_later_words() {
         retain_prefix: bool,
         expected: &'static str,
     }
-    let mut world = procedure_watch(868, 3, 20);
+    let mut world = procedure_watch(868, NEWS_BATCH_COUNT, 20);
     for number in 1..=3 {
         procedure_news(&mut world, number);
     }
@@ -654,7 +656,7 @@ fn a_connector_topic_subscription_ends_with_its_task() {
         task: 1,
         subscription: Subscription { number: 10, kind: SubscriptionKind::Topic { connector: 0, topic: 10 } },
     });
-    world.claim(1, 1);
+    world.claim_task(1);
     world.finish(1);
     world.settle(1);
     assert_eq!(world.ended_topics, [(1, 10, 0)]);
@@ -680,7 +682,7 @@ fn only_introduced_peers_can_message_each_other() {
 fn refusal_world(seed: u64) -> World {
     let mut world = World::new(seed, LIMITS);
     world.make(Party::Person(9), vec![task(1, &[])]);
-    world.claim(1, 1);
+    world.claim_task(1);
     say(&mut world, 1);
     say(&mut world, 2);
     world

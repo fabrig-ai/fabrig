@@ -2,10 +2,9 @@ use jig_domain_tasks::{
     self as tasks, Amendment, Cancel, Ending, Event, Executor, Key, MessageKind, Party, PersonAddress, Phase, Problem,
     Refusal, Stored, Word,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{TASK, LIMITS, Reply, World, task};
 use skein_lib::Duration;
 
-const TASK: u64 = 1;
 const DEPENDENCY: u64 = 2;
 const REQUESTER: u64 = 1;
 const HOLDER: u64 = 3;

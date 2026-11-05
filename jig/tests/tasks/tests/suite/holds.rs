@@ -37,7 +37,7 @@ fn two_tasks_want_the_last_slot_of_a_pool_and_the_second_takes_it_as_the_first_c
     assert!(!world.record(2).holds_taken);
     world.restart();
     assert!(!world.record(2).holds_taken);
-    world.claim(1, 1);
+    world.claim_task(1);
     world.finish(1);
     world.settle(1);
     assert!(world.record(2).holds_taken);
@@ -59,11 +59,11 @@ fn a_pool_shrinking_while_its_slots_are_held_admits_nobody_until_it_drains() {
     assert!(!world.record(3).holds_taken);
     world.send(Event::Slots { pool: name.clone(), slots: 1 });
     world.restart();
-    world.claim(1, 1);
+    world.claim_task(1);
     world.finish(1);
     world.settle(1);
     assert!(!world.record(3).holds_taken);
-    world.claim(2, 2);
+    world.claim_task(2);
     world.finish(2);
     world.settle(2);
     assert!(world.record(3).holds_taken);
@@ -105,7 +105,7 @@ fn two_tasks_each_wanting_two_holds_the_other_wants_never_wait_in_a_circle() {
     assert!(!world.activations.contains(&2));
     world.restart();
     assert!(!world.record(2).holds_taken);
-    world.claim(1, 1);
+    world.claim_task(1);
     world.finish(1);
     world.settle(1);
     assert!(world.record(2).holds_taken);
@@ -175,7 +175,7 @@ fn held_world(seed: u64) -> World {
 }
 
 fn free_holder(world: &mut World) {
-    world.claim(HOLDER, HOLDER);
+    world.claim_task(HOLDER);
     world.finish(HOLDER);
     world.settle(HOLDER);
 }
@@ -405,7 +405,7 @@ fn a_tree_root_can_retain_more_than_one_childs_per_task_hold_limit() {
         let mut child = task(task_number, &[]);
         child.holdings = Box::new([held.clone()]);
         assert_eq!(world.make(Party::Task(1), vec![child]), Reply::Made(vec![task_number]));
-        world.claim(task_number, task_number);
+        world.claim_task(task_number);
         world.terminal(
             task_number,
             End::Finished {
