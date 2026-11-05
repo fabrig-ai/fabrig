@@ -1224,6 +1224,7 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-paste-sending`, `welcome-paste-finishing` | the finish request in flight, then accepted |
 | `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired` | the restart endings, with no paste field |
 | `welcome-paste-lost`, `welcome-paste-unsent` | the address cleared after a lost or unsent finish request |
+| `welcome-ready-copies` | Ready offers Widget and names the two repositories its act will copy into the project |
 | `welcome-ready-none` | Ready with neither forge nor model, their inline connect links and the offered playground |
 | `welcome-ready-signing` | Ready while ChatGPT signs in, its current checklist ring |
 | `welcome-ready-under-way` | Ready while Forgejo sets up, Forge before Model, Each step and the note below the form |

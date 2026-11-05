@@ -55,6 +55,7 @@ pub struct Pages {
     default_project: welcome::DefaultProject,
     adopting: Option<welcome::Adopting>,
     pub(crate) welcome_first: Option<welcome::First>,
+    pub(crate) welcome_copies: Option<crate::forge::making::Copies>,
     pub(crate) welcome_decision: Option<welcome::FirstRun>,
     party: Option<u64>,
     next: u64,
@@ -215,6 +216,7 @@ impl Pages {
             default_project: welcome::DefaultProject::new(),
             adopting: None,
             welcome_first: None,
+            welcome_copies: None,
             welcome_decision: None,
             party: None,
             next: 1,
@@ -251,6 +253,10 @@ impl Pages {
     #[must_use]
     pub const fn welcome_first(&self) -> Option<&welcome::First> {
         self.welcome_first.as_ref()
+    }
+    #[must_use]
+    pub const fn welcome_copies(&self) -> Option<&crate::forge::making::Copies> {
+        self.welcome_copies.as_ref()
     }
     #[must_use]
     pub const fn adopting(&self) -> Option<&welcome::Adopting> {
@@ -1352,7 +1358,7 @@ fn make_default(pages: &mut Pages, out: &mut Queue<Request>) {
         Some(welcome::FirstRun::Whole | welcome::FirstRun::Unfinished { step: crate::Step::Ready }) => {}
         Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) | None => return,
     }
-    let offered = welcome::offered(pages.welcome_first());
+    let offered = welcome::offered(pages.welcome_first(), pages.welcome_copies());
     let Ok(asked) = jig_client::contract::Text::new(pages.default_project.asked(&offered).into(), welcome::NAME_BYTES)
     else {
         return;
@@ -1401,7 +1407,7 @@ fn default_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &To
         | Told::Ended { .. }
         | Told::Page { .. } => return false,
     };
-    let offered = welcome::offered(pages.welcome_first());
+    let offered = welcome::offered(pages.welcome_first(), pages.welcome_copies());
     pages.default_project.making = None;
     match outcome {
         jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(
@@ -1441,6 +1447,7 @@ fn default_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &To
         default_chosen(pages, client);
         out.push(Request::Show { address: Address::Home { project } });
         adopt(pages, env, project, out);
+        copy_all(pages, env, client, project, out);
     }
     true
 }
@@ -1450,6 +1457,40 @@ fn default_chosen(pages: &mut Pages, client: &Client) {
         if pages.project == Some(project) {
             pages.default_project.project = None;
         }
+    }
+}
+
+/// Ready asks every copy in the same turn, without keeping their answers (client/README.md, 3.5).
+fn copy_all(pages: &mut Pages, env: &Env<Limits>, client: &Client, project: u32, out: &mut Queue<Request>) {
+    use crate::forge::{self, forges, listed, making};
+    use temper_client_protocol_wire::v1 as w;
+    let Some(copies) = pages.welcome_copies.clone() else { return };
+    let rows = match client.document(forges::handle()) {
+        Some(document) if document.state != jig_client::State::Ended => match document.latest {
+            Some(Latest::Family(record)) => match forges::rows(record, &env.limits.forge) {
+                Some(rows) => forges::State::Rows(rows),
+                None => forges::State::Ended,
+            },
+            Some(Latest::Jig(_)) | None => forges::State::Unknown,
+        },
+        Some(_) | None => forges::State::Unknown,
+    };
+    let home = match listed::held(&rows, None, project) {
+        listed::Held::None => true,
+        listed::Held::Unknown | listed::Held::One { .. } | listed::Held::Several { .. } => false,
+    };
+    let mut number = 0_u64;
+    for address in &copies.addresses {
+        number = number.checked_add(1).expect("copy places fit");
+        let Some((org, name)) = making::target(address) else { continue };
+        let Ok(into) = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: home && number == 1 }) else {
+            continue;
+        };
+        let Ok(ask) = making::ask(copies.forge, &org, &name, Some(address), Some(into)) else { continue };
+        let Some(request) = forge::make_repository(&ask, &env.limits.forge) else { continue };
+        pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
+        let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+        out.push(Request::Client(jig_client::Event::Send { key, name: Some(forge::copy_key(number)), request }));
     }
 }
 

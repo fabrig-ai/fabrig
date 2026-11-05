@@ -298,16 +298,7 @@ fn ready(
     let done = connected(root) && temper_client_domain::pages::welcome::model_usable(root) == Some(true);
     if done {
         text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyStep);
-        if let Some(first) = root.pages().welcome_first() {
-            let name = temper_client_domain::forge::words::full_name(&first.org, &first.name);
-            b.open(Role::Paragraph);
-            b.style(look::WELCOME_LEAD);
-            b.name(&w.say(Word::WelcomeReadyRepositoryLead, &[Hole::Name(name.clone())]));
-            w.text(b, Word::WelcomeReadyRepositoryLead, &[Hole::Name(name)]);
-            b.close();
-        } else {
-            paragraph(b, w, Word::WelcomeReadyLead, look::WELCOME_LEAD);
-        }
+        ready_lead(b, root, w);
     } else {
         text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyTitle);
         paragraph(b, w, Word::WelcomeDefaultWait, look::WELCOME_LEAD);
@@ -383,12 +374,46 @@ fn ready(
         paragraph(b, w, Word::WelcomeForgeStillSettingUp, look::FLOW_FACTS);
     }
 }
+fn ready_lead(b: &mut Builder, root: &Domain, w: &Words) {
+    let (word, hole) = if let Some(first) = root.pages().welcome_first() {
+        let name = temper_client_domain::forge::words::full_name(&first.org, &first.name);
+        (Word::WelcomeReadyRepositoryLead, Some(Hole::Name(name)))
+    } else if let Some(copies) = root.pages().welcome_copies() {
+        if copies.addresses.len() > 1 {
+            (
+                Word::WelcomeReadyCopiesLead,
+                Some(Hole::Number(u64::try_from(copies.addresses.len()).expect("copy count fits"))),
+            )
+        } else if let Some(address) = copies.addresses.first()
+            && let Some((org, name)) = temper_client_domain::forge::making::target(address)
+        {
+            (
+                Word::WelcomeReadyRepositoryLead,
+                Some(Hole::Name(temper_client_domain::forge::words::full_name(&org, &name))),
+            )
+        } else {
+            (Word::WelcomeReadyLead, None)
+        }
+    } else {
+        (Word::WelcomeReadyLead, None)
+    };
+    let mut holes = skein_lib::List::with_capacity(1);
+    if let Some(hole) = hole {
+        holes.push(hole).expect("one lead hole");
+    }
+    b.open(Role::Paragraph);
+    b.style(look::WELCOME_LEAD);
+    b.name(&w.say(word, holes.as_slice()));
+    w.text(b, word, holes.as_slice());
+    b.close();
+}
 /// Ready's form: the offered or written name, then Create, which makes
 /// the project and opens it (3.5).
 fn first_project(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, done: bool) {
     use crate::flow::{self, Control};
     let state = root.pages().default_project();
-    let offered = temper_client_domain::pages::welcome::offered(root.pages().welcome_first());
+    let offered =
+        temper_client_domain::pages::welcome::offered(root.pages().welcome_first(), root.pages().welcome_copies());
     let label = w.say(Word::WelcomeDefaultProject, &[]);
     b.open(Role::Form);
     b.style(look::WELCOME_PROJECT);

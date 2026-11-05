@@ -56,6 +56,42 @@ pub fn parse_copies(text: &[u8]) -> Result<List<Box<[u8]>>, CopiesRefused> {
     Ok(addresses)
 }
 
+/// The copies of the real forge numbered lowest whose intent names them (client/README.md, 3.5).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Copies {
+    pub forge: u16,
+    pub addresses: Box<[Box<[u8]>]>,
+}
+#[must_use]
+pub fn copies(rows: &super::forges::State, playground: Option<u16>) -> Option<Copies> {
+    use super::forges::{Mode, StartsWith, State};
+    let State::Rows(rows) = rows else { return None };
+    let mut found: Option<Copies> = None;
+    for row in rows {
+        if row.mode == Mode::Fake || Some(row.number) == playground {
+            continue;
+        }
+        let addresses = match &row.starts_with {
+            StartsWith::Copies { addresses } => addresses,
+            StartsWith::Repository | StartsWith::Nothing => continue,
+        };
+        let lower = match &found {
+            Some(found) => row.number < found.forge,
+            None => true,
+        };
+        if lower {
+            found = Some(Copies { forge: row.number, addresses: addresses.clone() });
+        }
+    }
+    found
+}
+/// A copy's org and name, the source's (repository-copies.md, 5.3).
+#[must_use]
+#[expect(clippy::type_complexity, reason = "the shared copy target contract returns the source org and name")]
+pub fn target(address: &[u8]) -> Option<(Box<[u8]>, Box<[u8]>)> {
+    Some(copy_target(&source::parse(address).ok()?))
+}
+
 /// One repository being made, in the forge watch's key order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Making {

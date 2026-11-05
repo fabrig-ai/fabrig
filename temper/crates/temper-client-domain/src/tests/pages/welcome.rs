@@ -13,7 +13,7 @@ pub(super) fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     crate::step(root, &f::env(&f::limits()), event, &mut out);
     out
 }
-fn up(root: &mut Domain, up: Up) -> Queue<Request> {
+pub(super) fn up(root: &mut Domain, up: Up) -> Queue<Request> {
     event(root, Event::Client { event: jig_client::Event::Up { up } })
 }
 fn go(root: &mut Domain, step: Step) -> Queue<Request> {
@@ -813,13 +813,23 @@ fn made_name(out: &mut Queue<Request>) -> Option<Box<[u8]>> {
 #[test]
 fn ready_makes_the_first_project_as_named() {
     let (mut root, me) = ready_default();
-    assert_eq!(root.pages().default_project().shown(&pages::welcome::offered(root.pages().welcome_first())), b"Hello");
+    assert_eq!(
+        root.pages()
+            .default_project()
+            .shown(&pages::welcome::offered(root.pages().welcome_first(), root.pages().welcome_copies())),
+        b"Hello"
+    );
     assert!(name_default(&mut root, b"  Shop ").is_empty());
     let mut out = press_default(&mut root);
     assert_eq!(made_name(&mut out).as_deref(), Some(b"Shop".as_slice()));
     // While it is out, the name stays as asked.
     name_default(&mut root, b"Other");
-    assert_eq!(root.pages().default_project().asked(&pages::welcome::offered(root.pages().welcome_first())), b"Shop");
+    assert_eq!(
+        root.pages()
+            .default_project()
+            .asked(&pages::welcome::offered(root.pages().welcome_first(), root.pages().welcome_copies())),
+        b"Shop"
+    );
     // Taken, it opens the person's project of that name.
     let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
     frame.projects.get_mut(0).unwrap().name =
@@ -846,7 +856,12 @@ fn ready_asks_for_a_name_before_making_anything() {
     assert!(!root.pages().default_project().unnamed);
     // jig's name bound holds the field: a longer name leaves it as it was.
     name_default(&mut root, &[b'x'; 65]);
-    assert_eq!(root.pages().default_project().shown(&pages::welcome::offered(root.pages().welcome_first())), b"S");
+    assert_eq!(
+        root.pages()
+            .default_project()
+            .shown(&pages::welcome::offered(root.pages().welcome_first(), root.pages().welcome_copies())),
+        b"S"
+    );
     assert_eq!(made_name(&mut press_default(&mut root)).as_deref(), Some(b"S".as_slice()));
 }
 #[test]
@@ -896,12 +911,15 @@ fn ready_offers_the_first_repository_name_within_jigs_bound() {
         (over_bound.as_slice(), b"My project".as_slice()),
     ] {
         let first = pages::welcome::First { forge: 3, org: b"work".as_slice().into(), name: name.into() };
-        assert_eq!(pages::welcome::offered(Some(&first)).as_ref(), expected);
+        assert_eq!(pages::welcome::offered(Some(&first), None).as_ref(), expected);
     }
-    assert_eq!(pages::welcome::offered(None).as_ref(), b"My project");
+    assert_eq!(pages::welcome::offered(None, None).as_ref(), b"My project");
 }
 fn shown_name(root: &Domain) -> Box<[u8]> {
-    root.pages().default_project().shown(&pages::welcome::offered(root.pages().welcome_first())).into()
+    root.pages()
+        .default_project()
+        .shown(&pages::welcome::offered(root.pages().welcome_first(), root.pages().welcome_copies()))
+        .into()
 }
 #[test]
 fn ready_follows_first_repository_rows_until_the_person_writes() {
