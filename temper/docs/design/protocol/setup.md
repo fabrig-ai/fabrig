@@ -3665,6 +3665,11 @@ Each is intended; what it needs is named with it.
   percentage: a walk's fetch lasts seconds, its `fetched` lines keep the
   page moving, and `again` takes no page while it moves
   (`../client/journeys.md`, 8.1).
+- **The other fake peers' refused connections** (7.5): the issuer's log
+  takes a line for each connection it turns away at its cap, from skein's
+  OAuth peer's count; `fake github`, `fake forgejo` and `fake model` turn
+  theirs away silently, and skein's forge and LLM peers count none. Each
+  takes the same count and line when a walk meets its cap.
 
 ## 16. Open questions
 
