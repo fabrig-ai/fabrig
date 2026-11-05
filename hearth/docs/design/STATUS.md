@@ -12,8 +12,8 @@ Tool versions and rebuild times are missing, and the resolution reply,
 reconciled-base retention and mmdebstrap hooks have unsettled
 departures in those documents. The store reports unreadable or invalid layer
 records as strays and refuses a second staging request. The activator, steward
-and their link, remaining crates and support are absent; printed errors and
-task data keep citations without the repository-root prefix
+and their link, remaining crates and support are absent; printed errors,
+task data and lint reasons keep citations without the repository-root prefix
 (`hearth/docs/design/README.md`). Machine layout, boot and bootstrap, slots
 and live changes, the privilege boundary, the persistent steward and the wire
 remain unbuilt (`hearth/docs/design/domain/machine.md`,
