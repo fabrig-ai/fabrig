@@ -81,3 +81,7 @@ Pre-approved:
 ## Report
 
 As the implementer's text says.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling (coord/ui/report/rulings.md, 9), add here: the rail's and tab bar's Goals entry shows when the Goals setting is on OR the project has a goal, so that a goal an agent started never disappears. A test for each case.
