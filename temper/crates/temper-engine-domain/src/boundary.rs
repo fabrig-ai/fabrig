@@ -529,6 +529,8 @@ pub enum Application {
     Return { source: u32, path: Box<[u8]> },
     Dismiss { what: forge::Dismissal },
     Looked { project: u32 },
+    SetAway { project: u32, on: bool, until: Option<Wall>, kinds: u8 },
+    Overturn { project: u32, number: u32 },
 }
 /// The family's terminal answer; root returns are volatile, like forge setup answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -546,6 +548,8 @@ pub enum ApplicationAnswer {
     Returning,
     Dismiss(forge::DismissAnswer),
     Looked(forge::LookedAnswer),
+    SetAway(forge::SetAwayAnswer),
+    Overturn(forge::OverturnAnswer),
 }
 /// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
