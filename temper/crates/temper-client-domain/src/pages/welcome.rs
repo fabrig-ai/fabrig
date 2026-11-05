@@ -1,5 +1,8 @@
 //! First-run facts (temper/docs/design/client/README.md, 3.5).
-use super::accounts;
+use super::{
+    accounts::{self, PasteState, SignInState, Way},
+    connect_model,
+};
 use crate::{
     Domain,
     forge::{
@@ -17,6 +20,64 @@ impl Welcome {
     pub(crate) const fn new() -> Self {
         Self { decided: false }
     }
+}
+/// What the welcome's Model step draws (client/README.md, 3.5, Model).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModelStep {
+    /// A model usable, at any way or none.
+    Usable,
+    /// No way: the plans' cards.
+    Choose,
+    /// A sign-in's way, not yet asked or ended with no model.
+    SignIn {
+        way: Way,
+    },
+    /// A sign-in asked, its tab not gone yet.
+    Away {
+        way: Way,
+    },
+    /// A paste accepted.
+    Finishing {
+        way: Way,
+    },
+    /// A sign-in `elsewhere`.
+    Paste {
+        way: Way,
+    },
+    Key {
+        way: Way,
+    },
+    Program {
+        way: Way,
+    },
+}
+/// None until the page and `me` are in.
+#[must_use]
+pub fn model_step(root: &Domain) -> Option<ModelStep> {
+    let page = root.pages().connect_model()?;
+    accounts::current_me(root.client())?;
+    if model_usable(root) == Some(true) {
+        return Some(ModelStep::Usable);
+    }
+    let Some(way) = connect_model::way(root.pages(), root.client()) else {
+        return Some(ModelStep::Choose);
+    };
+    Some(match way {
+        Way::Key { .. } => ModelStep::Key { way },
+        Way::Program { .. } => ModelStep::Program { way },
+        Way::SignIn { .. } => {
+            if page.request.paste_state(root.client()) == PasteState::Finishing {
+                ModelStep::Finishing { way }
+            } else if page.elsewhere() {
+                ModelStep::Paste { way }
+            } else {
+                match page.request.sign_in_state(root.client()) {
+                    SignInState::Started { .. } | SignInState::Signing { .. } => ModelStep::Away { way },
+                    SignInState::Unknown | SignInState::Ended { .. } => ModelStep::SignIn { way },
+                }
+            }
+        }
+    })
 }
 /// A step's facts: the address is current, and only another done step is ticked (3.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
