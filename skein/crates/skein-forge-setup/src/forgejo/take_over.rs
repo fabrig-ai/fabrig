@@ -1,11 +1,10 @@
 //! Takes over an owned Forgejo's handed admin token (forge-setup.md, 4.7).
-use crate::forgejo::{Reply, reply, unexpected};
+use crate::forgejo::{admin::{self, Admin}, Reply, reply, unexpected};
 use crate::{
     call::Auth,
     given::{self, Given, Refused},
     item::Item,
     plan::{self, Event, Need, Outcome, Stage, Why},
-    reconcile,
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::{
@@ -17,7 +16,7 @@ use skein_lib::{Queue, Secret};
 #[derive(Debug)]
 enum State {
     Begin,
-    Admin,
+    Admin(Admin),
     Written,
     Settings,
     Listing,
@@ -86,20 +85,18 @@ impl TakeOver {
                     if self.token().is_empty() {
                         return self.stop(Stage::Admin, Why::Missing);
                     }
-                    self.state = State::Admin;
+                    self.state = State::Admin(Admin::Check);
                     self.send(Request::User)
                 }
                 Err(why) => self.stop(Stage::Admin, why),
             },
-            State::Admin => match reconcile::account(event) {
-                Ok(user) => {
-                    if !user.is_admin {
-                        return self.stop(Stage::Admin, Why::NotAdmin);
-                    }
+            State::Admin(mut admin) => match admin::step(&mut admin, event) {
+                Ok(admin::Move::Passed(user)) => {
                     self.login = user.login;
                     self.state = State::Written;
                     Need::Write { item: Item::AdminToken, bytes: self.token().clone() }
                 }
+                Ok(admin::Move::Read | admin::Move::Token(_)) => unreachable!("takeover starts at the admin check"),
                 Err(why) => self.stop(Stage::Admin, why),
             },
             State::Written => match event.written() {
@@ -135,7 +132,7 @@ impl TakeOver {
                     Err(unexpected(other))
                 }
             },
-            State::Begin | State::Admin | State::Written | State::Ended => unreachable!("token phases only"),
+            State::Begin | State::Admin(_) | State::Written | State::Ended => unreachable!("token phases only"),
         }
     }
 
@@ -198,7 +195,7 @@ pub fn step(machine: &mut TakeOver, event: Event, out: &mut Queue<Need>) {
     let state = core::mem::replace(&mut machine.state, State::Ended);
     match state {
         State::Ended => (),
-        State::Begin | State::Admin | State::Written | State::Settings | State::Listing | State::Delete => {
+        State::Begin | State::Admin(_) | State::Written | State::Settings | State::Listing | State::Delete => {
             let need = machine.advance(state, event);
             out.push(need);
         }
