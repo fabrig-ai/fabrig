@@ -2,19 +2,40 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 10: a browser walk from a draft's sheet through planning, a live
-  report and delegate tasks, Pause, Resume, a message and Stop. The fake box's
-  model (`temper-fake/src/backends.rs`, `model_document`) writes a report only
-  for the first chat's goal, task 2, then finishes it without delegates. The
-  browser can open that ended goal and its report, but cannot exercise those
-  live states with this script.
-- **Departs:** 3.5, 5.14: Goals' "Start one from a draft" goes to Chats with
-  the Drafts filter, rather than opening a sheet with a Draft field;
-  `temper-client-domain`'s `pages/start_goal.rs` ignores `OpenStart` without
-  a supplied draft. The sheet with a supplied draft remains. This is the
-  route accepted by `ui-goal-page`'s `goal-browser` answer of 2026-11-05;
-  `ui-chat-draft` owns its draft-to-goal continuation. On the fake box's
-  stock project, Chats offers no Drafts filter or draft-start control.
+- **Not yet:** 10: a walk from the sheet through planning, a live report and
+  delegate tasks, Pause, Resume, a message and Stop, which the request
+  `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
+  browser tier walks Goals' link to `/chats` and back alone
+  (`start_goal_opens_chats_for_a_draft`), and the fake box's walk reaches an
+  ended goal's report from its Goals row, in the terminal's client
+  (`a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list`). The fake
+  box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
+  only for the first chat's goal, task 2, then finishes it without delegates, so
+  it can show none of those live states.
+- **Departs:** 3.5, *Goals*, 5.14: no page opens Start goal's sheet, so no page
+  starts a goal; a chat's agent's `goal` call still does. Goals' "Start one from
+  a draft" is a link to `Chats { filter: All }`, `/chats`
+  (`temper-client-view`'s `pages/goals.rs`), where those sections have it open
+  the sheet with its Draft field, and nothing the view draws sends
+  `Act::OpenStart`: the sheet shows in the gallery and the tests alone.
+  `temper-client-domain`'s `pages/start_goal.rs`, `open`, ignores one without
+  both a draft and a chat, so "Start a goal" and the Draft field are drawn by
+  nothing. The rulings of 2026-11-05 on that request (the answers to its tasks
+  `start-domain`, `start-sheet` and `goal-browser`) keep no typed draft path: the
+  link goes to Chats' Drafts filter and the sheet opens from a chat, which
+  `ui-chat-draft` adds. That filter is not built (`ChatsFilter` holds All, Live
+  and Closed), so the link is neither the request's, which opens the sheet until
+  the filter has landed, nor the rulings'.
+- **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
+  by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
+  and `Role::Image` in the terminal, where the request has `div.bar` and
+  `Role::Image` for both: skein-ui's `Role::Image` is an image, with no children.
+  The planning dots are spans in a `Figure`, not `.typing`'s `<i>`s. A live goal
+  with no tasks yet headlines as planning, where the request's words give "0 of 0
+  tasks landed." A dependency outside the goal's rows says "waits on task N",
+  where the request has its title alone, and the row has none. A goal's counts
+  search at most 8 pages for its own line and are then what the page holds, where
+  the request has them true past one page (section 11, *A goal's own line*).
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
