@@ -1,0 +1,5 @@
+draft = "note-parts"
+repo = "fabrig"
+sources = ["jig/docs/plan/note-parts/inputs/request.md", "jig/docs/design/draft/notes-memory.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
