@@ -103,7 +103,8 @@ fn a_reload_with_an_adoption_pending_sends_it_once() {
     world.person(person, steps);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
-    assert_eq!(world.front().applications_admitted(), 1);
+    // Home's look and the retained adoption each commit one application answer.
+    assert_eq!(world.front().applications_admitted(), 2);
     assert!(world.kept(person).is_empty(), "the retried adoption's record retired");
 }
 

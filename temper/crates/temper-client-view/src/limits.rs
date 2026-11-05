@@ -18,6 +18,8 @@ impl Limits {
         // An account heading joins the provider, plan/display and holder's words.
         let text = text.max(receiving.text.checked_add(words.name_bytes.min(256).checked_mul(3)?)?.checked_add(64)?);
         let text = text.max(fold_bytes(receiving, words)?);
+        // The toast wraps a full outgoing choice or reply label and "Answered: ".
+        let text = text.max(temper_client_protocol_wire::CUE_BYTES.checked_add(24)?);
         // The sign-in return link percent-encodes a whole authorization address.
         let text = text.max(3400);
         let markdown = skein_ui::markdown::max_nodes(receiving.text)?;
@@ -152,7 +154,9 @@ impl Limits {
                 temper_client_domain::forge::forges::ROWS
                     .checked_mul(temper_client_domain::forge::forges::INSTALLATIONS)?
                     .checked_mul(2)?,
-            )?;
+            )?
+            // The toast adds its status, text leaf and optional Undo button.
+            .checked_add(3)?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,

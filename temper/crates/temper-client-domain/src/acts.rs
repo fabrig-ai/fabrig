@@ -94,10 +94,10 @@ fn find_card(pages: &mut Pages, object: ObjectKey) -> Option<&mut Card> {
     }
     None
 }
-pub(super) fn step(pages: &mut Pages, _env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
+pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
     match act {
         Act::CardWords { object, words } => {
-            if let Ok(words) = Text::new(words, temper_client_protocol_wire::CUE_BYTES)
+            if let Ok(words) = Text::new(words, env.limits.client.domain.text)
                 && let Some(card) = find_card(pages, object)
             {
                 card.words = Some(words);
@@ -149,6 +149,7 @@ pub(super) fn step(pages: &mut Pages, _env: &Env<Limits>, act: Act, out: &mut Qu
         | Act::PlanFilter { .. }
         | Act::ClosedChats => unreachable!("chat acts routed to chats"),
         Act::Switcher(_)
+        | Act::Needs(_)
         | Act::Choice(_)
         | Act::Accounts(_)
         | Act::ConnectModel(_)
@@ -264,7 +265,7 @@ pub fn pending(card: &Card, client: &Client) -> Option<jig_client::Progress> {
     Some(client.pending(card.key?)?.progress)
 }
 
-fn allowed(page: &ReadValue, act: ActKind) -> bool {
+pub(crate) fn allowed(page: &ReadValue, act: ActKind) -> bool {
     match jig_client::facts::offer(offers(page), act) {
         Some(Admission::Allowed | Admission::Bounded { .. }) => true,
         Some(Admission::Refused(_) | Admission::Proposed { .. }) | None => false,
