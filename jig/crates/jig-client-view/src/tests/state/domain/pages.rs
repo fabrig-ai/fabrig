@@ -337,6 +337,8 @@ fn goal_line(number: u64, priority: u32, phase: Phase, changed: u64) -> TaskLine
             funder: Funder::Pool { project: 1, person: 7, period: 3 },
             deadline: None,
         },
+        delegates_done: 0,
+        delegates_total: 0,
         held_below: 2,
         changed: skein_lib::Wall::from_nanos(changed),
         last_activity: skein_lib::Wall::from_nanos(changed),

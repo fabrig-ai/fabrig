@@ -6,7 +6,7 @@ use skein_fake_checkout::Checkout;
 use skein_lib::{Duration, Time};
 use smith_domain_tools::{self as tools, Entry, Fault, Grants, Hit, Kind, Limits, Name, Outcome, Refusal};
 use smith_tools_world::calls::{edit, list, read, read_window, remove, search, shell, write};
-use smith_tools_world::fixture::{FORMATTED, Fixture, LIB, long, test_log};
+use smith_tools_world::fixture::{ALL, FORMATTED, Fixture, LIB, exited, long, test_log};
 use smith_tools_world::{Settings, Span, Step, World, kind, noisy_world};
 
 const ITERATIONS: u32 = 100_000;
@@ -14,8 +14,6 @@ const ITERATIONS: u32 = 100_000;
 const INSPECT: Grants = Grants { inspect: true, modify: false, shell: false };
 
 const MODIFY: Grants = Grants { inspect: true, modify: true, shell: false };
-
-const ALL: Grants = Grants { inspect: true, modify: true, shell: true };
 
 fn read_of(content: &[u8], skipped: u32, lines: u32, total: u32) -> Outcome {
     Outcome::Read {
@@ -854,17 +852,6 @@ fn a_cancel_that_comes_after_its_operation_ended_changes_nothing() {
     let (answers, world) = run(settings, INSPECT, vec![Step::Send(vec![read(b"src/lib.rs")])]);
     assert_eq!(answers, vec![read_of(LIB, 0, 3, 3)]);
     assert_eq!((world.stats().cancels, world.stats().stale_cancels), (0, 1));
-}
-
-fn exited(exit: tools::Exit, head: &[u8], tail: &[u8], dropped: u64) -> Outcome {
-    Outcome::Exited {
-        exit,
-        head: head.into(),
-        tail: tail.into(),
-        dropped,
-        timeout: tools::TimeoutClamp::Within,
-        output: tools::BytesClamp::Within,
-    }
 }
 
 #[test]

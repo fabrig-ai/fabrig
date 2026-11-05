@@ -85,6 +85,10 @@ pub struct TaskLine {
     pub budget: Budget,
     pub waits_on: WaitsOn,
     pub phases: PhaseCounts,
+    /// Direct delegates ended done (jig/docs/design/client/domain/contract.md, 5.1).
+    pub delegates_done: u32,
+    /// Direct delegates live or ended, cancelled ones left out.
+    pub delegates_total: u32,
     pub held_below: u32,
     pub conversation: Option<ConversationRead>,
 }

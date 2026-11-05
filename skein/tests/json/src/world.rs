@@ -22,6 +22,7 @@ use skein_json::Token;
 use skein_json::tokenizer::{self as json, Error, Event, Limits, Position, Request, Tokenizer, Waiting};
 use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
 use skein_lib::{Env, Intake, Queue, Rng, Time, Wall};
+use skein_protocol_kit::random::{draw, fault};
 
 use crate::{Decoded, Outcome, reference};
 
@@ -133,14 +134,6 @@ pub fn limits(rng: &mut Rng) -> Limits {
         chunk: draw(rng, 1, 64),
         length: draw(rng, 1 << 12, 1 << 16),
     }
-}
-
-fn fault(rng: &mut Rng) -> Fault {
-    [Fault::Reset, Fault::Invalid, Fault::Other][usize::try_from(rng.below(3)).expect("fits a usize")]
-}
-
-fn draw(rng: &mut Rng, low: u32, high: u32) -> u32 {
-    u32::try_from(rng.between(u64::from(low), u64::from(high))).expect("fits a u32")
 }
 
 /// What a run came to.

@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Token};
 use skein_ui::{Binding, Builder, Region, Role, Run};
 use temper_client_domain::{Address, Domain, pages::Act};
-use temper_client_domain::{ChatsFilter, pages::switcher};
+use temper_client_domain::{ChatsFilter, GoalsFilter, pages::switcher};
 #[must_use]
 pub const fn owner() -> skein_ui::Owner {
     skein_ui::Owner { number: temper_client_domain::owner::Owner::Pages.asker().0 }
@@ -560,8 +560,30 @@ pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bi
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
     entries(b, root, w, bindings, project, Shown { changes: false, ..shown(root, project) });
-    settings_link(b, root, w, bindings, project);
+    if !goals_shown(root, project) {
+        settings_link(b, root, w, bindings, project);
+    }
     b.close();
+}
+
+fn goals_current(root: &Domain) -> bool {
+    if root.pages().goals().is_some() {
+        return true;
+    }
+    if let Some(page) = root.pages().task()
+        && let Some(task) = page.document(root.client())
+    {
+        return page.shape == temper_client_domain::pages::task::Shape::Tracked || task.goal.is_some();
+    }
+    false
+}
+
+fn goals_shown(root: &Domain, project: u32) -> bool {
+    let shown = match root.forge().ways(project) {
+        Some(ways) => ways.goals,
+        None => false,
+    };
+    shown || goals_current(root)
 }
 
 #[expect(clippy::struct_excessive_bools, reason = "the frame keeps each entry’s visibility or current state together")]
@@ -587,6 +609,7 @@ fn shown(root: &Domain, project: u32) -> Shown {
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
@@ -633,6 +656,16 @@ fn entries(
         b.close();
     }
     b.close();
+    if goals_shown(root, project) {
+        action(
+            b,
+            Role::Link,
+            &w.say(Word::Goals, &[]),
+            Act::Go { address: Address::Goals { project, filter: GoalsFilter::All } },
+            goals_current(root),
+            bindings,
+        );
+    }
     action(
         b,
         Role::Link,
@@ -667,7 +700,8 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         | Address::ConnectForge { .. }
         | Address::Adopt { .. } => true,
         Address::Chat { .. } => crate::pages::chat::configuring(root),
-        Address::Home { .. }
+        Address::Goals { .. }
+        | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
@@ -693,6 +727,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::ConnectForge { .. }
         | Address::Forges
@@ -751,6 +786,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Changes { .. }
             | Address::Settings { .. }
             | Address::Repositories { .. }
+            | Address::Goals { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. }
             | Address::ConnectModel { .. }
@@ -821,6 +857,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     };
@@ -855,6 +892,7 @@ pub(crate) fn accounts_link(
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     } {

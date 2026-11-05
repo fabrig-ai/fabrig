@@ -7,6 +7,7 @@ use std::{fs, path::Path};
 use skein_codec::schema::{self, DeclIx, FieldIx, Shape, VariantIx};
 
 use super::{Error, files::Crate, text::PatchText};
+use crate::snake;
 
 /// Generates `patches/mod.rs` from an owner's kept texts and patches.
 pub fn module(owner: &Path) -> Result<String, Error> {
@@ -29,17 +30,6 @@ fn unique(names: &mut BTreeMap<String, String>, spelled: String, name: &str) -> 
         return Err(Error::Spelled { first, second: name.to_owned() });
     }
     Ok(spelled)
-}
-
-fn snake(name: &str) -> String {
-    let mut out = String::new();
-    for character in name.chars() {
-        if character.is_ascii_uppercase() && !out.is_empty() {
-            out.push('_');
-        }
-        out.push(if character == '.' || character == '-' { '_' } else { character.to_ascii_lowercase() });
-    }
-    out
 }
 
 fn ident(name: &str) -> String {
@@ -101,14 +91,17 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
         }
         out.push_str("    }\n");
     }
-    out.push_str("}\n\npub mod refusal {\n");
+    out.push_str("}\n\npub mod refusal {");
     let mut refusals = false;
     for (number, source) in &krate.patches {
         let patch = read_patch(source, *number)?;
         if patch.refusals().next().is_none() {
             continue;
         }
-        refusals = true;
+        if !refusals {
+            out.push('\n');
+            refusals = true;
+        }
         writeln!(out, "    pub mod p{number:04} {{\n        use skein_codec::patch::RefusalIx;").expect("String write");
         let mut names = BTreeMap::new();
         for (index, name) in patch.refusals().enumerate() {
@@ -118,9 +111,6 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
         out.push_str("    }\n");
     }
     out.push_str("}\n\n");
-    if !refusals {
-        out = out.replace("pub mod refusal {\n}\n", "pub mod refusal {}\n");
-    }
     dispatch(krate, &mut out)?;
     tests(krate, &mut out);
     Ok(out)

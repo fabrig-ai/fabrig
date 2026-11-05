@@ -89,12 +89,12 @@ fn procedure_with_child() -> World {
     world
 }
 
-fn amendment() -> tasks::ProcedureAmendment {
-    tasks::ProcedureAmendment {
+fn amendment() -> tasks::Amend {
+    tasks::Amend {
         task: CHILD,
         message: AMENDMENT,
         stop_run: false,
-        amendment: tasks::Amendment {
+        amendment: Box::new(tasks::Amendment {
             tracked: None,
             addressed: None,
             instructions: None,
@@ -111,12 +111,12 @@ fn amendment() -> tasks::ProcedureAmendment {
             authority: None,
             llm: None,
             reason: b"evidence".as_slice().into(),
-        },
+        }),
     }
 }
 
-fn message(words: &[u8]) -> tasks::ProcedureMessage {
-    tasks::ProcedureMessage {
+fn message(words: &[u8]) -> tasks::Message {
+    tasks::Message {
         task: CHILD,
         word: tasks::Word {
             number: MESSAGE,
@@ -329,7 +329,7 @@ fn a_step_applies_its_batch_amendments_words_proposal_and_cancel_once() {
             amendments: Box::new([amendment(), second]),
             messages: Box::new([sent]),
             proposals: Box::new([offered.clone()]),
-            cancels: Box::new([tasks::ProcedureCancel {
+            cancels: Box::new([tasks::Cancel {
                 task: CHILD,
                 reason: b"done".as_slice().into(),
                 grace: None,
@@ -365,7 +365,7 @@ fn a_step_applies_its_batch_amendments_words_proposal_and_cancel_once() {
 #[test]
 fn a_step_checks_duplicate_cancels_against_the_first_and_keeps_its_batch_unmade() {
     let mut world = procedure_with_child();
-    let cancel = tasks::ProcedureCancel { task: CHILD, reason: Box::new([]), grace: None, message: None };
+    let cancel = tasks::Cancel { task: CHILD, reason: Box::new([]), grace: None, message: None };
     refused_without_writes(
         &mut world,
         ProcedureDecision {

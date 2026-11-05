@@ -66,7 +66,7 @@ fn stopped(run: u64, why: Why, at: Duration) -> Heard {
     }
 }
 fn routes(world: &HostWorld, route: Route) -> u64 {
-    world.requests().routes.get(&route).copied().unwrap_or(0)
+    world.tally().routes.get(&route).copied().unwrap_or(0)
 }
 fn marked(world: &HostWorld) -> Option<&[u8]> {
     world.copying(FORGE, ORG, NAME).map(skein_lib::Secret::expose)

@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    Amendment, Control, Ending, Event, Executor, Key, MessageKind, Party, PersonAddress, Phase, Problem, Refusal,
-    Stored, Word,
+    self as tasks, Amendment, Cancel, Ending, Event, Executor, Key, MessageKind, Party, PersonAddress, Phase, Problem,
+    Refusal, Stored, Word,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::Duration;
@@ -14,11 +14,10 @@ const FIRST_WORD: u64 = 1;
 fn cancel(world: &mut World, grace: Option<Duration>, reason: &[u8]) -> Reply {
     let reply_to = world.to();
     let message = world.record(TASK).last_message + 1;
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Person(REQUESTER),
-        task: TASK,
-        control: Control::Cancel { reason: reason.into(), grace, message: grace.map(|_| message) },
+        operation: Cancel { task: TASK, reason: reason.into(), grace, message: grace.map(|_| message) },
     });
     world.replies.last_key_value().expect("cancel answered").1.clone()
 }
@@ -39,25 +38,27 @@ fn amend(world: &mut World) {
     let reply_to = world.to();
     let message = world.record(TASK).last_message + 1;
     world.send(Event::Amend {
+        operation: tasks::Amend {
+            task: TASK,
+            message,
+            stop_run: false,
+            amendment: Box::new(Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: None,
+                llm: None,
+                reason: b"ordinary amendment".as_slice().into(),
+            }),
+        },
         places: Box::new([]),
         funder: None,
         reply_to,
         by: Party::Person(REQUESTER),
-        task: TASK,
-        message,
-        stop_run: false,
-        amendment: Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: None,
-            authority: None,
-            llm: None,
-            reason: b"ordinary amendment".as_slice().into(),
-        },
     });
 }
 
@@ -150,15 +151,17 @@ fn a_graces_ask_to_finish_is_admitted_into_a_full_inbox() {
         world.send(Event::Message {
             reply_to,
             project: 1,
-            task: TASK,
-            word: Word {
-                number: message,
-                from: Party::Person(REQUESTER),
-                kind: MessageKind::Words,
-                words: b"waiting".as_slice().into(),
-                at: world.env.wall,
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: TASK,
+                word: Word {
+                    number: message,
+                    from: Party::Person(REQUESTER),
+                    kind: MessageKind::Words,
+                    words: b"waiting".as_slice().into(),
+                    at: world.env.wall,
+                    hits: 1,
+                    eligible: true,
+                },
             },
         });
     }

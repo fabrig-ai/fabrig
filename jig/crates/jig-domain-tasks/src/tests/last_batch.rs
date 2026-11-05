@@ -1,7 +1,7 @@
 //! The retained batch is the accepted template batch, independently of live membership.
 use super::revisions::{Harness, LIMITS, task, to};
 use crate::{
-    Contract, Control, Domain, Event, Executor, Funder, New, Numbers, Party, RecurringOverlap, RecurringTemplate,
+    Cancel, Contract, Domain, Event, Executor, Funder, New, Numbers, Party, RecurringOverlap, RecurringTemplate,
     Request, Stored, step, task_bytes,
 };
 use skein_lib::Queue;
@@ -85,11 +85,10 @@ fn the_complete_last_batch_survives_skips_endings_restart_and_rejected_replaceme
     assert!(test.domain.task(12).is_none());
     test.restart();
     for child in [10, 11] {
-        test.send(Event::Control {
+        test.send(Event::Cancel {
             reply_to: to(),
             by: Party::Task(100),
-            task: child,
-            control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+            operation: Cancel { task: child, reason: Box::new([]), grace: None, message: None },
         });
         test.send(Event::EffectsSettled { task: child });
         test.send(Event::Settled { task: child });
@@ -112,13 +111,12 @@ fn the_complete_last_batch_survives_skips_endings_restart_and_rejected_replaceme
 fn taking_over_a_batch_member_preserves_its_original_batch_identity_after_restart() {
     let mut test = accepted();
     let out = test.send(Event::Move {
+        operation: crate::Move { task: 11, reason: Box::new([]) },
         reply_to: to(),
-        task: 11,
         person: 9,
         period: 1,
         pool_budget: 100,
         period_budget: 1000,
-        reason: Box::new([]),
     });
     let mut moved = false;
     for request in out {
