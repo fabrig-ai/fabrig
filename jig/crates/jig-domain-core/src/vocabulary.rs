@@ -12,6 +12,28 @@ use jig_domain_tasks as tasks;
 use jig_domain_views as views;
 use skein_lib::{List, ReplyTo, Token, Wall};
 
+/// The root's assembled, worker assignment.
+#[derive(Debug)]
+pub struct Assignment {
+    pub live: crate::LiveAsk,
+    /// Ordered sections selected by the brief child, typed until protocol routing.
+    pub brief: Box<[jig_domain_brief::GatherPlaced]>,
+    /// The conversation's first attempt, shared by its resumes.
+    pub conversation: u64,
+    /// Claimed task and activation fence.
+    pub task: u64,
+    pub attempt: u64,
+    /// Charter and task-specific policy and contract.
+    pub charter: u32,
+    pub run: Box<RunCharter>,
+    /// Whole words and prior committed conversation offered to the worker.
+    pub messages: Box<[tasks::Word]>,
+    pub transcript: Box<[Box<[u8]>]>,
+    pub answered: Box<[crate::Settled]>,
+    /// The selected account and application credential grants.
+    pub grants: Box<[jig_domain_accounts::Grant]>,
+}
+
 /// A charter document's section in a core plan, for the root to give its connector
 /// (domain/engine.md, 17.9).
 #[derive(Clone, PartialEq, Eq, Debug)]
