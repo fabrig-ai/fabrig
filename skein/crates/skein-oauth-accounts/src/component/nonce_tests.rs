@@ -18,7 +18,7 @@ fn openid() -> (Component, Limits) {
         registration.scope = bytes::copy_of(b"openid");
     }
     let mut accounts = List::with_capacity(1);
-    accounts.push(account).ok().expect("one account");
+    accounts.push(account).expect("one account");
     (Component::new(accounts, &profile, crypto(17)).expect("OpenID account"), profile)
 }
 

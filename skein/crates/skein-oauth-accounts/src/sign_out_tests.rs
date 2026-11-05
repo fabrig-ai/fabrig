@@ -194,6 +194,6 @@ fn a_terms_endpoint_on_another_origin_is_unusable() {
         registration.terms = Some(revocation_terms(Some(bytes::copy_of(b"https://another.example/revoke"))));
     }
     let mut configured = List::with_capacity(1);
-    assert!(configured.push(configuration).is_ok());
+    configured.push(configuration).expect("configured account room");
     assert_eq!(Component::new(configured, &limits(), crypto(1)).err(), Some(Unusable::Origin { account: 0 }));
 }

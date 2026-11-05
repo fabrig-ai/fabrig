@@ -311,7 +311,7 @@ fn a_state_bound_under_32_is_unusable() {
         let mut profile = limits();
         profile.client.state_bytes = bound;
         let mut configured = List::with_capacity(1);
-        configured.push(account(true, false)).ok().expect("account room");
+        configured.push(account(true, false)).expect("account room");
         assert_eq!(Component::new(configured, &profile, crypto(17)).err(), expected, "state bound {bound}");
         if bound == 32 {
             let mut owner = Owner::configured([account(true, false)], &profile);
