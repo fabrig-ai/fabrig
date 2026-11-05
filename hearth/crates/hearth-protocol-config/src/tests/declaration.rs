@@ -255,3 +255,34 @@ fn the_first_fault_in_key_order_is_returned() {
         Err(Error { at: Position { offset: 33, line: 1, column: 34 }, fault: Fault::Declaration(Declared::Doc) })
     );
 }
+
+#[test]
+fn the_declaration_bound_covers_flat_conversion_and_refuses_unrepresentable_limits() {
+    use crate::{
+        json,
+        limits::Limits,
+        schema::{self, Export, Spec, Type},
+    };
+    use core::mem::size_of;
+
+    const DELIVERY: u64 = 4_096;
+    const TEXT: u64 = 64;
+    const EMPTY: Limits = Limits { document: 0, depth: 0, keys: 0, settings: 0 };
+    const FLAT: Limits = Limits { document: 64, ..EMPTY };
+    const OVERFLOW: Limits = Limits { depth: u32::MAX, keys: u32::MAX, ..EMPTY };
+    const TOO_LONG: Limits = Limits { document: u32::MAX, ..EMPTY };
+    let record = u64::try_from(size_of::<Value>().max(size_of::<json::Entry>())).expect("record fits");
+    let event = u64::try_from(size_of::<skein_json::tokenizer::Event>()).expect("event fits");
+    let output = u64::try_from(size_of::<Type>().max(size_of::<Spec>()).max(size_of::<Export>())).expect("output fits");
+    let ty = u64::try_from(size_of::<Type>()).expect("type fits");
+    let cases = [
+        (EMPTY, 3 * output + ty, record + event + DELIVERY),
+        (FLAT, 33 * (3 * output + ty), 33 * record + TEXT + TEXT + DELIVERY + event),
+    ];
+    for (limits, schema, decoded) in cases {
+        assert_eq!(schema::decoder_bound(&limits), Some(schema), "{limits:?}");
+        assert_eq!(declaration::decoder_bound(&limits), Some(decoded + schema), "{limits:?}");
+    }
+    assert_eq!(declaration::decoder_bound(&OVERFLOW), None);
+    assert_eq!(declaration::decoder_bound(&TOO_LONG), None);
+}
