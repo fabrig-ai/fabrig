@@ -14,7 +14,9 @@ departures in those documents. Resumed work's order has no test, the
 store step's order no named predicate, and one test driver keeps capped
 queues beside the JSON decoder
 (`hearth/docs/design/domain/render.md`). The store reports unreadable or invalid layer
-records as strays and refuses a second staging request. The activator, steward
+records as strays and refuses a second staging request, and its scan and chain,
+with the builder's store adapter and keep, hold lifecycles in flags
+(`hearth/docs/design/domain/store.md`, `hearth/docs/design/domain/render.md`). The activator, steward
 and their link, remaining crates and support are absent; printed errors,
 task data and lint reasons keep citations without the repository-root prefix
 (`hearth/docs/design/README.md`). Machine layout, boot and bootstrap, slots

@@ -8,7 +8,17 @@
   matches and one handler per cell;
   `skein-forge-connection/src/installations.rs`'s `GitHub` keeps mint,
   read and identity flags and `Option`s beside its state enums; no
-  reason is recorded.
+  reason is recorded. `skein-forge-connection/src/connection.rs`'s `Exchange`
+  keeps `json_body` and `json_next` beside `receive`, and `Receiving::Json`
+  holds neither, because `discard` leaves a demand in `json_down` that `step`
+  still gives `json_demand`, and the request of 2026-11-05 moved them only if
+  a reading found that safe.
+  8.1: which deadline runs is the `until` a state holds, which
+  `Connection::deadline` reads, where the section has it a function of the
+  phase set in one place: nine `rest` calls in `component.rs` and
+  `component/` set it as a holder takes or leaves a connection, because a
+  connection knows no holder's deadline, and the request of 2026-11-05 decided
+  how the deadline is read, not who sets it.
   8.1: a connection that has connected reaches Idle rather than Sending,
   an answered exchange goes through Idle before the next Sending, and a
   Closed connection is retired and a new one opened, where the table has

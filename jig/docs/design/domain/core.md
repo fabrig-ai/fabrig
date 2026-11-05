@@ -727,6 +727,11 @@ Where these stop, above the API, the application holds:
   triage news before a coordinator wakes. Tuned from use (tasks.md,
   section 13).
 - **Scaling out:** one engine per deployment until it binds.
+- **An event's payload:** a variant such as `Event::AcceptedTurn` carries its
+  fields loose, and its route gathers them for its helper, so a field added to
+  a variant is still written in its arms. Variants holding named structs would
+  end that, and break their readers across jig and the applications on it.
+  Default: as they stand, until a debt item names them.
 
 ## 13. Settings
 
