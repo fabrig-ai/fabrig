@@ -72,3 +72,18 @@ As `notes/common.md`, Your report: which of the Options' other plans were on you
 ## Answers
 
 2026-11-05 (fabrig/ui). Ruling (rulings.md, 3, 7): see start-domain's answer. Goals' "Start one from a draft" is a link to Chats' Drafts filter, no draft field; ui-chat-draft adds opening the sheet from a chat, so export what it needs. ui-away adds "When it needs you" later.
+
+## Rebase (2026-11-05, step merge, foreman ui-goal-page/start-sheet/foreman-1)
+
+merge start-sheet additions with the landed Chats, NewChat and session changes
+The merge conflicts are in `temper/crates/temper-client-view/src/pages.rs`, `temper/crates/temper-client-view/src/words.rs`, and `temper/tools/gallery/src/samples.rs`.
+Rebase onto the landing trunk; integration commit `a7654118c9` introduced the overlapping catch-up, retained by `7b7ce7cdcf` and `8f392c1df8`.
+In `pages.rs`, retain all three module declarations: `new_chat`, `session`, and `start_goal`.
+In `words.rs`, preserve the trunk’s vocabulary, phrase IDs and sizing changes, then add the branch’s eight start-sheet words, IDs 3450–3457, and English entries.
+Against integration `8f392c1df8`, the combined counts are `PHRASES = 1521`, `SEGMENTS = 2663`, and `ALL: [Word; 925]`.
+In gallery `samples.rs`, preserve all landed samples, `Then` variants, disclosure support and domain setup; add the three start-goal samples and `start_domain` dispatch.
+The combined gallery count is `N = 169`. Keep the trunk’s `Address::Chats { filter: ChatsFilter::All }`; its removed `start` field must not return.
+Preserve the automatically merged NewChat dispatch and the branch’s sheet rendering after the page in `root.rs`.
+Update the new `start-goal` gallery assertion in `temper/tools/gallery/src/tests.rs`: its underlying Chats heading is now “Talk to an agent”, replacing “Chats”.
+Regenerate any combined gallery names, prints or terminal goldens made stale using their owning tools, preserving both plans’ entries.
+Run the focused start-goal tests, then `heavy cargo nextest run -p temper-client-view -p temper-client-gallery -p temper-client-shell-terminal`.
