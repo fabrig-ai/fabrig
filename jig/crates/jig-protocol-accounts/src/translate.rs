@@ -2,7 +2,7 @@
 use crate::table;
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
-use skein_lib::{Secret, Time};
+use skein_lib::Time;
 use skein_oauth as oauth;
 use skein_oauth_accounts as driver;
 
@@ -86,7 +86,7 @@ pub fn up(event: driver::Event, now: Time, required: &[u8]) -> Up {
             event: accounts::FromComponent::Granted { form: form(&table::Scheme::Bearer), account, generation, valid },
             account,
             generation,
-            value: table::Value { token: Secret::new(token), scheme: table::Scheme::Bearer },
+            value: table::Value { token, scheme: table::Scheme::Bearer },
             expires: now.saturating_add(valid),
         },
         driver::Event::Expiring { account, generation } => {

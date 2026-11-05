@@ -87,7 +87,6 @@ impl Owner {
                 shared: false,
                 origins: List::with_capacity(0),
             })
-            .ok()
             .expect("account");
         let mut owner = Self {
             component: accounts::Component::new(
@@ -129,7 +128,7 @@ impl Owner {
             panic!("granted")
         };
         assert_eq!((generation, remaining), (1, Duration::from_secs(valid)));
-        assert!(token.as_ref() == b"access");
+        assert!(token.expose() == b"access");
     }
 }
 

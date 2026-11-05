@@ -82,7 +82,6 @@ impl ExchangeOwner {
                 shared: false,
                 origins: List::with_capacity(0),
             })
-            .ok()
             .expect("one signed-in account");
         Self {
             component: accounts::Component::new(

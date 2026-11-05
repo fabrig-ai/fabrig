@@ -22,7 +22,7 @@ pub fn sign_in_engine() -> jig_protocol_config::Engine {
     config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed).unwrap()
 }
 pub fn granted(account: u32, token: &[u8], generation: u64, valid: Duration) -> driver::Event {
-    driver::Event::Granted { account, token: bytes::copy_of(token), generation, valid }
+    driver::Event::Granted { account, token: Secret::new(bytes::copy_of(token)), generation, valid }
 }
 
 pub fn value(token: &[u8]) -> crate::table::Value {

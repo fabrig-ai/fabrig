@@ -22,7 +22,7 @@ fn roomy() -> (Component, Env<Limits>) {
     let mut profile = limits();
     profile.accounts = ROOMY_ACCOUNTS;
     let mut configured = List::with_capacity(1);
-    assert!(configured.push(Account::HandedIn).is_ok());
+    configured.push(Account::HandedIn).expect("configured account room");
     (
         Component::new(configured, &profile, crypto(1)).expect("roomy component"),
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile },
@@ -223,7 +223,7 @@ fn a_removed_name_is_free_for_add() {
             && owner.above.pop()
                 == Some(Event::Granted {
                     account: 0,
-                    token: tests_record(0).access_token.into_exposed(),
+                    token: tests_record(0).access_token,
                     generation: 0,
                     valid: Duration::from_secs(30)
                 })
