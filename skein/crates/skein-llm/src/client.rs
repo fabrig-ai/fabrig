@@ -303,8 +303,6 @@ pub struct Client {
     request: Box<[u8]>,
     rate: openai::RateLimit,
     asked: bool,
-    close_sent: bool,
-    sse_closed: bool,
     evidence: Evidence,
     activity: u64,
     measured: Measured,
@@ -560,8 +558,6 @@ impl Client {
             request: Box::new([]),
             rate: openai::RateLimit { retry_after: None, reset: None, exhausted: false },
             asked: false,
-            close_sent: false,
-            sse_closed: false,
             evidence: Evidence::Unsent,
             activity: 0,
             measured,
@@ -1343,8 +1339,8 @@ fn output(
                 owner: client.owner,
                 completion: Completion { content: content.into_boxed(), stop, usage },
             });
-            client.state = State::Draining;
             close_sse(client, env);
+            client.state = State::Draining;
             client.requests.clear();
             client.requests.push(http::Request::Discard);
         }
@@ -1465,8 +1461,9 @@ fn error_cut(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>) {
 }
 
 fn close_sse(client: &mut Client, env: &Env<Limits>) {
-    if client.sse_closed {
-        return;
+    match client.state {
+        State::Draining | State::Idle | State::Closing | State::Closed => return,
+        State::Prepared | State::Head | State::Streaming | State::ErrorBody => {}
     }
     client.sse_events.clear();
     client.requests.clear();
@@ -1484,12 +1481,12 @@ fn close_sse(client: &mut Client, env: &Env<Limits>) {
     drop(client.collector_below.pop());
     client.event_data = EventData::Idle;
     sse_down(client, env, sse::Request::Close);
-    client.sse_closed = true;
 }
 
 fn close_machines(client: &mut Client, env: &Env<Limits>, below: &mut Queue<Down>) {
-    if client.close_sent {
-        return;
+    match client.state {
+        State::Closing | State::Closed => return,
+        State::Prepared | State::Head | State::Streaming | State::ErrorBody | State::Draining | State::Idle => {}
     }
     close_sse(client, env);
     client.requests.clear();
@@ -1500,9 +1497,9 @@ fn close_machines(client: &mut Client, env: &Env<Limits>, below: &mut Queue<Down
     client.content = None;
     client.decoder = None;
     client.error.clear();
+    client.state = State::Closing;
     http_down(client, env, http::Request::Close, below);
     client.http_events.clear();
-    client.close_sent = true;
     client.asked = false;
 }
 
