@@ -63,6 +63,13 @@ pub(crate) fn main(
             crate::choice::byline(b, root, Some(task), words, bindings);
         }
         super::document::seg(b, chat, words, bindings);
+        if configuring && chat.draft.is_some() && task.result.is_none() && !super::chats::ended(&task.chip) {
+            b.open(Role::Button);
+            b.name(&words.say(Word::StartOver, &[]));
+            b.style(look::START_OVER);
+            b.bind(bindings.insert(Act::StartOver));
+            b.close();
+        }
         bar_status(b, root, task, words, times);
         bar_actions(b, task, words, bindings);
         b.close();

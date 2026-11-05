@@ -1,11 +1,12 @@
-//! One chat borrows its task and retains jig's bounded conversation projection.
+//! One chat borrows its task and retains jig's bounded conversation projection
+//! (temper/docs/design/client/README.md, 3.5).
 pub mod document;
 use super::{Act, Request, activity::Asking, delegation};
 use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
 use document::{Document, Mode, NoteWrite};
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c, thread::Thread};
-use skein_lib::{Env, List, Queue, Time};
+use skein_lib::{Env, List, Queue, Time, Wall};
 /// A small conversation's retained window (client/README.md, 5.4).
 pub const LINES: u32 = 16;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,8 +18,16 @@ pub enum Sending {
 }
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "departures are private to the chat refresh and exposed as a slice")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "document reading flags and a confirmed restart have independent lifecycles"
+)]
 pub struct Chat {
     pub mode: Mode,
+    pub restarting: bool,
+    pub decided: Option<(u64, Wall)>,
+    pub departed_proposal: Option<u64>,
+    decisions: List<(Handle, c::ProposalKey)>,
     pub draft: Option<Document>,
     pub writing: bool,
     pub wanted: bool,
@@ -67,6 +76,10 @@ impl Chat {
         asking.ask(activity, c::Read::Activity { task, before: None }, out);
         Self {
             mode,
+            restarting: false,
+            decided: None,
+            departed_proposal: None,
+            decisions: List::with_capacity(limits.client.domain.reads),
             draft: None,
             writing: mode != Mode::Chat,
             wanted: false,
@@ -111,6 +124,9 @@ impl Chat {
         for handle in [Some(self.document), Some(self.activity), Some(self.draft_read), self.run].into_iter().flatten()
         {
             unwatch(handle, out);
+        }
+        for (handle, _) in &self.decisions {
+            unwatch(*handle, out);
         }
         for card in &self.cards {
             unwatch(card.handle, out);
@@ -167,6 +183,9 @@ impl Chat {
             }
             Told::Answered { key, outcome } if self.pending_key(key) => self.answered(key, outcome),
             Told::Pending { key } if self.pending_key(key) => {}
+            Told::Page { handle, page } if self.decision_handle(handle).is_some() => {
+                self.decision_page(handle, page);
+            }
             Told::Page { handle, page } if self.card_handle(handle) => {
                 for index in 0..self.cards.len() {
                     let card = self.cards.get_mut(index).expect("bounded card");
@@ -588,6 +607,26 @@ impl Chat {
         }
         self.delegations = ordered;
     }
+    fn decision_handle(&self, handle: Handle) -> Option<u32> {
+        for index in 0..self.decisions.len() {
+            if self.decisions.get(index)?.0 == handle {
+                return Some(index);
+            }
+        }
+        None
+    }
+    fn decision_page(&mut self, handle: Handle, page: Readout) {
+        let index = self.decision_handle(handle).expect("departed proposal read");
+        let (_, key) = self.decisions.swap_remove(index).expect("departed proposal");
+        if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(ended))) = page
+            && ended.matches(c::ObjectKey::Proposal(key))
+            && let c::EndedValue::Proposal(history) = ended.value
+            && let c::ProposalHistoryState::Accepted { .. } = history.state
+            && let Some(at) = ended.at
+        {
+            self.decided = Some((key.number, at));
+        }
+    }
     fn card_handle(&self, handle: Handle) -> bool {
         for card in &self.cards {
             if card.handle == handle {
@@ -625,6 +664,12 @@ impl Chat {
             if !task.proposals.as_slice().contains(&key) {
                 unwatch(card.handle, out);
                 self.departures.push(card.object).expect("removed cards fit their window");
+                self.departed_proposal = Some(key.number);
+                let handle = handle(self.next);
+                self.next = self.next.checked_add(1).expect("chat handles fit");
+                if self.decisions.push((handle, key)).is_ok() {
+                    read(handle, Some(c::Read::Proposal { proposal: key }), out);
+                }
             }
         }
         let mut ordered = List::with_capacity(self.cards.capacity());
@@ -812,6 +857,7 @@ impl Chat {
             | Act::Confirm
             | Act::Cancel
             | Act::Close
+            | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Amend
             | Act::AmendWords { .. }
