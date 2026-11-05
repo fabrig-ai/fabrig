@@ -6,6 +6,7 @@ mod domain;
 mod files;
 mod goldens;
 mod memory;
+mod orders;
 mod properties;
 mod protocol;
 mod resolution;
