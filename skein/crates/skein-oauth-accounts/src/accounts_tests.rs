@@ -573,3 +573,63 @@ fn a_wanted_account_is_left_alone_before_its_lead() {
     owner.fire();
     assert!(owner.io.is_empty());
 }
+
+fn queued_rejection(attempted: bool, refreshable: bool) -> Owner {
+    let mut profile = limits();
+    profile.exchanges = 1;
+    let mut account = refresh_at(30, None);
+    if let Account::SignIn { shared, keeper: Keeper::Owner { kept: Some(record) }, .. } = &mut account {
+        *shared = true;
+        if !refreshable {
+            record.refresh_token = None;
+        }
+    }
+    let mut blocker = refresh_at(30, None);
+    if let Account::SignIn { shared, .. } = &mut blocker {
+        *shared = true;
+    }
+    let mut owner = Owner::configured([account, blocker], &profile);
+    owner.ask(Request::Grant { account: 0 });
+    at(&mut owner, 20);
+    if attempted {
+        owner.fire();
+        owner.ask(Request::Locked { account: 0, answer: Locked::Busy });
+        owner.component.reclaim();
+        owner.ask(Request::Grant { account: 0 });
+    }
+    owner.ask(Request::Grant { account: 1 });
+    owner.ask(Request::Want { account: 0, wanted: true });
+    owner.ask(Request::Rejected { account: 0, generation: 0 });
+    owner.ask(Request::Locked { account: 1, answer: Locked::Busy });
+    owner.component.reclaim();
+    owner.above.clear();
+    owner
+}
+
+#[test]
+fn record_lifecycles_keep_their_independent_transitions() {
+    let expired = || Some(Event::Failed { account: 0, ends: Ends::Grant, failure: Failure::Expired });
+    #[rustfmt::skip]
+    let rows = [
+        ("retry after failure", true, true, [None, None], true, Some(Event::Lock { account: 0 }), false),
+        ("grant meanwhile", true, true,
+            [Some(Request::Release { account: 0 }), Some(Request::Grant { account: 0 })], false, expired(), true),
+        ("direct release", true, true,
+            [Some(Request::Rejected { account: 0, generation: 0 }), None], false, expired(), true),
+        ("forgo", false, true,
+            [Some(Request::SignOut { account: 0 }), Some(Request::Locked { account: 0, answer: Locked::Busy })], false, expired(), false),
+        ("rejected access only", false, false, [None, None], true, None, false),
+    ];
+    for (name, attempted, refreshable, requests, fire, expected, work) in rows {
+        let mut owner = queued_rejection(attempted, refreshable);
+        for request in requests.into_iter().flatten() {
+            owner.ask(request);
+        }
+        if fire {
+            owner.fire();
+        }
+        owner.component.reclaim();
+        assert_eq!(owner.above.pop(), expected, "{name}");
+        assert_eq!(owner.component.has_work(), work, "{name}");
+    }
+}

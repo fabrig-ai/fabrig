@@ -1,6 +1,6 @@
 //! Account admission and removal (oauth.md, sections 6.2, 6.3 and 6.6).
 
-use super::{Component, Lifecycle, Name, State, Unusable, failed, held, set_held};
+use super::{Component, Lending, Lifecycle, Name, State, Unusable, failed, held, set_held};
 use crate::accounts::Source;
 use crate::keeper::{Operation, Private, Store};
 use crate::{Account, Asked, Event, Failure, Keeper, Limits, Lower, Refusal, Transport};
@@ -83,7 +83,7 @@ impl Component {
             }
             if !wanted {
                 match self.accounts.get_mut(account).expect("account state") {
-                    State::Record { held: false, due, .. } => *due = false,
+                    State::Record { lending: Lending::Free, refresh, .. } => *refresh = refresh.forgo(),
                     State::Record { .. } | State::Empty | State::Loaded { .. } => {}
                 }
             }
@@ -93,10 +93,10 @@ impl Component {
     pub(super) fn release(&mut self, account: u32) {
         let wanted = self.wanted(account);
         match self.accounts.get_mut(account).expect("account state") {
-            State::Record { held, due, .. } => {
-                *held = false;
+            State::Record { lending, refresh, .. } => {
+                *lending = Lending::Free;
                 if !wanted {
-                    *due = false;
+                    *refresh = refresh.forgo();
                 }
             }
             State::Empty | State::Loaded { .. } => {}
@@ -120,7 +120,7 @@ impl Component {
     pub(super) fn grant_before_refresh(&mut self, env: &Env<Limits>, account: u32, up: &mut Queue<Event>) {
         let slot = self.accounts.get_mut(account).expect("account state");
         match slot {
-            State::Record { expiry, rejected, .. } if env.now < *expiry && !*rejected => {
+            State::Record { expiry, notice, .. } if env.now < *expiry && !notice.rejected() => {
                 super::grant(
                     slot,
                     self.sources.get(account).expect("account source"),
@@ -129,9 +129,9 @@ impl Component {
                     up,
                 );
             }
-            State::Record { held, due, .. } => {
-                *held = true;
-                *due = true;
+            State::Record { lending, refresh, .. } => {
+                *lending = Lending::Held;
+                *refresh = refresh.request();
             }
             State::Empty | State::Loaded { .. } => unreachable!("refreshable record"),
         }
@@ -294,7 +294,7 @@ impl Component {
             let slot = self.accounts.get_mut(place).expect("account state");
             if exchange.pending_grant || held(slot) {
                 exchange.pending_grant = false;
-                set_held(slot, false);
+                set_held(slot, Lending::Free);
                 failed(number, Failure::Exchange(oauth::Failure::Cancelled), up);
                 return true;
             }
@@ -302,7 +302,7 @@ impl Component {
         }
         let slot = self.accounts.get_mut(place).expect("account state");
         if held(slot) {
-            set_held(slot, false);
+            set_held(slot, Lending::Free);
             failed(number, Failure::Exchange(oauth::Failure::Cancelled), up);
             return true;
         }
