@@ -1,0 +1,46 @@
+draft = "ui-chat-draft"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-chat-draft/inputs/request.md", "temper/docs/design/client/greenfield/app.js", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/template-places.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# One order for what meets in temper.css, the gallery and the goldens (inputs/request.md, Design and the cut); the engine's
+# jig tasks run side by side, in files of their own. The cut wrote the design. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "note-scope"
+title = "jig: a chat's own note scope"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 10"
+
+[[part]]
+id = "note-answer"
+title = "jig: a written note's answer says what changed"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 10"
+
+[[part]]
+id = "note-room"
+title = "jig: a note's body has a document's room"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 10"
+
+[[part]]
+id = "skein-keys"
+title = "skein: the key Ctrl+\\, a keyed slot, a menu item with a line"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 6.1"
+
+[[slice]]
+id = 1
+story = "a chat's run writes a document in its own scope, a party reads it, and the answer says what changed"
+parts = ["note-scope", "note-answer", "note-room", "skein-keys"]
+walk = false

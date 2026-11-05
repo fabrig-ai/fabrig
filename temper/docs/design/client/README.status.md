@@ -2,6 +2,8 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, A chat's document, Starting a goal from a chat's document,
+  and the Chats page's Drafts; 4.6: `PersonFact`; 5.3: the rail's menu.
 - **Not yet:** 3.5, A chat's bar, and 5.5: the chooser stays above a
   chat's composer; its byline uses the composer's words until the chooser
   moves to the bar. 3.5, A chat's
