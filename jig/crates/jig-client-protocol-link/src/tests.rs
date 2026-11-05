@@ -111,3 +111,6 @@ fn job_kinds_hello_refusal_round_trips() {
     let decoded = w::HelloRefusal::decode(fixtures::limits().wire(), &mut Reader::new(&writer.finish())).unwrap();
     assert_eq!(translate::documents::hello_refusal_fields(&decoded), c::HelloRefusal::JobKinds);
 }
+
+mod answers;
+mod encoders;

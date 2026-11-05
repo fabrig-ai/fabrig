@@ -248,7 +248,7 @@ pub(crate) fn evidence(catalogue: &[Box<[u8]>], bounds: &Bounds) -> Bounds {
 pub(crate) fn replace(domain: &mut crate::Domain, limits: &crate::Limits, needs: Needs) {
     assert!(
         match owned_bytes(&needs) {
-            Some(bytes) => bytes <= crate::limits::needs_bytes(limits).expect("needs bound"),
+            Some(bytes) => bytes <= crate::limits::needs_bytes(limits, domain.versions).expect("needs bound"),
             None => false,
         },
         "replacement needs within their bound"

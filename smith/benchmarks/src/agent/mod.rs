@@ -9,10 +9,12 @@ use sha2::{Digest, Sha256};
 
 use crate::Refusal;
 use crate::arm::ArmRef;
-use crate::isolate::Setup;
 use crate::process::ProcessResult;
 use crate::run::{Archive, Work};
-use crate::{AttemptResult, CacheObservation, CheckVerdict, End, Exit, Forced, Identity, Measure, Task};
+use crate::{
+    AttemptResult, CacheObservation, CheckVerdict, End, Exit, Fault, FaultKind, Forced, Identity, Measure, Task, input,
+    io,
+};
 
 pub mod codex;
 
@@ -105,12 +107,6 @@ pub(crate) struct Ended<'a> {
     pub(crate) workspace: &'a Path,
 }
 
-/// A stream or collection fault, naming its persisted field or file.
-#[derive(Debug)]
-pub struct HarnessFault {
-    pub what: String,
-}
-
 impl Agent {
     /// Why this agent cannot run yet, if it cannot.
     #[must_use]
@@ -122,7 +118,7 @@ impl Agent {
     }
 
     /// The login directory this adapter reads, from the harness's read-only one.
-    pub fn home(self, source: &Path) -> Result<PathBuf, String> {
+    pub fn home(self, source: &Path) -> Result<PathBuf, Fault> {
         match self {
             Self::Codex | Self::ClaudeCode => Ok(source.to_path_buf()),
             Self::Smith => smith::home(source),
@@ -148,11 +144,11 @@ impl Agent {
     }
 
     /// The arm and version this attempt's executable is, checked against its identity.
-    pub(crate) fn source_arm(self, work: Work<'_>, identity: &Identity) -> Result<(ArmRef, String), String> {
+    pub(crate) fn source_arm(self, work: Work<'_>, identity: &Identity) -> Result<(ArmRef, String), Fault> {
         match self {
             Self::Codex => codex::source_arm(work, identity),
             Self::Smith => smith::source_arm(work, identity),
-            Self::ClaudeCode => Err(self.refusal().expect("unsupported agent").into()),
+            Self::ClaudeCode => Err(input(self.refusal().expect("unsupported agent"))),
         }
     }
 
@@ -161,7 +157,7 @@ impl Agent {
         self,
         context: &Context<'_>,
         arguments: &[String],
-    ) -> Result<(PreparedAgent, Option<ProcessResult>), Setup> {
+    ) -> Result<(PreparedAgent, Option<ProcessResult>), Fault> {
         match self {
             Self::Codex | Self::ClaudeCode => self.prepare(context).map(|prepared| (prepared, None)),
             Self::Smith => smith::prepare_checked(context, arguments)
@@ -170,13 +166,13 @@ impl Agent {
     }
 
     /// Prepare a supported adapter; missing faces or versions refuse as setup.
-    pub fn prepare(self, context: &Context<'_>) -> Result<PreparedAgent, crate::isolate::Setup> {
+    pub fn prepare(self, context: &Context<'_>) -> Result<PreparedAgent, Fault> {
         match self {
             Self::Codex => codex::prepare(context).map(PreparedAgent::Codex),
             Self::Smith => smith::prepare(context).map(PreparedAgent::Smith),
-            Self::ClaudeCode => Err(crate::isolate::Setup {
-                step: crate::isolate::SetupStep::Configuration,
-                reason: "Claude Code belongs to the next comparison pass".into(),
+            Self::ClaudeCode => Err(crate::Fault {
+                kind: FaultKind::Setup(crate::isolate::SetupStep::Configuration),
+                detail: "Claude Code belongs to the next comparison pass".into(),
             }),
         }
     }
@@ -184,7 +180,7 @@ impl Agent {
 
 impl PreparedAgent {
     /// Archive what the attempt was prepared with.
-    pub(crate) fn archive(&self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), String> {
+    pub(crate) fn archive(&self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), Fault> {
         match self {
             Self::Codex(prepared) => prepared.archive(archive, result),
             Self::Smith(prepared) => prepared.archive(archive, result),
@@ -192,7 +188,7 @@ impl PreparedAgent {
     }
 
     /// Refuse an identity that differs from what was prepared.
-    pub fn check_identity(&self, identity: &Identity) -> Result<(), String> {
+    pub fn check_identity(&self, identity: &Identity) -> Result<(), Fault> {
         match self {
             Self::Codex(_) => Ok(()),
             Self::Smith(_) => smith::Prepared::check_identity(identity),
@@ -209,7 +205,7 @@ impl PreparedAgent {
     }
 
     /// Move preparation into its matching observer before execution.
-    pub fn observe(self) -> Result<Observing, HarnessFault> {
+    pub fn observe(self) -> Result<Observing, Fault> {
         match self {
             Self::Codex(prepared) => Ok(Observing::Codex(codex::Observing {
                 prepared: Some(Box::new(prepared)),
@@ -224,7 +220,7 @@ impl PreparedAgent {
 
 impl Observing {
     /// The stream has ended: faults a closing read finds.
-    pub fn finish(&mut self) -> Result<(), String> {
+    pub fn finish(&mut self) -> Result<(), Fault> {
         match self {
             Self::Codex(_) => Ok(()),
             Self::Smith(observing) => observing.finish(),
@@ -246,7 +242,7 @@ impl Observing {
         archive: Archive<'_>,
         result: &mut AttemptResult,
         process: Traces<'_>,
-    ) -> Result<(), String> {
+    ) -> Result<(), Fault> {
         match self {
             Self::Codex(_) => Ok(()),
             Self::Smith(observing) => observing.archive_traces(archive, result, process.maximum),
@@ -259,7 +255,7 @@ impl Observing {
         archive: Archive<'_>,
         result: &mut AttemptResult,
         process: Traces<'_>,
-    ) -> Result<(), String> {
+    ) -> Result<(), Fault> {
         match self {
             Self::Codex(_) => codex::Observing::archive_trace(archive, result, process.trace),
             Self::Smith(observing) => observing.archive_trace(archive, result, process),
@@ -272,7 +268,7 @@ impl Observing {
         archive: Archive<'_>,
         result: &mut AttemptResult,
         ended: Ended<'_>,
-    ) -> Result<(), String> {
+    ) -> Result<(), Fault> {
         match self {
             Self::Codex(observing) => observing.settle(archive, result),
             Self::Smith(observing) => {
@@ -283,7 +279,7 @@ impl Observing {
     }
 
     /// What the agent persisted (benchmarks.md, 6, collect).
-    pub(crate) fn collect(&mut self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), String> {
+    pub(crate) fn collect(&mut self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), Fault> {
         match self {
             Self::Codex(observing) => observing.collect_result(archive, result),
             Self::Smith(observing) => observing.collect(result),
@@ -341,14 +337,15 @@ impl Observing {
     }
 
     /// The native trace followed as the process writes it, opened.
-    pub fn trace_file(&self) -> Result<Option<std::fs::File>, String> {
+    pub fn trace_file(&self) -> Result<Option<std::fs::File>, Fault> {
         match self {
             Self::Codex(_) => Ok(None),
             Self::Smith(observing) => match observing.prepared.face {
                 smith::events::Shape::Exec => Ok(None),
                 smith::events::Shape::Chat => {
-                    let path = observing.prepared.trace.as_ref().ok_or("Smith Chat requires a trace path")?;
-                    std::fs::File::open(path).map(Some).map_err(|error| format!("trace open: {error}"))
+                    let path =
+                        observing.prepared.trace.as_ref().ok_or_else(|| input("Smith Chat requires a trace path"))?;
+                    std::fs::File::open(path).map(Some).map_err(|error| io(format!("trace open: {error}")))
                 }
             },
         }
@@ -364,7 +361,7 @@ impl Observing {
     }
 
     /// The stream's own counts and tokens, before anything is collected.
-    pub fn stream_measures(&self, result: &mut crate::AttemptResult) -> Result<(), String> {
+    pub fn stream_measures(&self, result: &mut crate::AttemptResult) -> Result<(), Fault> {
         match self {
             Self::Codex(observing) => observing.observer.stream_measures(result),
             Self::Smith(_) => codex::Observer::default().stream_measures(result),
@@ -372,7 +369,7 @@ impl Observing {
     }
 
     /// Feed one complete line; known malformed records fault before classification.
-    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, HarnessFault> {
+    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, Fault> {
         match self {
             Self::Codex(observing) => observing.feed_line(line),
             Self::Smith(observing) => observing.feed_line(line),

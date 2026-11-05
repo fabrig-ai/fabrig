@@ -3,10 +3,8 @@
 //! keeps for them, and the hand-offs it defers to the ready list. What each
 //! child domain does on its own is its own tests' business.
 
-#[path = "tests/builtin.rs"]
 mod builtin;
 
-#[path = "tests/jobs.rs"]
 mod jobs;
 
 mod program;

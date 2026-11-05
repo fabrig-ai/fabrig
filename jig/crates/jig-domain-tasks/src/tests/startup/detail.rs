@@ -5,7 +5,7 @@ use crate::{RestoreBound as B, RestoreCause as C, RestoreFailure, RestoreLlmWhy 
 fn empty(limits: &crate::Limits) -> Harness {
     let mut cold = Harness::new();
     cold.env.limits = *limits;
-    cold.domain = Domain::new(limits, 91, 1, crate::tests::charters(), Box::new([0]));
+    cold.domain = Domain::new(limits, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
     cold.stored.clear();
     assert_eq!(cold.domain.restore_failure(), None);
     cold

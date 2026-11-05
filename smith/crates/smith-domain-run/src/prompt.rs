@@ -1190,5 +1190,4 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
 }
 
 #[cfg(test)]
-#[path = "prompt/open_tests.rs"]
 mod open_tests;

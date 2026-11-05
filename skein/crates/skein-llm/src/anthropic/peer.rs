@@ -2,7 +2,7 @@
 //! These helpers own the wire grammar, never application tool schemas or policy.
 
 use super::{BlockStart, Delta, Event, UsagePatch};
-use crate::openai::{self, DecodeError, Json, Limits, json};
+use crate::wire::{self, DecodeError, Json, Limits, json};
 use crate::{Block, Message, Prompt, Provider, Replay, Role, Tool};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer::Encoder};
@@ -318,7 +318,7 @@ pub fn encode_event(event: &Event, limits: &Limits) -> Result<Box<[u8]>, DecodeE
     let bounded = limits.writer_limits();
     let mut measure = Encoder::measure(&bounded);
     write_event(&mut measure, event, limits);
-    let len = openai::measured(measure, bounded, crate::Cap::Retained)?;
+    let len = wire::measured(measure, bounded, crate::Cap::Retained)?;
     let mut output = Encoder::write(len, &bounded);
     write_event(&mut output, event, limits);
     Ok(output.finish())

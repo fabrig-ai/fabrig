@@ -13,6 +13,7 @@ extern crate alloc;
 pub mod fixture;
 
 #[rustfmt::skip]
+// The schema compiler writes this module to generated/v6.rs.
 #[path = "generated/v6.rs"]
 pub mod v6;
 

@@ -1,8 +1,6 @@
 //! Focused controls for the real probes' private state, without a program.
+use smith_agent_process_world::probe::Probe;
 use std::os::unix::fs::PermissionsExt;
-#[path = "../live/probe.rs"]
-mod probe;
-use probe::Probe;
 
 #[test]
 fn live_probes_have_distinct_private_state() {

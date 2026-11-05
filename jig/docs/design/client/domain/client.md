@@ -985,7 +985,7 @@ Each is configured and bounds what enters or is retained:
 - rows: the most items of a page, a window and lists without a bound
   of their own, at most 32, the ceiling of the wire's lists
   (`../../protocol/client.md`, section 3); a document past it is refused at decoding (section 16),
-  and limits above it at construction;
+  and limits above it at construction (below, on a knob and its class);
 - a path's segments: the most segments of a resource's path or a
   pattern a document may carry, a bound of its own, never a window's
   rows; the application sets it at least the most its engine admits in
@@ -1045,6 +1045,13 @@ bytes holds 512 decoded bytes, so a document limit of 169 gives only
 charge passes its room (section 16).
 Each helper's limits are its own (section 19); the reference UI's derive
 from the client's and its own (view.md, 18.9).
+
+**A knob sizes a class of the wire's bounds.** Rows, a path's segments, an
+authority's entries, text and a document's bytes each set every wire bound
+of their class at once, in one derivation by class. A knob past its class's
+ceiling is refused at construction. A member the schema bounds below its
+class keeps its own ceiling: that ceiling is the schema's, not a limit of
+the client's, and no configuration is refused for it.
 
 ## 15. What it never knows
 
