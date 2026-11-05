@@ -59,3 +59,42 @@ id = 4
 story = "the tools' tests prove the namespace a run builds, and the nested-mount code is gone"
 parts = ["tools-namespace"]
 walk = false
+
+[[part]]
+id = "io-states"
+title = "io's pipe, signals and file machines hold their lifecycle in states, and FileIo takes Env and Limits (skein D018)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/io.md, 5"
+
+[[slice]]
+id = 5
+story = "every io test sees the same events from machines shaped like the stream and the listener, with one failure constructor"
+parts = ["io-states"]
+walk = false
+
+[[part]]
+id = "host-lanes"
+title = "HostIo routes by lane with skein's validity check, and the multiplexing services drive io through stage (smith D003)"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/limits.md, 4"
+
+[[slice]]
+id = 6
+story = "the host routes a completion by its token, and limits io can't hold are refused before the loop starts"
+parts = ["host-lanes"]
+walk = false
+
+[[part]]
+id = "classifiers"
+title = "a question asked of a vocabulary in several places is a method on the type (jig D015)"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 10"
+
+[[slice]]
+id = 7
+story = "people, tasks and the core ask Ask, Outcome, MessageKind, Subject and Act their questions, and a table over every variant holds each answer"
+parts = ["classifiers"]
+walk = false
