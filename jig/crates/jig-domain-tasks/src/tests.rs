@@ -42,7 +42,7 @@ mod hold_origin;
 mod kept;
 mod keys;
 mod refusals;
-mod revisions;
+pub(crate) mod revisions;
 mod waiting;
 
 mod close_project;
