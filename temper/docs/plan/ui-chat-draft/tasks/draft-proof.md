@@ -65,3 +65,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: the builder, the folder, and each difference left, with why. Name any part of the request that this plan didn't reach.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Addition: include the walk ui-goal-page left to you: a chat with a draft, Start goal…, the one sheet, Start goal, the goal's page, with its Draft button back to the chat.
