@@ -1095,6 +1095,12 @@ pub const NAMES: Names<'static> = Names {
         b"temper-away",
         b"temper-away-chip",
         b"temper-away-track",
+        b"temper-decided",
+        b"temper-decision",
+        b"temper-decision-took",
+        b"temper-decision-why",
+        b"temper-decision-late",
+        b"temper-decision-overturned",
     ],
     regions: &[b"temper-link"],
 };
@@ -1208,6 +1214,14 @@ pub const HOME_BYLINE: Style = Style { owner: owner(), token: 418 };
 pub const AWAY: Style = Style { owner: owner(), token: 419 };
 pub const AWAY_CHIP: Style = Style { owner: owner(), token: 420 };
 pub const AWAY_TRACK: Style = Style { owner: owner(), token: 421 };
+
+/// Home’s decisions (temper/docs/design/client/README.md, 3.5, Away).
+pub const DECIDED: Style = Style { owner: owner(), token: 422 };
+pub const DECISION: Style = Style { owner: owner(), token: 423 };
+pub const DECISION_TOOK: Style = Style { owner: owner(), token: 424 };
+pub const DECISION_WHY: Style = Style { owner: owner(), token: 425 };
+pub const DECISION_LATE: Style = Style { owner: owner(), token: 426 };
+pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 427 };
 
 #[cfg(test)]
 mod tests {
