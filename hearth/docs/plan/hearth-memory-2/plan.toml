@@ -1,3 +1,22 @@
 draft = "hearth-memory-2"
 repo = "fabrig"
 sources = ["hearth/docs/plan/hearth-memory-2/inputs/request.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "orders"
+title = "What each room check keeps is listed, and every order it keeps has a world test that passes today"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/render.md, 8.5"
+
+[[slice]]
+id = 1
+story = "every order the room checks keep is stated and held by a test, before any check goes"
+parts = ["orders"]
+walk = false
