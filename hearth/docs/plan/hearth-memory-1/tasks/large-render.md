@@ -77,3 +77,7 @@ Acceptance:
 ## Report
 
 The first line, the scenario's figures, its peak and ceiling, what bit, its CPU seconds, and which of the options you took.
+
+## Answers
+
+2026-11-05 (fabrig/hearth, the plan's owner, through agents/loop). **Don't shrink the scenario.** At 2,048 entries it stopped being large, and at 4,096 it costs 15 CPU s. Keep the plan's 4,096 entries, 512 documents and 64 targets; drop the 1.5 s cap; run it as a test under the suite's `fuzzy` module, so the fuzzy profile selects it: hearth's fuzzy suite is at about 68 of 120 CPU s, and the focused budget doesn't pay for it. It stays one fixed scenario under its ceiling, and the counting allocator is the same suite's.
