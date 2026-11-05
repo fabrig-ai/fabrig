@@ -1,6 +1,6 @@
 //! End to end at the tools child domain: kits opened by sessions the world
 //! plays, running their calls on a fake checkout through the io the world
-//! plays.
+//! plays. Paths follow smith/docs/design/domain/tools.md, section 2.
 
 use skein_fake_checkout::Checkout;
 use skein_lib::{Duration, Time};
@@ -50,8 +50,8 @@ fn a_kit_reads_and_lists_its_checkout() {
         read_window(b"src/lib.rs", 2, 16),
         list(b"src"),
         read(b"../docs/guide.md"),
-        read(b"vendor/lib/lib.rs"),
-        read(b"/work/temper/Cargo.toml"),
+        read(b"/lib/lib.rs"),
+        read(b"/temper/Cargo.toml"),
     ])];
     let (answers, world) = run(Settings::calm(1), INSPECT, script);
     let src = [entry(b"lib.rs", Kind::File), entry(b"main.rs", Kind::File)];
@@ -76,9 +76,6 @@ fn a_kit_reads_and_lists_its_checkout() {
         entry(b"src", Kind::Directory),
         entry(b"src/lib.rs", Kind::File),
         entry(b"src/main.rs", Kind::File),
-        entry(b"vendor", Kind::Directory),
-        entry(b"vendor/lib", Kind::Directory),
-        entry(b"vendor/lib/lib.rs", Kind::File),
     ];
     assert_eq!(answers, vec![Outcome::Listed { entries: entries.into(), more: 0 }, read_of(LIB, 0, 3, 3)]);
 }
@@ -101,10 +98,10 @@ fn paths_that_lead_out_of_the_checkout_are_outside() {
         vec![
             Outcome::Outside { path: tools::Resolved::Outside { path: b"etc/passwd".as_slice().into() } },
             Outcome::Outside { path: tools::Resolved::Outside { path: b"etc/passwd".as_slice().into() } },
-            Outcome::Outside { path: tools::Resolved::Outside { path: b"work".as_slice().into() } },
+            Outcome::Outside { path: tools::Resolved::Outside { path: b"".as_slice().into() } },
             Outcome::Outside { path: tools::Resolved::Outside { path: b"etc/passwd".as_slice().into() } },
-            Outcome::Outside { path: tools::Resolved::Working { path: b"temper/escape".as_slice().into() } },
-            Outcome::Outside { path: tools::Resolved::Working { path: b"temper/absolute".as_slice().into() } }
+            Outcome::Outside { path: tools::Resolved::Working { path: b"escape".as_slice().into() } },
+            Outcome::Outside { path: tools::Resolved::Working { path: b"absolute".as_slice().into() } }
         ]
     );
     assert_eq!(world.stats().ops, 2, "only the links reached io");
@@ -115,7 +112,7 @@ fn paths_that_lead_out_of_the_checkout_are_outside() {
         read(b"srclink/lib.rs"),
         list(b"srclink"),
         read(b"srclink/../Cargo.toml"),
-        read(b"vendor/lib/../../Cargo.toml"),
+        read(b"../lib/../temper/Cargo.toml"),
     ])];
     let (answers, _) = run(Settings::calm(4), INSPECT, script);
     let cargo = read_of(b"[package]\nname = \"temper\"\n", 0, 2, 2);
@@ -128,6 +125,73 @@ fn paths_that_lead_out_of_the_checkout_are_outside() {
         cargo,
     ];
     assert_eq!(answers, expected);
+}
+
+#[test]
+fn relative_paths_report_the_working_directory_and_named_siblings() {
+    let (answers, world) = run(
+        Settings::calm(9111),
+        INSPECT,
+        vec![Step::Calls(vec![
+            read(b"missing.rs"),
+            read(b"/docs/missing.md"),
+            read(b"../docs/missing.md"),
+            read(b"../guide.md"),
+            read(b"../lib/../temper/missing.rs"),
+        ])],
+    );
+    let working = Outcome::NotFound { path: tools::Resolved::Working { path: b"missing.rs".as_slice().into() } };
+    let sibling = Outcome::NotFound {
+        path: tools::Resolved::Other {
+            directory: Name::new(b"docs".as_slice().into()).expect("directory name"),
+            path: b"missing.md".as_slice().into(),
+        },
+    };
+    assert_eq!(
+        answers,
+        vec![
+            working.clone(),
+            sibling.clone(),
+            sibling,
+            Outcome::Outside { path: tools::Resolved::Outside { path: b"guide.md".as_slice().into() } },
+            working,
+        ]
+    );
+    assert_eq!(world.stats().ops, 4);
+}
+
+#[test]
+fn a_read_only_sibling_uses_its_own_write_grant() {
+    let (answers, world) = run(
+        Settings::calm(9112),
+        MODIFY,
+        vec![Step::Calls(vec![write(b"/lib/lib.rs", b"changed"), write(b"../lib/lib.rs", b"changed")])],
+    );
+    let refused = Outcome::ReadOnly {
+        path: tools::Resolved::Other {
+            directory: Name::new(b"lib".as_slice().into()).expect("directory name"),
+            path: b"lib.rs".as_slice().into(),
+        },
+    };
+    assert_eq!(answers, vec![refused.clone(), refused]);
+    assert_eq!(world.stats().ops, 0, "a sibling's write grant is checked before io");
+}
+
+#[test]
+fn a_mount_name_prefix_is_outside() {
+    let (answers, world) = run(
+        Settings::calm(9113),
+        INSPECT,
+        vec![Step::Calls(vec![read(b"/docs2/guide.md"), read(b"../temperature/src/lib.rs")])],
+    );
+    assert_eq!(
+        answers,
+        vec![
+            Outcome::Outside { path: tools::Resolved::Outside { path: b"docs2/guide.md".as_slice().into() } },
+            Outcome::Outside { path: tools::Resolved::Outside { path: b"temperature/src/lib.rs".as_slice().into() } },
+        ]
+    );
+    assert_eq!(world.stats().ops, 0, "mount names match whole components before io");
 }
 
 #[test]
@@ -149,7 +213,7 @@ fn reads_and_listings_are_bounded() {
         // As many whole lines as fit the 1024 bytes a read answers with.
         read_of(&long[..1020], 0, 51, 100),
         read_of(&long[1900..], 95, 5, 100),
-        Outcome::Listed { entries: first.into(), more: 5 },
+        Outcome::Listed { entries: first.into(), more: 2 },
     ];
     assert_eq!(answers, expected);
 }
@@ -288,13 +352,13 @@ fn what_is_missing_or_not_a_file_is_said_so() {
     ])];
     let (answers, _) = run(Settings::calm(7), INSPECT, script);
     let expected = vec![
-        Outcome::NotFound { path: tools::Resolved::Working { path: b"temper/missing.rs".as_slice().into() } },
-        Outcome::NotFound { path: tools::Resolved::Working { path: b"temper/nowhere/missing.rs".as_slice().into() } },
-        Outcome::NotFound { path: tools::Resolved::Working { path: b"temper/nowhere".as_slice().into() } },
+        Outcome::NotFound { path: tools::Resolved::Working { path: b"missing.rs".as_slice().into() } },
+        Outcome::NotFound { path: tools::Resolved::Working { path: b"nowhere/missing.rs".as_slice().into() } },
+        Outcome::NotFound { path: tools::Resolved::Working { path: b"nowhere".as_slice().into() } },
         Outcome::NotFile,
         Outcome::NotFile,
-        Outcome::NotDirectory { path: tools::Resolved::Working { path: b"temper/Cargo.toml".as_slice().into() } },
-        Outcome::NotDirectory { path: tools::Resolved::Working { path: b"temper/Cargo.toml/x".as_slice().into() } },
+        Outcome::NotDirectory { path: tools::Resolved::Working { path: b"Cargo.toml".as_slice().into() } },
+        Outcome::NotDirectory { path: tools::Resolved::Working { path: b"Cargo.toml/x".as_slice().into() } },
         Outcome::Failed { fault: Fault::Other },
     ];
     assert_eq!(answers, expected);
@@ -488,7 +552,7 @@ fn writes_stay_in_writable_repositories_of_granted_kits() {
     let script = vec![
         Step::Calls(vec![
             write(b"../docs/guide.md", b"x"),
-            write(b"vendor/lib/lib.rs", b"x"),
+            write(b"/lib/lib.rs", b"x"),
             write(b"/etc/passwd", b"x"),
             write(b"../../etc/passwd", b"x"),
             write(b"big.txt", &[b'x'; 5000]),
@@ -501,46 +565,48 @@ fn writes_stay_in_writable_repositories_of_granted_kits() {
             // As a file system that folds case would take it.
             write(b".GIT/config", b"evil"),
             edit(b"src/.Git/HEAD", b"ref", b"evil", false),
-            write(b"vendor/lib/.git/config", b"x"),
+            write(b"/lib/.git/config", b"x"),
         ]),
-        // Writes follow no link, at the end of the path or on the way: not
-        // into a read-only repository mounted inside a writable one, not out
-        // of the checkout, not into a file of their own repository, even
-        // once read through the link.
-        Step::Calls(vec![write(b"third_party/new.rs", b"x"), write(b"escape/x", b"x"), write(b"srclink/new.rs", b"x")]),
-        Step::Calls(vec![read(b"third_party/lib.rs"), read(b"link"), read(b"srclink/main.rs")]),
-        Step::Calls(vec![
-            write(b"third_party/lib.rs", b"x"),
-            edit(b"third_party/lib.rs", b"vendored", b"mine", false),
-            write(b"link", b"x"),
-            edit(b"srclink/main.rs", b"main", b"start", false),
-        ]),
+        // Writes follow no link, out of the checkout or into a file of their
+        // own repository, even once read through the link.
+        Step::Calls(vec![write(b"escape/x", b"x"), write(b"srclink/new.rs", b"x")]),
+        Step::Calls(vec![read(b"link"), read(b"srclink/main.rs")]),
+        Step::Calls(vec![write(b"link", b"x"), edit(b"srclink/main.rs", b"main", b"start", false)]),
     ];
     let (answers, world) = run(Settings::calm(24), MODIFY, script);
     let expected = vec![
-        Outcome::ReadOnly { path: tools::Resolved::Working { path: b"docs/guide.md".as_slice().into() } },
-        Outcome::ReadOnly { path: tools::Resolved::Working { path: b"temper/vendor/lib/lib.rs".as_slice().into() } },
+        Outcome::ReadOnly {
+            path: tools::Resolved::Other {
+                directory: Name::new(b"docs".as_slice().into()).expect("directory name"),
+                path: b"guide.md".as_slice().into(),
+            },
+        },
+        Outcome::ReadOnly {
+            path: tools::Resolved::Other {
+                directory: Name::new(b"lib".as_slice().into()).expect("directory name"),
+                path: b"lib.rs".as_slice().into(),
+            },
+        },
         Outcome::Outside { path: tools::Resolved::Outside { path: b"etc/passwd".as_slice().into() } },
         Outcome::Outside { path: tools::Resolved::Outside { path: b"etc/passwd".as_slice().into() } },
         Outcome::TooLarge { what: tools::SizePart::WriteContent, size: 5000, bound: 4096 },
         Outcome::NotFile,
         Outcome::NotFile,
-        Outcome::NotDirectory { path: tools::Resolved::Working { path: b"temper/Cargo.toml/x".as_slice().into() } },
+        Outcome::NotDirectory { path: tools::Resolved::Working { path: b"Cargo.toml/x".as_slice().into() } },
         Outcome::Protected,
         Outcome::Protected,
         Outcome::Protected,
         Outcome::Protected,
         Outcome::ReadOnly {
-            path: tools::Resolved::Working { path: b"temper/vendor/lib/.git/config".as_slice().into() },
+            path: tools::Resolved::Other {
+                directory: Name::new(b"lib".as_slice().into()).expect("directory name"),
+                path: b".git/config".as_slice().into(),
+            },
         },
         Outcome::Linked,
         Outcome::Linked,
-        Outcome::Linked,
-        read_of(b"// vendored\n", 0, 1, 1),
         read_of(LIB, 0, 3, 3),
         read_of(b"fn main() {}\n", 0, 1, 1),
-        Outcome::Linked,
-        Outcome::Linked,
         Outcome::Linked,
         Outcome::Linked,
     ];
@@ -658,7 +724,12 @@ fn an_edit_that_would_be_wrong_changes_nothing() {
         Outcome::EditFailed { edit: 1, why: tools::Mismatch::Unchanged },
         Outcome::EditFailed { edit: 1, why: tools::Mismatch::NoMatch },
         Outcome::TooLarge { what: tools::SizePart::EditResult, size: 6044, bound: 4096 },
-        Outcome::ReadOnly { path: tools::Resolved::Working { path: b"docs/guide.md".as_slice().into() } },
+        Outcome::ReadOnly {
+            path: tools::Resolved::Other {
+                directory: Name::new(b"docs".as_slice().into()).expect("directory name"),
+                path: b"guide.md".as_slice().into(),
+            },
+        },
     ];
     assert_eq!(answers, expected);
     assert_eq!(world.checkout().files(), Fixture::new().checkout.files(), "nothing changed");
@@ -782,7 +853,7 @@ fn closing_a_kit_settles_a_call_in_every_state() {
         },
         Closing {
             state: "listing",
-            script: || vec![slow(), Step::Send(vec![list(b"vendor/lib")])],
+            script: || vec![slow(), Step::Send(vec![list(b"/lib")])],
             won: (Outcome::Cancelled, Some(LIB)),
             lost: (Outcome::Listed { entries: [entry(b"lib.rs", Kind::File)].into(), more: 0 }, Some(LIB)),
             file: b"work/temper/src/lib.rs",
@@ -934,11 +1005,7 @@ fn a_plain_command_can_change_a_directory_that_file_tools_may_not_write() {
     let (answers, world) = run(Settings::calm(63), ALL, script);
     assert_eq!(answers, vec![exited(tools::Exit::Code { code: 0 }, b"updated\n", b"", 0)]);
     let checkout = world.checkout();
-    assert_eq!(
-        checkout.content(b"work/temper/vendor/lib/lib.rs"),
-        Some(&b"// updated\n"[..]),
-        "plain command is not confined"
-    );
+    assert_eq!(checkout.content(b"work/lib/lib.rs"), Some(&b"// updated\n"[..]), "plain command is not confined");
     assert_eq!(checkout.content(b"work/temper/src/new.rs"), Some(&b"new\n"[..]));
 
     let (answers, world) = run(Settings::calm(64), MODIFY, vec![Step::Calls(vec![shell(b"cargo fmt", None)])]);
@@ -953,12 +1020,12 @@ fn hit(path: &[u8], line: u32, text: &[u8]) -> Hit {
 fn a_search_finds_lines_in_path_order_without_following_links() {
     let script = vec![Step::Calls(vec![
         search(b"src", b"fn", None),
-        search(b".", b"vendored", None),
+        search(b"/lib", b"vendored", None),
         search(b"src/lib.rs", b"two", None),
         search(b"..", b"Guide", Some(b"*.md")),
         // A link to search through is followed; links beneath it are not.
         search(b"srclink", b"main", None),
-        search(b"third_party", b"vendored", None),
+        search(b"/lib/lib.rs", b"vendored", None),
     ])];
     let (answers, _) = run(Settings::calm(70), INSPECT, script);
     let found = |hits: Vec<Hit>| Outcome::Found { hits: hits.into(), more: 0, timed_out: false };
@@ -969,11 +1036,11 @@ fn a_search_finds_lines_in_path_order_without_following_links() {
             hit(b"lib.rs", 3, b"pub fn three() {}"),
             hit(b"main.rs", 1, b"fn main() {}"),
         ]),
-        found(vec![hit(b"vendor/lib/lib.rs", 1, b"// vendored")]),
-        found(vec![hit(b"", 2, b"pub fn two() {}")]),
-        Outcome::Outside { path: tools::Resolved::Outside { path: b"work".as_slice().into() } },
-        found(vec![hit(b"main.rs", 1, b"fn main() {}")]),
         found(vec![hit(b"lib.rs", 1, b"// vendored")]),
+        found(vec![hit(b"", 2, b"pub fn two() {}")]),
+        Outcome::Outside { path: tools::Resolved::Outside { path: b"".as_slice().into() } },
+        found(vec![hit(b"main.rs", 1, b"fn main() {}")]),
+        found(vec![hit(b"", 1, b"// vendored")]),
     ];
     assert_eq!(answers, expected);
 }
@@ -1013,8 +1080,8 @@ fn a_search_is_bounded_and_says_when_it_cannot_run() {
             timeout: tools::TimeoutClamp::Within,
             output: tools::BytesClamp::Within,
         },
-        Outcome::NotFound { path: tools::Resolved::Working { path: b"temper/nowhere".as_slice().into() } },
-        Outcome::Outside { path: tools::Resolved::Working { path: b"temper/escape".as_slice().into() } },
+        Outcome::NotFound { path: tools::Resolved::Working { path: b"nowhere".as_slice().into() } },
+        Outcome::Outside { path: tools::Resolved::Working { path: b"escape".as_slice().into() } },
         Outcome::Found { hits: [hit(b"guide.md", 1, b"# Guide")].into(), more: 0, timed_out: false },
     ];
     assert_eq!(answers, expected);
@@ -1088,7 +1155,7 @@ fn the_directory_itself_works_for_every_operation() {
         write(b".", b"no"),
         edit(b".", b"old", b"new", false),
         list(b"."),
-        search(b".", b"vendored", None),
+        search(b"/lib", b"vendored", None),
         shell(b"env", None),
     ])];
     let (answers, world) = run(Settings::calm(94), ALL, script);
@@ -1096,7 +1163,7 @@ fn the_directory_itself_works_for_every_operation() {
     assert!(matches!(&answers[3], Outcome::Listed { entries, .. } if !entries.is_empty()));
     assert_eq!(
         answers[4],
-        Outcome::Found { hits: [hit(b"vendor/lib/lib.rs", 1, b"// vendored")].into(), more: 0, timed_out: false }
+        Outcome::Found { hits: [hit(b"lib.rs", 1, b"// vendored")].into(), more: 0, timed_out: false }
     );
     assert!(matches!(&answers[5], Outcome::Exited { exit: tools::Exit::Code { code: 0 }, .. }));
     assert_eq!(world.stats().ops, 3, "file-only calls never ask io");
@@ -1159,9 +1226,16 @@ fn list_slash_answers_the_directories_without_io_even_when_io_always_fails() {
     let mut settings = Settings::calm(9107);
     settings.faults = 1000;
     let mut world = World::new(settings, fixture.checkout);
-    let session = world.session(Time::ZERO, authority, vec![Step::Calls(vec![list(b"/"), list(b"/work/..")])]);
+    let session = world.session(Time::ZERO, authority, vec![Step::Calls(vec![list(b"/"), list(b"/temper/..")])]);
     world.run(ITERATIONS);
-    let expected = Outcome::Listed { entries: Box::new([entry(b"work", Kind::Directory)]), more: 0 };
+    let expected = Outcome::Listed {
+        entries: Box::new([
+            entry(b"docs", Kind::Directory),
+            entry(b"lib", Kind::Directory),
+            entry(b"temper", Kind::Directory),
+        ]),
+        more: 0,
+    };
     assert_eq!(world.answers(session), vec![&expected, &expected]);
     assert_eq!(world.stats().ops, 0);
     assert_eq!(world.stats().faults, 0);
@@ -1246,8 +1320,13 @@ fn a_host_alias_reaches_the_same_file() {
             &read_of(LIB, 0, 3, 3),
             &read_of(LIB, 0, 3, 3),
             &read_of(LIB, 0, 3, 3),
-            &Outcome::Outside { path: tools::Resolved::Working { path: b"temper/escape".as_slice().into() } },
-            &Outcome::ReadOnly { path: tools::Resolved::Working { path: b"docs/guide.md".as_slice().into() } },
+            &Outcome::Outside { path: tools::Resolved::Working { path: b"escape".as_slice().into() } },
+            &Outcome::ReadOnly {
+                path: tools::Resolved::Other {
+                    directory: Name::new(b"docs".as_slice().into()).expect("directory name"),
+                    path: b"guide.md".as_slice().into()
+                }
+            },
             &Outcome::Written { created: false },
             &read_of(LIB, 0, 3, 3),
         ]

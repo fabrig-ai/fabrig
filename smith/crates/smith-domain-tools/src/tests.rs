@@ -184,16 +184,12 @@ fn names(text: &[u8]) -> Box<[Name]> {
     names.into_boxed()
 }
 
-/// A workspace at /work, where relative paths start in temper, which may be
-/// written; a library vendored in it and the docs beside it may not.
+/// A workspace where relative paths start in writable temper, beside a
+/// read-only library and docs.
 fn authority(grants: Grants) -> Authority {
     Authority {
-        cwd: names(b"/work/temper"),
-        repos: Box::new([
-            repo(b"/work/temper", 1, true),
-            repo(b"/work/temper/vendor/lib", 2, false),
-            repo(b"/work/docs", 3, false),
-        ]),
+        cwd: names(b"/temper"),
+        repos: Box::new([repo(b"/temper", 1, true), repo(b"/lib", 2, false), repo(b"/docs", 3, false)]),
         grants,
     }
 }
@@ -290,16 +286,16 @@ fn reading_calls_have_the_read_effect_and_the_rest_write() {
 
 #[test]
 fn a_path_normalises_to_the_absolute_names_it_stands_for() {
-    let cwd = names(b"/work/temper");
+    let cwd = names(b"/temper");
     let table: [(&[u8], Option<&[u8]>); 16] = [
-        (b"src/lib.rs", Some(b"work/temper/src/lib.rs")),
-        (b"./src/./lib.rs", Some(b"work/temper/src/lib.rs")),
-        (b"src//lib.rs/", Some(b"work/temper/src/lib.rs")),
-        (b"src/../Cargo.toml", Some(b"work/temper/Cargo.toml")),
-        (b"", Some(b"work/temper")),
-        (b".", Some(b"work/temper")),
-        (b"..", Some(b"work")),
-        (b"a/b/../../..", Some(b"work")),
+        (b"src/lib.rs", Some(b"temper/src/lib.rs")),
+        (b"./src/./lib.rs", Some(b"temper/src/lib.rs")),
+        (b"src//lib.rs/", Some(b"temper/src/lib.rs")),
+        (b"src/../Cargo.toml", Some(b"temper/Cargo.toml")),
+        (b"", Some(b"temper")),
+        (b".", Some(b"temper")),
+        (b"..", Some(b"")),
+        (b"a/b/../../..", Some(b"")),
         // `..` at the root stays at the root.
         (b"../../..", Some(b"")),
         (b"../../../etc/passwd", Some(b"etc/passwd")),
@@ -307,9 +303,9 @@ fn a_path_normalises_to_the_absolute_names_it_stands_for() {
         (b"/etc/passwd", Some(b"etc/passwd")),
         (b"/", Some(b"")),
         (b"/..", Some(b"")),
-        (b"/work/temper/../docs/x", Some(b"work/docs/x")),
+        (b"/temper/../docs/x", Some(b"docs/x")),
         // Past `path_bytes` (64) joined.
-        (b"0123456789/0123456789/0123456789/0123456789/0123456789", None),
+        (b"0123456789/0123456789/0123456789/0123456789/0123456789/01234", None),
     ];
     for (text, expected) in table {
         let normalised = path::normalise(&cwd, &path(text), LIMITS.path_bytes);
@@ -323,14 +319,12 @@ fn a_path_normalises_to_the_absolute_names_it_stands_for() {
 
 #[test]
 fn a_mount_holds_itself_and_what_is_beneath_it() {
-    let table: [(&[u8], &[u8], Option<usize>); 7] = [
-        (b"", b"", Some(0)),
-        (b"", b"etc/passwd", Some(0)),
+    let table: [(&[u8], &[u8], Option<usize>); 5] = [
         (b"work", b"work", Some(4)),
         (b"work", b"work/temper", Some(5)),
         (b"work", b"workshop", None),
-        (b"work/temper", b"work", None),
-        (b"work/temper", b"etc", None),
+        (b"temper", b"work", None),
+        (b"temper", b"etc", None),
     ];
     for (mount, at, expected) in table {
         assert_eq!(authority::beneath(mount, at), expected, "{mount:?} {at:?}");
@@ -338,22 +332,19 @@ fn a_mount_holds_itself_and_what_is_beneath_it() {
 }
 
 #[test]
-fn a_path_is_in_the_repository_with_the_longest_mount_that_holds_it() {
+fn a_path_is_in_the_repository_named_by_its_first_component() {
     let working = authority::admit(authority(ALL), &LIMITS).expect("the authority fits");
     let table: [(&[u8], Result<Located, Outcome>); 13] = [
         (b"src/lib.rs", Ok(located(1, b"src/lib.rs", true))),
         (b".", Ok(located(1, b"", true))),
-        (b"/work/temper/src", Ok(located(1, b"src", true))),
-        (b"vendor/lib/x.rs", Ok(located(2, b"x.rs", false))),
-        (b"vendor/lib", Ok(located(2, b"", false))),
-        (b"vendor/lib/../lib2", Ok(located(1, b"vendor/lib2", true))),
-        (b"vendor/library/x.rs", Ok(located(1, b"vendor/library/x.rs", true))),
+        (b"/temper/src", Ok(located(1, b"src", true))),
+        (b"../lib/x.rs", Ok(located(2, b"x.rs", false))),
+        (b"/lib", Ok(located(2, b"", false))),
+        (b"../lib/../temper/src", Ok(located(1, b"src", true))),
+        (b"src/library/x.rs", Ok(located(1, b"src/library/x.rs", true))),
         (b"../docs/guide.md", Ok(located(3, b"guide.md", false))),
-        (b"..", Err(Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"work") } })),
-        (
-            b"../temperance/x",
-            Err(Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"work/temperance/x") } }),
-        ),
+        (b"..", Err(Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"") } })),
+        (b"../temperance/x", Err(Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"temperance/x") } })),
         (b"/etc/passwd", Err(Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"etc/passwd") } })),
         (
             b"../../../../etc/passwd",
@@ -368,28 +359,6 @@ fn a_path_is_in_the_repository_with_the_longest_mount_that_holds_it() {
             Err(outcome) => Err(outcome),
         };
         assert_eq!(located, expected, "{text:?}");
-    }
-}
-
-#[test]
-fn a_repository_mounted_at_the_root_holds_what_no_other_does() {
-    let mut authority = authority(ALL);
-    authority.repos = Box::new([repo(b"/", 7, false), repo(b"/work/temper", 1, true)]);
-    let working = authority::admit(authority, &LIMITS).expect("the authority fits");
-    let table: [(&[u8], Result<Located, Outcome>); 3] = [
-        (b"/etc/passwd", Ok(located(7, b"etc/passwd", false))),
-        (b"src", Ok(located(1, b"src", true))),
-        (b".", Ok(located(1, b"", true))),
-    ];
-    for (text, expected) in table {
-        assert_eq!(
-            authority::locate(&working, &path(text), LIMITS.path_bytes),
-            match expected {
-                Ok(located) => Ok(Target::Place(located)),
-                Err(outcome) => Err(outcome),
-            },
-            "{text:?}"
-        );
     }
 }
 
@@ -417,15 +386,18 @@ fn authorities_beyond_the_limits_are_refused_as_invalid() {
     invalid(Limits { repos: 2, ..LIMITS }, authority(ALL));
     // Two repositories at one mount, or with one root.
     let mut twice = authority(ALL);
-    twice.repos = Box::new([repo(b"/work/temper", 1, false), repo(b"/work/temper", 2, true)]);
+    twice.repos = Box::new([repo(b"/temper", 1, false), repo(b"/temper", 2, true)]);
     invalid(LIMITS, twice);
     let mut shared = authority(ALL);
-    shared.repos = Box::new([repo(b"/work/temper", 1, true), repo(b"/work/docs", 1, false)]);
+    shared.repos = Box::new([repo(b"/temper", 1, true), repo(b"/docs", 1, false)]);
     invalid(LIMITS, shared);
-    // The vendored library's mount, work/temper/vendor/lib, is 22 bytes.
-    invalid(Limits { path_bytes: 21, ..LIMITS }, authority(ALL));
+    // The temper mount is six bytes; an empty cwd isolates its bound.
+    let mut long_mount = authority(ALL);
+    long_mount.cwd = names(b"/");
+    invalid(Limits { path_bytes: 5, ..LIMITS }, long_mount);
     let mut deep = authority(ALL);
-    deep.cwd = names(b"/a/very/deep/working/directory/that/is/longer/than/the/limit/allows");
+    deep.cwd = names(b"/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    deep.repos[0].mount = deep.cwd.clone();
     invalid(LIMITS, deep);
 }
 
@@ -453,7 +425,7 @@ fn calls_are_refused_at_the_entrance() {
         (
             inspect,
             Call::List { path: path(b".."), depth: crate::Depth::Whole, glob: None },
-            Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"work") } },
+            Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"") } },
         ),
         (
             modify,
@@ -463,12 +435,22 @@ fn calls_are_refused_at_the_entrance() {
         (
             modify,
             write(b"../docs/guide.md", 1),
-            Outcome::ReadOnly { path: path::Resolved::Working { path: bytes(b"docs/guide.md") } },
+            Outcome::ReadOnly {
+                path: path::Resolved::Other {
+                    directory: Name::new(bytes(b"docs")).expect("directory name"),
+                    path: bytes(b"guide.md"),
+                },
+            },
         ),
         (
             modify,
-            edit(b"vendor/lib/x.rs"),
-            Outcome::ReadOnly { path: path::Resolved::Working { path: bytes(b"temper/vendor/lib/x.rs") } },
+            edit(b"/lib/x.rs"),
+            Outcome::ReadOnly {
+                path: path::Resolved::Other {
+                    directory: Name::new(bytes(b"lib")).expect("directory name"),
+                    path: bytes(b"x.rs"),
+                },
+            },
         ),
         (
             modify,
@@ -478,11 +460,16 @@ fn calls_are_refused_at_the_entrance() {
         (modify, write(b".git/config", 1), Outcome::Protected),
         (modify, write(b"src/../.git/hooks/pre-commit", 1), Outcome::Protected),
         (modify, edit(b".git/HEAD"), Outcome::Protected),
-        // A repository mounted inside another has its own .git.
+        // The read-only sibling has its own .git.
         (
             modify,
-            write(b"vendor/lib/.git/config", 1),
-            Outcome::ReadOnly { path: path::Resolved::Working { path: bytes(b"temper/vendor/lib/.git/config") } },
+            write(b"/lib/.git/config", 1),
+            Outcome::ReadOnly {
+                path: path::Resolved::Other {
+                    directory: Name::new(bytes(b"lib")).expect("directory name"),
+                    path: bytes(b".git/config"),
+                },
+            },
         ),
         (inspect, read(b"a/very/long/path/that/does/not/fit/in/the/sixty/four/bytes/allowed"), Outcome::TooLong),
     ];
@@ -614,7 +601,7 @@ fn a_read_of_nothing_is_not_found_and_the_kit_knows_it() {
     let (owner, _) = h.start(kit, 2, read(b"src/lib.rs"));
     assert_eq!(
         h.end(owner, Done::Missing),
-        (2, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"temper/src/lib.rs") } })
+        (2, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"src/lib.rs") } })
     );
     assert_eq!(h.knowledge(kit).version(&place(1, b"src/lib.rs")), None);
 }
@@ -623,9 +610,9 @@ fn a_read_of_nothing_is_not_found_and_the_kit_knows_it() {
 fn every_other_end_of_a_load_answers_for_itself() {
     let table = [
         (Done::NotFile, Outcome::NotFile),
-        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"temper/link") } }),
+        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"link") } }),
         (Done::TooLarge { size: 4096 }, Outcome::TooLarge { what: crate::SizePart::File, size: 4096, bound: 1024 }),
-        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"temper/link") } }),
+        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"link") } }),
         (Done::Failed { fault: Fault::Denied }, Outcome::Failed { fault: Fault::Denied }),
         (Done::TimedOut, Outcome::TimedOut),
         (Done::Cancelled, Outcome::Cancelled),
@@ -643,7 +630,7 @@ fn every_other_end_of_a_load_answers_for_itself() {
 fn a_listing_scans_the_directory() {
     let mut h = Harness::new(LIMITS);
     let kit = h.open(1, authority(ALL));
-    let (owner, op) = h.start(kit, 1, Call::List { path: path(b"vendor/lib"), depth: crate::Depth::Whole, glob: None });
+    let (owner, op) = h.start(kit, 1, Call::List { path: path(b"/lib"), depth: crate::Depth::Whole, glob: None });
     assert_eq!(
         op,
         Op::List {
@@ -659,9 +646,9 @@ fn a_listing_scans_the_directory() {
     assert_eq!(outcome, Outcome::Listed { entries, more: 3 });
 
     let table = [
-        (Done::Missing, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"temper/src") } }),
-        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"temper/src") } }),
-        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"temper/src") } }),
+        (Done::Missing, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"src") } }),
+        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"src") } }),
+        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"src") } }),
         (Done::Failed { fault: Fault::Other }, Outcome::Failed { fault: Fault::Other }),
         (Done::TimedOut, Outcome::TimedOut),
         (Done::Cancelled, Outcome::Cancelled),
@@ -834,10 +821,10 @@ fn every_other_end_of_a_store_answers_for_itself() {
     let table = [
         (Done::NotFile, Outcome::NotFile),
         (Done::Linked, Outcome::Linked),
-        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"temper/link") } }),
+        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"link") } }),
         // More than io stores, named against the tools' own bound on a file.
         (Done::TooLarge { size: 4096 }, Outcome::TooLarge { what: crate::SizePart::File, size: 4096, bound: 1024 }),
-        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"temper/link") } }),
+        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"link") } }),
         (Done::Failed { fault: Fault::NoSpace }, Outcome::Failed { fault: Fault::NoSpace }),
         (Done::TimedOut, Outcome::TimedOut),
         (Done::Cancelled, Outcome::Cancelled),
@@ -859,7 +846,7 @@ fn every_other_end_of_a_store_answers_for_itself() {
 fn a_store_that_finds_nothing_on_its_path_is_not_found_and_the_kit_forgets_the_file() {
     let mut h = Harness::new(LIMITS);
     let kit = h.open(1, authority(ALL));
-    let gone = (1, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"temper/src/new_dir/file.rs") } });
+    let gone = (1, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"src/new_dir/file.rs") } });
     // A create whose directory io could not make (temper-073).
     let (owner, op) = h.start(kit, 1, write(b"src/new_dir/file.rs", 1));
     assert_eq!(op, store(place(1, b"src/new_dir/file.rs"), b"x", Expect::Absent));
@@ -1030,7 +1017,7 @@ fn an_edit_matches_the_current_file_and_catches_a_change_after_its_load() {
     let (owner, _) = h.start(kit, 4, change(b"src/lib.rs", b"one", b"uno"));
     assert_eq!(
         h.end(owner, Done::Missing),
-        (4, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"temper/src/lib.rs") } })
+        (4, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"src/lib.rs") } })
     );
     let (owner, _) = h.start(kit, 5, change(b"src/lib.rs", b"one", b"uno"));
     assert_eq!(h.end(owner, Done::Missing).0, 5);
@@ -1090,8 +1077,13 @@ fn edit_shape_bounds_are_refused_before_io_but_semantics_follow_the_loaded_bytes
     let big = Call::Edit { path: path(b"src/lib.rs"), edits: Box::new([snippet(b"a", &[b'x'; 1025], false)]) };
     assert_eq!(h.call(kit, big), Outcome::TooLarge { what: crate::SizePart::EditNew, size: 1025, bound: 1024 });
     assert_eq!(
-        h.call(kit, change(b"vendor/lib/x.rs", b"a", b"b")),
-        Outcome::ReadOnly { path: path::Resolved::Working { path: bytes(b"temper/vendor/lib/x.rs") } }
+        h.call(kit, change(b"../lib/x.rs", b"a", b"b")),
+        Outcome::ReadOnly {
+            path: path::Resolved::Other {
+                directory: Name::new(bytes(b"lib")).expect("directory name"),
+                path: bytes(b"x.rs")
+            }
+        }
     );
     assert_eq!(h.domain.flights(), 0);
 }
@@ -1151,7 +1143,7 @@ fn a_path_is_in_git_when_one_of_its_names_is_dot_git() {
         (b"src/.gitx/.gIt/HEAD", true),
         (b".git/config", true),
         (b"src/.git", true),
-        (b"vendor/lib/.git/hooks/post-working", true),
+        (b"/lib/.git/hooks/post-working", true),
         (b"", false),
         (b"src/lib.rs", false),
         (b".github/workflows/ci.yml", false),
@@ -1251,9 +1243,9 @@ fn every_end_of_a_command_answers_for_itself() {
                 output: crate::BytesClamp::Within,
             },
         ),
-        (Done::Missing, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"temper") } }),
-        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"temper") } }),
-        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"temper") } }),
+        (Done::Missing, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"") } }),
+        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"") } }),
+        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"") } }),
         (Done::Failed { fault: Fault::Other }, Outcome::Failed { fault: Fault::Other }),
         (Done::TimedOut, Outcome::TimedOut),
         (Done::Cancelled, Outcome::Cancelled),
@@ -1283,7 +1275,7 @@ fn commands_need_the_shell_grant_and_a_working_directory_in_the_checkout() {
         Outcome::NotGranted
     );
     let mut outside = authority(ALL);
-    outside.cwd = names(b"/work");
+    outside.cwd = names(b"/");
     let outside = h.open(2, outside);
     assert_eq!(
         h.call(
@@ -1295,7 +1287,7 @@ fn commands_need_the_shell_grant_and_a_working_directory_in_the_checkout() {
                 output: crate::Budget::Default
             }
         ),
-        Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"work") } }
+        Outcome::Outside { path: path::Resolved::Outside { path: bytes(b"") } }
     );
 }
 
@@ -1336,9 +1328,9 @@ fn a_search_asks_io_for_bounded_hits_and_answers_with_them() {
                 output: crate::BytesClamp::Within,
             },
         ),
-        (Done::Missing, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"temper") } }),
-        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"temper") } }),
-        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"temper") } }),
+        (Done::Missing, Outcome::NotFound { path: path::Resolved::Working { path: bytes(b"") } }),
+        (Done::NotDirectory, Outcome::NotDirectory { path: path::Resolved::Working { path: bytes(b"") } }),
+        (Done::Escapes, Outcome::Outside { path: path::Resolved::Working { path: bytes(b"") } }),
         (Done::TimedOut, Outcome::TimedOut),
         (Done::Cancelled, Outcome::Cancelled),
     ];
@@ -1564,7 +1556,7 @@ fn fact_times(facts: &[crate::Fact]) -> Box<[Time]> {
 
 #[test]
 fn file_calls_on_the_directory_itself_answer_without_io() {
-    for spelling in [&b"."[..], &b""[..], &b"/work/temper"[..], &b"vendor/lib"[..], &b"/work/docs"[..]] {
+    for spelling in [&b"."[..], &b""[..], &b"/temper"[..], &b"/lib"[..], &b"/docs"[..]] {
         let mut h = Harness::new(LIMITS);
         let kit = h.open(1, authority(ALL));
         for call in [read(spelling), write(spelling, 3), edit(spelling)] {
@@ -1704,7 +1696,14 @@ fn host_aliases_choose_whole_names_and_keep_the_namespace_root_pure() {
     let kit = h.open(11, root);
     assert_eq!(
         h.call(kit, Call::List { path: path(b"/"), depth: crate::Depth::Whole, glob: None }),
-        Outcome::Listed { entries: Box::new([entry(b"work", Kind::Directory)]), more: 0 }
+        Outcome::Listed {
+            entries: Box::new([
+                entry(b"docs", Kind::Directory),
+                entry(b"lib", Kind::Directory),
+                entry(b"temper", Kind::Directory)
+            ]),
+            more: 0
+        }
     );
 }
 
