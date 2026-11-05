@@ -99,8 +99,8 @@ pub fn settings() -> Settings {
 }
 /// The token's writer is user 1; the scenario's repository is id 2.
 #[must_use]
-pub fn protocol_config() -> skein_fake_forge_protocol::Config {
-    use skein_fake_forge_protocol::{Config, Faults, Repository};
+pub fn protocol_config() -> skein_fake_forge_forgejo::Config {
+    use skein_fake_forge_forgejo::{Config, Faults, Repository};
     let mut tokens = List::with_capacity(1);
     tokens.push((Secret::new(Box::from(TOKEN)), 1)).expect("one token");
     let mut users = List::with_capacity(2);

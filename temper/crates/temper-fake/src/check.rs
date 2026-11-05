@@ -1,7 +1,7 @@
 //! The check's evidence and lines, without io (protocol/setup.md, 8.4).
 use alloc::boxed::Box;
 use skein_fake_forge_domain::promises::{Allowance, Bounds, Breach, Decision, Profile, Promise, Verdict, Why};
-use skein_fake_forge_protocol::routes;
+use skein_fake_forge_forgejo::routes;
 use skein_forge::api::{Commit, Repository, Write};
 use skein_forge::forgejo::id::{ObjectFormat, ObjectId};
 use skein_json::writer::{Encoder, Limits};

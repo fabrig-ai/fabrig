@@ -18,7 +18,7 @@ skein-fake-forge-github.workspace = true
 skein-forge-machine-world = { path = "../machine" }
 skein-forge-client-world = { path = "../client" }
 skein-fake-forge-domain.workspace = true
-skein-fake-forge-protocol.workspace = true
+skein-fake-forge-forgejo.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

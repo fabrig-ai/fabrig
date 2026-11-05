@@ -5,7 +5,7 @@ use skein_fake_checkout::{
     git::{self as kit, Remote, Tree},
 };
 use skein_fake_forge_domain::api;
-use skein_fake_forge_protocol::git::{self, Answer as RemoteAnswer, Call, Limits};
+use skein_fake_forge_forgejo::git::{self, Answer as RemoteAnswer, Call, Limits};
 use skein_io::kernel::{self as k, Done, Exit, Fd, Op};
 use skein_lib::{Secret, Time, Wall};
 use skein_shell::Host;
@@ -56,12 +56,12 @@ fn limits() -> Limits {
     }
 }
 fn commit(number: u64) -> temper_worker_domain_checkout::git::Commit {
-    temper_worker_domain_checkout::git::Commit::new(skein_fake_forge_protocol::routes::object(number).bytes)
+    temper_worker_domain_checkout::git::Commit::new(skein_fake_forge_forgejo::routes::object(number).bytes)
 }
 #[test]
 fn git_ids_and_counts_share_the_forge_codec() {
     for count in [0, BASE, TOPIC, STORED, u64::MAX] {
-        let object = skein_fake_forge_protocol::routes::object(count);
+        let object = skein_fake_forge_forgejo::routes::object(count);
         assert_eq!(crate::id::id(count).as_slice(), skein_forge::forgejo::id::write(&object).as_ref());
         assert_eq!(crate::answer::count(commit(count)), count);
     }

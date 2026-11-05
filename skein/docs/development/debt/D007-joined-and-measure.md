@@ -1,7 +1,7 @@
 # D007: Byte joining and measuring helpers are copied per file
 
 - **Kind:** duplication
-- **Where:** `skein-http/src/client/request.rs`, `skein-http/src/server/response.rs`, `skein-http/src/sse/writer.rs`, `skein-fake-forge-protocol`, `skein-fake-forge-github`, `skein-forge-connection`, `skein-oauth-issuer`
+- **Where:** `skein-http/src/client/request.rs`, `skein-http/src/server/response.rs`, `skein-http/src/sse/writer.rs`, `skein-fake-forge-forgejo`, `skein-fake-forge-github`, `skein-forge-connection`, `skein-oauth-issuer`
 - **Seen:** 2026-10-31 at `4a6683c72`, in `reviews/2026-10-31-skein.md` (theme T1, the concat row) and `reviews/2026-10-31-skein-areas.md` (A0, F11)
 - **Checked:** 2026-11-03 at `41d63da8c3`
 - **Value:** low
@@ -13,7 +13,7 @@
 ## What
 
 - Ten files define a private `fn joined` that measures parts and copies
-  them into one box (for example `skein-fake-forge-protocol/src/setup.rs`,
+  them into one box (for example `skein-fake-forge-forgejo/src/setup.rs`,
   `skein-fake-forge-github/src/service.rs`,
   `skein-forge/src/forgejo/server/files.rs`); five of the ten are in
   tests.

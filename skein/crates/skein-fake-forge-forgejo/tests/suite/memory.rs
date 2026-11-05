@@ -7,7 +7,7 @@ mod fixtures;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skein_fake_forge_protocol::git;
+    use skein_fake_forge_forgejo::git;
     use skein_heap::Meter;
     use skein_lib::{List, Writer};
 

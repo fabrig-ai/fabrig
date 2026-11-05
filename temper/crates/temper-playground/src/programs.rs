@@ -28,7 +28,7 @@ pub trait Harness: 'static {
     fn complete(_role: Role, _complete: &Complete) {}
     /// A routed git world's protocol bounds.
     #[must_use]
-    fn git_limits() -> skein_fake_forge_protocol::git::Limits {
+    fn git_limits() -> skein_fake_forge_forgejo::git::Limits {
         crate::fakes::forge_limits().git()
     }
     /// A harness may keep its service's independent seed inputs.
@@ -111,7 +111,7 @@ pub struct Parameters {
     pub seed: u64,
     pub links: Links,
     pub forge: temper_fake_git::Typed,
-    pub route: Option<skein_fake_forge_protocol::git::Limits>,
+    pub route: Option<skein_fake_forge_forgejo::git::Limits>,
     pub disk: Rc<RefCell<skein_fake_machine::Machine>>,
 }
 thread_local! { static PARAMETERS: RefCell<Option<Parameters>> = const { RefCell::new(None) }; }

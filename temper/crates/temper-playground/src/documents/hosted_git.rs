@@ -14,7 +14,7 @@ pub fn identity() -> temper_worker_protocol_git::Identity {
 }
 /// The hosted git's table.
 #[must_use]
-pub fn table(full: &[u8], protected: Option<&[u8]>) -> skein_fake_forge_protocol::Config {
+pub fn table(full: &[u8], protected: Option<&[u8]>) -> skein_fake_forge_forgejo::Config {
     let mut tokens = List::with_capacity(2);
     tokens.push((Secret::new(TOKEN.into()), 1)).expect("two tokens");
     tokens.push((Secret::new(b"fake-git-stranger-token".as_slice().into()), 2)).expect("two tokens");
@@ -23,9 +23,9 @@ pub fn table(full: &[u8], protected: Option<&[u8]>) -> skein_fake_forge_protocol
     users.push((2, b"stranger".as_slice().into())).expect("two users");
     let mut repositories = List::with_capacity(1);
     repositories
-        .push(skein_fake_forge_protocol::Repository { id: 2, full: full.into(), protected: protected.map(Into::into) })
+        .push(skein_fake_forge_forgejo::Repository { id: 2, full: full.into(), protected: protected.map(Into::into) })
         .expect("one repository");
-    skein_fake_forge_protocol::Config {
+    skein_fake_forge_forgejo::Config {
         base: b"http://127.0.0.1:3000".as_slice().into(),
         tokens,
         users,
@@ -34,7 +34,7 @@ pub fn table(full: &[u8], protected: Option<&[u8]>) -> skein_fake_forge_protocol
         default_paging_num: 30,
         sources: Box::new([]),
         hooks: None,
-        faults: skein_fake_forge_protocol::Faults { reset: 0, drop: 0, server_error: 0 },
+        faults: skein_fake_forge_forgejo::Faults { reset: 0, drop: 0, server_error: 0 },
     }
 }
 /// The hosted git's forge capacities.

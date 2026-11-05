@@ -1,4 +1,4 @@
-use skein_fake_forge_protocol::Route;
+use skein_fake_forge_forgejo::Route;
 use skein_forge::api::{Answer, Error, Op, Read, Write};
 use skein_forge_machine_world::joint::{Joint, REPO};
 use skein_lib::{Duration, Time};
