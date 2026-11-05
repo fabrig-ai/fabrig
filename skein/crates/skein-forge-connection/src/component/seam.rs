@@ -96,3 +96,13 @@ impl Component {
 pub fn installation_bounds(limits: &Limits, shared: &Shared) -> Option<skein_forge::github::plans::plan::Bounds> {
     limits::installation_bounds(limits, shared)
 }
+
+impl Connection {
+    #[must_use]
+    pub fn test_deadline(&self) -> Option<skein_lib::Time> {
+        self.deadline()
+    }
+    pub fn test_rest(&mut self, until: Option<skein_lib::Time>) {
+        self.rest(until);
+    }
+}

@@ -855,3 +855,133 @@ pub fn github_repository(h: &mut Harness, repository: api::Repository, account: 
         },
     );
 }
+
+use skein_forge::github::document;
+use skein_forge_connection::seam::Read;
+const SECOND: Duration = Duration::from_secs(1);
+#[must_use]
+pub fn row(id: u64, suspended: bool) -> document::Installation {
+    document::Installation {
+        id,
+        account: 22,
+        login: Box::from(b"acme".as_slice()),
+        kind: document::Account::Organization,
+        created: Wall::EPOCH,
+        suspended,
+    }
+}
+
+// Feed the committed reconciliation transition directly to cross a written job
+// with loss; socket serialization itself is checked by the wire stories.
+pub fn commit(h: &mut Harness, rows: Box<[document::Installation]>) {
+    let gh = h.component.test_github_mut();
+    let mut reading = skein_forge_connection::seam::Reading::new(gh.rows.capacity(), gh.generation, SECOND);
+    reading.page(rows, &gh.rows, &gh.accepted, self::shared().name_bytes).expect("fixture read");
+    gh.read = Read::Reading(reading);
+    gh.commit();
+}
+
+// One-hour Full and seventy-minute Contents, with the fixture's sixty-second lead.
+pub const FULL_DUE: u64 = 3540;
+
+pub const CONTENTS_DUE: u64 = 4140;
+
+pub const CONTENTS_EXPIRY: &[u8] = b"1970-01-01T01:10:00Z";
+
+pub const LATER: &[u8] = b"1970-01-01T03:00:00Z";
+
+pub const NEW_FULL: &[u8] = b"artificial-renewed-full";
+
+pub const NEW_CONTENTS: &[u8] = b"artificial-renewed-contents";
+
+#[must_use]
+pub fn ready() -> Harness {
+    initial(CONTENTS_EXPIRY)
+}
+
+#[must_use]
+pub fn initial(contents_expiry: &[u8]) -> Harness {
+    let mut h = minted_pair(EXPIRES, contents_expiry);
+    h.answer(FORGE, &self::ok(VIEWER));
+    h.run(Duration::ZERO);
+    // Let the idle socket settle before crossing the renewal timer.
+    h.run(h.env.limits.idle);
+    h
+}
+
+#[must_use]
+pub fn minted_pair(full_expiry: &[u8], contents_expiry: &[u8]) -> Harness {
+    let mut h = Harness::new(self::github_settings());
+    accepted(&mut h, &[1]);
+    h.connected(FORGE);
+    h.answer(FORGE, &self::ok(LIVE));
+    h.answer(FORGE, &mint(FULL, full_expiry));
+    h.answer(FORGE, &mint(CONTENTS, contents_expiry));
+    h
+}
+
+pub fn advance(h: &mut Harness, seconds: u64) {
+    h.run(Time::from_nanos(Duration::from_secs(seconds).as_nanos()).saturating_since(h.env.now));
+}
+
+#[must_use]
+pub fn renewing() -> Harness {
+    let mut h = ready();
+    advance(&mut h, FULL_DUE);
+    h.connected(FORGE);
+    h
+}
+
+#[must_use]
+pub fn contents_renewing() -> Harness {
+    let mut h = renewing();
+    renewed_full(&mut h);
+    h.run(h.env.limits.idle);
+    advance(&mut h, CONTENTS_DUE);
+    h.connected(FORGE);
+    h
+}
+
+pub fn renewed_full(h: &mut Harness) {
+    h.answer(FORGE, &mint(NEW_FULL, LATER));
+    h.run(Duration::ZERO);
+}
+
+pub fn renewed_contents(h: &mut Harness) {
+    h.answer(FORGE, &mint(NEW_CONTENTS, LATER));
+    h.run(Duration::ZERO);
+}
+
+pub fn github_account(h: &mut Harness, installation: u64, account: u64, login: &[u8], token: &[u8]) {
+    use skein_forge_connection::seam::{Clock, Row, Tokens};
+    let gh = h.component.test_github_mut();
+    let _accepted = gh.accepted.insert(installation).expect("fixture accepted");
+    drop(
+        gh.rows
+            .insert(
+                installation,
+                Row {
+                    state: Tokens::Current,
+                    revision: 0,
+                    token_revision: 1,
+                    refused_revision: None,
+                    full: Clock { expiry: Time::from_nanos(3_600_000_000_000), ..Clock::empty() },
+                    contents: Clock::empty(),
+                    account: skein_forge_connection::Account { id: account, login: Box::from(login) },
+                    suspended: false,
+                    accepted: true,
+                    api: Some(Secret::new(Box::from(token))),
+                    permissions: skein_forge::github::document::Levels::NONE,
+                    api_expires: Wall::from_nanos(3_600_000_000_000),
+                    git_expires: Wall::from_nanos(3_600_000_000_000),
+                },
+            )
+            .expect("fixture installation"),
+    );
+    let account = gh.rows.get(&installation).expect("fixture row").account.clone();
+    drop(
+        gh.known
+            .insert(installation, skein_forge_connection::seam::Accepted { known: Some(account), checked: true })
+            .expect("fixture accepted bookkeeping"),
+    );
+}
